@@ -1,3 +1,6 @@
 {
-    "unknown_failure": "خطای ناشناخته ای رخ داده است"
+    "app_name": "واکی تاکی",
+    "unknown_failure": "خطای ناشناخته ای رخ داده است",
+    "audio_recording_general_error_message": "خطا در شروع ضبط صذا",
+    "audio_recording_permission_error_message": "خطا دسترسی به مایک"
 }

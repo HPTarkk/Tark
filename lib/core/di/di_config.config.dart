@@ -19,6 +19,8 @@ import 'package:wakitaki/feature/recording/domian/repository/recording_repositor
     as _i767;
 import 'package:wakitaki/feature/recording/domian/service/recording_services.dart'
     as _i149;
+import 'package:wakitaki/feature/recording/presentation/manager/recording_cubit.dart'
+    as _i380;
 
 extension GetItInjectableX on _i174.GetIt {
   // initializes the registration of main-scope dependencies inside of GetIt
@@ -34,6 +36,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i149.RecordingServices>(
       () => _i149.RecordingServices(gh<_i767.RecordingRepository>()),
+    );
+    gh.factory<_i380.RecordingCubit>(
+      () => _i380.RecordingCubit(gh<_i149.RecordingServices>()),
     );
     return this;
   }

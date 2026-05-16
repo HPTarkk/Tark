@@ -8,7 +8,7 @@ class RecordedAudioData extends Equatable {
   RecordedAudioData(this.sampleData) : rms = calculateRMS(sampleData);
 
   @override
-  List<Object?> get props => [sampleData];
+  List<Object?> get props => [sampleData, rms];
 
   static double calculateRMS(List<double> sampleData) =>
       sqrt(sampleData.fold<double>(0.0, (sum, sample) => sum + sample * sample) / sampleData.length);

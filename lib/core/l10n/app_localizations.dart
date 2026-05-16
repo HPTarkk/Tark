@@ -94,11 +94,29 @@ abstract class AppLocalizations {
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[Locale('fa')];
 
+  /// No description provided for @app_name.
+  ///
+  /// In fa, this message translates to:
+  /// **'واکی تاکی'**
+  String get app_name;
+
   /// No description provided for @unknown_failure.
   ///
   /// In fa, this message translates to:
   /// **'خطای ناشناخته ای رخ داده است'**
   String get unknown_failure;
+
+  /// No description provided for @audio_recording_general_error_message.
+  ///
+  /// In fa, this message translates to:
+  /// **'خطا در شروع ضبط صذا'**
+  String get audio_recording_general_error_message;
+
+  /// No description provided for @audio_recording_permission_error_message.
+  ///
+  /// In fa, this message translates to:
+  /// **'خطا دسترسی به مایک'**
+  String get audio_recording_permission_error_message;
 }
 
 class _AppLocalizationsDelegate
