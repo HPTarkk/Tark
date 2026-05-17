@@ -2,7 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
-import 'package:wakitaki/feature/recording/presentation/widget/audio_visualizer.dart';
+import 'package:wakitaki/feature/audio/presentation/widget/audio_visualizer.dart';
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/widget/animated_icon_switcher.dart';

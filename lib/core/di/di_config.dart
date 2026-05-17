@@ -1,7 +1,8 @@
 import 'package:audio_io/audio_io.dart';
 import 'package:get_it/get_it.dart';
 import 'package:injectable/injectable.dart';
-import 'package:wakitaki/core/di/di_config.config.dart';
+
+import 'di_config.config.dart';
 
 @injectableInit
 void configureDependencies() {

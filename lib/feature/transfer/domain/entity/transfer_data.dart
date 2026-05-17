@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-import '../../../recording/domian/entity/recorded_audio_data.dart';
+import '../../../audio/domian/entity/recorded_audio_data.dart';
 
 class TransferData extends Equatable {
   final RecordedAudioData data;

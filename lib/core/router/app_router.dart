@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../feature/recording/presentation/page/recording_page.dart';
+import '../../feature/audio/presentation/page/recording_page.dart';
+import '../../feature/transfer/presentation/widget/connection_wrapper.dart';
 
 class AppRouter {
   static GoRouter? _router;
@@ -23,7 +24,7 @@ class AppRouter {
             systemNavigationBarColor: Colors.transparent,
             systemNavigationBarIconBrightness: Brightness.dark,
           ),
-          child: child,
+          child: ConnectionWrapper.wrapper(child: child),
         ),
         routes: [
           GoRoute(

@@ -4,6 +4,7 @@ import 'package:dartz/dartz.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
+import 'package:wakitaki/feature/transfer/api/transfer_api.dart';
 
 import '../../../../core/cubit/safe_emit_mixin.dart';
 import '../../../../core/error/failure.dart';
@@ -14,8 +15,9 @@ import '../../domian/service/recording_services.dart';
 @injectable
 class RecordingCubit extends Cubit<RecordingState> with SafeEmitMixin {
   final RecordingServices _services;
+  final TransferApi _transferApi;
 
-  RecordingCubit(this._services) : super(RecordingStateInitial());
+  RecordingCubit(this._services, this._transferApi) : super(RecordingStateInitial());
 
   StreamSubscription<Either<Failure, RecordedAudioData>>? _sub;
 
@@ -23,18 +25,24 @@ class RecordingCubit extends Cubit<RecordingState> with SafeEmitMixin {
     emit(RecordingStateLoading());
     _sub?.cancel();
     _sub = _services.startRecording().listen((data) {
-      data.fold((failure) {
-        switch (state) {
-          case RecordingStateInitial():
-          case RecordingStateLoading():
-          case RecordingFailureState():
-            emit(RecordingFailureState(failure));
-            break;
-          case RecordingStateSuccess():
-            Logger.log(failure);
-            break;
-        }
-      }, (data) => emit(RecordingStateSuccess(data: data)));
+      data.fold(
+        (failure) {
+          switch (state) {
+            case RecordingStateInitial():
+            case RecordingStateLoading():
+            case RecordingFailureState():
+              emit(RecordingFailureState(failure));
+              break;
+            case RecordingStateSuccess():
+              Logger.log(failure);
+              break;
+          }
+        },
+        (data) {
+          emit(RecordingStateSuccess(data: data));
+          _transferApi.sendData(data);
+        },
+      );
     });
   }
 

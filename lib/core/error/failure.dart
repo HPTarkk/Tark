@@ -8,6 +8,10 @@ sealed class Failure extends Equatable {
   List<Object?> get props => [];
 }
 
+class DataTransferFailure extends Failure {
+  const DataTransferFailure();
+}
+
 class AudioRecordingFailure extends Failure {
   const AudioRecordingFailure();
 }
@@ -21,6 +25,7 @@ extension FailureMessageExt on Failure {
     return switch (this) {
       AudioRecordingFailure() => context.getString.audio_recording_general_error_message,
       PermissionAudioRecordingFailure() => context.getString.audio_recording_permission_error_message,
+      DataTransferFailure() => context.getString.unknown_failure,
     };
   }
 }

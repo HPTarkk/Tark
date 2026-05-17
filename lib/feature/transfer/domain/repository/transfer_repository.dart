@@ -6,7 +6,11 @@ import '../entity/transfer_data.dart';
 abstract interface class TransferRepository {
   Stream<TransferData> startListening();
 
-  Future<void> stopListening();
-
   Future<Either<Failure, void>> sendData(TransferData data);
+
+  Stream<bool> connect();
+
+  void stopConnection();
+
+  void dispose();
 }
