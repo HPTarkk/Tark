@@ -6,6 +6,7 @@ import 'package:wakitaki/feature/audio/presentation/widget/audio_visualizer.dart
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/widget/animated_icon_switcher.dart';
+import '../../../transfer/presentation/manager/connection_cubit.dart';
 import '../manager/recording_cubit.dart';
 
 class RecordingPage extends StatefulWidget {
@@ -17,12 +18,21 @@ class RecordingPage extends StatefulWidget {
   State<RecordingPage> createState() => _RecordingPageState();
 
   static Widget buildPage() => MultiBlocProvider(
-    providers: [BlocProvider<RecordingCubit>(create: (_) => GetIt.instance<RecordingCubit>())],
+    providers: [
+      BlocProvider<RecordingCubit>(create: (_) => GetIt.instance<RecordingCubit>()),
+      BlocProvider<ConnectionCubit>(create: (_) => GetIt.instance<ConnectionCubit>()),
+    ],
     child: RecordingPage._(),
   );
 }
 
 class _RecordingPageState extends State<RecordingPage> {
+  @override
+  void initState() {
+    super.initState();
+    context.read<ConnectionCubit>().startConnection();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(body: _buildBody());
