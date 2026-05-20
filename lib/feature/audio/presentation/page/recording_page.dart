@@ -64,7 +64,7 @@ class _RecordingPageState extends State<RecordingPage> {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         if (state is RecordingStateSuccess)
-          SizedBox(width: 100, height: 32, child: AudioVisualizer(audioData: state.data)),
+          SizedBox(width: 100, height: 64, child: AudioVisualizer(audioData: state.data)),
         Container(
           width: 56,
           height: 56,

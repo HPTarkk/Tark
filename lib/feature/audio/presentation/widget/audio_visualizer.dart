@@ -7,13 +7,13 @@ import '../../domian/entity/recorded_audio_data.dart';
 class AudioVisualizer extends StatefulWidget {
   final RecordedAudioData audioData;
   final int barCount;
-  final Color color;
+  final Color? color;
 
   const AudioVisualizer({
     super.key,
     required this.audioData,
     this.barCount = 32,
-    this.color = Colors.blueAccent,
+    this.color,
   });
 
   @override
@@ -61,7 +61,7 @@ class _AudioVisualizerState extends State<AudioVisualizer> with SingleTickerProv
         samples: _animatedSamples,
         rms: widget.audioData.rms,
         animationValue: _controller.value,
-        color: widget.color,
+        color: widget.color ?? Theme.of(context).colorScheme.primary,
       ),
       size: Size.infinite,
     );
