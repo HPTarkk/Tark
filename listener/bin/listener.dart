@@ -3,38 +3,34 @@ import 'dart:io';
 import 'dart:typed_data';
 
 Future<void> main(List<String> args) async {
-  const int udpPort = 4000;
+  const kBraodcastPort = 4000;
   const sampleRate = 44100;
   const channels = 1;
 
-  // final process = await Process.start('ffplay', [
-  //   '-f',
-  //   'f32le',
-  //   '-ar',
-  //   '$sampleRate',
-  //   '-ac',
-  //   '$channels',
-  //   '-nodisp',
-  //   '-autoexit',
-  //   '-',
-  // ], mode: ProcessStartMode.detachedWithStdio);
+  final process = await Process.start('ffplay', [
+    '-f',
+    'f32le',
+    '-ar',
+    '$sampleRate',
+    '-ac',
+    '$channels',
+    '-nodisp',
+    '-autoexit',
+    '-',
+  ], mode: ProcessStartMode.detachedWithStdio);
 
-  final socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, udpPort);
-  print('Listening UDP on 0.0.0.0:$udpPort');
+  final socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, kBraodcastPort);
+  print('Listening UDP on 0.0.0.0:${socket.port}');
+  final stream = socket
+      .where((event) => event == RawSocketEvent.read)
+      .where((event) => socket.receive() != null)
+      .map((event) => socket.receive()!)
+      .map((datagram) => _float32leToFloat32List(datagram.data));
 
-  // final List<int> buffer = [];
-
-  socket.listen((event) {
-    if (event != RawSocketEvent.read) return;
-
-    final dg = socket.receive();
-    if (dg == null) return;
-
-    final samples = _float32leToFloat32List(dg.data);
-
-    final chunk = Float32List.fromList(samples.map((e) => e.toDouble()).toList());
+  stream.listen((event) {
+    final chunk = Float32List.fromList(event.map((e) => e.toDouble()).toList());
     print('this is a test: $chunk');
-    // process.stdin.add(chunk.buffer.asUint8List());
+    process.stdin.add(chunk.buffer.asUint8List());
   });
 
   ProcessSignal.sigint.watch().listen((_) async {

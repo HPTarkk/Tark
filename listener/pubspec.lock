@@ -41,22 +41,6 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "2.1.2"
-  change_case:
-    dependency: transitive
-    description:
-      name: change_case
-      sha256: e41ef3df58521194ef8d7649928954805aeb08061917cf658322305e61568003
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "2.2.0"
-  characters:
-    dependency: transitive
-    description:
-      name: characters
-      sha256: faf38497bda5ead2a8c7615f4f7939df04333478bf32e4173fcb06d428b5716b
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "1.4.1"
   cli_config:
     dependency: transitive
     description:
@@ -65,14 +49,6 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "0.2.0"
-  code_assets:
-    dependency: transitive
-    description:
-      name: code_assets
-      sha256: dd7ed641b7f642092092969f2dcd5845ab31c9f3efead0c06ca437bf9ce8a8b2
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "0.19.4"
   collection:
     dependency: transitive
     description:
@@ -105,14 +81,6 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "3.0.7"
-  ffi:
-    dependency: transitive
-    description:
-      name: ffi
-      sha256: "6d7fd89431262d8f3125e81b50d3847a091d846eafcd4fdb88dd06f36d705a45"
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "2.2.0"
   file:
     dependency: transitive
     description:
@@ -121,16 +89,6 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "7.0.1"
-  flutter:
-    dependency: transitive
-    description: flutter
-    source: sdk
-    version: "0.0.0"
-  flutter_web_plugins:
-    dependency: transitive
-    description: flutter
-    source: sdk
-    version: "0.0.0"
   frontend_server_client:
     dependency: transitive
     description:
@@ -147,14 +105,6 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "2.1.3"
-  hooks:
-    dependency: transitive
-    description:
-      name: hooks
-      sha256: "75363eae6c0c2db051c4f6b3b1fcdea8a09c4a596cc83bfff847661da6e80dfc"
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "0.19.5"
   http_multi_server:
     dependency: transitive
     description:
@@ -179,22 +129,6 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "1.0.5"
-  js:
-    dependency: transitive
-    description:
-      name: js
-      sha256: f2c445dce49627136094980615a031419f7f3eb393237e4ecd97ac15dea343f3
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "0.6.7"
-  js_interop_utils:
-    dependency: transitive
-    description:
-      name: js_interop_utils
-      sha256: "5281b3d924f4b604177818c30122ad1b5f915fa363b7ebdcffdb7adfbfad62fa"
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "1.0.11"
   lints:
     dependency: "direct dev"
     description:
@@ -219,14 +153,6 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "0.12.20"
-  material_color_utilities:
-    dependency: transitive
-    description:
-      name: material_color_utilities
-      sha256: "9c337007e82b1889149c82ed242ed1cb24a66044e30979c44912381e9be4c48b"
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "0.13.0"
   meta:
     dependency: transitive
     description:
@@ -243,46 +169,6 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "2.0.0"
-  miniaudio_dart:
-    dependency: "direct main"
-    description:
-      name: miniaudio_dart
-      sha256: "50bf727c89de5b533e267c11875683318f2d1d583c10523e611638937267d7fc"
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "1.0.10"
-  miniaudio_dart_ffi:
-    dependency: transitive
-    description:
-      name: miniaudio_dart_ffi
-      sha256: fb69005b0ba23f74b92de98aa80c8c5f72959285a50b560f1a60d5d9c3002217
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "1.0.10"
-  miniaudio_dart_platform_interface:
-    dependency: transitive
-    description:
-      name: miniaudio_dart_platform_interface
-      sha256: "0aa77f612c4148184637d9e4a17712516ad27a45efcf8aabb2385422c2e65a1d"
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "1.0.10"
-  miniaudio_dart_web:
-    dependency: transitive
-    description:
-      name: miniaudio_dart_web
-      sha256: ab282fe7dde64d125fc09889f7c909b4c3c9d7545c777e1dc7453125f4320f8b
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "1.0.10"
-  native_toolchain_cmake:
-    dependency: transitive
-    description:
-      name: native_toolchain_cmake
-      sha256: f3110584e6c6f1a423d699a490d45e33e2ad3d890f6958598b783031c99aa613
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "0.0.6-dev.1"
   node_preamble:
     dependency: transitive
     description:
@@ -355,11 +241,6 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "3.0.0"
-  sky_engine:
-    dependency: transitive
-    description: flutter
-    source: sdk
-    version: "0.0.0"
   source_map_stack_trace:
     dependency: transitive
     description:
@@ -448,14 +329,6 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "1.4.0"
-  vector_math:
-    dependency: transitive
-    description:
-      name: vector_math
-      sha256: d530bd74fea330e6e364cda7a85019c434070188383e1cd8d9777ee586914c5b
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "2.2.0"
   vm_service:
     dependency: transitive
     description:
@@ -514,4 +387,3 @@ packages:
     version: "3.1.3"
 sdks:
   dart: ">=3.11.5 <4.0.0"
-  flutter: ">=3.3.0"
