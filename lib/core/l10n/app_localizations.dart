@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart' as intl;
 
+import 'app_localizations_en.dart';
 import 'app_localizations_fa.dart';
 
 // ignore_for_file: type=lint
@@ -92,7 +93,10 @@ abstract class AppLocalizations {
       ];
 
   /// A list of this localizations delegate's supported locales.
-  static const List<Locale> supportedLocales = <Locale>[Locale('fa')];
+  static const List<Locale> supportedLocales = <Locale>[
+    Locale('en'),
+    Locale('fa'),
+  ];
 
   /// No description provided for @app_name.
   ///
@@ -100,23 +104,185 @@ abstract class AppLocalizations {
   /// **'واکی تاکی'**
   String get app_name;
 
-  /// No description provided for @unknown_failure.
+  /// No description provided for @app_subtitle.
   ///
   /// In fa, this message translates to:
-  /// **'خطای ناشناخته ای رخ داده است'**
-  String get unknown_failure;
+  /// **'بی‌سیم شبکه محلی'**
+  String get app_subtitle;
 
-  /// No description provided for @audio_recording_general_error_message.
+  /// No description provided for @live.
   ///
   /// In fa, this message translates to:
-  /// **'خطا در شروع ضبط صذا'**
-  String get audio_recording_general_error_message;
+  /// **'آنلاین'**
+  String get live;
 
-  /// No description provided for @audio_recording_permission_error_message.
+  /// No description provided for @offline.
   ///
   /// In fa, this message translates to:
-  /// **'خطا دسترسی به مایک'**
-  String get audio_recording_permission_error_message;
+  /// **'آفلاین'**
+  String get offline;
+
+  /// No description provided for @edit_name.
+  ///
+  /// In fa, this message translates to:
+  /// **'ویرایش'**
+  String get edit_name;
+
+  /// No description provided for @connecting.
+  ///
+  /// In fa, this message translates to:
+  /// **'در حال اتصال...'**
+  String get connecting;
+
+  /// No description provided for @monitoring.
+  ///
+  /// In fa, this message translates to:
+  /// **'در حال پایش...'**
+  String get monitoring;
+
+  /// No description provided for @initializing.
+  ///
+  /// In fa, this message translates to:
+  /// **'در حال راه‌اندازی'**
+  String get initializing;
+
+  /// No description provided for @tx_label.
+  ///
+  /// In fa, this message translates to:
+  /// **'TX'**
+  String get tx_label;
+
+  /// No description provided for @rx_label.
+  ///
+  /// In fa, this message translates to:
+  /// **'RX'**
+  String get rx_label;
+
+  /// No description provided for @channel_members.
+  ///
+  /// In fa, this message translates to:
+  /// **'اعضای کانال'**
+  String get channel_members;
+
+  /// No description provided for @no_users_on_network.
+  ///
+  /// In fa, this message translates to:
+  /// **'هیچ کاربری در این شبکه نیست'**
+  String get no_users_on_network;
+
+  /// No description provided for @vox_sensitivity.
+  ///
+  /// In fa, this message translates to:
+  /// **'حساسیت VOX'**
+  String get vox_sensitivity;
+
+  /// No description provided for @vox_threshold.
+  ///
+  /// In fa, this message translates to:
+  /// **'آستانه'**
+  String get vox_threshold;
+
+  /// No description provided for @voice_loud.
+  ///
+  /// In fa, this message translates to:
+  /// **'صدای بلند'**
+  String get voice_loud;
+
+  /// No description provided for @voice_quiet.
+  ///
+  /// In fa, this message translates to:
+  /// **'صدای آرام'**
+  String get voice_quiet;
+
+  /// No description provided for @level_label.
+  ///
+  /// In fa, this message translates to:
+  /// **'سطح'**
+  String get level_label;
+
+  /// No description provided for @level_active.
+  ///
+  /// In fa, this message translates to:
+  /// **'فعال'**
+  String get level_active;
+
+  /// No description provided for @level_silent.
+  ///
+  /// In fa, this message translates to:
+  /// **'ساکت'**
+  String get level_silent;
+
+  /// No description provided for @user_idle.
+  ///
+  /// In fa, this message translates to:
+  /// **'آماده'**
+  String get user_idle;
+
+  /// No description provided for @set_name_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'نام خود را تنظیم کنید'**
+  String get set_name_title;
+
+  /// No description provided for @name_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'نام خود را وارد کنید'**
+  String get name_hint;
+
+  /// No description provided for @cancel.
+  ///
+  /// In fa, this message translates to:
+  /// **'لغو'**
+  String get cancel;
+
+  /// No description provided for @save.
+  ///
+  /// In fa, this message translates to:
+  /// **'ذخیره'**
+  String get save;
+
+  /// No description provided for @mic_permission_denied.
+  ///
+  /// In fa, this message translates to:
+  /// **'دسترسی به میکروفن رد شد. لطفاً در تنظیمات مجوز دسترسی را فعال کنید.'**
+  String get mic_permission_denied;
+
+  /// No description provided for @join_channel.
+  ///
+  /// In fa, this message translates to:
+  /// **'ورود به کانال'**
+  String get join_channel;
+
+  /// No description provided for @leave_channel.
+  ///
+  /// In fa, this message translates to:
+  /// **'خروج از کانال'**
+  String get leave_channel;
+
+  /// No description provided for @no_network.
+  ///
+  /// In fa, this message translates to:
+  /// **'شبکه‌ای یافت نشد'**
+  String get no_network;
+
+  /// No description provided for @leave_channel_confirm_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'خروج از کانال؟'**
+  String get leave_channel_confirm_title;
+
+  /// No description provided for @leave_channel_confirm_message.
+  ///
+  /// In fa, this message translates to:
+  /// **'ارتباط شما با سایر اعضای کانال قطع خواهد شد.'**
+  String get leave_channel_confirm_message;
+
+  /// No description provided for @leave.
+  ///
+  /// In fa, this message translates to:
+  /// **'خروج'**
+  String get leave;
 }
 
 class _AppLocalizationsDelegate
@@ -130,7 +296,7 @@ class _AppLocalizationsDelegate
 
   @override
   bool isSupported(Locale locale) =>
-      <String>['fa'].contains(locale.languageCode);
+      <String>['en', 'fa'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
@@ -139,6 +305,8 @@ class _AppLocalizationsDelegate
 AppLocalizations lookupAppLocalizations(Locale locale) {
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
+    case 'en':
+      return AppLocalizationsEn();
     case 'fa':
       return AppLocalizationsFa();
   }

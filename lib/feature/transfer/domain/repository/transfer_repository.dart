@@ -1,12 +1,14 @@
 import 'package:dartz/dartz.dart';
 
 import '../../../../core/error/failure.dart';
-import '../entity/transfer_data.dart';
+import '../../../walkie/domain/entity/waki_packet.dart';
 
 abstract interface class TransferRepository {
-  Stream<TransferData> startListening();
+  Stream<WakiPacket> startListening();
 
-  Future<Either<Failure, void>> sendData(TransferData data);
+  Future<Either<Failure, void>> sendAudio(List<double> samples, String senderName);
+
+  Future<Either<Failure, void>> sendPresence(String senderName, bool isTalking);
 
   Stream<bool> connect();
 
