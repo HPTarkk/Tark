@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:wakitaki/core/utils/extensions.dart';
 
 class VersionBadge extends StatelessWidget {
   final Color color;
@@ -12,7 +13,7 @@ class VersionBadge extends StatelessWidget {
       builder: (_, snap) {
         if (!snap.hasData) return const SizedBox.shrink();
         return Text(
-          'v${snap.data!.version}',
+          'v${snap.data!.version}'.localized(context),
           style: TextStyle(
             color: color,
             fontSize: 10,

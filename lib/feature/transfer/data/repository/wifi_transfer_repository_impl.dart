@@ -1,7 +1,5 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:dartz/dartz.dart';
 import 'package:injectable/injectable.dart';
@@ -10,24 +8,27 @@ import '../../../../core/error/failure.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../walkie/domain/entity/waki_packet.dart';
 import '../../domain/repository/transfer_repository.dart';
+import '../codec/waki_packet_codec.dart';
 
 const kBroadcastPort = 4000;
-const _kPresenceByte = 0x01;
-const _kAudioByte = 0x02;
 
-@LazySingleton(as: TransferRepository)
-class TransferRepositoryImpl implements TransferRepository {
+@LazySingleton()
+class WifiTransferRepositoryImpl implements TransferRepository {
   RawDatagramSocket? _sendSocket;
   RawDatagramSocket? _receiveSocket;
   final _connectionController = StreamController<bool>.broadcast();
   String? _broadcastAddress;
+  final _codec = const WakiPacketCodec();
 
   // Incremented each time startListening() is called so any in-flight
   // generator from a previous session knows to stop when it wakes from
   // its retry delay and sees a different generation number.
   int _generation = 0;
 
-  TransferRepositoryImpl();
+  // Per-outgoing-stream counter so receivers can detect UDP loss/reordering.
+  int _audioSeq = 0;
+
+  WifiTransferRepositoryImpl();
 
   @disposeMethod
   @override
@@ -45,7 +46,7 @@ class TransferRepositoryImpl implements TransferRepository {
       List<double> samples, String senderName) async {
     try {
       await _ensureSendSocket();
-      final packet = _buildAudioPacket(samples, senderName);
+      final packet = _codec.encodeAudio(samples, senderName, _audioSeq++);
       _sendSocket!.send(
           packet, InternetAddress(_broadcastAddress!), kBroadcastPort);
       return const Right(null);
@@ -60,7 +61,7 @@ class TransferRepositoryImpl implements TransferRepository {
       String senderName, bool isTalking) async {
     try {
       await _ensureSendSocket();
-      final packet = _buildPresencePacket(senderName, isTalking);
+      final packet = _codec.encodePresence(senderName, isTalking);
       _sendSocket!.send(
           packet, InternetAddress(_broadcastAddress!), kBroadcastPort);
       return const Right(null);
@@ -94,7 +95,7 @@ class TransferRepositoryImpl implements TransferRepository {
           if (event == RawSocketEvent.read) {
             Datagram? dg;
             while ((dg = _receiveSocket?.receive()) != null) {
-              final packet = _parsePacket(dg!.data, dg.address.address);
+              final packet = _codec.decode(dg!.data, dg.address.address);
               if (packet != null) yield packet;
             }
           } else if (event == RawSocketEvent.closed) {
@@ -143,67 +144,6 @@ class TransferRepositoryImpl implements TransferRepository {
     _sendSocket!.broadcastEnabled = true;
     Logger.log(
         'Send socket ready, broadcasting to $_broadcastAddress:$kBroadcastPort');
-  }
-
-  WakiPacket? _parsePacket(Uint8List bytes, String senderIp) {
-    if (bytes.length < 6) return null;
-    final type = bytes[0];
-    final bd = ByteData.sublistView(bytes);
-    final nameLen = bd.getUint32(1, Endian.little);
-    if (bytes.length < 5 + nameLen) return null;
-
-    final name =
-        utf8.decode(bytes.sublist(5, 5 + nameLen), allowMalformed: true);
-
-    if (type == _kPresenceByte) {
-      if (bytes.length < 5 + nameLen + 1) return null;
-      final isTalking = bytes[5 + nameLen] == 0x01;
-      return PresencePacket(
-          senderIp: senderIp, senderName: name, isTalking: isTalking);
-    } else if (type == _kAudioByte) {
-      final audioBytes = bytes.sublist(5 + nameLen);
-      if (audioBytes.isEmpty) return null;
-      final samples = _bytesToSamples(audioBytes);
-      return AudioPacket(
-          senderIp: senderIp, senderName: name, samples: samples);
-    }
-    return null;
-  }
-
-  Uint8List _buildAudioPacket(List<double> samples, String senderName) {
-    final nameBytes = utf8.encode(senderName);
-    final audioData = ByteData(samples.length * 4);
-    for (int i = 0; i < samples.length; i++) {
-      audioData.setFloat32(i * 4, samples[i].clamp(-1.0, 1.0), Endian.little);
-    }
-    final builder = BytesBuilder(copy: false);
-    builder.addByte(_kAudioByte);
-    builder.add((ByteData(4)
-          ..setUint32(0, nameBytes.length, Endian.little))
-        .buffer
-        .asUint8List());
-    builder.add(nameBytes);
-    builder.add(audioData.buffer.asUint8List());
-    return builder.toBytes();
-  }
-
-  Uint8List _buildPresencePacket(String senderName, bool isTalking) {
-    final nameBytes = utf8.encode(senderName);
-    final builder = BytesBuilder(copy: false);
-    builder.addByte(_kPresenceByte);
-    builder.add((ByteData(4)
-          ..setUint32(0, nameBytes.length, Endian.little))
-        .buffer
-        .asUint8List());
-    builder.add(nameBytes);
-    builder.addByte(isTalking ? 0x01 : 0x00);
-    return builder.toBytes();
-  }
-
-  List<double> _bytesToSamples(Uint8List bytes) {
-    final bd = ByteData.sublistView(bytes);
-    final count = bytes.length ~/ 4;
-    return List.generate(count, (i) => bd.getFloat32(i * 4, Endian.little));
   }
 
   Future<String> _getBroadcastAddress() async {

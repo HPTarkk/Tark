@@ -9,7 +9,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get app_name => 'WAKITAKI';
+  String get app_name => 'TARK';
 
   @override
   String get app_subtitle => 'LAN WALKIE TALKIE';
@@ -102,4 +102,41 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get leave => 'LEAVE';
+
+  @override
+  String get transport_wifi => 'WIFI';
+
+  @override
+  String get transport_bluetooth => 'BLUETOOTH';
+
+  @override
+  String get bt_start_session => 'START SESSION';
+
+  @override
+  String get bt_find_nearby => 'FIND NEARBY';
+
+  @override
+  String get bt_waiting_for_peer => 'Waiting for the other side to connect...';
+
+  @override
+  String get bt_scanning => 'Scanning...';
+
+  @override
+  String get bt_no_devices_found => 'No devices found';
+
+  @override
+  String get bt_connecting => 'Connecting...';
+
+  @override
+  String get bt_connected => 'Connected';
+
+  @override
+  String get bt_permission_denied =>
+      'Bluetooth permission denied. Please enable it in Settings.';
+
+  @override
+  String get bt_connection_failed => 'Connection failed';
+
+  @override
+  String get bt_back => 'BACK';
 }

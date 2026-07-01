@@ -1,0 +1,123 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../../core/l10n/extension.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../audio/domain/entity/audio_frame.dart';
+import '../../../audio/presentation/manager/audio_cubit.dart';
+import '../../../audio/presentation/widget/audio_visualizer.dart';
+import '../manager/walkie_talkie_cubit.dart';
+
+/// Isolated visualizer card.
+///
+/// The outer [BlocBuilder] rebuilds only when transmit/receive/ready state
+/// changes. The inner [StreamBuilder] updates the waveform at audio rate
+/// without triggering a rebuild of the surrounding UI.
+class VisualizerSection extends StatelessWidget {
+  const VisualizerSection({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    return BlocBuilder<WalkieTalkieCubit, WalkieTalkieState>(
+      buildWhen: (p, c) =>
+          p.isTransmitting != c.isTransmitting ||
+          p.isSomeoneElseTalking != c.isSomeoneElseTalking ||
+          p.isReady != c.isReady,
+      builder: (context, state) {
+        final isActive = state.isTransmitting || state.isSomeoneElseTalking;
+        final color = state.isTransmitting ? AppColors.red : AppColors.amber;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          height: 120,
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isActive ? color.withAlpha(120) : AppColors.border,
+              width: 1.5,
+            ),
+            boxShadow: isActive
+                ? [
+                    BoxShadow(
+                      color: color.withAlpha(40),
+                      blurRadius: 20,
+                      spreadRadius: 2,
+                    ),
+                  ]
+                : null,
+          ),
+          clipBehavior: Clip.hardEdge,
+          child: Stack(
+            children: [
+              const _ScanlineBackground(),
+              StreamBuilder<AudioFrame>(
+                stream: context.read<AudioCubit>().frames,
+                builder: (context, snapshot) {
+                  final frame = snapshot.data;
+                  if (frame == null || frame.samples.isEmpty) {
+                    return Center(
+                      child: Text(
+                        state.isReady ? s.monitoring : s.initializing,
+                        style: TextStyle(
+                          color: AppColors.textSecondary.withAlpha(120),
+                          fontSize: 12,
+                          letterSpacing: 3,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    );
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: AudioVisualizer(
+                      samples: frame.samples,
+                      rms: frame.rms,
+                      barCount: 48,
+                      color: color,
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ── Scanline background ───────────────────────────────────────────────────────
+
+class _ScanlineBackground extends StatelessWidget {
+  const _ScanlineBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return const CustomPaint(
+      painter: _kScanlinePainter,
+      size: Size.infinite,
+    );
+  }
+}
+
+// Constant instance — allocated once, never reallocated on rebuilds.
+const _kScanlinePainter = _ScanlinePainter();
+
+class _ScanlinePainter extends CustomPainter {
+  const _ScanlinePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFF1A2035).withAlpha(80)
+      ..strokeWidth = 1;
+
+    for (double y = 0; y < size.height; y += 4) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}

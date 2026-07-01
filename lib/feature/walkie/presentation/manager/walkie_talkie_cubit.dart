@@ -1,139 +1,121 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math';
 
-import 'package:audio_io/audio_io.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/transfer/transfer_mode_holder.dart';
 import '../../../../core/utils/logger.dart';
+import '../../../audio/domain/entity/audio_frame.dart';
+import '../../../audio/presentation/manager/audio_cubit.dart';
+import '../../../transfer/domain/entity/transfer_mode.dart';
 import '../../../transfer/domain/repository/transfer_repository.dart';
 import '../../../walkie/domain/entity/channel_user.dart';
 import '../../../walkie/domain/entity/waki_packet.dart';
 
-// A remote audio packet arriving within this window suppresses local TX,
-// preventing the microphone from picking up speaker output and creating noise.
-const _kHalfDuplexGateMs = 600;
+/// Placeholder local id used in Bluetooth mode, where there's no IP concept
+/// and the peer connection (established before this cubit is even built) is
+/// what actually gates transmission — not this id's value. Kept non-empty
+/// and distinct from '0.0.0.0' so the WiFi-oriented online check below
+/// doesn't misfire.
+const _kBluetoothLocalId = 'bluetooth-peer';
 
 @injectable
 class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
-  final AudioIo _audioIo;
+  final AudioCubit audioCubit;
   final TransferRepository _transferRepository;
 
-  StreamSubscription<List<double>>? _inputSub;
+  StreamSubscription<AudioFrame>? _frameSub;
   StreamSubscription<WakiPacket>? _packetSub;
   Timer? _presenceTimer;
   Timer? _cleanupTimer;
 
-  // Tracks when the last remote audio packet was received so we can gate
-  // local TX and avoid microphone→speaker echo feedback (the "noise" bug).
-  DateTime? _lastRemoteAudioAt;
-
-  WalkieTalkieCubit(this._audioIo, this._transferRepository)
+  WalkieTalkieCubit(this.audioCubit, this._transferRepository)
       : super(WalkieTalkieState.initial()) {
     _init();
   }
 
   Future<void> _init() async {
-    final localIp = await _getLocalIp();
+    final localId = await _getLocalId();
     final prefs = await SharedPreferences.getInstance();
     final myName =
-        prefs.getString('user_name') ?? 'User${localIp.split('.').last}';
-    final voxThreshold =
-        prefs.getDouble('vox_threshold') ?? state.voxThreshold;
+        prefs.getString('user_name') ?? 'User${localId.split('.').last}';
+    final voxThreshold = prefs.getDouble('vox_threshold') ?? state.voxThreshold;
 
-    emit(state.copyWith(
-        localIp: localIp, myName: myName, voxThreshold: voxThreshold));
+    emit(state.copyWith(localId: localId, myName: myName, voxThreshold: voxThreshold));
 
-    final status = await Permission.microphone.request();
-    if (!status.isGranted) {
-      emit(state.copyWith(hasPermission: false));
-      return;
-    }
+    await audioCubit.start();
 
-    try {
-      await _audioIo.stop();
-      await _audioIo.requestLatency(AudioIoLatency.Balanced);
-      await _audioIo.start();
-    } catch (e) {
-      Logger.log('AudioIo start error: $e');
-    }
-
-    _inputSub =
-        _audioIo.input.listen(_onAudioInput, onError: (e) => Logger.log(e));
-
-    _packetSub = _transferRepository
-        .startListening()
-        .listen(_onPacketReceived, onError: (e) => Logger.log(e));
-
-    _presenceTimer = Timer.periodic(
-      const Duration(seconds: 2),
-      (_) => _broadcastPresence(),
+    _frameSub = audioCubit.frames.listen(
+      _onAudioFrame,
+      onError: (Object e) => Logger.log('AudioFrame error: $e'),
     );
 
-    _cleanupTimer = Timer.periodic(
-      const Duration(seconds: 3),
-      (_) => _cleanupStaleUsers(),
+    _packetSub = _transferRepository.startListening().listen(
+      _onPacketReceived,
+      onError: (Object e) => Logger.log('Packet error: $e'),
     );
+
+    _presenceTimer =
+        Timer.periodic(const Duration(seconds: 2), (_) => _broadcastPresence());
+    _cleanupTimer =
+        Timer.periodic(const Duration(seconds: 3), (_) => _cleanupStaleUsers());
 
     emit(state.copyWith(isReady: true));
     _broadcastPresence();
   }
 
-  void _onAudioInput(List<double> samples) {
-    final rms = _calculateRms(samples);
+  void _onAudioFrame(AudioFrame frame) {
+    // Full duplex: TX and RX run independently, same as a phone call. There
+    // is no half-duplex gate here — this app has no hardware acoustic echo
+    // cancellation (the underlying audio_io/miniaudio stack doesn't expose
+    // any), so on speaker playback (vs. headphones) the mic may pick up
+    // some of the other side's voice. Headphones avoid this entirely.
 
-    // Half-duplex gate: suppress local TX when remote audio arrived recently.
-    // This prevents the mic from picking up speaker output and looping noise.
-    final receivingAudio = _lastRemoteAudioAt != null &&
-        DateTime.now().difference(_lastRemoteAudioAt!).inMilliseconds <
-            _kHalfDuplexGateMs;
+    // No network → never mark as transmitting.
+    final isOnline =
+        state.localId.isNotEmpty && state.localId != '0.0.0.0';
+    final isTransmitting = audioCubit.state.hasPermission &&
+        isOnline &&
+        frame.rms > state.voxThreshold;
 
-    // No network → never mark as transmitting (avoids stale TX badge when offline).
-    final isOnline = state.localIp.isNotEmpty && state.localIp != '0.0.0.0';
-    final isTransmitting =
-        isOnline && rms > state.voxThreshold && !receivingAudio;
-
-    emit(state.copyWith(
-      currentRms: rms,
-      currentSamples: samples,
-      isTransmitting: isTransmitting,
-    ));
+    if (isTransmitting != state.isTransmitting) {
+      emit(state.copyWith(isTransmitting: isTransmitting));
+    }
 
     if (isTransmitting) {
-      _transferRepository.sendAudio(samples, state.myName);
+      final processed =
+          audioCubit.processForTransmit(frame.samples, state.voxThreshold);
+      _transferRepository.sendAudio(processed, state.myName);
     }
   }
 
   void _onPacketReceived(WakiPacket packet) {
-    if (packet.senderIp == state.localIp) return;
+    // Self-filter: needed for WiFi (broadcast loops our own packets back to
+    // us). Harmless no-op for point-to-point Bluetooth, where a peer's id
+    // can never equal our own.
+    if (packet.senderId == state.localId) return;
 
     switch (packet) {
       case PresencePacket():
-        _updateUser(packet.senderIp, packet.senderName, packet.isTalking);
+        _updateUser(packet.senderId, packet.senderName, packet.isTalking);
       case AudioPacket():
-        _lastRemoteAudioAt = DateTime.now();
-        _updateUser(packet.senderIp, packet.senderName, true);
+        _updateUser(packet.senderId, packet.senderName, true);
         try {
-          _audioIo.output.add(packet.samples);
+          audioCubit.playReceived(packet.samples, packet.seq, packet.senderId);
         } catch (e) {
           Logger.log('Playback error: $e');
         }
     }
   }
 
-  void _updateUser(String ip, String name, bool isTalking) {
+  void _updateUser(String id, String name, bool isTalking) {
     final users = List<ChannelUser>.from(state.activeUsers);
-    final idx = users.indexWhere((u) => u.ip == ip);
-    final user = ChannelUser(
-      ip: ip,
-      name: name,
-      isTalking: isTalking,
-      lastSeen: DateTime.now(),
-    );
+    final idx = users.indexWhere((u) => u.id == id);
+    final user =
+        ChannelUser(id: id, name: name, isTalking: isTalking, lastSeen: DateTime.now());
     if (idx >= 0) {
       users[idx] = user;
     } else {
@@ -143,15 +125,15 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
   }
 
   void _broadcastPresence() {
-    if (state.localIp.isEmpty) return;
+    if (state.localId.isEmpty) return;
     _transferRepository.sendPresence(state.myName, state.isTransmitting);
-    _refreshIp();
+    _refreshId();
   }
 
-  void _refreshIp() {
-    _getLocalIp().then((newIp) {
-      if (!isClosed && newIp != state.localIp) {
-        emit(state.copyWith(localIp: newIp));
+  void _refreshId() {
+    _getLocalId().then((newId) {
+      if (!isClosed && newId != state.localId) {
+        emit(state.copyWith(localId: newId));
       }
     });
   }
@@ -161,12 +143,11 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     final updated = state.activeUsers
         .where((u) => now.difference(u.lastSeen).inSeconds < 8)
         .map((u) {
-          if (now.difference(u.lastSeen).inSeconds > 3 && u.isTalking) {
-            return u.copyWith(isTalking: false);
-          }
-          return u;
-        })
-        .toList();
+      if (now.difference(u.lastSeen).inSeconds > 3 && u.isTalking) {
+        return u.copyWith(isTalking: false);
+      }
+      return u;
+    }).toList();
     emit(state.copyWith(activeUsers: updated));
   }
 
@@ -185,13 +166,17 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     _broadcastPresence();
   }
 
-  double _calculateRms(List<double> samples) {
-    if (samples.isEmpty) return 0.0;
-    final sum = samples.fold<double>(0.0, (acc, s) => acc + s * s);
-    return sqrt(sum / samples.length);
-  }
-
-  Future<String> _getLocalIp() async {
+  /// Resolves this device's transport-level identity. For WiFi this is the
+  /// local IPv4 address, used both for display and to filter out our own
+  /// broadcast echo. Bluetooth is point-to-point (no echo to filter, no IP
+  /// concept), and its "online" state depends on having an active peer
+  /// connection rather than a WiFi address, so it short-circuits to a fixed
+  /// non-empty id instead of doing a WiFi lookup that may legitimately fail
+  /// (WiFi is commonly off when using Bluetooth mode).
+  Future<String> _getLocalId() async {
+    if (TransferModeHolder.mode == TransferMode.bluetooth) {
+      return _kBluetoothLocalId;
+    }
     try {
       final interfaces =
           await NetworkInterface.list(type: InternetAddressType.IPv4);
@@ -210,84 +195,68 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
   Future<void> close() async {
     _presenceTimer?.cancel();
     _cleanupTimer?.cancel();
-    _inputSub?.cancel();
-    _packetSub?.cancel();
+    await _frameSub?.cancel();
+    await _packetSub?.cancel();
     _transferRepository.stopConnection();
-    await _audioIo.stop();
+    await audioCubit.close();
     return super.close();
   }
 }
 
+// ── State ─────────────────────────────────────────────────────────────────────
+
 class WalkieTalkieState extends Equatable {
-  final String localIp;
+  final String localId;
   final String myName;
   final bool isTransmitting;
   final double voxThreshold;
-  final double currentRms;
-  final List<double> currentSamples;
   final List<ChannelUser> activeUsers;
   final bool isReady;
-  final bool hasPermission;
 
   const WalkieTalkieState({
-    required this.localIp,
+    required this.localId,
     required this.myName,
     required this.isTransmitting,
     required this.voxThreshold,
-    required this.currentRms,
-    required this.currentSamples,
     required this.activeUsers,
     required this.isReady,
-    required this.hasPermission,
   });
 
   factory WalkieTalkieState.initial() => const WalkieTalkieState(
-        localIp: '',
+        localId: '',
         myName: '',
         isTransmitting: false,
         voxThreshold: 0.025,
-        currentRms: 0.0,
-        currentSamples: [],
         activeUsers: [],
         isReady: false,
-        hasPermission: true,
       );
 
   WalkieTalkieState copyWith({
-    String? localIp,
+    String? localId,
     String? myName,
     bool? isTransmitting,
     double? voxThreshold,
-    double? currentRms,
-    List<double>? currentSamples,
     List<ChannelUser>? activeUsers,
     bool? isReady,
-    bool? hasPermission,
   }) =>
       WalkieTalkieState(
-        localIp: localIp ?? this.localIp,
+        localId: localId ?? this.localId,
         myName: myName ?? this.myName,
         isTransmitting: isTransmitting ?? this.isTransmitting,
         voxThreshold: voxThreshold ?? this.voxThreshold,
-        currentRms: currentRms ?? this.currentRms,
-        currentSamples: currentSamples ?? this.currentSamples,
         activeUsers: activeUsers ?? this.activeUsers,
         isReady: isReady ?? this.isReady,
-        hasPermission: hasPermission ?? this.hasPermission,
       );
 
   bool get isSomeoneElseTalking => activeUsers.any((u) => u.isTalking);
 
   @override
   List<Object?> get props => [
-        localIp,
+        localId,
         myName,
         isTransmitting,
         voxThreshold,
-        currentRms,
-        currentSamples,
         activeUsers,
         isReady,
-        hasPermission,
       ];
 }

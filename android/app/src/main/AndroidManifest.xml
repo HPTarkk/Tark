@@ -4,8 +4,20 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+
+    <!-- Bluetooth Classic transport (Android). Legacy permissions are capped
+         at API 30 by maxSdkVersion; API 31+ uses the runtime-requested
+         BLUETOOTH_CONNECT/BLUETOOTH_SCAN below. neverForLocation is safe
+         here since scan results are only used to list nearby device names,
+         never to derive physical location. -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
     <application
-        android:label="Walkie Talkie"
+        android:label="تَرک"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

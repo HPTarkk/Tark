@@ -1,7 +1,6 @@
 {
-    "app_name": "WAKITAKI",
+    "app_name": "TARK",
     "app_subtitle": "LAN WALKIE TALKIE",
-
     "live": "LIVE",
     "offline": "OFFLINE",
     "edit_name": "EDIT",
@@ -30,5 +29,17 @@
     "no_network": "No network found",
     "leave_channel_confirm_title": "Leave channel?",
     "leave_channel_confirm_message": "You will be disconnected from the other members in this channel.",
-    "leave": "LEAVE"
+    "leave": "LEAVE",
+    "transport_wifi": "WIFI",
+    "transport_bluetooth": "BLUETOOTH",
+    "bt_start_session": "START SESSION",
+    "bt_find_nearby": "FIND NEARBY",
+    "bt_waiting_for_peer": "Waiting for the other side to connect...",
+    "bt_scanning": "Scanning...",
+    "bt_no_devices_found": "No devices found",
+    "bt_connecting": "Connecting...",
+    "bt_connected": "Connected",
+    "bt_permission_denied": "Bluetooth permission denied. Please enable it in Settings.",
+    "bt_connection_failed": "Connection failed",
+    "bt_back": "BACK"
 }

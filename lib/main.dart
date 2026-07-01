@@ -1,4 +1,5 @@
 import 'package:audio_io/audio_io.dart';
+import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
@@ -7,10 +8,12 @@ import 'core/l10n/app_localizations.dart';
 import 'core/l10n/extension.dart';
 import 'core/locale/locale_service.dart';
 import 'core/router/app_router.dart';
+import 'core/transfer/transfer_mode_holder.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await LocaleService.initialize();
+  await TransferModeHolder.initialize();
   configureDependencies();
   runApp(const MyApp());
 }
@@ -65,6 +68,15 @@ class _MyAppState extends State<MyApp> {
           error: Color(0xFFEF5350),
         ),
         useMaterial3: true,
+        pageTransitionsTheme: const PageTransitionsTheme(
+          builders: {
+            TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+            TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+            TargetPlatform.windows: CupertinoPageTransitionsBuilder(),
+            TargetPlatform.linux: CupertinoPageTransitionsBuilder(),
+            TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+          },
+        ),
       ),
     );
   }

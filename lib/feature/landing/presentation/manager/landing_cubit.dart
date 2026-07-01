@@ -5,12 +5,14 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/transfer/transfer_mode_holder.dart';
 import '../../../../core/utils/logger.dart';
+import '../../../transfer/domain/entity/transfer_mode.dart';
 
 class LandingCubit extends Cubit<LandingState> {
   Timer? _ipTimer;
 
-  LandingCubit() : super(LandingState.initial()) {
+  LandingCubit() : super(LandingState.initial(TransferModeHolder.mode)) {
     _init();
   }
 
@@ -19,7 +21,7 @@ class LandingCubit extends Cubit<LandingState> {
     final prefs = await SharedPreferences.getInstance();
     final myName = prefs.getString('user_name') ??
         'User${localIp.split('.').last}';
-    emit(LandingState(localIp: localIp, myName: myName, isLoading: false));
+    emit(state.copyWith(localIp: localIp, myName: myName, isLoading: false));
 
     _ipTimer = Timer.periodic(const Duration(seconds: 4), (_) async {
       final newIp = await _getLocalIp();
@@ -35,6 +37,11 @@ class LandingCubit extends Cubit<LandingState> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('user_name', trimmed);
     emit(state.copyWith(myName: trimmed));
+  }
+
+  Future<void> setTransferMode(TransferMode mode) async {
+    await TransferModeHolder.setMode(mode);
+    emit(state.copyWith(transferMode: mode));
   }
 
   @override
@@ -63,32 +70,39 @@ class LandingState extends Equatable {
   final String localIp;
   final String myName;
   final bool isLoading;
+  final TransferMode transferMode;
 
   const LandingState({
     required this.localIp,
     required this.myName,
     required this.isLoading,
+    required this.transferMode,
   });
 
-  factory LandingState.initial() => const LandingState(
+  factory LandingState.initial(TransferMode transferMode) => LandingState(
         localIp: '',
         myName: '',
         isLoading: true,
+        transferMode: transferMode,
       );
 
-  bool get hasNetwork => localIp.isNotEmpty && localIp != '0.0.0.0';
+  bool get hasNetwork =>
+      transferMode == TransferMode.bluetooth ||
+      (localIp.isNotEmpty && localIp != '0.0.0.0');
 
   LandingState copyWith({
     String? localIp,
     String? myName,
     bool? isLoading,
+    TransferMode? transferMode,
   }) =>
       LandingState(
         localIp: localIp ?? this.localIp,
         myName: myName ?? this.myName,
         isLoading: isLoading ?? this.isLoading,
+        transferMode: transferMode ?? this.transferMode,
       );
 
   @override
-  List<Object?> get props => [localIp, myName, isLoading];
+  List<Object?> get props => [localIp, myName, isLoading, transferMode];
 }

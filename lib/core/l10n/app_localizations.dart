@@ -101,19 +101,19 @@ abstract class AppLocalizations {
   /// No description provided for @app_name.
   ///
   /// In fa, this message translates to:
-  /// **'واکی تاکی'**
+  /// **'تَرک'**
   String get app_name;
 
   /// No description provided for @app_subtitle.
   ///
   /// In fa, this message translates to:
-  /// **'بی‌سیم شبکه محلی'**
+  /// **'واکی تاکی شبکه داخلی'**
   String get app_subtitle;
 
   /// No description provided for @live.
   ///
   /// In fa, this message translates to:
-  /// **'آنلاین'**
+  /// **'زنده'**
   String get live;
 
   /// No description provided for @offline.
@@ -137,7 +137,7 @@ abstract class AppLocalizations {
   /// No description provided for @monitoring.
   ///
   /// In fa, this message translates to:
-  /// **'در حال پایش...'**
+  /// **'در حال پایش'**
   String get monitoring;
 
   /// No description provided for @initializing.
@@ -149,13 +149,13 @@ abstract class AppLocalizations {
   /// No description provided for @tx_label.
   ///
   /// In fa, this message translates to:
-  /// **'TX'**
+  /// **'ارسال (TX)'**
   String get tx_label;
 
   /// No description provided for @rx_label.
   ///
   /// In fa, this message translates to:
-  /// **'RX'**
+  /// **'دریافت (RX)'**
   String get rx_label;
 
   /// No description provided for @channel_members.
@@ -167,7 +167,7 @@ abstract class AppLocalizations {
   /// No description provided for @no_users_on_network.
   ///
   /// In fa, this message translates to:
-  /// **'هیچ کاربری در این شبکه نیست'**
+  /// **'کاربر دیگری در این شبکه حضور ندارد'**
   String get no_users_on_network;
 
   /// No description provided for @vox_sensitivity.
@@ -179,19 +179,19 @@ abstract class AppLocalizations {
   /// No description provided for @vox_threshold.
   ///
   /// In fa, this message translates to:
-  /// **'آستانه'**
+  /// **'آستانه صدا'**
   String get vox_threshold;
 
   /// No description provided for @voice_loud.
   ///
   /// In fa, this message translates to:
-  /// **'صدای بلند'**
+  /// **'بلند'**
   String get voice_loud;
 
   /// No description provided for @voice_quiet.
   ///
   /// In fa, this message translates to:
-  /// **'صدای آرام'**
+  /// **'آهسته'**
   String get voice_quiet;
 
   /// No description provided for @level_label.
@@ -209,19 +209,19 @@ abstract class AppLocalizations {
   /// No description provided for @level_silent.
   ///
   /// In fa, this message translates to:
-  /// **'ساکت'**
+  /// **'سکوت'**
   String get level_silent;
 
   /// No description provided for @user_idle.
   ///
   /// In fa, this message translates to:
-  /// **'آماده'**
+  /// **'بیکار'**
   String get user_idle;
 
   /// No description provided for @set_name_title.
   ///
   /// In fa, this message translates to:
-  /// **'نام خود را تنظیم کنید'**
+  /// **'انتخاب نام شما'**
   String get set_name_title;
 
   /// No description provided for @name_hint.
@@ -245,7 +245,7 @@ abstract class AppLocalizations {
   /// No description provided for @mic_permission_denied.
   ///
   /// In fa, this message translates to:
-  /// **'دسترسی به میکروفن رد شد. لطفاً در تنظیمات مجوز دسترسی را فعال کنید.'**
+  /// **'دسترسی به میکروفون داده نشد. لطفاً آن را در تنظیمات فعال کنید.'**
   String get mic_permission_denied;
 
   /// No description provided for @join_channel.
@@ -269,13 +269,13 @@ abstract class AppLocalizations {
   /// No description provided for @leave_channel_confirm_title.
   ///
   /// In fa, this message translates to:
-  /// **'خروج از کانال؟'**
+  /// **'از کانال خارج می‌شوید؟'**
   String get leave_channel_confirm_title;
 
   /// No description provided for @leave_channel_confirm_message.
   ///
   /// In fa, this message translates to:
-  /// **'ارتباط شما با سایر اعضای کانال قطع خواهد شد.'**
+  /// **'اتصال شما با سایر اعضای حاضر در این کانال قطع خواهد شد.'**
   String get leave_channel_confirm_message;
 
   /// No description provided for @leave.
@@ -283,6 +283,78 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'خروج'**
   String get leave;
+
+  /// No description provided for @transport_wifi.
+  ///
+  /// In fa, this message translates to:
+  /// **'وای‌فای'**
+  String get transport_wifi;
+
+  /// No description provided for @transport_bluetooth.
+  ///
+  /// In fa, this message translates to:
+  /// **'بلوتوث'**
+  String get transport_bluetooth;
+
+  /// No description provided for @bt_start_session.
+  ///
+  /// In fa, this message translates to:
+  /// **'شروع نشست'**
+  String get bt_start_session;
+
+  /// No description provided for @bt_find_nearby.
+  ///
+  /// In fa, this message translates to:
+  /// **'جستجوی نزدیک'**
+  String get bt_find_nearby;
+
+  /// No description provided for @bt_waiting_for_peer.
+  ///
+  /// In fa, this message translates to:
+  /// **'در انتظار اتصال طرف مقابل...'**
+  String get bt_waiting_for_peer;
+
+  /// No description provided for @bt_scanning.
+  ///
+  /// In fa, this message translates to:
+  /// **'در حال جستجو...'**
+  String get bt_scanning;
+
+  /// No description provided for @bt_no_devices_found.
+  ///
+  /// In fa, this message translates to:
+  /// **'دستگاهی یافت نشد'**
+  String get bt_no_devices_found;
+
+  /// No description provided for @bt_connecting.
+  ///
+  /// In fa, this message translates to:
+  /// **'در حال اتصال...'**
+  String get bt_connecting;
+
+  /// No description provided for @bt_connected.
+  ///
+  /// In fa, this message translates to:
+  /// **'متصل شد'**
+  String get bt_connected;
+
+  /// No description provided for @bt_permission_denied.
+  ///
+  /// In fa, this message translates to:
+  /// **'دسترسی بلوتوث داده نشد. لطفاً آن را در تنظیمات فعال کنید.'**
+  String get bt_permission_denied;
+
+  /// No description provided for @bt_connection_failed.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتصال ناموفق بود'**
+  String get bt_connection_failed;
+
+  /// No description provided for @bt_back.
+  ///
+  /// In fa, this message translates to:
+  /// **'بازگشت'**
+  String get bt_back;
 }
 
 class _AppLocalizationsDelegate

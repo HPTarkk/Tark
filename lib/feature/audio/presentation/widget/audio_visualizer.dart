@@ -2,16 +2,16 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
-import '../../domian/entity/recorded_audio_data.dart';
-
 class AudioVisualizer extends StatefulWidget {
-  final RecordedAudioData audioData;
+  final List<double> samples;
+  final double rms;
   final int barCount;
   final Color? color;
 
   const AudioVisualizer({
     super.key,
-    required this.audioData,
+    required this.samples,
+    required this.rms,
     this.barCount = 32,
     this.color,
   });
@@ -20,7 +20,8 @@ class AudioVisualizer extends StatefulWidget {
   State<AudioVisualizer> createState() => _AudioVisualizerState();
 }
 
-class _AudioVisualizerState extends State<AudioVisualizer> with SingleTickerProviderStateMixin {
+class _AudioVisualizerState extends State<AudioVisualizer>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   List<double> _animatedSamples = [];
 
@@ -28,7 +29,10 @@ class _AudioVisualizerState extends State<AudioVisualizer> with SingleTickerProv
   void initState() {
     super.initState();
 
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 120));
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 120),
+    );
 
     _animatedSamples = List.filled(widget.barCount, 0);
 
@@ -43,7 +47,7 @@ class _AudioVisualizerState extends State<AudioVisualizer> with SingleTickerProv
   void didUpdateWidget(covariant AudioVisualizer oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    final samples = widget.audioData.sampleData;
+    final samples = widget.samples;
     if (samples.isEmpty) return;
 
     // Downsample or map to barCount
@@ -59,7 +63,7 @@ class _AudioVisualizerState extends State<AudioVisualizer> with SingleTickerProv
     return CustomPaint(
       painter: _VisualizerPainter(
         samples: _animatedSamples,
-        rms: widget.audioData.rms,
+        rms: widget.rms,
         animationValue: _controller.value,
         color: widget.color ?? Theme.of(context).colorScheme.primary,
       ),
@@ -93,42 +97,56 @@ class _VisualizerPainter extends CustomPainter {
 
     final barWidth = size.width / samples.length;
     final centerY = size.height / 2;
+    final shaderRect = Rect.fromLTWH(0, 0, size.width, size.height);
 
     final gradient = LinearGradient(
-      colors: [color.withValues(alpha: .7), color, color.withValues(alpha: .9)],
+      colors: [
+        color.withValues(alpha: .7),
+        color,
+        color.withValues(alpha: .9),
+      ],
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
     );
 
     final paint = Paint()
-      ..shader = gradient.createShader(Rect.fromLTWH(0, 0, size.width, size.height))
+      ..shader = gradient.createShader(shaderRect)
       ..style = PaintingStyle.fill;
 
-    final glowPaint = Paint()
-      ..color = color.withValues(alpha: .3)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15);
+    // Single ambient glow for the whole visualizer — one GPU pass instead of
+    // 48 separate MaskFilter.blur calls (one per bar), which was very expensive.
+    if (rms > 0.01) {
+      canvas.drawRect(
+        shaderRect,
+        Paint()
+          ..color = color.withValues(alpha: (rms * 0.35).clamp(0.0, 0.25))
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 18),
+      );
+    }
 
     for (int i = 0; i < samples.length; i++) {
       final amplitude = samples[i];
-
-      // Smooth animated scaling
       final animatedAmplitude = amplitude * (0.7 + 0.3 * sin(animationValue * pi));
-
-      // RMS boost (makes louder audio visually bigger)
       final scaledHeight = animatedAmplitude * size.height * (0.8 + rms * 2);
 
-      final rect = RRect.fromRectAndRadius(
-        Rect.fromLTWH(i * barWidth, centerY - scaledHeight / 2, barWidth * 0.6, scaledHeight),
-        const Radius.circular(8),
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(
+            i * barWidth,
+            centerY - scaledHeight / 2,
+            barWidth * 0.6,
+            scaledHeight,
+          ),
+          const Radius.circular(8),
+        ),
+        paint,
       );
-
-      canvas.drawRRect(rect, glowPaint);
-      canvas.drawRRect(rect, paint);
     }
   }
 
   @override
   bool shouldRepaint(covariant _VisualizerPainter oldDelegate) {
-    return oldDelegate.samples != samples || oldDelegate.animationValue != animationValue;
+    return oldDelegate.samples != samples ||
+        oldDelegate.animationValue != animationValue;
   }
 }

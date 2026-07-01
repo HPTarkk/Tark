@@ -1,7 +1,7 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../feature/landing/presentation/page/landing_page.dart';
+import '../../feature/transfer/presentation/page/bluetooth_connect_page.dart';
 import '../../feature/walkie/presentation/page/walkie_talkie_page.dart';
 
 class AppRouter {
@@ -23,41 +23,12 @@ class AppRouter {
           GoRoute(
             path: '/${WalkieTalkiePage.path}',
             name: WalkieTalkiePage.name,
-            pageBuilder: (context, state) => CustomTransitionPage(
-              key: state.pageKey,
-              child: WalkieTalkiePage.buildPage(),
-              transitionDuration: const Duration(milliseconds: 500),
-              reverseTransitionDuration: const Duration(milliseconds: 400),
-              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                // Entering: slide up + fade in + slight scale up
-                final enter = CurvedAnimation(
-                  parent: animation,
-                  curve: Curves.easeOutCubic,
-                );
-                // Leaving (popped): slide down + fade out
-                final exit = CurvedAnimation(
-                  parent: secondaryAnimation,
-                  curve: Curves.easeInCubic,
-                );
-                return FadeTransition(
-                  opacity: Tween<double>(begin: 0.0, end: 1.0).animate(enter),
-                  child: SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(0, 0.06),
-                      end: Offset.zero,
-                    ).animate(enter),
-                    child: ScaleTransition(
-                      scale: Tween<double>(begin: 0.96, end: 1.0).animate(enter),
-                      child: FadeTransition(
-                        opacity:
-                            Tween<double>(begin: 1.0, end: 0.0).animate(exit),
-                        child: child,
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
+            builder: (context, state) => WalkieTalkiePage.buildPage(),
+          ),
+          GoRoute(
+            path: '/${BluetoothConnectPage.path}',
+            name: BluetoothConnectPage.name,
+            builder: (context, state) => BluetoothConnectPage.buildPage(),
           ),
         ],
       );
