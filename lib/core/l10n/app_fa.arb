@@ -41,5 +41,7 @@
     "bt_connected": "متصل شد",
     "bt_permission_denied": "دسترسی بلوتوث داده نشد. لطفاً آن را در تنظیمات فعال کنید.",
     "bt_connection_failed": "اتصال ناموفق بود",
-    "bt_back": "بازگشت"
+    "bt_back": "بازگشت",
+    "theme_dark": "تاریک",
+    "theme_light": "روشن"
 }

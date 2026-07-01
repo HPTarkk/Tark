@@ -99,12 +99,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
-        systemNavigationBarColor: AppColors.background,
-        systemNavigationBarIconBrightness: Brightness.light,
-      ),
+      value: AppColors.systemOverlayStyle,
       child: Scaffold(
         backgroundColor: AppColors.background,
         body: SafeArea(
@@ -173,7 +168,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
                         Expanded(
                           child: Text(
                             state.myName.isEmpty ? '...' : state.myName,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: AppColors.textPrimary,
                               fontSize: 17,
                               fontWeight: FontWeight.w700,
@@ -196,7 +191,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.edit_rounded,
                                   color: AppColors.amber,
                                   size: 12,
@@ -204,7 +199,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
                                 const SizedBox(width: 4),
                                 Text(
                                   s.edit_name,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: AppColors.amber,
                                     fontSize: 10,
                                     letterSpacing: 1,
@@ -219,7 +214,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.router_rounded,
                           color: AppColors.textSecondary,
                           size: 12,
@@ -229,7 +224,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
                           child: TickerText(
                             text: displayIp,
                             duration: const Duration(milliseconds: 300),
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: AppColors.textSecondary,
                               fontSize: 12,
                               letterSpacing: 0.5,
@@ -301,25 +296,25 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
         backgroundColor: AppColors.card,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AppColors.border),
+          side: BorderSide(color: AppColors.border),
         ),
         title: Text(
           s.leave_channel_confirm_title,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.textPrimary,
             fontWeight: FontWeight.w700,
           ),
         ),
         content: Text(
           s.leave_channel_confirm_message,
-          style: const TextStyle(color: AppColors.textSecondary),
+          style: TextStyle(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
             child: Text(
               s.cancel,
-              style: const TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: AppColors.textSecondary),
             ),
           ),
           TextButton(
@@ -334,7 +329,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
             },
             child: Text(
               s.leave,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.red,
                 fontWeight: FontWeight.w700,
               ),
@@ -354,11 +349,11 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
         backgroundColor: AppColors.card,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AppColors.border),
+          side: BorderSide(color: AppColors.border),
         ),
         title: Text(
           s.set_name_title,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.textPrimary,
             fontWeight: FontWeight.w700,
           ),
@@ -367,7 +362,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
           controller: controller,
           autofocus: true,
           maxLength: 20,
-          style: const TextStyle(color: AppColors.textPrimary),
+          style: TextStyle(color: AppColors.textPrimary),
           decoration: InputDecoration(
             hintText: s.name_hint,
             hintStyle:
@@ -378,15 +373,15 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
             fillColor: AppColors.surface,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.border),
+              borderSide: BorderSide(color: AppColors.border),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.border),
+              borderSide: BorderSide(color: AppColors.border),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.amber),
+              borderSide: BorderSide(color: AppColors.amber),
             ),
           ),
           onSubmitted: (v) {
@@ -399,7 +394,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
             onPressed: () => Navigator.of(ctx).pop(),
             child: Text(
               s.cancel,
-              style: const TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: AppColors.textSecondary),
             ),
           ),
           TextButton(
@@ -409,7 +404,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
             },
             child: Text(
               s.save,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.amber,
                 fontWeight: FontWeight.w700,
               ),

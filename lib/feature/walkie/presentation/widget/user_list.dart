@@ -30,7 +30,7 @@ class SectionHeader extends StatelessWidget {
         ),
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.textSecondary,
             fontSize: 11,
             fontWeight: FontWeight.w700,
@@ -63,7 +63,7 @@ class SectionHeader extends StatelessWidget {
                         ),
                         child: Text(
                           badge!,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.amber,
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
@@ -189,7 +189,7 @@ class UserTile extends StatelessWidget {
               children: [
                 Text(
                   user.name,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -199,7 +199,7 @@ class UserTile extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   user.id.localized(context),
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 11,
                   ),
@@ -220,7 +220,7 @@ class UserTile extends StatelessWidget {
               ),
               child: Text(
                 s.tx_label,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.green,
                   fontSize: 10,
                   fontWeight: FontWeight.w800,
@@ -237,7 +237,7 @@ class UserTile extends StatelessWidget {
               ),
               child: Text(
                 s.user_idle,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textSecondary,
                   fontSize: 10,
                   fontWeight: FontWeight.w600,

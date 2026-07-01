@@ -139,4 +139,10 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get bt_back => 'بازگشت';
+
+  @override
+  String get theme_dark => 'تاریک';
+
+  @override
+  String get theme_light => 'روشن';
 }

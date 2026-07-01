@@ -44,9 +44,15 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
         prefs.getString('user_name') ?? 'User${localId.split('.').last}';
     final voxThreshold = prefs.getDouble('vox_threshold') ?? state.voxThreshold;
 
+    // The page can be exited while _init is still awaiting (fast back-out).
+    // close() has then already run, so bail instead of resurrecting
+    // subscriptions and timers nobody will ever cancel.
+    if (isClosed) return;
+
     emit(state.copyWith(localId: localId, myName: myName, voxThreshold: voxThreshold));
 
     await audioCubit.start();
+    if (isClosed) return;
 
     _frameSub = audioCubit.frames.listen(
       _onAudioFrame,
@@ -195,9 +201,22 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
   Future<void> close() async {
     _presenceTimer?.cancel();
     _cleanupTimer?.cancel();
-    await _frameSub?.cancel();
-    await _packetSub?.cancel();
+
+    // Initiate both cancels synchronously (no events delivered after this
+    // line), then tear the transport down BEFORE any await. This close is
+    // fire-and-forget from BlocProvider's point of view; if stopConnection
+    // ran after the awaits below, a cancel that lags (the UDP listener
+    // generator can take seconds to unwind from its retry sleep) would let
+    // it fire AFTER the user re-entered the page — invalidating the new
+    // session's listener generation and closing its freshly bound sockets.
+    // Running it synchronously here means it can only ever affect this
+    // session's own generation.
+    final frameCancel = _frameSub?.cancel();
+    final packetCancel = _packetSub?.cancel();
     _transferRepository.stopConnection();
+
+    await frameCancel;
+    await packetCancel;
     await audioCubit.close();
     return super.close();
   }

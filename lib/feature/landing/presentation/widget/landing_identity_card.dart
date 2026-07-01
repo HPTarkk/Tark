@@ -43,7 +43,7 @@ class LandingIdentityCard extends StatelessWidget {
               children: [
                 Text(
                   state.myName.isEmpty ? '...' : state.myName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
@@ -101,11 +101,11 @@ class LandingIdentityCard extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.edit_rounded, color: AppColors.amber, size: 14),
+                  Icon(Icons.edit_rounded, color: AppColors.amber, size: 14),
                   const SizedBox(width: 4),
                   Text(
                     s.edit_name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.amber,
                       fontSize: 10,
                       letterSpacing: 1,

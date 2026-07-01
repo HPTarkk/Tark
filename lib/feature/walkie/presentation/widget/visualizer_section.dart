@@ -94,23 +94,22 @@ class _ScanlineBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const CustomPaint(
-      painter: _kScanlinePainter,
+    return CustomPaint(
+      painter: _ScanlinePainter(AppColors.border.withAlpha(80)),
       size: Size.infinite,
     );
   }
 }
 
-// Constant instance — allocated once, never reallocated on rebuilds.
-const _kScanlinePainter = _ScanlinePainter();
-
 class _ScanlinePainter extends CustomPainter {
-  const _ScanlinePainter();
+  final Color color;
+
+  const _ScanlinePainter(this.color);
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFF1A2035).withAlpha(80)
+      ..color = color
       ..strokeWidth = 1;
 
     for (double y = 0; y < size.height; y += 4) {
@@ -119,5 +118,6 @@ class _ScanlinePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _ScanlinePainter oldDelegate) =>
+      oldDelegate.color != color;
 }

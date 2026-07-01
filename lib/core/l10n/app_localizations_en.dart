@@ -139,4 +139,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get bt_back => 'BACK';
+
+  @override
+  String get theme_dark => 'DARK';
+
+  @override
+  String get theme_light => 'LIGHT';
 }

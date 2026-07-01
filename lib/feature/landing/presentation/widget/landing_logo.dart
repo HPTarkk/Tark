@@ -55,7 +55,7 @@ class _LandingLogoState extends State<LandingLogo>
       children: [
         AnimatedBuilder(
           animation: Listenable.merge([_pulseAnimation, _radarController]),
-          child: const Icon(Icons.radio, color: AppColors.amber, size: 48),
+          child: Icon(Icons.radio, color: AppColors.amber, size: 48),
           builder: (_, child) => Stack(
             alignment: Alignment.center,
             children: [
@@ -115,7 +115,7 @@ class _LandingLogoState extends State<LandingLogo>
         const SizedBox(height: 20),
         Text(
           s.app_name,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.amber,
             fontSize: 30,
             fontWeight: FontWeight.w900,

@@ -41,5 +41,7 @@
     "bt_connected": "Connected",
     "bt_permission_denied": "Bluetooth permission denied. Please enable it in Settings.",
     "bt_connection_failed": "Connection failed",
-    "bt_back": "BACK"
+    "bt_back": "BACK",
+    "theme_dark": "DARK",
+    "theme_light": "LIGHT"
 }

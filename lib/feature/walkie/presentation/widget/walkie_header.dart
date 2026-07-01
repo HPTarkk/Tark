@@ -16,7 +16,7 @@ class WalkieHeader extends StatelessWidget {
           p.isReady != c.isReady || p.localId != c.localId,
       builder: (context, state) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppColors.surface,
           border: Border(
             bottom: BorderSide(color: AppColors.border, width: 1),
@@ -28,7 +28,7 @@ class WalkieHeader extends StatelessWidget {
             const SizedBox(width: 10),
             Text(
               context.getString.app_name,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.amber,
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
@@ -60,7 +60,7 @@ class _RadioIcon extends StatelessWidget {
         shape: BoxShape.circle,
         border: Border.all(color: AppColors.amber.withAlpha(80), width: 1),
       ),
-      child: const Icon(Icons.radio, color: AppColors.amber, size: 14),
+      child: Icon(Icons.radio, color: AppColors.amber, size: 14),
     );
   }
 }

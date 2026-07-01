@@ -18,16 +18,14 @@ class VoxSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = context.getString;
     return BlocBuilder<WalkieTalkieCubit, WalkieTalkieState>(
-      buildWhen: (p, c) =>
-          p.voxThreshold != c.voxThreshold,
+      buildWhen: (p, c) => p.voxThreshold != c.voxThreshold,
       builder: (context, state) {
         // Percent reflects the THRESHOLD value directly: 0% at the lowest
         // threshold (most sensitive / effectively always-on), 100% at the
         // highest (least sensitive). Previously this was inverted, so the
         // lowest threshold displayed as 100% — backwards from the "THRESHOLD"
         // label.
-        final thresholdPercent =
-            ((state.voxThreshold / 0.15) * 100).clamp(0.0, 100.0).toInt();
+        final thresholdPercent = ((state.voxThreshold / 0.15) * 100).clamp(0.0, 100.0).toInt();
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -47,7 +45,7 @@ class VoxSection extends StatelessWidget {
                     children: [
                       Text(
                         s.vox_threshold,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.textSecondary,
                           fontSize: 11,
                           letterSpacing: 1.5,
@@ -56,10 +54,7 @@ class VoxSection extends StatelessWidget {
                       ),
                       const Spacer(),
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
                           color: AppColors.border,
                           borderRadius: BorderRadius.circular(6),
@@ -67,11 +62,7 @@ class VoxSection extends StatelessWidget {
                         child: TickerText(
                           text: '${thresholdPercent.localized(context)}%',
                           duration: const Duration(milliseconds: 200),
-                          style: const TextStyle(
-                            color: AppColors.amber,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
+                          style: TextStyle(color: AppColors.amber, fontSize: 12, fontWeight: FontWeight.w700),
                         ),
                       ),
                     ],
@@ -84,17 +75,14 @@ class VoxSection extends StatelessWidget {
                       inactiveTrackColor: AppColors.border,
                       thumbColor: AppColors.amber,
                       overlayColor: AppColors.amber.withAlpha(40),
-                      thumbShape:
-                          const RoundSliderThumbShape(enabledThumbRadius: 9),
-                      overlayShape:
-                          const RoundSliderOverlayShape(overlayRadius: 18),
+                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
+                      overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
                     ),
                     child: Slider(
                       value: state.voxThreshold,
                       min: 0.0,
                       max: 0.15,
-                      onChanged: (v) =>
-                          context.read<WalkieTalkieCubit>().setVoxThreshold(v),
+                      onChanged: (v) => context.read<WalkieTalkieCubit>().setVoxThreshold(v),
                     ),
                   ),
                   Row(
@@ -141,19 +129,12 @@ class VoxSection extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      const Icon(
-                        Icons.mic_off_rounded,
-                        color: AppColors.red,
-                        size: 18,
-                      ),
+                      Icon(Icons.mic_off_rounded, color: AppColors.red, size: 18),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           context.getString.mic_permission_denied,
-                          style: const TextStyle(
-                            color: AppColors.red,
-                            fontSize: 12,
-                          ),
+                          style: TextStyle(color: AppColors.red, fontSize: 12),
                         ),
                       ),
                     ],
@@ -201,12 +182,10 @@ class VoxMeter extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  isActive ? s.level_active : s.level_silent,
+                TickerText(
+                  text: isActive ? s.level_active : s.level_silent,
                   style: TextStyle(
-                    color: isActive
-                        ? AppColors.red
-                        : AppColors.textSecondary.withAlpha(100),
+                    color: isActive ? AppColors.red : AppColors.textSecondary.withAlpha(100),
                     fontSize: 10,
                     letterSpacing: 1,
                     fontWeight: FontWeight.w700,
@@ -217,8 +196,7 @@ class VoxMeter extends StatelessWidget {
             const SizedBox(height: 6),
             LayoutBuilder(
               builder: (context, constraints) {
-                final isRtl =
-                    Directionality.of(context) == TextDirection.rtl;
+                final isRtl = Directionality.of(context) == TextDirection.rtl;
                 final w = constraints.maxWidth;
                 final rmsNorm = (rms / 0.15).clamp(0.0, 1.0);
                 final threshNorm = (voxThreshold / 0.15).clamp(0.0, 1.0);
@@ -244,16 +222,10 @@ class VoxMeter extends StatelessWidget {
                           width: w * rmsNorm,
                           height: 8,
                           decoration: BoxDecoration(
-                            color:
-                                isActive ? AppColors.red : AppColors.amberDim,
+                            color: isActive ? AppColors.red : AppColors.amberDim,
                             borderRadius: BorderRadius.circular(4),
                             boxShadow: isActive
-                                ? [
-                                    BoxShadow(
-                                      color: AppColors.red.withAlpha(150),
-                                      blurRadius: 6,
-                                    ),
-                                  ]
+                                ? [BoxShadow(color: AppColors.red.withAlpha(150), blurRadius: 6)]
                                 : null,
                           ),
                         ),
@@ -266,33 +238,19 @@ class VoxMeter extends StatelessWidget {
                           width: w * rmsNorm,
                           height: 8,
                           decoration: BoxDecoration(
-                            color:
-                                isActive ? AppColors.red : AppColors.amberDim,
+                            color: isActive ? AppColors.red : AppColors.amberDim,
                             borderRadius: BorderRadius.circular(4),
                             boxShadow: isActive
-                                ? [
-                                    BoxShadow(
-                                      color: AppColors.red.withAlpha(150),
-                                      blurRadius: 6,
-                                    ),
-                                  ]
+                                ? [BoxShadow(color: AppColors.red.withAlpha(150), blurRadius: 6)]
                                 : null,
                           ),
                         ),
                       ),
                     // Threshold marker
                     Positioned(
-                      left: isRtl
-                          ? null
-                          : (w * threshNorm - 1).clamp(0.0, w - 2),
-                      right: isRtl
-                          ? (w * threshNorm - 1).clamp(0.0, w - 2)
-                          : null,
-                      child: Container(
-                        width: 2,
-                        height: 8,
-                        color: AppColors.textPrimary.withAlpha(200),
-                      ),
+                      left: isRtl ? null : (w * threshNorm - 1).clamp(0.0, w - 2),
+                      right: isRtl ? (w * threshNorm - 1).clamp(0.0, w - 2) : null,
+                      child: Container(width: 2, height: 8, color: AppColors.textPrimary.withAlpha(200)),
                     ),
                   ],
                 );

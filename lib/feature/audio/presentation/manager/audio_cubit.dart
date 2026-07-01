@@ -52,6 +52,35 @@ class AudioCubit extends Cubit<AudioStatus> {
 
   final AudioIo _audioIo;
 
+  // ── Engine ownership ───────────────────────────────────────────────────
+  // AudioIo is a process-wide singleton, but AudioCubit instances come and
+  // go with the walkie page — and BlocProvider disposes the old cubit
+  // WITHOUT awaiting its close(). A stale close() can therefore still be
+  // running (its awaits can lag by seconds) when the next page's cubit
+  // starts the engine. Two static guards make that safe:
+  //  * _engineLock serializes stop/start transitions. audio_io's FFI layer
+  //    wedges permanently if they interleave: its stop() clears the running
+  //    flag, suspends on controller closes, then destroys whatever handle
+  //    the singleton currently holds — which by then is the handle a
+  //    concurrent start() just created — while start() has already set the
+  //    running flag back to true, so every later start() no-ops forever.
+  //  * _engineEpoch tracks which cubit session owns the engine, so a stale
+  //    close() skips its stop instead of killing the newer session's mic.
+  static int _engineEpoch = 0;
+  static Future<void> _engineLock = Future<void>.value();
+  int _myEpoch = -1;
+
+  static Future<void> _withEngineLock(Future<void> Function() action) {
+    final run = _engineLock.then((_) => action());
+    _engineLock = run.then<void>((_) {}, onError: (_) {});
+    return run;
+  }
+
+  Future<void> _stopEngineIfOwned() => _withEngineLock(() async {
+        if (_engineEpoch != _myEpoch) return; // newer session owns the engine
+        await _audioIo.stop();
+      });
+
   AudioProcessor _processor = AudioProcessor(sampleRate: kTxSampleRate.toDouble());
   AudioPlaybackBuffer? _buffer;
   StreamSubscription<List<double>>? _inputSub;
@@ -78,58 +107,88 @@ class AudioCubit extends Cubit<AudioStatus> {
   // ── Lifecycle ──────────────────────────────────────────────────────────────
 
   Future<void> start() async {
+    // Claim engine ownership synchronously, before the first await: any
+    // stale close() that runs from here on sees a newer epoch and won't
+    // stop the engine out from under this session.
+    _myEpoch = ++_engineEpoch;
+
     final status = await Permission.microphone.request();
     if (!status.isGranted) {
-      emit(const AudioStatus(hasPermission: false, isStarted: false));
+      if (!isClosed) {
+        emit(const AudioStatus(hasPermission: false, isStarted: false));
+      }
       return;
     }
 
-    try {
-      await _audioIo.stop();
-      await _audioIo.requestLatency(AudioIoLatency.Balanced);
-      await _audioIo.start();
-      final fmt = await _audioIo.getFormat();
-      Logger.log('AudioIo format: $fmt');
-      final inputRate =
-          (fmt?['input']?['sampleRate'] as num?)?.toDouble() ?? 48000.0;
-      final outputRate =
-          (fmt?['output']?['sampleRate'] as num?)?.toDouble() ?? inputRate;
+    var started = false;
+    await _withEngineLock(() async {
+      // Superseded by a newer session, or closed while waiting for the
+      // permission dialog / lock — the engine belongs to someone else now.
+      if (_engineEpoch != _myEpoch || isClosed) return;
 
-      _processor = AudioProcessor(sampleRate: kTxSampleRate.toDouble());
+      try {
+        await _audioIo.stop();
+        await _audioIo.requestLatency(AudioIoLatency.Balanced);
+        try {
+          await _audioIo.start();
+        } catch (_) {
+          // Re-opening the duplex device right after a teardown can fail
+          // transiently on some Android devices — give it one more chance.
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+          await _audioIo.start();
+        }
+        final fmt = await _audioIo.getFormat();
+        Logger.log('AudioIo format: $fmt');
+        final inputRate =
+            (fmt?['input']?['sampleRate'] as num?)?.toDouble() ?? 48000.0;
+        final outputRate =
+            (fmt?['output']?['sampleRate'] as num?)?.toDouble() ?? inputRate;
 
-      if (inputRate > kTxSampleRate) {
-        _txLowPassA =
-            OnePoleLowPass(sampleRate: inputRate, cutoffHz: kTxSampleRate * 0.45);
-        _txLowPassB =
-            OnePoleLowPass(sampleRate: inputRate, cutoffHz: kTxSampleRate * 0.45);
-      } else {
-        _txLowPassA = null;
-        _txLowPassB = null;
+        _processor = AudioProcessor(sampleRate: kTxSampleRate.toDouble());
+
+        if (inputRate > kTxSampleRate) {
+          _txLowPassA = OnePoleLowPass(
+              sampleRate: inputRate, cutoffHz: kTxSampleRate * 0.45);
+          _txLowPassB = OnePoleLowPass(
+              sampleRate: inputRate, cutoffHz: kTxSampleRate * 0.45);
+        } else {
+          _txLowPassA = null;
+          _txLowPassB = null;
+        }
+        _txResampler = LinearResampler(
+            inRate: inputRate, outRate: kTxSampleRate.toDouble());
+        _txAccum.clear();
+
+        _rxResampler = LinearResampler(
+            inRate: kTxSampleRate.toDouble(), outRate: outputRate);
+
+        _buffer?.dispose();
+        _buffer = AudioPlaybackBuffer(
+          output: _audioIo.output,
+          sampleRate: outputRate.toInt(),
+        );
+      } catch (e) {
+        Logger.log('AudioIo start error: $e');
+        // Continue without crashing — processor stays default, buffer is null.
       }
-      _txResampler =
-          LinearResampler(inRate: inputRate, outRate: kTxSampleRate.toDouble());
-      _txAccum.clear();
 
-      _rxResampler = LinearResampler(
-          inRate: kTxSampleRate.toDouble(), outRate: outputRate);
-
-      _buffer?.dispose();
-      _buffer = AudioPlaybackBuffer(
-        output: _audioIo.output,
-        sampleRate: outputRate.toInt(),
+      await _inputSub?.cancel();
+      _inputSub = _audioIo.input.listen(
+        _onInput,
+        onError: (Object e) => Logger.log('AudioIo input error: $e'),
       );
-    } catch (e) {
-      Logger.log('AudioIo start error: $e');
-      // Continue without crashing — processor stays default, buffer is null.
+      started = true;
+    });
+
+    if (isClosed) {
+      // close() ran while we were starting — shut the engine back down.
+      await _inputSub?.cancel();
+      await _stopEngineIfOwned();
+      return;
     }
-
-    await _inputSub?.cancel();
-    _inputSub = _audioIo.input.listen(
-      _onInput,
-      onError: (Object e) => Logger.log('AudioIo input error: $e'),
-    );
-
-    emit(const AudioStatus(hasPermission: true, isStarted: true));
+    if (started) {
+      emit(const AudioStatus(hasPermission: true, isStarted: true));
+    }
   }
 
   // ── Internal ───────────────────────────────────────────────────────────────
@@ -193,7 +252,10 @@ class AudioCubit extends Cubit<AudioStatus> {
     await _inputSub?.cancel();
     await _frameController.close();
     _buffer?.dispose();
-    await _audioIo.stop();
+    // Epoch-guarded: if a newer AudioCubit already claimed the engine (the
+    // user re-entered the walkie page before this close chain finished),
+    // leave it running for them instead of killing their session.
+    await _stopEngineIfOwned();
     return super.close();
   }
 }

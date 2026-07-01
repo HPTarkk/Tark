@@ -13,6 +13,7 @@ import '../manager/landing_cubit.dart';
 import '../widget/landing_identity_card.dart';
 import '../widget/landing_logo.dart';
 import '../widget/language_toggle.dart';
+import '../widget/theme_toggle.dart';
 import '../widget/transport_mode_toggle.dart';
 
 class LandingPage extends StatefulWidget {
@@ -99,12 +100,7 @@ class _LandingPageState extends State<LandingPage>
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
-        systemNavigationBarColor: AppColors.background,
-        systemNavigationBarIconBrightness: Brightness.light,
-      ),
+      value: AppColors.systemOverlayStyle,
       child: Scaffold(
         backgroundColor: AppColors.background,
         body: BlocBuilder<LandingCubit, LandingState>(
@@ -133,7 +129,16 @@ class _LandingPageState extends State<LandingPage>
                   const SizedBox(height: 20),
                   _entrance(2, _buildJoinButton(context, state)),
                   const SizedBox(height: 20),
-                  _entrance(3, const LanguageToggle()),
+                  _entrance(
+                    3,
+                    const Column(
+                      children: [
+                        LanguageToggle(),
+                        SizedBox(height: 12),
+                        ThemeToggle(),
+                      ],
+                    ),
+                  ),
                   const Spacer(flex: 1),
                   _entrance(
                     4,
@@ -233,11 +238,11 @@ class _LandingPageState extends State<LandingPage>
         backgroundColor: AppColors.card,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: AppColors.border),
+          side: BorderSide(color: AppColors.border),
         ),
         title: Text(
           s.set_name_title,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.textPrimary,
             fontWeight: FontWeight.w700,
           ),
@@ -246,7 +251,7 @@ class _LandingPageState extends State<LandingPage>
           controller: controller,
           autofocus: true,
           maxLength: 20,
-          style: const TextStyle(color: AppColors.textPrimary),
+          style: TextStyle(color: AppColors.textPrimary),
           decoration: InputDecoration(
             hintText: s.name_hint,
             hintStyle:
@@ -257,15 +262,15 @@ class _LandingPageState extends State<LandingPage>
             fillColor: AppColors.surface,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.border),
+              borderSide: BorderSide(color: AppColors.border),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.border),
+              borderSide: BorderSide(color: AppColors.border),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AppColors.amber),
+              borderSide: BorderSide(color: AppColors.amber),
             ),
           ),
           onSubmitted: (v) {
@@ -278,7 +283,7 @@ class _LandingPageState extends State<LandingPage>
             onPressed: () => Navigator.of(ctx).pop(),
             child: Text(
               s.cancel,
-              style: const TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: AppColors.textSecondary),
             ),
           ),
           TextButton(
@@ -288,7 +293,7 @@ class _LandingPageState extends State<LandingPage>
             },
             child: Text(
               s.save,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.amber,
                 fontWeight: FontWeight.w700,
               ),

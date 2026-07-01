@@ -355,6 +355,18 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'بازگشت'**
   String get bt_back;
+
+  /// No description provided for @theme_dark.
+  ///
+  /// In fa, this message translates to:
+  /// **'تاریک'**
+  String get theme_dark;
+
+  /// No description provided for @theme_light.
+  ///
+  /// In fa, this message translates to:
+  /// **'روشن'**
+  String get theme_light;
 }
 
 class _AppLocalizationsDelegate

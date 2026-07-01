@@ -49,7 +49,7 @@ class _BluetoothConnectPageState extends State<BluetoothConnectPage> {
         backgroundColor: AppColors.background,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+          icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
           onPressed: () {
             final cubit = context.read<BluetoothConnectCubit>();
             if (cubit.state.role != null) {
@@ -61,7 +61,7 @@ class _BluetoothConnectPageState extends State<BluetoothConnectPage> {
         ),
         title: Text(
           s.transport_bluetooth,
-          style: const TextStyle(color: AppColors.textPrimary, fontSize: 16),
+          style: TextStyle(color: AppColors.textPrimary, fontSize: 16),
         ),
       ),
       body: SafeArea(
@@ -164,7 +164,7 @@ class _RoleButton extends StatelessWidget {
             const SizedBox(width: 12),
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.amber,
                 fontSize: 15,
                 fontWeight: FontWeight.w800,
@@ -269,7 +269,7 @@ class _PeerTile extends StatelessWidget {
           child: Row(
             children: [
               if (isConnecting)
-                const SizedBox(
+                SizedBox(
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(
@@ -278,19 +278,19 @@ class _PeerTile extends StatelessWidget {
                   ),
                 )
               else
-                const Icon(Icons.bluetooth_rounded, color: AppColors.amber, size: 20),
+                Icon(Icons.bluetooth_rounded, color: AppColors.amber, size: 20),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   peer.name,
-                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                  style: TextStyle(color: AppColors.textPrimary, fontSize: 14),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               if (isConnecting)
                 Text(
                   connectingLabel,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.amber,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -326,11 +326,11 @@ class _Message extends StatelessWidget {
             Text(
               text,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
             ),
             if (showSpinner) ...[
               const SizedBox(height: 20),
-              const CircularProgressIndicator(color: AppColors.amber),
+              CircularProgressIndicator(color: AppColors.amber),
             ],
           ],
         ),
