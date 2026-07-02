@@ -3,9 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../audio/domain/entity/audio_frame.dart';
-import '../../../audio/presentation/manager/audio_cubit.dart';
-import '../../../audio/presentation/widget/audio_visualizer.dart';
+import '../../../audio/api/audio_api.dart';
 import '../manager/walkie_talkie_cubit.dart';
 
 /// Isolated visualizer card.
@@ -52,7 +50,7 @@ class VisualizerSection extends StatelessWidget {
             children: [
               const _ScanlineBackground(),
               StreamBuilder<AudioFrame>(
-                stream: context.read<AudioCubit>().frames,
+                stream: context.read<WalkieTalkieCubit>().frames,
                 builder: (context, snapshot) {
                   final frame = snapshot.data;
                   if (frame == null || frame.samples.isEmpty) {

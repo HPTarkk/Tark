@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../transfer/domain/entity/transfer_mode.dart';
+import '../../../transfer/api/transfer_api.dart';
 import '../manager/landing_cubit.dart';
 
 /// WiFi / Bluetooth segmented toggle for choosing the active transport.

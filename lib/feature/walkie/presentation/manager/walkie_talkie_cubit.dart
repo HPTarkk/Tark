@@ -6,14 +6,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../../core/transfer/transfer_mode_holder.dart';
 import '../../../../core/utils/logger.dart';
-import '../../../audio/domain/entity/audio_frame.dart';
-import '../../../audio/presentation/manager/audio_cubit.dart';
-import '../../../transfer/domain/entity/transfer_mode.dart';
-import '../../../transfer/domain/repository/transfer_repository.dart';
-import '../../../walkie/domain/entity/channel_user.dart';
-import '../../../walkie/domain/entity/waki_packet.dart';
+import '../../../audio/api/audio_api.dart';
+import '../../../transfer/api/transfer_api.dart';
+import '../../domain/entity/channel_user.dart';
 
 /// Placeholder local id used in Bluetooth mode, where there's no IP concept
 /// and the peer connection (established before this cubit is even built) is
@@ -24,18 +20,24 @@ const _kBluetoothLocalId = 'bluetooth-peer';
 
 @injectable
 class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
-  final AudioCubit audioCubit;
+  final AudioEngine _audioEngine;
   final TransferRepository _transferRepository;
+  final TransferModeStore _modeStore;
 
   StreamSubscription<AudioFrame>? _frameSub;
+  StreamSubscription<AudioEngineStatus>? _statusSub;
   StreamSubscription<WakiPacket>? _packetSub;
   Timer? _presenceTimer;
   Timer? _cleanupTimer;
 
-  WalkieTalkieCubit(this.audioCubit, this._transferRepository)
+  WalkieTalkieCubit(this._audioEngine, this._transferRepository, this._modeStore)
       : super(WalkieTalkieState.initial()) {
     _init();
   }
+
+  /// Outgoing mic frames, exposed for audio-rate widgets (visualizer, VOX
+  /// meter) so presentation never touches the audio feature directly.
+  Stream<AudioFrame> get frames => _audioEngine.frames;
 
   Future<void> _init() async {
     final localId = await _getLocalId();
@@ -43,18 +45,33 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     final myName =
         prefs.getString('user_name') ?? 'User${localId.split('.').last}';
     final voxThreshold = prefs.getDouble('vox_threshold') ?? state.voxThreshold;
+    final noiseSuppression =
+        prefs.getDouble('noise_suppression') ?? state.noiseSuppression;
 
     // The page can be exited while _init is still awaiting (fast back-out).
     // close() has then already run, so bail instead of resurrecting
     // subscriptions and timers nobody will ever cancel.
     if (isClosed) return;
 
-    emit(state.copyWith(localId: localId, myName: myName, voxThreshold: voxThreshold));
+    _audioEngine.setNoiseSuppression(noiseSuppression);
+    emit(state.copyWith(
+      localId: localId,
+      myName: myName,
+      voxThreshold: voxThreshold,
+      noiseSuppression: noiseSuppression,
+      transferMode: _modeStore.mode,
+    ));
 
-    await audioCubit.start();
+    _statusSub = _audioEngine.status.listen((status) {
+      if (!isClosed && status.hasPermission != state.hasPermission) {
+        emit(state.copyWith(hasPermission: status.hasPermission));
+      }
+    });
+
+    await _audioEngine.start();
     if (isClosed) return;
 
-    _frameSub = audioCubit.frames.listen(
+    _frameSub = _audioEngine.frames.listen(
       _onAudioFrame,
       onError: (Object e) => Logger.log('AudioFrame error: $e'),
     );
@@ -83,7 +100,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     // No network → never mark as transmitting.
     final isOnline =
         state.localId.isNotEmpty && state.localId != '0.0.0.0';
-    final isTransmitting = audioCubit.state.hasPermission &&
+    final isTransmitting = _audioEngine.currentStatus.hasPermission &&
         isOnline &&
         frame.rms > state.voxThreshold;
 
@@ -93,7 +110,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
 
     if (isTransmitting) {
       final processed =
-          audioCubit.processForTransmit(frame.samples, state.voxThreshold);
+          _audioEngine.processForTransmit(frame.samples, state.voxThreshold);
       _transferRepository.sendAudio(processed, state.myName);
     }
   }
@@ -110,7 +127,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
       case AudioPacket():
         _updateUser(packet.senderId, packet.senderName, true);
         try {
-          audioCubit.playReceived(packet.samples, packet.seq, packet.senderId);
+          _audioEngine.playReceived(packet.samples, packet.seq, packet.senderId);
         } catch (e) {
           Logger.log('Playback error: $e');
         }
@@ -163,6 +180,13 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     await prefs.setDouble('vox_threshold', threshold);
   }
 
+  Future<void> setNoiseSuppression(double strength) async {
+    _audioEngine.setNoiseSuppression(strength);
+    emit(state.copyWith(noiseSuppression: strength));
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('noise_suppression', strength);
+  }
+
   Future<void> setMyName(String name) async {
     final trimmed = name.trim();
     if (trimmed.isEmpty) return;
@@ -180,7 +204,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
   /// non-empty id instead of doing a WiFi lookup that may legitimately fail
   /// (WiFi is commonly off when using Bluetooth mode).
   Future<String> _getLocalId() async {
-    if (TransferModeHolder.mode == TransferMode.bluetooth) {
+    if (_modeStore.mode == TransferMode.bluetooth) {
       return _kBluetoothLocalId;
     }
     try {
@@ -212,12 +236,14 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     // Running it synchronously here means it can only ever affect this
     // session's own generation.
     final frameCancel = _frameSub?.cancel();
+    final statusCancel = _statusSub?.cancel();
     final packetCancel = _packetSub?.cancel();
     _transferRepository.stopConnection();
 
     await frameCancel;
+    await statusCancel;
     await packetCancel;
-    await audioCubit.close();
+    await _audioEngine.dispose();
     return super.close();
   }
 }
@@ -228,43 +254,58 @@ class WalkieTalkieState extends Equatable {
   final String localId;
   final String myName;
   final bool isTransmitting;
+  final bool hasPermission;
   final double voxThreshold;
+  final double noiseSuppression;
   final List<ChannelUser> activeUsers;
   final bool isReady;
+  final TransferMode transferMode;
 
   const WalkieTalkieState({
     required this.localId,
     required this.myName,
     required this.isTransmitting,
+    required this.hasPermission,
     required this.voxThreshold,
+    required this.noiseSuppression,
     required this.activeUsers,
     required this.isReady,
+    required this.transferMode,
   });
 
   factory WalkieTalkieState.initial() => const WalkieTalkieState(
         localId: '',
         myName: '',
         isTransmitting: false,
+        hasPermission: true,
         voxThreshold: 0.025,
+        noiseSuppression: 0.6,
         activeUsers: [],
         isReady: false,
+        transferMode: TransferMode.wifi,
       );
 
   WalkieTalkieState copyWith({
     String? localId,
     String? myName,
     bool? isTransmitting,
+    bool? hasPermission,
     double? voxThreshold,
+    double? noiseSuppression,
     List<ChannelUser>? activeUsers,
     bool? isReady,
+    TransferMode? transferMode,
   }) =>
       WalkieTalkieState(
         localId: localId ?? this.localId,
         myName: myName ?? this.myName,
         isTransmitting: isTransmitting ?? this.isTransmitting,
+        hasPermission: hasPermission ?? this.hasPermission,
         voxThreshold: voxThreshold ?? this.voxThreshold,
+        noiseSuppression: noiseSuppression ?? this.noiseSuppression,
         activeUsers: activeUsers ?? this.activeUsers,
         isReady: isReady ?? this.isReady,
+        transferMode: transferMode ?? this.transferMode,
       );
 
   bool get isSomeoneElseTalking => activeUsers.any((u) => u.isTalking);
@@ -274,8 +315,11 @@ class WalkieTalkieState extends Equatable {
         localId,
         myName,
         isTransmitting,
+        hasPermission,
         voxThreshold,
+        noiseSuppression,
         activeUsers,
         isReady,
+        transferMode,
       ];
 }

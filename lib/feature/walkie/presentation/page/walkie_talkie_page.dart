@@ -5,15 +5,13 @@ import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/transfer/transfer_mode_holder.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../core/widget/app_avatar.dart';
 import '../../../../core/widget/ticker_text.dart';
 import '../../../../core/widget/version_badge.dart';
-import '../../../audio/presentation/manager/audio_cubit.dart';
-import '../../../landing/presentation/page/landing_page.dart';
-import '../../../transfer/domain/entity/transfer_mode.dart';
+import '../../../transfer/api/transfer_api.dart';
 import '../manager/walkie_talkie_cubit.dart';
 import '../widget/status_row.dart';
 import '../widget/user_list.dart';
@@ -22,20 +20,12 @@ import '../widget/vox_section.dart';
 import '../widget/walkie_header.dart';
 
 class WalkieTalkiePage extends StatefulWidget {
-  static const path = 'walkie';
-  static const name = 'WalkieTalkiePage';
-
   const WalkieTalkiePage._();
 
   static Widget buildPage() {
     return BlocProvider<WalkieTalkieCubit>(
       create: (_) => GetIt.instance<WalkieTalkieCubit>(),
-      child: Builder(
-        builder: (ctx) => BlocProvider<AudioCubit>.value(
-          value: ctx.read<WalkieTalkieCubit>().audioCubit,
-          child: const WalkieTalkiePage._(),
-        ),
-      ),
+      child: const WalkieTalkiePage._(),
     );
   }
 
@@ -150,7 +140,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
         final s = context.getString;
         final displayIp = state.localId.isEmpty
             ? s.connecting
-            : (TransferModeHolder.mode == TransferMode.bluetooth
+            : (state.transferMode == TransferMode.bluetooth
                 ? s.transport_bluetooth
                 : state.localId.localized(context));
 
@@ -325,7 +315,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
               // Bluetooth flow replaces the stack on connect (goNamed in
               // BluetoothConnectPage), which left plain pop() with nothing
               // to pop back to.
-              context.goNamed(LandingPage.name);
+              context.goNamed(AppRoutes.landingName);
             },
             child: Text(
               s.leave,

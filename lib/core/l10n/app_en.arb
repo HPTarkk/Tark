@@ -43,5 +43,9 @@
     "bt_connection_failed": "Connection failed",
     "bt_back": "BACK",
     "theme_dark": "DARK",
-    "theme_light": "LIGHT"
+    "theme_light": "LIGHT",
+    "noise_filter": "NOISE FILTER",
+    "noise_filter_off": "OFF",
+    "noise_filter_weak": "LOW",
+    "noise_filter_strong": "HIGH"
 }

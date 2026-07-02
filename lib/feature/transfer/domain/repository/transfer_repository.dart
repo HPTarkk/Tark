@@ -1,7 +1,7 @@
 import 'package:dartz/dartz.dart';
 
 import '../../../../core/error/failure.dart';
-import '../../../walkie/domain/entity/waki_packet.dart';
+import '../entity/waki_packet.dart';
 
 abstract interface class TransferRepository {
   Stream<WakiPacket> startListening();

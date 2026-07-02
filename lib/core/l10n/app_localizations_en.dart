@@ -145,4 +145,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get theme_light => 'LIGHT';
+
+  @override
+  String get noise_filter => 'NOISE FILTER';
+
+  @override
+  String get noise_filter_off => 'OFF';
+
+  @override
+  String get noise_filter_weak => 'LOW';
+
+  @override
+  String get noise_filter_strong => 'HIGH';
 }

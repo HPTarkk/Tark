@@ -43,5 +43,9 @@
     "bt_connection_failed": "اتصال ناموفق بود",
     "bt_back": "بازگشت",
     "theme_dark": "تاریک",
-    "theme_light": "روشن"
+    "theme_light": "روشن",
+    "noise_filter": "فیلتر نویز",
+    "noise_filter_off": "خاموش",
+    "noise_filter_weak": "کم",
+    "noise_filter_strong": "زیاد"
 }

@@ -367,6 +367,30 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'روشن'**
   String get theme_light;
+
+  /// No description provided for @noise_filter.
+  ///
+  /// In fa, this message translates to:
+  /// **'فیلتر نویز'**
+  String get noise_filter;
+
+  /// No description provided for @noise_filter_off.
+  ///
+  /// In fa, this message translates to:
+  /// **'خاموش'**
+  String get noise_filter_off;
+
+  /// No description provided for @noise_filter_weak.
+  ///
+  /// In fa, this message translates to:
+  /// **'کم'**
+  String get noise_filter_weak;
+
+  /// No description provided for @noise_filter_strong.
+  ///
+  /// In fa, this message translates to:
+  /// **'زیاد'**
+  String get noise_filter_strong;
 }
 
 class _AppLocalizationsDelegate

@@ -6,7 +6,7 @@ import 'package:injectable/injectable.dart';
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/utils/logger.dart';
-import '../../../walkie/domain/entity/waki_packet.dart';
+import '../../domain/entity/waki_packet.dart';
 import '../../domain/entity/bluetooth_connection_state.dart' as bt;
 import '../../domain/entity/bluetooth_peer.dart';
 import '../../domain/repository/bluetooth_transport.dart';

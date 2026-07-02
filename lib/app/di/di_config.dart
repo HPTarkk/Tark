@@ -1,0 +1,40 @@
+import 'package:audio_io/audio_io.dart';
+import 'package:get_it/get_it.dart';
+import 'package:injectable/injectable.dart';
+
+import '../../feature/transfer/data/repository/bluetooth_transfer_repository.dart';
+import '../../feature/transfer/data/repository/wifi_transfer_repository_impl.dart';
+import '../../feature/transfer/domain/entity/transfer_mode.dart';
+import '../../feature/transfer/domain/repository/bluetooth_transport.dart';
+import '../../feature/transfer/domain/repository/transfer_repository.dart';
+import '../../feature/transfer/domain/service/transfer_mode_store.dart';
+import 'di_config.config.dart';
+
+@injectableInit
+void configureDependencies() {
+  GetIt.instance.init();
+}
+
+@module
+abstract class RegisterThirdParty {
+  @lazySingleton
+  AudioIo get audioIo => AudioIo.instance;
+}
+
+@module
+abstract class TransferModule {
+  BluetoothTransport bluetoothTransport(BluetoothTransferRepository impl) =>
+      impl;
+
+  /// Selector, not a fixed binding: WalkieTalkieCubit (a factory) resolves
+  /// TransferRepository fresh each time it's built, so this picks whichever
+  /// transport singleton is active per [TransferModeStore.mode] — for
+  /// Bluetooth that's the already-connected instance from the Host/Join
+  /// screen, not a new connection attempt.
+  TransferRepository transferRepository(
+    TransferModeStore store,
+    WifiTransferRepositoryImpl wifi,
+    BluetoothTransferRepository bluetooth,
+  ) =>
+      store.mode == TransferMode.bluetooth ? bluetooth : wifi;
+}
