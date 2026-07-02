@@ -145,4 +145,16 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get theme_light => 'روشن';
+
+  @override
+  String get noise_filter => 'فیلتر نویز';
+
+  @override
+  String get noise_filter_off => 'خاموش';
+
+  @override
+  String get noise_filter_weak => 'کم';
+
+  @override
+  String get noise_filter_strong => 'زیاد';
 }

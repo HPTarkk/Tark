@@ -5,8 +5,7 @@ import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../core/widget/ticker_text.dart';
-import '../../../audio/domain/entity/audio_frame.dart';
-import '../../../audio/presentation/manager/audio_cubit.dart';
+import '../../../audio/api/audio_api.dart';
 import '../manager/walkie_talkie_cubit.dart';
 import 'user_list.dart';
 
@@ -18,7 +17,9 @@ class VoxSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = context.getString;
     return BlocBuilder<WalkieTalkieCubit, WalkieTalkieState>(
-      buildWhen: (p, c) => p.voxThreshold != c.voxThreshold,
+      buildWhen: (p, c) =>
+          p.voxThreshold != c.voxThreshold ||
+          p.noiseSuppression != c.noiseSuppression,
       builder: (context, state) {
         // Percent reflects the THRESHOLD value directly: 0% at the lowest
         // threshold (most sensitive / effectively always-on), 100% at the
@@ -110,15 +111,18 @@ class VoxSection extends StatelessWidget {
                   // VoxMeter has its own StreamBuilder — updates at audio-rate
                   // without propagating rebuilds to the rest of the section.
                   VoxMeter(voxThreshold: state.voxThreshold),
+                  const SizedBox(height: 14),
+                  Divider(color: AppColors.border, height: 1),
+                  const SizedBox(height: 14),
+                  _NoiseFilterControl(strength: state.noiseSuppression),
                 ],
               ),
             ),
-            // Permission warning — rebuilt only when hasPermission changes,
-            // handled by the parent BlocBuilder on the page.
-            BlocBuilder<AudioCubit, AudioStatus>(
+            // Permission warning — rebuilt only when hasPermission changes.
+            BlocBuilder<WalkieTalkieCubit, WalkieTalkieState>(
               buildWhen: (p, c) => p.hasPermission != c.hasPermission,
-              builder: (context, audioState) {
-                if (audioState.hasPermission) return const SizedBox.shrink();
+              builder: (context, walkieState) {
+                if (walkieState.hasPermission) return const SizedBox.shrink();
                 return Container(
                   margin: const EdgeInsets.only(top: 12),
                   padding: const EdgeInsets.all(14),
@@ -149,6 +153,115 @@ class VoxSection extends StatelessWidget {
   }
 }
 
+// ── Noise filter control ──────────────────────────────────────────────────────
+
+/// Spectral noise suppression strength slider (0 = off .. 100%).
+///
+/// Lives inside the VOX card because the two settings work as a pair: the
+/// filter removes steady noise (wind/engine) from the signal BEFORE the VOX
+/// level decision, so with the filter up, the VOX threshold can stay low
+/// without the channel keying up on background noise.
+class _NoiseFilterControl extends StatelessWidget {
+  final double strength;
+
+  const _NoiseFilterControl({required this.strength});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    final percent = (strength * 100).round();
+    final label = percent == 0
+        ? s.noise_filter_off
+        : '${percent.localized(context)}%';
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            Icon(
+              percent == 0
+                  ? Icons.mic_none_rounded
+                  : Icons.noise_aware_rounded,
+              color:
+                  percent == 0 ? AppColors.textSecondary : AppColors.amber,
+              size: 14,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              s.noise_filter,
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 11,
+                letterSpacing: 1.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: TickerText(
+                text: label,
+                duration: const Duration(milliseconds: 200),
+                style: TextStyle(
+                  color: percent == 0
+                      ? AppColors.textSecondary
+                      : AppColors.amber,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            trackHeight: 4,
+            activeTrackColor: AppColors.amber,
+            inactiveTrackColor: AppColors.border,
+            thumbColor: AppColors.amber,
+            overlayColor: AppColors.amber.withAlpha(40),
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
+          ),
+          child: Slider(
+            value: strength.clamp(0.0, 1.0),
+            min: 0.0,
+            max: 1.0,
+            onChanged: (v) =>
+                context.read<WalkieTalkieCubit>().setNoiseSuppression(v),
+          ),
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              s.noise_filter_weak,
+              style: TextStyle(
+                color: AppColors.textSecondary.withAlpha(160),
+                fontSize: 10,
+                letterSpacing: 1,
+              ),
+            ),
+            Text(
+              s.noise_filter_strong,
+              style: TextStyle(
+                color: AppColors.textSecondary.withAlpha(160),
+                fontSize: 10,
+                letterSpacing: 1,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
 // ── VOX meter ─────────────────────────────────────────────────────────────────
 
 /// Audio-level meter with RTL-aware bar anchoring.
@@ -164,7 +277,7 @@ class VoxMeter extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = context.getString;
     return StreamBuilder<AudioFrame>(
-      stream: context.read<AudioCubit>().frames,
+      stream: context.read<WalkieTalkieCubit>().frames,
       builder: (context, snapshot) {
         final rms = snapshot.data?.rms ?? 0.0;
         final isActive = rms > voxThreshold;

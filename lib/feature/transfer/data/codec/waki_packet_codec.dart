@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import '../../../walkie/domain/entity/waki_packet.dart';
+import '../../domain/entity/waki_packet.dart';
 
 const kPresenceByte = 0x01;
 const kAudioByte = 0x02;

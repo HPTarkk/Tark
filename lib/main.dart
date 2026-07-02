@@ -3,21 +3,23 @@ import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
-import 'core/di/di_config.dart';
+import 'app/di/di_config.dart';
+import 'app/router/app_router.dart';
 import 'core/l10n/app_localizations.dart';
 import 'core/l10n/extension.dart';
 import 'core/locale/locale_service.dart';
-import 'core/router/app_router.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/theme_service.dart';
-import 'core/transfer/transfer_mode_holder.dart';
+import 'feature/transfer/api/transfer_api.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await LocaleService.initialize();
   await ThemeService.initialize();
-  await TransferModeHolder.initialize();
   configureDependencies();
+  // Must complete before the first page builds: the DI factory that picks
+  // the active TransferRepository reads the persisted mode synchronously.
+  await GetIt.instance<TransferModeStore>().initialize();
   runApp(const MyApp());
 }
 

@@ -3,16 +3,19 @@ import 'dart:io';
 
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../../core/transfer/transfer_mode_holder.dart';
 import '../../../../core/utils/logger.dart';
-import '../../../transfer/domain/entity/transfer_mode.dart';
+import '../../../transfer/api/transfer_api.dart';
 
+@injectable
 class LandingCubit extends Cubit<LandingState> {
+  final TransferModeStore _modeStore;
   Timer? _ipTimer;
 
-  LandingCubit() : super(LandingState.initial(TransferModeHolder.mode)) {
+  LandingCubit(this._modeStore)
+      : super(LandingState.initial(_modeStore.mode)) {
     _init();
   }
 
@@ -40,7 +43,7 @@ class LandingCubit extends Cubit<LandingState> {
   }
 
   Future<void> setTransferMode(TransferMode mode) async {
-    await TransferModeHolder.setMode(mode);
+    await _modeStore.setMode(mode);
     emit(state.copyWith(transferMode: mode));
   }
 

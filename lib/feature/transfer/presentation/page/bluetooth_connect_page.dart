@@ -5,17 +5,14 @@ import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../walkie/presentation/page/walkie_talkie_page.dart';
 import '../../domain/entity/bluetooth_connection_state.dart';
 import '../../domain/entity/bluetooth_peer.dart';
 import '../../domain/entity/bluetooth_role.dart';
 import '../manager/bluetooth_connect_cubit.dart';
 
 class BluetoothConnectPage extends StatefulWidget {
-  static const path = 'bluetooth-connect';
-  static const name = 'BluetoothConnectPage';
-
   const BluetoothConnectPage._();
 
   static Widget buildPage() => BlocProvider<BluetoothConnectCubit>(
@@ -68,7 +65,7 @@ class _BluetoothConnectPageState extends State<BluetoothConnectPage> {
         child: BlocConsumer<BluetoothConnectCubit, BluetoothConnectState>(
           listener: (context, state) {
             if (state.connectionState == BluetoothConnectionState.connected) {
-              context.goNamed(WalkieTalkiePage.name);
+              context.goNamed(AppRoutes.walkieName);
             }
           },
           builder: (context, state) {

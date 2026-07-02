@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/version_badge.dart';
-import '../../../../feature/transfer/presentation/page/bluetooth_connect_page.dart';
-import '../../../../feature/transfer/domain/entity/transfer_mode.dart';
-import '../../../../feature/walkie/presentation/page/walkie_talkie_page.dart';
+import '../../../transfer/api/transfer_api.dart';
 import '../manager/landing_cubit.dart';
 import '../widget/landing_identity_card.dart';
 import '../widget/landing_logo.dart';
@@ -17,13 +17,10 @@ import '../widget/theme_toggle.dart';
 import '../widget/transport_mode_toggle.dart';
 
 class LandingPage extends StatefulWidget {
-  static const path = '/';
-  static const name = 'LandingPage';
-
   const LandingPage._();
 
   static Widget buildPage() => BlocProvider<LandingCubit>(
-        create: (_) => LandingCubit(),
+        create: (_) => GetIt.instance<LandingCubit>(),
         child: const LandingPage._(),
       );
 
@@ -186,8 +183,8 @@ class _LandingPageState extends State<LandingPage>
         onTap: enabled
             ? () => context.pushNamed(
                   state.transferMode == TransferMode.bluetooth
-                      ? BluetoothConnectPage.name
-                      : WalkieTalkiePage.name,
+                      ? AppRoutes.bluetoothConnectName
+                      : AppRoutes.walkieName,
                 )
             : null,
         child: AnimatedContainer(

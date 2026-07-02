@@ -6,7 +6,7 @@ import 'package:injectable/injectable.dart';
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/utils/logger.dart';
-import '../../../walkie/domain/entity/waki_packet.dart';
+import '../../domain/entity/waki_packet.dart';
 import '../../domain/repository/transfer_repository.dart';
 import '../codec/waki_packet_codec.dart';
 

@@ -7,7 +7,7 @@ import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../core/widget/app_avatar.dart';
-import '../../../walkie/domain/entity/channel_user.dart';
+import '../../domain/entity/channel_user.dart';
 import '../manager/walkie_talkie_cubit.dart';
 
 // ── Section header helper ─────────────────────────────────────────────────────
