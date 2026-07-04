@@ -13,6 +13,7 @@ import '../domain/resampler.dart';
 import '../domain/service/audio_engine.dart';
 import '../domain/spectral_noise_suppressor.dart';
 import 'audio_playback_buffer.dart';
+import 'voice_audio_session.dart';
 
 @Injectable(as: AudioEngine)
 class AudioEngineImpl implements AudioEngine {
@@ -47,6 +48,7 @@ class AudioEngineImpl implements AudioEngine {
   Future<void> _stopEngineIfOwned() => _withEngineLock(() async {
         if (_engineEpoch != _myEpoch) return; // newer session owns the engine
         await _audioIo.stop();
+        await VoiceAudioSession.release();
       });
 
   AudioProcessor _processor =
@@ -121,6 +123,12 @@ class AudioEngineImpl implements AudioEngine {
 
       try {
         await _audioIo.stop();
+        // Android: bring the Bluetooth SCO route up — and confirmed — BEFORE
+        // the engine opens its streams. Older devices don't re-route streams
+        // that are already open (Galaxy S8 + AirPods went silent both ways).
+        // No-op without a BT headset; rolls itself back if SCO fails so the
+        // default route keeps working.
+        await VoiceAudioSession.configure();
         await _audioIo.requestLatency(AudioIoLatency.Balanced);
         try {
           await _audioIo.start();
@@ -130,6 +138,10 @@ class AudioEngineImpl implements AudioEngine {
           await Future<void>.delayed(const Duration(milliseconds: 300));
           await _audioIo.start();
         }
+        // iOS: re-assert the voiceChat category AFTER start — miniaudio
+        // applies its own session config during start and last write wins.
+        // On Android this second call is a no-op (already engaged).
+        await VoiceAudioSession.configure();
         final fmt = await _audioIo.getFormat();
         Logger.log('AudioIo format: $fmt');
         final inputRate =

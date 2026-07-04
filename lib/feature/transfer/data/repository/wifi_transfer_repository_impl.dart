@@ -5,6 +5,7 @@ import 'package:dartz/dartz.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/utils/lan_ipv4.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entity/waki_packet.dart';
 import '../../domain/repository/transfer_repository.dart';
@@ -20,15 +21,32 @@ class WifiTransferRepositoryImpl implements TransferRepository {
 
   // Every packet is sent to ALL of these. A device can sit on several IPv4
   // networks at once (hotspot AP interface + cellular, or WiFi + hotspot),
-  // and only one of them contains the peers. Broadcasting on every interface
-  // (plus the limited broadcast) means we never depend on interface order —
-  // picking "the first non-loopback interface" broke the hotspot-host case,
-  // where cellular is usually listed first.
+  // and only one of them contains the peers. Broadcasting on every private
+  // interface (plus the limited broadcast) means we never depend on
+  // interface order — picking "the first non-loopback interface" broke the
+  // hotspot-host case, where cellular is usually listed first. Targets are
+  // limited to RFC1918 subnets so we never spray a directed broadcast at a
+  // public range (the cellular interface often carries a public IP).
   List<InternetAddress> _broadcastTargets = const [];
   DateTime _targetsResolvedAt = DateTime.fromMillisecondsSinceEpoch(0);
   static const _targetsMaxAge = Duration(seconds: 10);
 
-  final _codec = const WakiPacketCodec();
+  // Private /24 prefixes ("a.b.c") we sit on, used for the unicast discovery
+  // sweep, and our own addresses, used to ignore our broadcast echo.
+  List<String> _sweepSubnets = const [];
+  Set<String> _localAddresses = const {};
+
+  // Peers we've actually heard from, by source address. iOS can neither
+  // send nor receive UDP broadcast without Apple's restricted multicast
+  // entitlement (com.apple.developer.networking.multicast), so on top of
+  // broadcasting, every packet is also unicast to each recently seen peer —
+  // unicast only needs the Local Network permission. Duplicates on
+  // platforms where broadcast DOES arrive are harmless: presence handling
+  // is idempotent and the playback buffer drops repeated audio seqs.
+  final Map<String, DateTime> _peers = {};
+  static const _peerMaxAge = Duration(seconds: 10);
+
+  final _codec = WakiPacketCodec();
 
   // Incremented each time startListening() is called so any in-flight
   // generator from a previous session knows to stop when it wakes from
@@ -49,6 +67,7 @@ class WifiTransferRepositoryImpl implements TransferRepository {
     _receiveSocket?.close();
     _receiveSocket = null;
     _connectionController.close();
+    _codec.release();
   }
 
   @override
@@ -72,6 +91,7 @@ class WifiTransferRepositoryImpl implements TransferRepository {
       await _ensureSendSocket();
       final packet = _codec.encodePresence(senderName, isTalking);
       _sendToAllTargets(packet);
+      _sweepIfUndiscovered(packet);
       return const Right(null);
     } catch (error) {
       Logger.log(error);
@@ -103,8 +123,15 @@ class WifiTransferRepositoryImpl implements TransferRepository {
           if (event == RawSocketEvent.read) {
             Datagram? dg;
             while ((dg = _receiveSocket?.receive()) != null) {
-              final packet = _codec.decode(dg!.data, dg.address.address);
-              if (packet != null) yield packet;
+              // Broadcast echoes of our own packets can arrive from ANY of
+              // our addresses (multi-interface), not just the one the cubit
+              // filters on — drop them here where all of them are known.
+              if (_localAddresses.contains(dg!.address.address)) continue;
+              final packet = _codec.decode(dg.data, dg.address.address);
+              if (packet != null) {
+                _rememberPeer(dg.address.address);
+                yield packet;
+              }
             }
           } else if (event == RawSocketEvent.closed) {
             break;
@@ -144,6 +171,9 @@ class WifiTransferRepositoryImpl implements TransferRepository {
     _sendSocket?.close();
     _sendSocket = null;
     _broadcastTargets = const [];
+    _sweepSubnets = const [];
+    _localAddresses = const {};
+    _peers.clear();
 
     _addConnectionEvent(false);
   }
@@ -160,42 +190,82 @@ class WifiTransferRepositoryImpl implements TransferRepository {
     final now = DateTime.now();
     if (_broadcastTargets.isEmpty ||
         now.difference(_targetsResolvedAt) > _targetsMaxAge) {
-      _broadcastTargets = await _getBroadcastTargets();
+      await _resolveNetwork();
       _targetsResolvedAt = now;
     }
   }
 
   void _sendToAllTargets(List<int> packet) {
     for (final target in _broadcastTargets) {
-      _sendSocket!.send(packet, target, kBroadcastPort);
+      _trySend(packet, target);
+    }
+    final now = DateTime.now();
+    _peers.removeWhere((_, seen) => now.difference(seen) > _peerMaxAge);
+    for (final addr in _peers.keys) {
+      _trySend(packet, InternetAddress(addr));
     }
   }
 
-  /// Directed broadcast address (x.y.z.255) of every non-loopback IPv4
-  /// interface, plus the limited broadcast 255.255.255.255.
+  /// Discovery fallback for platforms where broadcast never arrives (iOS
+  /// without the multicast entitlement): while no peer is known, unicast the
+  /// presence packet to every host of each private /24 we sit on. ~253 tiny
+  /// packets per presence tick, and it stops as soon as anyone answers —
+  /// from then on the peer map carries the session.
+  void _sweepIfUndiscovered(List<int> packet) {
+    if (_peers.isNotEmpty) return;
+    for (final prefix in _sweepSubnets) {
+      for (var host = 1; host < 255; host++) {
+        final addr = '$prefix.$host';
+        if (_localAddresses.contains(addr)) continue;
+        _trySend(packet, InternetAddress(addr));
+      }
+    }
+  }
+
+  void _rememberPeer(String address) {
+    // Our own broadcast comes back to us — that's not a peer.
+    if (_localAddresses.contains(address)) return;
+    _peers[address] = DateTime.now();
+  }
+
+  // A broadcast send is EXPECTED to fail on iOS (errno 65, no multicast
+  // entitlement); one failing target must not abort the remaining
+  // (unicast) targets, which do work there.
+  void _trySend(List<int> packet, InternetAddress target) {
+    try {
+      _sendSocket!.send(packet, target, kBroadcastPort);
+    } catch (_) {}
+  }
+
+  /// Resolves the directed broadcast address (x.y.z.255) of every private
+  /// (RFC1918) IPv4 interface plus the limited broadcast 255.255.255.255,
+  /// along with the matching /24 sweep prefixes and our own addresses.
   ///
   /// NetworkInterface.list doesn't expose the subnet prefix, so /24 is
   /// assumed — that matches Android/Windows/iPhone hotspots and virtually
-  /// all home routers, and the limited broadcast covers the rest.
-  Future<List<InternetAddress>> _getBroadcastTargets() async {
+  /// all home routers, and the limited broadcast covers the rest. Public and
+  /// CLAT (192.0.0.x) addresses are skipped: peers can never be there, and a
+  /// directed broadcast to a public range would leave the LAN.
+  Future<void> _resolveNetwork() async {
     final targets = <String>{'255.255.255.255'};
+    final subnets = <String>{};
+    final locals = <String>{};
     try {
-      final interfaces =
-          await NetworkInterface.list(type: InternetAddressType.IPv4);
-      for (final iface in interfaces) {
-        for (final addr in iface.addresses) {
-          if (addr.isLoopback) continue;
-          final parts = addr.address.split('.');
-          if (parts.length == 4) {
-            targets.add('${parts[0]}.${parts[1]}.${parts[2]}.255');
-          }
-        }
+      for (final entry in await LanIpv4.addresses()) {
+        locals.add(entry.address);
+        if (!LanIpv4.isPrivate(entry.address)) continue;
+        final parts = entry.address.split('.');
+        final prefix = '${parts[0]}.${parts[1]}.${parts[2]}';
+        targets.add('$prefix.255');
+        subnets.add(prefix);
       }
     } catch (e) {
-      Logger.log('Could not enumerate broadcast addresses: $e');
+      Logger.log('Could not enumerate network interfaces: $e');
     }
-    Logger.log('Broadcast targets: $targets');
-    return targets.map(InternetAddress.new).toList();
+    _broadcastTargets = targets.map(InternetAddress.new).toList();
+    _sweepSubnets = subnets.toList();
+    _localAddresses = locals;
+    Logger.log('Broadcast targets: $targets, sweep subnets: $subnets');
   }
 
   void _addConnectionEvent(bool isConnected) {

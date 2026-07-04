@@ -39,6 +39,32 @@ class AppLocalizationsFa extends AppLocalizations {
   String get rx_label => 'دریافت (RX)';
 
   @override
+  String get music_cast => 'پخش موزیک';
+
+  @override
+  String get music_cast_hint =>
+      'موزیک و صدای برنامه‌های این گوشی را برای همهٔ اعضای کانال پخش کن.';
+
+  @override
+  String get music_cast_start => 'شروع پخش';
+
+  @override
+  String get music_cast_starting => 'در حال شروع...';
+
+  @override
+  String get music_cast_stop => 'توقف';
+
+  @override
+  String get music_cast_on_air => 'روی آنتن';
+
+  @override
+  String get music_cast_mix => 'میزان صدای موزیک';
+
+  @override
+  String get music_cast_silent =>
+      'صدایی پخش نمی‌شود — در برنامهٔ موزیک، آهنگی پخش کن';
+
+  @override
   String get channel_members => 'اعضای کانال';
 
   @override
@@ -133,6 +159,16 @@ class AppLocalizationsFa extends AppLocalizations {
   @override
   String get bt_permission_denied =>
       'دسترسی بلوتوث داده نشد. لطفاً آن را در تنظیمات فعال کنید.';
+
+  @override
+  String get bt_not_supported_platform =>
+      'حالت بلوتوث هنوز روی این دستگاه در دسترس نیست. لطفاً از حالت وای‌فای استفاده کنید.';
+
+  @override
+  String get open_settings => 'باز کردن تنظیمات';
+
+  @override
+  String get retry => 'تلاش دوباره';
 
   @override
   String get bt_connection_failed => 'اتصال ناموفق بود';

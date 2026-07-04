@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -131,14 +132,54 @@ class VoxSection extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: AppColors.red.withAlpha(100)),
                   ),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.mic_off_rounded, color: AppColors.red, size: 18),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          context.getString.mic_permission_denied,
-                          style: TextStyle(color: AppColors.red, fontSize: 12),
+                      Row(
+                        children: [
+                          Icon(Icons.mic_off_rounded,
+                              color: AppColors.red, size: 18),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              context.getString.mic_permission_denied,
+                              style:
+                                  TextStyle(color: AppColors.red, fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      GestureDetector(
+                        onTap: openAppSettings,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.red.withAlpha(35),
+                            borderRadius: BorderRadius.circular(8),
+                            border:
+                                Border.all(color: AppColors.red.withAlpha(140)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.settings_rounded,
+                                  color: AppColors.red, size: 14),
+                              const SizedBox(width: 6),
+                              Text(
+                                context.getString.open_settings,
+                                style: TextStyle(
+                                  color: AppColors.red,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 1,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],

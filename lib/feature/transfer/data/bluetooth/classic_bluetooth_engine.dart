@@ -15,12 +15,23 @@ import '../../domain/entity/bluetooth_peer.dart';
 /// flutter_blue_classic only exposes outgoing connect(), not
 /// listenUsingRfcommWithServiceRecord()/accept() needed to host.
 class ClassicBluetoothEngine {
-  static const _serverMethods = MethodChannel('wakitaki/bluetooth_server/methods');
+  static const _serverMethods = MethodChannel('tark/bluetooth_server/methods');
   static const _serverConnectionEvents =
-      EventChannel('wakitaki/bluetooth_server/connection');
-  static const _serverReadEvents = EventChannel('wakitaki/bluetooth_server/read');
+      EventChannel('tark/bluetooth_server/connection');
+  static const _serverReadEvents = EventChannel('tark/bluetooth_server/read');
 
-  final _fbc = fbc.FlutterBlueClassic();
+  /// On Android 6–11 classic discovery silently returns NOTHING unless the
+  /// app holds fine location — [usesFineLocation] makes the plugin request
+  /// it before scanning. Must stay false on Android 12+ (the permission
+  /// isn't declared there; BLUETOOTH_SCAN with neverForLocation covers it).
+  ClassicBluetoothEngine({bool usesFineLocation = false})
+      : _fbc = fbc.FlutterBlueClassic(usesFineLocation: usesFineLocation);
+
+  /// Android API level, fetched natively (no plugin dependency).
+  static Future<int> sdkInt() async =>
+      await _serverMethods.invokeMethod<int>('sdkInt') ?? 0;
+
+  final fbc.FlutterBlueClassic _fbc;
 
   fbc.BluetoothConnection? _clientConnection;
   StreamSubscription<Uint8List>? _clientReadSub;
@@ -61,7 +72,7 @@ class ClassicBluetoothEngine {
     }
   }
 
-  Future<void> startHosting({String name = 'wakitaki'}) async {
+  Future<void> startHosting({String name = 'tark'}) async {
     await _hostConnectionSub?.cancel();
     await _hostReadSub?.cancel();
     _hosting = true;

@@ -45,6 +45,10 @@ post_install do |installer|
         '$(inherited)',
         ## dart: PermissionGroup.microphone
         'PERMISSION_MICROPHONE=1',
+        ## dart: PermissionGroup.bluetooth — without this macro,
+        ## permission_handler compiles the strategy out and every Bluetooth
+        ## permission request returns denied without ever prompting.
+        'PERMISSION_BLUETOOTH=1',
       ]
 
     end

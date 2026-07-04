@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
@@ -28,10 +30,16 @@ class _BluetoothConnectPageState extends State<BluetoothConnectPage> {
   bool _permissionDenied = false;
 
   Future<bool> _ensurePermissions() async {
-    final statuses = await [
-      Permission.bluetoothScan,
-      Permission.bluetoothConnect,
-    ].request();
+    // Android needs the granular BT runtime permissions (advertise included,
+    // for BLE hosting). iOS has a single Bluetooth permission.
+    final permissions = Platform.isAndroid
+        ? [
+            Permission.bluetoothScan,
+            Permission.bluetoothConnect,
+            Permission.bluetoothAdvertise,
+          ]
+        : [Permission.bluetooth];
+    final statuses = await permissions.request();
     final granted = statuses.values.every((s) => s.isGranted);
     if (mounted) setState(() => _permissionDenied = !granted);
     return granted;
@@ -69,10 +77,18 @@ class _BluetoothConnectPageState extends State<BluetoothConnectPage> {
             }
           },
           builder: (context, state) {
-            if (_permissionDenied) {
+            // Android runs Classic RFCOMM + BLE; iOS runs BLE. Anything
+            // else (desktop, web) has no Bluetooth transport.
+            if (!Platform.isAndroid && !Platform.isIOS) {
               return _Message(
                 icon: Icons.bluetooth_disabled_rounded,
-                text: s.bt_permission_denied,
+                text: s.bt_not_supported_platform,
+              );
+            }
+            if (_permissionDenied) {
+              return _PermissionDenied(
+                onOpenSettings: openAppSettings,
+                onRetry: _ensurePermissions,
               );
             }
             if (state.connectionState == BluetoothConnectionState.error) {
@@ -295,6 +311,60 @@ class _PeerTile extends StatelessWidget {
                 ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Permission denied ───────────────────────────────────────────────────────
+
+class _PermissionDenied extends StatelessWidget {
+  final Future<void> Function() onOpenSettings;
+  final Future<void> Function() onRetry;
+
+  const _PermissionDenied({
+    required this.onOpenSettings,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.bluetooth_disabled_rounded,
+                color: AppColors.amber, size: 40),
+            const SizedBox(height: 16),
+            Text(
+              s.bt_permission_denied,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+            ),
+            const SizedBox(height: 24),
+            _RoleButton(
+              icon: Icons.settings_rounded,
+              label: s.open_settings,
+              onTap: () => onOpenSettings(),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => onRetry(),
+              child: Text(
+                s.retry,
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

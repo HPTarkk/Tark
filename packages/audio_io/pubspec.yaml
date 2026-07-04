@@ -1,0 +1,43 @@
+name: audio_io
+description: Very simple interface to provide a stream of audio data for processing/visualising in Flutter
+version: 0.3.2
+homepage: https://www.wearemobilefirst.com
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+  flutter: ">=3.10.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_web_plugins:
+    sdk: flutter
+  ffi: ^2.1.0
+  web: ^0.5.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+# For information on the generic Dart part of this file, see the
+# following page: https://dart.dev/tools/pub/pubspec
+
+# The following section is specific to Flutter.
+flutter:
+  plugin:
+    platforms:
+      ios:
+        pluginClass: AudioIoPlugin
+      macos:
+        pluginClass: AudioIoPlugin
+      android:
+        package: com.wearemobilefirst.audio_io
+        pluginClass: AudioIoPlugin
+        ffiPlugin: true
+      web:
+        pluginClass: AudioIoPlugin
+        fileName: audio_io_web.dart
+      linux:
+        ffiPlugin: true
+      windows:
+        ffiPlugin: true

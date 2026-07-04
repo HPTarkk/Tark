@@ -4,6 +4,7 @@
 /// — never the feature's internal domain/data/presentation files.
 library;
 
+export '../data/system_audio_capture.dart' show SystemAudioCapture;
 export '../domain/entity/audio_engine_status.dart';
 export '../domain/entity/audio_frame.dart';
 export '../domain/service/audio_engine.dart';

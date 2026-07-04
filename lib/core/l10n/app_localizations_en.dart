@@ -39,6 +39,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rx_label => 'RX';
 
   @override
+  String get music_cast => 'MUSIC CAST';
+
+  @override
+  String get music_cast_hint =>
+      'Cast this phone\'s music and app sounds to everyone on the channel.';
+
+  @override
+  String get music_cast_start => 'START CASTING';
+
+  @override
+  String get music_cast_starting => 'STARTING...';
+
+  @override
+  String get music_cast_stop => 'STOP';
+
+  @override
+  String get music_cast_on_air => 'ON AIR';
+
+  @override
+  String get music_cast_mix => 'MIX LEVEL';
+
+  @override
+  String get music_cast_silent =>
+      'Nothing is playing — start a song in your music app';
+
+  @override
   String get channel_members => 'CHANNEL MEMBERS';
 
   @override
@@ -133,6 +159,16 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get bt_permission_denied =>
       'Bluetooth permission denied. Please enable it in Settings.';
+
+  @override
+  String get bt_not_supported_platform =>
+      'Bluetooth mode is not available on this device yet. Please use WiFi mode.';
+
+  @override
+  String get open_settings => 'OPEN SETTINGS';
+
+  @override
+  String get retry => 'TRY AGAIN';
 
   @override
   String get bt_connection_failed => 'Connection failed';

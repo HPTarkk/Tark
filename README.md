@@ -1,4 +1,4 @@
-# WakiTaki — LAN Walkie Talkie
+# Tark — LAN Walkie Talkie
 
 A real-time push-to-talk voice app for local WiFi networks. No internet or server required — devices discover each other automatically via UDP broadcast.
 

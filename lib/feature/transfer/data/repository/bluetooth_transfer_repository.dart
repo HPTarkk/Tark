@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dartz/dartz.dart';
 import 'package:injectable/injectable.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/utils/logger.dart';
@@ -11,40 +13,78 @@ import '../../domain/entity/bluetooth_connection_state.dart' as bt;
 import '../../domain/entity/bluetooth_peer.dart';
 import '../../domain/repository/bluetooth_transport.dart';
 import '../../domain/repository/transfer_repository.dart';
+import '../bluetooth/ble_bluetooth_engine.dart';
 import '../bluetooth/classic_bluetooth_engine.dart';
 import '../bluetooth/length_prefixed_framer.dart';
 import '../codec/waki_packet_codec.dart';
 
-/// Bluetooth transport for 1-to-1 sessions.
+/// Bluetooth transport for 1-to-1 sessions, running two engines:
 ///
-/// Android uses [ClassicBluetoothEngine] (RFCOMM/SPP). iOS support (BLE via
-/// Core Bluetooth) is deferred — Apple does not allow third-party apps to
-/// use Classic Bluetooth at all, so iOS needs a structurally different
-/// engine (central + peripheral roles) added in a later phase.
+///  * [ClassicBluetoothEngine] (RFCOMM/SPP) — Android only. Highest
+///    bandwidth and the engine that already worked Android↔Android.
+///  * [BleBluetoothEngine] (GATT) — Android and iOS. Apple forbids Classic
+///    Bluetooth for third-party apps, so BLE is what makes iPhone↔iPhone
+///    and iPhone↔Android possible. Opus keeps the audio well inside BLE
+///    bandwidth.
+///
+/// Hosting advertises on every engine the platform supports; whichever peer
+/// connects first wins and the other engine's hosting is stopped. Scanning
+/// merges both engines' results — BLE peer ids carry a `ble:` prefix so
+/// connect() knows which engine owns the peer.
 @lazySingleton
 class BluetoothTransferRepository
     implements TransferRepository, BluetoothTransport {
-  final _codec = const WakiPacketCodec();
-  final _framer = FrameReassembler();
+  final _codec = WakiPacketCodec();
+
+  // Classic RFCOMM is a raw byte stream, so the repo reassembles frames for
+  // it. The BLE engine frames internally and emits complete messages.
+  final _classicFramer = FrameReassembler();
+
   final _packetController = StreamController<WakiPacket>.broadcast();
   final _connectionStateController =
       StreamController<bt.BluetoothConnectionState>.broadcast();
 
   ClassicBluetoothEngine? _classicEngine;
-  StreamSubscription<dynamic>? _inputSub;
-  StreamSubscription<String>? _peerConnectedSub;
-  StreamSubscription<String>? _errorSub;
-  StreamSubscription<void>? _closedSub;
+  BleBluetoothEngine? _bleEngine;
 
+  final List<StreamSubscription<dynamic>> _engineSubs = [];
+  StreamController<BluetoothPeer>? _scanController;
+  final List<StreamSubscription<BluetoothPeer>> _scanSubs = [];
+
+  /// Which engine carries the active connection ('classic' | 'ble' | null).
+  String? _activeEngine;
   String? _connectedPeerId;
   int _audioSeq = 0;
 
-  ClassicBluetoothEngine get _requireClassicEngine {
-    if (!Platform.isAndroid) {
-      throw UnsupportedError(
-          'Bluetooth mode on this platform is not implemented yet.');
+  bool get _classicSupported => Platform.isAndroid;
+  bool get _bleSupported => Platform.isAndroid || Platform.isIOS;
+
+  /// Creation is async because Android 6–11 needs the plugin to request
+  /// fine location before classic discovery works (returns nothing without
+  /// it), while on 12+ that permission isn't even declared — the API level
+  /// decides, and it comes over a platform channel.
+  Future<ClassicBluetoothEngine> _classicAsync() async {
+    if (!_classicSupported) {
+      throw UnsupportedError('Classic Bluetooth requires Android.');
     }
-    return _classicEngine ??= ClassicBluetoothEngine();
+    final existing = _classicEngine;
+    if (existing != null) return existing;
+    var usesFineLocation = false;
+    try {
+      usesFineLocation = await ClassicBluetoothEngine.sdkInt() < 31;
+    } catch (e) {
+      Logger.log('sdkInt lookup failed: $e');
+    }
+    return _classicEngine ??=
+        ClassicBluetoothEngine(usesFineLocation: usesFineLocation);
+  }
+
+  BleBluetoothEngine get _requireBle {
+    if (!_bleSupported) {
+      throw UnsupportedError('Bluetooth mode is not supported on this platform.');
+    }
+    final engine = _bleEngine ??= BleBluetoothEngine();
+    return engine;
   }
 
   @override
@@ -55,69 +95,204 @@ class BluetoothTransferRepository
 
   @override
   Future<void> startHosting() async {
-    final engine = _requireClassicEngine;
-    _listenToEngine(engine);
     _connectionStateController.add(bt.BluetoothConnectionState.hosting);
-    await engine.requestDiscoverable();
-    await engine.startHosting();
+
+    // Advertise the user's display name so the joiner sees who they're
+    // connecting to, not a generic hostname.
+    final prefs = await SharedPreferences.getInstance();
+    final deviceName = prefs.getString('user_name') ?? 'Tark';
+
+    if (_classicSupported) {
+      // Classic first: its discoverable dialog is also what prompts the
+      // user to turn Bluetooth ON. BLE hosting follows in the background —
+      // it only matters for iPhone joiners, and it must never delay or
+      // fail the classic Android↔Android path (it waits internally for
+      // the adapter the dialog just powered on).
+      final classic = await _classicAsync();
+      _requireBle;
+      _listenToEngines();
+      await classic.requestDiscoverable();
+      await classic.startHosting(name: deviceName);
+      unawaited(_bleEngine?.startHosting(name: deviceName) ?? Future.value());
+    } else if (_bleSupported) {
+      _requireBle;
+      _listenToEngines();
+      await _bleEngine!.startHosting(name: deviceName);
+    }
   }
 
   @override
   Stream<BluetoothPeer> scanForHosts() {
-    final engine = _requireClassicEngine;
-    _listenToEngine(engine);
     _connectionStateController.add(bt.BluetoothConnectionState.scanning);
-    return engine.scanForHosts();
+
+    _closeScan();
+    final controller = StreamController<BluetoothPeer>.broadcast();
+    _scanController = controller;
+
+    // Async so the joiner can be prompted to turn Bluetooth ON before the
+    // scans start — a scan on a powered-off adapter just finds nothing.
+    () async {
+      ClassicBluetoothEngine? classic;
+      if (_classicSupported) {
+        classic = await _classicAsync();
+        try {
+          if (!await classic.isEnabled) {
+            await classic.requestEnable();
+          }
+        } catch (e) {
+          Logger.log('Bluetooth enable request failed: $e');
+        }
+      }
+      if (_bleSupported) _requireBle;
+      _listenToEngines();
+      if (controller.isClosed) return;
+
+      final ble = _bleEngine;
+      if (ble != null) {
+        _scanSubs.add(ble.scanForHosts().listen(
+              (peer) {
+                if (!controller.isClosed) controller.add(peer);
+              },
+              onError: (Object e) => Logger.log('BLE scan error: $e'),
+            ));
+      }
+      if (classic != null) {
+        _scanSubs.add(classic.scanForHosts().listen(
+              (peer) {
+                if (!controller.isClosed) controller.add(peer);
+              },
+              onError: (Object e) => Logger.log('Classic scan error: $e'),
+            ));
+      }
+    }();
+
+    return controller.stream;
   }
 
   @override
   Future<void> connectToHost(BluetoothPeer peer) async {
-    final engine = _requireClassicEngine;
     _connectionStateController.add(bt.BluetoothConnectionState.connecting);
-    await engine.connectToHost(peer.id);
+    cancelDiscovery();
+    if (peer.id.startsWith('ble:')) {
+      await _requireBle.connectToHost(peer.id.substring(4));
+    } else {
+      await (await _classicAsync()).connectToHost(peer.id);
+    }
   }
 
   @override
-  void cancelDiscovery() => _classicEngine?.cancelDiscovery();
+  void cancelDiscovery() {
+    _closeScan();
+    _bleEngine?.cancelDiscovery();
+    _classicEngine?.cancelDiscovery();
+  }
+
+  void _closeScan() {
+    for (final sub in _scanSubs) {
+      sub.cancel();
+    }
+    _scanSubs.clear();
+    _scanController?.close();
+    _scanController = null;
+  }
 
   @override
   void reset() {
     _connectedPeerId = null;
-    _framer.reset();
+    _activeEngine = null;
+    _classicFramer.reset();
+    _closeScan();
     unawaited(_classicEngine?.reset());
+    unawaited(_bleEngine?.reset());
     _connectionStateController.add(bt.BluetoothConnectionState.disconnected);
   }
 
-  void _listenToEngine(ClassicBluetoothEngine engine) {
-    _inputSub?.cancel();
-    _peerConnectedSub?.cancel();
-    _errorSub?.cancel();
-    _closedSub?.cancel();
+  // ── Engine event plumbing ───────────────────────────────────────────────
 
-    _inputSub = engine.input.listen((chunk) {
-      final messages = _framer.addBytes(chunk);
-      for (final message in messages) {
-        final peerId = _connectedPeerId;
-        if (peerId == null) continue;
-        final packet = _codec.decode(message, peerId);
-        if (packet != null) _packetController.add(packet);
-      }
-    });
+  void _listenToEngines() {
+    for (final sub in _engineSubs) {
+      sub.cancel();
+    }
+    _engineSubs.clear();
+    _classicFramer.reset();
 
-    _peerConnectedSub = engine.onPeerConnected.listen((address) {
-      _connectedPeerId = address;
-      _connectionStateController.add(bt.BluetoothConnectionState.connected);
-    });
+    // Subscribes to whichever engines exist by now — callers create the
+    // engines for their platform first, then call this.
+    final ble = _bleEngine;
+    if (ble != null) {
+      _engineSubs
+        ..add(ble.input.listen(_onMessage))
+        ..add(ble.onPeerConnected.listen((id) => _onPeerConnected('ble', id)))
+        ..add(ble.onError.listen((m) => _onEngineError('ble', m)))
+        ..add(ble.onClosed.listen((_) => _onEngineClosed('ble')));
+    }
+    final classic = _classicEngine;
+    if (classic != null) {
+      _engineSubs
+        ..add(classic.input.listen((chunk) {
+          for (final message in _classicFramer.addBytes(chunk)) {
+            _onMessage(message);
+          }
+        }))
+        ..add(classic.onPeerConnected
+            .listen((address) => _onPeerConnected('classic', address)))
+        ..add(classic.onError.listen((m) => _onEngineError('classic', m)))
+        ..add(classic.onClosed.listen((_) => _onEngineClosed('classic')));
+    }
+  }
 
-    _errorSub = engine.onError.listen((message) {
-      Logger.log('Bluetooth error: $message');
-      _connectionStateController.add(bt.BluetoothConnectionState.error);
-    });
+  void _onMessage(Uint8List message) {
+    final peerId = _connectedPeerId;
+    if (peerId == null) return;
+    final packet = _codec.decode(message, peerId);
+    if (packet != null) _packetController.add(packet);
+  }
 
-    _closedSub = engine.onClosed.listen((_) {
-      _connectedPeerId = null;
-      _connectionStateController.add(bt.BluetoothConnectionState.disconnected);
-    });
+  void _onPeerConnected(String engine, String peerId) {
+    _activeEngine = engine;
+    _connectedPeerId = peerId;
+    // One peer per session: once someone connected over one engine, stop
+    // advertising on the other so a second device can't join mid-session
+    // and interleave bytes.
+    if (engine == 'ble') {
+      unawaited(_classicEngine?.stopHosting());
+    } else {
+      unawaited(_bleEngine?.stopHosting());
+    }
+    _connectionStateController.add(bt.BluetoothConnectionState.connected);
+  }
+
+  void _onEngineError(String engine, String message) {
+    Logger.log('Bluetooth $engine error: $message');
+    // Never disturb an established session.
+    if (_connectedPeerId != null) return;
+    // On Android, Classic is the primary engine — a BLE hiccup (advertise
+    // rejected, adapter still powering on, permission variance) must not
+    // flip the whole flow into the error screen while Classic is fine.
+    // BLE errors are only fatal where BLE is the ONLY engine (iOS).
+    if (_classicSupported && engine == 'ble') return;
+    _connectionStateController.add(bt.BluetoothConnectionState.error);
+  }
+
+  void _onEngineClosed(String engine) {
+    if (_activeEngine != null && _activeEngine != engine) return;
+    _connectedPeerId = null;
+    _activeEngine = null;
+    _classicFramer.reset();
+    _connectionStateController.add(bt.BluetoothConnectionState.disconnected);
+  }
+
+  Future<void> _write(Uint8List payload) async {
+    switch (_activeEngine) {
+      case 'ble':
+        await _bleEngine?.write(payload);
+      case 'classic':
+        // Classic is a raw stream — frame here.
+        await _classicEngine?.write(frameMessage(payload));
+      default:
+        // Not connected — drop.
+        break;
+    }
   }
 
   // ── TransferRepository ──────────────────────────────────────────────────
@@ -129,12 +304,11 @@ class BluetoothTransferRepository
   Future<Either<Failure, void>> sendAudio(
       List<double> samples, String senderName) async {
     try {
-      final engine = _classicEngine;
-      if (engine == null || _connectedPeerId == null) {
+      if (_connectedPeerId == null) {
         return const Left(DataTransferFailure());
       }
       final payload = _codec.encodeAudio(samples, senderName, _audioSeq++);
-      await engine.write(frameMessage(payload));
+      await _write(payload);
       return const Right(null);
     } catch (error) {
       Logger.log(error);
@@ -146,12 +320,11 @@ class BluetoothTransferRepository
   Future<Either<Failure, void>> sendPresence(
       String senderName, bool isTalking) async {
     try {
-      final engine = _classicEngine;
-      if (engine == null || _connectedPeerId == null) {
+      if (_connectedPeerId == null) {
         return const Right(null); // not connected yet — nothing to send
       }
       final payload = _codec.encodePresence(senderName, isTalking);
-      await engine.write(frameMessage(payload));
+      await _write(payload);
       return const Right(null);
     } catch (error) {
       Logger.log(error);
@@ -169,12 +342,15 @@ class BluetoothTransferRepository
   @override
   @disposeMethod
   void dispose() {
-    unawaited(_inputSub?.cancel());
-    unawaited(_peerConnectedSub?.cancel());
-    unawaited(_errorSub?.cancel());
-    unawaited(_closedSub?.cancel());
+    for (final sub in _engineSubs) {
+      unawaited(sub.cancel());
+    }
+    _engineSubs.clear();
+    _closeScan();
     unawaited(_classicEngine?.dispose());
+    unawaited(_bleEngine?.dispose());
     unawaited(_packetController.close());
     unawaited(_connectionStateController.close());
+    _codec.release();
   }
 }
