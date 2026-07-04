@@ -13,7 +13,9 @@ dependencies:
   flutter_web_plugins:
     sdk: flutter
   ffi: ^2.1.0
-  web: ^0.5.1
+  # Relaxed from ^0.5.1 (vendored copy): package:web 1.x keeps the APIs
+  # audio_io_web.dart uses, and pinning 0.5 blocked flutter_webrtc >= 1.x.
+  web: ">=0.5.1 <2.0.0"
 
 dev_dependencies:
   flutter_test:

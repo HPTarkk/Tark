@@ -34,6 +34,11 @@ class AppRouter {
             name: AppRoutes.bluetoothConnectName,
             builder: (context, state) => BluetoothConnectPage.buildPage(),
           ),
+          GoRoute(
+            path: AppRoutes.guestLinkPath,
+            name: AppRoutes.guestLinkName,
+            builder: (context, state) => GuestLinkPage.buildPage(),
+          ),
         ],
       );
 }

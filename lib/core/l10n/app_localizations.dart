@@ -344,6 +344,42 @@ abstract class AppLocalizations {
   /// **'بلوتوث'**
   String get transport_bluetooth;
 
+  /// No description provided for @transport_guest.
+  ///
+  /// In fa, this message translates to:
+  /// **'مهمان'**
+  String get transport_guest;
+
+  /// No description provided for @guest_invite_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'دعوت مهمان'**
+  String get guest_invite_title;
+
+  /// No description provided for @guest_step_scan.
+  ///
+  /// In fa, this message translates to:
+  /// **'مهمان این کد را با دوربین گوشی‌اش اسکن می‌کند — صفحهٔ ورود در مرورگرش باز می‌شود (هر دو دستگاه روی یک وای‌فای).'**
+  String get guest_step_scan;
+
+  /// No description provided for @guest_step_answer.
+  ///
+  /// In fa, this message translates to:
+  /// **'سپس روی صفحهٔ مهمان یک کد پاسخ نمایش داده می‌شود — با دکمهٔ زیر آن را اسکن کن.'**
+  String get guest_step_answer;
+
+  /// No description provided for @guest_scan_answer.
+  ///
+  /// In fa, this message translates to:
+  /// **'اسکن کد پاسخ'**
+  String get guest_scan_answer;
+
+  /// No description provided for @guest_link_failed.
+  ///
+  /// In fa, this message translates to:
+  /// **'برقراری ارتباط ممکن نشد. یک دعوت جدید بساز و دوباره تلاش کن.'**
+  String get guest_link_failed;
+
   /// No description provided for @bt_start_session.
   ///
   /// In fa, this message translates to:

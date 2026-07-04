@@ -53,6 +53,10 @@ dependencies:
   opus_dart: ^3.0.1
   opus_flutter: ^3.0.3
   bluetooth_low_energy: ^6.2.1
+  flutter_webrtc: ^1.5.2
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^7.2.0
+  archive: ^4.0.9
 
 
 dev_dependencies:

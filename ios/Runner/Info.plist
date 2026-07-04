@@ -26,6 +26,8 @@
 		<string>$(FLUTTER_BUILD_NUMBER)</string>
 		<key>LSRequiresIPhoneOS</key>
 		<true />
+		<key>NSCameraUsageDescription</key>
+		<string>Tark uses the camera to scan the guest's reply code when inviting a browser guest.</string>
 		<key>NSBluetoothAlwaysUsageDescription</key>
 		<string>Tark uses Bluetooth to connect directly to a nearby device in Bluetooth mode.</string>
 		<key>NSLocalNetworkUsageDescription</key>

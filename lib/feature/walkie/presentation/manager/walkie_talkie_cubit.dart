@@ -86,11 +86,11 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
       onError: (Object e) => Logger.log('Packet error: $e'),
     );
 
-    // Bluetooth is a 1-to-1 link that can drop mid-ride; the repository
-    // auto-reconnects, and this surfaces a "reconnecting" banner meanwhile.
-    // WiFi's connect() stream has socket-lifecycle semantics instead, so
-    // it stays unmapped there.
-    if (_modeStore.mode == TransferMode.bluetooth) {
+    // Bluetooth/Guest are 1-to-1 links that can drop mid-session; this
+    // surfaces a "link lost" banner meanwhile. WiFi's connect() stream has
+    // socket-lifecycle semantics instead, so it stays unmapped there.
+    if (_modeStore.mode == TransferMode.bluetooth ||
+        _modeStore.mode == TransferMode.guest) {
       _linkSub = _transferRepository.connect().listen((connected) {
         if (!isClosed && state.isLinkDown != !connected) {
           emit(state.copyWith(isLinkDown: !connected));
@@ -342,6 +342,11 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
   Future<String> _getLocalId() async {
     if (_modeStore.mode == TransferMode.bluetooth) {
       return _kBluetoothLocalId;
+    }
+    // Guest links are 1-to-1 data channels — no IP concept and no echo to
+    // filter, same reasoning as Bluetooth.
+    if (_modeStore.mode == TransferMode.guest) {
+      return 'guest-host';
     }
     try {
       final best = LanIpv4.bestLocalAddress(await LanIpv4.addresses());

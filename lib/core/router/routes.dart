@@ -12,4 +12,7 @@ abstract final class AppRoutes {
 
   static const bluetoothConnectName = 'BluetoothConnectPage';
   static const bluetoothConnectPath = '/bluetooth-connect';
+
+  static const guestLinkName = 'GuestLinkPage';
+  static const guestLinkPath = '/guest-link';
 }

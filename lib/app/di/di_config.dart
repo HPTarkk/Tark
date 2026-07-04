@@ -3,9 +3,11 @@ import 'package:get_it/get_it.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../feature/transfer/data/repository/bluetooth_transfer_repository.dart';
+import '../../feature/transfer/data/repository/webrtc_transfer_repository.dart';
 import '../../feature/transfer/data/repository/wifi_transfer_repository_impl.dart';
 import '../../feature/transfer/domain/entity/transfer_mode.dart';
 import '../../feature/transfer/domain/repository/bluetooth_transport.dart';
+import '../../feature/transfer/domain/repository/guest_link_controller.dart';
 import '../../feature/transfer/domain/repository/transfer_repository.dart';
 import '../../feature/transfer/domain/service/transfer_mode_store.dart';
 import 'di_config.config.dart';
@@ -26,15 +28,23 @@ abstract class TransferModule {
   BluetoothTransport bluetoothTransport(BluetoothTransferRepository impl) =>
       impl;
 
+  GuestLinkController guestLinkController(WebRtcTransferRepository impl) =>
+      impl;
+
   /// Selector, not a fixed binding: WalkieTalkieCubit (a factory) resolves
   /// TransferRepository fresh each time it's built, so this picks whichever
   /// transport singleton is active per [TransferModeStore.mode] — for
-  /// Bluetooth that's the already-connected instance from the Host/Join
-  /// screen, not a new connection attempt.
+  /// Bluetooth/Guest that's the already-connected instance from the
+  /// connect screen, not a new connection attempt.
   TransferRepository transferRepository(
     TransferModeStore store,
     WifiTransferRepositoryImpl wifi,
     BluetoothTransferRepository bluetooth,
+    WebRtcTransferRepository webrtc,
   ) =>
-      store.mode == TransferMode.bluetooth ? bluetooth : wifi;
+      switch (store.mode) {
+        TransferMode.bluetooth => bluetooth,
+        TransferMode.guest => webrtc,
+        TransferMode.wifi => wifi,
+      };
 }

@@ -1,11 +1,11 @@
 {
-    "name": "tark",
-    "short_name": "tark",
+    "name": "Tark Guest",
+    "short_name": "Tark",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#080B14",
+    "theme_color": "#080B14",
+    "description": "Join a Tark walkie-talkie channel from your browser — pure LAN, no server.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

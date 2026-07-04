@@ -181,11 +181,11 @@ class _LandingPageState extends State<LandingPage>
       ),
       builder: (_, child) => GestureDetector(
         onTap: enabled
-            ? () => context.pushNamed(
-                  state.transferMode == TransferMode.bluetooth
-                      ? AppRoutes.bluetoothConnectName
-                      : AppRoutes.walkieName,
-                )
+            ? () => context.pushNamed(switch (state.transferMode) {
+                  TransferMode.bluetooth => AppRoutes.bluetoothConnectName,
+                  TransferMode.guest => AppRoutes.guestLinkName,
+                  TransferMode.wifi => AppRoutes.walkieName,
+                })
             : null,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 300),

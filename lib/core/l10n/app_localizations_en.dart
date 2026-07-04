@@ -136,6 +136,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get transport_bluetooth => 'BLUETOOTH';
 
   @override
+  String get transport_guest => 'GUEST';
+
+  @override
+  String get guest_invite_title => 'Invite a guest';
+
+  @override
+  String get guest_step_scan =>
+      'The guest scans this code with their phone camera — the join page opens in their browser (both devices on the same WiFi).';
+
+  @override
+  String get guest_step_answer =>
+      'Their screen then shows a reply code — scan it with the button below.';
+
+  @override
+  String get guest_scan_answer => 'SCAN REPLY CODE';
+
+  @override
+  String get guest_link_failed =>
+      'The link could not be established. Create a new invite and try again.';
+
+  @override
   String get bt_start_session => 'START SESSION';
 
   @override

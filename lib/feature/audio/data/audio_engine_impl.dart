@@ -106,8 +106,16 @@ class AudioEngineImpl implements AudioEngine {
     // stop the engine out from under this session.
     _myEpoch = ++_engineEpoch;
 
-    final status = await Permission.microphone.request();
-    if (!status.isGranted) {
+    // On web there is no permission_handler backend worth relying on — the
+    // browser shows its own prompt when getUserMedia runs inside
+    // audio_io.start(), so treat a throwing/absent handler as "ask later".
+    var micGranted = true;
+    try {
+      micGranted = (await Permission.microphone.request()).isGranted;
+    } catch (e) {
+      Logger.log('Mic permission request unavailable: $e');
+    }
+    if (!micGranted) {
       if (!_disposed) {
         _setStatus(
             const AudioEngineStatus(hasPermission: false, isStarted: false));

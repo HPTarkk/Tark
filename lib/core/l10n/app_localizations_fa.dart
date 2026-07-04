@@ -136,6 +136,27 @@ class AppLocalizationsFa extends AppLocalizations {
   String get transport_bluetooth => 'بلوتوث';
 
   @override
+  String get transport_guest => 'مهمان';
+
+  @override
+  String get guest_invite_title => 'دعوت مهمان';
+
+  @override
+  String get guest_step_scan =>
+      'مهمان این کد را با دوربین گوشی‌اش اسکن می‌کند — صفحهٔ ورود در مرورگرش باز می‌شود (هر دو دستگاه روی یک وای‌فای).';
+
+  @override
+  String get guest_step_answer =>
+      'سپس روی صفحهٔ مهمان یک کد پاسخ نمایش داده می‌شود — با دکمهٔ زیر آن را اسکن کن.';
+
+  @override
+  String get guest_scan_answer => 'اسکن کد پاسخ';
+
+  @override
+  String get guest_link_failed =>
+      'برقراری ارتباط ممکن نشد. یک دعوت جدید بساز و دوباره تلاش کن.';
+
+  @override
   String get bt_start_session => 'شروع نشست';
 
   @override

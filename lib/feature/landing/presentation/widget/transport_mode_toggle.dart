@@ -41,6 +41,14 @@ class TransportModeToggle extends StatelessWidget {
                     .read<LandingCubit>()
                     .setTransferMode(TransferMode.bluetooth),
               ),
+              _ModeButton(
+                label: s.transport_guest,
+                icon: Icons.qr_code_rounded,
+                selected: state.transferMode == TransferMode.guest,
+                onTap: () => context
+                    .read<LandingCubit>()
+                    .setTransferMode(TransferMode.guest),
+              ),
             ],
           ),
         );
