@@ -1,3 +1,0 @@
-D:/Dev/wakitaki/packages/audio_io/android/.cxx/RelWithDebInfo/5f664a6k/x86/CMakeFiles/audio_io.dir
-D:/Dev/wakitaki/packages/audio_io/android/.cxx/RelWithDebInfo/5f664a6k/x86/CMakeFiles/edit_cache.dir
-D:/Dev/wakitaki/packages/audio_io/android/.cxx/RelWithDebInfo/5f664a6k/x86/CMakeFiles/rebuild_cache.dir

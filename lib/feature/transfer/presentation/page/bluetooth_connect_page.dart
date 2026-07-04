@@ -32,12 +32,23 @@ class _BluetoothConnectPageState extends State<BluetoothConnectPage> {
   bool _navigatingToWalkie = false;
 
   Future<bool> _ensurePermissions() async {
+    // iOS: the system Bluetooth prompt only appears when CoreBluetooth is
+    // actually used — permission_handler reports "denied" before that, and
+    // the app's Settings page doesn't even have a Bluetooth row yet.
+    // Gating here made a dead-end. Proceed and let the BLE engine's manager
+    // trigger the real prompt; a denial then surfaces as a connection error
+    // (with the Settings row finally existing).
+    if (Platform.isIOS) {
+      if (mounted) setState(() => _permissionDenied = false);
+      return true;
+    }
     // Android needs the granular BT runtime permissions (advertise included,
-    // for BLE hosting). iOS has a single Bluetooth permission.
-    final permissions = Platform.isAndroid
-        ? [Permission.bluetoothScan, Permission.bluetoothConnect, Permission.bluetoothAdvertise]
-        : [Permission.bluetooth];
-    final statuses = await permissions.request();
+    // for BLE hosting) BEFORE any Bluetooth API works.
+    final statuses = await [
+      Permission.bluetoothScan,
+      Permission.bluetoothConnect,
+      Permission.bluetoothAdvertise,
+    ].request();
     final granted = statuses.values.every((s) => s.isGranted);
     if (mounted) setState(() => _permissionDenied = !granted);
     return granted;
@@ -798,6 +809,21 @@ class _ErrorCard extends StatelessWidget {
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.5,
                   ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // On iOS a denied Bluetooth prompt lands on this card — and by
+            // now the Settings row exists, so this is the recovery path.
+            TextButton(
+              onPressed: openAppSettings,
+              child: Text(
+                s.open_settings,
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1,
                 ),
               ),
             ),

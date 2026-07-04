@@ -7,5 +7,5 @@
 ///   flutter build apk --dart-define=GUEST_APP_URL=https://your.host/tark/
 const kGuestWebAppUrl = String.fromEnvironment(
   'GUEST_APP_URL',
-  defaultValue: 'https://p-b1101.github.io/tark/',
+  defaultValue: 'https://tarkk.ir',
 );

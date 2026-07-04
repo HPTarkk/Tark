@@ -1,7 +1,0 @@
-[
-{
-  "directory": "D:/Dev/wakitaki/packages/audio_io/android/.cxx/Debug/175m6116/armeabi-v7a",
-  "command": "C:\\Users\\pedra\\AppData\\Local\\Android\\Sdk\\ndk\\27.0.12077973\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin\\clang++.exe --target=armv7-none-linux-androideabi21 --sysroot=C:/Users/pedra/AppData/Local/Android/Sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/windows-x86_64/sysroot -Daudio_io_EXPORTS -ID:/Dev/wakitaki/packages/audio_io/android/../src -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -march=armv7-a -mthumb -Wformat -Werror=format-security   -fno-limit-debug-info  -fPIC -std=gnu++14 -o CMakeFiles\\audio_io.dir\\D_\\Dev\\wakitaki\\packages\\audio_io\\src\\audio_io_miniaudio.cpp.o -c D:\\Dev\\wakitaki\\packages\\audio_io\\src\\audio_io_miniaudio.cpp",
-  "file": "D:\\Dev\\wakitaki\\packages\\audio_io\\src\\audio_io_miniaudio.cpp"
-}
-]

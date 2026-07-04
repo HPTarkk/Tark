@@ -4,7 +4,7 @@
     "start_url": ".",
     "display": "standalone",
     "background_color": "#080B14",
-    "theme_color": "#080B14",
+    "theme_color": "#FFB74D",
     "description": "Join a Tark walkie-talkie channel from your browser — pure LAN, no server.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,

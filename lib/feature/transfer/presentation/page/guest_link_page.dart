@@ -245,52 +245,61 @@ class _PulsingActionButtonState extends State<_PulsingActionButton>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _pulse,
-      builder: (context, child) {
-        final t = Curves.easeInOut.transform(_pulse.value);
-        return Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.amber.withAlpha((20 + 40 * t).toInt()),
-                blurRadius: 18 + 8 * t,
-              ),
-            ],
-          ),
-          child: child,
-        );
-      },
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          decoration: BoxDecoration(
-            color: AppColors.amber.withAlpha(25),
-            borderRadius: BorderRadius.circular(14),
-            border:
-                Border.all(color: AppColors.amber.withAlpha(140), width: 2),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(widget.icon, color: AppColors.amber, size: 20),
-              const SizedBox(width: 10),
-              Text(
-                widget.label,
-                style: TextStyle(
-                  color: AppColors.amber,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.5,
+    // The glow is a static pre-blurred layer whose OPACITY breathes —
+    // compositor-only work. Animating BoxShadow blur directly re-blurs
+    // every frame and janks low-end phones.
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: FadeTransition(
+            opacity: Tween<double>(begin: 0.25, end: 1.0).animate(
+              CurvedAnimation(parent: _pulse, curve: Curves.easeInOut),
+            ),
+            child: RepaintBoundary(
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.amber.withAlpha(60),
+                      blurRadius: 24,
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
         ),
-      ),
+        GestureDetector(
+          onTap: widget.onTap,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            decoration: BoxDecoration(
+              color: AppColors.amber.withAlpha(25),
+              borderRadius: BorderRadius.circular(14),
+              border:
+                  Border.all(color: AppColors.amber.withAlpha(140), width: 2),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(widget.icon, color: AppColors.amber, size: 20),
+                const SizedBox(width: 10),
+                Text(
+                  widget.label,
+                  style: TextStyle(
+                    color: AppColors.amber,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -391,32 +400,37 @@ class _AnswerScannerState extends State<_AnswerScanner>
                 child: IgnorePointer(
                   child: AnimatedBuilder(
                     animation: _line,
-                    builder: (context, _) {
+                    builder: (context, child) {
                       final t = Curves.easeInOut.transform(_line.value);
                       return Align(
                         alignment: Alignment(0, t * 2 - 1),
-                        child: Container(
-                          height: 2.4,
-                          margin:
-                              const EdgeInsets.symmetric(horizontal: 12),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                AppColors.amber.withAlpha(0),
-                                AppColors.amber,
-                                AppColors.amber.withAlpha(0),
-                              ],
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.amber.withAlpha(140),
-                                blurRadius: 12,
-                              ),
-                            ],
-                          ),
-                        ),
+                        child: child,
                       );
                     },
+                    // Static pre-blurred strip moved by the compositor —
+                    // re-blurring a glow every frame over a camera preview
+                    // is exactly the kind of thing that janks.
+                    child: RepaintBoundary(
+                      child: Container(
+                        height: 2.4,
+                        margin: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              AppColors.amber.withAlpha(0),
+                              AppColors.amber,
+                              AppColors.amber.withAlpha(0),
+                            ],
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.amber.withAlpha(140),
+                              blurRadius: 12,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),

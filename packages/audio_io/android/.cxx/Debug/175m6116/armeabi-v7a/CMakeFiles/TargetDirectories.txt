@@ -1,3 +1,0 @@
-D:/Dev/wakitaki/packages/audio_io/android/.cxx/Debug/175m6116/armeabi-v7a/CMakeFiles/audio_io.dir
-D:/Dev/wakitaki/packages/audio_io/android/.cxx/Debug/175m6116/armeabi-v7a/CMakeFiles/edit_cache.dir
-D:/Dev/wakitaki/packages/audio_io/android/.cxx/Debug/175m6116/armeabi-v7a/CMakeFiles/rebuild_cache.dir

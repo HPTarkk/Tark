@@ -1,7 +1,0 @@
-[
-{
-  "directory": "D:/Dev/wakitaki/packages/audio_io/android/.cxx/RelWithDebInfo/5f664a6k/x86",
-  "command": "C:\\Users\\pedra\\AppData\\Local\\Android\\Sdk\\ndk\\27.0.12077973\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin\\clang++.exe --target=i686-none-linux-android21 --sysroot=C:/Users/pedra/AppData/Local/Android/Sdk/ndk/27.0.12077973/toolchains/llvm/prebuilt/windows-x86_64/sysroot -Daudio_io_EXPORTS -ID:/Dev/wakitaki/packages/audio_io/android/../src -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -mstackrealign -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O2 -g -DNDEBUG -fPIC -std=gnu++14 -o CMakeFiles\\audio_io.dir\\D_\\Dev\\wakitaki\\packages\\audio_io\\src\\audio_io_miniaudio.cpp.o -c D:\\Dev\\wakitaki\\packages\\audio_io\\src\\audio_io_miniaudio.cpp",
-  "file": "D:\\Dev\\wakitaki\\packages\\audio_io\\src\\audio_io_miniaudio.cpp"
-}
-]

@@ -65,39 +65,51 @@ class _GlowingQrCardState extends State<GlowingQrCard>
               borderRadius: BorderRadius.circular(6),
               child: Stack(
                 children: [
-                  QrImageView(
-                    data: widget.data,
-                    version: QrVersions.auto,
-                    size: widget.size,
-                    gapless: true,
+                  // A dense QR is thousands of tiny rects — painting it 60×/s
+                  // under the moving scanline was the lag. The boundary
+                  // rasterizes it once; error level L keeps the module count
+                  // (and paint cost) down AND makes screen-to-camera scanning
+                  // easier through bigger modules.
+                  RepaintBoundary(
+                    child: QrImageView(
+                      data: widget.data,
+                      version: QrVersions.auto,
+                      errorCorrectionLevel: QrErrorCorrectLevel.L,
+                      size: widget.size,
+                      gapless: true,
+                    ),
                   ),
-                  // Scanline sweep.
+                  // Scanline sweep: its own layer, so animating it only
+                  // moves a small cached strip around — no QR repaints.
                   AnimatedBuilder(
                     animation: _sweep,
-                    builder: (context, _) {
+                    builder: (context, child) {
                       final t = Curves.easeInOut.transform(_sweep.value);
                       return Positioned(
                         top: t * (widget.size - 26),
                         left: 0,
                         right: 0,
-                        child: IgnorePointer(
-                          child: Container(
-                            height: 26,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  AppColors.amberDim.withAlpha(0),
-                                  AppColors.amberDim.withAlpha(60),
-                                  AppColors.amberDim.withAlpha(0),
-                                ],
-                              ),
+                        child: child!,
+                      );
+                    },
+                    child: IgnorePointer(
+                      child: RepaintBoundary(
+                        child: Container(
+                          height: 26,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                AppColors.amberDim.withAlpha(0),
+                                AppColors.amberDim.withAlpha(60),
+                                AppColors.amberDim.withAlpha(0),
+                              ],
                             ),
                           ),
                         ),
-                      );
-                    },
+                      ),
+                    ),
                   ),
                 ],
               ),

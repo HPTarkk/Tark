@@ -380,6 +380,120 @@ abstract class AppLocalizations {
   /// **'برقراری ارتباط ممکن نشد. یک دعوت جدید بساز و دوباره تلاش کن.'**
   String get guest_link_failed;
 
+  /// No description provided for @guest_web_scan_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'برای پیوستن اسکن کن'**
+  String get guest_web_scan_title;
+
+  /// No description provided for @guest_web_scan_text.
+  ///
+  /// In fa, this message translates to:
+  /// **'این صفحه را با اسکن کد دعوت روی گوشی میزبان باز کن — خودِ لینک حامل اتصال است.'**
+  String get guest_web_scan_text;
+
+  /// No description provided for @guest_web_failed_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'ارتباط برقرار نشد'**
+  String get guest_web_failed_title;
+
+  /// No description provided for @guest_web_failed_text.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتصال برقرار نشد. از میزبان بخواه دعوت جدیدی بسازد و دوباره اسکن کن (هر دو دستگاه باید روی یک وای‌فای باشند).'**
+  String get guest_web_failed_text;
+
+  /// No description provided for @guest_web_reply_chip.
+  ///
+  /// In fa, this message translates to:
+  /// **'مرحله ۲ — کد پاسخ'**
+  String get guest_web_reply_chip;
+
+  /// No description provided for @guest_web_reply_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'این کد را به گوشی میزبان نشان بده'**
+  String get guest_web_reply_title;
+
+  /// No description provided for @guest_web_reply_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'در گوشی میزبان: «اسکن کد پاسخ» را بزن و دوربین را به این‌جا بگیر.'**
+  String get guest_web_reply_hint;
+
+  /// No description provided for @guest_web_connected.
+  ///
+  /// In fa, this message translates to:
+  /// **'متصل شد!'**
+  String get guest_web_connected;
+
+  /// No description provided for @guest_web_enable_audio.
+  ///
+  /// In fa, this message translates to:
+  /// **'برای فعال‌شدن میکروفون و بلندگو دکمهٔ زیر را بزن.'**
+  String get guest_web_enable_audio;
+
+  /// No description provided for @guest_web_start_audio.
+  ///
+  /// In fa, this message translates to:
+  /// **'شروع صدا'**
+  String get guest_web_start_audio;
+
+  /// No description provided for @guest_web_mute.
+  ///
+  /// In fa, this message translates to:
+  /// **'بی‌صدا'**
+  String get guest_web_mute;
+
+  /// No description provided for @guest_web_unmute.
+  ///
+  /// In fa, this message translates to:
+  /// **'وصل صدا'**
+  String get guest_web_unmute;
+
+  /// No description provided for @guest_web_talking.
+  ///
+  /// In fa, this message translates to:
+  /// **'در حال صحبت...'**
+  String get guest_web_talking;
+
+  /// No description provided for @guest_web_on_air.
+  ///
+  /// In fa, this message translates to:
+  /// **'روی آنتن هستی'**
+  String get guest_web_on_air;
+
+  /// No description provided for @guest_web_standby.
+  ///
+  /// In fa, this message translates to:
+  /// **'در حالت آماده‌باش'**
+  String get guest_web_standby;
+
+  /// No description provided for @guest_web_link_lost.
+  ///
+  /// In fa, this message translates to:
+  /// **'قطع ارتباط'**
+  String get guest_web_link_lost;
+
+  /// No description provided for @guest_web_link_lost_text.
+  ///
+  /// In fa, this message translates to:
+  /// **'ارتباط قطع شد — در انتظار اتصال...'**
+  String get guest_web_link_lost_text;
+
+  /// No description provided for @guest_web_left_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'از کانال خارج شدی'**
+  String get guest_web_left_title;
+
+  /// No description provided for @guest_web_left_text.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتصال قطع شد. برای بازگشت، از میزبان یک دعوت تازه بگیر و دوباره اسکن کن.'**
+  String get guest_web_left_text;
+
   /// No description provided for @bt_start_session.
   ///
   /// In fa, this message translates to:

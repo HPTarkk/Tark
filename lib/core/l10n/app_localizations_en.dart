@@ -157,6 +157,68 @@ class AppLocalizationsEn extends AppLocalizations {
       'The link could not be established. Create a new invite and try again.';
 
   @override
+  String get guest_web_scan_title => 'Scan to join';
+
+  @override
+  String get guest_web_scan_text =>
+      'Open this page by scanning the invite QR code on the host\'s phone with your camera — the link itself carries the connection.';
+
+  @override
+  String get guest_web_failed_title => 'Link failed';
+
+  @override
+  String get guest_web_failed_text =>
+      'The connection could not be established. Ask the host to create a new invite and scan it again (both devices must be on the same WiFi).';
+
+  @override
+  String get guest_web_reply_chip => 'STEP 2 — REPLY CODE';
+
+  @override
+  String get guest_web_reply_title => 'Show this code to the host phone';
+
+  @override
+  String get guest_web_reply_hint =>
+      'On the host: tap \"SCAN REPLY CODE\" and point the camera here.';
+
+  @override
+  String get guest_web_connected => 'Connected!';
+
+  @override
+  String get guest_web_enable_audio =>
+      'Tap below to enable your microphone and speaker.';
+
+  @override
+  String get guest_web_start_audio => 'START AUDIO';
+
+  @override
+  String get guest_web_mute => 'MUTE';
+
+  @override
+  String get guest_web_unmute => 'UNMUTE';
+
+  @override
+  String get guest_web_talking => 'Talking...';
+
+  @override
+  String get guest_web_on_air => 'You are on air';
+
+  @override
+  String get guest_web_standby => 'Standing by';
+
+  @override
+  String get guest_web_link_lost => 'LINK LOST';
+
+  @override
+  String get guest_web_link_lost_text => 'Link lost — waiting...';
+
+  @override
+  String get guest_web_left_title => 'You left the channel';
+
+  @override
+  String get guest_web_left_text =>
+      'You\'ve disconnected. To rejoin, ask the host for a fresh invite and scan it again.';
+
+  @override
   String get bt_start_session => 'START SESSION';
 
   @override

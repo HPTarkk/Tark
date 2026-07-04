@@ -157,6 +157,68 @@ class AppLocalizationsFa extends AppLocalizations {
       'برقراری ارتباط ممکن نشد. یک دعوت جدید بساز و دوباره تلاش کن.';
 
   @override
+  String get guest_web_scan_title => 'برای پیوستن اسکن کن';
+
+  @override
+  String get guest_web_scan_text =>
+      'این صفحه را با اسکن کد دعوت روی گوشی میزبان باز کن — خودِ لینک حامل اتصال است.';
+
+  @override
+  String get guest_web_failed_title => 'ارتباط برقرار نشد';
+
+  @override
+  String get guest_web_failed_text =>
+      'اتصال برقرار نشد. از میزبان بخواه دعوت جدیدی بسازد و دوباره اسکن کن (هر دو دستگاه باید روی یک وای‌فای باشند).';
+
+  @override
+  String get guest_web_reply_chip => 'مرحله ۲ — کد پاسخ';
+
+  @override
+  String get guest_web_reply_title => 'این کد را به گوشی میزبان نشان بده';
+
+  @override
+  String get guest_web_reply_hint =>
+      'در گوشی میزبان: «اسکن کد پاسخ» را بزن و دوربین را به این‌جا بگیر.';
+
+  @override
+  String get guest_web_connected => 'متصل شد!';
+
+  @override
+  String get guest_web_enable_audio =>
+      'برای فعال‌شدن میکروفون و بلندگو دکمهٔ زیر را بزن.';
+
+  @override
+  String get guest_web_start_audio => 'شروع صدا';
+
+  @override
+  String get guest_web_mute => 'بی‌صدا';
+
+  @override
+  String get guest_web_unmute => 'وصل صدا';
+
+  @override
+  String get guest_web_talking => 'در حال صحبت...';
+
+  @override
+  String get guest_web_on_air => 'روی آنتن هستی';
+
+  @override
+  String get guest_web_standby => 'در حالت آماده‌باش';
+
+  @override
+  String get guest_web_link_lost => 'قطع ارتباط';
+
+  @override
+  String get guest_web_link_lost_text => 'ارتباط قطع شد — در انتظار اتصال...';
+
+  @override
+  String get guest_web_left_title => 'از کانال خارج شدی';
+
+  @override
+  String get guest_web_left_text =>
+      'اتصال قطع شد. برای بازگشت، از میزبان یک دعوت تازه بگیر و دوباره اسکن کن.';
+
+  @override
   String get bt_start_session => 'شروع نشست';
 
   @override

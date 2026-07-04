@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tark — Talk. No towers. No servers.</title>
+  <meta name="description" content="Tark is a walkie-talkie that lives entirely on your local network. WiFi, Bluetooth, music casting and browser guests — with zero servers.">
+  <meta name="theme-color" content="#080B14">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vazirmatn@33.0.3/Vazirmatn-font-face.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- ── Nav ─────────────────────────────────────────────────────────── -->
+  <nav id="nav">
+    <div class="nav-inner">
+      <a class="wordmark" href="#top">
+        <span class="wordmark-dot"></span>TARK
+      </a>
+      <div class="nav-links">
+        <a href="#features" data-en="Features" data-fa="امکانات">Features</a>
+        <a href="#handshake" data-en="How it works" data-fa="روش کار">How it works</a>
+        <a href="#music" data-en="Music" data-fa="موزیک">Music</a>
+        <a href="#download" data-en="Download" data-fa="دانلود">Download</a>
+      </div>
+      <button id="langToggle" class="lang-toggle" aria-label="Switch language">فارسی</button>
+    </div>
+  </nav>
+
+  <!-- ── Hero ────────────────────────────────────────────────────────── -->
+  <header class="hero" id="top">
+    <div class="hero-rings" aria-hidden="true">
+      <span></span><span></span><span></span><span></span>
+    </div>
+
+    <div class="hero-content">
+      <p class="hero-eyebrow reveal-up" data-en="LAN WALKIE-TALKIE" data-fa="واکی‌تاکی شبکهٔ محلی">LAN WALKIE-TALKIE</p>
+      <h1 class="hero-title">
+        <span class="line reveal-up d1" data-en="Talk." data-fa="حرف بزن.">Talk.</span>
+        <span class="line reveal-up d2" data-en="No towers." data-fa="بدون دکل.">No towers.</span>
+        <span class="line amber reveal-up d3" data-en="No servers." data-fa="بدون سرور.">No servers.</span>
+      </h1>
+      <p class="hero-sub reveal-up d4"
+         data-en="Tark turns nearby phones into an open voice channel — over your own WiFi or Bluetooth. Your voice never leaves the room."
+         data-fa="تَرک گوشی‌های نزدیک را به یک کانال صوتی باز تبدیل می‌کند — روی وای‌فای یا بلوتوث خودت. صدای تو هیچ‌وقت از جمع بیرون نمی‌رود.">
+        Tark turns nearby phones into an open voice channel — over your own WiFi or Bluetooth. Your voice never leaves the room.
+      </p>
+      <div class="hero-ctas reveal-up d5">
+        <a class="btn btn-primary" href="#download" data-en="Get the app" data-fa="دریافت اپ">Get the app</a>
+        <a class="btn btn-ghost" href="https://tarkk.runflare.run" data-en="Join as guest ↗" data-fa="ورود مهمان ↗">Join as guest ↗</a>
+      </div>
+    </div>
+
+    <!-- CSS phone mockup -->
+    <div class="hero-phone reveal-up d3" aria-hidden="true">
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="mock-header">
+            <span class="mock-live"><i></i><b data-en="LIVE" data-fa="زنده">LIVE</b></span>
+            <span class="mock-title">TARK</span>
+          </div>
+          <div class="mock-user">
+            <div class="mock-avatar">P</div>
+            <div class="mock-user-lines"><b></b><i></i></div>
+          </div>
+          <div class="mock-eq">
+            <span></span><span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <div class="mock-chips">
+            <span class="mock-chip tx"><i></i>TX</span>
+            <span class="mock-chip rx"><i></i>RX</span>
+          </div>
+          <div class="mock-slider"><i></i></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="scroll-hint" aria-hidden="true"><span></span></div>
+  </header>
+
+  <!-- ── Ticker ──────────────────────────────────────────────────────── -->
+  <div class="ticker" aria-hidden="true">
+    <div class="ticker-track">
+      <span>OPUS 16 kHz</span><i>•</i><span>PURE LAN</span><i>•</i><span>VOX</span><i>•</i>
+      <span>BLUETOOTH LE</span><i>•</i><span>MUSIC CAST</span><i>•</i><span>WEB GUEST</span><i>•</i>
+      <span>NO ACCOUNT</span><i>•</i><span>NO SERVER</span><i>•</i>
+      <span>OPUS 16 kHz</span><i>•</i><span>PURE LAN</span><i>•</i><span>VOX</span><i>•</i>
+      <span>BLUETOOTH LE</span><i>•</i><span>MUSIC CAST</span><i>•</i><span>WEB GUEST</span><i>•</i>
+      <span>NO ACCOUNT</span><i>•</i><span>NO SERVER</span><i>•</i>
+    </div>
+  </div>
+
+  <!-- ── Features ────────────────────────────────────────────────────── -->
+  <section class="section" id="features">
+    <p class="eyebrow reveal" data-en="THREE WAYS TO CONNECT" data-fa="سه راه برای اتصال">THREE WAYS TO CONNECT</p>
+    <h2 class="reveal" data-en="Any link you have, Tark speaks it." data-fa="هر اتصالی که داری، تَرک با آن حرف می‌زند.">Any link you have, Tark speaks it.</h2>
+
+    <div class="cards">
+      <article class="card reveal">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 20.5a1.7 1.7 0 1 0 0-3.4 1.7 1.7 0 0 0 0 3.4Z" fill="currentColor"/><path d="M6.3 14.2a8 8 0 0 1 11.4 0M2.8 10.4a13 13 0 0 1 18.4 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </div>
+        <h3 data-en="WiFi channel" data-fa="کانال وای‌فای">WiFi channel</h3>
+        <p data-en="One phone hotspots, everyone joins. Open-channel voice with VOX — hands stay on the handlebars."
+           data-fa="یک گوشی هات‌اسپات می‌شود و بقیه می‌پیوندند. کانال صوتی باز با VOX — دست‌ها روی فرمان می‌ماند.">
+          One phone hotspots, everyone joins. Open-channel voice with VOX — hands stay on the handlebars.</p>
+      </article>
+
+      <article class="card reveal">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24"><path d="m7 7 10 10-5 4V3l5 4L7 17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <h3 data-en="Bluetooth pair" data-fa="جفت بلوتوثی">Bluetooth pair</h3>
+        <p data-en="No network at all? Two phones link directly — Android to Android, iPhone to anything, with auto-reconnect when the link drops."
+           data-fa="اصلاً شبکه‌ای نیست؟ دو گوشی مستقیم وصل می‌شوند — اندروید به اندروید، آیفون به هرچیز، با اتصال مجدد خودکار.">
+          No network at all? Two phones link directly — Android to Android, iPhone to anything, with auto-reconnect when the link drops.</p>
+      </article>
+
+      <article class="card reveal">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M14 14h3v3h-3zM18 18h3v3h-3z" fill="currentColor"/></svg>
+        </div>
+        <h3 data-en="Browser guest" data-fa="مهمان مرورگری">Browser guest</h3>
+        <p data-en="Friends without the app scan two QR codes and join from Safari or Chrome. Pure LAN WebRTC — still no server."
+           data-fa="دوستانی که اپ ندارند با اسکن دو کد QR از سافاری یا کروم می‌پیوندند. WebRTC روی شبکهٔ محلی — باز هم بدون سرور.">
+          Friends without the app scan two QR codes and join from Safari or Chrome. Pure LAN WebRTC — still no server.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ── Pinned handshake scene ──────────────────────────────────────── -->
+  <section class="handshake" id="handshake">
+    <div class="handshake-sticky">
+      <p class="eyebrow" data-en="THE QR HANDSHAKE" data-fa="دست‌دادن با QR">THE QR HANDSHAKE</p>
+      <h2 data-en="Two scans. Zero servers." data-fa="دو اسکن. صفر سرور.">Two scans. Zero servers.</h2>
+
+      <div class="hs-stage">
+        <div class="hs-phone hs-host">
+          <div class="hs-screen">
+            <div class="hs-qr" aria-hidden="true">
+              <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+              <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+              <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+            </div>
+            <b class="hs-label" data-en="HOST" data-fa="میزبان">HOST</b>
+          </div>
+        </div>
+
+        <div class="hs-beam" aria-hidden="true"></div>
+        <div class="hs-wave" aria-hidden="true"><span></span><span></span><span></span></div>
+
+        <div class="hs-phone hs-guest">
+          <div class="hs-screen">
+            <div class="hs-camera" aria-hidden="true"><i></i></div>
+            <div class="hs-qr hs-qr-reply" aria-hidden="true">
+              <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+              <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+              <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+            </div>
+            <b class="hs-label" data-en="GUEST" data-fa="مهمان">GUEST</b>
+          </div>
+        </div>
+      </div>
+
+      <div class="hs-steps">
+        <div class="hs-step" data-step="1">
+          <b>1</b>
+          <p data-en="The host shows an invite QR — the connection itself, folded into a code."
+             data-fa="میزبان کد دعوت را نشان می‌دهد — خودِ اتصال، فشرده در یک کد.">
+            The host shows an invite QR — the connection itself, folded into a code.</p>
+        </div>
+        <div class="hs-step" data-step="2">
+          <b>2</b>
+          <p data-en="The guest scans it with their camera; their browser answers with a reply code."
+             data-fa="مهمان آن را با دوربین اسکن می‌کند؛ مرورگرش با کد پاسخ جواب می‌دهد.">
+            The guest scans it with their camera; their browser answers with a reply code.</p>
+        </div>
+        <div class="hs-step" data-step="3">
+          <b>3</b>
+          <p data-en="The host scans the reply — and voice flows phone-to-phone over your WiFi."
+             data-fa="میزبان کد پاسخ را اسکن می‌کند — و صدا گوشی‌به‌گوشی روی وای‌فای جاری می‌شود.">
+            The host scans the reply — and voice flows phone-to-phone over your WiFi.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Music cast ──────────────────────────────────────────────────── -->
+  <section class="section music" id="music">
+    <div class="music-grid">
+      <div class="music-copy">
+        <p class="eyebrow reveal" data-en="MUSIC CAST" data-fa="پخش موزیک">MUSIC CAST</p>
+        <h2 class="reveal" data-en="One phone plays. Everyone rides to it." data-fa="یک گوشی پخش می‌کند. همه با آن می‌رانند.">One phone plays. Everyone rides to it.</h2>
+        <p class="reveal"
+           data-en="Cast your phone's music straight into the channel. Your voice rides on top of the track, and a mix slider keeps the balance right."
+           data-fa="موزیک گوشی‌ات را مستقیم به کانال بفرست. صدایت روی آهنگ می‌نشیند و اسلایدر میکس تعادل را نگه می‌دارد.">
+          Cast your phone's music straight into the channel. Your voice rides on top of the track, and a mix slider keeps the balance right.</p>
+      </div>
+      <div class="music-eq reveal" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Privacy statement ───────────────────────────────────────────── -->
+  <section class="privacy">
+    <div class="privacy-rings" aria-hidden="true"><span></span><span></span><span></span></div>
+    <h2 class="reveal"
+        data-en="Your voice never touches a server."
+        data-fa="صدای تو هیچ‌وقت به هیچ سروری نمی‌رسد.">
+      Your voice never touches a server.</h2>
+    <p class="reveal"
+       data-en="No accounts. No cloud. No logs. Every packet lives and dies on your own network — that's not a policy, it's the architecture."
+       data-fa="بدون حساب کاربری. بدون ابر. بدون لاگ. هر بسته روی شبکهٔ خودت متولد می‌شود و همان‌جا می‌میرد — این یک سیاست نیست، خودِ معماری است.">
+      No accounts. No cloud. No logs. Every packet lives and dies on your own network — that's not a policy, it's the architecture.</p>
+  </section>
+
+  <!-- ── Download ────────────────────────────────────────────────────── -->
+  <section class="section download" id="download">
+    <p class="eyebrow reveal" data-en="GET TARK" data-fa="دریافت تَرک">GET TARK</p>
+    <h2 class="reveal" data-en="Put a radio in your pocket." data-fa="یک بی‌سیم در جیبت بگذار.">Put a radio in your pocket.</h2>
+    <div class="dl-buttons reveal">
+      <a class="btn btn-primary" href="#" data-en="Download for Android" data-fa="دانلود برای اندروید">Download for Android</a>
+      <a class="btn btn-ghost" href="#" data-en="iOS — coming soon" data-fa="iOS — به‌زودی">iOS — coming soon</a>
+      <a class="btn btn-ghost" href="https://tarkk.runflare.run" data-en="Web guest ↗" data-fa="مهمان وب ↗">Web guest ↗</a>
+    </div>
+  </section>
+
+  <footer>
+    <span class="wordmark"><span class="wordmark-dot"></span>TARK</span>
+    <p data-en="Built for riders. Works for everyone." data-fa="برای موتورسوارها ساخته شد. برای همه کار می‌کند.">Built for riders. Works for everyone.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

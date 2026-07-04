@@ -87,15 +87,32 @@ class BleBluetoothEngine {
 
   Future<void> _ready(BluetoothLowEnergyManager manager) async {
     // Android needs runtime permissions granted through the plugin as well;
-    // a no-op elsewhere (throws UnsupportedError, which we ignore).
+    // a no-op elsewhere (throws UnsupportedError, which we ignore). On iOS,
+    // merely creating the manager is what triggers the system Bluetooth
+    // permission prompt — which is why callers must reach this point even
+    // before any permission looks granted.
     try {
       await manager.authorize();
     } catch (_) {}
     if (manager.state == BluetoothLowEnergyState.poweredOn) return;
+    // Fail fast on terminal states instead of waiting out the timeout:
+    // unauthorized (user denied the iOS prompt) and unsupported can only
+    // be fixed outside the app.
+    if (manager.state == BluetoothLowEnergyState.unauthorized ||
+        manager.state == BluetoothLowEnergyState.unsupported) {
+      throw StateError('Bluetooth unavailable (${manager.state})');
+    }
     try {
-      await manager.stateChanged
-          .firstWhere((e) => e.state == BluetoothLowEnergyState.poweredOn)
+      final settled = await manager.stateChanged
+          .map((e) => e.state)
+          .firstWhere((s) =>
+              s == BluetoothLowEnergyState.poweredOn ||
+              s == BluetoothLowEnergyState.unauthorized ||
+              s == BluetoothLowEnergyState.unsupported)
           .timeout(const Duration(seconds: 8));
+      if (settled != BluetoothLowEnergyState.poweredOn) {
+        throw StateError('Bluetooth unavailable ($settled)');
+      }
     } on TimeoutException {
       throw StateError('Bluetooth is not powered on (${manager.state})');
     }
