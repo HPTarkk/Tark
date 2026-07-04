@@ -56,6 +56,16 @@ class BluetoothTransferRepository
   String? _connectedPeerId;
   int _audioSeq = 0;
 
+  // Auto-reconnect bookkeeping. A dropped session on a ride must heal by
+  // itself: the host resumes listening/advertising (the joiner re-dials by
+  // address, so no new discoverable dialog is needed), the joiner keeps
+  // re-dialing the lost peer with backoff. reset() bumps the generation to
+  // abort any loop still sleeping.
+  String? _sessionRole; // 'host' | 'joiner'
+  BluetoothPeer? _sessionPeer; // joiner's target
+  int _reconnectGen = 0;
+  static const _reconnectDelaysSeconds = [2, 3, 5, 8];
+
   bool get _classicSupported => Platform.isAndroid;
   bool get _bleSupported => Platform.isAndroid || Platform.isIOS;
 
@@ -95,6 +105,7 @@ class BluetoothTransferRepository
 
   @override
   Future<void> startHosting() async {
+    _sessionRole = 'host';
     _connectionStateController.add(bt.BluetoothConnectionState.hosting);
 
     // Advertise the user's display name so the joiner sees who they're
@@ -171,6 +182,8 @@ class BluetoothTransferRepository
 
   @override
   Future<void> connectToHost(BluetoothPeer peer) async {
+    _sessionRole = 'joiner';
+    _sessionPeer = peer;
     _connectionStateController.add(bt.BluetoothConnectionState.connecting);
     cancelDiscovery();
     if (peer.id.startsWith('ble:')) {
@@ -198,6 +211,9 @@ class BluetoothTransferRepository
 
   @override
   void reset() {
+    _reconnectGen++;
+    _sessionRole = null;
+    _sessionPeer = null;
     _connectedPeerId = null;
     _activeEngine = null;
     _classicFramer.reset();
@@ -259,6 +275,15 @@ class BluetoothTransferRepository
     } else {
       unawaited(_bleEngine?.stopHosting());
     }
+    // Remember the joiner's peer for the "reconnect to last session" quick
+    // action on the role screen.
+    final peer = _sessionPeer;
+    if (_sessionRole == 'joiner' && peer != null) {
+      unawaited(SharedPreferences.getInstance().then((prefs) async {
+        await prefs.setString('bt_last_peer_id', peer.id);
+        await prefs.setString('bt_last_peer_name', peer.name);
+      }));
+    }
     _connectionStateController.add(bt.BluetoothConnectionState.connected);
   }
 
@@ -276,10 +301,65 @@ class BluetoothTransferRepository
 
   void _onEngineClosed(String engine) {
     if (_activeEngine != null && _activeEngine != engine) return;
+    final hadSession = _connectedPeerId != null;
     _connectedPeerId = null;
     _activeEngine = null;
     _classicFramer.reset();
-    _connectionStateController.add(bt.BluetoothConnectionState.disconnected);
+    if (hadSession && _sessionRole != null) {
+      unawaited(_autoReconnect());
+    } else {
+      _connectionStateController.add(bt.BluetoothConnectionState.disconnected);
+    }
+  }
+
+  /// Heals an unexpectedly dropped session without user interaction. Ends
+  /// when the link is back or reset() is called (which bumps the
+  /// generation and emits its own disconnected state).
+  Future<void> _autoReconnect() async {
+    final gen = ++_reconnectGen;
+    final role = _sessionRole;
+    _connectionStateController.add(bt.BluetoothConnectionState.reconnecting);
+    Logger.log('Bluetooth session dropped — auto-reconnecting as $role');
+
+    var attempt = 0;
+    while (_reconnectGen == gen && _connectedPeerId == null) {
+      try {
+        if (role == 'host') {
+          final prefs = await SharedPreferences.getInstance();
+          final deviceName = prefs.getString('user_name') ?? 'Tark';
+          // No discoverable dialog here: the joiner reconnects by address,
+          // which only needs the RFCOMM server / BLE advertising back up.
+          if (_classicSupported) {
+            await (await _classicAsync()).startHosting(name: deviceName);
+          }
+          if (_bleSupported) {
+            await _requireBle.startHosting(name: deviceName);
+          }
+        } else {
+          final peer = _sessionPeer;
+          if (peer == null) break;
+          if (peer.isBle) {
+            await _requireBle.connectToHost(peer.id.substring(4));
+          } else {
+            await (await _classicAsync()).connectToHost(peer.id);
+          }
+        }
+      } catch (e) {
+        Logger.log('Reconnect attempt failed: $e');
+      }
+
+      final delay = _reconnectDelaysSeconds[
+          attempt < _reconnectDelaysSeconds.length
+              ? attempt
+              : _reconnectDelaysSeconds.length - 1];
+      attempt++;
+      // Sliced sleep so reset() aborts promptly.
+      for (var i = 0;
+          i < delay * 4 && _reconnectGen == gen && _connectedPeerId == null;
+          i++) {
+        await Future.delayed(const Duration(milliseconds: 250));
+      }
+    }
   }
 
   Future<void> _write(Uint8List payload) async {
@@ -342,6 +422,7 @@ class BluetoothTransferRepository
   @override
   @disposeMethod
   void dispose() {
+    _reconnectGen++;
     for (final sub in _engineSubs) {
       unawaited(sub.cancel());
     }

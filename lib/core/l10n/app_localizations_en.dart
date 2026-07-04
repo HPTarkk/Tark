@@ -139,7 +139,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bt_start_session => 'START SESSION';
 
   @override
+  String get bt_role_host_desc =>
+      'Broadcast a session for the other device to find and join';
+
+  @override
   String get bt_find_nearby => 'FIND NEARBY';
+
+  @override
+  String get bt_role_join_desc =>
+      'Sweep the area and connect to a nearby session';
+
+  @override
+  String get bt_visible_as => 'VISIBLE AS';
+
+  @override
+  String get bt_last_session => 'LAST SESSION';
+
+  @override
+  String get bt_reconnect => 'RECONNECT';
+
+  @override
+  String get bt_link_reconnecting => 'Bluetooth link lost — reconnecting...';
 
   @override
   String get bt_waiting_for_peer => 'Waiting for the other side to connect...';

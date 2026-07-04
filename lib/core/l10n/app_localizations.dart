@@ -350,11 +350,47 @@ abstract class AppLocalizations {
   /// **'شروع نشست'**
   String get bt_start_session;
 
+  /// No description provided for @bt_role_host_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'یک نشست بساز تا دستگاه مقابل آن را پیدا کند و بپیوندد'**
+  String get bt_role_host_desc;
+
   /// No description provided for @bt_find_nearby.
   ///
   /// In fa, this message translates to:
   /// **'جستجوی نزدیک'**
   String get bt_find_nearby;
+
+  /// No description provided for @bt_role_join_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'اطراف را بگرد و به نشست نزدیک متصل شو'**
+  String get bt_role_join_desc;
+
+  /// No description provided for @bt_visible_as.
+  ///
+  /// In fa, this message translates to:
+  /// **'قابل مشاهده با نام'**
+  String get bt_visible_as;
+
+  /// No description provided for @bt_last_session.
+  ///
+  /// In fa, this message translates to:
+  /// **'نشست قبلی'**
+  String get bt_last_session;
+
+  /// No description provided for @bt_reconnect.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتصال مجدد'**
+  String get bt_reconnect;
+
+  /// No description provided for @bt_link_reconnecting.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتصال بلوتوث قطع شد — در حال اتصال مجدد...'**
+  String get bt_link_reconnecting;
 
   /// No description provided for @bt_waiting_for_peer.
   ///

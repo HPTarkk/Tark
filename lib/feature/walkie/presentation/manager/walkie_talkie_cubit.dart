@@ -29,6 +29,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
   StreamSubscription<AudioFrame>? _frameSub;
   StreamSubscription<AudioEngineStatus>? _statusSub;
   StreamSubscription<WakiPacket>? _packetSub;
+  StreamSubscription<bool>? _linkSub;
   Timer? _presenceTimer;
   Timer? _cleanupTimer;
 
@@ -84,6 +85,18 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
       _onPacketReceived,
       onError: (Object e) => Logger.log('Packet error: $e'),
     );
+
+    // Bluetooth is a 1-to-1 link that can drop mid-ride; the repository
+    // auto-reconnects, and this surfaces a "reconnecting" banner meanwhile.
+    // WiFi's connect() stream has socket-lifecycle semantics instead, so
+    // it stays unmapped there.
+    if (_modeStore.mode == TransferMode.bluetooth) {
+      _linkSub = _transferRepository.connect().listen((connected) {
+        if (!isClosed && state.isLinkDown != !connected) {
+          emit(state.copyWith(isLinkDown: !connected));
+        }
+      });
+    }
 
     _presenceTimer =
         Timer.periodic(const Duration(seconds: 2), (_) => _broadcastPresence());
@@ -356,6 +369,8 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     final frameCancel = _frameSub?.cancel();
     final statusCancel = _statusSub?.cancel();
     final packetCancel = _packetSub?.cancel();
+    final linkCancel = _linkSub?.cancel();
+    unawaited(linkCancel);
     _transferRepository.stopConnection();
 
     // Leaving the channel ends music sharing too — the capture service must
@@ -391,6 +406,10 @@ class WalkieTalkieState extends Equatable {
   final bool isStartingSystemAudio;
   final double musicGain;
 
+  /// Bluetooth mode only: the 1-to-1 link dropped and the transport is
+  /// auto-reconnecting. Always false in WiFi mode.
+  final bool isLinkDown;
+
   const WalkieTalkieState({
     required this.localId,
     required this.myName,
@@ -404,6 +423,7 @@ class WalkieTalkieState extends Equatable {
     required this.isSharingSystemAudio,
     required this.isStartingSystemAudio,
     required this.musicGain,
+    required this.isLinkDown,
   });
 
   factory WalkieTalkieState.initial() => const WalkieTalkieState(
@@ -419,6 +439,7 @@ class WalkieTalkieState extends Equatable {
         isSharingSystemAudio: false,
         isStartingSystemAudio: false,
         musicGain: 0.85,
+        isLinkDown: false,
       );
 
   WalkieTalkieState copyWith({
@@ -434,6 +455,7 @@ class WalkieTalkieState extends Equatable {
     bool? isSharingSystemAudio,
     bool? isStartingSystemAudio,
     double? musicGain,
+    bool? isLinkDown,
   }) =>
       WalkieTalkieState(
         localId: localId ?? this.localId,
@@ -450,6 +472,7 @@ class WalkieTalkieState extends Equatable {
         isStartingSystemAudio:
             isStartingSystemAudio ?? this.isStartingSystemAudio,
         musicGain: musicGain ?? this.musicGain,
+        isLinkDown: isLinkDown ?? this.isLinkDown,
       );
 
   bool get isSomeoneElseTalking => activeUsers.any((u) => u.isTalking);
@@ -468,5 +491,6 @@ class WalkieTalkieState extends Equatable {
         isSharingSystemAudio,
         isStartingSystemAudio,
         musicGain,
+        isLinkDown,
       ];
 }

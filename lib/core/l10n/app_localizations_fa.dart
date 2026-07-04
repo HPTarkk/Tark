@@ -139,7 +139,27 @@ class AppLocalizationsFa extends AppLocalizations {
   String get bt_start_session => 'شروع نشست';
 
   @override
+  String get bt_role_host_desc =>
+      'یک نشست بساز تا دستگاه مقابل آن را پیدا کند و بپیوندد';
+
+  @override
   String get bt_find_nearby => 'جستجوی نزدیک';
+
+  @override
+  String get bt_role_join_desc => 'اطراف را بگرد و به نشست نزدیک متصل شو';
+
+  @override
+  String get bt_visible_as => 'قابل مشاهده با نام';
+
+  @override
+  String get bt_last_session => 'نشست قبلی';
+
+  @override
+  String get bt_reconnect => 'اتصال مجدد';
+
+  @override
+  String get bt_link_reconnecting =>
+      'اتصال بلوتوث قطع شد — در حال اتصال مجدد...';
 
   @override
   String get bt_waiting_for_peer => 'در انتظار اتصال طرف مقابل...';

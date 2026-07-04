@@ -129,7 +129,11 @@ class ClassicBluetoothEngine {
   Stream<BluetoothPeer> scanForHosts() {
     _fbc.startScan();
     return _fbc.scanResults.map(
-      (d) => BluetoothPeer(id: d.address, name: d.name ?? d.address),
+      (d) => BluetoothPeer(
+        id: d.address,
+        name: d.name ?? d.address,
+        rssi: d.rssi,
+      ),
     );
   }
 

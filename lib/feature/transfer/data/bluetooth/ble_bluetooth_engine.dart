@@ -239,6 +239,7 @@ class BleBluetoothEngine {
           controller.add(BluetoothPeer(
             id: 'ble:$id',
             name: name?.isNotEmpty == true ? name! : 'Tark (BLE)',
+            rssi: e.rssi,
           ));
         }));
         await manager.startDiscovery(serviceUUIDs: [kWakiServiceUuid]);

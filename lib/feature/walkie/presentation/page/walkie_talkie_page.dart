@@ -107,6 +107,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
                       const SizedBox(height: 16),
                       _entrance(2, const VisualizerSection()),
                       const SizedBox(height: 16),
+                      _buildLinkBanner(),
                       _entrance(3, const StatusRow()),
                       const SizedBox(height: 20),
                       // VOX above the member list: it's the control the
@@ -239,6 +240,53 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
           ),
         );
       },
+    );
+  }
+
+  // ── Bluetooth link-down banner ──────────────────────────────────────────────
+  Widget _buildLinkBanner() {
+    return BlocBuilder<WalkieTalkieCubit, WalkieTalkieState>(
+      buildWhen: (p, c) => p.isLinkDown != c.isLinkDown,
+      builder: (context, state) => AnimatedSize(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+        child: !state.isLinkDown
+            ? const SizedBox(width: double.infinity)
+            : Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.amber.withAlpha(20),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.amber.withAlpha(130)),
+                ),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                        color: AppColors.amber,
+                        strokeWidth: 2,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        context.getString.bt_link_reconnecting,
+                        style: TextStyle(
+                          color: AppColors.amber,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+      ),
     );
   }
 
