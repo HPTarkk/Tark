@@ -1,0 +1,22 @@
+PODS:
+  - audio_io (0.0.1):
+    - Flutter
+  - Flutter (1.0.0)
+
+DEPENDENCIES:
+  - audio_io (from `.symlinks/plugins/audio_io/ios`)
+  - Flutter (from `Flutter`)
+
+EXTERNAL SOURCES:
+  audio_io:
+    :path: ".symlinks/plugins/audio_io/ios"
+  Flutter:
+    :path: Flutter
+
+SPEC CHECKSUMS:
+  audio_io: 17684c4996799736e806d723cb5508077f33d499
+  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+
+PODFILE CHECKSUM: 3e19dde08242ec3f4cffa2ad759efe5650fffdb9
+
+COCOAPODS: 1.16.2
