@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:wakitaki/core/utils/extensions.dart';
+import 'package:tark/core/utils/extensions.dart';
 
 class VersionBadge extends StatelessWidget {
   final Color color;

@@ -25,7 +25,7 @@ val releaseStoreFile = keystoreProperties.getProperty("storeFile") ?: "../upload
 
 
 android {
-    namespace = "com.example.wakitaki"
+    namespace = "com.b1101.tark"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -41,8 +41,8 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.b1101.wakitaki"
-       minSdk = flutter.minSdkVersion
+        applicationId = "com.b1101.tark"
+        minSdk = flutter.minSdkVersion.toInt()
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

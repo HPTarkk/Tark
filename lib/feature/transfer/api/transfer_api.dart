@@ -4,6 +4,7 @@
 /// core/) — never the feature's internal domain/data/presentation files.
 library;
 
+export '../data/codec/opus_audio_codec.dart' show OpusAudioCodec;
 export '../domain/entity/transfer_mode.dart';
 export '../domain/entity/waki_packet.dart';
 export '../domain/repository/transfer_repository.dart';

@@ -1,7 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:wakitaki/feature/audio/domain/spectral_noise_suppressor.dart';
+import 'package:tark/feature/audio/domain/spectral_noise_suppressor.dart';
 
 double _rms(List<double> x) {
   if (x.isEmpty) return 0;

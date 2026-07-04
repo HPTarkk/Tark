@@ -12,29 +12,29 @@
 import 'package:audio_io/audio_io.dart' as _i891;
 import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
-import 'package:wakitaki/app/di/di_config.dart' as _i428;
-import 'package:wakitaki/feature/audio/api/audio_api.dart' as _i565;
-import 'package:wakitaki/feature/audio/data/audio_engine_impl.dart' as _i348;
-import 'package:wakitaki/feature/audio/domain/service/audio_engine.dart'
+import 'package:tark/app/di/di_config.dart' as _i428;
+import 'package:tark/feature/audio/api/audio_api.dart' as _i565;
+import 'package:tark/feature/audio/data/audio_engine_impl.dart' as _i348;
+import 'package:tark/feature/audio/domain/service/audio_engine.dart'
     as _i464;
-import 'package:wakitaki/feature/landing/presentation/manager/landing_cubit.dart'
+import 'package:tark/feature/landing/presentation/manager/landing_cubit.dart'
     as _i729;
-import 'package:wakitaki/feature/transfer/api/transfer_api.dart' as _i456;
-import 'package:wakitaki/feature/transfer/data/repository/bluetooth_transfer_repository.dart'
+import 'package:tark/feature/transfer/api/transfer_api.dart' as _i456;
+import 'package:tark/feature/transfer/data/repository/bluetooth_transfer_repository.dart'
     as _i1028;
-import 'package:wakitaki/feature/transfer/data/repository/wifi_transfer_repository_impl.dart'
+import 'package:tark/feature/transfer/data/repository/wifi_transfer_repository_impl.dart'
     as _i156;
-import 'package:wakitaki/feature/transfer/data/service/transfer_mode_store_impl.dart'
+import 'package:tark/feature/transfer/data/service/transfer_mode_store_impl.dart'
     as _i520;
-import 'package:wakitaki/feature/transfer/domain/repository/bluetooth_transport.dart'
+import 'package:tark/feature/transfer/domain/repository/bluetooth_transport.dart'
     as _i413;
-import 'package:wakitaki/feature/transfer/domain/repository/transfer_repository.dart'
+import 'package:tark/feature/transfer/domain/repository/transfer_repository.dart'
     as _i205;
-import 'package:wakitaki/feature/transfer/domain/service/transfer_mode_store.dart'
+import 'package:tark/feature/transfer/domain/service/transfer_mode_store.dart'
     as _i925;
-import 'package:wakitaki/feature/transfer/presentation/manager/bluetooth_connect_cubit.dart'
+import 'package:tark/feature/transfer/presentation/manager/bluetooth_connect_cubit.dart'
     as _i512;
-import 'package:wakitaki/feature/walkie/presentation/manager/walkie_talkie_cubit.dart'
+import 'package:tark/feature/walkie/presentation/manager/walkie_talkie_cubit.dart'
     as _i7;
 
 extension GetItInjectableX on _i174.GetIt {

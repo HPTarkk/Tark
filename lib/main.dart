@@ -16,6 +16,9 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await LocaleService.initialize();
   await ThemeService.initialize();
+  // Loads libopus once for the process; on failure the codec transparently
+  // falls back to PCM16, so this must never block or crash startup.
+  await OpusAudioCodec.ensureInitialized();
   configureDependencies();
   // Must complete before the first page builds: the DI factory that picks
   // the active TransferRepository reads the persisted mode synchronously.

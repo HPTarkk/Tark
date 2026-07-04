@@ -158,6 +158,54 @@ abstract class AppLocalizations {
   /// **'دریافت (RX)'**
   String get rx_label;
 
+  /// No description provided for @music_cast.
+  ///
+  /// In fa, this message translates to:
+  /// **'پخش موزیک'**
+  String get music_cast;
+
+  /// No description provided for @music_cast_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'موزیک و صدای برنامه‌های این گوشی را برای همهٔ اعضای کانال پخش کن.'**
+  String get music_cast_hint;
+
+  /// No description provided for @music_cast_start.
+  ///
+  /// In fa, this message translates to:
+  /// **'شروع پخش'**
+  String get music_cast_start;
+
+  /// No description provided for @music_cast_starting.
+  ///
+  /// In fa, this message translates to:
+  /// **'در حال شروع...'**
+  String get music_cast_starting;
+
+  /// No description provided for @music_cast_stop.
+  ///
+  /// In fa, this message translates to:
+  /// **'توقف'**
+  String get music_cast_stop;
+
+  /// No description provided for @music_cast_on_air.
+  ///
+  /// In fa, this message translates to:
+  /// **'روی آنتن'**
+  String get music_cast_on_air;
+
+  /// No description provided for @music_cast_mix.
+  ///
+  /// In fa, this message translates to:
+  /// **'میزان صدای موزیک'**
+  String get music_cast_mix;
+
+  /// No description provided for @music_cast_silent.
+  ///
+  /// In fa, this message translates to:
+  /// **'صدایی پخش نمی‌شود — در برنامهٔ موزیک، آهنگی پخش کن'**
+  String get music_cast_silent;
+
   /// No description provided for @channel_members.
   ///
   /// In fa, this message translates to:
@@ -343,6 +391,24 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'دسترسی بلوتوث داده نشد. لطفاً آن را در تنظیمات فعال کنید.'**
   String get bt_permission_denied;
+
+  /// No description provided for @bt_not_supported_platform.
+  ///
+  /// In fa, this message translates to:
+  /// **'حالت بلوتوث هنوز روی این دستگاه در دسترس نیست. لطفاً از حالت وای‌فای استفاده کنید.'**
+  String get bt_not_supported_platform;
+
+  /// No description provided for @open_settings.
+  ///
+  /// In fa, this message translates to:
+  /// **'باز کردن تنظیمات'**
+  String get open_settings;
+
+  /// No description provided for @retry.
+  ///
+  /// In fa, this message translates to:
+  /// **'تلاش دوباره'**
+  String get retry;
 
   /// No description provided for @bt_connection_failed.
   ///

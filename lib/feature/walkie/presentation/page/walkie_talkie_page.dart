@@ -13,6 +13,7 @@ import '../../../../core/widget/ticker_text.dart';
 import '../../../../core/widget/version_badge.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../manager/walkie_talkie_cubit.dart';
+import '../widget/music_cast_section.dart';
 import '../widget/status_row.dart';
 import '../widget/user_list.dart';
 import '../widget/visualizer_section.dart';
@@ -108,9 +109,16 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
                       const SizedBox(height: 16),
                       _entrance(3, const StatusRow()),
                       const SizedBox(height: 20),
-                      _entrance(4, const UserList()),
+                      // VOX above the member list: it's the control the
+                      // rider actually adjusts, while members are a static
+                      // two-entry list in practice.
+                      _entrance(4, const VoxSection()),
+                      // Renders nothing where playback capture is
+                      // unsupported (iOS, Android < 10) — spacing lives
+                      // inside the section so nothing doubles up here.
+                      _entrance(5, const MusicCastSection()),
                       const SizedBox(height: 20),
-                      _entrance(5, const VoxSection()),
+                      _entrance(6, const UserList()),
                     ],
                   ),
                 ),

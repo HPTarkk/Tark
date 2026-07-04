@@ -1,11 +1,13 @@
 import 'dart:async';
-import 'dart:io';
+import 'dart:collection';
+import 'dart:math';
 
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/utils/lan_ipv4.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../audio/api/audio_api.dart';
 import '../../../transfer/api/transfer_api.dart';
@@ -47,6 +49,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     final voxThreshold = prefs.getDouble('vox_threshold') ?? state.voxThreshold;
     final noiseSuppression =
         prefs.getDouble('noise_suppression') ?? state.noiseSuppression;
+    final musicGain = prefs.getDouble('music_gain') ?? state.musicGain;
 
     // The page can be exited while _init is still awaiting (fast back-out).
     // close() has then already run, so bail instead of resurrecting
@@ -59,6 +62,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
       myName: myName,
       voxThreshold: voxThreshold,
       noiseSuppression: noiseSuppression,
+      musicGain: musicGain,
       transferMode: _modeStore.mode,
     ));
 
@@ -90,6 +94,34 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     _broadcastPresence();
   }
 
+  // VOX shaping. A raw per-frame RMS gate is what made transmission sound
+  // choppy: the instant a frame dipped below threshold (every gap between
+  // words, every soft syllable) TX cut out, chopping word endings, and the
+  // first frame of speech was likewise lost because the gate only opened
+  // AFTER the onset frame that tripped it. Two counter-measures:
+  //  * hangover — once voice is detected, keep transmitting for a while
+  //    after the level drops, so natural pauses don't slice the stream;
+  //  * pre-roll — while idle, keep the last few frames; when the gate
+  //    opens, send them first so the word onset that opened it is heard.
+  static const _kHangoverFrames = 35; // 35 × 20 ms = 700 ms
+  static const _kPrerollFrames = 3; // 3 × 20 ms = 60 ms
+  final ListQueue<List<double>> _preroll = ListQueue();
+  int _hangover = 0;
+
+  // System-audio (music) sharing: captured playback arrives as ~100 ms
+  // chunks on its own clock and is re-cut to the mic's 20 ms frame grid by
+  // buffering through this queue. Capped at 1 s — the two clocks drift, and
+  // a runaway queue would turn into pure latency.
+  StreamSubscription<List<double>>? _musicSub;
+  final ListQueue<double> _musicQueue = ListQueue();
+  static const _kMusicQueueMax = 16000; // 1 s at 16 kHz
+
+  // Level of the captured system audio (~10 Hz, one value per capture
+  // chunk), for the music-cast equalizer. Same pattern as [frames]: an
+  // audio-rate side stream so the UI can animate without state emissions.
+  final _musicLevelController = StreamController<double>.broadcast();
+  Stream<double> get musicLevels => _musicLevelController.stream;
+
   void _onAudioFrame(AudioFrame frame) {
     // Full duplex: TX and RX run independently, same as a phone call. There
     // is no half-duplex gate here — this app has no hardware acoustic echo
@@ -100,19 +132,110 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     // No network → never mark as transmitting.
     final isOnline =
         state.localId.isNotEmpty && state.localId != '0.0.0.0';
+
+    if (frame.rms > state.voxThreshold) {
+      _hangover = _kHangoverFrames;
+    } else if (_hangover > 0) {
+      _hangover--;
+    }
+
+    final voiceOpen = _hangover > 0;
+    final sharingMusic = state.isSharingSystemAudio;
+    // Music sharing keeps the channel keyed continuously; voice rides on
+    // top of it. Without sharing, VOX (with hangover) gates as usual.
     final isTransmitting = _audioEngine.currentStatus.hasPermission &&
         isOnline &&
-        frame.rms > state.voxThreshold;
+        (voiceOpen || sharingMusic);
+
+    if (isTransmitting) {
+      if (voiceOpen && !state.isTransmitting) {
+        // Gate just opened — flush the pre-roll so the word onset survives.
+        for (final buffered in _preroll) {
+          _transferRepository.sendAudio(
+            _audioEngine.processForTransmit(buffered, state.voxThreshold),
+            state.myName,
+          );
+        }
+      }
+      _preroll.clear();
+      var outgoing = voiceOpen
+          ? _audioEngine.processForTransmit(frame.samples, state.voxThreshold)
+          : List<double>.filled(frame.samples.length, 0.0);
+      if (sharingMusic) outgoing = _mixMusic(outgoing);
+      _transferRepository.sendAudio(outgoing, state.myName);
+    } else {
+      _preroll.addLast(frame.samples);
+      while (_preroll.length > _kPrerollFrames) {
+        _preroll.removeFirst();
+      }
+    }
 
     if (isTransmitting != state.isTransmitting) {
       emit(state.copyWith(isTransmitting: isTransmitting));
     }
+  }
 
-    if (isTransmitting) {
-      final processed =
-          _audioEngine.processForTransmit(frame.samples, state.voxThreshold);
-      _transferRepository.sendAudio(processed, state.myName);
+  /// Adds up to one frame's worth of captured system audio on top of the
+  /// (possibly silent) mic frame. Falls back to the mic-only frame when the
+  /// capture queue runs dry (music paused, capture-protected app).
+  List<double> _mixMusic(List<double> voice) {
+    final gain = state.musicGain;
+    final mixed = List<double>.from(voice);
+    for (var i = 0; i < mixed.length && _musicQueue.isNotEmpty; i++) {
+      mixed[i] =
+          (mixed[i] + _musicQueue.removeFirst() * gain).clamp(-1.0, 1.0);
     }
+    return mixed;
+  }
+
+  Future<void> toggleShareSystemAudio() async {
+    if (state.isStartingSystemAudio) return;
+
+    if (state.isSharingSystemAudio) {
+      await _musicSub?.cancel();
+      _musicSub = null;
+      _musicQueue.clear();
+      await SystemAudioCapture.stop();
+      if (!_musicLevelController.isClosed) _musicLevelController.add(0);
+      if (!isClosed) emit(state.copyWith(isSharingSystemAudio: false));
+      return;
+    }
+
+    emit(state.copyWith(isStartingSystemAudio: true));
+    final started = await SystemAudioCapture.start();
+    if (isClosed) return;
+    if (!started) {
+      emit(state.copyWith(isStartingSystemAudio: false));
+      return;
+    }
+    await _musicSub?.cancel();
+    _musicSub = SystemAudioCapture.frames.listen((chunk) {
+      for (final sample in chunk) {
+        _musicQueue.addLast(sample);
+      }
+      while (_musicQueue.length > _kMusicQueueMax) {
+        _musicQueue.removeFirst();
+      }
+      if (!_musicLevelController.isClosed &&
+          _musicLevelController.hasListener &&
+          chunk.isNotEmpty) {
+        var sum = 0.0;
+        for (final sample in chunk) {
+          sum += sample * sample;
+        }
+        _musicLevelController.add(sqrt(sum / chunk.length));
+      }
+    }, onError: (Object e) => Logger.log('System audio stream error: $e'));
+    emit(state.copyWith(
+      isSharingSystemAudio: true,
+      isStartingSystemAudio: false,
+    ));
+  }
+
+  Future<void> setMusicGain(double gain) async {
+    emit(state.copyWith(musicGain: gain.clamp(0.0, 1.0)));
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('music_gain', state.musicGain);
   }
 
   void _onPacketReceived(WakiPacket packet) {
@@ -208,13 +331,8 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
       return _kBluetoothLocalId;
     }
     try {
-      final interfaces =
-          await NetworkInterface.list(type: InternetAddressType.IPv4);
-      for (final iface in interfaces) {
-        for (final addr in iface.addresses) {
-          if (!addr.isLoopback) return addr.address;
-        }
-      }
+      final best = LanIpv4.bestLocalAddress(await LanIpv4.addresses());
+      if (best != null) return best;
     } catch (e) {
       Logger.log('Could not get local IP: $e');
     }
@@ -240,6 +358,15 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     final packetCancel = _packetSub?.cancel();
     _transferRepository.stopConnection();
 
+    // Leaving the channel ends music sharing too — the capture service must
+    // not outlive the session it feeds.
+    if (state.isSharingSystemAudio) {
+      unawaited(SystemAudioCapture.stop());
+    }
+    unawaited(_musicSub?.cancel());
+    _musicSub = null;
+    unawaited(_musicLevelController.close());
+
     await frameCancel;
     await statusCancel;
     await packetCancel;
@@ -260,6 +387,9 @@ class WalkieTalkieState extends Equatable {
   final List<ChannelUser> activeUsers;
   final bool isReady;
   final TransferMode transferMode;
+  final bool isSharingSystemAudio;
+  final bool isStartingSystemAudio;
+  final double musicGain;
 
   const WalkieTalkieState({
     required this.localId,
@@ -271,6 +401,9 @@ class WalkieTalkieState extends Equatable {
     required this.activeUsers,
     required this.isReady,
     required this.transferMode,
+    required this.isSharingSystemAudio,
+    required this.isStartingSystemAudio,
+    required this.musicGain,
   });
 
   factory WalkieTalkieState.initial() => const WalkieTalkieState(
@@ -283,6 +416,9 @@ class WalkieTalkieState extends Equatable {
         activeUsers: [],
         isReady: false,
         transferMode: TransferMode.wifi,
+        isSharingSystemAudio: false,
+        isStartingSystemAudio: false,
+        musicGain: 0.85,
       );
 
   WalkieTalkieState copyWith({
@@ -295,6 +431,9 @@ class WalkieTalkieState extends Equatable {
     List<ChannelUser>? activeUsers,
     bool? isReady,
     TransferMode? transferMode,
+    bool? isSharingSystemAudio,
+    bool? isStartingSystemAudio,
+    double? musicGain,
   }) =>
       WalkieTalkieState(
         localId: localId ?? this.localId,
@@ -306,6 +445,11 @@ class WalkieTalkieState extends Equatable {
         activeUsers: activeUsers ?? this.activeUsers,
         isReady: isReady ?? this.isReady,
         transferMode: transferMode ?? this.transferMode,
+        isSharingSystemAudio:
+            isSharingSystemAudio ?? this.isSharingSystemAudio,
+        isStartingSystemAudio:
+            isStartingSystemAudio ?? this.isStartingSystemAudio,
+        musicGain: musicGain ?? this.musicGain,
       );
 
   bool get isSomeoneElseTalking => activeUsers.any((u) => u.isTalking);
@@ -321,5 +465,8 @@ class WalkieTalkieState extends Equatable {
         activeUsers,
         isReady,
         transferMode,
+        isSharingSystemAudio,
+        isStartingSystemAudio,
+        musicGain,
       ];
 }

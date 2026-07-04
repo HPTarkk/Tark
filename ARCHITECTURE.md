@@ -1,6 +1,6 @@
 # Architecture
 
-Wakitaki follows clean architecture with isolated features that communicate
+Tark follows clean architecture with isolated features that communicate
 only through per-feature API layers.
 
 ## Layout

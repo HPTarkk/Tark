@@ -23,10 +23,14 @@ import 'dart:collection';
 /// If the queue grows beyond [_maxQueueSamples] (2 s), oldest samples are
 /// dropped to prevent unbounded memory growth and excessive latency.
 class AudioPlaybackBuffer {
+  // 100 ms target: 60 ms proved too shallow on real WiFi between phones —
+  // every scheduling burst or lost packet drained it dry, and each underrun
+  // costs a full refill pause (audible chop). 100 ms of latency is
+  // imperceptible in a walkie-talkie exchange; the smoothness is not.
   AudioPlaybackBuffer({
     required Sink<List<double>> output,
     int sampleRate = 48000,
-    int targetBufferMs = 60,
+    int targetBufferMs = 100,
     int drainIntervalMs = 10,
   })  : _output = output,
         _sampleRate = sampleRate,
