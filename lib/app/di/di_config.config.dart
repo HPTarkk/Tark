@@ -39,6 +39,8 @@ import 'package:tark/feature/transfer/presentation/manager/bluetooth_connect_cub
     as _i1058;
 import 'package:tark/feature/transfer/presentation/manager/guest_link_cubit.dart'
     as _i1007;
+import 'package:tark/feature/transfer/presentation/manager/hotspot_bridge_cubit.dart'
+    as _i659;
 import 'package:tark/feature/walkie/presentation/manager/walkie_talkie_cubit.dart'
     as _i496;
 
@@ -63,6 +65,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i627.WifiTransferRepositoryImpl>(
       () => _i627.WifiTransferRepositoryImpl(),
       dispose: (i) => i.dispose(),
+    );
+    gh.factory<_i659.HotspotBridgeCubit>(
+      () => _i659.HotspotBridgeCubit(gh<_i627.WifiTransferRepositoryImpl>()),
     );
     gh.lazySingleton<_i517.TransferModeStore>(
       () => _i290.TransferModeStoreImpl(),

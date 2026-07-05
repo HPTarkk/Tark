@@ -43,6 +43,7 @@ class BleBluetoothEngine {
   final _peerConnectedController = StreamController<String>.broadcast();
   final _errorController = StreamController<String>.broadcast();
   final _closedController = StreamController<void>.broadcast();
+  final _advertisingController = StreamController<bool>.broadcast();
 
   /// Complete messages received from the connected peer, regardless of role.
   Stream<Uint8List> get input => _inputController.stream;
@@ -53,6 +54,12 @@ class BleBluetoothEngine {
   Stream<String> get onError => _errorController.stream;
 
   Stream<void> get onClosed => _closedController.stream;
+
+  /// Emits whether BLE advertising (host/peripheral role) actually started.
+  /// `false` means iPhones can't discover this device over BLE — many cheaper
+  /// Android chipsets don't support the peripheral role at all — so callers
+  /// steer cross-platform users to the Wi-Fi hotspot bridge instead.
+  Stream<bool> get onAdvertising => _advertisingController.stream;
 
   // ── Host (peripheral) state ────────────────────────────────────────────
   bool _hosting = false;
@@ -194,22 +201,35 @@ class BleBluetoothEngine {
         includedServices: [],
         characteristics: [txChar, rxChar],
       ));
+      var advertised = false;
       try {
         await manager.startAdvertising(Advertisement(
           name: name,
           serviceUUIDs: [kWakiServiceUuid],
         ));
+        advertised = true;
       } catch (_) {
         // A 128-bit service UUID plus a name easily overflows the 31-byte
         // legacy advertisement (ADVERTISE_FAILED_DATA_TOO_LARGE on
         // Android). The service UUID is what joiners actually filter on —
         // retry without the name rather than not advertising at all.
-        await manager.startAdvertising(Advertisement(
-          serviceUUIDs: [kWakiServiceUuid],
-        ));
+        try {
+          await manager.startAdvertising(Advertisement(
+            serviceUUIDs: [kWakiServiceUuid],
+          ));
+          advertised = true;
+        } catch (e) {
+          // Many cheaper Android chipsets don't support the peripheral role
+          // at all. Report it (so the UI can steer cross-OS users to the
+          // Wi-Fi bridge) but don't throw — on Android the Classic engine can
+          // still carry an Android↔Android session.
+          Logger.log('BLE advertising unsupported: $e');
+        }
       }
+      _advertisingController.add(advertised);
     } catch (e) {
       Logger.log('BLE startHosting failed: $e');
+      _advertisingController.add(false);
       _errorController.add('$e');
     }
   }
@@ -246,6 +266,17 @@ class BleBluetoothEngine {
         final manager = _requireCentral;
         await _ready(manager);
         _clientSubs.add(manager.discovered.listen((e) {
+          // Match the Tark service ourselves rather than trusting the scan
+          // filter: some Android chipsets ignore the serviceUUIDs filter and
+          // would otherwise never surface a valid host. Our hosts always
+          // advertise the service UUID (even in the name-dropped fallback).
+          List<UUID> advertised;
+          try {
+            advertised = e.advertisement.serviceUUIDs;
+          } catch (_) {
+            advertised = const [];
+          }
+          if (!advertised.contains(kWakiServiceUuid)) return;
           final id = e.peripheral.uuid.toString();
           _discovered[id] = e.peripheral;
           String? name;
@@ -259,7 +290,10 @@ class BleBluetoothEngine {
             rssi: e.rssi,
           ));
         }));
-        await manager.startDiscovery(serviceUUIDs: [kWakiServiceUuid]);
+        // Unfiltered discovery — we filter on the service UUID in the callback
+        // above. This is what rescues devices whose native scan filter drops
+        // our 128-bit UUID.
+        await manager.startDiscovery();
       } catch (e) {
         Logger.log('BLE scan failed: $e');
         _errorController.add('$e');
@@ -425,6 +459,7 @@ class BleBluetoothEngine {
     await _peerConnectedController.close();
     await _errorController.close();
     await _closedController.close();
+    await _advertisingController.close();
   }
 
   /// Whether this platform has a BLE implementation registered (Android,

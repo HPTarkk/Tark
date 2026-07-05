@@ -91,6 +91,9 @@ class LandingState extends Equatable {
 
   bool get hasNetwork =>
       transferMode == TransferMode.bluetooth ||
+      // Hotspot mode creates its own network on entry, so no pre-existing IP
+      // is required to start.
+      transferMode == TransferMode.hotspot ||
       (localIp.isNotEmpty && localIp != '0.0.0.0');
 
   LandingState copyWith({

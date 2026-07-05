@@ -14,3 +14,4 @@ export '../domain/repository/transfer_repository.dart';
 export '../domain/service/transfer_mode_store.dart';
 export '../presentation/page/bluetooth_connect_page.dart';
 export '../presentation/page/guest_link_page.dart';
+export '../presentation/page/hotspot_bridge_page.dart';

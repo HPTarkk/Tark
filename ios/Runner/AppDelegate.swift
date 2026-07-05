@@ -15,5 +15,8 @@ import UIKit
     if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "tark.audio_session") {
       AudioSessionHandler.register(with: registrar)
     }
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "tark.hotspot_join") {
+      HotspotJoinHandler.register(with: registrar)
+    }
   }
 }

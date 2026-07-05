@@ -6,7 +6,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../manager/landing_cubit.dart';
 
-/// WiFi / Bluetooth segmented toggle for choosing the active transport.
+/// Transport picker: WiFi / Bluetooth / Hotspot / Guest. Four modes no longer
+/// fit one comfortable row on a phone, so they're laid out as a 2×2 grid.
 class TransportModeToggle extends StatelessWidget {
   const TransportModeToggle({super.key});
 
@@ -16,6 +17,8 @@ class TransportModeToggle extends StatelessWidget {
     return BlocBuilder<LandingCubit, LandingState>(
       buildWhen: (p, c) => p.transferMode != c.transferMode,
       builder: (context, state) {
+        void select(TransferMode mode) =>
+            context.read<LandingCubit>().setTransferMode(mode);
         return Container(
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
@@ -23,31 +26,40 @@ class TransportModeToggle extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppColors.border),
           ),
-          child: Row(
+          child: Column(
             children: [
-              _ModeButton(
-                label: s.transport_wifi,
-                icon: Icons.wifi_rounded,
-                selected: state.transferMode == TransferMode.wifi,
-                onTap: () => context
-                    .read<LandingCubit>()
-                    .setTransferMode(TransferMode.wifi),
+              Row(
+                children: [
+                  _ModeButton(
+                    label: s.transport_wifi,
+                    icon: Icons.wifi_rounded,
+                    selected: state.transferMode == TransferMode.wifi,
+                    onTap: () => select(TransferMode.wifi),
+                  ),
+                  _ModeButton(
+                    label: s.transport_bluetooth,
+                    icon: Icons.bluetooth_rounded,
+                    selected: state.transferMode == TransferMode.bluetooth,
+                    onTap: () => select(TransferMode.bluetooth),
+                  ),
+                ],
               ),
-              _ModeButton(
-                label: s.transport_bluetooth,
-                icon: Icons.bluetooth_rounded,
-                selected: state.transferMode == TransferMode.bluetooth,
-                onTap: () => context
-                    .read<LandingCubit>()
-                    .setTransferMode(TransferMode.bluetooth),
-              ),
-              _ModeButton(
-                label: s.transport_guest,
-                icon: Icons.qr_code_rounded,
-                selected: state.transferMode == TransferMode.guest,
-                onTap: () => context
-                    .read<LandingCubit>()
-                    .setTransferMode(TransferMode.guest),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  _ModeButton(
+                    label: s.transport_hotspot,
+                    icon: Icons.wifi_tethering_rounded,
+                    selected: state.transferMode == TransferMode.hotspot,
+                    onTap: () => select(TransferMode.hotspot),
+                  ),
+                  _ModeButton(
+                    label: s.transport_guest,
+                    icon: Icons.qr_code_rounded,
+                    selected: state.transferMode == TransferMode.guest,
+                    onTap: () => select(TransferMode.guest),
+                  ),
+                ],
               ),
             ],
           ),

@@ -6,6 +6,15 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <!-- Hotspot Bridge: creating a local-only Wi-Fi hotspot for iPhone↔Android.
+         CHANGE_WIFI_STATE is required by startLocalOnlyHotspot; on Android 13+
+         NEARBY_WIFI_DEVICES replaces the location requirement (neverForLocation
+         since we only bring an AP up, never derive location). On API 26–32 the
+         hotspot still needs ACCESS_FINE_LOCATION (declared below through 32). -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission
+        android:name="android.permission.NEARBY_WIFI_DEVICES"
+        android:usesPermissionFlags="neverForLocation" />
 
     <!-- Bluetooth Classic transport (Android). Legacy permissions are capped
          at API 30 by maxSdkVersion; API 31+ uses the runtime-requested
@@ -17,8 +26,10 @@
     <!-- Android 6–11 gates ALL Bluetooth scanning (classic discovery and
          BLE) behind location — without these declared, scans silently find
          nothing there. From Android 12 the neverForLocation BLUETOOTH_SCAN
-         above replaces them. -->
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
+         above replaces them. FINE_LOCATION runs through API 32 (not 30) because
+         the Hotspot Bridge's startLocalOnlyHotspot needs it on API 31–32;
+         Android 13+ uses NEARBY_WIFI_DEVICES (above) instead. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission

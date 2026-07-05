@@ -35,6 +35,11 @@ class AppRouter {
             builder: (context, state) => BluetoothConnectPage.buildPage(),
           ),
           GoRoute(
+            path: AppRoutes.hotspotBridgePath,
+            name: AppRoutes.hotspotBridgeName,
+            builder: (context, state) => HotspotBridgePage.buildPage(),
+          ),
+          GoRoute(
             path: AppRoutes.guestLinkPath,
             name: AppRoutes.guestLinkName,
             builder: (context, state) => GuestLinkPage.buildPage(),

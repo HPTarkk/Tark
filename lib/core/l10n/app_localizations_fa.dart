@@ -296,4 +296,82 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get noise_filter_strong => 'زیاد';
+
+  @override
+  String get transport_hotspot => 'هات‌اسپات';
+
+  @override
+  String get hotspot_title => 'پل هات‌اسپات';
+
+  @override
+  String get hotspot_not_supported =>
+      'میزبانِ پل هات‌اسپات روی اندروید اجرا می‌شود. روی آیفون، به هات‌اسپاتِ یک میزبان اندرویدی بپیوند.';
+
+  @override
+  String get hotspot_host_badge => 'وای‌فای محلی • میزبان اندروید';
+
+  @override
+  String get hotspot_creating => 'در حال ساخت هات‌اسپات...';
+
+  @override
+  String get hotspot_waiting => 'در انتظار پیوستن آیفون...';
+
+  @override
+  String get hotspot_step_scan =>
+      'روی آیفون، این کد را (با دوربین یا اسکنر داخل برنامه) اسکن کن و «پیوستن» را بزن.';
+
+  @override
+  String get hotspot_step_join_channel =>
+      'سپس وارد کانال می‌شود — صدا از روی همین لینک وای‌فای جریان می‌یابد.';
+
+  @override
+  String get hotspot_network => 'شبکه';
+
+  @override
+  String get hotspot_password => 'رمز عبور';
+
+  @override
+  String get hotspot_copied => 'کپی شد';
+
+  @override
+  String get hotspot_enter_channel => 'ورود به کانال';
+
+  @override
+  String get hotspot_error =>
+      'ساخت هات‌اسپات ممکن نشد. هر هات‌اسپات یا اشتراک‌گذاری فعال را خاموش کن، مطمئن شو موقعیت مکانی روشن است، سپس دوباره تلاش کن.';
+
+  @override
+  String get hotspot_ios_instructions =>
+      'از گوشی اندرویدی بخواه تَرک ← هات‌اسپات را باز کند، سپس کد وای‌فای آن را این‌جا اسکن کن.';
+
+  @override
+  String get hotspot_scan_host => 'اسکن کد میزبان';
+
+  @override
+  String get hotspot_joining => 'در حال پیوستن به شبکه...';
+
+  @override
+  String get hotspot_joined => 'به شبکه پیوستی';
+
+  @override
+  String get hotspot_manual_join_title => 'پیوستن دستی به این شبکه';
+
+  @override
+  String get hotspot_manual_join_hint =>
+      'تنظیمات ← وای‌فای را باز کن، این شبکه را انتخاب کن، بعد برگرد و وارد کانال شو.';
+
+  @override
+  String get hotspot_invalid_qr =>
+      'این یک کد وای‌فای نیست. کدی را که روی میزبان اندروید نمایش داده می‌شود اسکن کن.';
+
+  @override
+  String get bt_ios_hint =>
+      'بلوتوث بین آیفون و اندروید ممکن است پایدار نباشد. برای مطمئن‌ترین اتصال بین دو گوشی، از حالت هات‌اسپات استفاده کن.';
+
+  @override
+  String get bt_ble_unavailable =>
+      'این گوشی نمی‌تواند روی بلوتوث LE تبلیغ کند، پس آیفون‌ها آن را این‌جا پیدا نمی‌کنند.';
+
+  @override
+  String get bt_use_wifi_bridge => 'استفاده از پل وای‌فای';
 }

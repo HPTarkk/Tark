@@ -45,6 +45,9 @@ abstract class TransferModule {
       switch (store.mode) {
         TransferMode.bluetooth => bluetooth,
         TransferMode.guest => webrtc,
+        // Hotspot mode is only a Wi-Fi *setup* step (Android hosts a local AP
+        // the iPhone joins); the audio session itself is plain Wi-Fi.
+        TransferMode.hotspot => wifi,
         TransferMode.wifi => wifi,
       };
 }

@@ -183,6 +183,7 @@ class _LandingPageState extends State<LandingPage>
         onTap: enabled
             ? () => context.pushNamed(switch (state.transferMode) {
                   TransferMode.bluetooth => AppRoutes.bluetoothConnectName,
+                  TransferMode.hotspot => AppRoutes.hotspotBridgeName,
                   TransferMode.guest => AppRoutes.guestLinkName,
                   TransferMode.wifi => AppRoutes.walkieName,
                 })

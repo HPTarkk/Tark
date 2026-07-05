@@ -296,4 +296,82 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noise_filter_strong => 'HIGH';
+
+  @override
+  String get transport_hotspot => 'HOTSPOT';
+
+  @override
+  String get hotspot_title => 'Hotspot bridge';
+
+  @override
+  String get hotspot_not_supported =>
+      'The hotspot bridge host runs on Android. On iPhone, join an Android host\'s hotspot instead.';
+
+  @override
+  String get hotspot_host_badge => 'LOCAL WIFI • ANDROID HOST';
+
+  @override
+  String get hotspot_creating => 'Creating hotspot...';
+
+  @override
+  String get hotspot_waiting => 'Waiting for the iPhone to join...';
+
+  @override
+  String get hotspot_step_scan =>
+      'On the iPhone, scan this code (Camera or the in-app scanner) and tap Join.';
+
+  @override
+  String get hotspot_step_join_channel =>
+      'It then enters the channel — audio flows over this Wi-Fi link.';
+
+  @override
+  String get hotspot_network => 'NETWORK';
+
+  @override
+  String get hotspot_password => 'PASSWORD';
+
+  @override
+  String get hotspot_copied => 'copied';
+
+  @override
+  String get hotspot_enter_channel => 'ENTER CHANNEL';
+
+  @override
+  String get hotspot_error =>
+      'Couldn\'t create the hotspot. Turn off any active hotspot/tethering, make sure Location is on, then try again.';
+
+  @override
+  String get hotspot_ios_instructions =>
+      'Ask the Android phone to open Tark → Hotspot, then scan its Wi-Fi code here.';
+
+  @override
+  String get hotspot_scan_host => 'SCAN HOST CODE';
+
+  @override
+  String get hotspot_joining => 'Joining network...';
+
+  @override
+  String get hotspot_joined => 'Joined the network';
+
+  @override
+  String get hotspot_manual_join_title => 'Join this network manually';
+
+  @override
+  String get hotspot_manual_join_hint =>
+      'Open Settings › Wi-Fi, pick this network, then come back and enter the channel.';
+
+  @override
+  String get hotspot_invalid_qr =>
+      'That isn\'t a Wi-Fi code. Scan the code shown on the Android host.';
+
+  @override
+  String get bt_ios_hint =>
+      'iPhone ↔ Android over Bluetooth can be unreliable. For the most solid cross-phone link, use Hotspot mode.';
+
+  @override
+  String get bt_ble_unavailable =>
+      'This phone can\'t advertise over Bluetooth LE, so iPhones won\'t find it here.';
+
+  @override
+  String get bt_use_wifi_bridge => 'USE WI-FI BRIDGE';
 }

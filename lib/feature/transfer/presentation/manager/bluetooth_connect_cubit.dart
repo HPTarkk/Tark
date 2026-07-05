@@ -17,6 +17,7 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
 
   StreamSubscription<BluetoothConnectionState>? _connectionSub;
   StreamSubscription<BluetoothPeer>? _scanSub;
+  StreamSubscription<bool>? _bleAdvertisingSub;
   Timer? _reconnectTimeout;
 
   BluetoothConnectCubit(this._transport)
@@ -32,6 +33,14 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
         ));
       },
       onError: (Object e) => Logger.log('BT connection state error: $e'),
+    );
+    // When BLE host advertising can't start, iPhones can't discover us — flag
+    // it so the host screen can steer the user to the Wi-Fi hotspot bridge.
+    _bleAdvertisingSub = _transport.bleAdvertising.listen(
+      (ok) {
+        if (!ok && !isClosed) emit(state.copyWith(bleUnavailable: true));
+      },
+      onError: (Object e) => Logger.log('BLE advertising state error: $e'),
     );
     _loadIdentity();
   }
@@ -141,6 +150,7 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
     _reconnectTimeout?.cancel();
     await _connectionSub?.cancel();
     await _scanSub?.cancel();
+    await _bleAdvertisingSub?.cancel();
     return super.close();
   }
 }
@@ -164,6 +174,10 @@ class BluetoothConnectState extends Equatable {
   /// param rather than the usual `x ?? this.x` pattern.
   final String? connectingPeerId;
 
+  /// True once BLE advertising failed to start while hosting — iPhones can't
+  /// discover this device over Bluetooth, so the UI offers the Wi-Fi bridge.
+  final bool bleUnavailable;
+
   const BluetoothConnectState({
     required this.role,
     required this.connectionState,
@@ -171,6 +185,7 @@ class BluetoothConnectState extends Equatable {
     required this.myName,
     required this.lastPeer,
     required this.connectingPeerId,
+    required this.bleUnavailable,
   });
 
   factory BluetoothConnectState.initial() => const BluetoothConnectState(
@@ -180,6 +195,7 @@ class BluetoothConnectState extends Equatable {
         myName: '',
         lastPeer: null,
         connectingPeerId: null,
+        bleUnavailable: false,
       );
 
   BluetoothConnectState copyWith({
@@ -189,6 +205,7 @@ class BluetoothConnectState extends Equatable {
     String? myName,
     BluetoothPeer? lastPeer,
     Object? connectingPeerId = _unset,
+    bool? bleUnavailable,
   }) =>
       BluetoothConnectState(
         role: role ?? this.role,
@@ -199,11 +216,19 @@ class BluetoothConnectState extends Equatable {
         connectingPeerId: identical(connectingPeerId, _unset)
             ? this.connectingPeerId
             : connectingPeerId as String?,
+        bleUnavailable: bleUnavailable ?? this.bleUnavailable,
       );
 
   @override
-  List<Object?> get props =>
-      [role, connectionState, peers, myName, lastPeer, connectingPeerId];
+  List<Object?> get props => [
+        role,
+        connectionState,
+        peers,
+        myName,
+        lastPeer,
+        connectingPeerId,
+        bleUnavailable,
+      ];
 }
 
 const _unset = Object();

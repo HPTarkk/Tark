@@ -643,6 +643,144 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'زیاد'**
   String get noise_filter_strong;
+
+  /// No description provided for @transport_hotspot.
+  ///
+  /// In fa, this message translates to:
+  /// **'هات‌اسپات'**
+  String get transport_hotspot;
+
+  /// No description provided for @hotspot_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'پل هات‌اسپات'**
+  String get hotspot_title;
+
+  /// No description provided for @hotspot_not_supported.
+  ///
+  /// In fa, this message translates to:
+  /// **'میزبانِ پل هات‌اسپات روی اندروید اجرا می‌شود. روی آیفون، به هات‌اسپاتِ یک میزبان اندرویدی بپیوند.'**
+  String get hotspot_not_supported;
+
+  /// No description provided for @hotspot_host_badge.
+  ///
+  /// In fa, this message translates to:
+  /// **'وای‌فای محلی • میزبان اندروید'**
+  String get hotspot_host_badge;
+
+  /// No description provided for @hotspot_creating.
+  ///
+  /// In fa, this message translates to:
+  /// **'در حال ساخت هات‌اسپات...'**
+  String get hotspot_creating;
+
+  /// No description provided for @hotspot_waiting.
+  ///
+  /// In fa, this message translates to:
+  /// **'در انتظار پیوستن آیفون...'**
+  String get hotspot_waiting;
+
+  /// No description provided for @hotspot_step_scan.
+  ///
+  /// In fa, this message translates to:
+  /// **'روی آیفون، این کد را (با دوربین یا اسکنر داخل برنامه) اسکن کن و «پیوستن» را بزن.'**
+  String get hotspot_step_scan;
+
+  /// No description provided for @hotspot_step_join_channel.
+  ///
+  /// In fa, this message translates to:
+  /// **'سپس وارد کانال می‌شود — صدا از روی همین لینک وای‌فای جریان می‌یابد.'**
+  String get hotspot_step_join_channel;
+
+  /// No description provided for @hotspot_network.
+  ///
+  /// In fa, this message translates to:
+  /// **'شبکه'**
+  String get hotspot_network;
+
+  /// No description provided for @hotspot_password.
+  ///
+  /// In fa, this message translates to:
+  /// **'رمز عبور'**
+  String get hotspot_password;
+
+  /// No description provided for @hotspot_copied.
+  ///
+  /// In fa, this message translates to:
+  /// **'کپی شد'**
+  String get hotspot_copied;
+
+  /// No description provided for @hotspot_enter_channel.
+  ///
+  /// In fa, this message translates to:
+  /// **'ورود به کانال'**
+  String get hotspot_enter_channel;
+
+  /// No description provided for @hotspot_error.
+  ///
+  /// In fa, this message translates to:
+  /// **'ساخت هات‌اسپات ممکن نشد. هر هات‌اسپات یا اشتراک‌گذاری فعال را خاموش کن، مطمئن شو موقعیت مکانی روشن است، سپس دوباره تلاش کن.'**
+  String get hotspot_error;
+
+  /// No description provided for @hotspot_ios_instructions.
+  ///
+  /// In fa, this message translates to:
+  /// **'از گوشی اندرویدی بخواه تَرک ← هات‌اسپات را باز کند، سپس کد وای‌فای آن را این‌جا اسکن کن.'**
+  String get hotspot_ios_instructions;
+
+  /// No description provided for @hotspot_scan_host.
+  ///
+  /// In fa, this message translates to:
+  /// **'اسکن کد میزبان'**
+  String get hotspot_scan_host;
+
+  /// No description provided for @hotspot_joining.
+  ///
+  /// In fa, this message translates to:
+  /// **'در حال پیوستن به شبکه...'**
+  String get hotspot_joining;
+
+  /// No description provided for @hotspot_joined.
+  ///
+  /// In fa, this message translates to:
+  /// **'به شبکه پیوستی'**
+  String get hotspot_joined;
+
+  /// No description provided for @hotspot_manual_join_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'پیوستن دستی به این شبکه'**
+  String get hotspot_manual_join_title;
+
+  /// No description provided for @hotspot_manual_join_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'تنظیمات ← وای‌فای را باز کن، این شبکه را انتخاب کن، بعد برگرد و وارد کانال شو.'**
+  String get hotspot_manual_join_hint;
+
+  /// No description provided for @hotspot_invalid_qr.
+  ///
+  /// In fa, this message translates to:
+  /// **'این یک کد وای‌فای نیست. کدی را که روی میزبان اندروید نمایش داده می‌شود اسکن کن.'**
+  String get hotspot_invalid_qr;
+
+  /// No description provided for @bt_ios_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'بلوتوث بین آیفون و اندروید ممکن است پایدار نباشد. برای مطمئن‌ترین اتصال بین دو گوشی، از حالت هات‌اسپات استفاده کن.'**
+  String get bt_ios_hint;
+
+  /// No description provided for @bt_ble_unavailable.
+  ///
+  /// In fa, this message translates to:
+  /// **'این گوشی نمی‌تواند روی بلوتوث LE تبلیغ کند، پس آیفون‌ها آن را این‌جا پیدا نمی‌کنند.'**
+  String get bt_ble_unavailable;
+
+  /// No description provided for @bt_use_wifi_bridge.
+  ///
+  /// In fa, this message translates to:
+  /// **'استفاده از پل وای‌فای'**
+  String get bt_use_wifi_bridge;
 }
 
 class _AppLocalizationsDelegate

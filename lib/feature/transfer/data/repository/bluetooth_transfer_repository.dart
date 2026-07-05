@@ -43,6 +43,7 @@ class BluetoothTransferRepository
   final _packetController = StreamController<WakiPacket>.broadcast();
   final _connectionStateController =
       StreamController<bt.BluetoothConnectionState>.broadcast();
+  final _bleAdvertisingController = StreamController<bool>.broadcast();
 
   ClassicBluetoothEngine? _classicEngine;
   BleBluetoothEngine? _bleEngine;
@@ -100,6 +101,9 @@ class BluetoothTransferRepository
   @override
   Stream<bt.BluetoothConnectionState> get connectionState =>
       _connectionStateController.stream;
+
+  @override
+  Stream<bool> get bleAdvertising => _bleAdvertisingController.stream;
 
   // ── BluetoothTransport ──────────────────────────────────────────────────
 
@@ -240,7 +244,12 @@ class BluetoothTransferRepository
         ..add(ble.input.listen(_onMessage))
         ..add(ble.onPeerConnected.listen((id) => _onPeerConnected('ble', id)))
         ..add(ble.onError.listen((m) => _onEngineError('ble', m)))
-        ..add(ble.onClosed.listen((_) => _onEngineClosed('ble')));
+        ..add(ble.onClosed.listen((_) => _onEngineClosed('ble')))
+        ..add(ble.onAdvertising.listen((ok) {
+          if (!_bleAdvertisingController.isClosed) {
+            _bleAdvertisingController.add(ok);
+          }
+        }));
     }
     final classic = _classicEngine;
     if (classic != null) {
@@ -432,6 +441,7 @@ class BluetoothTransferRepository
     unawaited(_bleEngine?.dispose());
     unawaited(_packetController.close());
     unawaited(_connectionStateController.close());
+    unawaited(_bleAdvertisingController.close());
     _codec.release();
   }
 }

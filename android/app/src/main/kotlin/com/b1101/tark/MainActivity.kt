@@ -4,6 +4,7 @@ import android.content.Intent
 import com.b1101.tark.audio.AudioSessionHandler
 import com.b1101.tark.audio.SystemAudioHandler
 import com.b1101.tark.bluetooth.BluetoothServerHandler
+import com.b1101.tark.hotspot.HotspotHandler
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -11,6 +12,7 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     private var bluetoothServerHandler: BluetoothServerHandler? = null
     private var systemAudioHandler: SystemAudioHandler? = null
+    private var hotspotHandler: HotspotHandler? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -39,6 +41,13 @@ class MainActivity : FlutterActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             "tark/system_audio",
         ).setMethodCallHandler(systemAudio)
+
+        val hotspot = HotspotHandler(applicationContext)
+        hotspotHandler = hotspot
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "tark/hotspot",
+        ).setMethodCallHandler(hotspot)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -50,6 +59,7 @@ class MainActivity : FlutterActivity() {
 
     override fun onDestroy() {
         bluetoothServerHandler?.stopHosting()
+        hotspotHandler?.stop()
         super.onDestroy()
     }
 }

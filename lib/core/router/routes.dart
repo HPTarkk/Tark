@@ -13,6 +13,9 @@ abstract final class AppRoutes {
   static const bluetoothConnectName = 'BluetoothConnectPage';
   static const bluetoothConnectPath = '/bluetooth-connect';
 
+  static const hotspotBridgeName = 'HotspotBridgePage';
+  static const hotspotBridgePath = '/hotspot-bridge';
+
   static const guestLinkName = 'GuestLinkPage';
   static const guestLinkPath = '/guest-link';
 }

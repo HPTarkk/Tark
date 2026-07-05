@@ -7,6 +7,12 @@ import '../entity/bluetooth_peer.dart';
 abstract interface class BluetoothTransport {
   Stream<BluetoothConnectionState> get connectionState;
 
+  /// Emits whether BLE host advertising is active. `false` means iPhones can't
+  /// discover this device over Bluetooth LE (the chipset lacks the peripheral
+  /// role), so the UI should steer cross-platform users to the Wi-Fi hotspot
+  /// bridge. Only meaningful while hosting.
+  Stream<bool> get bleAdvertising;
+
   /// Makes this device discoverable and listens for one incoming connection.
   Future<void> startHosting();
 
