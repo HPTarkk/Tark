@@ -14,7 +14,7 @@ Cross-platform: **Android ↔ Android, iPhone ↔ iPhone, and Android ↔ iPhone
   - **Bluetooth** — Bluetooth **Classic (RFCOMM)** on Android (highest bandwidth) and **BLE GATT** for iPhone and cross-OS. Android advertises on both at once for maximum compatibility.
   - **Wi-Fi Hotspot Bridge** — the reliable **iPhone ↔ Android** path: Android creates a local hotspot, the iPhone joins by scanning a Wi-Fi QR, and audio then runs over Wi-Fi.
   - **Guest (web)** — invite a browser guest over a serverless WebRTC LAN link via two QR codes; no app install for the guest.
-- **OS voice processing** — the platform's call-mode pipeline (echo cancellation, noise suppression, auto-gain) is engaged via `VOICE_COMMUNICATION` streams + `MODE_IN_COMMUNICATION` on Android and the `.voiceChat` AVAudioSession on iOS, plus an app-level spectral noise suppressor on top.
+- **OS voice processing** — the platform's call-mode pipeline (echo cancellation, noise suppression, auto-gain) is engaged via `VOICE_COMMUNICATION` streams + `MODE_IN_COMMUNICATION` on Android — and, on Android, `AcousticEchoCanceler`/`NoiseSuppressor`/`AutomaticGainControl` are also attached explicitly to the capture session — and via the `.voiceChat` AVAudioSession on iOS, plus an app-level spectral noise suppressor on top.
 - **Handsfree routing** — mic + playback follow AirPods / helmet / wired headsets (Bluetooth SCO engaged before the audio engine opens its streams); falls back to speakerphone.
 - **VOX (voice-activated)** — no button to hold; transmits when your level crosses a threshold, with 700 ms hangover + 60 ms pre-roll so words aren't clipped.
 - **Music / device-audio cast** (Android) — forward whatever is playing on the phone (music, navigation) into the channel; it plays as live audio on everyone else's device.
@@ -98,7 +98,7 @@ transport ─▶ Opus decode (per-sender) ─▶ jitter buffer (~100 ms) ─▶ 
 ```
 
 - **Codec:** Opus 16 kHz mono VOIP (`opus_dart` + `opus_flutter`), packet type `0x03`. PCM16 (`0x02`) is a fallback and stays decodable for back-compat.
-- **OS voice session:** engaged before the engine opens its streams (`tark/audio_session` channel → `AudioSessionHandler` on each platform). This is what gives call-grade echo cancellation / noise suppression / AGC where the device supports it.
+- **OS voice session:** engaged before the engine opens its streams (`tark/audio_session` channel → `AudioSessionHandler` on each platform). This gives call-grade echo cancellation / noise suppression / AGC where the device supports it. On Android the vendored `audio_io` allocates an AAudio session id (miniaudio patch) so the three effects are attached explicitly, not just implied by the input preset.
 - **Full duplex:** TX and RX run independently like a phone call. On loudspeaker (not headphones) some residual echo can occur on devices with weak OS AEC — headphones eliminate it.
 
 ---

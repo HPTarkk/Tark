@@ -151,6 +151,16 @@ class AudioIo {
     return null;
   }
 
+  /// The capture stream's platform audio session id (Android/AAudio), for
+  /// attaching native voice effects (AEC/NS/AGC). Returns -1 where there's no
+  /// such session (iOS, web, OpenSL fallback, or before start()).
+  Future<int> inputSessionId() async {
+    if (_impl.usePlatformImpl) {
+      return _impl.getInputSessionId();
+    }
+    return -1;
+  }
+
   Future<void> requestLatency(AudioIoLatency option) async {
     if (_impl.usePlatformImpl) {
       await _impl.requestFrameDuration(_presetLatency[option]!);

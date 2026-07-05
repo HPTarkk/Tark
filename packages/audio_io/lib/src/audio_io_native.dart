@@ -54,6 +54,9 @@ class AudioIoNative implements AudioIoImpl {
   Future<double> getFrameDuration() async {
     return await _ffi?.getFrameDuration() ?? 0.01;
   }
+
+  @override
+  int getInputSessionId() => _ffi?.getInputSessionId() ?? -1;
 }
 
 AudioIoImpl createAudioIoImpl() => AudioIoNative();

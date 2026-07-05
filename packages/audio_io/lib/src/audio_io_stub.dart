@@ -11,6 +11,10 @@ abstract class AudioIoImpl {
   Map<String, dynamic> getFormat();
   Future<void> requestFrameDuration(double duration);
   Future<double> getFrameDuration();
+
+  /// Platform audio session id of the capture stream (for attaching native
+  /// voice effects), or -1 when unavailable.
+  int getInputSessionId();
 }
 
 AudioIoImpl createAudioIoImpl() => throw UnsupportedError(

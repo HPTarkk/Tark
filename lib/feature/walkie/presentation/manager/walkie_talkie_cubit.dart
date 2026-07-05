@@ -136,11 +136,13 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
   Stream<double> get musicLevels => _musicLevelController.stream;
 
   void _onAudioFrame(AudioFrame frame) {
-    // Full duplex: TX and RX run independently, same as a phone call. There
-    // is no half-duplex gate here — this app has no hardware acoustic echo
-    // cancellation (the underlying audio_io/miniaudio stack doesn't expose
-    // any), so on speaker playback (vs. headphones) the mic may pick up
-    // some of the other side's voice. Headphones avoid this entirely.
+    // Full duplex: TX and RX run independently, same as a phone call. No
+    // half-duplex gate — the platform's voice processing (echo cancellation /
+    // noise suppression / AGC) is engaged for the session: on Android via the
+    // VOICE_COMMUNICATION preset plus explicitly-attached AEC/NS/AGC effects
+    // (see AudioSessionHandler.attachEffects), on iOS via AVAudioSession
+    // voiceChat. Residual echo can still leak on loudspeaker with weak device
+    // AEC; headphones avoid it entirely.
 
     // No network → never mark as transmitting.
     final isOnline =

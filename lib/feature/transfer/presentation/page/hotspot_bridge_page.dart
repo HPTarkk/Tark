@@ -672,17 +672,20 @@ class _Preparing extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 30),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: 30,
-            height: 30,
-            child: CircularProgressIndicator(color: AppColors.amber, strokeWidth: 2.5),
-          ),
-          const SizedBox(height: 16),
-          Text(label, style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-        ],
+      child: SizedBox(
+        width: double.infinity,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 30,
+              height: 30,
+              child: CircularProgressIndicator(color: AppColors.amber, strokeWidth: 2.5),
+            ),
+            const SizedBox(height: 16),
+            Text(label, style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+          ],
+        ),
       ),
     );
   }

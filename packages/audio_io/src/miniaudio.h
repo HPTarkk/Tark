@@ -7699,6 +7699,7 @@ struct ma_context
             ma_proc AAudioStreamBuilder_setContentType;
             ma_proc AAudioStreamBuilder_setInputPreset;
             ma_proc AAudioStreamBuilder_setAllowedCapturePolicy;
+            ma_proc AAudioStreamBuilder_setSessionId;
             ma_proc AAudioStreamBuilder_openStream;
             ma_proc AAudioStream_close;
             ma_proc AAudioStream_getState;
@@ -39173,6 +39174,7 @@ typedef void                     (* MA_PFN_AAudioStreamBuilder_setUsage)        
 typedef void                     (* MA_PFN_AAudioStreamBuilder_setContentType)           (ma_AAudioStreamBuilder* pBuilder, ma_aaudio_content_type_t contentType);
 typedef void                     (* MA_PFN_AAudioStreamBuilder_setInputPreset)           (ma_AAudioStreamBuilder* pBuilder, ma_aaudio_input_preset_t inputPreset);
 typedef void                     (* MA_PFN_AAudioStreamBuilder_setAllowedCapturePolicy)  (ma_AAudioStreamBuilder* pBuilder, ma_aaudio_allowed_capture_policy_t policy);
+typedef void                     (* MA_PFN_AAudioStreamBuilder_setSessionId)             (ma_AAudioStreamBuilder* pBuilder, ma_int32 sessionId);
 typedef ma_aaudio_result_t       (* MA_PFN_AAudioStreamBuilder_openStream)               (ma_AAudioStreamBuilder* pBuilder, ma_AAudioStream** ppStream);
 typedef ma_aaudio_result_t       (* MA_PFN_AAudioStream_close)                           (ma_AAudioStream* pStream);
 typedef ma_aaudio_stream_state_t (* MA_PFN_AAudioStream_getState)                        (ma_AAudioStream* pStream);
@@ -39391,6 +39393,14 @@ static ma_result ma_create_and_configure_AAudioStreamBuilder__aaudio(ma_context*
         if (deviceType == ma_device_type_capture) {
             if (pConfig->aaudio.inputPreset != ma_aaudio_input_preset_default && pContext->aaudio.AAudioStreamBuilder_setInputPreset != NULL) {
                 ((MA_PFN_AAudioStreamBuilder_setInputPreset)pContext->aaudio.AAudioStreamBuilder_setInputPreset)(pBuilder, ma_to_input_preset__aaudio(pConfig->aaudio.inputPreset));
+            }
+
+            /* Allocate an audio session id (AAUDIO_SESSION_ID_ALLOCATE == 0) for
+               the capture stream so the Java layer can attach the platform's
+               AcousticEchoCanceler / NoiseSuppressor / AutomaticGainControl to
+               the mic. Harmless when unavailable (proc is NULL on API < 28). */
+            if (pContext->aaudio.AAudioStreamBuilder_setSessionId != NULL) {
+                ((MA_PFN_AAudioStreamBuilder_setSessionId)pContext->aaudio.AAudioStreamBuilder_setSessionId)(pBuilder, 0);
             }
 
             ((MA_PFN_AAudioStreamBuilder_setDataCallback)pContext->aaudio.AAudioStreamBuilder_setDataCallback)(pBuilder, ma_stream_data_callback_capture__aaudio, (void*)pDevice);
@@ -40068,6 +40078,7 @@ static ma_result ma_context_init__aaudio(ma_context* pContext, const ma_context_
     pContext->aaudio.AAudioStreamBuilder_setContentType            = (ma_proc)ma_dlsym(ma_context_get_log(pContext), pContext->aaudio.hAAudio, "AAudioStreamBuilder_setContentType");
     pContext->aaudio.AAudioStreamBuilder_setInputPreset            = (ma_proc)ma_dlsym(ma_context_get_log(pContext), pContext->aaudio.hAAudio, "AAudioStreamBuilder_setInputPreset");
     pContext->aaudio.AAudioStreamBuilder_setAllowedCapturePolicy   = (ma_proc)ma_dlsym(ma_context_get_log(pContext), pContext->aaudio.hAAudio, "AAudioStreamBuilder_setAllowedCapturePolicy");
+    pContext->aaudio.AAudioStreamBuilder_setSessionId             = (ma_proc)ma_dlsym(ma_context_get_log(pContext), pContext->aaudio.hAAudio, "AAudioStreamBuilder_setSessionId");
     pContext->aaudio.AAudioStreamBuilder_openStream                = (ma_proc)ma_dlsym(ma_context_get_log(pContext), pContext->aaudio.hAAudio, "AAudioStreamBuilder_openStream");
     pContext->aaudio.AAudioStream_close                            = (ma_proc)ma_dlsym(ma_context_get_log(pContext), pContext->aaudio.hAAudio, "AAudioStream_close");
     pContext->aaudio.AAudioStream_getState                         = (ma_proc)ma_dlsym(ma_context_get_log(pContext), pContext->aaudio.hAAudio, "AAudioStream_getState");
@@ -40099,6 +40110,11 @@ static ma_result ma_context_init__aaudio(ma_context* pContext, const ma_context_
     pContext->aaudio.AAudioStreamBuilder_setInputPreset            = (ma_proc)AAudioStreamBuilder_setInputPreset;
     #if defined(__ANDROID_API__) && __ANDROID_API__ >= 29
     pContext->aaudio.AAudioStreamBuilder_setAllowedCapturePolicy   = (ma_proc)AAudioStreamBuilder_setAllowedCapturePolicy;
+    #endif
+    #if defined(__ANDROID_API__) && __ANDROID_API__ >= 28
+    pContext->aaudio.AAudioStreamBuilder_setSessionId             = (ma_proc)AAudioStreamBuilder_setSessionId;
+    #else
+    pContext->aaudio.AAudioStreamBuilder_setSessionId             = NULL;
     #endif
     pContext->aaudio.AAudioStreamBuilder_openStream                = (ma_proc)AAudioStreamBuilder_openStream;
     pContext->aaudio.AAudioStream_close                            = (ma_proc)AAudioStream_close;

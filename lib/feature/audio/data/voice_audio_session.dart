@@ -23,6 +23,21 @@ abstract final class VoiceAudioSession {
     }
   }
 
+  /// Android only: attaches the platform's AcousticEchoCanceler /
+  /// NoiseSuppressor / AutomaticGainControl to the capture [sessionId] (from
+  /// [AudioIo.inputSessionId]), making call-grade voice processing explicit
+  /// rather than relying solely on the VOICE_COMMUNICATION input preset. A
+  /// negative id (iOS, web, or an OpenSL fallback) is a no-op — those paths get
+  /// their processing from the session preset / AVAudioSession voiceChat.
+  static Future<void> attachEffects(int sessionId) async {
+    if (sessionId < 0) return;
+    try {
+      await _channel.invokeMethod<void>('attachEffects', {'sessionId': sessionId});
+    } catch (e) {
+      Logger.log('Voice audio effects attach failed: $e');
+    }
+  }
+
   static Future<void> release() async {
     try {
       await _channel.invokeMethod<void>('releaseVoice');

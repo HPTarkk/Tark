@@ -167,4 +167,11 @@ class AudioIoFFI {
     }
     return 0.01;
   }
+
+  /// AAudio capture session id for attaching platform voice effects, or -1
+  /// when unavailable. Valid only while the device is running.
+  int getInputSessionId() {
+    if (_handle == null) return -1;
+    return _bindings.getInputSessionId(_handle!);
+  }
 }

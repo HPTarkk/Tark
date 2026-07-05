@@ -8,6 +8,8 @@
 
 #ifdef __ANDROID__
 #include <android/log.h>
+#include <dlfcn.h>
+#include <cstdint>
 #endif
 
 const int RING_BUFFER_SIZE = 8192;
@@ -267,6 +269,42 @@ int audio_io_get_sample_rate(void* handle) {
 
 int audio_io_get_channels(void* handle) {
     return CHANNELS;
+}
+
+// Returns the AAudio capture stream's audio session id (>= 0) so the Java
+// layer can attach AcousticEchoCanceler / NoiseSuppressor /
+// AutomaticGainControl to the mic. Returns -1 when unavailable (not the AAudio
+// backend, Android < 8/9, or any non-Android platform) — callers then rely on
+// the VOICE_COMMUNICATION preset alone.
+int audio_io_get_input_session_id(void* handle) {
+#if defined(__ANDROID__) && defined(MA_SUPPORT_AAUDIO)
+    if (!handle) return -1;
+    AudioContext* context = (AudioContext*)handle;
+    if (!context->isDeviceInitialized) return -1;
+    if (context->device.pContext == NULL ||
+        context->device.pContext->backend != ma_backend_aaudio) {
+        return -1;  // OpenSL ES / other backend: no session id to expose.
+    }
+    void* captureStream = (void*)context->device.aaudio.pStreamCapture;
+    if (captureStream == NULL) return -1;
+
+    typedef int32_t (*PFN_AAudioStream_getSessionId)(void*);
+    static PFN_AAudioStream_getSessionId pGetSessionId = NULL;
+    static bool resolved = false;
+    if (!resolved) {
+        resolved = true;
+        void* lib = dlopen("libaaudio.so", RTLD_NOW | RTLD_NOLOAD);
+        if (lib == NULL) lib = dlopen("libaaudio.so", RTLD_NOW);
+        if (lib != NULL) {
+            pGetSessionId = (PFN_AAudioStream_getSessionId)dlsym(lib, "AAudioStream_getSessionId");
+        }
+    }
+    if (pGetSessionId == NULL) return -1;
+    return (int)pGetSessionId(captureStream);
+#else
+    (void)handle;
+    return -1;
+#endif
 }
 
 int audio_io_get_available_read_frames(void* handle) {

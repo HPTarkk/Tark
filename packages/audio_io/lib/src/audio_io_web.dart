@@ -249,6 +249,10 @@ class AudioIoWeb implements AudioIoImpl {
 
     return actualBufferSize / sampleRate;
   }
+
+  // No native audio session on web.
+  @override
+  int getInputSessionId() => -1;
 }
 
 AudioIoImpl createAudioIoImpl() => AudioIoWeb();

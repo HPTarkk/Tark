@@ -150,6 +150,13 @@ class AudioEngineImpl implements AudioEngine {
         // applies its own session config during start and last write wins.
         // On Android this second call is a no-op (already engaged).
         await VoiceAudioSession.configure();
+
+        // Android: attach the platform AEC/NS/AGC to the now-open capture
+        // stream's audio session. -1 elsewhere (iOS/web/OpenSL) → no-op, and
+        // those paths still get processing from the voice preset / voiceChat.
+        final sessionId = await _audioIo.inputSessionId();
+        await VoiceAudioSession.attachEffects(sessionId);
+
         final fmt = await _audioIo.getFormat();
         Logger.log('AudioIo format: $fmt');
         final inputRate =

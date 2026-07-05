@@ -6,6 +6,9 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
+import android.media.audiofx.AcousticEchoCanceler
+import android.media.audiofx.AutomaticGainControl
+import android.media.audiofx.NoiseSuppressor
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -44,15 +47,61 @@ class AudioSessionHandler(private val context: Context) : MethodChannel.MethodCa
      *  configure did and the re-assert call from Dart is a no-op. */
     private var engaged = false
 
+    // Platform voice pre-processing bound to the capture session.
+    private var aec: AcousticEchoCanceler? = null
+    private var ns: NoiseSuppressor? = null
+    private var agc: AutomaticGainControl? = null
+
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "configureVoice" -> configureVoice(result)
+            "attachEffects" -> {
+                attachEffects(call.argument<Int>("sessionId") ?: -1)
+                result.success(null)
+            }
             "releaseVoice" -> {
                 releaseVoice()
                 result.success(true)
             }
             else -> result.notImplemented()
         }
+    }
+
+    /**
+     * Attaches the platform's voice pre-processing to the AAudio capture
+     * session so echo cancellation / noise suppression / auto-gain apply
+     * EXPLICITLY, not just implicitly through the VOICE_COMMUNICATION input
+     * preset (some devices honour one but not the other). Each effect is
+     * optional per device (isAvailable) and best-effort — a failure just
+     * leaves the preset-provided processing in place.
+     */
+    private fun attachEffects(sessionId: Int) {
+        releaseEffects()
+        if (sessionId < 0) return
+        runCatching {
+            if (AcousticEchoCanceler.isAvailable()) {
+                aec = AcousticEchoCanceler.create(sessionId)?.also { it.enabled = true }
+            }
+        }
+        runCatching {
+            if (NoiseSuppressor.isAvailable()) {
+                ns = NoiseSuppressor.create(sessionId)?.also { it.enabled = true }
+            }
+        }
+        runCatching {
+            if (AutomaticGainControl.isAvailable()) {
+                agc = AutomaticGainControl.create(sessionId)?.also { it.enabled = true }
+            }
+        }
+    }
+
+    private fun releaseEffects() {
+        runCatching { aec?.release() }
+        runCatching { ns?.release() }
+        runCatching { agc?.release() }
+        aec = null
+        ns = null
+        agc = null
     }
 
     private fun devicesOfType(am: AudioManager, vararg types: Int): Boolean = runCatching {
@@ -178,6 +227,7 @@ class AudioSessionHandler(private val context: Context) : MethodChannel.MethodCa
     }
 
     private fun releaseVoice() {
+        releaseEffects()
         if (!engaged) return
         engaged = false
         val am = audioManager
