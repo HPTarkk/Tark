@@ -24,6 +24,48 @@
   );
   revealables.forEach((el) => io.observe(el));
 
+  // ── Seamless ticker ───────────────────────────────────────────────
+  // translateX(-50%) only loops cleanly when the track is two identical
+  // runs AND one run is at least as wide as the viewport. Otherwise a blank
+  // gap sweeps in at the loop point on wide screens. Content width varies
+  // with text/screen, so build the runs here: repeat the base items until one
+  // run covers the viewport, then duplicate it. Rebuild on resize.
+  const tickerTrack = document.querySelector('.ticker-track');
+  if (tickerTrack) {
+    const tickerBox = tickerTrack.parentElement;
+    const baseNodes = [...tickerTrack.children]
+      .slice(0, tickerTrack.children.length / 2) // one copy from the source markup
+      .map((n) => n.cloneNode(true));
+    const PX_PER_SEC = 48; // constant scroll speed regardless of run width
+
+    const buildTicker = () => {
+      if (!baseNodes.length) return;
+      tickerTrack.replaceChildren();
+      const appendBase = () =>
+        baseNodes.forEach((n) => tickerTrack.appendChild(n.cloneNode(true)));
+      appendBase();
+      // Grow one run until it spans the viewport (guard against runaway).
+      let guard = 0;
+      while (tickerTrack.scrollWidth < tickerBox.clientWidth && guard++ < 40) {
+        appendBase();
+      }
+      const runWidth = tickerTrack.scrollWidth;
+      // Duplicate the run so -50% lands on an identical copy: no jump, no gap.
+      [...tickerTrack.children].forEach((n) =>
+        tickerTrack.appendChild(n.cloneNode(true))
+      );
+      tickerTrack.style.animationDuration =
+        Math.max(12, runWidth / PX_PER_SEC) + 's';
+    };
+
+    buildTicker();
+    let tickerTimer;
+    window.addEventListener('resize', () => {
+      clearTimeout(tickerTimer);
+      tickerTimer = setTimeout(buildTicker, 200);
+    });
+  }
+
   // ── Pinned handshake scene ────────────────────────────────────────
   // The 320vh section pins its content; scroll progress through it maps
   // to steps 1..4 (show QR → scan → reply → connected).
@@ -71,7 +113,6 @@
   try {
     saved = localStorage.getItem('tark_lang');
   } catch (_) {}
-  if (saved === 'fa' || (saved === null && /^fa\b/.test(navigator.language || ''))) {
-    applyLang('fa');
-  }
+  // Default to Persian on first visit; honour an explicit saved choice after.
+  applyLang(saved === 'en' ? 'en' : 'fa');
 })();

@@ -66,6 +66,7 @@ a { color: inherit; text-decoration: none; }
 
 .cards .card:nth-child(2) { transition-delay: .12s; }
 .cards .card:nth-child(3) { transition-delay: .24s; }
+.cards .card:nth-child(4) { transition-delay: .36s; }
 
 /* ── Nav ────────────────────────────────────────────────────────────── */
 
@@ -413,10 +414,17 @@ nav.scrolled {
 .ticker-track {
   display: inline-flex;
   align-items: center;
-  gap: 26px;
   white-space: nowrap;
   animation: tick 26s linear infinite;
+  will-change: transform;
 }
+
+/* Spacing lives on each item (not flex `gap`) so the two duplicated copies
+   tile at an EVEN number of spacings — that makes translateX(-50%) equal
+   exactly one copy's width and the loop is seamless. A flex `gap` leaves an
+   odd count (2N-1), so -50% falls half a gap short and the row visibly
+   jumps back each cycle. */
+.ticker-track > * { margin-inline-end: 26px; }
 
 .ticker-track span {
   color: var(--text-sec);
@@ -427,7 +435,7 @@ nav.scrolled {
 
 .ticker-track i { color: var(--amber); font-style: normal; }
 
-@keyframes tick { to { transform: translateX(-50%); } }
+@keyframes tick { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
 /* ── Feature cards ──────────────────────────────────────────────────── */
 
