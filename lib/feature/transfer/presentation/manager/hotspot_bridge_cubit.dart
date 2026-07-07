@@ -6,6 +6,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../../../core/sfx/sfx_event.dart';
+import '../../../../core/sfx/sfx_service.dart';
 import '../../../../core/utils/logger.dart';
 import '../../data/hotspot/wifi_hotspot_controller.dart';
 import '../../data/repository/wifi_transfer_repository_impl.dart';
@@ -105,16 +107,19 @@ class HotspotBridgeCubit extends Cubit<HotspotBridgeState> {
       final creds = await _hotspot.start();
       if (isClosed) return;
       emit(state.copyWith(phase: HotspotPhase.ready, credentials: creds));
+      Sfx.play(SfxEvent.linkRestored);
       _listenForPeer();
     } on PlatformException catch (e) {
       Logger.log('Hotspot start failed: ${e.code} ${e.message}');
       if (!isClosed) {
         emit(state.copyWith(phase: HotspotPhase.error, errorCode: e.code));
+        Sfx.play(SfxEvent.error);
       }
     } catch (e) {
       Logger.log('Hotspot start failed: $e');
       if (!isClosed) {
         emit(state.copyWith(phase: HotspotPhase.error, errorCode: 'failed'));
+        Sfx.play(SfxEvent.error);
       }
     }
   }
@@ -128,6 +133,7 @@ class HotspotBridgeCubit extends Cubit<HotspotBridgeState> {
       (_) {
         if (!isClosed && !state.peerConnected) {
           emit(state.copyWith(peerConnected: true));
+          Sfx.play(SfxEvent.peerJoin);
         }
       },
       onError: (Object e) => Logger.log('Hotspot peer listen error: $e'),

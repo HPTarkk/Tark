@@ -564,6 +564,41 @@ nav.scrolled {
   overflow: hidden;
 }
 
+/* Ambient glow that shifts from amber to green as the handshake completes. */
+.handshake-sticky::before {
+  content: '';
+  position: absolute;
+  inset: -10%;
+  z-index: -1;
+  background: radial-gradient(ellipse 60% 50% at 50% 55%, rgba(255, 183, 77, .10), transparent 70%);
+  transition: background 1s ease;
+  pointer-events: none;
+}
+
+.handshake[data-step="3"] .handshake-sticky::before,
+.handshake[data-step="4"] .handshake-sticky::before {
+  background: radial-gradient(ellipse 60% 50% at 50% 55%, rgba(76, 175, 80, .14), transparent 70%);
+}
+
+/* Step-progress dots */
+.hs-progress { display: flex; gap: 8px; margin-bottom: 10px; }
+
+.hs-progress span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: background .4s, box-shadow .4s;
+}
+
+.handshake[data-step="1"] .hs-progress span:nth-child(-n+1),
+.handshake[data-step="2"] .hs-progress span:nth-child(-n+2),
+.handshake[data-step="3"] .hs-progress span:nth-child(-n+3),
+.handshake[data-step="4"] .hs-progress span:nth-child(-n+4) {
+  background: var(--amber);
+  box-shadow: 0 0 8px rgba(255, 183, 77, .6);
+}
+
 .hs-stage {
   display: flex;
   align-items: center;
@@ -659,6 +694,33 @@ nav.scrolled {
   transition: opacity .6s, transform .6s;
 }
 
+/* Traveling pulse along the beam — only animates during the scan step.
+   Uses inset-inline-start (not left) so it always travels from the host's
+   side to the guest's side, matching the "host → guest" narrative whether
+   the flex row is LTR (host left) or RTL (host right). */
+.hs-beam::after {
+  content: '';
+  position: absolute;
+  top: 50%; inset-inline-start: 0;
+  width: 7px; height: 7px;
+  margin-top: -3.5px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 8px var(--amber), 0 0 16px var(--amber);
+  opacity: 0;
+}
+
+.handshake[data-step="2"] .hs-beam::after {
+  animation: hsBeamTravel 1.15s ease-in-out infinite;
+}
+
+@keyframes hsBeamTravel {
+  0%   { inset-inline-start: 0; opacity: 0; }
+  12%  { opacity: 1; }
+  88%  { opacity: 1; }
+  100% { inset-inline-start: calc(100% - 7px); opacity: 0; }
+}
+
 .hs-wave { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
 
 .hs-wave span {
@@ -669,6 +731,25 @@ nav.scrolled {
   opacity: 0;
 }
 
+/* "Connected" checkmark badge — pops in once the handshake completes. */
+.hs-check {
+  position: absolute;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: rgba(76, 175, 80, .15);
+  border: 1.5px solid var(--green);
+  color: var(--green);
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transform: scale(.3);
+  transition: opacity .5s, transform .5s cubic-bezier(.34, 1.56, .64, 1);
+}
+
+.hs-check svg { width: 20px; height: 20px; }
+
+.handshake[data-step="4"] .hs-check { opacity: 1; transform: scale(1); }
+
 /* Step states, driven by data-step on .handshake */
 
 .handshake[data-step="1"] .hs-host .hs-qr { opacity: 1; transform: none; }
@@ -677,6 +758,15 @@ nav.scrolled {
 .handshake[data-step="2"] .hs-camera { opacity: 1; }
 .handshake[data-step="2"] .hs-beam { opacity: 1; transform: none; }
 .handshake[data-step="2"] .hs-phone { box-shadow: 0 0 40px rgba(255, 183, 77, .12); }
+/* QR "twinkle" while it's being scanned. */
+.handshake[data-step="2"] .hs-host .hs-qr i:nth-child(3n) {
+  animation: hsTwinkle 1s ease-in-out infinite;
+}
+
+@keyframes hsTwinkle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .3; }
+}
 
 .handshake[data-step="3"] .hs-guest .hs-qr-reply { opacity: 1; transform: none; }
 .handshake[data-step="3"] .hs-host .hs-qr { opacity: .25; transform: scale(.9); }
@@ -779,25 +869,72 @@ nav.scrolled {
 
 /* ── Under the hood (spec grid) ────────────────────────────────────── */
 
+.tech {
+  position: relative;
+}
+
+/* Faint circuit-board pattern behind the spec grid — reinforces "engineered
+   like software" without competing with the card content on top of it. */
+.tech::before {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  top: 220px;
+  height: 520px;
+  pointer-events: none;
+  opacity: .5;
+  background-image:
+    linear-gradient(rgba(255, 183, 77, .05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 183, 77, .05) 1px, transparent 1px);
+  background-size: 34px 34px;
+  mask-image: radial-gradient(ellipse 60% 80% at 50% 40%, #000 40%, transparent 90%);
+  -webkit-mask-image: radial-gradient(ellipse 60% 80% at 50% 40%, #000 40%, transparent 90%);
+}
+
 .spec-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1px;
   margin-top: 44px;
-  background: var(--border);
   border: 1px solid var(--border);
   border-radius: 18px;
   overflow: hidden;
+  position: relative;
 }
 
+.spec-grid .spec:nth-child(7) { transition-delay: .48s; }
+
+/* Hairlines come from each card's own border, not a background peeking
+   through the grid gap — with an odd item count (or any incomplete last
+   row), a gap-revealed grid background paints a stray solid box over the
+   empty cell. Per-card borders never leave anything to paint when a cell
+   is simply absent. */
 .spec {
+  position: relative;
   background: var(--card);
   padding: 26px;
-  transition: background .3s, opacity .8s cubic-bezier(.2, .7, .2, 1),
-              transform .8s cubic-bezier(.2, .7, .2, 1);
+  border-inline-end: 1px solid var(--border);
+  border-block-end: 1px solid var(--border);
+  transition: background .3s, transform .3s cubic-bezier(.2, .7, .2, 1),
+              box-shadow .3s, opacity .8s cubic-bezier(.2, .7, .2, 1);
 }
 
-.spec:hover { background: #171d30; }
+.spec:hover {
+  background: #171d30;
+  transform: translateY(-4px);
+  box-shadow: 0 14px 30px -12px rgba(0, 0, 0, .5), 0 0 0 1px rgba(255, 183, 77, .3) inset;
+  z-index: 1;
+}
+
+.spec-icon {
+  color: var(--amber);
+  opacity: .85;
+  margin-bottom: 14px;
+  transition: transform .3s cubic-bezier(.2, .7, .2, 1);
+}
+
+.spec-icon svg { width: 22px; height: 22px; }
+
+.spec:hover .spec-icon { transform: scale(1.12); }
 
 .spec-label {
   color: var(--text-sec);
@@ -808,11 +945,31 @@ nav.scrolled {
 }
 
 .spec-value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   color: var(--amber);
   font-size: 1.25rem;
   font-weight: 800;
   letter-spacing: -.01em;
   margin-bottom: 10px;
+}
+
+/* Small "it's actually running" pulse next to ALWAYS ON. */
+.spec-live {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 0 rgba(76, 175, 80, .6);
+  animation: specLivePulse 2s ease-out infinite;
+}
+
+@keyframes specLivePulse {
+  0%   { box-shadow: 0 0 0 0 rgba(76, 175, 80, .55); }
+  70%  { box-shadow: 0 0 0 7px rgba(76, 175, 80, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
 }
 
 .spec-desc { color: var(--text-sec); font-size: .86rem; }

@@ -8,6 +8,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
+import '../../../../core/sfx/sfx_event.dart';
+import '../../../../core/sfx/sfx_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../core/widget/app_avatar.dart';
@@ -20,7 +22,7 @@ import '../widget/music_cast_section.dart';
 import '../widget/status_row.dart';
 import '../widget/user_list.dart';
 import '../widget/visualizer_section.dart';
-import '../widget/vox_section.dart';
+import '../widget/vox_meter.dart';
 import '../widget/walkie_header.dart';
 
 class WalkieTalkiePage extends StatefulWidget {
@@ -131,10 +133,11 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
                       _buildLinkBanner(),
                       _entrance(3, const StatusRow()),
                       const SizedBox(height: 20),
-                      // VOX above the member list: it's the control the
-                      // rider actually adjusts, while members are a static
-                      // two-entry list in practice.
-                      _entrance(4, const VoxSection()),
+                      // VOX above the member list: it's the live status the
+                      // rider actually glances at, while members are a
+                      // static two-entry list in practice. The threshold
+                      // itself is now set from the Settings page.
+                      _entrance(4, const VoxMeter()),
                       // Renders nothing where playback capture is
                       // unsupported (iOS, Android < 10) — spacing lives
                       // inside the section so nothing doubles up here.
@@ -197,8 +200,10 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
                           ),
                         ),
                         GestureDetector(
-                          onTap: () =>
-                              _showEditNameDialog(context, state.myName),
+                          onTap: () => context.pushNamed(
+                            AppRoutes.settingsName,
+                            extra: context.read<WalkieTalkieCubit>(),
+                          ),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
@@ -296,7 +301,9 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        context.getString.bt_link_reconnecting,
+                        state.transferMode == TransferMode.bluetooth
+                            ? context.getString.bt_link_reconnecting
+                            : context.getString.link_reconnecting,
                         style: TextStyle(
                           color: AppColors.amber,
                           fontSize: 12,
@@ -387,6 +394,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
           TextButton(
             onPressed: () {
               Navigator.of(ctx).pop();
+              Sfx.play(SfxEvent.channelLeave);
               // goNamed (not pop) so leaving always lands cleanly on
               // Landing regardless of how this screen was reached — the
               // Bluetooth flow replaces the stack on connect (goNamed in
@@ -407,80 +415,6 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
     );
   }
 
-  void _showEditNameDialog(BuildContext context, String currentName) {
-    final controller = TextEditingController(text: currentName);
-    final s = context.getString;
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.card,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: AppColors.border),
-        ),
-        title: Text(
-          s.set_name_title,
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLength: 20,
-          style: TextStyle(color: AppColors.textPrimary),
-          decoration: InputDecoration(
-            hintText: s.name_hint,
-            hintStyle:
-                TextStyle(color: AppColors.textSecondary.withAlpha(160)),
-            counterStyle:
-                TextStyle(color: AppColors.textSecondary.withAlpha(120)),
-            filled: true,
-            fillColor: AppColors.surface,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(color: AppColors.border),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(color: AppColors.border),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(color: AppColors.amber),
-            ),
-          ),
-          onSubmitted: (v) {
-            context.read<WalkieTalkieCubit>().setMyName(v);
-            Navigator.of(ctx).pop();
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(
-              s.cancel,
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              context.read<WalkieTalkieCubit>().setMyName(controller.text);
-              Navigator.of(ctx).pop();
-            },
-            child: Text(
-              s.save,
-              style: TextStyle(
-                color: AppColors.amber,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 // ── Shared card ────────────────────────────────────────────────────────────────

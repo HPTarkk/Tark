@@ -116,9 +116,9 @@
           <svg viewBox="0 0 24 24"><path d="m7 7 10 10-5 4V3l5 4L7 17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
         <h3 data-en="Bluetooth pair" data-fa="جفت بلوتوثی">Bluetooth pair</h3>
-        <p data-en="No network at all? Two phones link directly over Bluetooth — rock-solid Android-to-Android, with auto-reconnect when the link drops."
-           data-fa="اصلاً شبکه‌ای نیست؟ دو گوشی مستقیم روی بلوتوث وصل می‌شوند — اتصال پایدار اندروید به اندروید، با اتصال مجدد خودکار.">
-          No network at all? Two phones link directly over Bluetooth — rock-solid Android-to-Android, with auto-reconnect when the link drops.</p>
+        <p data-en="No network at all? Two phones link directly over Bluetooth — rock-solid Android-to-Android, with auto-reconnect when the link drops and a bounded queue so a slow link never piles up into lag."
+           data-fa="اصلاً شبکه‌ای نیست؟ دو گوشی مستقیم روی بلوتوث وصل می‌شوند — اتصال پایدار اندروید به اندروید، با اتصال مجدد خودکار و صفی محدود که از تلنبار شدن تأخیر روی لینک کند جلوگیری می‌کند.">
+          No network at all? Two phones link directly over Bluetooth — rock-solid Android-to-Android, with auto-reconnect when the link drops and a bounded queue so a slow link never piles up into lag.</p>
       </article>
 
       <article class="card reveal">
@@ -136,9 +136,9 @@
           <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M14 14h3v3h-3zM18 18h3v3h-3z" fill="currentColor"/></svg>
         </div>
         <h3 data-en="Browser guest" data-fa="مهمان مرورگری">Browser guest</h3>
-        <p data-en="Friends without the app scan two QR codes and join from Safari or Chrome. Pure LAN WebRTC — still no server."
-           data-fa="دوستانی که اپ ندارند با اسکن دو کد QR از سافاری یا کروم می‌پیوندند. WebRTC روی شبکهٔ محلی — باز هم بدون سرور.">
-          Friends without the app scan two QR codes and join from Safari or Chrome. Pure LAN WebRTC — still no server.</p>
+        <p data-en="Friends without the app join from Safari or Chrome — scan a QR or just send them the invite link. Works over the internet too, not just the same room. Still no server."
+           data-fa="دوستانی که اپ ندارند از سافاری یا کروم می‌پیوندند — یک کد QR اسکن کنید یا لینک دعوت را برایشان بفرستید. حتی از طریق اینترنت هم کار می‌کند، نه فقط در یک اتاق. باز هم بدون سرور.">
+          Friends without the app join from Safari or Chrome — scan a QR or just send them the invite link. Works over the internet too, not just the same room. Still no server.</p>
       </article>
     </div>
   </section>
@@ -148,6 +148,8 @@
     <div class="handshake-sticky">
       <p class="eyebrow" data-en="THE QR HANDSHAKE" data-fa="دست‌دادن با QR">THE QR HANDSHAKE</p>
       <h2 data-en="Two scans. Zero servers." data-fa="دو اسکن. صفر سرور.">Two scans. Zero servers.</h2>
+
+      <div class="hs-progress" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
 
       <div class="hs-stage">
         <div class="hs-phone hs-host">
@@ -162,7 +164,10 @@
         </div>
 
         <div class="hs-beam" aria-hidden="true"></div>
-        <div class="hs-wave" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div class="hs-wave" aria-hidden="true">
+          <span></span><span></span><span></span>
+          <div class="hs-check"><svg viewBox="0 0 24 24"><path d="M5 13l5 5L19 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        </div>
 
         <div class="hs-phone hs-guest">
           <div class="hs-screen">
@@ -192,9 +197,9 @@
         </div>
         <div class="hs-step" data-step="3">
           <b>3</b>
-          <p data-en="The host scans the reply — and voice flows phone-to-phone over your WiFi."
-             data-fa="میزبان کد پاسخ را اسکن می‌کند — و صدا گوشی‌به‌گوشی روی وای‌فای جاری می‌شود.">
-            The host scans the reply — and voice flows phone-to-phone over your WiFi.</p>
+          <p data-en="The host scans the reply (or pastes it, if the guest sent it instead) — and voice flows phone-to-phone, no server, even across networks."
+             data-fa="میزبان کد پاسخ را اسکن می‌کند (یا اگر مهمان برایش فرستاده، آن را می‌چسباند) — و صدا گوشی‌به‌گوشی، بدون سرور، حتی بین شبکه‌های مختلف جاری می‌شود.">
+            The host scans the reply (or pastes it, if the guest sent it instead) — and voice flows phone-to-phone, no server, even across networks.</p>
         </div>
       </div>
     </div>
@@ -207,9 +212,9 @@
         <p class="eyebrow reveal" data-en="MUSIC CAST" data-fa="پخش موزیک">MUSIC CAST</p>
         <h2 class="reveal" data-en="One phone plays. Everyone rides to it." data-fa="یک گوشی پخش می‌کند. همه با آن می‌رانند.">One phone plays. Everyone rides to it.</h2>
         <p class="reveal"
-           data-en="Cast your phone's music straight into the channel. Your voice rides on top of the track, and a mix slider keeps the balance right."
-           data-fa="موزیک گوشی‌ات را مستقیم به کانال بفرست. صدایت روی آهنگ می‌نشیند و اسلایدر میکس تعادل را نگه می‌دارد.">
-          Cast your phone's music straight into the channel. Your voice rides on top of the track, and a mix slider keeps the balance right.</p>
+           data-en="Cast your phone's music straight into the channel. Your voice rides on top of the track, a mix slider keeps the balance right on every device — yours included — and stopping the cast can pause the track too."
+           data-fa="موزیک گوشی‌ات را مستقیم به کانال بفرست. صدایت روی آهنگ می‌نشیند، اسلایدر میکس تعادل صدا را روی همهٔ گوشی‌ها از جمله گوشی خودت هم حفظ می‌کند، و توقف پخش می‌تواند آهنگ را هم متوقف کند.">
+          Cast your phone's music straight into the channel. Your voice rides on top of the track, a mix slider keeps the balance right on every device — yours included — and stopping the cast can pause the track too.</p>
       </div>
       <div class="music-eq reveal" aria-hidden="true">
         <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
@@ -226,13 +231,15 @@
 
     <div class="spec-grid">
       <div class="spec reveal">
+        <div class="spec-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12v0M8 7v10M12 4v16M16 9v6M20 11v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
         <p class="spec-label" data-en="CODEC" data-fa="کدک">CODEC</p>
-        <p class="spec-value">Opus · <span data-en="16 kHz mono" data-fa="تک‌کاناله ۱۶ کیلوهرتز">16 kHz mono</span></p>
+        <p class="spec-value" data-en="Opus · 16 kHz mono" data-fa="Opus · تک‌کاناله ۱۶ کیلوهرتز">Opus · 16 kHz mono</p>
         <p class="spec-desc" data-en="~20–30 kbps compressed — a tenth the size of raw PCM, with no perceptible loss."
            data-fa="فشرده‌سازی به ۲۰ تا ۳۰ کیلوبیت بر ثانیه — یک‌دهم حجم PCM خام، بدون افت محسوس کیفیت.">
           ~20–30 kbps compressed — a tenth the size of raw PCM, with no perceptible loss.</p>
       </div>
       <div class="spec reveal">
+        <div class="spec-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
         <p class="spec-label" data-en="VOICE CLARITY" data-fa="وضوح صدا">VOICE CLARITY</p>
         <p class="spec-value">AEC · NS · AGC</p>
         <p class="spec-desc" data-en="Echo cancellation, noise suppression and gain control run live on every capture session."
@@ -240,20 +247,23 @@
           Echo cancellation, noise suppression and gain control run live on every capture session.</p>
       </div>
       <div class="spec reveal">
+        <div class="spec-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
         <p class="spec-label" data-en="LATENCY" data-fa="تأخیر">LATENCY</p>
-        <p class="spec-value">~100<span data-en="ms jitter buffer" data-fa=" میلی‌ثانیه بافر لرزش">ms jitter buffer</span></p>
+        <p class="spec-value" data-en="~100ms jitter buffer" data-fa="~۱۰۰ میلی‌ثانیه بافر لرزش">~100ms jitter buffer</p>
         <p class="spec-desc" data-en="Just enough buffering to stay smooth without ever feeling behind."
            data-fa="فقط به‌اندازه‌ای بافر که صدا روان بماند، بدون احساس عقب‌افتادگی.">
           Just enough buffering to stay smooth without ever feeling behind.</p>
       </div>
       <div class="spec reveal">
+        <div class="spec-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M13 7l-4 6h3l-1 4 4-6h-3l1-4Z" fill="currentColor"/></svg></div>
         <p class="spec-label" data-en="ALWAYS ON" data-fa="همیشه روشن">ALWAYS ON</p>
-        <p class="spec-value" data-en="Foreground service" data-fa="سرویس پیش‌زمینه">Foreground service</p>
+        <p class="spec-value"><span class="spec-live" aria-hidden="true"></span><span data-en="Foreground service" data-fa="سرویس پیش‌زمینه">Foreground service</span></p>
         <p class="spec-desc" data-en="A wake lock and multicast lock keep the channel alive with the screen off."
            data-fa="قفل بیداری و قفل مولتی‌کست، کانال را حتی با خاموش بودن صفحه زنده نگه می‌دارند.">
           A wake lock and multicast lock keep the channel alive with the screen off.</p>
       </div>
       <div class="spec reveal">
+        <div class="spec-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 13.5-5.8M20 12a8 8 0 0 1-13.5 5.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M17 3v4h-4M7 21v-4h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
         <p class="spec-label" data-en="RECONNECT" data-fa="اتصال مجدد">RECONNECT</p>
         <p class="spec-value" data-en="Exponential backoff" data-fa="تأخیر نمایی">Exponential backoff</p>
         <p class="spec-desc" data-en="Retries from 4s up to 64s, and resets the instant the link returns."
@@ -261,11 +271,20 @@
           Retries from 4s up to 64s, and resets the instant the link returns.</p>
       </div>
       <div class="spec reveal">
+        <div class="spec-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v18M8 7a5 5 0 0 0 0 10M16 7a5 5 0 0 1 0 10M5 4a9 9 0 0 0 0 16M19 4a9 9 0 0 1 0 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
         <p class="spec-label" data-en="TRANSPORT" data-fa="لایهٔ انتقال">TRANSPORT</p>
         <p class="spec-value" data-en="UDP broadcast" data-fa="پخش UDP">UDP broadcast</p>
         <p class="spec-desc" data-en="Direct peer discovery on your LAN, with a unicast fallback for iOS."
            data-fa="کشف مستقیم هم‌تاها روی شبکهٔ محلی، با بازگشت به یونی‌کست برای iOS.">
           Direct peer discovery on your LAN, with a unicast fallback for iOS.</p>
+      </div>
+      <div class="spec reveal">
+        <div class="spec-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 10v4h3l4 4V6l-4 4H4Z" fill="currentColor"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div>
+        <p class="spec-label" data-en="AUDIO CUES" data-fa="نشانه‌های صوتی">AUDIO CUES</p>
+        <p class="spec-value" data-en="Eyes-free feedback" data-fa="بازخورد بدون نیاز به نگاه">Eyes-free feedback</p>
+        <p class="spec-desc" data-en="A distinct sound for PTT, peers, and reconnects — built for riding with the phone in a pocket."
+           data-fa="صدایی مجزا برای فشار-و-صحبت، هم‌تاها و اتصال مجدد — برای وقتی که گوشی در جیب است.">
+          A distinct sound for PTT, peers, and reconnects — built for riding with the phone in a pocket.</p>
       </div>
     </div>
   </section>

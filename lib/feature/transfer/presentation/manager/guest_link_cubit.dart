@@ -5,6 +5,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../../../core/config/guest_config.dart';
+import '../../../../core/sfx/sfx_event.dart';
+import '../../../../core/sfx/sfx_service.dart';
 import '../../../../core/utils/logger.dart';
 import '../../data/webrtc/sdp_codec.dart';
 import '../../domain/entity/guest_link_state.dart';
@@ -19,7 +21,19 @@ class GuestLinkCubit extends Cubit<GuestLinkPageState> {
 
   GuestLinkCubit(this._link) : super(GuestLinkPageState.initial()) {
     _linkSub = _link.linkState.listen(
-      (s) => emit(state.copyWith(link: s)),
+      (s) {
+        switch (s) {
+          case GuestLinkState.awaitingPeer:
+            Sfx.play(SfxEvent.toggle);
+          case GuestLinkState.connected:
+            Sfx.play(SfxEvent.peerJoin);
+          case GuestLinkState.failed:
+            Sfx.play(SfxEvent.error);
+          default:
+            break;
+        }
+        emit(state.copyWith(link: s));
+      },
       onError: (Object e) => Logger.log('Guest link state error: $e'),
     );
     createInvite();

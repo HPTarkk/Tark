@@ -206,6 +206,18 @@ abstract class AppLocalizations {
   /// **'چیزی در حال پخش نیست — یک آهنگ در برنامه موزیک خود اجرا کنید'**
   String get music_cast_silent;
 
+  /// No description provided for @music_cast_stop_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'دسترسی اعلان‌ها را فعال کنید تا دکمه توقف، برنامه موزیک را هم متوقف کند'**
+  String get music_cast_stop_hint;
+
+  /// No description provided for @music_cast_stop_enable.
+  ///
+  /// In fa, this message translates to:
+  /// **'فعال‌سازی'**
+  String get music_cast_stop_enable;
+
   /// No description provided for @channel_members.
   ///
   /// In fa, this message translates to:
@@ -359,13 +371,13 @@ abstract class AppLocalizations {
   /// No description provided for @guest_step_scan.
   ///
   /// In fa, this message translates to:
-  /// **'مهمان این کد را با دوربین گوشی خود اسکن می‌کند — صفحه ورود در مرورگر او باز می‌شود (هر دو دستگاه باید روی یک وای‌فای باشند).'**
+  /// **'مهمان این کد را با دوربین گوشی خود اسکن می‌کند — صفحه ورود در مرورگر او باز می‌شود.'**
   String get guest_step_scan;
 
   /// No description provided for @guest_step_answer.
   ///
   /// In fa, this message translates to:
-  /// **'سپس یک کد پاسخ روی صفحه او نشان داده می‌شود — آن را با دکمه زیر اسکن کنید.'**
+  /// **'سپس یک کد پاسخ روی صفحه او نشان داده می‌شود — آن را با دکمه زیر اسکن کنید، یا اگر برایتان فرستاده، آن را بچسبانید.'**
   String get guest_step_answer;
 
   /// No description provided for @guest_scan_answer.
@@ -380,6 +392,48 @@ abstract class AppLocalizations {
   /// **'اتصال برقرار نشد. یک دعوت‌نامه جدید بسازید و دوباره تلاش کنید.'**
   String get guest_link_failed;
 
+  /// No description provided for @guest_no_server_badge.
+  ///
+  /// In fa, this message translates to:
+  /// **'بدون سرور'**
+  String get guest_no_server_badge;
+
+  /// No description provided for @guest_copy_link.
+  ///
+  /// In fa, this message translates to:
+  /// **'کپی لینک'**
+  String get guest_copy_link;
+
+  /// No description provided for @guest_link_copied.
+  ///
+  /// In fa, this message translates to:
+  /// **'لینک دعوت کپی شد'**
+  String get guest_link_copied;
+
+  /// No description provided for @guest_paste_answer.
+  ///
+  /// In fa, this message translates to:
+  /// **'چسباندن پاسخ آن‌ها'**
+  String get guest_paste_answer;
+
+  /// No description provided for @guest_paste_answer_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'کد پاسخی که برایتان فرستاده‌اند را اینجا بچسبانید'**
+  String get guest_paste_answer_hint;
+
+  /// No description provided for @guest_paste_submit.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتصال'**
+  String get guest_paste_submit;
+
+  /// No description provided for @guest_stun_caveat.
+  ///
+  /// In fa, this message translates to:
+  /// **'روی بیشتر شبکه‌ها از طریق اینترنت کار می‌کند. برخی شبکه‌های محدود/سازمانی ممکن است همچنان اتصال را مسدود کنند.'**
+  String get guest_stun_caveat;
+
   /// No description provided for @guest_web_scan_title.
   ///
   /// In fa, this message translates to:
@@ -389,7 +443,7 @@ abstract class AppLocalizations {
   /// No description provided for @guest_web_scan_text.
   ///
   /// In fa, this message translates to:
-  /// **'این صفحه را با اسکن کردن کد QR دعوت در گوشی میزبان باز کنید — خود لینک حاوی اطلاعات اتصال است.'**
+  /// **'این صفحه را با اسکن کردن کد QR دعوت، یا باز کردن لینک دعوت، از گوشی میزبان باز کنید.'**
   String get guest_web_scan_text;
 
   /// No description provided for @guest_web_failed_title.
@@ -401,7 +455,7 @@ abstract class AppLocalizations {
   /// No description provided for @guest_web_failed_text.
   ///
   /// In fa, this message translates to:
-  /// **'اتصال برقرار نشد. از میزبان بخواهید یک دعوت‌نامه جدید بسازید و دوباره آن را اسکن کنید (هر دو دستگاه باید به یک وای‌فای متصل باشند).'**
+  /// **'اتصال برقرار نشد. از میزبان بخواهید یک دعوت‌نامه جدید بسازد و دوباره تلاش کنید.'**
   String get guest_web_failed_text;
 
   /// No description provided for @guest_web_reply_chip.
@@ -421,6 +475,18 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'در گوشی میزبان: روی \"اسکن کد پاسخ\" بزنید و دوربین را به این سمت بگیرید.'**
   String get guest_web_reply_hint;
+
+  /// No description provided for @guest_web_reply_copy.
+  ///
+  /// In fa, this message translates to:
+  /// **'کپی کد'**
+  String get guest_web_reply_copy;
+
+  /// No description provided for @guest_web_reply_copied.
+  ///
+  /// In fa, this message translates to:
+  /// **'کد پاسخ کپی شد'**
+  String get guest_web_reply_copied;
 
   /// No description provided for @guest_web_connected.
   ///
@@ -644,6 +710,18 @@ abstract class AppLocalizations {
   /// **'زیاد'**
   String get noise_filter_strong;
 
+  /// No description provided for @sfx_feedback.
+  ///
+  /// In fa, this message translates to:
+  /// **'بازخورد صوتی'**
+  String get sfx_feedback;
+
+  /// No description provided for @link_reconnecting.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتصال قطع شد — در حال اتصال مجدد...'**
+  String get link_reconnecting;
+
   /// No description provided for @transport_hotspot.
   ///
   /// In fa, this message translates to:
@@ -817,6 +895,72 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'سیستم صدای این گوشی هنگام تماس کانال از اشتراک‌گذاری موزیک جلوگیری می‌کند. پخش متوقف شد.'**
   String get music_cast_stalled;
+
+  /// No description provided for @settings_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'تنظیمات'**
+  String get settings_title;
+
+  /// No description provided for @settings_section_identity.
+  ///
+  /// In fa, this message translates to:
+  /// **'هویت'**
+  String get settings_section_identity;
+
+  /// No description provided for @settings_section_voice.
+  ///
+  /// In fa, this message translates to:
+  /// **'صدا'**
+  String get settings_section_voice;
+
+  /// No description provided for @settings_section_sound.
+  ///
+  /// In fa, this message translates to:
+  /// **'صدا و هشدارها'**
+  String get settings_section_sound;
+
+  /// No description provided for @settings_section_appearance.
+  ///
+  /// In fa, this message translates to:
+  /// **'ظاهر'**
+  String get settings_section_appearance;
+
+  /// No description provided for @settings_section_connection.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتصال'**
+  String get settings_section_connection;
+
+  /// No description provided for @settings_applies_live.
+  ///
+  /// In fa, this message translates to:
+  /// **'بلافاصله روی کانال فعلی اعمال می‌شود'**
+  String get settings_applies_live;
+
+  /// No description provided for @settings_applies_next_session.
+  ///
+  /// In fa, this message translates to:
+  /// **'دفعه بعد که وارد کانال شوید اعمال می‌شود'**
+  String get settings_applies_next_session;
+
+  /// No description provided for @settings_quick_access.
+  ///
+  /// In fa, this message translates to:
+  /// **'دسترسی سریع'**
+  String get settings_quick_access;
+
+  /// No description provided for @settings_quick_access_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'رد شدن از این صفحه و ازسرگیری آخرین کانال هنگام باز کردن اپ'**
+  String get settings_quick_access_desc;
+
+  /// No description provided for @settings_gear_tooltip.
+  ///
+  /// In fa, this message translates to:
+  /// **'تنظیمات'**
+  String get settings_gear_tooltip;
 }
 
 class _AppLocalizationsDelegate

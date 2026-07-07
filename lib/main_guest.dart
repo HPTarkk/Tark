@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'core/l10n/app_localizations.dart';
 import 'core/locale/locale_service.dart';
+import 'core/sfx/sfx_service.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/theme_service.dart';
 // Direct file import (not the transfer barrel): the barrel exports pages
@@ -18,6 +19,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await LocaleService.initialize();
   await ThemeService.initialize();
+  await Sfx.initialize();
   // Best effort: when the wasm build of libopus fails to load, the codec
   // falls back to PCM16 — a WebRTC data channel on LAN has the headroom.
   await OpusAudioCodec.ensureInitialized();

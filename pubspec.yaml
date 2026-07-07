@@ -57,6 +57,7 @@ dependencies:
   qr_flutter: ^4.1.0
   mobile_scanner: ^7.2.0
   archive: ^4.0.9
+  audioplayers: ^6.1.0
 
 
 dev_dependencies:
@@ -89,6 +90,7 @@ flutter:
 
   assets:
     - assets/icon/
+    - assets/sfx/
 
   fonts:
     - family: Vazirmatn

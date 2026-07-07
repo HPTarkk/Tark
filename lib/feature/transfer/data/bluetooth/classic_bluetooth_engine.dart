@@ -40,6 +40,16 @@ class ClassicBluetoothEngine {
   StreamSubscription<dynamic>? _hostReadSub;
   bool _hosting = false;
 
+  // flutter_blue_classic's BluetoothStreamSink.add() chains writes onto an
+  // internal future with no cap, so a slow client-side RFCOMM link would
+  // otherwise queue audio packets forever (growing latency). Mirror the BLE
+  // engine's policy here: track how many writes are in flight via `allSent`
+  // and drop the newest packet once backlogged — stale audio is worse than
+  // lost audio.
+  Future<void> _clientWriteQueue = Future<void>.value();
+  int _pendingClientWrites = 0;
+  static const _maxPendingWrites = 8;
+
   final _inputController = StreamController<Uint8List>.broadcast();
   final _peerConnectedController = StreamController<String>.broadcast();
   final _errorController = StreamController<String>.broadcast();
@@ -160,7 +170,23 @@ class ClassicBluetoothEngine {
   }
 
   Future<void> writeAsClient(Uint8List bytes) async {
-    _clientConnection?.output.add(bytes);
+    final connection = _clientConnection;
+    if (connection == null) return;
+    if (_pendingClientWrites >= _maxPendingWrites) return;
+    _pendingClientWrites++;
+    final task = _clientWriteQueue.then((_) async {
+      try {
+        connection.output.add(bytes);
+        await connection.output.allSent;
+      } catch (e) {
+        Logger.log('Bluetooth client write failed: $e');
+      }
+    });
+    _clientWriteQueue = task.then<void>(
+      (_) => _pendingClientWrites--,
+      onError: (_) => _pendingClientWrites--,
+    );
+    return task;
   }
 
   // ── Unified write (picks whichever role is active) ──────────────────────

@@ -6,6 +6,8 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/sfx/sfx_event.dart';
+import '../../../../core/sfx/sfx_service.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../audio/data/audio_engine_impl.dart';
 import '../../../audio/domain/entity/audio_engine_status.dart';
@@ -32,12 +34,16 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
       switch (packet) {
         case PresencePacket():
           _hostLastSeen = DateTime.now();
+          if (!state.hostTalking && packet.isTalking) {
+            Sfx.play(SfxEvent.rxStart);
+          }
           emit(state.copyWith(
             hostName: packet.senderName,
             hostTalking: packet.isTalking,
           ));
         case AudioPacket():
           _hostLastSeen = DateTime.now();
+          if (!state.hostTalking) Sfx.play(SfxEvent.rxStart);
           emit(state.copyWith(
               hostName: packet.senderName, hostTalking: true));
           try {
@@ -48,8 +54,12 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
       }
     });
     _linkSub = _client.linkState.listen((link) {
-      if (!isClosed) {
-        emit(state.copyWith(linkUp: link == GuestLinkState.connected));
+      if (isClosed) return;
+      final wasUp = state.linkUp;
+      final isUp = link == GuestLinkState.connected;
+      if (wasUp != isUp) {
+        emit(state.copyWith(linkUp: isUp));
+        Sfx.play(isUp ? SfxEvent.linkRestored : SfxEvent.linkLost);
       }
     });
   }
@@ -97,6 +107,9 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
 
     _statusSub = _engine.status.listen((status) {
       if (!isClosed && status.hasPermission != state.hasPermission) {
+        if (state.hasPermission && !status.hasPermission) {
+          Sfx.play(SfxEvent.error);
+        }
         emit(state.copyWith(hasPermission: status.hasPermission));
       }
     });
@@ -123,6 +136,7 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
     });
     emit(state.copyWith(
         audioStarted: true, audioStarting: false, isReady: true));
+    Sfx.play(SfxEvent.channelJoin);
   }
 
   void _onFrame(AudioFrame frame) {
@@ -132,6 +146,10 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
       _hangover--;
     }
     final isTalking = _hangover > 0 && !state.muted && _client.isOpen;
+
+    if (isTalking != state.isTalking) {
+      Sfx.play(isTalking ? SfxEvent.pttOpen : SfxEvent.pttClose);
+    }
 
     if (isTalking) {
       if (!state.isTalking) {
@@ -158,7 +176,10 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
     _client.send(_codec.encodeAudio(processed, state.myName, _audioSeq++));
   }
 
-  void toggleMute() => emit(state.copyWith(muted: !state.muted));
+  void toggleMute() {
+    Sfx.play(SfxEvent.toggle);
+    emit(state.copyWith(muted: !state.muted));
+  }
 
   Future<void> setMyName(String name) async {
     final trimmed = name.trim();

@@ -79,8 +79,12 @@ class _BluetoothConnectPageState extends State<BluetoothConnectPage> {
             final cubit = context.read<BluetoothConnectCubit>();
             if (cubit.state.role != null) {
               cubit.backToRoleSelection();
-            } else {
+            } else if (context.canPop()) {
               context.pop();
+            } else {
+              // Reached directly (quick access landed here) — no stack to
+              // pop to.
+              context.goNamed(AppRoutes.landingName);
             }
           },
         ),

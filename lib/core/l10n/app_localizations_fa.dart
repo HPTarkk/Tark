@@ -65,6 +65,13 @@ class AppLocalizationsFa extends AppLocalizations {
       'چیزی در حال پخش نیست — یک آهنگ در برنامه موزیک خود اجرا کنید';
 
   @override
+  String get music_cast_stop_hint =>
+      'دسترسی اعلان‌ها را فعال کنید تا دکمه توقف، برنامه موزیک را هم متوقف کند';
+
+  @override
+  String get music_cast_stop_enable => 'فعال‌سازی';
+
+  @override
   String get channel_members => 'اعضای کانال';
 
   @override
@@ -143,11 +150,11 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get guest_step_scan =>
-      'مهمان این کد را با دوربین گوشی خود اسکن می‌کند — صفحه ورود در مرورگر او باز می‌شود (هر دو دستگاه باید روی یک وای‌فای باشند).';
+      'مهمان این کد را با دوربین گوشی خود اسکن می‌کند — صفحه ورود در مرورگر او باز می‌شود.';
 
   @override
   String get guest_step_answer =>
-      'سپس یک کد پاسخ روی صفحه او نشان داده می‌شود — آن را با دکمه زیر اسکن کنید.';
+      'سپس یک کد پاسخ روی صفحه او نشان داده می‌شود — آن را با دکمه زیر اسکن کنید، یا اگر برایتان فرستاده، آن را بچسبانید.';
 
   @override
   String get guest_scan_answer => 'اسکن کد پاسخ';
@@ -157,18 +164,41 @@ class AppLocalizationsFa extends AppLocalizations {
       'اتصال برقرار نشد. یک دعوت‌نامه جدید بسازید و دوباره تلاش کنید.';
 
   @override
+  String get guest_no_server_badge => 'بدون سرور';
+
+  @override
+  String get guest_copy_link => 'کپی لینک';
+
+  @override
+  String get guest_link_copied => 'لینک دعوت کپی شد';
+
+  @override
+  String get guest_paste_answer => 'چسباندن پاسخ آن‌ها';
+
+  @override
+  String get guest_paste_answer_hint =>
+      'کد پاسخی که برایتان فرستاده‌اند را اینجا بچسبانید';
+
+  @override
+  String get guest_paste_submit => 'اتصال';
+
+  @override
+  String get guest_stun_caveat =>
+      'روی بیشتر شبکه‌ها از طریق اینترنت کار می‌کند. برخی شبکه‌های محدود/سازمانی ممکن است همچنان اتصال را مسدود کنند.';
+
+  @override
   String get guest_web_scan_title => 'اسکن برای ورود';
 
   @override
   String get guest_web_scan_text =>
-      'این صفحه را با اسکن کردن کد QR دعوت در گوشی میزبان باز کنید — خود لینک حاوی اطلاعات اتصال است.';
+      'این صفحه را با اسکن کردن کد QR دعوت، یا باز کردن لینک دعوت، از گوشی میزبان باز کنید.';
 
   @override
   String get guest_web_failed_title => 'خطا در اتصال';
 
   @override
   String get guest_web_failed_text =>
-      'اتصال برقرار نشد. از میزبان بخواهید یک دعوت‌نامه جدید بسازید و دوباره آن را اسکن کنید (هر دو دستگاه باید به یک وای‌فای متصل باشند).';
+      'اتصال برقرار نشد. از میزبان بخواهید یک دعوت‌نامه جدید بسازد و دوباره تلاش کنید.';
 
   @override
   String get guest_web_reply_chip => 'مرحله ۲ — کد پاسخ';
@@ -179,6 +209,12 @@ class AppLocalizationsFa extends AppLocalizations {
   @override
   String get guest_web_reply_hint =>
       'در گوشی میزبان: روی \"اسکن کد پاسخ\" بزنید و دوربین را به این سمت بگیرید.';
+
+  @override
+  String get guest_web_reply_copy => 'کپی کد';
+
+  @override
+  String get guest_web_reply_copied => 'کد پاسخ کپی شد';
 
   @override
   String get guest_web_connected => 'متصل شد!';
@@ -298,6 +334,12 @@ class AppLocalizationsFa extends AppLocalizations {
   String get noise_filter_strong => 'زیاد';
 
   @override
+  String get sfx_feedback => 'بازخورد صوتی';
+
+  @override
+  String get link_reconnecting => 'اتصال قطع شد — در حال اتصال مجدد...';
+
+  @override
   String get transport_hotspot => 'نقطه اتصال (هات‌اسپات)';
 
   @override
@@ -394,4 +436,39 @@ class AppLocalizationsFa extends AppLocalizations {
   @override
   String get music_cast_stalled =>
       'سیستم صدای این گوشی هنگام تماس کانال از اشتراک‌گذاری موزیک جلوگیری می‌کند. پخش متوقف شد.';
+
+  @override
+  String get settings_title => 'تنظیمات';
+
+  @override
+  String get settings_section_identity => 'هویت';
+
+  @override
+  String get settings_section_voice => 'صدا';
+
+  @override
+  String get settings_section_sound => 'صدا و هشدارها';
+
+  @override
+  String get settings_section_appearance => 'ظاهر';
+
+  @override
+  String get settings_section_connection => 'اتصال';
+
+  @override
+  String get settings_applies_live => 'بلافاصله روی کانال فعلی اعمال می‌شود';
+
+  @override
+  String get settings_applies_next_session =>
+      'دفعه بعد که وارد کانال شوید اعمال می‌شود';
+
+  @override
+  String get settings_quick_access => 'دسترسی سریع';
+
+  @override
+  String get settings_quick_access_desc =>
+      'رد شدن از این صفحه و ازسرگیری آخرین کانال هنگام باز کردن اپ';
+
+  @override
+  String get settings_gear_tooltip => 'تنظیمات';
 }

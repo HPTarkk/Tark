@@ -12,8 +12,6 @@ import '../../../transfer/api/transfer_api.dart';
 import '../manager/landing_cubit.dart';
 import '../widget/landing_identity_card.dart';
 import '../widget/landing_logo.dart';
-import '../widget/language_toggle.dart';
-import '../widget/theme_toggle.dart';
 import '../widget/transport_mode_toggle.dart';
 
 class LandingPage extends StatefulWidget {
@@ -30,7 +28,7 @@ class LandingPage extends StatefulWidget {
 
 class _LandingPageState extends State<LandingPage>
     with TickerProviderStateMixin {
-  // Staggered entrance for all sections: [logo, card, btn, lang, footer]
+  // Staggered entrance for all sections: [logo, card, btn, footer]
   late AnimationController _entranceController;
   late List<Animation<double>> _sections;
 
@@ -56,7 +54,7 @@ class _LandingPageState extends State<LandingPage>
       duration: const Duration(milliseconds: 1400),
     );
 
-    const starts = [0.0, 0.18, 0.34, 0.50, 0.65];
+    const starts = [0.0, 0.22, 0.44, 0.66];
     _sections = starts
         .map(
           (s) => CurvedAnimation(
@@ -102,50 +100,51 @@ class _LandingPageState extends State<LandingPage>
         backgroundColor: AppColors.background,
         body: BlocBuilder<LandingCubit, LandingState>(
           builder: (context, state) => SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                children: [
-                  const Spacer(flex: 2),
-                  _entrance(0, const LandingLogo()),
-                  const Spacer(flex: 2),
-                  _entrance(
-                    1,
-                    Column(
-                      children: [
-                        LandingIdentityCard(
-                          state: state,
-                          onEdit: () =>
-                              _showEditNameDialog(context, state.myName),
+            child: Stack(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    children: [
+                      const Spacer(flex: 2),
+                      _entrance(0, const LandingLogo()),
+                      const Spacer(flex: 2),
+                      _entrance(
+                        1,
+                        Column(
+                          children: [
+                            LandingIdentityCard(
+                              state: state,
+                              onEdit: () =>
+                                  context.pushNamed(AppRoutes.settingsName),
+                            ),
+                            const SizedBox(height: 12),
+                            const TransportModeToggle(),
+                          ],
                         ),
-                        const SizedBox(height: 12),
-                        const TransportModeToggle(),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(height: 20),
+                      _entrance(2, _buildJoinButton(context, state)),
+                      const Spacer(flex: 1),
+                      _entrance(
+                        3,
+                        VersionBadge(
+                          color: AppColors.textSecondary.withAlpha(70),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
                   ),
-                  const SizedBox(height: 20),
-                  _entrance(2, _buildJoinButton(context, state)),
-                  const SizedBox(height: 20),
-                  _entrance(
-                    3,
-                    const Column(
-                      children: [
-                        LanguageToggle(),
-                        SizedBox(height: 12),
-                        ThemeToggle(),
-                      ],
-                    ),
-                  ),
-                  const Spacer(flex: 1),
-                  _entrance(
-                    4,
-                    VersionBadge(
-                      color: AppColors.textSecondary.withAlpha(70),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-              ),
+                ),
+                PositionedDirectional(
+                  top: 4,
+                  end: 4,
+                  child: _SettingsButton(onTap: () {
+                    HapticFeedback.selectionClick();
+                    context.pushNamed(AppRoutes.settingsName);
+                  }),
+                ),
+              ],
             ),
           ),
         ),
@@ -181,12 +180,16 @@ class _LandingPageState extends State<LandingPage>
       ),
       builder: (_, child) => GestureDetector(
         onTap: enabled
-            ? () => context.pushNamed(switch (state.transferMode) {
+            ? () {
+                HapticFeedback.selectionClick();
+                context.read<LandingCubit>().markLaunched();
+                context.pushNamed(switch (state.transferMode) {
                   TransferMode.bluetooth => AppRoutes.bluetoothConnectName,
                   TransferMode.hotspot => AppRoutes.hotspotBridgeName,
                   TransferMode.guest => AppRoutes.guestLinkName,
                   TransferMode.wifi => AppRoutes.walkieName,
-                })
+                });
+              }
             : null,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 300),
@@ -225,79 +228,26 @@ class _LandingPageState extends State<LandingPage>
     );
   }
 
-  // ── Edit name dialog ────────────────────────────────────────────────────────
-  void _showEditNameDialog(BuildContext context, String currentName) {
-    final controller = TextEditingController(text: currentName);
-    final cubit = context.read<LandingCubit>();
-    final s = context.getString;
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.card,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: AppColors.border),
+}
+
+// ── Settings entry point ──────────────────────────────────────────────────────
+
+class _SettingsButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _SettingsButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        child: Icon(
+          Icons.settings_rounded,
+          color: AppColors.textSecondary,
+          size: 22,
         ),
-        title: Text(
-          s.set_name_title,
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLength: 20,
-          style: TextStyle(color: AppColors.textPrimary),
-          decoration: InputDecoration(
-            hintText: s.name_hint,
-            hintStyle:
-                TextStyle(color: AppColors.textSecondary.withAlpha(160)),
-            counterStyle:
-                TextStyle(color: AppColors.textSecondary.withAlpha(120)),
-            filled: true,
-            fillColor: AppColors.surface,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(color: AppColors.border),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(color: AppColors.border),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(color: AppColors.amber),
-            ),
-          ),
-          onSubmitted: (v) {
-            cubit.setMyName(v);
-            Navigator.of(ctx).pop();
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(
-              s.cancel,
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              cubit.setMyName(controller.text);
-              Navigator.of(ctx).pop();
-            },
-            child: Text(
-              s.save,
-              style: TextStyle(
-                color: AppColors.amber,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

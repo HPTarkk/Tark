@@ -2,6 +2,7 @@ package com.b1101.tark
 
 import android.content.Intent
 import com.b1101.tark.audio.AudioSessionHandler
+import com.b1101.tark.audio.MediaControlHandler
 import com.b1101.tark.audio.SystemAudioHandler
 import com.b1101.tark.bluetooth.BluetoothServerHandler
 import com.b1101.tark.hotspot.HotspotHandler
@@ -60,6 +61,13 @@ class MainActivity : FlutterActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             "tark/keepalive",
         ).setMethodCallHandler(keepAlive)
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "tark/media_control",
+        ).setMethodCallHandler(
+            MediaControlHandler(applicationContext, activityProvider = { this }),
+        )
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {

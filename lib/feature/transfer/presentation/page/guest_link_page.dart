@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
@@ -11,9 +12,11 @@ import '../../../../core/widget/qr_widgets.dart';
 import '../../domain/entity/guest_link_state.dart';
 import '../manager/guest_link_cubit.dart';
 
-/// Host flow for inviting a browser guest: show the invite QR (scanned by
-/// the guest's camera app → opens the join page), then scan the reply QR
-/// off the guest's screen. Two scans, zero servers.
+/// Host flow for inviting a browser guest: show the invite QR/link, then
+/// either scan the reply QR off the guest's screen or paste the reply code
+/// they send back — the second path is what makes a genuinely remote guest
+/// (not in the same room) reachable, now that the transport also carries
+/// public STUN (see ice_config.dart). Zero servers either way.
 class GuestLinkPage extends StatefulWidget {
   const GuestLinkPage._();
 
@@ -51,7 +54,13 @@ class _GuestLinkPageState extends State<GuestLinkPage> {
           icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
           onPressed: () {
             context.read<GuestLinkCubit>().cancel();
-            context.pop();
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              // Reached directly (quick access landed here) — no stack to
+              // pop to.
+              context.goNamed(AppRoutes.landingName);
+            }
           },
         ),
         title: Text(
@@ -83,6 +92,8 @@ class _GuestLinkPageState extends State<GuestLinkPage> {
             return _InviteBody(
               inviteUrl: state.inviteUrl,
               onScanAnswer: () => _openScanner(context),
+              onSubmitAnswer: (text) =>
+                  context.read<GuestLinkCubit>().submitAnswer(text),
             );
           },
         ),
@@ -123,8 +134,13 @@ class _PreparingLink extends StatelessWidget {
 class _InviteBody extends StatelessWidget {
   final String inviteUrl;
   final VoidCallback onScanAnswer;
+  final ValueChanged<String> onSubmitAnswer;
 
-  const _InviteBody({required this.inviteUrl, required this.onScanAnswer});
+  const _InviteBody({
+    required this.inviteUrl,
+    required this.onScanAnswer,
+    required this.onSubmitAnswer,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -137,6 +153,11 @@ class _InviteBody extends StatelessWidget {
         _Entrance(
           delayMs: 80,
           child: Center(child: GlowingQrCard(data: inviteUrl, size: 236)),
+        ),
+        const SizedBox(height: 12),
+        _Entrance(
+          delayMs: 120,
+          child: Center(child: _CopyChip(text: inviteUrl, label: s.guest_copy_link, copiedLabel: s.guest_link_copied)),
         ),
         const SizedBox(height: 22),
         _Entrance(
@@ -176,12 +197,108 @@ class _InviteBody extends StatelessWidget {
             onTap: onScanAnswer,
           ),
         ),
+        const SizedBox(height: 16),
+        _Entrance(
+          delayMs: 280,
+          child: Center(
+            child: GestureDetector(
+              onTap: () => _showPasteAnswerDialog(context, onSubmitAnswer),
+              child: Text(
+                s.guest_paste_answer,
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  decoration: TextDecoration.underline,
+                  decorationColor: AppColors.textSecondary.withAlpha(140),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        _Entrance(
+          delayMs: 320,
+          child: Text(
+            s.guest_stun_caveat,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColors.textSecondary.withAlpha(150),
+              fontSize: 10.5,
+              height: 1.5,
+            ),
+          ),
+        ),
       ],
     );
   }
 }
 
-/// "PURE LAN • NO SERVER" — the whole point, worn as a badge.
+void _showPasteAnswerDialog(
+  BuildContext context,
+  ValueChanged<String> onSubmit,
+) {
+  final controller = TextEditingController();
+  final s = context.getString;
+  showDialog<void>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: AppColors.card,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: AppColors.border),
+      ),
+      title: Text(
+        s.guest_paste_answer,
+        style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700),
+      ),
+      content: TextField(
+        controller: controller,
+        autofocus: true,
+        minLines: 1,
+        maxLines: 4,
+        style: TextStyle(color: AppColors.textPrimary),
+        decoration: InputDecoration(
+          hintText: s.guest_paste_answer_hint,
+          hintStyle: TextStyle(color: AppColors.textSecondary.withAlpha(160)),
+          filled: true,
+          fillColor: AppColors.surface,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: AppColors.border),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: AppColors.border),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: AppColors.amber),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: Text(s.cancel, style: TextStyle(color: AppColors.textSecondary)),
+        ),
+        TextButton(
+          onPressed: () {
+            onSubmit(controller.text);
+            Navigator.of(ctx).pop();
+          },
+          child: Text(
+            s.guest_paste_submit,
+            style: TextStyle(color: AppColors.amber, fontWeight: FontWeight.w700),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+/// "NO SERVER" — the whole point, worn as a badge. (No longer claims
+/// LAN-only: public STUN, see ice_config.dart, also reaches remote guests.)
 class _LanBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -199,7 +316,7 @@ class _LanBadge extends StatelessWidget {
               color: AppColors.green, size: 13),
           const SizedBox(width: 6),
           Text(
-            'PURE LAN • NO SERVER',
+            context.getString.guest_no_server_badge,
             style: TextStyle(
               color: AppColors.green,
               fontSize: 9.5,
@@ -208,6 +325,55 @@ class _LanBadge extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Small tap-to-copy chip, reused for the invite link.
+class _CopyChip extends StatelessWidget {
+  final String text;
+  final String label;
+  final String copiedLabel;
+
+  const _CopyChip({required this.text, required this.label, required this.copiedLabel});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Clipboard.setData(ClipboardData(text: text));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(copiedLabel),
+            duration: const Duration(seconds: 1),
+            backgroundColor: AppColors.card,
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.copy_rounded, color: AppColors.amber, size: 14),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: AppColors.amber,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

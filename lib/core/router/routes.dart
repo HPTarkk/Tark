@@ -18,4 +18,7 @@ abstract final class AppRoutes {
 
   static const guestLinkName = 'GuestLinkPage';
   static const guestLinkPath = '/guest-link';
+
+  static const settingsName = 'SettingsPage';
+  static const settingsPath = '/settings';
 }

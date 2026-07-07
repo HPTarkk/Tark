@@ -8,6 +8,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/sfx/sfx_event.dart';
+import '../../../../core/sfx/sfx_service.dart';
 import '../../../../core/utils/lan_ipv4.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../audio/api/audio_api.dart';
@@ -70,6 +72,9 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
 
     _statusSub = _audioEngine.status.listen((status) {
       if (!isClosed && status.hasPermission != state.hasPermission) {
+        if (state.hasPermission && !status.hasPermission) {
+          Sfx.play(SfxEvent.error);
+        }
         emit(state.copyWith(hasPermission: status.hasPermission));
       }
     });
@@ -92,17 +97,21 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
       onError: (Object e) => Logger.log('Packet error: $e'),
     );
 
-    // Bluetooth/Guest are 1-to-1 links that can drop mid-session; this
-    // surfaces a "link lost" banner meanwhile. WiFi's connect() stream has
-    // socket-lifecycle semantics instead, so it stays unmapped there.
-    if (_modeStore.mode == TransferMode.bluetooth ||
-        _modeStore.mode == TransferMode.guest) {
-      _linkSub = _transferRepository.connect().listen((connected) {
-        if (!isClosed && state.isLinkDown != !connected) {
-          emit(state.copyWith(isLinkDown: !connected));
-        }
-      });
-    }
+    // Every transport's connect() stream reflects the same "is the link
+    // currently up" signal — for Bluetooth/Guest that's the 1-to-1 peer
+    // link, for WiFi it's the UDP socket's bind/rebind lifecycle (see
+    // WifiTransferRepositoryImpl's exponential-backoff rebind loop). Either
+    // way, a drop means the same "link lost — reconnecting" banner + sound
+    // applies, so this is no longer gated to specific transports.
+    _linkSub = _transferRepository.connect().listen((connected) {
+      if (isClosed) return;
+      final wasDown = state.isLinkDown;
+      final isDown = !connected;
+      if (wasDown != isDown) {
+        emit(state.copyWith(isLinkDown: isDown));
+        Sfx.play(isDown ? SfxEvent.linkLost : SfxEvent.linkRestored);
+      }
+    });
 
     _presenceTimer =
         Timer.periodic(const Duration(seconds: 2), (_) => _broadcastPresence());
@@ -110,6 +119,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
         Timer.periodic(const Duration(seconds: 3), (_) => _cleanupStaleUsers());
 
     emit(state.copyWith(isReady: true));
+    Sfx.play(SfxEvent.channelJoin);
     _broadcastPresence();
   }
 
@@ -126,6 +136,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
   static const _kPrerollFrames = 3; // 3 × 20 ms = 60 ms
   final ListQueue<List<double>> _preroll = ListQueue();
   int _hangover = 0;
+  bool _prevVoiceOpen = false;
 
   // System-audio (music) sharing: captured playback arrives as ~100 ms
   // chunks on its own clock and is re-cut to the mic's 20 ms frame grid by
@@ -167,6 +178,13 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     }
 
     final voiceOpen = _hangover > 0;
+    if (isOnline && voiceOpen != _prevVoiceOpen) {
+      Sfx.play(voiceOpen ? SfxEvent.pttOpen : SfxEvent.pttClose);
+      // Light tactile confirmation that the channel just keyed up — only on
+      // open, not close, so a run of short words doesn't buzz repeatedly.
+      if (voiceOpen) unawaited(HapticFeedback.lightImpact());
+    }
+    _prevVoiceOpen = voiceOpen;
     final sharingMusic = state.isSharingSystemAudio;
     // Music sharing keeps the channel keyed continuously; voice rides on
     // top of it. Without sharing, VOX (with hangover) gates as usual.
@@ -223,6 +241,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
       return;
     }
 
+    Sfx.play(SfxEvent.toggle);
     emit(state.copyWith(isStartingSystemAudio: true));
     final started = await SystemAudioCapture.start();
     if (isClosed) return;
@@ -258,6 +277,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
         // instead of leaving the "on air" card silently lying forever.
         if (e is PlatformException && e.code == 'capture_stalled') {
           unawaited(_stopSharingSystemAudio());
+          Sfx.play(SfxEvent.error);
           if (!_systemAudioMessageController.isClosed) {
             _systemAudioMessageController.add('capture_stalled');
           }
@@ -268,19 +288,28 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
       isSharingSystemAudio: true,
       isStartingSystemAudio: false,
     ));
+    unawaited(SystemAudioCapture.setLocalVolume(state.musicGain));
   }
 
   Future<void> _stopSharingSystemAudio() async {
+    Sfx.play(SfxEvent.toggle);
     await _musicSub?.cancel();
     _musicSub = null;
     _musicQueue.clear();
     await SystemAudioCapture.stop();
+    // AudioPlaybackCapture never touches the source app, so without this the
+    // music the user just "stopped" keeps playing on their own speaker.
+    // Silent no-op if the user hasn't granted Notification access.
+    unawaited(MediaControl.pauseOtherMedia());
     if (!_musicLevelController.isClosed) _musicLevelController.add(0);
     if (!isClosed) emit(state.copyWith(isSharingSystemAudio: false));
   }
 
   Future<void> setMusicGain(double gain) async {
     emit(state.copyWith(musicGain: gain.clamp(0.0, 1.0)));
+    if (state.isSharingSystemAudio) {
+      unawaited(SystemAudioCapture.setLocalVolume(state.musicGain));
+    }
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble('music_gain', state.musicGain);
   }
@@ -310,8 +339,10 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     final user =
         ChannelUser(id: id, name: name, isTalking: isTalking, lastSeen: DateTime.now());
     if (idx >= 0) {
+      if (!users[idx].isTalking && isTalking) Sfx.play(SfxEvent.rxStart);
       users[idx] = user;
     } else {
+      Sfx.play(SfxEvent.peerJoin);
       users.add(user);
     }
     emit(state.copyWith(activeUsers: users));
@@ -341,6 +372,9 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
       }
       return u;
     }).toList();
+    if (updated.length < state.activeUsers.length) {
+      Sfx.play(SfxEvent.peerLeave);
+    }
     emit(state.copyWith(activeUsers: updated));
   }
 
@@ -450,8 +484,8 @@ class WalkieTalkieState extends Equatable {
   final bool isStartingSystemAudio;
   final double musicGain;
 
-  /// Bluetooth mode only: the 1-to-1 link dropped and the transport is
-  /// auto-reconnecting. Always false in WiFi mode.
+  /// The active transport's link dropped and it's auto-reconnecting —
+  /// Bluetooth/Guest's 1-to-1 peer link, or WiFi's UDP socket rebind.
   final bool isLinkDown;
 
   const WalkieTalkieState({

@@ -2,14 +2,15 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
+import '../../../../core/widget/section_header.dart';
 import '../../../../core/widget/ticker_text.dart';
 import '../../../audio/api/audio_api.dart';
 import '../manager/walkie_talkie_cubit.dart';
-import 'user_list.dart';
 
 /// System-audio (music) casting card. Android 10+ only — hidden entirely
 /// where playback capture doesn't exist.
@@ -267,7 +268,111 @@ class _LiveBody extends StatelessWidget {
         Divider(color: AppColors.border, height: 1),
         const SizedBox(height: 12),
         const _MixLevelControl(),
+        const _NotificationAccessHint(),
       ],
+    );
+  }
+}
+
+/// One-time nudge to grant Notification access, so hitting STOP also pauses
+/// the source music app (see MediaControl / MediaControlHandler.kt) instead
+/// of only tearing down capture. Hidden once access is granted or dismissed;
+/// re-checks on resume so it disappears the moment the user grants it.
+class _NotificationAccessHint extends StatefulWidget {
+  const _NotificationAccessHint();
+
+  static const _dismissedKey = 'music_cast_notif_hint_dismissed';
+
+  @override
+  State<_NotificationAccessHint> createState() =>
+      _NotificationAccessHintState();
+}
+
+class _NotificationAccessHintState extends State<_NotificationAccessHint>
+    with WidgetsBindingObserver {
+  bool _show = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _check();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _check();
+  }
+
+  Future<void> _check() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_NotificationAccessHint._dismissedKey) ?? false) {
+      if (mounted && _show) setState(() => _show = false);
+      return;
+    }
+    final hasAccess = await MediaControl.hasAccess();
+    if (!mounted) return;
+    setState(() => _show = !hasAccess);
+  }
+
+  Future<void> _dismiss() async {
+    setState(() => _show = false);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_NotificationAccessHint._dismissedKey, true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_show) return const SizedBox.shrink();
+    final s = context.getString;
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Row(
+        children: [
+          Icon(
+            Icons.info_outline_rounded,
+            color: AppColors.textSecondary.withAlpha(160),
+            size: 13,
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              s.music_cast_stop_hint,
+              style: TextStyle(
+                color: AppColors.textSecondary.withAlpha(180),
+                fontSize: 11,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: () => MediaControl.requestAccess(),
+            child: Text(
+              s.music_cast_stop_enable,
+              style: TextStyle(
+                color: AppColors.amber,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          GestureDetector(
+            onTap: _dismiss,
+            child: Icon(
+              Icons.close_rounded,
+              color: AppColors.textSecondary.withAlpha(140),
+              size: 14,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/l10n/extension.dart';
@@ -216,6 +217,45 @@ class _ReplyQr extends StatelessWidget {
           context.getString.guest_web_reply_hint,
           textAlign: TextAlign.center,
           style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
+        ),
+        const SizedBox(height: 14),
+        // Not physically near the host to be scanned? This text is the same
+        // payload as the QR — copy and send it back through any chat app.
+        GestureDetector(
+          onTap: () {
+            Clipboard.setData(ClipboardData(text: 'a=$payload'));
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(context.getString.guest_web_reply_copied),
+                duration: const Duration(seconds: 1),
+                backgroundColor: AppColors.card,
+              ),
+            );
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.copy_rounded, color: AppColors.amber, size: 14),
+                const SizedBox(width: 6),
+                Text(
+                  context.getString.guest_web_reply_copy,
+                  style: TextStyle(
+                    color: AppColors.amber,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
         const SizedBox(height: 20),
         const _WaitingDots(),

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/locale/locale_service.dart';
+import '../../../../core/sfx/sfx_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/theme_service.dart';
 
-/// Language + theme toggle chips for the web guest app. Shared by the QR
-/// phases (floating, top corner) and the connected console header.
+/// Language + theme + sound-feedback toggle chips for the web guest app.
+/// Shared by the QR phases (floating, top corner) and the connected console
+/// header.
 class GuestSettingsToggles extends StatelessWidget {
   const GuestSettingsToggles({super.key});
 
@@ -30,6 +32,14 @@ class GuestSettingsToggles extends StatelessWidget {
               : Icons.light_mode_rounded,
           onTap: () => ThemeService.setMode(
             ThemeService.isLight ? AppThemeMode.dark : AppThemeMode.light,
+          ),
+        ),
+        const SizedBox(width: 8),
+        ValueListenableBuilder<bool>(
+          valueListenable: Sfx.enabled,
+          builder: (context, enabled, _) => _ToggleChip(
+            icon: enabled ? Icons.volume_up_rounded : Icons.volume_off_rounded,
+            onTap: () => Sfx.setEnabled(!enabled),
           ),
         ),
       ],

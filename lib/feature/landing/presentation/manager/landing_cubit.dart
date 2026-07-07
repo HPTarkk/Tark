@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/config/quick_access_config.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../transfer/api/transfer_api.dart';
 
@@ -45,6 +46,13 @@ class LandingCubit extends Cubit<LandingState> {
   Future<void> setTransferMode(TransferMode mode) async {
     await _modeStore.setMode(mode);
     emit(state.copyWith(transferMode: mode));
+  }
+
+  /// Marks onboarding complete so subsequent cold starts skip this page and
+  /// resume the last channel/mode directly — see QuickAccess.
+  Future<void> markLaunched() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(QuickAccessPrefs.hasLaunchedBefore, true);
   }
 
   @override

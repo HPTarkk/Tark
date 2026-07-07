@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/locale/locale_service.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../locale/locale_service.dart';
+import '../theme/app_colors.dart';
 
 /// Language selection toggle (فارسی / English).
 ///

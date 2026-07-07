@@ -4,6 +4,7 @@
 /// — never the feature's internal domain/data/presentation files.
 library;
 
+export '../data/media_control.dart' show MediaControl;
 export '../data/session_keep_alive.dart' show SessionKeepAlive;
 export '../data/system_audio_capture.dart' show SystemAudioCapture;
 export '../domain/entity/audio_engine_status.dart';

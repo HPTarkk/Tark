@@ -60,7 +60,13 @@ class _HotspotBridgePageState extends State<HotspotBridgePage> {
           onPressed: () {
             // Backing out without connecting: tear the hotspot down.
             context.read<HotspotBridgeCubit>().stopHost();
-            context.pop();
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              // Reached directly (quick access landed here) — no stack to
+              // pop to.
+              context.goNamed(AppRoutes.landingName);
+            }
           },
         ),
         title: Text(

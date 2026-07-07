@@ -65,6 +65,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Nothing is playing — start a song in your music app';
 
   @override
+  String get music_cast_stop_hint =>
+      'Enable notification access so Stop also pauses the music app';
+
+  @override
+  String get music_cast_stop_enable => 'ENABLE';
+
+  @override
   String get channel_members => 'CHANNEL MEMBERS';
 
   @override
@@ -143,11 +150,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get guest_step_scan =>
-      'The guest scans this code with their phone camera — the join page opens in their browser (both devices on the same WiFi).';
+      'The guest scans this code with their phone camera — the join page opens in their browser.';
 
   @override
   String get guest_step_answer =>
-      'Their screen then shows a reply code — scan it with the button below.';
+      'Their screen then shows a reply code — scan it with the button below, or paste it if they sent it to you instead.';
 
   @override
   String get guest_scan_answer => 'SCAN REPLY CODE';
@@ -157,18 +164,40 @@ class AppLocalizationsEn extends AppLocalizations {
       'The link could not be established. Create a new invite and try again.';
 
   @override
+  String get guest_no_server_badge => 'NO SERVER';
+
+  @override
+  String get guest_copy_link => 'COPY LINK';
+
+  @override
+  String get guest_link_copied => 'Invite link copied';
+
+  @override
+  String get guest_paste_answer => 'PASTE THEIR REPLY INSTEAD';
+
+  @override
+  String get guest_paste_answer_hint => 'Paste the reply code they sent you';
+
+  @override
+  String get guest_paste_submit => 'CONNECT';
+
+  @override
+  String get guest_stun_caveat =>
+      'Works over the internet on most networks. A few strict/corporate networks may still block the connection.';
+
+  @override
   String get guest_web_scan_title => 'Scan to join';
 
   @override
   String get guest_web_scan_text =>
-      'Open this page by scanning the invite QR code on the host\'s phone with your camera — the link itself carries the connection.';
+      'Open this page by scanning the invite QR code, or opening the invite link, from the host\'s phone.';
 
   @override
   String get guest_web_failed_title => 'Link failed';
 
   @override
   String get guest_web_failed_text =>
-      'The connection could not be established. Ask the host to create a new invite and scan it again (both devices must be on the same WiFi).';
+      'The connection could not be established. Ask the host to create a new invite and try again.';
 
   @override
   String get guest_web_reply_chip => 'STEP 2 — REPLY CODE';
@@ -179,6 +208,12 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get guest_web_reply_hint =>
       'On the host: tap \"SCAN REPLY CODE\" and point the camera here.';
+
+  @override
+  String get guest_web_reply_copy => 'COPY CODE';
+
+  @override
+  String get guest_web_reply_copied => 'Reply code copied';
 
   @override
   String get guest_web_connected => 'Connected!';
@@ -298,6 +333,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noise_filter_strong => 'HIGH';
 
   @override
+  String get sfx_feedback => 'SOUND FEEDBACK';
+
+  @override
+  String get link_reconnecting => 'Connection lost — reconnecting...';
+
+  @override
   String get transport_hotspot => 'HOTSPOT';
 
   @override
@@ -394,4 +435,40 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get music_cast_stalled =>
       'This phone\'s audio system blocks music sharing while a channel call is active. Stopped casting.';
+
+  @override
+  String get settings_title => 'Settings';
+
+  @override
+  String get settings_section_identity => 'IDENTITY';
+
+  @override
+  String get settings_section_voice => 'VOICE';
+
+  @override
+  String get settings_section_sound => 'SOUND & ALERTS';
+
+  @override
+  String get settings_section_appearance => 'APPEARANCE';
+
+  @override
+  String get settings_section_connection => 'CONNECTION';
+
+  @override
+  String get settings_applies_live =>
+      'Applies to your current channel instantly';
+
+  @override
+  String get settings_applies_next_session =>
+      'Applies next time you join a channel';
+
+  @override
+  String get settings_quick_access => 'Quick access';
+
+  @override
+  String get settings_quick_access_desc =>
+      'Skip this screen and resume your last channel on launch';
+
+  @override
+  String get settings_gear_tooltip => 'Settings';
 }

@@ -13,6 +13,7 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.io.IOException
 import java.util.UUID
+import java.util.concurrent.ArrayBlockingQueue
 
 /**
  * Minimal Bluetooth Classic "host" (server) support, filling the gap left by
@@ -48,6 +49,12 @@ class BluetoothServerHandler(
         // either side needing to hardcode the other's UUID.
         private val SPP_UUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
         private const val REQUEST_DISCOVERABLE_CODE = 4242
+
+        // Audio arrives at a fixed cadence (one packet per ~20ms) regardless of
+        // what the RFCOMM link can carry. Matches the BLE engine's pending-write
+        // cap: once the writer thread is this far behind, newest packets are
+        // DROPPED instead of queued — stale audio is worse than lost audio.
+        private const val WRITE_QUEUE_CAPACITY = 8
     }
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -61,6 +68,8 @@ class BluetoothServerHandler(
     private var acceptThread: Thread? = null
     private var acceptedSocket: BluetoothSocket? = null
     private var readThread: Thread? = null
+    private var writerThread: Thread? = null
+    private val writeQueue = ArrayBlockingQueue<ByteArray>(WRITE_QUEUE_CAPACITY)
 
     init {
         connectionEvents.setStreamHandler(object : EventChannel.StreamHandler {
@@ -101,7 +110,7 @@ class BluetoothServerHandler(
                     result.error("invalid_args", "bytes is required", null)
                     return
                 }
-                writeToAcceptedSocket(bytes, result)
+                enqueueWrite(bytes, result)
             }
             "closeConnection" -> {
                 closeAcceptedSocketOnly()
@@ -166,6 +175,7 @@ class BluetoothServerHandler(
                     mapOf("event" to "connected", "address" to (socket.remoteDevice?.address ?: ""))
                 )
                 startReadLoop(socket)
+                startWriterLoop(socket)
             } catch (e: IOException) {
                 emitConnectionEvent(mapOf("event" to "error", "message" to (e.message ?: "accept failed")))
             }
@@ -195,18 +205,42 @@ class BluetoothServerHandler(
         }.also { it.start() }
     }
 
-    private fun writeToAcceptedSocket(bytes: ByteArray, result: MethodChannel.Result) {
-        val socket = acceptedSocket
-        if (socket == null) {
+    // The blocking socket write happens on [writerThread], never on the
+    // platform/main thread — invokeMethod("write") used to write synchronously
+    // right here, which stalled the whole method channel (and, transitively,
+    // the read loop's `mainHandler.post` events) whenever the RFCOMM link
+    // couldn't drain as fast as audio was produced. Enqueueing is non-blocking
+    // and drops the newest packet if the writer is backlogged, matching
+    // [WRITE_QUEUE_CAPACITY]'s stale-audio-is-worse-than-lost-audio policy.
+    private fun enqueueWrite(bytes: ByteArray, result: MethodChannel.Result) {
+        if (acceptedSocket == null) {
             result.error("not_connected", "No accepted Bluetooth connection", null)
             return
         }
-        try {
-            socket.outputStream.write(bytes)
-            result.success(null)
-        } catch (e: IOException) {
-            result.error("write_failed", e.message, null)
-        }
+        writeQueue.offer(bytes)
+        result.success(null)
+    }
+
+    private fun startWriterLoop(socket: BluetoothSocket) {
+        writeQueue.clear()
+        writerThread = Thread {
+            val output = try {
+                socket.outputStream
+            } catch (e: IOException) {
+                return@Thread
+            }
+            try {
+                while (true) {
+                    val bytes = writeQueue.take()
+                    output.write(bytes)
+                }
+            } catch (_: InterruptedException) {
+                // Normal shutdown path (closeAcceptedSocketOnly interrupts this thread).
+            } catch (_: IOException) {
+                // Socket closed/broken; the read loop's onDone path handles the
+                // "closed" event, nothing further to do here.
+            }
+        }.also { it.start() }
     }
 
     private fun closeAcceptedSocketOnly() {
@@ -216,6 +250,9 @@ class BluetoothServerHandler(
         }
         acceptedSocket = null
         readThread = null
+        writerThread?.interrupt()
+        writerThread = null
+        writeQueue.clear()
     }
 
     fun stopHosting() {

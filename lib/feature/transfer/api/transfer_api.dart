@@ -5,6 +5,7 @@
 library;
 
 export '../data/codec/opus_audio_codec.dart' show OpusAudioCodec;
+export '../data/webrtc/ice_config.dart';
 export '../data/webrtc/sdp_codec.dart';
 export '../domain/entity/guest_link_state.dart';
 export '../domain/entity/transfer_mode.dart';

@@ -85,6 +85,19 @@
             android:name=".keepalive.SessionKeepAliveService"
             android:exported="false"
             android:foregroundServiceType="microphone" />
+        <!-- Notification access is the only way a third-party app can pause
+             ANOTHER app's media session (see MediaControlHandler) — used so
+             stopping music-cast can also stop the source app's local
+             playback. We never read notification content; this service only
+             needs to exist and be enabled by the user in system settings. -->
+        <service
+            android:name=".audio.TarkNotificationListenerService"
+            android:exported="false"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

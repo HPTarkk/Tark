@@ -5,6 +5,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/sfx/sfx_event.dart';
+import '../../../../core/sfx/sfx_service.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entity/bluetooth_connection_state.dart';
 import '../../domain/entity/bluetooth_peer.dart';
@@ -27,6 +29,16 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
         // Clear the "connecting to this peer" marker once the attempt
         // resolves either way, so a failed connection can be retried.
         final stillConnecting = s == BluetoothConnectionState.connecting;
+        switch (s) {
+          case BluetoothConnectionState.connected:
+            Sfx.play(SfxEvent.peerJoin);
+          case BluetoothConnectionState.reconnecting:
+            Sfx.play(SfxEvent.linkLost);
+          case BluetoothConnectionState.error:
+            Sfx.play(SfxEvent.error);
+          default:
+            break;
+        }
         emit(state.copyWith(
           connectionState: s,
           connectingPeerId: stillConnecting ? state.connectingPeerId : null,
@@ -38,7 +50,10 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
     // it so the host screen can steer the user to the Wi-Fi hotspot bridge.
     _bleAdvertisingSub = _transport.bleAdvertising.listen(
       (ok) {
-        if (!ok && !isClosed) emit(state.copyWith(bleUnavailable: true));
+        if (!ok && !isClosed) {
+          emit(state.copyWith(bleUnavailable: true));
+          Sfx.play(SfxEvent.error);
+        }
       },
       onError: (Object e) => Logger.log('BLE advertising state error: $e'),
     );

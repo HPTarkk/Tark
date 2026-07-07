@@ -7,6 +7,7 @@ import '../../../core/utils/logger.dart';
 // Direct file imports (not the transfer barrel): the barrel exports pages
 // that import dart:io, which would break the web build this client exists
 // for.
+import '../../transfer/data/webrtc/ice_config.dart';
 import '../../transfer/data/webrtc/sdp_codec.dart';
 import '../../transfer/domain/entity/guest_link_state.dart';
 
@@ -37,14 +38,14 @@ class GuestWebClient {
     _setLink(GuestLinkState.preparing);
     try {
       final offer = decodeSessionDescription(offerPayload);
-      final pc = await createPeerConnection({'iceServers': []});
+      final pc = await createPeerConnection({'iceServers': kIceServers});
       _pc = pc;
       pc.onDataChannel = _wireChannel;
 
       await pc.setRemoteDescription(offer);
       final answer = await pc.createAnswer({});
       await pc.setLocalDescription(answer);
-      await _waitIceGathering(pc);
+      await waitIceGathering(pc);
       final local = await pc.getLocalDescription();
       if (local == null) throw StateError('no local description');
       _setLink(GuestLinkState.awaitingPeer);
@@ -70,22 +71,6 @@ class GuestWebClient {
       if (!message.isBinary || _messages.isClosed) return;
       _messages.add(message.binary);
     };
-  }
-
-  Future<void> _waitIceGathering(RTCPeerConnection pc) async {
-    if (pc.iceGatheringState ==
-        RTCIceGatheringState.RTCIceGatheringStateComplete) {
-      return;
-    }
-    final completer = Completer<void>();
-    pc.onIceGatheringState = (state) {
-      if (state == RTCIceGatheringState.RTCIceGatheringStateComplete &&
-          !completer.isCompleted) {
-        completer.complete();
-      }
-    };
-    await completer.future
-        .timeout(const Duration(seconds: 4), onTimeout: () {});
   }
 
   void send(Uint8List bytes) {

@@ -3,6 +3,7 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  audioplayers_windows
   bluetooth_low_energy_windows
   flutter_webrtc
   opus_flutter_windows

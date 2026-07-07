@@ -47,6 +47,19 @@ abstract final class SystemAudioCapture {
     }
   }
 
+  /// Nudges this device's own STREAM_MUSIC volume to match [gain] (0-1), so
+  /// the broadcaster's own speaker follows the in-app mix slider instead of
+  /// only affecting what peers hear. AudioPlaybackCapture has no API to
+  /// mute/adjust the source app specifically, so this is a system-wide media
+  /// volume change — the closest available proxy.
+  static Future<void> setLocalVolume(double gain) async {
+    try {
+      await _methods.invokeMethod<void>('setLocalVolume', {'gain': gain});
+    } catch (e) {
+      Logger.log('System audio setLocalVolume failed: $e');
+    }
+  }
+
   /// Captured playback as normalized 16 kHz mono chunks (~100 ms each).
   static Stream<List<double>> get frames =>
       _frames ??= _frameEvents

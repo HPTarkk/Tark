@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/l10n/extension.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/theme_service.dart';
+import '../l10n/extension.dart';
+import '../theme/app_colors.dart';
+import '../theme/theme_service.dart';
 
 /// Dark / light theme toggle, styled to match [LanguageToggle].
 ///

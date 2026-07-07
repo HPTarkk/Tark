@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/app_avatar.dart';
+import '../../../../core/widget/section_header.dart';
 import '../../../../core/widget/ticker_text.dart';
 // Direct file imports (not the audio_api / transfer_api barrels — those
 // re-export dart:io code that cannot compile for web).
@@ -471,7 +472,7 @@ class _HostMember extends StatelessWidget {
       builder: (context, state) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionHeader(
+          SectionHeader(
             label: s.channel_members,
             badge: state.isHostOnline ? '1' : null,
           ),
@@ -574,7 +575,7 @@ class _VoxCard extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _SectionHeader(label: s.vox_sensitivity),
+            SectionHeader(label: s.vox_sensitivity),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(16),
@@ -838,54 +839,6 @@ class _GlowCard extends StatelessWidget {
         border: Border.all(color: AppColors.border, width: 1.5),
       ),
       child: child,
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  final String label;
-  final String? badge;
-
-  const _SectionHeader({required this.label, this.badge});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 3,
-          height: 14,
-          color: AppColors.amber,
-          margin: const EdgeInsetsDirectional.only(end: 8),
-        ),
-        Text(
-          label,
-          style: TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 2,
-          ),
-        ),
-        if (badge != null) ...[
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: AppColors.amber.withAlpha(40),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text(
-              badge!,
-              style: TextStyle(
-                color: AppColors.amber,
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ],
     );
   }
 }

@@ -3,6 +3,7 @@ package com.b1101.tark.audio
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.media.AudioManager
 import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Handler
@@ -20,6 +21,12 @@ import io.flutter.plugin.common.MethodChannel
  *   start       -> Boolean; shows the system screen-capture consent dialog,
  *                  then launches [SystemAudioCaptureService]
  *   stop        -> null
+ *   setLocalVolume(gain: Double 0..1) -> null; also nudges this device's own
+ *                  STREAM_MUSIC volume so the broadcaster's speaker follows
+ *                  the in-app mix slider — AudioPlaybackCapture only lets us
+ *                  read the source app's output, never mute/adjust it, so
+ *                  this is the closest available proxy (it's a system-wide
+ *                  media-volume change, not per-app)
  *
  * Events (channel "tark/system_audio/frames"): Float64List of 16 kHz mono
  * samples, normalized to [-1, 1].
@@ -81,7 +88,28 @@ class SystemAudioHandler(
                 result.success(null)
             }
 
+            "setLocalVolume" -> {
+                val gain = call.argument<Double>("gain") ?: 1.0
+                setLocalVolume(gain)
+                result.success(null)
+            }
+
             else -> result.notImplemented()
+        }
+    }
+
+    private fun setLocalVolume(gain: Double) {
+        val activity = activityProvider() ?: return
+        try {
+            val audioManager =
+                activity.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+            val target = (gain.coerceIn(0.0, 1.0) * maxVolume).toInt()
+            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, target, 0)
+        } catch (_: Exception) {
+            // Best-effort only — some OEMs restrict setStreamVolume without
+            // a matching UI-visible reason; silently skipping is preferable
+            // to crashing the capture session over it.
         }
     }
 

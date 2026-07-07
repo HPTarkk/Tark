@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/ticker_text.dart';
 import '../manager/walkie_talkie_cubit.dart';
@@ -38,8 +41,37 @@ class WalkieHeader extends StatelessWidget {
             const Spacer(),
             // RepaintBoundary isolates the 60 fps pulse dot from the header.
             const RepaintBoundary(child: SignalIndicator()),
+            const SizedBox(width: 14),
+            const _SettingsButton(),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── Settings entry point ──────────────────────────────────────────────────────
+
+/// Opens Settings with the running [WalkieTalkieCubit] threaded through
+/// go_router's `extra`, so changes (VOX threshold, noise suppression, name)
+/// apply live to this session instead of only taking effect next time.
+class _SettingsButton extends StatelessWidget {
+  const _SettingsButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        context.pushNamed(
+          AppRoutes.settingsName,
+          extra: context.read<WalkieTalkieCubit>(),
+        );
+      },
+      child: Icon(
+        Icons.settings_rounded,
+        color: AppColors.textSecondary,
+        size: 20,
       ),
     );
   }

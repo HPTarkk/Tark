@@ -11,19 +11,23 @@ import '../../domain/entity/waki_packet.dart';
 import '../../domain/repository/guest_link_controller.dart';
 import '../../domain/repository/transfer_repository.dart';
 import '../codec/waki_packet_codec.dart';
+import '../webrtc/ice_config.dart';
 import '../webrtc/sdp_codec.dart';
 
 /// Placeholder sender id for the web guest — a WebRTC link is 1-to-1 and
 /// never echoes our own packets back, so any stable non-IP id works.
 const kGuestPeerId = 'guest';
 
-/// WebRTC transport for hosting a browser guest — pure LAN, no server.
+/// WebRTC transport for hosting a browser guest — no server, ever, but not
+/// LAN-only: [kIceServers] adds public STUN so a genuinely remote guest (not
+/// on the host's network) can connect too, provided NAT allows it.
 ///
-/// Signaling is two QR codes (see [GuestLinkController]); after that a
-/// single unordered data channel carries the exact same [WakiPacketCodec]
-/// bytes as WiFi UDP and Bluetooth. The channel allows up to 2 retransmits:
-/// enough to survive a stray WiFi drop without turning packet loss into
-/// unbounded latency (the jitter buffer conceals what still goes missing).
+/// Signaling is a QR code or a copyable link (see [GuestLinkController]);
+/// after that a single unordered data channel carries the exact same
+/// [WakiPacketCodec] bytes as WiFi UDP and Bluetooth. The channel allows up
+/// to 2 retransmits: enough to survive a stray WiFi drop without turning
+/// packet loss into unbounded latency (the jitter buffer conceals what still
+/// goes missing).
 @lazySingleton
 class WebRtcTransferRepository
     implements TransferRepository, GuestLinkController {
@@ -53,8 +57,7 @@ class WebRtcTransferRepository
     await _teardownPeer();
     _setLink(GuestLinkState.preparing);
     try {
-      // No STUN/TURN: LAN-only host candidates is exactly what we want.
-      final pc = await createPeerConnection({'iceServers': []});
+      final pc = await createPeerConnection({'iceServers': kIceServers});
       _pc = pc;
 
       final dc = await pc.createDataChannel(
@@ -68,10 +71,10 @@ class WebRtcTransferRepository
 
       final offer = await pc.createOffer({});
       await pc.setLocalDescription(offer);
-      // Non-trickle: wait for LAN candidates to land inside the SDP so the
-      // QR contains everything (there is no signaling channel for late
+      // Non-trickle: wait for candidates to land inside the SDP so the
+      // QR/link contains everything (there is no signaling channel for late
       // candidates).
-      await _waitIceGathering(pc);
+      await waitIceGathering(pc);
       final local = await pc.getLocalDescription();
       if (local == null) throw StateError('no local description');
       _setLink(GuestLinkState.awaitingPeer);
@@ -125,23 +128,6 @@ class WebRtcTransferRepository
       final packet = _codec.decode(message.binary, kGuestPeerId);
       if (packet != null) _packetController.add(packet);
     };
-  }
-
-  Future<void> _waitIceGathering(RTCPeerConnection pc) async {
-    if (pc.iceGatheringState ==
-        RTCIceGatheringState.RTCIceGatheringStateComplete) {
-      return;
-    }
-    final completer = Completer<void>();
-    pc.onIceGatheringState = (state) {
-      if (state == RTCIceGatheringState.RTCIceGatheringStateComplete &&
-          !completer.isCompleted) {
-        completer.complete();
-      }
-    };
-    // LAN-only gathering is fast; the timeout only guards odd adapters.
-    await completer.future
-        .timeout(const Duration(seconds: 4), onTimeout: () {});
   }
 
   Future<void> _teardownPeer() async {
