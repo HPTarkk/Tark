@@ -374,4 +374,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get bt_use_wifi_bridge => 'USE WI-FI BRIDGE';
+
+  @override
+  String get background_title => 'Keep the channel alive with the screen off';
+
+  @override
+  String get background_desc =>
+      'For riding, allow the app to run in the background so audio keeps flowing when the screen turns off. Without this, the phone may drop Wi-Fi and go silent.';
+
+  @override
+  String get background_allow => 'ALLOW BACKGROUND';
+
+  @override
+  String get background_autostart => 'AUTOSTART';
+
+  @override
+  String get background_dismiss => 'NOT NOW';
+
+  @override
+  String get music_cast_stalled =>
+      'This phone\'s audio system blocks music sharing while a channel call is active. Stopped casting.';
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -13,6 +15,7 @@ import '../../../../core/widget/ticker_text.dart';
 import '../../../../core/widget/version_badge.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../manager/walkie_talkie_cubit.dart';
+import '../widget/background_permission_banner.dart';
 import '../widget/music_cast_section.dart';
 import '../widget/status_row.dart';
 import '../widget/user_list.dart';
@@ -39,6 +42,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
   // Staggered entrance: [header, identityCard, visualizer, statusRow, members, vox, footer]
   late AnimationController _entranceController;
   late List<Animation<double>> _entranceSections;
+  StreamSubscription<String>? _systemAudioMsgSub;
 
   @override
   void initState() {
@@ -66,11 +70,27 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _entranceController.forward(),
     );
+
+    // One-shot toast for system-audio sharing notices (currently just the
+    // capture-stalled case — see WalkieTalkieCubit.toggleShareSystemAudio).
+    _systemAudioMsgSub =
+        context.read<WalkieTalkieCubit>().systemAudioMessages.listen((code) {
+      if (!mounted) return;
+      final text = switch (code) {
+        'capture_stalled' => context.getString.music_cast_stalled,
+        _ => null,
+      };
+      if (text == null) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(text)));
+    });
   }
 
   @override
   void dispose() {
     _entranceController.dispose();
+    _systemAudioMsgSub?.cancel();
     super.dispose();
   }
 
@@ -107,6 +127,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
                       const SizedBox(height: 16),
                       _entrance(2, const VisualizerSection()),
                       const SizedBox(height: 16),
+                      const BackgroundPermissionBanner(),
                       _buildLinkBanner(),
                       _entrance(3, const StatusRow()),
                       const SizedBox(height: 20),

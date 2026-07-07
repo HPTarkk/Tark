@@ -5,6 +5,7 @@ import 'package:dartz/dartz.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/utils/exponential_backoff.dart';
 import '../../../../core/utils/lan_ipv4.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entity/waki_packet.dart';
@@ -105,10 +106,21 @@ class WifiTransferRepositoryImpl implements TransferRepository {
     // retry-delay sleep will see _generation != myGen and exit cleanly.
     final myGen = ++_generation;
 
+    // Telegram-style reconnect backoff: 4s → 8s → 16s … 64s between rebind
+    // attempts, reset the moment traffic actually flows again (first datagram
+    // after a bind) so an isolated drop doesn't inherit a long stale delay.
+    final backoff = ExponentialBackoff();
+
     while (_generation == myGen) {
       try {
         _receiveSocket?.close();
         _receiveSocket = null;
+
+        // Re-resolve every rebind: a Wi-Fi/hotspot interface that changed
+        // while we were down (screen-off drop, network switch) is picked up
+        // here so the send side targets the right subnet on recovery.
+        await _resolveNetwork();
+        _targetsResolvedAt = DateTime.now();
 
         _receiveSocket = await RawDatagramSocket.bind(
           InternetAddress.anyIPv4,
@@ -127,6 +139,9 @@ class WifiTransferRepositoryImpl implements TransferRepository {
               // our addresses (multi-interface), not just the one the cubit
               // filters on — drop them here where all of them are known.
               if (_localAddresses.contains(dg!.address.address)) continue;
+              // Real traffic is flowing — the link is healthy, so the next
+              // drop backs off from 4s again rather than from where we left.
+              backoff.reset();
               final packet = _codec.decode(dg.data, dg.address.address);
               if (packet != null) {
                 _rememberPeer(dg.address.address);
@@ -149,7 +164,8 @@ class WifiTransferRepositoryImpl implements TransferRepository {
       // Retry delay, sliced short: async* cancellation only takes effect
       // between awaits, so one long sleep here would make cancel() (and the
       // page teardown awaiting it) lag by whole seconds.
-      for (var i = 0; i < 12 && _generation == myGen; i++) {
+      final slices = backoff.next().inMilliseconds ~/ 250;
+      for (var i = 0; i < slices && _generation == myGen; i++) {
         await Future.delayed(const Duration(milliseconds: 250));
       }
     }

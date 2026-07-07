@@ -7,6 +7,7 @@ import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/utils/exponential_backoff.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entity/waki_packet.dart';
 import '../../domain/entity/bluetooth_connection_state.dart' as bt;
@@ -65,7 +66,6 @@ class BluetoothTransferRepository
   String? _sessionRole; // 'host' | 'joiner'
   BluetoothPeer? _sessionPeer; // joiner's target
   int _reconnectGen = 0;
-  static const _reconnectDelaysSeconds = [2, 3, 5, 8];
 
   bool get _classicSupported => Platform.isAndroid;
   bool get _bleSupported => Platform.isAndroid || Platform.isIOS;
@@ -330,7 +330,10 @@ class BluetoothTransferRepository
     _connectionStateController.add(bt.BluetoothConnectionState.reconnecting);
     Logger.log('Bluetooth session dropped — auto-reconnecting as $role');
 
-    var attempt = 0;
+    // Telegram-style backoff: 4s → 8s → 16s … 64s. A successful reconnect
+    // stops the loop (via _connectedPeerId), and the next drop starts a fresh
+    // ExponentialBackoff from 4s, so this never inherits a stale long delay.
+    final backoff = ExponentialBackoff();
     while (_reconnectGen == gen && _connectedPeerId == null) {
       try {
         if (role == 'host') {
@@ -357,14 +360,10 @@ class BluetoothTransferRepository
         Logger.log('Reconnect attempt failed: $e');
       }
 
-      final delay = _reconnectDelaysSeconds[
-          attempt < _reconnectDelaysSeconds.length
-              ? attempt
-              : _reconnectDelaysSeconds.length - 1];
-      attempt++;
       // Sliced sleep so reset() aborts promptly.
+      final slices = backoff.next().inMilliseconds ~/ 250;
       for (var i = 0;
-          i < delay * 4 && _reconnectGen == gen && _connectedPeerId == null;
+          i < slices && _reconnectGen == gen && _connectedPeerId == null;
           i++) {
         await Future.delayed(const Duration(milliseconds: 250));
       }
