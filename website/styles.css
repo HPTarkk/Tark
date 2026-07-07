@@ -24,6 +24,19 @@ body {
   font-family: var(--font);
   overflow-x: hidden;
   line-height: 1.6;
+  position: relative;
+}
+
+/* Subtle film-grain overlay for depth across the whole page. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  pointer-events: none;
+  opacity: .05;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 ::selection { background: rgba(255, 183, 77, .35); }
@@ -67,6 +80,12 @@ a { color: inherit; text-decoration: none; }
 .cards .card:nth-child(2) { transition-delay: .12s; }
 .cards .card:nth-child(3) { transition-delay: .24s; }
 .cards .card:nth-child(4) { transition-delay: .36s; }
+
+.spec-grid .spec:nth-child(2) { transition-delay: .08s; }
+.spec-grid .spec:nth-child(3) { transition-delay: .16s; }
+.spec-grid .spec:nth-child(4) { transition-delay: .24s; }
+.spec-grid .spec:nth-child(5) { transition-delay: .32s; }
+.spec-grid .spec:nth-child(6) { transition-delay: .4s; }
 
 /* ── Nav ────────────────────────────────────────────────────────────── */
 
@@ -127,7 +146,21 @@ nav.scrolled {
   transition: color .2s;
 }
 
-.nav-links a:hover { color: var(--amber); }
+.nav-links a { position: relative; }
+
+.nav-links a::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: -6px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--amber);
+  transform: scaleX(0);
+  transition: transform .3s cubic-bezier(.2, .7, .2, 1);
+}
+
+.nav-links a:hover, .nav-links a.active { color: var(--amber); }
+.nav-links a.active::after { transform: scaleX(1); }
 
 .lang-toggle {
   background: var(--card);
@@ -186,6 +219,18 @@ nav.scrolled {
   padding: 120px 24px 80px;
   position: relative;
   overflow: hidden;
+}
+
+.hero-spotlight {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    480px circle at var(--mx, 50%) var(--my, 32%),
+    rgba(255, 183, 77, .12),
+    transparent 65%
+  );
+  transition: background .25s ease-out;
 }
 
 .hero-rings {
@@ -444,6 +489,7 @@ nav.scrolled {
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 18px;
   margin-top: 44px;
+  perspective: 1200px;
 }
 
 .card {
@@ -451,15 +497,40 @@ nav.scrolled {
   border: 1.5px solid var(--border);
   border-radius: 18px;
   padding: 26px;
-  transition: transform .35s cubic-bezier(.2, .7, .2, 1), border-color .35s,
-              box-shadow .35s, opacity .8s, translate .8s;
+  position: relative;
+  overflow: hidden;
+  transform: perspective(1200px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(var(--ty, 0px));
+  transition: transform .12s ease-out, border-color .35s,
+              box-shadow .35s, opacity .8s;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: radial-gradient(
+    260px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(255, 183, 77, .12),
+    transparent 60%
+  );
+  transition: opacity .35s;
+  pointer-events: none;
+}
+
+/* .reveal.visible's `transform: none` outranks .card's base rule on
+   specificity alone once revealed — restate it here so tilt keeps working. */
+.card.reveal.visible {
+  transform: perspective(1200px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(var(--ty, 0px));
 }
 
 .card:hover {
-  transform: translateY(-6px);
+  --ty: -6px;
   border-color: rgba(255, 183, 77, .5);
   box-shadow: 0 18px 50px rgba(0, 0, 0, .45), 0 0 30px rgba(255, 183, 77, .07);
 }
+
+.card:hover::before { opacity: 1; }
 
 .card-icon {
   width: 52px; height: 52px;
@@ -706,6 +777,112 @@ nav.scrolled {
 .music-eq span:nth-child(5n)  { animation-delay: .12s; height: 34%; }
 .music-eq span:nth-child(7n)  { animation-delay: .66s; height: 90%; }
 
+/* ── Under the hood (spec grid) ────────────────────────────────────── */
+
+.spec-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1px;
+  margin-top: 44px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.spec {
+  background: var(--card);
+  padding: 26px;
+  transition: background .3s, opacity .8s cubic-bezier(.2, .7, .2, 1),
+              transform .8s cubic-bezier(.2, .7, .2, 1);
+}
+
+.spec:hover { background: #171d30; }
+
+.spec-label {
+  color: var(--text-sec);
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .24em;
+  margin-bottom: 12px;
+}
+
+.spec-value {
+  color: var(--amber);
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -.01em;
+  margin-bottom: 10px;
+}
+
+.spec-desc { color: var(--text-sec); font-size: .86rem; }
+
+/* ── FAQ accordion ──────────────────────────────────────────────────── */
+
+.faq {
+  margin-top: 44px;
+  max-width: 780px;
+  border-top: 1px solid var(--border);
+}
+
+.faq-item { border-bottom: 1px solid var(--border); }
+
+.faq-q {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 1rem;
+  font-weight: 700;
+  text-align: start;
+  padding: 22px 4px;
+  cursor: pointer;
+}
+
+.faq-q:hover { color: var(--amber); }
+
+.faq-icon {
+  position: relative;
+  flex-shrink: 0;
+  width: 18px; height: 18px;
+}
+
+.faq-icon::before, .faq-icon::after {
+  content: '';
+  position: absolute;
+  background: currentColor;
+  border-radius: 2px;
+  transition: transform .3s cubic-bezier(.2, .7, .2, 1);
+}
+
+.faq-icon::before { top: 50%; left: 0; width: 100%; height: 2px; margin-top: -1px; }
+.faq-icon::after { left: 50%; top: 0; height: 100%; width: 2px; margin-left: -1px; }
+
+.faq-item.open .faq-q { color: var(--amber); }
+.faq-item.open .faq-icon::after { transform: rotate(90deg) scaleY(0); }
+
+.faq-a {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows .35s cubic-bezier(.2, .7, .2, 1);
+}
+
+.faq-item.open .faq-a { grid-template-rows: 1fr; }
+
+.faq-a-inner { overflow: hidden; }
+
+.faq-a p {
+  color: var(--text-sec);
+  font-size: .92rem;
+  max-width: 62ch;
+  padding-bottom: 22px;
+}
+
 /* ── Privacy ────────────────────────────────────────────────────────── */
 
 .privacy {
@@ -751,7 +928,24 @@ footer {
   text-align: center;
 }
 
-footer p { color: var(--text-sec); font-size: .82rem; margin-top: 10px; }
+.footer-links {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 22px;
+  margin-top: 22px;
+}
+
+.footer-links a {
+  color: var(--text-sec);
+  font-size: .82rem;
+  font-weight: 600;
+  transition: color .2s;
+}
+
+.footer-links a:hover { color: var(--amber); }
+
+footer p { color: var(--text-sec); font-size: .82rem; margin-top: 22px; }
 
 /* ── RTL ────────────────────────────────────────────────────────────── */
 

@@ -66,6 +66,63 @@
     });
   }
 
+  // ── Hero cursor spotlight ─────────────────────────────────────────
+  const hero = document.querySelector('.hero');
+  if (hero && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    hero.addEventListener('pointermove', (e) => {
+      const rect = hero.getBoundingClientRect();
+      hero.style.setProperty('--mx', ((e.clientX - rect.left) / rect.width) * 100 + '%');
+      hero.style.setProperty('--my', ((e.clientY - rect.top) / rect.height) * 100 + '%');
+    });
+  }
+
+  // ── Card tilt + shine ──────────────────────────────────────────────
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    document.querySelectorAll('.card').forEach((card) => {
+      card.addEventListener('pointermove', (e) => {
+        const rect = card.getBoundingClientRect();
+        const px = (e.clientX - rect.left) / rect.width;
+        const py = (e.clientY - rect.top) / rect.height;
+        card.style.setProperty('--mx', px * 100 + '%');
+        card.style.setProperty('--my', py * 100 + '%');
+        card.style.setProperty('--rx', (0.5 - py) * 8 + 'deg');
+        card.style.setProperty('--ry', (px - 0.5) * 10 + 'deg');
+      });
+      card.addEventListener('pointerleave', () => {
+        card.style.setProperty('--rx', '0deg');
+        card.style.setProperty('--ry', '0deg');
+      });
+    });
+  }
+
+  // ── Nav scrollspy ──────────────────────────────────────────────────
+  const navLinks = [...document.querySelectorAll('.nav-links a')];
+  const spySections = navLinks
+    .map((a) => document.querySelector(a.getAttribute('href')))
+    .filter(Boolean);
+  if (spySections.length) {
+    const spy = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const id = '#' + entry.target.id;
+          navLinks.forEach((a) => a.classList.toggle('active', a.getAttribute('href') === id));
+        }
+      },
+      { rootMargin: '-40% 0px -55% 0px' }
+    );
+    spySections.forEach((s) => spy.observe(s));
+  }
+
+  // ── FAQ accordion ──────────────────────────────────────────────────
+  document.querySelectorAll('.faq-item').forEach((item) => {
+    const q = item.querySelector('.faq-q');
+    q.addEventListener('click', () => {
+      const isOpen = item.classList.toggle('open');
+      q.setAttribute('aria-expanded', String(isOpen));
+    });
+  });
+
   // ── Pinned handshake scene ────────────────────────────────────────
   // The 320vh section pins its content; scroll progress through it maps
   // to steps 1..4 (show QR → scan → reply → connected).

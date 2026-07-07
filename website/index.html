@@ -21,6 +21,7 @@
         <a href="#features" data-en="Features" data-fa="امکانات">Features</a>
         <a href="#handshake" data-en="How it works" data-fa="روش کار">How it works</a>
         <a href="#music" data-en="Music" data-fa="موزیک">Music</a>
+        <a href="#tech" data-en="Specs" data-fa="مشخصات">Specs</a>
         <a href="#download" data-en="Download" data-fa="دانلود">Download</a>
       </div>
       <button id="langToggle" class="lang-toggle" aria-label="Switch language">فارسی</button>
@@ -29,6 +30,7 @@
 
   <!-- ── Hero ────────────────────────────────────────────────────────── -->
   <header class="hero" id="top">
+    <div class="hero-spotlight" aria-hidden="true"></div>
     <div class="hero-rings" aria-hidden="true">
       <span></span><span></span><span></span><span></span>
     </div>
@@ -217,6 +219,120 @@
     </div>
   </section>
 
+  <!-- ── Under the hood ──────────────────────────────────────────────── -->
+  <section class="section tech" id="tech">
+    <p class="eyebrow reveal" data-en="UNDER THE HOOD" data-fa="زیر کاپوت">UNDER THE HOOD</p>
+    <h2 class="reveal" data-en="Built like a radio, engineered like software." data-fa="مثل یک بی‌سیم ساخته شده، مثل یک نرم‌افزار مهندسی‌شده.">Built like a radio, engineered like software.</h2>
+
+    <div class="spec-grid">
+      <div class="spec reveal">
+        <p class="spec-label" data-en="CODEC" data-fa="کدک">CODEC</p>
+        <p class="spec-value">Opus · <span data-en="16 kHz mono" data-fa="تک‌کاناله ۱۶ کیلوهرتز">16 kHz mono</span></p>
+        <p class="spec-desc" data-en="~20–30 kbps compressed — a tenth the size of raw PCM, with no perceptible loss."
+           data-fa="فشرده‌سازی به ۲۰ تا ۳۰ کیلوبیت بر ثانیه — یک‌دهم حجم PCM خام، بدون افت محسوس کیفیت.">
+          ~20–30 kbps compressed — a tenth the size of raw PCM, with no perceptible loss.</p>
+      </div>
+      <div class="spec reveal">
+        <p class="spec-label" data-en="VOICE CLARITY" data-fa="وضوح صدا">VOICE CLARITY</p>
+        <p class="spec-value">AEC · NS · AGC</p>
+        <p class="spec-desc" data-en="Echo cancellation, noise suppression and gain control run live on every capture session."
+           data-fa="حذف پژواک، کاهش نویز و کنترل بهره، به‌صورت زنده روی هر نشست ضبط اجرا می‌شوند.">
+          Echo cancellation, noise suppression and gain control run live on every capture session.</p>
+      </div>
+      <div class="spec reveal">
+        <p class="spec-label" data-en="LATENCY" data-fa="تأخیر">LATENCY</p>
+        <p class="spec-value">~100<span data-en="ms jitter buffer" data-fa=" میلی‌ثانیه بافر لرزش">ms jitter buffer</span></p>
+        <p class="spec-desc" data-en="Just enough buffering to stay smooth without ever feeling behind."
+           data-fa="فقط به‌اندازه‌ای بافر که صدا روان بماند، بدون احساس عقب‌افتادگی.">
+          Just enough buffering to stay smooth without ever feeling behind.</p>
+      </div>
+      <div class="spec reveal">
+        <p class="spec-label" data-en="ALWAYS ON" data-fa="همیشه روشن">ALWAYS ON</p>
+        <p class="spec-value" data-en="Foreground service" data-fa="سرویس پیش‌زمینه">Foreground service</p>
+        <p class="spec-desc" data-en="A wake lock and multicast lock keep the channel alive with the screen off."
+           data-fa="قفل بیداری و قفل مولتی‌کست، کانال را حتی با خاموش بودن صفحه زنده نگه می‌دارند.">
+          A wake lock and multicast lock keep the channel alive with the screen off.</p>
+      </div>
+      <div class="spec reveal">
+        <p class="spec-label" data-en="RECONNECT" data-fa="اتصال مجدد">RECONNECT</p>
+        <p class="spec-value" data-en="Exponential backoff" data-fa="تأخیر نمایی">Exponential backoff</p>
+        <p class="spec-desc" data-en="Retries from 4s up to 64s, and resets the instant the link returns."
+           data-fa="تلاش مجدد از ۴ تا ۶۴ ثانیه، و بازنشانی فوری به‌محض بازگشت اتصال.">
+          Retries from 4s up to 64s, and resets the instant the link returns.</p>
+      </div>
+      <div class="spec reveal">
+        <p class="spec-label" data-en="TRANSPORT" data-fa="لایهٔ انتقال">TRANSPORT</p>
+        <p class="spec-value" data-en="UDP broadcast" data-fa="پخش UDP">UDP broadcast</p>
+        <p class="spec-desc" data-en="Direct peer discovery on your LAN, with a unicast fallback for iOS."
+           data-fa="کشف مستقیم هم‌تاها روی شبکهٔ محلی، با بازگشت به یونی‌کست برای iOS.">
+          Direct peer discovery on your LAN, with a unicast fallback for iOS.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── FAQ ──────────────────────────────────────────────────────────── -->
+  <section class="section faq-section" id="faq">
+    <p class="eyebrow reveal" data-en="QUESTIONS" data-fa="پرسش‌ها">QUESTIONS</p>
+    <h2 class="reveal" data-en="Things people actually ask." data-fa="چیزهایی که واقعاً می‌پرسند.">Things people actually ask.</h2>
+
+    <div class="faq reveal">
+      <div class="faq-item">
+        <button class="faq-q" aria-expanded="false">
+          <span data-en="Do I need an account or an internet connection?" data-fa="به حساب کاربری یا اینترنت نیاز دارم؟">Do I need an account or an internet connection?</span>
+          <i class="faq-icon" aria-hidden="true"></i>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner"><p data-en="No. Tark runs entirely over your local WiFi or Bluetooth. No sign-up, no cloud, no internet required."
+           data-fa="نه. تَرک کاملاً روی وای‌فای یا بلوتوث محلی‌ات اجرا می‌شود. بدون ثبت‌نام، بدون ابر، بدون نیاز به اینترنت.">
+          No. Tark runs entirely over your local WiFi or Bluetooth. No sign-up, no cloud, no internet required.</p></div></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" aria-expanded="false">
+          <span data-en="What if I lock my phone mid-conversation?" data-fa="اگر وسط مکالمه گوشی را قفل کنم چه می‌شود؟">What if I lock my phone mid-conversation?</span>
+          <i class="faq-icon" aria-hidden="true"></i>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner"><p data-en="A foreground service keeps your channel alive in the background — locking the screen won't drop you."
+           data-fa="یک سرویس پیش‌زمینه کانال را در پس‌زمینه زنده نگه می‌دارد — قفل کردن صفحه تو را از کانال بیرون نمی‌اندازد.">
+          A foreground service keeps your channel alive in the background — locking the screen won't drop you.</p></div></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" aria-expanded="false">
+          <span data-en="What happens if the connection drops?" data-fa="اگر اتصال قطع شود چه می‌شود؟">What happens if the connection drops?</span>
+          <i class="faq-icon" aria-hidden="true"></i>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner"><p data-en="Tark retries automatically with exponential backoff — starting at 4 seconds, capping at 64 — and reconnects the moment the link returns."
+           data-fa="تَرک به‌صورت خودکار با تأخیر نمایی دوباره تلاش می‌کند — از ۴ ثانیه شروع و تا ۶۴ ثانیه ادامه می‌دهد — و به‌محض بازگشت اتصال، دوباره وصل می‌شود.">
+          Tark retries automatically with exponential backoff — starting at 4 seconds, capping at 64 — and reconnects the moment the link returns.</p></div></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" aria-expanded="false">
+          <span data-en="Can iPhone and Android talk to each other?" data-fa="آیفون و اندروید می‌توانند با هم صحبت کنند؟">Can iPhone and Android talk to each other?</span>
+          <i class="faq-icon" aria-hidden="true"></i>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner"><p data-en="Yes — through the hotspot bridge (scan a QR to join an Android hotspot) or the browser guest mode over WebRTC."
+           data-fa="بله — از طریق پل هات‌اسپات (با اسکن یک QR به هات‌اسپات اندروید بپیوند) یا حالت مهمان مرورگری روی WebRTC.">
+          Yes — through the hotspot bridge (scan a QR to join an Android hotspot) or the browser guest mode over WebRTC.</p></div></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" aria-expanded="false">
+          <span data-en="Does it work with no network at all?" data-fa="بدون هیچ شبکه‌ای هم کار می‌کند؟">Does it work with no network at all?</span>
+          <i class="faq-icon" aria-hidden="true"></i>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner"><p data-en="Two Android phones can pair directly over Bluetooth LE — no WiFi, no hotspot, no router."
+           data-fa="دو گوشی اندروید می‌توانند مستقیم روی بلوتوث کم‌مصرف (BLE) جفت شوند — بدون وای‌فای، بدون هات‌اسپات، بدون روتر.">
+          Two Android phones can pair directly over Bluetooth LE — no WiFi, no hotspot, no router.</p></div></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" aria-expanded="false">
+          <span data-en="Is my voice compressed or degraded?" data-fa="صدایم فشرده یا افت کیفیت پیدا می‌کند؟">Is my voice compressed or degraded?</span>
+          <i class="faq-icon" aria-hidden="true"></i>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner"><p data-en="Voice is encoded with Opus at 16 kHz — a tenth the size of raw audio — while on-device echo cancellation and noise suppression clean up the signal before it's sent."
+           data-fa="صدا با اُپوس در ۱۶ کیلوهرتز کدگذاری می‌شود — یک‌دهم حجم صدای خام — درحالی‌که حذف پژواک و کاهش نویز روی خود گوشی، سیگنال را پیش از ارسال تمیز می‌کنند.">
+          Voice is encoded with Opus at 16 kHz — a tenth the size of raw audio — while on-device echo cancellation and noise suppression clean up the signal before it's sent.</p></div></div>
+      </div>
+    </div>
+  </section>
+
   <!-- ── Privacy statement ───────────────────────────────────────────── -->
   <section class="privacy">
     <div class="privacy-rings" aria-hidden="true"><span></span><span></span><span></span></div>
@@ -235,7 +351,7 @@
     <p class="eyebrow reveal" data-en="GET TARK" data-fa="دریافت تَرک">GET TARK</p>
     <h2 class="reveal" data-en="Put a radio in your pocket." data-fa="یک بی‌سیم در جیبت بگذار.">Put a radio in your pocket.</h2>
     <div class="dl-buttons reveal">
-      <a class="btn btn-primary" href="#" data-en="Download for Android" data-fa="دانلود برای اندروید">Download for Android</a>
+      <a class="btn btn-primary" href="../tark-release.apk" data-en="Download for Android" data-fa="دانلود برای اندروید">Download for Android</a>
       <a class="btn btn-ghost" href="#" data-en="iOS — coming soon" data-fa="iOS — به‌زودی">iOS — coming soon</a>
       <a class="btn btn-ghost" href="https://tarkk.runflare.run" data-en="Web guest ↗" data-fa="مهمان وب ↗">Web guest ↗</a>
     </div>
@@ -243,6 +359,12 @@
 
   <footer>
     <span class="wordmark"><span class="wordmark-dot"></span>TARK</span>
+    <div class="footer-links">
+      <a href="#features" data-en="Features" data-fa="امکانات">Features</a>
+      <a href="#tech" data-en="Specs" data-fa="مشخصات">Specs</a>
+      <a href="#faq" data-en="FAQ" data-fa="پرسش‌ها">FAQ</a>
+      <a href="#download" data-en="Download" data-fa="دانلود">Download</a>
+    </div>
     <p data-en="Built for riders. Works for everyone." data-fa="برای موتورسوارها ساخته شد. برای همه کار می‌کند.">Built for riders. Works for everyone.</p>
   </footer>
 
