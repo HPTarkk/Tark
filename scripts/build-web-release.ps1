@@ -50,6 +50,7 @@ if (-not $baseHref.StartsWith('/')) { $baseHref = "/$baseHref" }
 if (-not $baseHref.EndsWith('/')) { $baseHref = "$baseHref/" }
 
 $includeLanding = AskYesNo 'Bundle the static landing page at /landing/?' $true
+$includeApk = AskYesNo 'Also build the Android APK (same guest URL) and include it in the output?' $false
 $makeZip = AskYesNo 'Zip the output for upload?' $true
 $cleanFirst = AskYesNo 'Run "flutter clean" first (slow, use when in doubt)?' $false
 
@@ -80,6 +81,21 @@ if ($includeLanding) {
     }
 }
 
+if ($includeApk) {
+    Write-Host "`n> flutter build apk --release --dart-define=$dartDefine" -ForegroundColor Cyan
+    flutter build apk --release --dart-define=$dartDefine
+    if ($LASTEXITCODE -ne 0) { throw 'flutter build apk failed' }
+
+    $apkSrc = Join-Path $repoRoot 'build\app\outputs\flutter-apk\app-release.apk'
+    if (Test-Path $apkSrc) {
+        $apkDst = Join-Path $outDir 'tark-release.apk'
+        Write-Host "> Copying APK -> $apkDst" -ForegroundColor Cyan
+        Copy-Item $apkSrc $apkDst -Force
+    } else {
+        Write-Host "! APK not found at $apkSrc — skipping" -ForegroundColor DarkYellow
+    }
+}
+
 if ($makeZip) {
     $stamp = Get-Date -Format 'yyyyMMdd-HHmm'
     $zipPath = Join-Path $repoRoot "build\tark-web-$stamp.zip"
@@ -95,10 +111,13 @@ Write-Host '  Build complete.' -ForegroundColor Green
 Write-Host "  Output:  $outDir"
 if ($makeZip) { Write-Host "  Zip:     $zipPath" }
 if ($includeLanding) { Write-Host '  Landing: <host>/landing/' }
+if ($includeApk) { Write-Host '  APK:     <host>/tark-release.apk' }
 Write-Host ''
 Write-Host '  Reminders:' -ForegroundColor DarkYellow
 Write-Host "   * Host this at:  $guestUrl  (over HTTPS — mic needs a secure context)."
-Write-Host '   * Build the MOBILE app with the SAME url so its invite QR matches:'
-Write-Host "       flutter build apk --release --dart-define=GUEST_APP_URL=$guestUrl"
-Write-Host '     (or set the default in lib/core/config/guest_config.dart).'
+if (-not $includeApk) {
+    Write-Host '   * Build the MOBILE app with the SAME url so its invite QR matches:'
+    Write-Host "       flutter build apk --release --dart-define=GUEST_APP_URL=$guestUrl"
+    Write-Host '     (or set the default in lib/core/config/guest_config.dart).'
+}
 Write-Host ''

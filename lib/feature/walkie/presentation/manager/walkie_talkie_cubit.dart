@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'dart:math';
 
 import 'package:equatable/equatable.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -76,6 +77,11 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     await _audioEngine.start();
     if (isClosed) return;
 
+    // Keep the CPU + Wi-Fi awake for the whole session so audio and the
+    // transport survive the screen going off (the motorcycle case). Android
+    // foreground service + wake/Wi-Fi/multicast locks; a no-op elsewhere.
+    unawaited(SessionKeepAlive.start());
+
     _frameSub = _audioEngine.frames.listen(
       _onAudioFrame,
       onError: (Object e) => Logger.log('AudioFrame error: $e'),
@@ -134,6 +140,12 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
   // audio-rate side stream so the UI can animate without state emissions.
   final _musicLevelController = StreamController<double>.broadcast();
   Stream<double> get musicLevels => _musicLevelController.stream;
+
+  // One-shot notices about system-audio sharing (currently just the
+  // capture-stalled case below) for the page to show as a toast. Side channel
+  // rather than state: it's a transient event, not something to redraw for.
+  final _systemAudioMessageController = StreamController<String>.broadcast();
+  Stream<String> get systemAudioMessages => _systemAudioMessageController.stream;
 
   void _onAudioFrame(AudioFrame frame) {
     // Full duplex: TX and RX run independently, same as a phone call. No
@@ -207,12 +219,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     if (state.isStartingSystemAudio) return;
 
     if (state.isSharingSystemAudio) {
-      await _musicSub?.cancel();
-      _musicSub = null;
-      _musicQueue.clear();
-      await SystemAudioCapture.stop();
-      if (!_musicLevelController.isClosed) _musicLevelController.add(0);
-      if (!isClosed) emit(state.copyWith(isSharingSystemAudio: false));
+      await _stopSharingSystemAudio();
       return;
     }
 
@@ -224,27 +231,52 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
       return;
     }
     await _musicSub?.cancel();
-    _musicSub = SystemAudioCapture.frames.listen((chunk) {
-      for (final sample in chunk) {
-        _musicQueue.addLast(sample);
-      }
-      while (_musicQueue.length > _kMusicQueueMax) {
-        _musicQueue.removeFirst();
-      }
-      if (!_musicLevelController.isClosed &&
-          _musicLevelController.hasListener &&
-          chunk.isNotEmpty) {
-        var sum = 0.0;
+    _musicSub = SystemAudioCapture.frames.listen(
+      (chunk) {
         for (final sample in chunk) {
-          sum += sample * sample;
+          _musicQueue.addLast(sample);
         }
-        _musicLevelController.add(sqrt(sum / chunk.length));
-      }
-    }, onError: (Object e) => Logger.log('System audio stream error: $e'));
+        while (_musicQueue.length > _kMusicQueueMax) {
+          _musicQueue.removeFirst();
+        }
+        if (!_musicLevelController.isClosed &&
+            _musicLevelController.hasListener &&
+            chunk.isNotEmpty) {
+          var sum = 0.0;
+          for (final sample in chunk) {
+            sum += sample * sample;
+          }
+          _musicLevelController.add(sqrt(sum / chunk.length));
+        }
+      },
+      onError: (Object e) {
+        Logger.log('System audio stream error: $e');
+        // Confirmed on-device (MIUI): the native side reports this specific
+        // code when playback capture delivers zero frames within a few
+        // seconds — an OEM restriction while our call-mode session is open,
+        // not a transient glitch worth retrying. Stop pretending to cast
+        // instead of leaving the "on air" card silently lying forever.
+        if (e is PlatformException && e.code == 'capture_stalled') {
+          unawaited(_stopSharingSystemAudio());
+          if (!_systemAudioMessageController.isClosed) {
+            _systemAudioMessageController.add('capture_stalled');
+          }
+        }
+      },
+    );
     emit(state.copyWith(
       isSharingSystemAudio: true,
       isStartingSystemAudio: false,
     ));
+  }
+
+  Future<void> _stopSharingSystemAudio() async {
+    await _musicSub?.cancel();
+    _musicSub = null;
+    _musicQueue.clear();
+    await SystemAudioCapture.stop();
+    if (!_musicLevelController.isClosed) _musicLevelController.add(0);
+    if (!isClosed) emit(state.copyWith(isSharingSystemAudio: false));
   }
 
   Future<void> setMusicGain(double gain) async {
@@ -380,6 +412,10 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     unawaited(linkCancel);
     _transferRepository.stopConnection();
 
+    // Session over — drop the keep-alive so the foreground service and its
+    // wake/Wi-Fi locks don't outlive the channel and drain the battery.
+    unawaited(SessionKeepAlive.stop());
+
     // Leaving the channel ends music sharing too — the capture service must
     // not outlive the session it feeds.
     if (state.isSharingSystemAudio) {
@@ -388,6 +424,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     unawaited(_musicSub?.cancel());
     _musicSub = null;
     unawaited(_musicLevelController.close());
+    unawaited(_systemAudioMessageController.close());
 
     await frameCancel;
     await statusCancel;

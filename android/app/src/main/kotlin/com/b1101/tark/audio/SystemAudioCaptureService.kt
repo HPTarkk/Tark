@@ -32,6 +32,18 @@ import android.os.Looper
  *
  * Apps can opt out of playback capture (some streaming apps do); those
  * simply come through as silence.
+ *
+ * Confirmed on-device (MIUI/Xiaomi): while this app also holds an active
+ * VOICE_COMMUNICATION input session (the walkie mic, `MODE_IN_COMMUNICATION`
+ * — see AudioSessionHandler), MIUI's audio policy silently withholds ALL
+ * playback-capture frames — `AudioRecord.read()` blocks forever, even though
+ * the source app (confirmed via `dumpsys audio`'s focus stack) is actively
+ * playing and holds focus with no loss. This isn't a missing-audio bug on our
+ * side; it's an OEM capture restriction while a call-mode session is open,
+ * the same class of restriction that already blocks capturing phone-call
+ * audio. [stalledListener] detects it (zero successful reads within
+ * [kStallTimeoutMs]) so the caller can stop pretending to cast instead of
+ * silently sitting "on air".
  */
 class SystemAudioCaptureService : Service() {
 
@@ -42,10 +54,18 @@ class SystemAudioCaptureService : Service() {
         private const val CHANNEL_ID = "tark_system_audio"
         private const val CAPTURE_RATE = 48000
         private const val DECIMATION = 3 // 48 kHz -> 16 kHz
+        private const val STALL_TIMEOUT_MS = 4000L
 
         /** Set by [SystemAudioHandler]; invoked on the main thread. */
         @Volatile
         var frameListener: ((DoubleArray) -> Unit)? = null
+
+        /** Set by [SystemAudioHandler]; invoked on the main thread when the
+         *  capture stream produces zero frames within [STALL_TIMEOUT_MS] of
+         *  starting (see class doc — a known OEM restriction, not a retry-able
+         *  transient failure). The service stops itself right after. */
+        @Volatile
+        var stalledListener: (() -> Unit)? = null
 
         @Volatile
         var isRunning = false
@@ -56,6 +76,12 @@ class SystemAudioCaptureService : Service() {
     private var projection: MediaProjection? = null
     private var record: AudioRecord? = null
     private var captureThread: Thread? = null
+
+    // Read by the main-thread stall check below; written only from
+    // captureThread — plain @Volatile is enough since it's a single flag
+    // flipped once (no read-modify-write race to worry about there).
+    @Volatile
+    private var gotFirstFrame = false
 
     private val projectionCallback = object : MediaProjection.Callback() {
         override fun onStop() {
@@ -122,13 +148,30 @@ class SystemAudioCaptureService : Service() {
             .build()
         record = audioRecord
         audioRecord.startRecording()
+        gotFirstFrame = false
+        mainHandler.postDelayed({ checkStall() }, STALL_TIMEOUT_MS)
 
         captureThread = Thread {
             // 100 ms of stereo frames per read.
             val stereo = ShortArray(CAPTURE_RATE / 10 * 2)
+            // Diagnostics: peak abs sample per ~1 s window, so a "no audio"
+            // report can be told apart from "capture delivers real audio but
+            // the UI mislabels it" via logcat (tag TarkSysAudio).
+            var diagReads = 0
+            var diagErrors = 0
+            var diagPeak = 0
             while (!Thread.currentThread().isInterrupted) {
                 val read = audioRecord.read(stereo, 0, stereo.size)
-                if (read <= 0) continue
+                if (read <= 0) {
+                    diagErrors++
+                    if (diagErrors % 10 == 1) {
+                        android.util.Log.w(
+                            "TarkSysAudio",
+                            "AudioRecord.read returned $read (errors=$diagErrors)",
+                        )
+                    }
+                    continue
+                }
                 val frames = read / 2
                 val outLen = frames / DECIMATION
                 if (outLen == 0) continue
@@ -142,13 +185,37 @@ class SystemAudioCaptureService : Service() {
                         val left = stereo[base + k * 2].toDouble()
                         val right = stereo[base + k * 2 + 1].toDouble()
                         acc += (left + right) * 0.5
+                        val peak = maxOf(kotlin.math.abs(stereo[base + k * 2].toInt()),
+                            kotlin.math.abs(stereo[base + k * 2 + 1].toInt()))
+                        if (peak > diagPeak) diagPeak = peak
                     }
                     out[j] = (acc / DECIMATION) / 32768.0
+                }
+                diagReads++
+                gotFirstFrame = true
+                if (diagReads % 10 == 0) {
+                    android.util.Log.d(
+                        "TarkSysAudio",
+                        "capture alive: reads=$diagReads peak=$diagPeak/32767",
+                    )
+                    diagPeak = 0
                 }
                 val listener = frameListener ?: continue
                 mainHandler.post { listener(out) }
             }
         }.also { it.start() }
+    }
+
+    /** Runs once, [STALL_TIMEOUT_MS] after capture starts. */
+    private fun checkStall() {
+        if (!isRunning || gotFirstFrame) return
+        android.util.Log.w(
+            "TarkSysAudio",
+            "capture stalled: zero frames after ${STALL_TIMEOUT_MS}ms — likely blocked by " +
+                "the OEM audio policy while a call-mode (VOICE_COMMUNICATION) session is open",
+        )
+        stalledListener?.invoke()
+        stopSelf()
     }
 
     override fun onDestroy() {

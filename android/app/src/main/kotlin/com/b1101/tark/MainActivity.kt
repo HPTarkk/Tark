@@ -5,6 +5,7 @@ import com.b1101.tark.audio.AudioSessionHandler
 import com.b1101.tark.audio.SystemAudioHandler
 import com.b1101.tark.bluetooth.BluetoothServerHandler
 import com.b1101.tark.hotspot.HotspotHandler
+import com.b1101.tark.keepalive.KeepAliveHandler
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -13,6 +14,7 @@ class MainActivity : FlutterActivity() {
     private var bluetoothServerHandler: BluetoothServerHandler? = null
     private var systemAudioHandler: SystemAudioHandler? = null
     private var hotspotHandler: HotspotHandler? = null
+    private var keepAliveHandler: KeepAliveHandler? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -48,6 +50,16 @@ class MainActivity : FlutterActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             "tark/hotspot",
         ).setMethodCallHandler(hotspot)
+
+        val keepAlive = KeepAliveHandler(
+            applicationContext,
+            activityProvider = { this },
+        )
+        keepAliveHandler = keepAlive
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "tark/keepalive",
+        ).setMethodCallHandler(keepAlive)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -60,6 +72,7 @@ class MainActivity : FlutterActivity() {
     override fun onDestroy() {
         bluetoothServerHandler?.stopHosting()
         hotspotHandler?.stop()
+        keepAliveHandler?.stop()
         super.onDestroy()
     }
 }

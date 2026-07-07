@@ -42,6 +42,15 @@
          run inside a foreground service of type mediaProjection. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <!-- Screen-off keep-alive (motorcycle use case): a foreground service holds
+         the CPU (WAKE_LOCK) and Wi-Fi awake so audio/UDP keep flowing while the
+         screen is off. The session records the mic continuously, so the service
+         is typed microphone (FOREGROUND_SERVICE_MICROPHONE, Android 14+).
+         REQUEST_IGNORE_BATTERY_OPTIMIZATIONS lets the app prompt the user to
+         whitelist it from Doze (essential on MIUI/Xiaomi). -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <application
         android:label="تَرک"
         android:name="${applicationName}"
@@ -72,6 +81,10 @@
             android:name=".audio.SystemAudioCaptureService"
             android:exported="false"
             android:foregroundServiceType="mediaProjection" />
+        <service
+            android:name=".keepalive.SessionKeepAliveService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

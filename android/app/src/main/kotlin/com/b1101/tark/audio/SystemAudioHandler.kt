@@ -76,6 +76,7 @@ class SystemAudioHandler(
             "stop" -> {
                 val context = activityProvider()
                 SystemAudioCaptureService.frameListener = null
+                SystemAudioCaptureService.stalledListener = null
                 context?.stopService(Intent(context, SystemAudioCaptureService::class.java))
                 result.success(null)
             }
@@ -93,6 +94,14 @@ class SystemAudioHandler(
         if (resultCode == Activity.RESULT_OK && data != null && activity != null) {
             SystemAudioCaptureService.frameListener = { frame ->
                 mainHandler.post { sink?.success(frame) }
+            }
+            // See SystemAudioCaptureService's class doc: confirmed on MIUI, the
+            // capture stream can silently deliver zero frames forever while our
+            // own call-mode session is open. Surface that distinctly (as a
+            // stream error, not silence) so the Dart side stops pretending to
+            // cast instead of sitting on an "on air" card that never plays.
+            SystemAudioCaptureService.stalledListener = {
+                sink?.error("capture_stalled", "System audio capture produced no data", null)
             }
             val intent = Intent(activity, SystemAudioCaptureService::class.java)
                 .putExtra(SystemAudioCaptureService.EXTRA_RESULT_CODE, resultCode)

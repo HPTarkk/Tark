@@ -112,5 +112,11 @@
     "hotspot_invalid_qr": "That isn't a Wi-Fi code. Scan the code shown on the Android host.",
     "bt_ios_hint": "iPhone ↔ Android over Bluetooth can be unreliable. For the most solid cross-phone link, use Hotspot mode.",
     "bt_ble_unavailable": "This phone can't advertise over Bluetooth LE, so iPhones won't find it here.",
-    "bt_use_wifi_bridge": "USE WI-FI BRIDGE"
+    "bt_use_wifi_bridge": "USE WI-FI BRIDGE",
+    "background_title": "Keep the channel alive with the screen off",
+    "background_desc": "For riding, allow the app to run in the background so audio keeps flowing when the screen turns off. Without this, the phone may drop Wi-Fi and go silent.",
+    "background_allow": "ALLOW BACKGROUND",
+    "background_autostart": "AUTOSTART",
+    "background_dismiss": "NOT NOW",
+    "music_cast_stalled": "This phone's audio system blocks music sharing while a channel call is active. Stopped casting."
 }
