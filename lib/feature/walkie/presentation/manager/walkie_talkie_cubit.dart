@@ -46,10 +46,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
   Stream<AudioFrame> get frames => _audioEngine.frames;
 
   Future<void> _init() async {
-    final localId = await _getLocalId();
     final prefs = await SharedPreferences.getInstance();
-    final myName =
-        prefs.getString('user_name') ?? 'User${localId.split('.').last}';
     final voxThreshold = prefs.getDouble('vox_threshold') ?? state.voxThreshold;
     final noiseSuppression =
         prefs.getDouble('noise_suppression') ?? state.noiseSuppression;
@@ -61,15 +58,8 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     if (isClosed) return;
 
     _audioEngine.setNoiseSuppression(noiseSuppression);
-    emit(state.copyWith(
-      localId: localId,
-      myName: myName,
-      voxThreshold: voxThreshold,
-      noiseSuppression: noiseSuppression,
-      musicGain: musicGain,
-      transferMode: _modeStore.mode,
-    ));
-
+    // Attached before start() so no status event can fire and be missed —
+    // the controller is a plain broadcast stream, not a replay one.
     _statusSub = _audioEngine.status.listen((status) {
       if (!isClosed && status.hasPermission != state.hasPermission) {
         if (state.hasPermission && !status.hasPermission) {
@@ -79,7 +69,29 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
       }
     });
 
-    await _audioEngine.start();
+    // Mic start and network-identity resolution are independent — run them
+    // concurrently. Previously localId was awaited FIRST, so quick access
+    // (which can reach this within milliseconds of process cold-start, with
+    // none of Landing's incidental warm-up while the Wi-Fi stack settles)
+    // could leave the mic/visualizer waiting on a slow or not-yet-ready
+    // network lookup for no reason. localId self-heals a few seconds later
+    // regardless, via _refreshId() on every presence tick.
+    final audioStart = _audioEngine.start();
+    final localId = await _getLocalId();
+    final myName =
+        prefs.getString('user_name') ?? 'User${localId.split('.').last}';
+
+    if (isClosed) return;
+    emit(state.copyWith(
+      localId: localId,
+      myName: myName,
+      voxThreshold: voxThreshold,
+      noiseSuppression: noiseSuppression,
+      musicGain: musicGain,
+      transferMode: _modeStore.mode,
+    ));
+
+    await audioStart;
     if (isClosed) return;
 
     // Keep the CPU + Wi-Fi awake for the whole session so audio and the
