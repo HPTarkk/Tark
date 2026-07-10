@@ -87,6 +87,18 @@ class _MyAppState extends State<MyApp> {
                 error: AppColors.red,
               ),
         useMaterial3: true,
+        // M3 snackbars default to inverseSurface/onInverseSurface, which
+        // clashes with our card-colored backgrounds; pin both sides here so
+        // every SnackBar is card + readable text without per-call overrides.
+        snackBarTheme: SnackBarThemeData(
+          backgroundColor: AppColors.card,
+          contentTextStyle: TextStyle(
+            fontFamily: 'Vazirmatn',
+            color: AppColors.textPrimary,
+            fontSize: 14,
+          ),
+          actionTextColor: AppColors.amber,
+        ),
         pageTransitionsTheme: const PageTransitionsTheme(
           builders: {
             TargetPlatform.android: CupertinoPageTransitionsBuilder(),

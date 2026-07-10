@@ -3,7 +3,7 @@
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Brand background (matches AppPalette.dark.background) so cold start
          doesn't flash white before the Flutter splash page takes over. -->
-    <item android:color="#FF080B14" />
+    <item android:color="#FF0B0E11" />
 
     <!-- You can insert your own image assets here -->
     <!-- <item>

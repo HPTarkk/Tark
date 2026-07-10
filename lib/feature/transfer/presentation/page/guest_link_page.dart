@@ -365,7 +365,6 @@ class _CopyChip extends StatelessWidget {
           SnackBar(
             content: Text(copiedLabel),
             duration: const Duration(seconds: 1),
-            backgroundColor: AppColors.card,
           ),
         );
       },

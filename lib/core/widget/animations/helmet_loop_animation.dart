@@ -13,11 +13,11 @@ import 'package:flutter/material.dart';
 import '../../../gen/assets.gen.dart';
 
 // ── Palette ──────────────────────────────────────────────────────────────
-const Color kBg = Color(0xFF080B14);
-const Color kAccent = Color(0xFFFFB74D);
+const Color kBg = Color(0xFF0B0E11);
+const Color kAccent = Color(0xFFF5853F);
 final Color kAccentSoft = kAccent.withValues(alpha: .35);
 final Color kAccentFaint = kAccent.withValues(alpha: .14);
-final Color kHazard = const Color(0xFFFFE0B2).withValues(alpha: 0.85);
+final Color kHazard = const Color(0xFFFFD4B8).withValues(alpha: 0.85);
 
 const double kDurationSeconds = 4.5;
 const double kCanvasSize = 800;
