@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widget/tark_mark.dart';
 
 /// Animated logo section with rotating radar arc and pulsing ring.
 ///
@@ -55,7 +56,11 @@ class _LandingLogoState extends State<LandingLogo>
       children: [
         AnimatedBuilder(
           animation: Listenable.merge([_pulseAnimation, _radarController]),
-          child: Icon(Icons.radio, color: AppColors.amber, size: 48),
+          child: TarkMark(
+            size: 48,
+            color: AppColors.amber,
+            colorDim: AppColors.amberDim,
+          ),
           builder: (_, child) => Stack(
             alignment: Alignment.center,
             children: [

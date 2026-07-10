@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widget/tark_mark.dart';
 import '../../../../core/widget/ticker_text.dart';
 import '../manager/walkie_talkie_cubit.dart';
 
@@ -24,7 +25,7 @@ class WalkieHeader extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const _RadioIcon(),
+            const _BrandBadge(),
             const SizedBox(width: 10),
             Text(
               context.getString.app_name,
@@ -74,10 +75,10 @@ class _SettingsButton extends StatelessWidget {
   }
 }
 
-// ── Radio icon ────────────────────────────────────────────────────────────────
+// ── Brand badge ───────────────────────────────────────────────────────────────
 
-class _RadioIcon extends StatelessWidget {
-  const _RadioIcon();
+class _BrandBadge extends StatelessWidget {
+  const _BrandBadge();
 
   @override
   Widget build(BuildContext context) {
@@ -89,7 +90,11 @@ class _RadioIcon extends StatelessWidget {
         shape: BoxShape.circle,
         border: Border.all(color: AppColors.amber.withAlpha(80), width: 1),
       ),
-      child: Icon(Icons.radio, color: AppColors.amber, size: 14),
+      child: TarkMark(
+        size: 14,
+        color: AppColors.amber,
+        colorDim: AppColors.amberDim,
+      ),
     );
   }
 }
