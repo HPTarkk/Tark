@@ -13,6 +13,8 @@ import 'package:audio_io/audio_io.dart' as _i891;
 import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
 import 'package:tark/app/di/di_config.dart' as _i250;
+import 'package:tark/core/settings/settings_repository.dart' as _i349;
+import 'package:tark/core/settings/settings_repository_impl.dart' as _i632;
 import 'package:tark/feature/audio/api/audio_api.dart' as _i138;
 import 'package:tark/feature/audio/data/audio_engine_impl.dart' as _i876;
 import 'package:tark/feature/audio/domain/service/audio_engine.dart' as _i565;
@@ -39,8 +41,8 @@ import 'package:tark/feature/transfer/presentation/manager/bluetooth_connect_cub
     as _i1058;
 import 'package:tark/feature/transfer/presentation/manager/guest_link_cubit.dart'
     as _i1007;
-import 'package:tark/feature/transfer/presentation/manager/hotspot_bridge_cubit.dart'
-    as _i659;
+import 'package:tark/feature/transfer/presentation/manager/wifi_hotspot_cubit.dart'
+    as _i1045;
 import 'package:tark/feature/walkie/presentation/manager/walkie_talkie_cubit.dart'
     as _i496;
 
@@ -54,10 +56,6 @@ extension GetItInjectableX on _i174.GetIt {
     final registerThirdParty = _$RegisterThirdParty();
     final transferModule = _$TransferModule();
     gh.lazySingleton<_i891.AudioIo>(() => registerThirdParty.audioIo);
-    gh.lazySingleton<_i485.BluetoothTransferRepository>(
-      () => _i485.BluetoothTransferRepository(),
-      dispose: (i) => i.dispose(),
-    );
     gh.lazySingleton<_i482.WebRtcTransferRepository>(
       () => _i482.WebRtcTransferRepository(),
       dispose: (i) => i.dispose(),
@@ -66,17 +64,30 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i627.WifiTransferRepositoryImpl(),
       dispose: (i) => i.dispose(),
     );
-    gh.factory<_i659.HotspotBridgeCubit>(
-      () => _i659.HotspotBridgeCubit(gh<_i627.WifiTransferRepositoryImpl>()),
+    gh.factory<_i565.AudioEngine>(
+      () => _i876.AudioEngineImpl(
+        gh<_i891.AudioIo>(),
+        gh<_i349.SettingsRepository>(),
+      ),
+    );
+    gh.lazySingleton<_i485.BluetoothTransferRepository>(
+      () => _i485.BluetoothTransferRepository(gh<_i349.SettingsRepository>()),
+      dispose: (i) => i.dispose(),
+    );
+    gh.lazySingleton<_i349.SettingsRepository>(
+      () => _i632.SettingsRepositoryImpl(),
+    );
+    gh.factory<_i1045.WifiHotspotCubit>(
+      () => _i1045.WifiHotspotCubit(gh<_i627.WifiTransferRepositoryImpl>()),
     );
     gh.lazySingleton<_i517.TransferModeStore>(
       () => _i290.TransferModeStoreImpl(),
     );
-    gh.factory<_i565.AudioEngine>(
-      () => _i876.AudioEngineImpl(gh<_i891.AudioIo>()),
-    );
     gh.factory<_i205.LandingCubit>(
-      () => _i205.LandingCubit(gh<_i430.TransferModeStore>()),
+      () => _i205.LandingCubit(
+        gh<_i430.TransferModeStore>(),
+        gh<_i349.SettingsRepository>(),
+      ),
     );
     gh.factory<_i945.GuestLinkController>(
       () => transferModule.guestLinkController(
@@ -101,13 +112,17 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i138.AudioEngine>(),
         gh<_i430.TransferRepository>(),
         gh<_i430.TransferModeStore>(),
+        gh<_i349.SettingsRepository>(),
+      ),
+    );
+    gh.factory<_i1058.BluetoothConnectCubit>(
+      () => _i1058.BluetoothConnectCubit(
+        gh<_i638.BluetoothTransport>(),
+        gh<_i349.SettingsRepository>(),
       ),
     );
     gh.factory<_i1007.GuestLinkCubit>(
       () => _i1007.GuestLinkCubit(gh<_i945.GuestLinkController>()),
-    );
-    gh.factory<_i1058.BluetoothConnectCubit>(
-      () => _i1058.BluetoothConnectCubit(gh<_i638.BluetoothTransport>()),
     );
     return this;
   }

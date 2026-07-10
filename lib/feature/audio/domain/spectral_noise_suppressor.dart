@@ -76,8 +76,9 @@ class SpectralNoiseSuppressor {
     // latency (one hop) — pad those with leading silence once at stream
     // start; afterwards production and consumption rates are identical.
     final out = List<double>.filled(samples.length, 0.0);
-    final take =
-        _outFifo.length < samples.length ? _outFifo.length : samples.length;
+    final take = _outFifo.length < samples.length
+        ? _outFifo.length
+        : samples.length;
     final offset = samples.length - take;
     for (var i = 0; i < take; i++) {
       out[offset + i] = _outFifo[i];
@@ -198,10 +199,10 @@ class SpectralNoiseSuppressor {
 /// precomputed twiddle factors and bit-reversal table.
 class _Fft {
   _Fft(this.size)
-      : assert((size & (size - 1)) == 0, 'FFT size must be a power of two'),
-        _bitRev = Uint32List(size),
-        _cos = Float64List(size ~/ 2),
-        _sin = Float64List(size ~/ 2) {
+    : assert((size & (size - 1)) == 0, 'FFT size must be a power of two'),
+      _bitRev = Uint32List(size),
+      _cos = Float64List(size ~/ 2),
+      _sin = Float64List(size ~/ 2) {
     for (var i = 1, j = 0; i < size; i++) {
       var bit = size >> 1;
       for (; (j & bit) != 0; bit >>= 1) {

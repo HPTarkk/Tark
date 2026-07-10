@@ -1,9 +1,10 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/settings/settings_repository.dart';
+import '../../../../core/settings/settings_repository_impl.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../audio/api/audio_api.dart';
 
@@ -20,15 +21,14 @@ import '../../../audio/api/audio_api.dart';
 class BackgroundPermissionBanner extends StatefulWidget {
   const BackgroundPermissionBanner({super.key});
 
-  static const _dismissedKey = 'bg_perm_banner_dismissed';
-
   @override
   State<BackgroundPermissionBanner> createState() =>
       _BackgroundPermissionBannerState();
 }
 
-class _BackgroundPermissionBannerState
-    extends State<BackgroundPermissionBanner> with WidgetsBindingObserver {
+class _BackgroundPermissionBannerState extends State<BackgroundPermissionBanner>
+    with WidgetsBindingObserver {
+  final SettingsRepository _settingsRepository = SettingsRepositoryImpl();
   bool _show = false;
   bool _isMiui = false;
 
@@ -57,8 +57,7 @@ class _BackgroundPermissionBannerState
       if (mounted && _show) setState(() => _show = false);
       return;
     }
-    final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool(BackgroundPermissionBanner._dismissedKey) ?? false) {
+    if (await _settingsRepository.getBgPermBannerDismissed()) {
       if (mounted && _show) setState(() => _show = false);
       return;
     }
@@ -73,8 +72,7 @@ class _BackgroundPermissionBannerState
 
   Future<void> _dismiss() async {
     setState(() => _show = false);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(BackgroundPermissionBanner._dismissedKey, true);
+    await _settingsRepository.setBgPermBannerDismissed(true);
   }
 
   @override
@@ -104,8 +102,11 @@ class _BackgroundPermissionBannerState
         children: [
           Row(
             children: [
-              Icon(Icons.battery_saver_rounded,
-                  color: AppColors.amber, size: 18),
+              Icon(
+                Icons.battery_saver_rounded,
+                color: AppColors.amber,
+                size: 18,
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -136,8 +137,8 @@ class _BackgroundPermissionBannerState
               _ActionChip(
                 label: s.background_allow,
                 filled: true,
-                onTap: () => SessionKeepAlive
-                    .requestIgnoreBatteryOptimizations(),
+                onTap: () =>
+                    SessionKeepAlive.requestIgnoreBatteryOptimizations(),
               ),
               if (_isMiui)
                 _ActionChip(

@@ -4,6 +4,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../settings/settings_keys.dart';
 import '../utils/logger.dart';
 import 'sfx_event.dart';
 
@@ -16,15 +17,13 @@ import 'sfx_event.dart';
 class Sfx {
   const Sfx._();
 
-  static const _prefsKey = 'sfx_enabled';
-
   static final enabled = ValueNotifier<bool>(true);
   static final Map<SfxEvent, AudioPlayer> _players = {};
   static bool _ready = false;
 
   static Future<void> initialize() async {
     final prefs = await SharedPreferences.getInstance();
-    enabled.value = prefs.getBool(_prefsKey) ?? true;
+    enabled.value = prefs.getBool(SettingsKeys.sfxEnabled) ?? true;
 
     for (final event in SfxEvent.values) {
       final player = AudioPlayer(playerId: 'sfx_${event.name}');
@@ -43,7 +42,7 @@ class Sfx {
   static Future<void> setEnabled(bool value) async {
     enabled.value = value;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_prefsKey, value);
+    await prefs.setBool(SettingsKeys.sfxEnabled, value);
   }
 
   /// Fire-and-forget: never awaited by callers, and a playback failure
@@ -53,9 +52,11 @@ class Sfx {
     if (!_ready || !enabled.value) return;
     final player = _players[event];
     if (player == null) return;
-    unawaited(player.resume().catchError((Object e) {
-      Logger.log('Sfx playback failed for ${event.name}: $e');
-    }));
+    unawaited(
+      player.resume().catchError((Object e) {
+        Logger.log('Sfx playback failed for ${event.name}: $e');
+      }),
+    );
   }
 
   static Future<void> dispose() async {

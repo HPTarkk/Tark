@@ -5,6 +5,8 @@ import 'package:audio_io/audio_io.dart';
 import 'package:injectable/injectable.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../../core/settings/settings_repository.dart';
+import '../../../core/settings/settings_repository_impl.dart';
 import '../../../core/utils/logger.dart';
 import '../domain/audio_processor.dart';
 import '../domain/entity/audio_engine_status.dart';
@@ -17,9 +19,11 @@ import 'voice_audio_session.dart';
 
 @Injectable(as: AudioEngine)
 class AudioEngineImpl implements AudioEngine {
-  AudioEngineImpl(this._audioIo);
+  AudioEngineImpl(this._audioIo, [SettingsRepository? settingsRepository])
+    : _settingsRepository = settingsRepository ?? SettingsRepositoryImpl();
 
   final AudioIo _audioIo;
+  final SettingsRepository _settingsRepository;
 
   // ── Engine ownership ───────────────────────────────────────────────────
   // AudioIo is a process-wide singleton, but AudioEngineImpl instances come
@@ -46,13 +50,14 @@ class AudioEngineImpl implements AudioEngine {
   }
 
   Future<void> _stopEngineIfOwned() => _withEngineLock(() async {
-        if (_engineEpoch != _myEpoch) return; // newer session owns the engine
-        await _audioIo.stop();
-        await VoiceAudioSession.release();
-      });
+    if (_engineEpoch != _myEpoch) return; // newer session owns the engine
+    await _audioIo.stop();
+    await VoiceAudioSession.release();
+  });
 
-  AudioProcessor _processor =
-      AudioProcessor(sampleRate: kTxSampleRate.toDouble());
+  AudioProcessor _processor = AudioProcessor(
+    sampleRate: kTxSampleRate.toDouble(),
+  );
 
   // Spectral noise suppression on the 16 kHz mic signal, applied BEFORE
   // frames are emitted so both the VOX RMS decision and the visualizer see
@@ -134,7 +139,8 @@ class AudioEngineImpl implements AudioEngine {
     if (!micGranted) {
       if (!_disposed) {
         _setStatus(
-            const AudioEngineStatus(hasPermission: false, isStarted: false));
+          const AudioEngineStatus(hasPermission: false, isStarted: false),
+        );
       }
       return;
     }
@@ -155,8 +161,7 @@ class AudioEngineImpl implements AudioEngine {
       return;
     }
     if (started) {
-      _setStatus(
-          const AudioEngineStatus(hasPermission: true, isStarted: true));
+      _setStatus(const AudioEngineStatus(hasPermission: true, isStarted: true));
       _startWatchdog();
     }
   }
@@ -206,24 +211,34 @@ class AudioEngineImpl implements AudioEngine {
 
       if (inputRate > kTxSampleRate) {
         _txLowPassA = OnePoleLowPass(
-            sampleRate: inputRate, cutoffHz: kTxSampleRate * 0.45);
+          sampleRate: inputRate,
+          cutoffHz: kTxSampleRate * 0.45,
+        );
         _txLowPassB = OnePoleLowPass(
-            sampleRate: inputRate, cutoffHz: kTxSampleRate * 0.45);
+          sampleRate: inputRate,
+          cutoffHz: kTxSampleRate * 0.45,
+        );
       } else {
         _txLowPassA = null;
         _txLowPassB = null;
       }
       _txResampler = LinearResampler(
-          inRate: inputRate, outRate: kTxSampleRate.toDouble());
+        inRate: inputRate,
+        outRate: kTxSampleRate.toDouble(),
+      );
       _txAccum.clear();
 
       _rxResampler = LinearResampler(
-          inRate: kTxSampleRate.toDouble(), outRate: outputRate);
+        inRate: kTxSampleRate.toDouble(),
+        outRate: outputRate,
+      );
 
+      final targetBufferMs = await _settingsRepository.getTargetBufferMs();
       _buffer?.dispose();
       _buffer = AudioPlaybackBuffer(
         output: _audioIo.output,
         sampleRate: outputRate.toInt(),
+        targetBufferMs: targetBufferMs,
       );
     } catch (e) {
       Logger.log('AudioIo start error: $e');
@@ -276,8 +291,10 @@ class AudioEngineImpl implements AudioEngine {
   void _startWatchdog() {
     _watchdog?.cancel();
     _lastInputAt = DateTime.now();
-    _watchdog =
-        Timer.periodic(const Duration(seconds: 2), (_) => _checkStall());
+    _watchdog = Timer.periodic(
+      const Duration(seconds: 2),
+      (_) => _checkStall(),
+    );
   }
 
   Future<void> _checkStall() async {
@@ -291,7 +308,9 @@ class AudioEngineImpl implements AudioEngine {
 
     _restarting = true;
     _lastRestartAt = now;
-    Logger.log('Audio input stalled ${now.difference(_lastInputAt).inMilliseconds}ms — restarting engine');
+    Logger.log(
+      'Audio input stalled ${now.difference(_lastInputAt).inMilliseconds}ms — restarting engine',
+    );
     try {
       await _withEngineLock(() async {
         if (_disposed || _engineEpoch != _myEpoch) return;
@@ -320,6 +339,9 @@ class AudioEngineImpl implements AudioEngine {
     final upsampled = _rxResampler?.process(samples) ?? samples;
     _buffer?.feed(upsampled, seq, senderId);
   }
+
+  @override
+  void resetPlayback() => _buffer?.reset();
 
   // ── dispose ────────────────────────────────────────────────────────────────
 

@@ -13,9 +13,9 @@ class ExponentialBackoff {
     this.initial = const Duration(seconds: 4),
     this.factor = 2,
     this.max = const Duration(seconds: 64),
-  })  : assert(factor >= 1),
-        assert(initial > Duration.zero),
-        _current = initial;
+  }) : assert(factor >= 1),
+       assert(initial > Duration.zero),
+       _current = initial;
 
   final Duration initial;
   final int factor;

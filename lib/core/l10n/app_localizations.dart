@@ -350,6 +350,12 @@ abstract class AppLocalizations {
   /// **'وای‌فای'**
   String get transport_wifi;
 
+  /// No description provided for @transport_wifi_hotspot.
+  ///
+  /// In fa, this message translates to:
+  /// **'وای‌فای / هات‌اسپات'**
+  String get transport_wifi_hotspot;
+
   /// No description provided for @transport_bluetooth.
   ///
   /// In fa, this message translates to:
@@ -608,6 +614,12 @@ abstract class AppLocalizations {
   /// **'اتصال بلوتوث قطع شد — در حال اتصال مجدد...'**
   String get bt_link_reconnecting;
 
+  /// No description provided for @bt_link_down.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتصال بلوتوث قطع شد'**
+  String get bt_link_down;
+
   /// No description provided for @bt_waiting_for_peer.
   ///
   /// In fa, this message translates to:
@@ -661,6 +673,108 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'تلاش مجدد'**
   String get retry;
+
+  /// No description provided for @permissions_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'دسترسی‌ها'**
+  String get permissions_title;
+
+  /// No description provided for @permission_granted.
+  ///
+  /// In fa, this message translates to:
+  /// **'فعال'**
+  String get permission_granted;
+
+  /// No description provided for @permission_grant.
+  ///
+  /// In fa, this message translates to:
+  /// **'فعال‌سازی'**
+  String get permission_grant;
+
+  /// No description provided for @permission_mic_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'میکروفون'**
+  String get permission_mic_title;
+
+  /// No description provided for @permission_mic_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'برای ضبط صدای شما جهت ارسال لازم است.'**
+  String get permission_mic_desc;
+
+  /// No description provided for @permission_bluetooth_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'بلوتوث'**
+  String get permission_bluetooth_title;
+
+  /// No description provided for @permission_bluetooth_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'برای جستجو و اتصال به دستگاه نزدیک در حالت بلوتوث لازم است.'**
+  String get permission_bluetooth_desc;
+
+  /// No description provided for @permission_bt_scan_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'جستجوی دستگاه‌ها'**
+  String get permission_bt_scan_title;
+
+  /// No description provided for @permission_bt_scan_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'دستگاه‌های نزدیک برای اتصال را پیدا می‌کند.'**
+  String get permission_bt_scan_desc;
+
+  /// No description provided for @permission_bt_connect_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتصال'**
+  String get permission_bt_connect_title;
+
+  /// No description provided for @permission_bt_connect_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'با دستگاه دیگر جفت می‌شود و صدا رد و بدل می‌کند.'**
+  String get permission_bt_connect_desc;
+
+  /// No description provided for @permission_bt_advertise_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'اعلام حضور'**
+  String get permission_bt_advertise_title;
+
+  /// No description provided for @permission_bt_advertise_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'هنگام میزبانی، به دستگاه دیگر امکان پیدا کردن شما را می‌دهد.'**
+  String get permission_bt_advertise_desc;
+
+  /// No description provided for @permission_hotspot_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'موقعیت مکانی و وای‌فای اطراف'**
+  String get permission_hotspot_title;
+
+  /// No description provided for @permission_hotspot_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'اندروید برای میزبانی هات‌اسپات محلی به این دسترسی نیاز دارد.'**
+  String get permission_hotspot_desc;
+
+  /// No description provided for @permission_battery_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'معافیت از بهینه‌سازی باتری'**
+  String get permission_battery_title;
+
+  /// No description provided for @permission_battery_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'کانال را وقتی صفحه خاموش است زنده نگه می‌دارد — بدون آن ممکن است سیستم‌عامل برنامه را در میانه مسیر متوقف کند.'**
+  String get permission_battery_desc;
 
   /// No description provided for @bt_connection_failed.
   ///
@@ -722,6 +836,12 @@ abstract class AppLocalizations {
   /// **'اتصال قطع شد — در حال اتصال مجدد...'**
   String get link_reconnecting;
 
+  /// No description provided for @link_down.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتصال قطع شد'**
+  String get link_down;
+
   /// No description provided for @transport_hotspot.
   ///
   /// In fa, this message translates to:
@@ -733,6 +853,18 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'پل هات‌اسپات'**
   String get hotspot_title;
+
+  /// No description provided for @wifi_only_instructions.
+  ///
+  /// In fa, this message translates to:
+  /// **'همین حالا در یک وای‌فای مشترک هستید؟ نیازی به تنظیم نیست — فقط وارد کانال شوید.'**
+  String get wifi_only_instructions;
+
+  /// No description provided for @wifi_only_step_same_network.
+  ///
+  /// In fa, this message translates to:
+  /// **'مطمئن شوید هر دو دستگاه به یک شبکه وای‌فای متصل هستند.'**
+  String get wifi_only_step_same_network;
 
   /// No description provided for @hotspot_not_supported.
   ///
@@ -905,13 +1037,13 @@ abstract class AppLocalizations {
   /// No description provided for @settings_section_identity.
   ///
   /// In fa, this message translates to:
-  /// **'هویت'**
+  /// **'پروفایل'**
   String get settings_section_identity;
 
   /// No description provided for @settings_section_voice.
   ///
   /// In fa, this message translates to:
-  /// **'صدا'**
+  /// **'صدا و میکروفون'**
   String get settings_section_voice;
 
   /// No description provided for @settings_section_sound.
@@ -931,6 +1063,12 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'اتصال'**
   String get settings_section_connection;
+
+  /// No description provided for @settings_section_startup.
+  ///
+  /// In fa, this message translates to:
+  /// **'شروع برنامه'**
+  String get settings_section_startup;
 
   /// No description provided for @settings_applies_live.
   ///
@@ -955,6 +1093,126 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'رد شدن از این صفحه و ازسرگیری آخرین کانال هنگام باز کردن اپ'**
   String get settings_quick_access_desc;
+
+  /// No description provided for @settings_delay.
+  ///
+  /// In fa, this message translates to:
+  /// **'تأخیر پخش'**
+  String get settings_delay;
+
+  /// No description provided for @settings_delay_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'میزان بافر صدای ورودی پیش از پخش — مقدار بیشتر، اتصال ناپایدار را صاف‌تر می‌کند اما تأخیر را افزایش می‌دهد.'**
+  String get settings_delay_desc;
+
+  /// No description provided for @settings_restore_defaults.
+  ///
+  /// In fa, this message translates to:
+  /// **'بازگردانی پیش‌فرض‌ها'**
+  String get settings_restore_defaults;
+
+  /// No description provided for @settings_restore_defaults_done.
+  ///
+  /// In fa, this message translates to:
+  /// **'تنظیمات صدا به حالت پیش‌فرض بازگشت'**
+  String get settings_restore_defaults_done;
+
+  /// No description provided for @settings_auto_reconnect.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتصال مجدد خودکار'**
+  String get settings_auto_reconnect;
+
+  /// No description provided for @settings_auto_reconnect_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'هنگام قطعی اتصال به‌جای تلاش مجدد دستی، به‌صورت خودکار دوباره متصل شو'**
+  String get settings_auto_reconnect_desc;
+
+  /// No description provided for @settings_permissions_row.
+  ///
+  /// In fa, this message translates to:
+  /// **'دسترسی‌ها'**
+  String get settings_permissions_row;
+
+  /// No description provided for @settings_permissions_row_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'بررسی و مدیریت دسترسی‌های برنامه'**
+  String get settings_permissions_row_desc;
+
+  /// No description provided for @settings_wifi_hotspot_row.
+  ///
+  /// In fa, this message translates to:
+  /// **'تنظیم وای‌فای / هات‌اسپات'**
+  String get settings_wifi_hotspot_row;
+
+  /// No description provided for @settings_wifi_hotspot_row_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'میزبانی هات‌اسپات یا مشاهده مراحل اتصال به وای‌فای'**
+  String get settings_wifi_hotspot_row_desc;
+
+  /// No description provided for @settings_skip_splash.
+  ///
+  /// In fa, this message translates to:
+  /// **'رد کردن صفحه آغازین'**
+  String get settings_skip_splash;
+
+  /// No description provided for @settings_skip_splash_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'مستقیم به برنامه بروید هنگام باز شدن'**
+  String get settings_skip_splash_desc;
+
+  /// No description provided for @usage_tips_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'بیشترین بهره را از تارک ببرید'**
+  String get usage_tips_title;
+
+  /// No description provided for @usage_tips_1_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'از هدست ANC یا هندزفری استفاده کنید'**
+  String get usage_tips_1_title;
+
+  /// No description provided for @usage_tips_1_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'حذف نویز فعال شنیدن کانال را در میان صدای باد و موتور بسیار آسان‌تر می‌کند — و دست‌های شما هنگام رانندگی آزاد می‌ماند.'**
+  String get usage_tips_1_body;
+
+  /// No description provided for @usage_tips_2_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'همیشه کلاه ایمنی مناسب بپوشید'**
+  String get usage_tips_2_title;
+
+  /// No description provided for @usage_tips_2_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'ایمنی در اولویت است — کلاه ایمنی مناسب همچنین هدست را نزدیک‌تر به گوش شما قرار می‌دهد و صدا را واضح‌تر می‌کند.'**
+  String get usage_tips_2_body;
+
+  /// No description provided for @usage_tips_3_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'میکروفون شما به‌طور پیش‌فرض هندزفری است'**
+  String get usage_tips_3_title;
+
+  /// No description provided for @usage_tips_3_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'حساسیت صدا به‌طور کامل باز شروع می‌شود و حذف نویز کار را انجام می‌دهد، پس هیچ‌وقت لازم نیست چیزی را فشار دهید تا صحبت کنید. هر دو را هر زمان در تنظیمات تنظیم کنید.'**
+  String get usage_tips_3_body;
+
+  /// No description provided for @usage_tips_dismiss.
+  ///
+  /// In fa, this message translates to:
+  /// **'متوجه شدم'**
+  String get usage_tips_dismiss;
 
   /// No description provided for @settings_gear_tooltip.
   ///

@@ -2,9 +2,10 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/settings/settings_repository.dart';
+import '../../../../core/settings/settings_repository_impl.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../core/widget/section_header.dart';
@@ -55,7 +56,9 @@ class MusicCastSection extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: live
                         ? Color.alphaBlend(
-                            AppColors.amber.withAlpha(14), AppColors.card)
+                            AppColors.amber.withAlpha(14),
+                            AppColors.card,
+                          )
                         : AppColors.card,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
@@ -80,9 +83,7 @@ class MusicCastSection extends StatelessWidget {
                     alignment: Alignment.topCenter,
                     child: live
                         ? const _LiveBody()
-                        : _IdleBody(
-                            starting: state.isStartingSystemAudio,
-                          ),
+                        : _IdleBody(starting: state.isStartingSystemAudio),
                   ),
                 );
               },
@@ -127,7 +128,7 @@ class _IdleBody extends StatelessWidget {
           onTap: starting
               ? null
               : () =>
-                  context.read<WalkieTalkieCubit>().toggleShareSystemAudio(),
+                    context.read<WalkieTalkieCubit>().toggleShareSystemAudio(),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             width: double.infinity,
@@ -153,8 +154,11 @@ class _IdleBody extends StatelessWidget {
                     ),
                   )
                 else
-                  Icon(Icons.podcasts_rounded,
-                      color: AppColors.amber, size: 17),
+                  Icon(
+                    Icons.podcasts_rounded,
+                    color: AppColors.amber,
+                    size: 17,
+                  ),
                 const SizedBox(width: 10),
                 Text(
                   starting ? s.music_cast_starting : s.music_cast_start,
@@ -194,8 +198,10 @@ class _LiveBody extends StatelessWidget {
             GestureDetector(
               onTap: () => cubit.toggleShareSystemAudio(),
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.red.withAlpha(20),
                   borderRadius: BorderRadius.circular(10),
@@ -249,8 +255,9 @@ class _LiveBody extends StatelessWidget {
                                 child: Text(
                                   s.music_cast_silent,
                                   style: TextStyle(
-                                    color: AppColors.textSecondary
-                                        .withAlpha(180),
+                                    color: AppColors.textSecondary.withAlpha(
+                                      180,
+                                    ),
                                     fontSize: 11,
                                   ),
                                 ),
@@ -281,8 +288,6 @@ class _LiveBody extends StatelessWidget {
 class _NotificationAccessHint extends StatefulWidget {
   const _NotificationAccessHint();
 
-  static const _dismissedKey = 'music_cast_notif_hint_dismissed';
-
   @override
   State<_NotificationAccessHint> createState() =>
       _NotificationAccessHintState();
@@ -290,6 +295,7 @@ class _NotificationAccessHint extends StatefulWidget {
 
 class _NotificationAccessHintState extends State<_NotificationAccessHint>
     with WidgetsBindingObserver {
+  final SettingsRepository _settingsRepository = SettingsRepositoryImpl();
   bool _show = false;
 
   @override
@@ -311,8 +317,7 @@ class _NotificationAccessHintState extends State<_NotificationAccessHint>
   }
 
   Future<void> _check() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool(_NotificationAccessHint._dismissedKey) ?? false) {
+    if (await _settingsRepository.getMusicCastNotifHintDismissed()) {
       if (mounted && _show) setState(() => _show = false);
       return;
     }
@@ -323,8 +328,7 @@ class _NotificationAccessHintState extends State<_NotificationAccessHint>
 
   Future<void> _dismiss() async {
     setState(() => _show = false);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_NotificationAccessHint._dismissedKey, true);
+    await _settingsRepository.setMusicCastNotifHintDismissed(true);
   }
 
   @override
@@ -394,23 +398,14 @@ class _MusicBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.amber.withAlpha(active ? 40 : 20),
         borderRadius: BorderRadius.circular(11),
-        border: Border.all(
-          color: AppColors.amber.withAlpha(active ? 160 : 70),
-        ),
+        border: Border.all(color: AppColors.amber.withAlpha(active ? 160 : 70)),
         boxShadow: active
-            ? [
-                BoxShadow(
-                  color: AppColors.amber.withAlpha(60),
-                  blurRadius: 12,
-                ),
-              ]
+            ? [BoxShadow(color: AppColors.amber.withAlpha(60), blurRadius: 12)]
             : null,
       ),
       child: Icon(
         Icons.music_note_rounded,
-        color: active
-            ? AppColors.amber
-            : AppColors.amber.withAlpha(170),
+        color: active ? AppColors.amber : AppColors.amber.withAlpha(170),
         size: 20,
       ),
     );
@@ -442,9 +437,10 @@ class _OnAirTagState extends State<_OnAirTag>
   Widget build(BuildContext context) {
     final s = context.getString;
     return FadeTransition(
-      opacity: Tween<double>(begin: 1.0, end: 0.45).animate(
-        CurvedAnimation(parent: _pulse, curve: Curves.easeInOut),
-      ),
+      opacity: Tween<double>(
+        begin: 1.0,
+        end: 0.45,
+      ).animate(CurvedAnimation(parent: _pulse, curve: Curves.easeInOut)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -511,9 +507,8 @@ class _EqualizerBars extends StatelessWidget {
     // silhouette looks like a spectrum instead of a flat wall.
     final envelope = sin(pi * index / (_barCount - 1));
     final jitter = 0.55 + 0.45 * (((index * 7919) % 100) / 100);
-    final height =
-        (3.0 + drive * envelope * jitter * (_maxBarHeight - 3.0))
-            .clamp(3.0, _maxBarHeight);
+    final height = (3.0 + drive * envelope * jitter * (_maxBarHeight - 3.0))
+        .clamp(3.0, _maxBarHeight);
     final lit = drive > 0.02;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 150),
@@ -544,8 +539,11 @@ class _MixLevelControl extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.tune_rounded,
-                    color: AppColors.textSecondary, size: 14),
+                Icon(
+                  Icons.tune_rounded,
+                  color: AppColors.textSecondary,
+                  size: 14,
+                ),
                 const SizedBox(width: 6),
                 Text(
                   s.music_cast_mix,
@@ -558,8 +556,10 @@ class _MixLevelControl extends StatelessWidget {
                 ),
                 const Spacer(),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.border,
                     borderRadius: BorderRadius.circular(6),
@@ -583,10 +583,8 @@ class _MixLevelControl extends StatelessWidget {
                 inactiveTrackColor: AppColors.border,
                 thumbColor: AppColors.amber,
                 overlayColor: AppColors.amber.withAlpha(40),
-                thumbShape:
-                    const RoundSliderThumbShape(enabledThumbRadius: 9),
-                overlayShape:
-                    const RoundSliderOverlayShape(overlayRadius: 18),
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
+                overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
               ),
               child: Slider(
                 value: state.musicGain,

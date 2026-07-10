@@ -68,7 +68,8 @@
 
   // ── Hero cursor spotlight ─────────────────────────────────────────
   const hero = document.querySelector('.hero');
-  if (hero && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (hero && !reducedMotion) {
     hero.addEventListener('pointermove', (e) => {
       const rect = hero.getBoundingClientRect();
       hero.style.setProperty('--mx', ((e.clientX - rect.left) / rect.width) * 100 + '%');
@@ -76,22 +77,36 @@
     });
   }
 
-  // ── Card tilt + shine ──────────────────────────────────────────────
-  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    document.querySelectorAll('.card').forEach((card) => {
-      card.addEventListener('pointermove', (e) => {
-        const rect = card.getBoundingClientRect();
-        const px = (e.clientX - rect.left) / rect.width;
-        const py = (e.clientY - rect.top) / rect.height;
-        card.style.setProperty('--mx', px * 100 + '%');
-        card.style.setProperty('--my', py * 100 + '%');
-        card.style.setProperty('--rx', (0.5 - py) * 8 + 'deg');
-        card.style.setProperty('--ry', (px - 0.5) * 10 + 'deg');
-      });
-      card.addEventListener('pointerleave', () => {
-        card.style.setProperty('--rx', '0deg');
-        card.style.setProperty('--ry', '0deg');
-      });
+  // ── Scroll parallax: hero rings/spotlight + tech-grid background ──
+  const techSection = document.querySelector('.tech');
+  if (!reducedMotion && (hero || techSection)) {
+    const onScrollParallax = () => {
+      if (hero) {
+        hero.style.setProperty('--parallax', window.scrollY * 0.12 + 'px');
+      }
+      if (techSection) {
+        techSection.style.setProperty('--tech-parallax', window.scrollY * -0.06 + 'px');
+      }
+    };
+    window.addEventListener('scroll', onScrollParallax, { passive: true });
+    onScrollParallax();
+  }
+
+  // ── Card tilt + shine (first card only — the rest just lift on hover) ──
+  const tiltCard = document.querySelector('.card');
+  if (tiltCard && !reducedMotion) {
+    tiltCard.addEventListener('pointermove', (e) => {
+      const rect = tiltCard.getBoundingClientRect();
+      const px = (e.clientX - rect.left) / rect.width;
+      const py = (e.clientY - rect.top) / rect.height;
+      tiltCard.style.setProperty('--mx', px * 100 + '%');
+      tiltCard.style.setProperty('--my', py * 100 + '%');
+      tiltCard.style.setProperty('--rx', (0.5 - py) * 8 + 'deg');
+      tiltCard.style.setProperty('--ry', (px - 0.5) * 10 + 'deg');
+    });
+    tiltCard.addEventListener('pointerleave', () => {
+      tiltCard.style.setProperty('--rx', '0deg');
+      tiltCard.style.setProperty('--ry', '0deg');
     });
   }
 
@@ -149,17 +164,34 @@
   const langBtn = document.getElementById('langToggle');
   const translatable = document.querySelectorAll('[data-en]');
 
-  function applyLang(lang) {
-    document.documentElement.lang = lang;
-    document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr';
-    translatable.forEach((el) => {
-      const text = el.dataset[lang];
-      if (text) el.textContent = text;
-    });
-    langBtn.textContent = lang === 'fa' ? 'English' : 'فارسی';
-    try {
-      localStorage.setItem('tark_lang', lang);
-    } catch (_) {}
+  function applyLang(lang, instant) {
+    const swap = () => {
+      document.documentElement.lang = lang;
+      document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr';
+      translatable.forEach((el) => {
+        const text = el.dataset[lang];
+        if (text) el.textContent = text;
+      });
+      langBtn.textContent = lang === 'fa' ? 'English' : 'فارسی';
+      try {
+        localStorage.setItem('tark_lang', lang);
+      } catch (_) {}
+    };
+
+    // The ltr/rtl flip can't be animated directly, so it happens while
+    // everything is faded to transparent — reads as a cross-fade instead
+    // of a jump-cut. Skipped on the initial page load (instant) and for
+    // reduced-motion, where it would just be a pointless delay.
+    if (instant || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      swap();
+      return;
+    }
+    const fading = [...translatable, langBtn];
+    fading.forEach((el) => el.classList.add('i18n-fading'));
+    window.setTimeout(() => {
+      swap();
+      fading.forEach((el) => el.classList.remove('i18n-fading'));
+    }, 180);
   }
 
   langBtn.addEventListener('click', () => {
@@ -171,5 +203,5 @@
     saved = localStorage.getItem('tark_lang');
   } catch (_) {}
   // Default to Persian on first visit; honour an explicit saved choice after.
-  applyLang(saved === 'en' ? 'en' : 'fa');
+  applyLang(saved === 'en' ? 'en' : 'fa', true);
 })();

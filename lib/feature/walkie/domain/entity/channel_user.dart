@@ -18,13 +18,12 @@ class ChannelUser extends Equatable {
     String? name,
     bool? isTalking,
     DateTime? lastSeen,
-  }) =>
-      ChannelUser(
-        id: id ?? this.id,
-        name: name ?? this.name,
-        isTalking: isTalking ?? this.isTalking,
-        lastSeen: lastSeen ?? this.lastSeen,
-      );
+  }) => ChannelUser(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    isTalking: isTalking ?? this.isTalking,
+    lastSeen: lastSeen ?? this.lastSeen,
+  );
 
   @override
   List<Object?> get props => [id, name, isTalking, lastSeen];

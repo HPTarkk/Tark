@@ -91,6 +91,7 @@ flutter:
   assets:
     - assets/icon/
     - assets/sfx/
+    - assets/image/
 
   fonts:
     - family: Vazirmatn

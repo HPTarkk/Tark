@@ -20,22 +20,19 @@ class GuestLinkCubit extends Cubit<GuestLinkPageState> {
   StreamSubscription<GuestLinkState>? _linkSub;
 
   GuestLinkCubit(this._link) : super(GuestLinkPageState.initial()) {
-    _linkSub = _link.linkState.listen(
-      (s) {
-        switch (s) {
-          case GuestLinkState.awaitingPeer:
-            Sfx.play(SfxEvent.toggle);
-          case GuestLinkState.connected:
-            Sfx.play(SfxEvent.peerJoin);
-          case GuestLinkState.failed:
-            Sfx.play(SfxEvent.error);
-          default:
-            break;
-        }
-        emit(state.copyWith(link: s));
-      },
-      onError: (Object e) => Logger.log('Guest link state error: $e'),
-    );
+    _linkSub = _link.linkState.listen((s) {
+      switch (s) {
+        case GuestLinkState.awaitingPeer:
+          Sfx.play(SfxEvent.toggle);
+        case GuestLinkState.connected:
+          Sfx.play(SfxEvent.peerJoin);
+        case GuestLinkState.failed:
+          Sfx.play(SfxEvent.error);
+        default:
+          break;
+      }
+      emit(state.copyWith(link: s));
+    }, onError: (Object e) => Logger.log('Guest link state error: $e'));
     createInvite();
   }
 
@@ -78,10 +75,8 @@ class GuestLinkPageState extends Equatable {
 
   const GuestLinkPageState({required this.link, required this.inviteUrl});
 
-  factory GuestLinkPageState.initial() => const GuestLinkPageState(
-        link: GuestLinkState.idle,
-        inviteUrl: '',
-      );
+  factory GuestLinkPageState.initial() =>
+      const GuestLinkPageState(link: GuestLinkState.idle, inviteUrl: '');
 
   GuestLinkPageState copyWith({GuestLinkState? link, String? inviteUrl}) =>
       GuestLinkPageState(

@@ -47,8 +47,9 @@ class _GuestJoinPageState extends State<GuestJoinPage> {
 
   Future<void> _answer() async {
     final fragment = Uri.base.fragment;
-    final payload =
-        fragment.startsWith('o=') ? extractSdpPayload(fragment) : null;
+    final payload = fragment.startsWith('o=')
+        ? extractSdpPayload(fragment)
+        : null;
     if (payload == null || payload.isEmpty) {
       setState(() => _noOffer = true);
       return;
@@ -97,7 +98,11 @@ class _GuestJoinPageState extends State<GuestJoinPage> {
                       constraints: const BoxConstraints(maxWidth: 460),
                       child: Padding(
                         padding: EdgeInsets.fromLTRB(
-                            20, isConsole ? 16 : 60, 20, 28),
+                          20,
+                          isConsole ? 16 : 60,
+                          20,
+                          28,
+                        ),
                         child: AnimatedSwitcher(
                           duration: const Duration(milliseconds: 350),
                           child: KeyedSubtree(
@@ -295,11 +300,11 @@ class _WaitingDotsState extends State<_WaitingDots>
           for (var i = 0; i < 3; i++) ...[
             if (i > 0) const SizedBox(width: 7),
             Opacity(
-              opacity: 0.25 +
+              opacity:
+                  0.25 +
                   0.75 *
                       (0.5 +
-                          0.5 *
-                              sin(2 * pi * (_controller.value - i * 0.18))),
+                          0.5 * sin(2 * pi * (_controller.value - i * 0.18))),
               child: Container(
                 width: 7,
                 height: 7,
@@ -365,10 +370,7 @@ class _StartAudioButton extends StatelessWidget {
               color: AppColors.green.withAlpha(26),
               border: Border.all(color: AppColors.green, width: 2),
               boxShadow: [
-                BoxShadow(
-                  color: AppColors.green.withAlpha(70),
-                  blurRadius: 26,
-                ),
+                BoxShadow(color: AppColors.green.withAlpha(70), blurRadius: 26),
               ],
             ),
             child: Icon(Icons.check_rounded, color: AppColors.green, size: 42),
@@ -425,8 +427,11 @@ class _StartAudioButton extends StatelessWidget {
                 : Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.headset_mic_rounded,
-                          color: AppColors.amber, size: 19),
+                      Icon(
+                        Icons.headset_mic_rounded,
+                        color: AppColors.amber,
+                        size: 19,
+                      ),
                       const SizedBox(width: 10),
                       Text(
                         context.getString.guest_web_start_audio,

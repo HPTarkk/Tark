@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../settings/settings_keys.dart';
+
 enum AppThemeMode { dark, light }
 
 class ThemeService {
@@ -12,14 +14,13 @@ class ThemeService {
 
   static Future<void> initialize() async {
     final prefs = await SharedPreferences.getInstance();
-    final stored = prefs.getString('app_theme');
-    _mode.value =
-        stored == 'light' ? AppThemeMode.light : AppThemeMode.dark;
+    final stored = prefs.getString(SettingsKeys.appTheme);
+    _mode.value = stored == 'light' ? AppThemeMode.light : AppThemeMode.dark;
   }
 
   static Future<void> setMode(AppThemeMode mode) async {
     _mode.value = mode;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('app_theme', mode.name);
+    await prefs.setString(SettingsKeys.appTheme, mode.name);
   }
 }

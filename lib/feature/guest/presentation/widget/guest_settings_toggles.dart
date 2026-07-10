@@ -4,6 +4,7 @@ import '../../../../core/locale/locale_service.dart';
 import '../../../../core/sfx/sfx_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/theme_service.dart';
+import '../../../../core/widget/theme_reveal_transition.dart';
 
 /// Language + theme + sound-feedback toggle chips for the web guest app.
 /// Shared by the QR phases (floating, top corner) and the connected console
@@ -23,15 +24,24 @@ class GuestSettingsToggles extends StatelessWidget {
       children: [
         _ToggleChip(
           label: isFa ? 'EN' : 'فا',
-          onTap: () => LocaleService.setLocale(Locale(isFa ? 'en' : 'fa')),
+          onTapDown: (details) => AppRevealController.reveal(
+            context: context,
+            origin: details.globalPosition,
+            applyChange: () =>
+                LocaleService.setLocale(Locale(isFa ? 'en' : 'fa')),
+          ),
         ),
         const SizedBox(width: 8),
         _ToggleChip(
           icon: ThemeService.isLight
               ? Icons.dark_mode_rounded
               : Icons.light_mode_rounded,
-          onTap: () => ThemeService.setMode(
-            ThemeService.isLight ? AppThemeMode.dark : AppThemeMode.light,
+          onTapDown: (details) => AppRevealController.reveal(
+            context: context,
+            origin: details.globalPosition,
+            applyChange: () => ThemeService.setMode(
+              ThemeService.isLight ? AppThemeMode.dark : AppThemeMode.light,
+            ),
           ),
         ),
         const SizedBox(width: 8),
@@ -39,7 +49,7 @@ class GuestSettingsToggles extends StatelessWidget {
           valueListenable: Sfx.enabled,
           builder: (context, enabled, _) => _ToggleChip(
             icon: enabled ? Icons.volume_up_rounded : Icons.volume_off_rounded,
-            onTap: () => Sfx.setEnabled(!enabled),
+            onTapDown: (_) => Sfx.setEnabled(!enabled),
           ),
         ),
       ],
@@ -50,14 +60,14 @@ class GuestSettingsToggles extends StatelessWidget {
 class _ToggleChip extends StatelessWidget {
   final String? label;
   final IconData? icon;
-  final VoidCallback onTap;
+  final GestureTapDownCallback onTapDown;
 
-  const _ToggleChip({this.label, this.icon, required this.onTap});
+  const _ToggleChip({this.label, this.icon, required this.onTapDown});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTapDown: onTapDown,
       child: Container(
         width: 40,
         height: 34,

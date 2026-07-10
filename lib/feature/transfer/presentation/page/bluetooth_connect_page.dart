@@ -10,6 +10,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widget/permission_tile.dart';
 import '../../domain/entity/bluetooth_connection_state.dart';
 import '../../domain/entity/bluetooth_peer.dart';
 import '../../domain/entity/bluetooth_role.dart';
@@ -23,7 +24,12 @@ import '../manager/bluetooth_connect_cubit.dart';
 Future<void> _switchToHotspot(BuildContext context) async {
   context.read<BluetoothConnectCubit>().backToRoleSelection();
   await GetIt.instance<TransferModeStore>().setMode(TransferMode.hotspot);
-  if (context.mounted) context.goNamed(AppRoutes.hotspotBridgeName);
+  if (context.mounted) {
+    context.goNamed(
+      AppRoutes.wifiHotspotName,
+      queryParameters: const {'mode': 'hotspot'},
+    );
+  }
 }
 
 class BluetoothConnectPage extends StatefulWidget {
@@ -88,14 +94,18 @@ class _BluetoothConnectPageState extends State<BluetoothConnectPage> {
             }
           },
         ),
-        title: Text(s.transport_bluetooth, style: TextStyle(color: AppColors.textPrimary, fontSize: 16)),
+        title: Text(
+          s.transport_bluetooth,
+          style: TextStyle(color: AppColors.textPrimary, fontSize: 16),
+        ),
       ),
       body: SafeArea(
         child: Align(
           alignment: Alignment.topCenter,
           child: BlocConsumer<BluetoothConnectCubit, BluetoothConnectState>(
             listener: (context, state) async {
-              if (state.connectionState == BluetoothConnectionState.connected && !_navigatingToWalkie) {
+              if (state.connectionState == BluetoothConnectionState.connected &&
+                  !_navigatingToWalkie) {
                 // Let the success check land before jumping to the channel.
                 setState(() => _navigatingToWalkie = true);
                 await Future<void>.delayed(const Duration(milliseconds: 900));
@@ -106,16 +116,27 @@ class _BluetoothConnectPageState extends State<BluetoothConnectPage> {
               // Android runs Classic RFCOMM + BLE; iOS runs BLE. Anything
               // else (desktop, web) has no Bluetooth transport.
               if (!Platform.isAndroid && !Platform.isIOS) {
-                return _Message(icon: Icons.bluetooth_disabled_rounded, text: s.bt_not_supported_platform);
+                return _Message(
+                  icon: Icons.bluetooth_disabled_rounded,
+                  text: s.bt_not_supported_platform,
+                );
               }
               if (_permissionDenied) {
-                return _PermissionDenied(onOpenSettings: openAppSettings, onRetry: _ensurePermissions);
+                return _PermissionDenied(
+                  onOpenSettings: openAppSettings,
+                  onRetry: _ensurePermissions,
+                );
               }
-              if (state.connectionState == BluetoothConnectionState.connected || _navigatingToWalkie) {
+              if (state.connectionState == BluetoothConnectionState.connected ||
+                  _navigatingToWalkie) {
                 return const _ConnectedFlash();
               }
               if (state.connectionState == BluetoothConnectionState.error) {
-                return _ErrorCard(onRetry: () => context.read<BluetoothConnectCubit>().backToRoleSelection());
+                return _ErrorCard(
+                  onRetry: () => context
+                      .read<BluetoothConnectCubit>()
+                      .backToRoleSelection(),
+                );
               }
               if (state.role == null) {
                 return _RoleSelection(onEnsurePermissions: _ensurePermissions);
@@ -142,7 +163,9 @@ class _RoleSelection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
-    final lastPeer = context.select((BluetoothConnectCubit c) => c.state.lastPeer);
+    final lastPeer = context.select(
+      (BluetoothConnectCubit c) => c.state.lastPeer,
+    );
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
@@ -222,12 +245,20 @@ class _WifiBridgeHint extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.phone_iphone_rounded, color: AppColors.amber, size: 18),
+              Icon(
+                Icons.phone_iphone_rounded,
+                color: AppColors.amber,
+                size: 18,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   message,
-                  style: TextStyle(color: AppColors.textSecondary, fontSize: 11.5, height: 1.45),
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 11.5,
+                    height: 1.45,
+                  ),
                 ),
               ),
             ],
@@ -241,12 +272,19 @@ class _WifiBridgeHint extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.amber.withAlpha(25),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.amber.withAlpha(120), width: 1.5),
+                border: Border.all(
+                  color: AppColors.amber.withAlpha(120),
+                  width: 1.5,
+                ),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.wifi_tethering_rounded, color: AppColors.amber, size: 16),
+                  Icon(
+                    Icons.wifi_tethering_rounded,
+                    color: AppColors.amber,
+                    size: 16,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     s.bt_use_wifi_bridge,
@@ -273,7 +311,12 @@ class _RoleCard extends StatelessWidget {
   final String description;
   final VoidCallback onTap;
 
-  const _RoleCard({required this.icon, required this.title, required this.description, required this.onTap});
+  const _RoleCard({
+    required this.icon,
+    required this.title,
+    required this.description,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -315,7 +358,11 @@ class _RoleCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     description,
-                    style: TextStyle(color: AppColors.textSecondary, fontSize: 11.5, height: 1.4),
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 11.5,
+                      height: 1.4,
+                    ),
                   ),
                 ],
               ),
@@ -371,7 +418,11 @@ class _ReconnectCard extends StatelessWidget {
                   const SizedBox(height: 3),
                   Text(
                     peer.name,
-                    style: TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700),
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
@@ -412,7 +463,8 @@ class _HostBeacon extends StatefulWidget {
   State<_HostBeacon> createState() => _HostBeaconState();
 }
 
-class _HostBeaconState extends State<_HostBeacon> with SingleTickerProviderStateMixin {
+class _HostBeaconState extends State<_HostBeacon>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _ripple = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 2400),
@@ -438,7 +490,10 @@ class _HostBeaconState extends State<_HostBeacon> with SingleTickerProviderState
             child: AnimatedBuilder(
               animation: _ripple,
               builder: (context, _) => CustomPaint(
-                painter: _BeaconPainter(t: _ripple.value, color: AppColors.amber),
+                painter: _BeaconPainter(
+                  t: _ripple.value,
+                  color: AppColors.amber,
+                ),
                 child: Center(
                   child: Container(
                     width: 76,
@@ -447,9 +502,18 @@ class _HostBeaconState extends State<_HostBeacon> with SingleTickerProviderState
                       shape: BoxShape.circle,
                       color: AppColors.amber.withAlpha(30),
                       border: Border.all(color: AppColors.amber.withAlpha(170)),
-                      boxShadow: [BoxShadow(color: AppColors.amber.withAlpha(70), blurRadius: 24)],
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.amber.withAlpha(70),
+                          blurRadius: 24,
+                        ),
+                      ],
                     ),
-                    child: Icon(Icons.podcasts_rounded, color: AppColors.amber, size: 34),
+                    child: Icon(
+                      Icons.podcasts_rounded,
+                      color: AppColors.amber,
+                      size: 34,
+                    ),
                   ),
                 ),
               ),
@@ -492,7 +556,11 @@ class _HostBeaconState extends State<_HostBeacon> with SingleTickerProviderState
                   const SizedBox(width: 8),
                   Text(
                     widget.state.myName,
-                    style: TextStyle(color: AppColors.amber, fontSize: 13, fontWeight: FontWeight.w800),
+                    style: TextStyle(
+                      color: AppColors.amber,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ],
               ),
@@ -544,7 +612,8 @@ class _JoinerRadar extends StatefulWidget {
   State<_JoinerRadar> createState() => _JoinerRadarState();
 }
 
-class _JoinerRadarState extends State<_JoinerRadar> with SingleTickerProviderStateMixin {
+class _JoinerRadarState extends State<_JoinerRadar>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _sweep = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 3600),
@@ -608,7 +677,9 @@ class _JoinerRadarState extends State<_JoinerRadar> with SingleTickerProviderSta
                         isConnecting: state.connectingPeerId == peer.id,
                         enabled: !connecting,
                         connectingLabel: s.bt_connecting,
-                        onTap: () => context.read<BluetoothConnectCubit>().connectTo(peer),
+                        onTap: () => context
+                            .read<BluetoothConnectCubit>()
+                            .connectTo(peer),
                       );
                     },
                   ),
@@ -647,8 +718,16 @@ class _RadarPainter extends CustomPainter {
     for (final f in [1.0, 0.66, 0.33]) {
       canvas.drawCircle(center, radius * f, gridPaint);
     }
-    canvas.drawLine(center.translate(-radius, 0), center.translate(radius, 0), gridPaint);
-    canvas.drawLine(center.translate(0, -radius), center.translate(0, radius), gridPaint);
+    canvas.drawLine(
+      center.translate(-radius, 0),
+      center.translate(radius, 0),
+      gridPaint,
+    );
+    canvas.drawLine(
+      center.translate(0, -radius),
+      center.translate(0, radius),
+      gridPaint,
+    );
 
     // Rotating sweep wedge with a fading tail.
     final angle = sweep * 2 * pi;
@@ -674,7 +753,10 @@ class _RadarPainter extends CustomPainter {
     canvas.restore();
 
     // Leading edge of the sweep.
-    final edge = Offset(center.dx + cos(angle + pi / 2) * radius, center.dy + sin(angle + pi / 2) * radius);
+    final edge = Offset(
+      center.dx + cos(angle + pi / 2) * radius,
+      center.dy + sin(angle + pi / 2) * radius,
+    );
     canvas.drawLine(
       center,
       edge,
@@ -689,7 +771,10 @@ class _RadarPainter extends CustomPainter {
       final bearing = (peer.id.hashCode % 360) * pi / 180;
       final rssi = peer.rssi ?? -78;
       final dist = (((-rssi) - 45) / 50).clamp(0.18, 0.92);
-      final pos = Offset(center.dx + cos(bearing) * radius * dist, center.dy + sin(bearing) * radius * dist);
+      final pos = Offset(
+        center.dx + cos(bearing) * radius * dist,
+        center.dy + sin(bearing) * radius * dist,
+      );
       final color = peer.isBle ? amber : green;
       canvas.drawCircle(pos, 7, Paint()..color = color.withAlpha(50));
       canvas.drawCircle(pos, 3.4, Paint()..color = color);
@@ -700,7 +785,8 @@ class _RadarPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_RadarPainter old) => old.sweep != sweep || old.peers != peers;
+  bool shouldRepaint(_RadarPainter old) =>
+      old.sweep != sweep || old.peers != peers;
 }
 
 class _PeerTile extends StatelessWidget {
@@ -730,7 +816,9 @@ class _PeerTile extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppColors.card,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: isConnecting ? AppColors.amber : AppColors.border),
+            border: Border.all(
+              color: isConnecting ? AppColors.amber : AppColors.border,
+            ),
           ),
           child: Row(
             children: [
@@ -738,7 +826,10 @@ class _PeerTile extends StatelessWidget {
                 SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(color: AppColors.amber, strokeWidth: 2),
+                  child: CircularProgressIndicator(
+                    color: AppColors.amber,
+                    strokeWidth: 2,
+                  ),
                 )
               else
                 Icon(Icons.bluetooth_rounded, color: AppColors.amber, size: 20),
@@ -758,7 +849,11 @@ class _PeerTile extends StatelessWidget {
                 const SizedBox(width: 10),
                 Text(
                   connectingLabel,
-                  style: TextStyle(color: AppColors.amber, fontSize: 11, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: AppColors.amber,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ],
@@ -786,7 +881,12 @@ class _TransportBadge extends StatelessWidget {
       ),
       child: Text(
         isBle ? 'BLE' : 'BT',
-        style: TextStyle(color: color, fontSize: 8.5, fontWeight: FontWeight.w800, letterSpacing: 0.8),
+        style: TextStyle(
+          color: color,
+          fontSize: 8.5,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.8,
+        ),
       ),
     );
   }
@@ -835,7 +935,8 @@ class _ConnectedFlash extends StatelessWidget {
             tween: Tween(begin: 0.4, end: 1.0),
             duration: const Duration(milliseconds: 450),
             curve: Curves.elasticOut,
-            builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
+            builder: (context, scale, child) =>
+                Transform.scale(scale: scale, child: child),
             child: Container(
               width: 84,
               height: 84,
@@ -843,9 +944,18 @@ class _ConnectedFlash extends StatelessWidget {
                 shape: BoxShape.circle,
                 color: AppColors.green.withAlpha(26),
                 border: Border.all(color: AppColors.green, width: 2),
-                boxShadow: [BoxShadow(color: AppColors.green.withAlpha(70), blurRadius: 26)],
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.green.withAlpha(70),
+                    blurRadius: 26,
+                  ),
+                ],
               ),
-              child: Icon(Icons.check_rounded, color: AppColors.green, size: 42),
+              child: Icon(
+                Icons.check_rounded,
+                color: AppColors.green,
+                size: 42,
+              ),
             ),
           ),
           const SizedBox(height: 18),
@@ -891,11 +1001,17 @@ class _ErrorCard extends StatelessWidget {
             GestureDetector(
               onTap: onRetry,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 26,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.amber.withAlpha(25),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.amber.withAlpha(120), width: 1.5),
+                  border: Border.all(
+                    color: AppColors.amber.withAlpha(120),
+                    width: 1.5,
+                  ),
                 ),
                 child: Text(
                   s.retry,
@@ -932,69 +1048,103 @@ class _ErrorCard extends StatelessWidget {
 
 // ── Permission denied ───────────────────────────────────────────────────────
 
-class _PermissionDenied extends StatelessWidget {
+class _PermissionDenied extends StatefulWidget {
   final Future<void> Function() onOpenSettings;
-  final Future<void> Function() onRetry;
+  final Future<bool> Function() onRetry;
 
-  const _PermissionDenied({required this.onOpenSettings, required this.onRetry});
+  const _PermissionDenied({
+    required this.onOpenSettings,
+    required this.onRetry,
+  });
+
+  @override
+  State<_PermissionDenied> createState() => _PermissionDeniedState();
+}
+
+class _PermissionDeniedState extends State<_PermissionDenied> {
+  PermissionTileStatus _scan = PermissionTileStatus.denied;
+  PermissionTileStatus _connect = PermissionTileStatus.denied;
+  PermissionTileStatus _advertise = PermissionTileStatus.denied;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshStatuses();
+  }
+
+  PermissionTileStatus _tileStatus(PermissionStatus status) {
+    if (status.isGranted) return PermissionTileStatus.granted;
+    if (status.isPermanentlyDenied) {
+      return PermissionTileStatus.permanentlyDenied;
+    }
+    return PermissionTileStatus.denied;
+  }
+
+  Future<void> _refreshStatuses() async {
+    final statuses = await Future.wait([
+      Permission.bluetoothScan.status,
+      Permission.bluetoothConnect.status,
+      Permission.bluetoothAdvertise.status,
+    ]);
+    if (!mounted) return;
+    setState(() {
+      _scan = _tileStatus(statuses[0]);
+      _connect = _tileStatus(statuses[1]);
+      _advertise = _tileStatus(statuses[2]);
+    });
+  }
+
+  // All three are requested together (Android grants them as one dialog),
+  // so every tile's "grant" action re-runs the same batch request.
+  Future<void> _requestAll() async {
+    await widget.onRetry();
+    await _refreshStatuses();
+  }
 
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.bluetooth_disabled_rounded, color: AppColors.amber, size: 40),
-            const SizedBox(height: 16),
+            Icon(
+              Icons.bluetooth_disabled_rounded,
+              color: AppColors.amber,
+              size: 40,
+            ),
+            const SizedBox(height: 12),
             Text(
               s.bt_permission_denied,
               textAlign: TextAlign.center,
               style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
             ),
-            const SizedBox(height: 24),
-            GestureDetector(
-              onTap: () => onOpenSettings(),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                decoration: BoxDecoration(
-                  color: AppColors.amber.withAlpha(25),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.amber.withAlpha(120), width: 2),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.settings_rounded, color: AppColors.amber, size: 20),
-                    const SizedBox(width: 10),
-                    Text(
-                      s.open_settings,
-                      style: TextStyle(
-                        color: AppColors.amber,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            const SizedBox(height: 20),
+            PermissionTile(
+              icon: Icons.search_rounded,
+              title: s.permission_bt_scan_title,
+              description: s.permission_bt_scan_desc,
+              status: _scan,
+              onRequest: _requestAll,
+              onOpenSettings: widget.onOpenSettings,
             ),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: () => onRetry(),
-              child: Text(
-                s.retry,
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1,
-                ),
-              ),
+            PermissionTile(
+              icon: Icons.bluetooth_connected_rounded,
+              title: s.permission_bt_connect_title,
+              description: s.permission_bt_connect_desc,
+              status: _connect,
+              onRequest: _requestAll,
+              onOpenSettings: widget.onOpenSettings,
+            ),
+            PermissionTile(
+              icon: Icons.campaign_rounded,
+              title: s.permission_bt_advertise_title,
+              description: s.permission_bt_advertise_desc,
+              status: _advertise,
+              onRequest: _requestAll,
+              onOpenSettings: widget.onOpenSettings,
             ),
           ],
         ),
@@ -1016,12 +1166,16 @@ class _Entrance extends StatefulWidget {
   State<_Entrance> createState() => _EntranceState();
 }
 
-class _EntranceState extends State<_Entrance> with SingleTickerProviderStateMixin {
+class _EntranceState extends State<_Entrance>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 420),
   );
-  late final CurvedAnimation _anim = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
+  late final CurvedAnimation _anim = CurvedAnimation(
+    parent: _controller,
+    curve: Curves.easeOutCubic,
+  );
 
   @override
   void initState() {
@@ -1044,7 +1198,10 @@ class _EntranceState extends State<_Entrance> with SingleTickerProviderStateMixi
       child: widget.child,
       builder: (context, child) => Opacity(
         opacity: _anim.value,
-        child: Transform.translate(offset: Offset(0, 18 * (1 - _anim.value)), child: child),
+        child: Transform.translate(
+          offset: Offset(0, 18 * (1 - _anim.value)),
+          child: child,
+        ),
       ),
     );
   }

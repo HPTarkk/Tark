@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:equatable/equatable.dart';
 import 'package:flutter/services.dart';
@@ -13,6 +14,7 @@ import '../../data/hotspot/wifi_hotspot_controller.dart';
 import '../../data/repository/wifi_transfer_repository_impl.dart';
 import '../../domain/entity/hotspot_credentials.dart';
 import '../../domain/entity/waki_packet.dart';
+import '../../domain/entity/wifi_hotspot_segment.dart';
 
 enum HotspotPhase {
   /// Android: creating the local-only hotspot.
@@ -27,6 +29,7 @@ enum HotspotPhase {
 }
 
 class HotspotBridgeState extends Equatable {
+  final WifiHotspotSegment segment;
   final HotspotPhase phase;
 
   /// The Android host's hotspot credentials (null until [HotspotPhase.ready]).
@@ -41,13 +44,16 @@ class HotspotBridgeState extends Equatable {
   final String? errorCode;
 
   const HotspotBridgeState({
+    required this.segment,
     required this.phase,
     required this.credentials,
     required this.peerConnected,
     required this.errorCode,
   });
 
-  factory HotspotBridgeState.initial() => const HotspotBridgeState(
+  factory HotspotBridgeState.initial(WifiHotspotSegment segment) =>
+      HotspotBridgeState(
+        segment: segment,
         phase: HotspotPhase.starting,
         credentials: null,
         peerConnected: false,
@@ -55,20 +61,27 @@ class HotspotBridgeState extends Equatable {
       );
 
   HotspotBridgeState copyWith({
+    WifiHotspotSegment? segment,
     HotspotPhase? phase,
     HotspotCredentials? credentials,
     bool? peerConnected,
     String? errorCode,
-  }) =>
-      HotspotBridgeState(
-        phase: phase ?? this.phase,
-        credentials: credentials ?? this.credentials,
-        peerConnected: peerConnected ?? this.peerConnected,
-        errorCode: errorCode,
-      );
+  }) => HotspotBridgeState(
+    segment: segment ?? this.segment,
+    phase: phase ?? this.phase,
+    credentials: credentials ?? this.credentials,
+    peerConnected: peerConnected ?? this.peerConnected,
+    errorCode: errorCode,
+  );
 
   @override
-  List<Object?> get props => [phase, credentials, peerConnected, errorCode];
+  List<Object?> get props => [
+    segment,
+    phase,
+    credentials,
+    peerConnected,
+    errorCode,
+  ];
 }
 
 /// Drives the Wi-Fi Hotspot Bridge — the reliable iPhone↔Android path.
@@ -78,14 +91,29 @@ class HotspotBridgeState extends Equatable {
 /// joined peer. iOS (join): parse a scanned Wi-Fi QR and try to join the
 /// network programmatically ([tryJoin]).
 @injectable
-class HotspotBridgeCubit extends Cubit<HotspotBridgeState> {
+class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   final WifiTransferRepositoryImpl _wifi;
   final WifiHotspotController _hotspot = WifiHotspotController();
   final HotspotJoiner _joiner = HotspotJoiner();
 
   StreamSubscription<WakiPacket>? _peerSub;
+  bool _hostStarted = false;
 
-  HotspotBridgeCubit(this._wifi) : super(HotspotBridgeState.initial());
+  WifiHotspotCubit(this._wifi)
+    : super(HotspotBridgeState.initial(WifiHotspotSegment.wifi));
+
+  /// Switches the visible segment, lazily starting the Android hotspot host
+  /// the first time the user picks "Hotspot" (never on iOS — it joins by
+  /// scanning instead) rather than unconditionally on page open.
+  void switchSegment(WifiHotspotSegment segment) {
+    emit(state.copyWith(segment: segment));
+    if (segment == WifiHotspotSegment.hotspot &&
+        Platform.isAndroid &&
+        !_hostStarted) {
+      _hostStarted = true;
+      startHost();
+    }
+  }
 
   /// Android host flow: request the Wi-Fi/location permissions LocalOnlyHotspot
   /// needs, start the hotspot, then listen for the peer.
@@ -96,8 +124,10 @@ class HotspotBridgeCubit extends Cubit<HotspotBridgeState> {
     // (33+). Request both and proceed regardless — the native side surfaces a
     // hard permission failure as a PlatformException we handle below.
     try {
-      await [Permission.locationWhenInUse, Permission.nearbyWifiDevices]
-          .request();
+      await [
+        Permission.locationWhenInUse,
+        Permission.nearbyWifiDevices,
+      ].request();
     } catch (e) {
       Logger.log('Hotspot permission request failed: $e');
     }
@@ -129,15 +159,12 @@ class HotspotBridgeCubit extends Cubit<HotspotBridgeState> {
     // Any packet from the shared LAN means the iPhone joined and entered the
     // channel. The Wi-Fi repo's generation counter makes it safe for the
     // walkie screen to call startListening() again after we navigate.
-    _peerSub = _wifi.startListening().listen(
-      (_) {
-        if (!isClosed && !state.peerConnected) {
-          emit(state.copyWith(peerConnected: true));
-          Sfx.play(SfxEvent.peerJoin);
-        }
-      },
-      onError: (Object e) => Logger.log('Hotspot peer listen error: $e'),
-    );
+    _peerSub = _wifi.startListening().listen((_) {
+      if (!isClosed && !state.peerConnected) {
+        emit(state.copyWith(peerConnected: true));
+        Sfx.play(SfxEvent.peerJoin);
+      }
+    }, onError: (Object e) => Logger.log('Hotspot peer listen error: $e'));
   }
 
   /// iOS join flow: attempt to join the Android host's network via

@@ -8,6 +8,7 @@ import '../../../../core/error/failure.dart';
 import '../../../../core/utils/exponential_backoff.dart';
 import '../../../../core/utils/lan_ipv4.dart';
 import '../../../../core/utils/logger.dart';
+import '../../domain/entity/connection_health.dart';
 import '../../domain/entity/waki_packet.dart';
 import '../../domain/repository/transfer_repository.dart';
 import '../codec/waki_packet_codec.dart';
@@ -18,7 +19,22 @@ const kBroadcastPort = 4000;
 class WifiTransferRepositoryImpl implements TransferRepository {
   RawDatagramSocket? _sendSocket;
   RawDatagramSocket? _receiveSocket;
-  final _connectionController = StreamController<bool>.broadcast();
+  final _connectionController =
+      StreamController<ConnectionHealthStatus>.broadcast();
+
+  bool _autoReconnectEnabled = true;
+  Completer<void>? _manualRetryCompleter;
+
+  // Liveness watchdog: the socket can stay bound while silently receiving
+  // nothing (dead peer, or the OS killed delivery under Doze/a network
+  // switch) — that's indistinguishable from "healthy" by socket state alone.
+  // Closing the socket after a stretch of silence with known peers routes
+  // the problem through the existing, already-correct error/retry path below
+  // instead of requiring the user to manually leave and rejoin.
+  Timer? _livenessTimer;
+  DateTime _lastPacketAt = DateTime.now();
+  static const _livenessCheckInterval = Duration(seconds: 5);
+  static const _livenessTimeout = Duration(seconds: 15);
 
   // Every packet is sent to ALL of these. A device can sit on several IPv4
   // networks at once (hotspot AP interface + cellular, or WiFi + hotspot),
@@ -63,6 +79,7 @@ class WifiTransferRepositoryImpl implements TransferRepository {
   @override
   void dispose() {
     _generation++;
+    _livenessTimer?.cancel();
     _sendSocket?.close();
     _sendSocket = null;
     _receiveSocket?.close();
@@ -73,7 +90,9 @@ class WifiTransferRepositoryImpl implements TransferRepository {
 
   @override
   Future<Either<Failure, void>> sendAudio(
-      List<double> samples, String senderName) async {
+    List<double> samples,
+    String senderName,
+  ) async {
     try {
       await _ensureSendSocket();
       final packet = _codec.encodeAudio(samples, senderName, _audioSeq++);
@@ -87,7 +106,9 @@ class WifiTransferRepositoryImpl implements TransferRepository {
 
   @override
   Future<Either<Failure, void>> sendPresence(
-      String senderName, bool isTalking) async {
+    String senderName,
+    bool isTalking,
+  ) async {
     try {
       await _ensureSendSocket();
       final packet = _codec.encodePresence(senderName, isTalking);
@@ -127,7 +148,9 @@ class WifiTransferRepositoryImpl implements TransferRepository {
           kBroadcastPort,
         );
         _receiveSocket!.broadcastEnabled = true;
-        _addConnectionEvent(true);
+        _setHealth(ConnectionHealthStatus.healthy);
+        _lastPacketAt = DateTime.now();
+        _startLivenessWatch(myGen);
         Logger.log('UDP socket bound on port $kBroadcastPort (gen $myGen)');
 
         await for (final event in _receiveSocket!) {
@@ -142,6 +165,7 @@ class WifiTransferRepositoryImpl implements TransferRepository {
               // Real traffic is flowing — the link is healthy, so the next
               // drop backs off from 4s again rather than from where we left.
               backoff.reset();
+              _lastPacketAt = DateTime.now();
               final packet = _codec.decode(dg.data, dg.address.address);
               if (packet != null) {
                 _rememberPeer(dg.address.address);
@@ -153,31 +177,86 @@ class WifiTransferRepositoryImpl implements TransferRepository {
           }
         }
 
-        _addConnectionEvent(false);
+        _livenessTimer?.cancel();
+        _setHealth(
+          _autoReconnectEnabled
+              ? ConnectionHealthStatus.reconnecting
+              : ConnectionHealthStatus.down,
+        );
       } catch (error) {
         Logger.log('Socket error (gen $myGen): $error');
-        _addConnectionEvent(false);
+        _livenessTimer?.cancel();
+        _setHealth(
+          _autoReconnectEnabled
+              ? ConnectionHealthStatus.reconnecting
+              : ConnectionHealthStatus.down,
+        );
         _receiveSocket?.close();
         _receiveSocket = null;
       }
 
-      // Retry delay, sliced short: async* cancellation only takes effect
-      // between awaits, so one long sleep here would make cancel() (and the
-      // page teardown awaiting it) lag by whole seconds.
-      final slices = backoff.next().inMilliseconds ~/ 250;
-      for (var i = 0; i < slices && _generation == myGen; i++) {
-        await Future.delayed(const Duration(milliseconds: 250));
+      if (_generation != myGen) break;
+
+      if (_autoReconnectEnabled) {
+        // Retry delay, sliced short: async* cancellation only takes effect
+        // between awaits, so one long sleep here would make cancel() (and
+        // the page teardown awaiting it) lag by whole seconds.
+        final slices = backoff.next().inMilliseconds ~/ 250;
+        for (var i = 0; i < slices && _generation == myGen; i++) {
+          await Future.delayed(const Duration(milliseconds: 250));
+        }
+      } else {
+        // Auto-reconnect is off: wait indefinitely for an explicit
+        // retryNow() instead of retrying on our own.
+        final completer = Completer<void>();
+        _manualRetryCompleter = completer;
+        await completer.future;
       }
     }
   }
 
+  void _startLivenessWatch(int myGen) {
+    _livenessTimer?.cancel();
+    _livenessTimer = Timer.periodic(_livenessCheckInterval, (_) {
+      if (_generation != myGen) {
+        _livenessTimer?.cancel();
+        return;
+      }
+      // Only fires once we've actually heard from someone — a freshly
+      // opened, never-joined channel isn't "unreachable," it's just empty.
+      if (_peers.isEmpty) return;
+      if (DateTime.now().difference(_lastPacketAt) > _livenessTimeout) {
+        Logger.log('WiFi liveness timeout (gen $myGen) — forcing rebind');
+        _receiveSocket?.close();
+      }
+    });
+  }
+
   @override
-  Stream<bool> connect() => _connectionController.stream;
+  Stream<ConnectionHealthStatus> connect() => _connectionController.stream;
+
+  @override
+  void setAutoReconnectEnabled(bool enabled) {
+    _autoReconnectEnabled = enabled;
+    if (enabled) retryNow();
+  }
+
+  @override
+  void retryNow() {
+    _manualRetryCompleter?.complete();
+    _manualRetryCompleter = null;
+  }
+
+  @override
+  void resetCodecState() => _codec.resetDecoders();
 
   @override
   void stopConnection() {
     // Invalidate any running generator by advancing the generation counter.
     _generation++;
+    _livenessTimer?.cancel();
+    _manualRetryCompleter?.complete();
+    _manualRetryCompleter = null;
 
     _receiveSocket?.close();
     _receiveSocket = null;
@@ -191,7 +270,7 @@ class WifiTransferRepositoryImpl implements TransferRepository {
     _localAddresses = const {};
     _peers.clear();
 
-    _addConnectionEvent(false);
+    _setHealth(ConnectionHealthStatus.down);
   }
 
   Future<void> _ensureSendSocket() async {
@@ -284,8 +363,8 @@ class WifiTransferRepositoryImpl implements TransferRepository {
     Logger.log('Broadcast targets: $targets, sweep subnets: $subnets');
   }
 
-  void _addConnectionEvent(bool isConnected) {
+  void _setHealth(ConnectionHealthStatus status) {
     if (_connectionController.isClosed) return;
-    _connectionController.add(isConnected);
+    _connectionController.add(status);
   }
 }

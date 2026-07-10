@@ -5,6 +5,7 @@ import 'core/locale/locale_service.dart';
 import 'core/sfx/sfx_service.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/theme_service.dart';
+import 'core/widget/theme_reveal_transition.dart';
 // Direct file import (not the transfer barrel): the barrel exports pages
 // that use dart:io, which cannot compile on web.
 import 'feature/guest/presentation/page/guest_join_page.dart';
@@ -68,9 +69,15 @@ class _GuestAppState extends State<GuestApp> {
       },
       // AppColors resolves statically; re-key the tree on theme change so
       // const subtrees pick up the new palette (same trick as the app).
-      builder: (context, child) => KeyedSubtree(
-        key: ValueKey(ThemeService.currentMode),
-        child: child!,
+      // The RepaintBoundary backs the circular-reveal transition (item 10);
+      // AppRevealController falls back to an instant swap if toImage() isn't
+      // supported by the web renderer in use.
+      builder: (context, child) => RepaintBoundary(
+        key: AppRevealController.repaintBoundaryKey,
+        child: KeyedSubtree(
+          key: ValueKey(ThemeService.currentMode),
+          child: child!,
+        ),
       ),
       theme: ThemeData(
         fontFamily: 'Vazirmatn',

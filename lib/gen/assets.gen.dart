@@ -21,10 +21,101 @@ class $AssetsIconGen {
   List<AssetGenImage> get values => [icon];
 }
 
+class $AssetsImageGen {
+  const $AssetsImageGen();
+
+  /// File path: assets/image/airpod_bud.png
+  AssetGenImage get airpodBud =>
+      const AssetGenImage('assets/image/airpod_bud.png');
+
+  /// File path: assets/image/airpod_bud_light.png
+  AssetGenImage get airpodBudLight =>
+      const AssetGenImage('assets/image/airpod_bud_light.png');
+
+  /// File path: assets/image/airpods_case.png
+  AssetGenImage get airpodsCase =>
+      const AssetGenImage('assets/image/airpods_case.png');
+
+  /// File path: assets/image/airpods_case_light.png
+  AssetGenImage get airpodsCaseLight =>
+      const AssetGenImage('assets/image/airpods_case_light.png');
+
+  /// File path: assets/image/helmet.png
+  AssetGenImage get helmet => const AssetGenImage('assets/image/helmet.png');
+
+  /// File path: assets/image/helmet_light.png
+  AssetGenImage get helmetLight =>
+      const AssetGenImage('assets/image/helmet_light.png');
+
+  /// List of all assets
+  List<AssetGenImage> get values => [
+    airpodBud,
+    airpodBudLight,
+    airpodsCase,
+    airpodsCaseLight,
+    helmet,
+    helmetLight,
+  ];
+}
+
+class $AssetsSfxGen {
+  const $AssetsSfxGen();
+
+  /// File path: assets/sfx/channel_join.wav
+  String get channelJoin => 'assets/sfx/channel_join.wav';
+
+  /// File path: assets/sfx/channel_leave.wav
+  String get channelLeave => 'assets/sfx/channel_leave.wav';
+
+  /// File path: assets/sfx/error.wav
+  String get error => 'assets/sfx/error.wav';
+
+  /// File path: assets/sfx/link_lost.wav
+  String get linkLost => 'assets/sfx/link_lost.wav';
+
+  /// File path: assets/sfx/link_restored.wav
+  String get linkRestored => 'assets/sfx/link_restored.wav';
+
+  /// File path: assets/sfx/peer_join.wav
+  String get peerJoin => 'assets/sfx/peer_join.wav';
+
+  /// File path: assets/sfx/peer_leave.wav
+  String get peerLeave => 'assets/sfx/peer_leave.wav';
+
+  /// File path: assets/sfx/ptt_close.wav
+  String get pttClose => 'assets/sfx/ptt_close.wav';
+
+  /// File path: assets/sfx/ptt_open.wav
+  String get pttOpen => 'assets/sfx/ptt_open.wav';
+
+  /// File path: assets/sfx/rx_start.wav
+  String get rxStart => 'assets/sfx/rx_start.wav';
+
+  /// File path: assets/sfx/toggle.wav
+  String get toggle => 'assets/sfx/toggle.wav';
+
+  /// List of all assets
+  List<String> get values => [
+    channelJoin,
+    channelLeave,
+    error,
+    linkLost,
+    linkRestored,
+    peerJoin,
+    peerLeave,
+    pttClose,
+    pttOpen,
+    rxStart,
+    toggle,
+  ];
+}
+
 class Assets {
   const Assets._();
 
   static const $AssetsIconGen icon = $AssetsIconGen();
+  static const $AssetsImageGen image = $AssetsImageGen();
+  static const $AssetsSfxGen sfx = $AssetsSfxGen();
 }
 
 class AssetGenImage {

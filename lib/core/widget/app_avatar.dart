@@ -27,9 +27,7 @@ class AppAvatar extends StatelessWidget {
         shape: BoxShape.circle,
         color: AppColors.amber.withAlpha(30),
         border: Border.all(
-          color: isActive
-              ? AppColors.amber.withAlpha(180)
-              : AppColors.border,
+          color: isActive ? AppColors.amber.withAlpha(180) : AppColors.border,
           width: 1.5,
         ),
         boxShadow: isActive

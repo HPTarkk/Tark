@@ -18,9 +18,11 @@ abstract final class QuickAccess {
     final enabled = prefs.getBool(QuickAccessPrefs.enabled) ?? true;
     if (!hasLaunched || !enabled) return AppRoutes.landingPath;
     return switch (lastMode) {
+      // Plain WiFi keeps the zero-friction fast path straight to the channel
+      // — nothing to set up, unlike hotspot mode below.
       TransferMode.wifi => AppRoutes.walkiePath,
       TransferMode.bluetooth => AppRoutes.bluetoothConnectPath,
-      TransferMode.hotspot => AppRoutes.hotspotBridgePath,
+      TransferMode.hotspot => '${AppRoutes.wifiHotspotPath}?mode=hotspot',
       TransferMode.guest => AppRoutes.guestLinkPath,
     };
   }

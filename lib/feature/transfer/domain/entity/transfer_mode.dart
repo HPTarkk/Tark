@@ -13,16 +13,16 @@ enum TransferMode {
   guest;
 
   static TransferMode fromKey(String? key) => switch (key) {
-        'bluetooth' => TransferMode.bluetooth,
-        'hotspot' => TransferMode.hotspot,
-        'guest' => TransferMode.guest,
-        _ => TransferMode.wifi,
-      };
+    'bluetooth' => TransferMode.bluetooth,
+    'hotspot' => TransferMode.hotspot,
+    'guest' => TransferMode.guest,
+    _ => TransferMode.wifi,
+  };
 
   String get key => switch (this) {
-        TransferMode.wifi => 'wifi',
-        TransferMode.bluetooth => 'bluetooth',
-        TransferMode.hotspot => 'hotspot',
-        TransferMode.guest => 'guest',
-      };
+    TransferMode.wifi => 'wifi',
+    TransferMode.bluetooth => 'bluetooth',
+    TransferMode.hotspot => 'hotspot',
+    TransferMode.guest => 'guest',
+  };
 }

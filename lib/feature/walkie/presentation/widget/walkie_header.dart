@@ -15,15 +15,12 @@ class WalkieHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<WalkieTalkieCubit, WalkieTalkieState>(
-      buildWhen: (p, c) =>
-          p.isReady != c.isReady || p.localId != c.localId,
+      buildWhen: (p, c) => p.isReady != c.isReady || p.localId != c.localId,
       builder: (context, state) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          border: Border(
-            bottom: BorderSide(color: AppColors.border, width: 1),
-          ),
+          border: Border(bottom: BorderSide(color: AppColors.border, width: 1)),
         ),
         child: Row(
           children: [
@@ -137,10 +134,10 @@ class _SignalIndicatorState extends State<SignalIndicator>
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<WalkieTalkieCubit, WalkieTalkieState>(
-      buildWhen: (p, c) =>
-          p.isReady != c.isReady || p.localId != c.localId,
+      buildWhen: (p, c) => p.isReady != c.isReady || p.localId != c.localId,
       builder: (context, state) {
-        final isActive = state.isReady &&
+        final isActive =
+            state.isReady &&
             state.localId.isNotEmpty &&
             state.localId != '0.0.0.0';
         final s = context.getString;

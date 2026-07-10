@@ -16,8 +16,9 @@ import '../../domain/entity/bluetooth_peer.dart';
 /// listenUsingRfcommWithServiceRecord()/accept() needed to host.
 class ClassicBluetoothEngine {
   static const _serverMethods = MethodChannel('tark/bluetooth_server/methods');
-  static const _serverConnectionEvents =
-      EventChannel('tark/bluetooth_server/connection');
+  static const _serverConnectionEvents = EventChannel(
+    'tark/bluetooth_server/connection',
+  );
   static const _serverReadEvents = EventChannel('tark/bluetooth_server/read');
 
   /// On Android 6–11 classic discovery silently returns NOTHING unless the
@@ -25,7 +26,7 @@ class ClassicBluetoothEngine {
   /// it before scanning. Must stay false on Android 12+ (the permission
   /// isn't declared there; BLUETOOTH_SCAN with neverForLocation covers it).
   ClassicBluetoothEngine({bool usesFineLocation = false})
-      : _fbc = fbc.FlutterBlueClassic(usesFineLocation: usesFineLocation);
+    : _fbc = fbc.FlutterBlueClassic(usesFineLocation: usesFineLocation);
 
   /// Android API level, fetched natively (no plugin dependency).
   static Future<int> sdkInt() async =>
@@ -73,10 +74,9 @@ class ClassicBluetoothEngine {
 
   Future<void> requestDiscoverable({int durationSeconds = 120}) async {
     try {
-      await _serverMethods.invokeMethod<bool>(
-        'requestDiscoverable',
-        {'durationSeconds': durationSeconds},
-      );
+      await _serverMethods.invokeMethod<bool>('requestDiscoverable', {
+        'durationSeconds': durationSeconds,
+      });
     } catch (e) {
       Logger.log('requestDiscoverable failed: $e');
     }
@@ -89,17 +89,23 @@ class ClassicBluetoothEngine {
 
     _hostConnectionSub = _serverConnectionEvents
         .receiveBroadcastStream()
-        .listen((event) {
-      final map = Map<Object?, Object?>.from(event as Map);
-      switch (map['event']) {
-        case 'connected':
-          _peerConnectedController.add((map['address'] as String?) ?? '');
-        case 'closed':
-          _closedController.add(null);
-        case 'error':
-          _errorController.add((map['message'] as String?) ?? 'unknown error');
-      }
-    }, onError: (Object e) => Logger.log('Bluetooth host connection error: $e'));
+        .listen(
+          (event) {
+            final map = Map<Object?, Object?>.from(event as Map);
+            switch (map['event']) {
+              case 'connected':
+                _peerConnectedController.add((map['address'] as String?) ?? '');
+              case 'closed':
+                _closedController.add(null);
+              case 'error':
+                _errorController.add(
+                  (map['message'] as String?) ?? 'unknown error',
+                );
+            }
+          },
+          onError: (Object e) =>
+              Logger.log('Bluetooth host connection error: $e'),
+        );
 
     _hostReadSub = _serverReadEvents.receiveBroadcastStream().listen(
       (event) => _inputController.add(event as Uint8List),
@@ -139,11 +145,8 @@ class ClassicBluetoothEngine {
   Stream<BluetoothPeer> scanForHosts() {
     _fbc.startScan();
     return _fbc.scanResults.map(
-      (d) => BluetoothPeer(
-        id: d.address,
-        name: d.name ?? d.address,
-        rssi: d.rssi,
-      ),
+      (d) =>
+          BluetoothPeer(id: d.address, name: d.name ?? d.address, rssi: d.rssi),
     );
   }
 

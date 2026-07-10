@@ -75,7 +75,12 @@ class _StatusChip extends StatelessWidget {
               shape: BoxShape.circle,
               color: isActive ? activeColor : AppColors.border,
               boxShadow: isActive
-                  ? [BoxShadow(color: activeColor.withAlpha(180), blurRadius: 8)]
+                  ? [
+                      BoxShadow(
+                        color: activeColor.withAlpha(180),
+                        blurRadius: 8,
+                      ),
+                    ]
                   : null,
             ),
           ),

@@ -4,4 +4,5 @@
 /// features reach the settings screen via AppRoutes, never by importing it.
 library;
 
+export '../presentation/page/permissions_page.dart';
 export '../presentation/page/settings_page.dart';

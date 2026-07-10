@@ -100,11 +100,7 @@ class _VisualizerPainter extends CustomPainter {
     final shaderRect = Rect.fromLTWH(0, 0, size.width, size.height);
 
     final gradient = LinearGradient(
-      colors: [
-        color.withValues(alpha: .7),
-        color,
-        color.withValues(alpha: .9),
-      ],
+      colors: [color.withValues(alpha: .7), color, color.withValues(alpha: .9)],
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
     );
@@ -126,7 +122,8 @@ class _VisualizerPainter extends CustomPainter {
 
     for (int i = 0; i < samples.length; i++) {
       final amplitude = samples[i];
-      final animatedAmplitude = amplitude * (0.7 + 0.3 * sin(animationValue * pi));
+      final animatedAmplitude =
+          amplitude * (0.7 + 0.3 * sin(animationValue * pi));
       final scaledHeight = animatedAmplitude * size.height * (0.8 + rms * 2);
 
       canvas.drawRRect(
