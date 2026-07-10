@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tark/core/l10n/extension.dart';
 
 import 'core/l10n/app_localizations.dart';
 import 'core/locale/locale_service.dart';
@@ -54,7 +55,7 @@ class _GuestAppState extends State<GuestApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Tark Guest',
+      onGenerateTitle: (context) => context.getString.app_name,
       debugShowCheckedModeBanner: false,
       locale: LocaleService.currentLocale,
       localizationsDelegates: const [
@@ -84,6 +85,17 @@ class _GuestAppState extends State<GuestApp> {
         brightness: ThemeService.isLight ? Brightness.light : Brightness.dark,
         scaffoldBackgroundColor: AppColors.background,
         useMaterial3: true,
+        // Same pairing as MyApp: M3 snackbar defaults (inverseSurface) don't
+        // match the palette, so pin card background + readable text.
+        snackBarTheme: SnackBarThemeData(
+          backgroundColor: AppColors.card,
+          contentTextStyle: TextStyle(
+            fontFamily: 'Vazirmatn',
+            color: AppColors.textPrimary,
+            fontSize: 14,
+          ),
+          actionTextColor: AppColors.amber,
+        ),
       ),
       home: const GuestJoinPage(),
     );

@@ -12,8 +12,8 @@ import 'package:flutter/material.dart';
 import 'package:tark/gen/assets.gen.dart';
 
 // ── Palette ──────────────────────────────────────────────────────────────
-const Color kBg = Color(0xFF080B14);
-const Color kAccent = Color(0xFFFFB74D);
+const Color kBg = Color(0xFF0B0E11);
+const Color kAccent = Color(0xFFF5853F);
 final Color kAccentSoft = kAccent.withValues(alpha: 0.35);
 final Color kAccentFaint = kAccent.withValues(alpha: 0.14);
 

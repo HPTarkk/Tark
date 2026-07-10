@@ -533,7 +533,6 @@ class _CredentialRow extends StatelessWidget {
                   SnackBar(
                     content: Text('$label $copiedLabel'),
                     duration: const Duration(seconds: 1),
-                    backgroundColor: AppColors.card,
                   ),
                 );
               },

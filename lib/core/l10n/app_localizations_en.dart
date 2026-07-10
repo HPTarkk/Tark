@@ -9,7 +9,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get app_name => 'TARK';
+  String get app_name => 'TARKK';
 
   @override
   String get app_subtitle => 'LAN WALKIE TALKIE';
@@ -457,7 +457,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get hotspot_ios_instructions =>
-      'Ask the Android phone to open Tark → Hotspot, then scan its Wi-Fi code here.';
+      'Ask the Android phone to open Tarkk → Hotspot, then scan its Wi-Fi code here.';
 
   @override
   String get hotspot_scan_host => 'SCAN HOST CODE';
@@ -588,7 +588,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_skip_splash_desc => 'Go straight to the app on launch';
 
   @override
-  String get usage_tips_title => 'Get the most out of Tark';
+  String get usage_tips_title => 'Get the most out of TarkK';
 
   @override
   String get usage_tips_1_title => 'Pair an ANC or handsfree headset';

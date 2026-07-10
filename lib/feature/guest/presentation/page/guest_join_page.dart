@@ -233,7 +233,6 @@ class _ReplyQr extends StatelessWidget {
               SnackBar(
                 content: Text(context.getString.guest_web_reply_copied),
                 duration: const Duration(seconds: 1),
-                backgroundColor: AppColors.card,
               ),
             );
           },

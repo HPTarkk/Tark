@@ -487,7 +487,6 @@ class _RestoreDefaultsButton extends StatelessWidget {
           SnackBar(
             content: Text(s.settings_restore_defaults_done),
             duration: const Duration(seconds: 2),
-            backgroundColor: AppColors.card,
           ),
         );
       },

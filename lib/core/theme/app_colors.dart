@@ -30,18 +30,23 @@ class AppPalette {
     required this.textSecondary,
   });
 
-  /// Original "night radio" look — deep navy with amber glow.
+  /// "Night radio" look — gunmetal slate: cool graphite surfaces that sit
+  /// opposite the hot orange primary on the wheel, so it pops as the accent.
+  /// Kept far less saturated than the old navy so it reads gray, not blue.
   static const dark = AppPalette(
-    background: Color(0xFF080B14),
-    surface: Color(0xFF0F1320),
-    card: Color(0xFF141929),
-    border: Color(0xFF1E2845),
-    amber: Color(0xFFFFB74D),
-    amberDim: Color(0xFFFF8F00),
+    background: Color(0xFF0B0E11),
+    surface: Color(0xFF13171C),
+    card: Color(0xFF1A2027),
+    border: Color(0xFF2D343D),
+    // Softened a notch from the brand orange (#FB6C11): fully saturated
+    // orange vibrates against dark slate, so lift lightness and ease
+    // saturation while keeping the same hue.
+    amber: Color(0xFFF5853F),
+    amberDim: Color(0xFFD9661F),
     red: Color(0xFFEF5350),
     green: Color(0xFF4CAF50),
-    textPrimary: Color(0xFFECEFF1),
-    textSecondary: Color(0xFF78909C),
+    textPrimary: Color(0xFFE9EDF1),
+    textSecondary: Color(0xFF8B939D),
   );
 
   /// "Field radio" light look — warm paper and brass. Amber is darkened so
