@@ -48,7 +48,7 @@ class LinearResampler {
 /// into the voice band as noise.
 class OnePoleLowPass {
   OnePoleLowPass({required double sampleRate, required double cutoffHz})
-      : _alpha = _computeAlpha(sampleRate, cutoffHz);
+    : _alpha = _computeAlpha(sampleRate, cutoffHz);
 
   final double _alpha;
   double _y = 0.0;

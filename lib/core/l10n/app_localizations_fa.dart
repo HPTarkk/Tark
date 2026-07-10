@@ -140,6 +140,9 @@ class AppLocalizationsFa extends AppLocalizations {
   String get transport_wifi => 'وای‌فای';
 
   @override
+  String get transport_wifi_hotspot => 'وای‌فای / هات‌اسپات';
+
+  @override
   String get transport_bluetooth => 'بلوتوث';
 
   @override
@@ -281,6 +284,9 @@ class AppLocalizationsFa extends AppLocalizations {
       'اتصال بلوتوث قطع شد — در حال اتصال مجدد...';
 
   @override
+  String get bt_link_down => 'اتصال بلوتوث قطع شد';
+
+  @override
   String get bt_waiting_for_peer => 'در انتظار اتصال طرف مقابل...';
 
   @override
@@ -308,6 +314,63 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get retry => 'تلاش مجدد';
+
+  @override
+  String get permissions_title => 'دسترسی‌ها';
+
+  @override
+  String get permission_granted => 'فعال';
+
+  @override
+  String get permission_grant => 'فعال‌سازی';
+
+  @override
+  String get permission_mic_title => 'میکروفون';
+
+  @override
+  String get permission_mic_desc => 'برای ضبط صدای شما جهت ارسال لازم است.';
+
+  @override
+  String get permission_bluetooth_title => 'بلوتوث';
+
+  @override
+  String get permission_bluetooth_desc =>
+      'برای جستجو و اتصال به دستگاه نزدیک در حالت بلوتوث لازم است.';
+
+  @override
+  String get permission_bt_scan_title => 'جستجوی دستگاه‌ها';
+
+  @override
+  String get permission_bt_scan_desc =>
+      'دستگاه‌های نزدیک برای اتصال را پیدا می‌کند.';
+
+  @override
+  String get permission_bt_connect_title => 'اتصال';
+
+  @override
+  String get permission_bt_connect_desc =>
+      'با دستگاه دیگر جفت می‌شود و صدا رد و بدل می‌کند.';
+
+  @override
+  String get permission_bt_advertise_title => 'اعلام حضور';
+
+  @override
+  String get permission_bt_advertise_desc =>
+      'هنگام میزبانی، به دستگاه دیگر امکان پیدا کردن شما را می‌دهد.';
+
+  @override
+  String get permission_hotspot_title => 'موقعیت مکانی و وای‌فای اطراف';
+
+  @override
+  String get permission_hotspot_desc =>
+      'اندروید برای میزبانی هات‌اسپات محلی به این دسترسی نیاز دارد.';
+
+  @override
+  String get permission_battery_title => 'معافیت از بهینه‌سازی باتری';
+
+  @override
+  String get permission_battery_desc =>
+      'کانال را وقتی صفحه خاموش است زنده نگه می‌دارد — بدون آن ممکن است سیستم‌عامل برنامه را در میانه مسیر متوقف کند.';
 
   @override
   String get bt_connection_failed => 'اتصال ناموفق بود';
@@ -340,10 +403,21 @@ class AppLocalizationsFa extends AppLocalizations {
   String get link_reconnecting => 'اتصال قطع شد — در حال اتصال مجدد...';
 
   @override
+  String get link_down => 'اتصال قطع شد';
+
+  @override
   String get transport_hotspot => 'نقطه اتصال (هات‌اسپات)';
 
   @override
   String get hotspot_title => 'پل هات‌اسپات';
+
+  @override
+  String get wifi_only_instructions =>
+      'همین حالا در یک وای‌فای مشترک هستید؟ نیازی به تنظیم نیست — فقط وارد کانال شوید.';
+
+  @override
+  String get wifi_only_step_same_network =>
+      'مطمئن شوید هر دو دستگاه به یک شبکه وای‌فای متصل هستند.';
 
   @override
   String get hotspot_not_supported =>
@@ -441,10 +515,10 @@ class AppLocalizationsFa extends AppLocalizations {
   String get settings_title => 'تنظیمات';
 
   @override
-  String get settings_section_identity => 'هویت';
+  String get settings_section_identity => 'پروفایل';
 
   @override
-  String get settings_section_voice => 'صدا';
+  String get settings_section_voice => 'صدا و میکروفون';
 
   @override
   String get settings_section_sound => 'صدا و هشدارها';
@@ -454,6 +528,9 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get settings_section_connection => 'اتصال';
+
+  @override
+  String get settings_section_startup => 'شروع برنامه';
 
   @override
   String get settings_applies_live => 'بلافاصله روی کانال فعلی اعمال می‌شود';
@@ -468,6 +545,75 @@ class AppLocalizationsFa extends AppLocalizations {
   @override
   String get settings_quick_access_desc =>
       'رد شدن از این صفحه و ازسرگیری آخرین کانال هنگام باز کردن اپ';
+
+  @override
+  String get settings_delay => 'تأخیر پخش';
+
+  @override
+  String get settings_delay_desc =>
+      'میزان بافر صدای ورودی پیش از پخش — مقدار بیشتر، اتصال ناپایدار را صاف‌تر می‌کند اما تأخیر را افزایش می‌دهد.';
+
+  @override
+  String get settings_restore_defaults => 'بازگردانی پیش‌فرض‌ها';
+
+  @override
+  String get settings_restore_defaults_done =>
+      'تنظیمات صدا به حالت پیش‌فرض بازگشت';
+
+  @override
+  String get settings_auto_reconnect => 'اتصال مجدد خودکار';
+
+  @override
+  String get settings_auto_reconnect_desc =>
+      'هنگام قطعی اتصال به‌جای تلاش مجدد دستی، به‌صورت خودکار دوباره متصل شو';
+
+  @override
+  String get settings_permissions_row => 'دسترسی‌ها';
+
+  @override
+  String get settings_permissions_row_desc =>
+      'بررسی و مدیریت دسترسی‌های برنامه';
+
+  @override
+  String get settings_wifi_hotspot_row => 'تنظیم وای‌فای / هات‌اسپات';
+
+  @override
+  String get settings_wifi_hotspot_row_desc =>
+      'میزبانی هات‌اسپات یا مشاهده مراحل اتصال به وای‌فای';
+
+  @override
+  String get settings_skip_splash => 'رد کردن صفحه آغازین';
+
+  @override
+  String get settings_skip_splash_desc =>
+      'مستقیم به برنامه بروید هنگام باز شدن';
+
+  @override
+  String get usage_tips_title => 'بیشترین بهره را از تارک ببرید';
+
+  @override
+  String get usage_tips_1_title => 'از هدست ANC یا هندزفری استفاده کنید';
+
+  @override
+  String get usage_tips_1_body =>
+      'حذف نویز فعال شنیدن کانال را در میان صدای باد و موتور بسیار آسان‌تر می‌کند — و دست‌های شما هنگام رانندگی آزاد می‌ماند.';
+
+  @override
+  String get usage_tips_2_title => 'همیشه کلاه ایمنی مناسب بپوشید';
+
+  @override
+  String get usage_tips_2_body =>
+      'ایمنی در اولویت است — کلاه ایمنی مناسب همچنین هدست را نزدیک‌تر به گوش شما قرار می‌دهد و صدا را واضح‌تر می‌کند.';
+
+  @override
+  String get usage_tips_3_title => 'میکروفون شما به‌طور پیش‌فرض هندزفری است';
+
+  @override
+  String get usage_tips_3_body =>
+      'حساسیت صدا به‌طور کامل باز شروع می‌شود و حذف نویز کار را انجام می‌دهد، پس هیچ‌وقت لازم نیست چیزی را فشار دهید تا صحبت کنید. هر دو را هر زمان در تنظیمات تنظیم کنید.';
+
+  @override
+  String get usage_tips_dismiss => 'متوجه شدم';
 
   @override
   String get settings_gear_tooltip => 'تنظیمات';

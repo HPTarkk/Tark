@@ -7,5 +7,6 @@
 /// live session's settings in place — see SettingsCubit.
 library;
 
-export '../presentation/manager/walkie_talkie_cubit.dart' show WalkieTalkieCubit, WalkieTalkieState;
+export '../presentation/manager/walkie_talkie_cubit.dart'
+    show WalkieTalkieCubit, WalkieTalkieState;
 export '../presentation/page/walkie_talkie_page.dart';

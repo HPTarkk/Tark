@@ -11,7 +11,9 @@ import 'length_prefixed_framer.dart';
 /// Tark's custom GATT service. The host (peripheral) advertises this
 /// service; joiners (centrals) filter scans on it so only Tark hosts
 /// show up.
-final kWakiServiceUuid = UUID.fromString('C0DE0001-57A1-4B1E-9A0B-2D6577616B69');
+final kWakiServiceUuid = UUID.fromString(
+  'C0DE0001-57A1-4B1E-9A0B-2D6577616B69',
+);
 
 /// Client → host stream (central writes without response).
 final kWakiRxCharUuid = UUID.fromString('C0DE0002-57A1-4B1E-9A0B-2D6577616B69');
@@ -85,12 +87,14 @@ class BleBluetoothEngine {
   static const _maxPendingWrites = 8;
 
   bool get isConnected =>
-      _hostPeerCentral != null || (_clientPeripheral != null && _clientRxChar != null);
+      _hostPeerCentral != null ||
+      (_clientPeripheral != null && _clientRxChar != null);
 
   // ── Managers ───────────────────────────────────────────────────────────
 
   CentralManager get _requireCentral => _central ??= CentralManager();
-  PeripheralManager get _requirePeripheral => _peripheral ??= PeripheralManager();
+  PeripheralManager get _requirePeripheral =>
+      _peripheral ??= PeripheralManager();
 
   Future<void> _ready(BluetoothLowEnergyManager manager) async {
     // Android needs runtime permissions granted through the plugin as well;
@@ -112,10 +116,12 @@ class BleBluetoothEngine {
     try {
       final settled = await manager.stateChanged
           .map((e) => e.state)
-          .firstWhere((s) =>
-              s == BluetoothLowEnergyState.poweredOn ||
-              s == BluetoothLowEnergyState.unauthorized ||
-              s == BluetoothLowEnergyState.unsupported)
+          .firstWhere(
+            (s) =>
+                s == BluetoothLowEnergyState.poweredOn ||
+                s == BluetoothLowEnergyState.unauthorized ||
+                s == BluetoothLowEnergyState.unsupported,
+          )
           .timeout(const Duration(seconds: 8));
       if (settled != BluetoothLowEnergyState.poweredOn) {
         throw StateError('Bluetooth unavailable ($settled)');
@@ -155,58 +161,65 @@ class BleBluetoothEngine {
       );
       _hostTxChar = txChar;
 
-      _hostSubs.add(manager.characteristicWriteRequested.listen((e) async {
-        try {
-          await manager.respondWriteRequest(e.request);
-        } catch (_) {}
-        if (e.characteristic.uuid == kWakiRxCharUuid) {
-          for (final message in _framer.addBytes(e.request.value)) {
-            _inputController.add(message);
+      _hostSubs.add(
+        manager.characteristicWriteRequested.listen((e) async {
+          try {
+            await manager.respondWriteRequest(e.request);
+          } catch (_) {}
+          if (e.characteristic.uuid == kWakiRxCharUuid) {
+            for (final message in _framer.addBytes(e.request.value)) {
+              _inputController.add(message);
+            }
           }
-        }
-      }));
+        }),
+      );
 
       // A central subscribing to the TX characteristic is the moment the
       // session becomes usable in both directions — that's "connected".
       // Unsubscribe (or Android's explicit disconnect event) ends it.
-      _hostSubs.add(manager.characteristicNotifyStateChanged.listen((e) {
-        if (e.characteristic.uuid != kWakiTxCharUuid) return;
-        if (e.state) {
-          _hostPeerCentral = e.central;
-          _peerConnectedController.add('ble:${e.central.uuid}');
-        } else if (_hostPeerCentral?.uuid == e.central.uuid) {
-          _hostPeerCentral = null;
-          _framer.reset();
-          _closedController.add(null);
-        }
-      }));
-
-      try {
-        _hostSubs.add(manager.connectionStateChanged.listen((e) {
-          if (e.state == ConnectionState.disconnected &&
-              _hostPeerCentral?.uuid == e.central.uuid) {
+      _hostSubs.add(
+        manager.characteristicNotifyStateChanged.listen((e) {
+          if (e.characteristic.uuid != kWakiTxCharUuid) return;
+          if (e.state) {
+            _hostPeerCentral = e.central;
+            _peerConnectedController.add('ble:${e.central.uuid}');
+          } else if (_hostPeerCentral?.uuid == e.central.uuid) {
             _hostPeerCentral = null;
             _framer.reset();
             _closedController.add(null);
           }
-        }));
+        }),
+      );
+
+      try {
+        _hostSubs.add(
+          manager.connectionStateChanged.listen((e) {
+            if (e.state == ConnectionState.disconnected &&
+                _hostPeerCentral?.uuid == e.central.uuid) {
+              _hostPeerCentral = null;
+              _framer.reset();
+              _closedController.add(null);
+            }
+          }),
+        );
       } on UnsupportedError {
         // iOS: unsubscribe events above cover disconnects.
       }
 
       await manager.removeAllServices();
-      await manager.addService(GATTService(
-        uuid: kWakiServiceUuid,
-        isPrimary: true,
-        includedServices: [],
-        characteristics: [txChar, rxChar],
-      ));
+      await manager.addService(
+        GATTService(
+          uuid: kWakiServiceUuid,
+          isPrimary: true,
+          includedServices: [],
+          characteristics: [txChar, rxChar],
+        ),
+      );
       var advertised = false;
       try {
-        await manager.startAdvertising(Advertisement(
-          name: name,
-          serviceUUIDs: [kWakiServiceUuid],
-        ));
+        await manager.startAdvertising(
+          Advertisement(name: name, serviceUUIDs: [kWakiServiceUuid]),
+        );
         advertised = true;
       } catch (_) {
         // A 128-bit service UUID plus a name easily overflows the 31-byte
@@ -214,9 +227,9 @@ class BleBluetoothEngine {
         // Android). The service UUID is what joiners actually filter on —
         // retry without the name rather than not advertising at all.
         try {
-          await manager.startAdvertising(Advertisement(
-            serviceUUIDs: [kWakiServiceUuid],
-          ));
+          await manager.startAdvertising(
+            Advertisement(serviceUUIDs: [kWakiServiceUuid]),
+          );
           advertised = true;
         } catch (e) {
           // Many cheaper Android chipsets don't support the peripheral role
@@ -265,31 +278,35 @@ class BleBluetoothEngine {
       try {
         final manager = _requireCentral;
         await _ready(manager);
-        _clientSubs.add(manager.discovered.listen((e) {
-          // Match the Tark service ourselves rather than trusting the scan
-          // filter: some Android chipsets ignore the serviceUUIDs filter and
-          // would otherwise never surface a valid host. Our hosts always
-          // advertise the service UUID (even in the name-dropped fallback).
-          List<UUID> advertised;
-          try {
-            advertised = e.advertisement.serviceUUIDs;
-          } catch (_) {
-            advertised = const [];
-          }
-          if (!advertised.contains(kWakiServiceUuid)) return;
-          final id = e.peripheral.uuid.toString();
-          _discovered[id] = e.peripheral;
-          String? name;
-          try {
-            name = e.advertisement.name;
-          } catch (_) {}
-          if (controller.isClosed) return;
-          controller.add(BluetoothPeer(
-            id: 'ble:$id',
-            name: name?.isNotEmpty == true ? name! : 'Tark (BLE)',
-            rssi: e.rssi,
-          ));
-        }));
+        _clientSubs.add(
+          manager.discovered.listen((e) {
+            // Match the Tark service ourselves rather than trusting the scan
+            // filter: some Android chipsets ignore the serviceUUIDs filter and
+            // would otherwise never surface a valid host. Our hosts always
+            // advertise the service UUID (even in the name-dropped fallback).
+            List<UUID> advertised;
+            try {
+              advertised = e.advertisement.serviceUUIDs;
+            } catch (_) {
+              advertised = const [];
+            }
+            if (!advertised.contains(kWakiServiceUuid)) return;
+            final id = e.peripheral.uuid.toString();
+            _discovered[id] = e.peripheral;
+            String? name;
+            try {
+              name = e.advertisement.name;
+            } catch (_) {}
+            if (controller.isClosed) return;
+            controller.add(
+              BluetoothPeer(
+                id: 'ble:$id',
+                name: name?.isNotEmpty == true ? name! : 'Tark (BLE)',
+                rssi: e.rssi,
+              ),
+            );
+          }),
+        );
         // Unfiltered discovery — we filter on the service UUID in the callback
         // above. This is what rescues devices whose native scan filter drops
         // our 128-bit UUID.
@@ -325,16 +342,18 @@ class BleBluetoothEngine {
       cancelDiscovery();
       _framer.reset();
 
-      _clientSubs.add(manager.connectionStateChanged.listen((e) {
-        if (e.peripheral.uuid == peripheral.uuid &&
-            e.state == ConnectionState.disconnected &&
-            _clientPeripheral != null) {
-          _clientPeripheral = null;
-          _clientRxChar = null;
-          _framer.reset();
-          _closedController.add(null);
-        }
-      }));
+      _clientSubs.add(
+        manager.connectionStateChanged.listen((e) {
+          if (e.peripheral.uuid == peripheral.uuid &&
+              e.state == ConnectionState.disconnected &&
+              _clientPeripheral != null) {
+            _clientPeripheral = null;
+            _clientRxChar = null;
+            _framer.reset();
+            _closedController.add(null);
+          }
+        }),
+      );
 
       await manager.connect(peripheral);
 
@@ -349,22 +368,29 @@ class BleBluetoothEngine {
         (s) => s.uuid == kWakiServiceUuid,
         orElse: () => throw StateError('Tark service not found on host'),
       );
-      final txChar =
-          service.characteristics.firstWhere((c) => c.uuid == kWakiTxCharUuid);
-      final rxChar =
-          service.characteristics.firstWhere((c) => c.uuid == kWakiRxCharUuid);
+      final txChar = service.characteristics.firstWhere(
+        (c) => c.uuid == kWakiTxCharUuid,
+      );
+      final rxChar = service.characteristics.firstWhere(
+        (c) => c.uuid == kWakiRxCharUuid,
+      );
 
-      _clientSubs.add(manager.characteristicNotified.listen((e) {
-        if (e.peripheral.uuid != peripheral.uuid ||
-            e.characteristic.uuid != kWakiTxCharUuid) {
-          return;
-        }
-        for (final message in _framer.addBytes(e.value)) {
-          _inputController.add(message);
-        }
-      }));
-      await manager.setCharacteristicNotifyState(peripheral, txChar,
-          state: true);
+      _clientSubs.add(
+        manager.characteristicNotified.listen((e) {
+          if (e.peripheral.uuid != peripheral.uuid ||
+              e.characteristic.uuid != kWakiTxCharUuid) {
+            return;
+          }
+          for (final message in _framer.addBytes(e.value)) {
+            _inputController.add(message);
+          }
+        }),
+      );
+      await manager.setCharacteristicNotifyState(
+        peripheral,
+        txChar,
+        state: true,
+      );
 
       _clientPeripheral = peripheral;
       _clientRxChar = rxChar;
@@ -399,8 +425,11 @@ class BleBluetoothEngine {
       if (_hosting && central != null && _hostTxChar != null) {
         final maxLen = await _peripheral!.getMaximumNotifyLength(central);
         for (final chunk in _chunks(framed, maxLen)) {
-          await _peripheral!
-              .notifyCharacteristic(central, _hostTxChar!, value: chunk);
+          await _peripheral!.notifyCharacteristic(
+            central,
+            _hostTxChar!,
+            value: chunk,
+          );
         }
       } else if (peripheral != null && _clientRxChar != null) {
         final maxLen = await _central!.getMaximumWriteLength(
@@ -424,8 +453,7 @@ class BleBluetoothEngine {
   Iterable<Uint8List> _chunks(Uint8List bytes, int maxLen) sync* {
     final size = maxLen.clamp(20, 512);
     for (var offset = 0; offset < bytes.length; offset += size) {
-      final end =
-          offset + size < bytes.length ? offset + size : bytes.length;
+      final end = offset + size < bytes.length ? offset + size : bytes.length;
       yield Uint8List.sublistView(bytes, offset, end);
     }
   }
@@ -465,6 +493,9 @@ class BleBluetoothEngine {
   /// Whether this platform has a BLE implementation registered (Android,
   /// iOS, macOS, Windows, Linux — not web/tests).
   static bool get isSupportedPlatform =>
-      Platform.isAndroid || Platform.isIOS || Platform.isMacOS ||
-      Platform.isWindows || Platform.isLinux;
+      Platform.isAndroid ||
+      Platform.isIOS ||
+      Platform.isMacOS ||
+      Platform.isWindows ||
+      Platform.isLinux;
 }

@@ -8,7 +8,7 @@ Cross-platform: **Android ↔ Android, iPhone ↔ iPhone, and Android ↔ iPhone
 
 ## Features
 
-- **Real-time voice** — Opus-coded 16 kHz VOIP, transmitted and played back live with sub-100 ms jitter buffering.
+- **Real-time voice** — Opus-coded 16 kHz VOIP, transmitted and played back live with a configurable (default 100 ms) jitter buffer that self-corrects clock drift instead of letting playback delay silently grow over a long session.
 - **Four transports**, all speaking the same wire format:
   - **Wi-Fi (LAN)** — UDP broadcast + unicast on the local network; primary transport.
   - **Bluetooth** — Bluetooth **Classic (RFCOMM)** on Android (highest bandwidth) and **BLE GATT** for iPhone and cross-OS. Android advertises on both at once for maximum compatibility. Both engines cap in-flight audio writes and drop the newest packet once the link falls behind (stale audio is worse than lost audio) instead of letting a slow link balloon into growing latency.
@@ -18,11 +18,15 @@ Cross-platform: **Android ↔ Android, iPhone ↔ iPhone, and Android ↔ iPhone
 - **Handsfree routing** — mic + playback follow AirPods / helmet / wired headsets (Bluetooth SCO engaged before the audio engine opens its streams); falls back to speakerphone.
 - **VOX (voice-activated)** — no button to hold; transmits when your level crosses a threshold, with 700 ms hangover + 60 ms pre-roll so words aren't clipped.
 - **Music / device-audio cast** (Android) — forward whatever is playing on the phone (music, navigation) into the channel; it plays as live audio on everyone else's device. The mix-level slider also nudges the broadcaster's own device volume to match, and stopping the cast can pause the source app too (needs one-time Notification access, since Android has no API for one app to pause another's playback directly).
-- **Auto-reconnect** — a dropped link heals itself with exponential backoff (Bluetooth: host re-advertises, joiner re-dials; Wi-Fi: the UDP socket rebinds) — shown on-screen as a "reconnecting" banner across every transport.
+- **Auto-reconnect** — a dropped link heals itself with exponential backoff (Bluetooth: host re-advertises, joiner re-dials; Wi-Fi: the UDP socket rebinds, backed by a liveness watchdog that detects a socket gone silent — not just closed — so a dead peer or a networking hiccup no longer needs a manual leave/rejoin to fix; Guest/WebRTC gets a bounded best-effort retry) — shown on-screen as a unified health banner (reconnecting spinner, or a manual "Retry now" once auto-reconnect is off or exhausted) across every transport, toggleable from Settings.
 - **Eyes-free audio feedback** — a distinct sound for every event that matters while riding with the phone in a pocket: push-to-talk open/close, someone else talking, a peer joining/leaving, a link dropping or recovering, errors, and toggles, plus a light haptic tap when the channel keys up. Mutable from Settings.
-- **Consolidated Settings** — name, VOX threshold, noise suppression, sound cues, theme, and language all live in one Settings page (reachable from Landing or a gear icon on the live channel) instead of scattered across screens. Opened from an active channel, changes apply live to that session instantly.
+- **Categorized Settings** — Profile, Voice & Audio (VOX, noise suppression, jitter-buffer delay, restore-defaults), Connection (transport picker, auto-reconnect, WiFi/Hotspot setup, Permissions), Sound & Alerts, Appearance, and Startup (quick access, skip splash), each its own card (reachable from Landing or a gear icon on the live channel). Opened from an active channel, voice changes apply live to that session instantly. Defaults to a hands-free voice combo — VOX wide open, noise suppression doing the work — so there's nothing to press to talk.
 - **Quick access** — after the first launch, opening the app jumps straight into your last-used channel/mode instead of showing Landing again — toggleable from Settings.
-- **Bilingual** — Persian (فارسی) and English, RTL-aware, with a warm dark "night radio" and light "field radio" theme.
+- **Branded splash screen** — a short (≤3.5 s) cinematic launch sequence: an aurora backdrop, a frosted-glass emblem disc with an orbiting halo and broadcast ripples, a shimmering wordmark, and a hairline progress bar tied to the real wait — skippable from Settings for an instant cold start.
+- **Combined WiFi / Hotspot page** — one entry point with a segmented "Wi-Fi" / "Hotspot" choice instead of two separate flows; picking Wi-Fi just confirms both devices share a network, picking Hotspot walks through the existing Android-host / iPhone-join QR dance.
+- **Clearer permissions** — a dedicated Permissions page (mic, Bluetooth, hotspot, background battery exemption) shows what's granted and why, instead of scattered ad hoc prompts.
+- **Usage tips** — a one-time (ever), animated tips sheet with practical suggestions (ANC/handsfree headset, wearing a proper helmet, the hands-free voice defaults) surfaces a few seconds into your first session.
+- **Bilingual** — Persian (فارسی) and English, RTL-aware, with a warm dark "night radio" and light "field radio" theme, and a circular-reveal transition (not a plain cross-fade) when you switch either one.
 
 ---
 
@@ -57,7 +61,7 @@ Minimum OS: **Android 8.0+** (hotspot host needs 8.0, music cast needs 10.0) / *
 flutter pub get
 
 # Code generation (required after changing DI annotations or ARB files)
-dart run build_runner build --delete-conflicting-outputs   # injectable DI
+dart run build_runner build                                 # injectable DI
 flutter gen-l10n                                            # localizations
 dart run flutter_launcher_icons                             # app icons (first run)
 
@@ -136,19 +140,28 @@ lib/
 ├── app/            — composition root: DI wiring (di_config.dart) + GoRouter,
 │                     quick_access.dart (cold-start routing decision)
 ├── core/           — theme, l10n (fa/en), router, shared widgets (incl.
-│                     theme/language toggles, section header), utils, sfx
+│                     theme/language toggles + circular-reveal transition,
+│                     permission tile), utils, sfx, and settings/ (the shared
+│                     SettingsKeys/AppSettings/SettingsModel/SettingsRepository
+│                     every cubit persists through)
 └── feature/
     ├── audio/      — AudioEngine (mic in / speaker out via vendored audio_io),
-    │                 spectral noise suppressor, resampler, jitter buffer,
-    │                 device-audio capture, voice-session bridge
-    ├── transfer/   — transports + wire protocol: Wi-Fi UDP, Bluetooth
-    │                 (Classic + BLE engines), Hotspot Bridge, WebRTC guest
-    │                 (shared ice_config.dart: STUN + gathering timeout)
+    │                 spectral noise suppressor, resampler, jitter buffer
+    │                 (drift-correcting, sample-rate-scaled cap), device-audio
+    │                 capture, voice-session bridge
+    ├── transfer/   — transports + wire protocol: Wi-Fi UDP (+ liveness
+    │                 watchdog), Bluetooth (Classic + BLE engines), combined
+    │                 WiFi/Hotspot page, WebRTC guest (shared ice_config.dart:
+    │                 STUN + gathering timeout); ConnectionHealthStatus is the
+    │                 unified healthy/reconnecting/down signal every transport
+    │                 emits
     ├── walkie/     — WalkieTalkieCubit + main push-to-talk console
-    ├── landing/    — lobby: identity, transport picker (2×2), Join
-    └── settings/   — consolidated Settings page: identity, VOX/noise, sound
-                      cues, appearance, quick-access toggle; edits an active
-                      session live when opened from the channel page
+    ├── landing/    — lobby: identity, read-only transport-mode chip, Join
+    ├── settings/   — categorized Settings page (Profile/Voice & Audio/
+    │                 Connection/Sound/Appearance/Startup) + Permissions page;
+    │                 edits an active session live when opened from the
+    │                 channel page
+    └── splash/     — branded cold-start splash page (skippable via Settings)
 packages/
 └── audio_io/       — vendored, one Android patch: streams open as
                       VOICE_COMMUNICATION class so call-mode routing applies
@@ -161,7 +174,7 @@ android/…/kotlin/com/b1101/tark/
 ios/Runner/         — AudioSessionHandler + HotspotJoinHandler (Swift)
 ```
 
-The active transport is chosen on the lobby; `TransferMode.hotspot` resolves to the Wi-Fi repository in the DI selector (the hotspot is only connection setup). `WalkieTalkieCubit` is an `@injectable` factory (not a GetIt singleton), so when Settings is opened from an active channel, the running cubit is threaded through go_router's `extra` param rather than looked up — Settings edits it in place for instant effect, and reads/writes `SharedPreferences` directly the same way when opened standalone from Landing (no session yet).
+The active transport is chosen in Settings (moved off the lobby); `TransferMode.hotspot` resolves to the Wi-Fi repository in the DI selector (the hotspot is only connection setup — the combined WiFi/Hotspot page's segmented control just picks which setup flow to show). `WalkieTalkieCubit` is an `@injectable` factory (not a GetIt singleton), so when Settings is opened from an active channel, the running cubit is threaded through go_router's `extra` param rather than looked up — Settings edits it in place for instant effect, and reads/writes through `SettingsRepository` (`lib/core/settings/`) the same way when opened standalone from Landing (no session yet).
 
 Cold start decides where to land before `runApp()`: `main.dart` calls `QuickAccess.resolveStartLocation` (same pattern as the existing `TransferModeStore.initialize()` preload) to compute `AppRouter.startLocation`, so returning users skip Landing entirely.
 

@@ -32,12 +32,12 @@ class AudioPlaybackBuffer {
     int sampleRate = 48000,
     int targetBufferMs = 100,
     int drainIntervalMs = 10,
-  })  : _output = output,
-        _sampleRate = sampleRate,
-        _targetSamples = sampleRate * targetBufferMs ~/ 1000,
-        _drainSize = sampleRate * drainIntervalMs ~/ 1000,
-        _drainIntervalMs = drainIntervalMs,
-        _defaultChunkLen = sampleRate * 10 ~/ 1000;
+  }) : _output = output,
+       _sampleRate = sampleRate,
+       _targetSamples = sampleRate * targetBufferMs ~/ 1000,
+       _drainSize = sampleRate * drainIntervalMs ~/ 1000,
+       _drainIntervalMs = drainIntervalMs,
+       _defaultChunkLen = sampleRate * 10 ~/ 1000;
 
   final Sink<List<double>> _output;
   final int _sampleRate;
@@ -50,8 +50,19 @@ class AudioPlaybackBuffer {
   Timer? _drainTimer;
   bool _filling = true;
 
-  /// Hard cap: 2 seconds of audio at 48 kHz.
-  static const int _maxQueueSamples = 96000;
+  /// Hard cap, scaled to this instance's actual sample rate (previously a
+  /// hardcoded 48 kHz sample count — at a 16 kHz output rate, as commonly
+  /// negotiated over Bluetooth SCO/HFP, that made the real cap 6 s instead
+  /// of 2 s, which is exactly how a session's playback delay could climb to
+  /// ~6 s over time instead of being capped at 2 s).
+  static const int kMaxQueueMs = 2000;
+  late final int _maxQueueSamples = _sampleRate * kMaxQueueMs ~/ 1000;
+
+  /// Ticks (at [_drainIntervalMs] each) the queue must stay sustained above
+  /// target before drift-correction kicks in.
+  late final int _catchUpTicks = (3000 / _drainIntervalMs).ceil();
+  int _overTargetTicks = 0;
+  bool _catchingUp = false;
 
   /// Beyond this many missing chunks in a row, treat it as a new talk burst
   /// (e.g. after a VOX silence) instead of filling a huge silence gap.
@@ -59,7 +70,10 @@ class AudioPlaybackBuffer {
 
   /// Short ramp applied right after playback resumes (initial fill or after
   /// an underrun) to avoid an audible click at the silence→audio boundary.
-  late final int _fadeInSamples = (_sampleRate * 0.003).round().clamp(1, 1 << 30);
+  late final int _fadeInSamples = (_sampleRate * 0.003).round().clamp(
+    1,
+    1 << 30,
+  );
   int _fadeRemaining = 0;
 
   // Sequence tracking for loss/reorder detection, per sender id.
@@ -117,34 +131,55 @@ class AudioPlaybackBuffer {
   void _startDraining() {
     _drainTimer?.cancel();
     _fadeRemaining = _fadeInSamples;
-    _drainTimer = Timer.periodic(
-      Duration(milliseconds: _drainIntervalMs),
-      (_) {
-        if (_queue.length < _drainSize) {
-          // Underrun — stop and wait for the buffer to refill.
-          _filling = true;
-          _drainTimer?.cancel();
-          _drainTimer = null;
-          return;
+    _overTargetTicks = 0;
+    _catchingUp = false;
+    _drainTimer = Timer.periodic(Duration(milliseconds: _drainIntervalMs), (_) {
+      if (_queue.length < _drainSize) {
+        // Underrun — stop and wait for the buffer to refill.
+        _filling = true;
+        _drainTimer?.cancel();
+        _drainTimer = null;
+        return;
+      }
+
+      // Drift correction: independent sender/receiver clocks mean the
+      // queue can creep above target even with zero packet loss. Left
+      // unchecked, only the hard cap above would ever pull it back down —
+      // which bounds memory but still lets real playback delay grow for
+      // the whole session. Once sustained meaningfully above target for a
+      // few seconds, briefly drain faster than real-time to walk it back.
+      if (_queue.length > _targetSamples * 8 ~/ 5) {
+        _overTargetTicks++;
+        if (_overTargetTicks > _catchUpTicks) _catchingUp = true;
+      } else {
+        _overTargetTicks = 0;
+        _catchingUp = false;
+      }
+      if (_catchingUp && _queue.length <= _targetSamples * 6 ~/ 5) {
+        _catchingUp = false;
+        _overTargetTicks = 0;
+      }
+
+      final drainSize = _catchingUp
+          ? (_drainSize + _drainSize ~/ 6).clamp(1, _queue.length)
+          : _drainSize;
+      final chunk = List<double>.generate(
+        drainSize,
+        (_) => _queue.removeFirst(),
+      );
+      if (_fadeRemaining > 0) {
+        final rampLen = _fadeRemaining < chunk.length
+            ? _fadeRemaining
+            : chunk.length;
+        for (int i = 0; i < rampLen; i++) {
+          final progress =
+              (_fadeInSamples - _fadeRemaining + i + 1) / _fadeInSamples;
+          chunk[i] *= progress.clamp(0.0, 1.0);
         }
-        final chunk = List<double>.generate(
-          _drainSize,
-          (_) => _queue.removeFirst(),
-        );
-        if (_fadeRemaining > 0) {
-          final rampLen = _fadeRemaining < chunk.length
-              ? _fadeRemaining
-              : chunk.length;
-          for (int i = 0; i < rampLen; i++) {
-            final progress =
-                (_fadeInSamples - _fadeRemaining + i + 1) / _fadeInSamples;
-            chunk[i] *= progress.clamp(0.0, 1.0);
-          }
-          _fadeRemaining -= rampLen;
-        }
-        _output.add(chunk);
-      },
-    );
+        _fadeRemaining -= rampLen;
+      }
+      _output.add(chunk);
+    });
   }
 
   /// Reset the buffer state (e.g. on network reconnect).
@@ -156,6 +191,8 @@ class AudioPlaybackBuffer {
     _expectedSeqBySender.clear();
     _lastChunkLenBySender.clear();
     _fadeRemaining = 0;
+    _overTargetTicks = 0;
+    _catchingUp = false;
   }
 
   /// Cancel the drain timer. Call before discarding this object.

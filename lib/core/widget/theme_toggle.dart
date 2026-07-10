@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../l10n/extension.dart';
 import '../theme/app_colors.dart';
 import '../theme/theme_service.dart';
+import 'theme_reveal_transition.dart';
 
 /// Dark / light theme toggle, styled to match [LanguageToggle].
 ///
@@ -58,7 +59,14 @@ class _ThemeChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => ThemeService.setMode(mode),
+      onTapDown: (details) {
+        if (isSelected) return;
+        AppRevealController.reveal(
+          context: context,
+          origin: details.globalPosition,
+          applyChange: () => ThemeService.setMode(mode),
+        );
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),

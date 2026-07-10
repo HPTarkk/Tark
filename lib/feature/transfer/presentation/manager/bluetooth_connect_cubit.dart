@@ -3,8 +3,9 @@ import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/settings/settings_repository.dart';
+import '../../../../core/settings/settings_repository_impl.dart';
 import '../../../../core/sfx/sfx_event.dart';
 import '../../../../core/sfx/sfx_service.dart';
 import '../../../../core/utils/logger.dart';
@@ -16,61 +17,63 @@ import '../../domain/repository/bluetooth_transport.dart';
 @injectable
 class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
   final BluetoothTransport _transport;
+  final SettingsRepository _settingsRepository;
 
   StreamSubscription<BluetoothConnectionState>? _connectionSub;
   StreamSubscription<BluetoothPeer>? _scanSub;
   StreamSubscription<bool>? _bleAdvertisingSub;
   Timer? _reconnectTimeout;
 
-  BluetoothConnectCubit(this._transport)
-      : super(BluetoothConnectState.initial()) {
-    _connectionSub = _transport.connectionState.listen(
-      (s) {
-        // Clear the "connecting to this peer" marker once the attempt
-        // resolves either way, so a failed connection can be retried.
-        final stillConnecting = s == BluetoothConnectionState.connecting;
-        switch (s) {
-          case BluetoothConnectionState.connected:
-            Sfx.play(SfxEvent.peerJoin);
-          case BluetoothConnectionState.reconnecting:
-            Sfx.play(SfxEvent.linkLost);
-          case BluetoothConnectionState.error:
-            Sfx.play(SfxEvent.error);
-          default:
-            break;
-        }
-        emit(state.copyWith(
+  BluetoothConnectCubit(
+    this._transport, [
+    SettingsRepository? settingsRepository,
+  ]) : _settingsRepository = settingsRepository ?? SettingsRepositoryImpl(),
+       super(BluetoothConnectState.initial()) {
+    _connectionSub = _transport.connectionState.listen((s) {
+      // Clear the "connecting to this peer" marker once the attempt
+      // resolves either way, so a failed connection can be retried.
+      final stillConnecting = s == BluetoothConnectionState.connecting;
+      switch (s) {
+        case BluetoothConnectionState.connected:
+          Sfx.play(SfxEvent.peerJoin);
+        case BluetoothConnectionState.reconnecting:
+          Sfx.play(SfxEvent.linkLost);
+        case BluetoothConnectionState.error:
+          Sfx.play(SfxEvent.error);
+        default:
+          break;
+      }
+      emit(
+        state.copyWith(
           connectionState: s,
           connectingPeerId: stillConnecting ? state.connectingPeerId : null,
-        ));
-      },
-      onError: (Object e) => Logger.log('BT connection state error: $e'),
-    );
+        ),
+      );
+    }, onError: (Object e) => Logger.log('BT connection state error: $e'));
     // When BLE host advertising can't start, iPhones can't discover us — flag
     // it so the host screen can steer the user to the Wi-Fi hotspot bridge.
-    _bleAdvertisingSub = _transport.bleAdvertising.listen(
-      (ok) {
-        if (!ok && !isClosed) {
-          emit(state.copyWith(bleUnavailable: true));
-          Sfx.play(SfxEvent.error);
-        }
-      },
-      onError: (Object e) => Logger.log('BLE advertising state error: $e'),
-    );
+    _bleAdvertisingSub = _transport.bleAdvertising.listen((ok) {
+      if (!ok && !isClosed) {
+        emit(state.copyWith(bleUnavailable: true));
+        Sfx.play(SfxEvent.error);
+      }
+    }, onError: (Object e) => Logger.log('BLE advertising state error: $e'));
     _loadIdentity();
   }
 
   Future<void> _loadIdentity() async {
-    final prefs = await SharedPreferences.getInstance();
+    final myName = await _settingsRepository.getMyName();
+    final lastId = await _settingsRepository.getLastBluetoothPeerId();
+    final lastName = await _settingsRepository.getLastBluetoothPeerName();
     if (isClosed) return;
-    final lastId = prefs.getString('bt_last_peer_id');
-    final lastName = prefs.getString('bt_last_peer_name');
-    emit(state.copyWith(
-      myName: prefs.getString('user_name') ?? 'Tark',
-      lastPeer: lastId != null
-          ? BluetoothPeer(id: lastId, name: lastName ?? lastId)
-          : null,
-    ));
+    emit(
+      state.copyWith(
+        myName: myName.isEmpty ? 'Tark' : myName,
+        lastPeer: lastId != null
+            ? BluetoothPeer(id: lastId, name: lastName ?? lastId)
+            : null,
+      ),
+    );
   }
 
   Future<void> startHosting() async {
@@ -85,29 +88,26 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
 
   Future<void> _listenToScan({String? autoConnectId}) async {
     await _scanSub?.cancel();
-    _scanSub = _transport.scanForHosts().listen(
-      (peer) {
-        // Upsert: repeat discoveries refresh the RSSI, so the signal bars
-        // (and the radar blip distance) stay live while scanning.
-        final peers = [...state.peers];
-        final idx = peers.indexWhere((p) => p.id == peer.id);
-        if (idx >= 0) {
-          peers[idx] = peer;
-        } else {
-          peers.add(peer);
-        }
-        peers.sort((a, b) => (b.rssi ?? -999).compareTo(a.rssi ?? -999));
-        emit(state.copyWith(peers: peers));
+    _scanSub = _transport.scanForHosts().listen((peer) {
+      // Upsert: repeat discoveries refresh the RSSI, so the signal bars
+      // (and the radar blip distance) stay live while scanning.
+      final peers = [...state.peers];
+      final idx = peers.indexWhere((p) => p.id == peer.id);
+      if (idx >= 0) {
+        peers[idx] = peer;
+      } else {
+        peers.add(peer);
+      }
+      peers.sort((a, b) => (b.rssi ?? -999).compareTo(a.rssi ?? -999));
+      emit(state.copyWith(peers: peers));
 
-        if (autoConnectId != null &&
-            peer.id == autoConnectId &&
-            state.connectingPeerId == autoConnectId &&
-            state.connectionState != BluetoothConnectionState.connecting) {
-          connectTo(peer);
-        }
-      },
-      onError: (Object e) => Logger.log('BT scan error: $e'),
-    );
+      if (autoConnectId != null &&
+          peer.id == autoConnectId &&
+          state.connectingPeerId == autoConnectId &&
+          state.connectionState != BluetoothConnectionState.connecting) {
+        connectTo(peer);
+      }
+    }, onError: (Object e) => Logger.log('BT scan error: $e'));
   }
 
   Future<void> connectTo(BluetoothPeer peer) async {
@@ -126,20 +126,24 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
     if (peer == null) return;
 
     if (!peer.isBle) {
-      emit(state.copyWith(
-        role: BluetoothRole.joiner,
-        peers: [peer],
-        connectingPeerId: peer.id,
-      ));
+      emit(
+        state.copyWith(
+          role: BluetoothRole.joiner,
+          peers: [peer],
+          connectingPeerId: peer.id,
+        ),
+      );
       await _transport.connectToHost(peer);
       return;
     }
 
-    emit(state.copyWith(
-      role: BluetoothRole.joiner,
-      peers: const [],
-      connectingPeerId: peer.id,
-    ));
+    emit(
+      state.copyWith(
+        role: BluetoothRole.joiner,
+        peers: const [],
+        connectingPeerId: peer.id,
+      ),
+    );
     await _listenToScan(autoConnectId: peer.id);
     _reconnectTimeout?.cancel();
     _reconnectTimeout = Timer(const Duration(seconds: 25), () {
@@ -156,8 +160,12 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
     _reconnectTimeout?.cancel();
     _scanSub?.cancel();
     _transport.reset();
-    emit(BluetoothConnectState.initial()
-        .copyWith(myName: state.myName, lastPeer: state.lastPeer));
+    emit(
+      BluetoothConnectState.initial().copyWith(
+        myName: state.myName,
+        lastPeer: state.lastPeer,
+      ),
+    );
   }
 
   @override
@@ -204,14 +212,14 @@ class BluetoothConnectState extends Equatable {
   });
 
   factory BluetoothConnectState.initial() => const BluetoothConnectState(
-        role: null,
-        connectionState: BluetoothConnectionState.disconnected,
-        peers: [],
-        myName: '',
-        lastPeer: null,
-        connectingPeerId: null,
-        bleUnavailable: false,
-      );
+    role: null,
+    connectionState: BluetoothConnectionState.disconnected,
+    peers: [],
+    myName: '',
+    lastPeer: null,
+    connectingPeerId: null,
+    bleUnavailable: false,
+  );
 
   BluetoothConnectState copyWith({
     BluetoothRole? role,
@@ -221,29 +229,28 @@ class BluetoothConnectState extends Equatable {
     BluetoothPeer? lastPeer,
     Object? connectingPeerId = _unset,
     bool? bleUnavailable,
-  }) =>
-      BluetoothConnectState(
-        role: role ?? this.role,
-        connectionState: connectionState ?? this.connectionState,
-        peers: peers ?? this.peers,
-        myName: myName ?? this.myName,
-        lastPeer: lastPeer ?? this.lastPeer,
-        connectingPeerId: identical(connectingPeerId, _unset)
-            ? this.connectingPeerId
-            : connectingPeerId as String?,
-        bleUnavailable: bleUnavailable ?? this.bleUnavailable,
-      );
+  }) => BluetoothConnectState(
+    role: role ?? this.role,
+    connectionState: connectionState ?? this.connectionState,
+    peers: peers ?? this.peers,
+    myName: myName ?? this.myName,
+    lastPeer: lastPeer ?? this.lastPeer,
+    connectingPeerId: identical(connectingPeerId, _unset)
+        ? this.connectingPeerId
+        : connectingPeerId as String?,
+    bleUnavailable: bleUnavailable ?? this.bleUnavailable,
+  );
 
   @override
   List<Object?> get props => [
-        role,
-        connectionState,
-        peers,
-        myName,
-        lastPeer,
-        connectingPeerId,
-        bleUnavailable,
-      ];
+    role,
+    connectionState,
+    peers,
+    myName,
+    lastPeer,
+    connectingPeerId,
+    bleUnavailable,
+  ];
 }
 
 const _unset = Object();

@@ -4,8 +4,9 @@ import 'dart:collection';
 import 'package:audio_io/audio_io.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/settings/settings_repository.dart';
+import '../../../../core/settings/settings_repository_impl.dart';
 import '../../../../core/sfx/sfx_event.dart';
 import '../../../../core/sfx/sfx_service.dart';
 import '../../../../core/utils/logger.dart';
@@ -26,7 +27,9 @@ import '../../data/guest_web_client.dart';
 /// Dart pieces the mobile app uses, so the guest gets the same VOX / noise
 /// controls the walkie page has.
 class GuestSessionCubit extends Cubit<GuestSessionState> {
-  GuestSessionCubit(this._client) : super(GuestSessionState.initial()) {
+  GuestSessionCubit(this._client, [SettingsRepository? settingsRepository])
+    : _settingsRepository = settingsRepository ?? SettingsRepositoryImpl(),
+      super(GuestSessionState.initial()) {
     _loadPrefs();
     _packetSub = _client.messages.listen((bytes) {
       final packet = _codec.decode(bytes, 'host');
@@ -37,15 +40,16 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
           if (!state.hostTalking && packet.isTalking) {
             Sfx.play(SfxEvent.rxStart);
           }
-          emit(state.copyWith(
-            hostName: packet.senderName,
-            hostTalking: packet.isTalking,
-          ));
+          emit(
+            state.copyWith(
+              hostName: packet.senderName,
+              hostTalking: packet.isTalking,
+            ),
+          );
         case AudioPacket():
           _hostLastSeen = DateTime.now();
           if (!state.hostTalking) Sfx.play(SfxEvent.rxStart);
-          emit(state.copyWith(
-              hostName: packet.senderName, hostTalking: true));
+          emit(state.copyWith(hostName: packet.senderName, hostTalking: true));
           try {
             _engine.playReceived(packet.samples, packet.seq, 'host');
           } catch (e) {
@@ -60,12 +64,23 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
       if (wasUp != isUp) {
         emit(state.copyWith(linkUp: isUp));
         Sfx.play(isUp ? SfxEvent.linkRestored : SfxEvent.linkLost);
+        if (isUp) {
+          // Clear stale jitter-buffer/decoder state left over from before
+          // the drop so playback doesn't pick up mid-buffer or garble the
+          // first packets once the host resumes.
+          _engine.resetPlayback();
+          _codec.resetDecoders();
+        }
       }
     });
   }
 
   final GuestWebClient _client;
-  final AudioEngine _engine = AudioEngineImpl(AudioIo.instance);
+  final SettingsRepository _settingsRepository;
+  final AudioEngine _engine = AudioEngineImpl(
+    AudioIo.instance,
+    SettingsRepositoryImpl(),
+  );
   final _codec = WakiPacketCodec();
 
   StreamSubscription<dynamic>? _packetSub;
@@ -87,16 +102,18 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
   Stream<AudioFrame> get frames => _engine.frames;
 
   Future<void> _loadPrefs() async {
-    final prefs = await SharedPreferences.getInstance();
+    final storedName = await _settingsRepository.getMyName();
+    final voxThreshold = await _settingsRepository.getVoxThreshold();
+    final noiseSuppression = await _settingsRepository.getNoiseSuppression();
     if (isClosed) return;
-    _engine.setNoiseSuppression(
-        prefs.getDouble('noise_suppression') ?? state.noiseSuppression);
-    emit(state.copyWith(
-      myName: prefs.getString('user_name') ?? state.myName,
-      voxThreshold: prefs.getDouble('vox_threshold') ?? state.voxThreshold,
-      noiseSuppression:
-          prefs.getDouble('noise_suppression') ?? state.noiseSuppression,
-    ));
+    _engine.setNoiseSuppression(noiseSuppression);
+    emit(
+      state.copyWith(
+        myName: storedName.isEmpty ? state.myName : storedName,
+        voxThreshold: voxThreshold,
+        noiseSuppression: noiseSuppression,
+      ),
+    );
   }
 
   /// Must be called from a user gesture: Safari only unlocks the audio
@@ -121,8 +138,10 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
     }
     if (isClosed) return;
 
-    _frameSub = _engine.frames.listen(_onFrame,
-        onError: (Object e) => Logger.log('Guest frame error: $e'));
+    _frameSub = _engine.frames.listen(
+      _onFrame,
+      onError: (Object e) => Logger.log('Guest frame error: $e'),
+    );
     _presenceTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       if (_client.isOpen) {
         _client.send(_codec.encodePresence(state.myName, state.isTalking));
@@ -134,8 +153,9 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
         emit(state.copyWith(hostTalking: false));
       }
     });
-    emit(state.copyWith(
-        audioStarted: true, audioStarting: false, isReady: true));
+    emit(
+      state.copyWith(audioStarted: true, audioStarting: false, isReady: true),
+    );
     Sfx.play(SfxEvent.channelJoin);
   }
 
@@ -181,12 +201,16 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
     emit(state.copyWith(muted: !state.muted));
   }
 
+  /// Manual "Retry now" — the client already bounds its own auto-retry
+  /// attempts, so this both covers the "auto-retry gave up" case and lets
+  /// the user retry immediately without waiting.
+  void retryNow() => _client.retryNow();
+
   Future<void> setMyName(String name) async {
     final trimmed = name.trim();
     if (trimmed.isEmpty) return;
     emit(state.copyWith(myName: trimmed));
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('user_name', trimmed);
+    await _settingsRepository.setMyName(trimmed);
     // Let the host see the new name immediately, not on the next tick.
     if (_client.isOpen) {
       _client.send(_codec.encodePresence(trimmed, state.isTalking));
@@ -195,15 +219,13 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
 
   Future<void> setVoxThreshold(double threshold) async {
     emit(state.copyWith(voxThreshold: threshold));
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble('vox_threshold', threshold);
+    await _settingsRepository.setVoxThreshold(threshold);
   }
 
   Future<void> setNoiseSuppression(double strength) async {
     _engine.setNoiseSuppression(strength);
     emit(state.copyWith(noiseSuppression: strength));
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble('noise_suppression', strength);
+    await _settingsRepository.setNoiseSuppression(strength);
   }
 
   @override
@@ -250,19 +272,19 @@ class GuestSessionState extends Equatable {
   });
 
   factory GuestSessionState.initial() => const GuestSessionState(
-        myName: 'Guest',
-        hostName: '',
-        hostTalking: false,
-        isTalking: false,
-        muted: false,
-        linkUp: true,
-        audioStarting: false,
-        audioStarted: false,
-        isReady: false,
-        hasPermission: true,
-        voxThreshold: 0.025,
-        noiseSuppression: 0.6,
-      );
+    myName: 'Guest',
+    hostName: '',
+    hostTalking: false,
+    isTalking: false,
+    muted: false,
+    linkUp: true,
+    audioStarting: false,
+    audioStarted: false,
+    isReady: false,
+    hasPermission: true,
+    voxThreshold: 0.0,
+    noiseSuppression: 0.8,
+  );
 
   GuestSessionState copyWith({
     String? myName,
@@ -277,37 +299,36 @@ class GuestSessionState extends Equatable {
     bool? hasPermission,
     double? voxThreshold,
     double? noiseSuppression,
-  }) =>
-      GuestSessionState(
-        myName: myName ?? this.myName,
-        hostName: hostName ?? this.hostName,
-        hostTalking: hostTalking ?? this.hostTalking,
-        isTalking: isTalking ?? this.isTalking,
-        muted: muted ?? this.muted,
-        linkUp: linkUp ?? this.linkUp,
-        audioStarting: audioStarting ?? this.audioStarting,
-        audioStarted: audioStarted ?? this.audioStarted,
-        isReady: isReady ?? this.isReady,
-        hasPermission: hasPermission ?? this.hasPermission,
-        voxThreshold: voxThreshold ?? this.voxThreshold,
-        noiseSuppression: noiseSuppression ?? this.noiseSuppression,
-      );
+  }) => GuestSessionState(
+    myName: myName ?? this.myName,
+    hostName: hostName ?? this.hostName,
+    hostTalking: hostTalking ?? this.hostTalking,
+    isTalking: isTalking ?? this.isTalking,
+    muted: muted ?? this.muted,
+    linkUp: linkUp ?? this.linkUp,
+    audioStarting: audioStarting ?? this.audioStarting,
+    audioStarted: audioStarted ?? this.audioStarted,
+    isReady: isReady ?? this.isReady,
+    hasPermission: hasPermission ?? this.hasPermission,
+    voxThreshold: voxThreshold ?? this.voxThreshold,
+    noiseSuppression: noiseSuppression ?? this.noiseSuppression,
+  );
 
   bool get isHostOnline => hostName.isNotEmpty;
 
   @override
   List<Object?> get props => [
-        myName,
-        hostName,
-        hostTalking,
-        isTalking,
-        muted,
-        linkUp,
-        audioStarting,
-        audioStarted,
-        isReady,
-        hasPermission,
-        voxThreshold,
-        noiseSuppression,
-      ];
+    myName,
+    hostName,
+    hostTalking,
+    isTalking,
+    muted,
+    linkUp,
+    audioStarting,
+    audioStarted,
+    isReady,
+    hasPermission,
+    voxThreshold,
+    noiseSuppression,
+  ];
 }

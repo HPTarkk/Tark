@@ -23,8 +23,9 @@ abstract final class LanIpv4 {
   /// Snapshot of all non-loopback IPv4 addresses with their interface names.
   static Future<List<({String name, String address})>> addresses() async {
     final result = <({String name, String address})>[];
-    final interfaces =
-        await NetworkInterface.list(type: InternetAddressType.IPv4);
+    final interfaces = await NetworkInterface.list(
+      type: InternetAddressType.IPv4,
+    );
     for (final iface in interfaces) {
       for (final addr in iface.addresses) {
         if (!addr.isLoopback) {
@@ -39,8 +40,7 @@ abstract final class LanIpv4 {
   /// prefers private (RFC1918) addresses, and among those prefers the
   /// WiFi/hotspot interface (en0/bridge on iOS, wlan*/ap*/swlan* on
   /// Android). Returns null when no usable address exists.
-  static String? bestLocalAddress(
-      List<({String name, String address})> addrs) {
+  static String? bestLocalAddress(List<({String name, String address})> addrs) {
     final private = addrs.where((e) => isPrivate(e.address)).toList();
     if (private.isNotEmpty) {
       for (final e in private) {

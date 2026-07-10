@@ -140,6 +140,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get transport_wifi => 'WIFI';
 
   @override
+  String get transport_wifi_hotspot => 'WIFI / HOTSPOT';
+
+  @override
   String get transport_bluetooth => 'BLUETOOTH';
 
   @override
@@ -280,6 +283,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bt_link_reconnecting => 'Bluetooth link lost — reconnecting...';
 
   @override
+  String get bt_link_down => 'Bluetooth link lost';
+
+  @override
   String get bt_waiting_for_peer => 'Waiting for the other side to connect...';
 
   @override
@@ -307,6 +313,63 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get retry => 'TRY AGAIN';
+
+  @override
+  String get permissions_title => 'Permissions';
+
+  @override
+  String get permission_granted => 'Granted';
+
+  @override
+  String get permission_grant => 'GRANT';
+
+  @override
+  String get permission_mic_title => 'Microphone';
+
+  @override
+  String get permission_mic_desc =>
+      'Needed to capture your voice for transmission.';
+
+  @override
+  String get permission_bluetooth_title => 'Bluetooth';
+
+  @override
+  String get permission_bluetooth_desc =>
+      'Needed to scan for and connect to a nearby device in Bluetooth mode.';
+
+  @override
+  String get permission_bt_scan_title => 'Scan for devices';
+
+  @override
+  String get permission_bt_scan_desc => 'Finds nearby devices to connect to.';
+
+  @override
+  String get permission_bt_connect_title => 'Connect';
+
+  @override
+  String get permission_bt_connect_desc =>
+      'Pairs and exchanges audio with the other device.';
+
+  @override
+  String get permission_bt_advertise_title => 'Advertise';
+
+  @override
+  String get permission_bt_advertise_desc =>
+      'Lets the other device find you when you\'re hosting.';
+
+  @override
+  String get permission_hotspot_title => 'Location & nearby Wi-Fi';
+
+  @override
+  String get permission_hotspot_desc =>
+      'Needed by Android to host a local hotspot for others to join.';
+
+  @override
+  String get permission_battery_title => 'Background battery exemption';
+
+  @override
+  String get permission_battery_desc =>
+      'Keeps the channel alive when the screen is off — without it, the OS may freeze or kill the app mid-ride.';
 
   @override
   String get bt_connection_failed => 'Connection failed';
@@ -339,10 +402,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get link_reconnecting => 'Connection lost — reconnecting...';
 
   @override
+  String get link_down => 'Connection lost';
+
+  @override
   String get transport_hotspot => 'HOTSPOT';
 
   @override
   String get hotspot_title => 'Hotspot bridge';
+
+  @override
+  String get wifi_only_instructions =>
+      'Already on the same Wi-Fi? There\'s nothing to set up — just enter the channel.';
+
+  @override
+  String get wifi_only_step_same_network =>
+      'Make sure both devices are connected to the same Wi-Fi network.';
 
   @override
   String get hotspot_not_supported =>
@@ -440,10 +514,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_title => 'Settings';
 
   @override
-  String get settings_section_identity => 'IDENTITY';
+  String get settings_section_identity => 'PROFILE';
 
   @override
-  String get settings_section_voice => 'VOICE';
+  String get settings_section_voice => 'VOICE & AUDIO';
 
   @override
   String get settings_section_sound => 'SOUND & ALERTS';
@@ -453,6 +527,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settings_section_connection => 'CONNECTION';
+
+  @override
+  String get settings_section_startup => 'STARTUP';
 
   @override
   String get settings_applies_live =>
@@ -468,6 +545,74 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settings_quick_access_desc =>
       'Skip this screen and resume your last channel on launch';
+
+  @override
+  String get settings_delay => 'PLAYBACK DELAY';
+
+  @override
+  String get settings_delay_desc =>
+      'How much incoming audio is buffered before playback — higher smooths out a choppy connection at the cost of latency.';
+
+  @override
+  String get settings_restore_defaults => 'RESTORE DEFAULTS';
+
+  @override
+  String get settings_restore_defaults_done =>
+      'Voice settings restored to defaults';
+
+  @override
+  String get settings_auto_reconnect => 'Auto-reconnect';
+
+  @override
+  String get settings_auto_reconnect_desc =>
+      'Automatically retry when the link drops instead of requiring a manual retry';
+
+  @override
+  String get settings_permissions_row => 'Permissions';
+
+  @override
+  String get settings_permissions_row_desc =>
+      'Review and manage what the app can access';
+
+  @override
+  String get settings_wifi_hotspot_row => 'WiFi / Hotspot setup';
+
+  @override
+  String get settings_wifi_hotspot_row_desc =>
+      'Host a hotspot or check the WiFi join steps';
+
+  @override
+  String get settings_skip_splash => 'Skip splash screen';
+
+  @override
+  String get settings_skip_splash_desc => 'Go straight to the app on launch';
+
+  @override
+  String get usage_tips_title => 'Get the most out of Tark';
+
+  @override
+  String get usage_tips_1_title => 'Pair an ANC or handsfree headset';
+
+  @override
+  String get usage_tips_1_body =>
+      'Active noise cancellation makes it much easier to hear the channel over wind and engine noise — and keeps your hands free while riding.';
+
+  @override
+  String get usage_tips_2_title => 'Always wear a proper helmet';
+
+  @override
+  String get usage_tips_2_body =>
+      'Safety first — a well-fitted helmet also seats your headset closer to your ears for clearer audio on the move.';
+
+  @override
+  String get usage_tips_3_title => 'Your mic is hands-free by default';
+
+  @override
+  String get usage_tips_3_body =>
+      'Voice sensitivity starts wide open with noise suppression doing the work, so you never have to press anything to talk. Fine-tune both anytime in Settings.';
+
+  @override
+  String get usage_tips_dismiss => 'GOT IT';
 
   @override
   String get settings_gear_tooltip => 'Settings';

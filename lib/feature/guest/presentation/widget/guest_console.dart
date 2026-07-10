@@ -121,7 +121,9 @@ class _IdentityCard extends StatelessWidget {
                         onTap: () => _showEditName(context, state.myName),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.border,
                             borderRadius: BorderRadius.circular(6),
@@ -129,8 +131,11 @@ class _IdentityCard extends StatelessWidget {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.edit_rounded,
-                                  color: AppColors.amber, size: 12),
+                              Icon(
+                                Icons.edit_rounded,
+                                color: AppColors.amber,
+                                size: 12,
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 s.edit_name,
@@ -149,8 +154,11 @@ class _IdentityCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      Icon(Icons.public_rounded,
-                          color: AppColors.textSecondary, size: 12),
+                      Icon(
+                        Icons.public_rounded,
+                        color: AppColors.textSecondary,
+                        size: 12,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         s.transport_guest,
@@ -186,7 +194,9 @@ class _IdentityCard extends StatelessWidget {
         title: Text(
           s.set_name_title,
           style: TextStyle(
-              color: AppColors.textPrimary, fontWeight: FontWeight.w700),
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         content: TextField(
           controller: controller,
@@ -195,10 +205,10 @@ class _IdentityCard extends StatelessWidget {
           style: TextStyle(color: AppColors.textPrimary),
           decoration: InputDecoration(
             hintText: s.name_hint,
-            hintStyle:
-                TextStyle(color: AppColors.textSecondary.withAlpha(160)),
-            counterStyle:
-                TextStyle(color: AppColors.textSecondary.withAlpha(120)),
+            hintStyle: TextStyle(color: AppColors.textSecondary.withAlpha(160)),
+            counterStyle: TextStyle(
+              color: AppColors.textSecondary.withAlpha(120),
+            ),
             filled: true,
             fillColor: AppColors.surface,
             border: OutlineInputBorder(
@@ -222,8 +232,10 @@ class _IdentityCard extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(s.cancel,
-                style: TextStyle(color: AppColors.textSecondary)),
+            child: Text(
+              s.cancel,
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           TextButton(
             onPressed: () {
@@ -233,7 +245,9 @@ class _IdentityCard extends StatelessWidget {
             child: Text(
               s.save,
               style: TextStyle(
-                  color: AppColors.amber, fontWeight: FontWeight.w700),
+                color: AppColors.amber,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -330,8 +344,10 @@ class _LinkBanner extends StatelessWidget {
             : Container(
                 width: double.infinity,
                 margin: const EdgeInsets.only(bottom: 14),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.red.withAlpha(20),
                   borderRadius: BorderRadius.circular(12),
@@ -355,6 +371,23 @@ class _LinkBanner extends StatelessWidget {
                           color: AppColors.red,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () =>
+                          context.read<GuestSessionCubit>().retryNow(),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.red,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: Text(
+                        context.getString.retry,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
@@ -437,7 +470,9 @@ class _StatusChip extends StatelessWidget {
               boxShadow: isActive
                   ? [
                       BoxShadow(
-                          color: activeColor.withAlpha(180), blurRadius: 8)
+                        color: activeColor.withAlpha(180),
+                        blurRadius: 8,
+                      ),
                     ]
                   : null,
             ),
@@ -501,7 +536,9 @@ class _HostMember extends StatelessWidget {
                 : Container(
                     key: const ValueKey('host'),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 12),
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.card,
                       borderRadius: BorderRadius.circular(14),
@@ -514,9 +551,10 @@ class _HostMember extends StatelessWidget {
                     child: Row(
                       children: [
                         AppAvatar(
-                            name: state.hostName,
-                            isActive: state.hostTalking,
-                            size: 40),
+                          name: state.hostName,
+                          isActive: state.hostTalking,
+                          size: 40,
+                        ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
@@ -532,8 +570,11 @@ class _HostMember extends StatelessWidget {
                         if (state.hostTalking)
                           Row(
                             children: [
-                              Icon(Icons.graphic_eq_rounded,
-                                  color: AppColors.green, size: 16),
+                              Icon(
+                                Icons.graphic_eq_rounded,
+                                color: AppColors.green,
+                                size: 16,
+                              ),
                               const SizedBox(width: 6),
                               Text(
                                 s.rx_label,
@@ -569,8 +610,9 @@ class _VoxCard extends StatelessWidget {
           p.noiseSuppression != c.noiseSuppression,
       builder: (context, state) {
         final cubit = context.read<GuestSessionCubit>();
-        final voxPct =
-            ((state.voxThreshold / 0.15) * 100).clamp(0.0, 100.0).round();
+        final voxPct = ((state.voxThreshold / 0.15) * 100)
+            .clamp(0.0, 100.0)
+            .round();
         final noisePct = (state.noiseSuppression * 100).round();
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -597,16 +639,22 @@ class _VoxCard extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(s.voice_quiet,
-                          style: TextStyle(
-                              color: AppColors.textSecondary.withAlpha(160),
-                              fontSize: 10,
-                              letterSpacing: 1)),
-                      Text(s.voice_loud,
-                          style: TextStyle(
-                              color: AppColors.textSecondary.withAlpha(160),
-                              fontSize: 10,
-                              letterSpacing: 1)),
+                      Text(
+                        s.voice_quiet,
+                        style: TextStyle(
+                          color: AppColors.textSecondary.withAlpha(160),
+                          fontSize: 10,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                      Text(
+                        s.voice_loud,
+                        style: TextStyle(
+                          color: AppColors.textSecondary.withAlpha(160),
+                          fontSize: 10,
+                          letterSpacing: 1,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -614,8 +662,9 @@ class _VoxCard extends StatelessWidget {
                   const SizedBox(height: 12),
                   _SliderRow(
                     label: s.noise_filter,
-                    valueLabel:
-                        noisePct == 0 ? s.noise_filter_off : '$noisePct%',
+                    valueLabel: noisePct == 0
+                        ? s.noise_filter_off
+                        : '$noisePct%',
                     value: state.noiseSuppression,
                     min: 0.0,
                     max: 1.0,
@@ -674,9 +723,10 @@ class _SliderRow extends StatelessWidget {
                 text: valueLabel,
                 duration: const Duration(milliseconds: 200),
                 style: TextStyle(
-                    color: AppColors.amber,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700),
+                  color: AppColors.amber,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ],
@@ -764,8 +814,11 @@ class _LeaveButton extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.power_settings_new_rounded,
-                color: AppColors.red.withAlpha(210), size: 18),
+            Icon(
+              Icons.power_settings_new_rounded,
+              color: AppColors.red.withAlpha(210),
+              size: 18,
+            ),
             const SizedBox(width: 10),
             Text(
               s.leave_channel,
@@ -794,7 +847,9 @@ class _LeaveButton extends StatelessWidget {
         title: Text(
           s.leave_channel_confirm_title,
           style: TextStyle(
-              color: AppColors.textPrimary, fontWeight: FontWeight.w700),
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         content: Text(
           s.leave_channel_confirm_message,
@@ -803,8 +858,10 @@ class _LeaveButton extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(s.cancel,
-                style: TextStyle(color: AppColors.textSecondary)),
+            child: Text(
+              s.cancel,
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
           ),
           TextButton(
             onPressed: () {
@@ -814,7 +871,9 @@ class _LeaveButton extends StatelessWidget {
             child: Text(
               s.leave,
               style: TextStyle(
-                  color: AppColors.red, fontWeight: FontWeight.w700),
+                color: AppColors.red,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],

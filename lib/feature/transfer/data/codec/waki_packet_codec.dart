@@ -43,20 +43,31 @@ class WakiPacketCodec {
       audioData.setInt16(i * 2, intVal, Endian.little);
     }
     return _buildAudioPacket(
-        kAudioByte, senderName, seq, audioData.buffer.asUint8List());
+      kAudioByte,
+      senderName,
+      seq,
+      audioData.buffer.asUint8List(),
+    );
   }
 
   Uint8List _buildAudioPacket(
-      int type, String senderName, int seq, Uint8List payload) {
+    int type,
+    String senderName,
+    int seq,
+    Uint8List payload,
+  ) {
     final nameBytes = utf8.encode(senderName);
     final builder = BytesBuilder(copy: false);
     builder.addByte(type);
-    builder.add((ByteData(4)..setUint32(0, nameBytes.length, Endian.little))
-        .buffer
-        .asUint8List());
+    builder.add(
+      (ByteData(
+        4,
+      )..setUint32(0, nameBytes.length, Endian.little)).buffer.asUint8List(),
+    );
     builder.add(nameBytes);
     builder.add(
-        (ByteData(4)..setUint32(0, seq, Endian.little)).buffer.asUint8List());
+      (ByteData(4)..setUint32(0, seq, Endian.little)).buffer.asUint8List(),
+    );
     builder.add(payload);
     return builder.toBytes();
   }
@@ -65,10 +76,11 @@ class WakiPacketCodec {
     final nameBytes = utf8.encode(senderName);
     final builder = BytesBuilder(copy: false);
     builder.addByte(kPresenceByte);
-    builder.add((ByteData(4)
-          ..setUint32(0, nameBytes.length, Endian.little))
-        .buffer
-        .asUint8List());
+    builder.add(
+      (ByteData(
+        4,
+      )..setUint32(0, nameBytes.length, Endian.little)).buffer.asUint8List(),
+    );
     builder.add(nameBytes);
     builder.addByte(isTalking ? 0x01 : 0x00);
     return builder.toBytes();
@@ -85,14 +97,19 @@ class WakiPacketCodec {
     final nameLen = bd.getUint32(1, Endian.little);
     if (bytes.length < 5 + nameLen) return null;
 
-    final name =
-        utf8.decode(bytes.sublist(5, 5 + nameLen), allowMalformed: true);
+    final name = utf8.decode(
+      bytes.sublist(5, 5 + nameLen),
+      allowMalformed: true,
+    );
 
     if (type == kPresenceByte) {
       if (bytes.length < 5 + nameLen + 1) return null;
       final isTalking = bytes[5 + nameLen] == 0x01;
       return PresencePacket(
-          senderId: senderId, senderName: name, isTalking: isTalking);
+        senderId: senderId,
+        senderName: name,
+        isTalking: isTalking,
+      );
     } else if (type == kAudioByte || type == kOpusAudioByte) {
       if (bytes.length < 5 + nameLen + 4) return null;
       final seqOffset = 5 + nameLen;
@@ -104,7 +121,11 @@ class WakiPacketCodec {
           : _bytesToSamples(audioBytes);
       if (samples == null || samples.isEmpty) return null;
       return AudioPacket(
-          senderId: senderId, senderName: name, samples: samples, seq: seq);
+        senderId: senderId,
+        senderName: name,
+        samples: samples,
+        seq: seq,
+      );
     }
     return null;
   }
@@ -112,10 +133,15 @@ class WakiPacketCodec {
   /// Frees native Opus state (call when the owning transport shuts down).
   void release() => _opus.release();
 
+  /// Frees per-sender Opus decoder state (call after a detected reconnect).
+  void resetDecoders() => _opus.resetDecoders();
+
   List<double> _bytesToSamples(Uint8List bytes) {
     final bd = ByteData.sublistView(bytes);
     final count = bytes.length ~/ 2;
     return List.generate(
-        count, (i) => bd.getInt16(i * 2, Endian.little) / 32768.0);
+      count,
+      (i) => bd.getInt16(i * 2, Endian.little) / 32768.0,
+    );
   }
 }

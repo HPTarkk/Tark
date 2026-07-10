@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../locale/locale_service.dart';
 import '../theme/app_colors.dart';
+import 'theme_reveal_transition.dart';
 
 /// Language selection toggle (فارسی / English).
 ///
@@ -52,7 +53,14 @@ class _LanguageChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => LocaleService.setLocale(locale),
+      onTapDown: (details) {
+        if (isSelected) return;
+        AppRevealController.reveal(
+          context: context,
+          origin: details.globalPosition,
+          applyChange: () => LocaleService.setLocale(locale),
+        );
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),

@@ -23,10 +23,8 @@ class HotspotCredentials extends Equatable {
     return 'WIFI:S:$s;T:WPA;P:$p;H:false;;';
   }
 
-  static String _escape(String value) => value.replaceAllMapped(
-        RegExp(r'([\\;,:"])'),
-        (m) => '\\${m[1]}',
-      );
+  static String _escape(String value) =>
+      value.replaceAllMapped(RegExp(r'([\\;,:"])'), (m) => '\\${m[1]}');
 
   /// Parses a standard `WIFI:S:..;T:..;P:..;;` QR payload back into
   /// credentials (the iPhone scans the Android host's QR). Returns null if the

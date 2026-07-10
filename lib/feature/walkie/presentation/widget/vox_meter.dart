@@ -21,7 +21,8 @@ class VoxMeter extends StatelessWidget {
     final s = context.getString;
     return BlocBuilder<WalkieTalkieCubit, WalkieTalkieState>(
       buildWhen: (p, c) =>
-          p.voxThreshold != c.voxThreshold || p.hasPermission != c.hasPermission,
+          p.voxThreshold != c.voxThreshold ||
+          p.hasPermission != c.hasPermission,
       builder: (context, state) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -143,7 +144,9 @@ class _VoxLevelBar extends StatelessWidget {
                 TickerText(
                   text: isActive ? s.level_active : s.level_silent,
                   style: TextStyle(
-                    color: isActive ? AppColors.red : AppColors.textSecondary.withAlpha(100),
+                    color: isActive
+                        ? AppColors.red
+                        : AppColors.textSecondary.withAlpha(100),
                     fontSize: 10,
                     letterSpacing: 1,
                     fontWeight: FontWeight.w700,
@@ -180,10 +183,17 @@ class _VoxLevelBar extends StatelessWidget {
                           width: w * rmsNorm,
                           height: 8,
                           decoration: BoxDecoration(
-                            color: isActive ? AppColors.red : AppColors.amberDim,
+                            color: isActive
+                                ? AppColors.red
+                                : AppColors.amberDim,
                             borderRadius: BorderRadius.circular(4),
                             boxShadow: isActive
-                                ? [BoxShadow(color: AppColors.red.withAlpha(150), blurRadius: 6)]
+                                ? [
+                                    BoxShadow(
+                                      color: AppColors.red.withAlpha(150),
+                                      blurRadius: 6,
+                                    ),
+                                  ]
                                 : null,
                           ),
                         ),
@@ -196,19 +206,34 @@ class _VoxLevelBar extends StatelessWidget {
                           width: w * rmsNorm,
                           height: 8,
                           decoration: BoxDecoration(
-                            color: isActive ? AppColors.red : AppColors.amberDim,
+                            color: isActive
+                                ? AppColors.red
+                                : AppColors.amberDim,
                             borderRadius: BorderRadius.circular(4),
                             boxShadow: isActive
-                                ? [BoxShadow(color: AppColors.red.withAlpha(150), blurRadius: 6)]
+                                ? [
+                                    BoxShadow(
+                                      color: AppColors.red.withAlpha(150),
+                                      blurRadius: 6,
+                                    ),
+                                  ]
                                 : null,
                           ),
                         ),
                       ),
                     // Threshold marker
                     Positioned(
-                      left: isRtl ? null : (w * threshNorm - 1).clamp(0.0, w - 2),
-                      right: isRtl ? (w * threshNorm - 1).clamp(0.0, w - 2) : null,
-                      child: Container(width: 2, height: 8, color: AppColors.textPrimary.withAlpha(200)),
+                      left: isRtl
+                          ? null
+                          : (w * threshNorm - 1).clamp(0.0, w - 2),
+                      right: isRtl
+                          ? (w * threshNorm - 1).clamp(0.0, w - 2)
+                          : null,
+                      child: Container(
+                        width: 2,
+                        height: 8,
+                        color: AppColors.textPrimary.withAlpha(200),
+                      ),
                     ),
                   ],
                 );

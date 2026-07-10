@@ -32,8 +32,10 @@ class AudioProcessor {
     _hpAlpha = 1.0 / (1.0 + 2 * pi * fc / sampleRate);
 
     // Envelope follower attack/release coefficients (1 - e^(-1/(fs*tau))).
-    _envAttack = 1.0 - exp(-1.0 / (sampleRate * 0.003)); // 3 ms — catch onsets fast
-    _envRelease = 1.0 - exp(-1.0 / (sampleRate * 0.12)); // 120 ms — close gradually
+    _envAttack =
+        1.0 - exp(-1.0 / (sampleRate * 0.003)); // 3 ms — catch onsets fast
+    _envRelease =
+        1.0 - exp(-1.0 / (sampleRate * 0.12)); // 120 ms — close gradually
   }
 
   /// Gate opens above this RMS-equivalent envelope level (normalised scale).

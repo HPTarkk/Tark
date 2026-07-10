@@ -7,9 +7,11 @@ import 'dart:typed_data';
 /// messages.
 Uint8List frameMessage(Uint8List payload) {
   final builder = BytesBuilder(copy: false);
-  builder.add((ByteData(4)..setUint32(0, payload.length, Endian.little))
-      .buffer
-      .asUint8List());
+  builder.add(
+    (ByteData(
+      4,
+    )..setUint32(0, payload.length, Endian.little)).buffer.asUint8List(),
+  );
   builder.add(payload);
   return builder.toBytes();
 }
@@ -25,8 +27,11 @@ class FrameReassembler {
 
     var pending = _buffer.toBytes();
     while (pending.length >= 4) {
-      final length =
-          ByteData.sublistView(pending, 0, 4).getUint32(0, Endian.little);
+      final length = ByteData.sublistView(
+        pending,
+        0,
+        4,
+      ).getUint32(0, Endian.little);
       if (pending.length < 4 + length) break;
       messages.add(pending.sublist(4, 4 + length));
       pending = pending.sublist(4 + length);

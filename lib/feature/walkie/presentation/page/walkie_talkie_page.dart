@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +9,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
+import '../../../../core/settings/settings_repository_impl.dart';
 import '../../../../core/sfx/sfx_event.dart';
 import '../../../../core/sfx/sfx_service.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -18,8 +20,10 @@ import '../../../../core/widget/version_badge.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../manager/walkie_talkie_cubit.dart';
 import '../widget/background_permission_banner.dart';
+import '../widget/connection_health_banner.dart';
 import '../widget/music_cast_section.dart';
 import '../widget/status_row.dart';
+import '../widget/usage_tips_sheet.dart';
 import '../widget/user_list.dart';
 import '../widget/visualizer_section.dart';
 import '../widget/vox_meter.dart';
@@ -45,6 +49,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
   late AnimationController _entranceController;
   late List<Animation<double>> _entranceSections;
   StreamSubscription<String>? _systemAudioMsgSub;
+  Timer? _usageTipsTimer;
 
   @override
   void initState() {
@@ -75,17 +80,36 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
 
     // One-shot toast for system-audio sharing notices (currently just the
     // capture-stalled case — see WalkieTalkieCubit.toggleShareSystemAudio).
-    _systemAudioMsgSub =
-        context.read<WalkieTalkieCubit>().systemAudioMessages.listen((code) {
+    _systemAudioMsgSub = context
+        .read<WalkieTalkieCubit>()
+        .systemAudioMessages
+        .listen((code) {
+          if (!mounted) return;
+          final text = switch (code) {
+            'capture_stalled' => context.getString.music_cast_stalled,
+            _ => null,
+          };
+          if (text == null) return;
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(SnackBar(content: Text(text)));
+        });
+
+    _scheduleUsageTips();
+  }
+
+  // Shown once ever, at a randomized moment a few seconds into a session
+  // (not necessarily first launch) rather than the instant the page opens.
+  Future<void> _scheduleUsageTips() async {
+    final repository = SettingsRepositoryImpl();
+    // final alreadyShown = await repository.getUsageTipsShown();
+    // if (alreadyShown || !mounted) return;
+    final delay = Duration(seconds: 4 + Random().nextInt(7));
+    _usageTipsTimer = Timer(delay, () async {
       if (!mounted) return;
-      final text = switch (code) {
-        'capture_stalled' => context.getString.music_cast_stalled,
-        _ => null,
-      };
-      if (text == null) return;
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(text)));
+      await repository.setUsageTipsShown(true);
+      if (!mounted) return;
+      showUsageTipsSheet(context);
     });
   }
 
@@ -93,21 +117,22 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
   void dispose() {
     _entranceController.dispose();
     _systemAudioMsgSub?.cancel();
+    _usageTipsTimer?.cancel();
     super.dispose();
   }
 
   // Pass child through so the builder doesn't recreate it on every tick.
   Widget _entrance(int index, Widget child) => AnimatedBuilder(
-        animation: _entranceSections[index],
-        child: child,
-        builder: (_, prebuilt) => Opacity(
-          opacity: _entranceSections[index].value,
-          child: Transform.translate(
-            offset: Offset(0, 22 * (1 - _entranceSections[index].value)),
-            child: prebuilt,
-          ),
-        ),
-      );
+    animation: _entranceSections[index],
+    child: child,
+    builder: (_, prebuilt) => Opacity(
+      opacity: _entranceSections[index].value,
+      child: Transform.translate(
+        offset: Offset(0, 22 * (1 - _entranceSections[index].value)),
+        child: prebuilt,
+      ),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -168,14 +193,16 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
   Widget _buildIdentityCard(BuildContext context) {
     return BlocBuilder<WalkieTalkieCubit, WalkieTalkieState>(
       buildWhen: (p, c) =>
-          p.localId != c.localId || p.myName != c.myName || p.isReady != c.isReady,
+          p.localId != c.localId ||
+          p.myName != c.myName ||
+          p.isReady != c.isReady,
       builder: (context, state) {
         final s = context.getString;
         final displayIp = state.localId.isEmpty
             ? s.connecting
             : (state.transferMode == TransferMode.bluetooth
-                ? s.transport_bluetooth
-                : state.localId.localized(context));
+                  ? s.transport_bluetooth
+                  : state.localId.localized(context));
 
         return _GlowCard(
           child: Row(
@@ -269,51 +296,14 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
     );
   }
 
-  // ── Bluetooth link-down banner ──────────────────────────────────────────────
+  // ── Connection health banner ────────────────────────────────────────────────
   Widget _buildLinkBanner() {
     return BlocBuilder<WalkieTalkieCubit, WalkieTalkieState>(
-      buildWhen: (p, c) => p.isLinkDown != c.isLinkDown,
-      builder: (context, state) => AnimatedSize(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-        child: !state.isLinkDown
-            ? const SizedBox(width: double.infinity)
-            : Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 16),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  color: AppColors.amber.withAlpha(20),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.amber.withAlpha(130)),
-                ),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(
-                        color: AppColors.amber,
-                        strokeWidth: 2,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        state.transferMode == TransferMode.bluetooth
-                            ? context.getString.bt_link_reconnecting
-                            : context.getString.link_reconnecting,
-                        style: TextStyle(
-                          color: AppColors.amber,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+      buildWhen: (p, c) => p.connectionHealth != c.connectionHealth,
+      builder: (context, state) => ConnectionHealthBanner(
+        health: state.connectionHealth,
+        transferMode: state.transferMode,
+        onRetry: () => context.read<WalkieTalkieCubit>().retryNow(),
       ),
     );
   }
@@ -331,10 +321,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
           decoration: BoxDecoration(
             color: AppColors.red.withAlpha(18),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: AppColors.red.withAlpha(90),
-              width: 1.5,
-            ),
+            border: Border.all(color: AppColors.red.withAlpha(90), width: 1.5),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -414,7 +401,6 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
       ),
     );
   }
-
 }
 
 // ── Shared card ────────────────────────────────────────────────────────────────

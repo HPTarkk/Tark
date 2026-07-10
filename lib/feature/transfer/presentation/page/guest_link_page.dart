@@ -21,9 +21,9 @@ class GuestLinkPage extends StatefulWidget {
   const GuestLinkPage._();
 
   static Widget buildPage() => BlocProvider<GuestLinkCubit>(
-        create: (_) => GetIt.instance<GuestLinkCubit>(),
-        child: const GuestLinkPage._(),
-      );
+    create: (_) => GetIt.instance<GuestLinkCubit>(),
+    child: const GuestLinkPage._(),
+  );
 
   @override
   State<GuestLinkPage> createState() => _GuestLinkPageState();
@@ -34,9 +34,9 @@ class _GuestLinkPageState extends State<GuestLinkPage> {
 
   Future<void> _openScanner(BuildContext context) async {
     final cubit = context.read<GuestLinkCubit>();
-    final scanned = await Navigator.of(context).push<String>(
-      MaterialPageRoute(builder: (_) => const _AnswerScanner()),
-    );
+    final scanned = await Navigator.of(
+      context,
+    ).push<String>(MaterialPageRoute(builder: (_) => const _AnswerScanner()));
     if (scanned != null && scanned.isNotEmpty) {
       await cubit.submitAnswer(scanned);
     }
@@ -157,7 +157,13 @@ class _InviteBody extends StatelessWidget {
         const SizedBox(height: 12),
         _Entrance(
           delayMs: 120,
-          child: Center(child: _CopyChip(text: inviteUrl, label: s.guest_copy_link, copiedLabel: s.guest_link_copied)),
+          child: Center(
+            child: _CopyChip(
+              text: inviteUrl,
+              label: s.guest_copy_link,
+              copiedLabel: s.guest_link_copied,
+            ),
+          ),
         ),
         const SizedBox(height: 22),
         _Entrance(
@@ -250,7 +256,10 @@ void _showPasteAnswerDialog(
       ),
       title: Text(
         s.guest_paste_answer,
-        style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700),
+        style: TextStyle(
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.w700,
+        ),
       ),
       content: TextField(
         controller: controller,
@@ -280,7 +289,10 @@ void _showPasteAnswerDialog(
       actions: [
         TextButton(
           onPressed: () => Navigator.of(ctx).pop(),
-          child: Text(s.cancel, style: TextStyle(color: AppColors.textSecondary)),
+          child: Text(
+            s.cancel,
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
         ),
         TextButton(
           onPressed: () {
@@ -289,7 +301,10 @@ void _showPasteAnswerDialog(
           },
           child: Text(
             s.guest_paste_submit,
-            style: TextStyle(color: AppColors.amber, fontWeight: FontWeight.w700),
+            style: TextStyle(
+              color: AppColors.amber,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ],
@@ -312,8 +327,7 @@ class _LanBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.wifi_tethering_rounded,
-              color: AppColors.green, size: 13),
+          Icon(Icons.wifi_tethering_rounded, color: AppColors.green, size: 13),
           const SizedBox(width: 6),
           Text(
             context.getString.guest_no_server_badge,
@@ -336,7 +350,11 @@ class _CopyChip extends StatelessWidget {
   final String label;
   final String copiedLabel;
 
-  const _CopyChip({required this.text, required this.label, required this.copiedLabel});
+  const _CopyChip({
+    required this.text,
+    required this.label,
+    required this.copiedLabel,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -418,9 +436,10 @@ class _PulsingActionButtonState extends State<_PulsingActionButton>
       children: [
         Positioned.fill(
           child: FadeTransition(
-            opacity: Tween<double>(begin: 0.25, end: 1.0).animate(
-              CurvedAnimation(parent: _pulse, curve: Curves.easeInOut),
-            ),
+            opacity: Tween<double>(
+              begin: 0.25,
+              end: 1.0,
+            ).animate(CurvedAnimation(parent: _pulse, curve: Curves.easeInOut)),
             child: RepaintBoundary(
               child: Container(
                 decoration: BoxDecoration(
@@ -444,8 +463,10 @@ class _PulsingActionButtonState extends State<_PulsingActionButton>
             decoration: BoxDecoration(
               color: AppColors.amber.withAlpha(25),
               borderRadius: BorderRadius.circular(14),
-              border:
-                  Border.all(color: AppColors.amber.withAlpha(140), width: 2),
+              border: Border.all(
+                color: AppColors.amber.withAlpha(140),
+                width: 2,
+              ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -709,8 +730,11 @@ class _SuccessFlash extends StatelessWidget {
                   ),
                 ],
               ),
-              child:
-                  Icon(Icons.check_rounded, color: AppColors.green, size: 42),
+              child: Icon(
+                Icons.check_rounded,
+                color: AppColors.green,
+                size: 42,
+              ),
             ),
           ),
           const SizedBox(height: 18),
@@ -754,13 +778,17 @@ class _ErrorRetry extends StatelessWidget {
             GestureDetector(
               onTap: onRetry,
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 26, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 26,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.amber.withAlpha(25),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                      color: AppColors.amber.withAlpha(120), width: 1.5),
+                    color: AppColors.amber.withAlpha(120),
+                    width: 1.5,
+                  ),
                 ),
                 child: Text(
                   s.retry,
@@ -797,8 +825,10 @@ class _EntranceState extends State<_Entrance>
     vsync: this,
     duration: const Duration(milliseconds: 420),
   );
-  late final CurvedAnimation _anim =
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
+  late final CurvedAnimation _anim = CurvedAnimation(
+    parent: _controller,
+    curve: Curves.easeOutCubic,
+  );
 
   @override
   void initState() {

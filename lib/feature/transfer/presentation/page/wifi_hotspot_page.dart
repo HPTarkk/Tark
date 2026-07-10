@@ -7,43 +7,55 @@ import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/qr_widgets.dart';
 import '../../domain/entity/hotspot_credentials.dart';
-import '../manager/hotspot_bridge_cubit.dart';
+import '../../domain/entity/wifi_hotspot_segment.dart';
+import '../manager/wifi_hotspot_cubit.dart';
 
-/// The Wi-Fi Hotspot Bridge — the reliable iPhone↔Android path.
+/// Combined WiFi / Hotspot entry point (item 9 merges the two mode-picker
+/// tiles into one page):
 ///
-///  * **Android** (host): creates a local-only Wi-Fi hotspot and shows a Wi-Fi
-///    QR + credentials for the iPhone to join. Once a peer is heard over
-///    Wi-Fi (or the user taps through), it enters the ordinary Wi-Fi channel.
-///  * **iOS** (join): scans the Android host's Wi-Fi QR and joins that network,
-///    then enters the channel.
-class HotspotBridgePage extends StatefulWidget {
-  const HotspotBridgePage._();
+///  * **Wi-Fi segment**: both devices already share a network — nothing to
+///    set up, just enter the channel.
+///  * **Hotspot segment**: **Android** (host) creates a local-only Wi-Fi
+///    hotspot and shows a Wi-Fi QR + credentials for the iPhone to join;
+///    **iOS** (join) scans the Android host's Wi-Fi QR and joins that
+///    network. Either way, once a peer is heard (or the user taps through)
+///    it enters the ordinary Wi-Fi channel.
+class WifiHotspotPage extends StatefulWidget {
+  const WifiHotspotPage._({required this.initialSegment});
 
-  static Widget buildPage() => BlocProvider<HotspotBridgeCubit>(
+  final WifiHotspotSegment initialSegment;
+
+  static Widget buildPage({WifiHotspotSegment? initialSegment}) =>
+      BlocProvider<WifiHotspotCubit>(
         create: (_) {
-          final cubit = GetIt.instance<HotspotBridgeCubit>();
-          if (Platform.isAndroid) cubit.startHost();
+          final cubit = GetIt.instance<WifiHotspotCubit>();
+          final segment = initialSegment ?? WifiHotspotSegment.wifi;
+          if (segment != WifiHotspotSegment.wifi) cubit.switchSegment(segment);
           return cubit;
         },
-        child: const HotspotBridgePage._(),
+        child: WifiHotspotPage._(
+          initialSegment: initialSegment ?? WifiHotspotSegment.wifi,
+        ),
       );
 
   @override
-  State<HotspotBridgePage> createState() => _HotspotBridgePageState();
+  State<WifiHotspotPage> createState() => _WifiHotspotPageState();
 }
 
-class _HotspotBridgePageState extends State<HotspotBridgePage> {
+class _WifiHotspotPageState extends State<WifiHotspotPage> {
   bool _navigating = false;
 
   void _enterChannel(BuildContext context) {
     if (_navigating) return;
     setState(() => _navigating = true);
-    // Leave the hotspot up — the walkie session runs over it.
+    // Leave the hotspot up (if one was created) — the walkie session runs
+    // over it.
     context.goNamed(AppRoutes.walkieName);
   }
 
@@ -58,8 +70,9 @@ class _HotspotBridgePageState extends State<HotspotBridgePage> {
         leading: IconButton(
           icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
           onPressed: () {
-            // Backing out without connecting: tear the hotspot down.
-            context.read<HotspotBridgeCubit>().stopHost();
+            // Backing out without connecting: tear the hotspot down (no-op
+            // if one was never started).
+            context.read<WifiHotspotCubit>().stopHost();
             if (context.canPop()) {
               context.pop();
             } else {
@@ -70,35 +83,239 @@ class _HotspotBridgePageState extends State<HotspotBridgePage> {
           },
         ),
         title: Text(
-          s.hotspot_title,
+          s.transport_wifi_hotspot,
           style: TextStyle(color: AppColors.textPrimary, fontSize: 16),
         ),
       ),
       body: SafeArea(
-        child: BlocConsumer<HotspotBridgeCubit, HotspotBridgeState>(
+        child: BlocConsumer<WifiHotspotCubit, HotspotBridgeState>(
           listener: (context, state) {
             if (state.peerConnected && !_navigating) _enterChannel(context);
           },
           builder: (context, state) {
-            if (!Platform.isAndroid && !Platform.isIOS) {
-              return _Message(
-                icon: Icons.wifi_tethering_off_rounded,
-                text: s.hotspot_not_supported,
-              );
-            }
-            if (_navigating || state.peerConnected) {
-              return _ConnectedFlash(label: s.bt_connected);
-            }
-            if (Platform.isIOS) {
-              return _JoinFlow(onEnterChannel: () => _enterChannel(context));
-            }
-            return _HostFlow(
-              state: state,
-              onEnterChannel: () => _enterChannel(context),
+            final showSegments = !_navigating && !state.peerConnected;
+            return Column(
+              children: [
+                if (showSegments)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 12, 24, 4),
+                    child: _SegmentedControl(
+                      segment: state.segment,
+                      onChanged: (segment) => context
+                          .read<WifiHotspotCubit>()
+                          .switchSegment(segment),
+                    ),
+                  ),
+                Expanded(
+                  child: _navigating || state.peerConnected
+                      ? _ConnectedFlash(label: s.bt_connected)
+                      : state.segment == WifiHotspotSegment.wifi
+                      ? _WifiOnlyFlow(
+                          onEnterChannel: () => _enterChannel(context),
+                        )
+                      : _buildHotspotSegment(context, s, state),
+                ),
+              ],
             );
           },
         ),
       ),
+    );
+  }
+
+  Widget _buildHotspotSegment(
+    BuildContext context,
+    AppLocalizations s,
+    HotspotBridgeState state,
+  ) {
+    if (!Platform.isAndroid && !Platform.isIOS) {
+      return _Message(
+        icon: Icons.wifi_tethering_off_rounded,
+        text: s.hotspot_not_supported,
+      );
+    }
+    if (Platform.isIOS) {
+      return _JoinFlow(onEnterChannel: () => _enterChannel(context));
+    }
+    return _HostFlow(
+      state: state,
+      onEnterChannel: () => _enterChannel(context),
+    );
+  }
+}
+
+// ── Segmented control ───────────────────────────────────────────────────────
+
+class _SegmentedControl extends StatelessWidget {
+  final WifiHotspotSegment segment;
+  final ValueChanged<WifiHotspotSegment> onChanged;
+
+  const _SegmentedControl({required this.segment, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          _SegmentButton(
+            label: s.transport_wifi,
+            icon: Icons.wifi_rounded,
+            selected: segment == WifiHotspotSegment.wifi,
+            onTap: () => onChanged(WifiHotspotSegment.wifi),
+          ),
+          _SegmentButton(
+            label: s.transport_hotspot,
+            icon: Icons.wifi_tethering_rounded,
+            selected: segment == WifiHotspotSegment.hotspot,
+            onTap: () => onChanged(WifiHotspotSegment.hotspot),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SegmentButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _SegmentButton({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.amber.withAlpha(25) : null,
+            borderRadius: BorderRadius.circular(9),
+            border: selected
+                ? Border.all(color: AppColors.amber.withAlpha(140))
+                : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: selected ? AppColors.amber : AppColors.textSecondary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: selected ? AppColors.amber : AppColors.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Plain Wi-Fi (nothing to set up) ─────────────────────────────────────────
+
+class _WifiOnlyFlow extends StatelessWidget {
+  final VoidCallback onEnterChannel;
+
+  const _WifiOnlyFlow({required this.onEnterChannel});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+      children: [
+        _Entrance(
+          delayMs: 0,
+          child: Center(
+            child: Container(
+              width: 84,
+              height: 84,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.amber.withAlpha(20),
+                border: Border.all(color: AppColors.amber.withAlpha(120)),
+              ),
+              child: Icon(Icons.wifi_rounded, color: AppColors.amber, size: 38),
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        _Entrance(
+          delayMs: 80,
+          child: Text(
+            s.wifi_only_instructions,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 13.5,
+              height: 1.5,
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+        _Entrance(
+          delayMs: 140,
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              children: [
+                StepRow(
+                  index: 1,
+                  icon: Icons.wifi_rounded,
+                  text: s.wifi_only_step_same_network,
+                ),
+                const SizedBox(height: 12),
+                Divider(color: AppColors.border, height: 1),
+                const SizedBox(height: 12),
+                StepRow(
+                  index: 2,
+                  icon: Icons.podcasts_rounded,
+                  text: s.hotspot_step_join_channel,
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+        _Entrance(
+          delayMs: 200,
+          child: _PrimaryButton(
+            icon: Icons.arrow_forward_rounded,
+            label: s.hotspot_enter_channel,
+            onTap: onEnterChannel,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -117,7 +334,7 @@ class _HostFlow extends StatelessWidget {
     if (state.phase == HotspotPhase.error) {
       return _ErrorCard(
         message: s.hotspot_error,
-        onRetry: () => context.read<HotspotBridgeCubit>().startHost(),
+        onRetry: () => context.read<WifiHotspotCubit>().startHost(),
       );
     }
     final creds = state.credentials;
@@ -127,11 +344,16 @@ class _HostFlow extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
       children: [
-        _Entrance(delayMs: 0, child: Center(child: _HostBadge(label: s.hotspot_host_badge))),
+        _Entrance(
+          delayMs: 0,
+          child: Center(child: _HostBadge(label: s.hotspot_host_badge)),
+        ),
         const SizedBox(height: 16),
         _Entrance(
           delayMs: 80,
-          child: Center(child: GlowingQrCard(data: creds.wifiQrPayload, size: 216)),
+          child: Center(
+            child: GlowingQrCard(data: creds.wifiQrPayload, size: 216),
+          ),
         ),
         const SizedBox(height: 18),
         _Entrance(
@@ -155,11 +377,19 @@ class _HostFlow extends StatelessWidget {
             ),
             child: Column(
               children: [
-                StepRow(index: 1, icon: Icons.photo_camera_rounded, text: s.hotspot_step_scan),
+                StepRow(
+                  index: 1,
+                  icon: Icons.photo_camera_rounded,
+                  text: s.hotspot_step_scan,
+                ),
                 const SizedBox(height: 12),
                 Divider(color: AppColors.border, height: 1),
                 const SizedBox(height: 12),
-                StepRow(index: 2, icon: Icons.podcasts_rounded, text: s.hotspot_step_join_channel),
+                StepRow(
+                  index: 2,
+                  icon: Icons.podcasts_rounded,
+                  text: s.hotspot_step_join_channel,
+                ),
               ],
             ),
           ),
@@ -238,7 +468,11 @@ class _CredentialsCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _CredentialRow(label: ssidLabel, value: credentials.ssid, copiedLabel: copiedLabel),
+          _CredentialRow(
+            label: ssidLabel,
+            value: credentials.ssid,
+            copiedLabel: copiedLabel,
+          ),
           Divider(color: AppColors.border, height: 1),
           _CredentialRow(
             label: passwordLabel,
@@ -256,7 +490,11 @@ class _CredentialRow extends StatelessWidget {
   final String value;
   final String copiedLabel;
 
-  const _CredentialRow({required this.label, required this.value, required this.copiedLabel});
+  const _CredentialRow({
+    required this.label,
+    required this.value,
+    required this.copiedLabel,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -301,7 +539,11 @@ class _CredentialRow extends StatelessWidget {
               },
               child: Padding(
                 padding: const EdgeInsets.only(left: 8),
-                child: Icon(Icons.copy_rounded, color: AppColors.amber, size: 18),
+                child: Icon(
+                  Icons.copy_rounded,
+                  color: AppColors.amber,
+                  size: 18,
+                ),
               ),
             ),
         ],
@@ -319,7 +561,8 @@ class _WaitingPulse extends StatefulWidget {
   State<_WaitingPulse> createState() => _WaitingPulseState();
 }
 
-class _WaitingPulseState extends State<_WaitingPulse> with SingleTickerProviderStateMixin {
+class _WaitingPulseState extends State<_WaitingPulse>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _pulse = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1400),
@@ -334,15 +577,20 @@ class _WaitingPulseState extends State<_WaitingPulse> with SingleTickerProviderS
   @override
   Widget build(BuildContext context) {
     return FadeTransition(
-      opacity: Tween<double>(begin: 0.45, end: 1.0)
-          .animate(CurvedAnimation(parent: _pulse, curve: Curves.easeInOut)),
+      opacity: Tween<double>(
+        begin: 0.45,
+        end: 1.0,
+      ).animate(CurvedAnimation(parent: _pulse, curve: Curves.easeInOut)),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           SizedBox(
             width: 14,
             height: 14,
-            child: CircularProgressIndicator(color: AppColors.amber, strokeWidth: 2),
+            child: CircularProgressIndicator(
+              color: AppColors.amber,
+              strokeWidth: 2,
+            ),
           ),
           const SizedBox(width: 10),
           Text(
@@ -373,9 +621,9 @@ class _JoinFlowState extends State<_JoinFlow> {
   HotspotCredentials? _creds;
 
   Future<void> _scan() async {
-    final raw = await Navigator.of(context).push<String>(
-      MaterialPageRoute(builder: (_) => const _HostQrScanner()),
-    );
+    final raw = await Navigator.of(
+      context,
+    ).push<String>(MaterialPageRoute(builder: (_) => const _HostQrScanner()));
     if (raw == null || !mounted) return;
     final creds = HotspotCredentials.fromWifiQr(raw);
     if (creds == null) {
@@ -386,7 +634,7 @@ class _JoinFlowState extends State<_JoinFlow> {
       _creds = creds;
       _step = _JoinStep.joining;
     });
-    final joined = await context.read<HotspotBridgeCubit>().tryJoin(creds);
+    final joined = await context.read<WifiHotspotCubit>().tryJoin(creds);
     if (!mounted) return;
     setState(() => _step = joined ? _JoinStep.joined : _JoinStep.manual);
   }
@@ -408,7 +656,11 @@ class _JoinFlowState extends State<_JoinFlow> {
                 color: AppColors.amber.withAlpha(20),
                 border: Border.all(color: AppColors.amber.withAlpha(120)),
               ),
-              child: Icon(Icons.wifi_find_rounded, color: AppColors.amber, size: 38),
+              child: Icon(
+                Icons.wifi_find_rounded,
+                color: AppColors.amber,
+                size: 38,
+              ),
             ),
           ),
         ),
@@ -418,19 +670,31 @@ class _JoinFlowState extends State<_JoinFlow> {
           child: Text(
             s.hotspot_ios_instructions,
             textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 13.5, height: 1.5),
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 13.5,
+              height: 1.5,
+            ),
           ),
         ),
         const SizedBox(height: 24),
         if (_step == _JoinStep.invalid)
           _Entrance(
             delayMs: 0,
-            child: _InlineNote(icon: Icons.error_outline_rounded, text: s.hotspot_invalid_qr, color: AppColors.red),
+            child: _InlineNote(
+              icon: Icons.error_outline_rounded,
+              text: s.hotspot_invalid_qr,
+              color: AppColors.red,
+            ),
           ),
         if (_step == _JoinStep.joining)
           _Preparing(label: s.hotspot_joining)
         else if (_step == _JoinStep.joined) ...[
-          _InlineNote(icon: Icons.check_circle_rounded, text: s.hotspot_joined, color: AppColors.green),
+          _InlineNote(
+            icon: Icons.check_circle_rounded,
+            text: s.hotspot_joined,
+            color: AppColors.green,
+          ),
           const SizedBox(height: 18),
           _PrimaryButton(
             icon: Icons.arrow_forward_rounded,
@@ -503,12 +767,24 @@ class _ManualJoinCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             hint,
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 12, height: 1.5),
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+              height: 1.5,
+            ),
           ),
           const SizedBox(height: 6),
-          _CredentialRow(label: network, value: credentials.ssid, copiedLabel: copiedLabel),
+          _CredentialRow(
+            label: network,
+            value: credentials.ssid,
+            copiedLabel: copiedLabel,
+          ),
           Divider(color: AppColors.border, height: 1),
-          _CredentialRow(label: password, value: credentials.passphrase, copiedLabel: copiedLabel),
+          _CredentialRow(
+            label: password,
+            value: credentials.passphrase,
+            copiedLabel: copiedLabel,
+          ),
         ],
       ),
     );
@@ -544,12 +820,18 @@ class _HostQrScannerState extends State<_HostQrScanner> {
         backgroundColor: Colors.black,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
-        title: Text(s.hotspot_scan_host, style: const TextStyle(color: Colors.white, fontSize: 15)),
+        title: Text(
+          s.hotspot_scan_host,
+          style: const TextStyle(color: Colors.white, fontSize: 15),
+        ),
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final windowRect = Rect.fromCenter(
-            center: Offset(constraints.maxWidth / 2, constraints.maxHeight / 2 - 40),
+            center: Offset(
+              constraints.maxWidth / 2,
+              constraints.maxHeight / 2 - 40,
+            ),
             width: window,
             height: window,
           );
@@ -573,7 +855,11 @@ class _HostQrScannerState extends State<_HostQrScanner> {
                 rect: windowRect.inflate(10),
                 child: IgnorePointer(
                   child: CustomPaint(
-                    painter: CornerBracketsPainter(color: AppColors.amber, length: 32, stroke: 3.5),
+                    painter: CornerBracketsPainter(
+                      color: AppColors.amber,
+                      length: 32,
+                      stroke: 3.5,
+                    ),
                   ),
                 ),
               ),
@@ -584,7 +870,11 @@ class _HostQrScannerState extends State<_HostQrScanner> {
                 child: Text(
                   s.hotspot_ios_instructions,
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white.withAlpha(190), fontSize: 13, height: 1.5),
+                  style: TextStyle(
+                    color: Colors.white.withAlpha(190),
+                    fontSize: 13,
+                    height: 1.5,
+                  ),
                 ),
               ),
             ],
@@ -602,7 +892,11 @@ class _PrimaryButton extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  const _PrimaryButton({required this.icon, required this.label, required this.onTap});
+  const _PrimaryButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -642,7 +936,11 @@ class _InlineNote extends StatelessWidget {
   final String text;
   final Color color;
 
-  const _InlineNote({required this.icon, required this.text, required this.color});
+  const _InlineNote({
+    required this.icon,
+    required this.text,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -660,7 +958,11 @@ class _InlineNote extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: TextStyle(color: AppColors.textPrimary, fontSize: 12.5, height: 1.4),
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 12.5,
+                height: 1.4,
+              ),
             ),
           ),
         ],
@@ -686,10 +988,16 @@ class _Preparing extends StatelessWidget {
             SizedBox(
               width: 30,
               height: 30,
-              child: CircularProgressIndicator(color: AppColors.amber, strokeWidth: 2.5),
+              child: CircularProgressIndicator(
+                color: AppColors.amber,
+                strokeWidth: 2.5,
+              ),
             ),
             const SizedBox(height: 16),
-            Text(label, style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+            Text(
+              label,
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            ),
           ],
         ),
       ),
@@ -712,7 +1020,8 @@ class _ConnectedFlash extends StatelessWidget {
             tween: Tween(begin: 0.4, end: 1.0),
             duration: const Duration(milliseconds: 450),
             curve: Curves.elasticOut,
-            builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
+            builder: (context, scale, child) =>
+                Transform.scale(scale: scale, child: child),
             child: Container(
               width: 84,
               height: 84,
@@ -720,9 +1029,18 @@ class _ConnectedFlash extends StatelessWidget {
                 shape: BoxShape.circle,
                 color: AppColors.green.withAlpha(26),
                 border: Border.all(color: AppColors.green, width: 2),
-                boxShadow: [BoxShadow(color: AppColors.green.withAlpha(70), blurRadius: 26)],
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.green.withAlpha(70),
+                    blurRadius: 26,
+                  ),
+                ],
               ),
-              child: Icon(Icons.check_rounded, color: AppColors.green, size: 42),
+              child: Icon(
+                Icons.check_rounded,
+                color: AppColors.green,
+                size: 42,
+              ),
             ),
           ),
           const SizedBox(height: 18),
@@ -756,22 +1074,36 @@ class _ErrorCard extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.wifi_tethering_off_rounded, color: AppColors.red, size: 40),
+            Icon(
+              Icons.wifi_tethering_off_rounded,
+              color: AppColors.red,
+              size: 40,
+            ),
             const SizedBox(height: 16),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 14, height: 1.5),
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 14,
+                height: 1.5,
+              ),
             ),
             const SizedBox(height: 22),
             GestureDetector(
               onTap: onRetry,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 26,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.amber.withAlpha(25),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.amber.withAlpha(120), width: 1.5),
+                  border: Border.all(
+                    color: AppColors.amber.withAlpha(120),
+                    width: 1.5,
+                  ),
                 ),
                 child: Text(
                   s.retry,
@@ -810,7 +1142,11 @@ class _Message extends StatelessWidget {
             Text(
               text,
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 14, height: 1.5),
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 14,
+                height: 1.5,
+              ),
             ),
           ],
         ),
@@ -830,13 +1166,16 @@ class _Entrance extends StatefulWidget {
   State<_Entrance> createState() => _EntranceState();
 }
 
-class _EntranceState extends State<_Entrance> with SingleTickerProviderStateMixin {
+class _EntranceState extends State<_Entrance>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 420),
   );
-  late final CurvedAnimation _anim =
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
+  late final CurvedAnimation _anim = CurvedAnimation(
+    parent: _controller,
+    curve: Curves.easeOutCubic,
+  );
 
   @override
   void initState() {
@@ -859,7 +1198,10 @@ class _EntranceState extends State<_Entrance> with SingleTickerProviderStateMixi
       child: widget.child,
       builder: (context, child) => Opacity(
         opacity: _anim.value,
-        child: Transform.translate(offset: Offset(0, 18 * (1 - _anim.value)), child: child),
+        child: Transform.translate(
+          offset: Offset(0, 18 * (1 - _anim.value)),
+          child: child,
+        ),
       ),
     );
   }

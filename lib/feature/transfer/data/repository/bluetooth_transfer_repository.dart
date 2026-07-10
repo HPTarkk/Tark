@@ -4,11 +4,13 @@ import 'dart:typed_data';
 
 import 'package:dartz/dartz.dart';
 import 'package:injectable/injectable.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/settings/settings_repository.dart';
+import '../../../../core/settings/settings_repository_impl.dart';
 import '../../../../core/utils/exponential_backoff.dart';
 import '../../../../core/utils/logger.dart';
+import '../../domain/entity/connection_health.dart';
 import '../../domain/entity/waki_packet.dart';
 import '../../domain/entity/bluetooth_connection_state.dart' as bt;
 import '../../domain/entity/bluetooth_peer.dart';
@@ -35,6 +37,10 @@ import '../codec/waki_packet_codec.dart';
 @lazySingleton
 class BluetoothTransferRepository
     implements TransferRepository, BluetoothTransport {
+  BluetoothTransferRepository([SettingsRepository? settingsRepository])
+    : _settingsRepository = settingsRepository ?? SettingsRepositoryImpl();
+
+  final SettingsRepository _settingsRepository;
   final _codec = WakiPacketCodec();
 
   // Classic RFCOMM is a raw byte stream, so the repo reassembles frames for
@@ -66,6 +72,7 @@ class BluetoothTransferRepository
   String? _sessionRole; // 'host' | 'joiner'
   BluetoothPeer? _sessionPeer; // joiner's target
   int _reconnectGen = 0;
+  bool _autoReconnectEnabled = true;
 
   bool get _classicSupported => Platform.isAndroid;
   bool get _bleSupported => Platform.isAndroid || Platform.isIOS;
@@ -86,13 +93,16 @@ class BluetoothTransferRepository
     } catch (e) {
       Logger.log('sdkInt lookup failed: $e');
     }
-    return _classicEngine ??=
-        ClassicBluetoothEngine(usesFineLocation: usesFineLocation);
+    return _classicEngine ??= ClassicBluetoothEngine(
+      usesFineLocation: usesFineLocation,
+    );
   }
 
   BleBluetoothEngine get _requireBle {
     if (!_bleSupported) {
-      throw UnsupportedError('Bluetooth mode is not supported on this platform.');
+      throw UnsupportedError(
+        'Bluetooth mode is not supported on this platform.',
+      );
     }
     final engine = _bleEngine ??= BleBluetoothEngine();
     return engine;
@@ -114,8 +124,8 @@ class BluetoothTransferRepository
 
     // Advertise the user's display name so the joiner sees who they're
     // connecting to, not a generic hostname.
-    final prefs = await SharedPreferences.getInstance();
-    final deviceName = prefs.getString('user_name') ?? 'Tark';
+    final storedName = await _settingsRepository.getMyName();
+    final deviceName = storedName.isEmpty ? 'Tark' : storedName;
 
     if (_classicSupported) {
       // Classic first: its discoverable dialog is also what prompts the
@@ -164,20 +174,18 @@ class BluetoothTransferRepository
 
       final ble = _bleEngine;
       if (ble != null) {
-        _scanSubs.add(ble.scanForHosts().listen(
-              (peer) {
-                if (!controller.isClosed) controller.add(peer);
-              },
-              onError: (Object e) => Logger.log('BLE scan error: $e'),
-            ));
+        _scanSubs.add(
+          ble.scanForHosts().listen((peer) {
+            if (!controller.isClosed) controller.add(peer);
+          }, onError: (Object e) => Logger.log('BLE scan error: $e')),
+        );
       }
       if (classic != null) {
-        _scanSubs.add(classic.scanForHosts().listen(
-              (peer) {
-                if (!controller.isClosed) controller.add(peer);
-              },
-              onError: (Object e) => Logger.log('Classic scan error: $e'),
-            ));
+        _scanSubs.add(
+          classic.scanForHosts().listen((peer) {
+            if (!controller.isClosed) controller.add(peer);
+          }, onError: (Object e) => Logger.log('Classic scan error: $e')),
+        );
       }
     }();
 
@@ -245,22 +253,29 @@ class BluetoothTransferRepository
         ..add(ble.onPeerConnected.listen((id) => _onPeerConnected('ble', id)))
         ..add(ble.onError.listen((m) => _onEngineError('ble', m)))
         ..add(ble.onClosed.listen((_) => _onEngineClosed('ble')))
-        ..add(ble.onAdvertising.listen((ok) {
-          if (!_bleAdvertisingController.isClosed) {
-            _bleAdvertisingController.add(ok);
-          }
-        }));
+        ..add(
+          ble.onAdvertising.listen((ok) {
+            if (!_bleAdvertisingController.isClosed) {
+              _bleAdvertisingController.add(ok);
+            }
+          }),
+        );
     }
     final classic = _classicEngine;
     if (classic != null) {
       _engineSubs
-        ..add(classic.input.listen((chunk) {
-          for (final message in _classicFramer.addBytes(chunk)) {
-            _onMessage(message);
-          }
-        }))
-        ..add(classic.onPeerConnected
-            .listen((address) => _onPeerConnected('classic', address)))
+        ..add(
+          classic.input.listen((chunk) {
+            for (final message in _classicFramer.addBytes(chunk)) {
+              _onMessage(message);
+            }
+          }),
+        )
+        ..add(
+          classic.onPeerConnected.listen(
+            (address) => _onPeerConnected('classic', address),
+          ),
+        )
         ..add(classic.onError.listen((m) => _onEngineError('classic', m)))
         ..add(classic.onClosed.listen((_) => _onEngineClosed('classic')));
     }
@@ -288,10 +303,9 @@ class BluetoothTransferRepository
     // action on the role screen.
     final peer = _sessionPeer;
     if (_sessionRole == 'joiner' && peer != null) {
-      unawaited(SharedPreferences.getInstance().then((prefs) async {
-        await prefs.setString('bt_last_peer_id', peer.id);
-        await prefs.setString('bt_last_peer_name', peer.name);
-      }));
+      unawaited(
+        _settingsRepository.setLastBluetoothPeer(id: peer.id, name: peer.name),
+      );
     }
     _connectionStateController.add(bt.BluetoothConnectionState.connected);
   }
@@ -314,7 +328,7 @@ class BluetoothTransferRepository
     _connectedPeerId = null;
     _activeEngine = null;
     _classicFramer.reset();
-    if (hadSession && _sessionRole != null) {
+    if (hadSession && _sessionRole != null && _autoReconnectEnabled) {
       unawaited(_autoReconnect());
     } else {
       _connectionStateController.add(bt.BluetoothConnectionState.disconnected);
@@ -337,8 +351,8 @@ class BluetoothTransferRepository
     while (_reconnectGen == gen && _connectedPeerId == null) {
       try {
         if (role == 'host') {
-          final prefs = await SharedPreferences.getInstance();
-          final deviceName = prefs.getString('user_name') ?? 'Tark';
+          final storedName = await _settingsRepository.getMyName();
+          final deviceName = storedName.isEmpty ? 'Tark' : storedName;
           // No discoverable dialog here: the joiner reconnects by address,
           // which only needs the RFCOMM server / BLE advertising back up.
           if (_classicSupported) {
@@ -362,9 +376,11 @@ class BluetoothTransferRepository
 
       // Sliced sleep so reset() aborts promptly.
       final slices = backoff.next().inMilliseconds ~/ 250;
-      for (var i = 0;
-          i < slices && _reconnectGen == gen && _connectedPeerId == null;
-          i++) {
+      for (
+        var i = 0;
+        i < slices && _reconnectGen == gen && _connectedPeerId == null;
+        i++
+      ) {
         await Future.delayed(const Duration(milliseconds: 250));
       }
     }
@@ -390,7 +406,9 @@ class BluetoothTransferRepository
 
   @override
   Future<Either<Failure, void>> sendAudio(
-      List<double> samples, String senderName) async {
+    List<double> samples,
+    String senderName,
+  ) async {
     try {
       if (_connectedPeerId == null) {
         return const Left(DataTransferFailure());
@@ -406,7 +424,9 @@ class BluetoothTransferRepository
 
   @override
   Future<Either<Failure, void>> sendPresence(
-      String senderName, bool isTalking) async {
+    String senderName,
+    bool isTalking,
+  ) async {
     try {
       if (_connectedPeerId == null) {
         return const Right(null); // not connected yet — nothing to send
@@ -421,8 +441,32 @@ class BluetoothTransferRepository
   }
 
   @override
-  Stream<bool> connect() =>
-      connectionState.map((s) => s == bt.BluetoothConnectionState.connected);
+  Stream<ConnectionHealthStatus> connect() => connectionState.map(
+    (s) => switch (s) {
+      bt.BluetoothConnectionState.connected => ConnectionHealthStatus.healthy,
+      bt.BluetoothConnectionState.reconnecting =>
+        ConnectionHealthStatus.reconnecting,
+      _ => ConnectionHealthStatus.down,
+    },
+  );
+
+  @override
+  void setAutoReconnectEnabled(bool enabled) {
+    _autoReconnectEnabled = enabled;
+    if (!enabled && _connectedPeerId == null && _sessionRole != null) {
+      _reconnectGen++; // abort any in-flight auto-reconnect loop
+      _connectionStateController.add(bt.BluetoothConnectionState.disconnected);
+    }
+  }
+
+  @override
+  void retryNow() {
+    if (_connectedPeerId != null || _sessionRole == null) return;
+    unawaited(_autoReconnect());
+  }
+
+  @override
+  void resetCodecState() => _codec.resetDecoders();
 
   @override
   void stopConnection() => reset();

@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -12,15 +13,14 @@ import '../../../transfer/api/transfer_api.dart';
 import '../manager/landing_cubit.dart';
 import '../widget/landing_identity_card.dart';
 import '../widget/landing_logo.dart';
-import '../widget/transport_mode_toggle.dart';
 
 class LandingPage extends StatefulWidget {
   const LandingPage._();
 
   static Widget buildPage() => BlocProvider<LandingCubit>(
-        create: (_) => GetIt.instance<LandingCubit>(),
-        child: const LandingPage._(),
-      );
+    create: (_) => GetIt.instance<LandingCubit>(),
+    child: const LandingPage._(),
+  );
 
   @override
   State<LandingPage> createState() => _LandingPageState();
@@ -81,16 +81,16 @@ class _LandingPageState extends State<LandingPage>
   }
 
   Widget _entrance(int index, Widget child) => AnimatedBuilder(
-        animation: _sections[index],
-        child: child,
-        builder: (_, prebuilt) => Opacity(
-          opacity: _sections[index].value,
-          child: Transform.translate(
-            offset: Offset(0, 28 * (1 - _sections[index].value)),
-            child: prebuilt,
-          ),
-        ),
-      );
+    animation: _sections[index],
+    child: child,
+    builder: (_, prebuilt) => Opacity(
+      opacity: _sections[index].value,
+      child: Transform.translate(
+        offset: Offset(0, 28 * (1 - _sections[index].value)),
+        child: prebuilt,
+      ),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -119,7 +119,7 @@ class _LandingPageState extends State<LandingPage>
                                   context.pushNamed(AppRoutes.settingsName),
                             ),
                             const SizedBox(height: 12),
-                            const TransportModeToggle(),
+                            const _ModeChip(),
                           ],
                         ),
                       ),
@@ -139,10 +139,12 @@ class _LandingPageState extends State<LandingPage>
                 PositionedDirectional(
                   top: 4,
                   end: 4,
-                  child: _SettingsButton(onTap: () {
-                    HapticFeedback.selectionClick();
-                    context.pushNamed(AppRoutes.settingsName);
-                  }),
+                  child: _SettingsButton(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      context.pushNamed(AppRoutes.settingsName);
+                    },
+                  ),
                 ),
               ],
             ),
@@ -169,8 +171,9 @@ class _LandingPageState extends State<LandingPage>
           Text(
             context.getString.join_channel,
             style: TextStyle(
-              color:
-                  state.hasNetwork ? AppColors.amber : AppColors.textSecondary,
+              color: state.hasNetwork
+                  ? AppColors.amber
+                  : AppColors.textSecondary,
               fontSize: 15,
               fontWeight: FontWeight.w800,
               letterSpacing: 2,
@@ -183,12 +186,22 @@ class _LandingPageState extends State<LandingPage>
             ? () {
                 HapticFeedback.selectionClick();
                 context.read<LandingCubit>().markLaunched();
-                context.pushNamed(switch (state.transferMode) {
-                  TransferMode.bluetooth => AppRoutes.bluetoothConnectName,
-                  TransferMode.hotspot => AppRoutes.hotspotBridgeName,
-                  TransferMode.guest => AppRoutes.guestLinkName,
-                  TransferMode.wifi => AppRoutes.walkieName,
-                });
+                switch (state.transferMode) {
+                  case TransferMode.bluetooth:
+                    context.pushNamed(AppRoutes.bluetoothConnectName);
+                  case TransferMode.guest:
+                    context.pushNamed(AppRoutes.guestLinkName);
+                  case TransferMode.wifi:
+                    context.pushNamed(
+                      AppRoutes.wifiHotspotName,
+                      queryParameters: const {'mode': 'wifi'},
+                    );
+                  case TransferMode.hotspot:
+                    context.pushNamed(
+                      AppRoutes.wifiHotspotName,
+                      queryParameters: const {'mode': 'hotspot'},
+                    );
+                }
               }
             : null,
         child: AnimatedContainer(
@@ -227,7 +240,74 @@ class _LandingPageState extends State<LandingPage>
       ),
     );
   }
+}
 
+// ── Transport mode chip ───────────────────────────────────────────────────────
+// Read-only display of the mode picked in Settings (item 5 moved editing
+// there) — tapping jumps straight to it. Reacts to TransferModeStore.modeChanges
+// so a mode switched in Settings updates here even though Landing's own
+// cubit/widget isn't rebuilt when Settings is merely popped back from.
+
+class _ModeChip extends StatelessWidget {
+  const _ModeChip();
+
+  String _label(AppLocalizations s, TransferMode mode) => switch (mode) {
+    TransferMode.wifi || TransferMode.hotspot => s.transport_wifi_hotspot,
+    TransferMode.bluetooth => s.transport_bluetooth,
+    TransferMode.guest => s.transport_guest,
+  };
+
+  IconData _icon(TransferMode mode) => switch (mode) {
+    TransferMode.wifi || TransferMode.hotspot => Icons.wifi_rounded,
+    TransferMode.bluetooth => Icons.bluetooth_rounded,
+    TransferMode.guest => Icons.qr_code_rounded,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    final store = GetIt.instance<TransferModeStore>();
+    return StreamBuilder<TransferMode>(
+      initialData: store.mode,
+      stream: store.modeChanges,
+      builder: (context, snapshot) {
+        final mode = snapshot.data ?? store.mode;
+        return GestureDetector(
+          onTap: () => context.pushNamed(AppRoutes.settingsName),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(_icon(mode), size: 14, color: AppColors.textSecondary),
+                const SizedBox(width: 6),
+                Text(
+                  _label(s, mode),
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 14,
+                  color: AppColors.textSecondary,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
 
 // ── Settings entry point ──────────────────────────────────────────────────────

@@ -7,6 +7,11 @@ import '../entity/transfer_mode.dart';
 abstract interface class TransferModeStore {
   TransferMode get mode;
 
+  /// Emits every time [setMode] changes the mode — lets a page still alive
+  /// further down the nav stack (e.g. Landing, under Settings) react to a
+  /// change made elsewhere without polling.
+  Stream<TransferMode> get modeChanges;
+
   Future<void> initialize();
 
   Future<void> setMode(TransferMode mode);

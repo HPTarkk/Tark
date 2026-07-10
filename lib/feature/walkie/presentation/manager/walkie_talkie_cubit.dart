@@ -6,8 +6,9 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/settings/settings_repository.dart';
+import '../../../../core/settings/settings_repository_impl.dart';
 import '../../../../core/sfx/sfx_event.dart';
 import '../../../../core/sfx/sfx_service.dart';
 import '../../../../core/utils/lan_ipv4.dart';
@@ -28,16 +29,22 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
   final AudioEngine _audioEngine;
   final TransferRepository _transferRepository;
   final TransferModeStore _modeStore;
+  final SettingsRepository _settingsRepository;
 
   StreamSubscription<AudioFrame>? _frameSub;
   StreamSubscription<AudioEngineStatus>? _statusSub;
   StreamSubscription<WakiPacket>? _packetSub;
-  StreamSubscription<bool>? _linkSub;
+  StreamSubscription<ConnectionHealthStatus>? _linkSub;
   Timer? _presenceTimer;
   Timer? _cleanupTimer;
 
-  WalkieTalkieCubit(this._audioEngine, this._transferRepository, this._modeStore)
-      : super(WalkieTalkieState.initial()) {
+  WalkieTalkieCubit(
+    this._audioEngine,
+    this._transferRepository,
+    this._modeStore, [
+    SettingsRepository? settingsRepository,
+  ]) : _settingsRepository = settingsRepository ?? SettingsRepositoryImpl(),
+       super(WalkieTalkieState.initial()) {
     _init();
   }
 
@@ -46,11 +53,9 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
   Stream<AudioFrame> get frames => _audioEngine.frames;
 
   Future<void> _init() async {
-    final prefs = await SharedPreferences.getInstance();
-    final voxThreshold = prefs.getDouble('vox_threshold') ?? state.voxThreshold;
-    final noiseSuppression =
-        prefs.getDouble('noise_suppression') ?? state.noiseSuppression;
-    final musicGain = prefs.getDouble('music_gain') ?? state.musicGain;
+    final voxThreshold = await _settingsRepository.getVoxThreshold();
+    final noiseSuppression = await _settingsRepository.getNoiseSuppression();
+    final musicGain = await _settingsRepository.getMusicGain();
 
     // The page can be exited while _init is still awaiting (fast back-out).
     // close() has then already run, so bail instead of resurrecting
@@ -78,18 +83,22 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     // regardless, via _refreshId() on every presence tick.
     final audioStart = _audioEngine.start();
     final localId = await _getLocalId();
-    final myName =
-        prefs.getString('user_name') ?? 'User${localId.split('.').last}';
+    final storedName = await _settingsRepository.getMyName();
+    final myName = storedName.isEmpty
+        ? 'User${localId.split('.').last}'
+        : storedName;
 
     if (isClosed) return;
-    emit(state.copyWith(
-      localId: localId,
-      myName: myName,
-      voxThreshold: voxThreshold,
-      noiseSuppression: noiseSuppression,
-      musicGain: musicGain,
-      transferMode: _modeStore.mode,
-    ));
+    emit(
+      state.copyWith(
+        localId: localId,
+        myName: myName,
+        voxThreshold: voxThreshold,
+        noiseSuppression: noiseSuppression,
+        musicGain: musicGain,
+        transferMode: _modeStore.mode,
+      ),
+    );
 
     await audioStart;
     if (isClosed) return;
@@ -109,26 +118,45 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
       onError: (Object e) => Logger.log('Packet error: $e'),
     );
 
-    // Every transport's connect() stream reflects the same "is the link
-    // currently up" signal — for Bluetooth/Guest that's the 1-to-1 peer
-    // link, for WiFi it's the UDP socket's bind/rebind lifecycle (see
-    // WifiTransferRepositoryImpl's exponential-backoff rebind loop). Either
-    // way, a drop means the same "link lost — reconnecting" banner + sound
-    // applies, so this is no longer gated to specific transports.
-    _linkSub = _transferRepository.connect().listen((connected) {
+    _transferRepository.setAutoReconnectEnabled(
+      await _settingsRepository.getAutoReconnectEnabled(),
+    );
+    if (isClosed) return;
+
+    // Every transport's connect() stream reflects the same unified health
+    // signal — for Bluetooth/Guest that's the 1-to-1 peer link, for WiFi
+    // it's the UDP socket's bind/rebind lifecycle plus a liveness watchdog
+    // (see WifiTransferRepositoryImpl). A drop means the same
+    // "link lost — reconnecting" banner + sound applies, so this is no
+    // longer gated to specific transports.
+    _linkSub = _transferRepository.connect().listen((health) {
       if (isClosed) return;
-      final wasDown = state.isLinkDown;
-      final isDown = !connected;
-      if (wasDown != isDown) {
-        emit(state.copyWith(isLinkDown: isDown));
-        Sfx.play(isDown ? SfxEvent.linkLost : SfxEvent.linkRestored);
+      final wasHealthy =
+          state.connectionHealth == ConnectionHealthStatus.healthy;
+      final isHealthy = health == ConnectionHealthStatus.healthy;
+      if (state.connectionHealth != health) {
+        emit(state.copyWith(connectionHealth: health));
+        if (wasHealthy && !isHealthy) {
+          Sfx.play(SfxEvent.linkLost);
+        } else if (!wasHealthy && isHealthy) {
+          Sfx.play(SfxEvent.linkRestored);
+          // Recovering from a drop can leave stale jitter-buffer/decoder
+          // state from before the gap — clear it so playback doesn't pick
+          // up mid-buffer or garble the first packets from a resumed sender.
+          _audioEngine.resetPlayback();
+          _transferRepository.resetCodecState();
+        }
       }
     });
 
-    _presenceTimer =
-        Timer.periodic(const Duration(seconds: 2), (_) => _broadcastPresence());
-    _cleanupTimer =
-        Timer.periodic(const Duration(seconds: 3), (_) => _cleanupStaleUsers());
+    _presenceTimer = Timer.periodic(
+      const Duration(seconds: 2),
+      (_) => _broadcastPresence(),
+    );
+    _cleanupTimer = Timer.periodic(
+      const Duration(seconds: 3),
+      (_) => _cleanupStaleUsers(),
+    );
 
     emit(state.copyWith(isReady: true));
     Sfx.play(SfxEvent.channelJoin);
@@ -168,7 +196,8 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
   // capture-stalled case below) for the page to show as a toast. Side channel
   // rather than state: it's a transient event, not something to redraw for.
   final _systemAudioMessageController = StreamController<String>.broadcast();
-  Stream<String> get systemAudioMessages => _systemAudioMessageController.stream;
+  Stream<String> get systemAudioMessages =>
+      _systemAudioMessageController.stream;
 
   void _onAudioFrame(AudioFrame frame) {
     // Full duplex: TX and RX run independently, same as a phone call. No
@@ -180,8 +209,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     // AEC; headphones avoid it entirely.
 
     // No network → never mark as transmitting.
-    final isOnline =
-        state.localId.isNotEmpty && state.localId != '0.0.0.0';
+    final isOnline = state.localId.isNotEmpty && state.localId != '0.0.0.0';
 
     if (frame.rms > state.voxThreshold) {
       _hangover = _kHangoverFrames;
@@ -200,7 +228,8 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     final sharingMusic = state.isSharingSystemAudio;
     // Music sharing keeps the channel keyed continuously; voice rides on
     // top of it. Without sharing, VOX (with hangover) gates as usual.
-    final isTransmitting = _audioEngine.currentStatus.hasPermission &&
+    final isTransmitting =
+        _audioEngine.currentStatus.hasPermission &&
         isOnline &&
         (voiceOpen || sharingMusic);
 
@@ -239,8 +268,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     final gain = state.musicGain;
     final mixed = List<double>.from(voice);
     for (var i = 0; i < mixed.length && _musicQueue.isNotEmpty; i++) {
-      mixed[i] =
-          (mixed[i] + _musicQueue.removeFirst() * gain).clamp(-1.0, 1.0);
+      mixed[i] = (mixed[i] + _musicQueue.removeFirst() * gain).clamp(-1.0, 1.0);
     }
     return mixed;
   }
@@ -296,10 +324,9 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
         }
       },
     );
-    emit(state.copyWith(
-      isSharingSystemAudio: true,
-      isStartingSystemAudio: false,
-    ));
+    emit(
+      state.copyWith(isSharingSystemAudio: true, isStartingSystemAudio: false),
+    );
     unawaited(SystemAudioCapture.setLocalVolume(state.musicGain));
   }
 
@@ -322,8 +349,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     if (state.isSharingSystemAudio) {
       unawaited(SystemAudioCapture.setLocalVolume(state.musicGain));
     }
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble('music_gain', state.musicGain);
+    await _settingsRepository.setMusicGain(state.musicGain);
   }
 
   void _onPacketReceived(WakiPacket packet) {
@@ -338,7 +364,11 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
       case AudioPacket():
         _updateUser(packet.senderId, packet.senderName, true);
         try {
-          _audioEngine.playReceived(packet.samples, packet.seq, packet.senderId);
+          _audioEngine.playReceived(
+            packet.samples,
+            packet.seq,
+            packet.senderId,
+          );
         } catch (e) {
           Logger.log('Playback error: $e');
         }
@@ -348,8 +378,12 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
   void _updateUser(String id, String name, bool isTalking) {
     final users = List<ChannelUser>.from(state.activeUsers);
     final idx = users.indexWhere((u) => u.id == id);
-    final user =
-        ChannelUser(id: id, name: name, isTalking: isTalking, lastSeen: DateTime.now());
+    final user = ChannelUser(
+      id: id,
+      name: name,
+      isTalking: isTalking,
+      lastSeen: DateTime.now(),
+    );
     if (idx >= 0) {
       if (!users[idx].isTalking && isTalking) Sfx.play(SfxEvent.rxStart);
       users[idx] = user;
@@ -379,11 +413,12 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     final updated = state.activeUsers
         .where((u) => now.difference(u.lastSeen).inSeconds < 8)
         .map((u) {
-      if (now.difference(u.lastSeen).inSeconds > 3 && u.isTalking) {
-        return u.copyWith(isTalking: false);
-      }
-      return u;
-    }).toList();
+          if (now.difference(u.lastSeen).inSeconds > 3 && u.isTalking) {
+            return u.copyWith(isTalking: false);
+          }
+          return u;
+        })
+        .toList();
     if (updated.length < state.activeUsers.length) {
       Sfx.play(SfxEvent.peerLeave);
     }
@@ -392,22 +427,29 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
 
   Future<void> setVoxThreshold(double threshold) async {
     emit(state.copyWith(voxThreshold: threshold));
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble('vox_threshold', threshold);
+    await _settingsRepository.setVoxThreshold(threshold);
   }
 
   Future<void> setNoiseSuppression(double strength) async {
     _audioEngine.setNoiseSuppression(strength);
     emit(state.copyWith(noiseSuppression: strength));
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble('noise_suppression', strength);
+    await _settingsRepository.setNoiseSuppression(strength);
+  }
+
+  /// Manual "Retry now" action for the connection-health banner — bypasses
+  /// any backoff wait and is the only way to recover when auto-reconnect is
+  /// turned off.
+  void retryNow() => _transferRepository.retryNow();
+
+  Future<void> setAutoReconnectEnabled(bool enabled) async {
+    _transferRepository.setAutoReconnectEnabled(enabled);
+    await _settingsRepository.setAutoReconnectEnabled(enabled);
   }
 
   Future<void> setMyName(String name) async {
     final trimmed = name.trim();
     if (trimmed.isEmpty) return;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('user_name', trimmed);
+    await _settingsRepository.setMyName(trimmed);
     emit(state.copyWith(myName: trimmed));
     _broadcastPresence();
   }
@@ -496,9 +538,9 @@ class WalkieTalkieState extends Equatable {
   final bool isStartingSystemAudio;
   final double musicGain;
 
-  /// The active transport's link dropped and it's auto-reconnecting —
-  /// Bluetooth/Guest's 1-to-1 peer link, or WiFi's UDP socket rebind.
-  final bool isLinkDown;
+  /// The active transport's link health — Bluetooth/Guest's 1-to-1 peer
+  /// link, or WiFi's UDP socket + liveness watchdog.
+  final ConnectionHealthStatus connectionHealth;
 
   const WalkieTalkieState({
     required this.localId,
@@ -513,24 +555,24 @@ class WalkieTalkieState extends Equatable {
     required this.isSharingSystemAudio,
     required this.isStartingSystemAudio,
     required this.musicGain,
-    required this.isLinkDown,
+    required this.connectionHealth,
   });
 
   factory WalkieTalkieState.initial() => const WalkieTalkieState(
-        localId: '',
-        myName: '',
-        isTransmitting: false,
-        hasPermission: true,
-        voxThreshold: 0.025,
-        noiseSuppression: 0.6,
-        activeUsers: [],
-        isReady: false,
-        transferMode: TransferMode.wifi,
-        isSharingSystemAudio: false,
-        isStartingSystemAudio: false,
-        musicGain: 0.85,
-        isLinkDown: false,
-      );
+    localId: '',
+    myName: '',
+    isTransmitting: false,
+    hasPermission: true,
+    voxThreshold: 0.0,
+    noiseSuppression: 0.8,
+    activeUsers: [],
+    isReady: false,
+    transferMode: TransferMode.wifi,
+    isSharingSystemAudio: false,
+    isStartingSystemAudio: false,
+    musicGain: 0.85,
+    connectionHealth: ConnectionHealthStatus.healthy,
+  );
 
   WalkieTalkieState copyWith({
     String? localId,
@@ -545,42 +587,39 @@ class WalkieTalkieState extends Equatable {
     bool? isSharingSystemAudio,
     bool? isStartingSystemAudio,
     double? musicGain,
-    bool? isLinkDown,
-  }) =>
-      WalkieTalkieState(
-        localId: localId ?? this.localId,
-        myName: myName ?? this.myName,
-        isTransmitting: isTransmitting ?? this.isTransmitting,
-        hasPermission: hasPermission ?? this.hasPermission,
-        voxThreshold: voxThreshold ?? this.voxThreshold,
-        noiseSuppression: noiseSuppression ?? this.noiseSuppression,
-        activeUsers: activeUsers ?? this.activeUsers,
-        isReady: isReady ?? this.isReady,
-        transferMode: transferMode ?? this.transferMode,
-        isSharingSystemAudio:
-            isSharingSystemAudio ?? this.isSharingSystemAudio,
-        isStartingSystemAudio:
-            isStartingSystemAudio ?? this.isStartingSystemAudio,
-        musicGain: musicGain ?? this.musicGain,
-        isLinkDown: isLinkDown ?? this.isLinkDown,
-      );
+    ConnectionHealthStatus? connectionHealth,
+  }) => WalkieTalkieState(
+    localId: localId ?? this.localId,
+    myName: myName ?? this.myName,
+    isTransmitting: isTransmitting ?? this.isTransmitting,
+    hasPermission: hasPermission ?? this.hasPermission,
+    voxThreshold: voxThreshold ?? this.voxThreshold,
+    noiseSuppression: noiseSuppression ?? this.noiseSuppression,
+    activeUsers: activeUsers ?? this.activeUsers,
+    isReady: isReady ?? this.isReady,
+    transferMode: transferMode ?? this.transferMode,
+    isSharingSystemAudio: isSharingSystemAudio ?? this.isSharingSystemAudio,
+    isStartingSystemAudio: isStartingSystemAudio ?? this.isStartingSystemAudio,
+    musicGain: musicGain ?? this.musicGain,
+    connectionHealth: connectionHealth ?? this.connectionHealth,
+  );
 
   bool get isSomeoneElseTalking => activeUsers.any((u) => u.isTalking);
 
   @override
   List<Object?> get props => [
-        localId,
-        myName,
-        isTransmitting,
-        hasPermission,
-        voxThreshold,
-        noiseSuppression,
-        activeUsers,
-        isReady,
-        transferMode,
-        isSharingSystemAudio,
-        isStartingSystemAudio,
-        musicGain,
-        isLinkDown,
-      ];
+    localId,
+    myName,
+    isTransmitting,
+    hasPermission,
+    voxThreshold,
+    noiseSuppression,
+    activeUsers,
+    isReady,
+    transferMode,
+    isSharingSystemAudio,
+    isStartingSystemAudio,
+    musicGain,
+    connectionHealth,
+  ];
 }

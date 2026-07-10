@@ -18,16 +18,16 @@ enum SfxEvent {
 
 extension SfxEventAsset on SfxEvent {
   String get assetPath => switch (this) {
-        SfxEvent.pttOpen => 'sfx/ptt_open.wav',
-        SfxEvent.pttClose => 'sfx/ptt_close.wav',
-        SfxEvent.rxStart => 'sfx/rx_start.wav',
-        SfxEvent.peerJoin => 'sfx/peer_join.wav',
-        SfxEvent.peerLeave => 'sfx/peer_leave.wav',
-        SfxEvent.linkLost => 'sfx/link_lost.wav',
-        SfxEvent.linkRestored => 'sfx/link_restored.wav',
-        SfxEvent.error => 'sfx/error.wav',
-        SfxEvent.toggle => 'sfx/toggle.wav',
-        SfxEvent.channelJoin => 'sfx/channel_join.wav',
-        SfxEvent.channelLeave => 'sfx/channel_leave.wav',
-      };
+    SfxEvent.pttOpen => 'sfx/ptt_open.wav',
+    SfxEvent.pttClose => 'sfx/ptt_close.wav',
+    SfxEvent.rxStart => 'sfx/rx_start.wav',
+    SfxEvent.peerJoin => 'sfx/peer_join.wav',
+    SfxEvent.peerLeave => 'sfx/peer_leave.wav',
+    SfxEvent.linkLost => 'sfx/link_lost.wav',
+    SfxEvent.linkRestored => 'sfx/link_restored.wav',
+    SfxEvent.error => 'sfx/error.wav',
+    SfxEvent.toggle => 'sfx/toggle.wav',
+    SfxEvent.channelJoin => 'sfx/channel_join.wav',
+    SfxEvent.channelLeave => 'sfx/channel_leave.wav',
+  };
 }

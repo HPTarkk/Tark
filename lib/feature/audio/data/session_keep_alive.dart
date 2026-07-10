@@ -41,8 +41,9 @@ abstract final class SessionKeepAlive {
   static Future<bool> isIgnoringBatteryOptimizations() async {
     if (!_supported) return true;
     try {
-      return await _channel
-              .invokeMethod<bool>('isIgnoringBatteryOptimizations') ??
+      return await _channel.invokeMethod<bool>(
+            'isIgnoringBatteryOptimizations',
+          ) ??
           true;
     } catch (_) {
       return true;

@@ -249,10 +249,10 @@
       <div class="spec reveal">
         <div class="spec-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
         <p class="spec-label" data-en="LATENCY" data-fa="تأخیر">LATENCY</p>
-        <p class="spec-value" data-en="~100ms jitter buffer" data-fa="~۱۰۰ میلی‌ثانیه بافر لرزش">~100ms jitter buffer</p>
-        <p class="spec-desc" data-en="Just enough buffering to stay smooth without ever feeling behind."
-           data-fa="فقط به‌اندازه‌ای بافر که صدا روان بماند، بدون احساس عقب‌افتادگی.">
-          Just enough buffering to stay smooth without ever feeling behind.</p>
+        <p class="spec-value" data-en="Configurable jitter buffer" data-fa="بافر لرزشِ قابل‌تنظیم">Configurable jitter buffer</p>
+        <p class="spec-desc" data-en="Just enough buffering to stay smooth without ever feeling behind — self-corrects clock drift instead of letting delay quietly grow over a long ride. Adjustable in Settings."
+           data-fa="فقط به‌اندازه‌ای بافر که صدا روان بماند، بدون احساس عقب‌افتادگی — انحراف ساعت را خودش جبران می‌کند تا تأخیر در طول یک سفر طولانی آرام‌آرام زیاد نشود. از تنظیمات قابل تغییر است.">
+          Just enough buffering to stay smooth without ever feeling behind — self-corrects clock drift instead of letting delay quietly grow over a long ride. Adjustable in Settings.</p>
       </div>
       <div class="spec reveal">
         <div class="spec-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M13 7l-4 6h3l-1 4 4-6h-3l1-4Z" fill="currentColor"/></svg></div>
@@ -266,9 +266,9 @@
         <div class="spec-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 13.5-5.8M20 12a8 8 0 0 1-13.5 5.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M17 3v4h-4M7 21v-4h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
         <p class="spec-label" data-en="RECONNECT" data-fa="اتصال مجدد">RECONNECT</p>
         <p class="spec-value" data-en="Exponential backoff" data-fa="تأخیر نمایی">Exponential backoff</p>
-        <p class="spec-desc" data-en="Retries from 4s up to 64s, and resets the instant the link returns."
-           data-fa="تلاش مجدد از ۴ تا ۶۴ ثانیه، و بازنشانی فوری به‌محض بازگشت اتصال.">
-          Retries from 4s up to 64s, and resets the instant the link returns.</p>
+        <p class="spec-desc" data-en="A liveness watchdog catches a link gone silent — not just closed — so a dead peer heals itself instead of needing a manual leave/rejoin. Retries from 4s up to 64s, resetting the instant the link returns."
+           data-fa="یک نگهبانِ زنده‌بودنِ اتصال، لینکی که ساکت شده را هم تشخیص می‌دهد — نه فقط قطع‌شده را — پس یک هم‌تای از دسترس‌خارج‌شده خودش ترمیم می‌شود، بدون نیاز به خروج و ورود دستی. تلاش مجدد از ۴ تا ۶۴ ثانیه، با بازنشانی فوری به‌محض بازگشت اتصال.">
+          A liveness watchdog catches a link gone silent — not just closed — so a dead peer heals itself instead of needing a manual leave/rejoin. Retries from 4s up to 64s, resetting the instant the link returns.</p>
       </div>
       <div class="spec reveal">
         <div class="spec-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v18M8 7a5 5 0 0 0 0 10M16 7a5 5 0 0 1 0 10M5 4a9 9 0 0 0 0 16M19 4a9 9 0 0 1 0 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>

@@ -7,24 +7,29 @@ import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/config/quick_access_config.dart';
+import '../../../../core/settings/settings_repository.dart';
+import '../../../../core/settings/settings_repository_impl.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../transfer/api/transfer_api.dart';
 
 @injectable
 class LandingCubit extends Cubit<LandingState> {
   final TransferModeStore _modeStore;
+  final SettingsRepository _settingsRepository;
   Timer? _ipTimer;
 
-  LandingCubit(this._modeStore)
-      : super(LandingState.initial(_modeStore.mode)) {
+  LandingCubit(this._modeStore, [SettingsRepository? settingsRepository])
+    : _settingsRepository = settingsRepository ?? SettingsRepositoryImpl(),
+      super(LandingState.initial(_modeStore.mode)) {
     _init();
   }
 
   Future<void> _init() async {
     final localIp = await _getLocalIp();
-    final prefs = await SharedPreferences.getInstance();
-    final myName = prefs.getString('user_name') ??
-        'User${localIp.split('.').last}';
+    final storedName = await _settingsRepository.getMyName();
+    final myName = storedName.isEmpty
+        ? 'User${localIp.split('.').last}'
+        : storedName;
     emit(state.copyWith(localIp: localIp, myName: myName, isLoading: false));
 
     _ipTimer = Timer.periodic(const Duration(seconds: 4), (_) async {
@@ -38,8 +43,7 @@ class LandingCubit extends Cubit<LandingState> {
   Future<void> setMyName(String name) async {
     final trimmed = name.trim();
     if (trimmed.isEmpty) return;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('user_name', trimmed);
+    await _settingsRepository.setMyName(trimmed);
     emit(state.copyWith(myName: trimmed));
   }
 
@@ -63,8 +67,9 @@ class LandingCubit extends Cubit<LandingState> {
 
   Future<String> _getLocalIp() async {
     try {
-      final interfaces =
-          await NetworkInterface.list(type: InternetAddressType.IPv4);
+      final interfaces = await NetworkInterface.list(
+        type: InternetAddressType.IPv4,
+      );
       for (final iface in interfaces) {
         for (final addr in iface.addresses) {
           if (!addr.isLoopback) return addr.address;
@@ -91,11 +96,11 @@ class LandingState extends Equatable {
   });
 
   factory LandingState.initial(TransferMode transferMode) => LandingState(
-        localIp: '',
-        myName: '',
-        isLoading: true,
-        transferMode: transferMode,
-      );
+    localIp: '',
+    myName: '',
+    isLoading: true,
+    transferMode: transferMode,
+  );
 
   bool get hasNetwork =>
       transferMode == TransferMode.bluetooth ||
@@ -109,13 +114,12 @@ class LandingState extends Equatable {
     String? myName,
     bool? isLoading,
     TransferMode? transferMode,
-  }) =>
-      LandingState(
-        localIp: localIp ?? this.localIp,
-        myName: myName ?? this.myName,
-        isLoading: isLoading ?? this.isLoading,
-        transferMode: transferMode ?? this.transferMode,
-      );
+  }) => LandingState(
+    localIp: localIp ?? this.localIp,
+    myName: myName ?? this.myName,
+    isLoading: isLoading ?? this.isLoading,
+    transferMode: transferMode ?? this.transferMode,
+  );
 
   @override
   List<Object?> get props => [localIp, myName, isLoading, transferMode];

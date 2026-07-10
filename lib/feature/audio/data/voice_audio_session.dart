@@ -32,7 +32,9 @@ abstract final class VoiceAudioSession {
   static Future<void> attachEffects(int sessionId) async {
     if (sessionId < 0) return;
     try {
-      await _channel.invokeMethod<void>('attachEffects', {'sessionId': sessionId});
+      await _channel.invokeMethod<void>('attachEffects', {
+        'sessionId': sessionId,
+      });
     } catch (e) {
       Logger.log('Voice audio effects attach failed: $e');
     }

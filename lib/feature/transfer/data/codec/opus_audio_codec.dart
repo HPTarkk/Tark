@@ -54,8 +54,10 @@ class OpusAudioCodec {
       );
       final pcm = Int16List(samples.length);
       for (var i = 0; i < samples.length; i++) {
-        pcm[i] =
-            (samples[i].clamp(-1.0, 1.0) * 32767).round().clamp(-32768, 32767);
+        pcm[i] = (samples[i].clamp(-1.0, 1.0) * 32767).round().clamp(
+          -32768,
+          32767,
+        );
       }
       return _encoder!.encode(input: pcm);
     } catch (e) {
@@ -90,6 +92,14 @@ class OpusAudioCodec {
   void release() {
     _encoder?.destroy();
     _encoder = null;
+    resetDecoders();
+  }
+
+  /// Frees per-sender decoder state without touching the encoder. Call after
+  /// a detected reconnect: Opus decoding is stateful (prediction across
+  /// frames), so a stale decoder left over from before a drop can produce
+  /// garbled audio once a sender resumes — decoders are recreated lazily.
+  void resetDecoders() {
     for (final decoder in _decoders.values) {
       decoder.destroy();
     }

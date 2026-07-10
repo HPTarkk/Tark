@@ -61,8 +61,7 @@ abstract final class SystemAudioCapture {
   }
 
   /// Captured playback as normalized 16 kHz mono chunks (~100 ms each).
-  static Stream<List<double>> get frames =>
-      _frames ??= _frameEvents
-          .receiveBroadcastStream()
-          .map((event) => (event as Float64List).toList());
+  static Stream<List<double>> get frames => _frames ??= _frameEvents
+      .receiveBroadcastStream()
+      .map((event) => (event as Float64List).toList());
 }

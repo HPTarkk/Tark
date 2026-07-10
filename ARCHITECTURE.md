@@ -48,12 +48,30 @@ lib/
   overlapping page sessions — see the comments in
   `feature/audio/data/audio_engine_impl.dart` before touching lifecycle code.
 - **transfer** — owns the wire protocol (`WakiPacket`) and its transports:
-  `TransferRepository` (WiFi UDP / Bluetooth impls selected per
+  `TransferRepository` (WiFi UDP / Bluetooth / WebRTC impls selected per
   `TransferModeStore.mode` by a DI factory), `TransferMode`,
-  `TransferModeStore`, and the Bluetooth connect page.
+  `TransferModeStore` (+ `modeChanges` stream), `ConnectionHealthStatus`
+  (unified healthy/reconnecting/down signal every transport's `connect()`
+  emits), the Bluetooth connect page, and the combined `WifiHotspotPage`
+  (WiFi and Hotspot merged behind one segmented-control entry point).
 - **walkie** — the channel screen; consumes audio + transfer through their
   APIs. Exposes only its page (reached via routes).
-- **landing** — entry screen; consumes transfer's API for mode selection.
+- **landing** — entry screen; shows identity + a read-only transport-mode
+  chip (editing now lives in Settings) and the Join button.
+- **settings** — categorized Settings page (Profile/Voice & Audio/
+  Connection/Sound/Appearance/Startup) plus a dedicated Permissions page.
+- **splash** — the branded cold-start splash page (skippable via Settings).
+
+### Settings persistence
+
+`core/settings/` is the shared kernel for every persisted setting:
+`SettingsKeys` (the one place a SharedPreferences key string is allowed to
+exist), `AppSettings` (domain entity + defaults), `SettingsModel` (JSON
+(de)serialization), and `SettingsRepository`/`SettingsRepositoryImpl` (the
+single read/write point cubits use instead of touching `SharedPreferences`
+directly). `LocaleService`, `ThemeService`, and `Sfx` still read
+`SharedPreferences` directly — they initialize in `main.dart` before DI is
+configured — but do so via `SettingsKeys` constants, not literals.
 
 ## DI
 

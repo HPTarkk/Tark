@@ -55,6 +55,11 @@ abstract interface class AudioEngine {
   /// channel can have more than 2 participants).
   void playReceived(List<double> samples, int seq, String senderId);
 
+  /// Clears jitter-buffer playback state (queued audio, sequence tracking).
+  /// Call after a detected reconnect so stale buffered audio doesn't play
+  /// back "late" once the link recovers.
+  void resetPlayback();
+
   /// Stop the engine (unless a newer session already owns it) and release
   /// this instance's resources. Safe to call while [start] is in flight.
   Future<void> dispose();

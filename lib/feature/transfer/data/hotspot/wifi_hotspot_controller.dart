@@ -57,10 +57,7 @@ class HotspotJoiner {
 
   bool get isSupported => Platform.isIOS;
 
-  Future<bool> join({
-    required String ssid,
-    required String passphrase,
-  }) async {
+  Future<bool> join({required String ssid, required String passphrase}) async {
     if (!isSupported) return false;
     try {
       final ok = await _channel.invokeMethod<bool>('join', {

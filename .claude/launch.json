@@ -6,6 +6,20 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["-y", "serve", "website", "-l", "5173"],
       "port": 5173
+    },
+    {
+      "name": "splash-preview",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": [
+        "run",
+        "-d",
+        "web-server",
+        "--web-port",
+        "5177",
+        "-t",
+        "lib/main_splash_preview.dart"
+      ],
+      "port": 5177
     }
   ]
 }
