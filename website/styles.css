@@ -221,6 +221,20 @@ nav.scrolled {
   overflow: hidden;
 }
 
+/* Signal mesh — drifting peer dots linked by faint lines, with packet
+   pulses hopping between them (drawn in app.js). Fades out toward the
+   edges so it never fights the ticker below or the nav above. */
+.hero-mesh {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: .8;
+  mask-image: linear-gradient(to bottom, transparent 0, #000 14%, #000 72%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14%, #000 72%, transparent 100%);
+}
+
 .hero-spotlight {
   position: absolute;
   inset: 0;
@@ -232,35 +246,6 @@ nav.scrolled {
   );
   transition: background .25s ease-out;
   transform: translateY(var(--parallax, 0px));
-}
-
-.hero-rings {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  pointer-events: none;
-  /* Drifts slightly slower than scroll for a subtle depth cue as the hero
-     scrolls away. */
-  transform: translateY(calc(var(--parallax, 0px) * .5));
-}
-
-.hero-rings span {
-  position: absolute;
-  width: 32vmax; height: 32vmax;
-  border: 1px solid rgba(245, 133, 63, .35);
-  border-radius: 50%;
-  animation: ringGrow 7s linear infinite;
-}
-
-.hero-rings span:nth-child(2) { animation-delay: 1.75s; }
-.hero-rings span:nth-child(3) { animation-delay: 3.5s; }
-.hero-rings span:nth-child(4) { animation-delay: 5.25s; }
-
-@keyframes ringGrow {
-  from { transform: scale(.25); opacity: 0; }
-  12%  { opacity: .5; }
-  to   { transform: scale(1.6); opacity: 0; }
 }
 
 .hero-content { position: relative; max-width: 520px; }
@@ -490,6 +475,53 @@ nav.scrolled {
 .ticker-track i { color: var(--amber); font-style: normal; }
 
 @keyframes tick { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+/* ── Sound-wave dividers ────────────────────────────────────────────── */
+/* A voice-note waveform between sections: dim bars with an amber
+   "playhead" sweeping across. Bars and their stagger delays are built in
+   app.js; each bar's height comes in as --h (a percentage). */
+
+.signal-divider {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1080px;
+  height: 72px;
+  margin: -46px auto;
+  padding: 0 24px;
+}
+
+/* Each bar runs two animations on disjoint properties so they compose:
+   sdBar (the playhead sweep) owns background/glow, sdWiggle (idle "audio
+   is playing" motion) owns transform. Durations/delays are set inline per
+   bar in app.js. */
+.signal-divider span {
+  flex-shrink: 0;
+  width: 3px;
+  height: calc(var(--h, 40) * 1%);
+  border-radius: 2px;
+  background: var(--border);
+  animation: sdBar 6s linear infinite, sdWiggle 2s ease-in-out infinite alternate;
+}
+
+@keyframes sdBar {
+  0%, 7%, 100% { background: var(--border); box-shadow: none; }
+  3.5% {
+    background: var(--amber);
+    box-shadow: 0 0 12px rgba(245, 133, 63, .6);
+  }
+}
+
+@keyframes sdWiggle {
+  from { transform: scaleY(.62); }
+  to   { transform: scaleY(1.22); }
+}
+
+/* Half the bars bow out on narrow screens — keeps the envelope shape
+   without squeezing 96 bars into a phone-width row. */
+@media (max-width: 700px) {
+  .signal-divider span:nth-child(2n) { display: none; }
+}
 
 /* ── Feature cards ──────────────────────────────────────────────────── */
 
@@ -1110,6 +1142,134 @@ nav.scrolled {
 .privacy-rings span:nth-child(2) { width: 62vmax; height: 62vmax; }
 .privacy-rings span:nth-child(3) { width: 86vmax; height: 86vmax; }
 
+/* Slow radar sweep over the rings — "your own network" as a radar screen.
+   Painted once as a conic gradient, then rotated on the compositor. */
+.radar-sweep {
+  position: absolute;
+  width: 86vmax;
+  height: 86vmax;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0 82%,
+    rgba(245, 133, 63, .04) 90%,
+    rgba(245, 133, 63, .11) 100%
+  );
+  animation: radarSpin 10s linear infinite;
+}
+
+@keyframes radarSpin { to { transform: rotate(360deg); } }
+
+/* Peer blips on the radar — staggered so each lights up roughly as the
+   sweep passes its quadrant. */
+.radar-blip {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--amber);
+  opacity: 0;
+  animation: blipPing 10s ease-out infinite;
+}
+
+/* Kept clear of the centered copy — a blip popping through text reads as
+   a glitch, not a peer. */
+.rb1 { top: 30%; left: 18%; }
+.rb2 { top: 24%; left: 79%; animation-delay: 3.3s; }
+.rb3 { top: 80%; left: 63%; animation-delay: 6.6s; }
+
+@keyframes blipPing {
+  0%       { opacity: 0; box-shadow: 0 0 0 0 rgba(245, 133, 63, .5); }
+  4%       { opacity: .9; }
+  18%      { box-shadow: 0 0 0 14px rgba(245, 133, 63, 0); }
+  34%      { opacity: 0; }
+  100%     { opacity: 0; box-shadow: 0 0 0 0 rgba(245, 133, 63, 0); }
+}
+
+/* ── Night road divider ─────────────────────────────────────────────── */
+/* A strip of road at night: lane dashes stream past, a tail-light streak
+   overtakes, a dimmer headlight passes the other way. Physical positions
+   throughout (transforms, not inline offsets) — a road has no text
+   direction, so it reads the same in EN and FA. */
+
+.road {
+  position: relative;
+  height: 96px;
+  overflow: hidden;
+  background: linear-gradient(to bottom, var(--bg), var(--surface) 45%, var(--bg));
+  border-block: 1px solid var(--border);
+}
+
+/* Faint road-edge lines. */
+.road::before, .road::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  height: 1px;
+  background: rgba(139, 147, 157, .18);
+}
+
+.road::before { top: 16px; }
+.road::after { bottom: 16px; }
+
+/* Center lane dashes: a double-width gradient strip translated by exactly
+   one repeat period, so the loop is seamless and stays on the compositor. */
+.road-line {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: calc(100% + 128px);
+  height: 3px;
+  margin-top: -1.5px;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(245, 133, 63, .55) 0 44px,
+    transparent 44px 128px
+  );
+  animation: roadScroll .9s linear infinite;
+}
+
+@keyframes roadScroll { to { transform: translateX(-128px); } }
+
+/* Tail light you're following — amber streak in the near lane. */
+.road-rider {
+  position: absolute;
+  top: calc(50% - 15px);
+  left: 0;
+  width: 64px;
+  height: 4px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, transparent, var(--amber));
+  box-shadow: 0 0 12px rgba(245, 133, 63, .5);
+  transform: translateX(-90px);
+  animation: roadRide 4.5s cubic-bezier(.3, 0, .7, 1) infinite;
+}
+
+/* Oncoming headlight — dimmer, cooler, far lane, opposite direction. */
+.road-oncoming {
+  position: absolute;
+  top: calc(50% + 12px);
+  left: 0;
+  width: 46px;
+  height: 3px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, rgba(233, 237, 241, .55), transparent);
+  box-shadow: 0 0 10px rgba(233, 237, 241, .25);
+  transform: translateX(calc(100vw + 70px));
+  animation: roadOncoming 6.5s cubic-bezier(.3, 0, .7, 1) infinite;
+  animation-delay: 1.4s;
+}
+
+@keyframes roadRide {
+  from { transform: translateX(-90px); }
+  to   { transform: translateX(calc(100vw + 90px)); }
+}
+
+@keyframes roadOncoming {
+  from { transform: translateX(calc(100vw + 70px)); }
+  to   { transform: translateX(-70px); }
+}
+
 /* ── Download / footer ──────────────────────────────────────────────── */
 
 .download { text-align: center; }
@@ -1156,13 +1316,17 @@ footer p { color: var(--text-sec); font-size: .82rem; margin-top: 22px; }
 
 /* ── Language switch fade ──────────────────────────────────────────── */
 /* Text (and the whole ltr/rtl flip) swaps while faded to transparent, so
-   the direction jump reads as a smooth cross-fade instead of a hard cut. */
+   the direction jump reads as a smooth cross-fade instead of a hard cut.
+   The opacity transition is scoped to html.i18n-fade (present only for the
+   ~400ms swap window, toggled in app.js) — left on permanently it would
+   override every translatable element's own transition list at equal
+   specificity and turn button/link hover animations into instant pops. */
 
-[data-en], #langToggle {
+html.i18n-fade [data-en], html.i18n-fade #langToggle {
   transition: opacity .18s ease;
 }
 
-[data-en].i18n-fading, #langToggle.i18n-fading {
+html.i18n-out [data-en], html.i18n-out #langToggle {
   opacity: 0;
 }
 
@@ -1187,4 +1351,8 @@ footer p { color: var(--text-sec); font-size: .82rem; margin-top: 22px; }
   }
   html { scroll-behavior: auto; }
   .reveal, .reveal-up { opacity: 1; transform: none; }
+  /* Frozen mid-travel these read as glitches, not decoration — hide them.
+     (The mesh canvas falls back to a single static frame in app.js, and
+     the divider bars simply stand still as a static waveform.) */
+  .road-rider, .road-oncoming, .radar-sweep, .radar-blip { display: none; }
 }

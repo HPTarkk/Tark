@@ -28,10 +28,6 @@ class ClassicBluetoothEngine {
   ClassicBluetoothEngine({bool usesFineLocation = false})
     : _fbc = fbc.FlutterBlueClassic(usesFineLocation: usesFineLocation);
 
-  /// Android API level, fetched natively (no plugin dependency).
-  static Future<int> sdkInt() async =>
-      await _serverMethods.invokeMethod<int>('sdkInt') ?? 0;
-
   final fbc.FlutterBlueClassic _fbc;
 
   fbc.BluetoothConnection? _clientConnection;

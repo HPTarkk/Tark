@@ -13,7 +13,6 @@ import 'package:flutter/material.dart';
 import '../../../gen/assets.gen.dart';
 
 // ── Palette ──────────────────────────────────────────────────────────────
-const Color kBg = Color(0xFF0B0E11);
 const Color kAccent = Color(0xFFF5853F);
 final Color kAccentSoft = kAccent.withValues(alpha: .35);
 final Color kAccentFaint = kAccent.withValues(alpha: .14);
@@ -129,8 +128,6 @@ class _BackdropPainter extends CustomPainter {
     final double cy = kCanvasSize / 2 + 10;
     final double p = phase;
     final double twoPi = 2 * math.pi;
-
-    canvas.drawRect(const Rect.fromLTWH(0, 0, kCanvasSize, kCanvasSize), Paint()..color = kBg);
 
     // Ambient glow.
     final double glowOpacity = 0.35 + 0.12 * math.sin(twoPi * p * 2 + math.pi / 2);

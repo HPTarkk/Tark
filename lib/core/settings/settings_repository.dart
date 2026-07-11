@@ -12,6 +12,12 @@ abstract interface class SettingsRepository {
   Future<String> getMyName();
   Future<void> setMyName(String value);
 
+  /// Emits after every successful [setMyName], no matter which cubit wrote
+  /// it (SettingsCubit, WalkieTalkieCubit, GuestSessionCubit) — lets a page
+  /// still alive further down the nav stack (e.g. Landing, under Settings)
+  /// show the new name without polling or restarting.
+  Stream<String> get myNameChanges;
+
   Future<double> getVoxThreshold();
   Future<void> setVoxThreshold(double value);
 

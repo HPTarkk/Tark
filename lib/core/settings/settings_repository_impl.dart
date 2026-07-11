@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -13,6 +15,12 @@ import 'settings_repository.dart';
 /// through GetIt.
 @LazySingleton(as: SettingsRepository)
 class SettingsRepositoryImpl implements SettingsRepository {
+  // Static because instances are interchangeable stateless facades over the
+  // process-global SharedPreferences (the DI singleton plus the direct
+  // constructions noted above) — a write through any instance must reach
+  // subscribers of every other one.
+  static final _myNameController = StreamController<String>.broadcast();
+
   @override
   Future<AppSettings> loadAll() async {
     final prefs = await SharedPreferences.getInstance();
@@ -30,7 +38,11 @@ class SettingsRepositoryImpl implements SettingsRepository {
   Future<void> setMyName(String value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(SettingsKeys.userName, value);
+    _myNameController.add(value);
   }
+
+  @override
+  Stream<String> get myNameChanges => _myNameController.stream;
 
   @override
   Future<double> getVoxThreshold() async {

@@ -5,6 +5,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/android_sdk.dart';
 import '../../../../core/widget/permission_tile.dart';
 import '../../../audio/api/audio_api.dart';
 
@@ -72,15 +73,7 @@ class _PermissionsPageState extends State<PermissionsPage>
           ? PermissionTileStatus.permanentlyDenied
           : PermissionTileStatus.denied;
 
-      final hotspotStatuses = await Future.wait([
-        Permission.locationWhenInUse.status,
-        Permission.nearbyWifiDevices.status,
-      ]);
-      hotspot = hotspotStatuses.every((s) => s.isGranted)
-          ? PermissionTileStatus.granted
-          : hotspotStatuses.any((s) => s.isPermanentlyDenied)
-          ? PermissionTileStatus.permanentlyDenied
-          : PermissionTileStatus.denied;
+      hotspot = _tileStatus(await (await _hotspotPermission()).status);
     }
     final batteryExempt = Platform.isAndroid
         ? await SessionKeepAlive.isIgnoringBatteryOptimizations()
@@ -108,11 +101,26 @@ class _PermissionsPageState extends State<PermissionsPage>
     await _refresh();
   }
 
+  /// LocalOnlyHotspot is gated by NEARBY_WIFI_DEVICES on Android 13+ but
+  /// fine location on 26–32, and the manifest declares each only for its
+  /// own SDK range. permission_handler resolves a permission absent from
+  /// the (SDK-filtered) manifest as denied without ever prompting, so
+  /// touching the wrong-generation permission reads denied forever and
+  /// turns the grant tap into a silent no-op — pick by API level instead.
+  Future<Permission> _hotspotPermission() async {
+    var sdk = 33;
+    try {
+      sdk = await AndroidSdk.version();
+    } catch (_) {
+      // Assume modern Android when the lookup fails.
+    }
+    return sdk >= 33
+        ? Permission.nearbyWifiDevices
+        : Permission.locationWhenInUse;
+  }
+
   Future<void> _requestHotspot() async {
-    await [
-      Permission.locationWhenInUse,
-      Permission.nearbyWifiDevices,
-    ].request();
+    await (await _hotspotPermission()).request();
     await _refresh();
   }
 

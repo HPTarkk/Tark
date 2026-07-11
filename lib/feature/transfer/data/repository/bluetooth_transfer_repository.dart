@@ -8,6 +8,7 @@ import 'package:injectable/injectable.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/settings/settings_repository_impl.dart';
+import '../../../../core/utils/android_sdk.dart';
 import '../../../../core/utils/exponential_backoff.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entity/connection_health.dart';
@@ -89,7 +90,7 @@ class BluetoothTransferRepository
     if (existing != null) return existing;
     var usesFineLocation = false;
     try {
-      usesFineLocation = await ClassicBluetoothEngine.sdkInt() < 31;
+      usesFineLocation = await AndroidSdk.version() < 31;
     } catch (e) {
       Logger.log('sdkInt lookup failed: $e');
     }

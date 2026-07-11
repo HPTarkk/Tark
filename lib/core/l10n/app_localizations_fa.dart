@@ -9,10 +9,10 @@ class AppLocalizationsFa extends AppLocalizations {
   AppLocalizationsFa([String locale = 'fa']) : super(locale);
 
   @override
-  String get app_name => 'تَرک';
+  String get app_name => 'TARKK';
 
   @override
-  String get app_subtitle => 'واکی تاکی شبکه داخلی';
+  String get app_subtitle => 'LAN WALKIE TALKIE';
 
   @override
   String get live => 'زنده';
@@ -33,17 +33,17 @@ class AppLocalizationsFa extends AppLocalizations {
   String get initializing => 'در حال راه‌اندازی';
 
   @override
-  String get tx_label => 'ارسال (TX)';
+  String get tx_label => 'TX';
 
   @override
-  String get rx_label => 'دریافت (RX)';
+  String get rx_label => 'RX';
 
   @override
-  String get music_cast => 'پخش موزیک';
+  String get music_cast => 'پخش موزیک روی کانال';
 
   @override
   String get music_cast_hint =>
-      'پخش موزیک و صداهای برنامه‌های این گوشی برای همه افراد در کانال.';
+      'پخش موزیک و صداهای این گوشی برای همه اعضای حاضر در کانال.';
 
   @override
   String get music_cast_start => 'شروع پخش';
@@ -58,15 +58,15 @@ class AppLocalizationsFa extends AppLocalizations {
   String get music_cast_on_air => 'در حال پخش';
 
   @override
-  String get music_cast_mix => 'سطح ترکیب صدا';
+  String get music_cast_mix => 'سطح میکسر صدا';
 
   @override
   String get music_cast_silent =>
-      'چیزی در حال پخش نیست — یک آهنگ در برنامه موزیک خود اجرا کنید';
+      'چیزی در حال پخش نیست — یک آهنگ در پلیر خود باز کنید';
 
   @override
   String get music_cast_stop_hint =>
-      'دسترسی اعلان‌ها را فعال کنید تا دکمه توقف، برنامه موزیک را هم متوقف کند';
+      'دسترسی به اعلان‌ها را فعال کنید تا دکمه توقف، موزیک پلیر را هم متوقف کند.';
 
   @override
   String get music_cast_stop_enable => 'فعال‌سازی';
@@ -75,13 +75,13 @@ class AppLocalizationsFa extends AppLocalizations {
   String get channel_members => 'اعضای کانال';
 
   @override
-  String get no_users_on_network => 'کاربر دیگری در این شبکه وجود ندارد';
+  String get no_users_on_network => 'کاربر دیگری در این شبکه یافت نشد';
 
   @override
-  String get vox_sensitivity => 'حساسیت VOX';
+  String get vox_sensitivity => 'حساسیت VOX (تشخیص صدا)';
 
   @override
-  String get vox_threshold => 'آستانه صدا';
+  String get vox_threshold => 'آستانه تحریک';
 
   @override
   String get voice_loud => 'بلند';
@@ -90,22 +90,22 @@ class AppLocalizationsFa extends AppLocalizations {
   String get voice_quiet => 'آرام';
 
   @override
-  String get level_label => 'سطح';
+  String get level_label => 'سطح صدا';
 
   @override
   String get level_active => 'فعال';
 
   @override
-  String get level_silent => 'بی‌صدا';
+  String get level_silent => 'ساکت';
 
   @override
-  String get user_idle => 'بیکار';
+  String get user_idle => 'آماده‌به‌کار';
 
   @override
-  String get set_name_title => 'نام خود را وارد کنید';
+  String get set_name_title => 'تنظیم نام شما';
 
   @override
-  String get name_hint => 'نام خود را بنویسید';
+  String get name_hint => 'نام خود را وارد کنید';
 
   @override
   String get cancel => 'لغو';
@@ -115,7 +115,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get mic_permission_denied =>
-      'دسترسی به میکروفون رد شد. لطفاً آن را در تنظیمات فعال کنید.';
+      'دسترسی به میکروفون رد شده است. لطفاً آن را از تنظیمات گوشی فعال کنید.';
 
   @override
   String get join_channel => 'ورود به کانال';
@@ -127,11 +127,11 @@ class AppLocalizationsFa extends AppLocalizations {
   String get no_network => 'شبکه‌ای یافت نشد';
 
   @override
-  String get leave_channel_confirm_title => 'خروج از کانال؟';
+  String get leave_channel_confirm_title => 'از کانال خارج می‌شوید؟';
 
   @override
   String get leave_channel_confirm_message =>
-      'اتصال شما با سایر اعضای این کانال قطع خواهد شد.';
+      'ارتباط شما با سایر اعضای این کانال قطع خواهد شد.';
 
   @override
   String get leave => 'خروج';
@@ -153,11 +153,11 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get guest_step_scan =>
-      'مهمان این کد را با دوربین گوشی خود اسکن می‌کند — صفحه ورود در مرورگر او باز می‌شود.';
+      'مهمان این کد را با دوربین گوشی خود اسکن می‌کند تا صفحه ورود در مرورگر او باز شود.';
 
   @override
   String get guest_step_answer =>
-      'سپس یک کد پاسخ روی صفحه او نشان داده می‌شود — آن را با دکمه زیر اسکن کنید، یا اگر برایتان فرستاده، آن را بچسبانید.';
+      'سپس صفحه او یک کد پاسخ نشان می‌دهد؛ آن را با دکمه زیر اسکن کنید یا اگر برایتان فرستاده، پیست کنید.';
 
   @override
   String get guest_scan_answer => 'اسکن کد پاسخ';
@@ -176,32 +176,32 @@ class AppLocalizationsFa extends AppLocalizations {
   String get guest_link_copied => 'لینک دعوت کپی شد';
 
   @override
-  String get guest_paste_answer => 'چسباندن پاسخ آن‌ها';
+  String get guest_paste_answer => 'پیست کردن کد پاسخ مهمان';
 
   @override
   String get guest_paste_answer_hint =>
-      'کد پاسخی که برایتان فرستاده‌اند را اینجا بچسبانید';
+      'کد پاسخی که مهمان برایتان فرستاده را وارد کنید';
 
   @override
   String get guest_paste_submit => 'اتصال';
 
   @override
   String get guest_stun_caveat =>
-      'روی بیشتر شبکه‌ها از طریق اینترنت کار می‌کند. برخی شبکه‌های محدود/سازمانی ممکن است همچنان اتصال را مسدود کنند.';
+      'این قابلیت در اکثر شبکه‌ها بستر اینترنت را پوشش می‌دهد. اما برخی شبکه‌های سازمانی یا به‌شدت محدود، ممکن است مانع اتصال شوند.';
 
   @override
   String get guest_web_scan_title => 'اسکن برای ورود';
 
   @override
   String get guest_web_scan_text =>
-      'این صفحه را با اسکن کردن کد QR دعوت، یا باز کردن لینک دعوت، از گوشی میزبان باز کنید.';
+      'این صفحه را با اسکن کد QR دعوت یا باز کردن لینک دعوت از گوشی میزبان باز کنید.';
 
   @override
   String get guest_web_failed_title => 'خطا در اتصال';
 
   @override
   String get guest_web_failed_text =>
-      'اتصال برقرار نشد. از میزبان بخواهید یک دعوت‌نامه جدید بسازد و دوباره تلاش کنید.';
+      'ارتباط برقرار نشد. از میزبان بخواهید یک دعوت‌نامه جدید بسازد و دوباره تلاش کنید.';
 
   @override
   String get guest_web_reply_chip => 'مرحله ۲ — کد پاسخ';
@@ -211,7 +211,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get guest_web_reply_hint =>
-      'در گوشی میزبان: روی \"اسکن کد پاسخ\" بزنید و دوربین را به این سمت بگیرید.';
+      'در گوشی میزبان: روی «اسکن کد پاسخ» بزنید و دوربین را روی این کد بگیرید.';
 
   @override
   String get guest_web_reply_copy => 'کپی کد';
@@ -224,7 +224,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get guest_web_enable_audio =>
-      'برای فعال کردن میکروفون و بلندگوی خود، روی دکمه زیر بزنید.';
+      'برای فعال‌سازی میکروفون و بلندگو، روی دکمه زیر بزنید.';
 
   @override
   String get guest_web_start_audio => 'شروع صدا';
@@ -233,13 +233,13 @@ class AppLocalizationsFa extends AppLocalizations {
   String get guest_web_mute => 'بی‌صدا';
 
   @override
-  String get guest_web_unmute => 'صدادار';
+  String get guest_web_unmute => 'صدا وصل';
 
   @override
   String get guest_web_talking => 'در حال صحبت...';
 
   @override
-  String get guest_web_on_air => 'صدای شما در حال پخش است';
+  String get guest_web_on_air => 'صدای شما زنده است';
 
   @override
   String get guest_web_standby => 'آماده‌به‌کار';
@@ -248,14 +248,14 @@ class AppLocalizationsFa extends AppLocalizations {
   String get guest_web_link_lost => 'قطع اتصال';
 
   @override
-  String get guest_web_link_lost_text => 'اتصال قطع شد — در حال انتظار...';
+  String get guest_web_link_lost_text => 'ارتباط قطع شد — در حال انتظار...';
 
   @override
-  String get guest_web_left_title => 'شما کانال را ترک کردید';
+  String get guest_web_left_title => 'از کانال خارج شدید';
 
   @override
   String get guest_web_left_text =>
-      'ارتباط شما قطع شد. برای ورود مجدد، از میزبان یک دعوت‌نامه جدید بگیرید و دوباره اسکن کنید.';
+      'ارتباط شما قطع شد. برای ورود مجدد، از میزبان یک دعوت‌نامه جدید بگیرید و دوباره آن را اسکن کنید.';
 
   @override
   String get bt_start_session => 'شروع نشست';
@@ -268,10 +268,11 @@ class AppLocalizationsFa extends AppLocalizations {
   String get bt_find_nearby => 'جستجوی اطراف';
 
   @override
-  String get bt_role_join_desc => 'اسکن محیط و اتصال به یک نشست در نزدیک';
+  String get bt_role_join_desc =>
+      'اسکن محیط اطراف و اتصال به یک نشست فعال در نزدیکی شما';
 
   @override
-  String get bt_visible_as => 'قابل رویت با نام';
+  String get bt_visible_as => 'نام مرئی دستگاه';
 
   @override
   String get bt_last_session => 'آخرین نشست';
@@ -303,11 +304,11 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get bt_permission_denied =>
-      'دسترسی به بلوتوث رد شد. لطفاً آن را در تنظیمات فعال کنید.';
+      'دسترسی به بلوتوث رد شده است. لطفاً آن را از تنظیمات گوشی فعال کنید.';
 
   @override
   String get bt_not_supported_platform =>
-      'حالت بلوتوث هنوز در این دستگاه پشتیبانی نمی‌شود. لطفاً از حالت وای‌فای استفاده کنید.';
+      'حالت بلوتوث هنوز روی این دستگاه در دسترس نیست. لطفاً از حالت وای‌فای استفاده کنید.';
 
   @override
   String get open_settings => 'باز کردن تنظیمات';
@@ -319,61 +320,61 @@ class AppLocalizationsFa extends AppLocalizations {
   String get permissions_title => 'دسترسی‌ها';
 
   @override
-  String get permission_granted => 'فعال';
+  String get permission_granted => 'تایید شده';
 
   @override
-  String get permission_grant => 'فعال‌سازی';
+  String get permission_grant => 'تایید دسترسی';
 
   @override
   String get permission_mic_title => 'میکروفون';
 
   @override
-  String get permission_mic_desc => 'برای ضبط صدای شما جهت ارسال لازم است.';
+  String get permission_mic_desc => 'جهت ضبط و انتقال صدای شما الزامی است.';
 
   @override
   String get permission_bluetooth_title => 'بلوتوث';
 
   @override
   String get permission_bluetooth_desc =>
-      'برای جستجو و اتصال به دستگاه نزدیک در حالت بلوتوث لازم است.';
+      'جهت اسکن و اتصال به دستگاه‌های اطراف در حالت بلوتوث الزامی است.';
 
   @override
-  String get permission_bt_scan_title => 'جستجوی دستگاه‌ها';
+  String get permission_bt_scan_title => 'اسکن دستگاه‌ها';
 
   @override
   String get permission_bt_scan_desc =>
-      'دستگاه‌های نزدیک برای اتصال را پیدا می‌کند.';
+      'پیدا کردن دستگاه‌های نزدیک جهت برقراری ارتباط.';
 
   @override
-  String get permission_bt_connect_title => 'اتصال';
+  String get permission_bt_connect_title => 'اتصال دستگاه‌ها';
 
   @override
   String get permission_bt_connect_desc =>
-      'با دستگاه دیگر جفت می‌شود و صدا رد و بدل می‌کند.';
+      'جفت‌سازی و تبادل صدا با دستگاه دیگر.';
 
   @override
-  String get permission_bt_advertise_title => 'اعلام حضور';
+  String get permission_bt_advertise_title => 'انتشار سیگنال بلوتوث';
 
   @override
   String get permission_bt_advertise_desc =>
-      'هنگام میزبانی، به دستگاه دیگر امکان پیدا کردن شما را می‌دهد.';
+      'به بقیه دستگاه‌ها اجازه می‌دهد هنگام میزبانی، شما را پیدا کنند.';
 
   @override
   String get permission_hotspot_title => 'موقعیت مکانی و وای‌فای اطراف';
 
   @override
   String get permission_hotspot_desc =>
-      'اندروید برای میزبانی هات‌اسپات محلی به این دسترسی نیاز دارد.';
+      'توسط اندروید جهت راه‌اندازی هات‌اسپات محلی برای اتصال دیگران الزامی است.';
 
   @override
-  String get permission_battery_title => 'معافیت از بهینه‌سازی باتری';
+  String get permission_battery_title => 'بهینه‌سازی باتری در پس‌زمینه';
 
   @override
   String get permission_battery_desc =>
-      'کانال را وقتی صفحه خاموش است زنده نگه می‌دارد — بدون آن ممکن است سیستم‌عامل برنامه را در میانه مسیر متوقف کند.';
+      'کانال را در زمان خاموش بودن صفحه زنده نگه می‌دارد؛ بدون این دسترسی، سیستم‌عامل ممکن است برنامه را وسط مسیر متوقف کند یا کاملاً ببندد.';
 
   @override
-  String get bt_connection_failed => 'اتصال ناموفق بود';
+  String get bt_connection_failed => 'خطا در اتصال';
 
   @override
   String get bt_back => 'بازگشت';
@@ -397,23 +398,23 @@ class AppLocalizationsFa extends AppLocalizations {
   String get noise_filter_strong => 'زیاد';
 
   @override
-  String get sfx_feedback => 'بازخورد صوتی';
+  String get sfx_feedback => 'شدت هشدارهای صوتی';
 
   @override
-  String get link_reconnecting => 'اتصال قطع شد — در حال اتصال مجدد...';
+  String get link_reconnecting => 'ارتباط قطع شد — در حال اتصال مجدد...';
 
   @override
-  String get link_down => 'اتصال قطع شد';
+  String get link_down => 'ارتباط قطع شد';
 
   @override
-  String get transport_hotspot => 'نقطه اتصال (هات‌اسپات)';
+  String get transport_hotspot => 'هات‌اسپات';
 
   @override
   String get hotspot_title => 'پل هات‌اسپات';
 
   @override
   String get wifi_only_instructions =>
-      'همین حالا در یک وای‌فای مشترک هستید؟ نیازی به تنظیم نیست — فقط وارد کانال شوید.';
+      'هم‌اکنون به یک وای‌فای مشترک وصل هستید؟ نیازی به تنظیمات نیست — مستقیماً وارد کانال شوید.';
 
   @override
   String get wifi_only_step_same_network =>
@@ -421,10 +422,10 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get hotspot_not_supported =>
-      'سیستم میزبان پل هات‌اسپات روی اندروید اجرا می‌شود. در آیفون، به جای این کار به هات‌اسپات یک میزبان اندرویدی متصل شوید.';
+      'میزبانِ پل هات‌اسپات باید اندروید باشد. در آیفون، کافیست به هات‌اسپات میزبان اندرویدی وصل شوید.';
 
   @override
-  String get hotspot_host_badge => 'وای‌فای داخلی • میزبان اندروید';
+  String get hotspot_host_badge => 'وای‌فای محلی • میزبان اندروید';
 
   @override
   String get hotspot_creating => 'در حال ساخت هات‌اسپات...';
@@ -438,7 +439,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get hotspot_step_join_channel =>
-      'سپس وارد کانال می‌شود — صدا از طریق این ارتباط وای‌فای منتقل می‌شود.';
+      'سپس آیفون وارد کانال می‌شود و صدا روی این لینک وای‌فای جریان می‌یابد.';
 
   @override
   String get hotspot_network => 'شبکه';
@@ -454,11 +455,11 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get hotspot_error =>
-      'هات‌اسپات ساخته نشد. هرگونه هات‌اسپات/اشتراک‌گذاری اینترنت فعال را خاموش کنید، مطمئن شوید مکان‌یابی (Location) روشن است، سپس دوباره تلاش کنید.';
+      'هات‌اسپات ساخته نشد. اگر هات‌اسپات یا اشتراک اینترنت دیگری فعال است آن را خاموش کنید، از روشن بودن GPS مطمئن شوید و دوباره تلاش کنید.';
 
   @override
   String get hotspot_ios_instructions =>
-      'از گوشی اندرویدی بخواهید برنامه Tark ← Hotspot را باز کند، سپس کد وای‌فای آن را اینجا اسکن کنید.';
+      'در گوشی اندرویدی تارک را باز کرده و به بخش Hotspot بروید، سپس کد وای‌فای آن را اینجا اسکن کنید.';
 
   @override
   String get hotspot_scan_host => 'اسکن کد میزبان';
@@ -474,32 +475,32 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get hotspot_manual_join_hint =>
-      'تنظیمات › Wi-Fi را باز کنید، این شبکه را انتخاب کنید، سپس برگردید و وارد کانال شوید.';
+      'به تنظیمات وای‌فای گوشی بروید، این شبکه را انتخاب کنید، سپس برگشته و وارد کانال شوید.';
 
   @override
   String get hotspot_invalid_qr =>
-      'این یک کد وای‌فای معتبر نیست. کدی که روی گوشی میزبان اندرویدی نمایش داده می‌شود را اسکن کنید.';
+      'این یک کد وای‌فای معتبر نیست. کدی که روی صفحه میزبان اندرویدی نمایش داده شده را اسکن کنید.';
 
   @override
   String get bt_ios_hint =>
-      'ارتباط آیفون ↔ اندروید روی بلوتوث ممکن است پایدار نباشد. برای داشتن پایدارترین ارتباط بین دو گوشی مختلف، از حالت هات‌اسپات استفاده کنید.';
+      'ارتباط بلوتوث بین آیفون و اندروید ممکن است ناپایدار باشد. برای یک اتصال فرامرزی بی‌نقص، از حالت هات‌اسپات استفاده کنید.';
 
   @override
   String get bt_ble_unavailable =>
-      'این گوشی امکان فرستادن سیگنال بلوتوث کم‌مصرف (BLE) را ندارد، بنابراین آیفون‌ها نمی‌توانند آن را در اینجا پیدا کنند.';
+      'این گوشی قابلیت انتشار سیگنال روی بلوتوث کم‌مصرف (BLE) را ندارد، بنابراین آیفون‌ها نمی‌توانند آن را در این بخش پیدا کنند.';
 
   @override
   String get bt_use_wifi_bridge => 'استفاده از پل وای‌فای';
 
   @override
-  String get background_title => 'روشن نگه داشتن کانال هنگام خاموش بودن صفحه';
+  String get background_title => 'زنده نگه‌داشتن کانال با صفحه خاموش';
 
   @override
   String get background_desc =>
-      'برای استفاده حین موتورسواری/دوچرخه‌سواری، اجازه دهید برنامه در پس‌زمینه اجرا شود تا با خاموش شدن صفحه، جریان صدا قطع نشود. بدون این اجازه، ممکن است گوشی وای‌فای را قطع کرده و بی‌صدا شود.';
+      'برای حین سواری، اجازه دهید برنامه در پس‌زمینه اجرا شود تا با خاموش شدن صفحه، جریان صدا قطع نشود. بدون این مجوز، ممکن است وای‌فای گوشی قطع و صدا خاموش شود.';
 
   @override
-  String get background_allow => 'اجازه فعالیت در پس‌زمینه';
+  String get background_allow => 'اجازه به فعالیت پس‌زمینه';
 
   @override
   String get background_autostart => 'شروع خودکار';
@@ -509,7 +510,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get music_cast_stalled =>
-      'سیستم صدای این گوشی هنگام تماس کانال از اشتراک‌گذاری موزیک جلوگیری می‌کند. پخش متوقف شد.';
+      'سیستم صوتی این گوشی اشتراک‌گذاری موسیقی را در حین تماس فعال کانال مسدود می‌کند. پخش متوقف شد.';
 
   @override
   String get settings_title => 'تنظیمات';
@@ -518,102 +519,105 @@ class AppLocalizationsFa extends AppLocalizations {
   String get settings_section_identity => 'پروفایل';
 
   @override
-  String get settings_section_voice => 'صدا و میکروفون';
+  String get settings_section_voice => 'صدا و مهندسی صوت';
 
   @override
-  String get settings_section_sound => 'صدا و هشدارها';
+  String get settings_section_sound => 'صداها و هشدارها';
 
   @override
-  String get settings_section_appearance => 'ظاهر';
+  String get settings_section_appearance => 'ظاهر برنامه';
 
   @override
-  String get settings_section_connection => 'اتصال';
+  String get settings_section_connection => 'اتصال و شبکه';
 
   @override
-  String get settings_section_startup => 'شروع برنامه';
+  String get settings_section_startup => 'راه‌اندازی';
 
   @override
-  String get settings_applies_live => 'بلافاصله روی کانال فعلی اعمال می‌شود';
+  String get settings_applies_live =>
+      'تغییرات فوراً روی کانال فعلی اعمال می‌شوند';
 
   @override
   String get settings_applies_next_session =>
-      'دفعه بعد که وارد کانال شوید اعمال می‌شود';
+      'تغییرات در ورود بعدی به کانال اعمال می‌شوند';
 
   @override
   String get settings_quick_access => 'دسترسی سریع';
 
   @override
   String get settings_quick_access_desc =>
-      'رد شدن از این صفحه و ازسرگیری آخرین کانال هنگام باز کردن اپ';
+      'هنگام اجرای برنامه، صفحه اصلی را رد کرده و مستقیماً به آخرین کانال برگرد';
 
   @override
-  String get settings_delay => 'تأخیر پخش';
+  String get settings_delay => 'تاخیر در پخش (Playback Delay)';
 
   @override
   String get settings_delay_desc =>
-      'میزان بافر صدای ورودی پیش از پخش — مقدار بیشتر، اتصال ناپایدار را صاف‌تر می‌کند اما تأخیر را افزایش می‌دهد.';
+      'میزان بافر شدن صدای دریافتی قبل از پخش؛ مقادیر بالاتر اتصالات قطع‌و‌وصل‌دار را روان‌تر می‌کند اما تاخیر صدا را افزایش می‌دهد.';
 
   @override
-  String get settings_restore_defaults => 'بازگردانی پیش‌فرض‌ها';
+  String get settings_restore_defaults => 'بازنشانی تنظیمات اولیه';
 
   @override
   String get settings_restore_defaults_done =>
-      'تنظیمات صدا به حالت پیش‌فرض بازگشت';
+      'تنظیمات صوتی به حالت پیش‌فرض بازگشت';
 
   @override
   String get settings_auto_reconnect => 'اتصال مجدد خودکار';
 
   @override
   String get settings_auto_reconnect_desc =>
-      'هنگام قطعی اتصال به‌جای تلاش مجدد دستی، به‌صورت خودکار دوباره متصل شو';
+      'تلاش مجدد خودکار هنگام قطع لینک، بدون نیاز به فشردن دکمه دستی';
 
   @override
-  String get settings_permissions_row => 'دسترسی‌ها';
+  String get settings_permissions_row => 'مجوزها و دسترسی‌ها';
 
   @override
   String get settings_permissions_row_desc =>
-      'بررسی و مدیریت دسترسی‌های برنامه';
+      'بررسی و مدیریت سطح دسترسی‌های اپلیکیشن';
 
   @override
-  String get settings_wifi_hotspot_row => 'تنظیم وای‌فای / هات‌اسپات';
+  String get settings_wifi_hotspot_row => 'تنظیمات وای‌فای / هات‌اسپات';
 
   @override
   String get settings_wifi_hotspot_row_desc =>
-      'میزبانی هات‌اسپات یا مشاهده مراحل اتصال به وای‌فای';
+      'راه‌اندازی هات‌اسپات یا بررسی مراحل اتصال وای‌فای';
 
   @override
-  String get settings_skip_splash => 'رد کردن صفحه آغازین';
+  String get settings_skip_splash => 'رد کردن صفحه خوش‌آمدگویی';
 
   @override
-  String get settings_skip_splash_desc =>
-      'مستقیم به برنامه بروید هنگام باز شدن';
+  String get settings_skip_splash_desc => 'ورود مستقیم به برنامه هنگام اجرا';
 
   @override
-  String get usage_tips_title => 'بیشترین بهره را از تارک ببرید';
+  String get usage_tips_title => 'استفاده حداکثری از امکانات تارک';
 
   @override
-  String get usage_tips_1_title => 'از هدست ANC یا هندزفری استفاده کنید';
+  String get usage_tips_1_title => 'جفت‌سازی هدست مجهز به ANC یا هندزفری';
 
   @override
   String get usage_tips_1_body =>
-      'حذف نویز فعال شنیدن کانال را در میان صدای باد و موتور بسیار آسان‌تر می‌کند — و دست‌های شما هنگام رانندگی آزاد می‌ماند.';
+      'حذف نویز فعال (ANC) شنیدن صدا در کانال را با وجود صدای باد و موتور بسیار آسان‌تر می‌کند و دستان شما را حین سواری آزاد نگه می‌دارد.';
 
   @override
-  String get usage_tips_2_title => 'همیشه کلاه ایمنی مناسب بپوشید';
+  String get usage_tips_2_title => 'همیشه از کلاه ایمنی مناسب استفاده کنید';
 
   @override
   String get usage_tips_2_body =>
-      'ایمنی در اولویت است — کلاه ایمنی مناسب همچنین هدست را نزدیک‌تر به گوش شما قرار می‌دهد و صدا را واضح‌تر می‌کند.';
+      'اول ایمنی — یک کلاه ایمنی استاندارد و فیت، بلندگوهای هدست را نیز به گوش شما نزدیک‌تر می‌کند تا در حرکت صدای شفاف‌تری داشته باشید.';
 
   @override
-  String get usage_tips_3_title => 'میکروفون شما به‌طور پیش‌فرض هندزفری است';
+  String get usage_tips_3_title => 'میکروفون شما به‌صورت پیش‌فرض دست‌آزاد است';
 
   @override
   String get usage_tips_3_body =>
-      'حساسیت صدا به‌طور کامل باز شروع می‌شود و حذف نویز کار را انجام می‌دهد، پس هیچ‌وقت لازم نیست چیزی را فشار دهید تا صحبت کنید. هر دو را هر زمان در تنظیمات تنظیم کنید.';
+      'حساسیت صوت کاملاً باز شروع می‌شود و سیستم حذف نویز کار خود را انجام می‌دهد، پس برای صحبت نیازی به فشردن هیچ دکمه‌ای ندارید. تنظیم دقیق هر دو در بخش تنظیمات در دسترس است.';
 
   @override
   String get usage_tips_dismiss => 'متوجه شدم';
+
+  @override
+  String get usage_tips_next => 'بعدی';
 
   @override
   String get settings_gear_tooltip => 'تنظیمات';

@@ -8,11 +8,13 @@ import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widget/settings_icon_button.dart';
 import '../../../../core/widget/version_badge.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../manager/landing_cubit.dart';
 import '../widget/landing_identity_card.dart';
 import '../widget/landing_logo.dart';
+import '../widget/landing_mesh_background.dart';
 
 class LandingPage extends StatefulWidget {
   const LandingPage._();
@@ -99,55 +101,59 @@ class _LandingPageState extends State<LandingPage>
       child: Scaffold(
         backgroundColor: AppColors.background,
         body: BlocBuilder<LandingCubit, LandingState>(
-          builder: (context, state) => SafeArea(
-            child: Stack(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Column(
-                    children: [
-                      const Spacer(flex: 2),
-                      _entrance(0, const LandingLogo()),
-                      const Spacer(flex: 2),
-                      _entrance(
-                        1,
-                        Column(
-                          children: [
-                            LandingIdentityCard(
-                              state: state,
-                              onEdit: () =>
-                                  context.pushNamed(AppRoutes.settingsName),
+          builder: (context, state) => Stack(
+            children: [
+              // Full-bleed animated mesh behind everything, including the
+              // status-bar area — hence outside the SafeArea.
+              const Positioned.fill(child: LandingMeshBackground()),
+              SafeArea(
+                child: Stack(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Column(
+                        children: [
+                          const Spacer(flex: 2),
+                          _entrance(0, const LandingLogo()),
+                          const Spacer(flex: 2),
+                          _entrance(
+                            1,
+                            Column(
+                              children: [
+                                LandingIdentityCard(
+                                  state: state,
+                                  onEdit: () =>
+                                      context.pushNamed(AppRoutes.settingsName),
+                                ),
+                                const SizedBox(height: 12),
+                                const _ModeChip(),
+                              ],
                             ),
-                            const SizedBox(height: 12),
-                            const _ModeChip(),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(height: 20),
+                          _entrance(2, _buildJoinButton(context, state)),
+                          const Spacer(flex: 1),
+                          _entrance(
+                            3,
+                            VersionBadge(
+                              color: AppColors.textSecondary.withAlpha(70),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
                       ),
-                      const SizedBox(height: 20),
-                      _entrance(2, _buildJoinButton(context, state)),
-                      const Spacer(flex: 1),
-                      _entrance(
-                        3,
-                        VersionBadge(
-                          color: AppColors.textSecondary.withAlpha(70),
-                        ),
+                    ),
+                    PositionedDirectional(
+                      top: 8,
+                      end: 12,
+                      child: SettingsIconButton(
+                        onTap: () => context.pushNamed(AppRoutes.settingsName),
                       ),
-                      const SizedBox(height: 12),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                PositionedDirectional(
-                  top: 4,
-                  end: 4,
-                  child: _SettingsButton(
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      context.pushNamed(AppRoutes.settingsName);
-                    },
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -306,29 +312,6 @@ class _ModeChip extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-}
-
-// ── Settings entry point ──────────────────────────────────────────────────────
-
-class _SettingsButton extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _SettingsButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        child: Icon(
-          Icons.settings_rounded,
-          color: AppColors.textSecondary,
-          size: 22,
-        ),
-      ),
     );
   }
 }

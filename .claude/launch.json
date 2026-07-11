@@ -20,6 +20,34 @@
         "lib/main_splash_preview.dart"
       ],
       "port": 5177
+    },
+    {
+      "name": "tips-preview",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": [
+        "run",
+        "-d",
+        "web-server",
+        "--web-port",
+        "5179",
+        "-t",
+        "lib/main_tips_preview.dart"
+      ],
+      "port": 5179
+    },
+    {
+      "name": "toggles-preview",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": [
+        "run",
+        "-d",
+        "web-server",
+        "--web-port",
+        "5178",
+        "-t",
+        "lib/main_toggles_preview.dart"
+      ],
+      "port": 5178
     }
   ]
 }

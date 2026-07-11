@@ -66,6 +66,34 @@
     });
   }
 
+  // ── Sound-wave dividers ───────────────────────────────────────────
+  // Voice-note-style bars with a traveling amber "playhead". Heights come
+  // from two overlapped sines (a speech-like envelope) tapered toward the
+  // edges, so the "recording" fades in and out. Negative delays start
+  // every bar mid-cycle: the sweep is already in motion on first paint and
+  // crosses in 75% of the period, then rests. Each duration/delay pair is
+  // "<sweep>, <wiggle>" matching the two animations in styles.css — the
+  // wiggle gets a random period and phase per bar so the idle motion never
+  // looks mechanical.
+  document.querySelectorAll('.signal-divider').forEach((div, di) => {
+    const N = 96;
+    const sweep = di ? 7.5 : 6; // seconds; differ so the two never sync
+    for (let i = 0; i < N; i++) {
+      const bar = document.createElement('span');
+      const taper = Math.pow(Math.sin((i / (N - 1)) * Math.PI), 0.55);
+      const env =
+        Math.abs(Math.sin(i * 0.32 + di)) *
+        (0.55 + 0.45 * Math.sin(i * 0.11 + di * 2)) * taper;
+      bar.style.setProperty('--h', (10 + 80 * env).toFixed(1));
+      bar.style.animationDuration =
+        sweep + 's, ' + (1.6 + Math.random()).toFixed(2) + 's';
+      bar.style.animationDelay =
+        ((i / N - 1) * 0.75 * sweep).toFixed(2) + 's, ' +
+        (-Math.random() * 3).toFixed(2) + 's';
+      div.appendChild(bar);
+    }
+  });
+
   // ── Hero cursor spotlight ─────────────────────────────────────────
   const hero = document.querySelector('.hero');
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -90,6 +118,216 @@
     };
     window.addEventListener('scroll', onScrollParallax, { passive: true });
     onScrollParallax();
+  }
+
+  // ── Hero signal mesh: peer dots + links + packet hops ─────────────
+  // Drifting dots are peers on the LAN; lines connect any pair in range;
+  // every so often a bright "packet" hops along one of those links.
+  // Runs only while the hero is on screen and the tab is visible.
+  // Reduced motion: draws a single static frame instead.
+  const meshCanvas = document.getElementById('heroMesh');
+  if (meshCanvas && hero) {
+    const ctx = meshCanvas.getContext('2d');
+    const AMBER = '245, 133, 63';
+    const LINK = 150; // max px between dots that still draws a line
+    const CURSOR_LINK = 170; // the cursor's reach — a touch further than dots
+    const REPEL = 100; // dots gently part around the cursor inside this radius
+    const HOP_SECS = 0.7;
+    let W = 0, H = 0;
+    let dots = [];
+    let packets = [];
+    let rafId = 0;
+    let lastT = 0;
+    let spawnT = 0;
+    let heroOnScreen = true;
+    // The cursor joins the mesh as one more peer (endpoint −1 in packets).
+    const mouse = { x: 0, y: 0, active: false };
+
+    const rand = (a, b) => a + Math.random() * (b - a);
+
+    const rebuild = () => {
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      W = hero.clientWidth;
+      H = hero.clientHeight;
+      meshCanvas.width = W * dpr;
+      meshCanvas.height = H * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const count = Math.min(70, Math.round((W * H) / 24000));
+      dots = Array.from({ length: count }, () => ({
+        x: rand(0, W),
+        y: rand(0, H),
+        vx: rand(-14, 14), // px/sec — a slow drift
+        vy: rand(-14, 14),
+        r: rand(1, 2.3),
+      }));
+      packets = [];
+    };
+
+    const draw = (dt) => {
+      ctx.clearRect(0, 0, W, H);
+
+      for (const d of dots) {
+        d.x += d.vx * dt;
+        d.y += d.vy * dt;
+        // Drift parts gently around the cursor — pushed, never teleported:
+        // the clamp keeps a shove from crossing the wrap threshold below.
+        if (mouse.active) {
+          const dx = d.x - mouse.x, dy = d.y - mouse.y;
+          const d2 = dx * dx + dy * dy;
+          if (d2 < REPEL * REPEL && d2 > 0.01) {
+            const dist = Math.sqrt(d2);
+            const f = (1 - dist / REPEL) * 70 * dt;
+            d.x = Math.max(-12, Math.min(W + 12, d.x + (dx / dist) * f));
+            d.y = Math.max(-12, Math.min(H + 12, d.y + (dy / dist) * f));
+          }
+        }
+        if (d.x < -12) d.x = W + 12; else if (d.x > W + 12) d.x = -12;
+        if (d.y < -12) d.y = H + 12; else if (d.y > H + 12) d.y = -12;
+      }
+
+      const linked = [];
+      for (let i = 0; i < dots.length; i++) {
+        for (let j = i + 1; j < dots.length; j++) {
+          const a = dots[i], b = dots[j];
+          const dx = a.x - b.x, dy = a.y - b.y;
+          const d2 = dx * dx + dy * dy;
+          if (d2 > LINK * LINK) continue;
+          linked.push([i, j]);
+          ctx.strokeStyle =
+            'rgba(' + AMBER + ',' + ((1 - Math.sqrt(d2) / LINK) * 0.16).toFixed(3) + ')';
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+        }
+      }
+
+      // The cursor is a peer too: link it to whatever is in reach.
+      const nearCursor = [];
+      if (mouse.active) {
+        for (let i = 0; i < dots.length; i++) {
+          const d = dots[i];
+          const dx = d.x - mouse.x, dy = d.y - mouse.y;
+          const d2 = dx * dx + dy * dy;
+          if (d2 > CURSOR_LINK * CURSOR_LINK) continue;
+          nearCursor.push(i);
+          ctx.strokeStyle =
+            'rgba(' + AMBER + ',' + ((1 - Math.sqrt(d2) / CURSOR_LINK) * 0.3).toFixed(3) + ')';
+          ctx.beginPath();
+          ctx.moveTo(mouse.x, mouse.y);
+          ctx.lineTo(d.x, d.y);
+          ctx.stroke();
+        }
+      }
+
+      ctx.fillStyle = 'rgba(' + AMBER + ', .5)';
+      for (const d of dots) {
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // "You" — a slightly brighter node under the cursor.
+      if (mouse.active) {
+        ctx.fillStyle = 'rgba(' + AMBER + ', .9)';
+        ctx.beginPath();
+        ctx.arc(mouse.x, mouse.y, 2.6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Spawn a packet every so often (max 3 in flight) — on a random live
+      // link, or to/from the cursor when it has links of its own.
+      spawnT += dt;
+      if (spawnT > 0.55 && packets.length < 3) {
+        if (mouse.active && nearCursor.length && Math.random() < 0.45) {
+          spawnT = 0;
+          const i = nearCursor[(Math.random() * nearCursor.length) | 0];
+          packets.push(Math.random() < 0.5 ? { a: -1, b: i, t: 0 } : { a: i, b: -1, t: 0 });
+        } else if (linked.length) {
+          spawnT = 0;
+          const [a, b] = linked[(Math.random() * linked.length) | 0];
+          packets.push({ a, b, t: 0 });
+        }
+      }
+
+      for (let k = packets.length - 1; k >= 0; k--) {
+        const p = packets[k];
+        // A packet tied to the cursor dies if the cursor has left the hero.
+        if ((p.a === -1 || p.b === -1) && !mouse.active) { packets.splice(k, 1); continue; }
+        p.t += dt / HOP_SECS;
+        if (p.t >= 1) { packets.splice(k, 1); continue; }
+        const a = p.a === -1 ? mouse : dots[p.a];
+        const b = p.b === -1 ? mouse : dots[p.b];
+        // Light the whole link up while the packet is in flight...
+        ctx.strokeStyle = 'rgba(' + AMBER + ', .3)';
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+        // ...and draw the packet itself as a glowing dot.
+        ctx.fillStyle = 'rgba(' + AMBER + ', .95)';
+        ctx.shadowColor = 'rgb(' + AMBER + ')';
+        ctx.shadowBlur = 9;
+        ctx.beginPath();
+        ctx.arc(a.x + (b.x - a.x) * p.t, a.y + (b.y - a.y) * p.t, 2.1, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+    };
+
+    const frame = (t) => {
+      rafId = 0;
+      const dt = Math.min(0.05, (t - lastT) / 1000 || 0.016);
+      lastT = t;
+      draw(dt);
+      schedule();
+    };
+
+    const schedule = () => {
+      if (!rafId && heroOnScreen && !document.hidden) rafId = requestAnimationFrame(frame);
+    };
+
+    const halt = () => {
+      if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
+    };
+
+    const resume = () => { lastT = performance.now(); schedule(); };
+
+    rebuild();
+
+    // Track the hero's own box, not the window — embedded/preview panes can
+    // settle into their real size without ever firing a window resize.
+    let meshTimer;
+    const onHeroResize = () => {
+      clearTimeout(meshTimer);
+      meshTimer = setTimeout(() => {
+        if (hero.clientWidth === W && hero.clientHeight === H) return;
+        rebuild();
+        if (reducedMotion) draw(0);
+      }, 200);
+    };
+
+    if (reducedMotion) {
+      draw(0); // one static frame — still dots and lines, just no motion
+      new ResizeObserver(onHeroResize).observe(hero);
+    } else {
+      resume();
+      hero.addEventListener('pointermove', (e) => {
+        const rect = hero.getBoundingClientRect();
+        mouse.x = e.clientX - rect.left;
+        mouse.y = e.clientY - rect.top;
+        mouse.active = true;
+      });
+      hero.addEventListener('pointerleave', () => { mouse.active = false; });
+      new IntersectionObserver((entries) => {
+        heroOnScreen = entries[0].isIntersecting;
+        heroOnScreen ? resume() : halt();
+      }).observe(hero);
+      document.addEventListener('visibilitychange', () => {
+        document.hidden ? halt() : resume();
+      });
+      new ResizeObserver(onHeroResize).observe(hero);
+    }
   }
 
   // ── Card tilt + shine (first card only — the rest just lift on hover) ──
@@ -186,11 +424,15 @@
       swap();
       return;
     }
-    const fading = [...translatable, langBtn];
-    fading.forEach((el) => el.classList.add('i18n-fading'));
+    // i18n-fade arms the opacity transition, i18n-out drops opacity to 0.
+    // Both go on <html> so element-level transitions stay untouched outside
+    // this window (see the language-switch section of styles.css).
+    const root = document.documentElement;
+    root.classList.add('i18n-fade', 'i18n-out');
     window.setTimeout(() => {
       swap();
-      fading.forEach((el) => el.classList.remove('i18n-fading'));
+      root.classList.remove('i18n-out');
+      window.setTimeout(() => root.classList.remove('i18n-fade'), 220);
     }, 180);
   }
 

@@ -615,5 +615,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get usage_tips_dismiss => 'GOT IT';
 
   @override
+  String get usage_tips_next => 'NEXT';
+
+  @override
   String get settings_gear_tooltip => 'Settings';
 }

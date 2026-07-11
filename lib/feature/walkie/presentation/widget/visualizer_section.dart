@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/theme_service.dart';
 import '../../../audio/api/audio_api.dart';
 import '../manager/walkie_talkie_cubit.dart';
 
@@ -92,9 +93,18 @@ class _ScanlineBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: _ScanlinePainter(AppColors.border.withAlpha(80)),
-      size: Size.infinite,
+    // This build reads only static AppColors — no InheritedWidget dependency.
+    // The app-level re-key on theme change grafts the preserved element tree
+    // back (go_router's GlobalKey'd navigator survives it), and grafted
+    // elements are only re-dirtied if they depend on an InheritedWidget — so
+    // without listening to the theme directly, this const leaf would keep
+    // painting the previous palette's scanlines until the page is recreated.
+    return ValueListenableBuilder<AppThemeMode>(
+      valueListenable: ThemeService.mode,
+      builder: (_, _, _) => CustomPaint(
+        painter: _ScanlinePainter(AppColors.border.withAlpha(80)),
+        size: Size.infinite,
+      ),
     );
   }
 }

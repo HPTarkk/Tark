@@ -1,4 +1,3 @@
-
 import 'package:audio_io/audio_io.dart';
 import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
@@ -45,8 +44,17 @@ class _MyAppState extends State<MyApp> {
       debugShowCheckedModeBanner: false,
       // AppColors resolves statically (no InheritedWidget dependency), so
       // const widget subtrees would be skipped on rebuild and keep stale
-      // colors. Re-keying the subtree on theme change forces a full rebuild;
+      // colors. Re-keying the subtree on theme change forces a rebuild;
       // GoRouter keeps the current location, so navigation is unaffected.
+      //
+      // CAVEAT: this is NOT a full re-inflation. GoRouter's navigator holds
+      // a GlobalKey, so the old element tree is grafted back, and grafted
+      // elements only re-dirty if they depend on an InheritedWidget (Theme,
+      // MediaQuery, Localizations, a Bloc/Provider, ...). A build that reads
+      // ONLY static AppColors never rebuilds and keeps the old palette until
+      // its element is recreated — such widgets must listen to
+      // ThemeService.mode themselves (see _ScanlineBackground in
+      // VisualizerSection and _BrandBadge in WalkieHeader).
       // The RepaintBoundary is what AppRevealController snapshots for the
       // circular-reveal transition (item 10) — kept in addition to, not
       // instead of, the KeyedSubtree re-key above.

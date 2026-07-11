@@ -17,10 +17,22 @@ class LandingCubit extends Cubit<LandingState> {
   final TransferModeStore _modeStore;
   final SettingsRepository _settingsRepository;
   Timer? _ipTimer;
+  StreamSubscription<TransferMode>? _modeSub;
+  StreamSubscription<String>? _nameSub;
 
   LandingCubit(this._modeStore, [SettingsRepository? settingsRepository])
     : _settingsRepository = settingsRepository ?? SettingsRepositoryImpl(),
       super(LandingState.initial(_modeStore.mode)) {
+    // Landing stays alive under Settings on the nav stack, so pick up mode
+    // changes made there — the join button routes by state.transferMode.
+    _modeSub = _modeStore.modeChanges.listen(
+      (mode) => emit(state.copyWith(transferMode: mode)),
+    );
+    // Same for the display name, which Settings (and a live walkie session)
+    // edit through SettingsRepository — the identity card shows state.myName.
+    _nameSub = _settingsRepository.myNameChanges.listen(
+      (name) => emit(state.copyWith(myName: name)),
+    );
     _init();
   }
 
@@ -40,18 +52,6 @@ class LandingCubit extends Cubit<LandingState> {
     });
   }
 
-  Future<void> setMyName(String name) async {
-    final trimmed = name.trim();
-    if (trimmed.isEmpty) return;
-    await _settingsRepository.setMyName(trimmed);
-    emit(state.copyWith(myName: trimmed));
-  }
-
-  Future<void> setTransferMode(TransferMode mode) async {
-    await _modeStore.setMode(mode);
-    emit(state.copyWith(transferMode: mode));
-  }
-
   /// Marks onboarding complete so subsequent cold starts skip this page and
   /// resume the last channel/mode directly — see QuickAccess.
   Future<void> markLaunched() async {
@@ -62,6 +62,8 @@ class LandingCubit extends Cubit<LandingState> {
   @override
   Future<void> close() async {
     _ipTimer?.cancel();
+    await _modeSub?.cancel();
+    await _nameSub?.cancel();
     return super.close();
   }
 

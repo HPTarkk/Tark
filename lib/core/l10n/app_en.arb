@@ -185,5 +185,6 @@
     "usage_tips_3_title": "Your mic is hands-free by default",
     "usage_tips_3_body": "Voice sensitivity starts wide open with noise suppression doing the work, so you never have to press anything to talk. Fine-tune both anytime in Settings.",
     "usage_tips_dismiss": "GOT IT",
+    "usage_tips_next": "NEXT",
     "settings_gear_tooltip": "Settings"
 }

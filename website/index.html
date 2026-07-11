@@ -1,27 +1,30 @@
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tark — Talk. No towers. No servers.</title>
-  <meta name="description" content="Tark is a walkie-talkie that lives entirely on your local network. WiFi, Bluetooth, music casting and browser guests — with zero servers.">
+  <title>Tarkk — Talk. No towers. No servers.</title>
+  <meta name="description"
+    content="Tarkk is a walkie-talkie that lives entirely on your local network. WiFi, Bluetooth, music casting and browser guests — with zero servers.">
   <meta name="theme-color" content="#0B0E11">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vazirmatn@33.0.3/Vazirmatn-font-face.css">
   <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
 
   <!-- ── Nav ─────────────────────────────────────────────────────────── -->
   <nav id="nav">
     <div class="nav-inner">
       <a class="wordmark" href="#top">
-        <span class="wordmark-dot"></span>TARK
+        <span class="wordmark-dot"></span>TARKK
       </a>
       <div class="nav-links">
-        <a href="#features" data-en="Features" data-fa="امکانات">Features</a>
-        <a href="#handshake" data-en="How it works" data-fa="روش کار">How it works</a>
-        <a href="#music" data-en="Music" data-fa="موزیک">Music</a>
-        <a href="#tech" data-en="Specs" data-fa="مشخصات">Specs</a>
+        <a href="#features" data-en="Features" data-fa="ویژگی‌ها">Features</a>
+        <a href="#handshake" data-en="How it works" data-fa="نحوه کار">How it works</a>
+        <a href="#music" data-en="Music" data-fa="موسیقی">Music</a>
+        <a href="#tech" data-en="Specs" data-fa="مشخصات فنی">Specs</a>
         <a href="#download" data-en="Download" data-fa="دانلود">Download</a>
       </div>
       <button id="langToggle" class="lang-toggle" aria-label="Switch language">فارسی</button>
@@ -30,26 +33,26 @@
 
   <!-- ── Hero ────────────────────────────────────────────────────────── -->
   <header class="hero" id="top">
+    <canvas id="heroMesh" class="hero-mesh" aria-hidden="true"></canvas>
     <div class="hero-spotlight" aria-hidden="true"></div>
-    <div class="hero-rings" aria-hidden="true">
-      <span></span><span></span><span></span><span></span>
-    </div>
 
     <div class="hero-content">
-      <p class="hero-eyebrow reveal-up" data-en="LAN WALKIE-TALKIE" data-fa="واکی‌تاکی شبکهٔ محلی">LAN WALKIE-TALKIE</p>
+      <p class="hero-eyebrow reveal-up" data-en="LAN WALKIE-TALKIE" data-fa="واکی‌تاکی شبکه محلی">LAN WALKIE-TALKIE</p>
       <h1 class="hero-title">
-        <span class="line reveal-up d1" data-en="Talk." data-fa="حرف بزن.">Talk.</span>
-        <span class="line reveal-up d2" data-en="No towers." data-fa="بدون دکل.">No towers.</span>
+        <span class="line reveal-up d1" data-en="Talk." data-fa="گفتگو کنید.">Talk.</span>
+        <span class="line reveal-up d2" data-en="No towers." data-fa="بدون دکل مخابراتی.">No towers.</span>
         <span class="line amber reveal-up d3" data-en="No servers." data-fa="بدون سرور.">No servers.</span>
       </h1>
       <p class="hero-sub reveal-up d4"
-         data-en="Tark turns nearby phones into an open voice channel — over your own WiFi or Bluetooth. Your voice never leaves the room."
-         data-fa="تَرک گوشی‌های نزدیک را به یک کانال صوتی باز تبدیل می‌کند — روی وای‌فای یا بلوتوث خودت. صدای تو هیچ‌وقت از جمع بیرون نمی‌رود.">
-        Tark turns nearby phones into an open voice channel — over your own WiFi or Bluetooth. Your voice never leaves the room.
+        data-en="Tarkk turns nearby phones into an open voice channel — over your own WiFi or Bluetooth. Your voice never leaves the room."
+        data-fa="تَرک گوشی‌های نزدیک را به یک کانال صوتی باز تبدیل می‌کند — روی وای‌فای یا بلوتوث اختصاصی خودتان. صدای شما هرگز از محیط خارج نمی‌شود.">
+        Tarkk turns nearby phones into an open voice channel — over your own WiFi or Bluetooth. Your voice never leaves
+        the room.
       </p>
       <div class="hero-ctas reveal-up d5">
-        <a class="btn btn-primary" href="#download" data-en="Get the app" data-fa="دریافت اپ">Get the app</a>
-        <a class="btn btn-ghost" href="https://tarkk.runflare.run" data-en="Join as guest ↗" data-fa="ورود مهمان ↗">Join as guest ↗</a>
+        <a class="btn btn-primary" href="#download" data-en="Get the app" data-fa="دریافت اپلیکیشن">Get the app</a>
+        <a class="btn btn-ghost" href="https://app.tarkk.ir" data-en="Join as guest ↗"
+          data-fa="ورود به عنوان مهمان ↗">Join as guest ↗</a>
       </div>
     </div>
 
@@ -60,7 +63,7 @@
         <div class="phone-screen">
           <div class="mock-header">
             <span class="mock-live"><i></i><b data-en="LIVE" data-fa="زنده">LIVE</b></span>
-            <span class="mock-title">TARK</span>
+            <span class="mock-title">TARKK</span>
           </div>
           <div class="mock-user">
             <div class="mock-avatar">P</div>
@@ -87,67 +90,92 @@
   <div class="ticker" aria-hidden="true">
     <div class="ticker-track">
       <span>OPUS 16 kHz</span><i>•</i><span>PURE LAN</span><i>•</i><span>VOX</span><i>•</i>
-      <span>BLUETOOTH LE</span><i>•</i><span>HOTSPOT BRIDGE</span><i>•</i><span>MUSIC CAST</span><i>•</i><span>WEB GUEST</span><i>•</i>
+      <span>BLUETOOTH LE</span><i>•</i><span>HOTSPOT BRIDGE</span><i>•</i><span>MUSIC CAST</span><i>•</i><span>WEB
+        GUEST</span><i>•</i>
       <span>NO ACCOUNT</span><i>•</i><span>NO SERVER</span><i>•</i>
       <span>OPUS 16 kHz</span><i>•</i><span>PURE LAN</span><i>•</i><span>VOX</span><i>•</i>
-      <span>BLUETOOTH LE</span><i>•</i><span>HOTSPOT BRIDGE</span><i>•</i><span>MUSIC CAST</span><i>•</i><span>WEB GUEST</span><i>•</i>
+      <span>BLUETOOTH LE</span><i>•</i><span>HOTSPOT BRIDGE</span><i>•</i><span>MUSIC CAST</span><i>•</i><span>WEB
+        GUEST</span><i>•</i>
       <span>NO ACCOUNT</span><i>•</i><span>NO SERVER</span><i>•</i>
     </div>
   </div>
 
   <!-- ── Features ────────────────────────────────────────────────────── -->
   <section class="section" id="features">
-    <p class="eyebrow reveal" data-en="FOUR WAYS TO CONNECT" data-fa="چهار راه برای اتصال">FOUR WAYS TO CONNECT</p>
-    <h2 class="reveal" data-en="Any link you have, Tark speaks it." data-fa="هر اتصالی که داری، تَرک با آن حرف می‌زند.">Any link you have, Tark speaks it.</h2>
+    <p class="eyebrow reveal" data-en="FOUR WAYS TO CONNECT" data-fa="چهار روش اتصال">FOUR WAYS TO CONNECT</p>
+    <h2 class="reveal" data-en="Any link you have, Tarkk speaks it."
+      data-fa="تَرک از هر نوع اتصالی که داشته باشید، پشتیبانی می‌کند.">Any link you have, Tarkk speaks it.</h2>
 
     <div class="cards">
       <article class="card reveal">
         <div class="card-icon">
-          <svg viewBox="0 0 24 24"><path d="M12 20.5a1.7 1.7 0 1 0 0-3.4 1.7 1.7 0 0 0 0 3.4Z" fill="currentColor"/><path d="M6.3 14.2a8 8 0 0 1 11.4 0M2.8 10.4a13 13 0 0 1 18.4 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <svg viewBox="0 0 24 24">
+            <path d="M12 20.5a1.7 1.7 0 1 0 0-3.4 1.7 1.7 0 0 0 0 3.4Z" fill="currentColor" />
+            <path d="M6.3 14.2a8 8 0 0 1 11.4 0M2.8 10.4a13 13 0 0 1 18.4 0" fill="none" stroke="currentColor"
+              stroke-width="1.8" stroke-linecap="round" />
+          </svg>
         </div>
         <h3 data-en="WiFi channel" data-fa="کانال وای‌فای">WiFi channel</h3>
         <p data-en="One phone hotspots, everyone joins. Open-channel voice with VOX — hands stay on the handlebars."
-           data-fa="یک گوشی هات‌اسپات می‌شود و بقیه می‌پیوندند. کانال صوتی باز با VOX — دست‌ها روی فرمان می‌ماند.">
+          data-fa="کافیست یک گوشی هات‌اسپات شود تا بقیه به آن بپیوندند. کانال صوتی باز همراه با سیستم VOX (تشخیص خودکار صدا)؛ بدون نیاز به برداشتن دست‌ها از روی فرمان.">
           One phone hotspots, everyone joins. Open-channel voice with VOX — hands stay on the handlebars.</p>
       </article>
 
       <article class="card reveal">
         <div class="card-icon">
-          <svg viewBox="0 0 24 24"><path d="m7 7 10 10-5 4V3l5 4L7 17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <svg viewBox="0 0 24 24">
+            <path d="m7 7 10 10-5 4V3l5 4L7 17" fill="none" stroke="currentColor" stroke-width="1.8"
+              stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
         </div>
-        <h3 data-en="Bluetooth pair" data-fa="جفت بلوتوثی">Bluetooth pair</h3>
+        <h3 data-en="Bluetooth pair" data-fa="اتصال بلوتوث">Bluetooth pair</h3>
         <p data-en="No network at all? Two phones link directly over Bluetooth — rock-solid Android-to-Android, with auto-reconnect when the link drops and a bounded queue so a slow link never piles up into lag."
-           data-fa="اصلاً شبکه‌ای نیست؟ دو گوشی مستقیم روی بلوتوث وصل می‌شوند — اتصال پایدار اندروید به اندروید، با اتصال مجدد خودکار و صفی محدود که از تلنبار شدن تأخیر روی لینک کند جلوگیری می‌کند.">
-          No network at all? Two phones link directly over Bluetooth — rock-solid Android-to-Android, with auto-reconnect when the link drops and a bounded queue so a slow link never piles up into lag.</p>
+          data-fa="به شبکه دسترسی ندارید؟ دو گوشی مستقیم از طریق بلوتوث به هم متصل می‌شوند؛ ارتباطی پایدار میان اندروید با اندروید، همراه با قابلیت اتصال مجدد خودکار در صورت قطع لینک و مدیریت صف داده جهت جلوگیری از ایجاد تأخیر در اتصالات کند.">
+          No network at all? Two phones link directly over Bluetooth — rock-solid Android-to-Android, with
+          auto-reconnect when the link drops and a bounded queue so a slow link never piles up into lag.</p>
       </article>
 
       <article class="card reveal">
         <div class="card-icon">
-          <svg viewBox="0 0 24 24"><rect x="8.5" y="3" width="7" height="18" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M4 9a5 5 0 0 0 0 6M20 9a5 5 0 0 1 0 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <svg viewBox="0 0 24 24">
+            <rect x="8.5" y="3" width="7" height="18" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.8" />
+            <path d="M4 9a5 5 0 0 0 0 6M20 9a5 5 0 0 1 0 6" fill="none" stroke="currentColor" stroke-width="1.8"
+              stroke-linecap="round" />
+          </svg>
         </div>
         <h3 data-en="Hotspot bridge" data-fa="پل هات‌اسپات">Hotspot bridge</h3>
         <p data-en="iPhone and Android, guaranteed. One Android phone raises a Wi-Fi hotspot; the iPhone joins by scanning a code — then it's full-quality voice over Wi-Fi."
-           data-fa="آیفون و اندروید، تضمینی. یک گوشی اندرویدی هات‌اسپات وای‌فای می‌سازد؛ آیفون با اسکن یک کد می‌پیوندد — و بعد صدای باکیفیت روی وای‌فای.">
-          iPhone and Android, guaranteed. One Android phone raises a Wi-Fi hotspot; the iPhone joins by scanning a code — then it's full-quality voice over Wi-Fi.</p>
+          data-fa="ارتباط تضمینی آیفون و اندروید. یک دستگاه اندرویدی هات‌اسپات وای‌فای ایجاد می‌کند و آیفون با اسکن یک کد به آن متصل می‌شود؛ سپس صدایی با بالاترین کیفیت روی شبکه وای‌فای برقرار خواهد شد.">
+          iPhone and Android, guaranteed. One Android phone raises a Wi-Fi hotspot; the iPhone joins by scanning a code
+          — then it's full-quality voice over Wi-Fi.</p>
       </article>
 
       <article class="card reveal">
         <div class="card-icon">
-          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M14 14h3v3h-3zM18 18h3v3h-3z" fill="currentColor"/></svg>
+          <svg viewBox="0 0 24 24">
+            <rect x="3" y="3" width="7" height="7" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.8" />
+            <rect x="14" y="3" width="7" height="7" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.8" />
+            <rect x="3" y="14" width="7" height="7" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.8" />
+            <path d="M14 14h3v3h-3zM18 18h3v3h-3z" fill="currentColor" />
+          </svg>
         </div>
-        <h3 data-en="Browser guest" data-fa="مهمان مرورگری">Browser guest</h3>
+        <h3 data-en="Browser guest" data-fa="نسخه مهمان مرورگر">Browser guest</h3>
         <p data-en="Friends without the app join from Safari or Chrome — scan a QR or just send them the invite link. Works over the internet too, not just the same room. Still no server."
-           data-fa="دوستانی که اپ ندارند از سافاری یا کروم می‌پیوندند — یک کد QR اسکن کنید یا لینک دعوت را برایشان بفرستید. حتی از طریق اینترنت هم کار می‌کند، نه فقط در یک اتاق. باز هم بدون سرور.">
-          Friends without the app join from Safari or Chrome — scan a QR or just send them the invite link. Works over the internet too, not just the same room. Still no server.</p>
+          data-fa="افرادی که اپلیکیشن را نصب ندارند می‌توانند از طریق سافاری یا کروم به گفتگو ملحق شوند؛ فقط کافیست کد QR را اسکن کنند یا لینک دعوت را برایشان بفرستید. این قابلیت حتی بستر اینترنت را هم پوشش می‌دهد و همچنان بدون نیاز به سرور کار می‌کند.">
+          Friends without the app join from Safari or Chrome — scan a QR or just send them the invite link. Works over
+          the internet too, not just the same room. Still no server.</p>
       </article>
     </div>
   </section>
 
+  <!-- ── Sound-wave divider (bars built in app.js) ──────────────────── -->
+  <div class="signal-divider" aria-hidden="true"></div>
+
   <!-- ── Pinned handshake scene ──────────────────────────────────────── -->
   <section class="handshake" id="handshake">
     <div class="handshake-sticky">
-      <p class="eyebrow" data-en="THE QR HANDSHAKE" data-fa="دست‌دادن با QR">THE QR HANDSHAKE</p>
-      <h2 data-en="Two scans. Zero servers." data-fa="دو اسکن. صفر سرور.">Two scans. Zero servers.</h2>
+      <p class="eyebrow" data-en="THE QR HANDSHAKE" data-fa="دست‌دادن اختصاصی با QR">THE QR HANDSHAKE</p>
+      <h2 data-en="Two scans. Zero servers." data-fa="دو اسکن، بدون هیچ سروری.">Two scans. Zero servers.</h2>
 
       <div class="hs-progress" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
 
@@ -166,7 +194,10 @@
         <div class="hs-beam" aria-hidden="true"></div>
         <div class="hs-wave" aria-hidden="true">
           <span></span><span></span><span></span>
-          <div class="hs-check"><svg viewBox="0 0 24 24"><path d="M5 13l5 5L19 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="hs-check"><svg viewBox="0 0 24 24">
+              <path d="M5 13l5 5L19 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"
+                stroke-linejoin="round" />
+            </svg></div>
         </div>
 
         <div class="hs-phone hs-guest">
@@ -186,20 +217,21 @@
         <div class="hs-step" data-step="1">
           <b>1</b>
           <p data-en="The host shows an invite QR — the connection itself, folded into a code."
-             data-fa="میزبان کد دعوت را نشان می‌دهد — خودِ اتصال، فشرده در یک کد.">
+            data-fa="میزبان یک کد QR دعوت نمایش می‌دهد؛ در واقع بستر ارتباطی شما درون همین کد فشرده شده است.">
             The host shows an invite QR — the connection itself, folded into a code.</p>
         </div>
         <div class="hs-step" data-step="2">
           <b>2</b>
           <p data-en="The guest scans it with their camera; their browser answers with a reply code."
-             data-fa="مهمان آن را با دوربین اسکن می‌کند؛ مرورگرش با کد پاسخ جواب می‌دهد.">
+            data-fa="مهمان کد را با دوربین اسکن می‌کند و مرورگر او با یک کد پاسخ (Reply Code) عکس‌العمل نشان می‌دهد.">
             The guest scans it with their camera; their browser answers with a reply code.</p>
         </div>
         <div class="hs-step" data-step="3">
           <b>3</b>
           <p data-en="The host scans the reply (or pastes it, if the guest sent it instead) — and voice flows phone-to-phone, no server, even across networks."
-             data-fa="میزبان کد پاسخ را اسکن می‌کند (یا اگر مهمان برایش فرستاده، آن را می‌چسباند) — و صدا گوشی‌به‌گوشی، بدون سرور، حتی بین شبکه‌های مختلف جاری می‌شود.">
-            The host scans the reply (or pastes it, if the guest sent it instead) — and voice flows phone-to-phone, no server, even across networks.</p>
+            data-fa="میزبان کد پاسخ را اسکن می‌کند (یا در صورت تمایل، متنی که مهمان فرستاده را پیست می‌کند)؛ جریان صدا مستقیماً و بدون سرور بین دو گوشی جاری می‌شود.">
+            The host scans the reply (or pastes it, if the guest sent it instead) — and voice flows phone-to-phone, no
+            server, even across networks.</p>
         </div>
       </div>
     </div>
@@ -209,12 +241,14 @@
   <section class="section music" id="music">
     <div class="music-grid">
       <div class="music-copy">
-        <p class="eyebrow reveal" data-en="MUSIC CAST" data-fa="پخش موزیک">MUSIC CAST</p>
-        <h2 class="reveal" data-en="One phone plays. Everyone rides to it." data-fa="یک گوشی پخش می‌کند. همه با آن می‌رانند.">One phone plays. Everyone rides to it.</h2>
+        <p class="eyebrow reveal" data-en="MUSIC CAST" data-fa="پخش همزمان موسیقی">MUSIC CAST</p>
+        <h2 class="reveal" data-en="One phone plays. Everyone rides to it."
+          data-fa="پخش از یک گوشی، شنیدن همزمان در طول مسیر برای همه.">One phone plays. Everyone rides to it.</h2>
         <p class="reveal"
-           data-en="Cast your phone's music straight into the channel. Your voice rides on top of the track, a mix slider keeps the balance right on every device — yours included — and stopping the cast can pause the track too."
-           data-fa="موزیک گوشی‌ات را مستقیم به کانال بفرست. صدایت روی آهنگ می‌نشیند، اسلایدر میکس تعادل صدا را روی همهٔ گوشی‌ها از جمله گوشی خودت هم حفظ می‌کند، و توقف پخش می‌تواند آهنگ را هم متوقف کند.">
-          Cast your phone's music straight into the channel. Your voice rides on top of the track, a mix slider keeps the balance right on every device — yours included — and stopping the cast can pause the track too.</p>
+          data-en="Cast your phone's music straight into the channel. Your voice rides on top of the track, a mix slider keeps the balance right on every device — yours included — and stopping the cast can pause the track too."
+          data-fa="موسیقی گوشی خود را مستقیماً روی کانال بفرستید. صدای شما به زیبایی روی آهنگ سوار می‌شود و با اسلایدر میکسر، تعادل صدا روی تمام دستگاه‌ها (حتی دستگاه خودتان) دقیق باقی می‌ماند. همچنین با قطع پخش، موسیقی نیز متوقف می‌شود.">
+          Cast your phone's music straight into the channel. Your voice rides on top of the track, a mix slider keeps
+          the balance right on every device — yours included — and stopping the cast can pause the track too.</p>
       </div>
       <div class="music-eq reveal" aria-hidden="true">
         <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
@@ -226,167 +260,255 @@
 
   <!-- ── Under the hood ──────────────────────────────────────────────── -->
   <section class="section tech" id="tech">
-    <p class="eyebrow reveal" data-en="UNDER THE HOOD" data-fa="زیر کاپوت">UNDER THE HOOD</p>
-    <h2 class="reveal" data-en="Built like a radio, engineered like software." data-fa="مثل یک بی‌سیم ساخته شده، مثل یک نرم‌افزار مهندسی‌شده.">Built like a radio, engineered like software.</h2>
+    <p class="eyebrow reveal" data-en="UNDER THE HOOD" data-fa="مشخصات فنی هسته برنامه">UNDER THE HOOD</p>
+    <h2 class="reveal" data-en="Built like a radio, engineered like software."
+      data-fa="اصالت بیسیم، ظرافت مهندسی نرم‌افزار.">Built like a radio, engineered like software.</h2>
 
     <div class="spec-grid">
       <div class="spec reveal">
-        <div class="spec-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12v0M8 7v10M12 4v16M16 9v6M20 11v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
-        <p class="spec-label" data-en="CODEC" data-fa="کدک">CODEC</p>
+        <div class="spec-icon" aria-hidden="true"><svg viewBox="0 0 24 24">
+            <path d="M4 12v0M8 7v10M12 4v16M16 9v6M20 11v2" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" />
+          </svg></div>
+        <p class="spec-label" data-en="CODEC" data-fa="کدک صوتی">CODEC</p>
         <p class="spec-value" data-en="Opus · 16 kHz mono" data-fa="Opus · تک‌کاناله ۱۶ کیلوهرتز">Opus · 16 kHz mono</p>
         <p class="spec-desc" data-en="~20–30 kbps compressed — a tenth the size of raw PCM, with no perceptible loss."
-           data-fa="فشرده‌سازی به ۲۰ تا ۳۰ کیلوبیت بر ثانیه — یک‌دهم حجم PCM خام، بدون افت محسوس کیفیت.">
+          data-fa="فشرده‌سازی در پهنای باند ۲۰ الی ۳۰ کیلوبیت بر ثانیه؛ یعنی یک‌دهم حجم دیتای خام PCM بدون افت کیفیت محسوس.">
           ~20–30 kbps compressed — a tenth the size of raw PCM, with no perceptible loss.</p>
       </div>
       <div class="spec reveal">
-        <div class="spec-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
-        <p class="spec-label" data-en="VOICE CLARITY" data-fa="وضوح صدا">VOICE CLARITY</p>
+        <div class="spec-icon" aria-hidden="true"><svg viewBox="0 0 24 24">
+            <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Z" fill="none" stroke="currentColor"
+              stroke-width="1.8" />
+            <path d="M6 11a6 6 0 0 0 12 0M12 17v4" fill="none" stroke="currentColor" stroke-width="1.8"
+              stroke-linecap="round" />
+          </svg></div>
+        <p class="spec-label" data-en="VOICE CLARITY" data-fa="شفافیت صدا">VOICE CLARITY</p>
         <p class="spec-value">AEC · NS · AGC</p>
-        <p class="spec-desc" data-en="Echo cancellation, noise suppression and gain control run live on every capture session."
-           data-fa="حذف پژواک، کاهش نویز و کنترل بهره، به‌صورت زنده روی هر نشست ضبط اجرا می‌شوند.">
+        <p class="spec-desc"
+          data-en="Echo cancellation, noise suppression and gain control run live on every capture session."
+          data-fa="قابلیت‌های حذف پژواک (AEC)، حذف نویز (NS) و کنترل خودکار بهره (AGC) به صورت آنی روی هر نشست ضبط صدا اعمال می‌شوند.">
           Echo cancellation, noise suppression and gain control run live on every capture session.</p>
       </div>
       <div class="spec reveal">
-        <div class="spec-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
-        <p class="spec-label" data-en="LATENCY" data-fa="تأخیر">LATENCY</p>
-        <p class="spec-value" data-en="Configurable jitter buffer" data-fa="بافر لرزشِ قابل‌تنظیم">Configurable jitter buffer</p>
-        <p class="spec-desc" data-en="Just enough buffering to stay smooth without ever feeling behind — self-corrects clock drift instead of letting delay quietly grow over a long ride. Adjustable in Settings."
-           data-fa="فقط به‌اندازه‌ای بافر که صدا روان بماند، بدون احساس عقب‌افتادگی — انحراف ساعت را خودش جبران می‌کند تا تأخیر در طول یک سفر طولانی آرام‌آرام زیاد نشود. از تنظیمات قابل تغییر است.">
-          Just enough buffering to stay smooth without ever feeling behind — self-corrects clock drift instead of letting delay quietly grow over a long ride. Adjustable in Settings.</p>
+        <div class="spec-icon" aria-hidden="true"><svg viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="8.2" fill="none" stroke="currentColor" stroke-width="1.8" />
+            <path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          </svg></div>
+        <p class="spec-label" data-en="LATENCY" data-fa="میزان تأخیر">LATENCY</p>
+        <p class="spec-value" data-en="Configurable jitter buffer" data-fa="بافر لرزش قابل تنظیم">Configurable jitter
+          buffer</p>
+        <p class="spec-desc"
+          data-en="Just enough buffering to stay smooth without ever feeling behind — self-corrects clock drift instead of letting delay quietly grow over a long ride. Adjustable in Settings."
+          data-fa="مکانیزم بافرینگ هوشمند جهت تضمین روانی صدا بدون عقب‌افتادگی زمان؛ تصحیح خودکار انحراف ساعت مانع از انباشت تأخیر در طول مسیرهای طولانی می‌شود. قابل تغییر در تنظیمات.">
+          Just enough buffering to stay smooth without ever feeling behind — self-corrects clock drift instead of
+          letting delay quietly grow over a long ride. Adjustable in Settings.</p>
       </div>
       <div class="spec reveal">
-        <div class="spec-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M13 7l-4 6h3l-1 4 4-6h-3l1-4Z" fill="currentColor"/></svg></div>
-        <p class="spec-label" data-en="ALWAYS ON" data-fa="همیشه روشن">ALWAYS ON</p>
-        <p class="spec-value"><span class="spec-live" aria-hidden="true"></span><span data-en="Foreground service" data-fa="سرویس پیش‌زمینه">Foreground service</span></p>
+        <div class="spec-icon" aria-hidden="true"><svg viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="8.2" fill="none" stroke="currentColor" stroke-width="1.8" />
+            <path d="M13 7l-4 6h3l-1 4 4-6h-3l1-4Z" fill="currentColor" />
+          </svg></div>
+        <p class="spec-label" data-en="ALWAYS ON" data-fa="همواره فعال">ALWAYS ON</p>
+        <p class="spec-value"><span class="spec-live" aria-hidden="true"></span><span data-en="Foreground service"
+            data-fa="سرویس پیش‌زمینه">Foreground service</span></p>
         <p class="spec-desc" data-en="A wake lock and multicast lock keep the channel alive with the screen off."
-           data-fa="قفل بیداری و قفل مولتی‌کست، کانال را حتی با خاموش بودن صفحه زنده نگه می‌دارند.">
+          data-fa="بهره‌گیری از قفل‌های سیستم (Wake Lock و Multicast Lock) جهت زنده نگه‌داشتن کانال ارتباطی، حتی در زمان خاموش بودن صفحه نمایش.">
           A wake lock and multicast lock keep the channel alive with the screen off.</p>
       </div>
       <div class="spec reveal">
-        <div class="spec-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 13.5-5.8M20 12a8 8 0 0 1-13.5 5.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M17 3v4h-4M7 21v-4h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="spec-icon" aria-hidden="true"><svg viewBox="0 0 24 24">
+            <path d="M4 12a8 8 0 0 1 13.5-5.8M20 12a8 8 0 0 1-13.5 5.8" fill="none" stroke="currentColor"
+              stroke-width="1.8" stroke-linecap="round" />
+            <path d="M17 3v4h-4M7 21v-4h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+              stroke-linejoin="round" />
+          </svg></div>
         <p class="spec-label" data-en="RECONNECT" data-fa="اتصال مجدد">RECONNECT</p>
-        <p class="spec-value" data-en="Exponential backoff" data-fa="تأخیر نمایی">Exponential backoff</p>
-        <p class="spec-desc" data-en="A liveness watchdog catches a link gone silent — not just closed — so a dead peer heals itself instead of needing a manual leave/rejoin. Retries from 4s up to 64s, resetting the instant the link returns."
-           data-fa="یک نگهبانِ زنده‌بودنِ اتصال، لینکی که ساکت شده را هم تشخیص می‌دهد — نه فقط قطع‌شده را — پس یک هم‌تای از دسترس‌خارج‌شده خودش ترمیم می‌شود، بدون نیاز به خروج و ورود دستی. تلاش مجدد از ۴ تا ۶۴ ثانیه، با بازنشانی فوری به‌محض بازگشت اتصال.">
-          A liveness watchdog catches a link gone silent — not just closed — so a dead peer heals itself instead of needing a manual leave/rejoin. Retries from 4s up to 64s, resetting the instant the link returns.</p>
+        <p class="spec-value" data-en="Exponential backoff" data-fa="تاخیر تصاعدی (نمایی)">Exponential backoff</p>
+        <p class="spec-desc"
+          data-en="A liveness watchdog catches a link gone silent — not just closed — so a dead peer heals itself instead of needing a manual leave/rejoin. Retries from 4s up to 64s, resetting the instant the link returns."
+          data-fa="یک سیستم مانیتورینگ داخلی (Watchdog) سکوت یا قطع لینک را تشخیص می‌دهد تا ارتباط بدون نیاز به خروج و ورود دستی ترمیم شود؛ تلاش مجدد هوشمند از ۴ ثانیه تا سقف ۶۴ ثانیه با بازنشانی آنی پس از اتصال مجدد.">
+          A liveness watchdog catches a link gone silent — not just closed — so a dead peer heals itself instead of
+          needing a manual leave/rejoin. Retries from 4s up to 64s, resetting the instant the link returns.</p>
       </div>
       <div class="spec reveal">
-        <div class="spec-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v18M8 7a5 5 0 0 0 0 10M16 7a5 5 0 0 1 0 10M5 4a9 9 0 0 0 0 16M19 4a9 9 0 0 1 0 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
-        <p class="spec-label" data-en="TRANSPORT" data-fa="لایهٔ انتقال">TRANSPORT</p>
+        <div class="spec-icon" aria-hidden="true"><svg viewBox="0 0 24 24">
+            <path d="M12 3v18M8 7a5 5 0 0 0 0 10M16 7a5 5 0 0 1 0 10M5 4a9 9 0 0 0 0 16M19 4a9 9 0 0 1 0 16" fill="none"
+              stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+          </svg></div>
+        <p class="spec-label" data-en="TRANSPORT" data-fa="پروتکل انتقال">TRANSPORT</p>
         <p class="spec-value" data-en="UDP broadcast" data-fa="پخش UDP">UDP broadcast</p>
         <p class="spec-desc" data-en="Direct peer discovery on your LAN, with a unicast fallback for iOS."
-           data-fa="کشف مستقیم هم‌تاها روی شبکهٔ محلی، با بازگشت به یونی‌کست برای iOS.">
+          data-fa="شناسایی مستقیم دستگاه‌ها روی شبکه محلی (LAN) همراه با سیستم جایگزین Unicast ویژه سیستم‌عامل iOS.">
           Direct peer discovery on your LAN, with a unicast fallback for iOS.</p>
       </div>
       <div class="spec reveal">
-        <div class="spec-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 10v4h3l4 4V6l-4 4H4Z" fill="currentColor"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div>
-        <p class="spec-label" data-en="AUDIO CUES" data-fa="نشانه‌های صوتی">AUDIO CUES</p>
-        <p class="spec-value" data-en="Eyes-free feedback" data-fa="بازخورد بدون نیاز به نگاه">Eyes-free feedback</p>
-        <p class="spec-desc" data-en="A distinct sound for PTT, peers, and reconnects — built for riding with the phone in a pocket."
-           data-fa="صدایی مجزا برای فشار-و-صحبت، هم‌تاها و اتصال مجدد — برای وقتی که گوشی در جیب است.">
+        <div class="spec-icon" aria-hidden="true"><svg viewBox="0 0 24 24">
+            <path d="M4 10v4h3l4 4V6l-4 4H4Z" fill="currentColor" />
+            <path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor"
+              stroke-width="1.6" stroke-linecap="round" />
+          </svg></div>
+        <p class="spec-label" data-en="AUDIO CUES" data-fa="هشدارهای صوتی">AUDIO CUES</p>
+        <p class="spec-value" data-en="Eyes-free feedback" data-fa="بازخورد صوتی بدون نیاز به نگاه">Eyes-free feedback
+        </p>
+        <p class="spec-desc"
+          data-en="A distinct sound for PTT, peers, and reconnects — built for riding with the phone in a pocket."
+          data-fa="صداهای متمایز برای قابلیت PTT، ورود کاربران و اتصال مجدد؛ طراحی‌شده برای استفاده در حین حرکت و زمانی که گوشی داخل جیب شماست.">
           A distinct sound for PTT, peers, and reconnects — built for riding with the phone in a pocket.</p>
       </div>
     </div>
   </section>
 
+  <!-- ── Sound-wave divider (bars built in app.js) ──────────────────── -->
+  <div class="signal-divider sd-alt" aria-hidden="true"></div>
+
   <!-- ── FAQ ──────────────────────────────────────────────────────────── -->
   <section class="section faq-section" id="faq">
-    <p class="eyebrow reveal" data-en="QUESTIONS" data-fa="پرسش‌ها">QUESTIONS</p>
-    <h2 class="reveal" data-en="Things people actually ask." data-fa="چیزهایی که واقعاً می‌پرسند.">Things people actually ask.</h2>
+    <p class="eyebrow reveal" data-en="QUESTIONS" data-fa="سوالات متداول">QUESTIONS</p>
+    <h2 class="reveal" data-en="Things people actually ask." data-fa="پاسخ به سوالاتی که واقعاً می‌پرسید.">Things people
+      actually ask.</h2>
 
     <div class="faq reveal">
       <div class="faq-item">
         <button class="faq-q" aria-expanded="false">
-          <span data-en="Do I need an account or an internet connection?" data-fa="به حساب کاربری یا اینترنت نیاز دارم؟">Do I need an account or an internet connection?</span>
+          <span data-en="Do I need an account or an internet connection?"
+            data-fa="آیا به حساب کاربری یا اینترنت نیاز دارم؟">Do I need an account or an internet connection?</span>
           <i class="faq-icon" aria-hidden="true"></i>
         </button>
-        <div class="faq-a"><div class="faq-a-inner"><p data-en="No. Tark runs entirely over your local WiFi or Bluetooth. No sign-up, no cloud, no internet required."
-           data-fa="نه. تَرک کاملاً روی وای‌فای یا بلوتوث محلی‌ات اجرا می‌شود. بدون ثبت‌نام، بدون ابر، بدون نیاز به اینترنت.">
-          No. Tark runs entirely over your local WiFi or Bluetooth. No sign-up, no cloud, no internet required.</p></div></div>
+        <div class="faq-a">
+          <div class="faq-a-inner">
+            <p data-en="No. Tarkk runs entirely over your local WiFi or Bluetooth. No sign-up, no cloud, no internet required."
+              data-fa="خیر. تَرک کاملاً روی شبکه وای‌فای یا بلوتوث محلی شما کار می‌کند. بدون نیاز به ثبت‌نام، فضای ابری یا اتصال اینترنت.">
+              No. Tarkk runs entirely over your local WiFi or Bluetooth. No sign-up, no cloud, no internet required.</p>
+          </div>
+        </div>
       </div>
       <div class="faq-item">
         <button class="faq-q" aria-expanded="false">
-          <span data-en="What if I lock my phone mid-conversation?" data-fa="اگر وسط مکالمه گوشی را قفل کنم چه می‌شود؟">What if I lock my phone mid-conversation?</span>
+          <span data-en="What if I lock my phone mid-conversation?"
+            data-fa="اگر در حین گفتگو گوشی را قفل کنم چه می‌شود؟">What if I lock my phone mid-conversation?</span>
           <i class="faq-icon" aria-hidden="true"></i>
         </button>
-        <div class="faq-a"><div class="faq-a-inner"><p data-en="A foreground service keeps your channel alive in the background — locking the screen won't drop you."
-           data-fa="یک سرویس پیش‌زمینه کانال را در پس‌زمینه زنده نگه می‌دارد — قفل کردن صفحه تو را از کانال بیرون نمی‌اندازد.">
-          A foreground service keeps your channel alive in the background — locking the screen won't drop you.</p></div></div>
+        <div class="faq-a">
+          <div class="faq-a-inner">
+            <p data-en="A foreground service keeps your channel alive in the background — locking the screen won't drop you."
+              data-fa="یک سرویس پیش‌زمینه فعال، کانال ارتباطی را در پس‌زمینه زنده نگه می‌دارد؛ بنابراین قفل کردن صفحه نمایش باعث قطع اتصال شما نخواهد شد.">
+              A foreground service keeps your channel alive in the background — locking the screen won't drop you.</p>
+          </div>
+        </div>
       </div>
       <div class="faq-item">
         <button class="faq-q" aria-expanded="false">
-          <span data-en="What happens if the connection drops?" data-fa="اگر اتصال قطع شود چه می‌شود؟">What happens if the connection drops?</span>
+          <span data-en="What happens if the connection drops?"
+            data-fa="در صورت قطع ناگهانی ارتباط چه اتفاقی رخ می‌دهد؟">What happens if the connection drops?</span>
           <i class="faq-icon" aria-hidden="true"></i>
         </button>
-        <div class="faq-a"><div class="faq-a-inner"><p data-en="Tark retries automatically with exponential backoff — starting at 4 seconds, capping at 64 — and reconnects the moment the link returns."
-           data-fa="تَرک به‌صورت خودکار با تأخیر نمایی دوباره تلاش می‌کند — از ۴ ثانیه شروع و تا ۶۴ ثانیه ادامه می‌دهد — و به‌محض بازگشت اتصال، دوباره وصل می‌شود.">
-          Tark retries automatically with exponential backoff — starting at 4 seconds, capping at 64 — and reconnects the moment the link returns.</p></div></div>
+        <div class="faq-a">
+          <div class="faq-a-inner">
+            <p data-en="Tarkk retries automatically with exponential backoff — starting at 4 seconds, capping at 64 — and reconnects the moment the link returns."
+              data-fa="تَرک به صورت خودکار با سیستم تاخیر تصاعدی (از ۴ تا حداکثر ۶۴ ثانیه) برای برقراری مجدد ارتباط تلاش می‌کند و به‌محض پایداری شبکه وصل می‌شود.">
+              Tarkk retries automatically with exponential backoff — starting at 4 seconds, capping at 64 — and
+              reconnects the moment the link returns.</p>
+          </div>
+        </div>
       </div>
       <div class="faq-item">
         <button class="faq-q" aria-expanded="false">
-          <span data-en="Can iPhone and Android talk to each other?" data-fa="آیفون و اندروید می‌توانند با هم صحبت کنند؟">Can iPhone and Android talk to each other?</span>
+          <span data-en="Can iPhone and Android talk to each other?"
+            data-fa="آیا ارتباط بین آیفون و اندروید امکان‌پذیر است؟">Can iPhone and Android talk to each other?</span>
           <i class="faq-icon" aria-hidden="true"></i>
         </button>
-        <div class="faq-a"><div class="faq-a-inner"><p data-en="Yes — through the hotspot bridge (scan a QR to join an Android hotspot) or the browser guest mode over WebRTC."
-           data-fa="بله — از طریق پل هات‌اسپات (با اسکن یک QR به هات‌اسپات اندروید بپیوند) یا حالت مهمان مرورگری روی WebRTC.">
-          Yes — through the hotspot bridge (scan a QR to join an Android hotspot) or the browser guest mode over WebRTC.</p></div></div>
+        <div class="faq-a">
+          <div class="faq-a-inner">
+            <p data-en="Yes — through the hotspot bridge (scan a QR to join an Android hotspot) or the browser guest mode over WebRTC."
+              data-fa="بله — از طریق قابلیت پل هات‌اسپات (اسکن QR جهت ورود به هات‌اسپات اندروید) یا استفاده از حالت مهمان مرورگر بر بستر پروتکل WebRTC.">
+              Yes — through the hotspot bridge (scan a QR to join an Android hotspot) or the browser guest mode over
+              WebRTC.</p>
+          </div>
+        </div>
       </div>
       <div class="faq-item">
         <button class="faq-q" aria-expanded="false">
-          <span data-en="Does it work with no network at all?" data-fa="بدون هیچ شبکه‌ای هم کار می‌کند؟">Does it work with no network at all?</span>
+          <span data-en="Does it work with no network at all?"
+            data-fa="آیا برنامه بدون وجود هیچ شبکه‌ای کار می‌کند؟">Does it work with no network at all?</span>
           <i class="faq-icon" aria-hidden="true"></i>
         </button>
-        <div class="faq-a"><div class="faq-a-inner"><p data-en="Two Android phones can pair directly over Bluetooth LE — no WiFi, no hotspot, no router."
-           data-fa="دو گوشی اندروید می‌توانند مستقیم روی بلوتوث کم‌مصرف (BLE) جفت شوند — بدون وای‌فای، بدون هات‌اسپات، بدون روتر.">
-          Two Android phones can pair directly over Bluetooth LE — no WiFi, no hotspot, no router.</p></div></div>
+        <div class="faq-a">
+          <div class="faq-a-inner">
+            <p data-en="Two Android phones can pair directly over Bluetooth LE — no WiFi, no hotspot, no router."
+              data-fa="بله، دو دستگاه اندرویدی می‌توانند مستقیماً از طریق بلوتوث کم‌مصرف (BLE) به یکدیگر متصل شوند؛ بدون نیاز به وای‌فای، هات‌اسپات یا روتر.">
+              Two Android phones can pair directly over Bluetooth LE — no WiFi, no hotspot, no router.</p>
+          </div>
+        </div>
       </div>
       <div class="faq-item">
         <button class="faq-q" aria-expanded="false">
-          <span data-en="Is my voice compressed or degraded?" data-fa="صدایم فشرده یا افت کیفیت پیدا می‌کند؟">Is my voice compressed or degraded?</span>
+          <span data-en="Is my voice compressed or degraded?" data-fa="آیا صدا فشرده شده یا کیفیت آن کاهش می‌یابد؟">Is
+            my voice compressed or degraded?</span>
           <i class="faq-icon" aria-hidden="true"></i>
         </button>
-        <div class="faq-a"><div class="faq-a-inner"><p data-en="Voice is encoded with Opus at 16 kHz — a tenth the size of raw audio — while on-device echo cancellation and noise suppression clean up the signal before it's sent."
-           data-fa="صدا با اُپوس در ۱۶ کیلوهرتز کدگذاری می‌شود — یک‌دهم حجم صدای خام — درحالی‌که حذف پژواک و کاهش نویز روی خود گوشی، سیگنال را پیش از ارسال تمیز می‌کنند.">
-          Voice is encoded with Opus at 16 kHz — a tenth the size of raw audio — while on-device echo cancellation and noise suppression clean up the signal before it's sent.</p></div></div>
+        <div class="faq-a">
+          <div class="faq-a-inner">
+            <p data-en="Voice is encoded with Opus at 16 kHz — a tenth the size of raw audio — while on-device echo cancellation and noise suppression clean up the signal before it's sent."
+              data-fa="صدا با کدک پشرفته Opus در فرکانس ۱۶ کیلوهرتز (یک‌دهم حجم دیتای خام) کدگذاری می‌شود، در حالی که سیستم داخلی حذف نویز و پژواک، دیتای صوتی را پیش از ارسال کاملاً شفاف می‌کند.">
+              Voice is encoded with Opus at 16 kHz — a tenth the size of raw audio — while on-device echo cancellation
+              and noise suppression clean up the signal before it's sent.</p>
+          </div>
+        </div>
       </div>
     </div>
   </section>
 
   <!-- ── Privacy statement ───────────────────────────────────────────── -->
   <section class="privacy">
-    <div class="privacy-rings" aria-hidden="true"><span></span><span></span><span></span></div>
-    <h2 class="reveal"
-        data-en="Your voice never touches a server."
-        data-fa="صدای تو هیچ‌وقت به هیچ سروری نمی‌رسد.">
+    <div class="privacy-rings" aria-hidden="true">
+      <span></span><span></span><span></span>
+      <i class="radar-sweep"></i>
+      <b class="radar-blip rb1"></b><b class="radar-blip rb2"></b><b class="radar-blip rb3"></b>
+    </div>
+    <h2 class="reveal" data-en="Your voice never touches a server." data-fa="صدای شما هرگز به هیچ سروری ارسال نمی‌شود.">
       Your voice never touches a server.</h2>
     <p class="reveal"
-       data-en="No accounts. No cloud. No logs. Every packet lives and dies on your own network — that's not a policy, it's the architecture."
-       data-fa="بدون حساب کاربری. بدون ابر. بدون لاگ. هر بسته روی شبکهٔ خودت متولد می‌شود و همان‌جا می‌میرد — این یک سیاست نیست، خودِ معماری است.">
-      No accounts. No cloud. No logs. Every packet lives and dies on your own network — that's not a policy, it's the architecture.</p>
+      data-en="No accounts. No cloud. No logs. Every packet lives and dies on your own network — that's not a policy, it's the architecture."
+      data-fa="بدون حساب کاربری، بدون پردازش ابری و بدون ذخیره تاریخچه. تمامی بسته‌های اطلاعاتی در شبکه محلی خودتان متولد شده و از بین می‌روند؛ این یک توافق‌نامه نیست، بلکه تاروپود معماری ماست.">
+      No accounts. No cloud. No logs. Every packet lives and dies on your own network — that's not a policy, it's the
+      architecture.</p>
   </section>
+
+  <!-- ── Night road divider ──────────────────────────────────────────── -->
+  <div class="road" aria-hidden="true">
+    <div class="road-line"></div>
+    <span class="road-rider"></span>
+    <span class="road-oncoming"></span>
+  </div>
 
   <!-- ── Download ────────────────────────────────────────────────────── -->
   <section class="section download" id="download">
-    <p class="eyebrow reveal" data-en="GET TARK" data-fa="دریافت تَرک">GET TARK</p>
-    <h2 class="reveal" data-en="Put a radio in your pocket." data-fa="یک بی‌سیم در جیبت بگذار.">Put a radio in your pocket.</h2>
+    <p class="eyebrow reveal" data-en="GET TARKK" data-fa="دریافت تَرک">GET TARKK</p>
+    <h2 class="reveal" data-en="Put a radio in your pocket." data-fa="یک بی‌سیم واقعی در جیب شما.">Put a radio in your
+      pocket.</h2>
     <div class="dl-buttons reveal">
-      <a class="btn btn-primary" href="../tark-release.apk" data-en="Download for Android" data-fa="دانلود برای اندروید">Download for Android</a>
-      <a class="btn btn-ghost" href="#" data-en="iOS — coming soon" data-fa="iOS — به‌زودی">iOS — coming soon</a>
-      <a class="btn btn-ghost" href="https://tarkk.runflare.run" data-en="Web guest ↗" data-fa="مهمان وب ↗">Web guest ↗</a>
+      <a class="btn btn-primary" href="../tark-release.apk" data-en="Download for Android"
+        data-fa="دانلود نسخه اندروید">Download for Android</a>
+      <a class="btn btn-ghost" href="#" data-en="iOS — coming soon" data-fa="نسخه iOS — به‌زودی">iOS — coming soon</a>
+      <a class="btn btn-ghost" href="https://app.tarkk.ir" data-en="Web guest ↗" data-fa="ورود مهمان از وب ↗">Web guest
+        ↗</a>
     </div>
   </section>
 
   <footer>
-    <span class="wordmark"><span class="wordmark-dot"></span>TARK</span>
+    <span class="wordmark"><span class="wordmark-dot"></span>TARKK</span>
     <div class="footer-links">
-      <a href="#features" data-en="Features" data-fa="امکانات">Features</a>
-      <a href="#tech" data-en="Specs" data-fa="مشخصات">Specs</a>
-      <a href="#faq" data-en="FAQ" data-fa="پرسش‌ها">FAQ</a>
+      <a href="#features" data-en="Features" data-fa="ویژگی‌ها">Features</a>
+      <a href="#tech" data-en="Specs" data-fa="مشخصات فنی">Specs</a>
+      <a href="#faq" data-en="FAQ" data-fa="سوالات متداول">FAQ</a>
       <a href="#download" data-en="Download" data-fa="دانلود">Download</a>
     </div>
-    <p data-en="Built for riders. Works for everyone." data-fa="برای موتورسوارها ساخته شد. برای همه کار می‌کند.">Built for riders. Works for everyone.</p>
+    <p data-en="Built for riders. Works for everyone." data-fa="طراحی اختصاصی برای موتورسواران، کارآمد برای همه.">Built
+      for riders. Works for everyone.</p>
   </footer>
 
   <script src="app.js"></script>
 </body>
+
 </html>

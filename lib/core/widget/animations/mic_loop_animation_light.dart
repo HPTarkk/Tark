@@ -10,7 +10,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 // ── Palette ──────────────────────────────────────────────────────────────
-const Color kBg = Color(0xFFF6F1E7);
 const Color kAccent = Color(0xFFB26B00);
 final Color kAccentSoft = kAccent.withValues(alpha: 0.35);
 final Color kAccentFaint = kAccent.withValues(alpha: 0.14);
@@ -97,8 +96,6 @@ class _MicLoopPainterLight extends CustomPainter {
     final double cy = kCanvasSize / 2 + 10;
     final double p = phase;
     final double twoPi = 2 * math.pi;
-
-    canvas.drawRect(const Rect.fromLTWH(0, 0, kCanvasSize, kCanvasSize), Paint()..color = kBg);
 
     // Mic breathes gently — always listening, nothing to press.
     final double micScale = 1 + 0.028 * math.sin(twoPi * p * 2);

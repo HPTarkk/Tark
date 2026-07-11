@@ -13,7 +13,6 @@ import 'package:flutter/material.dart';
 import 'package:tark/gen/assets.gen.dart';
 
 // ── Palette ──────────────────────────────────────────────────────────────
-const Color kBg = Color(0xFFF6F1E7);
 const Color kAccent = Color(0xFFB26B00);
 final Color kAccentSoft = kAccent.withValues(alpha: .35);
 final Color kAccentFaint = kAccent.withValues(alpha: .14);
@@ -93,10 +92,7 @@ class _AncHeadsetLoopAnimationLightState extends State<AncHeadsetLoopAnimationLi
                     height: kIconH,
                     child: Transform.scale(
                       scale: caseScale,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(boxShadow: [BoxShadow(color: kAccentSoft, blurRadius: 26)]),
-                        child: Image.asset(Assets.image.airpodsCaseLight.path, width: kIconW, height: kIconH),
-                      ),
+                      child: Image.asset(Assets.image.airpodsCaseLight.path, width: kIconW, height: kIconH),
                     ),
                   ),
                   // Single earbud, bobbing beside the case.
@@ -149,8 +145,6 @@ class _BackdropPainterLight extends CustomPainter {
     final double cy = kCanvasSize / 2 + 10;
     final double p = phase;
     final double twoPi = 2 * math.pi;
-
-    canvas.drawRect(const Rect.fromLTWH(0, 0, kCanvasSize, kCanvasSize), Paint()..color = kBg);
 
     // Ambient glow.
     final double glowOpacity = 0.35 + 0.12 * math.sin(twoPi * p * 2 + math.pi / 2);

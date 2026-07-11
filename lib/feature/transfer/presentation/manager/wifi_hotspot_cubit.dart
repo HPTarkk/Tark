@@ -9,6 +9,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../core/sfx/sfx_event.dart';
 import '../../../../core/sfx/sfx_service.dart';
+import '../../../../core/utils/android_sdk.dart';
 import '../../../../core/utils/logger.dart';
 import '../../data/hotspot/wifi_hotspot_controller.dart';
 import '../../data/repository/wifi_transfer_repository_impl.dart';
@@ -120,14 +121,17 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   Future<void> startHost() async {
     emit(state.copyWith(phase: HotspotPhase.starting, errorCode: null));
 
-    // LocalOnlyHotspot needs location (API 26–32) and/or NEARBY_WIFI_DEVICES
-    // (33+). Request both and proceed regardless — the native side surfaces a
-    // hard permission failure as a PlatformException we handle below.
+    // LocalOnlyHotspot needs fine location (API 26–32) or NEARBY_WIFI_DEVICES
+    // (33+). The manifest declares each only for its own SDK range and
+    // permission_handler silently resolves undeclared permissions as denied,
+    // so only the API-appropriate one can actually prompt. Proceed regardless
+    // — the native side surfaces a hard permission failure as a
+    // PlatformException we handle below.
     try {
-      await [
-        Permission.locationWhenInUse,
-        Permission.nearbyWifiDevices,
-      ].request();
+      final permission = await AndroidSdk.version() >= 33
+          ? Permission.nearbyWifiDevices
+          : Permission.locationWhenInUse;
+      await permission.request();
     } catch (e) {
       Logger.log('Hotspot permission request failed: $e');
     }
