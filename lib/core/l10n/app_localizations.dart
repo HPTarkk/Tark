@@ -101,13 +101,13 @@ abstract class AppLocalizations {
   /// No description provided for @app_name.
   ///
   /// In fa, this message translates to:
-  /// **'TARKK'**
+  /// **'تــرک'**
   String get app_name;
 
   /// No description provided for @app_subtitle.
   ///
   /// In fa, this message translates to:
-  /// **'LAN WALKIE TALKIE'**
+  /// **'بیسیم تحت شبکه (LAN)'**
   String get app_subtitle;
 
   /// No description provided for @live.
@@ -137,43 +137,43 @@ abstract class AppLocalizations {
   /// No description provided for @monitoring.
   ///
   /// In fa, this message translates to:
-  /// **'در حال پایش'**
+  /// **'در حال مانیتورینگ'**
   String get monitoring;
 
   /// No description provided for @initializing.
   ///
   /// In fa, this message translates to:
-  /// **'در حال راه‌اندازی'**
+  /// **'در حال راه‌اندازی اولیه'**
   String get initializing;
 
   /// No description provided for @tx_label.
   ///
   /// In fa, this message translates to:
-  /// **'TX'**
+  /// **'ارسال (TX)'**
   String get tx_label;
 
   /// No description provided for @rx_label.
   ///
   /// In fa, this message translates to:
-  /// **'RX'**
+  /// **'دریافت (RX)'**
   String get rx_label;
 
   /// No description provided for @music_cast.
   ///
   /// In fa, this message translates to:
-  /// **'پخش موزیک روی کانال'**
+  /// **'پخش موزیک'**
   String get music_cast;
 
   /// No description provided for @music_cast_hint.
   ///
   /// In fa, this message translates to:
-  /// **'پخش موزیک و صداهای این گوشی برای همه اعضای حاضر در کانال.'**
+  /// **'موزیک و صداهای این گوشی را برای همه افراد حاضر در کانال پخش کنید.'**
   String get music_cast_hint;
 
   /// No description provided for @music_cast_start.
   ///
   /// In fa, this message translates to:
-  /// **'شروع پخش'**
+  /// **'شروع پخش صدا'**
   String get music_cast_start;
 
   /// No description provided for @music_cast_starting.
@@ -191,25 +191,25 @@ abstract class AppLocalizations {
   /// No description provided for @music_cast_on_air.
   ///
   /// In fa, this message translates to:
-  /// **'در حال پخش'**
+  /// **'روی آنتن'**
   String get music_cast_on_air;
 
   /// No description provided for @music_cast_mix.
   ///
   /// In fa, this message translates to:
-  /// **'سطح میکسر صدا'**
+  /// **'سطح ترکیب صدا (Mix)'**
   String get music_cast_mix;
 
   /// No description provided for @music_cast_silent.
   ///
   /// In fa, this message translates to:
-  /// **'چیزی در حال پخش نیست — یک آهنگ در پلیر خود باز کنید'**
+  /// **'چیزی در حال پخش نیست — یک آهنگ در برنامه موزیک خود پلیر کنید'**
   String get music_cast_silent;
 
   /// No description provided for @music_cast_stop_hint.
   ///
   /// In fa, this message translates to:
-  /// **'دسترسی به اعلان‌ها را فعال کنید تا دکمه توقف، موزیک پلیر را هم متوقف کند.'**
+  /// **'دسترسی به اعلان‌ها را فعال کنید تا دکمه توقف، برنامه موزیک را هم متوقف کند.'**
   String get music_cast_stop_hint;
 
   /// No description provided for @music_cast_stop_enable.
@@ -227,7 +227,7 @@ abstract class AppLocalizations {
   /// No description provided for @no_users_on_network.
   ///
   /// In fa, this message translates to:
-  /// **'کاربر دیگری در این شبکه یافت نشد'**
+  /// **'کاربر دیگری در این شبکه وجود ندارد'**
   String get no_users_on_network;
 
   /// No description provided for @vox_sensitivity.
@@ -239,7 +239,7 @@ abstract class AppLocalizations {
   /// No description provided for @vox_threshold.
   ///
   /// In fa, this message translates to:
-  /// **'آستانه تحریک'**
+  /// **'آستانه صدا (Threshold)'**
   String get vox_threshold;
 
   /// No description provided for @voice_loud.
@@ -251,7 +251,7 @@ abstract class AppLocalizations {
   /// No description provided for @voice_quiet.
   ///
   /// In fa, this message translates to:
-  /// **'آرام'**
+  /// **'آهسته'**
   String get voice_quiet;
 
   /// No description provided for @level_label.
@@ -275,13 +275,13 @@ abstract class AppLocalizations {
   /// No description provided for @user_idle.
   ///
   /// In fa, this message translates to:
-  /// **'آماده‌به‌کار'**
+  /// **'بیکار (Idle)'**
   String get user_idle;
 
   /// No description provided for @set_name_title.
   ///
   /// In fa, this message translates to:
-  /// **'تنظیم نام شما'**
+  /// **'انتخاب نام شما'**
   String get set_name_title;
 
   /// No description provided for @name_hint.
@@ -305,7 +305,7 @@ abstract class AppLocalizations {
   /// No description provided for @mic_permission_denied.
   ///
   /// In fa, this message translates to:
-  /// **'دسترسی به میکروفون رد شده است. لطفاً آن را از تنظیمات گوشی فعال کنید.'**
+  /// **'دسترسی به میکروفون رد شد. لطفاً آن را در تنظیمات فعال کنید.'**
   String get mic_permission_denied;
 
   /// No description provided for @join_channel.
@@ -353,7 +353,7 @@ abstract class AppLocalizations {
   /// No description provided for @transport_wifi_hotspot.
   ///
   /// In fa, this message translates to:
-  /// **'وای‌فای / هات‌اسپات'**
+  /// **'وای‌فای / هات‌استاپ'**
   String get transport_wifi_hotspot;
 
   /// No description provided for @transport_bluetooth.
@@ -377,13 +377,13 @@ abstract class AppLocalizations {
   /// No description provided for @guest_step_scan.
   ///
   /// In fa, this message translates to:
-  /// **'مهمان این کد را با دوربین گوشی خود اسکن می‌کند تا صفحه ورود در مرورگر او باز شود.'**
+  /// **'مهمان باید این کد را با دوربین گوشی خود اسکن کند — صفحه ورود در مرورگر او باز می‌شود.'**
   String get guest_step_scan;
 
   /// No description provided for @guest_step_answer.
   ///
   /// In fa, this message translates to:
-  /// **'سپس صفحه او یک کد پاسخ نشان می‌دهد؛ آن را با دکمه زیر اسکن کنید یا اگر برایتان فرستاده، پیست کنید.'**
+  /// **'سپس یک کد پاسخ روی صفحه آن‌ها ظاهر می‌شود — آن را با دکمه زیر اسکن کنید، یا اگر برایتان فرستاده‌اند، اینجا پیست کنید.'**
   String get guest_step_answer;
 
   /// No description provided for @guest_scan_answer.
@@ -395,7 +395,7 @@ abstract class AppLocalizations {
   /// No description provided for @guest_link_failed.
   ///
   /// In fa, this message translates to:
-  /// **'اتصال برقرار نشد. یک دعوت‌نامه جدید بسازید و دوباره تلاش کنید.'**
+  /// **'ارتباط برقرار نشد. یک دعوت‌نامه جدید بسازید و دوباره تلاش کنید.'**
   String get guest_link_failed;
 
   /// No description provided for @guest_no_server_badge.
@@ -419,13 +419,13 @@ abstract class AppLocalizations {
   /// No description provided for @guest_paste_answer.
   ///
   /// In fa, this message translates to:
-  /// **'پیست کردن کد پاسخ مهمان'**
+  /// **'پیست کردن کد پاسخ'**
   String get guest_paste_answer;
 
   /// No description provided for @guest_paste_answer_hint.
   ///
   /// In fa, this message translates to:
-  /// **'کد پاسخی که مهمان برایتان فرستاده را وارد کنید'**
+  /// **'کد پاسخی که برایتان فرستاده‌اند را پیست کنید'**
   String get guest_paste_answer_hint;
 
   /// No description provided for @guest_paste_submit.
@@ -437,31 +437,31 @@ abstract class AppLocalizations {
   /// No description provided for @guest_stun_caveat.
   ///
   /// In fa, this message translates to:
-  /// **'این قابلیت در اکثر شبکه‌ها بستر اینترنت را پوشش می‌دهد. اما برخی شبکه‌های سازمانی یا به‌شدت محدود، ممکن است مانع اتصال شوند.'**
+  /// **'در اکثر شبکه‌ها از طریق اینترنت کار می‌کند. برخی از شبکه‌های سازمانی یا سخت‌گیرانه ممکن است اتصال را مسدود کنند.'**
   String get guest_stun_caveat;
 
   /// No description provided for @guest_web_scan_title.
   ///
   /// In fa, this message translates to:
-  /// **'اسکن برای ورود'**
+  /// **'برای ورود اسکن کنید'**
   String get guest_web_scan_title;
 
   /// No description provided for @guest_web_scan_text.
   ///
   /// In fa, this message translates to:
-  /// **'این صفحه را با اسکن کد QR دعوت یا باز کردن لینک دعوت از گوشی میزبان باز کنید.'**
+  /// **'این صفحه را با اسکن کردن کد QR دعوت یا باز کردن لینک دعوت از گوشی میزبان باز کنید.'**
   String get guest_web_scan_text;
 
   /// No description provided for @guest_web_failed_title.
   ///
   /// In fa, this message translates to:
-  /// **'خطا در اتصال'**
+  /// **'پیوند ناموفق بود'**
   String get guest_web_failed_title;
 
   /// No description provided for @guest_web_failed_text.
   ///
   /// In fa, this message translates to:
-  /// **'ارتباط برقرار نشد. از میزبان بخواهید یک دعوت‌نامه جدید بسازد و دوباره تلاش کنید.'**
+  /// **'اتصال برقرار نشد. از میزبان بخواهید یک دعوت‌نامه جدید ایجاد کند و دوباره امتحان کنید.'**
   String get guest_web_failed_text;
 
   /// No description provided for @guest_web_reply_chip.
@@ -479,7 +479,7 @@ abstract class AppLocalizations {
   /// No description provided for @guest_web_reply_hint.
   ///
   /// In fa, this message translates to:
-  /// **'در گوشی میزبان: روی «اسکن کد پاسخ» بزنید و دوربین را روی این کد بگیرید.'**
+  /// **'در گوشی میزبان: روی «اسکن کد پاسخ» بزنید و دوربین را به این سمت بگیرید.'**
   String get guest_web_reply_hint;
 
   /// No description provided for @guest_web_reply_copy.
@@ -503,7 +503,7 @@ abstract class AppLocalizations {
   /// No description provided for @guest_web_enable_audio.
   ///
   /// In fa, this message translates to:
-  /// **'برای فعال‌سازی میکروفون و بلندگو، روی دکمه زیر بزنید.'**
+  /// **'برای فعال کردن میکروفون و اسپیکر خود، روی دکمه زیر بزنید.'**
   String get guest_web_enable_audio;
 
   /// No description provided for @guest_web_start_audio.
@@ -533,19 +533,19 @@ abstract class AppLocalizations {
   /// No description provided for @guest_web_on_air.
   ///
   /// In fa, this message translates to:
-  /// **'صدای شما زنده است'**
+  /// **'صدای شما پخش می‌شود'**
   String get guest_web_on_air;
 
   /// No description provided for @guest_web_standby.
   ///
   /// In fa, this message translates to:
-  /// **'آماده‌به‌کار'**
+  /// **'در حال انتظار (Standby)'**
   String get guest_web_standby;
 
   /// No description provided for @guest_web_link_lost.
   ///
   /// In fa, this message translates to:
-  /// **'قطع اتصال'**
+  /// **'ارتباط قطع شد'**
   String get guest_web_link_lost;
 
   /// No description provided for @guest_web_link_lost_text.
@@ -557,43 +557,43 @@ abstract class AppLocalizations {
   /// No description provided for @guest_web_left_title.
   ///
   /// In fa, this message translates to:
-  /// **'از کانال خارج شدید'**
+  /// **'شما کانال را ترک کردید'**
   String get guest_web_left_title;
 
   /// No description provided for @guest_web_left_text.
   ///
   /// In fa, this message translates to:
-  /// **'ارتباط شما قطع شد. برای ورود مجدد، از میزبان یک دعوت‌نامه جدید بگیرید و دوباره آن را اسکن کنید.'**
+  /// **'شما قطع شدید. برای ورود مجدد، از میزبان یک دعوت‌نامه جدید بگیرید و دوباره آن را اسکن کنید.'**
   String get guest_web_left_text;
 
   /// No description provided for @bt_start_session.
   ///
   /// In fa, this message translates to:
-  /// **'شروع نشست'**
+  /// **'شروع نشست (Session)'**
   String get bt_start_session;
 
   /// No description provided for @bt_role_host_desc.
   ///
   /// In fa, this message translates to:
-  /// **'پخش سیگنال نشست تا دستگاه‌های دیگر بتوانند آن را پیدا کرده و متصل شوند'**
+  /// **'پخش یک نشست برای اینکه دستگاه‌های دیگر بتوانند آن را پیدا کرده و متصل شوند'**
   String get bt_role_host_desc;
 
   /// No description provided for @bt_find_nearby.
   ///
   /// In fa, this message translates to:
-  /// **'جستجوی اطراف'**
+  /// **'یافتن دستگاه‌های نزدیک'**
   String get bt_find_nearby;
 
   /// No description provided for @bt_role_join_desc.
   ///
   /// In fa, this message translates to:
-  /// **'اسکن محیط اطراف و اتصال به یک نشست فعال در نزدیکی شما'**
+  /// **'جستجوی محیط و اتصال به یک نشست در همان نزدیکی'**
   String get bt_role_join_desc;
 
   /// No description provided for @bt_visible_as.
   ///
   /// In fa, this message translates to:
-  /// **'نام مرئی دستگاه'**
+  /// **'قابل رویت با نام'**
   String get bt_visible_as;
 
   /// No description provided for @bt_last_session.
@@ -611,31 +611,31 @@ abstract class AppLocalizations {
   /// No description provided for @bt_link_reconnecting.
   ///
   /// In fa, this message translates to:
-  /// **'اتصال بلوتوث قطع شد — در حال اتصال مجدد...'**
+  /// **'ارتباط بلوتوث قطع شد — در حال اتصال مجدد...'**
   String get bt_link_reconnecting;
 
   /// No description provided for @bt_link_down.
   ///
   /// In fa, this message translates to:
-  /// **'اتصال بلوتوث قطع شد'**
+  /// **'ارتباط بلوتوث قطع شد'**
   String get bt_link_down;
 
   /// No description provided for @bt_waiting_for_peer.
   ///
   /// In fa, this message translates to:
-  /// **'در انتظار اتصال طرف مقابل...'**
+  /// **'در حال انتظار برای اتصال طرف مقابل...'**
   String get bt_waiting_for_peer;
 
   /// No description provided for @bt_scanning.
   ///
   /// In fa, this message translates to:
-  /// **'در حال اسکن...'**
+  /// **'در حال جستجو...'**
   String get bt_scanning;
 
   /// No description provided for @bt_no_devices_found.
   ///
   /// In fa, this message translates to:
-  /// **'دستگاهی یافت نشد'**
+  /// **'دستگاهی پیدا نشد'**
   String get bt_no_devices_found;
 
   /// No description provided for @bt_connecting.
@@ -653,7 +653,7 @@ abstract class AppLocalizations {
   /// No description provided for @bt_permission_denied.
   ///
   /// In fa, this message translates to:
-  /// **'دسترسی به بلوتوث رد شده است. لطفاً آن را از تنظیمات گوشی فعال کنید.'**
+  /// **'دسترسی به بلوتوث رد شد. لطفاً آن را در تنظیمات فعال کنید.'**
   String get bt_permission_denied;
 
   /// No description provided for @bt_not_supported_platform.
@@ -689,7 +689,7 @@ abstract class AppLocalizations {
   /// No description provided for @permission_grant.
   ///
   /// In fa, this message translates to:
-  /// **'تایید دسترسی'**
+  /// **'اعطای دسترسی'**
   String get permission_grant;
 
   /// No description provided for @permission_mic_title.
@@ -701,7 +701,7 @@ abstract class AppLocalizations {
   /// No description provided for @permission_mic_desc.
   ///
   /// In fa, this message translates to:
-  /// **'جهت ضبط و انتقال صدای شما الزامی است.'**
+  /// **'برای ضبط صدای شما جهت ارسال نیاز است.'**
   String get permission_mic_desc;
 
   /// No description provided for @permission_bluetooth_title.
@@ -713,73 +713,73 @@ abstract class AppLocalizations {
   /// No description provided for @permission_bluetooth_desc.
   ///
   /// In fa, this message translates to:
-  /// **'جهت اسکن و اتصال به دستگاه‌های اطراف در حالت بلوتوث الزامی است.'**
+  /// **'برای جستجو و اتصال به دستگاه‌های نزدیک در حالت بلوتوث نیاز است.'**
   String get permission_bluetooth_desc;
 
   /// No description provided for @permission_bt_scan_title.
   ///
   /// In fa, this message translates to:
-  /// **'اسکن دستگاه‌ها'**
+  /// **'جستجوی دستگاه‌ها'**
   String get permission_bt_scan_title;
 
   /// No description provided for @permission_bt_scan_desc.
   ///
   /// In fa, this message translates to:
-  /// **'پیدا کردن دستگاه‌های نزدیک جهت برقراری ارتباط.'**
+  /// **'دستگاه‌های نزدیک را برای اتصال پیدا می‌کند.'**
   String get permission_bt_scan_desc;
 
   /// No description provided for @permission_bt_connect_title.
   ///
   /// In fa, this message translates to:
-  /// **'اتصال دستگاه‌ها'**
+  /// **'اتصال'**
   String get permission_bt_connect_title;
 
   /// No description provided for @permission_bt_connect_desc.
   ///
   /// In fa, this message translates to:
-  /// **'جفت‌سازی و تبادل صدا با دستگاه دیگر.'**
+  /// **'با دستگاه دیگر جفت می‌شود و صدا رد و بدل می‌کند.'**
   String get permission_bt_connect_desc;
 
   /// No description provided for @permission_bt_advertise_title.
   ///
   /// In fa, this message translates to:
-  /// **'انتشار سیگنال بلوتوث'**
+  /// **'تبلیغ نشست (Advertise)'**
   String get permission_bt_advertise_title;
 
   /// No description provided for @permission_bt_advertise_desc.
   ///
   /// In fa, this message translates to:
-  /// **'به بقیه دستگاه‌ها اجازه می‌دهد هنگام میزبانی، شما را پیدا کنند.'**
+  /// **'به دستگاه‌های دیگر اجازه می‌دهد وقتی شما میزبان هستید، شما را پیدا کنند.'**
   String get permission_bt_advertise_desc;
 
   /// No description provided for @permission_hotspot_title.
   ///
   /// In fa, this message translates to:
-  /// **'موقعیت مکانی و وای‌فای اطراف'**
+  /// **'مکان و وای‌فای نزدیک'**
   String get permission_hotspot_title;
 
   /// No description provided for @permission_hotspot_desc.
   ///
   /// In fa, this message translates to:
-  /// **'توسط اندروید جهت راه‌اندازی هات‌اسپات محلی برای اتصال دیگران الزامی است.'**
+  /// **'توسط اندروید برای راه‌اندازی هات‌استاپ محلی جهت اتصال دیگران نیاز است.'**
   String get permission_hotspot_desc;
 
   /// No description provided for @permission_battery_title.
   ///
   /// In fa, this message translates to:
-  /// **'بهینه‌سازی باتری در پس‌زمینه'**
+  /// **'استثنای باتری در پس‌زمینه'**
   String get permission_battery_title;
 
   /// No description provided for @permission_battery_desc.
   ///
   /// In fa, this message translates to:
-  /// **'کانال را در زمان خاموش بودن صفحه زنده نگه می‌دارد؛ بدون این دسترسی، سیستم‌عامل ممکن است برنامه را وسط مسیر متوقف کند یا کاملاً ببندد.'**
+  /// **'کانال را در زمان خاموش بودن صفحه زنده نگه می‌دارد — بدون این دسترسی، سیستم‌عامل ممکن است برنامه را در اواسط مسیر فریز کند یا ببندد.'**
   String get permission_battery_desc;
 
   /// No description provided for @bt_connection_failed.
   ///
   /// In fa, this message translates to:
-  /// **'خطا در اتصال'**
+  /// **'اتصال ناموفق بود'**
   String get bt_connection_failed;
 
   /// No description provided for @bt_back.
@@ -827,7 +827,7 @@ abstract class AppLocalizations {
   /// No description provided for @sfx_feedback.
   ///
   /// In fa, this message translates to:
-  /// **'شدت هشدارهای صوتی'**
+  /// **'بازخورد صوتی'**
   String get sfx_feedback;
 
   /// No description provided for @link_reconnecting.
@@ -851,25 +851,25 @@ abstract class AppLocalizations {
   /// No description provided for @hotspot_title.
   ///
   /// In fa, this message translates to:
-  /// **'پل هات‌اسپات'**
+  /// **'پل هات‌اسپات (Hotspot Bridge)'**
   String get hotspot_title;
 
   /// No description provided for @wifi_only_instructions.
   ///
   /// In fa, this message translates to:
-  /// **'هم‌اکنون به یک وای‌فای مشترک وصل هستید؟ نیازی به تنظیمات نیست — مستقیماً وارد کانال شوید.'**
+  /// **'قبلاً به یک وای‌فای وصل شده‌اید؟ نیازی به تنظیمات نیست — فقط وارد کانال شوید.'**
   String get wifi_only_instructions;
 
   /// No description provided for @wifi_only_step_same_network.
   ///
   /// In fa, this message translates to:
-  /// **'مطمئن شوید هر دو دستگاه به یک شبکه وای‌فای متصل هستند.'**
+  /// **'مطمئن شوید که هر دو دستگاه به یک شبکه وای‌فای متصل هستند.'**
   String get wifi_only_step_same_network;
 
   /// No description provided for @hotspot_not_supported.
   ///
   /// In fa, this message translates to:
-  /// **'میزبانِ پل هات‌اسپات باید اندروید باشد. در آیفون، کافیست به هات‌اسپات میزبان اندرویدی وصل شوید.'**
+  /// **'میزبان پل هات‌استاپ روی اندروید اجرا می‌شود. در آیفون، به جای این کار به هات‌استاپ یک میزبان اندرویدی وصل شوید.'**
   String get hotspot_not_supported;
 
   /// No description provided for @hotspot_host_badge.
@@ -887,7 +887,7 @@ abstract class AppLocalizations {
   /// No description provided for @hotspot_waiting.
   ///
   /// In fa, this message translates to:
-  /// **'در انتظار اتصال آیفون...'**
+  /// **'در حال انتظار برای اتصال آیفون...'**
   String get hotspot_waiting;
 
   /// No description provided for @hotspot_step_scan.
@@ -899,7 +899,7 @@ abstract class AppLocalizations {
   /// No description provided for @hotspot_step_join_channel.
   ///
   /// In fa, this message translates to:
-  /// **'سپس آیفون وارد کانال می‌شود و صدا روی این لینک وای‌فای جریان می‌یابد.'**
+  /// **'سپس آیفون وارد کانال می‌شود — صدا از طریق این لینک وای‌فای جریان می‌یابد.'**
   String get hotspot_step_join_channel;
 
   /// No description provided for @hotspot_network.
@@ -929,13 +929,13 @@ abstract class AppLocalizations {
   /// No description provided for @hotspot_error.
   ///
   /// In fa, this message translates to:
-  /// **'هات‌اسپات ساخته نشد. اگر هات‌اسپات یا اشتراک اینترنت دیگری فعال است آن را خاموش کنید، از روشن بودن GPS مطمئن شوید و دوباره تلاش کنید.'**
+  /// **'هات‌اسپات ساخته نشد. هرگونه هات‌اسپات/اشتراک‌گذاری اینترنت فعال را خاموش کنید، مطمئن شوید Location روشن است، سپس دوباره تلاش کنید.'**
   String get hotspot_error;
 
   /// No description provided for @hotspot_ios_instructions.
   ///
   /// In fa, this message translates to:
-  /// **'در گوشی اندرویدی تارک را باز کرده و به بخش Hotspot بروید، سپس کد وای‌فای آن را اینجا اسکن کنید.'**
+  /// **'از گوشی اندرویدی بخواهید برنامه «ترک» ← Hotspot را باز کند، سپس کد وای‌فای آن را اینجا اسکن کنید.'**
   String get hotspot_ios_instructions;
 
   /// No description provided for @hotspot_scan_host.
@@ -965,25 +965,25 @@ abstract class AppLocalizations {
   /// No description provided for @hotspot_manual_join_hint.
   ///
   /// In fa, this message translates to:
-  /// **'به تنظیمات وای‌فای گوشی بروید، این شبکه را انتخاب کنید، سپس برگشته و وارد کانال شوید.'**
+  /// **'تنظیمات › Wi-Fi را باز کنید، این شبکه را انتخاب کنید، سپس برگردید و وارد کانال شوید.'**
   String get hotspot_manual_join_hint;
 
   /// No description provided for @hotspot_invalid_qr.
   ///
   /// In fa, this message translates to:
-  /// **'این یک کد وای‌فای معتبر نیست. کدی که روی صفحه میزبان اندرویدی نمایش داده شده را اسکن کنید.'**
+  /// **'این یک کد وای‌فای نیست. کدی که روی گوشی اندروید میزبان نشان داده شده را اسکن کنید.'**
   String get hotspot_invalid_qr;
 
   /// No description provided for @bt_ios_hint.
   ///
   /// In fa, this message translates to:
-  /// **'ارتباط بلوتوث بین آیفون و اندروید ممکن است ناپایدار باشد. برای یک اتصال فرامرزی بی‌نقص، از حالت هات‌اسپات استفاده کنید.'**
+  /// **'اتصال آیفون ↔ اندروید روی بلوتوث ممکن است ناپایدار باشد. برای پایدارترین ارتباط بین دو سیستم‌عامل متفاوت، از حالت هات‌اسپات استفاده کنید.'**
   String get bt_ios_hint;
 
   /// No description provided for @bt_ble_unavailable.
   ///
   /// In fa, this message translates to:
-  /// **'این گوشی قابلیت انتشار سیگنال روی بلوتوث کم‌مصرف (BLE) را ندارد، بنابراین آیفون‌ها نمی‌توانند آن را در این بخش پیدا کنند.'**
+  /// **'این گوشی نمی‌تواند از طریق بلوتوث کم‌مصرف (BLE) سیگنال بفرستد، بنابراین آیفون‌ها آن را پیدا نخواهند کرد.'**
   String get bt_ble_unavailable;
 
   /// No description provided for @bt_use_wifi_bridge.
@@ -995,19 +995,19 @@ abstract class AppLocalizations {
   /// No description provided for @background_title.
   ///
   /// In fa, this message translates to:
-  /// **'زنده نگه‌داشتن کانال با صفحه خاموش'**
+  /// **'زنده نگه داشتن کانال در زمان خاموش بودن صفحه'**
   String get background_title;
 
   /// No description provided for @background_desc.
   ///
   /// In fa, this message translates to:
-  /// **'برای حین سواری، اجازه دهید برنامه در پس‌زمینه اجرا شود تا با خاموش شدن صفحه، جریان صدا قطع نشود. بدون این مجوز، ممکن است وای‌فای گوشی قطع و صدا خاموش شود.'**
+  /// **'برای زمان رانندگی، اجازه دهید برنامه در پس‌زمینه اجرا شود تا صدا قطع نشود. بدون این کار، ممکن است گوشی وای‌فای را قطع کرده و صدا قطع شود.'**
   String get background_desc;
 
   /// No description provided for @background_allow.
   ///
   /// In fa, this message translates to:
-  /// **'اجازه به فعالیت پس‌زمینه'**
+  /// **'اجازه به فعالیت در پس‌زمینه'**
   String get background_allow;
 
   /// No description provided for @background_autostart.
@@ -1019,13 +1019,13 @@ abstract class AppLocalizations {
   /// No description provided for @background_dismiss.
   ///
   /// In fa, this message translates to:
-  /// **'فعلاً نه'**
+  /// **'بعداً'**
   String get background_dismiss;
 
   /// No description provided for @music_cast_stalled.
   ///
   /// In fa, this message translates to:
-  /// **'سیستم صوتی این گوشی اشتراک‌گذاری موسیقی را در حین تماس فعال کانال مسدود می‌کند. پخش متوقف شد.'**
+  /// **'سیستم صوتی این گوشی، اشتراک‌گذاری موزیک را در حین تماس فعال کانال مسدود می‌کند. پخش موزیک متوقف شد.'**
   String get music_cast_stalled;
 
   /// No description provided for @settings_title.
@@ -1043,7 +1043,7 @@ abstract class AppLocalizations {
   /// No description provided for @settings_section_voice.
   ///
   /// In fa, this message translates to:
-  /// **'صدا و مهندسی صوت'**
+  /// **'صدا و صوت'**
   String get settings_section_voice;
 
   /// No description provided for @settings_section_sound.
@@ -1061,25 +1061,25 @@ abstract class AppLocalizations {
   /// No description provided for @settings_section_connection.
   ///
   /// In fa, this message translates to:
-  /// **'اتصال و شبکه'**
+  /// **'اتصال'**
   String get settings_section_connection;
 
   /// No description provided for @settings_section_startup.
   ///
   /// In fa, this message translates to:
-  /// **'راه‌اندازی'**
+  /// **'راه‌اندازی اولیه'**
   String get settings_section_startup;
 
   /// No description provided for @settings_applies_live.
   ///
   /// In fa, this message translates to:
-  /// **'تغییرات فوراً روی کانال فعلی اعمال می‌شوند'**
+  /// **'فوراً روی کانال فعلی شما اعمال می‌شود'**
   String get settings_applies_live;
 
   /// No description provided for @settings_applies_next_session.
   ///
   /// In fa, this message translates to:
-  /// **'تغییرات در ورود بعدی به کانال اعمال می‌شوند'**
+  /// **'دفعه بعد که به کانالی ملحق شوید اعمال می‌شود'**
   String get settings_applies_next_session;
 
   /// No description provided for @settings_quick_access.
@@ -1091,31 +1091,31 @@ abstract class AppLocalizations {
   /// No description provided for @settings_quick_access_desc.
   ///
   /// In fa, this message translates to:
-  /// **'هنگام اجرای برنامه، صفحه اصلی را رد کرده و مستقیماً به آخرین کانال برگرد'**
+  /// **'رد کردن این صفحه و باز کردن مستقیم آخرین کانال در هنگام اجرای برنامه'**
   String get settings_quick_access_desc;
 
   /// No description provided for @settings_delay.
   ///
   /// In fa, this message translates to:
-  /// **'تاخیر در پخش (Playback Delay)'**
+  /// **'تاخیر در پخش (Buffer)'**
   String get settings_delay;
 
   /// No description provided for @settings_delay_desc.
   ///
   /// In fa, this message translates to:
-  /// **'میزان بافر شدن صدای دریافتی قبل از پخش؛ مقادیر بالاتر اتصالات قطع‌و‌وصل‌دار را روان‌تر می‌کند اما تاخیر صدا را افزایش می‌دهد.'**
+  /// **'میزان بافر شدن صدای دریافتی قبل از پخش — مقدار بالاتر، قطعی‌های شبکه را نرم‌تر می‌کند اما تاخیر صدا را بیشتر می‌کند.'**
   String get settings_delay_desc;
 
   /// No description provided for @settings_restore_defaults.
   ///
   /// In fa, this message translates to:
-  /// **'بازنشانی تنظیمات اولیه'**
+  /// **'بازنشانی به پیش‌فرض'**
   String get settings_restore_defaults;
 
   /// No description provided for @settings_restore_defaults_done.
   ///
   /// In fa, this message translates to:
-  /// **'تنظیمات صوتی به حالت پیش‌فرض بازگشت'**
+  /// **'تنظیمات صدا به حالت پیش‌فرض بازگشت'**
   String get settings_restore_defaults_done;
 
   /// No description provided for @settings_auto_reconnect.
@@ -1127,19 +1127,19 @@ abstract class AppLocalizations {
   /// No description provided for @settings_auto_reconnect_desc.
   ///
   /// In fa, this message translates to:
-  /// **'تلاش مجدد خودکار هنگام قطع لینک، بدون نیاز به فشردن دکمه دستی'**
+  /// **'در صورت قطع شدن ارتباط، به جای نیاز به تلاش دستی، به طور خودکار دوباره تلاش شود'**
   String get settings_auto_reconnect_desc;
 
   /// No description provided for @settings_permissions_row.
   ///
   /// In fa, this message translates to:
-  /// **'مجوزها و دسترسی‌ها'**
+  /// **'دسترسی‌ها'**
   String get settings_permissions_row;
 
   /// No description provided for @settings_permissions_row_desc.
   ///
   /// In fa, this message translates to:
-  /// **'بررسی و مدیریت سطح دسترسی‌های اپلیکیشن'**
+  /// **'بررسی و مدیریت چیزهایی که برنامه به آن‌ها دسترسی دارد'**
   String get settings_permissions_row_desc;
 
   /// No description provided for @settings_wifi_hotspot_row.
@@ -1151,67 +1151,67 @@ abstract class AppLocalizations {
   /// No description provided for @settings_wifi_hotspot_row_desc.
   ///
   /// In fa, this message translates to:
-  /// **'راه‌اندازی هات‌اسپات یا بررسی مراحل اتصال وای‌فای'**
+  /// **'میزبانی هات‌اسپات یا بررسی مراحل اتصال به وای‌فای'**
   String get settings_wifi_hotspot_row_desc;
 
   /// No description provided for @settings_skip_splash.
   ///
   /// In fa, this message translates to:
-  /// **'رد کردن صفحه خوش‌آمدگویی'**
+  /// **'رد کردن صفحه خوش‌آمدگویی (Splash)'**
   String get settings_skip_splash;
 
   /// No description provided for @settings_skip_splash_desc.
   ///
   /// In fa, this message translates to:
-  /// **'ورود مستقیم به برنامه هنگام اجرا'**
+  /// **'هنگام اجرا، مستقیماً وارد برنامه شوید'**
   String get settings_skip_splash_desc;
 
   /// No description provided for @usage_tips_title.
   ///
   /// In fa, this message translates to:
-  /// **'استفاده حداکثری از امکانات تارک'**
+  /// **'استفاده بهینه از «ترک»'**
   String get usage_tips_title;
 
   /// No description provided for @usage_tips_1_title.
   ///
   /// In fa, this message translates to:
-  /// **'جفت‌سازی هدست مجهز به ANC یا هندزفری'**
+  /// **'یک هندزفری یا هدست با قابلیت حذف نویز (ANC) جفت کنید'**
   String get usage_tips_1_title;
 
   /// No description provided for @usage_tips_1_body.
   ///
   /// In fa, this message translates to:
-  /// **'حذف نویز فعال (ANC) شنیدن صدا در کانال را با وجود صدای باد و موتور بسیار آسان‌تر می‌کند و دستان شما را حین سواری آزاد نگه می‌دارد.'**
+  /// **'حذف نویز فعال (ANC) شنیدن صداها را با وجود باد و صدای موتور بسیار آسان‌تر می‌کند — و دست‌های شما را هنگام سواری آزاد نگه می‌دارد.'**
   String get usage_tips_1_body;
 
   /// No description provided for @usage_tips_2_title.
   ///
   /// In fa, this message translates to:
-  /// **'همیشه از کلاه ایمنی مناسب استفاده کنید'**
+  /// **'همیشه از کلاه کاسکت مناسب استفاده کنید'**
   String get usage_tips_2_title;
 
   /// No description provided for @usage_tips_2_body.
   ///
   /// In fa, this message translates to:
-  /// **'اول ایمنی — یک کلاه ایمنی استاندارد و فیت، بلندگوهای هدست را نیز به گوش شما نزدیک‌تر می‌کند تا در حرکت صدای شفاف‌تری داشته باشید.'**
+  /// **'اول ایمنی — یک کلاه کاسکت مناسب، هدست شما را نیز به گوش‌هایتان نزدیک‌تر می‌کند تا صدا در حرکت واضح‌تر باشد.'**
   String get usage_tips_2_body;
 
   /// No description provided for @usage_tips_3_title.
   ///
   /// In fa, this message translates to:
-  /// **'میکروفون شما به‌صورت پیش‌فرض دست‌آزاد است'**
+  /// **'میکروفون شما به طور پیش‌فرض هندزفری (بدون نیاز به لمس) است'**
   String get usage_tips_3_title;
 
   /// No description provided for @usage_tips_3_body.
   ///
   /// In fa, this message translates to:
-  /// **'حساسیت صوت کاملاً باز شروع می‌شود و سیستم حذف نویز کار خود را انجام می‌دهد، پس برای صحبت نیازی به فشردن هیچ دکمه‌ای ندارید. تنظیم دقیق هر دو در بخش تنظیمات در دسترس است.'**
+  /// **'حساسیت صدا به صورت کاملاً باز شروع می‌شود و سیستم حذف نویز کار خود را انجام می‌دهد، بنابراین برای صحبت کردن نیازی به فشردن هیچ دکمه‌ای ندارید. هر زمان خواستید می‌توانید هر دو را در تنظیمات دقیق‌تر کنید.'**
   String get usage_tips_3_body;
 
   /// No description provided for @usage_tips_dismiss.
   ///
   /// In fa, this message translates to:
-  /// **'متوجه شدم'**
+  /// **'فهمیدم'**
   String get usage_tips_dismiss;
 
   /// No description provided for @usage_tips_next.
@@ -1225,6 +1225,186 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'تنظیمات'**
   String get settings_gear_tooltip;
+
+  /// No description provided for @onboarding_welcome_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'یک بیسیم در شبکه اختصاصی خودتان'**
+  String get onboarding_welcome_title;
+
+  /// No description provided for @onboarding_welcome_sub.
+  ///
+  /// In fa, this message translates to:
+  /// **'با گوشی‌های نزدیک بدون نیاز به اینترنت صحبت کنید — مستقیم، سریع و خصوصی.'**
+  String get onboarding_welcome_sub;
+
+  /// No description provided for @onboarding_info_lan.
+  ///
+  /// In fa, this message translates to:
+  /// **'کارکرد روی وای‌فای مشترک یا هات‌اسپات'**
+  String get onboarding_info_lan;
+
+  /// No description provided for @onboarding_info_private.
+  ///
+  /// In fa, this message translates to:
+  /// **'بدون سرور، بدون ثبت‌نام — صدا هرگز از شبکه شما خارج نمی‌شود'**
+  String get onboarding_info_private;
+
+  /// No description provided for @onboarding_info_vox.
+  ///
+  /// In fa, this message translates to:
+  /// **'میکروفون هندزفری — فقط کافیست صحبت کنید تا ارسال شود'**
+  String get onboarding_info_vox;
+
+  /// No description provided for @onboarding_skip.
+  ///
+  /// In fa, this message translates to:
+  /// **'رد کردن'**
+  String get onboarding_skip;
+
+  /// No description provided for @onboarding_begin.
+  ///
+  /// In fa, this message translates to:
+  /// **'شروع راه‌اندازی'**
+  String get onboarding_begin;
+
+  /// No description provided for @onboarding_continue.
+  ///
+  /// In fa, this message translates to:
+  /// **'ادامه'**
+  String get onboarding_continue;
+
+  /// No description provided for @onboarding_finish.
+  ///
+  /// In fa, this message translates to:
+  /// **'شروع کار با برنامه'**
+  String get onboarding_finish;
+
+  /// No description provided for @onboarding_callsign_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'اسم مستعار (Callsign) خود را انتخاب کنید'**
+  String get onboarding_callsign_title;
+
+  /// No description provided for @onboarding_callsign_help.
+  ///
+  /// In fa, this message translates to:
+  /// **'اعضای کانال شما را با این نام خواهند دید.'**
+  String get onboarding_callsign_help;
+
+  /// No description provided for @onboarding_mode_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'چگونه متصل می‌شوید؟'**
+  String get onboarding_mode_title;
+
+  /// No description provided for @onboarding_mode_help.
+  ///
+  /// In fa, this message translates to:
+  /// **'می‌توانید این را هر زمانی در تنظیمات تغییر دهید.'**
+  String get onboarding_mode_help;
+
+  /// No description provided for @onboarding_mode_wifi_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'همه روی یک شبکه — بهترین کیفیت و برد اتصال'**
+  String get onboarding_mode_wifi_desc;
+
+  /// No description provided for @onboarding_mode_bluetooth_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتصال مستقیم دو گوشی، بدون نیاز به هیچ شبکه‌ای'**
+  String get onboarding_mode_bluetooth_desc;
+
+  /// No description provided for @onboarding_mode_guest_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'ورود مهمان‌ها از طریق مرورگر با اسکن یک کد QR'**
+  String get onboarding_mode_guest_desc;
+
+  /// No description provided for @onboarding_ready_title.
+  ///
+  /// In fa, this message translates to:
+  /// **' همه چیز آماده است'**
+  String get onboarding_ready_title;
+
+  /// No description provided for @onboarding_ready_sub.
+  ///
+  /// In fa, this message translates to:
+  /// **'کارت اپراتوری شما صادر شد — کانال شما را این‌گونه می‌بینید.'**
+  String get onboarding_ready_sub;
+
+  /// No description provided for @onboarding_tip_vox.
+  ///
+  /// In fa, this message translates to:
+  /// **'قابلیت VOX فعال است — فقط صحبت کنید تا صدایتان ارسال شود.'**
+  String get onboarding_tip_vox;
+
+  /// No description provided for @onboarding_tip_settings.
+  ///
+  /// In fa, this message translates to:
+  /// **'نام، نوع اتصال و حساسیت صدا همگی در بخش تنظیمات قرار دارند.'**
+  String get onboarding_tip_settings;
+
+  /// No description provided for @onboarding_tune_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'شخصی‌سازی برنامه'**
+  String get onboarding_tune_title;
+
+  /// No description provided for @onboarding_tune_sub.
+  ///
+  /// In fa, this message translates to:
+  /// **'زبان و ظاهر برنامه را انتخاب کنید — بعداً هم می‌توانید از تنظیمات تغییرشان دهید.'**
+  String get onboarding_tune_sub;
+
+  /// No description provided for @onboarding_language_label.
+  ///
+  /// In fa, this message translates to:
+  /// **'زبان'**
+  String get onboarding_language_label;
+
+  /// No description provided for @onboarding_theme_label.
+  ///
+  /// In fa, this message translates to:
+  /// **'پوسته (Theme)'**
+  String get onboarding_theme_label;
+
+  /// No description provided for @onboarding_signal.
+  ///
+  /// In fa, this message translates to:
+  /// **'سیگنال'**
+  String get onboarding_signal;
+
+  /// No description provided for @onboarding_stamp_ready.
+  ///
+  /// In fa, this message translates to:
+  /// **'آماده'**
+  String get onboarding_stamp_ready;
+
+  /// No description provided for @onboarding_explore.
+  ///
+  /// In fa, this message translates to:
+  /// **'اول گشت‌وگذار در لابی'**
+  String get onboarding_explore;
+
+  /// No description provided for @onboarding_callsign_pool.
+  ///
+  /// In fa, this message translates to:
+  /// **'شاهین,افعی,پژواک,ماوریک,طوفان,شبح,رنجر,کوچ‌نشین'**
+  String get onboarding_callsign_pool;
+
+  /// No description provided for @settings_replay_intro.
+  ///
+  /// In fa, this message translates to:
+  /// **'پخش مجدد راهنما'**
+  String get settings_replay_intro;
+
+  /// No description provided for @settings_replay_intro_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'مراحل خوش‌آمدگویی و تنظیمات اولیه را دوباره مرور کنید'**
+  String get settings_replay_intro_desc;
 }
 
 class _AppLocalizationsDelegate

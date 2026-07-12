@@ -8,13 +8,13 @@ import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widget/mesh_background.dart';
 import '../../../../core/widget/settings_icon_button.dart';
 import '../../../../core/widget/version_badge.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../manager/landing_cubit.dart';
 import '../widget/landing_identity_card.dart';
 import '../widget/landing_logo.dart';
-import '../widget/landing_mesh_background.dart';
 
 class LandingPage extends StatefulWidget {
   const LandingPage._();
@@ -105,7 +105,7 @@ class _LandingPageState extends State<LandingPage>
             children: [
               // Full-bleed animated mesh behind everything, including the
               // status-bar area — hence outside the SafeArea.
-              const Positioned.fill(child: LandingMeshBackground()),
+              const Positioned.fill(child: MeshBackground()),
               SafeArea(
                 child: Stack(
                   children: [
