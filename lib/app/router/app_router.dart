@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/router/routes.dart';
 import '../../feature/landing/api/landing_api.dart';
+import '../../feature/onboarding/api/onboarding_api.dart';
 import '../../feature/settings/api/settings_api.dart';
 import '../../feature/splash/api/splash_api.dart';
 import '../../feature/transfer/api/transfer_api.dart';
@@ -47,6 +48,15 @@ class AppRouter {
         path: AppRoutes.landingPath,
         name: AppRoutes.landingName,
         builder: (context, state) => LandingPage.buildPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.onboardingPath,
+        name: AppRoutes.onboardingName,
+        // `replay` is set when opened from Settings → Startup, so finishing
+        // pops back there instead of entering Landing.
+        builder: (context, state) => OnboardingPage.buildPage(
+          replay: state.uri.queryParameters['replay'] == 'true',
+        ),
       ),
       GoRoute(
         path: AppRoutes.walkiePath,
