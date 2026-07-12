@@ -45,88 +45,86 @@ Widget buildBeatTransition({
 // [_outGone]; the incoming beat is fully transparent until [_inStart] and then
 // arrives over the back half. The tiny gap between them is what stops the two
 // beats from ghosting through each other.
-const double _outGone = 0.42;
-const double _inStart = 0.40;
+// ── Shared fade-through schedule ────────────────────────────────────────────
+// Widened the gap to exactly 0.45 for both to ensure absolutely zero ghosting
+// on the new, faster 650ms clock.
+const double _outGone = 0.45; 
+const double _inStart = 0.45;
 
-double _exit(double t) => Curves.easeInCubic.transform((t / 0.55).clamp(0.0, 1.0));
+double _exit(double t) => Curves.easeInQuad.transform((t / 0.5).clamp(0.0, 1.0));
 double _exitOpacity(double t) => 1 - (t / _outGone).clamp(0.0, 1.0);
-double _enter(double t) => Curves.easeOutCubic.transform(
+double _enter(double t) => Curves.easeOutQuart.transform(
   ((t - _inStart) / (1 - _inStart)).clamp(0.0, 1.0),
 );
 double _enterOpacity(double t) =>
-    Curves.easeOut.transform(((t - _inStart) / 0.5).clamp(0.0, 1.0));
+    Curves.easeOut.transform(((t - _inStart) / 0.4).clamp(0.0, 1.0));
 
-/// 0↔1 — Warp. Fade-through zoom: forward, the old beat rushes toward the
-/// viewer and fades before the new one swells up out of depth; back mirrors it.
+/// 0↔1 — Warp. 
 Widget _warp(int dir, bool leaving, double t, Widget child) {
   if (leaving) {
     final e = _exit(t);
     return Opacity(
       opacity: _exitOpacity(t),
       child: Transform.scale(
-        scale: dir > 0 ? 1 + 0.75 * e : 1 - 0.45 * e,
+        // Softened the scale exaggeration
+        scale: dir > 0 ? 1 + 0.3 * e : 1 - 0.25 * e, 
         child: child,
       ),
     );
   }
   final e = _enter(t);
-  final from = dir > 0 ? 0.42 : 1.5;
+  final from = dir > 0 ? 0.6 : 1.3;
   return Opacity(
     opacity: _enterOpacity(t),
     child: Transform.scale(scale: from + (1 - from) * e, child: child),
   );
 }
 
-/// 1↔2 — Glide. A rigid filmstrip: the two beats sit exactly one screen-width
-/// apart and translate together, so the outgoing panel slides fully off one
-/// edge as the incoming slides in from the other — full opacity, no overlap.
+/// 1↔2 — Glide. 
 Widget _glide(int dir, bool leaving, double t, double width, Widget child) {
-  final e = Curves.easeInOutCubic.transform(t);
+  // Upgraded to Quart for a snappier mid-transition whip
+  final e = Curves.easeInOutQuart.transform(t); 
   final dx = leaving ? -dir * width * e : dir * width * (1 - e);
   return Transform.translate(offset: Offset(dx, 0), child: child);
 }
 
-/// 2↔3 — Flip. A true two-phase card flip: the outgoing beat rotates edge-on
-/// through the first half, then the incoming beat rotates in from edge-on
-/// through the second, so it reads as one card turning over (already clean —
-/// both faces are edge-on and invisible at the midpoint, so they never ghost).
+/// 2↔3 — Flip. 
 Widget _flip(int dir, bool leaving, double t, Widget child) {
   if (leaving) {
-    final e = Curves.easeInCubic.transform((t / 0.5).clamp(0.0, 1.0));
+    final e = Curves.easeInQuad.transform((t / 0.5).clamp(0.0, 1.0));
     return Opacity(
       opacity: (1 - e).clamp(0.0, 1.0),
       child: Transform(
         alignment: Alignment.center,
         transform: Matrix4.identity()
-          ..setEntry(3, 2, 0.0013)
+          ..setEntry(3, 2, 0.0008) // Reduced perspective distortion
           ..rotateY(-dir * (pi / 2) * e),
         child: child,
       ),
     );
   }
-  final e = Curves.easeOutCubic.transform(((t - 0.5) / 0.5).clamp(0.0, 1.0));
+  final e = Curves.easeOutQuad.transform(((t - 0.5) / 0.5).clamp(0.0, 1.0));
   return Opacity(
     opacity: e.clamp(0.0, 1.0),
     child: Transform(
       alignment: Alignment.center,
       transform: Matrix4.identity()
-        ..setEntry(3, 2, 0.0013)
+        ..setEntry(3, 2, 0.0008) // Reduced perspective distortion
         ..rotateY(dir * (pi / 2) * (1 - e)),
       child: child,
     ),
   );
 }
 
-/// 3↔4 — Rise. Fade-through stack-push onto the payoff: the old beat lifts away
-/// and fades, then the operator card rises from below with an easeOutBack
-/// overshoot and a small scale bloom — landing as the READY stamp hits.
+/// 3↔4 — Rise. 
 Widget _rise(int dir, bool leaving, double t, Widget child) {
   if (leaving) {
     final e = _exit(t);
     return Opacity(
       opacity: _exitOpacity(t),
       child: Transform.translate(
-        offset: Offset(0, -dir * 46 * e),
+        // Tightened vertical travel distances
+        offset: Offset(0, -dir * 30 * e), 
         child: Transform.scale(scale: 1 - 0.04 * e, child: child),
       ),
     );
@@ -138,7 +136,7 @@ Widget _rise(int dir, bool leaving, double t, Widget child) {
   return Opacity(
     opacity: _enterOpacity(t),
     child: Transform.translate(
-      offset: Offset(0, dir * 72 * (1 - e)),
+      offset: Offset(0, dir * 45 * (1 - e)),
       child: Transform.scale(scale: 0.94 + 0.06 * bloom, child: child),
     ),
   );

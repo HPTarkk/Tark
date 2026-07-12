@@ -65,7 +65,7 @@ class _OnboardingPageState extends State<OnboardingPage>
   /// quick shuffle, and the incoming beat's children stagger off it too.
   late final AnimationController _stepT = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1050),
+    duration: const Duration(milliseconds: 650),
   );
 
   /// One-shot scene entrance for the persistent chrome (header, emblem,
@@ -116,7 +116,7 @@ class _OnboardingPageState extends State<OnboardingPage>
   /// the details land first, then the panel comes to rest.
   late final Animation<double> _reveal = CurvedAnimation(
     parent: _stepT,
-    curve: const Interval(0.12, 0.78),
+    curve: const Interval(0.15, 0.85),
   );
 
   int _shown = 0;
