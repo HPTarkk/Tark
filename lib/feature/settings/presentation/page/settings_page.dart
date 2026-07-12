@@ -677,6 +677,20 @@ class _StartupCard extends StatelessWidget {
                 },
               ),
             ),
+            Divider(color: AppColors.border, height: 1),
+            SettingsRow(
+              icon: Icons.replay_rounded,
+              label: s.settings_replay_intro,
+              subtitle: s.settings_replay_intro_desc,
+              trailing: Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.textSecondary,
+              ),
+              onTap: () => context.pushNamed(
+                AppRoutes.onboardingName,
+                queryParameters: const {'replay': 'true'},
+              ),
+            ),
           ],
         ),
       ),

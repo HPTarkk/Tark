@@ -23,6 +23,7 @@ Cross-platform: **Android ↔ Android, iPhone ↔ iPhone, and Android ↔ iPhone
 - **Categorized Settings** — Profile, Voice & Audio (VOX, noise suppression, jitter-buffer delay, restore-defaults), Connection (transport picker, auto-reconnect, WiFi/Hotspot setup, Permissions), Sound & Alerts, Appearance, and Startup (quick access, skip splash), each its own card (reachable from Landing or a gear icon on the live channel). Opened from an active channel, voice changes apply live to that session instantly. Defaults to a hands-free voice combo — VOX wide open, noise suppression doing the work — so there's nothing to press to talk.
 - **Quick access** — after the first launch, opening the app jumps straight into your last-used channel/mode instead of showing Landing again — toggleable from Settings.
 - **Branded splash screen** — a short (≤3.5 s) cinematic launch sequence: an aurora backdrop, a frosted-glass emblem disc with an orbiting halo and broadcast ripples, a shimmering wordmark, and a hairline progress bar tied to the real wait — skippable from Settings for an instant cold start.
+- **First-run onboarding** — a five-beat animated journey on a single continuous canvas (no page swipes): tune in (language + theme, applied live with the circular reveal), what the app is (three quick facts), pick a callsign with a live avatar preview and a shuffle die that rolls radio handles, choose a transport with plain-language guidance, and a final operator card stamped READY. Progress is a filling signal-strength meter (SIGNAL 20%→100%), and the last beat drives straight into the product — JOIN CHANNEL lands you in your transport's join flow, or a quieter link explores the lobby first. Skippable at any point, shown exactly once (existing installs never see it), and replayable from Settings → Startup.
 - **Combined WiFi / Hotspot page** — one entry point with a segmented "Wi-Fi" / "Hotspot" choice instead of two separate flows; picking Wi-Fi just confirms both devices share a network, picking Hotspot walks through the existing Android-host / iPhone-join QR dance.
 - **Clearer permissions** — a dedicated Permissions page (mic, Bluetooth, hotspot, background battery exemption) shows what's granted and why, instead of scattered ad hoc prompts.
 - **Usage tips** — a one-time (ever), animated tips sheet with practical suggestions (ANC/handsfree headset, wearing a proper helmet, the hands-free voice defaults) surfaces a few seconds into your first session.
@@ -157,6 +158,10 @@ lib/
     │                 emits
     ├── walkie/     — WalkieTalkieCubit + main push-to-talk console
     ├── landing/    — lobby: identity, read-only transport-mode chip, Join
+    ├── onboarding/ — first-run journey: language/theme tune-in, welcome
+    │                 facts, callsign (+shuffle), transport choice, stamped
+    │                 operator card → straight into the join flow (one-time,
+    │                 replayable from Settings)
     ├── settings/   — categorized Settings page (Profile/Voice & Audio/
     │                 Connection/Sound/Appearance/Startup) + Permissions page;
     │                 edits an active session live when opened from the

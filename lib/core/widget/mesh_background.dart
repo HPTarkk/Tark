@@ -4,23 +4,38 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../theme/app_colors.dart';
 
 /// Ambient mesh-network backdrop: dim amber nodes drifting around fixed
 /// anchors, with lines linking whichever pairs drift close — a nod to the
 /// LAN-of-peers idea. Deliberately faint so the foreground stays the star.
+/// Shared by Landing and Onboarding, which is why it lives in core.
+///
+/// [wave] (optional) turns the mesh into a broadcast medium: drive it 0→1
+/// and a circular wavefront sweeps out from [waveOrigin] (fractional
+/// coordinates), momentarily brightening every node and link it crosses —
+/// one transmission rippling through the peer network. Landing passes
+/// nothing and gets the original calm drift.
 ///
 /// Owns its own [Ticker] so the page State doesn't need to drive it; the
 /// ticker pauses automatically while the route is covered (TickerMode), and
 /// the whole layer ignores pointer events.
-class LandingMeshBackground extends StatefulWidget {
-  const LandingMeshBackground({super.key});
+class MeshBackground extends StatefulWidget {
+  const MeshBackground({super.key, this.wave, this.waveOrigin});
+
+  /// 0..1 progress of one outgoing wavefront; values outside (0, 1) draw
+  /// nothing extra. An [AnimationController] fits directly.
+  final ValueListenable<double>? wave;
+
+  /// Wave epicenter in fractional screen coordinates (defaults to the upper
+  /// center, roughly where Onboarding parks its emblem).
+  final Offset? waveOrigin;
 
   @override
-  State<LandingMeshBackground> createState() => _LandingMeshBackgroundState();
+  State<MeshBackground> createState() => _MeshBackgroundState();
 }
 
-class _LandingMeshBackgroundState extends State<LandingMeshBackground>
+class _MeshBackgroundState extends State<MeshBackground>
     with SingleTickerProviderStateMixin {
   static const _nodeCount = 22;
 
@@ -55,6 +70,8 @@ class _LandingMeshBackgroundState extends State<LandingMeshBackground>
             time: _time,
             nodes: _nodes,
             color: AppColors.amber,
+            wave: widget.wave,
+            waveOrigin: widget.waveOrigin ?? const Offset(0.5, 0.25),
           ),
         ),
       ),
@@ -109,9 +126,16 @@ class _MeshPainter extends CustomPainter {
   final ValueListenable<double> time;
   final List<_MeshNode> nodes;
   final Color color;
+  final ValueListenable<double>? wave;
+  final Offset waveOrigin;
 
-  _MeshPainter({required this.time, required this.nodes, required this.color})
-    : super(repaint: time);
+  _MeshPainter({
+    required this.time,
+    required this.nodes,
+    required this.color,
+    required this.wave,
+    required this.waveOrigin,
+  }) : super(repaint: wave == null ? time : Listenable.merge([time, wave]));
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -122,6 +146,26 @@ class _MeshPainter extends CustomPainter {
 
     final positions = [for (final n in nodes) n.positionAt(t, size)];
 
+    // Broadcast wavefront: how close a point sits to the expanding ring
+    // decides how much extra light it borrows this frame.
+    final waveT = wave?.value ?? 1.0;
+    final waving = waveT > 0.0 && waveT < 1.0;
+    final origin = Offset(
+      waveOrigin.dx * size.width,
+      waveOrigin.dy * size.height,
+    );
+    final maxReach = _maxDistanceToCorner(origin, size);
+    final front = maxReach * Curves.easeOut.transform(waveT);
+    final band = size.shortestSide * 0.22;
+    double boostAt(Offset p) {
+      if (!waving) return 0;
+      final away = ((p - origin).distance - front).abs();
+      if (away >= band) return 0;
+      final x = 1 - away / band;
+      // Quadratic falloff inside the band, and the whole wave dims with age.
+      return x * x * (1 - waveT);
+    }
+
     // Lines: alpha grows as a pair drifts together, so links form and
     // dissolve organically instead of blinking in and out.
     final linkDistance = size.shortestSide * 0.28;
@@ -131,7 +175,10 @@ class _MeshPainter extends CustomPainter {
         final d = (positions[i] - positions[j]).distance;
         if (d >= linkDistance) continue;
         final strength = 1 - d / linkDistance;
-        linePaint.color = color.withAlpha((44 * strength * fade).toInt());
+        final boost = (boostAt(positions[i]) + boostAt(positions[j])) / 2;
+        linePaint.color = color.withAlpha(
+          ((44 * strength + 130 * boost) * fade).clamp(0, 255).toInt(),
+        );
         canvas.drawLine(positions[i], positions[j], linePaint);
       }
     }
@@ -139,12 +186,34 @@ class _MeshPainter extends CustomPainter {
     final dotPaint = Paint();
     for (var i = 0; i < nodes.length; i++) {
       final twinkle = 0.5 + 0.5 * sin(t * 1.3 + nodes[i].twinklePhase);
-      dotPaint.color = color.withAlpha(((55 + 65 * twinkle) * fade).toInt());
-      canvas.drawCircle(positions[i], nodes[i].radius, dotPaint);
+      final boost = boostAt(positions[i]);
+      dotPaint.color = color.withAlpha(
+        ((55 + 65 * twinkle + 150 * boost) * fade).clamp(0, 255).toInt(),
+      );
+      canvas.drawCircle(positions[i], nodes[i].radius + 1.6 * boost, dotPaint);
     }
+
+    // The wavefront itself: a faint expanding ring so the pulse reads even
+    // where no node happens to sit.
+    if (waving) {
+      canvas.drawCircle(
+        origin,
+        front,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.2
+          ..color = color.withAlpha((36 * (1 - waveT) * fade).toInt()),
+      );
+    }
+  }
+
+  static double _maxDistanceToCorner(Offset origin, Size size) {
+    final dx = max(origin.dx, size.width - origin.dx);
+    final dy = max(origin.dy, size.height - origin.dy);
+    return sqrt(dx * dx + dy * dy);
   }
 
   @override
   bool shouldRepaint(_MeshPainter old) =>
-      old.nodes != nodes || old.color != color;
+      old.nodes != nodes || old.color != color || old.wave != wave;
 }

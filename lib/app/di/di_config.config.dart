@@ -20,6 +20,8 @@ import 'package:tark/feature/audio/data/audio_engine_impl.dart' as _i876;
 import 'package:tark/feature/audio/domain/service/audio_engine.dart' as _i565;
 import 'package:tark/feature/landing/presentation/manager/landing_cubit.dart'
     as _i205;
+import 'package:tark/feature/onboarding/presentation/manager/onboarding_cubit.dart'
+    as _i766;
 import 'package:tark/feature/transfer/api/transfer_api.dart' as _i430;
 import 'package:tark/feature/transfer/data/repository/bluetooth_transfer_repository.dart'
     as _i485;
@@ -105,6 +107,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i627.WifiTransferRepositoryImpl>(),
         gh<_i485.BluetoothTransferRepository>(),
         gh<_i482.WebRtcTransferRepository>(),
+      ),
+    );
+    gh.factory<_i766.OnboardingCubit>(
+      () => _i766.OnboardingCubit(
+        gh<_i430.TransferModeStore>(),
+        gh<_i349.SettingsRepository>(),
       ),
     );
     gh.factory<_i496.WalkieTalkieCubit>(
