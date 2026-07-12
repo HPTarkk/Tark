@@ -619,4 +619,106 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settings_gear_tooltip => 'Settings';
+
+  @override
+  String get onboarding_welcome_title => 'A walkie-talkie on your own network';
+
+  @override
+  String get onboarding_welcome_sub =>
+      'Talk to nearby phones with no internet — direct, fast and private.';
+
+  @override
+  String get onboarding_info_lan => 'Works over shared WiFi or a hotspot';
+
+  @override
+  String get onboarding_info_private =>
+      'No servers, no sign-up — audio never leaves your network';
+
+  @override
+  String get onboarding_info_vox => 'Hands-free mic — just speak to transmit';
+
+  @override
+  String get onboarding_skip => 'SKIP';
+
+  @override
+  String get onboarding_begin => 'START SETUP';
+
+  @override
+  String get onboarding_continue => 'CONTINUE';
+
+  @override
+  String get onboarding_finish => 'GET STARTED';
+
+  @override
+  String get onboarding_callsign_title => 'Pick your callsign';
+
+  @override
+  String get onboarding_callsign_help =>
+      'This is how channel members will see you.';
+
+  @override
+  String get onboarding_mode_title => 'How will you connect?';
+
+  @override
+  String get onboarding_mode_help => 'You can change this anytime in Settings.';
+
+  @override
+  String get onboarding_mode_wifi_desc =>
+      'Everyone on the same network — best quality and range';
+
+  @override
+  String get onboarding_mode_bluetooth_desc =>
+      'Two phones linked directly, no network at all';
+
+  @override
+  String get onboarding_mode_guest_desc =>
+      'Guests join from a browser by scanning a QR code';
+
+  @override
+  String get onboarding_ready_title => 'You\'re all set';
+
+  @override
+  String get onboarding_ready_sub =>
+      'Your operator card is issued — this is how the channel sees you.';
+
+  @override
+  String get onboarding_tip_vox =>
+      'VOX is on — just speak and you\'re transmitting.';
+
+  @override
+  String get onboarding_tip_settings =>
+      'Name, transport and voice sensitivity all live in Settings.';
+
+  @override
+  String get onboarding_tune_title => 'Make it yours';
+
+  @override
+  String get onboarding_tune_sub =>
+      'Pick a language and a look — you can change both in Settings anytime.';
+
+  @override
+  String get onboarding_language_label => 'LANGUAGE';
+
+  @override
+  String get onboarding_theme_label => 'THEME';
+
+  @override
+  String get onboarding_signal => 'SIGNAL';
+
+  @override
+  String get onboarding_stamp_ready => 'READY';
+
+  @override
+  String get onboarding_explore => 'Explore the lobby first';
+
+  @override
+  String get onboarding_callsign_pool =>
+      'Falcon,Viper,Echo,Maverick,Storm,Ghost,Ranger,Nomad';
+
+  @override
+  String get settings_replay_intro => 'Replay intro';
+
+  @override
+  String get settings_replay_intro_desc =>
+      'Walk through the welcome and setup steps again';
 }

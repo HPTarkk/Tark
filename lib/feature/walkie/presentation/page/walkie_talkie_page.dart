@@ -9,7 +9,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
-import '../../../../core/settings/settings_repository_impl.dart';
+import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/sfx/sfx_event.dart';
 import '../../../../core/sfx/sfx_service.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -101,9 +101,9 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
   // Shown once ever, at a randomized moment a few seconds into a session
   // (not necessarily first launch) rather than the instant the page opens.
   Future<void> _scheduleUsageTips() async {
-    final repository = SettingsRepositoryImpl();
-    // final alreadyShown = await repository.getUsageTipsShown();
-    // if (alreadyShown || !mounted) return;
+    final repository = GetIt.instance<SettingsRepository>();
+    final alreadyShown = await repository.getUsageTipsShown();
+    if (alreadyShown || !mounted) return;
     final delay = Duration(seconds: 4 + Random().nextInt(7));
     _usageTipsTimer = Timer(delay, () async {
       if (!mounted) return;
