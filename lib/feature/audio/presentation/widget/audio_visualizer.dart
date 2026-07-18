@@ -36,10 +36,6 @@ class _AudioVisualizerState extends State<AudioVisualizer>
 
     _animatedSamples = List.filled(widget.barCount, 0);
 
-    _controller.addListener(() {
-      setState(() {});
-    });
-
     _controller.repeat(reverse: true);
   }
 
@@ -60,14 +56,19 @@ class _AudioVisualizerState extends State<AudioVisualizer>
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: _VisualizerPainter(
-        samples: _animatedSamples,
-        rms: widget.rms,
-        animationValue: _controller.value,
-        color: widget.color ?? Theme.of(context).colorScheme.primary,
+    // The painter listens to the controller directly (repaint:), so pulsing
+    // repaints at 60fps without rebuilding this widget; the RepaintBoundary
+    // keeps those audio-rate repaints off the surrounding page layer.
+    return RepaintBoundary(
+      child: CustomPaint(
+        painter: _VisualizerPainter(
+          samples: _animatedSamples,
+          rms: widget.rms,
+          animation: _controller,
+          color: widget.color ?? Theme.of(context).colorScheme.primary,
+        ),
+        size: Size.infinite,
       ),
-      size: Size.infinite,
     );
   }
 
@@ -81,19 +82,20 @@ class _AudioVisualizerState extends State<AudioVisualizer>
 class _VisualizerPainter extends CustomPainter {
   final List<double> samples;
   final double rms;
-  final double animationValue;
+  final Animation<double> animation;
   final Color color;
 
   _VisualizerPainter({
     required this.samples,
     required this.rms,
-    required this.animationValue,
+    required this.animation,
     required this.color,
-  });
+  }) : super(repaint: animation);
 
   @override
   void paint(Canvas canvas, Size size) {
     if (samples.isEmpty) return;
+    final animationValue = animation.value;
 
     final barWidth = size.width / samples.length;
     final centerY = size.height / 2;
@@ -144,6 +146,7 @@ class _VisualizerPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _VisualizerPainter oldDelegate) {
     return oldDelegate.samples != samples ||
-        oldDelegate.animationValue != animationValue;
+        oldDelegate.rms != rms ||
+        oldDelegate.color != color;
   }
 }

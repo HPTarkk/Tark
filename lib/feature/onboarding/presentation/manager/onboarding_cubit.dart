@@ -74,6 +74,11 @@ class OnboardingCubit extends Cubit<OnboardingState> {
 
   void selectMode(TransferMode mode) => emit(state.copyWith(mode: mode));
 
+  /// Records the theme preference (previewed live as the sky's time of day);
+  /// the real [ThemeService] switch is deferred to [finish] so the flow stays
+  /// free of the global re-key.
+  void selectTheme(AppThemeMode mode) => emit(state.copyWith(themePref: mode));
+
   /// Persists everything at once and marks onboarding done — the "explore
   /// the lobby first" and replay paths; the page navigates after this
   /// future completes.
@@ -81,6 +86,11 @@ class OnboardingCubit extends Cubit<OnboardingState> {
     final name = state.name.trim();
     if (name.isNotEmpty) await _settingsRepository.setMyName(name);
     await _modeStore.setMode(state.mode);
+    // Apply the deferred theme choice now, on the way out — the global re-key
+    // it triggers is harmless here since we're leaving the flow.
+    if (ThemeService.currentMode != state.themePref) {
+      await ThemeService.setMode(state.themePref);
+    }
     await _markCompleted();
   }
 
@@ -113,27 +123,44 @@ class OnboardingState extends Equatable {
   final String name;
   final TransferMode mode;
 
+  /// The theme the user has chosen on the tune beat. Held here (not pushed to
+  /// [ThemeService]) so the flow never triggers the global theme re-key that
+  /// would kill the scene's sunrise/sunset animation — it's applied for real
+  /// only at [OnboardingCubit.finish]. The environmental sky IS the live
+  /// preview of this choice.
+  final AppThemeMode themePref;
+
   const OnboardingState({
     required this.step,
     required this.name,
     required this.mode,
+    required this.themePref,
   });
 
-  factory OnboardingState.initial(TransferMode mode) =>
-      OnboardingState(step: 0, name: '', mode: mode);
+  factory OnboardingState.initial(TransferMode mode) => OnboardingState(
+    step: 0,
+    name: '',
+    mode: mode,
+    themePref: ThemeService.currentMode,
+  );
 
   /// The callsign beat gates its CTA on a non-blank name; every other beat
   /// is always free to advance.
   bool get canContinue =>
       step != OnboardingCubit.callsignStep || name.trim().isNotEmpty;
 
-  OnboardingState copyWith({int? step, String? name, TransferMode? mode}) =>
-      OnboardingState(
-        step: step ?? this.step,
-        name: name ?? this.name,
-        mode: mode ?? this.mode,
-      );
+  OnboardingState copyWith({
+    int? step,
+    String? name,
+    TransferMode? mode,
+    AppThemeMode? themePref,
+  }) => OnboardingState(
+    step: step ?? this.step,
+    name: name ?? this.name,
+    mode: mode ?? this.mode,
+    themePref: themePref ?? this.themePref,
+  );
 
   @override
-  List<Object?> get props => [step, name, mode];
+  List<Object?> get props => [step, name, mode, themePref];
 }

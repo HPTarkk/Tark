@@ -9,13 +9,16 @@ import '../../../../core/router/routes.dart';
 import '../../../../core/sfx/sfx_event.dart';
 import '../../../../core/sfx/sfx_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/theme_service.dart';
 import '../../../../core/widget/mesh_background.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../manager/onboarding_cubit.dart';
-import '../widget/aurora_backdrop.dart';
+import '../widget/assembling_radio.dart';
 import '../widget/beat_transitions.dart';
 import '../widget/callsign_step.dart';
-import '../widget/onboarding_emblem.dart';
+import '../widget/horizon_scene.dart';
+import '../widget/hud.dart';
+import '../widget/onboarding_palette.dart';
 import '../widget/ready_step.dart';
 import '../widget/transport_step.dart';
 import '../widget/tune_step.dart';
@@ -23,18 +26,23 @@ import '../widget/welcome_step.dart';
 
 /// First-run onboarding: one continuous scene, five beats.
 ///
-/// Nothing pages or swipes — the mesh backdrop and brand emblem persist
-/// while beat content cross-slides beneath them and the single CTA morphs
-/// its label, so the journey reads as one canvas rearranging itself:
+/// Nothing pages or swipes — a travelling [HorizonScene] (parallax ridges,
+/// a day/night sky, streaming ground) and a handheld radio that *assembles
+/// itself* persist while beat content cross-slides above them and the single
+/// CTA morphs its label, so the journey reads as one canvas rearranging
+/// itself while the unit is built up piece by piece:
 ///
-///   tune in (language + theme, applied live) → welcome (what this is) →
-///   callsign (who you are, with a handle-shuffle die) → transport (how you
-///   connect) → launch (your operator card, stamped READY).
+///   tune in (language + theme, applied live — flips the sky day↔night;
+///   chassis drops in) → welcome (what this is; antenna telescopes up) →
+///   callsign (who you are; the screen lights with your handle) → transport
+///   (how you connect; the link module clips on) → launch (PTT + LED go live
+///   and the unit keys up on air).
 ///
-/// Progress is gamified as a filling signal-strength meter, and the final
-/// beat drives straight into the product: JOIN CHANNEL lands the user in
-/// their transport's join flow (with Landing beneath it for back), while a
-/// quieter link lets them explore the lobby first.
+/// Progress is gamified twice over: a filling signal-strength meter in the
+/// header and the radio earning a component each beat. The final beat drives
+/// straight into the product: JOIN CHANNEL lands the user in their transport's
+/// join flow (with Landing beneath it for back), while a quieter link lets
+/// them explore the lobby first.
 ///
 /// Choices stay in [OnboardingCubit] until the final CTA persists them all
 /// at once; skipping marks onboarding done and touches nothing else. With
@@ -45,13 +53,23 @@ class OnboardingPage extends StatefulWidget {
 
   final bool replay;
 
-  /// [initialStep] deep-links a beat for the preview harness; the real app
-  /// always starts at the welcome beat.
-  static Widget buildPage({bool replay = false, int initialStep = 0}) =>
-      BlocProvider<OnboardingCubit>(
-        create: (_) => GetIt.instance<OnboardingCubit>()..jumpTo(initialStep),
-        child: OnboardingPage._(replay: replay),
-      );
+  /// [initialStep]/[initialName] deep-link a beat (and a callsign on the
+  /// radio screen) for the preview harness; the real app always starts at the
+  /// welcome beat with an empty handle.
+  static Widget buildPage({
+    bool replay = false,
+    int initialStep = 0,
+    String? initialName,
+  }) => BlocProvider<OnboardingCubit>(
+    create: (_) {
+      final cubit = GetIt.instance<OnboardingCubit>()..jumpTo(initialStep);
+      if (initialName != null && initialName.isNotEmpty) {
+        cubit.setName(initialName);
+      }
+      return cubit;
+    },
+    child: OnboardingPage._(replay: replay),
+  );
 
   @override
   State<OnboardingPage> createState() => _OnboardingPageState();
@@ -75,19 +93,14 @@ class _OnboardingPageState extends State<OnboardingPage>
     duration: const Duration(milliseconds: 900),
   );
 
-  /// Shared ambient clocks: breathing glow (emblem, selected cards, CTA
-  /// border), the welcome beat's broadcast ripples (doubling as the
-  /// callsign avatar's radar ping), a slow drift loop (aurora blobs, halo
-  /// shimmer rotation, comet orbit, VOX waveform), and the periodic gloss
-  /// glint (CTA + operator card).
+  /// Shared ambient clocks: breathing glow (radio live parts, selected HUD
+  /// frames, transmit key border), a slow drift loop (parallax sway, celestial
+  /// glow, VOX waveform), and the periodic gloss glint (transmit key + operator
+  /// panel).
   late final AnimationController _pulse = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 2000),
   )..repeat(reverse: true);
-  late final AnimationController _ripple = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 2800),
-  )..repeat();
   late final AnimationController _ambient = AnimationController(
     vsync: this,
     duration: const Duration(seconds: 12),
@@ -96,6 +109,22 @@ class _OnboardingPageState extends State<OnboardingPage>
     vsync: this,
     duration: const Duration(milliseconds: 3200),
   )..repeat();
+
+  /// Continuous travel clock: streams the horizon's foreground ground dashes
+  /// so the whole scene always reads as moving toward being on air.
+  late final AnimationController _scroll = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 4),
+  )..repeat();
+
+  /// Time of day for the [HorizonScene]: 0 = day, 1 = night. Animated toward
+  /// the tune beat's theme choice so picking Day/Night plays a real sunrise /
+  /// sunset. Seeded in [initState] from the current preference so the scene
+  /// opens at the right hour.
+  late final AnimationController _dayNight = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1500),
+  );
 
   /// One broadcast pulse per beat change (plus one on entrance): drives the
   /// mesh wavefront and the emblem's kick/burst together so the whole scene
@@ -129,10 +158,20 @@ class _OnboardingPageState extends State<OnboardingPage>
     super.initState();
     // The cubit may start past beat 0 (preview deep-link); the transition
     // listener only fires on *changes*, so seed the staged beat from it.
-    _shown = context.read<OnboardingCubit>().state.step;
+    final state = context.read<OnboardingCubit>().state;
+    _shown = state.step;
+    _dayNight.value = state.themePref == AppThemeMode.light ? 0.0 : 1.0;
     _intro.forward();
     _stepT.forward();
     _wave.forward(from: 0);
+  }
+
+  /// Plays the sunrise/sunset toward the chosen theme.
+  void _syncDayNight(AppThemeMode mode) {
+    _dayNight.animateTo(
+      mode == AppThemeMode.light ? 0.0 : 1.0,
+      curve: Curves.easeInOutCubic,
+    );
   }
 
   @override
@@ -140,9 +179,10 @@ class _OnboardingPageState extends State<OnboardingPage>
     _stepT.dispose();
     _intro.dispose();
     _pulse.dispose();
-    _ripple.dispose();
     _ambient.dispose();
     _shimmer.dispose();
+    _scroll.dispose();
+    _dayNight.dispose();
     _wave.dispose();
     super.dispose();
   }
@@ -235,8 +275,11 @@ class _OnboardingPageState extends State<OnboardingPage>
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: AppColors.systemOverlayStyle,
       child: BlocConsumer<OnboardingCubit, OnboardingState>(
-        listenWhen: (p, c) => p.step != c.step,
-        listener: (_, state) => _onStepChanged(state.step),
+        listenWhen: (p, c) => p.step != c.step || p.themePref != c.themePref,
+        listener: (_, state) {
+          if (state.step != _shown) _onStepChanged(state.step);
+          _syncDayNight(state.themePref);
+        },
         builder: (context, state) {
           final cubit = context.read<OnboardingCubit>();
           return PopScope(
@@ -249,17 +292,25 @@ class _OnboardingPageState extends State<OnboardingPage>
             },
             child: Scaffold(
               backgroundColor: AppColors.background,
+              // The callsign field lives in the top panel; let the keyboard
+              // overlay the lower scene/radio/key rather than squeezing the
+              // fixed-height column into an overflow.
+              resizeToAvoidBottomInset: false,
               body: Stack(
                 children: [
                   Positioned.fill(
-                    child: AuroraBackdrop(drift: _ambient, breath: _breath),
+                    child: HorizonScene(
+                      drift: _ambient,
+                      scroll: _scroll,
+                      dayNight: _dayNight,
+                    ),
                   ),
                   Positioned.fill(
                     child: MeshBackground(
                       wave: _wave,
-                      // Epicenter ≈ where the emblem sits, so mesh pulses
-                      // read as the emblem keying up the whole network.
-                      waveOrigin: const Offset(0.5, 0.24),
+                      // Epicenter ≈ where the radio's antenna sits, so mesh
+                      // pulses read as the unit keying up the whole network.
+                      waveOrigin: const Offset(0.5, 0.72),
                     ),
                   ),
                   SafeArea(
@@ -269,9 +320,9 @@ class _OnboardingPageState extends State<OnboardingPage>
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           _buildHeader(context, cubit, state),
-                          _buildEmblem(state),
                           Expanded(child: _buildBeats(state)),
-                          const SizedBox(height: 12),
+                          _buildRadio(state),
+                          const SizedBox(height: 10),
                           _buildCta(context, cubit, state),
                           _buildExplore(context, cubit, state),
                           const SizedBox(height: 4),
@@ -317,7 +368,7 @@ class _OnboardingPageState extends State<OnboardingPage>
                 onTap: cubit.back,
                 child: Icon(
                   Icons.arrow_back_rounded,
-                  color: AppColors.textSecondary,
+                  color: Onb.textDim,
                   size: 20,
                 ),
               ),
@@ -329,8 +380,8 @@ class _OnboardingPageState extends State<OnboardingPage>
                 onTap: () => _skip(cubit),
                 child: Text(
                   s.onboarding_skip,
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
+                  style: const TextStyle(
+                    color: Onb.textDim,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 1.5,
@@ -344,51 +395,38 @@ class _OnboardingPageState extends State<OnboardingPage>
     );
   }
 
-  // ── Emblem band: large + rippling on welcome, compact afterwards ───────────
+  // ── Radio band: the unit that assembles itself as the journey advances ─────
 
-  Widget _buildEmblem(OnboardingState state) {
+  /// The gamified hero — a handheld radio that gains a component per beat and
+  /// keys up on the launch beat. It sits low, on the horizon's ground line, so
+  /// it reads as standing on the road the scene is travelling.
+  Widget _buildRadio(OnboardingState state) {
     final introT = CurvedAnimation(parent: _intro, curve: Curves.easeOutCubic);
     return AnimatedBuilder(
-      // Entrance: the emblem descends into the scene while fading in, like
-      // it's arriving from the splash's center stage.
+      // Entrance: the unit rises into the scene while fading in.
       animation: introT,
       builder: (_, child) => Opacity(
         opacity: introT.value,
         child: Transform.translate(
-          offset: Offset(0, -26 * (1 - introT.value)),
+          offset: Offset(0, 24 * (1 - introT.value)),
           child: child,
         ),
       ),
-      child: TweenAnimationBuilder<double>(
-        // 1 → welcome staging, 0 → compact header ornament; every emblem
-        // property derives from this one value so the whole morph is a
-        // single continuous gesture.
-        tween: Tween(
-          end: state.step == OnboardingCubit.welcomeStep ? 1.0 : 0.0,
-        ),
-        duration: const Duration(milliseconds: 820),
-        curve: Curves.easeInOutCubic,
-        builder: (_, w, _) => SizedBox(
-          height: 120 + 110 * w,
-          child: Center(
-            child: OverflowBox(
-              maxWidth: double.infinity,
-              maxHeight: double.infinity,
-              child: AnimatedBuilder(
-                animation: Listenable.merge([
-                  _breath,
-                  _ripple,
-                  _ambient,
-                  _wave,
-                ]),
-                builder: (_, _) => OnboardingEmblem(
-                  size: 72 + 56 * w,
-                  breath: _breath.value,
-                  ripple: _ripple.value,
-                  spin: _ambient.value,
-                  kick: _wave.value,
-                  ripplesVisible: w,
-                ),
+      child: SizedBox(
+        height: 218,
+        child: Center(
+          // The radio repaints every frame on the ambient clocks; the boundary
+          // keeps that off the layer shared with the static beat content.
+          child: RepaintBoundary(
+            child: AnimatedBuilder(
+              animation: Listenable.merge([_breath, _shimmer, _wave]),
+              builder: (_, _) => AssemblingRadio(
+                step: state.step,
+                glow: _breath.value,
+                scan: _shimmer.value,
+                kick: _wave.value,
+                callsign: state.name,
+                mode: state.mode,
               ),
             ),
           ),
@@ -452,17 +490,13 @@ class _OnboardingPageState extends State<OnboardingPage>
     ),
     OnboardingCubit.callsignStep => CallsignStep(
       reveal: _reveal,
-      ping: _ripple,
       onSubmit: () => context.read<OnboardingCubit>().next(),
     ),
-    OnboardingCubit.transportStep => TransportStep(
-      reveal: _reveal,
-      pulse: _breath,
-    ),
+    OnboardingCubit.transportStep => TransportStep(reveal: _reveal),
     _ => ReadyStep(reveal: _reveal, shimmer: _shimmer),
   };
 
-  // ── Persistent CTA: one button whose label morphs per beat ─────────────────
+  // ── Persistent transmit key: the diegetic CTA whose label morphs per beat ──
 
   Widget _buildCta(
     BuildContext context,
@@ -478,118 +512,38 @@ class _OnboardingPageState extends State<OnboardingPage>
         widget.replay ? s.onboarding_finish : s.join_channel,
       _ => s.onboarding_continue,
     };
-    // Pulse only on the bookend beats — mid-journey the button stays calm
-    // so the beat content owns the motion.
+    // Pulse only on the bookend beats — mid-journey the key stays calm so the
+    // beat content owns the motion.
     final pulsing =
         enabled && (state.step == OnboardingCubit.tuneStep || isLast);
 
+    void onTap() {
+      HapticFeedback.selectionClick();
+      if (!isLast) {
+        cubit.next();
+      } else if (widget.replay) {
+        _finishReplay(cubit);
+      } else {
+        _launch(cubit);
+      }
+    }
+
     return FadeTransition(
       opacity: CurvedAnimation(parent: _intro, curve: Curves.easeOut),
-      child: AnimatedBuilder(
-        animation: Listenable.merge([_breath, _shimmer]),
-        builder: (_, child) {
-          // Periodic gloss glint sweeping across the button face — the band
-          // only occupies part of the cycle, so it reads as an occasional
-          // catch of light, not a strobe.
-          final glossT = Curves.easeInOut.transform(
-            ((_shimmer.value - 0.15) / 0.5).clamp(0.0, 1.0),
-          );
-          final dx = -1.8 + 3.6 * glossT;
-          return GestureDetector(
-            onTap: enabled
-                ? () {
-                    HapticFeedback.selectionClick();
-                    if (!isLast) {
-                      cubit.next();
-                    } else if (widget.replay) {
-                      _finishReplay(cubit);
-                    } else {
-                      _launch(cubit);
-                    }
-                  }
-                : null,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              padding: const EdgeInsets.symmetric(vertical: 18),
-              decoration: BoxDecoration(
-                color: enabled
-                    ? AppColors.amber.withAlpha(25)
-                    : AppColors.border.withAlpha(40),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: enabled
-                      ? Color.lerp(
-                          AppColors.amber,
-                          AppColors.amber.withAlpha(120),
-                          pulsing ? _breath.value : 0.5,
-                        )!
-                      : AppColors.border,
-                  width: 2,
-                ),
-                boxShadow: pulsing
-                    ? [
-                        BoxShadow(
-                          color: AppColors.amber.withAlpha(
-                            (15 + 40 * _breath.value).toInt(),
-                          ),
-                          blurRadius: 28,
-                          spreadRadius: 2,
-                        ),
-                      ]
-                    : null,
-              ),
-              child: ShaderMask(
-                blendMode: BlendMode.srcATop,
-                shaderCallback: (rect) => LinearGradient(
-                  begin: Alignment(dx - 0.6, -1),
-                  end: Alignment(dx + 0.6, 1),
-                  colors: [
-                    const Color(0x00FFFFFF),
-                    Colors.white.withAlpha(enabled ? 55 : 0),
-                    const Color(0x00FFFFFF),
-                  ],
-                ).createShader(rect),
-                child: child,
-              ),
-            ),
-          );
-        },
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 250),
-          transitionBuilder: (child, anim) => FadeTransition(
-            opacity: anim,
-            child: SlideTransition(
-              position: Tween(
-                begin: const Offset(0, 0.4),
-                end: Offset.zero,
-              ).animate(anim),
-              child: child,
-            ),
-          ),
-          child: Row(
-            key: ValueKey('$label-${state.canContinue}'),
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                isLast ? Icons.podcasts_rounded : Icons.play_arrow_rounded,
-                color: state.canContinue
-                    ? AppColors.amber
-                    : AppColors.textSecondary,
-                size: 20,
-              ),
-              const SizedBox(width: 10),
-              Text(
-                label,
-                style: TextStyle(
-                  color: state.canContinue
-                      ? AppColors.amber
-                      : AppColors.textSecondary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 2,
-                ),
-              ),
-            ],
+      // The key repaints every frame on the glow/gloss clocks; the boundary
+      // keeps that off the layer shared with the rest of the column.
+      child: RepaintBoundary(
+        child: AnimatedBuilder(
+          animation: Listenable.merge([_breath, _shimmer]),
+          builder: (_, _) => HudActionKey(
+            key: ValueKey('$label-$enabled'),
+            label: label,
+            enabled: enabled,
+            pulsing: pulsing,
+            go: isLast,
+            glow: _breath.value,
+            gloss: _shimmer.value,
+            onTap: onTap,
           ),
         ),
       ),
@@ -598,8 +552,8 @@ class _OnboardingPageState extends State<OnboardingPage>
 
   // ── Quiet exit: look around the lobby instead of joining right away ────────
 
-  /// Fixed-height slot under the CTA so the button never shifts; the link
-  /// itself only exists on the launch beat of a real first run.
+  /// Fixed-height slot under the key so it never shifts; the link itself only
+  /// exists on the launch beat of a real first run.
   Widget _buildExplore(
     BuildContext context,
     OnboardingCubit cubit,
@@ -623,13 +577,12 @@ class _OnboardingPageState extends State<OnboardingPage>
                   vertical: 8,
                 ),
                 child: Text(
-                  context.getString.onboarding_explore,
+                  '‹ ${context.getString.onboarding_explore} ›'.toUpperCase(),
                   style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    decoration: TextDecoration.underline,
-                    decorationColor: AppColors.textSecondary.withAlpha(120),
+                    color: Onb.textDim,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.5,
                   ),
                 ),
               ),

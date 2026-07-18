@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../../../core/settings/noise_suppression_engine.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/settings/settings_repository_impl.dart';
 import '../../../../core/sfx/sfx_event.dart';
@@ -55,6 +56,8 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
   Future<void> _init() async {
     final voxThreshold = await _settingsRepository.getVoxThreshold();
     final noiseSuppression = await _settingsRepository.getNoiseSuppression();
+    final noiseSuppressionEngine = await _settingsRepository
+        .getNoiseSuppressionEngine();
     final musicGain = await _settingsRepository.getMusicGain();
 
     // The page can be exited while _init is still awaiting (fast back-out).
@@ -63,6 +66,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     if (isClosed) return;
 
     _audioEngine.setNoiseSuppression(noiseSuppression);
+    _audioEngine.setNoiseSuppressionEngine(noiseSuppressionEngine);
     // Attached before start() so no status event can fire and be missed —
     // the controller is a plain broadcast stream, not a replay one.
     _statusSub = _audioEngine.status.listen((status) {
@@ -95,6 +99,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
         myName: myName,
         voxThreshold: voxThreshold,
         noiseSuppression: noiseSuppression,
+        noiseSuppressionEngine: noiseSuppressionEngine,
         musicGain: musicGain,
         transferMode: _modeStore.mode,
       ),
@@ -436,6 +441,12 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     await _settingsRepository.setNoiseSuppression(strength);
   }
 
+  Future<void> setNoiseSuppressionEngine(NoiseSuppressionEngine engine) async {
+    _audioEngine.setNoiseSuppressionEngine(engine);
+    emit(state.copyWith(noiseSuppressionEngine: engine));
+    await _settingsRepository.setNoiseSuppressionEngine(engine);
+  }
+
   /// Manual "Retry now" action for the connection-health banner — bypasses
   /// any backoff wait and is the only way to recover when auto-reconnect is
   /// turned off.
@@ -531,6 +542,7 @@ class WalkieTalkieState extends Equatable {
   final bool hasPermission;
   final double voxThreshold;
   final double noiseSuppression;
+  final NoiseSuppressionEngine noiseSuppressionEngine;
   final List<ChannelUser> activeUsers;
   final bool isReady;
   final TransferMode transferMode;
@@ -549,6 +561,7 @@ class WalkieTalkieState extends Equatable {
     required this.hasPermission,
     required this.voxThreshold,
     required this.noiseSuppression,
+    required this.noiseSuppressionEngine,
     required this.activeUsers,
     required this.isReady,
     required this.transferMode,
@@ -564,7 +577,8 @@ class WalkieTalkieState extends Equatable {
     isTransmitting: false,
     hasPermission: true,
     voxThreshold: 0.0,
-    noiseSuppression: 0.8,
+    noiseSuppression: 1.0,
+    noiseSuppressionEngine: NoiseSuppressionEngine.spectral,
     activeUsers: [],
     isReady: false,
     transferMode: TransferMode.wifi,
@@ -581,6 +595,7 @@ class WalkieTalkieState extends Equatable {
     bool? hasPermission,
     double? voxThreshold,
     double? noiseSuppression,
+    NoiseSuppressionEngine? noiseSuppressionEngine,
     List<ChannelUser>? activeUsers,
     bool? isReady,
     TransferMode? transferMode,
@@ -595,6 +610,7 @@ class WalkieTalkieState extends Equatable {
     hasPermission: hasPermission ?? this.hasPermission,
     voxThreshold: voxThreshold ?? this.voxThreshold,
     noiseSuppression: noiseSuppression ?? this.noiseSuppression,
+    noiseSuppressionEngine: noiseSuppressionEngine ?? this.noiseSuppressionEngine,
     activeUsers: activeUsers ?? this.activeUsers,
     isReady: isReady ?? this.isReady,
     transferMode: transferMode ?? this.transferMode,
@@ -614,6 +630,7 @@ class WalkieTalkieState extends Equatable {
     hasPermission,
     voxThreshold,
     noiseSuppression,
+    noiseSuppressionEngine,
     activeUsers,
     isReady,
     transferMode,

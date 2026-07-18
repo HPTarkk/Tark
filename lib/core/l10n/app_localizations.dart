@@ -824,6 +824,42 @@ abstract class AppLocalizations {
   /// **'زیاد'**
   String get noise_filter_strong;
 
+  /// No description provided for @settings_section_advanced.
+  ///
+  /// In fa, this message translates to:
+  /// **'پیشرفته'**
+  String get settings_section_advanced;
+
+  /// No description provided for @settings_noise_engine.
+  ///
+  /// In fa, this message translates to:
+  /// **'موتور حذف نویز'**
+  String get settings_noise_engine;
+
+  /// No description provided for @settings_noise_engine_spectral.
+  ///
+  /// In fa, this message translates to:
+  /// **'طیفی'**
+  String get settings_noise_engine_spectral;
+
+  /// No description provided for @settings_noise_engine_rnnoise.
+  ///
+  /// In fa, this message translates to:
+  /// **'عصبی'**
+  String get settings_noise_engine_rnnoise;
+
+  /// No description provided for @settings_noise_engine_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'موتور عصبی (RNNoise) علاوه بر همهمه‌ی موتور، نویز باد و ترافیک را هم حذف می‌کند؛ موتور طیفی مصرف باتری کمتری دارد.'**
+  String get settings_noise_engine_desc;
+
+  /// No description provided for @settings_noise_engine_unavailable.
+  ///
+  /// In fa, this message translates to:
+  /// **'موتور عصبی هنوز روی این پلتفرم در دسترس نیست.'**
+  String get settings_noise_engine_unavailable;
+
   /// No description provided for @sfx_feedback.
   ///
   /// In fa, this message translates to:

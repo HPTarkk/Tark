@@ -77,15 +77,30 @@ a { color: inherit; text-decoration: none; }
 .d4 { transition-delay: .38s; }
 .d5 { transition-delay: .5s; }
 
-.cards .card:nth-child(2) { transition-delay: .12s; }
-.cards .card:nth-child(3) { transition-delay: .24s; }
-.cards .card:nth-child(4) { transition-delay: .36s; }
+/* Cards and spec tiles stagger their entrance with a keyframe animation
+   (animation-delay), NOT transition-delay. A staggered transition-delay has
+   higher specificity than .card's own transition and so leaks into the hover
+   lift too — making later cards feel sluggish to hover. animation-fill-mode
+   `backwards` holds the hidden state through the delay, then hands transform/
+   opacity back to the element so hover stays instant. */
+.cards .card.visible,
+.spec-grid .spec.visible {
+  animation: tileIn .8s cubic-bezier(.2, .7, .2, 1) backwards;
+}
 
-.spec-grid .spec:nth-child(2) { transition-delay: .08s; }
-.spec-grid .spec:nth-child(3) { transition-delay: .16s; }
-.spec-grid .spec:nth-child(4) { transition-delay: .24s; }
-.spec-grid .spec:nth-child(5) { transition-delay: .32s; }
-.spec-grid .spec:nth-child(6) { transition-delay: .4s; }
+@keyframes tileIn {
+  from { opacity: 0; transform: translateY(26px); }
+}
+
+.cards .card:nth-child(2).visible { animation-delay: .12s; }
+.cards .card:nth-child(3).visible { animation-delay: .24s; }
+.cards .card:nth-child(4).visible { animation-delay: .36s; }
+
+.spec-grid .spec:nth-child(2).visible { animation-delay: .08s; }
+.spec-grid .spec:nth-child(3).visible { animation-delay: .16s; }
+.spec-grid .spec:nth-child(4).visible { animation-delay: .24s; }
+.spec-grid .spec:nth-child(5).visible { animation-delay: .32s; }
+.spec-grid .spec:nth-child(6).visible { animation-delay: .4s; }
 
 /* ── Nav ────────────────────────────────────────────────────────────── */
 
@@ -233,19 +248,6 @@ nav.scrolled {
   opacity: .8;
   mask-image: linear-gradient(to bottom, transparent 0, #000 14%, #000 72%, transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14%, #000 72%, transparent 100%);
-}
-
-.hero-spotlight {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: radial-gradient(
-    480px circle at var(--mx, 50%) var(--my, 32%),
-    rgba(245, 133, 63, .12),
-    transparent 65%
-  );
-  transition: background .25s ease-out;
-  transform: translateY(var(--parallax, 0px));
 }
 
 .hero-content { position: relative; max-width: 520px; }
@@ -481,14 +483,18 @@ nav.scrolled {
    "playhead" sweeping across. Bars and their stagger delays are built in
    app.js; each bar's height comes in as --h (a percentage). */
 
+/* Full-bleed: the waveform spans the whole viewport and runs a little past
+   both edges (clipped by body's overflow-x: hidden) so it reads as an
+   endless signal continuing off-screen rather than a centered strip. */
 .signal-divider {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  max-width: 1080px;
+  width: calc(100% + 80px);
+  max-width: none;
   height: 72px;
-  margin: -46px auto;
-  padding: 0 24px;
+  margin: -46px -40px;
+  padding: 0;
 }
 
 /* Each bar runs two animations on disjoint properties so they compose:
@@ -540,50 +546,23 @@ nav.scrolled {
   padding: 26px;
   position: relative;
   overflow: hidden;
-  /* Only the first card gets the mouse-follow tilt (below) — the rest just
-     lift on hover via --ty. */
+  /* Every card behaves the same — a lift on hover via --ty. */
   transform: translateY(var(--ty, 0px));
   transition: transform .12s ease-out, border-color .35s,
               box-shadow .35s, opacity .8s;
 }
 
-/* First card only: mouse-follow tilt + radial shine, driven by --rx/--ry/
-   --mx/--my (set in app.js, scoped to this card alone). */
-.card:first-child {
-  transform: perspective(1200px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(var(--ty, 0px));
-}
-
-.card:first-child::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  background: radial-gradient(
-    260px circle at var(--mx, 50%) var(--my, 50%),
-    rgba(245, 133, 63, .12),
-    transparent 60%
-  );
-  transition: opacity .35s;
-  pointer-events: none;
-}
-
 /* .reveal.visible's `transform: none` outranks .card's base rule on
-   specificity alone once revealed — restate it here so tilt/lift keep working. */
+   specificity alone once revealed — restate it here so the lift keeps working. */
 .card.reveal.visible {
   transform: translateY(var(--ty, 0px));
-}
-
-.card:first-child.reveal.visible {
-  transform: perspective(1200px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(var(--ty, 0px));
 }
 
 .card:hover {
   --ty: -6px;
   border-color: rgba(245, 133, 63, .5);
-  box-shadow: 0 18px 50px rgba(0, 0, 0, .45), 0 0 30px rgba(245, 133, 63, .07);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .45);
 }
-
-.card:first-child:hover::before { opacity: 1; }
 
 .card-icon {
   width: 52px; height: 52px;
@@ -957,7 +936,8 @@ nav.scrolled {
   position: relative;
 }
 
-.spec-grid .spec:nth-child(7) { transition-delay: .48s; }
+.spec-grid .spec:nth-child(7).visible { animation-delay: .48s; }
+.spec-grid .spec:nth-child(8).visible { animation-delay: .56s; }
 
 /* Hairlines come from each card's own border, not a background peeking
    through the grid gap — with an odd item count (or any incomplete last
@@ -1313,6 +1293,8 @@ footer p { color: var(--text-sec); font-size: .82rem; margin-top: 22px; }
 [dir="rtl"] .hero-title, [dir="rtl"] h2 { letter-spacing: 0; }
 [dir="rtl"] .eyebrow, [dir="rtl"] .hero-eyebrow { letter-spacing: .06em; }
 [dir="rtl"] .btn { letter-spacing: 0; }
+/* Wide letter-spacing severs Persian cursive joins — drop it on the ticker. */
+[dir="rtl"] .ticker-track span { letter-spacing: 0; }
 
 /* ── Language switch fade ──────────────────────────────────────────── */
 /* Text (and the whole ltr/rtl flip) swaps while faded to transparent, so

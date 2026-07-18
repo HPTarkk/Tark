@@ -36,7 +36,11 @@ class VoxMeter extends StatelessWidget {
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: AppColors.border),
               ),
-              child: _VoxLevelBar(voxThreshold: state.voxThreshold),
+              // The bar animates at audio rate; the boundary keeps those
+              // repaints from invalidating the rest of the page layer.
+              child: RepaintBoundary(
+                child: _VoxLevelBar(voxThreshold: state.voxThreshold),
+              ),
             ),
             if (!state.hasPermission) _MicPermissionWarning(),
           ],

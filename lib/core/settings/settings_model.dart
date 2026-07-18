@@ -2,6 +2,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/quick_access_config.dart';
 import 'app_settings.dart';
+import 'noise_suppression_engine.dart';
 import 'settings_keys.dart';
 
 /// Data-layer representation of [AppSettings]: adds JSON (de)serialization
@@ -11,6 +12,7 @@ class SettingsModel extends AppSettings {
     required super.myName,
     required super.voxThreshold,
     required super.noiseSuppression,
+    required super.noiseSuppressionEngine,
     required super.musicGain,
     required super.targetBufferMs,
     required super.autoReconnectEnabled,
@@ -23,6 +25,7 @@ class SettingsModel extends AppSettings {
     myName: s.myName,
     voxThreshold: s.voxThreshold,
     noiseSuppression: s.noiseSuppression,
+    noiseSuppressionEngine: s.noiseSuppressionEngine,
     musicGain: s.musicGain,
     targetBufferMs: s.targetBufferMs,
     autoReconnectEnabled: s.autoReconnectEnabled,
@@ -39,6 +42,11 @@ class SettingsModel extends AppSettings {
           (json['voxThreshold'] as num?)?.toDouble() ?? d.voxThreshold,
       noiseSuppression:
           (json['noiseSuppression'] as num?)?.toDouble() ?? d.noiseSuppression,
+      noiseSuppressionEngine: json['noiseSuppressionEngine'] == null
+          ? d.noiseSuppressionEngine
+          : NoiseSuppressionEngine.fromName(
+              json['noiseSuppressionEngine'] as String?,
+            ),
       musicGain: (json['musicGain'] as num?)?.toDouble() ?? d.musicGain,
       targetBufferMs:
           (json['targetBufferMs'] as num?)?.toInt() ?? d.targetBufferMs,
@@ -55,6 +63,7 @@ class SettingsModel extends AppSettings {
     'myName': myName,
     'voxThreshold': voxThreshold,
     'noiseSuppression': noiseSuppression,
+    'noiseSuppressionEngine': noiseSuppressionEngine.name,
     'musicGain': musicGain,
     'targetBufferMs': targetBufferMs,
     'autoReconnectEnabled': autoReconnectEnabled,
@@ -74,6 +83,12 @@ class SettingsModel extends AppSettings {
           prefs.getDouble(SettingsKeys.voxThreshold) ?? d.voxThreshold,
       noiseSuppression:
           prefs.getDouble(SettingsKeys.noiseSuppression) ?? d.noiseSuppression,
+      noiseSuppressionEngine:
+          prefs.getString(SettingsKeys.noiseSuppressionEngine) == null
+          ? d.noiseSuppressionEngine
+          : NoiseSuppressionEngine.fromName(
+              prefs.getString(SettingsKeys.noiseSuppressionEngine),
+            ),
       musicGain: prefs.getDouble(SettingsKeys.musicGain) ?? d.musicGain,
       targetBufferMs:
           prefs.getInt(SettingsKeys.targetBufferMs) ?? d.targetBufferMs,

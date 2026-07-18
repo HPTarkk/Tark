@@ -5,6 +5,7 @@ import 'package:audio_io/audio_io.dart';
 import 'package:injectable/injectable.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../../core/settings/noise_suppression_engine.dart';
 import '../../../core/settings/settings_repository.dart';
 import '../../../core/settings/settings_repository_impl.dart';
 import '../../../core/utils/logger.dart';
@@ -12,6 +13,7 @@ import '../domain/audio_processor.dart';
 import '../domain/entity/audio_engine_status.dart';
 import '../domain/entity/audio_frame.dart';
 import '../domain/resampler.dart';
+import '../domain/rnnoise_suppressor.dart';
 import '../domain/service/audio_engine.dart';
 import '../domain/spectral_noise_suppressor.dart';
 import 'audio_playback_buffer.dart';
@@ -59,11 +61,15 @@ class AudioEngineImpl implements AudioEngine {
     sampleRate: kTxSampleRate.toDouble(),
   );
 
-  // Spectral noise suppression on the 16 kHz mic signal, applied BEFORE
-  // frames are emitted so both the VOX RMS decision and the visualizer see
-  // the cleaned signal. That's the point: with stationary noise (wind,
-  // engine) subtracted, a low VOX threshold no longer keys up on noise.
-  final SpectralNoiseSuppressor _suppressor = SpectralNoiseSuppressor();
+  // Noise suppression on the 16 kHz mic signal, applied BEFORE frames are
+  // emitted so both the VOX RMS decision and the visualizer see the cleaned
+  // signal. That's the point: with noise subtracted, a low VOX threshold no
+  // longer keys up on noise. Two engines, user-selectable in Advanced
+  // settings — both kept warm (reset when idle costs nothing) so switching
+  // engines mid-session doesn't need to rebuild anything.
+  final SpectralNoiseSuppressor _spectralSuppressor = SpectralNoiseSuppressor();
+  final RnnoiseSuppressor _rnnoiseSuppressor = RnnoiseSuppressor();
+  NoiseSuppressionEngine _suppressionEngine = NoiseSuppressionEngine.spectral;
 
   AudioPlaybackBuffer? _buffer;
   StreamSubscription<List<double>>? _inputSub;
@@ -207,7 +213,8 @@ class AudioEngineImpl implements AudioEngine {
           (fmt?['output']?['sampleRate'] as num?)?.toDouble() ?? inputRate;
 
       _processor = AudioProcessor(sampleRate: kTxSampleRate.toDouble());
-      _suppressor.reset();
+      _spectralSuppressor.reset();
+      _rnnoiseSuppressor.reset();
 
       if (inputRate > kTxSampleRate) {
         _txLowPassA = OnePoleLowPass(
@@ -272,7 +279,13 @@ class AudioEngineImpl implements AudioEngine {
     final resampled = resampler.process(filtered);
     if (resampled.isEmpty) return;
 
-    _txAccum.addAll(_suppressor.process(resampled));
+    final useRnnoise =
+        _suppressionEngine == NoiseSuppressionEngine.rnnoise &&
+        _rnnoiseSuppressor.isAvailable;
+    final suppressed = useRnnoise
+        ? _rnnoiseSuppressor.process(resampled)
+        : _spectralSuppressor.process(resampled);
+    _txAccum.addAll(suppressed);
 
     while (_txAccum.length >= kFrameSamples) {
       final frame = _txAccum.sublist(0, kFrameSamples);
@@ -331,7 +344,14 @@ class AudioEngineImpl implements AudioEngine {
 
   @override
   void setNoiseSuppression(double strength) {
-    _suppressor.strength = strength.clamp(0.0, 1.0);
+    final clamped = strength.clamp(0.0, 1.0);
+    _spectralSuppressor.strength = clamped;
+    _rnnoiseSuppressor.strength = clamped;
+  }
+
+  @override
+  void setNoiseSuppressionEngine(NoiseSuppressionEngine engine) {
+    _suppressionEngine = engine;
   }
 
   @override
@@ -356,6 +376,7 @@ class AudioEngineImpl implements AudioEngine {
     await _frameController.close();
     await _statusController.close();
     _buffer?.dispose();
+    _rnnoiseSuppressor.dispose();
     // Epoch-guarded: if a newer session already claimed the engine (the
     // user re-entered the walkie page before this dispose chain finished),
     // leave it running for them instead of killing their session.

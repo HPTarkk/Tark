@@ -5,6 +5,7 @@ import 'package:audio_io/audio_io.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/settings/noise_suppression_engine.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/settings/settings_repository_impl.dart';
 import '../../../../core/sfx/sfx_event.dart';
@@ -105,13 +106,17 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
     final storedName = await _settingsRepository.getMyName();
     final voxThreshold = await _settingsRepository.getVoxThreshold();
     final noiseSuppression = await _settingsRepository.getNoiseSuppression();
+    final noiseSuppressionEngine = await _settingsRepository
+        .getNoiseSuppressionEngine();
     if (isClosed) return;
     _engine.setNoiseSuppression(noiseSuppression);
+    _engine.setNoiseSuppressionEngine(noiseSuppressionEngine);
     emit(
       state.copyWith(
         myName: storedName.isEmpty ? state.myName : storedName,
         voxThreshold: voxThreshold,
         noiseSuppression: noiseSuppression,
+        noiseSuppressionEngine: noiseSuppressionEngine,
       ),
     );
   }
@@ -228,6 +233,12 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
     await _settingsRepository.setNoiseSuppression(strength);
   }
 
+  Future<void> setNoiseSuppressionEngine(NoiseSuppressionEngine engine) async {
+    _engine.setNoiseSuppressionEngine(engine);
+    emit(state.copyWith(noiseSuppressionEngine: engine));
+    await _settingsRepository.setNoiseSuppressionEngine(engine);
+  }
+
   @override
   Future<void> close() async {
     _presenceTimer?.cancel();
@@ -255,6 +266,7 @@ class GuestSessionState extends Equatable {
   final bool hasPermission;
   final double voxThreshold;
   final double noiseSuppression;
+  final NoiseSuppressionEngine noiseSuppressionEngine;
 
   const GuestSessionState({
     required this.myName,
@@ -269,6 +281,7 @@ class GuestSessionState extends Equatable {
     required this.hasPermission,
     required this.voxThreshold,
     required this.noiseSuppression,
+    required this.noiseSuppressionEngine,
   });
 
   factory GuestSessionState.initial() => const GuestSessionState(
@@ -283,7 +296,8 @@ class GuestSessionState extends Equatable {
     isReady: false,
     hasPermission: true,
     voxThreshold: 0.0,
-    noiseSuppression: 0.8,
+    noiseSuppression: 1.0,
+    noiseSuppressionEngine: NoiseSuppressionEngine.spectral,
   );
 
   GuestSessionState copyWith({
@@ -299,6 +313,7 @@ class GuestSessionState extends Equatable {
     bool? hasPermission,
     double? voxThreshold,
     double? noiseSuppression,
+    NoiseSuppressionEngine? noiseSuppressionEngine,
   }) => GuestSessionState(
     myName: myName ?? this.myName,
     hostName: hostName ?? this.hostName,
@@ -312,6 +327,7 @@ class GuestSessionState extends Equatable {
     hasPermission: hasPermission ?? this.hasPermission,
     voxThreshold: voxThreshold ?? this.voxThreshold,
     noiseSuppression: noiseSuppression ?? this.noiseSuppression,
+    noiseSuppressionEngine: noiseSuppressionEngine ?? this.noiseSuppressionEngine,
   );
 
   bool get isHostOnline => hostName.isNotEmpty;
@@ -330,5 +346,6 @@ class GuestSessionState extends Equatable {
     hasPermission,
     voxThreshold,
     noiseSuppression,
+    noiseSuppressionEngine,
   ];
 }

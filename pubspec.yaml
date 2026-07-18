@@ -38,6 +38,8 @@ dependencies:
   # routing (Bluetooth handsfree, speakerphone) actually applies to them.
   audio_io:
     path: packages/audio_io
+  rnnoise:
+    path: packages/rnnoise
   equatable: ^2.0.8
   dartz: ^0.10.1
   injectable: ^3.0.0

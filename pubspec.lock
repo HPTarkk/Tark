@@ -1060,6 +1060,13 @@ packages:
       url: "https://dart.devneeds.ir"
     source: hosted
     version: "0.6.0"
+  rnnoise:
+    dependency: "direct main"
+    description:
+      path: "packages/rnnoise"
+      relative: true
+    source: path
+    version: "0.1.0"
   shared_preferences:
     dependency: "direct main"
     description:

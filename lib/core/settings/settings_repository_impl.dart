@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/quick_access_config.dart';
 import 'app_settings.dart';
+import 'noise_suppression_engine.dart';
 import 'settings_keys.dart';
 import 'settings_model.dart';
 import 'settings_repository.dart';
@@ -68,6 +69,23 @@ class SettingsRepositoryImpl implements SettingsRepository {
   Future<void> setNoiseSuppression(double value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(SettingsKeys.noiseSuppression, value);
+  }
+
+  @override
+  Future<NoiseSuppressionEngine> getNoiseSuppressionEngine() async {
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getString(SettingsKeys.noiseSuppressionEngine);
+    // NoiseSuppressionEngine.fromName's own fallback is spectral, not the
+    // real default — go through AppSettings.defaults() like every other
+    // getter here so an unset value gets the actual current default.
+    if (stored == null) return AppSettings.defaults().noiseSuppressionEngine;
+    return NoiseSuppressionEngine.fromName(stored);
+  }
+
+  @override
+  Future<void> setNoiseSuppressionEngine(NoiseSuppressionEngine value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(SettingsKeys.noiseSuppressionEngine, value.name);
   }
 
   @override
@@ -195,10 +213,15 @@ class SettingsRepositoryImpl implements SettingsRepository {
   }
 
   @override
-  Future<(double, double)> restoreVoiceDefaults() async {
+  Future<(double, double, int)> restoreVoiceDefaults() async {
     final defaults = AppSettings.defaults();
     await setVoxThreshold(defaults.voxThreshold);
     await setNoiseSuppression(defaults.noiseSuppression);
-    return (defaults.voxThreshold, defaults.noiseSuppression);
+    await setTargetBufferMs(defaults.targetBufferMs);
+    return (
+      defaults.voxThreshold,
+      defaults.noiseSuppression,
+      defaults.targetBufferMs,
+    );
   }
 }

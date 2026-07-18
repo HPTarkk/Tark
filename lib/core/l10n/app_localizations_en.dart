@@ -396,6 +396,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noise_filter_strong => 'HIGH';
 
   @override
+  String get settings_section_advanced => 'ADVANCED';
+
+  @override
+  String get settings_noise_engine => 'NOISE ENGINE';
+
+  @override
+  String get settings_noise_engine_spectral => 'Spectral';
+
+  @override
+  String get settings_noise_engine_rnnoise => 'Neural';
+
+  @override
+  String get settings_noise_engine_desc =>
+      'Neural (RNNoise) also suppresses wind and traffic noise, not just steady engine hum — spectral is lighter on the battery.';
+
+  @override
+  String get settings_noise_engine_unavailable =>
+      'Neural engine isn\'t available on this platform yet.';
+
+  @override
   String get sfx_feedback => 'SOUND FEEDBACK';
 
   @override

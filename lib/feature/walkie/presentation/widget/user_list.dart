@@ -215,25 +215,29 @@ class _WaveformBarsState extends State<WaveformBars>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (_, _) => Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: List.generate(4, (i) {
-          final height = 6.0 + sin(_controller.value * pi + i * 1.2) * 6;
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 1),
-            child: Container(
-              width: 3,
-              height: height.abs() + 2,
-              decoration: BoxDecoration(
-                color: AppColors.green,
-                borderRadius: BorderRadius.circular(2),
+    // Loops at frame rate while visible; keep the repaint local to the bars
+    // instead of invalidating the whole member list's layer.
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (_, _) => Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: List.generate(4, (i) {
+            final height = 6.0 + sin(_controller.value * pi + i * 1.2) * 6;
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 1),
+              child: Container(
+                width: 3,
+                height: height.abs() + 2,
+                decoration: BoxDecoration(
+                  color: AppColors.green,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
-          );
-        }),
+            );
+          }),
+        ),
       ),
     );
   }
