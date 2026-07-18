@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/settings/noise_suppression_engine.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/settings/settings_repository_impl.dart';
 import '../../../walkie/api/walkie_api.dart';
@@ -41,11 +42,14 @@ class SettingsCubit extends Cubit<SettingsState> {
   Future<void> _init() async {
     final live = _liveSession;
     if (live != null) {
+      // Live values are available synchronously — surface them before the
+      // prefs read so the page never shows defaults for the session fields.
       emit(
         state.copyWith(
           myName: live.state.myName,
           voxThreshold: live.state.voxThreshold,
           noiseSuppression: live.state.noiseSuppression,
+          noiseSuppressionEngine: live.state.noiseSuppressionEngine,
         ),
       );
       _liveSub = live.stream.listen((s) {
@@ -55,35 +59,35 @@ class SettingsCubit extends Cubit<SettingsState> {
             myName: s.myName,
             voxThreshold: s.voxThreshold,
             noiseSuppression: s.noiseSuppression,
+            noiseSuppressionEngine: s.noiseSuppressionEngine,
           ),
         );
       });
-    } else {
-      final myName = await _repository.getMyName();
-      final voxThreshold = await _repository.getVoxThreshold();
-      final noiseSuppression = await _repository.getNoiseSuppression();
-      if (isClosed) return;
-      emit(
-        state.copyWith(
-          myName: myName,
-          voxThreshold: voxThreshold,
-          noiseSuppression: noiseSuppression,
-        ),
-      );
     }
 
-    final quickAccessEnabled = await _repository.getQuickAccessEnabled();
-    final targetBufferMs = await _repository.getTargetBufferMs();
-    final autoReconnectEnabled = await _repository.getAutoReconnectEnabled();
-    final skipSplash = await _repository.getSkipSplash();
+    // One batched prefs read and one emit (instead of a getter+emit per
+    // field) — this runs while the page-open transition is animating, so
+    // fewer emits means fewer whole-page rebuild passes mid-transition.
+    final all = await _repository.loadAll();
     if (isClosed) return;
     emit(
-      state.copyWith(
-        quickAccessEnabled: quickAccessEnabled,
-        targetBufferMs: targetBufferMs,
-        autoReconnectEnabled: autoReconnectEnabled,
-        skipSplash: skipSplash,
-      ),
+      live != null
+          ? state.copyWith(
+              quickAccessEnabled: all.quickAccessEnabled,
+              targetBufferMs: all.targetBufferMs,
+              autoReconnectEnabled: all.autoReconnectEnabled,
+              skipSplash: all.skipSplash,
+            )
+          : state.copyWith(
+              myName: all.myName,
+              voxThreshold: all.voxThreshold,
+              noiseSuppression: all.noiseSuppression,
+              noiseSuppressionEngine: all.noiseSuppressionEngine,
+              quickAccessEnabled: all.quickAccessEnabled,
+              targetBufferMs: all.targetBufferMs,
+              autoReconnectEnabled: all.autoReconnectEnabled,
+              skipSplash: all.skipSplash,
+            ),
     );
   }
 
@@ -119,16 +123,37 @@ class SettingsCubit extends Cubit<SettingsState> {
     }
   }
 
-  /// Resets VOX threshold and noise suppression to the recommended
-  /// hands-free combo (VOX wide open, noise suppression compensating).
+  Future<void> setNoiseSuppressionEngine(NoiseSuppressionEngine engine) async {
+    final live = _liveSession;
+    if (live != null) {
+      await live.setNoiseSuppressionEngine(engine);
+    } else {
+      emit(state.copyWith(noiseSuppressionEngine: engine));
+      await _repository.setNoiseSuppressionEngine(engine);
+    }
+  }
+
+  /// Resets every Voice-section field to defaults — VOX threshold, noise
+  /// suppression and jitter-buffer delay (the recommended hands-free combo:
+  /// VOX wide open, noise suppression at full strength to compensate).
   Future<void> restoreVoiceDefaults() async {
-    final (vox, noise) = await _repository.restoreVoiceDefaults();
+    final (vox, noise, buffer) = await _repository.restoreVoiceDefaults();
     final live = _liveSession;
     if (live != null) {
       await live.setVoxThreshold(vox);
       await live.setNoiseSuppression(noise);
+      // targetBufferMs isn't pushed to the live session (the jitter buffer
+      // doesn't rebuild mid-call) — just reflect the restored value in the
+      // page's own state; it's already persisted for the next session.
+      emit(state.copyWith(targetBufferMs: buffer));
     } else {
-      emit(state.copyWith(voxThreshold: vox, noiseSuppression: noise));
+      emit(
+        state.copyWith(
+          voxThreshold: vox,
+          noiseSuppression: noise,
+          targetBufferMs: buffer,
+        ),
+      );
     }
   }
 
@@ -174,6 +199,7 @@ class SettingsState extends Equatable {
   final String myName;
   final double voxThreshold;
   final double noiseSuppression;
+  final NoiseSuppressionEngine noiseSuppressionEngine;
   final bool quickAccessEnabled;
   final int targetBufferMs;
   final bool autoReconnectEnabled;
@@ -184,6 +210,7 @@ class SettingsState extends Equatable {
     required this.myName,
     required this.voxThreshold,
     required this.noiseSuppression,
+    required this.noiseSuppressionEngine,
     required this.quickAccessEnabled,
     required this.targetBufferMs,
     required this.autoReconnectEnabled,
@@ -194,9 +221,10 @@ class SettingsState extends Equatable {
     isLive: isLive,
     myName: '',
     voxThreshold: 0.0,
-    noiseSuppression: 0.8,
+    noiseSuppression: 1.0,
+    noiseSuppressionEngine: NoiseSuppressionEngine.spectral,
     quickAccessEnabled: true,
-    targetBufferMs: 100,
+    targetBufferMs: 60,
     autoReconnectEnabled: true,
     skipSplash: false,
   );
@@ -205,6 +233,7 @@ class SettingsState extends Equatable {
     String? myName,
     double? voxThreshold,
     double? noiseSuppression,
+    NoiseSuppressionEngine? noiseSuppressionEngine,
     bool? quickAccessEnabled,
     int? targetBufferMs,
     bool? autoReconnectEnabled,
@@ -214,6 +243,8 @@ class SettingsState extends Equatable {
     myName: myName ?? this.myName,
     voxThreshold: voxThreshold ?? this.voxThreshold,
     noiseSuppression: noiseSuppression ?? this.noiseSuppression,
+    noiseSuppressionEngine:
+        noiseSuppressionEngine ?? this.noiseSuppressionEngine,
     quickAccessEnabled: quickAccessEnabled ?? this.quickAccessEnabled,
     targetBufferMs: targetBufferMs ?? this.targetBufferMs,
     autoReconnectEnabled: autoReconnectEnabled ?? this.autoReconnectEnabled,
@@ -226,6 +257,7 @@ class SettingsState extends Equatable {
     myName,
     voxThreshold,
     noiseSuppression,
+    noiseSuppressionEngine,
     quickAccessEnabled,
     targetBufferMs,
     autoReconnectEnabled,

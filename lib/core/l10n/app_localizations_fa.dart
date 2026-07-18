@@ -398,6 +398,26 @@ class AppLocalizationsFa extends AppLocalizations {
   String get noise_filter_strong => 'زیاد';
 
   @override
+  String get settings_section_advanced => 'پیشرفته';
+
+  @override
+  String get settings_noise_engine => 'موتور حذف نویز';
+
+  @override
+  String get settings_noise_engine_spectral => 'طیفی';
+
+  @override
+  String get settings_noise_engine_rnnoise => 'عصبی';
+
+  @override
+  String get settings_noise_engine_desc =>
+      'موتور عصبی (RNNoise) علاوه بر همهمه‌ی موتور، نویز باد و ترافیک را هم حذف می‌کند؛ موتور طیفی مصرف باتری کمتری دارد.';
+
+  @override
+  String get settings_noise_engine_unavailable =>
+      'موتور عصبی هنوز روی این پلتفرم در دسترس نیست.';
+
+  @override
   String get sfx_feedback => 'بازخورد صوتی';
 
   @override

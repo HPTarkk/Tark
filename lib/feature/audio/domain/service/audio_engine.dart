@@ -1,3 +1,4 @@
+import '../../../../core/settings/noise_suppression_engine.dart';
 import '../entity/audio_engine_status.dart';
 import '../entity/audio_frame.dart';
 
@@ -43,9 +44,15 @@ abstract interface class AudioEngine {
   /// anywhere in the chain (not just at the frame level).
   List<double> processForTransmit(List<double> samples, double voxThreshold);
 
-  /// Set spectral noise suppression strength (0 = off, 1 = maximum).
-  /// Applied to the mic signal before VOX/visualizer/transmit.
+  /// Set noise suppression strength (0 = off, 1 = maximum) for whichever
+  /// engine is currently selected via [setNoiseSuppressionEngine]. Applied
+  /// to the mic signal before VOX/visualizer/transmit.
   void setNoiseSuppression(double strength);
+
+  /// Select which noise suppression algorithm runs on the mic signal. If
+  /// [NoiseSuppressionEngine.rnnoise] isn't available on this platform/build,
+  /// implementations fall back to spectral suppression silently.
+  void setNoiseSuppressionEngine(NoiseSuppressionEngine engine);
 
   /// Feed received network audio (16 kHz PCM) into the jitter buffer,
   /// upsampling to the device's output rate first.

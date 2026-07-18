@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -5,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
+import '../../../../core/settings/noise_suppression_engine.dart';
 import '../../../../core/sfx/sfx_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
@@ -45,7 +48,7 @@ class _SettingsPageState extends State<SettingsPage>
   late AnimationController _entranceController;
   late List<Animation<double>> _sections;
 
-  static const _sectionCount = 6;
+  static const _sectionCount = 7;
 
   @override
   void initState() {
@@ -124,13 +127,15 @@ class _SettingsPageState extends State<SettingsPage>
                 const SizedBox(height: 16),
                 _entrance(1, _VoiceCard()),
                 const SizedBox(height: 16),
-                _entrance(2, _ConnectionCard()),
+                _entrance(2, _AdvancedCard()),
                 const SizedBox(height: 16),
-                _entrance(3, _SoundCard()),
+                _entrance(3, _ConnectionCard()),
                 const SizedBox(height: 16),
-                _entrance(4, _AppearanceCard()),
+                _entrance(4, _SoundCard()),
                 const SizedBox(height: 16),
-                _entrance(5, _StartupCard()),
+                _entrance(5, _AppearanceCard()),
+                const SizedBox(height: 16),
+                _entrance(6, _StartupCard()),
               ],
             ),
           ),
@@ -513,6 +518,168 @@ class _RestoreDefaultsButton extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Advanced (noise suppression engine) ─────────────────────────────────────
+
+class _AdvancedCard extends StatelessWidget {
+  // Both platforms have the native (RNNoise) plugin wired — Android is
+  // verified end-to-end, iOS is wired but unbuilt/untested so far. Any other
+  // platform (web, desktop) has no native build path at all, so it silently
+  // falls back to spectral in AudioEngineImpl — disable picking it there
+  // instead of offering a choice that no-ops.
+  bool get _neuralAvailable => Platform.isAndroid || Platform.isIOS;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    return SettingsCategoryCard(
+      icon: Icons.tune_rounded,
+      title: s.settings_section_advanced,
+      child: BlocBuilder<SettingsCubit, SettingsState>(
+        buildWhen: (p, c) => p.noiseSuppressionEngine != c.noiseSuppressionEngine,
+        builder: (context, state) {
+          // A platform with no native build path at all can't actually run
+          // rnnoise regardless of the stored preference (e.g. it's the
+          // default) — show what's really running, not a selected-but-
+          // disabled option that misrepresents the active engine.
+          final effectiveEngine = _neuralAvailable
+              ? state.noiseSuppressionEngine
+              : NoiseSuppressionEngine.spectral;
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  s.settings_noise_engine,
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 11,
+                    letterSpacing: 1.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: AppColors.card,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Row(
+                    children: [
+                      _EngineButton(
+                        label: s.settings_noise_engine_spectral,
+                        icon: Icons.graphic_eq_rounded,
+                        selected:
+                            effectiveEngine == NoiseSuppressionEngine.spectral,
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          context
+                              .read<SettingsCubit>()
+                              .setNoiseSuppressionEngine(
+                                NoiseSuppressionEngine.spectral,
+                              );
+                        },
+                      ),
+                      _EngineButton(
+                        label: s.settings_noise_engine_rnnoise,
+                        icon: Icons.auto_awesome_rounded,
+                        selected:
+                            effectiveEngine == NoiseSuppressionEngine.rnnoise,
+                        enabled: _neuralAvailable,
+                        onTap: _neuralAvailable
+                            ? () {
+                                HapticFeedback.selectionClick();
+                                context
+                                    .read<SettingsCubit>()
+                                    .setNoiseSuppressionEngine(
+                                      NoiseSuppressionEngine.rnnoise,
+                                    );
+                              }
+                            : null,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  _neuralAvailable
+                      ? s.settings_noise_engine_desc
+                      : s.settings_noise_engine_unavailable,
+                  style: TextStyle(
+                    color: AppColors.textSecondary.withAlpha(180),
+                    fontSize: 11,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _EngineButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final bool enabled;
+  final VoidCallback? onTap;
+
+  const _EngineButton({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    this.enabled = true,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = !enabled
+        ? AppColors.textSecondary.withAlpha(90)
+        : selected
+        ? AppColors.amber
+        : AppColors.textSecondary;
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+          decoration: BoxDecoration(
+            color: selected && enabled ? AppColors.amber.withAlpha(25) : null,
+            borderRadius: BorderRadius.circular(9),
+            border: selected && enabled
+                ? Border.all(color: AppColors.amber.withAlpha(140))
+                : null,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: color),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -163,6 +163,18 @@ class _LandingPageState extends State<LandingPage>
   // ── Join Button ─────────────────────────────────────────────────────────────
   Widget _buildJoinButton(BuildContext context, LandingState state) {
     final enabled = state.hasNetwork && !state.isLoading;
+    // The border/glow pulse repaints every frame forever (blurred shadow
+    // included) — keep that off the layer shared with the rest of the page.
+    return RepaintBoundary(
+      child: _buildPulsingJoinButton(context, state, enabled),
+    );
+  }
+
+  Widget _buildPulsingJoinButton(
+    BuildContext context,
+    LandingState state,
+    bool enabled,
+  ) {
     return AnimatedBuilder(
       animation: _pulseAnimation,
       child: Row(

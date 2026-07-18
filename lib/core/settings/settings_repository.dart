@@ -1,4 +1,5 @@
 import 'app_settings.dart';
+import 'noise_suppression_engine.dart';
 
 /// Single point of truth for reading/writing every [AppSettings] field.
 ///
@@ -23,6 +24,9 @@ abstract interface class SettingsRepository {
 
   Future<double> getNoiseSuppression();
   Future<void> setNoiseSuppression(double value);
+
+  Future<NoiseSuppressionEngine> getNoiseSuppressionEngine();
+  Future<void> setNoiseSuppressionEngine(NoiseSuppressionEngine value);
 
   Future<double> getMusicGain();
   Future<void> setMusicGain(double value);
@@ -56,8 +60,10 @@ abstract interface class SettingsRepository {
   Future<bool> getMusicCastNotifHintDismissed();
   Future<void> setMusicCastNotifHintDismissed(bool value);
 
-  /// Resets VOX threshold and noise suppression to [AppSettings.defaults]
-  /// and persists them, returning the restored `(vox, noiseSuppression)`
-  /// pair so callers can push it into a live session.
-  Future<(double voxThreshold, double noiseSuppression)> restoreVoiceDefaults();
+  /// Resets every Voice-section field — VOX threshold, noise suppression and
+  /// jitter-buffer delay — to [AppSettings.defaults] and persists them,
+  /// returning the restored `(vox, noiseSuppression, targetBufferMs)` tuple
+  /// so callers can push it into a live session / their own state.
+  Future<(double voxThreshold, double noiseSuppression, int targetBufferMs)>
+  restoreVoiceDefaults();
 }

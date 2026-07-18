@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/l10n/extension.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/widget/language_toggle.dart';
-import '../../../../core/widget/theme_toggle.dart';
-import 'onboarding_emblem.dart';
+import '../../../../core/locale/locale_service.dart';
+import '../../../../core/theme/theme_service.dart';
+import '../manager/onboarding_cubit.dart';
+import 'hud.dart';
+import 'onboarding_palette.dart';
 
-/// Beat 0 — tune the radio to your taste: language and theme, applied live
-/// through the same [LanguageToggle]/[ThemeToggle] controls the user will
-/// meet again in Settings. This runs before any copy-heavy beat so nobody
-/// reads a wall of Persian (or English) they didn't choose.
+/// Beat 0 — tune the radio to your taste. Language applies live; the Day/Night
+/// plates don't flip the app theme (that would re-key the world) but instead
+/// drive the [HorizonScene]'s environmental sunrise/sunset, recording the
+/// choice on the cubit for launch. Rendered entirely with the HUD kit.
 class TuneStep extends StatelessWidget {
   final Animation<double> reveal;
 
@@ -18,87 +20,87 @@ class TuneStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        StaggeredItem(
-          reveal: reveal,
-          index: 0,
-          count: 6,
-          child: Text(
-            s.onboarding_tune_title,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
+    final cubit = context.read<OnboardingCubit>();
+    return StaggeredItem(
+      reveal: reveal,
+      index: 0,
+      count: 1,
+      child: HudPanel(
+        header: s.onboarding_tune_title,
+        status: '01·05',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              s.onboarding_tune_sub,
+              style: const TextStyle(
+                color: Onb.textDim,
+                fontSize: 12,
+                height: 1.5,
+              ),
             ),
-          ),
-        ),
-        const SizedBox(height: 10),
-        StaggeredItem(
-          reveal: reveal,
-          index: 1,
-          count: 6,
-          child: Text(
-            s.onboarding_tune_sub,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 13,
-              height: 1.6,
+            const SizedBox(height: 16),
+            _Label(s.onboarding_language_label),
+            const SizedBox(height: 8),
+            ValueListenableBuilder<Locale>(
+              valueListenable: LocaleService.locale,
+              builder: (_, locale, _) {
+                final isFa = locale.languageCode == 'fa';
+                return Row(
+                  children: [
+                    Expanded(
+                      child: HudOption(
+                        compact: true,
+                        selected: isFa,
+                        label: 'فارسی',
+                        onTap: () => LocaleService.setLocale(const Locale('fa')),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: HudOption(
+                        compact: true,
+                        selected: !isFa,
+                        label: 'English',
+                        onTap: () => LocaleService.setLocale(const Locale('en')),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
-          ),
+            const SizedBox(height: 16),
+            _Label(s.onboarding_theme_label),
+            const SizedBox(height: 8),
+            BlocBuilder<OnboardingCubit, OnboardingState>(
+              buildWhen: (p, c) => p.themePref != c.themePref,
+              builder: (_, state) => HudSunMoonTiles(
+                night: state.themePref == AppThemeMode.dark,
+                onSelect: (night) => cubit.selectTheme(
+                  night ? AppThemeMode.dark : AppThemeMode.light,
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 24),
-        StaggeredItem(
-          reveal: reveal,
-          index: 2,
-          count: 6,
-          child: _SectionLabel(text: s.onboarding_language_label),
-        ),
-        const SizedBox(height: 8),
-        StaggeredItem(
-          reveal: reveal,
-          index: 3,
-          count: 6,
-          child: const LanguageToggle(),
-        ),
-        const SizedBox(height: 20),
-        StaggeredItem(
-          reveal: reveal,
-          index: 4,
-          count: 6,
-          child: _SectionLabel(text: s.onboarding_theme_label),
-        ),
-        const SizedBox(height: 8),
-        StaggeredItem(
-          reveal: reveal,
-          index: 5,
-          count: 6,
-          child: const ThemeToggle(),
-        ),
-      ],
+      ),
     );
   }
 }
 
-class _SectionLabel extends StatelessWidget {
+class _Label extends StatelessWidget {
   final String text;
-
-  const _SectionLabel({required this.text});
-
+  const _Label(this.text);
   @override
   Widget build(BuildContext context) {
     final isFa = Localizations.localeOf(context).languageCode == 'fa';
     return Text(
-      text,
+      text.toUpperCase(),
       style: TextStyle(
-        color: AppColors.textSecondary,
-        fontSize: 11,
-        fontWeight: FontWeight.w700,
-        // Persian is a joined script — tracking stays latin-only.
+        color: Onb.amber.withAlpha(180),
+        fontSize: 10,
+        fontWeight: FontWeight.w800,
         letterSpacing: isFa ? 0.4 : 2,
       ),
     );

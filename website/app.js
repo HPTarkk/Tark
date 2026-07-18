@@ -62,7 +62,12 @@
     let tickerTimer;
     window.addEventListener('resize', () => {
       clearTimeout(tickerTimer);
-      tickerTimer = setTimeout(buildTicker, 200);
+      tickerTimer = setTimeout(() => {
+        buildTicker();
+        // Freshly cloned items carry their English markup — restore the
+        // active language so a resize doesn't reset the ticker to English.
+        applyLang(document.documentElement.lang === 'fa' ? 'fa' : 'en', true);
+      }, 200);
     });
   }
 
@@ -94,27 +99,15 @@
     }
   });
 
-  // ── Hero cursor spotlight ─────────────────────────────────────────
+  // ── Hero + reduced-motion refs (shared by the mesh + parallax below) ──
   const hero = document.querySelector('.hero');
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (hero && !reducedMotion) {
-    hero.addEventListener('pointermove', (e) => {
-      const rect = hero.getBoundingClientRect();
-      hero.style.setProperty('--mx', ((e.clientX - rect.left) / rect.width) * 100 + '%');
-      hero.style.setProperty('--my', ((e.clientY - rect.top) / rect.height) * 100 + '%');
-    });
-  }
 
-  // ── Scroll parallax: hero rings/spotlight + tech-grid background ──
+  // ── Scroll parallax: tech-grid background ─────────────────────────
   const techSection = document.querySelector('.tech');
-  if (!reducedMotion && (hero || techSection)) {
+  if (!reducedMotion && techSection) {
     const onScrollParallax = () => {
-      if (hero) {
-        hero.style.setProperty('--parallax', window.scrollY * 0.12 + 'px');
-      }
-      if (techSection) {
-        techSection.style.setProperty('--tech-parallax', window.scrollY * -0.06 + 'px');
-      }
+      techSection.style.setProperty('--tech-parallax', window.scrollY * -0.06 + 'px');
     };
     window.addEventListener('scroll', onScrollParallax, { passive: true });
     onScrollParallax();
@@ -330,24 +323,6 @@
     }
   }
 
-  // ── Card tilt + shine (first card only — the rest just lift on hover) ──
-  const tiltCard = document.querySelector('.card');
-  if (tiltCard && !reducedMotion) {
-    tiltCard.addEventListener('pointermove', (e) => {
-      const rect = tiltCard.getBoundingClientRect();
-      const px = (e.clientX - rect.left) / rect.width;
-      const py = (e.clientY - rect.top) / rect.height;
-      tiltCard.style.setProperty('--mx', px * 100 + '%');
-      tiltCard.style.setProperty('--my', py * 100 + '%');
-      tiltCard.style.setProperty('--rx', (0.5 - py) * 8 + 'deg');
-      tiltCard.style.setProperty('--ry', (px - 0.5) * 10 + 'deg');
-    });
-    tiltCard.addEventListener('pointerleave', () => {
-      tiltCard.style.setProperty('--rx', '0deg');
-      tiltCard.style.setProperty('--ry', '0deg');
-    });
-  }
-
   // ── Nav scrollspy ──────────────────────────────────────────────────
   const navLinks = [...document.querySelectorAll('.nav-links a')];
   const spySections = navLinks
@@ -400,13 +375,14 @@
 
   // ── Language toggle (EN ⇄ FA, with RTL) ───────────────────────────
   const langBtn = document.getElementById('langToggle');
-  const translatable = document.querySelectorAll('[data-en]');
 
   function applyLang(lang, instant) {
     const swap = () => {
       document.documentElement.lang = lang;
       document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr';
-      translatable.forEach((el) => {
+      // Re-query every call: the ticker clones its items on load and on each
+      // resize rebuild, so a NodeList captured once would miss the new nodes.
+      document.querySelectorAll('[data-en]').forEach((el) => {
         const text = el.dataset[lang];
         if (text) el.textContent = text;
       });

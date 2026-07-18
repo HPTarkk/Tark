@@ -109,12 +109,20 @@ class _ThemeToggleState extends State<ThemeToggle>
                       ],
                     ),
                   ),
-                  child: AnimatedBuilder(
-                    animation: _drift,
-                    child: _SceneContent(t: t, sceneT: sceneT),
-                    builder: (context, content) => CustomPaint(
-                      painter: _SkyPainter(sceneT: sceneT, phase: _drift.value),
-                      child: content,
+                  // The drift loop repaints the sky every frame while the
+                  // page is visible; the boundary keeps that off the rest of
+                  // the settings page's layer.
+                  child: RepaintBoundary(
+                    child: AnimatedBuilder(
+                      animation: _drift,
+                      child: _SceneContent(t: t, sceneT: sceneT),
+                      builder: (context, content) => CustomPaint(
+                        painter: _SkyPainter(
+                          sceneT: sceneT,
+                          phase: _drift.value,
+                        ),
+                        child: content,
+                      ),
                     ),
                   ),
                 );

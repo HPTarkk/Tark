@@ -7,6 +7,7 @@ abstract final class SettingsKeys {
   static const userName = 'user_name';
   static const voxThreshold = 'vox_threshold';
   static const noiseSuppression = 'noise_suppression';
+  static const noiseSuppressionEngine = 'noise_suppression_engine';
   static const musicGain = 'music_gain';
   static const targetBufferMs = 'target_buffer_ms';
   static const autoReconnectEnabled = 'auto_reconnect_enabled';
