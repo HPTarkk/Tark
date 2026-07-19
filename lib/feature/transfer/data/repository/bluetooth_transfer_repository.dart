@@ -6,6 +6,7 @@ import 'package:dartz/dartz.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/observability/voice_metrics.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/settings/settings_repository_impl.dart';
 import '../../../../core/utils/android_sdk.dart';
@@ -312,6 +313,7 @@ class BluetoothTransferRepository
   }
 
   void _onEngineError(String engine, String message) {
+    VoiceMetrics.increment('bluetooth_disconnect_count');
     Logger.log('Bluetooth $engine error: $message');
     // Never disturb an established session.
     if (_connectedPeerId != null) return;
@@ -329,6 +331,7 @@ class BluetoothTransferRepository
     _connectedPeerId = null;
     _activeEngine = null;
     _classicFramer.reset();
+    if (hadSession) VoiceMetrics.increment('bluetooth_disconnect_count');
     if (hadSession && _sessionRole != null && _autoReconnectEnabled) {
       unawaited(_autoReconnect());
     } else {

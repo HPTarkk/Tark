@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../../../core/observability/voice_metrics.dart';
 import '../../../../core/settings/noise_suppression_engine.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/settings/settings_repository_impl.dart';
@@ -135,6 +136,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     // "link lost — reconnecting" banner + sound applies, so this is no
     // longer gated to specific transports.
     _linkSub = _transferRepository.connect().listen((health) {
+      VoiceMetrics.connectionHealth(state.transferMode.name, health.name);
       if (isClosed) return;
       final wasHealthy =
           state.connectionHealth == ConnectionHealthStatus.healthy;
@@ -453,6 +455,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
   void retryNow() => _transferRepository.retryNow();
 
   Future<void> setAutoReconnectEnabled(bool enabled) async {
+    VoiceMetrics.gauge('auto_reconnect_enabled', enabled);
     _transferRepository.setAutoReconnectEnabled(enabled);
     await _settingsRepository.setAutoReconnectEnabled(enabled);
   }

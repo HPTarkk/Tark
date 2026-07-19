@@ -5,6 +5,7 @@ import 'package:dartz/dartz.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/observability/voice_metrics.dart';
 import '../../../../core/utils/exponential_backoff.dart';
 import '../../../../core/utils/lan_ipv4.dart';
 import '../../../../core/utils/logger.dart';
@@ -184,6 +185,7 @@ class WifiTransferRepositoryImpl implements TransferRepository {
               : ConnectionHealthStatus.down,
         );
       } catch (error) {
+        VoiceMetrics.increment('wifi_disconnect_count');
         Logger.log('Socket error (gen $myGen): $error');
         _livenessTimer?.cancel();
         _setHealth(
@@ -226,6 +228,7 @@ class WifiTransferRepositoryImpl implements TransferRepository {
       // opened, never-joined channel isn't "unreachable," it's just empty.
       if (_peers.isEmpty) return;
       if (DateTime.now().difference(_lastPacketAt) > _livenessTimeout) {
+        VoiceMetrics.increment('wifi_disconnect_count');
         Logger.log('WiFi liveness timeout (gen $myGen) — forcing rebind');
         _receiveSocket?.close();
       }
