@@ -5,6 +5,7 @@ import 'package:audio_io/audio_io.dart';
 import 'package:injectable/injectable.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../../core/observability/voice_metrics.dart';
 import '../../../core/settings/noise_suppression_engine.dart';
 import '../../../core/settings/settings_repository.dart';
 import '../../../core/settings/settings_repository_impl.dart';
@@ -207,6 +208,7 @@ class AudioEngineImpl implements AudioEngine {
 
       final fmt = await _audioIo.getFormat();
       Logger.log('AudioIo format: $fmt');
+      VoiceMetrics.gauge('audio_io_format', fmt ?? 'unknown');
       final inputRate =
           (fmt?['input']?['sampleRate'] as num?)?.toDouble() ?? 48000.0;
       final outputRate =
@@ -240,7 +242,12 @@ class AudioEngineImpl implements AudioEngine {
         outRate: outputRate,
       );
 
+      VoiceMetrics.gauge('audio_input_sample_rate', inputRate.toInt());
+      VoiceMetrics.gauge('audio_output_sample_rate', outputRate.toInt());
+      VoiceMetrics.gauge('audio_frame_duration_ms', 20);
+
       final targetBufferMs = await _settingsRepository.getTargetBufferMs();
+      VoiceMetrics.gauge('target_jitter_buffer_ms', targetBufferMs);
       _buffer?.dispose();
       _buffer = AudioPlaybackBuffer(
         output: _audioIo.output,
@@ -321,6 +328,7 @@ class AudioEngineImpl implements AudioEngine {
 
     _restarting = true;
     _lastRestartAt = now;
+    VoiceMetrics.increment('audio_input_stall_count');
     Logger.log(
       'Audio input stalled ${now.difference(_lastInputAt).inMilliseconds}ms — restarting engine',
     );

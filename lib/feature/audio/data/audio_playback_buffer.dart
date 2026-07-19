@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:collection';
 
+import '../../../core/observability/voice_metrics.dart';
+
 /// Jitter buffer that smooths bursty UDP audio delivery before playback.
 ///
 /// UDP packets arrive in uneven bursts, can be lost, and can arrive out of
@@ -119,6 +121,7 @@ class AudioPlaybackBuffer {
   void _enqueue(List<double> samples) {
     final overflow = (_queue.length + samples.length) - _maxQueueSamples;
     if (overflow > 0) {
+      VoiceMetrics.increment('audio_overrun_count');
       for (int i = 0; i < overflow && _queue.isNotEmpty; i++) {
         _queue.removeFirst();
       }
@@ -136,6 +139,7 @@ class AudioPlaybackBuffer {
     _drainTimer = Timer.periodic(Duration(milliseconds: _drainIntervalMs), (_) {
       if (_queue.length < _drainSize) {
         // Underrun — stop and wait for the buffer to refill.
+        VoiceMetrics.increment('audio_underrun_count');
         _filling = true;
         _drainTimer?.cancel();
         _drainTimer = null;
