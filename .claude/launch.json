@@ -20,20 +20,6 @@
         "lib/main_onboarding_preview.dart"
       ],
       "port": 5177
-    },
-    {
-      "name": "reconnect-banner-preview",
-      "runtimeExecutable": "flutter",
-      "runtimeArgs": [
-        "run",
-        "-d",
-        "web-server",
-        "--web-port",
-        "5178",
-        "-t",
-        "lib/main_reconnect_banner_preview.dart"
-      ],
-      "port": 5178
     }
   ]
 }
