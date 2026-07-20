@@ -54,11 +54,24 @@ abstract interface class SettingsRepository {
   Future<String?> getLastBluetoothPeerName();
   Future<void> setLastBluetoothPeer({required String id, required String name});
 
+  /// The role ('host' | 'joiner') this device played in its last successful
+  /// Bluetooth session, so the next launch can resume the same part
+  /// hands-free — a host re-hosts, a joiner re-dials. `null` before any
+  /// Bluetooth session has connected.
+  Future<String?> getLastBluetoothRole();
+  Future<void> setLastBluetoothRole(String role);
+
   Future<bool> getBgPermBannerDismissed();
   Future<void> setBgPermBannerDismissed(bool value);
 
   Future<bool> getMusicCastNotifHintDismissed();
   Future<void> setMusicCastNotifHintDismissed(bool value);
+
+  /// Cold-start flow flags (see QuickAccess.resolveStartLocation): "has
+  /// completed a Join before" gates quick access, "onboarding completed"
+  /// gates the first-run journey. Written by LandingCubit/OnboardingCubit.
+  Future<void> setHasLaunchedBefore(bool value);
+  Future<void> setOnboardingCompleted(bool value);
 
   /// Resets every Voice-section field — VOX threshold, noise suppression and
   /// jitter-buffer delay — to [AppSettings.defaults] and persists them,

@@ -1,20 +1,17 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
-import '../../../../core/settings/noise_suppression_engine.dart';
+import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/sfx/sfx_service.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/utils/extensions.dart';
 import '../../../../core/widget/app_avatar.dart';
 import '../../../../core/widget/language_toggle.dart';
 import '../../../../core/widget/theme_toggle.dart';
-import '../../../../core/widget/ticker_text.dart';
 import '../../../walkie/api/walkie_api.dart';
 import '../manager/settings_cubit.dart';
 import '../widget/settings_category_card.dart';
@@ -32,8 +29,10 @@ class SettingsPage extends StatefulWidget {
   const SettingsPage._();
 
   static Widget buildPage({Object? liveSession}) => BlocProvider<SettingsCubit>(
-    create: (_) =>
-        SettingsCubit(liveSession: liveSession as WalkieTalkieCubit?),
+    create: (_) => SettingsCubit(
+      liveSession: liveSession as WalkieTalkieCubit?,
+      repository: GetIt.instance<SettingsRepository>(),
+    ),
     child: const SettingsPage._(),
   );
 
@@ -44,11 +43,11 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage>
     with TickerProviderStateMixin {
   // Staggered entrance, same pattern as landing/walkie pages: [profile,
-  // voice, connection, sound, appearance, startup]
+  // connection, sound, appearance, startup, advanced-nav]
   late AnimationController _entranceController;
   late List<Animation<double>> _sections;
 
-  static const _sectionCount = 7;
+  static const _sectionCount = 6;
 
   @override
   void initState() {
@@ -125,17 +124,15 @@ class _SettingsPageState extends State<SettingsPage>
               children: [
                 _entrance(0, _ProfileCard()),
                 const SizedBox(height: 16),
-                _entrance(1, _VoiceCard()),
+                _entrance(1, _ConnectionCard()),
                 const SizedBox(height: 16),
-                _entrance(2, _AdvancedCard()),
+                _entrance(2, _SoundCard()),
                 const SizedBox(height: 16),
-                _entrance(3, _ConnectionCard()),
+                _entrance(3, _AppearanceCard()),
                 const SizedBox(height: 16),
-                _entrance(4, _SoundCard()),
+                _entrance(4, _StartupCard()),
                 const SizedBox(height: 16),
-                _entrance(5, _AppearanceCard()),
-                const SizedBox(height: 16),
-                _entrance(6, _StartupCard()),
+                _entrance(5, _AdvancedNavCard()),
               ],
             ),
           ),
@@ -292,395 +289,44 @@ class _ProfileCard extends StatelessWidget {
   }
 }
 
-// ── Voice & Audio (VOX + noise + jitter-buffer delay) ───────────────────────
+// ── Advanced (navigation to the sub-page) ───────────────────────────────────
 
-class _VoiceCard extends StatelessWidget {
+/// Entry point to [AdvancedSettingsPage] — the technical knobs (noise-cleaner
+/// engine, playback delay) live there so this page stays approachable. The
+/// live-session cubit is forwarded so those knobs keep applying live.
+class _AdvancedNavCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
-    return SettingsCategoryCard(
-      icon: Icons.graphic_eq_rounded,
-      title: s.settings_section_voice,
-      child: BlocBuilder<SettingsCubit, SettingsState>(
-        buildWhen: (p, c) =>
-            p.voxThreshold != c.voxThreshold ||
-            p.noiseSuppression != c.noiseSuppression ||
-            p.targetBufferMs != c.targetBufferMs ||
-            p.isLive != c.isLive,
-        builder: (context, state) {
-          final thresholdPercent = ((state.voxThreshold / 0.15) * 100)
-              .clamp(0.0, 100.0)
-              .toInt();
-          final noisePercent = (state.noiseSuppression * 100).round();
-          final noiseLabel = noisePercent == 0
-              ? s.noise_filter_off
-              : '${noisePercent.localized(context)}%';
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      state.isLive
-                          ? Icons.podcasts_rounded
-                          : Icons.schedule_rounded,
-                      color: AppColors.textSecondary.withAlpha(160),
-                      size: 12,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        state.isLive
-                            ? s.settings_applies_live
-                            : s.settings_applies_next_session,
-                        style: TextStyle(
-                          color: AppColors.textSecondary.withAlpha(180),
-                          fontSize: 10.5,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _sliderHeader(
-                  s.vox_threshold,
-                  '${thresholdPercent.localized(context)}%',
-                ),
-                SliderTheme(
-                  data: _sliderTheme(context),
-                  child: Slider(
-                    value: state.voxThreshold,
-                    min: 0.0,
-                    max: 0.15,
-                    onChanged: (v) =>
-                        context.read<SettingsCubit>().setVoxThreshold(v),
-                    onChangeEnd: (_) => HapticFeedback.selectionClick(),
-                  ),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(s.voice_quiet, style: _hintStyle),
-                    Text(s.voice_loud, style: _hintStyle),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Divider(color: AppColors.border, height: 1),
-                const SizedBox(height: 14),
-                _sliderHeader(
-                  s.noise_filter,
-                  noiseLabel,
-                  active: noisePercent != 0,
-                ),
-                SliderTheme(
-                  data: _sliderTheme(context),
-                  child: Slider(
-                    value: state.noiseSuppression.clamp(0.0, 1.0),
-                    min: 0.0,
-                    max: 1.0,
-                    onChanged: (v) =>
-                        context.read<SettingsCubit>().setNoiseSuppression(v),
-                    onChangeEnd: (_) => HapticFeedback.selectionClick(),
-                  ),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(s.noise_filter_weak, style: _hintStyle),
-                    Text(s.noise_filter_strong, style: _hintStyle),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Divider(color: AppColors.border, height: 1),
-                const SizedBox(height: 14),
-                _sliderHeader(s.settings_delay, '${state.targetBufferMs} ms'),
-                SliderTheme(
-                  data: _sliderTheme(context),
-                  child: Slider(
-                    value: state.targetBufferMs.toDouble().clamp(60, 300),
-                    min: 60,
-                    max: 300,
-                    divisions: 24,
-                    onChanged: (v) => context
-                        .read<SettingsCubit>()
-                        .setTargetBufferMs(v.round()),
-                    onChangeEnd: (_) => HapticFeedback.selectionClick(),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Text(
-                    s.settings_delay_desc,
-                    style: TextStyle(
-                      color: AppColors.textSecondary.withAlpha(180),
-                      fontSize: 11,
-                      height: 1.4,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _RestoreDefaultsButton(),
-              ],
-            ),
-          );
-        },
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.amber.withAlpha(10),
+            blurRadius: 22,
+            spreadRadius: -6,
+          ),
+        ],
       ),
-    );
-  }
-
-  static TextStyle get _hintStyle => TextStyle(
-    color: AppColors.textSecondary.withAlpha(160),
-    fontSize: 10,
-    letterSpacing: 1,
-  );
-
-  Widget _sliderHeader(String label, String value, {bool active = true}) => Row(
-    children: [
-      Text(
-        label,
-        style: TextStyle(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: SettingsRow(
+        icon: Icons.tune_rounded,
+        label: s.settings_advanced_row,
+        subtitle: s.settings_advanced_row_desc,
+        trailing: Icon(
+          Icons.chevron_right_rounded,
           color: AppColors.textSecondary,
-          fontSize: 11,
-          letterSpacing: 1.5,
-          fontWeight: FontWeight.w600,
         ),
-      ),
-      const Spacer(),
-      Builder(
-        builder: (context) => Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: AppColors.border,
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: TickerText(
-            text: value,
-            duration: const Duration(milliseconds: 200),
-            style: TextStyle(
-              color: active ? AppColors.amber : AppColors.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-      ),
-    ],
-  );
-
-  SliderThemeData _sliderTheme(BuildContext context) =>
-      SliderTheme.of(context).copyWith(
-        trackHeight: 4,
-        activeTrackColor: AppColors.amber,
-        inactiveTrackColor: AppColors.border,
-        thumbColor: AppColors.amber,
-        overlayColor: AppColors.amber.withAlpha(40),
-        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
-        overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
-      );
-}
-
-class _RestoreDefaultsButton extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final s = context.getString;
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        context.read<SettingsCubit>().restoreVoiceDefaults();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(s.settings_restore_defaults_done),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      },
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: AppColors.amber.withAlpha(18),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppColors.amber.withAlpha(110)),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.restart_alt_rounded, color: AppColors.amber, size: 16),
-            const SizedBox(width: 8),
-            Text(
-              s.settings_restore_defaults,
-              style: TextStyle(
-                color: AppColors.amber,
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.2,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Advanced (noise suppression engine) ─────────────────────────────────────
-
-class _AdvancedCard extends StatelessWidget {
-  // Both platforms have the native (RNNoise) plugin wired — Android is
-  // verified end-to-end, iOS is wired but unbuilt/untested so far. Any other
-  // platform (web, desktop) has no native build path at all, so it silently
-  // falls back to spectral in AudioEngineImpl — disable picking it there
-  // instead of offering a choice that no-ops.
-  bool get _neuralAvailable => Platform.isAndroid || Platform.isIOS;
-
-  @override
-  Widget build(BuildContext context) {
-    final s = context.getString;
-    return SettingsCategoryCard(
-      icon: Icons.tune_rounded,
-      title: s.settings_section_advanced,
-      child: BlocBuilder<SettingsCubit, SettingsState>(
-        buildWhen: (p, c) => p.noiseSuppressionEngine != c.noiseSuppressionEngine,
-        builder: (context, state) {
-          // A platform with no native build path at all can't actually run
-          // rnnoise regardless of the stored preference (e.g. it's the
-          // default) — show what's really running, not a selected-but-
-          // disabled option that misrepresents the active engine.
-          final effectiveEngine = _neuralAvailable
-              ? state.noiseSuppressionEngine
-              : NoiseSuppressionEngine.spectral;
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  s.settings_noise_engine,
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 11,
-                    letterSpacing: 1.5,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: AppColors.card,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Row(
-                    children: [
-                      _EngineButton(
-                        label: s.settings_noise_engine_spectral,
-                        icon: Icons.graphic_eq_rounded,
-                        selected:
-                            effectiveEngine == NoiseSuppressionEngine.spectral,
-                        onTap: () {
-                          HapticFeedback.selectionClick();
-                          context
-                              .read<SettingsCubit>()
-                              .setNoiseSuppressionEngine(
-                                NoiseSuppressionEngine.spectral,
-                              );
-                        },
-                      ),
-                      _EngineButton(
-                        label: s.settings_noise_engine_rnnoise,
-                        icon: Icons.auto_awesome_rounded,
-                        selected:
-                            effectiveEngine == NoiseSuppressionEngine.rnnoise,
-                        enabled: _neuralAvailable,
-                        onTap: _neuralAvailable
-                            ? () {
-                                HapticFeedback.selectionClick();
-                                context
-                                    .read<SettingsCubit>()
-                                    .setNoiseSuppressionEngine(
-                                      NoiseSuppressionEngine.rnnoise,
-                                    );
-                              }
-                            : null,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  _neuralAvailable
-                      ? s.settings_noise_engine_desc
-                      : s.settings_noise_engine_unavailable,
-                  style: TextStyle(
-                    color: AppColors.textSecondary.withAlpha(180),
-                    fontSize: 11,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
+        onTap: () {
+          HapticFeedback.selectionClick();
+          context.pushNamed(
+            AppRoutes.advancedSettingsName,
+            extra: context.read<SettingsCubit>().liveSession,
           );
         },
-      ),
-    );
-  }
-}
-
-class _EngineButton extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final bool enabled;
-  final VoidCallback? onTap;
-
-  const _EngineButton({
-    required this.label,
-    required this.icon,
-    required this.selected,
-    this.enabled = true,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = !enabled
-        ? AppColors.textSecondary.withAlpha(90)
-        : selected
-        ? AppColors.amber
-        : AppColors.textSecondary;
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-          decoration: BoxDecoration(
-            color: selected && enabled ? AppColors.amber.withAlpha(25) : null,
-            borderRadius: BorderRadius.circular(9),
-            border: selected && enabled
-                ? Border.all(color: AppColors.amber.withAlpha(140))
-                : null,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 16, color: color),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.3,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

@@ -30,4 +30,7 @@ abstract final class AppRoutes {
 
   static const permissionsName = 'PermissionsPage';
   static const permissionsPath = '/settings/permissions';
+
+  static const advancedSettingsName = 'AdvancedSettingsPage';
+  static const advancedSettingsPath = '/settings/advanced';
 }

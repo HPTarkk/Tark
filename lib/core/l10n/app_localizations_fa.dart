@@ -12,7 +12,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get app_name => 'تــرک';
 
   @override
-  String get app_subtitle => 'بیسیم تحت شبکه (LAN)';
+  String get app_subtitle => 'بیسیم تحت شبکه';
 
   @override
   String get live => 'زنده';
@@ -33,10 +33,10 @@ class AppLocalizationsFa extends AppLocalizations {
   String get initializing => 'در حال راه‌اندازی اولیه';
 
   @override
-  String get tx_label => 'ارسال (TX)';
+  String get tx_label => 'ارسال';
 
   @override
-  String get rx_label => 'دریافت (RX)';
+  String get rx_label => 'دریافت';
 
   @override
   String get music_cast => 'پخش موزیک';
@@ -81,7 +81,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get vox_sensitivity => 'حساسیت VOX (تشخیص صدا)';
 
   @override
-  String get vox_threshold => 'آستانه صدا (Threshold)';
+  String get vox_threshold => 'آستانه صدا';
 
   @override
   String get voice_loud => 'بلند';
@@ -99,7 +99,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get level_silent => 'ساکت';
 
   @override
-  String get user_idle => 'بیکار (Idle)';
+  String get user_idle => 'بیکار';
 
   @override
   String get set_name_title => 'انتخاب نام شما';
@@ -242,7 +242,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get guest_web_on_air => 'صدای شما پخش می‌شود';
 
   @override
-  String get guest_web_standby => 'در حال انتظار (Standby)';
+  String get guest_web_standby => 'در حال انتظار';
 
   @override
   String get guest_web_link_lost => 'ارتباط قطع شد';
@@ -258,7 +258,7 @@ class AppLocalizationsFa extends AppLocalizations {
       'شما قطع شدید. برای ورود مجدد، از میزبان یک دعوت‌نامه جدید بگیرید و دوباره آن را اسکن کنید.';
 
   @override
-  String get bt_start_session => 'شروع نشست (Session)';
+  String get bt_start_session => 'شروع نشست';
 
   @override
   String get bt_role_host_desc =>
@@ -353,7 +353,7 @@ class AppLocalizationsFa extends AppLocalizations {
       'با دستگاه دیگر جفت می‌شود و صدا رد و بدل می‌کند.';
 
   @override
-  String get permission_bt_advertise_title => 'تبلیغ نشست (Advertise)';
+  String get permission_bt_advertise_title => 'تبلیغ نشست';
 
   @override
   String get permission_bt_advertise_desc =>
@@ -398,24 +398,60 @@ class AppLocalizationsFa extends AppLocalizations {
   String get noise_filter_strong => 'زیاد';
 
   @override
-  String get settings_section_advanced => 'پیشرفته';
+  String get settings_advanced_row => 'تنظیمات پیشرفته';
 
   @override
-  String get settings_noise_engine => 'موتور حذف نویز';
+  String get settings_advanced_row_desc =>
+      'گزینه‌های فنی‌تر — بیشتر کاربران نیازی به آن‌ها ندارند';
 
   @override
-  String get settings_noise_engine_spectral => 'طیفی';
+  String get settings_advanced_title => 'تنظیمات پیشرفته';
 
   @override
-  String get settings_noise_engine_rnnoise => 'عصبی';
+  String get noise_cleaner_section => 'حذف صداهای مزاحم';
 
   @override
-  String get settings_noise_engine_desc =>
-      'موتور عصبی (RNNoise) علاوه بر همهمه‌ی موتور، نویز باد و ترافیک را هم حذف می‌کند؛ موتور طیفی مصرف باتری کمتری دارد.';
+  String get noise_cleaner_intro =>
+      'انتخاب کنید برنامه چطور صداهای مزاحم اطراف را هنگام صحبت شما حذف کند.';
 
   @override
-  String get settings_noise_engine_unavailable =>
-      'موتور عصبی هنوز روی این پلتفرم در دسترس نیست.';
+  String get noise_cleaner_simple_title => 'پاک‌کن ساده';
+
+  @override
+  String get noise_cleaner_simple_desc =>
+      'صداهای یکنواخت مثل پنکه یا موتور ماشین را کم می‌کند.';
+
+  @override
+  String get noise_cleaner_simple_downside =>
+      'صدای باد و خیابان ممکن است رد شود.';
+
+  @override
+  String get noise_cleaner_smart_title => 'پاک‌کن هوشمند';
+
+  @override
+  String get noise_cleaner_smart_desc =>
+      'یاد گرفته نویز چه شکلی است و صدای باد و خیابان را هم حذف می‌کند.';
+
+  @override
+  String get noise_cleaner_smart_downside => 'باتری بیشتری مصرف می‌کند.';
+
+  @override
+  String get noise_cleaner_both_title => 'هر دو با هم';
+
+  @override
+  String get noise_cleaner_both_desc =>
+      'هر دو پاک‌کن پشت سر هم اجرا می‌شوند تا صدا از همه تمیزتر شود.';
+
+  @override
+  String get noise_cleaner_both_downside =>
+      'بیشترین مصرف باتری را دارد و صدایتان ممکن است کمی نازک‌تر شنیده شود.';
+
+  @override
+  String get noise_cleaner_downside_label => 'نکته منفی';
+
+  @override
+  String get noise_cleaner_unavailable =>
+      'پاک‌کن هوشمند هنوز روی این دستگاه در دسترس نیست؛ فعلاً پاک‌کن ساده استفاده می‌شود.';
 
   @override
   String get sfx_feedback => 'بازخورد صوتی';
@@ -424,13 +460,18 @@ class AppLocalizationsFa extends AppLocalizations {
   String get link_reconnecting => 'ارتباط قطع شد — در حال اتصال مجدد...';
 
   @override
+  String link_reconnecting_in(int seconds) {
+    return 'اتصال مجدد تا $seconds ثانیه دیگر';
+  }
+
+  @override
   String get link_down => 'ارتباط قطع شد';
 
   @override
   String get transport_hotspot => 'هات‌اسپات';
 
   @override
-  String get hotspot_title => 'پل هات‌اسپات (Hotspot Bridge)';
+  String get hotspot_title => 'پل هات‌اسپات';
 
   @override
   String get wifi_only_instructions =>
@@ -568,11 +609,17 @@ class AppLocalizationsFa extends AppLocalizations {
       'رد کردن این صفحه و باز کردن مستقیم آخرین کانال در هنگام اجرای برنامه';
 
   @override
-  String get settings_delay => 'تاخیر در پخش (Buffer)';
+  String get settings_delay => 'تاخیر در پخش';
 
   @override
   String get settings_delay_desc =>
-      'میزان بافر شدن صدای دریافتی قبل از پخش — مقدار بالاتر، قطعی‌های شبکه را نرم‌تر می‌کند اما تاخیر صدا را بیشتر می‌کند.';
+      'برنامه قبل از پخش صدا کمی صبر می‌کند. صبرِ بیشتر صدای بریده‌بریده را روان‌تر می‌کند — اما صدای دوستتان را کمی دیرتر می‌شنوید.';
+
+  @override
+  String get settings_delay_low_hint => 'زودتر بشنو';
+
+  @override
+  String get settings_delay_high_hint => 'صدای روان‌تر';
 
   @override
   String get settings_restore_defaults => 'بازنشانی به پیش‌فرض';
@@ -586,7 +633,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get settings_auto_reconnect_desc =>
-      'در صورت قطع شدن ارتباط، به جای نیاز به تلاش دستی، به طور خودکار دوباره تلاش شود';
+      'اتصال مجدد به‌صورت خودکار — هنگام قطع ارتباط، و اتصال به آخرین نشست بلوتوث هنگام بازگشت';
 
   @override
   String get settings_permissions_row => 'دسترسی‌ها';
@@ -603,7 +650,7 @@ class AppLocalizationsFa extends AppLocalizations {
       'میزبانی هات‌اسپات یا بررسی مراحل اتصال به وای‌فای';
 
   @override
-  String get settings_skip_splash => 'رد کردن صفحه خوش‌آمدگویی (Splash)';
+  String get settings_skip_splash => 'رد کردن صفحه خوش‌آمدگویی';
 
   @override
   String get settings_skip_splash_desc =>
@@ -675,8 +722,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get onboarding_finish => 'شروع کار با برنامه';
 
   @override
-  String get onboarding_callsign_title =>
-      'اسم مستعار (Callsign) خود را انتخاب کنید';
+  String get onboarding_callsign_title => 'اسم مستعار خود را انتخاب کنید';
 
   @override
   String get onboarding_callsign_help =>
@@ -727,7 +773,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get onboarding_language_label => 'زبان';
 
   @override
-  String get onboarding_theme_label => 'پوسته (Theme)';
+  String get onboarding_theme_label => 'پوسته';
 
   @override
   String get onboarding_signal => 'سیگنال';

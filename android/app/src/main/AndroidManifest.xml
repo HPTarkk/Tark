@@ -50,6 +50,10 @@
          whitelist it from Doze (essential on MIUI/Xiaomi). -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <!-- The hotspot host starts the keep-alive service before mic capture (while
+         showing the QR), so that phase runs as a connectedDevice FGS instead of
+         microphone. Qualified by CHANGE_WIFI_STATE (declared above). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <application
         android:label="تَرک"
@@ -84,7 +88,7 @@
         <service
             android:name=".keepalive.SessionKeepAliveService"
             android:exported="false"
-            android:foregroundServiceType="microphone" />
+            android:foregroundServiceType="microphone|connectedDevice" />
         <!-- Notification access is the only way a third-party app can pause
              ANOTHER app's media session (see MediaControlHandler) — used so
              stopping music-cast can also stop the source app's local

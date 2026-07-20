@@ -8,9 +8,10 @@ import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/qr_widgets.dart';
 // Direct file imports (not the transfer barrel) — see GuestWebClient.
-import '../../../transfer/data/webrtc/sdp_codec.dart';
+import '../../../transfer/domain/codec/sdp_payload.dart';
 import '../../../transfer/domain/entity/guest_link_state.dart';
 import '../../data/guest_web_client.dart';
+import '../../di/guest_composition.dart';
 import '../manager/guest_session_cubit.dart';
 import '../widget/guest_console.dart';
 import '../widget/guest_settings_toggles.dart';
@@ -28,7 +29,7 @@ class GuestJoinPage extends StatefulWidget {
 }
 
 class _GuestJoinPageState extends State<GuestJoinPage> {
-  final GuestWebClient _client = GuestWebClient();
+  final GuestWebClient _client = createGuestWebClient();
   GuestSessionCubit? _session;
 
   String? _answerPayload;
@@ -163,7 +164,7 @@ class _GuestJoinPageState extends State<GuestJoinPage> {
       );
     }
     if (_link == GuestLinkState.connected) {
-      final session = _session ??= GuestSessionCubit(_client);
+      final session = _session ??= createGuestSessionCubit(_client);
       return BlocProvider.value(
         value: session,
         child: _SessionConsole(onLeave: _leave),

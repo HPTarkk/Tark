@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:rnnoise/rnnoise.dart' as rnn;
 
+import 'float64_fifo.dart';
 import 'resampler.dart';
 
 /// Alternative to [SpectralNoiseSuppressor] on the 16 kHz TX path: a
@@ -51,9 +52,14 @@ class RnnoiseSuppressor {
     outRate: _txRate.toDouble(),
   );
 
-  final List<double> _rnnIn = []; // 48 kHz, awaiting a full 480-sample frame
-  final List<double> _out16k = []; // 16 kHz denoised, awaiting emission
-  final List<double> _dry16k = []; // 16 kHz dry, paired 1:1 with _out16k
+  // Unboxed ring buffers — this path runs on every mic callback, and plain
+  // growable lists here (boxed doubles + O(n) removeRange shifts) generated
+  // enough garbage at audio rate to cause visible GC pauses.
+  final Float64Fifo _rnnIn =
+      Float64Fifo(); // 48 kHz, awaiting a full 480-sample frame
+  final Float64Fifo _out16k =
+      Float64Fifo(); // 16 kHz denoised, awaiting emission
+  final Float64Fifo _dry16k = Float64Fifo(); // 16 kHz dry, paired with _out16k
 
   /// Process a block of any length; returns the same number of samples.
   List<double> process(List<double> samples) {
@@ -75,23 +81,20 @@ class RnnoiseSuppressor {
       for (var i = 0; i < frameSize; i++) {
         frame[i] = _rnnIn[i] * _pcmScale;
       }
-      _rnnIn.removeRange(0, frameSize);
+      _rnnIn.discardFirst(frameSize);
 
       final (wetFrame, _) = denoiser.process(frame);
-      final wet16k = _down.process(
-        List<double>.generate(
-          frameSize,
-          (i) => wetFrame[i] / _pcmScale,
-          growable: false,
-        ),
-      );
-      _out16k.addAll(wet16k);
+      final wetScaled = Float64List(frameSize);
+      for (var i = 0; i < frameSize; i++) {
+        wetScaled[i] = wetFrame[i] / _pcmScale;
+      }
+      _out16k.addAll(_down.process(wetScaled));
     }
 
     final take = min(_out16k.length, samples.length);
     final offset = samples.length - take; // > 0 only during startup latency
     final total = offset + take;
-    final out = List<double>.filled(samples.length, 0.0);
+    final out = Float64List(samples.length);
     for (var i = 0; i < offset; i++) {
       out[i] = _dry16k[i]; // wet path hasn't produced output yet
     }
@@ -99,8 +102,8 @@ class RnnoiseSuppressor {
       final dry = _dry16k[offset + i];
       out[offset + i] = dry + (_out16k[i] - dry) * strength;
     }
-    _dry16k.removeRange(0, total);
-    _out16k.removeRange(0, take);
+    _dry16k.discardFirst(total);
+    _out16k.discardFirst(take);
     return out;
   }
 

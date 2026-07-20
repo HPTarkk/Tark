@@ -4,11 +4,8 @@ import 'dart:io';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../../core/config/quick_access_config.dart';
 import '../../../../core/settings/settings_repository.dart';
-import '../../../../core/settings/settings_repository_impl.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../transfer/api/transfer_api.dart';
 
@@ -20,9 +17,8 @@ class LandingCubit extends Cubit<LandingState> {
   StreamSubscription<TransferMode>? _modeSub;
   StreamSubscription<String>? _nameSub;
 
-  LandingCubit(this._modeStore, [SettingsRepository? settingsRepository])
-    : _settingsRepository = settingsRepository ?? SettingsRepositoryImpl(),
-      super(LandingState.initial(_modeStore.mode)) {
+  LandingCubit(this._modeStore, this._settingsRepository)
+    : super(LandingState.initial(_modeStore.mode)) {
     // Landing stays alive under Settings on the nav stack, so pick up mode
     // changes made there — the join button routes by state.transferMode.
     _modeSub = _modeStore.modeChanges.listen(
@@ -54,10 +50,8 @@ class LandingCubit extends Cubit<LandingState> {
 
   /// Marks onboarding complete so subsequent cold starts skip this page and
   /// resume the last channel/mode directly — see QuickAccess.
-  Future<void> markLaunched() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(QuickAccessPrefs.hasLaunchedBefore, true);
-  }
+  Future<void> markLaunched() =>
+      _settingsRepository.setHasLaunchedBefore(true);
 
   @override
   Future<void> close() async {

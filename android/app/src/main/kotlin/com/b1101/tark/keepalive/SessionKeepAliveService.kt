@@ -12,6 +12,7 @@ import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
+import com.b1101.tark.hotspot.HotspotHandler
 
 /**
  * Keeps a walkie session alive while the screen is off — the motorcycle case.
@@ -22,13 +23,16 @@ import android.os.PowerManager
  * keeps the whole pipeline running with the screen off:
  *
  *  * [PowerManager.PARTIAL_WAKE_LOCK] — CPU stays awake (audio + networking).
- *  * [WifiManager.WifiLock] — Wi-Fi radio stays on and out of power-save
- *    (FULL_LOW_LATENCY on API 29+, else FULL_HIGH_PERF).
+ *  * [WifiManager.WifiLock] — keeps the STA (client) radio on and out of
+ *    power-save (FULL_LOW_LATENCY on API 29+, else FULL_HIGH_PERF). Skipped
+ *    while this device is the hotspot HOST (see acquireLocks / HotspotHandler).
  *  * [WifiManager.MulticastLock] — required to keep RECEIVING UDP broadcast
  *    with the screen off; without it the OS drops non-unicast frames.
  *
- * Foreground type is `microphone` because the session records continuously via
- * audio_io — Android 14+ requires a mic-accessing FGS to declare that type.
+ * Foreground type is `microphone` for the in-channel session (it records
+ * continuously via audio_io, and Android 14+ requires a mic-accessing FGS to
+ * declare that type), or `connectedDevice` when started earlier by the hotspot
+ * host to guard the AP before the mic is recording (see [EXTRA_USES_MIC]).
  *
  * OS-level battery managers (MIUI Autostart, "no restrictions") can still kill
  * the app regardless of this service; the app steers the user to whitelist it
@@ -42,6 +46,16 @@ class SessionKeepAliveService : Service() {
         private const val WAKE_TAG = "tark:session"
         private const val WIFI_TAG = "tark:wifi"
         private const val MULTICAST_TAG = "tark:multicast"
+
+        /**
+         * Intent extra: whether the mic is actively recording at start time.
+         * The in-channel session records continuously, so its FGS is typed
+         * `microphone`. The hotspot HOST starts this service earlier — while
+         * showing the QR, before any mic capture — where a `microphone`-typed
+         * FGS would throw on Android 14+ (no mic while-in-use). That phase runs
+         * as `connectedDevice` instead (we're sustaining a Wi-Fi AP link).
+         */
+        const val EXTRA_USES_MIC = "uses_mic"
     }
 
     private var wakeLock: PowerManager.WakeLock? = null
@@ -52,14 +66,26 @@ class SessionKeepAliveService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         createNotificationChannel()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(
-                NOTIFICATION_ID,
-                buildNotification(),
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE,
-            )
-        } else {
-            startForeground(NOTIFICATION_ID, buildNotification())
+        // Default to microphone: the plain in-channel session (and any restart
+        // via START_STICKY, where intent is null) records the mic.
+        val usesMic = intent?.getBooleanExtra(EXTRA_USES_MIC, true) ?: true
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val type = if (usesMic) {
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                } else {
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+                }
+                startForeground(NOTIFICATION_ID, buildNotification(), type)
+            } else {
+                startForeground(NOTIFICATION_ID, buildNotification())
+            }
+        } catch (_: Exception) {
+            // Best-effort: e.g. Android 14 rejecting a microphone FGS when the
+            // mic while-in-use op isn't held. Bail cleanly rather than crash —
+            // the session simply runs without the keep-alive guarantees.
+            stopSelf()
+            return START_NOT_STICKY
         }
         acquireLocks()
         // Restart if the OS kills us while a session is still meant to run.
@@ -75,7 +101,14 @@ class SessionKeepAliveService : Service() {
             }
         }
         val wm = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-        if (wifiLock == null) {
+        // A WifiLock keeps the STA (client) radio awake and out of power-save.
+        // When THIS device is the hotspot host it has no STA link — the single
+        // Wi-Fi radio is in SoftAP mode — so the lock does nothing useful and,
+        // in LOW_LATENCY mode, nudges the chip back toward STA, which on
+        // single-radio phones tears the AP down (the reported "hotspot drops
+        // right after connecting"). Skip it while hosting; the foreground
+        // service + wake lock already keep the AP process alive.
+        if (wifiLock == null && !HotspotHandler.isHosting) {
             val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 WifiManager.WIFI_MODE_FULL_LOW_LATENCY
             } else {

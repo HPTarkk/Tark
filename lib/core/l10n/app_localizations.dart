@@ -107,7 +107,7 @@ abstract class AppLocalizations {
   /// No description provided for @app_subtitle.
   ///
   /// In fa, this message translates to:
-  /// **'بیسیم تحت شبکه (LAN)'**
+  /// **'بیسیم تحت شبکه'**
   String get app_subtitle;
 
   /// No description provided for @live.
@@ -149,13 +149,13 @@ abstract class AppLocalizations {
   /// No description provided for @tx_label.
   ///
   /// In fa, this message translates to:
-  /// **'ارسال (TX)'**
+  /// **'ارسال'**
   String get tx_label;
 
   /// No description provided for @rx_label.
   ///
   /// In fa, this message translates to:
-  /// **'دریافت (RX)'**
+  /// **'دریافت'**
   String get rx_label;
 
   /// No description provided for @music_cast.
@@ -239,7 +239,7 @@ abstract class AppLocalizations {
   /// No description provided for @vox_threshold.
   ///
   /// In fa, this message translates to:
-  /// **'آستانه صدا (Threshold)'**
+  /// **'آستانه صدا'**
   String get vox_threshold;
 
   /// No description provided for @voice_loud.
@@ -275,7 +275,7 @@ abstract class AppLocalizations {
   /// No description provided for @user_idle.
   ///
   /// In fa, this message translates to:
-  /// **'بیکار (Idle)'**
+  /// **'بیکار'**
   String get user_idle;
 
   /// No description provided for @set_name_title.
@@ -539,7 +539,7 @@ abstract class AppLocalizations {
   /// No description provided for @guest_web_standby.
   ///
   /// In fa, this message translates to:
-  /// **'در حال انتظار (Standby)'**
+  /// **'در حال انتظار'**
   String get guest_web_standby;
 
   /// No description provided for @guest_web_link_lost.
@@ -569,7 +569,7 @@ abstract class AppLocalizations {
   /// No description provided for @bt_start_session.
   ///
   /// In fa, this message translates to:
-  /// **'شروع نشست (Session)'**
+  /// **'شروع نشست'**
   String get bt_start_session;
 
   /// No description provided for @bt_role_host_desc.
@@ -743,7 +743,7 @@ abstract class AppLocalizations {
   /// No description provided for @permission_bt_advertise_title.
   ///
   /// In fa, this message translates to:
-  /// **'تبلیغ نشست (Advertise)'**
+  /// **'تبلیغ نشست'**
   String get permission_bt_advertise_title;
 
   /// No description provided for @permission_bt_advertise_desc.
@@ -824,41 +824,101 @@ abstract class AppLocalizations {
   /// **'زیاد'**
   String get noise_filter_strong;
 
-  /// No description provided for @settings_section_advanced.
+  /// No description provided for @settings_advanced_row.
   ///
   /// In fa, this message translates to:
-  /// **'پیشرفته'**
-  String get settings_section_advanced;
+  /// **'تنظیمات پیشرفته'**
+  String get settings_advanced_row;
 
-  /// No description provided for @settings_noise_engine.
+  /// No description provided for @settings_advanced_row_desc.
   ///
   /// In fa, this message translates to:
-  /// **'موتور حذف نویز'**
-  String get settings_noise_engine;
+  /// **'گزینه‌های فنی‌تر — بیشتر کاربران نیازی به آن‌ها ندارند'**
+  String get settings_advanced_row_desc;
 
-  /// No description provided for @settings_noise_engine_spectral.
+  /// No description provided for @settings_advanced_title.
   ///
   /// In fa, this message translates to:
-  /// **'طیفی'**
-  String get settings_noise_engine_spectral;
+  /// **'تنظیمات پیشرفته'**
+  String get settings_advanced_title;
 
-  /// No description provided for @settings_noise_engine_rnnoise.
+  /// No description provided for @noise_cleaner_section.
   ///
   /// In fa, this message translates to:
-  /// **'عصبی'**
-  String get settings_noise_engine_rnnoise;
+  /// **'حذف صداهای مزاحم'**
+  String get noise_cleaner_section;
 
-  /// No description provided for @settings_noise_engine_desc.
+  /// No description provided for @noise_cleaner_intro.
   ///
   /// In fa, this message translates to:
-  /// **'موتور عصبی (RNNoise) علاوه بر همهمه‌ی موتور، نویز باد و ترافیک را هم حذف می‌کند؛ موتور طیفی مصرف باتری کمتری دارد.'**
-  String get settings_noise_engine_desc;
+  /// **'انتخاب کنید برنامه چطور صداهای مزاحم اطراف را هنگام صحبت شما حذف کند.'**
+  String get noise_cleaner_intro;
 
-  /// No description provided for @settings_noise_engine_unavailable.
+  /// No description provided for @noise_cleaner_simple_title.
   ///
   /// In fa, this message translates to:
-  /// **'موتور عصبی هنوز روی این پلتفرم در دسترس نیست.'**
-  String get settings_noise_engine_unavailable;
+  /// **'پاک‌کن ساده'**
+  String get noise_cleaner_simple_title;
+
+  /// No description provided for @noise_cleaner_simple_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'صداهای یکنواخت مثل پنکه یا موتور ماشین را کم می‌کند.'**
+  String get noise_cleaner_simple_desc;
+
+  /// No description provided for @noise_cleaner_simple_downside.
+  ///
+  /// In fa, this message translates to:
+  /// **'صدای باد و خیابان ممکن است رد شود.'**
+  String get noise_cleaner_simple_downside;
+
+  /// No description provided for @noise_cleaner_smart_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'پاک‌کن هوشمند'**
+  String get noise_cleaner_smart_title;
+
+  /// No description provided for @noise_cleaner_smart_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'یاد گرفته نویز چه شکلی است و صدای باد و خیابان را هم حذف می‌کند.'**
+  String get noise_cleaner_smart_desc;
+
+  /// No description provided for @noise_cleaner_smart_downside.
+  ///
+  /// In fa, this message translates to:
+  /// **'باتری بیشتری مصرف می‌کند.'**
+  String get noise_cleaner_smart_downside;
+
+  /// No description provided for @noise_cleaner_both_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'هر دو با هم'**
+  String get noise_cleaner_both_title;
+
+  /// No description provided for @noise_cleaner_both_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'هر دو پاک‌کن پشت سر هم اجرا می‌شوند تا صدا از همه تمیزتر شود.'**
+  String get noise_cleaner_both_desc;
+
+  /// No description provided for @noise_cleaner_both_downside.
+  ///
+  /// In fa, this message translates to:
+  /// **'بیشترین مصرف باتری را دارد و صدایتان ممکن است کمی نازک‌تر شنیده شود.'**
+  String get noise_cleaner_both_downside;
+
+  /// No description provided for @noise_cleaner_downside_label.
+  ///
+  /// In fa, this message translates to:
+  /// **'نکته منفی'**
+  String get noise_cleaner_downside_label;
+
+  /// No description provided for @noise_cleaner_unavailable.
+  ///
+  /// In fa, this message translates to:
+  /// **'پاک‌کن هوشمند هنوز روی این دستگاه در دسترس نیست؛ فعلاً پاک‌کن ساده استفاده می‌شود.'**
+  String get noise_cleaner_unavailable;
 
   /// No description provided for @sfx_feedback.
   ///
@@ -871,6 +931,12 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'ارتباط قطع شد — در حال اتصال مجدد...'**
   String get link_reconnecting;
+
+  /// No description provided for @link_reconnecting_in.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتصال مجدد تا {seconds} ثانیه دیگر'**
+  String link_reconnecting_in(int seconds);
 
   /// No description provided for @link_down.
   ///
@@ -887,7 +953,7 @@ abstract class AppLocalizations {
   /// No description provided for @hotspot_title.
   ///
   /// In fa, this message translates to:
-  /// **'پل هات‌اسپات (Hotspot Bridge)'**
+  /// **'پل هات‌اسپات'**
   String get hotspot_title;
 
   /// No description provided for @wifi_only_instructions.
@@ -1133,14 +1199,26 @@ abstract class AppLocalizations {
   /// No description provided for @settings_delay.
   ///
   /// In fa, this message translates to:
-  /// **'تاخیر در پخش (Buffer)'**
+  /// **'تاخیر در پخش'**
   String get settings_delay;
 
   /// No description provided for @settings_delay_desc.
   ///
   /// In fa, this message translates to:
-  /// **'میزان بافر شدن صدای دریافتی قبل از پخش — مقدار بالاتر، قطعی‌های شبکه را نرم‌تر می‌کند اما تاخیر صدا را بیشتر می‌کند.'**
+  /// **'برنامه قبل از پخش صدا کمی صبر می‌کند. صبرِ بیشتر صدای بریده‌بریده را روان‌تر می‌کند — اما صدای دوستتان را کمی دیرتر می‌شنوید.'**
   String get settings_delay_desc;
+
+  /// No description provided for @settings_delay_low_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'زودتر بشنو'**
+  String get settings_delay_low_hint;
+
+  /// No description provided for @settings_delay_high_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'صدای روان‌تر'**
+  String get settings_delay_high_hint;
 
   /// No description provided for @settings_restore_defaults.
   ///
@@ -1163,7 +1241,7 @@ abstract class AppLocalizations {
   /// No description provided for @settings_auto_reconnect_desc.
   ///
   /// In fa, this message translates to:
-  /// **'در صورت قطع شدن ارتباط، به جای نیاز به تلاش دستی، به طور خودکار دوباره تلاش شود'**
+  /// **'اتصال مجدد به‌صورت خودکار — هنگام قطع ارتباط، و اتصال به آخرین نشست بلوتوث هنگام بازگشت'**
   String get settings_auto_reconnect_desc;
 
   /// No description provided for @settings_permissions_row.
@@ -1193,7 +1271,7 @@ abstract class AppLocalizations {
   /// No description provided for @settings_skip_splash.
   ///
   /// In fa, this message translates to:
-  /// **'رد کردن صفحه خوش‌آمدگویی (Splash)'**
+  /// **'رد کردن صفحه خوش‌آمدگویی'**
   String get settings_skip_splash;
 
   /// No description provided for @settings_skip_splash_desc.
@@ -1319,7 +1397,7 @@ abstract class AppLocalizations {
   /// No description provided for @onboarding_callsign_title.
   ///
   /// In fa, this message translates to:
-  /// **'اسم مستعار (Callsign) خود را انتخاب کنید'**
+  /// **'اسم مستعار خود را انتخاب کنید'**
   String get onboarding_callsign_title;
 
   /// No description provided for @onboarding_callsign_help.
@@ -1403,7 +1481,7 @@ abstract class AppLocalizations {
   /// No description provided for @onboarding_theme_label.
   ///
   /// In fa, this message translates to:
-  /// **'پوسته (Theme)'**
+  /// **'پوسته'**
   String get onboarding_theme_label;
 
   /// No description provided for @onboarding_signal.

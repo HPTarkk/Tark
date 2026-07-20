@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tark/core/l10n/extension.dart';
 
 import 'core/l10n/app_localizations.dart';
@@ -9,6 +10,7 @@ import 'core/theme/theme_service.dart';
 import 'core/widget/theme_reveal_transition.dart';
 // Direct file import (not the transfer barrel): the barrel exports pages
 // that use dart:io, which cannot compile on web.
+import 'feature/guest/di/guest_composition.dart';
 import 'feature/guest/presentation/page/guest_join_page.dart';
 import 'feature/transfer/data/codec/opus_audio_codec.dart';
 
@@ -19,9 +21,14 @@ import 'feature/transfer/data/codec/opus_audio_codec.dart';
 /// core/config/guest_config.dart).
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await LocaleService.initialize();
-  await ThemeService.initialize();
-  await Sfx.initialize();
+  // The one SharedPreferences resolution for the guest process — this build
+  // has no DI, so the entrypoint hands the instance to every consumer (the
+  // static services here, the session factories via the composition root).
+  final prefs = await SharedPreferences.getInstance();
+  LocaleService.initialize(prefs);
+  ThemeService.initialize(prefs);
+  await Sfx.initialize(prefs);
+  initializeGuestComposition(prefs);
   // Best effort: when the wasm build of libopus fails to load, the codec
   // falls back to PCM16 — a WebRTC data channel on LAN has the headroom.
   await OpusAudioCodec.ensureInitialized();

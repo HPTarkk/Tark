@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'dart:math';
 
 /// Continuous linear-interpolation sample-rate converter.
@@ -6,6 +8,10 @@ import 'dart:math';
 /// resampling a stream of arbitrarily-sized chunks produces the same result
 /// as resampling it as one contiguous buffer — no clicks or pitch jumps at
 /// chunk boundaries.
+///
+/// Works entirely in typed arrays: this runs on every mic callback, and
+/// growable `List<double>` output boxed each emitted sample, which at audio
+/// rate was a steady source of GC pressure (visible as UI pauses).
 class LinearResampler {
   LinearResampler({required this.inRate, required this.outRate});
 
@@ -13,13 +19,21 @@ class LinearResampler {
   final double outRate;
 
   double _phase = 0.0;
-  List<double> _history = const [];
+  Float64List _history = Float64List(0);
 
   List<double> process(List<double> input) {
     if (input.isEmpty) return const [];
-    final samples = [..._history, ...input];
+    final samples = Float64List(_history.length + input.length);
+    samples.setRange(0, _history.length, _history);
+    for (var i = 0; i < input.length; i++) {
+      samples[_history.length + i] = input[i];
+    }
     final ratio = inRate / outRate;
-    final out = <double>[];
+
+    // Upper bound on output count; the loop below fills `n <= maxOut`.
+    final maxOut = ((samples.length - _phase) / ratio).ceil() + 1;
+    final out = Float64List(maxOut);
+    var n = 0;
 
     double pos = _phase;
     while (true) {
@@ -27,19 +41,19 @@ class LinearResampler {
       final i1 = i0 + 1;
       if (i1 >= samples.length) break;
       final frac = pos - i0;
-      out.add(samples[i0] + (samples[i1] - samples[i0]) * frac);
+      out[n++] = samples[i0] + (samples[i1] - samples[i0]) * frac;
       pos += ratio;
     }
 
     final consumedWhole = pos.floor().clamp(0, samples.length - 1);
     _history = samples.sublist(consumedWhole);
     _phase = pos - consumedWhole;
-    return out;
+    return Float64List.sublistView(out, 0, n);
   }
 
   void reset() {
     _phase = 0.0;
-    _history = const [];
+    _history = Float64List(0);
   }
 }
 
@@ -60,7 +74,7 @@ class OnePoleLowPass {
   }
 
   List<double> process(List<double> input) {
-    final out = List<double>.filled(input.length, 0.0);
+    final out = Float64List(input.length);
     for (int i = 0; i < input.length; i++) {
       _y += _alpha * (input[i] - _y);
       out[i] = _y;

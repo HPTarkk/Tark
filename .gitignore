@@ -1,3 +1,9 @@
+# Signing keys / secrets — never commit (android/.gitignore only covers android/**)
+*.jks
+*.keystore
+upload-keystore.jks
+key.properties
+
 # Miscellaneous
 *.class
 *.log

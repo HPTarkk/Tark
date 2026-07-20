@@ -1,10 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../../core/config/onboarding_config.dart';
-import '../../../../core/config/quick_access_config.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/theme/theme_service.dart';
 import '../../../transfer/api/transfer_api.dart';
@@ -99,17 +96,14 @@ class OnboardingCubit extends Cubit<OnboardingState> {
   /// join flow (the same flag Landing's Join button sets).
   Future<void> launch() async {
     await finish();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(QuickAccessPrefs.hasLaunchedBefore, true);
+    await _settingsRepository.setHasLaunchedBefore(true);
   }
 
   /// Marks onboarding done without touching name/mode — the skip path.
   Future<void> skip() => _markCompleted();
 
-  Future<void> _markCompleted() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(OnboardingPrefs.completed, true);
-  }
+  Future<void> _markCompleted() =>
+      _settingsRepository.setOnboardingCompleted(true);
 
   @override
   Future<void> close() {

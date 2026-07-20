@@ -15,8 +15,10 @@ import '../../feature/transfer/api/transfer_api.dart';
 /// last-used [TransferMode] — see AppRouter.startLocation, set from this in
 /// main.dart before the first read of AppRouter.router.
 abstract final class QuickAccess {
-  static Future<String> resolveStartLocation(TransferMode lastMode) async {
-    final prefs = await SharedPreferences.getInstance();
+  static String resolveStartLocation(
+    TransferMode lastMode,
+    SharedPreferences prefs,
+  ) {
     final hasLaunched =
         prefs.getBool(QuickAccessPrefs.hasLaunchedBefore) ?? false;
     final enabled = prefs.getBool(QuickAccessPrefs.enabled) ?? true;

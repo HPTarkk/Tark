@@ -7,7 +7,6 @@ import 'package:injectable/injectable.dart';
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/settings/settings_repository.dart';
-import '../../../../core/settings/settings_repository_impl.dart';
 import '../../../../core/utils/android_sdk.dart';
 import '../../../../core/utils/exponential_backoff.dart';
 import '../../../../core/utils/logger.dart';
@@ -38,8 +37,7 @@ import '../codec/waki_packet_codec.dart';
 @lazySingleton
 class BluetoothTransferRepository
     implements TransferRepository, BluetoothTransport {
-  BluetoothTransferRepository([SettingsRepository? settingsRepository])
-    : _settingsRepository = settingsRepository ?? SettingsRepositoryImpl();
+  BluetoothTransferRepository(this._settingsRepository);
 
   final SettingsRepository _settingsRepository;
   final _codec = WakiPacketCodec();
@@ -119,7 +117,22 @@ class BluetoothTransferRepository
   // ── BluetoothTransport ──────────────────────────────────────────────────
 
   @override
-  Future<void> startHosting() async {
+  Future<bool> get isAdapterReady async {
+    if (_classicSupported) {
+      try {
+        return await (await _classicAsync()).isEnabled;
+      } catch (e) {
+        Logger.log('Bluetooth adapter state check failed: $e');
+        return false;
+      }
+    }
+    // iOS: there is no enable dialog to avoid — a powered-off adapter just
+    // yields nothing and the attempt fizzles out quietly.
+    return _bleSupported;
+  }
+
+  @override
+  Future<void> startHosting({bool discoverable = true}) async {
     _sessionRole = 'host';
     _connectionStateController.add(bt.BluetoothConnectionState.hosting);
 
@@ -137,7 +150,10 @@ class BluetoothTransferRepository
       final classic = await _classicAsync();
       _requireBle;
       _listenToEngines();
-      await classic.requestDiscoverable();
+      // Auto-host skips the discoverable dialog: the remembered joiner
+      // re-dials this device by address, which an insecure RFCOMM server
+      // accepts whether or not the device is scan-discoverable.
+      if (discoverable) await classic.requestDiscoverable();
       await classic.startHosting(name: deviceName);
       unawaited(_bleEngine?.startHosting(name: deviceName) ?? Future.value());
     } else if (_bleSupported) {
@@ -300,10 +316,16 @@ class BluetoothTransferRepository
     } else {
       unawaited(_bleEngine?.stopHosting());
     }
-    // Remember the joiner's peer for the "reconnect to last session" quick
-    // action on the role screen.
+    // Remember the role this device played so the next launch resumes the
+    // same part hands-free (host re-hosts, joiner re-dials). The joiner also
+    // remembers its peer, for the address it re-dials and the "reconnect to
+    // last session" quick action on the role screen.
+    final role = _sessionRole;
+    if (role != null) {
+      unawaited(_settingsRepository.setLastBluetoothRole(role));
+    }
     final peer = _sessionPeer;
-    if (_sessionRole == 'joiner' && peer != null) {
+    if (role == 'joiner' && peer != null) {
       unawaited(
         _settingsRepository.setLastBluetoothPeer(id: peer.id, name: peer.name),
       );
@@ -442,12 +464,12 @@ class BluetoothTransferRepository
   }
 
   @override
-  Stream<ConnectionHealthStatus> connect() => connectionState.map(
+  Stream<ConnectionHealth> connect() => connectionState.map(
     (s) => switch (s) {
-      bt.BluetoothConnectionState.connected => ConnectionHealthStatus.healthy,
+      bt.BluetoothConnectionState.connected => const ConnectionHealth.healthy(),
       bt.BluetoothConnectionState.reconnecting =>
-        ConnectionHealthStatus.reconnecting,
-      _ => ConnectionHealthStatus.down,
+        const ConnectionHealth.reconnecting(),
+      _ => const ConnectionHealth.down(),
     },
   );
 

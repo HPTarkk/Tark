@@ -49,9 +49,10 @@ abstract interface class AudioEngine {
   /// to the mic signal before VOX/visualizer/transmit.
   void setNoiseSuppression(double strength);
 
-  /// Select which noise suppression algorithm runs on the mic signal. If
-  /// [NoiseSuppressionEngine.rnnoise] isn't available on this platform/build,
-  /// implementations fall back to spectral suppression silently.
+  /// Select which noise suppression algorithm runs on the mic signal —
+  /// spectral, rnnoise, or [NoiseSuppressionEngine.both] cascaded. If
+  /// rnnoise isn't available on this platform/build, implementations fall
+  /// back to spectral suppression silently (for `both` too).
   void setNoiseSuppressionEngine(NoiseSuppressionEngine engine);
 
   /// Feed received network audio (16 kHz PCM) into the jitter buffer,

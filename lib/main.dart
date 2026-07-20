@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/di/di_config.dart';
 import 'app/my_app.dart';
@@ -14,13 +15,18 @@ import 'feature/transfer/api/transfer_api.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await LocaleService.initialize();
-  await ThemeService.initialize();
-  await Sfx.initialize();
+  // The one SharedPreferences resolution for the whole process: handed to
+  // the pre-DI services here, and registered in the DI graph (see
+  // RegisterThirdParty.prefs — getInstance() returns this same cached
+  // instance) for everything constructed after configureDependencies().
+  final prefs = await SharedPreferences.getInstance();
+  LocaleService.initialize(prefs);
+  ThemeService.initialize(prefs);
+  await Sfx.initialize(prefs);
   // Loads libopus once for the process; on failure the codec transparently
   // falls back to PCM16, so this must never block or crash startup.
   await OpusAudioCodec.ensureInitialized();
-  configureDependencies();
+  await configureDependencies();
   // Must complete before the first page builds: the DI factory that picks
   // the active TransferRepository reads the persisted mode synchronously.
   final modeStore = GetIt.instance<TransferModeStore>();
@@ -29,7 +35,7 @@ void main() async {
   // MyApp's build below), so this must also complete before runApp().
   final skipSplash = await GetIt.instance<SettingsRepository>().getSkipSplash();
   AppRouter.startLocation = skipSplash
-      ? await QuickAccess.resolveStartLocation(modeStore.mode)
+      ? QuickAccess.resolveStartLocation(modeStore.mode, prefs)
       : AppRoutes.splashPath;
   runApp(const MyApp());
 }

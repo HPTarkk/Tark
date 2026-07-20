@@ -31,7 +31,9 @@ class KeepAliveHandler(
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "start" -> {
-                start()
+                // Defaults to true (mic session); the hotspot host passes false
+                // to start earlier, before mic capture, as a connectedDevice FGS.
+                start(usesMicrophone = call.argument<Boolean>("usesMicrophone") ?: true)
                 result.success(null)
             }
             "stop" -> {
@@ -50,8 +52,9 @@ class KeepAliveHandler(
         }
     }
 
-    fun start() {
+    fun start(usesMicrophone: Boolean = true) {
         val intent = Intent(context, SessionKeepAliveService::class.java)
+            .putExtra(SessionKeepAliveService.EXTRA_USES_MIC, usesMicrophone)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             context.startForegroundService(intent)
         } else {

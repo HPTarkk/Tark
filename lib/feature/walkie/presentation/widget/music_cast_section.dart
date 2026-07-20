@@ -2,10 +2,10 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/settings/settings_repository.dart';
-import '../../../../core/settings/settings_repository_impl.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../core/widget/section_header.dart';
@@ -295,7 +295,8 @@ class _NotificationAccessHint extends StatefulWidget {
 
 class _NotificationAccessHintState extends State<_NotificationAccessHint>
     with WidgetsBindingObserver {
-  final SettingsRepository _settingsRepository = SettingsRepositoryImpl();
+  final SettingsRepository _settingsRepository =
+      GetIt.instance<SettingsRepository>();
   bool _show = false;
 
   @override

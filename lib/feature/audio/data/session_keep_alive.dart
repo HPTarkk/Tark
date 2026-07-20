@@ -1,8 +1,10 @@
 import 'dart:io';
 
 import 'package:flutter/services.dart';
+import 'package:injectable/injectable.dart';
 
 import '../../../core/utils/logger.dart';
+import '../domain/service/session_wake_lock.dart';
 
 /// Bridge to the native session keep-alive (see
 /// android/.../keepalive/SessionKeepAliveService.kt and KeepAliveHandler.kt).
@@ -18,10 +20,17 @@ abstract final class SessionKeepAlive {
   static bool get _supported => Platform.isAndroid;
 
   /// Starts the foreground service + wake/Wi-Fi/multicast locks.
-  static Future<void> start() async {
+  ///
+  /// [usesMicrophone] must be false when starting BEFORE mic capture begins
+  /// (the hotspot host guarding its AP while showing the QR): a
+  /// microphone-typed foreground service is rejected on Android 14+ without an
+  /// active mic, so that phase runs as a connectedDevice service instead.
+  static Future<void> start({bool usesMicrophone = true}) async {
     if (!_supported) return;
     try {
-      await _channel.invokeMethod<void>('start');
+      await _channel.invokeMethod<void>('start', {
+        'usesMicrophone': usesMicrophone,
+      });
     } catch (e) {
       Logger.log('Keep-alive start failed: $e');
     }
@@ -79,4 +88,18 @@ abstract final class SessionKeepAlive {
       Logger.log('Open autostart settings failed: $e');
     }
   }
+}
+
+/// [SessionWakeLock] adapter over the static [SessionKeepAlive] bridge —
+/// the injectable seam session cubits depend on.
+@LazySingleton(as: SessionWakeLock)
+class SessionKeepAliveWakeLock implements SessionWakeLock {
+  const SessionKeepAliveWakeLock();
+
+  @override
+  Future<void> start({bool usesMicrophone = true}) =>
+      SessionKeepAlive.start(usesMicrophone: usesMicrophone);
+
+  @override
+  Future<void> stop() => SessionKeepAlive.stop();
 }

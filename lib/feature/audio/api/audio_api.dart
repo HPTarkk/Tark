@@ -9,5 +9,8 @@ export '../data/session_keep_alive.dart' show SessionKeepAlive;
 export '../data/system_audio_capture.dart' show SystemAudioCapture;
 export '../domain/entity/audio_engine_status.dart';
 export '../domain/entity/audio_frame.dart';
+export '../domain/music_mixer.dart';
 export '../domain/service/audio_engine.dart';
+export '../domain/service/session_wake_lock.dart';
+export '../domain/vox_gate.dart';
 export '../presentation/widget/audio_visualizer.dart';

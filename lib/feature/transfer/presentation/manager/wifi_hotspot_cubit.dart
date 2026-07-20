@@ -8,14 +8,15 @@ import 'package:injectable/injectable.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../core/sfx/sfx_event.dart';
-import '../../../../core/sfx/sfx_service.dart';
+import '../../../../core/sfx/sfx_player.dart';
 import '../../../../core/utils/android_sdk.dart';
 import '../../../../core/utils/logger.dart';
-import '../../data/hotspot/wifi_hotspot_controller.dart';
-import '../../data/repository/wifi_transfer_repository_impl.dart';
+import '../../../audio/api/audio_api.dart';
 import '../../domain/entity/hotspot_credentials.dart';
 import '../../domain/entity/waki_packet.dart';
 import '../../domain/entity/wifi_hotspot_segment.dart';
+import '../../domain/repository/wifi_transfer_repository.dart';
+import '../../domain/service/hotspot_control.dart';
 
 enum HotspotPhase {
   /// Android: creating the local-only hotspot.
@@ -93,15 +94,23 @@ class HotspotBridgeState extends Equatable {
 /// network programmatically ([tryJoin]).
 @injectable
 class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
-  final WifiTransferRepositoryImpl _wifi;
-  final WifiHotspotController _hotspot = WifiHotspotController();
-  final HotspotJoiner _joiner = HotspotJoiner();
+  final WifiTransferRepository _wifi;
+  final HotspotHost _hotspot;
+  final HotspotJoiner _joiner;
+  final SfxPlayer _sfx;
+  final SessionWakeLock _keepAlive;
 
   StreamSubscription<WakiPacket>? _peerSub;
+  StreamSubscription<void>? _stoppedSub;
   bool _hostStarted = false;
 
-  WifiHotspotCubit(this._wifi)
-    : super(HotspotBridgeState.initial(WifiHotspotSegment.wifi));
+  WifiHotspotCubit(
+    this._wifi,
+    this._hotspot,
+    this._joiner,
+    this._sfx,
+    this._keepAlive,
+  ) : super(HotspotBridgeState.initial(WifiHotspotSegment.wifi));
 
   /// Switches the visible segment, lazily starting the Android hotspot host
   /// the first time the user picks "Hotspot" (never on iOS — it joins by
@@ -141,19 +150,26 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
       final creds = await _hotspot.start();
       if (isClosed) return;
       emit(state.copyWith(phase: HotspotPhase.ready, credentials: creds));
-      Sfx.play(SfxEvent.linkRestored);
+      _sfx.play(SfxEvent.linkRestored);
+      // Guard the AP from the moment it's up — not only once the channel is
+      // entered. Without a wake lock during the "waiting for the peer to scan
+      // and join" window, the host can hit screen-off/Doze and the OS tears
+      // the SoftAP down before anyone connects. usesMicrophone:false because
+      // the mic isn't recording yet (see SessionKeepAlive.start).
+      unawaited(_keepAlive.start(usesMicrophone: false));
+      _watchForTeardown();
       _listenForPeer();
     } on PlatformException catch (e) {
       Logger.log('Hotspot start failed: ${e.code} ${e.message}');
       if (!isClosed) {
         emit(state.copyWith(phase: HotspotPhase.error, errorCode: e.code));
-        Sfx.play(SfxEvent.error);
+        _sfx.play(SfxEvent.error);
       }
     } catch (e) {
       Logger.log('Hotspot start failed: $e');
       if (!isClosed) {
         emit(state.copyWith(phase: HotspotPhase.error, errorCode: 'failed'));
-        Sfx.play(SfxEvent.error);
+        _sfx.play(SfxEvent.error);
       }
     }
   }
@@ -166,9 +182,26 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
     _peerSub = _wifi.startListening().listen((_) {
       if (!isClosed && !state.peerConnected) {
         emit(state.copyWith(peerConnected: true));
-        Sfx.play(SfxEvent.peerJoin);
+        _sfx.play(SfxEvent.peerJoin);
       }
     }, onError: (Object e) => Logger.log('Hotspot peer listen error: $e'));
+  }
+
+  /// Recovers from an OS-initiated hotspot teardown while we're still on this
+  /// page waiting for the peer. The native side only fires this for a teardown
+  /// it didn't initiate (radio conflict, Doze, an STA reconnect stealing the
+  /// single radio) — re-hosting brings the AP back with fresh credentials so
+  /// the QR/creds refresh and the peer can join again, instead of the page
+  /// sitting dead on a network that no longer exists. Once the peer has joined
+  /// we've navigated into the channel (cubit closing), so we don't re-host
+  /// then — the live session's own health/reconnect path owns recovery.
+  void _watchForTeardown() {
+    _stoppedSub?.cancel();
+    _stoppedSub = _hotspot.onStopped.listen((_) {
+      if (isClosed || state.peerConnected) return;
+      Logger.log('Hotspot torn down by OS — re-hosting');
+      startHost();
+    }, onError: (Object e) => Logger.log('Hotspot teardown listen error: $e'));
   }
 
   /// iOS join flow: attempt to join the Android host's network via
@@ -184,14 +217,22 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   Future<void> stopHost() async {
     await _peerSub?.cancel();
     _peerSub = null;
+    await _stoppedSub?.cancel();
+    _stoppedSub = null;
     await _hotspot.stop();
+    // Backing out without entering the channel: the host duty is over, so drop
+    // the keep-alive we took when the AP came up. (When we instead enter the
+    // channel, close() runs and deliberately leaves it — the session owns it.)
+    unawaited(_keepAlive.stop());
   }
 
   @override
   Future<void> close() async {
-    // Intentionally does NOT stop the hotspot: navigating into the walkie
-    // session disposes this cubit while the AP must stay alive.
+    // Intentionally does NOT stop the hotspot OR the keep-alive: navigating
+    // into the walkie session disposes this cubit while the AP — and the
+    // foreground service guarding it — must stay alive.
     await _peerSub?.cancel();
+    await _stoppedSub?.cancel();
     return super.close();
   }
 }

@@ -1,10 +1,10 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/settings/settings_repository.dart';
-import '../../../../core/settings/settings_repository_impl.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../audio/api/audio_api.dart';
 
@@ -28,7 +28,8 @@ class BackgroundPermissionBanner extends StatefulWidget {
 
 class _BackgroundPermissionBannerState extends State<BackgroundPermissionBanner>
     with WidgetsBindingObserver {
-  final SettingsRepository _settingsRepository = SettingsRepositoryImpl();
+  final SettingsRepository _settingsRepository =
+      GetIt.instance<SettingsRepository>();
   bool _show = false;
   bool _isMiui = false;
 

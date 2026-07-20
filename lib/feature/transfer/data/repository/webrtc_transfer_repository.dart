@@ -36,8 +36,7 @@ class WebRtcTransferRepository
   final _codec = WakiPacketCodec();
 
   final _packetController = StreamController<WakiPacket>.broadcast();
-  final _connectionController =
-      StreamController<ConnectionHealthStatus>.broadcast();
+  final _connectionController = StreamController<ConnectionHealth>.broadcast();
   final _linkStateController = StreamController<GuestLinkState>.broadcast();
 
   RTCPeerConnection? _pc;
@@ -50,7 +49,11 @@ class WebRtcTransferRepository
   static const _kMaxRetryAttempts = 3;
 
   void _setHealth(ConnectionHealthStatus status) {
-    if (!_connectionController.isClosed) _connectionController.add(status);
+    // Guest/WebRTC has no exposed backoff schedule, so no countdown — the
+    // banner shows the indeterminate "reconnecting…" for this transport.
+    if (!_connectionController.isClosed) {
+      _connectionController.add(ConnectionHealth(status));
+    }
   }
 
   void _setLink(GuestLinkState state) {
@@ -232,7 +235,7 @@ class WebRtcTransferRepository
   }
 
   @override
-  Stream<ConnectionHealthStatus> connect() => _connectionController.stream;
+  Stream<ConnectionHealth> connect() => _connectionController.stream;
 
   @override
   void setAutoReconnectEnabled(bool enabled) {

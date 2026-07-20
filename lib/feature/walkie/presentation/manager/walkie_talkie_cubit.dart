@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:collection';
-import 'dart:math';
 
 import 'package:equatable/equatable.dart';
 import 'package:flutter/services.dart';
@@ -9,14 +7,14 @@ import 'package:injectable/injectable.dart';
 
 import '../../../../core/settings/noise_suppression_engine.dart';
 import '../../../../core/settings/settings_repository.dart';
-import '../../../../core/settings/settings_repository_impl.dart';
 import '../../../../core/sfx/sfx_event.dart';
-import '../../../../core/sfx/sfx_service.dart';
+import '../../../../core/sfx/sfx_player.dart';
 import '../../../../core/utils/lan_ipv4.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../audio/api/audio_api.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../../domain/entity/channel_user.dart';
+import '../../domain/service/channel_roster.dart';
 
 /// Placeholder local id used in Bluetooth mode, where there's no IP concept
 /// and the peer connection (established before this cubit is even built) is
@@ -31,21 +29,24 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
   final TransferRepository _transferRepository;
   final TransferModeStore _modeStore;
   final SettingsRepository _settingsRepository;
+  final SfxPlayer _sfx;
+  final SessionWakeLock _keepAlive;
 
   StreamSubscription<AudioFrame>? _frameSub;
   StreamSubscription<AudioEngineStatus>? _statusSub;
   StreamSubscription<WakiPacket>? _packetSub;
-  StreamSubscription<ConnectionHealthStatus>? _linkSub;
+  StreamSubscription<ConnectionHealth>? _linkSub;
   Timer? _presenceTimer;
   Timer? _cleanupTimer;
 
   WalkieTalkieCubit(
     this._audioEngine,
     this._transferRepository,
-    this._modeStore, [
-    SettingsRepository? settingsRepository,
-  ]) : _settingsRepository = settingsRepository ?? SettingsRepositoryImpl(),
-       super(WalkieTalkieState.initial()) {
+    this._modeStore,
+    this._settingsRepository,
+    this._sfx,
+    this._keepAlive,
+  ) : super(WalkieTalkieState.initial()) {
     _init();
   }
 
@@ -72,7 +73,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     _statusSub = _audioEngine.status.listen((status) {
       if (!isClosed && status.hasPermission != state.hasPermission) {
         if (state.hasPermission && !status.hasPermission) {
-          Sfx.play(SfxEvent.error);
+          _sfx.play(SfxEvent.error);
         }
         emit(state.copyWith(hasPermission: status.hasPermission));
       }
@@ -111,7 +112,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     // Keep the CPU + Wi-Fi awake for the whole session so audio and the
     // transport survive the screen going off (the motorcycle case). Android
     // foreground service + wake/Wi-Fi/multicast locks; a no-op elsewhere.
-    unawaited(SessionKeepAlive.start());
+    unawaited(_keepAlive.start());
 
     _frameSub = _audioEngine.frames.listen(
       _onAudioFrame,
@@ -136,15 +137,14 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     // longer gated to specific transports.
     _linkSub = _transferRepository.connect().listen((health) {
       if (isClosed) return;
-      final wasHealthy =
-          state.connectionHealth == ConnectionHealthStatus.healthy;
-      final isHealthy = health == ConnectionHealthStatus.healthy;
+      final wasHealthy = state.connectionHealth.isHealthy;
+      final isHealthy = health.isHealthy;
       if (state.connectionHealth != health) {
         emit(state.copyWith(connectionHealth: health));
         if (wasHealthy && !isHealthy) {
-          Sfx.play(SfxEvent.linkLost);
+          _sfx.play(SfxEvent.linkLost);
         } else if (!wasHealthy && isHealthy) {
-          Sfx.play(SfxEvent.linkRestored);
+          _sfx.play(SfxEvent.linkRestored);
           // Recovering from a drop can leave stale jitter-buffer/decoder
           // state from before the gap — clear it so playback doesn't pick
           // up mid-buffer or garble the first packets from a resumed sender.
@@ -164,32 +164,21 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     );
 
     emit(state.copyWith(isReady: true));
-    Sfx.play(SfxEvent.channelJoin);
+    _sfx.play(SfxEvent.channelJoin);
     _broadcastPresence();
   }
 
-  // VOX shaping. A raw per-frame RMS gate is what made transmission sound
-  // choppy: the instant a frame dipped below threshold (every gap between
-  // words, every soft syllable) TX cut out, chopping word endings, and the
-  // first frame of speech was likewise lost because the gate only opened
-  // AFTER the onset frame that tripped it. Two counter-measures:
-  //  * hangover — once voice is detected, keep transmitting for a while
-  //    after the level drops, so natural pauses don't slice the stream;
-  //  * pre-roll — while idle, keep the last few frames; when the gate
-  //    opens, send them first so the word onset that opened it is heard.
-  static const _kHangoverFrames = 35; // 35 × 20 ms = 700 ms
-  static const _kPrerollFrames = 3; // 3 × 20 ms = 60 ms
-  final ListQueue<List<double>> _preroll = ListQueue();
-  int _hangover = 0;
+  // Hangover + pre-roll VOX shaping — see [VoxGate] for the why.
+  final VoxGate _voxGate = VoxGate();
   bool _prevVoiceOpen = false;
 
-  // System-audio (music) sharing: captured playback arrives as ~100 ms
-  // chunks on its own clock and is re-cut to the mic's 20 ms frame grid by
-  // buffering through this queue. Capped at 1 s — the two clocks drift, and
-  // a runaway queue would turn into pure latency.
+  // Roster bookkeeping (join/leave/talk-timeout) — see [ChannelRoster].
+  final ChannelRoster _roster = const ChannelRoster();
+
+  // System-audio (music) sharing: capture chunks queue up in the mixer,
+  // which re-cuts them onto the mic's 20 ms frame grid — see [MusicMixer].
   StreamSubscription<List<double>>? _musicSub;
-  final ListQueue<double> _musicQueue = ListQueue();
-  static const _kMusicQueueMax = 16000; // 1 s at 16 kHz
+  final MusicMixer _musicMixer = MusicMixer();
 
   // Level of the captured system audio (~10 Hz, one value per capture
   // chunk), for the music-cast equalizer. Same pattern as [frames]: an
@@ -216,15 +205,9 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     // No network → never mark as transmitting.
     final isOnline = state.localId.isNotEmpty && state.localId != '0.0.0.0';
 
-    if (frame.rms > state.voxThreshold) {
-      _hangover = _kHangoverFrames;
-    } else if (_hangover > 0) {
-      _hangover--;
-    }
-
-    final voiceOpen = _hangover > 0;
+    final voiceOpen = _voxGate.advance(frame.rms, state.voxThreshold);
     if (isOnline && voiceOpen != _prevVoiceOpen) {
-      Sfx.play(voiceOpen ? SfxEvent.pttOpen : SfxEvent.pttClose);
+      _sfx.play(voiceOpen ? SfxEvent.pttOpen : SfxEvent.pttClose);
       // Light tactile confirmation that the channel just keyed up — only on
       // open, not close, so a run of short words doesn't buzz repeatedly.
       if (voiceOpen) unawaited(HapticFeedback.lightImpact());
@@ -239,43 +222,30 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
         (voiceOpen || sharingMusic);
 
     if (isTransmitting) {
+      final buffered = _voxGate.drainPreroll();
       if (voiceOpen && !state.isTransmitting) {
         // Gate just opened — flush the pre-roll so the word onset survives.
-        for (final buffered in _preroll) {
+        for (final samples in buffered) {
           _transferRepository.sendAudio(
-            _audioEngine.processForTransmit(buffered, state.voxThreshold),
+            _audioEngine.processForTransmit(samples, state.voxThreshold),
             state.myName,
           );
         }
       }
-      _preroll.clear();
       var outgoing = voiceOpen
           ? _audioEngine.processForTransmit(frame.samples, state.voxThreshold)
           : List<double>.filled(frame.samples.length, 0.0);
-      if (sharingMusic) outgoing = _mixMusic(outgoing);
+      if (sharingMusic) {
+        outgoing = _musicMixer.mix(outgoing, state.musicGain);
+      }
       _transferRepository.sendAudio(outgoing, state.myName);
     } else {
-      _preroll.addLast(frame.samples);
-      while (_preroll.length > _kPrerollFrames) {
-        _preroll.removeFirst();
-      }
+      _voxGate.bufferWhileClosed(frame.samples);
     }
 
     if (isTransmitting != state.isTransmitting) {
       emit(state.copyWith(isTransmitting: isTransmitting));
     }
-  }
-
-  /// Adds up to one frame's worth of captured system audio on top of the
-  /// (possibly silent) mic frame. Falls back to the mic-only frame when the
-  /// capture queue runs dry (music paused, capture-protected app).
-  List<double> _mixMusic(List<double> voice) {
-    final gain = state.musicGain;
-    final mixed = List<double>.from(voice);
-    for (var i = 0; i < mixed.length && _musicQueue.isNotEmpty; i++) {
-      mixed[i] = (mixed[i] + _musicQueue.removeFirst() * gain).clamp(-1.0, 1.0);
-    }
-    return mixed;
   }
 
   Future<void> toggleShareSystemAudio() async {
@@ -286,7 +256,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
       return;
     }
 
-    Sfx.play(SfxEvent.toggle);
+    _sfx.play(SfxEvent.toggle);
     emit(state.copyWith(isStartingSystemAudio: true));
     final started = await SystemAudioCapture.start();
     if (isClosed) return;
@@ -297,20 +267,11 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     await _musicSub?.cancel();
     _musicSub = SystemAudioCapture.frames.listen(
       (chunk) {
-        for (final sample in chunk) {
-          _musicQueue.addLast(sample);
-        }
-        while (_musicQueue.length > _kMusicQueueMax) {
-          _musicQueue.removeFirst();
-        }
+        _musicMixer.addChunk(chunk);
         if (!_musicLevelController.isClosed &&
             _musicLevelController.hasListener &&
             chunk.isNotEmpty) {
-          var sum = 0.0;
-          for (final sample in chunk) {
-            sum += sample * sample;
-          }
-          _musicLevelController.add(sqrt(sum / chunk.length));
+          _musicLevelController.add(MusicMixer.levelOf(chunk));
         }
       },
       onError: (Object e) {
@@ -322,7 +283,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
         // instead of leaving the "on air" card silently lying forever.
         if (e is PlatformException && e.code == 'capture_stalled') {
           unawaited(_stopSharingSystemAudio());
-          Sfx.play(SfxEvent.error);
+          _sfx.play(SfxEvent.error);
           if (!_systemAudioMessageController.isClosed) {
             _systemAudioMessageController.add('capture_stalled');
           }
@@ -336,10 +297,10 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
   }
 
   Future<void> _stopSharingSystemAudio() async {
-    Sfx.play(SfxEvent.toggle);
+    _sfx.play(SfxEvent.toggle);
     await _musicSub?.cancel();
     _musicSub = null;
-    _musicQueue.clear();
+    _musicMixer.clear();
     await SystemAudioCapture.stop();
     // AudioPlaybackCapture never touches the source app, so without this the
     // music the user just "stopped" keeps playing on their own speaker.
@@ -381,22 +342,24 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
   }
 
   void _updateUser(String id, String name, bool isTalking) {
-    final users = List<ChannelUser>.from(state.activeUsers);
-    final idx = users.indexWhere((u) => u.id == id);
-    final user = ChannelUser(
-      id: id,
-      name: name,
-      isTalking: isTalking,
-      lastSeen: DateTime.now(),
+    final update = _roster.upsert(
+      state.activeUsers,
+      ChannelUser(
+        id: id,
+        name: name,
+        isTalking: isTalking,
+        lastSeen: DateTime.now(),
+      ),
     );
-    if (idx >= 0) {
-      if (!users[idx].isTalking && isTalking) Sfx.play(SfxEvent.rxStart);
-      users[idx] = user;
-    } else {
-      Sfx.play(SfxEvent.peerJoin);
-      users.add(user);
+    switch (update.change) {
+      case RosterChange.peerStartedTalking:
+        _sfx.play(SfxEvent.rxStart);
+      case RosterChange.peerJoined:
+        _sfx.play(SfxEvent.peerJoin);
+      case RosterChange.peerLeft || RosterChange.none:
+        break;
     }
-    emit(state.copyWith(activeUsers: users));
+    emit(state.copyWith(activeUsers: update.users));
   }
 
   void _broadcastPresence() {
@@ -414,20 +377,11 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
   }
 
   void _cleanupStaleUsers() {
-    final now = DateTime.now();
-    final updated = state.activeUsers
-        .where((u) => now.difference(u.lastSeen).inSeconds < 8)
-        .map((u) {
-          if (now.difference(u.lastSeen).inSeconds > 3 && u.isTalking) {
-            return u.copyWith(isTalking: false);
-          }
-          return u;
-        })
-        .toList();
-    if (updated.length < state.activeUsers.length) {
-      Sfx.play(SfxEvent.peerLeave);
+    final update = _roster.cleanup(state.activeUsers, DateTime.now());
+    if (update.change == RosterChange.peerLeft) {
+      _sfx.play(SfxEvent.peerLeave);
     }
-    emit(state.copyWith(activeUsers: updated));
+    emit(state.copyWith(activeUsers: update.users));
   }
 
   Future<void> setVoxThreshold(double threshold) async {
@@ -513,7 +467,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
 
     // Session over — drop the keep-alive so the foreground service and its
     // wake/Wi-Fi locks don't outlive the channel and drain the battery.
-    unawaited(SessionKeepAlive.stop());
+    unawaited(_keepAlive.stop());
 
     // Leaving the channel ends music sharing too — the capture service must
     // not outlive the session it feeds.
@@ -551,8 +505,9 @@ class WalkieTalkieState extends Equatable {
   final double musicGain;
 
   /// The active transport's link health — Bluetooth/Guest's 1-to-1 peer
-  /// link, or WiFi's UDP socket + liveness watchdog.
-  final ConnectionHealthStatus connectionHealth;
+  /// link, or WiFi's UDP socket + liveness watchdog — plus, while
+  /// reconnecting, the countdown to the next scheduled attempt.
+  final ConnectionHealth connectionHealth;
 
   const WalkieTalkieState({
     required this.localId,
@@ -585,7 +540,7 @@ class WalkieTalkieState extends Equatable {
     isSharingSystemAudio: false,
     isStartingSystemAudio: false,
     musicGain: 0.85,
-    connectionHealth: ConnectionHealthStatus.healthy,
+    connectionHealth: ConnectionHealth.healthy(),
   );
 
   WalkieTalkieState copyWith({
@@ -602,7 +557,7 @@ class WalkieTalkieState extends Equatable {
     bool? isSharingSystemAudio,
     bool? isStartingSystemAudio,
     double? musicGain,
-    ConnectionHealthStatus? connectionHealth,
+    ConnectionHealth? connectionHealth,
   }) => WalkieTalkieState(
     localId: localId ?? this.localId,
     myName: myName ?? this.myName,
@@ -610,7 +565,8 @@ class WalkieTalkieState extends Equatable {
     hasPermission: hasPermission ?? this.hasPermission,
     voxThreshold: voxThreshold ?? this.voxThreshold,
     noiseSuppression: noiseSuppression ?? this.noiseSuppression,
-    noiseSuppressionEngine: noiseSuppressionEngine ?? this.noiseSuppressionEngine,
+    noiseSuppressionEngine:
+        noiseSuppressionEngine ?? this.noiseSuppressionEngine,
     activeUsers: activeUsers ?? this.activeUsers,
     isReady: isReady ?? this.isReady,
     transferMode: transferMode ?? this.transferMode,

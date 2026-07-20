@@ -45,7 +45,10 @@ class MainActivity : FlutterActivity() {
             "tark/system_audio",
         ).setMethodCallHandler(systemAudio)
 
-        val hotspot = HotspotHandler(applicationContext)
+        val hotspot = HotspotHandler(
+            applicationContext,
+            flutterEngine.dartExecutor.binaryMessenger,
+        )
         hotspotHandler = hotspot
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,

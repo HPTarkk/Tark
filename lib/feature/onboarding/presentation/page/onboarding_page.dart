@@ -226,10 +226,9 @@ class _OnboardingPageState extends State<OnboardingPage>
       case TransferMode.guest:
         context.pushNamed(AppRoutes.guestLinkName);
       case TransferMode.wifi:
-        context.pushNamed(
-          AppRoutes.wifiHotspotName,
-          queryParameters: const {'mode': 'wifi'},
-        );
+        // Direct Wi-Fi has nothing to set up — land straight in the channel;
+        // the Wi-Fi/Hotspot setup page is only for the explicit hotspot flow.
+        context.pushNamed(AppRoutes.walkieName);
       case TransferMode.hotspot:
         context.pushNamed(
           AppRoutes.wifiHotspotName,

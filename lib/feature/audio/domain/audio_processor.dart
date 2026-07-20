@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:typed_data';
 
 /// Real-time audio processor applied to captured mic samples before TX.
 ///
@@ -73,7 +74,9 @@ class AudioProcessor {
 
     final scale = _calibrated && _maxSeenAbs > 1.0 ? 1.0 / _maxSeenAbs : 1.0;
 
-    final out = List<double>.filled(samples.length, 0.0);
+    // Typed output: this runs per transmitted frame, and a plain growable
+    // list would box every sample written into it.
+    final out = Float64List(samples.length);
 
     for (int i = 0; i < samples.length; i++) {
       // 1. Normalise

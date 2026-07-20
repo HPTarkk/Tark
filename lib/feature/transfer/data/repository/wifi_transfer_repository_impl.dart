@@ -10,17 +10,16 @@ import '../../../../core/utils/lan_ipv4.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entity/connection_health.dart';
 import '../../domain/entity/waki_packet.dart';
-import '../../domain/repository/transfer_repository.dart';
+import '../../domain/repository/wifi_transfer_repository.dart';
 import '../codec/waki_packet_codec.dart';
 
 const kBroadcastPort = 4000;
 
-@LazySingleton()
-class WifiTransferRepositoryImpl implements TransferRepository {
+@LazySingleton(as: WifiTransferRepository)
+class WifiTransferRepositoryImpl implements WifiTransferRepository {
   RawDatagramSocket? _sendSocket;
   RawDatagramSocket? _receiveSocket;
-  final _connectionController =
-      StreamController<ConnectionHealthStatus>.broadcast();
+  final _connectionController = StreamController<ConnectionHealth>.broadcast();
 
   bool _autoReconnectEnabled = true;
   Completer<void>? _manualRetryCompleter;
@@ -148,7 +147,7 @@ class WifiTransferRepositoryImpl implements TransferRepository {
           kBroadcastPort,
         );
         _receiveSocket!.broadcastEnabled = true;
-        _setHealth(ConnectionHealthStatus.healthy);
+        _setHealth(const ConnectionHealth.healthy());
         _lastPacketAt = DateTime.now();
         _startLivenessWatch(myGen);
         Logger.log('UDP socket bound on port $kBroadcastPort (gen $myGen)');
@@ -178,19 +177,14 @@ class WifiTransferRepositoryImpl implements TransferRepository {
         }
 
         _livenessTimer?.cancel();
-        _setHealth(
-          _autoReconnectEnabled
-              ? ConnectionHealthStatus.reconnecting
-              : ConnectionHealthStatus.down,
-        );
+        // Auto path: the reconnecting state (with its countdown) is emitted in
+        // the backoff block below, once the delay is known. Only the terminal
+        // "down" needs announcing here.
+        if (!_autoReconnectEnabled) _setHealth(const ConnectionHealth.down());
       } catch (error) {
         Logger.log('Socket error (gen $myGen): $error');
         _livenessTimer?.cancel();
-        _setHealth(
-          _autoReconnectEnabled
-              ? ConnectionHealthStatus.reconnecting
-              : ConnectionHealthStatus.down,
-        );
+        if (!_autoReconnectEnabled) _setHealth(const ConnectionHealth.down());
         _receiveSocket?.close();
         _receiveSocket = null;
       }
@@ -198,12 +192,43 @@ class WifiTransferRepositoryImpl implements TransferRepository {
       if (_generation != myGen) break;
 
       if (_autoReconnectEnabled) {
+        // Announce the scheduled attempt so the banner can count down to it —
+        // the delay grows each failed cycle (backoff) and resets to 4s once
+        // real traffic flows again (backoff.reset above).
+        final delay = backoff.next();
+        _setHealth(
+          ConnectionHealth.reconnecting(
+            nextRetryAt: DateTime.now().add(delay),
+            retryDelay: delay,
+          ),
+        );
+
         // Retry delay, sliced short: async* cancellation only takes effect
         // between awaits, so one long sleep here would make cancel() (and
-        // the page teardown awaiting it) lag by whole seconds.
-        final slices = backoff.next().inMilliseconds ~/ 250;
-        for (var i = 0; i < slices && _generation == myGen; i++) {
-          await Future.delayed(const Duration(milliseconds: 250));
+        // the page teardown awaiting it) lag by whole seconds. The wait is
+        // also interruptible mid-backoff: the banner's "Reconnect now"
+        // (retryNow) completes _manualRetryCompleter to rebind at once
+        // instead of sitting out the remaining seconds.
+        final completer = Completer<void>();
+        _manualRetryCompleter = completer;
+        final slices = delay.inMilliseconds ~/ 250;
+        for (
+          var i = 0;
+          i < slices && _generation == myGen && !completer.isCompleted;
+          i++
+        ) {
+          await Future.any([
+            Future<void>.delayed(const Duration(milliseconds: 250)),
+            completer.future,
+          ]);
+        }
+        _manualRetryCompleter = null;
+
+        // Countdown's over — the rebind at the top of the loop is now the
+        // active attempt; drop the countdown so the banner shows the
+        // indeterminate "reconnecting…" until it succeeds or reschedules.
+        if (_generation == myGen) {
+          _setHealth(const ConnectionHealth.reconnecting());
         }
       } else {
         // Auto-reconnect is off: wait indefinitely for an explicit
@@ -211,6 +236,7 @@ class WifiTransferRepositoryImpl implements TransferRepository {
         final completer = Completer<void>();
         _manualRetryCompleter = completer;
         await completer.future;
+        _manualRetryCompleter = null;
       }
     }
   }
@@ -233,7 +259,7 @@ class WifiTransferRepositoryImpl implements TransferRepository {
   }
 
   @override
-  Stream<ConnectionHealthStatus> connect() => _connectionController.stream;
+  Stream<ConnectionHealth> connect() => _connectionController.stream;
 
   @override
   void setAutoReconnectEnabled(bool enabled) {
@@ -243,8 +269,11 @@ class WifiTransferRepositoryImpl implements TransferRepository {
 
   @override
   void retryNow() {
-    _manualRetryCompleter?.complete();
+    // Null first so a re-entrant call (double-tap on "Reconnect now") can't
+    // complete the same completer twice.
+    final completer = _manualRetryCompleter;
     _manualRetryCompleter = null;
+    if (completer != null && !completer.isCompleted) completer.complete();
   }
 
   @override
@@ -270,7 +299,7 @@ class WifiTransferRepositoryImpl implements TransferRepository {
     _localAddresses = const {};
     _peers.clear();
 
-    _setHealth(ConnectionHealthStatus.down);
+    _setHealth(const ConnectionHealth.down());
   }
 
   Future<void> _ensureSendSocket() async {
@@ -363,8 +392,8 @@ class WifiTransferRepositoryImpl implements TransferRepository {
     Logger.log('Broadcast targets: $targets, sweep subnets: $subnets');
   }
 
-  void _setHealth(ConnectionHealthStatus status) {
+  void _setHealth(ConnectionHealth health) {
     if (_connectionController.isClosed) return;
-    _connectionController.add(status);
+    _connectionController.add(health);
   }
 }

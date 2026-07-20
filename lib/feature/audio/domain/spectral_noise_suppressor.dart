@@ -1,6 +1,8 @@
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'float64_fifo.dart';
+
 /// Streaming spectral noise suppressor for the 16 kHz TX path.
 ///
 /// Classic short-time spectral subtraction, the same family of algorithm
@@ -36,8 +38,11 @@ class SpectralNoiseSuppressor {
   final _Fft _fft = _Fft(_win);
   final Float64List _window = _buildSqrtHann();
 
-  final List<double> _inFifo = [];
-  final List<double> _outFifo = [];
+  // Unboxed ring buffers — see Float64Fifo: growable List<double> here boxed
+  // every sample and shifted the remainder on each hop, i.e. steady GC churn
+  // at audio rate.
+  final Float64Fifo _inFifo = Float64Fifo();
+  final Float64Fifo _outFifo = Float64Fifo();
   final Float64List _re = Float64List(_win);
   final Float64List _im = Float64List(_win);
   final Float64List _ola = Float64List(_win);
@@ -75,7 +80,7 @@ class SpectralNoiseSuppressor {
     // Emit exactly samples.length. Early calls run short by the algorithmic
     // latency (one hop) — pad those with leading silence once at stream
     // start; afterwards production and consumption rates are identical.
-    final out = List<double>.filled(samples.length, 0.0);
+    final out = Float64List(samples.length);
     final take = _outFifo.length < samples.length
         ? _outFifo.length
         : samples.length;
@@ -83,7 +88,7 @@ class SpectralNoiseSuppressor {
     for (var i = 0; i < take; i++) {
       out[offset + i] = _outFifo[i];
     }
-    _outFifo.removeRange(0, take);
+    _outFifo.discardFirst(take);
     return out;
   }
 
@@ -92,7 +97,7 @@ class SpectralNoiseSuppressor {
       _re[i] = _inFifo[i] * _window[i];
       _im[i] = 0.0;
     }
-    _inFifo.removeRange(0, _hop);
+    _inFifo.discardFirst(_hop);
 
     _fft.transform(_re, _im, inverse: false);
 
@@ -165,9 +170,7 @@ class SpectralNoiseSuppressor {
     for (var i = 0; i < _win; i++) {
       _ola[i] += _re[i] * _window[i];
     }
-    for (var i = 0; i < _hop; i++) {
-      _outFifo.add(_ola[i]);
-    }
+    _outFifo.addAll(Float64List.sublistView(_ola, 0, _hop));
     for (var i = 0; i < _win - _hop; i++) {
       _ola[i] = _ola[i + _hop];
     }

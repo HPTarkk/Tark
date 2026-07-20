@@ -396,30 +396,71 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noise_filter_strong => 'HIGH';
 
   @override
-  String get settings_section_advanced => 'ADVANCED';
+  String get settings_advanced_row => 'Advanced settings';
 
   @override
-  String get settings_noise_engine => 'NOISE ENGINE';
+  String get settings_advanced_row_desc =>
+      'Extra technical options — most people never need these';
 
   @override
-  String get settings_noise_engine_spectral => 'Spectral';
+  String get settings_advanced_title => 'Advanced settings';
 
   @override
-  String get settings_noise_engine_rnnoise => 'Neural';
+  String get noise_cleaner_section => 'NOISE CLEANER';
 
   @override
-  String get settings_noise_engine_desc =>
-      'Neural (RNNoise) also suppresses wind and traffic noise, not just steady engine hum — spectral is lighter on the battery.';
+  String get noise_cleaner_intro =>
+      'Choose how the app removes background sounds while you talk.';
 
   @override
-  String get settings_noise_engine_unavailable =>
-      'Neural engine isn\'t available on this platform yet.';
+  String get noise_cleaner_simple_title => 'Simple cleaner';
+
+  @override
+  String get noise_cleaner_simple_desc =>
+      'Quiets steady sounds, like a fan or a car engine.';
+
+  @override
+  String get noise_cleaner_simple_downside =>
+      'Wind and street sounds can sneak through.';
+
+  @override
+  String get noise_cleaner_smart_title => 'Smart cleaner';
+
+  @override
+  String get noise_cleaner_smart_desc =>
+      'Has learned what noise sounds like, so it removes wind and street sounds too.';
+
+  @override
+  String get noise_cleaner_smart_downside => 'Uses more battery.';
+
+  @override
+  String get noise_cleaner_both_title => 'Both together';
+
+  @override
+  String get noise_cleaner_both_desc =>
+      'Runs both cleaners one after the other for the quietest sound.';
+
+  @override
+  String get noise_cleaner_both_downside =>
+      'Uses the most battery, and your voice may sound a little thinner.';
+
+  @override
+  String get noise_cleaner_downside_label => 'The catch';
+
+  @override
+  String get noise_cleaner_unavailable =>
+      'The smart cleaner isn\'t available on this device yet, so the simple cleaner is used.';
 
   @override
   String get sfx_feedback => 'SOUND FEEDBACK';
 
   @override
   String get link_reconnecting => 'Connection lost — reconnecting...';
+
+  @override
+  String link_reconnecting_in(int seconds) {
+    return 'Reconnecting in ${seconds}s';
+  }
 
   @override
   String get link_down => 'Connection lost';
@@ -567,11 +608,17 @@ class AppLocalizationsEn extends AppLocalizations {
       'Skip this screen and resume your last channel on launch';
 
   @override
-  String get settings_delay => 'PLAYBACK DELAY';
+  String get settings_delay => 'SOUND DELAY';
 
   @override
   String get settings_delay_desc =>
-      'How much incoming audio is buffered before playback — higher smooths out a choppy connection at the cost of latency.';
+      'The app waits a moment before playing what it hears. Waiting longer makes choppy voices smoother — but you hear your friends a little later.';
+
+  @override
+  String get settings_delay_low_hint => 'HEAR IT SOONER';
+
+  @override
+  String get settings_delay_high_hint => 'SMOOTHER SOUND';
 
   @override
   String get settings_restore_defaults => 'RESTORE DEFAULTS';
@@ -585,7 +632,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settings_auto_reconnect_desc =>
-      'Automatically retry when the link drops instead of requiring a manual retry';
+      'Reconnect automatically — when the link drops, and to your last Bluetooth session when you return';
 
   @override
   String get settings_permissions_row => 'Permissions';

@@ -14,7 +14,7 @@ abstract interface class TransferRepository {
 
   Future<Either<Failure, void>> sendPresence(String senderName, bool isTalking);
 
-  Stream<ConnectionHealthStatus> connect();
+  Stream<ConnectionHealth> connect();
 
   void stopConnection();
 

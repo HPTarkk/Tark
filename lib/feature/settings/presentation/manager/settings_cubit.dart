@@ -5,7 +5,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/settings/noise_suppression_engine.dart';
 import '../../../../core/settings/settings_repository.dart';
-import '../../../../core/settings/settings_repository_impl.dart';
 import '../../../walkie/api/walkie_api.dart';
 
 /// Settings/Profile page state + persistence.
@@ -30,11 +29,16 @@ class SettingsCubit extends Cubit<SettingsState> {
   final SettingsRepository _repository;
   StreamSubscription<WalkieTalkieState>? _liveSub;
 
+  /// The borrowed live-session cubit (if any), so the Settings page can
+  /// forward it as `extra` when pushing sub-pages (Advanced) that must also
+  /// edit the running session in place.
+  WalkieTalkieCubit? get liveSession => _liveSession;
+
   SettingsCubit({
     WalkieTalkieCubit? liveSession,
-    SettingsRepository? repository,
+    required SettingsRepository repository,
   }) : _liveSession = liveSession,
-       _repository = repository ?? SettingsRepositoryImpl(),
+       _repository = repository,
        super(SettingsState.initial(isLive: liveSession != null)) {
     _init();
   }

@@ -165,9 +165,27 @@ class _LandingPageState extends State<LandingPage>
     final enabled = state.hasNetwork && !state.isLoading;
     // The border/glow pulse repaints every frame forever (blurred shadow
     // included) — keep that off the layer shared with the rest of the page.
-    return RepaintBoundary(
+    final joinButton = RepaintBoundary(
       child: _buildPulsingJoinButton(context, state, enabled),
     );
+    // Wi-Fi mode goes straight into the channel — but hosting a hotspot is a
+    // common next step for a cross-phone (iPhone↔Android) link, so surface a
+    // compact shortcut right beside JOIN instead of making users switch mode
+    // in Settings first. Only shown for plain Wi-Fi; the Hotspot mode already
+    // routes JOIN itself there.
+    if (state.transferMode == TransferMode.wifi) {
+      return IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(child: joinButton),
+            const SizedBox(width: 12),
+            _HotspotShortcutButton(enabled: !state.isLoading),
+          ],
+        ),
+      );
+    }
+    return joinButton;
   }
 
   Widget _buildPulsingJoinButton(
@@ -210,10 +228,11 @@ class _LandingPageState extends State<LandingPage>
                   case TransferMode.guest:
                     context.pushNamed(AppRoutes.guestLinkName);
                   case TransferMode.wifi:
-                    context.pushNamed(
-                      AppRoutes.wifiHotspotName,
-                      queryParameters: const {'mode': 'wifi'},
-                    );
+                    // Direct Wi-Fi has nothing to set up — go straight into
+                    // the channel (same fast path as quick-access cold
+                    // start). The Wi-Fi/Hotspot setup page is only for the
+                    // explicit hotspot flow below.
+                    context.goNamed(AppRoutes.walkieName);
                   case TransferMode.hotspot:
                     context.pushNamed(
                       AppRoutes.wifiHotspotName,
@@ -254,6 +273,63 @@ class _LandingPageState extends State<LandingPage>
                 : null,
           ),
           child: child!,
+        ),
+      ),
+    );
+  }
+}
+
+// ── Hotspot shortcut (Wi-Fi mode only) ──────────────────────────────────────
+// Sits beside JOIN CHANNEL and jumps straight to the Hotspot flow (Android
+// host / iPhone join) without changing the selected transport. Enabled
+// regardless of network — hosting a hotspot creates its own.
+
+class _HotspotShortcutButton extends StatelessWidget {
+  final bool enabled;
+
+  const _HotspotShortcutButton({required this.enabled});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    return GestureDetector(
+      onTap: enabled
+          ? () {
+              HapticFeedback.selectionClick();
+              context.read<LandingCubit>().markLaunched();
+              context.pushNamed(
+                AppRoutes.wifiHotspotName,
+                queryParameters: const {'mode': 'hotspot'},
+              );
+            }
+          : null,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.amber.withAlpha(90), width: 2),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.wifi_tethering_rounded,
+              color: AppColors.amber,
+              size: 22,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              s.transport_hotspot,
+              style: TextStyle(
+                color: AppColors.amber,
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1,
+              ),
+            ),
+          ],
         ),
       ),
     );

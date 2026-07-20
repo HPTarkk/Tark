@@ -6,9 +6,9 @@ import 'package:injectable/injectable.dart';
 
 import '../../../../core/config/guest_config.dart';
 import '../../../../core/sfx/sfx_event.dart';
-import '../../../../core/sfx/sfx_service.dart';
+import '../../../../core/sfx/sfx_player.dart';
 import '../../../../core/utils/logger.dart';
-import '../../data/webrtc/sdp_codec.dart';
+import '../../domain/codec/sdp_payload.dart';
 import '../../domain/entity/guest_link_state.dart';
 import '../../domain/repository/guest_link_controller.dart';
 
@@ -17,17 +17,18 @@ import '../../domain/repository/guest_link_controller.dart';
 @injectable
 class GuestLinkCubit extends Cubit<GuestLinkPageState> {
   final GuestLinkController _link;
+  final SfxPlayer _sfx;
   StreamSubscription<GuestLinkState>? _linkSub;
 
-  GuestLinkCubit(this._link) : super(GuestLinkPageState.initial()) {
+  GuestLinkCubit(this._link, this._sfx) : super(GuestLinkPageState.initial()) {
     _linkSub = _link.linkState.listen((s) {
       switch (s) {
         case GuestLinkState.awaitingPeer:
-          Sfx.play(SfxEvent.toggle);
+          _sfx.play(SfxEvent.toggle);
         case GuestLinkState.connected:
-          Sfx.play(SfxEvent.peerJoin);
+          _sfx.play(SfxEvent.peerJoin);
         case GuestLinkState.failed:
-          Sfx.play(SfxEvent.error);
+          _sfx.play(SfxEvent.error);
         default:
           break;
       }

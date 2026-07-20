@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../settings/settings_keys.dart';
+import '../theme/theme_service.dart';
 import '../utils/logger.dart';
 import 'sfx_event.dart';
 
@@ -19,11 +20,15 @@ class Sfx {
 
   static final enabled = ValueNotifier<bool>(true);
   static final Map<SfxEvent, AudioPlayer> _players = {};
+  static late SharedPreferences _prefs;
   static bool _ready = false;
 
-  static Future<void> initialize() async {
-    final prefs = await SharedPreferences.getInstance();
-    enabled.value = prefs.getBool(SettingsKeys.sfxEnabled) ?? true;
+  /// [prefs] is the entrypoint's one process-wide SharedPreferences
+  /// resolution — this service runs before (or without) DI, so it receives
+  /// the instance instead of resolving its own.
+  static Future<void> initialize(SharedPreferences prefs) async {
+    _prefs = prefs;
+    enabled.value = _prefs.getBool(SettingsKeys.sfxEnabled) ?? true;
 
     for (final event in SfxEvent.values) {
       final player = AudioPlayer(playerId: 'sfx_${event.name}');
@@ -41,8 +46,7 @@ class Sfx {
 
   static Future<void> setEnabled(bool value) async {
     enabled.value = value;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(SettingsKeys.sfxEnabled, value);
+    await _prefs.setBool(SettingsKeys.sfxEnabled, value);
   }
 
   /// Fire-and-forget: never awaited by callers, and a playback failure

@@ -1,20 +1,17 @@
 import 'dart:async';
-import 'dart:collection';
 
-import 'package:audio_io/audio_io.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/settings/noise_suppression_engine.dart';
 import '../../../../core/settings/settings_repository.dart';
-import '../../../../core/settings/settings_repository_impl.dart';
 import '../../../../core/sfx/sfx_event.dart';
-import '../../../../core/sfx/sfx_service.dart';
+import '../../../../core/sfx/sfx_player.dart';
 import '../../../../core/utils/logger.dart';
-import '../../../audio/data/audio_engine_impl.dart';
 import '../../../audio/domain/entity/audio_engine_status.dart';
 import '../../../audio/domain/entity/audio_frame.dart';
 import '../../../audio/domain/service/audio_engine.dart';
+import '../../../audio/domain/vox_gate.dart';
 // Direct file imports (not the transfer barrel) — see GuestWebClient.
 import '../../../transfer/data/codec/waki_packet_codec.dart';
 import '../../../transfer/domain/entity/guest_link_state.dart';
@@ -28,9 +25,17 @@ import '../../data/guest_web_client.dart';
 /// Dart pieces the mobile app uses, so the guest gets the same VOX / noise
 /// controls the walkie page has.
 class GuestSessionCubit extends Cubit<GuestSessionState> {
-  GuestSessionCubit(this._client, [SettingsRepository? settingsRepository])
-    : _settingsRepository = settingsRepository ?? SettingsRepositoryImpl(),
-      super(GuestSessionState.initial()) {
+  GuestSessionCubit(
+    this._client, {
+    required AudioEngine engine,
+    required SettingsRepository settingsRepository,
+    required WakiPacketCodec codec,
+    required SfxPlayer sfx,
+  }) : _engine = engine,
+       _settingsRepository = settingsRepository,
+       _codec = codec,
+       _sfx = sfx,
+       super(GuestSessionState.initial()) {
     _loadPrefs();
     _packetSub = _client.messages.listen((bytes) {
       final packet = _codec.decode(bytes, 'host');
@@ -39,7 +44,7 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
         case PresencePacket():
           _hostLastSeen = DateTime.now();
           if (!state.hostTalking && packet.isTalking) {
-            Sfx.play(SfxEvent.rxStart);
+            _sfx.play(SfxEvent.rxStart);
           }
           emit(
             state.copyWith(
@@ -49,7 +54,7 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
           );
         case AudioPacket():
           _hostLastSeen = DateTime.now();
-          if (!state.hostTalking) Sfx.play(SfxEvent.rxStart);
+          if (!state.hostTalking) _sfx.play(SfxEvent.rxStart);
           emit(state.copyWith(hostName: packet.senderName, hostTalking: true));
           try {
             _engine.playReceived(packet.samples, packet.seq, 'host');
@@ -64,7 +69,7 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
       final isUp = link == GuestLinkState.connected;
       if (wasUp != isUp) {
         emit(state.copyWith(linkUp: isUp));
-        Sfx.play(isUp ? SfxEvent.linkRestored : SfxEvent.linkLost);
+        _sfx.play(isUp ? SfxEvent.linkRestored : SfxEvent.linkLost);
         if (isUp) {
           // Clear stale jitter-buffer/decoder state left over from before
           // the drop so playback doesn't pick up mid-buffer or garble the
@@ -78,11 +83,9 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
 
   final GuestWebClient _client;
   final SettingsRepository _settingsRepository;
-  final AudioEngine _engine = AudioEngineImpl(
-    AudioIo.instance,
-    SettingsRepositoryImpl(),
-  );
-  final _codec = WakiPacketCodec();
+  final AudioEngine _engine;
+  final WakiPacketCodec _codec;
+  final SfxPlayer _sfx;
 
   StreamSubscription<dynamic>? _packetSub;
   StreamSubscription<dynamic>? _linkSub;
@@ -92,10 +95,9 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
   Timer? _staleTimer;
   DateTime _hostLastSeen = DateTime.now();
 
-  static const _kHangoverFrames = 35; // 700 ms
-  static const _kPrerollFrames = 3;
-  final ListQueue<List<double>> _preroll = ListQueue();
-  int _hangover = 0;
+  // Hangover + pre-roll VOX shaping, shared with the walkie page — see
+  // [VoxGate] for the why.
+  final VoxGate _voxGate = VoxGate();
   int _audioSeq = 0;
 
   /// Mic frames, for the visualizer (same audio-rate side stream the walkie
@@ -130,7 +132,7 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
     _statusSub = _engine.status.listen((status) {
       if (!isClosed && status.hasPermission != state.hasPermission) {
         if (state.hasPermission && !status.hasPermission) {
-          Sfx.play(SfxEvent.error);
+          _sfx.play(SfxEvent.error);
         }
         emit(state.copyWith(hasPermission: status.hasPermission));
       }
@@ -161,34 +163,28 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
     emit(
       state.copyWith(audioStarted: true, audioStarting: false, isReady: true),
     );
-    Sfx.play(SfxEvent.channelJoin);
+    _sfx.play(SfxEvent.channelJoin);
   }
 
   void _onFrame(AudioFrame frame) {
-    if (frame.rms > state.voxThreshold) {
-      _hangover = _kHangoverFrames;
-    } else if (_hangover > 0) {
-      _hangover--;
-    }
-    final isTalking = _hangover > 0 && !state.muted && _client.isOpen;
+    final gateOpen = _voxGate.advance(frame.rms, state.voxThreshold);
+    final isTalking = gateOpen && !state.muted && _client.isOpen;
 
     if (isTalking != state.isTalking) {
-      Sfx.play(isTalking ? SfxEvent.pttOpen : SfxEvent.pttClose);
+      _sfx.play(isTalking ? SfxEvent.pttOpen : SfxEvent.pttClose);
     }
 
     if (isTalking) {
+      final buffered = _voxGate.drainPreroll();
       if (!state.isTalking) {
-        for (final buffered in _preroll) {
-          _sendAudio(buffered);
+        // Gate just opened — flush the pre-roll so the word onset survives.
+        for (final samples in buffered) {
+          _sendAudio(samples);
         }
       }
-      _preroll.clear();
       _sendAudio(frame.samples);
     } else {
-      _preroll.addLast(frame.samples);
-      while (_preroll.length > _kPrerollFrames) {
-        _preroll.removeFirst();
-      }
+      _voxGate.bufferWhileClosed(frame.samples);
     }
 
     if (isTalking != state.isTalking) {
@@ -202,7 +198,7 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
   }
 
   void toggleMute() {
-    Sfx.play(SfxEvent.toggle);
+    _sfx.play(SfxEvent.toggle);
     emit(state.copyWith(muted: !state.muted));
   }
 

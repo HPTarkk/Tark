@@ -9,6 +9,9 @@ import '../../domain/service/transfer_mode_store.dart';
 
 @LazySingleton(as: TransferModeStore)
 class TransferModeStoreImpl implements TransferModeStore {
+  TransferModeStoreImpl(this._prefs);
+
+  final SharedPreferences _prefs;
   TransferMode _mode = TransferMode.wifi;
   final _modeController = StreamController<TransferMode>.broadcast();
 
@@ -20,15 +23,13 @@ class TransferModeStoreImpl implements TransferModeStore {
 
   @override
   Future<void> initialize() async {
-    final prefs = await SharedPreferences.getInstance();
-    _mode = TransferMode.fromKey(prefs.getString(SettingsKeys.transportMode));
+    _mode = TransferMode.fromKey(_prefs.getString(SettingsKeys.transportMode));
   }
 
   @override
   Future<void> setMode(TransferMode mode) async {
     _mode = mode;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(SettingsKeys.transportMode, mode.key);
+    await _prefs.setString(SettingsKeys.transportMode, mode.key);
     if (!_modeController.isClosed) _modeController.add(mode);
   }
 }

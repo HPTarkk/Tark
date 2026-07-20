@@ -7,11 +7,11 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/settings/noise_suppression_engine.dart';
 import '../../../core/settings/settings_repository.dart';
-import '../../../core/settings/settings_repository_impl.dart';
 import '../../../core/utils/logger.dart';
 import '../domain/audio_processor.dart';
 import '../domain/entity/audio_engine_status.dart';
 import '../domain/entity/audio_frame.dart';
+import '../domain/float64_fifo.dart';
 import '../domain/resampler.dart';
 import '../domain/rnnoise_suppressor.dart';
 import '../domain/service/audio_engine.dart';
@@ -21,8 +21,7 @@ import 'voice_audio_session.dart';
 
 @Injectable(as: AudioEngine)
 class AudioEngineImpl implements AudioEngine {
-  AudioEngineImpl(this._audioIo, [SettingsRepository? settingsRepository])
-    : _settingsRepository = settingsRepository ?? SettingsRepositoryImpl();
+  AudioEngineImpl(this._audioIo, this._settingsRepository);
 
   final AudioIo _audioIo;
   final SettingsRepository _settingsRepository;
@@ -64,9 +63,10 @@ class AudioEngineImpl implements AudioEngine {
   // Noise suppression on the 16 kHz mic signal, applied BEFORE frames are
   // emitted so both the VOX RMS decision and the visualizer see the cleaned
   // signal. That's the point: with noise subtracted, a low VOX threshold no
-  // longer keys up on noise. Two engines, user-selectable in Advanced
-  // settings — both kept warm (reset when idle costs nothing) so switching
-  // engines mid-session doesn't need to rebuild anything.
+  // longer keys up on noise. Two suppressors, user-selectable in Advanced
+  // settings (either alone, or cascaded via NoiseSuppressionEngine.both) —
+  // both kept warm (reset when idle costs nothing) so switching engines
+  // mid-session doesn't need to rebuild anything.
   final SpectralNoiseSuppressor _spectralSuppressor = SpectralNoiseSuppressor();
   final RnnoiseSuppressor _rnnoiseSuppressor = RnnoiseSuppressor();
   NoiseSuppressionEngine _suppressionEngine = NoiseSuppressionEngine.spectral;
@@ -110,7 +110,7 @@ class AudioEngineImpl implements AudioEngine {
   OnePoleLowPass? _txLowPassA;
   OnePoleLowPass? _txLowPassB;
   LinearResampler? _txResampler;
-  final List<double> _txAccum = [];
+  final Float64Fifo _txAccum = Float64Fifo();
 
   // RX path: 16 kHz network audio → device output rate.
   LinearResampler? _rxResampler;
@@ -279,17 +279,22 @@ class AudioEngineImpl implements AudioEngine {
     final resampled = resampler.process(filtered);
     if (resampled.isEmpty) return;
 
+    // `both` cascades rnnoise → spectral (rnnoise wants the raw-ish mic
+    // signal it was trained on; spectral then mops up residual steady hum).
+    // Wherever rnnoise isn't compiled in, every choice degrades to spectral
+    // alone, matching the long-standing fallback.
     final useRnnoise =
-        _suppressionEngine == NoiseSuppressionEngine.rnnoise &&
+        _suppressionEngine != NoiseSuppressionEngine.spectral &&
         _rnnoiseSuppressor.isAvailable;
-    final suppressed = useRnnoise
-        ? _rnnoiseSuppressor.process(resampled)
-        : _spectralSuppressor.process(resampled);
+    final useSpectral =
+        _suppressionEngine != NoiseSuppressionEngine.rnnoise || !useRnnoise;
+    var suppressed = resampled;
+    if (useRnnoise) suppressed = _rnnoiseSuppressor.process(suppressed);
+    if (useSpectral) suppressed = _spectralSuppressor.process(suppressed);
     _txAccum.addAll(suppressed);
 
     while (_txAccum.length >= kFrameSamples) {
-      final frame = _txAccum.sublist(0, kFrameSamples);
-      _txAccum.removeRange(0, kFrameSamples);
+      final frame = _txAccum.takeFirst(kFrameSamples);
       final rms = _computeRms(frame);
       _frameController.add(AudioFrame(rms: rms, samples: frame));
     }
@@ -297,7 +302,10 @@ class AudioEngineImpl implements AudioEngine {
 
   double _computeRms(List<double> samples) {
     if (samples.isEmpty) return 0.0;
-    final sum = samples.fold<double>(0.0, (acc, s) => acc + s * s);
+    var sum = 0.0;
+    for (var i = 0; i < samples.length; i++) {
+      sum += samples[i] * samples[i];
+    }
     return sqrt(sum / samples.length);
   }
 

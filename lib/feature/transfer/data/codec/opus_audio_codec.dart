@@ -76,7 +76,9 @@ class OpusAudioCodec {
         channels: 1,
       );
       final pcm = decoder.decode(input: packet);
-      final samples = List<double>.filled(pcm.length, 0);
+      // Typed list: a plain List<double> would box every decoded sample,
+      // 16k allocations/sec per talking peer.
+      final samples = Float64List(pcm.length);
       for (var i = 0; i < pcm.length; i++) {
         samples[i] = pcm[i] / 32768.0;
       }

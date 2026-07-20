@@ -11,10 +11,16 @@ enum NoiseSuppressionEngine {
   /// RNNoise, a recurrent-network denoiser trained on non-stationary noise
   /// too. Native (dart:ffi) — only available where the platform build has
   /// compiled the library in (Android for now).
-  rnnoise;
+  rnnoise,
+
+  /// Both in cascade: RNNoise first (non-stationary noise, needs the raw-ish
+  /// mic signal it was trained on), then spectral subtraction to mop up any
+  /// residual steady hum. Costs the battery of both; falls back to spectral
+  /// alone where RNNoise isn't available.
+  both;
 
   static NoiseSuppressionEngine fromName(String? name) => values.firstWhere(
     (e) => e.name == name,
-    orElse: () => NoiseSuppressionEngine.spectral,
+    orElse: () => NoiseSuppressionEngine.rnnoise,
   );
 }

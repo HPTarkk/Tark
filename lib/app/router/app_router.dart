@@ -1,5 +1,6 @@
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/router/routes.dart';
 import '../../feature/landing/api/landing_api.dart';
@@ -37,8 +38,9 @@ class AppRouter {
         builder: (context, state) => SplashPage.buildPage(
           onFinished: () async {
             final modeStore = GetIt.instance<TransferModeStore>();
-            final location = await QuickAccess.resolveStartLocation(
+            final location = QuickAccess.resolveStartLocation(
               modeStore.mode,
+              GetIt.instance<SharedPreferences>(),
             );
             if (context.mounted) context.go(location);
           },
@@ -96,6 +98,14 @@ class AppRouter {
         path: AppRoutes.permissionsPath,
         name: AppRoutes.permissionsName,
         builder: (context, state) => PermissionsPage.buildPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.advancedSettingsPath,
+        name: AppRoutes.advancedSettingsName,
+        // Same live-session threading as the settings route above — the
+        // main Settings page forwards its own `extra` when pushing here.
+        builder: (context, state) =>
+            AdvancedSettingsPage.buildPage(liveSession: state.extra),
       ),
     ],
   );
