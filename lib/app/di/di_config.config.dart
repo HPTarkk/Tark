@@ -72,6 +72,8 @@ extension GetItInjectableX on _i174.GetIt {
       () => registerThirdParty.prefs,
       preResolve: true,
     );
+    gh.factory<_i462.NeHotspotJoiner>(() => _i462.NeHotspotJoiner());
+    gh.factory<_i462.AndroidWifiJoiner>(() => _i462.AndroidWifiJoiner());
     gh.lazySingleton<_i891.AudioIo>(() => registerThirdParty.audioIo);
     gh.lazySingleton<_i482.WebRtcTransferRepository>(
       () => _i482.WebRtcTransferRepository(),
@@ -82,10 +84,15 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i430.SessionWakeLock>(
       () => const _i278.SessionKeepAliveWakeLock(),
     );
-    gh.lazySingleton<_i794.HotspotJoiner>(() => _i462.NeHotspotJoiner());
     gh.lazySingleton<_i1043.WifiTransferRepository>(
       () => _i627.WifiTransferRepositoryImpl(),
       dispose: (i) => i.dispose(),
+    );
+    gh.lazySingleton<_i794.HotspotJoiner>(
+      () => _i462.PlatformHotspotJoiner(
+        gh<_i462.NeHotspotJoiner>(),
+        gh<_i462.AndroidWifiJoiner>(),
+      ),
     );
     gh.factory<_i945.GuestLinkController>(
       () => transferModule.guestLinkController(

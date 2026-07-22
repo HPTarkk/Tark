@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:bluetooth_low_energy/bluetooth_low_energy.dart';
 
 import '../../../../core/utils/logger.dart';
+import '../../domain/entity/bluetooth_host_name.dart';
 import '../../domain/entity/bluetooth_peer.dart';
 import 'length_prefixed_framer.dart';
 
@@ -301,8 +302,13 @@ class BleBluetoothEngine {
             controller.add(
               BluetoothPeer(
                 id: 'ble:$id',
-                name: name?.isNotEmpty == true ? name! : 'Tark (BLE)',
+                name: name?.isNotEmpty == true
+                    ? decodeHostName(name!)
+                    : 'Tark (BLE)',
                 rssi: e.rssi,
+                // Reaching here means the peer advertised the Tark service
+                // UUID, so it is by definition hosting from inside the app.
+                isAppHost: true,
               ),
             );
           }),

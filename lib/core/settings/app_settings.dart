@@ -49,7 +49,11 @@ class AppSettings extends Equatable {
     // RnnoiseSuppressor.isAvailable / AudioEngineImpl).
     noiseSuppressionEngine: NoiseSuppressionEngine.rnnoise,
     musicGain: 0.85,
-    targetBufferMs: 60,
+    // Playback jitter-buffer depth. 60 ms was the old value and was
+    // measurably too shallow: it drained dry on every scheduling burst even
+    // over WiFi, and far worse over Bluetooth, where each underrun costs a
+    // full refill pause (heard as chopped speech).
+    targetBufferMs: 100,
     autoReconnectEnabled: true,
     skipSplash: false,
     quickAccessEnabled: true,

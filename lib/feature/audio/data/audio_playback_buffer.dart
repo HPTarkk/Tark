@@ -1,18 +1,20 @@
 import 'dart:async';
 
+import '../../../core/utils/logger.dart';
 import '../domain/float64_fifo.dart';
 
-/// Jitter buffer that smooths bursty UDP audio delivery before playback.
+/// Jitter buffer that smooths bursty UDP/Bluetooth audio delivery before
+/// playback.
 ///
-/// UDP packets arrive in uneven bursts, can be lost, and can arrive out of
-/// order. Writing them directly to the audio output causes glitches
-/// (underruns between bursts, overruns on arrival, and — without sequence
-/// tracking — jumbled/discontinuous speech when packets are lost or
-/// reordered). This buffer accumulates samples until [targetBufferMs] worth
-/// have arrived, then drains them at real-time rate via a periodic timer.
-/// Lost packets (detected via sequence number gaps) are concealed with
-/// silence rather than silently skipped, which keeps audio timing intact
-/// instead of producing a "fast forward" jumble.
+/// Packets arrive in uneven bursts, can be lost, and can arrive out of order.
+/// Writing them directly to the audio output causes glitches (underruns
+/// between bursts, overruns on arrival, and — without sequence tracking —
+/// jumbled/discontinuous speech when packets are lost or reordered). This
+/// buffer accumulates samples until [targetBufferMs] worth have arrived, then
+/// drains them at a steady [drainIntervalMs] rate via a periodic timer. Lost
+/// packets (detected via sequence number gaps) are concealed with silence
+/// rather than silently skipped, which keeps audio timing intact instead of
+/// producing a "fast forward" jumble.
 ///
 /// Sequence tracking is kept per sender: a WiFi channel can have more than
 /// one other participant, and each sender has its own independent sequence
@@ -21,32 +23,53 @@ import '../domain/float64_fifo.dart';
 /// sender's (lower-numbered) packets would permanently fail the stale-packet
 /// check below and get silently dropped for the rest of the session.
 ///
-/// If independent sender/receiver clocks let the queue creep above target,
-/// the drain loop walks it back — smoothly via drift correction, or in one
-/// step (resync to target) once it runs past [_resyncThreshold] — so playback
-/// latency stays near [targetBufferMs] instead of riding at a ceiling for the
-/// whole session. [_maxQueueSamples] is a final memory backstop.
+/// ## Do not change the drain cadence
+///
+/// The drain pushes a **fixed [_drainSize] samples per tick**. This looks like
+/// something worth "improving" — a periodic timer on the UI isolate is
+/// imprecise, so draining a fixed slice per tick doesn't track real time
+/// exactly. Replacing it with an elapsed-wall-clock drain (variable samples
+/// per tick, matching real time) was tried and produced badly chopped audio on
+/// Bluetooth, repeatedly, across several tunings of depth and thresholds. The
+/// fixed cadence is the only cadence this pipeline is known to play cleanly.
+///
+/// Latency is therefore bounded WITHOUT touching the cadence: stale audio is
+/// trimmed from the head of the queue (see [_trimStep]). That changes what
+/// is pushed, never how fast, so it cannot starve or overrun the downstream
+/// native ring.
+///
+/// ## Where playback latency actually lives
+///
+/// End-to-end delay is this queue plus the native output ring downstream
+/// (`audio_io_miniaudio.cpp`, 8192 samples). That ring is drained by the audio
+/// hardware at exactly real time and **silently discards** whatever doesn't
+/// fit on write, so it cannot itself hold seconds of audio — which is why a
+/// multi-second delay could only ever have come from this queue.
 class AudioPlaybackBuffer {
-  // 100 ms target: 60 ms proved too shallow on real WiFi between phones —
-  // every scheduling burst or lost packet drained it dry, and each underrun
-  // costs a full refill pause (audible chop). 100 ms of latency is
-  // imperceptible in a walkie-talkie exchange; the smoothness is not.
   AudioPlaybackBuffer({
     required Sink<List<double>> output,
     int sampleRate = 48000,
     int targetBufferMs = 100,
     int drainIntervalMs = 10,
+    this.debugLogging = false,
   }) : _output = output,
        _sampleRate = sampleRate,
        _targetSamples = sampleRate * targetBufferMs ~/ 1000,
+       _drainSize = sampleRate * drainIntervalMs ~/ 1000,
        _drainIntervalMs = drainIntervalMs,
        _defaultChunkLen = sampleRate * 10 ~/ 1000;
 
   final Sink<List<double>> _output;
   final int _sampleRate;
   final int _targetSamples;
+  final int _drainSize;
   final int _drainIntervalMs;
   final int _defaultChunkLen;
+
+  /// Periodically logs queue depth and event counters. Left in deliberately:
+  /// this bug was chased through several wrong theories for want of a single
+  /// real measurement from a device.
+  final bool debugLogging;
 
   // Unboxed ring buffer: a Queue<double> here boxed every received sample
   // and unboxed it again on drain — tens of thousands of heap allocations
@@ -55,48 +78,35 @@ class AudioPlaybackBuffer {
   Timer? _drainTimer;
   bool _filling = true;
 
-  // Wall-clock drain accounting. Each tick removes however much audio real
-  // time actually elapsed since the previous tick — not a fixed slice per
-  // tick — so an imprecise or late UI-isolate timer can't fall behind and let
-  // latency creep upward for the whole session. A monotonic Stopwatch avoids
-  // system-clock jumps; the fractional-sample remainder is carried across
-  // ticks so integer truncation can't slowly bias the drain rate.
-  final Stopwatch _drainClock = Stopwatch();
-  int _lastDrainMicros = 0;
-  double _drainCarry = 0.0;
-
-  /// A single late drain tick (e.g. right after the app was backgrounded)
-  /// never tries to drain more than this much wall-clock time in one go; the
-  /// resync below handles the leftover backlog.
-  static const int _maxCatchUpMicros = 200 * 1000;
-
-  /// Hard memory/latency backstop, scaled to this instance's actual sample
-  /// rate. Kept just above [_resyncThreshold] so the drain-loop resync — which
-  /// snaps latency back to target — normally governs and this only bounds
-  /// memory in the worst case. Scaling by sample rate matters: a hardcoded
-  /// 48 kHz sample count became a 3x-larger *time* cap at the 16 kHz rate
-  /// commonly negotiated over Bluetooth SCO/HFP, which is how a session's
-  /// playback delay used to climb to multiple seconds.
-  static const int kMaxQueueMs = 250;
+  /// Hard cap, scaled to this instance's actual sample rate (previously a
+  /// hardcoded 48 kHz sample count — at a 16 kHz output rate, as commonly
+  /// negotiated over Bluetooth SCO/HFP, that made the real cap 3x longer in
+  /// time than intended). This is only a memory backstop; [_trimStep]
+  /// bounds latency well before this.
+  static const int kMaxQueueMs = 1000;
   late final int _maxQueueSamples = _sampleRate * kMaxQueueMs ~/ 1000;
 
-  /// When the queue runs past this, the drain loop drops the oldest backlog in
-  /// one step and snaps latency back to [_targetSamples], rather than playing
-  /// out stale audio and riding at the ceiling for the rest of the session.
-  late final int _resyncThreshold = _targetSamples * 2;
+  /// Depth above which the queue is considered to be holding stale audio.
+  /// Must be above target: Bluetooth delivery is bursty and the queue
+  /// routinely spikes for a moment.
+  late final int _trimThreshold = _targetSamples * 2;
 
-  /// Ticks (at [_drainIntervalMs] each) the queue must stay sustained above
-  /// target before drift-correction kicks in.
-  late final int _catchUpTicks = (3000 / _drainIntervalMs).ceil();
-  int _overTargetTicks = 0;
-  bool _catchingUp = false;
+  /// Latency is walked down in small steps rather than snapped back in one
+  /// splice. A single trim big enough to cover the whole backlog removes an
+  /// audible chunk of speech — a whole syllable. Dropping [_trimStepSamples]
+  /// (10 ms, softened by the fade ramp) every [_trimIntervalTicks] is
+  /// perceptually close to invisible and reaches the same place within a few
+  /// seconds.
+  late final int _trimStepSamples = _sampleRate * 10 ~/ 1000;
+  late final int _trimIntervalTicks = (200 / _drainIntervalMs).ceil();
+  int _sinceTrimTicks = 0;
 
   /// Beyond this many missing chunks in a row, treat it as a new talk burst
   /// (e.g. after a VOX silence) instead of filling a huge silence gap.
   static const int _maxConcealedGapChunks = 50;
 
   /// Short ramp applied right after playback resumes (initial fill, after an
-  /// underrun, or after a resync) to avoid an audible click at the
+  /// underrun, or after a trim) to avoid an audible click at the
   /// silence→audio or splice boundary.
   late final int _fadeInSamples = (_sampleRate * 0.003).round().clamp(
     1,
@@ -107,6 +117,21 @@ class AudioPlaybackBuffer {
   // Sequence tracking for loss/reorder detection, per sender id.
   final Map<String, int> _expectedSeqBySender = {};
   final Map<String, int> _lastChunkLenBySender = {};
+
+  // Diagnostics. The per-window sample counters are the important ones: they
+  // measure directly whether the feed outruns the fixed-cadence drain, and by
+  // how much, which is the thing every theory about this bug has hinged on.
+  int _underruns = 0;
+  int _trims = 0;
+  int _overflowDrops = 0;
+  int _fedWindow = 0;
+  int _concealedWindow = 0;
+  int _drainedWindow = 0;
+  int _logTicks = 0;
+  late final int _logEveryTicks = (2000 / _drainIntervalMs).ceil();
+
+  int _ms(int samples) => samples * 1000 ~/ _sampleRate;
+  int get _queueMs => _ms(_queue.length);
 
   /// Feed incoming samples into the buffer.
   ///
@@ -145,6 +170,7 @@ class AudioPlaybackBuffer {
   void _dropOverflow(int incoming) {
     final overflow = (_queue.length + incoming) - _maxQueueSamples;
     if (overflow > 0) {
+      _overflowDrops++;
       _queue.discardFirst(overflow < _queue.length ? overflow : _queue.length);
     }
   }
@@ -152,83 +178,72 @@ class AudioPlaybackBuffer {
   void _enqueue(List<double> samples) {
     _dropOverflow(samples.length);
     _queue.addAll(samples);
+    _fedWindow += samples.length;
   }
 
   void _enqueueSilence(int count) {
     _dropOverflow(count);
     _queue.addZeros(count);
+    _concealedWindow += count;
+  }
+
+  /// Drop one small step off the stale head, walking playback latency down
+  /// toward target.
+  ///
+  /// This is the only thing that lowers latency here, and it is purely a
+  /// content operation — the drain keeps pushing its fixed slice per tick
+  /// either way.
+  void _trimStep() {
+    final excess = _queue.length - _targetSamples;
+    if (excess <= 0) return;
+    _queue.discardFirst(excess < _trimStepSamples ? excess : _trimStepSamples);
+    _fadeRemaining = _fadeInSamples;
+    _trims++;
   }
 
   void _startDraining() {
     _drainTimer?.cancel();
     _fadeRemaining = _fadeInSamples;
-    _overTargetTicks = 0;
-    _catchingUp = false;
-    _drainCarry = 0.0;
-    _drainClock
-      ..reset()
-      ..start();
-    _lastDrainMicros = 0;
+    _sinceTrimTicks = 0;
     _drainTimer = Timer.periodic(Duration(milliseconds: _drainIntervalMs), (_) {
-      final nowMicros = _drainClock.elapsedMicroseconds;
-      var elapsedMicros = nowMicros - _lastDrainMicros;
-      _lastDrainMicros = nowMicros;
-
-      // Hard resync first. If the backlog has run past the resync threshold
-      // (a sudden burst, or the smooth drift correction below couldn't keep
-      // up), drop the oldest audio down to target in one step so mouth-to-ear
-      // latency snaps back instead of playing out stale audio for the rest of
-      // the session. The drain debt just measured is stale time, so discard it
-      // and let playback resume from target on the next tick (fade hides the
-      // splice click).
-      if (_queue.length > _resyncThreshold) {
-        _queue.discardFirst(_queue.length - _targetSamples);
-        _fadeRemaining = _fadeInSamples;
-        _overTargetTicks = 0;
-        _catchingUp = false;
-        _drainCarry = 0.0;
-        return;
+      if (debugLogging && ++_logTicks >= _logEveryTicks) {
+        _logTicks = 0;
+        Logger.log(
+          'jitter buffer: ${_queueMs}ms queued (target ${_ms(_targetSamples)}ms)'
+          ' | 2s window: fed ${_ms(_fedWindow)}ms'
+          ' + concealed ${_ms(_concealedWindow)}ms'
+          ' vs drained ${_ms(_drainedWindow)}ms'
+          ' | underruns=$_underruns trims=$_trims drops=$_overflowDrops',
+        );
+        _fedWindow = 0;
+        _concealedWindow = 0;
+        _drainedWindow = 0;
       }
 
-      if (elapsedMicros > _maxCatchUpMicros) elapsedMicros = _maxCatchUpMicros;
-      _drainCarry += _sampleRate * elapsedMicros / 1000000.0;
-      final baseDrain = _drainCarry.floor();
-      if (baseDrain <= 0) return; // sub-sample tick — keep accumulating.
-
-      if (_queue.length < baseDrain) {
-        // Underrun — not enough buffered to keep up with real time. Stop and
-        // wait for the buffer to refill back to target.
+      if (_queue.length < _drainSize) {
+        // Underrun — stop and wait for the buffer to refill.
+        _underruns++;
         _filling = true;
         _drainTimer?.cancel();
         _drainTimer = null;
         return;
       }
-      _drainCarry -= baseDrain;
 
-      // Drift correction: independent sender/receiver clocks mean the queue
-      // can slowly creep above target even with zero packet loss. Once it has
-      // stayed above target for a few seconds, drain a little faster than real
-      // time to walk it back smoothly (no click) before it reaches the resync
-      // threshold above.
-      if (_queue.length > _targetSamples * 8 ~/ 5) {
-        _overTargetTicks++;
-        if (_overTargetTicks > _catchUpTicks) _catchingUp = true;
+      // Backlog above target: walk it down one small step at a time. The feed
+      // outruns this fixed-cadence drain — that is how the session used to
+      // accumulate a multi-second delay — so the difference has to be given
+      // back somewhere, and small steps are far less audible than one splice.
+      if (_queue.length > _trimThreshold) {
+        if (++_sinceTrimTicks >= _trimIntervalTicks) {
+          _sinceTrimTicks = 0;
+          _trimStep();
+        }
       } else {
-        _overTargetTicks = 0;
-        _catchingUp = false;
-      }
-      if (_catchingUp && _queue.length <= _targetSamples * 6 ~/ 5) {
-        _catchingUp = false;
-        _overTargetTicks = 0;
+        _sinceTrimTicks = 0;
       }
 
-      var drainSize = baseDrain;
-      if (_catchingUp) {
-        drainSize += baseDrain ~/ 6;
-        if (drainSize > _queue.length) drainSize = _queue.length;
-      }
-
-      final chunk = _queue.takeFirst(drainSize);
+      final chunk = _queue.takeFirst(_drainSize);
+      _drainedWindow += _drainSize;
       if (_fadeRemaining > 0) {
         final rampLen = _fadeRemaining < chunk.length
             ? _fadeRemaining
@@ -248,24 +263,17 @@ class AudioPlaybackBuffer {
   void reset() {
     _drainTimer?.cancel();
     _drainTimer = null;
-    _drainClock
-      ..stop()
-      ..reset();
-    _lastDrainMicros = 0;
-    _drainCarry = 0.0;
     _queue.clear();
     _filling = true;
     _expectedSeqBySender.clear();
     _lastChunkLenBySender.clear();
     _fadeRemaining = 0;
-    _overTargetTicks = 0;
-    _catchingUp = false;
+    _sinceTrimTicks = 0;
   }
 
   /// Cancel the drain timer. Call before discarding this object.
   void dispose() {
     _drainTimer?.cancel();
     _drainTimer = null;
-    _drainClock.stop();
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_blue_classic/flutter_blue_classic.dart' as fbc;
 
 import '../../../../core/utils/logger.dart';
+import '../../domain/entity/bluetooth_host_name.dart';
 import '../../domain/entity/bluetooth_peer.dart';
 
 /// Android Bluetooth Classic (RFCOMM/SPP) engine.
@@ -140,10 +141,18 @@ class ClassicBluetoothEngine {
 
   Stream<BluetoothPeer> scanForHosts() {
     _fbc.startScan();
-    return _fbc.scanResults.map(
-      (d) =>
-          BluetoothPeer(id: d.address, name: d.name ?? d.address, rssi: d.rssi),
-    );
+    return _fbc.scanResults.map((d) {
+      // Everything within radio range lands here — headsets, TVs, laptops —
+      // so the broadcast name is also the only signal for which of them is a
+      // Tark host (an inquiry never reveals the RFCOMM service record).
+      final advertised = d.name ?? '';
+      return BluetoothPeer(
+        id: d.address,
+        name: advertised.isEmpty ? d.address : decodeHostName(advertised),
+        rssi: d.rssi,
+        isAppHost: isTarkHostName(advertised),
+      );
+    });
   }
 
   void cancelDiscovery() => _fbc.stopScan();

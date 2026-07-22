@@ -13,6 +13,7 @@ import '../../../../core/utils/logger.dart';
 import '../../domain/entity/connection_health.dart';
 import '../../domain/entity/waki_packet.dart';
 import '../../domain/entity/bluetooth_connection_state.dart' as bt;
+import '../../domain/entity/bluetooth_host_name.dart';
 import '../../domain/entity/bluetooth_peer.dart';
 import '../../domain/repository/bluetooth_transport.dart';
 import '../../domain/repository/transfer_repository.dart';
@@ -154,7 +155,11 @@ class BluetoothTransferRepository
       // re-dials this device by address, which an insecure RFCOMM server
       // accepts whether or not the device is scan-discoverable.
       if (discoverable) await classic.requestDiscoverable();
-      await classic.startHosting(name: deviceName);
+      // Classic broadcasts the TAGGED name: it renames the adapter, and the
+      // tag is the only thing that marks this device as a Tark host in a
+      // joiner's inquiry results. BLE needs no tag (joiners filter on the
+      // service UUID) and its 31-byte advertisement has no room to spare.
+      await classic.startHosting(name: encodeHostName(deviceName));
       unawaited(_bleEngine?.startHosting(name: deviceName) ?? Future.value());
     } else if (_bleSupported) {
       _requireBle;
@@ -379,7 +384,9 @@ class BluetoothTransferRepository
           // No discoverable dialog here: the joiner reconnects by address,
           // which only needs the RFCOMM server / BLE advertising back up.
           if (_classicSupported) {
-            await (await _classicAsync()).startHosting(name: deviceName);
+            await (await _classicAsync()).startHosting(
+              name: encodeHostName(deviceName),
+            );
           }
           if (_bleSupported) {
             await _requireBle.startHosting(name: deviceName);

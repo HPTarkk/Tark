@@ -12,7 +12,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get app_name => 'TARKK';
 
   @override
-  String get app_subtitle => 'LAN WALKIE TALKIE';
+  String get app_subtitle => 'WALKIE TALKIE';
 
   @override
   String get live => 'LIVE';
@@ -24,29 +24,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String get edit_name => 'EDIT';
 
   @override
-  String get connecting => 'Connecting...';
+  String get connecting => 'Hooking up...';
 
   @override
-  String get monitoring => 'MONITORING';
+  String get monitoring => 'LISTENING';
 
   @override
-  String get initializing => 'INITIALIZING';
+  String get initializing => 'WARMING UP';
 
   @override
-  String get tx_label => 'TX';
+  String get tx_label => 'TALKING';
 
   @override
-  String get rx_label => 'RX';
+  String get rx_label => 'INCOMING';
 
   @override
-  String get music_cast => 'MUSIC CAST';
+  String get music_cast => 'SHARE MUSIC';
 
   @override
   String get music_cast_hint =>
-      'Cast this phone\'s music and app sounds to everyone on the channel.';
+      'Everyone in the channel hears whatever\'s playing on this phone.';
 
   @override
-  String get music_cast_start => 'START CASTING';
+  String get music_cast_start => 'START SHARING';
 
   @override
   String get music_cast_starting => 'STARTING...';
@@ -55,33 +55,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String get music_cast_stop => 'STOP';
 
   @override
-  String get music_cast_on_air => 'ON AIR';
+  String get music_cast_on_air => 'PLAYING';
 
   @override
-  String get music_cast_mix => 'MIX LEVEL';
+  String get music_cast_mix => 'MUSIC VOLUME';
 
   @override
-  String get music_cast_silent =>
-      'Nothing is playing — start a song in your music app';
+  String get music_cast_silent => 'Nothing\'s playing — go put a song on';
 
   @override
   String get music_cast_stop_hint =>
-      'Enable notification access so Stop also pauses the music app';
+      'Turn on notification access and Stop will pause your music app too';
 
   @override
   String get music_cast_stop_enable => 'ENABLE';
 
   @override
-  String get channel_members => 'CHANNEL MEMBERS';
+  String get channel_members => 'WHO\'S HERE';
 
   @override
-  String get no_users_on_network => 'No other users on this network';
+  String get no_users_on_network => 'Nobody else here yet';
 
   @override
-  String get vox_sensitivity => 'VOX SENSITIVITY';
+  String get vox_sensitivity => 'HOW IT HEARS YOU';
 
   @override
-  String get vox_threshold => 'THRESHOLD';
+  String get vox_threshold => 'HOW LOUD TO START';
 
   @override
   String get voice_loud => 'LOUD';
@@ -90,32 +89,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String get voice_quiet => 'QUIET';
 
   @override
-  String get level_label => 'LEVEL';
+  String get level_label => 'YOUR VOICE';
 
   @override
-  String get level_active => 'ACTIVE';
+  String get level_active => 'SENDING';
 
   @override
-  String get level_silent => 'SILENT';
+  String get level_silent => 'QUIET';
 
   @override
-  String get user_idle => 'IDLE';
+  String get user_idle => 'QUIET';
 
   @override
-  String get set_name_title => 'Set Your Name';
+  String get set_name_title => 'What should we call you?';
 
   @override
-  String get name_hint => 'Enter your name';
+  String get name_hint => 'Type your name';
 
   @override
-  String get cancel => 'CANCEL';
+  String get cancel => 'NEVER MIND';
 
   @override
   String get save => 'SAVE';
 
   @override
   String get mic_permission_denied =>
-      'Microphone permission denied. Please enable it in Settings.';
+      'Tarkk can\'t hear you. Switch the mic on in Settings.';
 
   @override
   String get join_channel => 'JOIN CHANNEL';
@@ -124,14 +123,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get leave_channel => 'LEAVE CHANNEL';
 
   @override
-  String get no_network => 'No network found';
+  String get no_network => 'Can\'t find a network';
 
   @override
-  String get leave_channel_confirm_title => 'Leave channel?';
+  String get leave_channel_confirm_title => 'Heading out?';
 
   @override
   String get leave_channel_confirm_message =>
-      'You will be disconnected from the other members in this channel.';
+      'You\'ll be cut off from everyone else in this channel.';
 
   @override
   String get leave => 'LEAVE';
@@ -153,21 +152,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get guest_step_scan =>
-      'The guest scans this code with their phone camera — the join page opens in their browser.';
+      'Your guest points their camera at this code — the join page pops open in their browser.';
 
   @override
   String get guest_step_answer =>
-      'Their screen then shows a reply code — scan it with the button below, or paste it if they sent it to you instead.';
+      'A reply code shows up on their screen. Scan it with the button below, or paste it if they sent it over instead.';
 
   @override
   String get guest_scan_answer => 'SCAN REPLY CODE';
 
   @override
   String get guest_link_failed =>
-      'The link could not be established. Create a new invite and try again.';
+      'That didn\'t work. Make a new invite and give it another go.';
 
   @override
-  String get guest_no_server_badge => 'NO SERVER';
+  String get guest_no_server_badge => 'NO MIDDLEMAN';
 
   @override
   String get guest_copy_link => 'COPY LINK';
@@ -186,21 +185,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get guest_stun_caveat =>
-      'Works over the internet on most networks. A few strict/corporate networks may still block the connection.';
+      'Works over the internet on most networks. A few really locked-down office or school networks might block it.';
 
   @override
   String get guest_web_scan_title => 'Scan to join';
 
   @override
   String get guest_web_scan_text =>
-      'Open this page by scanning the invite QR code, or opening the invite link, from the host\'s phone.';
+      'Open this page by scanning the invite QR code, or tapping the invite link, from the host\'s phone.';
 
   @override
-  String get guest_web_failed_title => 'Link failed';
+  String get guest_web_failed_title => 'That didn\'t work';
 
   @override
   String get guest_web_failed_text =>
-      'The connection could not be established. Ask the host to create a new invite and try again.';
+      'Couldn\'t get you connected. Ask the host for a new invite and give it another go.';
 
   @override
   String get guest_web_reply_chip => 'STEP 2 — REPLY CODE';
@@ -210,7 +209,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get guest_web_reply_hint =>
-      'On the host: tap \"SCAN REPLY CODE\" and point the camera here.';
+      'On the host: tap \"SCAN REPLY CODE\" and point the camera over here.';
 
   @override
   String get guest_web_reply_copy => 'COPY CODE';
@@ -219,11 +218,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get guest_web_reply_copied => 'Reply code copied';
 
   @override
-  String get guest_web_connected => 'Connected!';
+  String get guest_web_connected => 'You\'re in!';
 
   @override
   String get guest_web_enable_audio =>
-      'Tap below to enable your microphone and speaker.';
+      'Tap below to switch on your mic and speaker.';
 
   @override
   String get guest_web_start_audio => 'START AUDIO';
@@ -238,75 +237,76 @@ class AppLocalizationsEn extends AppLocalizations {
   String get guest_web_talking => 'Talking...';
 
   @override
-  String get guest_web_on_air => 'You are on air';
+  String get guest_web_on_air => 'Everyone can hear you';
 
   @override
-  String get guest_web_standby => 'Standing by';
+  String get guest_web_standby => 'Waiting';
 
   @override
-  String get guest_web_link_lost => 'LINK LOST';
+  String get guest_web_link_lost => 'CONNECTION LOST';
 
   @override
-  String get guest_web_link_lost_text => 'Link lost — waiting...';
+  String get guest_web_link_lost_text => 'Lost you — trying again...';
 
   @override
   String get guest_web_left_title => 'You left the channel';
 
   @override
   String get guest_web_left_text =>
-      'You\'ve disconnected. To rejoin, ask the host for a fresh invite and scan it again.';
+      'You\'re disconnected. Want back in? Ask the host for a fresh invite and scan it again.';
 
   @override
-  String get bt_start_session => 'START SESSION';
+  String get bt_start_session => 'START THE LINK';
 
   @override
   String get bt_role_host_desc =>
-      'Broadcast a session for the other device to find and join';
+      'Let the other phone find this one and hop on';
 
   @override
   String get bt_find_nearby => 'FIND NEARBY';
 
   @override
   String get bt_role_join_desc =>
-      'Sweep the area and connect to a nearby session';
+      'Have a look around and jump on a phone that\'s waiting';
 
   @override
-  String get bt_visible_as => 'VISIBLE AS';
+  String get bt_visible_as => 'OTHERS SEE YOU AS';
 
   @override
-  String get bt_last_session => 'LAST SESSION';
+  String get bt_last_session => 'LAST CONNECTION';
 
   @override
-  String get bt_reconnect => 'RECONNECT';
+  String get bt_reconnect => 'CONNECT AGAIN';
 
   @override
-  String get bt_link_reconnecting => 'Bluetooth link lost — reconnecting...';
+  String get bt_link_reconnecting =>
+      'Lost the Bluetooth link — trying again...';
 
   @override
-  String get bt_link_down => 'Bluetooth link lost';
+  String get bt_link_down => 'Bluetooth connection lost';
 
   @override
-  String get bt_waiting_for_peer => 'Waiting for the other side to connect...';
+  String get bt_waiting_for_peer => 'Waiting on the other phone...';
 
   @override
-  String get bt_scanning => 'Scanning...';
+  String get bt_scanning => 'Having a look...';
 
   @override
-  String get bt_no_devices_found => 'No devices found';
+  String get bt_no_devices_found => 'Nothing nearby';
 
   @override
-  String get bt_connecting => 'Connecting...';
+  String get bt_connecting => 'Hooking up...';
 
   @override
-  String get bt_connected => 'Connected';
+  String get bt_connected => 'You\'re in!';
 
   @override
   String get bt_permission_denied =>
-      'Bluetooth permission denied. Please enable it in Settings.';
+      'Tarkk can\'t use Bluetooth. Switch it on in Settings.';
 
   @override
   String get bt_not_supported_platform =>
-      'Bluetooth mode is not available on this device yet. Please use WiFi mode.';
+      'Bluetooth doesn\'t work on this phone yet — use WiFi instead.';
 
   @override
   String get open_settings => 'OPEN SETTINGS';
@@ -318,61 +318,62 @@ class AppLocalizationsEn extends AppLocalizations {
   String get permissions_title => 'Permissions';
 
   @override
-  String get permission_granted => 'Granted';
+  String get permission_granted => 'All good';
 
   @override
-  String get permission_grant => 'GRANT';
+  String get permission_grant => 'ALLOW';
 
   @override
   String get permission_mic_title => 'Microphone';
 
   @override
   String get permission_mic_desc =>
-      'Needed to capture your voice for transmission.';
+      'So the app can pick up your voice and send it along.';
 
   @override
   String get permission_bluetooth_title => 'Bluetooth';
 
   @override
   String get permission_bluetooth_desc =>
-      'Needed to scan for and connect to a nearby device in Bluetooth mode.';
+      'So the app can find a phone nearby and hook up with it over Bluetooth.';
 
   @override
-  String get permission_bt_scan_title => 'Scan for devices';
+  String get permission_bt_scan_title => 'Look for phones';
 
   @override
-  String get permission_bt_scan_desc => 'Finds nearby devices to connect to.';
+  String get permission_bt_scan_desc =>
+      'Spots phones nearby that you can hop onto.';
 
   @override
   String get permission_bt_connect_title => 'Connect';
 
   @override
   String get permission_bt_connect_desc =>
-      'Pairs and exchanges audio with the other device.';
+      'Hooks up with the other phone and passes voices back and forth.';
 
   @override
-  String get permission_bt_advertise_title => 'Advertise';
+  String get permission_bt_advertise_title => 'Be findable';
 
   @override
   String get permission_bt_advertise_desc =>
-      'Lets the other device find you when you\'re hosting.';
+      'Lets the other phone spot yours when you\'re the one starting things off.';
 
   @override
   String get permission_hotspot_title => 'Location & nearby Wi-Fi';
 
   @override
   String get permission_hotspot_desc =>
-      'Needed by Android to host a local hotspot for others to join.';
+      'Android wants this before your phone can make a hotspot for others to join.';
 
   @override
-  String get permission_battery_title => 'Background battery exemption';
+  String get permission_battery_title => 'Keep running with the screen off';
 
   @override
   String get permission_battery_desc =>
-      'Keeps the channel alive when the screen is off — without it, the OS may freeze or kill the app mid-ride.';
+      'Keeps the channel going when the screen goes dark — without it, your phone might quietly shut the app down mid-ride.';
 
   @override
-  String get bt_connection_failed => 'Connection failed';
+  String get bt_connection_failed => 'That didn\'t work';
 
   @override
   String get bt_back => 'BACK';
@@ -384,7 +385,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get theme_light => 'LIGHT';
 
   @override
-  String get noise_filter => 'NOISE FILTER';
+  String get noise_filter => 'BACKGROUND NOISE';
 
   @override
   String get noise_filter_off => 'OFF';
@@ -400,7 +401,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settings_advanced_row_desc =>
-      'Extra technical options — most people never need these';
+      'Extra bits to play with — most people never need these';
 
   @override
   String get settings_advanced_title => 'Advanced settings';
@@ -410,7 +411,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noise_cleaner_intro =>
-      'Choose how the app removes background sounds while you talk.';
+      'Pick how the app cleans up background sounds while you talk.';
 
   @override
   String get noise_cleaner_simple_title => 'Simple cleaner';
@@ -428,10 +429,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noise_cleaner_smart_desc =>
-      'Has learned what noise sounds like, so it removes wind and street sounds too.';
+      'It\'s learned what noise sounds like, so it clears out wind and street sounds too.';
 
   @override
-  String get noise_cleaner_smart_downside => 'Uses more battery.';
+  String get noise_cleaner_smart_downside => 'Eats more battery.';
 
   @override
   String get noise_cleaner_both_title => 'Both together';
@@ -442,24 +443,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noise_cleaner_both_downside =>
-      'Uses the most battery, and your voice may sound a little thinner.';
+      'Eats the most battery, and your voice might sound a bit thin.';
 
   @override
   String get noise_cleaner_downside_label => 'The catch';
 
   @override
   String get noise_cleaner_unavailable =>
-      'The smart cleaner isn\'t available on this device yet, so the simple cleaner is used.';
+      'The smart cleaner isn\'t ready on this phone yet, so you get the simple one.';
 
   @override
-  String get sfx_feedback => 'SOUND FEEDBACK';
+  String get sfx_feedback => 'BEEPS & CLICKS';
 
   @override
-  String get link_reconnecting => 'Connection lost — reconnecting...';
+  String get link_reconnecting => 'Lost you — trying again...';
 
   @override
-  String link_reconnecting_in(int seconds) {
-    return 'Reconnecting in ${seconds}s';
+  String link_reconnecting_in(Object seconds) {
+    return 'Trying again in ${seconds}s';
   }
 
   @override
@@ -469,36 +470,68 @@ class AppLocalizationsEn extends AppLocalizations {
   String get transport_hotspot => 'HOTSPOT';
 
   @override
-  String get hotspot_title => 'Hotspot bridge';
+  String get hotspot_title => 'Hotspot setup';
 
   @override
   String get wifi_only_instructions =>
-      'Already on the same Wi-Fi? There\'s nothing to set up — just enter the channel.';
+      'Already on the same Wi-Fi? Nothing to set up — just hop in.';
 
   @override
   String get wifi_only_step_same_network =>
-      'Make sure both devices are connected to the same Wi-Fi network.';
+      'Make sure both phones are on the same Wi-Fi.';
 
   @override
   String get hotspot_not_supported =>
-      'The hotspot bridge host runs on Android. On iPhone, join an Android host\'s hotspot instead.';
+      'Hotspot only works on Android and iPhone.';
 
   @override
-  String get hotspot_host_badge => 'LOCAL WIFI • ANDROID HOST';
+  String get hotspot_role_title => 'Which end is this phone?';
 
   @override
-  String get hotspot_creating => 'Creating hotspot...';
+  String get hotspot_role_hint =>
+      'One phone makes the network, the other scans its code.';
 
   @override
-  String get hotspot_waiting => 'Waiting for the iPhone to join...';
+  String get hotspot_role_host => 'CREATE THE HOTSPOT';
+
+  @override
+  String get hotspot_role_host_desc =>
+      'This phone makes the network and shows a code for the other one to scan.';
+
+  @override
+  String get hotspot_role_join => 'JOIN A HOTSPOT';
+
+  @override
+  String get hotspot_role_join_desc =>
+      'Scan the code on the phone that made the network.';
+
+  @override
+  String get hotspot_host_badge => 'TARKK HOTSPOT • ON AIR';
+
+  @override
+  String get hotspot_show_credentials =>
+      'Can\'t scan it? Show the network details';
+
+  @override
+  String get hotspot_hide_credentials => 'Hide the details';
+
+  @override
+  String get hotspot_network_note =>
+      'Android picks this name itself and no app can change it. This is your Tarkk hotspot — and the other phone never has to read it, scanning the code is enough.';
+
+  @override
+  String get hotspot_creating => 'Making the hotspot...';
+
+  @override
+  String get hotspot_waiting => 'Waiting on the other phone...';
 
   @override
   String get hotspot_step_scan =>
-      'On the iPhone, scan this code (Camera or the in-app scanner) and tap Join.';
+      'On the other phone, open Tarkk → Hotspot → Join a hotspot, then scan this code.';
 
   @override
   String get hotspot_step_join_channel =>
-      'It then enters the channel — audio flows over this Wi-Fi link.';
+      'Then it hops into the channel, and your voices travel over this Wi-Fi.';
 
   @override
   String get hotspot_network => 'NETWORK';
@@ -514,74 +547,143 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get hotspot_error =>
-      'Couldn\'t create the hotspot. Turn off any active hotspot/tethering, make sure Location is on, then try again.';
+      'Couldn\'t make the hotspot. Try again, or let the other phone do it instead.';
 
   @override
-  String get hotspot_ios_instructions =>
-      'Ask the Android phone to open Tarkk → Hotspot, then scan its Wi-Fi code here.';
+  String get hotspot_error_tethering =>
+      'Your phone\'s own hotspot is already on. Switch it off and try again.';
+
+  @override
+  String get hotspot_error_location =>
+      'Android wants Location switched on before it\'ll make a hotspot.';
+
+  @override
+  String get hotspot_error_permission =>
+      'Tarkk needs to see nearby Wi-Fi before it can make a hotspot. Allow it and try again.';
+
+  @override
+  String get hotspot_error_no_channel =>
+      'No free space on Wi-Fi right now. Drop off the Wi-Fi network you\'re on, then try again.';
+
+  @override
+  String get hotspot_error_incompatible =>
+      'Wi-Fi is busy with something else. Flip Wi-Fi off and on, then try again.';
+
+  @override
+  String get hotspot_error_unsupported =>
+      'This phone can\'t make its own hotspot — you need Android 8 or newer.';
+
+  @override
+  String get hotspot_open_settings => 'OPEN SETTINGS';
+
+  @override
+  String get hotspot_try_joining => 'JOIN THE OTHER PHONE INSTEAD';
+
+  @override
+  String get hotspot_join_instructions =>
+      'Ask the other phone to open Tarkk → Hotspot → Create the hotspot, then scan its code here.';
 
   @override
   String get hotspot_scan_host => 'SCAN HOST CODE';
 
   @override
-  String get hotspot_joining => 'Joining network...';
+  String get hotspot_scan_hint =>
+      'Point the camera at the code on the other phone.';
 
   @override
-  String get hotspot_joined => 'Joined the network';
+  String get hotspot_scan_camera_denied =>
+      'Tarkk needs the camera to read the host\'s code.';
 
   @override
-  String get hotspot_manual_join_title => 'Join this network manually';
+  String get hotspot_scan_camera_failed =>
+      'The camera wouldn\'t start. Close whatever else is using it and try again.';
+
+  @override
+  String get hotspot_scan_searching => 'LOOKING FOR THE CODE';
+
+  @override
+  String get hotspot_scan_locked => 'CODE FOUND';
+
+  @override
+  String get hotspot_scan_again => 'SCAN AGAIN';
+
+  @override
+  String get hotspot_joining => 'Joining the network...';
+
+  @override
+  String get hotspot_joined => 'You\'re on the network';
+
+  @override
+  String hotspot_joined_network(Object network) {
+    return 'You\'re on $network';
+  }
+
+  @override
+  String get hotspot_join_waiting => 'Hop into the channel to start talking.';
+
+  @override
+  String get hotspot_link_lost =>
+      'The hotspot vanished. Join again to get back.';
+
+  @override
+  String get hotspot_rejoin => 'JOIN AGAIN';
+
+  @override
+  String get hotspot_manual_join_title => 'Join this network yourself';
 
   @override
   String get hotspot_manual_join_hint =>
-      'Open Settings › Wi-Fi, pick this network, then come back and enter the channel.';
+      'Open Settings › Wi-Fi, pick this network, then come back and tap the button below.';
+
+  @override
+  String get hotspot_manual_joined => 'I\'VE JOINED';
 
   @override
   String get hotspot_invalid_qr =>
-      'That isn\'t a Wi-Fi code. Scan the code shown on the Android host.';
+      'That\'s not a Wi-Fi code. Scan the one showing on the host phone.';
 
   @override
   String get bt_ios_hint =>
-      'iPhone ↔ Android over Bluetooth can be unreliable. For the most solid cross-phone link, use Hotspot mode.';
+      'Bluetooth between an iPhone and an Android drops a lot. For something steadier between them, use Hotspot.';
 
   @override
   String get bt_ble_unavailable =>
-      'This phone can\'t advertise over Bluetooth LE, so iPhones won\'t find it here.';
+      'This phone can\'t make itself findable over Bluetooth, so iPhones won\'t see it here.';
 
   @override
-  String get bt_use_wifi_bridge => 'USE WI-FI BRIDGE';
+  String get bt_use_wifi_bridge => 'USE WI-FI INSTEAD';
 
   @override
-  String get background_title => 'Keep the channel alive with the screen off';
+  String get background_title => 'Keep talking with the screen off';
 
   @override
   String get background_desc =>
-      'For riding, allow the app to run in the background so audio keeps flowing when the screen turns off. Without this, the phone may drop Wi-Fi and go silent.';
+      'When you\'re riding, let the app keep going after the screen goes dark so voices keep coming through. Without it, your phone might drop the Wi-Fi and go quiet.';
 
   @override
-  String get background_allow => 'ALLOW BACKGROUND';
+  String get background_allow => 'KEEP IT RUNNING';
 
   @override
-  String get background_autostart => 'AUTOSTART';
+  String get background_autostart => 'START ON ITS OWN';
 
   @override
   String get background_dismiss => 'NOT NOW';
 
   @override
   String get music_cast_stalled =>
-      'This phone\'s audio system blocks music sharing while a channel call is active. Stopped casting.';
+      'This phone won\'t share music during a channel call. Music sharing stopped.';
 
   @override
   String get settings_title => 'Settings';
 
   @override
-  String get settings_section_identity => 'PROFILE';
+  String get settings_section_identity => 'ABOUT YOU';
 
   @override
-  String get settings_section_voice => 'VOICE & AUDIO';
+  String get settings_section_voice => 'VOICE & SOUND';
 
   @override
-  String get settings_section_sound => 'SOUND & ALERTS';
+  String get settings_section_sound => 'BEEPS & ALERTS';
 
   @override
   String get settings_section_appearance => 'APPEARANCE';
@@ -590,29 +692,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_section_connection => 'CONNECTION';
 
   @override
-  String get settings_section_startup => 'STARTUP';
+  String get settings_section_startup => 'WHEN THE APP OPENS';
 
   @override
-  String get settings_applies_live =>
-      'Applies to your current channel instantly';
+  String get settings_applies_live => 'Kicks in on your channel right away';
 
   @override
   String get settings_applies_next_session =>
-      'Applies next time you join a channel';
+      'Kicks in next time you join a channel';
 
   @override
   String get settings_quick_access => 'Quick access';
 
   @override
   String get settings_quick_access_desc =>
-      'Skip this screen and resume your last channel on launch';
+      'Skip this screen and drop straight back into your last channel';
 
   @override
   String get settings_delay => 'SOUND DELAY';
 
   @override
   String get settings_delay_desc =>
-      'The app waits a moment before playing what it hears. Waiting longer makes choppy voices smoother — but you hear your friends a little later.';
+      'The app waits a beat before playing what it hears. Waiting longer smooths out choppy voices — but you hear your friends a little later.';
 
   @override
   String get settings_delay_low_hint => 'HEAR IT SOONER';
@@ -621,62 +722,62 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_delay_high_hint => 'SMOOTHER SOUND';
 
   @override
-  String get settings_restore_defaults => 'RESTORE DEFAULTS';
+  String get settings_restore_defaults => 'RESET TO NORMAL';
 
   @override
   String get settings_restore_defaults_done =>
-      'Voice settings restored to defaults';
+      'Voice settings are back to normal';
 
   @override
-  String get settings_auto_reconnect => 'Auto-reconnect';
+  String get settings_auto_reconnect => 'Connect again by itself';
 
   @override
   String get settings_auto_reconnect_desc =>
-      'Reconnect automatically — when the link drops, and to your last Bluetooth session when you return';
+      'Hops back on by itself when the connection drops, and picks up your last Bluetooth phone when you\'re back';
 
   @override
   String get settings_permissions_row => 'Permissions';
 
   @override
   String get settings_permissions_row_desc =>
-      'Review and manage what the app can access';
+      'See and change what the app can get at';
 
   @override
   String get settings_wifi_hotspot_row => 'WiFi / Hotspot setup';
 
   @override
   String get settings_wifi_hotspot_row_desc =>
-      'Host a hotspot or check the WiFi join steps';
+      'Make a hotspot, or see how to join over WiFi';
 
   @override
   String get settings_skip_splash => 'Skip splash screen';
 
   @override
-  String get settings_skip_splash_desc => 'Go straight to the app on launch';
+  String get settings_skip_splash_desc => 'Jump straight into the app';
 
   @override
   String get usage_tips_title => 'Get the most out of TarkK';
 
   @override
-  String get usage_tips_1_title => 'Pair an ANC or handsfree headset';
+  String get usage_tips_1_title => 'Wear a headset that blocks out noise';
 
   @override
   String get usage_tips_1_body =>
-      'Active noise cancellation makes it much easier to hear the channel over wind and engine noise — and keeps your hands free while riding.';
+      'A headset that cuts out noise makes it way easier to hear the channel over wind and engine sound — and your hands stay free while you ride.';
 
   @override
   String get usage_tips_2_title => 'Always wear a proper helmet';
 
   @override
   String get usage_tips_2_body =>
-      'Safety first — a well-fitted helmet also seats your headset closer to your ears for clearer audio on the move.';
+      'Safety first — and a helmet that fits right holds your headset closer to your ears, so voices come through clearer on the move.';
 
   @override
-  String get usage_tips_3_title => 'Your mic is hands-free by default';
+  String get usage_tips_3_title => 'You never have to press anything to talk';
 
   @override
   String get usage_tips_3_body =>
-      'Voice sensitivity starts wide open with noise suppression doing the work, so you never have to press anything to talk. Fine-tune both anytime in Settings.';
+      'The mic listens the whole time and the app cleans up the noise, so just talk. Tweak both whenever you like in Settings.';
 
   @override
   String get usage_tips_dismiss => 'GOT IT';
@@ -692,17 +793,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onboarding_welcome_sub =>
-      'Talk to nearby phones with no internet — direct, fast and private.';
+      'Talk to phones nearby with no internet — straight across, fast and private.';
 
   @override
   String get onboarding_info_lan => 'Works over shared WiFi or a hotspot';
 
   @override
   String get onboarding_info_private =>
-      'No servers, no sign-up — audio never leaves your network';
+      'No accounts, no middleman — your voice never leaves your own network';
 
   @override
-  String get onboarding_info_vox => 'Hands-free mic — just speak to transmit';
+  String get onboarding_info_vox =>
+      'No button to press — just talk, and everyone hears you';
 
   @override
   String get onboarding_skip => 'SKIP';
@@ -714,60 +816,60 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onboarding_continue => 'CONTINUE';
 
   @override
-  String get onboarding_finish => 'GET STARTED';
+  String get onboarding_finish => 'LET\'S GO';
 
   @override
-  String get onboarding_callsign_title => 'Pick your callsign';
+  String get onboarding_callsign_title => 'Pick your radio name';
 
   @override
   String get onboarding_callsign_help =>
-      'This is how channel members will see you.';
+      'This is how everyone in the channel sees you.';
 
   @override
   String get onboarding_mode_title => 'How will you connect?';
 
   @override
-  String get onboarding_mode_help => 'You can change this anytime in Settings.';
+  String get onboarding_mode_help => 'You can switch this anytime in Settings.';
 
   @override
   String get onboarding_mode_wifi_desc =>
-      'Everyone on the same network — best quality and range';
+      'Everyone on the same WiFi — clearest sound, longest reach';
 
   @override
   String get onboarding_mode_bluetooth_desc =>
-      'Two phones linked directly, no network at all';
+      'Two phones straight to each other, no network at all';
 
   @override
   String get onboarding_mode_guest_desc =>
-      'Guests join from a browser by scanning a QR code';
+      'Guests hop in from a browser by scanning a QR code';
 
   @override
   String get onboarding_ready_title => 'You\'re all set';
 
   @override
   String get onboarding_ready_sub =>
-      'Your operator card is issued — this is how the channel sees you.';
+      'Here\'s your radio card — this is how the channel sees you.';
 
   @override
   String get onboarding_tip_vox =>
-      'VOX is on — just speak and you\'re transmitting.';
+      'No button needed — just talk and everyone hears you.';
 
   @override
   String get onboarding_tip_settings =>
-      'Name, transport and voice sensitivity all live in Settings.';
+      'Your name, how you connect, and your mic all live in Settings.';
 
   @override
   String get onboarding_tune_title => 'Make it yours';
 
   @override
   String get onboarding_tune_sub =>
-      'Pick a language and a look — you can change both in Settings anytime.';
+      'Pick a language and a look — you can switch both in Settings whenever.';
 
   @override
   String get onboarding_language_label => 'LANGUAGE';
 
   @override
-  String get onboarding_theme_label => 'THEME';
+  String get onboarding_theme_label => 'LOOK';
 
   @override
   String get onboarding_signal => 'SIGNAL';
@@ -776,7 +878,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onboarding_stamp_ready => 'READY';
 
   @override
-  String get onboarding_explore => 'Explore the lobby first';
+  String get onboarding_explore => 'Look around first';
 
   @override
   String get onboarding_callsign_pool =>
@@ -787,5 +889,5 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settings_replay_intro_desc =>
-      'Walk through the welcome and setup steps again';
+      'Run through the welcome and setup steps again';
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../../gen/assets.gen.dart';
 import '../theme/app_colors.dart';
 
 /// QR code presented like a transmission artifact: white tile with an amber
@@ -10,7 +11,22 @@ class GlowingQrCard extends StatefulWidget {
   final String data;
   final double size;
 
-  const GlowingQrCard({super.key, required this.data, this.size = 250});
+  /// Stamps the Tarkk mark in the middle of the code.
+  ///
+  /// Opt-in, because it isn't free: a logo means punching a hole in the data,
+  /// which is only survivable at a raised error-correction level, which in turn
+  /// needs more modules for the same payload — smaller squares for the camera
+  /// to resolve. That's a fine trade for the hotspot code (~55 bytes, so it
+  /// stays a low version with big modules) and a bad one for the guest codes,
+  /// whose WebRTC payloads are already pushing the version up on their own.
+  final bool branded;
+
+  const GlowingQrCard({
+    super.key,
+    required this.data,
+    this.size = 250,
+    this.branded = false,
+  });
 
   @override
   State<GlowingQrCard> createState() => _GlowingQrCardState();
@@ -32,6 +48,9 @@ class _GlowingQrCardState extends State<GlowingQrCard>
   @override
   Widget build(BuildContext context) {
     final inset = widget.size + 28;
+    // Quarter of the width — ~6% of the area, comfortably inside what level H
+    // can lose, and still big enough to read as the mark rather than a smudge.
+    final logo = widget.size * 0.24;
     return SizedBox(
       width: inset + 26,
       height: inset + 26,
@@ -70,15 +89,36 @@ class _GlowingQrCardState extends State<GlowingQrCard>
                   // rasterizes it once; error level L keeps the module count
                   // (and paint cost) down AND makes screen-to-camera scanning
                   // easier through bigger modules.
+                  //
+                  // A branded code can't use L: the mark covers ~5.8% of the
+                  // area, which L's 7% budget can't absorb on top of the
+                  // code's own noise. Q (25%) — not the H that logo QRs are
+                  // usually built with, since H assumes a mark covering 20-30%
+                  // and this one is a fifth of that. Q keeps ~2x the margin we
+                  // need while costing fewer modules, and modules are what the
+                  // camera has to resolve: on a long SSID this is 45 modules
+                  // (4.8px each at 216) where H would be 53 (4.08px).
                   RepaintBoundary(
                     child: QrImageView(
                       data: widget.data,
                       version: QrVersions.auto,
-                      errorCorrectionLevel: QrErrorCorrectLevel.L,
+                      errorCorrectionLevel: widget.branded
+                          ? QrErrorCorrectLevel.Q
+                          : QrErrorCorrectLevel.L,
                       size: widget.size,
                       gapless: true,
                     ),
                   ),
+                  // Drawn as an overlay rather than through qr_flutter's
+                  // embeddedImage so the mark keeps its white quiet ring —
+                  // without that gap the dark tile's edge reads as modules and
+                  // decoders hunt for structure that isn't there.
+                  if (widget.branded)
+                    Positioned.fill(
+                      child: Center(
+                        child: RepaintBoundary(child: _BrandMark(size: logo)),
+                      ),
+                    ),
                   // Scanline sweep: its own layer, so animating it only
                   // moves a small cached strip around — no QR repaints.
                   AnimatedBuilder(
@@ -116,6 +156,35 @@ class _GlowingQrCardState extends State<GlowingQrCard>
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The Tarkk mark on its white quiet ring, sized to sit in a QR's centre.
+class _BrandMark extends StatelessWidget {
+  final double size;
+
+  const _BrandMark({required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      padding: EdgeInsets.all(size * 0.13),
+      decoration: BoxDecoration(
+        // Matches the card behind the code, so the ring reads as a punched
+        // hole rather than a sticker sitting on top.
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(size * 0.3),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(size * 0.22),
+        child: Image.asset(
+          Assets.icon.icon.path,
+          filterQuality: FilterQuality.medium,
+        ),
       ),
     );
   }

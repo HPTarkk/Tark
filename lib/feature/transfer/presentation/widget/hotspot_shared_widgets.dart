@@ -237,17 +237,32 @@ class HotspotErrorCard extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
 
+  /// Optional one-tap way out of the specific failure — "open Location
+  /// settings" for `location_off`, "open tethering" for `tethering_on`. A bare
+  /// Retry on a failure the user has to go fix elsewhere just loops.
+  final String? fixLabel;
+  final VoidCallback? onFix;
+
+  /// Optional escape hatch back to the host/join choice, so a phone that can't
+  /// host isn't a dead end — it can join the other one instead.
+  final String? altLabel;
+  final VoidCallback? onAlt;
+
   const HotspotErrorCard({
     super.key,
     required this.message,
     required this.onRetry,
+    this.fixLabel,
+    this.onFix,
+    this.altLabel,
+    this.onAlt,
   });
 
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -268,33 +283,74 @@ class HotspotErrorCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 22),
-            GestureDetector(
+            if (fixLabel != null && onFix != null) ...[
+              _ErrorAction(label: fixLabel!, onTap: onFix!, prominent: true),
+              const SizedBox(height: 12),
+            ],
+            _ErrorAction(
+              label: s.retry,
               onTap: onRetry,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 26,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.amber.withAlpha(25),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppColors.amber.withAlpha(120),
-                    width: 1.5,
-                  ),
-                ),
+              prominent: fixLabel == null,
+            ),
+            if (altLabel != null && onAlt != null) ...[
+              const SizedBox(height: 14),
+              GestureDetector(
+                onTap: onAlt,
                 child: Text(
-                  s.retry,
+                  altLabel!,
                   style: TextStyle(
-                    color: AppColors.amber,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.5,
+                    color: AppColors.textSecondary,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2,
+                    decoration: TextDecoration.underline,
+                    decorationColor: AppColors.textSecondary,
                   ),
                 ),
               ),
-            ),
+            ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorAction extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  final bool prominent;
+
+  const _ErrorAction({
+    required this.label,
+    required this.onTap,
+    required this.prominent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 12),
+        decoration: BoxDecoration(
+          color: prominent ? AppColors.amber.withAlpha(25) : null,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: prominent
+                ? AppColors.amber.withAlpha(120)
+                : AppColors.border,
+            width: 1.5,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: prominent ? AppColors.amber : AppColors.textSecondary,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.5,
+          ),
         ),
       ),
     );

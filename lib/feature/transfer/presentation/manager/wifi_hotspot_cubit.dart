@@ -18,36 +18,70 @@ import '../../domain/entity/wifi_hotspot_segment.dart';
 import '../../domain/repository/wifi_transfer_repository.dart';
 import '../../domain/service/hotspot_control.dart';
 
+/// Which end of the bridge this device is. Android can be either; iOS can only
+/// join (a local-only hotspot can't be hosted from iOS).
+enum HotspotRole { host, join }
+
 enum HotspotPhase {
-  /// Android: creating the local-only hotspot.
+  /// Creating the local-only hotspot.
   starting,
 
-  /// Android: hotspot is up — showing the QR/credentials and waiting for the
-  /// iPhone to join and enter the channel.
+  /// Hotspot is up — showing the QR/credentials and waiting for the peer to
+  /// join and enter the channel.
   ready,
 
-  /// Android: the hotspot could not be created.
+  /// The hotspot could not be created.
   error,
+}
+
+enum JoinPhase {
+  /// Nothing scanned yet.
+  idle,
+
+  /// The scanned payload wasn't a Wi-Fi QR.
+  invalid,
+
+  /// Asking the OS to associate with the host's network.
+  joining,
+
+  /// On the host's network, pinned to it.
+  joined,
+
+  /// The programmatic join didn't take — fall back to joining by hand.
+  manual,
+
+  /// We were on the network and it went away.
+  lost,
 }
 
 class HotspotBridgeState extends Equatable {
   final WifiHotspotSegment segment;
-  final HotspotPhase phase;
 
-  /// The Android host's hotspot credentials (null until [HotspotPhase.ready]).
+  /// Null until the user picks a side (iOS skips straight to [HotspotRole
+  /// .join] — it can't host).
+  final HotspotRole? role;
+
+  final HotspotPhase phase;
+  final JoinPhase joinPhase;
+
+  /// The host's hotspot credentials: created by us when hosting, scanned from
+  /// the host's QR when joining. Null until either happens.
   final HotspotCredentials? credentials;
 
-  /// True once we've heard a packet from the joined peer over Wi-Fi — the cue
-  /// to auto-advance into the channel.
+  /// True once we've heard a packet from the peer over Wi-Fi — the cue to
+  /// auto-advance into the channel.
   final bool peerConnected;
 
-  /// Native error code (`tethering_on`, `unsupported`, `failed`, …) so the UI
-  /// can tailor the message.
+  /// Native error code (`tethering_on`, `location_off`, `permission_denied`,
+  /// `no_channel`, `failed`, …) so the UI can tailor the message and offer the
+  /// matching fix.
   final String? errorCode;
 
   const HotspotBridgeState({
     required this.segment,
+    required this.role,
     required this.phase,
+    required this.joinPhase,
     required this.credentials,
     required this.peerConnected,
     required this.errorCode,
@@ -56,7 +90,9 @@ class HotspotBridgeState extends Equatable {
   factory HotspotBridgeState.initial(WifiHotspotSegment segment) =>
       HotspotBridgeState(
         segment: segment,
+        role: null,
         phase: HotspotPhase.starting,
+        joinPhase: JoinPhase.idle,
         credentials: null,
         peerConnected: false,
         errorCode: null,
@@ -64,13 +100,18 @@ class HotspotBridgeState extends Equatable {
 
   HotspotBridgeState copyWith({
     WifiHotspotSegment? segment,
+    HotspotRole? role,
+    bool clearRole = false,
     HotspotPhase? phase,
+    JoinPhase? joinPhase,
     HotspotCredentials? credentials,
     bool? peerConnected,
     String? errorCode,
   }) => HotspotBridgeState(
     segment: segment ?? this.segment,
+    role: clearRole ? null : (role ?? this.role),
     phase: phase ?? this.phase,
+    joinPhase: joinPhase ?? this.joinPhase,
     credentials: credentials ?? this.credentials,
     peerConnected: peerConnected ?? this.peerConnected,
     errorCode: errorCode,
@@ -79,19 +120,22 @@ class HotspotBridgeState extends Equatable {
   @override
   List<Object?> get props => [
     segment,
+    role,
     phase,
+    joinPhase,
     credentials,
     peerConnected,
     errorCode,
   ];
 }
 
-/// Drives the Wi-Fi Hotspot Bridge — the reliable iPhone↔Android path.
+/// Drives the Wi-Fi Hotspot Bridge — the reliable cross-device path when there
+/// is no shared network.
 ///
-/// Android (host): create a local-only Wi-Fi hotspot, expose its credentials
-/// as a Wi-Fi QR, and watch the Wi-Fi transport for the first packet from the
-/// joined peer. iOS (join): parse a scanned Wi-Fi QR and try to join the
-/// network programmatically ([tryJoin]).
+/// One side hosts (Android only: a local-only Wi-Fi hotspot, exposed as a Wi-Fi
+/// QR), the other scans that QR in the app's own scanner and joins the network
+/// programmatically. Both then watch the Wi-Fi transport for the first packet
+/// from the peer and slide into the ordinary channel. No step leaves the app.
 @injectable
 class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   final WifiTransferRepository _wifi;
@@ -102,7 +146,11 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
 
   StreamSubscription<WakiPacket>? _peerSub;
   StreamSubscription<void>? _stoppedSub;
-  bool _hostStarted = false;
+  StreamSubscription<void>? _lostSub;
+
+  /// Native error code for a start we cancelled ourselves (HotspotHandler
+  /// .CANCELLED) — not a failure to report.
+  static const _cancelledCode = 'cancelled';
 
   WifiHotspotCubit(
     this._wifi,
@@ -112,30 +160,73 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
     this._keepAlive,
   ) : super(HotspotBridgeState.initial(WifiHotspotSegment.wifi));
 
-  /// Switches the visible segment, lazily starting the Android hotspot host
-  /// the first time the user picks "Hotspot" (never on iOS — it joins by
-  /// scanning instead) rather than unconditionally on page open.
+  /// Switches the visible segment. Picking "Hotspot" only offers the host/join
+  /// choice — nothing touches the radio until the user commits to a side, so a
+  /// device that can't host never shows a failure it didn't ask for. iOS has no
+  /// choice to make and goes straight to joining.
   void switchSegment(WifiHotspotSegment segment) {
-    emit(state.copyWith(segment: segment));
+    emit(state.copyWith(segment: segment, errorCode: null));
     if (segment == WifiHotspotSegment.hotspot &&
-        Platform.isAndroid &&
-        !_hostStarted) {
-      _hostStarted = true;
-      startHost();
+        Platform.isIOS &&
+        state.role == null) {
+      chooseRole(HotspotRole.join);
     }
   }
 
-  /// Android host flow: request the Wi-Fi/location permissions LocalOnlyHotspot
-  /// needs, start the hotspot, then listen for the peer.
+  Future<void> chooseRole(HotspotRole role) async {
+    emit(
+      state.copyWith(
+        role: role,
+        joinPhase: JoinPhase.idle,
+        errorCode: null,
+      ),
+    );
+    if (role == HotspotRole.host) await startHost();
+  }
+
+  /// Back to the host/join choice, undoing whatever the abandoned side set up.
+  ///
+  /// The role is cleared *before* the teardown, not after. Back is a tap: it
+  /// has to land on the frame it was pressed, and the teardown behind it is a
+  /// pair of platform calls that can take their time — closing the peer socket
+  /// while `startHost()` is still awaiting `startLocalOnlyHotspot` (which only
+  /// answers from a callback, and on some devices doesn't) left the emit
+  /// unreachable and back looking dead. Switching segment still worked, since
+  /// that emits synchronously, which is exactly the shape of the bug.
+  Future<void> backToRoleChoice() async {
+    final wasHost = state.role == HotspotRole.host;
+    emit(
+      state.copyWith(
+        clearRole: true,
+        phase: HotspotPhase.starting,
+        joinPhase: JoinPhase.idle,
+        errorCode: null,
+      ),
+    );
+    // An in-flight startHost() may still land after this; it copies from the
+    // state as it finds it, so a late `ready` can't put the role back.
+    await _teardownSubscriptions();
+    if (wasHost) {
+      await _hotspot.stop();
+      unawaited(_keepAlive.stop());
+    } else {
+      await _joiner.leave();
+    }
+  }
+
+  // ---------------------------------------------------------------- hosting
+
+  /// Host flow: request the Wi-Fi/location permissions LocalOnlyHotspot needs,
+  /// start the hotspot, then listen for the peer.
   Future<void> startHost() async {
     emit(state.copyWith(phase: HotspotPhase.starting, errorCode: null));
 
     // LocalOnlyHotspot needs fine location (API 26–32) or NEARBY_WIFI_DEVICES
-    // (33+). The manifest declares each only for its own SDK range and
-    // permission_handler silently resolves undeclared permissions as denied,
-    // so only the API-appropriate one can actually prompt. Proceed regardless
-    // — the native side surfaces a hard permission failure as a
-    // PlatformException we handle below.
+    // (33+). On API 31–32 the fine-location request only works because COARSE
+    // is declared alongside it — Android 12 ignores a fine-only request (see
+    // AndroidManifest). Proceed regardless of the outcome: the native side
+    // preflights the permission and reports `permission_denied`, which the UI
+    // can explain better than a bare failure.
     try {
       final permission = await AndroidSdk.version() >= 33
           ? Permission.nearbyWifiDevices
@@ -161,10 +252,13 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
       _listenForPeer();
     } on PlatformException catch (e) {
       Logger.log('Hotspot start failed: ${e.code} ${e.message}');
-      if (!isClosed) {
-        emit(state.copyWith(phase: HotspotPhase.error, errorCode: e.code));
-        _sfx.play(SfxEvent.error);
-      }
+      // `cancelled` means we tore this attempt down ourselves — the user backed
+      // out to the role picker, or a retry superseded it. Showing an error card
+      // for our own teardown would paint failure over a screen that has already
+      // moved on, so it stays silent.
+      if (isClosed || e.code == _cancelledCode) return;
+      emit(state.copyWith(phase: HotspotPhase.error, errorCode: e.code));
+      _sfx.play(SfxEvent.error);
     } catch (e) {
       Logger.log('Hotspot start failed: $e');
       if (!isClosed) {
@@ -174,17 +268,11 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
     }
   }
 
-  void _listenForPeer() {
-    _peerSub?.cancel();
-    // Any packet from the shared LAN means the iPhone joined and entered the
-    // channel. The Wi-Fi repo's generation counter makes it safe for the
-    // walkie screen to call startListening() again after we navigate.
-    _peerSub = _wifi.startListening().listen((_) {
-      if (!isClosed && !state.peerConnected) {
-        emit(state.copyWith(peerConnected: true));
-        _sfx.play(SfxEvent.peerJoin);
-      }
-    }, onError: (Object e) => Logger.log('Hotspot peer listen error: $e'));
+  /// Opens the system screen that fixes the current host error (Location for
+  /// `location_off`, tethering for `tethering_on`).
+  Future<void> openFixSettings() async {
+    final code = state.errorCode;
+    if (code != null) await _hotspot.openFixSettings(code);
   }
 
   /// Recovers from an OS-initiated hotspot teardown while we're still on this
@@ -204,35 +292,126 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
     }, onError: (Object e) => Logger.log('Hotspot teardown listen error: $e'));
   }
 
-  /// iOS join flow: attempt to join the Android host's network via
-  /// NEHotspotConfiguration. Returns whether the auto-join succeeded; on
-  /// failure the UI falls back to showing the credentials for a manual join.
-  Future<bool> tryJoin(HotspotCredentials creds) =>
-      _joiner.join(ssid: creds.ssid, passphrase: creds.passphrase);
+  // ---------------------------------------------------------------- joining
 
-  /// Tears the hotspot down — call this only when the user backs out WITHOUT
-  /// entering the channel. When entering the channel we deliberately leave the
-  /// AP up (the session runs over it); the native side then closes it on
-  /// activity destroy or the next start().
-  Future<void> stopHost() async {
+  /// Handles a payload from the in-app scanner.
+  Future<void> submitScannedCode(String raw) async {
+    final creds = HotspotCredentials.fromWifiQr(raw);
+    if (creds == null) {
+      emit(state.copyWith(joinPhase: JoinPhase.invalid));
+      _sfx.play(SfxEvent.error);
+      return;
+    }
+    await joinNetwork(creds);
+  }
+
+  /// Join flow: hand the scanned credentials to the OS. On Android this is a
+  /// [WifiNetworkSpecifier] request — one system dialog, no settings trip; on
+  /// iOS, NEHotspotConfiguration. Either way the UI falls back to a manual join
+  /// if the OS won't do it for us.
+  Future<void> joinNetwork(HotspotCredentials creds) async {
+    emit(
+      state.copyWith(
+        credentials: creds,
+        joinPhase: JoinPhase.joining,
+        errorCode: null,
+      ),
+    );
+    final joined = await _joiner.join(creds);
+    if (isClosed) return;
+    if (!joined) {
+      emit(state.copyWith(joinPhase: JoinPhase.manual));
+      _sfx.play(SfxEvent.error);
+      return;
+    }
+    _onJoined();
+  }
+
+  /// The manual fallback's "I've joined" — the association already exists, so
+  /// all that's left is pinning this process to it.
+  Future<void> confirmManualJoin() async {
+    await _joiner.bindToCurrentWifi();
+    if (isClosed) return;
+    _onJoined();
+  }
+
+  void _onJoined() {
+    emit(state.copyWith(joinPhase: JoinPhase.joined));
+    _sfx.play(SfxEvent.linkRestored);
+    // A socket keeps whatever network it was created on, and the process was
+    // only just pinned to the hotspot — drop any socket from before the join
+    // so the listener below binds on the right side of the bridge.
+    _wifi.stopConnection();
+    unawaited(_keepAlive.start(usesMicrophone: false));
+    _watchForLinkLoss();
+    _listenForPeer();
+  }
+
+  /// The host's AP went away while we were still on this page. Surface it
+  /// instead of showing a "joined" screen for a network that no longer exists;
+  /// the credentials are still on hand, so recovery is one tap.
+  void _watchForLinkLoss() {
+    _lostSub?.cancel();
+    _lostSub = _joiner.onLost.listen((_) {
+      if (isClosed || state.peerConnected) return;
+      Logger.log('Hotspot link lost — offering rejoin');
+      _peerSub?.cancel();
+      _peerSub = null;
+      emit(state.copyWith(joinPhase: JoinPhase.lost));
+      _sfx.play(SfxEvent.error);
+    }, onError: (Object e) => Logger.log('Hotspot lost listen error: $e'));
+  }
+
+  /// Back to the scanner after an invalid code or a lost link.
+  void resetJoin() => emit(state.copyWith(joinPhase: JoinPhase.idle));
+
+  // ----------------------------------------------------------------- shared
+
+  void _listenForPeer() {
+    _peerSub?.cancel();
+    // Any packet on the shared LAN means the other side is in the channel. The
+    // Wi-Fi repo's generation counter makes it safe for the walkie screen to
+    // call startListening() again after we navigate.
+    _peerSub = _wifi.startListening().listen((_) {
+      if (!isClosed && !state.peerConnected) {
+        emit(state.copyWith(peerConnected: true));
+        _sfx.play(SfxEvent.peerJoin);
+      }
+    }, onError: (Object e) => Logger.log('Hotspot peer listen error: $e'));
+  }
+
+  /// Tears the bridge down — call this only when the user backs out WITHOUT
+  /// entering the channel. When entering the channel we deliberately leave both
+  /// the AP and the joined-network binding in place (the session runs over
+  /// them); the native side then releases them on activity destroy or the next
+  /// start().
+  Future<void> leaveBridge() async {
+    await _teardownSubscriptions();
+    await _hotspot.stop();
+    await _joiner.leave();
+    // Backing out without entering the channel: the bridge duty is over, so
+    // drop the keep-alive we took when the link came up. (When we instead enter
+    // the channel, close() runs and deliberately leaves it — the session owns
+    // it.)
+    unawaited(_keepAlive.stop());
+  }
+
+  Future<void> _teardownSubscriptions() async {
     await _peerSub?.cancel();
     _peerSub = null;
     await _stoppedSub?.cancel();
     _stoppedSub = null;
-    await _hotspot.stop();
-    // Backing out without entering the channel: the host duty is over, so drop
-    // the keep-alive we took when the AP came up. (When we instead enter the
-    // channel, close() runs and deliberately leaves it — the session owns it.)
-    unawaited(_keepAlive.stop());
+    await _lostSub?.cancel();
+    _lostSub = null;
   }
 
   @override
   Future<void> close() async {
-    // Intentionally does NOT stop the hotspot OR the keep-alive: navigating
-    // into the walkie session disposes this cubit while the AP — and the
-    // foreground service guarding it — must stay alive.
-    await _peerSub?.cancel();
-    await _stoppedSub?.cancel();
+    // Intentionally does NOT stop the hotspot, release the joined network OR
+    // stop the keep-alive: navigating into the walkie session disposes this
+    // cubit while the link — and the foreground service guarding it — must stay
+    // alive.
+    await _teardownSubscriptions();
     return super.close();
   }
 }

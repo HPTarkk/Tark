@@ -15,6 +15,12 @@
     <uses-permission
         android:name="android.permission.NEARBY_WIFI_DEVICES"
         android:usesPermissionFlags="neverForLocation" />
+    <!-- Joining the host's hotspot from inside the app: WifiNetworkSpecifier
+         goes through ConnectivityManager.requestNetwork, and binding the
+         process to that network is what stops Android from silently falling
+         back to cellular once it notices the hotspot has no internet
+         (see WifiJoinHandler). -->
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
 
     <!-- Bluetooth Classic transport (Android). Legacy permissions are capped
          at API 30 by maxSdkVersion; API 31+ uses the runtime-requested
@@ -30,7 +36,13 @@
          the Hotspot Bridge's startLocalOnlyHotspot needs it on API 31–32;
          Android 13+ uses NEARBY_WIFI_DEVICES (above) instead. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="32" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="30" />
+    <!-- Runs to 32 alongside FINE, not to 30: from Android 12 the system
+         IGNORES a runtime request for ACCESS_FINE_LOCATION unless
+         ACCESS_COARSE_LOCATION is requested in the same call, and an
+         undeclared permission can never be part of it. Capping COARSE at 30
+         therefore made the hotspot permission ungrantable on API 31-32 — the
+         host failed every single time with "couldn't create the hotspot". -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission
         android:name="android.permission.BLUETOOTH_SCAN"

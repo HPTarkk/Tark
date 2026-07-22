@@ -26,6 +26,15 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
   StreamSubscription<bool>? _bleAdvertisingSub;
   Timer? _reconnectTimeout;
 
+  /// Pending hands-free join of the only Tark host in range (see
+  /// [_considerSoloAutoJoin]).
+  Timer? _soloJoinTimer;
+
+  /// How long the scan is given to turn up a SECOND Tark host before the
+  /// first one is joined automatically. Short enough to feel instant, long
+  /// enough that two friends hosting at once still get a choice.
+  static const _soloJoinSettle = Duration(seconds: 2);
+
   /// True while a background auto-reconnect (started by the cubit itself,
   /// not a user tap) is in flight — its failures must fall back to role
   /// selection quietly instead of surfacing the error screen.
@@ -110,7 +119,14 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
       state.copyWith(
         myName: myName.isEmpty ? 'Tark' : myName,
         lastPeer: lastId != null
-            ? BluetoothPeer(id: lastId, name: lastName ?? lastId)
+            // A remembered peer is one we've already had a session with, so
+            // it's an app host by definition — even before this scan proves
+            // it again by name.
+            ? BluetoothPeer(
+                id: lastId,
+                name: lastName ?? lastId,
+                isAppHost: true,
+              )
             : null,
       ),
     );
@@ -302,18 +318,47 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
       } else {
         peers.add(peer);
       }
-      peers.sort((a, b) => (b.rssi ?? -999).compareTo(a.rssi ?? -999));
+      // Tark hosts first (a classic scan also sweeps up every headset and TV
+      // in range), then strongest signal.
+      peers.sort((a, b) {
+        if (a.isAppHost != b.isAppHost) return a.isAppHost ? -1 : 1;
+        return (b.rssi ?? -999).compareTo(a.rssi ?? -999);
+      });
       emit(state.copyWith(peers: peers));
 
-      if (autoConnectId != null &&
-          peer.id == autoConnectId &&
-          state.connectingPeerId == autoConnectId &&
-          state.connectionState != BluetoothConnectionState.connecting) {
-        // Internal variant: this dial belongs to whichever flow armed the
-        // targeted scan, so it must not clear the auto-attempt marker.
-        _connectTo(peer);
+      if (autoConnectId != null) {
+        if (peer.id == autoConnectId &&
+            state.connectingPeerId == autoConnectId &&
+            state.connectionState != BluetoothConnectionState.connecting) {
+          // Internal variant: this dial belongs to whichever flow armed the
+          // targeted scan, so it must not clear the auto-attempt marker.
+          _connectTo(peer);
+        }
+      } else {
+        _considerSoloAutoJoin();
       }
     }, onError: (Object e) => Logger.log('BT scan error: $e'));
+  }
+
+  /// Joins hands-free when the scan finds exactly one Tark host: with a
+  /// single obvious peer, tapping it is pure ceremony. Everything else in the
+  /// list is somebody's headset, so only [BluetoothPeer.isAppHost] entries
+  /// count. The [_soloJoinSettle] delay is what keeps this honest — a second
+  /// host arriving a moment later cancels the auto-join and hands the choice
+  /// back to the user, who can also always Cancel out of the radar.
+  void _considerSoloAutoJoin() {
+    _soloJoinTimer?.cancel();
+    if (state.connectingPeerId != null) return;
+    final hosts = state.peers.where((p) => p.isAppHost).toList();
+    if (hosts.length != 1) return;
+    final only = hosts.single;
+    _soloJoinTimer = Timer(_soloJoinSettle, () {
+      if (isClosed || state.connectingPeerId != null) return;
+      if (state.connectionState != BluetoothConnectionState.scanning) return;
+      final current = state.peers.where((p) => p.isAppHost).toList();
+      if (current.length != 1 || current.single.id != only.id) return;
+      _connectTo(current.single);
+    });
   }
 
   Future<void> connectTo(BluetoothPeer peer) {
@@ -327,6 +372,7 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
 
   Future<void> _connectTo(BluetoothPeer peer) async {
     _reconnectTimeout?.cancel();
+    _soloJoinTimer?.cancel();
     // A one-shot background attempt must stay guarded through the dial phase:
     // a hung connect has to fall back to role selection on its own. The
     // persistent auto-join loop ([_autoJoining]) owns its own timing, so it
@@ -393,6 +439,7 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
     _autoAttempt = false;
     _stopAutoJoin();
     _reconnectTimeout?.cancel();
+    _soloJoinTimer?.cancel();
     _scanSub?.cancel();
     _scanSub = null;
     _transport.reset();
@@ -408,6 +455,7 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
   Future<void> close() async {
     _stopAutoJoin();
     _reconnectTimeout?.cancel();
+    _soloJoinTimer?.cancel();
     await _connectionSub?.cancel();
     await _scanSub?.cancel();
     await _bleAdvertisingSub?.cancel();

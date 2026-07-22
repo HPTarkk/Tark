@@ -256,7 +256,17 @@ class _PeerTile extends StatelessWidget {
                   ),
                 )
               else
-                Icon(Icons.bluetooth_rounded, color: AppColors.amber, size: 20),
+                // Amber marks a device hosting from inside the app — the only
+                // kind worth tapping, and the only kind the solo auto-join
+                // will pick up on its own. Everything else in a classic scan
+                // is somebody's headset, so it stays muted.
+                Icon(
+                  Icons.bluetooth_rounded,
+                  color: peer.isAppHost
+                      ? AppColors.amber
+                      : AppColors.textSecondary,
+                  size: 20,
+                ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(

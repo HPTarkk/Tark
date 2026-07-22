@@ -7,12 +7,23 @@ class HotspotCredentials extends Equatable {
   final String ssid;
   final String passphrase;
 
-  const HotspotCredentials({required this.ssid, required this.passphrase});
+  /// Wi-Fi QR `T:` security value, as reported by the host's SoftAP config:
+  /// `WPA` (WPA2 or WPA3-transition — both take a WPA2 passphrase), `SAE`
+  /// (WPA3-only) or `nopass`. The joining peer needs it to build the right
+  /// [WifiNetworkSpecifier]; a WPA2 passphrase offered to a SAE-only AP just
+  /// fails to associate.
+  final String security;
+
+  const HotspotCredentials({
+    required this.ssid,
+    required this.passphrase,
+    this.security = 'WPA',
+  });
 
   /// A standard Wi-Fi network QR payload. iOS Camera and Android's built-in
-  /// scanner both offer a one-tap "Join this network" when they read this.
-  /// `WPA` covers WPA2/WPA3 personal (what LocalOnlyHotspot uses); `H:false`
-  /// = not a hidden network.
+  /// scanner both offer a one-tap "Join this network" when they read this;
+  /// the app's own scanner reads the same payload. `H:false` = not a hidden
+  /// network.
   ///
   /// Special characters in the SSID/passphrase (`\ ; , : "`) must be
   /// backslash-escaped per the Wi-Fi QR spec, or a value containing them
@@ -20,7 +31,7 @@ class HotspotCredentials extends Equatable {
   String get wifiQrPayload {
     final s = _escape(ssid);
     final p = _escape(passphrase);
-    return 'WIFI:S:$s;T:WPA;P:$p;H:false;;';
+    return 'WIFI:S:$s;T:$security;P:$p;H:false;;';
   }
 
   static String _escape(String value) =>
@@ -59,9 +70,14 @@ class HotspotCredentials extends Equatable {
 
     final ssid = fields['S'];
     if (ssid == null || ssid.isEmpty) return null;
-    return HotspotCredentials(ssid: ssid, passphrase: fields['P'] ?? '');
+    final type = fields['T'];
+    return HotspotCredentials(
+      ssid: ssid,
+      passphrase: fields['P'] ?? '',
+      security: (type == null || type.isEmpty) ? 'WPA' : type,
+    );
   }
 
   @override
-  List<Object?> get props => [ssid, passphrase];
+  List<Object?> get props => [ssid, passphrase, security];
 }

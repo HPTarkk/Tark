@@ -4,6 +4,7 @@ import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothServerSocket
 import android.bluetooth.BluetoothSocket
+import android.content.Context
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
@@ -24,7 +25,7 @@ import java.util.concurrent.ArrayBlockingQueue
  *
  * Methods (channel "tark/bluetooth_server/methods"):
  *   requestDiscoverable(durationSeconds) -> bool (whether the system dialog was shown)
- *   startHosting(name)                   -> starts listening; "connected"/"error" events follow on the connection channel
+ *   startHosting(name)                   -> starts listening under [name]; "connected"/"error" events follow on the connection channel
  *   stopHosting()                        -> stops listening / closes any accepted socket
  *   write(bytes)                         -> writes to the currently accepted socket
  *   closeConnection()                    -> closes the currently accepted socket only
@@ -38,6 +39,7 @@ import java.util.concurrent.ArrayBlockingQueue
  *   raw ByteArray chunks read from the accepted socket
  */
 class BluetoothServerHandler(
+    private val context: Context,
     messenger: BinaryMessenger,
     private val activityProvider: () -> Activity?,
 ) : MethodChannel.MethodCallHandler {
@@ -55,6 +57,12 @@ class BluetoothServerHandler(
         // cap: once the writer thread is this far behind, newest packets are
         // DROPPED instead of queued — stale audio is worse than lost audio.
         private const val WRITE_QUEUE_CAPACITY = 8
+
+        // Where the adapter name is parked while hosting renames it. Survives
+        // process death on purpose: a kill mid-session is exactly the case
+        // where nothing else would ever put the user's own name back.
+        private const val PREFS_NAME = "tark_bluetooth"
+        private const val KEY_ORIGINAL_ADAPTER_NAME = "original_adapter_name"
     }
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -88,6 +96,9 @@ class BluetoothServerHandler(
                 readSink = null
             }
         })
+        // A previous run may have been killed while hosting, leaving the
+        // adapter under the hosting name. Put it back before doing anything.
+        restoreAdapterName()
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
@@ -147,12 +158,20 @@ class BluetoothServerHandler(
             result.error("unsupported", "Bluetooth is not supported on this device", null)
             return
         }
+        // A classic inquiry reports the remote ADAPTER name and nothing else —
+        // the service-record name below never reaches a scanning device. So
+        // the adapter itself carries the hosting name for the duration of the
+        // session; stopHosting()/onDestroy/next launch put the original back.
+        applyAdapterName(adapter, name)
+
         try {
             serverSocket = adapter.listenUsingInsecureRfcommWithServiceRecord(name, SPP_UUID)
         } catch (e: IOException) {
+            restoreAdapterName()
             result.error("listen_failed", e.message, null)
             return
         } catch (e: SecurityException) {
+            restoreAdapterName()
             result.error("permission_denied", e.message, null)
             return
         }
@@ -263,6 +282,40 @@ class BluetoothServerHandler(
         serverSocket = null
         acceptThread = null
         closeAcceptedSocketOnly()
+        restoreAdapterName()
+    }
+
+    // Renames the adapter to [hostName], remembering what it was called
+    // first. A failure is not fatal: hosting still works, the joiner just
+    // sees the OEM name and can't tell this device apart from a headset.
+    private fun applyAdapterName(adapter: BluetoothAdapter, hostName: String) {
+        try {
+            val current = adapter.name ?: return
+            if (current == hostName) return
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            // Only the FIRST rename records an original — re-hosting (or an
+            // auto-reconnect) must not save the hosting name over it.
+            if (!prefs.contains(KEY_ORIGINAL_ADAPTER_NAME)) {
+                prefs.edit().putString(KEY_ORIGINAL_ADAPTER_NAME, current).apply()
+            }
+            adapter.name = hostName
+        } catch (e: SecurityException) {
+            // BLUETOOTH_CONNECT revoked, or an OEM that locks the name down.
+        }
+    }
+
+    // Puts the user's own device name back. Keeps the stored name when the
+    // adapter is off (nothing to write to yet) so a later call still can.
+    private fun restoreAdapterName() {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val original = prefs.getString(KEY_ORIGINAL_ADAPTER_NAME, null) ?: return
+        val adapter = BluetoothAdapter.getDefaultAdapter() ?: return
+        try {
+            if (!adapter.isEnabled) return
+            adapter.name = original
+            prefs.edit().remove(KEY_ORIGINAL_ADAPTER_NAME).apply()
+        } catch (e: SecurityException) {
+        }
     }
 
     private fun emitConnectionEvent(event: Map<String, Any?>) {

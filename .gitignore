@@ -18,6 +18,11 @@ key.properties
 .swiftpm/
 migrate_working_dir/
 
+# Claude Code local config (settings, skills, launch configs)
+.claude/
+graphify-out
+CLAUDE.md
+
 # IntelliJ related
 *.iml
 *.ipr

@@ -93,6 +93,17 @@ class AudioEngineImpl implements AudioEngine {
   static const _kStallTimeout = Duration(seconds: 3);
   static const _kMinRestartInterval = Duration(seconds: 5);
 
+  // ── Route changes ──────────────────────────────────────────────────────
+  // Headsets that arrive AFTER the engine is up are their own problem: the
+  // route is chosen once, in _openStreams, and on Android it is *pinned*
+  // (setCommunicationDevice on the built-in speaker when nothing was
+  // attached), which outranks the headset the call strategy would otherwise
+  // pick. Connecting one mid-session left both capture and playback on the
+  // phone. Re-pick the device and re-open the streams on every change.
+  StreamSubscription<void>? _routeSub;
+  Timer? _routeSettle;
+  static const _kRouteSettleDelay = Duration(milliseconds: 800);
+
   AudioEngineStatus _currentStatus = AudioEngineStatus.initial();
   final StreamController<AudioEngineStatus> _statusController =
       StreamController<AudioEngineStatus>.broadcast();
@@ -169,14 +180,19 @@ class AudioEngineImpl implements AudioEngine {
     if (started) {
       _setStatus(const AudioEngineStatus(hasPermission: true, isStarted: true));
       _startWatchdog();
+      _watchRouteChanges();
     }
   }
 
   /// Opens (or re-opens) the mic + speaker streams and wires the input
   /// listener. Must run inside [_withEngineLock] with epoch/disposed already
-  /// checked — shared by [start] and the stall-recovery restart so both go
-  /// through the exact same route/effects/resampler setup.
-  Future<void> _openStreams() async {
+  /// checked — shared by [start] and the stall/route restarts so all of them
+  /// go through the exact same route/effects/resampler setup.
+  ///
+  /// [renegotiateRoute] discards the device the session already selected
+  /// before choosing again; only a restart caused by a device appearing or
+  /// disappearing needs it.
+  Future<void> _openStreams({bool renegotiateRoute = false}) async {
     try {
       await _audioIo.stop();
       // Android: bring the Bluetooth SCO route up — and confirmed — BEFORE
@@ -184,7 +200,11 @@ class AudioEngineImpl implements AudioEngine {
       // that are already open (Galaxy S8 + AirPods went silent both ways).
       // No-op without a BT headset; rolls itself back if SCO fails so the
       // default route keeps working.
-      await VoiceAudioSession.configure();
+      if (renegotiateRoute) {
+        await VoiceAudioSession.reconfigure();
+      } else {
+        await VoiceAudioSession.configure();
+      }
       await _audioIo.requestLatency(AudioIoLatency.Balanced);
       try {
         await _audioIo.start();
@@ -246,6 +266,7 @@ class AudioEngineImpl implements AudioEngine {
         output: _audioIo.output,
         sampleRate: outputRate.toInt(),
         targetBufferMs: targetBufferMs,
+        debugLogging: true,
       );
     } catch (e) {
       Logger.log('AudioIo start error: $e');
@@ -342,6 +363,45 @@ class AudioEngineImpl implements AudioEngine {
     }
   }
 
+  void _watchRouteChanges() {
+    _routeSub?.cancel();
+    _routeSub = VoiceAudioSession.routeChanges.listen((_) => _scheduleReroute());
+  }
+
+  /// One headset lands as several device events (A2DP then SCO, capture and
+  /// playback sides separately), so let a burst settle and re-open once.
+  void _scheduleReroute() {
+    if (_disposed) return;
+    _routeSettle?.cancel();
+    _routeSettle = Timer(_kRouteSettleDelay, _reopenForRoute);
+  }
+
+  Future<void> _reopenForRoute() async {
+    if (_disposed) return;
+    if (_engineEpoch != _myEpoch) return; // a newer session owns the engine
+    if (!_currentStatus.isStarted) return;
+    // A stall restart is already in flight — wait it out rather than dropping
+    // the route change, which would strand the session on the wrong device.
+    if (_restarting) {
+      _scheduleReroute();
+      return;
+    }
+
+    _restarting = true;
+    // Counts as a restart for the watchdog: reopening resets the stall clock
+    // anyway, and this keeps the two paths from stacking up on each other.
+    _lastRestartAt = DateTime.now();
+    Logger.log('Audio route changed — reselecting device');
+    try {
+      await _withEngineLock(() async {
+        if (_disposed || _engineEpoch != _myEpoch) return;
+        await _openStreams(renegotiateRoute: true);
+      });
+    } finally {
+      _restarting = false;
+    }
+  }
+
   // ── Public API ─────────────────────────────────────────────────────────────
 
   @override
@@ -380,6 +440,10 @@ class AudioEngineImpl implements AudioEngine {
     _disposed = true;
     _watchdog?.cancel();
     _watchdog = null;
+    _routeSettle?.cancel();
+    _routeSettle = null;
+    await _routeSub?.cancel();
+    _routeSub = null;
     await _inputSub?.cancel();
     await _frameController.close();
     await _statusController.close();

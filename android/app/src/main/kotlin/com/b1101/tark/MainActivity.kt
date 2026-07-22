@@ -6,6 +6,7 @@ import com.b1101.tark.audio.MediaControlHandler
 import com.b1101.tark.audio.SystemAudioHandler
 import com.b1101.tark.bluetooth.BluetoothServerHandler
 import com.b1101.tark.hotspot.HotspotHandler
+import com.b1101.tark.hotspot.WifiJoinHandler
 import com.b1101.tark.keepalive.KeepAliveHandler
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -15,12 +16,15 @@ class MainActivity : FlutterActivity() {
     private var bluetoothServerHandler: BluetoothServerHandler? = null
     private var systemAudioHandler: SystemAudioHandler? = null
     private var hotspotHandler: HotspotHandler? = null
+    private var wifiJoinHandler: WifiJoinHandler? = null
     private var keepAliveHandler: KeepAliveHandler? = null
+    private var audioSessionHandler: AudioSessionHandler? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
         val handler = BluetoothServerHandler(
+            applicationContext,
             flutterEngine.dartExecutor.binaryMessenger,
             activityProvider = { this },
         )
@@ -30,10 +34,15 @@ class MainActivity : FlutterActivity() {
             "tark/bluetooth_server/methods",
         ).setMethodCallHandler(handler)
 
+        val audioSession = AudioSessionHandler(
+            applicationContext,
+            flutterEngine.dartExecutor.binaryMessenger,
+        )
+        audioSessionHandler = audioSession
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             "tark/audio_session",
-        ).setMethodCallHandler(AudioSessionHandler(applicationContext))
+        ).setMethodCallHandler(audioSession)
 
         val systemAudio = SystemAudioHandler(
             flutterEngine.dartExecutor.binaryMessenger,
@@ -54,6 +63,16 @@ class MainActivity : FlutterActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             "tark/hotspot",
         ).setMethodCallHandler(hotspot)
+
+        val wifiJoin = WifiJoinHandler(
+            applicationContext,
+            flutterEngine.dartExecutor.binaryMessenger,
+        )
+        wifiJoinHandler = wifiJoin
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "tark/wifi_join",
+        ).setMethodCallHandler(wifiJoin)
 
         val keepAlive = KeepAliveHandler(
             applicationContext,
@@ -83,7 +102,9 @@ class MainActivity : FlutterActivity() {
     override fun onDestroy() {
         bluetoothServerHandler?.stopHosting()
         hotspotHandler?.stop()
+        wifiJoinHandler?.leave()
         keepAliveHandler?.stop()
+        audioSessionHandler?.dispose()
         super.onDestroy()
     }
 }

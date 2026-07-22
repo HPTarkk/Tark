@@ -13,6 +13,7 @@ import '../../domain/entity/wifi_hotspot_segment.dart';
 import '../manager/wifi_hotspot_cubit.dart';
 import '../widget/hotspot_host_flow.dart';
 import '../widget/hotspot_join_flow.dart';
+import '../widget/hotspot_role_picker.dart';
 import '../widget/hotspot_segmented_control.dart';
 import '../widget/hotspot_shared_widgets.dart';
 import '../widget/hotspot_wifi_only_flow.dart';
@@ -55,14 +56,50 @@ class _WifiHotspotPageState extends State<WifiHotspotPage> {
   void _enterChannel(BuildContext context) {
     if (_navigating) return;
     setState(() => _navigating = true);
-    // Leave the hotspot up (if one was created) — the walkie session runs
-    // over it.
+    // Leave the hotspot up — and the joined network bound — if one was set up;
+    // the walkie session runs over it.
     context.goNamed(AppRoutes.walkieName);
+  }
+
+  /// Back steps out of a chosen side first (host ⇄ join is a decision worth
+  /// being able to undo), and only leaves the page once there's no side to
+  /// step out of.
+  void _back(BuildContext context) {
+    final cubit = context.read<WifiHotspotCubit>();
+    if (cubit.state.segment == WifiHotspotSegment.hotspot &&
+        cubit.state.role != null &&
+        Platform.isAndroid) {
+      cubit.backToRoleChoice();
+      return;
+    }
+    // Backing out without connecting: tear down whatever was set up (a no-op
+    // when nothing was).
+    cubit.leaveBridge();
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      // Reached directly (quick access landed here) — no stack to pop to.
+      context.goNamed(AppRoutes.landingName);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
+    return PopScope(
+      // The system back gesture would otherwise pop the route without ever
+      // running the teardown, leaving an orphaned hotspot up (which then makes
+      // the NEXT attempt fail with "tethering already on") or the process still
+      // pinned to a network we've walked away from.
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _back(context);
+      },
+      child: _buildScaffold(context, s),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context, AppLocalizations s) {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -70,18 +107,7 @@ class _WifiHotspotPageState extends State<WifiHotspotPage> {
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
-          onPressed: () {
-            // Backing out without connecting: tear the hotspot down (no-op
-            // if one was never started).
-            context.read<WifiHotspotCubit>().stopHost();
-            if (context.canPop()) {
-              context.pop();
-            } else {
-              // Reached directly (quick access landed here) — no stack to
-              // pop to.
-              context.goNamed(AppRoutes.landingName);
-            }
-          },
+          onPressed: () => _back(context),
         ),
         title: Text(
           s.transport_wifi_hotspot,
@@ -135,12 +161,20 @@ class _WifiHotspotPageState extends State<WifiHotspotPage> {
         text: s.hotspot_not_supported,
       );
     }
-    if (Platform.isIOS) {
-      return HotspotJoinFlow(onEnterChannel: () => _enterChannel(context));
-    }
-    return HotspotHostFlow(
-      state: state,
-      onEnterChannel: () => _enterChannel(context),
-    );
+    // iOS is pinned to joining by the cubit (it can't host a local-only AP);
+    // Android is asked which end it is, since either phone can be either.
+    return switch (state.role) {
+      null => HotspotRolePicker(
+        onChoose: context.read<WifiHotspotCubit>().chooseRole,
+      ),
+      HotspotRole.host => HotspotHostFlow(
+        state: state,
+        onEnterChannel: () => _enterChannel(context),
+      ),
+      HotspotRole.join => HotspotJoinFlow(
+        state: state,
+        onEnterChannel: () => _enterChannel(context),
+      ),
+    };
   }
 }
