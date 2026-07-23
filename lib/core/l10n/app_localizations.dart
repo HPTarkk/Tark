@@ -158,6 +158,54 @@ abstract class AppLocalizations {
   /// **'صدای ورودی'**
   String get rx_label;
 
+  /// No description provided for @mic_on_air.
+  ///
+  /// In fa, this message translates to:
+  /// **'روی آنتن'**
+  String get mic_on_air;
+
+  /// No description provided for @mic_section.
+  ///
+  /// In fa, this message translates to:
+  /// **'میکروفنت'**
+  String get mic_section;
+
+  /// No description provided for @mic_live_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'میکروفن روشنه'**
+  String get mic_live_title;
+
+  /// No description provided for @mic_live_label.
+  ///
+  /// In fa, this message translates to:
+  /// **'همه صدات رو می‌شنون'**
+  String get mic_live_label;
+
+  /// No description provided for @mic_muted_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'ساکتی'**
+  String get mic_muted_title;
+
+  /// No description provided for @mic_muted_label.
+  ///
+  /// In fa, this message translates to:
+  /// **'کسی صدات رو نمی‌شنوه'**
+  String get mic_muted_label;
+
+  /// No description provided for @mic_action_mute.
+  ///
+  /// In fa, this message translates to:
+  /// **'ساکت کن'**
+  String get mic_action_mute;
+
+  /// No description provided for @mic_action_unmute.
+  ///
+  /// In fa, this message translates to:
+  /// **'روشن کن'**
+  String get mic_action_unmute;
+
   /// No description provided for @music_cast.
   ///
   /// In fa, this message translates to:
@@ -313,6 +361,12 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'ورود به کانال'**
   String get join_channel;
+
+  /// No description provided for @connect_via_hotspot.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتصال با هات‌اسپات'**
+  String get connect_via_hotspot;
 
   /// No description provided for @leave_channel.
   ///

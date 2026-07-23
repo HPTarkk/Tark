@@ -162,6 +162,17 @@ class _LandingPageState extends State<LandingPage>
 
   // ── Join Button ─────────────────────────────────────────────────────────────
   Widget _buildJoinButton(BuildContext context, LandingState state) {
+    // Plain Wi-Fi mode with no network: JOIN CHANNEL has nothing to join, so
+    // it's meaningless here. Once loading has settled and we know the phone
+    // isn't on a Wi-Fi network, collapse to a single, full-width Hotspot
+    // action — hosting/joining a hotspot creates its own network. (While still
+    // loading we keep the normal layout to avoid a flash before the IP lands.)
+    if (state.transferMode == TransferMode.wifi &&
+        !state.isLoading &&
+        !state.hasNetwork) {
+      return const _HotspotConnectButton();
+    }
+
     final enabled = state.hasNetwork && !state.isLoading;
     // The border/glow pulse repaints every frame forever (blurred shadow
     // included) — keep that off the layer shared with the rest of the page.
@@ -327,6 +338,67 @@ class _HotspotShortcutButton extends StatelessWidget {
                 fontSize: 9,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Hotspot connect (Wi-Fi mode, no network) ────────────────────────────────
+// When plain Wi-Fi is selected but the phone isn't on a network, JOIN CHANNEL
+// has nothing to join. Hosting/joining a hotspot creates its own network, so
+// it becomes the sole, full-width action — styled to match the enabled JOIN
+// button so it reads as the primary call to action.
+
+class _HotspotConnectButton extends StatelessWidget {
+  const _HotspotConnectButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        context.read<LandingCubit>().markLaunched();
+        context.pushNamed(
+          AppRoutes.wifiHotspotName,
+          queryParameters: const {'mode': 'hotspot'},
+        );
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        decoration: BoxDecoration(
+          color: AppColors.amber.withAlpha(25),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.amber, width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.amber.withAlpha(30),
+              blurRadius: 28,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.wifi_tethering_rounded,
+              color: AppColors.amber,
+              size: 22,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              s.connect_via_hotspot,
+              style: TextStyle(
+                color: AppColors.amber,
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 2,
               ),
             ),
           ],

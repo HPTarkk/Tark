@@ -287,9 +287,15 @@ class _HorizonPainter extends CustomPainter {
 
     // Streaming dashes: two rows, the lower one bigger and faster so the
     // ground reads as rushing past underfoot.
-    void dashRow(double yFrac, double period, double dashW, double speed, int alpha) {
+    //
+    // [cycles] is the whole number of periods a row advances per scroll loop.
+    // Keeping it an integer makes the shift continuous across the controller's
+    // 1→0 wrap; the old fractional speeds (e.g. 1.6) left the offset snapping
+    // back mid-stream every loop, so the road looked like it jumped to the
+    // start every few seconds.
+    void dashRow(double yFrac, double period, double dashW, int cycles, int alpha) {
       final y = horizonY + (h - horizonY) * yFrac;
-      final shift = (scroll * speed * period) % period;
+      final shift = (scroll * cycles % 1.0) * period;
       final paint = Paint()..color = Onb.amber.withAlpha(alpha);
       for (double x = -period + shift; x < w + period; x += period) {
         canvas.drawRRect(
@@ -302,8 +308,8 @@ class _HorizonPainter extends CustomPainter {
       }
     }
 
-    dashRow(0.42, 52, 24, 1.0, 85);
-    dashRow(0.72, 78, 40, 1.6, 120);
+    dashRow(0.42, 52, 24, 1, 85);
+    dashRow(0.72, 78, 40, 2, 120);
   }
 
   @override

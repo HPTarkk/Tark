@@ -10,10 +10,8 @@ import '../../../../core/sfx/sfx_event.dart';
 import '../../../../core/sfx/sfx_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/theme_service.dart';
-import '../../../../core/widget/mesh_background.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../manager/onboarding_cubit.dart';
-import '../widget/assembling_radio.dart';
 import '../widget/beat_transitions.dart';
 import '../widget/callsign_step.dart';
 import '../widget/horizon_scene.dart';
@@ -23,26 +21,24 @@ import '../widget/ready_step.dart';
 import '../widget/transport_step.dart';
 import '../widget/tune_step.dart';
 import '../widget/welcome_step.dart';
+import '../widget/wind_background.dart';
 
 /// First-run onboarding: one continuous scene, five beats.
 ///
-/// Nothing pages or swipes — a travelling [HorizonScene] (parallax ridges,
-/// a day/night sky, streaming ground) and a handheld radio that *assembles
-/// itself* persist while beat content cross-slides above them and the single
-/// CTA morphs its label, so the journey reads as one canvas rearranging
-/// itself while the unit is built up piece by piece:
+/// Nothing pages or swipes — a travelling [HorizonScene] (parallax ridges, a
+/// day/night sky, streaming ground) and a field of [WindBackground] streaks
+/// persist while the beat content cross-dissolves above them and the single CTA
+/// morphs its label, so the journey reads as one canvas rearranging itself as
+/// you travel toward being on air:
 ///
-///   tune in (language + theme, applied live — flips the sky day↔night;
-///   chassis drops in) → welcome (what this is; antenna telescopes up) →
-///   callsign (who you are; the screen lights with your handle) → transport
-///   (how you connect; the link module clips on) → launch (PTT + LED go live
-///   and the unit keys up on air).
+///   tune in (language + theme, applied live — flips the sky day↔night) →
+///   welcome (what this is) → callsign (who you are) → transport (how you
+///   connect) → launch (key up on air).
 ///
-/// Progress is gamified twice over: a filling signal-strength meter in the
-/// header and the radio earning a component each beat. The final beat drives
-/// straight into the product: JOIN CHANNEL lands the user in their transport's
-/// join flow (with Landing beneath it for back), while a quieter link lets
-/// them explore the lobby first.
+/// Progress is gamified by a filling signal-strength meter in the header. The
+/// final beat drives straight into the product: JOIN CHANNEL lands the user in
+/// their transport's join flow (with Landing beneath it for back), while a
+/// quieter link lets them explore the lobby first.
 ///
 /// Choices stay in [OnboardingCubit] until the final CTA persists them all
 /// at once; skipping marks onboarding done and touches nothing else. With
@@ -93,10 +89,9 @@ class _OnboardingPageState extends State<OnboardingPage>
     duration: const Duration(milliseconds: 900),
   );
 
-  /// Shared ambient clocks: breathing glow (radio live parts, selected HUD
-  /// frames, transmit key border), a slow drift loop (parallax sway, celestial
-  /// glow, VOX waveform), and the periodic gloss glint (transmit key + operator
-  /// panel).
+  /// Shared ambient clocks: breathing glow (selected HUD frames, transmit key
+  /// border), a slow drift loop (parallax sway, celestial glow, VOX waveform),
+  /// and the periodic gloss glint on the transmit key.
   late final AnimationController _pulse = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 2000),
@@ -126,9 +121,9 @@ class _OnboardingPageState extends State<OnboardingPage>
     duration: const Duration(milliseconds: 1500),
   );
 
-  /// One broadcast pulse per beat change (plus one on entrance): drives the
-  /// mesh wavefront and the emblem's kick/burst together so the whole scene
-  /// keys up as a single gesture.
+  /// One broadcast pulse per beat change (plus one on entrance): sends a gust
+  /// through the [WindBackground] so the whole scene keys up as a single
+  /// gesture.
   late final AnimationController _wave = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1300),
@@ -305,12 +300,10 @@ class _OnboardingPageState extends State<OnboardingPage>
                     ),
                   ),
                   Positioned.fill(
-                    child: MeshBackground(
-                      wave: _wave,
-                      // Epicenter ≈ where the radio's antenna sits, so mesh
-                      // pulses read as the unit keying up the whole network.
-                      waveOrigin: const Offset(0.5, 0.72),
-                    ),
+                    // Ambient wind streaming past on the air — each beat change
+                    // sends a gust through it (via [_wave]) so the scene keys up
+                    // as one gesture.
+                    child: WindBackground(wave: _wave),
                   ),
                   SafeArea(
                     child: Padding(
@@ -320,8 +313,6 @@ class _OnboardingPageState extends State<OnboardingPage>
                         children: [
                           _buildHeader(context, cubit, state),
                           Expanded(child: _buildBeats(state)),
-                          _buildRadio(state),
-                          const SizedBox(height: 10),
                           _buildCta(context, cubit, state),
                           _buildExplore(context, cubit, state),
                           const SizedBox(height: 4),
@@ -394,47 +385,7 @@ class _OnboardingPageState extends State<OnboardingPage>
     );
   }
 
-  // ── Radio band: the unit that assembles itself as the journey advances ─────
-
-  /// The gamified hero — a handheld radio that gains a component per beat and
-  /// keys up on the launch beat. It sits low, on the horizon's ground line, so
-  /// it reads as standing on the road the scene is travelling.
-  Widget _buildRadio(OnboardingState state) {
-    final introT = CurvedAnimation(parent: _intro, curve: Curves.easeOutCubic);
-    return AnimatedBuilder(
-      // Entrance: the unit rises into the scene while fading in.
-      animation: introT,
-      builder: (_, child) => Opacity(
-        opacity: introT.value,
-        child: Transform.translate(
-          offset: Offset(0, 24 * (1 - introT.value)),
-          child: child,
-        ),
-      ),
-      child: SizedBox(
-        height: 218,
-        child: Center(
-          // The radio repaints every frame on the ambient clocks; the boundary
-          // keeps that off the layer shared with the static beat content.
-          child: RepaintBoundary(
-            child: AnimatedBuilder(
-              animation: Listenable.merge([_breath, _shimmer, _wave]),
-              builder: (_, _) => AssemblingRadio(
-                step: state.step,
-                glow: _breath.value,
-                scan: _shimmer.value,
-                kick: _wave.value,
-                callsign: state.name,
-                mode: state.mode,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ── Beat content: one distinct transition per boundary ─────────────────────
+  // ── Beat content: the journey's centre stage ──────────────────────────────
 
   Widget _buildBeats(OnboardingState state) {
     final width = MediaQuery.sizeOf(context).width;
@@ -442,39 +393,46 @@ class _OnboardingPageState extends State<OnboardingPage>
       animation: _stepT,
       builder: (context, _) {
         final raw = _stepT.value;
-        // The boundary being crossed = the lower of the two steps, so each
-        // gap keeps its signature motion whichever way it's traversed.
-        final gap = _leaving == null
-            ? (_shown - 1).clamp(0, 3)
-            : (_leaving! < _shown ? _leaving! : _shown);
-        return SingleChildScrollView(
-          physics: const ClampingScrollPhysics(),
-          padding: const EdgeInsets.only(top: 4, bottom: 8),
-          child: Stack(
-            // Let the 3D flip / horizontal glide paint past the Stack's own
-            // bounds; the surrounding scroll viewport still clips to the band.
-            clipBehavior: Clip.none,
-            children: [
-              if (_leaving != null)
-                IgnorePointer(
-                  child: buildBeatTransition(
-                    gap: gap,
-                    dir: _dir,
-                    leaving: true,
-                    t: raw,
-                    width: width,
-                    child: _buildBeat(_leaving!),
-                  ),
+        final stack = Stack(
+          // Let the glide paint a little past the Stack's own bounds; the
+          // surrounding scroll viewport still clips to the band.
+          clipBehavior: Clip.none,
+          children: [
+            if (_leaving != null)
+              IgnorePointer(
+                child: buildBeatTransition(
+                  dir: _dir,
+                  leaving: true,
+                  t: raw,
+                  width: width,
+                  child: _buildBeat(_leaving!),
                 ),
-              buildBeatTransition(
-                gap: gap,
-                dir: _dir,
-                leaving: false,
-                t: raw,
-                width: width,
-                child: _buildBeat(_shown),
               ),
-            ],
+            buildBeatTransition(
+              dir: _dir,
+              leaving: false,
+              t: raw,
+              width: width,
+              child: _buildBeat(_shown),
+            ),
+          ],
+        );
+        // With the radio band gone the beats own the whole middle: sit them a
+        // touch below centre so the composition breathes, while still allowing
+        // a scroll when a small screen (or the keyboard) squeezes the column.
+        return LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            physics: const ClampingScrollPhysics(),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Align(
+                alignment: const Alignment(0, 0.16),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: stack,
+                ),
+              ),
+            ),
           ),
         );
       },

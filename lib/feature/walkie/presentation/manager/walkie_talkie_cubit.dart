@@ -205,7 +205,12 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     // No network → never mark as transmitting.
     final isOnline = state.localId.isNotEmpty && state.localId != '0.0.0.0';
 
-    final voiceOpen = _voxGate.advance(frame.rms, state.voxThreshold);
+    // Self-mute overrides VOX: the gate still advances (its envelope stays
+    // correct for the instant the user unmutes) but an open gate no longer
+    // keys the channel. Music casting keeps the channel keyed regardless —
+    // muting silences your voice, not a music share you started.
+    final gateOpen = _voxGate.advance(frame.rms, state.voxThreshold);
+    final voiceOpen = gateOpen && !state.isSelfMuted;
     if (isOnline && voiceOpen != _prevVoiceOpen) {
       _sfx.play(voiceOpen ? SfxEvent.pttOpen : SfxEvent.pttClose);
       // Light tactile confirmation that the channel just keyed up — only on
@@ -389,6 +394,16 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     await _settingsRepository.setVoxThreshold(threshold);
   }
 
+  /// Self-mute toggle — silences your mic without leaving the channel (for a
+  /// passenger chat, a phone call, a cough). VOX keeps running underneath so
+  /// unmuting is instant; this only gates whether an open gate transmits.
+  /// Deliberately not persisted: mute is a live, per-moment action that
+  /// should never survive into a new session.
+  void toggleSelfMute() {
+    _sfx.play(SfxEvent.toggle);
+    emit(state.copyWith(isSelfMuted: !state.isSelfMuted));
+  }
+
   Future<void> setNoiseSuppression(double strength) async {
     _audioEngine.setNoiseSuppression(strength);
     emit(state.copyWith(noiseSuppression: strength));
@@ -493,6 +508,7 @@ class WalkieTalkieState extends Equatable {
   final String localId;
   final String myName;
   final bool isTransmitting;
+  final bool isSelfMuted;
   final bool hasPermission;
   final double voxThreshold;
   final double noiseSuppression;
@@ -513,6 +529,7 @@ class WalkieTalkieState extends Equatable {
     required this.localId,
     required this.myName,
     required this.isTransmitting,
+    required this.isSelfMuted,
     required this.hasPermission,
     required this.voxThreshold,
     required this.noiseSuppression,
@@ -530,6 +547,7 @@ class WalkieTalkieState extends Equatable {
     localId: '',
     myName: '',
     isTransmitting: false,
+    isSelfMuted: false,
     hasPermission: true,
     voxThreshold: 0.0,
     noiseSuppression: 1.0,
@@ -547,6 +565,7 @@ class WalkieTalkieState extends Equatable {
     String? localId,
     String? myName,
     bool? isTransmitting,
+    bool? isSelfMuted,
     bool? hasPermission,
     double? voxThreshold,
     double? noiseSuppression,
@@ -562,6 +581,7 @@ class WalkieTalkieState extends Equatable {
     localId: localId ?? this.localId,
     myName: myName ?? this.myName,
     isTransmitting: isTransmitting ?? this.isTransmitting,
+    isSelfMuted: isSelfMuted ?? this.isSelfMuted,
     hasPermission: hasPermission ?? this.hasPermission,
     voxThreshold: voxThreshold ?? this.voxThreshold,
     noiseSuppression: noiseSuppression ?? this.noiseSuppression,
@@ -583,6 +603,7 @@ class WalkieTalkieState extends Equatable {
     localId,
     myName,
     isTransmitting,
+    isSelfMuted,
     hasPermission,
     voxThreshold,
     noiseSuppression,

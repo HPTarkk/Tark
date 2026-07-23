@@ -31,8 +31,129 @@
 
   <title>Tark</title>
   <link rel="manifest" href="manifest.json">
+
+  <!--
+    Loading splash — shown instantly while CanvasKit / the app bundle download,
+    so the guest never stares at a blank white page. Fully self-contained
+    (inline CSS, no external assets or web fonts to wait on) and removed the
+    moment Flutter paints its first frame. Night-radio brand: gunmetal slate
+    background, amber accent, TARKK wordmark.
+  -->
+  <style>
+    #tark-splash {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483647;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 32px;
+      background: radial-gradient(125% 125% at 50% 36%, #13171C 0%, #0B0E11 62%);
+      color: #E9EDF1;
+      font-family: 'Vazirmatn', -apple-system, 'Segoe UI', Tahoma, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      transition: opacity .45s ease;
+    }
+    #tark-splash.tark-hide { opacity: 0; pointer-events: none; }
+
+    .tark-mark {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      font-weight: 800;
+      font-size: clamp(1.9rem, 7vw, 2.9rem);
+      letter-spacing: .26em;
+      padding-left: .26em; /* balance trailing letter-spacing so it reads centered */
+      color: #F1F4F7;
+      text-shadow: 0 0 22px rgba(245, 133, 63, .14);
+    }
+    .tark-dot {
+      width: .62rem;
+      height: .62rem;
+      border-radius: 50%;
+      background: #F5853F;
+      box-shadow: 0 0 12px #F5853F, 0 0 26px rgba(245, 133, 63, .6);
+      animation: tark-dot 1.6s ease-in-out infinite;
+    }
+    @keyframes tark-dot {
+      0%, 100% { box-shadow: 0 0 12px #F5853F, 0 0 26px rgba(245, 133, 63, .6); opacity: 1; }
+      50%      { box-shadow: 0 0 4px #F5853F; opacity: .5; }
+    }
+
+    /* Audio-equalizer bars — nods to the walkie-talkie theme. */
+    .tark-eq {
+      display: flex;
+      align-items: flex-end;
+      gap: 5px;
+      height: 34px;
+    }
+    .tark-eq span {
+      width: 5px;
+      height: 100%;
+      border-radius: 3px;
+      background: linear-gradient(to top, #D9661F, #F5853F);
+      transform: scaleY(.28);
+      transform-origin: bottom;
+      animation: tark-eq 1.05s ease-in-out infinite;
+    }
+    .tark-eq span:nth-child(1) { animation-delay: -.90s; }
+    .tark-eq span:nth-child(2) { animation-delay: -.35s; }
+    .tark-eq span:nth-child(3) { animation-delay: -.60s; }
+    .tark-eq span:nth-child(4) { animation-delay: -.15s; }
+    .tark-eq span:nth-child(5) { animation-delay: -.75s; }
+    .tark-eq span:nth-child(6) { animation-delay: -.45s; }
+    .tark-eq span:nth-child(7) { animation-delay: -.20s; }
+    @keyframes tark-eq {
+      0%, 100% { transform: scaleY(.28); }
+      50%      { transform: scaleY(1); }
+    }
+
+    .tark-status {
+      font-size: .72rem;
+      font-weight: 600;
+      letter-spacing: .32em;
+      text-transform: uppercase;
+      color: #8B939D;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .tark-dot, .tark-eq span { animation: none; }
+      .tark-dot { opacity: 1; }
+      .tark-eq span { transform: scaleY(.6); }
+    }
+  </style>
 </head>
 <body>
+  <!-- Loading splash markup (removed on Flutter's first frame). -->
+  <div id="tark-splash" role="status" aria-live="polite" aria-label="Loading Tark">
+    <div class="tark-mark"><span class="tark-dot" aria-hidden="true"></span>TARKK</div>
+    <div class="tark-eq" aria-hidden="true">
+      <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <div class="tark-status" id="tark-status">Tuning in&hellip;</div>
+  </div>
+
+  <script>
+    // Localise the status line (Persian for fa-* browsers) and tear the splash
+    // down once Flutter has rendered its first frame.
+    (function () {
+      var status = document.getElementById('tark-status');
+      if (status && (navigator.language || '').toLowerCase().indexOf('fa') === 0) {
+        status.textContent = 'در حال اتصال…'; // در حال اتصال…
+      }
+      function removeSplash() {
+        var splash = document.getElementById('tark-splash');
+        if (!splash) return;
+        splash.classList.add('tark-hide');
+        setTimeout(function () {
+          if (splash && splash.parentNode) splash.parentNode.removeChild(splash);
+        }, 500);
+      }
+      window.addEventListener('flutter-first-frame', removeSplash, { once: true });
+    })();
+  </script>
+
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader

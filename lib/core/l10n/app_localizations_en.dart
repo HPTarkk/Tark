@@ -39,6 +39,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rx_label => 'INCOMING';
 
   @override
+  String get mic_on_air => 'ON AIR';
+
+  @override
+  String get mic_section => 'YOUR MIC';
+
+  @override
+  String get mic_live_title => 'MIC LIVE';
+
+  @override
+  String get mic_live_label => 'Everyone hears you';
+
+  @override
+  String get mic_muted_title => 'MUTED';
+
+  @override
+  String get mic_muted_label => 'No one hears you';
+
+  @override
+  String get mic_action_mute => 'MUTE';
+
+  @override
+  String get mic_action_unmute => 'UNMUTE';
+
+  @override
   String get music_cast => 'SHARE MUSIC';
 
   @override
@@ -118,6 +142,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get join_channel => 'JOIN CHANNEL';
+
+  @override
+  String get connect_via_hotspot => 'CONNECT VIA HOTSPOT';
 
   @override
   String get leave_channel => 'LEAVE CHANNEL';

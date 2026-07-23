@@ -39,6 +39,30 @@ class AppLocalizationsFa extends AppLocalizations {
   String get rx_label => 'صدای ورودی';
 
   @override
+  String get mic_on_air => 'روی آنتن';
+
+  @override
+  String get mic_section => 'میکروفنت';
+
+  @override
+  String get mic_live_title => 'میکروفن روشنه';
+
+  @override
+  String get mic_live_label => 'همه صدات رو می‌شنون';
+
+  @override
+  String get mic_muted_title => 'ساکتی';
+
+  @override
+  String get mic_muted_label => 'کسی صدات رو نمی‌شنوه';
+
+  @override
+  String get mic_action_mute => 'ساکت کن';
+
+  @override
+  String get mic_action_unmute => 'روشن کن';
+
+  @override
   String get music_cast => 'پخش آهنگ';
 
   @override
@@ -118,6 +142,9 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get join_channel => 'ورود به کانال';
+
+  @override
+  String get connect_via_hotspot => 'اتصال با هات‌اسپات';
 
   @override
   String get leave_channel => 'خروج از کانال';

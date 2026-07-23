@@ -33,7 +33,7 @@ Write-Host ''
 # The public URL this build will be hosted at — the SAME url the mobile
 # app's invite QR must point to (guest_config.dart / --dart-define). Baked
 # into the build so the two always agree.
-$guestUrl = Ask 'Guest app URL (where this build will be hosted)' 'https://tarkk.runflare.run'
+$guestUrl = Ask 'Guest app URL (where this build will be hosted)' 'https://app.tarkk.ir'
 $guestUrl = $guestUrl.TrimEnd('/')
 
 # Suggest the base href from that URL's path: '/' for a root domain,

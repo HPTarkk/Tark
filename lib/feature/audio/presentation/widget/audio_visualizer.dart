@@ -122,21 +122,29 @@ class _VisualizerPainter extends CustomPainter {
       );
     }
 
+    // Bar width and a small floor height so a silent signal rests as a neat
+    // dotted centre line (a scope at idle) instead of vanishing entirely.
+    final bw = barWidth * 0.55;
+    const minHeight = 2.5;
+
     for (int i = 0; i < samples.length; i++) {
       final amplitude = samples[i];
       final animatedAmplitude =
           amplitude * (0.7 + 0.3 * sin(animationValue * pi));
       final scaledHeight = animatedAmplitude * size.height * (0.8 + rms * 2);
+      final h = max(minHeight, scaledHeight);
 
       canvas.drawRRect(
         RRect.fromRectAndRadius(
           Rect.fromLTWH(
-            i * barWidth,
-            centerY - scaledHeight / 2,
-            barWidth * 0.6,
-            scaledHeight,
+            i * barWidth + (barWidth - bw) / 2,
+            centerY - h / 2,
+            bw,
+            h,
           ),
-          const Radius.circular(8),
+          // Capsule caps: radius follows the bar width so every bar reads as
+          // a rounded pill regardless of how tall it grows.
+          Radius.circular(bw / 2),
         ),
         paint,
       );

@@ -21,12 +21,11 @@ import '../../../transfer/api/transfer_api.dart';
 import '../manager/walkie_talkie_cubit.dart';
 import '../widget/background_permission_banner.dart';
 import '../widget/connection_health_banner.dart';
+import '../widget/mic_control.dart';
 import '../widget/music_cast_section.dart';
-import '../widget/status_row.dart';
 import '../widget/usage_tips_sheet.dart';
 import '../widget/user_list.dart';
 import '../widget/visualizer_section.dart';
-import '../widget/vox_meter.dart';
 import '../widget/walkie_header.dart';
 
 class WalkieTalkiePage extends StatefulWidget {
@@ -45,7 +44,7 @@ class WalkieTalkiePage extends StatefulWidget {
 
 class _WalkieTalkiePageState extends State<WalkieTalkiePage>
     with TickerProviderStateMixin {
-  // Staggered entrance: [header, identityCard, visualizer, statusRow, members, vox, footer]
+  // Staggered entrance: [header, identityCard, visualizer, mic, music, members]
   late AnimationController _entranceController;
   late List<Animation<double>> _entranceSections;
   StreamSubscription<String>? _systemAudioMsgSub;
@@ -60,7 +59,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
       duration: const Duration(milliseconds: 1200),
     );
 
-    const starts = [0.0, 0.10, 0.22, 0.36, 0.48, 0.62, 0.75];
+    const starts = [0.0, 0.10, 0.22, 0.38, 0.52, 0.66];
     _entranceSections = starts
         .map(
           (s) => CurvedAnimation(
@@ -156,19 +155,17 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
                       const SizedBox(height: 16),
                       const BackgroundPermissionBanner(),
                       _buildLinkBanner(),
-                      _entrance(3, const StatusRow()),
-                      const SizedBox(height: 20),
-                      // VOX above the member list: it's the live status the
-                      // rider actually glances at, while members are a
-                      // static two-entry list in practice. The threshold
-                      // itself is now set from the Settings page.
-                      _entrance(4, const VoxMeter()),
+                      // Self-mute: the one control a hands-free rider needs
+                      // in-channel — go silent without leaving. Sits where
+                      // the old TX/RX chips were; that status now lives in
+                      // the visualizer's pill above.
+                      _entrance(3, const MicControl()),
                       // Renders nothing where playback capture is
                       // unsupported (iOS, Android < 10) — spacing lives
                       // inside the section so nothing doubles up here.
-                      _entrance(5, const MusicCastSection()),
+                      _entrance(4, const MusicCastSection()),
                       const SizedBox(height: 20),
-                      _entrance(6, const UserList()),
+                      _entrance(5, const UserList()),
                     ],
                   ),
                 ),
