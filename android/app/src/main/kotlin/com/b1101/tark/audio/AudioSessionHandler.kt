@@ -72,6 +72,20 @@ class AudioSessionHandler(
      *  configure did and the re-assert call from Dart is a no-op. */
     private var engaged = false
 
+    /** True while this class is itself driving a routing change (engaging or
+     *  releasing SCO, pinning/clearing the communication device). Bringing
+     *  SCO up or down makes the SAME headset's other profile device
+     *  (BLUETOOTH_A2DP) appear or disappear as a side effect — classic
+     *  Bluetooth can't run A2DP and SCO audio at once — and unlike iOS's
+     *  route-change notification, [AudioDeviceCallback] carries no reason
+     *  code to tell that apart from a real device being plugged in or out.
+     *  Left unguarded, that self-inflicted churn re-triggers Dart's route
+     *  watcher, which reopens the engine, which tears down and re-engages
+     *  SCO again — a self-sustaining loop that sounds like the audio
+     *  repeatedly cutting out for a couple of seconds at a time on
+     *  Bluetooth handsfree (AirPods and others that carry both profiles). */
+    private var routingInFlight = false
+
     // Platform voice pre-processing bound to the capture session.
     private var aec: AcousticEchoCanceler? = null
     private var ns: NoiseSuppressor? = null
@@ -194,6 +208,11 @@ class AudioSessionHandler(
         val current = routeDeviceIds(audioManager)
         if (current == knownRouteDevices) return
         knownRouteDevices = current
+        // Our own SCO engage/release is mid-flight — this churn is caused by
+        // that, not by a device actually changing. Track the new set as the
+        // baseline (so it isn't reported as a change once routing settles)
+        // but don't tell Dart, or reconfigureVoice would re-trigger itself.
+        if (routingInFlight) return
         eventSink?.success("routeChanged")
     }
 
@@ -218,14 +237,24 @@ class AudioSessionHandler(
             return
         }
         engaged = true
+        routingInFlight = true
         runCatching { am.mode = AudioManager.MODE_IN_COMMUNICATION }
 
         if (hasBluetoothScoDevice(am)) {
             engageBluetoothSco(am, result)
         } else {
             routeToWiredOrSpeaker(am)
+            settleRouting()
             result.success(false)
         }
+    }
+
+    /** Marks routing as settled after a configure/reconfigure/engage pass:
+     *  future device-list churn is compared against whatever the route
+     *  ended up as, not the pre-routing snapshot. */
+    private fun settleRouting() {
+        routingInFlight = false
+        knownRouteDevices = routeDeviceIds(audioManager)
     }
 
     /**
@@ -241,6 +270,7 @@ class AudioSessionHandler(
      */
     private fun reconfigureVoice(result: MethodChannel.Result) {
         val am = audioManager
+        routingInFlight = true
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             runCatching { am.clearCommunicationDevice() }
         } else {
@@ -303,6 +333,7 @@ class AudioSessionHandler(
                 }
                 routeToWiredOrSpeaker(am)
             }
+            settleRouting()
             result.success(connected)
         }
 
@@ -352,6 +383,7 @@ class AudioSessionHandler(
         releaseEffects()
         if (!engaged) return
         engaged = false
+        routingInFlight = true
         val am = audioManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             runCatching { am.clearCommunicationDevice() }
@@ -366,6 +398,7 @@ class AudioSessionHandler(
             am.isBluetoothScoOn = false
         }
         runCatching { am.mode = AudioManager.MODE_NORMAL }
+        settleRouting()
     }
 
     /** Activity teardown: Dart never gets to cancel its subscription when the
