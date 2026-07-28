@@ -73,13 +73,13 @@ class OnboardingPage extends StatefulWidget {
 
 class _OnboardingPageState extends State<OnboardingPage>
     with TickerProviderStateMixin {
-  /// Drives the between-beat transition. Each boundary gets its own signature
-  /// motion (see [buildBeatTransition]) but they all ride this one clock; the
-  /// duration is generous so the choreography reads as cinematic rather than a
-  /// quick shuffle, and the incoming beat's children stagger off it too.
+  /// Drives the between-beat transition — the channel-retune scan bar (see
+  /// [buildBeatSweep]) rides this clock, long enough that the static resolving
+  /// behind the bar reads as tuning rather than a quick shuffle. The incoming
+  /// beat's children stagger off it too.
   late final AnimationController _stepT = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 650),
+    duration: const Duration(milliseconds: 720),
   );
 
   /// One-shot scene entrance for the persistent chrome (header, emblem,
@@ -388,34 +388,18 @@ class _OnboardingPageState extends State<OnboardingPage>
   // ── Beat content: the journey's centre stage ──────────────────────────────
 
   Widget _buildBeats(OnboardingState state) {
-    final width = MediaQuery.sizeOf(context).width;
     return AnimatedBuilder(
       animation: _stepT,
       builder: (context, _) {
         final raw = _stepT.value;
-        final stack = Stack(
-          // Let the glide paint a little past the Stack's own bounds; the
-          // surrounding scroll viewport still clips to the band.
-          clipBehavior: Clip.none,
-          children: [
-            if (_leaving != null)
-              IgnorePointer(
-                child: buildBeatTransition(
-                  dir: _dir,
-                  leaving: true,
-                  t: raw,
-                  width: width,
-                  child: _buildBeat(_leaving!),
-                ),
-              ),
-            buildBeatTransition(
-              dir: _dir,
-              leaving: false,
-              t: raw,
-              width: width,
-              child: _buildBeat(_shown),
-            ),
-          ],
+        // The signal sweep composites both beats itself — a glowing waveform
+        // edge scans the incoming beat in over the outgoing — so it's one call
+        // taking both children, not a per-beat transform.
+        final stack = buildBeatSweep(
+          leaving: _leaving != null ? _buildBeat(_leaving!) : null,
+          incoming: _buildBeat(_shown),
+          t: raw,
+          dir: _dir,
         );
         // With the radio band gone the beats own the whole middle: sit them a
         // touch below centre so the composition breathes, while still allowing

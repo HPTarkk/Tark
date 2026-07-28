@@ -1,49 +1,257 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
-/// Beat-to-beat transition for the onboarding journey.
-///
-/// One unified motion for every boundary — a Material *shared-axis* glide along
-/// the direction of travel. The outgoing beat eases a short way off and fades
-/// down; the incoming beat eases in from the opposite side and fades up. Their
-/// fades overlap for a brief window in the middle, so the change reads as a
-/// single surface cross-dissolving and re-settling — no hard dead frame between
-/// the two (which felt like a stutter), and no full-opacity ghosting either.
-///
-/// The travel is deliberately small (a nudge, not a swipe) and the whole thing
-/// rides one easeInOutCubic, so stepping through every beat feels the same and
-/// calm instead of four different tricks. [dir] is +1 advancing, -1 going back;
-/// every value resolves to the exact identity transform at t == 1.
-Widget buildBeatTransition({
-  required int dir,
-  required bool leaving,
-  required double t,
-  required double width,
-  required Widget child,
-}) {
-  // A gentle fraction of the screen — enough to read as directional, never a
-  // full swipe.
-  final travel = (width * 0.14).clamp(28.0, 60.0);
-  final glide = Curves.easeInOutCubic.transform(t);
+import 'onboarding_palette.dart';
 
-  if (leaving) {
-    // Faded out by 0.55; the incoming starts lifting at 0.35, so the pair only
-    // overlaps while both are near-transparent.
-    final opacity = 1 - Curves.easeIn.transform((t / 0.55).clamp(0.0, 1.0));
-    return Opacity(
-      opacity: opacity,
-      child: Transform.translate(
-        offset: Offset((-dir * travel * glide).toDouble(), 0),
-        child: Transform.scale(scale: 1 - 0.02 * glide, child: child),
+/// Custom beat-to-beat transition for the onboarding journey: a **channel
+/// retune** — a bright signal bar scans across the panel and the next beat
+/// resolves in behind it out of digital static, the way a radio locks onto a
+/// new station.
+///
+/// A luminous amber scan bar travels across the beat panel in the direction of
+/// travel. Ahead of it the outgoing beat still stands; behind it the incoming
+/// beat is already *locked in* — crisp, not fading up — but right at the bar a
+/// band of static flecks and CRT scanlines shows the new signal resolving, so
+/// the change reads as tuning rather than a plain wipe. The bar itself is a live
+/// oscilloscope edge (a smooth waveform, tapered clean at both ends by an
+/// envelope) with a soft halo, a hot white core and bright crest nodes.
+///
+/// It is a hard wipe: the two beats occupy complementary regions of the panel
+/// and never overlap, so there is zero ghosting. A small opposed parallax on
+/// each side adds depth. [dir] is +1 advancing (bar sweeps toward the leading
+/// edge), -1 back (mirror). Resolves to the plain incoming beat at t == 0/1.
+Widget buildBeatSweep({
+  required Widget? leaving,
+  required Widget incoming,
+  required double t,
+  required int dir,
+}) {
+  if (leaving == null || t <= 0.0 || t >= 1.0) return incoming;
+
+  final sweep = _Sweep(t: t, dir: dir);
+  final e = sweep.e;
+  final inDx = (dir * _parallax * (1 - e)).toDouble();
+  final outDx = (-dir * _parallax * e).toDouble();
+
+  return Stack(
+    clipBehavior: Clip.none,
+    children: [
+      // Incoming sizes the stack and is revealed behind the scan bar.
+      ClipPath(
+        clipper: _SweepClipper(sweep: sweep, reveal: true),
+        child: Transform.translate(offset: Offset(inDx, 0), child: incoming),
       ),
-    );
+      // Outgoing fills that same box, clipped to the not-yet-swept side.
+      Positioned.fill(
+        child: IgnorePointer(
+          child: ClipPath(
+            clipper: _SweepClipper(sweep: sweep, reveal: false),
+            child: Transform.translate(offset: Offset(outDx, 0), child: leaving),
+          ),
+        ),
+      ),
+      // Static-resolve band + scanlines (clipped to the incoming side) and the
+      // glowing scan bar, all on top.
+      Positioned.fill(
+        child: IgnorePointer(child: CustomPaint(painter: _EdgePainter(sweep: sweep))),
+      ),
+    ],
+  );
+}
+
+const double _parallax = 12; // px each side drifts, opposed
+const double _margin = 72; // how far past the panel the bar starts/ends
+const double _amp = 16; // waveform amplitude at mid-sweep
+const double _staticBand = 46; // px behind the bar where the signal resolves
+
+/// Shared geometry for the scan bar, so the clips, the static band and the
+/// glowing stroke all trace the exact same waveform.
+class _Sweep {
+  final double t;
+  final int dir;
+  final double e; // eased progress
+  final double env; // amplitude envelope: 0 at ends, 1 mid-sweep
+
+  _Sweep({required this.t, required this.dir})
+    : e = Curves.easeInOutCubic.transform(t),
+      env = sin(pi * t.clamp(0.0, 1.0));
+
+  /// X of the wavy edge at height fraction [ny] (0..1) across a box [w] wide.
+  /// A smooth oscilloscope wobble (two low harmonics) — a signal, not a crack.
+  double edgeX(double ny, double w) {
+    final travel = w + 2 * _margin;
+    final base = dir >= 0 ? -_margin + travel * e : (w + _margin) - travel * e;
+    final wave =
+        sin(ny * 5.0 + t * 6.0) * 0.62 + sin(ny * 11.0 - t * 9.0) * 0.38;
+    return base + _amp * env * wave;
   }
 
-  final opacity = Curves.easeOut.transform(((t - 0.35) / 0.65).clamp(0.0, 1.0));
-  return Opacity(
-    opacity: opacity,
-    child: Transform.translate(
-      offset: Offset((dir * travel * (1 - glide)).toDouble(), 0),
-      child: Transform.scale(scale: 0.98 + 0.02 * glide, child: child),
-    ),
-  );
+  /// The incoming beat lives on the side the scan bar has already cleared.
+  bool get revealLeft => dir >= 0;
+
+  /// Which way the already-resolved (incoming) side lies from the bar.
+  double get incomingSign => revealLeft ? -1.0 : 1.0;
+
+  /// Path over the incoming (already-swept) region, for clipping the resolve
+  /// band and scanlines to just the new signal.
+  Path incomingPath(Size size) {
+    final w = size.width;
+    final h = size.height;
+    const steps = 48;
+    final p = Path()..moveTo(edgeX(0, w), 0);
+    for (var i = 1; i <= steps; i++) {
+      final ny = i / steps;
+      p.lineTo(edgeX(ny, w), ny * h);
+    }
+    if (revealLeft) {
+      p.lineTo(0, h);
+      p.lineTo(0, 0);
+    } else {
+      p.lineTo(w, h);
+      p.lineTo(w, 0);
+    }
+    return p..close();
+  }
+}
+
+class _SweepClipper extends CustomClipper<Path> {
+  final _Sweep sweep;
+  final bool reveal;
+
+  const _SweepClipper({required this.sweep, required this.reveal});
+
+  @override
+  Path getClip(Size size) {
+    final w = size.width;
+    final h = size.height;
+    const steps = 48;
+    final path = Path()..moveTo(sweep.edgeX(0, w), 0);
+    for (var i = 1; i <= steps; i++) {
+      final ny = i / steps;
+      path.lineTo(sweep.edgeX(ny, w), ny * h);
+    }
+    // Close along whichever vertical side this region belongs to.
+    final left = sweep.revealLeft == reveal;
+    if (left) {
+      path.lineTo(0, h);
+      path.lineTo(0, 0);
+    } else {
+      path.lineTo(w, h);
+      path.lineTo(w, 0);
+    }
+    return path..close();
+  }
+
+  @override
+  bool shouldReclip(_SweepClipper old) =>
+      old.sweep.t != sweep.t || old.sweep.dir != sweep.dir || old.reveal != reveal;
+}
+
+class _EdgePainter extends CustomPainter {
+  final _Sweep sweep;
+
+  const _EdgePainter({required this.sweep});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (sweep.t <= 0.02 || sweep.t >= 0.98) return;
+    final w = size.width;
+    final h = size.height;
+    final glow = sweep.env;
+    final white = Color.lerp(Onb.amber, Colors.white, 0.7)!;
+
+    // ── The new signal resolving: static flecks + CRT scanlines, clipped to
+    //    the incoming side so it only dusts the freshly-tuned beat. ───────────
+    canvas.save();
+    canvas.clipPath(sweep.incomingPath(size));
+
+    // Faint scanlines that lock in (fade as the retune completes).
+    final scan = Paint()
+      ..color = Onb.amber.withValues(alpha: 0.05 * glow)
+      ..strokeWidth = 1;
+    for (double y = 0; y < h; y += 4) {
+      canvas.drawLine(Offset(0, y), Offset(w, y), scan);
+    }
+
+    // A band of static hugging the bar — brightest at the edge, dissolving as
+    // the signal settles a few px in. Seeded on t so it flickers frame-to-frame.
+    final rng = Random((sweep.t * 120).floor() * 2654435761 & 0x7fffffff);
+    final fleck = Paint()..strokeCap = StrokeCap.round;
+    const flecks = 70;
+    for (var i = 0; i < flecks; i++) {
+      final ny = rng.nextDouble();
+      final dist = rng.nextDouble() * _staticBand; // px into the incoming side
+      final x = sweep.edgeX(ny, w) + sweep.incomingSign * dist;
+      if (x < 0 || x > w) continue;
+      final y = ny * h;
+      final near = 1 - dist / _staticBand; // 1 at the bar, 0 deep in
+      final a = (near * near * (0.5 + 0.5 * rng.nextDouble()) * glow).clamp(0.0, 1.0);
+      fleck
+        ..color = (rng.nextDouble() < 0.3 ? white : Onb.amber).withValues(alpha: a)
+        ..strokeWidth = 1 + rng.nextDouble() * 1.4;
+      final len = 2 + rng.nextDouble() * 6;
+      canvas.drawLine(Offset(x - len / 2, y), Offset(x + len / 2, y), fleck);
+    }
+    canvas.restore();
+
+    // ── The scan bar itself, over everything. ────────────────────────────────
+    const steps = 64;
+    final path = Path()..moveTo(sweep.edgeX(0, w), 0);
+    for (var i = 1; i <= steps; i++) {
+      final ny = i / steps;
+      path.lineTo(sweep.edgeX(ny, w), ny * h);
+    }
+
+    // Wide soft halo.
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 34
+        ..color = Onb.amber.withValues(alpha: 0.12 * glow)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14),
+    );
+    // Inner glow.
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 11
+        ..color = Onb.amber.withValues(alpha: 0.45 * glow)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+    );
+    // Amber body.
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3.4
+        ..strokeCap = StrokeCap.round
+        ..color = Onb.amber.withValues(alpha: 0.9 * glow),
+    );
+    // Hot white core.
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.4
+        ..color = white.withValues(alpha: 0.95 * glow),
+    );
+    // Bright crest nodes — the "live signal" read.
+    final dot = Paint()..color = Colors.white.withValues(alpha: 0.9 * glow);
+    final halo = Paint()
+      ..color = Onb.amber.withValues(alpha: 0.5 * glow)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+    for (var i = 0; i <= 6; i++) {
+      final ny = i / 6;
+      final c = Offset(sweep.edgeX(ny, w), ny * h);
+      canvas.drawCircle(c, 3.4, halo);
+      canvas.drawCircle(c, 1.7, dot);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_EdgePainter old) =>
+      old.sweep.t != sweep.t || old.sweep.dir != sweep.dir;
 }
