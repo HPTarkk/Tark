@@ -118,11 +118,17 @@ class _MiniWaveform extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: ambient,
-      builder: (_, _) => CustomPaint(
-        size: const Size(18, 16),
-        painter: _MiniWaveformPainter(t: ambient.value, color: Onb.amber),
+    // Boundary because this is the only moving thing on an otherwise static
+    // beat: without it, five dancing bars in an 18×16 box dirty the whole
+    // brief panel — headline, three fact rows and its HUD frame — on every
+    // single frame.
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: ambient,
+        builder: (_, _) => CustomPaint(
+          size: const Size(18, 16),
+          painter: _MiniWaveformPainter(t: ambient.value, color: Onb.amber),
+        ),
       ),
     );
   }

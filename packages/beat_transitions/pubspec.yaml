@@ -1,0 +1,19 @@
+name: beat_transitions
+description: Step-to-step transitions for onboarding / tour / wizard flows,
+  written to stay at 60fps on low-end GPUs. Self-contained — depends on nothing
+  but the Flutter SDK, so it can be dropped into any project.
+version: 0.1.0
+publish_to: 'none'
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+  flutter: ">=3.10.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

@@ -1,3 +1,4 @@
+import 'package:beat_transitions/beat_transitions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -12,7 +13,6 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/theme_service.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../manager/onboarding_cubit.dart';
-import '../widget/beat_transitions.dart';
 import '../widget/callsign_step.dart';
 import '../widget/horizon_scene.dart';
 import '../widget/hud.dart';
@@ -27,9 +27,11 @@ import '../widget/wind_background.dart';
 ///
 /// Nothing pages or swipes — a travelling [HorizonScene] (parallax ridges, a
 /// day/night sky, streaming ground) and a field of [WindBackground] streaks
-/// persist while the beat content cross-dissolves above them and the single CTA
-/// morphs its label, so the journey reads as one canvas rearranging itself as
-/// you travel toward being on air:
+/// persist while the beat content is handed over by a [HandoverTransition]
+/// (old beat winds up and is thrown off the end, the stage sits empty in the
+/// wind, the new one is brought in from the start under a reticle) and the
+/// single CTA morphs its label, so the journey reads as one canvas rearranging
+/// itself as you travel toward being on air:
 ///
 ///   tune in (language + theme, applied live — flips the sky day↔night) →
 ///   welcome (what this is) → callsign (who you are) → transport (how you
@@ -73,13 +75,15 @@ class OnboardingPage extends StatefulWidget {
 
 class _OnboardingPageState extends State<OnboardingPage>
     with TickerProviderStateMixin {
-  /// Drives the between-beat transition — the channel-retune scan bar (see
-  /// [buildBeatSweep]) rides this clock, long enough that the static resolving
-  /// behind the bar reads as tuning rather than a quick shuffle. The incoming
-  /// beat's children stagger off it too.
+  /// Drives the between-beat transition — the [HandoverTransition] rides this
+  /// clock: the outgoing panel winds up and is thrown off the end of the
+  /// screen, the stage sits empty for a moment while the wind tears through
+  /// it, and the next beat is brought in from the start under a reticle that
+  /// snaps onto it. Long on purpose — the journey should feel like it is
+  /// carrying you somewhere, not racing you through a form.
   late final AnimationController _stepT = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 720),
+    duration: const Duration(milliseconds: 1100),
   );
 
   /// One-shot scene entrance for the persistent chrome (header, emblem,
@@ -134,13 +138,14 @@ class _OnboardingPageState extends State<OnboardingPage>
     curve: Curves.easeInOut,
   );
 
-  /// Incoming beat's per-child stagger. It finishes well before [_stepT] does
-  /// so the panel's contents are assembled while the boundary transition
-  /// (flip/glide/warp/rise) is still settling the whole block into place —
-  /// the details land first, then the panel comes to rest.
+  /// Per-child stagger for the beat's contents. Used **only for the journey's
+  /// very first beat**: during a handover the beats are held assembled so each
+  /// one is a static raster the compositor can transform for free, which is
+  /// what buys the transition its headroom on a weak GPU. The arrival's
+  /// choreography (bounce, reticle lock) carries the moment instead.
   late final Animation<double> _reveal = CurvedAnimation(
     parent: _stepT,
-    curve: const Interval(0.15, 0.85),
+    curve: const Interval(0.15, 0.75),
   );
 
   int _shown = 0;
@@ -388,53 +393,61 @@ class _OnboardingPageState extends State<OnboardingPage>
   // ── Beat content: the journey's centre stage ──────────────────────────────
 
   Widget _buildBeats(OnboardingState state) {
-    return AnimatedBuilder(
-      animation: _stepT,
-      builder: (context, _) {
-        final raw = _stepT.value;
-        // The signal sweep composites both beats itself — a glowing waveform
-        // edge scans the incoming beat in over the outgoing — so it's one call
-        // taking both children, not a per-beat transform.
-        final stack = buildBeatSweep(
-          leaving: _leaving != null ? _buildBeat(_leaving!) : null,
-          incoming: _buildBeat(_shown),
-          t: raw,
-          dir: _dir,
-        );
-        // With the radio band gone the beats own the whole middle: sit them a
-        // touch below centre so the composition breathes, while still allowing
-        // a scroll when a small screen (or the keyboard) squeezes the column.
-        return LayoutBuilder(
-          builder: (context, constraints) => SingleChildScrollView(
-            physics: const ClampingScrollPhysics(),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: constraints.maxHeight),
-              child: Align(
-                alignment: const Alignment(0, 0.16),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: stack,
-                ),
-              ),
+    // Deliberately *not* wrapped in an AnimatedBuilder: the beats are built
+    // here, on bloc rebuilds only, and [BeatTransitionView] animates them by
+    // repainting cached rasters. Rebuilding both step subtrees 60 times a
+    // second — which is what the old sweep did — was the single biggest cost
+    // of the journey on a low-end phone.
+    // Both beats are held fully assembled during a handover, so each is a
+    // static picture the compositor can transform and fade without re-recording
+    // it — the difference between "two panels move" and "two whole HUD subtrees
+    // repaint" 60 times a second. Only the journey's opening beat, which has no
+    // predecessor to hand over from, plays the per-child stagger.
+    final firstBeat = _leaving == null;
+    final stage = BeatTransitionView(
+      progress: _stepT,
+      direction: _dir,
+      leaving: firstBeat
+          ? null
+          : _buildBeat(_leaving!, kAlwaysCompleteAnimation),
+      incoming: _buildBeat(
+        _shown,
+        firstBeat ? _reveal : kAlwaysCompleteAnimation,
+      ),
+      transition: const HandoverTransition(accent: Onb.amber),
+    );
+    // With the radio band gone the beats own the whole middle: sit them a
+    // touch below centre so the composition breathes, while still allowing
+    // a scroll when a small screen (or the keyboard) squeezes the column.
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        physics: const ClampingScrollPhysics(),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: Align(
+            alignment: const Alignment(0, 0.16),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: stage,
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
-  Widget _buildBeat(int step) => switch (step) {
-    OnboardingCubit.tuneStep => TuneStep(reveal: _reveal),
+  Widget _buildBeat(int step, Animation<double> reveal) => switch (step) {
+    OnboardingCubit.tuneStep => TuneStep(reveal: reveal),
     OnboardingCubit.welcomeStep => WelcomeStep(
-      reveal: _reveal,
+      reveal: reveal,
       ambient: _ambient,
     ),
     OnboardingCubit.callsignStep => CallsignStep(
-      reveal: _reveal,
+      reveal: reveal,
       onSubmit: () => context.read<OnboardingCubit>().next(),
     ),
-    OnboardingCubit.transportStep => TransportStep(reveal: _reveal),
-    _ => ReadyStep(reveal: _reveal, shimmer: _shimmer),
+    OnboardingCubit.transportStep => TransportStep(reveal: reveal),
+    _ => ReadyStep(reveal: reveal, shimmer: _shimmer),
   };
 
   // ── Persistent transmit key: the diegetic CTA whose label morphs per beat ──
@@ -471,22 +484,34 @@ class _OnboardingPageState extends State<OnboardingPage>
 
     return FadeTransition(
       opacity: CurvedAnimation(parent: _intro, curve: Curves.easeOut),
-      // The key repaints every frame on the glow/gloss clocks; the boundary
-      // keeps that off the layer shared with the rest of the column.
+      // The key repaints every frame *while pulsing*; the boundary keeps that
+      // off the layer shared with the rest of the column.
       child: RepaintBoundary(
-        child: AnimatedBuilder(
-          animation: Listenable.merge([_breath, _shimmer]),
-          builder: (_, _) => HudActionKey(
-            key: ValueKey('$label-$enabled'),
-            label: label,
-            enabled: enabled,
-            pulsing: pulsing,
-            go: isLast,
-            glow: _breath.value,
-            gloss: _shimmer.value,
-            onTap: onTap,
-          ),
-        ),
+        // Mid-journey the key is completely static — so don't hang it off the
+        // ambient clocks at all. Subscribing anyway meant the CTA re-recorded
+        // its frame, gradient and glow 60 times a second on every beat, to
+        // paint a pixel-identical result.
+        child: pulsing
+            ? AnimatedBuilder(
+                animation: Listenable.merge([_breath, _shimmer]),
+                builder: (_, _) => HudActionKey(
+                  key: ValueKey('$label-$enabled'),
+                  label: label,
+                  enabled: enabled,
+                  pulsing: true,
+                  go: isLast,
+                  glow: _breath.value,
+                  gloss: _shimmer.value,
+                  onTap: onTap,
+                ),
+              )
+            : HudActionKey(
+                key: ValueKey('$label-$enabled'),
+                label: label,
+                enabled: enabled,
+                go: isLast,
+                onTap: onTap,
+              ),
       ),
     );
   }

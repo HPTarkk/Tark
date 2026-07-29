@@ -23,7 +23,7 @@ Cross-platform: **Android ↔ Android, iPhone ↔ iPhone, and Android ↔ iPhone
 - **Categorized Settings** — Profile, Connection (transport picker, auto-reconnect, WiFi/Hotspot setup, Permissions), Sound & Alerts, Appearance, and Startup (quick access, skip splash), each its own card (reachable from Landing or a gear icon on the live channel). Technical knobs live on a separate **Advanced settings** sub-page: Voice & Audio (VOX threshold, noise-filter strength, restore-defaults), the noise-cleaner engine as a jargon-free three-way choice (simple / smart / both together, each with its trade-off spelled out), and the jitter-buffer playback delay. Opened from an active channel, voice changes apply live to that session instantly. Defaults to a hands-free voice combo — VOX wide open, noise suppression doing the work — so there's nothing to press to talk.
 - **Quick access** — after the first launch, opening the app jumps straight into your last-used channel/mode instead of showing Landing again — toggleable from Settings.
 - **Branded splash screen** — a short (≤3.5 s) cinematic launch sequence: an aurora backdrop, a frosted-glass emblem disc with an orbiting halo and broadcast ripples, a shimmering wordmark, and a hairline progress bar tied to the real wait — skippable from Settings for an instant cold start.
-- **First-run onboarding** — a five-beat animated journey on a single continuous canvas (no page swipes): tune in (language + theme, applied live with the circular reveal), what the app is (three quick facts), pick a callsign with a live avatar preview and a shuffle die that rolls radio handles, choose a transport with plain-language guidance, and a final operator card stamped READY. Progress is a filling signal-strength meter (SIGNAL 20%→100%), and the last beat drives straight into the product — JOIN CHANNEL lands you in your transport's join flow, or a quieter link explores the lobby first. Skippable at any point, shown exactly once (existing installs never see it), and replayable from Settings → Startup.
+- **First-run onboarding** — a five-beat animated journey on a single continuous canvas (no page swipes): tune in (language + theme, applied live with the circular reveal), what the app is (three quick facts), pick a callsign with a live avatar preview and a shuffle die that rolls radio handles, choose a transport with plain-language guidance, and a final operator card stamped READY. Beats hand over in stages: the old panel winds up and is thrown off the end of the screen, the stage sits deliberately empty for a moment while parallax wind tears through it, and the next panel is brought in from the start under a targeting reticle that snaps onto its corners. Progress is a filling signal-strength meter (SIGNAL 20%→100%), and the last beat drives straight into the product — JOIN CHANNEL lands you in your transport's join flow, or a quieter link explores the lobby first. Skippable at any point, shown exactly once (existing installs never see it), and replayable from Settings → Startup.
 - **Combined WiFi / Hotspot page** — one entry point with a segmented "Wi-Fi" / "Hotspot" choice instead of two separate flows. Plain Wi-Fi bypasses the page entirely — Join drops straight into the channel, since there's nothing to set up — so it only appears for the explicit Hotspot flow or when opened deliberately from Settings → Connection. In Wi-Fi mode, Landing shows a compact **Hotspot** shortcut beside JOIN CHANNEL for one-tap access to the hotspot flow without switching mode first. Picking Hotspot asks which end this phone is — **create** or **join** — rather than assuming (Android used to be hard-wired as the host, which left two Androids with no in-app way to pair, and meant a phone that couldn't host greeted you with a failure you never asked for). Nothing touches the radio until you commit to a side, and when hosting genuinely can't work the error says *which* thing to fix, offers to open that settings screen, and offers to join the other phone instead. The host screen is just the code — Tarkk's mark stamped in its centre — for the first ten seconds; only once a scan has visibly gone nowhere does a line fade in offering the network name and password. Credentials on screen invite people to type what the camera was about to do for them, so they stay off it while the fast path is still live.
 - **Clearer permissions** — a dedicated Permissions page (mic, Bluetooth, hotspot, background battery exemption) shows what's granted and why, instead of scattered ad hoc prompts.
 - **Usage tips** — a one-time (ever), animated tips sheet with practical suggestions (ANC/handsfree headset, wearing a proper helmet, the hands-free voice defaults) surfaces a few seconds into your first session.
@@ -164,15 +164,23 @@ lib/
     ├── onboarding/ — first-run journey: language/theme tune-in, welcome
     │                 facts, callsign (+shuffle), transport choice, stamped
     │                 operator card → straight into the join flow (one-time,
-    │                 replayable from Settings)
+    │                 replayable from Settings). Beats change via
+    │                 packages/beat_transitions; the horizon scene caches its
+    │                 ridge paths, stars and shaders so the 60fps layer stays
+    │                 affordable on older phones
     ├── settings/   — categorized Settings page (Profile/Voice & Audio/
     │                 Connection/Sound/Appearance/Startup) + Permissions page;
     │                 edits an active session live when opened from the
     │                 channel page
     └── splash/     — branded cold-start splash page (skippable via Settings)
 packages/
-└── audio_io/       — vendored, one Android patch: streams open as
-                      VOICE_COMMUNICATION class so call-mode routing applies
+├── audio_io/       — vendored, one Android patch: streams open as
+│                     VOICE_COMMUNICATION class so call-mode routing applies
+├── rnnoise/        — FFI binding to RNNoise, vendored + built per platform
+└── beat_transitions/ — app-agnostic step transitions for the onboarding
+                      journey (HandoverTransition + the older SignalSweep),
+                      with no palette/cubit/router coupling so they are
+                      reusable
 android/…/kotlin/com/b1101/tark/
 ├── audio/          — AudioSessionHandler (call routing/SCO), SystemAudioCapture,
 │                     MediaControlHandler + TarkNotificationListenerService

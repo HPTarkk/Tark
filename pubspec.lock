@@ -112,6 +112,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.4.1"
+  beat_transitions:
+    dependency: "direct main"
+    description:
+      path: "packages/beat_transitions"
+      relative: true
+    source: path
+    version: "0.1.0"
   bloc:
     dependency: "direct main"
     description:

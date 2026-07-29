@@ -233,11 +233,18 @@ class _HoloGloss extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: shimmer,
-      child: child,
+      // Boundary so the panel's raster is cached: while the band *is* crossing,
+      // the compositor re-masks a finished picture instead of re-recording the
+      // whole operator card 60 times a second.
+      child: RepaintBoundary(child: child),
       builder: (_, prebuilt) {
-        final glossT = Curves.easeInOut.transform(
-          ((shimmer.value - 0.55) / 0.45).clamp(0.0, 1.0),
-        );
+        final raw = (shimmer.value - 0.55) / 0.45;
+        // The band only sweeps across during the tail of the loop. Outside it
+        // the gradient sits entirely off the panel and tints nothing — but a
+        // ShaderMask still costs an offscreen pass every frame to prove it, so
+        // drop out of the mask entirely rather than render a no-op.
+        if (raw <= 0 || raw >= 1) return prebuilt!;
+        final glossT = Curves.easeInOut.transform(raw);
         final dx = -1.8 + 3.6 * glossT;
         return ShaderMask(
           blendMode: BlendMode.srcATop,

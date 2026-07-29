@@ -167,8 +167,7 @@ class HudOption extends StatelessWidget {
               ? Onb.amber.withAlpha((8 + 8 * glow).toInt())
               : Onb.ink.withAlpha(150),
           bracket: selected ? Onb.amber : Colors.transparent,
-          glowColor:
-              selected ? Onb.amber.withAlpha((30 * glow).toInt()) : null,
+          glowColor: selected ? Onb.amber.withAlpha((30 * glow).toInt()) : null,
         ),
         child: Padding(
           padding: EdgeInsets.symmetric(
@@ -176,8 +175,9 @@ class HudOption extends StatelessWidget {
             vertical: compact ? 11 : 13,
           ),
           child: Row(
-            mainAxisAlignment:
-                compact ? MainAxisAlignment.center : MainAxisAlignment.start,
+            mainAxisAlignment: compact
+                ? MainAxisAlignment.center
+                : MainAxisAlignment.start,
             mainAxisSize: compact ? MainAxisSize.max : MainAxisSize.max,
             children: [
               _Lamp(on: selected, glow: glow),
@@ -212,8 +212,9 @@ class HudOption extends StatelessWidget {
   }
 
   Widget _labelBlock({required bool centered}) => Column(
-    crossAxisAlignment:
-        centered ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+    crossAxisAlignment: centered
+        ? CrossAxisAlignment.center
+        : CrossAxisAlignment.start,
     mainAxisSize: MainAxisSize.min,
     children: [
       Text(
@@ -350,11 +351,12 @@ class _Plate extends StatelessWidget {
           border: selected
               ? Onb.amber.withAlpha((160 + 70 * glow).toInt())
               : Onb.line,
-          fillTop: selected ? Onb.amber.withAlpha(20) : Onb.panel.withAlpha(150),
+          fillTop: selected
+              ? Onb.amber.withAlpha(20)
+              : Onb.panel.withAlpha(150),
           fillBottom: Onb.ink.withAlpha(160),
           bracket: selected ? Onb.amber : Colors.transparent,
-          glowColor:
-              selected ? Onb.amber.withAlpha((34 * glow).toInt()) : null,
+          glowColor: selected ? Onb.amber.withAlpha((34 * glow).toInt()) : null,
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 14),
@@ -410,7 +412,11 @@ class _SunPainter extends CustomPainter {
     for (var i = 0; i < 8; i++) {
       final a = i * pi / 4;
       final d = Offset(cos(a), sin(a));
-      canvas.drawLine(c + d * size.width * 0.34, c + d * size.width * 0.46, ray);
+      canvas.drawLine(
+        c + d * size.width * 0.34,
+        c + d * size.width * 0.46,
+        ray,
+      );
     }
   }
 
@@ -428,7 +434,9 @@ class _MoonPainter extends CustomPainter {
     // Crescent = disc minus an offset disc.
     final disc = Path()..addOval(Rect.fromCircle(center: c, radius: r));
     final bite = Path()
-      ..addOval(Rect.fromCircle(center: c + Offset(r * 0.55, -r * 0.15), radius: r));
+      ..addOval(
+        Rect.fromCircle(center: c + Offset(r * 0.55, -r * 0.15), radius: r),
+      );
     canvas.drawPath(
       Path.combine(PathOperation.difference, disc, bite),
       Paint()..color = color,
@@ -609,32 +617,57 @@ class HudActionKey extends StatelessWidget {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: enabled ? onTap : null,
-      child: CustomPaint(
-        painter: _HudFramePainter(
-          cutTR: 16,
-          cutBL: 16,
-          border: enabled
-              ? accent.withAlpha((150 + 90 * (pulsing ? glow : 0.5)).toInt())
-              : Onb.line,
-          fillTop: enabled ? accent.withAlpha(34) : Onb.panel.withAlpha(120),
-          fillBottom: enabled ? accent.withAlpha(14) : Onb.ink.withAlpha(120),
-          bracket: enabled ? accent : Onb.textDim,
-          glowColor: (enabled && pulsing)
-              ? accent.withAlpha((30 + 40 * glow).toInt())
-              : (enabled ? accent.withAlpha(18) : null),
-        ),
-        child: ClipRect(
-          child: Stack(
-            children: [
-              Padding(
+      child: Stack(
+        children: [
+          // Cached blur underneath, faded to breathe. Kept out of the frame
+          // painter so the expensive part never re-runs — see [_BloomPainter].
+          if (enabled)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Opacity(
+                  opacity: ((pulsing ? 30 + 40 * glow : 18) / _keyBloomAlpha)
+                      .clamp(0.0, 1.0),
+                  child: RepaintBoundary(
+                    child: CustomPaint(
+                      painter: _BloomPainter(
+                        color: accent.withAlpha(_keyBloomAlpha),
+                        cutTR: 16,
+                        cutBL: 16,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          CustomPaint(
+            painter: _HudFramePainter(
+              cutTR: 16,
+              cutBL: 16,
+              border: enabled
+                  ? accent.withAlpha(
+                      (150 + 90 * (pulsing ? glow : 0.5)).toInt(),
+                    )
+                  : Onb.line,
+              fillTop: enabled
+                  ? accent.withAlpha(34)
+                  : Onb.panel.withAlpha(120),
+              fillBottom: enabled
+                  ? accent.withAlpha(14)
+                  : Onb.ink.withAlpha(120),
+              bracket: enabled ? accent : Onb.textDim,
+            ),
+            // The gloss rides over the label rather than under it, so it reads
+            // as light moving across the key's surface.
+            foregroundPainter: pulsing
+                ? _GlossPainter(phase: dx, cutTR: 16, cutBL: 16)
+                : null,
+            child: ClipRect(
+              child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 17),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _Chevron(
-                      color: enabled ? accent : Onb.textDim,
-                      go: go,
-                    ),
+                    _Chevron(color: enabled ? accent : Onb.textDim, go: go),
                     const SizedBox(width: 12),
                     Text(
                       label.toUpperCase(),
@@ -648,28 +681,9 @@ class HudActionKey extends StatelessWidget {
                   ],
                 ),
               ),
-              // Gloss sweep.
-              if (enabled)
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: ShaderMask(
-                      blendMode: BlendMode.srcATop,
-                      shaderCallback: (rect) => LinearGradient(
-                        begin: Alignment(dx - 0.6, -1),
-                        end: Alignment(dx + 0.6, 1),
-                        colors: [
-                          const Color(0x00FFFFFF),
-                          Colors.white.withAlpha(40),
-                          const Color(0x00FFFFFF),
-                        ],
-                      ).createShader(rect),
-                      child: Container(color: Colors.white.withAlpha(1)),
-                    ),
-                  ),
-                ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -677,19 +691,31 @@ class HudActionKey extends StatelessWidget {
 
 /// A double-chevron ▶▶ (or ◉ target for the launch/go variant), hand-painted so
 /// it matches the HUD line-weight instead of a Material icon.
+///
+/// The chevrons point the way the journey advances, so they mirror in RTL. A
+/// hand-painted glyph gets none of the automatic mirroring a Material icon with
+/// `matchTextDirection` would, and a "forward" arrow aimed backwards is worse
+/// than no arrow at all.
 class _Chevron extends StatelessWidget {
   final Color color;
   final bool go;
   const _Chevron({required this.color, required this.go});
   @override
-  Widget build(BuildContext context) =>
-      CustomPaint(painter: _ChevronPainter(color, go), size: const Size(20, 16));
+  Widget build(BuildContext context) => CustomPaint(
+    painter: _ChevronPainter(
+      color,
+      go,
+      rtl: Directionality.of(context) == TextDirection.rtl,
+    ),
+    size: const Size(20, 16),
+  );
 }
 
 class _ChevronPainter extends CustomPainter {
   final Color color;
   final bool go;
-  const _ChevronPainter(this.color, this.go);
+  final bool rtl;
+  const _ChevronPainter(this.color, this.go, {required this.rtl});
   @override
   void paint(Canvas canvas, Size size) {
     final p = Paint()
@@ -700,10 +726,17 @@ class _ChevronPainter extends CustomPainter {
       ..strokeJoin = StrokeJoin.round;
     final c = size.center(Offset.zero);
     if (go) {
-      // Broadcast target: ring + center dot.
+      // Broadcast target: ring + center dot. Radially symmetric — nothing to
+      // mirror.
       canvas.drawCircle(c, size.height * 0.42, p);
       canvas.drawCircle(c, 1.6, Paint()..color = color);
       return;
+    }
+    if (rtl) {
+      // Flip about the glyph's vertical axis so the chevrons aim at the
+      // leading edge, whichever side that is.
+      canvas.translate(size.width, 0);
+      canvas.scale(-1, 1);
     }
     void chevron(double x) {
       final path = Path()
@@ -718,7 +751,8 @@ class _ChevronPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_ChevronPainter old) => old.color != color || old.go != go;
+  bool shouldRepaint(_ChevronPainter old) =>
+      old.color != color || old.go != go || old.rtl != rtl;
 }
 
 // ── Shared frame painter ─────────────────────────────────────────────────────
@@ -727,6 +761,96 @@ class _ChevronPainter extends CustomPainter {
 /// right, bottom-left), a vertical glass fill, an outer glow, a hairline
 /// border, and short L-brackets hugging the square corners. One painter backs
 /// every panel, option, plate, field, and key so they share an exact language.
+/// Alpha the transmit key's cached bloom is rendered at; [HudActionKey] scales
+/// it down with a compositor opacity to breathe. Matches the brightest value
+/// the old inline glow ever reached.
+const _keyBloomAlpha = 70;
+
+/// Just the transmit key's blurred bloom, on its own so it can be rasterised
+/// once and then *faded* by the compositor rather than re-blurred.
+///
+/// A `MaskFilter.blur` is an offscreen pass every time it is painted. The key
+/// pulses on the bookend beats, so painting the bloom inline meant running that
+/// pass 60 times a second to produce the same pixels at a slightly different
+/// alpha — the single most expensive thing on the journey. Held constant here
+/// and wrapped in a `RepaintBoundary`, it is blurred once; the breath then
+/// costs one opacity re-composite of a cached texture.
+class _BloomPainter extends CustomPainter {
+  final Color color;
+  final double cutTR;
+  final double cutBL;
+
+  const _BloomPainter({
+    required this.color,
+    required this.cutTR,
+    required this.cutBL,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawPath(
+      _hudBodyPath(size, cutTR, cutBL),
+      Paint()
+        ..color = color
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_BloomPainter old) =>
+      old.color != color || old.cutTR != cutTR || old.cutBL != cutBL;
+}
+
+/// The HUD body outline: a rectangle with up to two 45° corner cuts.
+Path _hudBodyPath(Size s, double cutTR, double cutBL) => Path()
+  ..moveTo(0, 0)
+  ..lineTo(s.width - cutTR, 0)
+  ..lineTo(s.width, cutTR)
+  ..lineTo(s.width, s.height)
+  ..lineTo(cutBL, s.height)
+  ..lineTo(0, s.height - cutBL)
+  ..close();
+
+/// The transmit key's travelling highlight, drawn straight onto the body shape.
+///
+/// This used to be a [ShaderMask], which costs a `saveLayer` (an offscreen
+/// buffer, plus a blend back) on every single frame the gloss moves. Filling
+/// the body path with the same gradient is one ordinary draw and, as a bonus,
+/// respects the cut corners instead of spilling past them.
+class _GlossPainter extends CustomPainter {
+  final double phase;
+  final double cutTR;
+  final double cutBL;
+
+  const _GlossPainter({
+    required this.phase,
+    required this.cutTR,
+    required this.cutBL,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    canvas.drawPath(
+      _hudBodyPath(size, cutTR, cutBL),
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment(phase - 0.6, -1),
+          end: Alignment(phase + 0.6, 1),
+          colors: [
+            const Color(0x00FFFFFF),
+            Colors.white.withAlpha(40),
+            const Color(0x00FFFFFF),
+          ],
+        ).createShader(rect),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_GlossPainter old) =>
+      old.phase != phase || old.cutTR != cutTR || old.cutBL != cutBL;
+}
+
 class _HudFramePainter extends CustomPainter {
   final double cutTR;
   final double cutBL;
@@ -746,21 +870,17 @@ class _HudFramePainter extends CustomPainter {
     this.glowColor,
   });
 
-  Path _bodyPath(Size s) {
-    return Path()
-      ..moveTo(0, 0)
-      ..lineTo(s.width - cutTR, 0)
-      ..lineTo(s.width, cutTR)
-      ..lineTo(s.width, s.height)
-      ..lineTo(cutBL, s.height)
-      ..lineTo(0, s.height - cutBL)
-      ..close();
-  }
-
   @override
   void paint(Canvas canvas, Size size) {
-    final path = _bodyPath(size);
+    final path = _hudBodyPath(size, cutTR, cutBL);
 
+    // Outer bloom. A real blur, because nothing else looks like one — stacked
+    // strokes band visibly at these alphas. Affordable here only because every
+    // surface this painter backs is *static*: the glow alpha comes from the
+    // default `glow: 0.5`, so the picture is recorded once and cached.
+    //
+    // The one surface that animates its glow is the transmit key, and it does
+    // not use this path — see [_BloomPainter].
     if (glowColor != null) {
       canvas.drawPath(
         path,

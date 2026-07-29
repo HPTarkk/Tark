@@ -40,6 +40,10 @@ dependencies:
     path: packages/audio_io
   rnnoise:
     path: packages/rnnoise
+  # Onboarding beat-to-beat transitions, kept app-agnostic (no palette, no
+  # cubit, no router) so the motion can be reused in other projects.
+  beat_transitions:
+    path: packages/beat_transitions
   equatable: ^2.0.8
   dartz: ^0.10.1
   injectable: ^3.0.0
