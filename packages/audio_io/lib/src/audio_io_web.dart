@@ -253,6 +253,9 @@ class AudioIoWeb implements AudioIoImpl {
   // No native audio session on web.
   @override
   int getInputSessionId() => -1;
+
+  @override
+  int getOutputUnderrunFrames() => 0;
 }
 
 AudioIoImpl createAudioIoImpl() => AudioIoWeb();

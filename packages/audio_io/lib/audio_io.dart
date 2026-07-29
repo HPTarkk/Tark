@@ -161,6 +161,17 @@ class AudioIo {
     return -1;
   }
 
+  /// Cumulative frames the playback callback had to fill with silence because
+  /// nothing was queued for it. Each one is a step to silence mid-waveform —
+  /// an audible tick — so a value that keeps climbing during playback means
+  /// the feed is not staying ahead of the device. 0 where unsupported.
+  int outputUnderrunFrames() {
+    if (_impl.usePlatformImpl) {
+      return _impl.getOutputUnderrunFrames();
+    }
+    return 0;
+  }
+
   Future<void> requestLatency(AudioIoLatency option) async {
     if (_impl.usePlatformImpl) {
       await _impl.requestFrameDuration(_presetLatency[option]!);

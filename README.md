@@ -6,9 +6,25 @@ Cross-platform: **Android ↔ Android, iPhone ↔ iPhone, and Android ↔ iPhone
 
 ---
 
+Copyright (c) 2026 Tarkk
+
+This project is dual-licensed.
+
+Open Source License:
+This software is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+You may use, modify, and distribute this software under the terms of the AGPL-3.0.
+
+Commercial License:
+If you wish to use this software in a proprietary or closed-source product, or if you do not wish to comply with the AGPL-3.0, you must obtain a separate commercial license from Tarkk.
+
+Commercial licenses are available under negotiated terms, including royalty, revenue-sharing, subscription, or one-time licensing agreements.
+
+For commercial licensing inquiries, contact:
+pedramXIII@gmail.com
+
 ## Features
 
-- **Real-time voice** — Opus-coded 16 kHz VOIP, transmitted and played back live with a configurable (default 60 ms) jitter buffer that self-corrects clock drift instead of letting playback delay silently grow over a long session.
+- **Real-time voice** — Opus-coded 16 kHz VOIP, transmitted and played back live with a configurable (default 100 ms) jitter buffer that self-corrects clock drift instead of letting playback delay silently grow over a long session. The buffer also keeps a small silent cushion (30 ms) queued in the native output ring: the drain timer shares an isolate with rendering, and without a head start an ordinary late tick left the audio callback with nothing to play, which it filled with zeros — a faint recurring tick on every transport. Stopping and resuming the drain is ramped rather than cut, so neither boundary steps.
 - **Four transports**, all speaking the same wire format:
   - **Wi-Fi (LAN)** — UDP broadcast + unicast on the local network; primary transport.
   - **Bluetooth** — Bluetooth **Classic (RFCOMM)** on Android (highest bandwidth) and **BLE GATT** for iPhone and cross-OS. Android advertises on both at once for maximum compatibility. Both engines cap in-flight audio writes and drop the newest packet once the link falls behind (stale audio is worse than lost audio) instead of letting a slow link balloon into growing latency. A host also shows up **under your own name, not the phone's model number**: a classic inquiry only ever reports the remote adapter name, so hosting temporarily renames the adapter (restored on stop, on exit, and on the next launch after a kill) and tags it so a joiner can tell Tark hosts apart from the headsets and TVs in the same scan — tagged hosts sort to the top, and when exactly one is in range the join happens **hands-free after a two-second settle**, with a Cancel always on screen.
@@ -109,6 +125,7 @@ transport ─▶ Opus decode (per-sender) ─▶ jitter buffer (~100 ms) ─▶ 
 - **Codec:** Opus 16 kHz mono VOIP (`opus_dart` + `opus_flutter`), packet type `0x03`. PCM16 (`0x02`) is a fallback and stays decodable for back-compat.
 - **OS voice session:** engaged before the engine opens its streams (`tark/audio_session` channel → `AudioSessionHandler` on each platform). This gives call-grade echo cancellation / noise suppression / AGC where the device supports it. On Android the vendored `audio_io` allocates an AAudio session id (miniaudio patch) so the three effects are attached explicitly, not just implied by the input preset.
 - **Full duplex:** TX and RX run independently like a phone call. On loudspeaker (not headphones) some residual echo can occur on devices with weak OS AEC — headphones eliminate it.
+- **Realtime boundary:** mic and speaker samples cross between miniaudio's realtime callback and the Dart isolate through a lock-free single-producer/single-consumer ring buffer (`packages/audio_io/src/double_ring_buffer.h`). The callback never locks or allocates — a mutex shared with the isolate is a priority-inversion trap, and either one costs a missed deadline, i.e. an audible dropout.
 
 ---
 

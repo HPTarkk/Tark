@@ -15,6 +15,12 @@ abstract class AudioIoImpl {
   /// Platform audio session id of the capture stream (for attaching native
   /// voice effects), or -1 when unavailable.
   int getInputSessionId();
+
+  /// Cumulative frames the playback callback had to fill with silence because
+  /// the output ring was empty. Diagnostic only — each such frame is an
+  /// audible tick, so a climbing value means the feed isn't staying ahead of
+  /// the device.
+  int getOutputUnderrunFrames();
 }
 
 AudioIoImpl createAudioIoImpl() => throw UnsupportedError(

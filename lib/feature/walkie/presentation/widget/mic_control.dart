@@ -5,7 +5,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/section_header.dart';
+import '../../../../core/widget/ticker_text.dart';
 import '../manager/walkie_talkie_cubit.dart';
+
+/// One duration/curve for every part of the card, so the tint, the badge, the
+/// labels and the chip read as a single flip instead of separate animations
+/// that happen to overlap.
+const Duration _kDur = Duration(milliseconds: 260);
+const Curve _kCurve = Curves.easeOutCubic;
 
 /// Self-mute control — the primary in-channel action.
 ///
@@ -15,8 +22,16 @@ import '../manager/walkie_talkie_cubit.dart';
 /// your mic, tap again to go live. Music casting is unaffected.
 ///
 /// The whole card animates on toggle — the tint/border slide, the badge icon
-/// scale-swaps, and the labels/chip cross-fade — so the state change reads as
+/// scale-swaps, and the labels/chip tick over — so the state change reads as
 /// one deliberate flip rather than an instant jump.
+///
+/// The labels tick line by line ([TickerText]) rather than cross-fading as a
+/// block. Cross-fading them meant "MIC LIVE" and "MUTED" were both painted, in
+/// place, at partial opacity for the whole transition — two different-length
+/// strings smeared over each other, with the outgoing line sliding down
+/// through the incoming one. Ticking clips each line to its own box and moves
+/// one out as the other comes in, so there is never more than one readable
+/// word per line.
 class MicControl extends StatefulWidget {
   const MicControl({super.key});
 
@@ -26,9 +41,6 @@ class MicControl extends StatefulWidget {
 
 class _MicControlState extends State<MicControl> {
   bool _pressed = false;
-
-  static const _dur = Duration(milliseconds: 260);
-  static const _curve = Curves.easeOutCubic;
 
   void _toggle(BuildContext context) {
     HapticFeedback.selectionClick();
@@ -59,8 +71,8 @@ class _MicControlState extends State<MicControl> {
                 duration: const Duration(milliseconds: 110),
                 curve: Curves.easeOut,
                 child: AnimatedContainer(
-                  duration: _dur,
-                  curve: _curve,
+                  duration: _kDur,
+                  curve: _kCurve,
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: muted
@@ -89,36 +101,42 @@ class _MicControlState extends State<MicControl> {
                       _MicBadge(muted: muted, accent: accent),
                       const SizedBox(width: 14),
                       Expanded(
-                        child: AnimatedSwitcher(
-                          duration: _dur,
-                          switchInCurve: _curve,
-                          switchOutCurve: _curve,
-                          transitionBuilder: _slideFade,
-                          layoutBuilder: _topLeftLayout,
-                          child: Column(
-                            key: ValueKey(muted),
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                muted ? s.mic_muted_title : s.mic_live_title,
-                                style: TextStyle(
-                                  color: AppColors.textPrimary,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 1.5,
-                                ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            TickerText(
+                              text: muted
+                                  ? s.mic_muted_title
+                                  : s.mic_live_title,
+                              duration: _kDur,
+                              curve: _kCurve,
+                              maxLines: 1,
+                              textAlign: TextAlign.start,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.5,
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                muted ? s.mic_muted_label : s.mic_live_label,
-                                style: TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontSize: 11.5,
-                                ),
+                            ),
+                            const SizedBox(height: 2),
+                            TickerText(
+                              text: muted
+                                  ? s.mic_muted_label
+                                  : s.mic_live_label,
+                              duration: _kDur,
+                              curve: _kCurve,
+                              maxLines: 1,
+                              textAlign: TextAlign.start,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 11.5,
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -133,28 +151,6 @@ class _MicControlState extends State<MicControl> {
       ],
     );
   }
-
-  // Slide-up + fade for the label swap.
-  static Widget _slideFade(Widget child, Animation<double> anim) =>
-      FadeTransition(
-        opacity: anim,
-        child: SlideTransition(
-          position: Tween<Offset>(
-            begin: const Offset(0, 0.28),
-            end: Offset.zero,
-          ).animate(anim),
-          child: child,
-        ),
-      );
-
-  // Keep swapped labels pinned top-left so they don't drift centre mid-switch.
-  static Widget _topLeftLayout(Widget? current, List<Widget> previous) => Stack(
-    alignment: Alignment.centerLeft,
-    children: [
-      ...previous,
-      ?current,
-    ],
-  );
 }
 
 /// Rounded mic tile: outlined-green with a live mic when open, filled-red with
@@ -168,8 +164,8 @@ class _MicBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 260),
-      curve: Curves.easeOutCubic,
+      duration: _kDur,
+      curve: _kCurve,
       width: 42,
       height: 42,
       decoration: BoxDecoration(
@@ -181,9 +177,11 @@ class _MicBadge extends StatelessWidget {
             : null,
       ),
       child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 260),
-        transitionBuilder: (child, anim) =>
-            ScaleTransition(scale: anim, child: FadeTransition(opacity: anim, child: child)),
+        duration: _kDur,
+        transitionBuilder: (child, anim) => ScaleTransition(
+          scale: anim,
+          child: FadeTransition(opacity: anim, child: child),
+        ),
         child: Icon(
           muted ? Icons.mic_off_rounded : Icons.mic_rounded,
           key: ValueKey(muted),
@@ -206,21 +204,28 @@ class _ActionChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = context.getString;
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 260),
-      curve: Curves.easeOutCubic,
+      duration: _kDur,
+      curve: _kCurve,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
         color: accent.withAlpha(muted ? 30 : 18),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: accent.withAlpha(muted ? 140 : 90)),
       ),
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 220),
-        transitionBuilder: (child, anim) =>
-            FadeTransition(opacity: anim, child: child),
-        child: Text(
-          muted ? s.mic_action_unmute : s.mic_action_mute,
-          key: ValueKey(muted),
+      // AnimatedSize absorbs the width difference between MUTE and UNMUTE:
+      // the ticker is as wide as both words while one is replacing the other,
+      // and without this the chip would snap back the instant the outgoing
+      // word is dropped.
+      child: AnimatedSize(
+        duration: _kDur,
+        curve: _kCurve,
+        alignment: Alignment.center,
+        child: TickerText(
+          text: muted ? s.mic_action_unmute : s.mic_action_mute,
+          duration: _kDur,
+          curve: _kCurve,
+          maxLines: 1,
+          textAlign: TextAlign.center,
           style: TextStyle(
             color: accent,
             fontSize: 11,

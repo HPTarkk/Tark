@@ -2,9 +2,9 @@
 #include "miniaudio.h"
 #include <cstring>
 #include <cstdlib>
-#include <mutex>
 #include <atomic>
-#include <vector>
+
+#include "double_ring_buffer.h"
 
 #ifdef __ANDROID__
 #include <android/log.h>
@@ -12,56 +12,9 @@
 #include <cstdint>
 #endif
 
-const int RING_BUFFER_SIZE = 8192;
+const size_t RING_BUFFER_SIZE = 8192;  // power of two — see DoubleRingBuffer
 const int SAMPLE_RATE = 48000;
 const int CHANNELS = 1;
-
-// Simple ring buffer implementation for doubles
-class DoubleRingBuffer {
-private:
-    std::vector<double> buffer;
-    size_t writePos;
-    size_t readPos;
-    size_t size;
-    std::mutex mutex;
-    
-public:
-    DoubleRingBuffer(size_t bufferSize) 
-        : buffer(bufferSize), writePos(0), readPos(0), size(bufferSize) {}
-    
-    size_t write(const double* data, size_t count) {
-        std::lock_guard<std::mutex> lock(mutex);
-        size_t written = 0;
-        for (size_t i = 0; i < count && available_write() > 0; i++) {
-            buffer[writePos] = data[i];
-            writePos = (writePos + 1) % size;
-            written++;
-        }
-        return written;
-    }
-    
-    size_t read(double* data, size_t count) {
-        std::lock_guard<std::mutex> lock(mutex);
-        size_t readCount = 0;
-        for (size_t i = 0; i < count && available_read() > 0; i++) {
-            data[i] = buffer[readPos];
-            readPos = (readPos + 1) % size;
-            readCount++;
-        }
-        return readCount;
-    }
-    
-    size_t available_read() const {
-        if (writePos >= readPos) {
-            return writePos - readPos;
-        }
-        return size - readPos + writePos;
-    }
-    
-    size_t available_write() const {
-        return size - available_read() - 1;
-    }
-};
 
 struct AudioContext {
     ma_device device;
@@ -70,13 +23,22 @@ struct AudioContext {
     std::atomic<bool> isRunning;
     std::atomic<bool> isDeviceInitialized;
     double frameDuration;  // Store requested frame duration
-    
-    AudioContext() 
+
+    // Frames the playback callback had to invent because the output ring was
+    // empty. Every one of them is a step to silence in the middle of a
+    // waveform — i.e. an audible tick — so this is the number that says
+    // whether the Dart side is feeding the device fast enough. Exposed via
+    // audio_io_get_output_underrun_frames() and logged with the jitter
+    // buffer's stats; it is a diagnostic, not something the audio path reads.
+    std::atomic<long long> outputUnderrunFrames;
+
+    AudioContext()
         : inputRingBuffer(new DoubleRingBuffer(RING_BUFFER_SIZE)),
           outputRingBuffer(new DoubleRingBuffer(RING_BUFFER_SIZE)),
           isRunning(false),
           isDeviceInitialized(false),
-          frameDuration(0.003) {}  // Default 3ms (Balanced)
+          frameDuration(0.003),  // Default 3ms (Balanced)
+          outputUnderrunFrames(0) {}
     
     ~AudioContext() {
         delete inputRingBuffer;
@@ -84,37 +46,31 @@ struct AudioContext {
     }
 };
 
+// Realtime audio thread. Nothing in here may allocate, lock, or block —
+// every frame has a hard deadline of one period (down to ~2 ms in the
+// low-latency profile) and missing it is an audible dropout. The ring
+// buffers convert between the device's f32 frames and the doubles the Dart
+// side expects during the copy itself, so no staging buffer is needed.
 void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount) {
     AudioContext* context = (AudioContext*)pDevice->pUserData;
-    
+
     // Handle input
     if (pInput) {
-        float* floatInput = (float*)pInput;
-        std::vector<double> tempBuffer(frameCount);
-        for (ma_uint32 i = 0; i < frameCount; i++) {
-            tempBuffer[i] = (double)floatInput[i];
-        }
-        context->inputRingBuffer->write(tempBuffer.data(), frameCount);
+        context->inputRingBuffer->writeFromFloat((const float*)pInput, frameCount);
     }
-    
+
     // Handle output
     if (pOutput) {
         float* floatOutput = (float*)pOutput;
-        std::vector<double> tempBuffer(frameCount);
-        size_t framesRead = context->outputRingBuffer->read(tempBuffer.data(), frameCount);
-        
-        for (ma_uint32 i = 0; i < frameCount; i++) {
-            if (i < framesRead) {
-                double sample = tempBuffer[i];
-                // Clamp to [-1.0, 1.0] to prevent clipping
-                if (sample > 1.0) sample = 1.0;
-                else if (sample < -1.0) sample = -1.0;
-                floatOutput[i] = (float)sample;
-            } else {
-                floatOutput[i] = 0.0f;
-            }
+        const size_t framesRead =
+            context->outputRingBuffer->readToFloatClamped(floatOutput, frameCount);
+        // Underrun: silence whatever the ring could not supply.
+        if (framesRead < frameCount) {
+            std::memset(floatOutput + framesRead, 0,
+                        (frameCount - framesRead) * sizeof(float));
+            context->outputUnderrunFrames.fetch_add(
+                (long long)(frameCount - framesRead), std::memory_order_relaxed);
         }
-
     }
 }
 
@@ -258,6 +214,15 @@ int audio_io_write(void* handle, const double* buffer, int frameCount) {
     
     AudioContext* context = (AudioContext*)handle;
     return context->outputRingBuffer->write(buffer, frameCount);
+}
+
+// Cumulative frames the playback callback had to fill with silence because the
+// output ring was empty. A steadily climbing value means the Dart drain is not
+// staying ahead of the device — each underrun is an audible tick.
+long long audio_io_get_output_underrun_frames(void* handle) {
+    if (!handle) return 0;
+    AudioContext* context = (AudioContext*)handle;
+    return context->outputUnderrunFrames.load(std::memory_order_relaxed);
 }
 
 int audio_io_get_sample_rate(void* handle) {

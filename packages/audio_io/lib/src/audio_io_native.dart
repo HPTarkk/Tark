@@ -57,6 +57,9 @@ class AudioIoNative implements AudioIoImpl {
 
   @override
   int getInputSessionId() => _ffi?.getInputSessionId() ?? -1;
+
+  @override
+  int getOutputUnderrunFrames() => _ffi?.getOutputUnderrunFrames() ?? 0;
 }
 
 AudioIoImpl createAudioIoImpl() => AudioIoNative();

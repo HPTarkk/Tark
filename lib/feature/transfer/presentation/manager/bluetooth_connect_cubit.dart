@@ -142,14 +142,17 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
   Future<void> _maybeAutoReconnect() async {
     if (isClosed || state.role != null) return;
     if (!await _settingsRepository.getAutoReconnectEnabled()) return;
-    if (!await _hasSilentPermissions()) return;
-    if (!await _transport.isAdapterReady) return;
+    // Role first: what this device is about to do decides which permissions
+    // have to already be in hand for it to do it silently.
     final lastRole = await _settingsRepository.getLastBluetoothRole();
+    if (lastRole != 'host' && lastRole != 'joiner') return;
+    if (!await _hasSilentPermissions(forHosting: lastRole == 'host')) return;
+    if (!await _transport.isAdapterReady) return;
     // The user may have picked a role while the checks above were awaited.
     if (isClosed || state.role != null) return;
     if (lastRole == 'host') {
       await _autoHost();
-    } else if (lastRole == 'joiner' && state.lastPeer != null) {
+    } else if (state.lastPeer != null) {
       await _autoJoin();
     }
     // Unknown role / nothing remembered → leave the role-selection screen up.
@@ -280,12 +283,24 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
   /// it was already answered, so there is nothing left to prompt for (a
   /// revocation just surfaces as a connection error, which the auto path
   /// swallows).
-  Future<bool> _hasSilentPermissions() async {
+  Future<bool> _hasSilentPermissions({required bool forHosting}) async {
     if (Platform.isIOS) return true;
     if (!Platform.isAndroid) return false;
     final statuses = await Future.wait([
       Permission.bluetoothScan.status,
       Permission.bluetoothConnect.status,
+      // Hosting also advertises over BLE, which is a SEPARATE Android runtime
+      // permission — and the manual flow has always requested all three.
+      // Leaving it out here let the silent path judge itself permitted and
+      // then bring up a half-deaf host: classic RFCOMM listened fine while
+      // BLE advertising was rejected, and that rejection is deliberately
+      // swallowed whenever classic is available (see the repository's
+      // engine-error handling). A joiner whose remembered peer is a BLE one
+      // then scanned for a service UUID nobody was broadcasting and sat on
+      // "connecting" indefinitely — with no prompt, because the whole point
+      // of this path is not to show one. Failing the check instead drops to
+      // role selection, where tapping Host requests the permission properly.
+      if (forHosting) Permission.bluetoothAdvertise.status,
     ]);
     return statuses.every((s) => s.isGranted);
   }
@@ -308,7 +323,8 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
 
   Future<void> _listenToScan({String? autoConnectId}) async {
     await _scanSub?.cancel();
-    _scanSub = _transport.scanForHosts().listen((peer) {
+    late final StreamSubscription<BluetoothPeer> sub;
+    sub = _transport.scanForHosts().listen((peer) {
       // Upsert: repeat discoveries refresh the RSSI, so the signal bars
       // (and the radar blip distance) stay live while scanning.
       final peers = [...state.peers];
@@ -337,7 +353,16 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
       } else {
         _considerSoloAutoJoin();
       }
-    }, onError: (Object e) => Logger.log('BT scan error: $e'));
+    }, onError: (Object e) => Logger.log('BT scan error: $e'), onDone: () {
+      // The repository closes the scan stream whenever it resets — which the
+      // auto-join loop does itself on a hung dial. Without this, [_scanSub]
+      // stayed non-null while pointing at a dead stream, and the loop's
+      // "is a scan already running?" guard below then skipped re-arming it
+      // forever: the joiner sat on the radar, never scanning again, and
+      // could never rediscover the BLE host it was trying to reach.
+      if (identical(_scanSub, sub)) _scanSub = null;
+    });
+    _scanSub = sub;
   }
 
   /// Joins hands-free when the scan finds exactly one Tark host: with a

@@ -267,6 +267,7 @@ class AudioEngineImpl implements AudioEngine {
         sampleRate: outputRate.toInt(),
         targetBufferMs: targetBufferMs,
         debugLogging: true,
+        outputUnderrunFrames: _audioIo.outputUnderrunFrames,
       );
     } catch (e) {
       Logger.log('AudioIo start error: $e');

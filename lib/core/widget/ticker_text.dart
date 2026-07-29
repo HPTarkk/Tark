@@ -72,17 +72,35 @@ class _TickerTextState extends State<TickerText>
     maxLines: widget.maxLines,
   );
 
-  Alignment get _alignment {
-    switch (widget.textAlign) {
-      case TextAlign.center:
-        return Alignment.center;
-      case TextAlign.right:
-      case TextAlign.end:
-        return Alignment.centerRight;
-      default:
-        return Alignment.centerLeft;
-    }
-  }
+  /// Which edge the stacked in/out lines are pinned to.
+  ///
+  /// This must be DIRECTIONAL, and that is the whole subtlety here. While one
+  /// line is replacing another the stack is as wide as BOTH of them, and it
+  /// shrinks to just the incoming line only once the swap finishes. So the
+  /// edge the text is pinned to has to be the same edge the parent will
+  /// ultimately align the narrower box to — otherwise the text is laid out
+  /// against one side of an over-wide box and then lands on the other.
+  ///
+  /// Pinning to a physical left edge got exactly that wrong under RTL: a
+  /// `Column(crossAxisAlignment: start)` puts the box's start edge on the
+  /// RIGHT in Persian, so the line animated against the left of the wide box
+  /// and snapped rightwards the instant it shrank — seen as the text sliding
+  /// in around the middle and jumping to the start at the end.
+  ///
+  /// Note [AlignmentDirectional] already resolves against [Directionality],
+  /// so these must NOT also switch on it — doing both flips twice and puts
+  /// RTL back on the physical left.
+  AlignmentGeometry get _alignment => switch (widget.textAlign) {
+    TextAlign.center => Alignment.center,
+    // left/right name physical sides rather than reading-order edges, so they
+    // stay physical.
+    TextAlign.left => Alignment.centerLeft,
+    TextAlign.right => Alignment.centerRight,
+    TextAlign.end => AlignmentDirectional.centerEnd,
+    // start, justify, and null (the common case — the mic labels pass no
+    // alignment at all) all follow the reading direction.
+    _ => AlignmentDirectional.centerStart,
+  };
 
   @override
   Widget build(BuildContext context) {

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import '../../../core/utils/logger.dart';
 import '../domain/float64_fifo.dart';
@@ -45,21 +46,52 @@ import '../domain/float64_fifo.dart';
 /// hardware at exactly real time and **silently discards** whatever doesn't
 /// fit on write, so it cannot itself hold seconds of audio — which is why a
 /// multi-second delay could only ever have come from this queue.
+///
+/// ## Why the native ring is deliberately kept non-empty
+///
+/// The drain pushes one fixed slice per tick and the device consumes at
+/// exactly real time, so left alone the native ring holds one slice right
+/// after a tick and *nothing* just before the next — a mean cushion of half a
+/// tick and a worst case of zero. A late timer (routine on the UI isolate: one
+/// dropped frame is already 16.7 ms) then leaves the playback callback with no
+/// data, and it fills the gap with zeros. Those steps to silence and back are
+/// audible as a faint recurring tick, independent of transport. [_prefillSamples]
+/// gives the ring a head start so ordinary jitter cannot empty it; it offsets
+/// where the ring sits between ticks and does not touch the cadence.
 class AudioPlaybackBuffer {
   AudioPlaybackBuffer({
     required Sink<List<double>> output,
     int sampleRate = 48000,
     int targetBufferMs = 100,
     int drainIntervalMs = 10,
+    int outputPrefillMs = kDefaultOutputPrefillMs,
     this.debugLogging = false,
+    int Function()? outputUnderrunFrames,
   }) : _output = output,
        _sampleRate = sampleRate,
        _targetSamples = sampleRate * targetBufferMs ~/ 1000,
        _drainSize = sampleRate * drainIntervalMs ~/ 1000,
        _drainIntervalMs = drainIntervalMs,
-       _defaultChunkLen = sampleRate * 10 ~/ 1000;
+       _defaultChunkLen = sampleRate * 10 ~/ 1000,
+       _prefillSamples = sampleRate * outputPrefillMs ~/ 1000,
+       _outputUnderrunFrames = outputUnderrunFrames;
+
+  /// Head start handed to the native output ring whenever playback starts.
+  ///
+  /// Sized to absorb a couple of dropped UI frames, which is the realistic
+  /// worst case for a `Timer.periodic` sharing an isolate with rendering.
+  /// Costs this many milliseconds of one-off latency; lower it only with the
+  /// underrun counter in the debug log as evidence that the smaller cushion
+  /// still holds.
+  static const int kDefaultOutputPrefillMs = 30;
 
   final Sink<List<double>> _output;
+  final int _prefillSamples;
+
+  /// Reads the native playback underrun counter for the debug log, so the
+  /// cushion above can be judged against a real measurement from a device
+  /// rather than another theory.
+  final int Function()? _outputUnderrunFrames;
   final int _sampleRate;
   final int _targetSamples;
   final int _drainSize;
@@ -114,6 +146,15 @@ class AudioPlaybackBuffer {
   );
   int _fadeRemaining = 0;
 
+  /// Length of the synthesised decay pushed when the drain stops. Matches the
+  /// fade-in so a stop/resume pair is symmetric.
+  late final int _fadeOutSamples = _fadeInSamples;
+
+  /// Last sample handed to the device, so an underrun that finds the queue
+  /// empty on an exact slice boundary can still decay from the real level
+  /// instead of stepping straight to silence.
+  double _lastEmittedSample = 0.0;
+
   // Sequence tracking for loss/reorder detection, per sender id.
   final Map<String, int> _expectedSeqBySender = {};
   final Map<String, int> _lastChunkLenBySender = {};
@@ -122,6 +163,7 @@ class AudioPlaybackBuffer {
   // measure directly whether the feed outruns the fixed-cadence drain, and by
   // how much, which is the thing every theory about this bug has hinged on.
   int _underruns = 0;
+  int _lastDeviceUnderrunFrames = 0;
   int _trims = 0;
   int _overflowDrops = 0;
   int _fedWindow = 0;
@@ -132,6 +174,11 @@ class AudioPlaybackBuffer {
 
   int _ms(int samples) => samples * 1000 ~/ _sampleRate;
   int get _queueMs => _ms(_queue.length);
+
+  /// Samples currently waiting to be played. Exposed for diagnostics and for
+  /// tests that need to assert on concealment/drop decisions directly, rather
+  /// than inferring them from what eventually reaches the device.
+  int get queuedSamples => _queue.length;
 
   /// Feed incoming samples into the buffer.
   ///
@@ -205,15 +252,29 @@ class AudioPlaybackBuffer {
     _drainTimer?.cancel();
     _fadeRemaining = _fadeInSamples;
     _sinceTrimTicks = 0;
+    // Hand the native ring its cushion before the first slice, so the very
+    // first late tick doesn't underrun. Silence, so it costs latency but no
+    // content — and it is inaudible ahead of the fade-in below.
+    if (_prefillSamples > 0) _output.add(Float64List(_prefillSamples));
     _drainTimer = Timer.periodic(Duration(milliseconds: _drainIntervalMs), (_) {
       if (debugLogging && ++_logTicks >= _logEveryTicks) {
         _logTicks = 0;
+        // devUnderrun counts frames the DEVICE had to invent, which is the
+        // click the user actually hears; `underruns` above only counts this
+        // queue running dry. They are different failures — the device can
+        // starve while this queue is comfortably full, purely from timer
+        // jitter — so both are reported.
+        final devFrames = _outputUnderrunFrames?.call() ?? 0;
+        final devDelta = devFrames - _lastDeviceUnderrunFrames;
+        _lastDeviceUnderrunFrames = devFrames;
         Logger.log(
           'jitter buffer: ${_queueMs}ms queued (target ${_ms(_targetSamples)}ms)'
           ' | 2s window: fed ${_ms(_fedWindow)}ms'
           ' + concealed ${_ms(_concealedWindow)}ms'
           ' vs drained ${_ms(_drainedWindow)}ms'
-          ' | underruns=$_underruns trims=$_trims drops=$_overflowDrops',
+          ' | underruns=$_underruns trims=$_trims drops=$_overflowDrops'
+          ' | device starved ${_ms(devDelta)}ms this window'
+          ' (${_ms(devFrames)}ms total)',
         );
         _fedWindow = 0;
         _concealedWindow = 0;
@@ -221,7 +282,35 @@ class AudioPlaybackBuffer {
       }
 
       if (_queue.length < _drainSize) {
-        // Underrun — stop and wait for the buffer to refill.
+        // Underrun — stop and wait for the buffer to refill, but ramp down on
+        // the way out. Stopping mid-waveform leaves the signal at whatever
+        // level it happened to reach and the device then plays silence: a step
+        // discontinuity, i.e. exactly the click the fade-in below exists to
+        // avoid on the way back.
+        //
+        // The ramp has to be synthesised rather than just applied to what's
+        // left, because the queue usually empties on an exact slice boundary
+        // and there IS nothing left — the step still happens. So the leftover
+        // (if any) is followed by a short decay from the last level to zero.
+        // Variable-length, but only on the path where the drain is stopping
+        // anyway, so it cannot affect the steady cadence.
+        final remaining = _queue.length;
+        final tail = Float64List(remaining + _fadeOutSamples);
+        for (var i = 0; i < remaining; i++) {
+          tail[i] = _queue[i];
+        }
+        final hold = remaining > 0 ? tail[remaining - 1] : _lastEmittedSample;
+        for (var i = remaining; i < tail.length; i++) {
+          tail[i] = hold;
+        }
+        for (var i = 0; i < tail.length; i++) {
+          tail[i] *= 1.0 - (i + 1) / tail.length;
+        }
+        _queue.discardFirst(remaining);
+        _output.add(tail);
+        _drainedWindow += tail.length;
+        _lastEmittedSample = 0.0;
+
         _underruns++;
         _filling = true;
         _drainTimer?.cancel();
@@ -255,6 +344,7 @@ class AudioPlaybackBuffer {
         }
         _fadeRemaining -= rampLen;
       }
+      if (chunk.isNotEmpty) _lastEmittedSample = chunk[chunk.length - 1];
       _output.add(chunk);
     });
   }
