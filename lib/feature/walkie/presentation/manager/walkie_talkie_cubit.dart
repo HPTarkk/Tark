@@ -5,6 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../../../core/home_widget/home_widget_service.dart';
+import '../../../../core/home_widget/home_widget_snapshot.dart';
+import '../../../../core/home_widget/widget_control_channel.dart';
 import '../../../../core/settings/noise_suppression_engine.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/sfx/sfx_event.dart';
@@ -31,11 +34,14 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
   final SettingsRepository _settingsRepository;
   final SfxPlayer _sfx;
   final SessionWakeLock _keepAlive;
+  final HomeWidgetService _homeWidget;
+  final WidgetControlChannel _widgetControl;
 
   StreamSubscription<AudioFrame>? _frameSub;
   StreamSubscription<AudioEngineStatus>? _statusSub;
   StreamSubscription<WakiPacket>? _packetSub;
   StreamSubscription<ConnectionHealth>? _linkSub;
+  StreamSubscription<WidgetControlAction>? _widgetControlSub;
   Timer? _presenceTimer;
   Timer? _cleanupTimer;
 
@@ -46,6 +52,8 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     this._settingsRepository,
     this._sfx,
     this._keepAlive,
+    this._homeWidget,
+    this._widgetControl,
   ) : super(WalkieTalkieState.initial()) {
     _init();
   }
@@ -154,10 +162,24 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
       }
     });
 
-    _presenceTimer = Timer.periodic(
-      const Duration(seconds: 2),
-      (_) => _broadcastPresence(),
-    );
+    // MUTE on the home-screen widget, pressed while the app is in the
+    // background. Scoped to the live cubit on purpose: no session, nothing
+    // subscribed, so a stale widget button can't mute a channel that the
+    // user has already left.
+    _widgetControlSub = _widgetControl.actions.listen((action) {
+      if (isClosed) return;
+      if (action == WidgetControlAction.toggleMute) toggleSelfMute();
+    });
+
+    _presenceTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      _broadcastPresence();
+      // Keeps the widget's "last published" timestamp advancing while the
+      // session is live but unchanging. onChange alone can go quiet for
+      // minutes (nobody talking, roster steady), and the native side demotes
+      // state it hasn't heard about to "idle". publish() throttles this down
+      // to one actual write every 30s.
+      unawaited(_homeWidget.publish(_widgetSnapshot(state)));
+    });
     _cleanupTimer = Timer.periodic(
       const Duration(seconds: 3),
       (_) => _cleanupStaleUsers(),
@@ -166,6 +188,53 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     emit(state.copyWith(isReady: true));
     _sfx.play(SfxEvent.channelJoin);
     _broadcastPresence();
+  }
+
+  /// Mirrors every state change onto the home-screen widget.
+  ///
+  /// Hooked here rather than at each emit site so no future emit can forget
+  /// it — the widget is the only view of this session once the app is in the
+  /// background, and a missed transition strands it showing the wrong thing.
+  /// [HomeWidgetService.publish] drops consecutive identical payloads, which
+  /// is what keeps this cheap despite firing on audio-rate flag flips.
+  @override
+  void onChange(Change<WalkieTalkieState> change) {
+    super.onChange(change);
+    unawaited(_homeWidget.publish(_widgetSnapshot(change.nextState)));
+  }
+
+  HomeWidgetSnapshot _widgetSnapshot(WalkieTalkieState s) {
+    // Same precedence the on-screen scope pill uses (see VisualizerSection),
+    // so the widget and the channel page never disagree about what's
+    // happening — with link health on top, since a dropped link makes every
+    // other state a lie.
+    final session = switch (s) {
+      _ when !s.isReady => HomeWidgetSession.connecting,
+      _ when s.connectionHealth.status == ConnectionHealthStatus.down =>
+        HomeWidgetSession.down,
+      _ when s.connectionHealth.status == ConnectionHealthStatus.reconnecting =>
+        HomeWidgetSession.reconnecting,
+      _ when s.isTransmitting => HomeWidgetSession.onAir,
+      // Muted only wins when nothing is actually going out — a music share
+      // keeps the channel hot even with the mic closed.
+      _ when s.isSelfMuted => HomeWidgetSession.muted,
+      _ when s.isSomeoneElseTalking => HomeWidgetSession.receiving,
+      _ => HomeWidgetSession.listening,
+    };
+    return HomeWidgetSnapshot(
+      session: session,
+      modeKey: s.transferMode.key,
+      callsign: s.myName,
+      peerCount: s.activeUsers.length,
+      talker: session == HomeWidgetSession.receiving ? _talkerName(s) : '',
+    );
+  }
+
+  String _talkerName(WalkieTalkieState s) {
+    for (final u in s.activeUsers) {
+      if (u.isTalking) return u.name;
+    }
+    return '';
   }
 
   // Hangover + pre-roll VOX shaping — see [VoxGate] for the why.
@@ -478,11 +547,24 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     final packetCancel = _packetSub?.cancel();
     final linkCancel = _linkSub?.cancel();
     unawaited(linkCancel);
+    unawaited(_widgetControlSub?.cancel());
     _transferRepository.stopConnection();
 
     // Session over — drop the keep-alive so the foreground service and its
     // wake/Wi-Fi locks don't outlive the channel and drain the battery.
     unawaited(_keepAlive.stop());
+
+    // No more emits will reach onChange, so the widget has to be told
+    // explicitly that the channel closed — otherwise the home screen keeps
+    // advertising a live session until the staleness timeout catches it.
+    unawaited(
+      _homeWidget.publish(
+        HomeWidgetSnapshot.idle(
+          modeKey: state.transferMode.key,
+          callsign: state.myName,
+        ),
+      ),
+    );
 
     // Leaving the channel ends music sharing too — the capture service must
     // not outlive the session it feeds.

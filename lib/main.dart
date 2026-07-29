@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,6 +8,9 @@ import 'app/di/di_config.dart';
 import 'app/my_app.dart';
 import 'app/router/app_router.dart';
 import 'app/router/quick_access.dart';
+import 'core/config/onboarding_config.dart';
+import 'core/home_widget/home_widget_service.dart';
+import 'core/home_widget/home_widget_snapshot.dart';
 import 'core/locale/locale_service.dart';
 import 'core/router/routes.dart';
 import 'core/settings/settings_repository.dart';
@@ -34,8 +39,32 @@ void main() async {
   // Same reasoning: AppRouter.router is memoized on first read (inside
   // MyApp's build below), so this must also complete before runApp().
   final skipSplash = await GetIt.instance<SettingsRepository>().getSkipSplash();
-  AppRouter.startLocation = skipSplash
-      ? QuickAccess.resolveStartLocation(modeStore.mode, prefs)
-      : AppRoutes.splashPath;
+
+  final homeWidget = GetIt.instance<HomeWidgetService>();
+  await homeWidget.initialize();
+  // A widget tap outranks both the splash screen and the quick-access
+  // setting — the user asked for a specific destination, so honour it
+  // instead of replaying the normal cold-start decision.
+  final launch = await homeWidget.takeInitialLaunch();
+  AppRouter.startLocation = switch (launch) {
+    final l? => QuickAccess.locationForLaunch(l, modeStore.mode),
+    _ when skipSplash => QuickAccess.resolveStartLocation(prefs),
+    _ => AppRoutes.splashPath,
+  };
+
+  // Repaint the widget with resting state before the first frame: one added
+  // while the app was closed renders whatever the last session left behind,
+  // which after a crash or an OS kill can be a stale "LIVE".
+  unawaited(
+    homeWidget.publish(
+      (prefs.getBool(OnboardingPrefs.completed) ?? false)
+          ? HomeWidgetSnapshot.idle(
+              modeKey: modeStore.mode.key,
+              callsign: await GetIt.instance<SettingsRepository>().getMyName(),
+            )
+          : const HomeWidgetSnapshot.setup(),
+    ),
+  );
+
   runApp(const MyApp());
 }

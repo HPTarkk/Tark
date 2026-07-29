@@ -1406,18 +1406,6 @@ abstract class AppLocalizations {
   /// **'دفعه بعد که رفتی تو کانال اثر می‌ذاره'**
   String get settings_applies_next_session;
 
-  /// No description provided for @settings_quick_access.
-  ///
-  /// In fa, this message translates to:
-  /// **'دسترسی سریع'**
-  String get settings_quick_access;
-
-  /// No description provided for @settings_quick_access_desc.
-  ///
-  /// In fa, this message translates to:
-  /// **'این صفحه رو رد کن و یه‌راست برگرد تو آخرین کانالت'**
-  String get settings_quick_access_desc;
-
   /// No description provided for @settings_delay.
   ///
   /// In fa, this message translates to:
@@ -1741,6 +1729,66 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'مراحل خوش‌آمدگویی و تنظیم اولیه رو دوباره ببین'**
   String get settings_replay_intro_desc;
+
+  /// No description provided for @widget_status_setup.
+  ///
+  /// In fa, this message translates to:
+  /// **'برای پخش زنده، راه‌اندازی رو تموم کن'**
+  String get widget_status_setup;
+
+  /// No description provided for @widget_status_idle.
+  ///
+  /// In fa, this message translates to:
+  /// **'بزن تا زنده بشی'**
+  String get widget_status_idle;
+
+  /// No description provided for @widget_status_receiving.
+  ///
+  /// In fa, this message translates to:
+  /// **'{name} داره حرف می‌زنه'**
+  String widget_status_receiving(Object name);
+
+  /// No description provided for @widget_action_go.
+  ///
+  /// In fa, this message translates to:
+  /// **'شروع'**
+  String get widget_action_go;
+
+  /// No description provided for @widget_action_setup.
+  ///
+  /// In fa, this message translates to:
+  /// **'راه‌اندازی'**
+  String get widget_action_setup;
+
+  /// No description provided for @widget_action_open.
+  ///
+  /// In fa, this message translates to:
+  /// **'باز کردن'**
+  String get widget_action_open;
+
+  /// No description provided for @widget_peers_alone.
+  ///
+  /// In fa, this message translates to:
+  /// **'هنوز کسی اینجا نیست'**
+  String get widget_peers_alone;
+
+  /// No description provided for @widget_peers.
+  ///
+  /// In fa, this message translates to:
+  /// **'{count} نفر توی کانال'**
+  String widget_peers(Object count);
+
+  /// No description provided for @widget_end.
+  ///
+  /// In fa, this message translates to:
+  /// **'پایان'**
+  String get widget_end;
+
+  /// No description provided for @settings_widget_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'ویجت ترک رو به صفحه اصلی اضافه کن تا با یه ضربه بپری توی کانال.'**
+  String get settings_widget_hint;
 }
 
 class _AppLocalizationsDelegate

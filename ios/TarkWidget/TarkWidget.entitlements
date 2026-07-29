@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- The only channel through which an extension can read app state. Must
+	     match Runner.entitlements and HomeWidgetIds.appGroup in Dart; if the
+	     three disagree the widget reads an empty UserDefaults and renders the
+	     "finish setup" placeholder forever. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.b1101.tark</string>
+	</array>
+</dict>
+</plist>

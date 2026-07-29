@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Compact layout (roughly 2x2): the dial carries the whole message, with the
+    status and mode under it. No mute/end here — at this size they'd be below
+    the ~48dp touch minimum, and a mis-tap that ends a live channel is worse
+    than making the user open the app. Resize the widget wider to get them.
+
+    Colors are placeholders, re-applied at bind time; type is Vazirmatn via
+    res/font — see widget_tark_wide.xml for both.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg_dark"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="9dp">
+
+    <ImageView
+        android:id="@+id/widget_dial"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:adjustViewBounds="true"
+        android:contentDescription="@string/widget_dial_description" />
+
+    <TextView
+        android:id="@+id/widget_status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="5dp"
+        android:gravity="center"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:fontFamily="@font/vazirmatn_extrabold"
+        android:letterSpacing="0.04"
+        android:textSize="13sp"
+        android:textColor="#F5853F"
+        android:text="@string/widget_status_placeholder" />
+
+    <TextView
+        android:id="@+id/widget_mode_badge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:maxLines="1"
+        android:fontFamily="@font/vazirmatn_bold"
+        android:letterSpacing="0.12"
+        android:textSize="9sp"
+        android:textColor="#8B939D" />
+</LinearLayout>

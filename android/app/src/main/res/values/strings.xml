@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The only user-facing strings the app can't supply from its ARB files: the
+    widget picker shows these before the app has ever run, so they have to
+    live in resources and follow the *system* language. Everything drawn on
+    the widget face itself is published pre-localized by Dart instead (see
+    lib/core/home_widget/home_widget_service_impl.dart).
+-->
+<resources>
+    <string name="widget_app_name">Tark</string>
+    <string name="widget_label">Tark Channel</string>
+    <string name="widget_description">Jump straight into your channel, and see who\'s on air.</string>
+    <string name="widget_dial_description">Channel status dial</string>
+    <string name="widget_level_description">Voice level</string>
+
+    <!-- Shown only in the layout editor preview and in the brief moment
+         before the first publish lands. -->
+    <string name="widget_status_placeholder">Tap to go live</string>
+    <string name="widget_action_placeholder">GO LIVE</string>
+</resources>

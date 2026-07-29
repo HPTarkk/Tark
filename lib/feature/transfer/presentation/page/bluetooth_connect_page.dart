@@ -6,6 +6,7 @@ import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -56,9 +57,43 @@ class _BluetoothConnectPageState extends State<BluetoothConnectPage> {
     return granted;
   }
 
+  /// Back steps out of a chosen side first (host ⇄ join is a decision worth
+  /// being able to undo), and only leaves the page once there's no side to
+  /// step out of.
+  void _back(BuildContext context) {
+    final cubit = context.read<BluetoothConnectCubit>();
+    if (cubit.state.role != null) {
+      cubit.backToRoleSelection();
+      return;
+    }
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      // Reached directly, with nothing beneath us on the stack — quick
+      // access lands here on cold start, and so does the home-screen
+      // widget's GO LIVE in Bluetooth mode.
+      context.goNamed(AppRoutes.landingName);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
+    return PopScope(
+      // Without this the system back gesture pops the route directly. When
+      // this page IS the route (quick access / the widget started here) that
+      // empties the stack and closes the app instead of going to Landing —
+      // and even with a stack it would skip the role step-out above, so the
+      // two back affordances would disagree.
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _back(context);
+      },
+      child: _buildScaffold(context, s),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context, AppLocalizations s) {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -66,18 +101,7 @@ class _BluetoothConnectPageState extends State<BluetoothConnectPage> {
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
-          onPressed: () {
-            final cubit = context.read<BluetoothConnectCubit>();
-            if (cubit.state.role != null) {
-              cubit.backToRoleSelection();
-            } else if (context.canPop()) {
-              context.pop();
-            } else {
-              // Reached directly (quick access landed here) — no stack to
-              // pop to.
-              context.goNamed(AppRoutes.landingName);
-            }
-          },
+          onPressed: () => _back(context),
         ),
         title: Text(
           s.transport_bluetooth,

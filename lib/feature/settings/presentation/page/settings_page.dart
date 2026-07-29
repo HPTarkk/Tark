@@ -457,26 +457,14 @@ class _StartupCard extends StatelessWidget {
     return SettingsCategoryCard(
       icon: Icons.rocket_launch_rounded,
       title: s.settings_section_startup,
+      // The "quick access" toggle used to sit here, controlling whether cold
+      // start skipped Landing for the last-used mode. That behaviour is gone —
+      // the home-screen widget covers the same ground on request rather than
+      // on every launch (see QuickAccess) — so the switch went with it.
       child: BlocBuilder<SettingsCubit, SettingsState>(
-        buildWhen: (p, c) =>
-            p.quickAccessEnabled != c.quickAccessEnabled ||
-            p.skipSplash != c.skipSplash,
+        buildWhen: (p, c) => p.skipSplash != c.skipSplash,
         builder: (context, state) => Column(
           children: [
-            SettingsRow(
-              icon: Icons.bolt_rounded,
-              label: s.settings_quick_access,
-              subtitle: s.settings_quick_access_desc,
-              trailing: Switch(
-                value: state.quickAccessEnabled,
-                activeThumbColor: AppColors.amber,
-                onChanged: (v) {
-                  HapticFeedback.selectionClick();
-                  context.read<SettingsCubit>().setQuickAccessEnabled(v);
-                },
-              ),
-            ),
-            Divider(color: AppColors.border, height: 1),
             SettingsRow(
               icon: Icons.flash_on_rounded,
               label: s.settings_skip_splash,

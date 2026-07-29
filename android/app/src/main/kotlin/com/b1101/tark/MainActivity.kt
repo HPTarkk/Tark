@@ -8,6 +8,7 @@ import com.b1101.tark.bluetooth.BluetoothServerHandler
 import com.b1101.tark.hotspot.HotspotHandler
 import com.b1101.tark.hotspot.WifiJoinHandler
 import com.b1101.tark.keepalive.KeepAliveHandler
+import com.b1101.tark.widget.WidgetControlBridge
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -90,6 +91,18 @@ class MainActivity : FlutterActivity() {
         ).setMethodCallHandler(
             MediaControlHandler(applicationContext, activityProvider = { this }),
         )
+
+        // Outbound only: the home-screen widget's mute/end buttons call INTO
+        // Dart through this, from TarkWidgetControlReceiver. Registering the
+        // channel here is what makes those buttons work without opening the
+        // app — while a session is live the process is held up by the
+        // keep-alive service, so this engine is still around to receive them.
+        WidgetControlBridge.attach(
+            MethodChannel(
+                flutterEngine.dartExecutor.binaryMessenger,
+                WidgetControlBridge.CHANNEL,
+            ),
+        )
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -100,6 +113,9 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
+        // Leaves the widget's control taps with nothing to dispatch to, which
+        // is what tells TarkWidgetControlReceiver the session is gone.
+        WidgetControlBridge.detach()
         bluetoothServerHandler?.stopHosting()
         hotspotHandler?.stop()
         wifiJoinHandler?.leave()

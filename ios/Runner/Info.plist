@@ -34,6 +34,22 @@
 		<string>Tark discovers and talks to other devices on your local WiFi network to work as a walkie-talkie.</string>
 		<key>NSMicrophoneUsageDescription</key>
 		<string>This app needs access to the microphone for audio processing.</string>
+		<!-- The scheme the home-screen widget's tap URLs use
+		     (tark://widget/...). Without it registered here, the widget's
+		     widgetURL can't route back into the app. -->
+		<key>CFBundleURLTypes</key>
+		<array>
+			<dict>
+				<key>CFBundleTypeRole</key>
+				<string>Editor</string>
+				<key>CFBundleURLName</key>
+				<string>com.b1101.tark.widget</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>tark</string>
+				</array>
+			</dict>
+		</array>
 		<key>UIApplicationSceneManifest</key>
 		<dict>
 			<key>UIApplicationSupportsMultipleScenes</key>

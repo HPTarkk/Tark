@@ -2,6 +2,7 @@ import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/home_widget/home_widget_launch.dart';
 import '../../core/router/routes.dart';
 import '../../feature/landing/api/landing_api.dart';
 import '../../feature/onboarding/api/onboarding_api.dart';
@@ -31,15 +32,29 @@ class AppRouter {
 
   static GoRouter _buildRoute() => GoRouter(
     initialLocation: startLocation,
+    // Belt-and-braces for widget launch URIs. They are meant to be consumed
+    // from the platform intent by HomeWidgetService, never routed — Android
+    // disables Flutter's automatic deep linking for exactly that reason (see
+    // AndroidManifest). If one reaches the router anyway (a platform that
+    // routes it, or a future manifest change re-enabling deep links), turning
+    // it into the destination it names is strictly better than the error
+    // page. HomeWidgetLaunch.parse requires the tark:// scheme AND the
+    // widget host, so a real route like /settings can never match here.
+    redirect: (context, state) {
+      final launch = HomeWidgetLaunch.parse(state.uri);
+      if (launch == null) return null;
+      return QuickAccess.locationForLaunch(
+        launch,
+        GetIt.instance<TransferModeStore>().mode,
+      );
+    },
     routes: [
       GoRoute(
         path: AppRoutes.splashPath,
         name: AppRoutes.splashName,
         builder: (context, state) => SplashPage.buildPage(
           onFinished: () async {
-            final modeStore = GetIt.instance<TransferModeStore>();
             final location = QuickAccess.resolveStartLocation(
-              modeStore.mode,
               GetIt.instance<SharedPreferences>(),
             );
             if (context.mounted) context.go(location);

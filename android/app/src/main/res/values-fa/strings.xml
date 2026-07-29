@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Persian widget-picker strings. See values/strings.xml. -->
+<resources>
+    <string name="widget_app_name">تَرک</string>
+    <string name="widget_label">کانال تَرک</string>
+    <string name="widget_description">مستقیم بپر توی کانالت و ببین کی روی خطه.</string>
+    <string name="widget_dial_description">صفحه وضعیت کانال</string>
+    <string name="widget_level_description">میزان صدا</string>
+
+    <string name="widget_status_placeholder">بزن تا زنده بشی</string>
+    <string name="widget_action_placeholder">شروع</string>
+</resources>

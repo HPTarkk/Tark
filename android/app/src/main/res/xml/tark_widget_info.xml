@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Widget metadata.
+
+    updatePeriodMillis is 0 on purpose: the system's own refresh has a 30
+    minute floor, which is useless for live channel state and would wake the
+    device for nothing the rest of the time. Every redraw is pushed by the app
+    instead (HomeWidgetService.publish), and stale "live" state is caught by
+    the TTL in WidgetState rather than by polling.
+
+    The targetCell* attributes are Android 12+; minWidth/minHeight keep older
+    launchers sizing it sensibly. Both layouts are chosen at runtime from the
+    widget's actual measured size — see TarkWidgetProvider.
+
+    Default height is three rows, not two: the action row is 46dp tall so MUTE
+    and END clear Android's touch-target minimum, and at two rows that left the
+    dial and status squeezed. Still freely resizable down to a 2x2 compact face.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="110dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="110dp"
+    android:minResizeHeight="110dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="3"
+    android:updatePeriodMillis="0"
+    android:initialLayout="@layout/widget_tark_wide"
+    android:previewLayout="@layout/widget_tark_wide"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:description="@string/widget_description" />

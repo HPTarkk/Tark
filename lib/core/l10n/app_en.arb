@@ -217,8 +217,6 @@
     "settings_section_startup": "WHEN THE APP OPENS",
     "settings_applies_live": "Kicks in on your channel right away",
     "settings_applies_next_session": "Kicks in next time you join a channel",
-    "settings_quick_access": "Quick access",
-    "settings_quick_access_desc": "Skip this screen and drop straight back into your last channel",
     "settings_delay": "SOUND DELAY",
     "settings_delay_desc": "The app waits a beat before playing what it hears. Waiting longer smooths out choppy voices — but you hear your friends a little later.",
     "settings_delay_low_hint": "HEAR IT SOONER",
@@ -272,5 +270,15 @@
     "onboarding_explore": "Look around first",
     "onboarding_callsign_pool": "Falcon,Viper,Echo,Maverick,Storm,Ghost,Ranger,Nomad",
     "settings_replay_intro": "Replay intro",
-    "settings_replay_intro_desc": "Run through the welcome and setup steps again"
+    "settings_replay_intro_desc": "Run through the welcome and setup steps again",
+    "widget_status_setup": "Finish setup to go live",
+    "widget_status_idle": "Tap to go live",
+    "widget_status_receiving": "{name} is talking",
+    "widget_action_go": "GO LIVE",
+    "widget_action_setup": "SET UP",
+    "widget_action_open": "OPEN",
+    "widget_peers_alone": "Nobody else here yet",
+    "widget_peers": "{count} on channel",
+    "widget_end": "END",
+    "settings_widget_hint": "Add the Tark widget to your home screen for one-tap access to your channel."
 }

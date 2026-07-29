@@ -113,15 +113,6 @@ class SettingsRepositoryImpl implements SettingsRepository {
       _prefs.setBool(SettingsKeys.skipSplash, value);
 
   @override
-  Future<bool> getQuickAccessEnabled() async =>
-      _prefs.getBool(QuickAccessPrefs.enabled) ??
-      AppSettings.defaults().quickAccessEnabled;
-
-  @override
-  Future<void> setQuickAccessEnabled(bool value) =>
-      _prefs.setBool(QuickAccessPrefs.enabled, value);
-
-  @override
   Future<bool> getUsageTipsShown() async =>
       _prefs.getBool(SettingsKeys.usageTipsShown) ??
       AppSettings.defaults().usageTipsShown;

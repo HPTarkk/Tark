@@ -729,13 +729,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Kicks in next time you join a channel';
 
   @override
-  String get settings_quick_access => 'Quick access';
-
-  @override
-  String get settings_quick_access_desc =>
-      'Skip this screen and drop straight back into your last channel';
-
-  @override
   String get settings_delay => 'SOUND DELAY';
 
   @override
@@ -917,4 +910,39 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settings_replay_intro_desc =>
       'Run through the welcome and setup steps again';
+
+  @override
+  String get widget_status_setup => 'Finish setup to go live';
+
+  @override
+  String get widget_status_idle => 'Tap to go live';
+
+  @override
+  String widget_status_receiving(Object name) {
+    return '$name is talking';
+  }
+
+  @override
+  String get widget_action_go => 'GO LIVE';
+
+  @override
+  String get widget_action_setup => 'SET UP';
+
+  @override
+  String get widget_action_open => 'OPEN';
+
+  @override
+  String get widget_peers_alone => 'Nobody else here yet';
+
+  @override
+  String widget_peers(Object count) {
+    return '$count on channel';
+  }
+
+  @override
+  String get widget_end => 'END';
+
+  @override
+  String get settings_widget_hint =>
+      'Add the Tark widget to your home screen for one-tap access to your channel.';
 }

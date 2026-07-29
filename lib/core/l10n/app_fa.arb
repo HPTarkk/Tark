@@ -217,8 +217,6 @@
     "settings_section_startup": "وقتی برنامه باز می‌شه",
     "settings_applies_live": "همین الان رو کانالت اثر می‌ذاره",
     "settings_applies_next_session": "دفعه بعد که رفتی تو کانال اثر می‌ذاره",
-    "settings_quick_access": "دسترسی سریع",
-    "settings_quick_access_desc": "این صفحه رو رد کن و یه‌راست برگرد تو آخرین کانالت",
     "settings_delay": "تاخیر در پخش صدا",
     "settings_delay_desc": "برنامه قبل از پخش صدا یه کم صبر می‌کنه. صبرِ بیشتر صدای بریده‌بریده رو روون‌تر می‌کنه — ولی صدای دوستت رو یه کم دیرتر می‌شنوی.",
     "settings_delay_low_hint": "زودتر بشنو",
@@ -272,5 +270,15 @@
     "onboarding_explore": "اول یه نگاهی به دور و بر بنداز",
     "onboarding_callsign_pool": "شاهین,افعی,پژواک,طوفان,شبح,عقاب,پلنگ,سیمرغ",
     "settings_replay_intro": "پخش دوباره راهنما",
-    "settings_replay_intro_desc": "مراحل خوش‌آمدگویی و تنظیم اولیه رو دوباره ببین"
+    "settings_replay_intro_desc": "مراحل خوش‌آمدگویی و تنظیم اولیه رو دوباره ببین",
+    "widget_status_setup": "برای پخش زنده، راه‌اندازی رو تموم کن",
+    "widget_status_idle": "بزن تا زنده بشی",
+    "widget_status_receiving": "{name} داره حرف می‌زنه",
+    "widget_action_go": "شروع",
+    "widget_action_setup": "راه‌اندازی",
+    "widget_action_open": "باز کردن",
+    "widget_peers_alone": "هنوز کسی اینجا نیست",
+    "widget_peers": "{count} نفر توی کانال",
+    "widget_end": "پایان",
+    "settings_widget_hint": "ویجت ترک رو به صفحه اصلی اضافه کن تا با یه ضربه بپری توی کانال."
 }

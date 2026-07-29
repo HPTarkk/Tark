@@ -1,6 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../config/quick_access_config.dart';
 import 'app_settings.dart';
 import 'noise_suppression_engine.dart';
 import 'settings_keys.dart';
@@ -17,7 +16,6 @@ class SettingsModel extends AppSettings {
     required super.targetBufferMs,
     required super.autoReconnectEnabled,
     required super.skipSplash,
-    required super.quickAccessEnabled,
     required super.usageTipsShown,
   });
 
@@ -30,7 +28,6 @@ class SettingsModel extends AppSettings {
     targetBufferMs: s.targetBufferMs,
     autoReconnectEnabled: s.autoReconnectEnabled,
     skipSplash: s.skipSplash,
-    quickAccessEnabled: s.quickAccessEnabled,
     usageTipsShown: s.usageTipsShown,
   );
 
@@ -53,8 +50,6 @@ class SettingsModel extends AppSettings {
       autoReconnectEnabled:
           json['autoReconnectEnabled'] as bool? ?? d.autoReconnectEnabled,
       skipSplash: json['skipSplash'] as bool? ?? d.skipSplash,
-      quickAccessEnabled:
-          json['quickAccessEnabled'] as bool? ?? d.quickAccessEnabled,
       usageTipsShown: json['usageTipsShown'] as bool? ?? d.usageTipsShown,
     );
   }
@@ -68,7 +63,6 @@ class SettingsModel extends AppSettings {
     'targetBufferMs': targetBufferMs,
     'autoReconnectEnabled': autoReconnectEnabled,
     'skipSplash': skipSplash,
-    'quickAccessEnabled': quickAccessEnabled,
     'usageTipsShown': usageTipsShown,
   };
 
@@ -96,10 +90,6 @@ class SettingsModel extends AppSettings {
           prefs.getBool(SettingsKeys.autoReconnectEnabled) ??
           d.autoReconnectEnabled,
       skipSplash: prefs.getBool(SettingsKeys.skipSplash) ?? d.skipSplash,
-      // Owned by QuickAccessPrefs (core/config/quick_access_config.dart),
-      // not a SettingsKeys entry — avoid a second key for the same value.
-      quickAccessEnabled:
-          prefs.getBool(QuickAccessPrefs.enabled) ?? d.quickAccessEnabled,
       usageTipsShown:
           prefs.getBool(SettingsKeys.usageTipsShown) ?? d.usageTipsShown,
     );

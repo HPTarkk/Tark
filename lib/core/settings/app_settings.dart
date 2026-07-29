@@ -17,7 +17,6 @@ class AppSettings extends Equatable {
   final int targetBufferMs;
   final bool autoReconnectEnabled;
   final bool skipSplash;
-  final bool quickAccessEnabled;
   final bool usageTipsShown;
 
   const AppSettings({
@@ -29,7 +28,6 @@ class AppSettings extends Equatable {
     required this.targetBufferMs,
     required this.autoReconnectEnabled,
     required this.skipSplash,
-    required this.quickAccessEnabled,
     required this.usageTipsShown,
   });
 
@@ -56,7 +54,6 @@ class AppSettings extends Equatable {
     targetBufferMs: 100,
     autoReconnectEnabled: true,
     skipSplash: false,
-    quickAccessEnabled: true,
     usageTipsShown: false,
   );
 
@@ -69,7 +66,6 @@ class AppSettings extends Equatable {
     int? targetBufferMs,
     bool? autoReconnectEnabled,
     bool? skipSplash,
-    bool? quickAccessEnabled,
     bool? usageTipsShown,
   }) => AppSettings(
     myName: myName ?? this.myName,
@@ -80,7 +76,6 @@ class AppSettings extends Equatable {
     targetBufferMs: targetBufferMs ?? this.targetBufferMs,
     autoReconnectEnabled: autoReconnectEnabled ?? this.autoReconnectEnabled,
     skipSplash: skipSplash ?? this.skipSplash,
-    quickAccessEnabled: quickAccessEnabled ?? this.quickAccessEnabled,
     usageTipsShown: usageTipsShown ?? this.usageTipsShown,
   );
 
@@ -94,7 +89,6 @@ class AppSettings extends Equatable {
     targetBufferMs,
     autoReconnectEnabled,
     skipSplash,
-    quickAccessEnabled,
     usageTipsShown,
   ];
 }

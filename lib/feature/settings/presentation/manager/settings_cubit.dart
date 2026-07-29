@@ -77,7 +77,6 @@ class SettingsCubit extends Cubit<SettingsState> {
     emit(
       live != null
           ? state.copyWith(
-              quickAccessEnabled: all.quickAccessEnabled,
               targetBufferMs: all.targetBufferMs,
               autoReconnectEnabled: all.autoReconnectEnabled,
               skipSplash: all.skipSplash,
@@ -87,7 +86,6 @@ class SettingsCubit extends Cubit<SettingsState> {
               voxThreshold: all.voxThreshold,
               noiseSuppression: all.noiseSuppression,
               noiseSuppressionEngine: all.noiseSuppressionEngine,
-              quickAccessEnabled: all.quickAccessEnabled,
               targetBufferMs: all.targetBufferMs,
               autoReconnectEnabled: all.autoReconnectEnabled,
               skipSplash: all.skipSplash,
@@ -161,11 +159,6 @@ class SettingsCubit extends Cubit<SettingsState> {
     }
   }
 
-  Future<void> setQuickAccessEnabled(bool enabled) async {
-    emit(state.copyWith(quickAccessEnabled: enabled));
-    await _repository.setQuickAccessEnabled(enabled);
-  }
-
   // Applies to the next session/reconnect — the audio engine doesn't
   // rebuild its jitter buffer mid-call, so there's no live-session push
   // here (unlike the setters above).
@@ -204,7 +197,6 @@ class SettingsState extends Equatable {
   final double voxThreshold;
   final double noiseSuppression;
   final NoiseSuppressionEngine noiseSuppressionEngine;
-  final bool quickAccessEnabled;
   final int targetBufferMs;
   final bool autoReconnectEnabled;
   final bool skipSplash;
@@ -215,7 +207,6 @@ class SettingsState extends Equatable {
     required this.voxThreshold,
     required this.noiseSuppression,
     required this.noiseSuppressionEngine,
-    required this.quickAccessEnabled,
     required this.targetBufferMs,
     required this.autoReconnectEnabled,
     required this.skipSplash,
@@ -227,7 +218,6 @@ class SettingsState extends Equatable {
     voxThreshold: 0.0,
     noiseSuppression: 1.0,
     noiseSuppressionEngine: NoiseSuppressionEngine.spectral,
-    quickAccessEnabled: true,
     targetBufferMs: 60,
     autoReconnectEnabled: true,
     skipSplash: false,
@@ -238,7 +228,6 @@ class SettingsState extends Equatable {
     double? voxThreshold,
     double? noiseSuppression,
     NoiseSuppressionEngine? noiseSuppressionEngine,
-    bool? quickAccessEnabled,
     int? targetBufferMs,
     bool? autoReconnectEnabled,
     bool? skipSplash,
@@ -249,7 +238,6 @@ class SettingsState extends Equatable {
     noiseSuppression: noiseSuppression ?? this.noiseSuppression,
     noiseSuppressionEngine:
         noiseSuppressionEngine ?? this.noiseSuppressionEngine,
-    quickAccessEnabled: quickAccessEnabled ?? this.quickAccessEnabled,
     targetBufferMs: targetBufferMs ?? this.targetBufferMs,
     autoReconnectEnabled: autoReconnectEnabled ?? this.autoReconnectEnabled,
     skipSplash: skipSplash ?? this.skipSplash,
@@ -262,7 +250,6 @@ class SettingsState extends Equatable {
     voxThreshold,
     noiseSuppression,
     noiseSuppressionEngine,
-    quickAccessEnabled,
     targetBufferMs,
     autoReconnectEnabled,
     skipSplash,

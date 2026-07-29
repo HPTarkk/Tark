@@ -14,6 +14,9 @@ import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
 import 'package:shared_preferences/shared_preferences.dart' as _i460;
 import 'package:tark/app/di/di_config.dart' as _i250;
+import 'package:tark/core/home_widget/home_widget_service.dart' as _i590;
+import 'package:tark/core/home_widget/home_widget_service_impl.dart' as _i828;
+import 'package:tark/core/home_widget/widget_control_channel.dart' as _i970;
 import 'package:tark/core/settings/settings_repository.dart' as _i349;
 import 'package:tark/core/settings/settings_repository_impl.dart' as _i632;
 import 'package:tark/core/sfx/sfx_player.dart' as _i690;
@@ -79,6 +82,10 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i482.WebRtcTransferRepository(),
       dispose: (i) => i.dispose(),
     );
+    gh.lazySingleton<_i970.WidgetControlChannel>(
+      () => _i970.WidgetControlChannelImpl(),
+      dispose: (i) => i.dispose(),
+    );
     gh.lazySingleton<_i690.SfxPlayer>(() => const _i690.SfxServicePlayer());
     gh.lazySingleton<_i794.HotspotHost>(() => _i462.WifiHotspotController());
     gh.lazySingleton<_i430.SessionWakeLock>(
@@ -86,6 +93,10 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i1043.WifiTransferRepository>(
       () => _i627.WifiTransferRepositoryImpl(),
+      dispose: (i) => i.dispose(),
+    );
+    gh.lazySingleton<_i590.HomeWidgetService>(
+      () => _i828.HomeWidgetServiceImpl(gh<_i460.SharedPreferences>()),
       dispose: (i) => i.dispose(),
     );
     gh.lazySingleton<_i794.HotspotJoiner>(
@@ -138,16 +149,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i482.WebRtcTransferRepository>(),
       ),
     );
-    gh.factory<_i496.WalkieTalkieCubit>(
-      () => _i496.WalkieTalkieCubit(
-        gh<_i138.AudioEngine>(),
-        gh<_i431.TransferRepository>(),
-        gh<_i431.TransferModeStore>(),
-        gh<_i349.SettingsRepository>(),
-        gh<_i690.SfxPlayer>(),
-        gh<_i138.SessionWakeLock>(),
-      ),
-    );
     gh.factory<_i638.BluetoothTransport>(
       () => transferModule.bluetoothTransport(
         gh<_i485.BluetoothTransferRepository>(),
@@ -170,6 +171,18 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i638.BluetoothTransport>(),
         gh<_i349.SettingsRepository>(),
         gh<_i690.SfxPlayer>(),
+      ),
+    );
+    gh.factory<_i496.WalkieTalkieCubit>(
+      () => _i496.WalkieTalkieCubit(
+        gh<_i138.AudioEngine>(),
+        gh<_i431.TransferRepository>(),
+        gh<_i431.TransferModeStore>(),
+        gh<_i349.SettingsRepository>(),
+        gh<_i690.SfxPlayer>(),
+        gh<_i138.SessionWakeLock>(),
+        gh<_i590.HomeWidgetService>(),
+        gh<_i970.WidgetControlChannel>(),
       ),
     );
     return this;

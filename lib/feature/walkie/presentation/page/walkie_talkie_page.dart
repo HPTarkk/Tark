@@ -135,52 +135,70 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
 
   @override
   Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: AppColors.systemOverlayStyle,
-      child: Scaffold(
-        backgroundColor: AppColors.background,
-        body: SafeArea(
-          child: Column(
-            children: [
-              _entrance(0, const WalkieHeader()),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _entrance(1, _buildIdentityCard(context)),
-                      const SizedBox(height: 16),
-                      _entrance(2, const VisualizerSection()),
-                      const SizedBox(height: 16),
-                      const BackgroundPermissionBanner(),
-                      _buildLinkBanner(),
-                      // Self-mute: the one control a hands-free rider needs
-                      // in-channel — go silent without leaving. Sits where
-                      // the old TX/RX chips were; that status now lives in
-                      // the visualizer's pill above.
-                      _entrance(3, const MicControl()),
-                      // Renders nothing where playback capture is
-                      // unsupported (iOS, Android < 10) — spacing lives
-                      // inside the section so nothing doubles up here.
-                      _entrance(4, const MusicCastSection()),
-                      const SizedBox(height: 20),
-                      _entrance(5, const UserList()),
-                    ],
-                  ),
+    return PopScope(
+      // System back gets the same confirmation as the on-screen Leave, rather
+      // than dropping the channel outright. Two reasons: this page is often
+      // the ONLY route (quick access and the home-screen widget both land
+      // straight here in Wi-Fi mode), so an unhandled back closes the app
+      // mid-session; and leaving is destructive enough — it tears down the
+      // transport and the keep-alive service — to be worth confirming when
+      // the phone is in a pocket. The dialog is its own route, so a second
+      // back dismisses it instead of re-triggering this.
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _confirmLeave(context);
+      },
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: AppColors.systemOverlayStyle,
+        child: _buildScaffold(context),
+      ),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _entrance(0, const WalkieHeader()),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _entrance(1, _buildIdentityCard(context)),
+                    const SizedBox(height: 16),
+                    _entrance(2, const VisualizerSection()),
+                    const SizedBox(height: 16),
+                    const BackgroundPermissionBanner(),
+                    _buildLinkBanner(),
+                    // Self-mute: the one control a hands-free rider needs
+                    // in-channel — go silent without leaving. Sits where
+                    // the old TX/RX chips were; that status now lives in
+                    // the visualizer's pill above.
+                    _entrance(3, const MicControl()),
+                    // Renders nothing where playback capture is
+                    // unsupported (iOS, Android < 10) — spacing lives
+                    // inside the section so nothing doubles up here.
+                    _entrance(4, const MusicCastSection()),
+                    const SizedBox(height: 20),
+                    _entrance(5, const UserList()),
+                  ],
                 ),
               ),
-              _buildLeaveButton(context),
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: VersionBadge(
-                    color: AppColors.textSecondary.withAlpha(60),
-                  ),
+            ),
+            _buildLeaveButton(context),
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: VersionBadge(
+                  color: AppColors.textSecondary.withAlpha(60),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

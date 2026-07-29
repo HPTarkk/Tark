@@ -725,13 +725,6 @@ class AppLocalizationsFa extends AppLocalizations {
       'دفعه بعد که رفتی تو کانال اثر می‌ذاره';
 
   @override
-  String get settings_quick_access => 'دسترسی سریع';
-
-  @override
-  String get settings_quick_access_desc =>
-      'این صفحه رو رد کن و یه‌راست برگرد تو آخرین کانالت';
-
-  @override
   String get settings_delay => 'تاخیر در پخش صدا';
 
   @override
@@ -913,4 +906,39 @@ class AppLocalizationsFa extends AppLocalizations {
   @override
   String get settings_replay_intro_desc =>
       'مراحل خوش‌آمدگویی و تنظیم اولیه رو دوباره ببین';
+
+  @override
+  String get widget_status_setup => 'برای پخش زنده، راه‌اندازی رو تموم کن';
+
+  @override
+  String get widget_status_idle => 'بزن تا زنده بشی';
+
+  @override
+  String widget_status_receiving(Object name) {
+    return '$name داره حرف می‌زنه';
+  }
+
+  @override
+  String get widget_action_go => 'شروع';
+
+  @override
+  String get widget_action_setup => 'راه‌اندازی';
+
+  @override
+  String get widget_action_open => 'باز کردن';
+
+  @override
+  String get widget_peers_alone => 'هنوز کسی اینجا نیست';
+
+  @override
+  String widget_peers(Object count) {
+    return '$count نفر توی کانال';
+  }
+
+  @override
+  String get widget_end => 'پایان';
+
+  @override
+  String get settings_widget_hint =>
+      'ویجت ترک رو به صفحه اصلی اضافه کن تا با یه ضربه بپری توی کانال.';
 }

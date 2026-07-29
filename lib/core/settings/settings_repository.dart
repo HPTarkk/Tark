@@ -40,9 +40,6 @@ abstract interface class SettingsRepository {
   Future<bool> getSkipSplash();
   Future<void> setSkipSplash(bool value);
 
-  Future<bool> getQuickAccessEnabled();
-  Future<void> setQuickAccessEnabled(bool value);
-
   Future<bool> getUsageTipsShown();
   Future<void> setUsageTipsShown(bool value);
 

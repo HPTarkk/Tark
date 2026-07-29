@@ -110,9 +110,7 @@ class $AssetsSfxGen {
   ];
 }
 
-class Assets {
-  const Assets._();
-
+abstract final class Assets {
   static const $AssetsIconGen icon = $AssetsIconGen();
   static const $AssetsImageGen image = $AssetsImageGen();
   static const $AssetsSfxGen sfx = $AssetsSfxGen();

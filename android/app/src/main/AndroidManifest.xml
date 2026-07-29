@@ -71,11 +71,22 @@
         android:label="تَرک"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <!-- Deliberately no android:taskAffinity="". It shipped in the
+             original template and is what made the app restart from scratch
+             instead of resuming: an empty affinity gives the activity a task
+             the launcher's own MAIN intent can't match, so tapping the icon
+             (or returning via Recents) started a SECOND instance rather than
+             coming back to the running one. That took the FlutterEngine with
+             it — a plain FlutterActivity owns its engine and destroys it —
+             which killed the live session and detached WidgetControlBridge,
+             leaving the widget's MUTE/END with nothing to talk to. Launching
+             from the home-screen widget made it reproduce every time, since
+             the widget's PendingIntent is what created that unmatchable
+             task. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
-            android:taskAffinity=""
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
@@ -87,6 +98,19 @@
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme"
+            />
+            <!-- The home-screen widget launches us with a tark://widget/...
+                 URI as the intent data. Flutter's automatic deep linking
+                 would hand that straight to GoRouter as the initial route,
+                 which has no such path and shows its error page — and it
+                 overrides the start location main.dart already worked out.
+                 The URI isn't a route: it's read out of the intent by
+                 home_widget (see HomeWidgetService.takeInitialLaunch) and
+                 turned into a destination there. The app declares no VIEW
+                 intent-filters, so nothing else relies on this. -->
+            <meta-data
+                android:name="flutter_deeplinking_enabled"
+                android:value="false"
             />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -114,6 +138,30 @@
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
+        <!-- Home-screen widget. Renders whatever the app last published (see
+             lib/core/home_widget) and launches straight into the last-used
+             mode; updatePeriodMillis is 0, so every redraw is app-pushed. -->
+        <receiver
+            android:name=".widget.TarkWidgetProvider"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/tark_widget_info" />
+        </receiver>
+        <!-- The widget's MUTE/END buttons. Not exported: the only sender is
+             our own PendingIntent, and these control a live mic. -->
+        <receiver
+            android:name=".widget.TarkWidgetControlReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.b1101.tark.widget.TOGGLE_MUTE" />
+                <action android:name="com.b1101.tark.widget.END_SESSION" />
+            </intent-filter>
+        </receiver>
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

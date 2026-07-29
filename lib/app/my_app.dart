@@ -1,15 +1,23 @@
+import 'dart:async';
+
 import 'package:audio_io/audio_io.dart';
 import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
+import '../core/home_widget/home_widget_launch.dart';
+import '../core/home_widget/home_widget_service.dart';
+import '../core/home_widget/widget_control_channel.dart';
 import '../core/l10n/app_localizations.dart';
 import '../core/l10n/extension.dart';
 import '../core/locale/locale_service.dart';
+import '../core/router/routes.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/theme_service.dart';
 import '../core/widget/theme_reveal_transition.dart';
+import '../feature/transfer/api/transfer_api.dart';
 import 'router/app_router.dart';
+import 'router/quick_access.dart';
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
@@ -19,22 +27,59 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  StreamSubscription<HomeWidgetLaunch>? _launchSub;
+  StreamSubscription<WidgetControlAction>? _controlSub;
+
   @override
   void initState() {
     super.initState();
     LocaleService.locale.addListener(_onAppSettingChanged);
     ThemeService.mode.addListener(_onAppSettingChanged);
+    // Taps that land while the process is already alive. The cold-start tap
+    // is handled in main.dart instead, by picking the router's initial
+    // location — routing it through here would push a second page on top of
+    // whatever the normal start-up decision had already built.
+    _launchSub = GetIt.instance<HomeWidgetService>().launches.listen((launch) {
+      AppRouter.router.go(
+        QuickAccess.locationForLaunch(
+          launch,
+          GetIt.instance<TransferModeStore>().mode,
+        ),
+      );
+    });
+    // END on the widget. Handled here rather than in WalkieTalkieCubit
+    // because leaving the channel *is* the navigation: routing to Landing
+    // disposes the cubit, and its close() is what tears the session,
+    // transport and keep-alive service down. MUTE stays in the cubit, which
+    // owns that state.
+    _controlSub = GetIt.instance<WidgetControlChannel>().actions.listen((
+      action,
+    ) {
+      if (action == WidgetControlAction.endSession) {
+        AppRouter.router.go(AppRoutes.landingPath);
+      }
+    });
   }
 
   @override
   void dispose() {
     LocaleService.locale.removeListener(_onAppSettingChanged);
     ThemeService.mode.removeListener(_onAppSettingChanged);
+    _launchSub?.cancel();
+    _controlSub?.cancel();
     GetIt.instance<AudioIo>().dispose();
     super.dispose();
   }
 
-  void _onAppSettingChanged() => setState(() {});
+  void _onAppSettingChanged() {
+    setState(() {});
+    // The widget renders its strings localized and its colors themed at
+    // publish time, so a language or theme switch has to be pushed to it
+    // explicitly — nothing about the session changed, so nothing else would
+    // republish, and the home screen would keep the old language until the
+    // next session event.
+    unawaited(GetIt.instance<HomeWidgetService>().refresh());
+  }
 
   @override
   Widget build(BuildContext context) {

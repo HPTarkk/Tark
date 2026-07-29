@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Primary action pill, light palette. See widget_btn_primary_dark.xml. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="270"
+        android:startColor="#B26B00"
+        android:endColor="#8A5200"
+        android:type="linear" />
+    <corners android:radius="14dp" />
+</shape>
