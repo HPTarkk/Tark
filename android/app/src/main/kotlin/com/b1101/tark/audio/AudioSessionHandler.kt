@@ -48,6 +48,22 @@ class AudioSessionHandler(
     companion object {
         private const val SCO_TIMEOUT_MS = 4000L
 
+        /**
+         * How long a routing change is given to actually land before this
+         * handler reports back to Dart.
+         *
+         * Setting the mode / speakerphone / communication device returns
+         * immediately, but the route propagates asynchronously: on a Galaxy
+         * S8+ the stream's routed device was still moving 480 ms after
+         * setSpeakerphoneOn. Dart opens the AAudio capture and playback
+         * streams the moment this call returns, and a route change landing
+         * inside AAudio's start handshake disconnects both streams mid-start.
+         * That is what triggered the engine-teardown deadlock (see the LOCAL
+         * PATCH notes in miniaudio.h), so the streams must open strictly
+         * after the route has settled, not alongside it.
+         */
+        private const val ROUTE_SETTLE_MS = 700L
+
         /** Device types that change which way voice should be routed. The
          *  API-gated constants are compile-time ints, so naming them costs
          *  nothing on older releases — they simply never match there. */
@@ -244,8 +260,7 @@ class AudioSessionHandler(
             engageBluetoothSco(am, result)
         } else {
             routeToWiredOrSpeaker(am)
-            settleRouting()
-            result.success(false)
+            finishAfterRouteSettles(result, false)
         }
     }
 
@@ -255,6 +270,23 @@ class AudioSessionHandler(
     private fun settleRouting() {
         routingInFlight = false
         knownRouteDevices = routeDeviceIds(audioManager)
+    }
+
+    /** Replies to Dart only once the route has had [ROUTE_SETTLE_MS] to land.
+     *
+     *  [routingInFlight] deliberately stays true for the whole wait, so the
+     *  device churn our own routing causes is still swallowed rather than
+     *  reported as a headset appearing. The settled device set is snapshotted
+     *  at the end, so it describes the route the streams will actually open
+     *  onto. */
+    private fun finishAfterRouteSettles(
+        result: MethodChannel.Result,
+        scoConnected: Boolean,
+    ) {
+        mainHandler.postDelayed({
+            settleRouting()
+            result.success(scoConnected)
+        }, ROUTE_SETTLE_MS)
     }
 
     /**
@@ -333,8 +365,7 @@ class AudioSessionHandler(
                 }
                 routeToWiredOrSpeaker(am)
             }
-            settleRouting()
-            result.success(connected)
+            finishAfterRouteSettles(result, connected)
         }
 
         receiver = object : BroadcastReceiver() {

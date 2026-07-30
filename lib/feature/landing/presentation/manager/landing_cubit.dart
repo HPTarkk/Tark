@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../../../core/settings/settings_repository.dart';
+import '../../../../core/utils/fallback_display_name.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../transfer/api/transfer_api.dart';
 
@@ -36,7 +37,10 @@ class LandingCubit extends Cubit<LandingState> {
     final localIp = await _getLocalIp();
     final storedName = await _settingsRepository.getMyName();
     final myName = storedName.isEmpty
-        ? 'User${localIp.split('.').last}'
+        ? localizedFallbackDisplayName(
+            await _settingsRepository.getLocaleCode(),
+            localIp,
+          )
         : storedName;
     emit(state.copyWith(localIp: localIp, myName: myName, isLoading: false));
 

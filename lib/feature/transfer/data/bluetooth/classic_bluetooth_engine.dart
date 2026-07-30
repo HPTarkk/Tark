@@ -9,12 +9,16 @@ import '../../domain/entity/bluetooth_peer.dart';
 
 /// Android Bluetooth Classic (RFCOMM/SPP) engine.
 ///
-/// Scanning and the client ("join") connection use the flutter_blue_classic
-/// package directly — it covers those well. Hosting ("start session") uses a
-/// small custom platform channel (see
-/// android/.../bluetooth/BluetoothServerHandler.kt) because
-/// flutter_blue_classic only exposes outgoing connect(), not
-/// listenUsingRfcommWithServiceRecord()/accept() needed to host.
+/// Discovery uses the flutter_blue_classic package — it covers inquiry and
+/// adapter state well. Both ends of the *connection* go through a custom
+/// platform channel (see android/.../bluetooth/BluetoothServerHandler.kt):
+/// hosting because the package exposes no
+/// listenUsingRfcommWithServiceRecord()/accept(), and dialing because the
+/// package's connect() uses a SECURE socket while our server socket is
+/// insecure — a mismatch that let the host accept a link the joiner could
+/// never finish authenticating (see connectToPeer in the handler). Sharing
+/// the native session plumbing also means one code path for reads, bounded
+/// writes and close events regardless of which side opened the link.
 class ClassicBluetoothEngine {
   static const _serverMethods = MethodChannel('tark/bluetooth_server/methods');
   static const _serverConnectionEvents = EventChannel(
@@ -31,22 +35,25 @@ class ClassicBluetoothEngine {
 
   final fbc.FlutterBlueClassic _fbc;
 
-  fbc.BluetoothConnection? _clientConnection;
-  StreamSubscription<Uint8List>? _clientReadSub;
+  /// Guards against overlapping outgoing dials (see [connectToHost]).
+  /// [_dialGen] separates a dial from the one that superseded it, so a late
+  /// failure can't clear the newer dial's guard.
+  bool _dialing = false;
+  int _dialGen = 0;
+  DateTime? _dialStartedAt;
 
-  StreamSubscription<dynamic>? _hostConnectionSub;
-  StreamSubscription<dynamic>? _hostReadSub;
-  bool _hosting = false;
+  /// After this, an unanswered dial stops holding the guard shut — the next
+  /// attempt cancels it natively first. Longer than the auto-join loop's own
+  /// 12s give-up so that, in the normal case, its reset() gets there first.
+  static const _dialStuckAfter = Duration(seconds: 20);
 
-  // flutter_blue_classic's BluetoothStreamSink.add() chains writes onto an
-  // internal future with no cap, so a slow client-side RFCOMM link would
-  // otherwise queue audio packets forever (growing latency). Mirror the BLE
-  // engine's policy here: track how many writes are in flight via `allSent`
-  // and drop the newest packet once backlogged — stale audio is worse than
-  // lost audio.
-  Future<void> _clientWriteQueue = Future<void>.value();
-  int _pendingClientWrites = 0;
-  static const _maxPendingWrites = 8;
+  StreamSubscription<dynamic>? _sessionEventSub;
+  StreamSubscription<dynamic>? _sessionReadSub;
+
+  /// True between the native "connected" and "closed" events, for either
+  /// role. Writes and the dial guard key off this rather than a role flag —
+  /// hosting and dialing land on the same native session.
+  bool _connected = false;
 
   final _inputController = StreamController<Uint8List>.broadcast();
   final _peerConnectedController = StreamController<String>.broadcast();
@@ -69,46 +76,75 @@ class ClassicBluetoothEngine {
 
   // ── Host ─────────────────────────────────────────────────────────────────
 
-  Future<void> requestDiscoverable({int durationSeconds = 120}) async {
+  /// Whether this device currently answers other phones' inquiries. False
+  /// while merely listening on RFCOMM — a server socket is not the same thing
+  /// as being findable, and a scanning joiner sees only the latter.
+  Future<bool> get isDiscoverable async {
     try {
-      await _serverMethods.invokeMethod<bool>('requestDiscoverable', {
-        'durationSeconds': durationSeconds,
-      });
+      return await _serverMethods.invokeMethod<bool>('isDiscoverable') ?? false;
     } catch (e) {
-      Logger.log('requestDiscoverable failed: $e');
+      Logger.log('isDiscoverable failed: $e');
+      return false;
     }
   }
 
-  Future<void> startHosting({String name = 'tark'}) async {
-    await _hostConnectionSub?.cancel();
-    await _hostReadSub?.cancel();
-    _hosting = true;
+  /// Asks the system to make this device findable, resolving with the user's
+  /// answer (immediately true when a previous grant is still running).
+  ///
+  /// 300s is the longest window every OEM dialog honours — 120s ran out while
+  /// the joiner was still walking through its own permission prompts.
+  /// The timeout only guards against a dialog whose result never comes back
+  /// (activity torn down mid-prompt); hosting must not hang on that.
+  Future<bool> requestDiscoverable({int durationSeconds = 300}) async {
+    try {
+      final granted = await _serverMethods
+          .invokeMethod<bool>('requestDiscoverable', {
+            'durationSeconds': durationSeconds,
+          })
+          .timeout(const Duration(seconds: 60), onTimeout: () => false);
+      return granted ?? false;
+    } catch (e) {
+      Logger.log('requestDiscoverable failed: $e');
+      return false;
+    }
+  }
 
-    _hostConnectionSub = _serverConnectionEvents
-        .receiveBroadcastStream()
-        .listen(
-          (event) {
-            final map = Map<Object?, Object?>.from(event as Map);
-            switch (map['event']) {
-              case 'connected':
-                _peerConnectedController.add((map['address'] as String?) ?? '');
-              case 'closed':
-                _closedController.add(null);
-              case 'error':
-                _errorController.add(
-                  (map['message'] as String?) ?? 'unknown error',
-                );
-            }
-          },
-          onError: (Object e) =>
-              Logger.log('Bluetooth host connection error: $e'),
-        );
-
-    _hostReadSub = _serverReadEvents.receiveBroadcastStream().listen(
-      (event) => _inputController.add(event as Uint8List),
-      onError: (Object e) => Logger.log('Bluetooth host read error: $e'),
+  /// Subscribes to the native session channels. Idempotent, and shared by
+  /// both roles — the events are about the one live socket, not about who
+  /// opened it.
+  void _listenToSession() {
+    _sessionEventSub ??= _serverConnectionEvents.receiveBroadcastStream().listen(
+      (event) {
+        final map = Map<Object?, Object?>.from(event as Map);
+        switch (map['event']) {
+          case 'connected':
+            _connected = true;
+            _peerConnectedController.add((map['address'] as String?) ?? '');
+          case 'closed':
+            _connected = false;
+            _closedController.add(null);
+          case 'error':
+            _errorController.add((map['message'] as String?) ?? 'unknown error');
+        }
+      },
+      onError: (Object e) => Logger.log('Bluetooth session event error: $e'),
     );
 
+    _sessionReadSub ??= _serverReadEvents.receiveBroadcastStream().listen(
+      (event) => _inputController.add(event as Uint8List),
+      onError: (Object e) => Logger.log('Bluetooth session read error: $e'),
+    );
+  }
+
+  Future<void> _cancelSessionSubs() async {
+    await _sessionEventSub?.cancel();
+    _sessionEventSub = null;
+    await _sessionReadSub?.cancel();
+    _sessionReadSub = null;
+  }
+
+  Future<void> startHosting({String name = 'tark'}) async {
+    _listenToSession();
     try {
       await _serverMethods.invokeMethod<void>('startHosting', {'name': name});
     } catch (e) {
@@ -116,20 +152,32 @@ class ClassicBluetoothEngine {
     }
   }
 
-  Future<void> writeAsHost(Uint8List bytes) async {
+  /// Hands bytes to the native writer thread, which owns the bounded queue
+  /// and drops the newest packet when the link can't keep up.
+  Future<void> _writeToSession(Uint8List bytes) async {
     try {
       await _serverMethods.invokeMethod<void>('write', {'bytes': bytes});
     } catch (e) {
-      Logger.log('Bluetooth host write failed: $e');
+      Logger.log('Bluetooth write failed: $e');
     }
   }
 
+  /// Drops the peer socket (and cancels any dial in flight) while leaving the
+  /// role intact, so the repository's normal closed → re-host / re-dial
+  /// recovery can run.
+  Future<void> closeHostedConnection() async {
+    try {
+      await _serverMethods.invokeMethod<void>('closeConnection');
+    } catch (e) {
+      Logger.log('closeConnection failed: $e');
+    }
+  }
+
+  /// Tears the native session down whichever role owns it: the listener, an
+  /// accepted socket, and any dial still in flight.
   Future<void> stopHosting() async {
-    _hosting = false;
-    await _hostConnectionSub?.cancel();
-    _hostConnectionSub = null;
-    await _hostReadSub?.cancel();
-    _hostReadSub = null;
+    _connected = false;
+    await _cancelSessionSubs();
     try {
       await _serverMethods.invokeMethod<void>('stopHosting');
     } catch (e) {
@@ -148,7 +196,10 @@ class ClassicBluetoothEngine {
       final advertised = d.name ?? '';
       return BluetoothPeer(
         id: d.address,
-        name: advertised.isEmpty ? d.address : decodeHostName(advertised),
+        // A device that broadcast no name stays nameless — the UI says
+        // "unnamed device", which means something to a person. Its MAC does
+        // not, and it used to sit in the list looking like a serial number.
+        name: advertised.isEmpty ? '' : decodeHostName(advertised),
         rssi: d.rssi,
         isAppHost: isTarkHostName(advertised),
       );
@@ -157,63 +208,75 @@ class ClassicBluetoothEngine {
 
   void cancelDiscovery() => _fbc.stopScan();
 
+  /// Dials [address] over the native insecure RFCOMM path. Success is
+  /// reported by the session's "connected" event, not by this future, so
+  /// both roles reach [onPeerConnected] the same way.
   Future<void> connectToHost(String address) async {
-    cancelDiscovery();
-    try {
-      final connection = await _fbc.connect(address);
-      if (connection == null) {
-        _errorController.add('Failed to connect');
+    // The auto-join loop fire-and-forgets its dials and re-dials on a timer,
+    // so without a guard a slow connect turns into several live RFCOMM
+    // sockets against the same host. The host accepts exactly one and then
+    // stops listening, which leaves it holding a session the joiner isn't
+    // tracking while every later dial fails.
+    if (_connected) {
+      Logger.log('BT dial skipped: already connected');
+      return;
+    }
+    if (_dialing) {
+      final startedAt = _dialStartedAt;
+      final age = startedAt == null
+          ? Duration.zero
+          : DateTime.now().difference(startedAt);
+      if (age < _dialStuckAfter) {
+        Logger.log('BT dial skipped: a dial to $address is still in flight');
         return;
       }
-      _clientConnection = connection;
-      _peerConnectedController.add(address);
-      _clientReadSub = connection.input?.listen(
-        (data) => _inputController.add(data),
-        onDone: () => _closedController.add(null),
-        onError: (Object e) => _errorController.add('$e'),
-      );
+      // Cancel it natively first: the socket is what the connect() thread is
+      // blocked on, and the native side refuses a second dial while one is
+      // pending anyway.
+      Logger.log('BT dial: cancelling one stuck for ${age.inSeconds}s');
+      await closeHostedConnection();
+    }
+    final gen = ++_dialGen;
+    _dialing = true;
+    _dialStartedAt = DateTime.now();
+    cancelDiscovery();
+    _listenToSession();
+    try {
+      final landed =
+          await _serverMethods.invokeMethod<bool>('connectToPeer', {
+            'address': address,
+          }) ??
+          false;
+      if (!landed) {
+        // Cancelled mid-dial; the native side closed the socket, so nothing
+        // is left holding the host's session open.
+        Logger.log('BT dial to $address was cancelled before it landed');
+        _errorController.add('Failed to connect');
+      }
     } catch (e) {
+      Logger.log('BT dial to $address failed: $e');
       _errorController.add('$e');
+    } finally {
+      if (gen == _dialGen) _dialing = false;
     }
   }
 
-  Future<void> writeAsClient(Uint8List bytes) async {
-    final connection = _clientConnection;
-    if (connection == null) return;
-    if (_pendingClientWrites >= _maxPendingWrites) return;
-    _pendingClientWrites++;
-    final task = _clientWriteQueue.then((_) async {
-      try {
-        connection.output.add(bytes);
-        await connection.output.allSent;
-      } catch (e) {
-        Logger.log('Bluetooth client write failed: $e');
-      }
-    });
-    _clientWriteQueue = task.then<void>(
-      (_) => _pendingClientWrites--,
-      onError: (_) => _pendingClientWrites--,
-    );
-    return task;
-  }
-
-  // ── Unified write (picks whichever role is active) ──────────────────────
+  // ── Write (same native session either way) ──────────────────────────────
 
   Future<void> write(Uint8List bytes) async {
-    if (_clientConnection != null) {
-      await writeAsClient(bytes);
-    } else if (_hosting) {
-      await writeAsHost(bytes);
-    }
+    if (!_connected) return;
+    await _writeToSession(bytes);
   }
 
   Future<void> reset() async {
     cancelDiscovery();
+    // stopHosting() tears down the native session whichever role opened it —
+    // accepted socket, in-flight dial and all.
     await stopHosting();
-    await _clientReadSub?.cancel();
-    _clientReadSub = null;
-    _clientConnection?.dispose();
-    _clientConnection = null;
+    // Any dial still in flight belongs to the session being torn down; the
+    // generation bump keeps its late failure from clearing a newer guard.
+    _dialGen++;
+    _dialing = false;
   }
 
   Future<void> dispose() async {

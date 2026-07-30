@@ -104,6 +104,9 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
   /// page uses so the UI animates without state emissions).
   Stream<AudioFrame> get frames => _engine.frames;
 
+  /// Incoming host audio, for the visualizer while the host is talking.
+  Stream<AudioFrame> get receivedFrames => _engine.receivedFrames;
+
   Future<void> _loadPrefs() async {
     final storedName = await _settingsRepository.getMyName();
     final voxThreshold = await _settingsRepository.getVoxThreshold();

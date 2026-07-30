@@ -11,6 +11,8 @@ import '../../../../core/widget/animations/helmet_loop_animation.dart';
 import '../../../../core/widget/animations/helmet_loop_animation_light.dart';
 import '../../../../core/widget/animations/mic_loop_animation.dart';
 import '../../../../core/widget/animations/mic_loop_animation_light.dart';
+import '../../../../core/widget/animations/widget_loop_animation.dart';
+import '../../../../core/widget/animations/widget_loop_animation_light.dart';
 
 class _Tip {
   final Widget asset;
@@ -50,6 +52,16 @@ Future<void> showUsageTipsSheet(BuildContext context, {int initialPage = 0}) {
       lightAsset: const MicLoopAnimationLight(),
       title: s.usage_tips_3_title,
       body: s.usage_tips_3_body,
+    ),
+    // The app's main pointer to the home-screen widget existing at all. It
+    // rides along here rather than interrupting on its own: this sheet is
+    // already a one-time, already-earned moment a few seconds into a first
+    // session, so the widget gets discovered without adding a prompt.
+    _Tip(
+      asset: const WidgetLoopAnimation(),
+      lightAsset: const WidgetLoopAnimationLight(),
+      title: s.usage_tips_4_title,
+      body: s.usage_tips_4_body,
     ),
   ];
 

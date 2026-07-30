@@ -8,6 +8,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../../core/settings/noise_suppression_engine.dart';
 import '../../../core/settings/settings_repository.dart';
 import '../../../core/utils/logger.dart';
+import '../../../core/utils/permission_queue.dart';
 import '../domain/audio_processor.dart';
 import '../domain/entity/audio_engine_status.dart';
 import '../domain/entity/audio_frame.dart';
@@ -75,6 +76,8 @@ class AudioEngineImpl implements AudioEngine {
   StreamSubscription<List<double>>? _inputSub;
   final StreamController<AudioFrame> _frameController =
       StreamController<AudioFrame>.broadcast();
+  final StreamController<AudioFrame> _receivedFrameController =
+      StreamController<AudioFrame>.broadcast();
 
   bool _disposed = false;
 
@@ -130,6 +133,9 @@ class AudioEngineImpl implements AudioEngine {
   Stream<AudioFrame> get frames => _frameController.stream;
 
   @override
+  Stream<AudioFrame> get receivedFrames => _receivedFrameController.stream;
+
+  @override
   Stream<AudioEngineStatus> get status => _statusController.stream;
 
   @override
@@ -149,7 +155,12 @@ class AudioEngineImpl implements AudioEngine {
     // audio_io.start(), so treat a throwing/absent handler as "ask later".
     var micGranted = true;
     try {
-      micGranted = (await Permission.microphone.request()).isGranted;
+      // Queued: the Bluetooth flow can be raising its own dialog at this exact
+      // moment, and Android drops whichever request comes second — leaving
+      // this await hanging forever. See [PermissionQueue].
+      micGranted = (await PermissionQueue.run(
+        () => Permission.microphone.request(),
+      )).isGranted;
     } catch (e) {
       Logger.log('Mic permission request unavailable: $e');
     }
@@ -425,6 +436,17 @@ class AudioEngineImpl implements AudioEngine {
 
   @override
   void playReceived(List<double> samples, int seq, String senderId) {
+    // Emitted before resampling: this is the 16 kHz network frame, which is
+    // what the visualizer wants — the speaker-rate copy is longer for no extra
+    // detail. Fed straight out rather than through the jitter buffer, so the
+    // dial tracks the wire and never waits on playback scheduling.
+    // hasListener: with no visualizer mounted this is pure waste on the RX
+    // hot path, and a broadcast controller drops the event anyway.
+    if (_receivedFrameController.hasListener && samples.isNotEmpty) {
+      _receivedFrameController.add(
+        AudioFrame(rms: _computeRms(samples), samples: samples),
+      );
+    }
     final upsampled = _rxResampler?.process(samples) ?? samples;
     _buffer?.feed(upsampled, seq, senderId);
   }
@@ -447,6 +469,7 @@ class AudioEngineImpl implements AudioEngine {
     _routeSub = null;
     await _inputSub?.cancel();
     await _frameController.close();
+    await _receivedFrameController.close();
     await _statusController.close();
     _buffer?.dispose();
     _rnnoiseSuppressor.dispose();

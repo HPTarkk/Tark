@@ -323,6 +323,15 @@ class AppLocalizationsFa extends AppLocalizations {
   String get bt_no_devices_found => 'این دور و بر چیزی نیست';
 
   @override
+  String get bt_unnamed_device => 'دستگاه بی‌نام';
+
+  @override
+  String get default_user_name => 'رفیق';
+
+  @override
+  String get landing_ready => 'آماده‌ی حرف زدن';
+
+  @override
   String get bt_connecting => 'دارم وصل می‌شم...';
 
   @override
@@ -677,6 +686,13 @@ class AppLocalizationsFa extends AppLocalizations {
   String get bt_use_wifi_bridge => 'به جاش از وای‌فای برو';
 
   @override
+  String get bt_not_discoverable =>
+      'الان بقیه نمی‌تونن این گوشی رو پیدا کنن — مهلت دیده شدنش تموم شده.';
+
+  @override
+  String get bt_make_discoverable => 'بذار پیدام کنن';
+
+  @override
   String get background_title => 'با صفحه خاموش هم حرف بزن';
 
   @override
@@ -793,6 +809,13 @@ class AppLocalizationsFa extends AppLocalizations {
   @override
   String get usage_tips_3_body =>
       'میکروفون همیشه حواسش به توئه و برنامه صداهای مزاحم رو پاک می‌کنه، پس فقط حرف بزن. هر وقت خواستی هر دو رو توی تنظیمات دستکاری کن.';
+
+  @override
+  String get usage_tips_4_title => 'کانالت رو بذار روی صفحه اصلی';
+
+  @override
+  String get usage_tips_4_body =>
+      'ویجت ترک رو اضافه کن تا با یه نگاه ببینی کی روی خطه و با یه ضربه بپری تو کانال — بدون گشتن توی برنامه. هر وقت خواستی از تنظیمات اضافه‌ش کن.';
 
   @override
   String get usage_tips_dismiss => 'فهمیدم';
@@ -939,6 +962,9 @@ class AppLocalizationsFa extends AppLocalizations {
   String get widget_end => 'پایان';
 
   @override
+  String get settings_add_widget => 'افزودن ویجت کانال';
+
+  @override
   String get settings_widget_hint =>
-      'ویجت ترک رو به صفحه اصلی اضافه کن تا با یه ضربه بپری توی کانال.';
+      'یه صفحه بیسیم بذار روی صفحه اصلی — ببین کی روی خطه و با یه ضربه بپر تو.';
 }

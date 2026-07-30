@@ -71,22 +71,38 @@
         android:label="تَرک"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
-        <!-- Deliberately no android:taskAffinity="". It shipped in the
-             original template and is what made the app restart from scratch
-             instead of resuming: an empty affinity gives the activity a task
-             the launcher's own MAIN intent can't match, so tapping the icon
-             (or returning via Recents) started a SECOND instance rather than
-             coming back to the running one. That took the FlutterEngine with
-             it — a plain FlutterActivity owns its engine and destroys it —
-             which killed the live session and detached WidgetControlBridge,
-             leaving the widget's MUTE/END with nothing to talk to. Launching
-             from the home-screen widget made it reproduce every time, since
-             the widget's PendingIntent is what created that unmatchable
-             task. -->
+        <!-- Two things here keep the app to exactly ONE instance, and both
+             are needed:
+
+             1. No android:taskAffinity="". It shipped in the original
+                template; an empty affinity gives the activity a task the
+                launcher's own MAIN intent can't match, so tapping the icon
+                started a second instance instead of resuming.
+
+             2. launchMode="singleTask", not "singleTop". singleTop only
+                de-dupes when the activity is already at the top of the SAME
+                task, which doesn't cover this app: the home-screen widget
+                starts us with a custom action and a tark:// data URI, so the
+                task it creates has a base intent that doesn't match
+                ACTION_MAIN/CATEGORY_LAUNCHER — and Android then happily
+                builds a second task when the icon is tapped. singleTask is
+                what makes the instance unique regardless of which intent
+                got there first; repeat launches arrive through onNewIntent.
+
+             Getting this wrong is not cosmetic: a second instance builds a
+             second FlutterEngine (a plain FlutterActivity owns and destroys
+             its engine), which abandons the live session and detaches
+             WidgetControlBridge, leaving the widget's MUTE/END with nothing
+             to talk to.
+
+             NOTE: changing affinity/launchMode does not rewrite task records
+             that already exist. Duplicates created by an older build survive
+             the update and have to be cleared once (force-stop, or swipe
+             them out of Recents). -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:launchMode="singleTop"
+            android:launchMode="singleTask"
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"

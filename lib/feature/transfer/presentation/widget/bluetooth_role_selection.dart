@@ -186,7 +186,7 @@ class _ReconnectCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    peer.name,
+                    peer.name.isEmpty ? s.bt_unnamed_device : peer.name,
                     style: TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 14,

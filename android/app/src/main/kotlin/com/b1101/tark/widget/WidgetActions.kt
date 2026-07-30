@@ -96,12 +96,14 @@ object WidgetActions {
             // asks what launched the app.
             action = HomeWidgetLaunchIntent.HOME_WIDGET_LAUNCH_ACTION
             data = Uri.parse("tark://widget/$widgetIntent?n=$nonce")
-            // Reuse the app's existing task rather than stacking a second
-            // instance on top of it. MainActivity is singleTop, so CLEAR_TOP
-            // delivers this through onNewIntent to the activity that is
-            // already running — which matters more here than usual, because a
-            // second instance would build a second FlutterEngine and abandon
-            // the live session owned by the first.
+            // NEW_TASK is required to start an activity from a non-activity
+            // context at all. Uniqueness is guaranteed by MainActivity's
+            // singleTask launchMode rather than by these flags — the custom
+            // action and tark:// data below mean the task this creates does
+            // NOT look like a launcher task, which is exactly the case
+            // singleTop failed to cover (see AndroidManifest). CLEAR_TOP is
+            // kept so a plugin activity left open on top (QR scanner, a
+            // permission dialog) doesn't hide the channel we just opened.
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
 

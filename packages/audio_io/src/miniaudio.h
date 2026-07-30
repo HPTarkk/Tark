@@ -8017,6 +8017,8 @@ struct ma_device
             /*AAudioStream**/ ma_ptr pStreamPlayback;
             /*AAudioStream**/ ma_ptr pStreamCapture;
             ma_mutex rerouteLock;
+            ma_atomic_uint64 rerouteLockOwner;  /* LOCAL PATCH: thread inside rerouteLock, 0 when free. See ma_reroute_lock__aaudio(). */
+            ma_atomic_uint32 rerouteJobsInFlight;  /* LOCAL PATCH: reroute jobs posted but not yet finished. See ma_device_uninit__aaudio(). */
             ma_atomic_bool32 isTearingDown;
             ma_aaudio_usage usage;
             ma_aaudio_content_type contentType;
@@ -39292,8 +39294,16 @@ static void ma_stream_error_callback__aaudio(ma_AAudioStream* pStream, void* pUs
             job.data.device.aaudio.reroute.deviceType = ma_device_type_playback;
         }
     
+        /*
+        LOCAL PATCH: counted here, at POST time rather than at job entry, so the
+        drain in ma_device_uninit__aaudio() cannot observe zero while this job is
+        still sitting in the queue. See ma_reroute_drain_jobs__aaudio().
+        */
+        ma_atomic_uint32_fetch_add(&pDevice->aaudio.rerouteJobsInFlight, 1);
+
         result = ma_device_job_thread_post(&pDevice->pContext->aaudio.jobThread, &job);
         if (result != MA_SUCCESS) {
+            ma_atomic_uint32_fetch_sub(&pDevice->aaudio.rerouteJobsInFlight, 1);
             ma_log_postf(ma_device_get_log(pDevice), MA_LOG_LEVEL_INFO, "[AAudio] Device Disconnected. Failed to post job for rerouting.\n");
             return;
         }
@@ -39617,6 +39627,107 @@ static ma_result ma_context_get_device_info__aaudio(ma_context* pContext, ma_dev
     return MA_SUCCESS;
 }
 
+/*
+LOCAL PATCH (tark) — reroute vs. start/stop use-after-free.
+
+Upstream, ma_device_start__aaudio()/ma_device_stop__aaudio() read
+pDevice->aaudio.pStreamPlayback/pStreamCapture without holding rerouteLock,
+while the reroute job thread closes and frees exactly those streams under that
+lock (ma_job_process__device__aaudio_reroute -> ma_device_reinit__aaudio ->
+ma_close_streams__aaudio). If a route change lands while the app is opening the
+device — Bluetooth SCO coming up on a Galaxy S8 as the walkie session starts is
+the reproducible case — start hands a freed AAudioStream to
+AAudioStream_requestStart/requestStop and the process dies, either with SIGSEGV
+on the stale object or with a CFI abort inside libaaudio when it dereferences
+the dead vtable.
+
+Start/stop now take rerouteLock too. The reroute job calls both while already
+holding it (ma_device_reinit__aaudio starts the new streams; a failed reroute
+calls ma_device_stop), and ma_mutex is not recursive, so the owning thread is
+tracked and re-entry from it skips the lock. AAudio is Android-only, so
+pthread_self() is always available here; it never returns 0 on bionic, which is
+what makes 0 usable as the "unowned" sentinel.
+*/
+static ma_bool32 ma_reroute_lock__aaudio(ma_device* pDevice)
+{
+    ma_uint64 self = (ma_uint64)(ma_uintptr)pthread_self();
+
+    MA_ASSERT(pDevice != NULL);
+
+    if (ma_atomic_uint64_get(&pDevice->aaudio.rerouteLockOwner) == self) {
+        return MA_FALSE;    /* Re-entry from the thread already holding it — nothing to do. */
+    }
+
+    ma_mutex_lock(&pDevice->aaudio.rerouteLock);
+    ma_atomic_uint64_set(&pDevice->aaudio.rerouteLockOwner, self);
+
+    return MA_TRUE;
+}
+
+static void ma_reroute_unlock__aaudio(ma_device* pDevice, ma_bool32 acquired)
+{
+    MA_ASSERT(pDevice != NULL);
+
+    if (!acquired) {
+        return;             /* Re-entrant call — the outer frame still owns it. */
+    }
+
+    ma_atomic_uint64_set(&pDevice->aaudio.rerouteLockOwner, 0);
+    ma_mutex_unlock(&pDevice->aaudio.rerouteLock);
+}
+
+/*
+LOCAL PATCH (tark) — reroute job vs. rerouteLock destruction.
+
+The AAudio job thread belongs to the *context*, not the device, so it is only
+joined later, in ma_context_uninit(). ma_device_uninit__aaudio() runs before
+that and destroys rerouteLock. A reroute job that is parked inside
+ma_mutex_lock() when the mutex is destroyed is left on a futex nobody will ever
+wake, and the join in ma_context_uninit() then never returns.
+
+Confirmed on a Galaxy S8+ (Android 9): a speakerphone route change landing
+inside AAudioStream_requestStart() posted a reroute job, the failed start tore
+the device down, and the app hung with the main thread in pthread_join under
+ma_device_uninit. That freezes the whole app rather than just the audio,
+because audio_io_destroy() reaches ma_device_uninit() over Dart FFI on the
+Android main thread.
+
+Reroute jobs are therefore counted from the moment they are POSTED (not from
+job entry — a job still sitting in the queue must count too), and teardown
+drains that count before it goes anywhere near the mutex. The wait is bounded:
+if it does not reach zero we skip ma_mutex_uninit() and leak the mutex instead,
+which on bionic is a plain futex word and costs nothing.
+*/
+static ma_bool32 ma_reroute_drain_jobs__aaudio(ma_device* pDevice)
+{
+    const ma_uint32 pollIntervalMs = 2;
+    const ma_uint32 maxWaitMs      = 2000;
+    ma_uint32 waitedMs = 0;
+
+    MA_ASSERT(pDevice != NULL);
+
+    for (;;) {
+        if (ma_atomic_uint32_get(&pDevice->aaudio.rerouteJobsInFlight) == 0) {
+            return MA_TRUE;
+        }
+
+        if (waitedMs >= maxWaitMs) {
+            return MA_FALSE;
+        }
+
+        ma_sleep(pollIntervalMs);
+        waitedMs += pollIntervalMs;
+    }
+}
+
+/* LOCAL PATCH: paired with the count taken in ma_stream_error_callback__aaudio(). */
+static void ma_reroute_job_done__aaudio(ma_device* pDevice)
+{
+    MA_ASSERT(pDevice != NULL);
+
+    ma_atomic_uint32_fetch_sub(&pDevice->aaudio.rerouteJobsInFlight, 1);
+}
+
 static ma_result ma_close_streams__aaudio(ma_device* pDevice)
 {
     MA_ASSERT(pDevice != NULL);
@@ -39644,15 +39755,30 @@ static ma_result ma_device_uninit__aaudio(ma_device* pDevice)
     */
     ma_atomic_bool32_set(&pDevice->aaudio.isTearingDown, MA_TRUE);
 
+    /*
+    LOCAL PATCH: drain reroute jobs BEFORE going anywhere near rerouteLock.
+    isTearingDown is already set above, so ma_stream_error_callback__aaudio()
+    posts no further jobs and this count only falls. See
+    ma_reroute_drain_jobs__aaudio() for why destroying the mutex out from under
+    a waiting job hangs the process.
+    */
+    ma_bool32 drained = ma_reroute_drain_jobs__aaudio(pDevice);
+
     /* Wait for any rerouting to finish before attempting to close the streams. */
-    ma_mutex_lock(&pDevice->aaudio.rerouteLock);
+    /* LOCAL PATCH: owner-tracking helper, so the owner field stays consistent with the mutex. */
+    ma_bool32 acquired = ma_reroute_lock__aaudio(pDevice);
     {
         ma_close_streams__aaudio(pDevice);
     }
-    ma_mutex_unlock(&pDevice->aaudio.rerouteLock);
+    ma_reroute_unlock__aaudio(pDevice, acquired);
 
     /* Destroy rerouting lock. */
-    ma_mutex_uninit(&pDevice->aaudio.rerouteLock);
+    /* LOCAL PATCH: only when nothing can still be parked on it — see above. */
+    if (drained) {
+        ma_mutex_uninit(&pDevice->aaudio.rerouteLock);
+    } else {
+        ma_log_post(ma_device_get_log(pDevice), MA_LOG_LEVEL_ERROR, "[AAudio] LOCAL PATCH: reroute job still in flight at teardown, leaking rerouteLock instead of destroying it with a waiter attached.\n");
+    }
 
     return MA_SUCCESS;
 }
@@ -39753,6 +39879,9 @@ static ma_result ma_device_init__aaudio(ma_device* pDevice, const ma_device_conf
         return result;
     }
 
+    ma_atomic_uint64_set(&pDevice->aaudio.rerouteLockOwner, 0);
+    ma_atomic_uint32_set(&pDevice->aaudio.rerouteJobsInFlight, 0);
+
     return MA_SUCCESS;
 }
 
@@ -39838,7 +39967,8 @@ static ma_result ma_device_stop_stream__aaudio(ma_device* pDevice, ma_AAudioStre
     return MA_SUCCESS;
 }
 
-static ma_result ma_device_start__aaudio(ma_device* pDevice)
+/* LOCAL PATCH: unlocked body — callers must hold rerouteLock via ma_reroute_lock__aaudio(). */
+static ma_result ma_device_start_streams__aaudio(ma_device* pDevice)
 {
     MA_ASSERT(pDevice != NULL);
 
@@ -39862,7 +39992,8 @@ static ma_result ma_device_start__aaudio(ma_device* pDevice)
     return MA_SUCCESS;
 }
 
-static ma_result ma_device_stop__aaudio(ma_device* pDevice)
+/* LOCAL PATCH: unlocked body — callers must hold rerouteLock via ma_reroute_lock__aaudio(). */
+static ma_result ma_device_stop_streams__aaudio(ma_device* pDevice)
 {
     MA_ASSERT(pDevice != NULL);
 
@@ -39883,6 +40014,36 @@ static ma_result ma_device_stop__aaudio(ma_device* pDevice)
     ma_device__on_notification_stopped(pDevice);
 
     return MA_SUCCESS;
+}
+
+/* LOCAL PATCH: rerouteLock keeps the reroute job from freeing the streams mid-start. */
+static ma_result ma_device_start__aaudio(ma_device* pDevice)
+{
+    ma_result result;
+    ma_bool32 acquired;
+
+    MA_ASSERT(pDevice != NULL);
+
+    acquired = ma_reroute_lock__aaudio(pDevice);
+    result = ma_device_start_streams__aaudio(pDevice);
+    ma_reroute_unlock__aaudio(pDevice, acquired);
+
+    return result;
+}
+
+/* LOCAL PATCH: see ma_device_start__aaudio(). */
+static ma_result ma_device_stop__aaudio(ma_device* pDevice)
+{
+    ma_result result;
+    ma_bool32 acquired;
+
+    MA_ASSERT(pDevice != NULL);
+
+    acquired = ma_reroute_lock__aaudio(pDevice);
+    result = ma_device_stop_streams__aaudio(pDevice);
+    ma_reroute_unlock__aaudio(pDevice, acquired);
+
+    return result;
 }
 
 static ma_result ma_device_reinit__aaudio(ma_device* pDevice, ma_device_type deviceType)
@@ -40174,7 +40335,19 @@ static ma_result ma_job_process__device__aaudio_reroute(ma_job* pJob)
     pDevice = (ma_device*)pJob->data.device.aaudio.reroute.pDevice;
     MA_ASSERT(pDevice != NULL);
 
-    ma_mutex_lock(&pDevice->aaudio.rerouteLock);
+    /*
+    LOCAL PATCH: teardown started while this job sat in the queue. Do not touch
+    rerouteLock — ma_device_uninit__aaudio() is about to destroy it, and there is
+    nothing left to reroute. Must still report done, or the drain there spins out
+    its full timeout. See ma_reroute_drain_jobs__aaudio().
+    */
+    if (ma_atomic_bool32_get(&pDevice->aaudio.isTearingDown)) {
+        ma_reroute_job_done__aaudio(pDevice);
+        return MA_SUCCESS;
+    }
+
+    /* LOCAL PATCH: through the owner-tracking helper so the start/stop calls below re-enter instead of deadlocking. */
+    ma_bool32 acquired = ma_reroute_lock__aaudio(pDevice);
     {
         /* Here is where we need to reroute the device. To do this we need to uninitialize the stream and reinitialize it. */
         result = ma_device_reinit__aaudio(pDevice, (ma_device_type)pJob->data.device.aaudio.reroute.deviceType);
@@ -40187,7 +40360,10 @@ static ma_result ma_job_process__device__aaudio_reroute(ma_job* pJob)
             ma_device_stop(pDevice);
         }
     }
-    ma_mutex_unlock(&pDevice->aaudio.rerouteLock);
+    ma_reroute_unlock__aaudio(pDevice, acquired);
+
+    /* LOCAL PATCH: paired with the count taken at post time. */
+    ma_reroute_job_done__aaudio(pDevice);
 
     return result;
 }

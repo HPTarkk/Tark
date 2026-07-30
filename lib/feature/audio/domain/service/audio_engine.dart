@@ -26,6 +26,11 @@ abstract interface class AudioEngine {
   /// Audio-rate stream of fixed-size (20 ms @ 16 kHz) outgoing frames.
   Stream<AudioFrame> get frames;
 
+  /// Audio-rate stream of incoming 16 kHz frames handed to [playReceived],
+  /// so the UI can show what the channel is playing rather than only what the
+  /// mic is hearing. Tapped off the wire, ahead of the jitter buffer.
+  Stream<AudioFrame> get receivedFrames;
+
   /// Emits whenever permission/started state changes.
   Stream<AudioEngineStatus> get status;
 

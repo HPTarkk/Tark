@@ -7,10 +7,10 @@ import '../../../../core/theme/theme_service.dart';
 import '../../../audio/api/audio_api.dart';
 import '../manager/walkie_talkie_cubit.dart';
 
-/// The channel's "radio scope": a recessed oscilloscope screen showing the
-/// live waveform, framed by a faint grid and corner ticks, with a status pill
-/// that reads out what's on the wire — you're on air, someone's talking (by
-/// name), you're muted, or it's just listening.
+/// The channel's "radio dial": a recessed circular scope where the live level
+/// radiates from a glowing hub, with a status badge at its centre that reads
+/// out what's on the wire — you're on air, someone's talking (by name), you're
+/// muted, or it's just listening.
 ///
 /// The outer [BlocBuilder] rebuilds only when transmit/receive/mute/ready
 /// state changes. The inner [StreamBuilder] updates the waveform at audio
@@ -42,7 +42,11 @@ class VisualizerSection extends StatelessWidget {
         } else if (receiving) {
           scope = _Scope(AppColors.green, _talkerName(state));
         } else {
-          scope = _Scope(AppColors.textSecondary, s.monitoring, dim: true);
+          scope = _Scope(
+            AppColors.textSecondary,
+            state.isReady ? s.monitoring : s.initializing,
+            dim: true,
+          );
         }
 
         final isActive = transmitting || receiving;
@@ -58,7 +62,7 @@ class VisualizerSection extends StatelessWidget {
         return AnimatedContainer(
           duration: const Duration(milliseconds: 250),
           curve: Curves.easeOutCubic,
-          height: 150,
+          height: 248,
           padding: const EdgeInsets.all(11),
           decoration: BoxDecoration(
             color: AppColors.card,
@@ -88,59 +92,46 @@ class VisualizerSection extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(11),
               child: Stack(
+                alignment: Alignment.center,
                 children: [
                   const Positioned.fill(child: _ScanlineBackground()),
+                  // The dial idles (a slow shimmer on the ring) before the
+                  // first frame arrives, so the scope is never a blank panel.
+                  //
+                  // While someone else holds the channel the dial follows the
+                  // incoming audio, not the mic: it is labelled with their
+                  // name, so it has to move with their voice. Your own mic
+                  // wins back the dial the moment you key up.
                   Positioned.fill(
-                    child: RepaintBoundary(
-                      child: CustomPaint(
-                        painter: _ScopeGridPainter(
-                          gridColor: AppColors.border,
-                          tickColor: isActive
-                              ? scope.color
-                              : AppColors.border,
-                        ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: StreamBuilder<AudioFrame>(
+                        // No key: StreamBuilder resubscribes on a stream swap
+                        // by itself, and keeping the element alive keeps the
+                        // dial's envelope from snapping back to zero.
+                        stream: receiving && !transmitting
+                            ? context.read<WalkieTalkieCubit>().receivedFrames
+                            : context.read<WalkieTalkieCubit>().frames,
+                        builder: (context, snapshot) {
+                          final frame = snapshot.data;
+                          return AudioVisualizer(
+                            samples: frame?.samples ?? const <double>[],
+                            rms: frame?.rms ?? 0,
+                            barCount: 64,
+                            color: waveColor,
+                          );
+                        },
                       ),
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _StatusPill(scope: scope),
-                        Expanded(
-                          child: StreamBuilder<AudioFrame>(
-                            stream: context.read<WalkieTalkieCubit>().frames,
-                            builder: (context, snapshot) {
-                              final frame = snapshot.data;
-                              if (frame == null || frame.samples.isEmpty) {
-                                return Center(
-                                  child: Text(
-                                    state.isReady
-                                        ? s.monitoring
-                                        : s.initializing,
-                                    style: TextStyle(
-                                      color: AppColors.textSecondary.withAlpha(
-                                        120,
-                                      ),
-                                      fontSize: 12,
-                                      letterSpacing: 3,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                );
-                              }
-                              return AudioVisualizer(
-                                samples: frame.samples,
-                                rms: frame.rms,
-                                barCount: 52,
-                                color: waveColor,
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
+                  // Status reads out from the hub, inside the ring. No pill
+                  // around it: a capsule here cuts a lens-shaped hole through
+                  // the bars behind it and the dial stops reading as a dial.
+                  // Narrow enough that a long talker name ellipsizes inside the
+                  // hub instead of running out over the bars.
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 96),
+                    child: _StatusReadout(scope: scope),
                   ),
                 ],
               ),
@@ -159,7 +150,7 @@ class VisualizerSection extends StatelessWidget {
   }
 }
 
-// ── Status pill ───────────────────────────────────────────────────────────────
+// ── Status readout ────────────────────────────────────────────────────────────
 
 /// Value bag describing the current scope status: accent colour, label, and a
 /// few flags that pick the leading glyph and its animation.
@@ -179,18 +170,18 @@ class _Scope {
   });
 }
 
-/// Raised pill in the scope's top-left: a status dot (pulsing on air, a
-/// slashed mic when muted) plus a short label.
-class _StatusPill extends StatefulWidget {
+/// Readout in the dial's hub: a status glyph (a dot, pulsing on air; a slashed
+/// mic when muted) over a short label.
+class _StatusReadout extends StatefulWidget {
   final _Scope scope;
 
-  const _StatusPill({required this.scope});
+  const _StatusReadout({required this.scope});
 
   @override
-  State<_StatusPill> createState() => _StatusPillState();
+  State<_StatusReadout> createState() => _StatusReadoutState();
 }
 
-class _StatusPillState extends State<_StatusPill>
+class _StatusReadoutState extends State<_StatusReadout>
     with SingleTickerProviderStateMixin {
   late final AnimationController _pulse = AnimationController(
     vsync: this,
@@ -207,117 +198,48 @@ class _StatusPillState extends State<_StatusPill>
   Widget build(BuildContext context) {
     final scope = widget.scope;
     final color = scope.color;
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 250),
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        color: AppColors.card.withAlpha(235),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withAlpha(scope.dim ? 70 : 150)),
-        boxShadow: scope.dim
-            ? null
-            : [BoxShadow(color: color.withAlpha(35), blurRadius: 10)],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (scope.muted)
-            Icon(Icons.mic_off_rounded, color: color, size: 11)
-          else if (scope.pulse)
-            FadeTransition(
-              opacity: Tween<double>(begin: 1, end: 0.3).animate(
-                CurvedAnimation(parent: _pulse, curve: Curves.easeInOut),
-              ),
-              child: _dot(color, glow: true),
-            )
-          else
-            _dot(color),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              scope.label,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: scope.dim ? color.withAlpha(200) : color,
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.5,
-              ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (scope.muted)
+          Icon(Icons.mic_off_rounded, color: color, size: 15)
+        else if (scope.pulse)
+          FadeTransition(
+            opacity: Tween<double>(begin: 1, end: 0.25).animate(
+              CurvedAnimation(parent: _pulse, curve: Curves.easeInOut),
             ),
+            child: _dot(color, glow: true),
+          )
+        else
+          _dot(color),
+        const SizedBox(height: 7),
+        Text(
+          scope.label,
+          maxLines: 1,
+          textAlign: TextAlign.center,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: scope.dim ? color.withAlpha(190) : color,
+            fontSize: 9.5,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.2,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _dot(Color color, {bool glow = false}) => Container(
-    width: 7,
-    height: 7,
+    width: 8,
+    height: 8,
     decoration: BoxDecoration(
       shape: BoxShape.circle,
       color: color,
       boxShadow: glow
-          ? [BoxShadow(color: color.withAlpha(160), blurRadius: 6)]
+          ? [BoxShadow(color: color.withAlpha(160), blurRadius: 7)]
           : null,
     ),
   );
-}
-
-// ── Scope grid ────────────────────────────────────────────────────────────────
-
-/// Faint oscilloscope framing painted under the waveform: a centre baseline,
-/// a few vertical divisions, and short L-shaped registration ticks in each
-/// corner (tinted with the live status colour when active).
-class _ScopeGridPainter extends CustomPainter {
-  final Color gridColor;
-  final Color tickColor;
-
-  const _ScopeGridPainter({required this.gridColor, required this.tickColor});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final grid = Paint()
-      ..color = gridColor.withAlpha(70)
-      ..strokeWidth = 1;
-
-    // Centre baseline.
-    final cy = size.height / 2;
-    canvas.drawLine(Offset(0, cy), Offset(size.width, cy), grid);
-
-    // Vertical divisions (quarters), fainter than the baseline.
-    final vgrid = Paint()
-      ..color = gridColor.withAlpha(40)
-      ..strokeWidth = 1;
-    for (var i = 1; i < 4; i++) {
-      final x = size.width * i / 4;
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), vgrid);
-    }
-
-    // Corner registration ticks.
-    const inset = 7.0;
-    const len = 9.0;
-    final tick = Paint()
-      ..color = tickColor.withAlpha(150)
-      ..strokeWidth = 1.5
-      ..strokeCap = StrokeCap.round;
-    final w = size.width, h = size.height;
-    // top-left
-    canvas.drawLine(const Offset(inset, inset), const Offset(inset + len, inset), tick);
-    canvas.drawLine(const Offset(inset, inset), const Offset(inset, inset + len), tick);
-    // top-right
-    canvas.drawLine(Offset(w - inset, inset), Offset(w - inset - len, inset), tick);
-    canvas.drawLine(Offset(w - inset, inset), Offset(w - inset, inset + len), tick);
-    // bottom-left
-    canvas.drawLine(Offset(inset, h - inset), Offset(inset + len, h - inset), tick);
-    canvas.drawLine(Offset(inset, h - inset), Offset(inset, h - inset - len), tick);
-    // bottom-right
-    canvas.drawLine(Offset(w - inset, h - inset), Offset(w - inset - len, h - inset), tick);
-    canvas.drawLine(Offset(w - inset, h - inset), Offset(w - inset, h - inset - len), tick);
-  }
-
-  @override
-  bool shouldRepaint(covariant _ScopeGridPainter old) =>
-      old.gridColor != gridColor || old.tickColor != tickColor;
 }
 
 // ── Scanline background ───────────────────────────────────────────────────────

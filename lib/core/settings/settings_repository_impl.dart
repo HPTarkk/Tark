@@ -36,6 +36,11 @@ class SettingsRepositoryImpl implements SettingsRepository {
       _prefs.getString(SettingsKeys.userName) ?? AppSettings.defaults().myName;
 
   @override
+  Future<String> getLocaleCode() async =>
+      // Same key and same default as LocaleService, which owns the live value.
+      _prefs.getString(SettingsKeys.appLocale) ?? 'fa';
+
+  @override
   Future<void> setMyName(String value) async {
     await _prefs.setString(SettingsKeys.userName, value);
     _myNameController.add(value);

@@ -29,6 +29,19 @@ abstract interface class HomeWidgetService {
   /// event. No-ops if nothing has been published yet.
   Future<void> refresh();
 
+  /// Whether the launcher can add the widget on the user's behalf.
+  ///
+  /// Android 8+ with a launcher that implements pinning — most do, but Samsung
+  /// and some OEM launchers historically didn't, so this is a runtime question,
+  /// not a version check. Always false on iOS: there is no equivalent API, and
+  /// the user has to long-press the home screen themselves.
+  Future<bool> canPin();
+
+  /// Asks the launcher to add the widget. The launcher shows its own
+  /// confirmation, so there's nothing to report back — the user may well
+  /// decline, and there's no callback that says which.
+  Future<void> requestPin();
+
   /// Taps that arrive while the app is already running.
   Stream<HomeWidgetLaunch> get launches;
 

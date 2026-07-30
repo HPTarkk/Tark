@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -26,8 +27,27 @@ class _BluetoothJoinerRadarState extends State<BluetoothJoinerRadar>
     duration: const Duration(milliseconds: 3600),
   )..repeat();
 
+  /// How long the list stays honestly blank before it says so. The scan only
+  /// surfaces Tark hosts, so a room full of headsets now looks identical to an
+  /// empty room — and an empty panel under a sweeping radar reads as broken
+  /// rather than as "nobody is hosting yet". Long enough that a host coming up
+  /// at the same moment lands first.
+  static const _emptyHintAfter = Duration(seconds: 6);
+
+  Timer? _emptyHintTimer;
+  bool _searchedAWhile = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _emptyHintTimer = Timer(_emptyHintAfter, () {
+      if (mounted) setState(() => _searchedAWhile = true);
+    });
+  }
+
   @override
   void dispose() {
+    _emptyHintTimer?.cancel();
     _sweep.dispose();
     super.dispose();
   }
@@ -65,7 +85,11 @@ class _BluetoothJoinerRadarState extends State<BluetoothJoinerRadar>
           const SizedBox(height: 14),
           Text(
             connecting
-                ? '${s.bt_connecting} ${connectingPeer?.name ?? state.lastPeer?.name ?? ''}'
+                // A nameless peer just drops off the end — better a bare
+                // "Hooking up..." than one trailed by an address.
+                ? '${s.bt_connecting} '
+                          '${connectingPeer?.name ?? state.lastPeer?.name ?? ''}'
+                      .trimRight()
                 : s.bt_scanning,
             style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
           ),
@@ -89,7 +113,20 @@ class _BluetoothJoinerRadarState extends State<BluetoothJoinerRadar>
           const SizedBox(height: 14),
           Expanded(
             child: state.peers.isEmpty
-                ? const SizedBox.shrink()
+                ? Align(
+                    alignment: Alignment.topCenter,
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 400),
+                      opacity: _searchedAWhile && !connecting ? 1 : 0,
+                      child: Text(
+                        s.bt_no_devices_found,
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  )
                 : ListView.separated(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                     itemCount: state.peers.length,
@@ -113,6 +150,13 @@ class _BluetoothJoinerRadarState extends State<BluetoothJoinerRadar>
     );
   }
 }
+
+// Blip lifetime, as fractions of one full sweep rotation: full brightness
+// while the beam is on it, then a fade that ends with a dark gap before the
+// beam returns.
+const double _blipHold = 0.03;
+const double _blipFade = 0.55;
+const double _blipPing = 0.10;
 
 class _RadarPainter extends CustomPainter {
   final double sweep;
@@ -191,6 +235,12 @@ class _RadarPainter extends CustomPainter {
 
     // Peers as glowing blips: bearing from the id (stable), distance from
     // signal strength (stronger = closer to center).
+    //
+    // A blip only exists because the beam just hit it — it lights up as the
+    // leading edge crosses its bearing, then decays like radar phosphor and
+    // goes dark until the next pass. A permanently lit dot reads as a static
+    // list drawn on a circle, not a scan.
+    final edgeAngle = angle + pi / 2;
     for (final peer in peers) {
       final bearing = (peer.id.hashCode % 360) * pi / 180;
       final rssi = peer.rssi ?? -78;
@@ -199,9 +249,43 @@ class _RadarPainter extends CustomPainter {
         center.dx + cos(bearing) * radius * dist,
         center.dy + sin(bearing) * radius * dist,
       );
+
+      // Rotations-fraction since the edge last swept this bearing: 0 = being
+      // painted right now, ~1 = about to be painted again.
+      final age = ((edgeAngle - bearing) % (2 * pi)) / (2 * pi);
+      // Hold at full for the instant of contact, then quadratic fade to dark
+      // well before the beam comes back around.
+      final linear = age < _blipHold
+          ? 1.0
+          : (1 - (age - _blipHold) / _blipFade).clamp(0.0, 1.0);
+      if (linear <= 0) continue;
+      final glow = linear * linear;
+
       final color = peer.isBle ? amber : green;
-      canvas.drawCircle(pos, 7, Paint()..color = color.withAlpha(50));
-      canvas.drawCircle(pos, 3.4, Paint()..color = color);
+      // Contact flash: a ring expanding out of the blip for the first slice
+      // of its life, so a fresh detection reads differently from a decaying
+      // one even when both are near full brightness.
+      if (age < _blipPing) {
+        final t = age / _blipPing;
+        canvas.drawCircle(
+          pos,
+          4 + t * 11,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.2
+            ..color = color.withAlpha(((1 - t) * 120).round()),
+        );
+      }
+      canvas.drawCircle(
+        pos,
+        7,
+        Paint()..color = color.withAlpha((glow * 60).round()),
+      );
+      canvas.drawCircle(
+        pos,
+        3.4,
+        Paint()..color = color.withAlpha((glow * 255).round()),
+      );
     }
 
     // Center dot: us.
@@ -256,10 +340,10 @@ class _PeerTile extends StatelessWidget {
                   ),
                 )
               else
-                // Amber marks a device hosting from inside the app — the only
-                // kind worth tapping, and the only kind the solo auto-join
-                // will pick up on its own. Everything else in a classic scan
-                // is somebody's headset, so it stays muted.
+                // Amber marks a device hosting from inside the app, which is
+                // all the list normally holds — the cubit drops everything a
+                // classic inquiry sweeps up. A reconnect target waiting on a
+                // stale adapter name is the one entry that lands here muted.
                 Icon(
                   Icons.bluetooth_rounded,
                   color: peer.isAppHost
@@ -270,7 +354,9 @@ class _PeerTile extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  peer.name,
+                  peer.name.isEmpty
+                      ? context.getString.bt_unnamed_device
+                      : peer.name,
                   style: TextStyle(color: AppColors.textPrimary, fontSize: 14),
                   overflow: TextOverflow.ellipsis,
                 ),

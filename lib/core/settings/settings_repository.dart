@@ -11,6 +11,11 @@ abstract interface class SettingsRepository {
   Future<AppSettings> loadAll();
 
   Future<String> getMyName();
+
+  /// Language code the UI is running in ('fa' | 'en'). Lets code with no
+  /// BuildContext — a cubit composing the fallback display name, say — reach
+  /// the same strings the screens use, via lookupAppLocalizations.
+  Future<String> getLocaleCode();
   Future<void> setMyName(String value);
 
   /// Emits after every successful [setMyName], no matter which cubit wrote

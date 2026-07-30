@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:ffi';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
@@ -39,23 +40,81 @@ class AudioIoFFI {
   Stream<List<double>>? get inputAudioStream => _inputController?.stream;
   StreamSink<List<double>>? get outputAudioStream => _outputController?.sink;
 
-  Future<void> start() async {
+  // Serializes [start] and [stop]. There is one native device behind this
+  // singleton, and both calls now suspend (the device work happens on a helper
+  // isolate — see below), so without this a stop() that is still tearing the
+  // old device down could overlap a start() that has already created the new
+  // one: two duplex AAudio devices alive at once, and whichever teardown
+  // finishes last frees a handle the other one is using. Callers happen to
+  // serialize this today, but the singleton owns the handle, so the guarantee
+  // belongs here rather than in every caller.
+  Future<void> _lifecycle = Future<void>.value();
+
+  Future<void> _serializeLifecycle(Future<void> Function() action) {
+    final run = _lifecycle.then((_) => action());
+    // The chain must survive a failed start (which throws) or every later
+    // start/stop would be skipped.
+    _lifecycle = run.then<void>((_) {}, onError: (Object _) {});
+    return run;
+  }
+
+  // ── Device lifecycle runs off the calling thread ──────────────────────────
+  //
+  // FFI calls execute on the calling thread, and Flutter's Dart UI thread IS
+  // Android's main thread here — the process has `1.raster` and `1.io` but no
+  // separate `1.ui`. So a blocking device call is not merely jank, it is an
+  // app-wide ANR.
+  //
+  // Both directions block for real: ma_device_start__aaudio() and
+  // ma_device_uninit() take AAudio's rerouteLock and join miniaudio's threads,
+  // and a route change landing inside AAudio's start handshake could wedge the
+  // teardown permanently (see the LOCAL PATCH notes in miniaudio.h — a
+  // speakerphone switch during start froze a Galaxy S8+ with the main thread
+  // parked in pthread_join under ma_device_uninit). Running them on a helper
+  // isolate degrades that worst case from "whole app freezes" to "audio does
+  // not come up", which the stall watchdog can then recover from.
+  //
+  // create + setFrameDuration + start are one hop so the ordering can't be
+  // split, and a failed start disposes the handle there rather than handing
+  // back something the caller would have to tear down on the main thread.
+
+  /// Returns the device handle address, or 0 if the device could not start.
+  static Future<int> _createAndStartDevice(double frameDuration) {
+    return Isolate.run(() {
+      final bindings = AudioIoBindings();
+      final handle = bindings.create();
+      if (handle == nullptr) return 0;
+
+      bindings.setFrameDuration(handle, frameDuration);
+      if (bindings.start(handle) != 0) {
+        bindings.destroy(handle);
+        return 0;
+      }
+      return handle.address;
+    });
+  }
+
+  static Future<void> _stopAndDestroyDevice(int handleAddress) {
+    return Isolate.run(() {
+      final bindings = AudioIoBindings();
+      final handle = Pointer<Void>.fromAddress(handleAddress);
+      bindings.stop(handle);
+      bindings.destroy(handle);
+    });
+  }
+
+  Future<void> start() => _serializeLifecycle(_start);
+
+  Future<void> stop() => _serializeLifecycle(_stop);
+
+  Future<void> _start() async {
     if (_isRunning) return;
 
-    _handle = _bindings.create();
-    if (_handle == nullptr) {
-      throw Exception('Failed to create audio context');
-    }
-
-    // Set the frame duration before starting
-    _bindings.setFrameDuration(_handle!, _requestedFrameDuration);
-
-    final result = _bindings.start(_handle!);
-    if (result != 0) {
-      _bindings.destroy(_handle!);
-      _handle = null;
+    final handleAddress = await _createAndStartDevice(_requestedFrameDuration);
+    if (handleAddress == 0) {
       throw Exception('Failed to start audio device');
     }
+    _handle = Pointer<Void>.fromAddress(handleAddress);
 
     _isRunning = true;
 
@@ -71,7 +130,7 @@ class AudioIoFFI {
     _startInputPolling();
   }
 
-  Future<void> stop() async {
+  Future<void> _stop() async {
     if (!_isRunning) return;
 
     _isRunning = false;
@@ -84,14 +143,17 @@ class AudioIoFFI {
     _inputController = null;
     _outputController = null;
 
-    if (_handle != null) {
-      _bindings.stop(_handle!);
-      _bindings.destroy(_handle!);
-      _handle = null;
-    }
+    // Detached before the await below, so a poll or write that somehow still
+    // runs sees null and bails instead of using a handle that is being torn
+    // down — and so a start() racing this teardown can't have its fresh
+    // handle clobbered by this continuation.
+    final handle = _handle;
+    _handle = null;
 
     // Freed only after the timer is cancelled and the controllers are
-    // closed, so no in-flight poll or write can still be holding them.
+    // closed, so no in-flight poll or write can still be holding them. Done
+    // before the teardown await rather than after, so these can't be freed
+    // out from under a start() that has already reallocated them.
     final readScratch = _readScratch;
     if (readScratch != null) {
       malloc.free(readScratch);
@@ -102,6 +164,11 @@ class AudioIoFFI {
       malloc.free(writeScratch);
       _writeScratch = null;
       _writeScratchFrames = 0;
+    }
+
+    // Native teardown last, and off this thread — see _stopAndDestroyDevice.
+    if (handle != null) {
+      await _stopAndDestroyDevice(handle.address);
     }
   }
 

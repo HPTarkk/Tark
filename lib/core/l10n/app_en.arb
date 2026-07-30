@@ -98,6 +98,9 @@
     "bt_waiting_for_peer": "Waiting on the other phone...",
     "bt_scanning": "Having a look...",
     "bt_no_devices_found": "Nothing nearby",
+    "bt_unnamed_device": "Unnamed device",
+    "default_user_name": "Buddy",
+    "landing_ready": "Ready to talk",
     "bt_connecting": "Hooking up...",
     "bt_connected": "You're in!",
     "bt_permission_denied": "Tarkk can't use Bluetooth. Switch it on in Settings.",
@@ -202,6 +205,8 @@
     "bt_ios_hint": "Bluetooth between an iPhone and an Android drops a lot. For something steadier between them, use Hotspot.",
     "bt_ble_unavailable": "This phone can't make itself findable over Bluetooth, so iPhones won't see it here.",
     "bt_use_wifi_bridge": "USE WI-FI INSTEAD",
+    "bt_not_discoverable": "Other phones can't spot this one right now — the findable window ran out.",
+    "bt_make_discoverable": "LET THEM FIND ME",
     "background_title": "Keep talking with the screen off",
     "background_desc": "When you're riding, let the app keep going after the screen goes dark so voices keep coming through. Without it, your phone might drop the Wi-Fi and go quiet.",
     "background_allow": "KEEP IT RUNNING",
@@ -238,6 +243,8 @@
     "usage_tips_2_body": "Safety first — and a helmet that fits right holds your headset closer to your ears, so voices come through clearer on the move.",
     "usage_tips_3_title": "You never have to press anything to talk",
     "usage_tips_3_body": "The mic listens the whole time and the app cleans up the noise, so just talk. Tweak both whenever you like in Settings.",
+    "usage_tips_4_title": "Keep the channel on your home screen",
+    "usage_tips_4_body": "Add the Tark widget and you can see who's on air at a glance, then tap once to jump straight in — no digging through the app. Add it any time from Settings.",
     "usage_tips_dismiss": "GOT IT",
     "usage_tips_next": "NEXT",
     "settings_gear_tooltip": "Settings",
@@ -280,5 +287,6 @@
     "widget_peers_alone": "Nobody else here yet",
     "widget_peers": "{count} on channel",
     "widget_end": "END",
-    "settings_widget_hint": "Add the Tark widget to your home screen for one-tap access to your channel."
+    "settings_add_widget": "Add the channel widget",
+    "settings_widget_hint": "Put a dial on your home screen — see who's on air and jump in with one tap."
 }

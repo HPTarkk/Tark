@@ -692,6 +692,24 @@ abstract class AppLocalizations {
   /// **'این دور و بر چیزی نیست'**
   String get bt_no_devices_found;
 
+  /// No description provided for @bt_unnamed_device.
+  ///
+  /// In fa, this message translates to:
+  /// **'دستگاه بی‌نام'**
+  String get bt_unnamed_device;
+
+  /// No description provided for @default_user_name.
+  ///
+  /// In fa, this message translates to:
+  /// **'رفیق'**
+  String get default_user_name;
+
+  /// No description provided for @landing_ready.
+  ///
+  /// In fa, this message translates to:
+  /// **'آماده‌ی حرف زدن'**
+  String get landing_ready;
+
   /// No description provided for @bt_connecting.
   ///
   /// In fa, this message translates to:
@@ -1316,6 +1334,18 @@ abstract class AppLocalizations {
   /// **'به جاش از وای‌فای برو'**
   String get bt_use_wifi_bridge;
 
+  /// No description provided for @bt_not_discoverable.
+  ///
+  /// In fa, this message translates to:
+  /// **'الان بقیه نمی‌تونن این گوشی رو پیدا کنن — مهلت دیده شدنش تموم شده.'**
+  String get bt_not_discoverable;
+
+  /// No description provided for @bt_make_discoverable.
+  ///
+  /// In fa, this message translates to:
+  /// **'بذار پیدام کنن'**
+  String get bt_make_discoverable;
+
   /// No description provided for @background_title.
   ///
   /// In fa, this message translates to:
@@ -1531,6 +1561,18 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'میکروفون همیشه حواسش به توئه و برنامه صداهای مزاحم رو پاک می‌کنه، پس فقط حرف بزن. هر وقت خواستی هر دو رو توی تنظیمات دستکاری کن.'**
   String get usage_tips_3_body;
+
+  /// No description provided for @usage_tips_4_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'کانالت رو بذار روی صفحه اصلی'**
+  String get usage_tips_4_title;
+
+  /// No description provided for @usage_tips_4_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'ویجت ترک رو اضافه کن تا با یه نگاه ببینی کی روی خطه و با یه ضربه بپری تو کانال — بدون گشتن توی برنامه. هر وقت خواستی از تنظیمات اضافه‌ش کن.'**
+  String get usage_tips_4_body;
 
   /// No description provided for @usage_tips_dismiss.
   ///
@@ -1784,10 +1826,16 @@ abstract class AppLocalizations {
   /// **'پایان'**
   String get widget_end;
 
+  /// No description provided for @settings_add_widget.
+  ///
+  /// In fa, this message translates to:
+  /// **'افزودن ویجت کانال'**
+  String get settings_add_widget;
+
   /// No description provided for @settings_widget_hint.
   ///
   /// In fa, this message translates to:
-  /// **'ویجت ترک رو به صفحه اصلی اضافه کن تا با یه ضربه بپری توی کانال.'**
+  /// **'یه صفحه بیسیم بذار روی صفحه اصلی — ببین کی روی خطه و با یه ضربه بپر تو.'**
   String get settings_widget_hint;
 }
 

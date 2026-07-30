@@ -74,6 +74,13 @@ class BleBluetoothEngine {
   final Map<String, Peripheral> _discovered = {};
   Peripheral? _clientPeripheral;
   GATTCharacteristic? _clientRxChar; // we write here
+  bool _connecting = false;
+  DateTime? _connectStartedAt;
+  int _connectGen = 0;
+  static const _connectStuckAfter = Duration(seconds: 25);
+
+  /// Ceiling for a single GATT round trip (connect / discover / subscribe).
+  static const _gattStepTimeout = Duration(seconds: 15);
   final List<StreamSubscription<dynamic>> _clientSubs = [];
   StreamController<BluetoothPeer>? _scanController;
 
@@ -302,9 +309,9 @@ class BleBluetoothEngine {
             controller.add(
               BluetoothPeer(
                 id: 'ble:$id',
-                name: name?.isNotEmpty == true
-                    ? decodeHostName(name!)
-                    : 'Tark (BLE)',
+                // Nameless when the advertisement carried none (see
+                // kMaxHostNameBytes); the UI supplies the wording.
+                name: name?.isNotEmpty == true ? decodeHostName(name!) : '',
                 rssi: e.rssi,
                 // Reaching here means the peer advertised the Tark service
                 // UUID, so it is by definition hosting from inside the app.
@@ -338,6 +345,29 @@ class BleBluetoothEngine {
   }
 
   Future<void> connectToHost(String id) async {
+    // Same reasoning as the classic engine's dial guard: a retrying caller
+    // must not stack GATT connections, or the host counts a peer that the
+    // joiner has already walked away from.
+    if (_clientPeripheral != null) {
+      Logger.log('BLE connect skipped: already connected');
+      return;
+    }
+    if (_connecting) {
+      final startedAt = _connectStartedAt;
+      final age = startedAt == null
+          ? Duration.zero
+          : DateTime.now().difference(startedAt);
+      // Same escape hatch as the classic dial guard: a GATT handshake that
+      // never resolves must not wedge every later attempt.
+      if (age < _connectStuckAfter) {
+        Logger.log('BLE connect skipped: one is still in flight');
+        return;
+      }
+      Logger.log('BLE connect: giving up on one stuck for ${age.inSeconds}s');
+    }
+    final gen = ++_connectGen;
+    _connecting = true;
+    _connectStartedAt = DateTime.now();
     try {
       final manager = _requireCentral;
       final peripheral = _discovered[id];
@@ -361,7 +391,11 @@ class BleBluetoothEngine {
         }),
       );
 
-      await manager.connect(peripheral);
+      // Every step is bounded: a GATT call that never comes back would
+      // otherwise leave this side "connecting" forever while the host counts
+      // the link as live (it declares connected the moment the TX subscribe
+      // lands). Failing out lets the catch below hang up properly.
+      await manager.connect(peripheral).timeout(_gattStepTimeout);
 
       // Bigger ATT MTU = fewer chunks per frame. Android-only; harmless to
       // skip elsewhere (iOS negotiates its own maximum automatically).
@@ -369,7 +403,9 @@ class BleBluetoothEngine {
         await manager.requestMTU(peripheral, mtu: 517);
       } catch (_) {}
 
-      final services = await manager.discoverGATT(peripheral);
+      final services = await manager
+          .discoverGATT(peripheral)
+          .timeout(_gattStepTimeout);
       final service = services.firstWhere(
         (s) => s.uuid == kWakiServiceUuid,
         orElse: () => throw StateError('Tark service not found on host'),
@@ -392,18 +428,38 @@ class BleBluetoothEngine {
           }
         }),
       );
-      await manager.setCharacteristicNotifyState(
-        peripheral,
-        txChar,
-        state: true,
-      );
+      await manager
+          .setCharacteristicNotifyState(peripheral, txChar, state: true)
+          .timeout(_gattStepTimeout);
 
+      if (gen != _connectGen) {
+        // Superseded while handshaking (reset, or a newer attempt after this
+        // one looked stuck). Leaving it up would show the host a subscribed
+        // central that this side isn't tracking.
+        Logger.log('BLE connect completed after being superseded — dropping');
+        await manager.disconnect(peripheral);
+        return;
+      }
       _clientPeripheral = peripheral;
       _clientRxChar = rxChar;
       _peerConnectedController.add('ble:${peripheral.uuid}');
     } catch (e) {
       Logger.log('BLE connect failed: $e');
+      // Hang up whatever got established before the failure. Without this a
+      // handshake that broke *after* connect() left the central attached —
+      // and if it had got as far as subscribing, the host was already calling
+      // itself connected to a peer that had given up.
+      final peripheral = _discovered[id];
+      if (peripheral != null) {
+        try {
+          await _central?.disconnect(peripheral);
+        } catch (e) {
+          Logger.log('BLE cleanup disconnect failed: $e');
+        }
+      }
       _errorController.add('$e');
+    } finally {
+      if (gen == _connectGen) _connecting = false;
     }
   }
 
@@ -483,6 +539,8 @@ class BleBluetoothEngine {
       }
     }
     _discovered.clear();
+    _connectGen++;
+    _connecting = false;
     await stopHosting();
     _framer.reset();
   }

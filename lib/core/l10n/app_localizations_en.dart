@@ -322,6 +322,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bt_no_devices_found => 'Nothing nearby';
 
   @override
+  String get bt_unnamed_device => 'Unnamed device';
+
+  @override
+  String get default_user_name => 'Buddy';
+
+  @override
+  String get landing_ready => 'Ready to talk';
+
+  @override
   String get bt_connecting => 'Hooking up...';
 
   @override
@@ -681,6 +690,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bt_use_wifi_bridge => 'USE WI-FI INSTEAD';
 
   @override
+  String get bt_not_discoverable =>
+      'Other phones can\'t spot this one right now — the findable window ran out.';
+
+  @override
+  String get bt_make_discoverable => 'LET THEM FIND ME';
+
+  @override
   String get background_title => 'Keep talking with the screen off';
 
   @override
@@ -798,6 +814,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get usage_tips_3_body =>
       'The mic listens the whole time and the app cleans up the noise, so just talk. Tweak both whenever you like in Settings.';
+
+  @override
+  String get usage_tips_4_title => 'Keep the channel on your home screen';
+
+  @override
+  String get usage_tips_4_body =>
+      'Add the Tark widget and you can see who\'s on air at a glance, then tap once to jump straight in — no digging through the app. Add it any time from Settings.';
 
   @override
   String get usage_tips_dismiss => 'GOT IT';
@@ -943,6 +966,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get widget_end => 'END';
 
   @override
+  String get settings_add_widget => 'Add the channel widget';
+
+  @override
   String get settings_widget_hint =>
-      'Add the Tark widget to your home screen for one-tap access to your channel.';
+      'Put a dial on your home screen — see who\'s on air and jump in with one tap.';
 }

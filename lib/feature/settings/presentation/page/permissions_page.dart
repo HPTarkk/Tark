@@ -6,6 +6,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/android_sdk.dart';
+import '../../../../core/utils/permission_queue.dart';
 import '../../../../core/widget/permission_tile.dart';
 import '../../../audio/api/audio_api.dart';
 
@@ -88,16 +89,18 @@ class _PermissionsPageState extends State<PermissionsPage>
   }
 
   Future<void> _requestMic() async {
-    await Permission.microphone.request();
+    await PermissionQueue.run(() => Permission.microphone.request());
     await _refresh();
   }
 
   Future<void> _requestBluetooth() async {
-    await [
-      Permission.bluetoothScan,
-      Permission.bluetoothConnect,
-      Permission.bluetoothAdvertise,
-    ].request();
+    await PermissionQueue.run(
+      () => [
+        Permission.bluetoothScan,
+        Permission.bluetoothConnect,
+        Permission.bluetoothAdvertise,
+      ].request(),
+    );
     await _refresh();
   }
 
@@ -120,7 +123,8 @@ class _PermissionsPageState extends State<PermissionsPage>
   }
 
   Future<void> _requestHotspot() async {
-    await (await _hotspotPermission()).request();
+    final permission = await _hotspotPermission();
+    await PermissionQueue.run(() => permission.request());
     await _refresh();
   }
 

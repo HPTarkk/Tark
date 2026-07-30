@@ -128,6 +128,29 @@ class HomeWidgetServiceImpl implements HomeWidgetService {
   }
 
   @override
+  Future<bool> canPin() async {
+    if (!_supported) return false;
+    try {
+      return await HomeWidget.isRequestPinWidgetSupported() ?? false;
+    } catch (e) {
+      Logger.log('HomeWidget pin support check failed: $e');
+      return false;
+    }
+  }
+
+  @override
+  Future<void> requestPin() async {
+    if (!_supported) return;
+    try {
+      await HomeWidget.requestPinWidget(
+        qualifiedAndroidName: HomeWidgetIds.androidProvider,
+      );
+    } catch (e) {
+      Logger.log('HomeWidget pin request failed: $e');
+    }
+  }
+
+  @override
   Future<void> refresh() async {
     final snapshot = _lastSnapshot;
     if (snapshot == null) return;

@@ -15,11 +15,24 @@ import 'core/locale/locale_service.dart';
 import 'core/router/routes.dart';
 import 'core/settings/settings_repository.dart';
 import 'core/sfx/sfx_service.dart';
+import 'core/utils/logger.dart';
 import 'core/theme/theme_service.dart';
 import 'feature/transfer/api/transfer_api.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Async errors that no call site can own end up here. The one that actually
+  // fires is flutter_blue_classic's startScan/stopScan: both are declared
+  // `void` and drop the platform-channel Future inside the plugin, so a
+  // refused scan permission (Android 9 still gates discovery on
+  // ACCESS_FINE_LOCATION, and the request comes back cancelled whenever
+  // another prompt is already up) escapes as an unhandled PlatformException
+  // no `try` of ours can reach. Log it and keep going — a scan that never
+  // started just finds nothing, which the joiner screen already copes with.
+  WidgetsBinding.instance.platformDispatcher.onError = (error, stack) {
+    Logger.log('Unhandled async error: $error\n$stack');
+    return true;
+  };
   // The one SharedPreferences resolution for the whole process: handed to
   // the pre-DI services here, and registered in the DI graph (see
   // RegisterThirdParty.prefs — getInstance() returns this same cached

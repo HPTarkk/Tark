@@ -55,6 +55,10 @@ class BluetoothTransferRepository
   ClassicBluetoothEngine? _classicEngine;
   BleBluetoothEngine? _bleEngine;
 
+  /// How many engines existed the last time [_listenToEngines] ran, so a
+  /// newly created one gets wired exactly once (see [_wireNewEngine]).
+  int _wiredEngineCount = 0;
+
   final List<StreamSubscription<dynamic>> _engineSubs = [];
   StreamController<BluetoothPeer>? _scanController;
   final List<StreamSubscription<BluetoothPeer>> _scanSubs = [];
@@ -73,6 +77,20 @@ class BluetoothTransferRepository
   BluetoothPeer? _sessionPeer; // joiner's target
   int _reconnectGen = 0;
   bool _autoReconnectEnabled = true;
+
+  /// Guards against a *phantom* hosted session: the RFCOMM accept() lands (so
+  /// the host declares itself connected and walks into the channel) while the
+  /// joiner never registers the same socket and keeps dialing. Nothing ever
+  /// arrives on a link like that, and with the server socket already closed
+  /// after the first accept, no later dial can get in either — the pair is
+  /// stuck until the app restarts. A joined peer starts broadcasting presence
+  /// every 2s as soon as it reaches the channel, so silence well past that
+  /// means the session isn't real: drop it and let the normal closed → re-host
+  /// recovery put a fresh listener up. The grace has to clear the joiner's
+  /// whole entry sequence (connect flash → channel → audio start → first
+  /// presence tick), hence seconds rather than milliseconds.
+  Timer? _sessionWatchdog;
+  static const _firstPacketGrace = Duration(seconds: 15);
 
   bool get _classicSupported => Platform.isAndroid;
   bool get _bleSupported => Platform.isAndroid || Platform.isIOS;
@@ -93,9 +111,14 @@ class BluetoothTransferRepository
     } catch (e) {
       Logger.log('sdkInt lookup failed: $e');
     }
-    return _classicEngine ??= ClassicBluetoothEngine(
+    final engine = _classicEngine ??= ClassicBluetoothEngine(
       usesFineLocation: usesFineLocation,
     );
+    // Subscribe as soon as an engine exists, so no caller can reach it before
+    // its events have somewhere to go — the engines publish on broadcast
+    // streams, which silently discard whatever they emit while unlistened.
+    _wireNewEngine();
+    return engine;
   }
 
   BleBluetoothEngine get _requireBle {
@@ -105,8 +128,21 @@ class BluetoothTransferRepository
       );
     }
     final engine = _bleEngine ??= BleBluetoothEngine();
+    _wireNewEngine();
     return engine;
   }
+
+  /// Re-runs [_listenToEngines] when an engine has appeared since the last
+  /// wiring. Cheap and idempotent, and it makes "the engines are always
+  /// listened to" true by construction rather than by every entry point
+  /// remembering to do it.
+  void _wireNewEngine() {
+    if (_engineCount == _wiredEngineCount) return;
+    _listenToEngines();
+  }
+
+  int get _engineCount =>
+      (_classicEngine != null ? 1 : 0) + (_bleEngine != null ? 1 : 0);
 
   @override
   Stream<bt.BluetoothConnectionState> get connectionState =>
@@ -133,7 +169,7 @@ class BluetoothTransferRepository
   }
 
   @override
-  Future<void> startHosting({bool discoverable = true}) async {
+  Future<void> startHosting() async {
     _sessionRole = 'host';
     _connectionStateController.add(bt.BluetoothConnectionState.hosting);
 
@@ -151,10 +187,15 @@ class BluetoothTransferRepository
       final classic = await _classicAsync();
       _requireBle;
       _listenToEngines();
-      // Auto-host skips the discoverable dialog: the remembered joiner
-      // re-dials this device by address, which an insecure RFCOMM server
-      // accepts whether or not the device is scan-discoverable.
-      if (discoverable) await classic.requestDiscoverable();
+      // Listening on RFCOMM does NOT make this device show up in anyone's
+      // scan — only DISCOVERABLE scan mode does. Skipping this left a host
+      // that looked live on its own screen completely invisible to a joiner
+      // that was scanning rather than re-dialing a remembered address.
+      // requestDiscoverable() returns immediately when a grant is still
+      // running, so this costs a dialog only when it actually has to. It is
+      // also awaited now: the same dialog is what powers the adapter on, and
+      // listening before it was answered raced that.
+      await classic.requestDiscoverable();
       // Classic broadcasts the TAGGED name: it renames the adapter, and the
       // tag is the only thing that marks this device as a Tark host in a
       // joiner's inquiry results. BLE needs no tag (joiners filter on the
@@ -165,6 +206,28 @@ class BluetoothTransferRepository
       _requireBle;
       _listenToEngines();
       await _bleEngine!.startHosting(name: deviceName);
+    }
+  }
+
+  @override
+  Future<bool> get isHostDiscoverable async {
+    if (!_classicSupported) return true;
+    try {
+      return await (await _classicAsync()).isDiscoverable;
+    } catch (e) {
+      Logger.log('Discoverability check failed: $e');
+      return true; // Don't nag about something we couldn't measure.
+    }
+  }
+
+  @override
+  Future<bool> requestHostDiscoverable() async {
+    if (!_classicSupported) return true;
+    try {
+      return await (await _classicAsync()).requestDiscoverable();
+    } catch (e) {
+      Logger.log('Discoverable request failed: $e');
+      return false;
     }
   }
 
@@ -221,9 +284,24 @@ class BluetoothTransferRepository
     _connectionStateController.add(bt.BluetoothConnectionState.connecting);
     cancelDiscovery();
     if (peer.id.startsWith('ble:')) {
-      await _requireBle.connectToHost(peer.id.substring(4));
+      final ble = _requireBle;
+      // Engine events have to be wired BEFORE the connect: the engines
+      // announce a landed link on broadcast streams, which drop anything
+      // emitted while nobody is listening.
+      //
+      // Hosting and scanning both did this; dialing did not — and a dial
+      // that hasn't scanned first (the remembered-peer auto-join, and
+      // "reconnect to last session") therefore connected for real while the
+      // repository, and so the whole UI, never heard about it. The joiner sat
+      // on "connecting" until its own 12s give-up reset the transport, which
+      // closed the socket it had just opened, and the host — which HAD heard
+      // its own accept — flapped connected/disconnected once per retry.
+      _listenToEngines();
+      await ble.connectToHost(peer.id.substring(4));
     } else {
-      await (await _classicAsync()).connectToHost(peer.id);
+      final classic = await _classicAsync();
+      _listenToEngines();
+      await classic.connectToHost(peer.id);
     }
   }
 
@@ -246,6 +324,8 @@ class BluetoothTransferRepository
   @override
   void reset() {
     _reconnectGen++;
+    _sessionWatchdog?.cancel();
+    _sessionWatchdog = null;
     _sessionRole = null;
     _sessionPeer = null;
     _connectedPeerId = null;
@@ -265,6 +345,7 @@ class BluetoothTransferRepository
     }
     _engineSubs.clear();
     _classicFramer.reset();
+    _wiredEngineCount = _engineCount;
 
     // Subscribes to whichever engines exist by now — callers create the
     // engines for their platform first, then call this.
@@ -304,6 +385,9 @@ class BluetoothTransferRepository
   }
 
   void _onMessage(Uint8List message) {
+    // Anything at all from the peer proves the link is real.
+    _sessionWatchdog?.cancel();
+    _sessionWatchdog = null;
     final peerId = _connectedPeerId;
     if (peerId == null) return;
     final packet = _codec.decode(message, peerId);
@@ -313,6 +397,7 @@ class BluetoothTransferRepository
   void _onPeerConnected(String engine, String peerId) {
     _activeEngine = engine;
     _connectedPeerId = peerId;
+    _armPhantomSessionWatchdog(engine);
     // One peer per session: once someone connected over one engine, stop
     // advertising on the other so a second device can't join mid-session
     // and interleave bytes.
@@ -336,6 +421,33 @@ class BluetoothTransferRepository
       );
     }
     _connectionStateController.add(bt.BluetoothConnectionState.connected);
+    unawaited(_sendHello());
+  }
+
+  /// One packet on the wire the moment the link forms. A real peer therefore
+  /// proves itself within milliseconds instead of only when its channel screen
+  /// finishes starting audio — which is what [_sessionWatchdog] waits for, and
+  /// what separates a live session from a socket nobody is holding. Dropped
+  /// harmlessly on arrival if the peer hasn't opened its channel yet.
+  Future<void> _sendHello() async {
+    final storedName = await _settingsRepository.getMyName();
+    await sendPresence(storedName.isEmpty ? 'Tark' : storedName, false);
+  }
+
+  /// See [_sessionWatchdog]. Host role only: a joiner reaches "connected"
+  /// through its own completed handshake, so it has no equivalent blind spot.
+  void _armPhantomSessionWatchdog(String engine) {
+    _sessionWatchdog?.cancel();
+    _sessionWatchdog = null;
+    if (_sessionRole != 'host' || engine != 'classic') return;
+    _sessionWatchdog = Timer(_firstPacketGrace, () {
+      _sessionWatchdog = null;
+      if (_connectedPeerId == null) return;
+      Logger.log(
+        'Hosted session went silent before its first packet — dropping it',
+      );
+      unawaited(_classicEngine?.closeHostedConnection() ?? Future.value());
+    });
   }
 
   void _onEngineError(String engine, String message) {
@@ -352,6 +464,8 @@ class BluetoothTransferRepository
 
   void _onEngineClosed(String engine) {
     if (_activeEngine != null && _activeEngine != engine) return;
+    _sessionWatchdog?.cancel();
+    _sessionWatchdog = null;
     final hadSession = _connectedPeerId != null;
     _connectedPeerId = null;
     _activeEngine = null;
@@ -371,6 +485,12 @@ class BluetoothTransferRepository
     final role = _sessionRole;
     _connectionStateController.add(bt.BluetoothConnectionState.reconnecting);
     Logger.log('Bluetooth session dropped — auto-reconnecting as $role');
+    // This loop drives the engines directly rather than through the methods
+    // above, so it re-asserts the subscriptions itself. They are live by
+    // construction here (nothing could have reported a drop otherwise), but
+    // the one place that assumed that and skipped it is what stranded the
+    // joiner — cheap enough not to depend on the reasoning.
+    _listenToEngines();
 
     // Telegram-style backoff: 4s → 8s → 16s … 64s. A successful reconnect
     // stops the loop (via _connectedPeerId), and the next drop starts a fresh
@@ -505,6 +625,8 @@ class BluetoothTransferRepository
   @disposeMethod
   void dispose() {
     _reconnectGen++;
+    _sessionWatchdog?.cancel();
+    _sessionWatchdog = null;
     for (final sub in _engineSubs) {
       unawaited(sub.cancel());
     }

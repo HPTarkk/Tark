@@ -20,12 +20,25 @@ abstract interface class BluetoothTransport {
   /// subsequent-session connect never interrupts the user.
   Future<bool> get isAdapterReady;
 
-  /// Listens for one incoming connection. When [discoverable] is true (the
-  /// manual "Host" tap) it also pops the system "make discoverable" dialog so
-  /// a fresh scan can find this device; when false (hands-free auto-host of a
-  /// remembered session) it skips that dialog — the remembered joiner re-dials
-  /// by address, which only needs the server listening, not scan visibility.
-  Future<void> startHosting({bool discoverable = true});
+  /// Listens for one incoming connection, making sure the device also answers
+  /// inquiries while it waits — a scanning joiner can see nothing else, and
+  /// the server socket alone leaves the host invisible. The system is asked
+  /// for discoverability only when a previous grant isn't still running.
+  ///
+  /// (The unattended re-listen after a mid-session drop deliberately does not
+  /// come through here: that joiner re-dials by address, so it needs only the
+  /// server socket, and a dialog would fire with nobody looking at the phone.)
+  Future<void> startHosting();
+
+  /// Whether other phones can currently find this one by scanning. Android
+  /// discoverability is a time-limited grant, so a host that is still waiting
+  /// can go quietly invisible; iOS advertises over BLE instead and is always
+  /// findable while hosting.
+  Future<bool> get isHostDiscoverable;
+
+  /// Re-asks the system to make this device findable, resolving with the
+  /// user's answer. No-op (true) where discoverability isn't a concept.
+  Future<bool> requestHostDiscoverable();
 
   /// Scans for nearby hosts. Callers should call [cancelDiscovery] once done.
   Stream<BluetoothPeer> scanForHosts();

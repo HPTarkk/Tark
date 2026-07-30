@@ -274,7 +274,7 @@ class _VisualizerCard extends StatelessWidget {
         final color = state.isTalking ? AppColors.red : AppColors.amber;
         return AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          height: 120,
+          height: 210,
           decoration: BoxDecoration(
             color: AppColors.card,
             borderRadius: BorderRadius.circular(16),
@@ -294,30 +294,40 @@ class _VisualizerCard extends StatelessWidget {
           ),
           clipBehavior: Clip.hardEdge,
           child: StreamBuilder<AudioFrame>(
-            stream: context.read<GuestSessionCubit>().frames,
+            // Follows whoever holds the channel: the host's incoming audio
+            // while they talk, your own mic otherwise.
+            stream: state.hostTalking && !state.isTalking
+                ? context.read<GuestSessionCubit>().receivedFrames
+                : context.read<GuestSessionCubit>().frames,
             builder: (context, snapshot) {
               final frame = snapshot.data;
-              if (frame == null || frame.samples.isEmpty) {
-                return Center(
-                  child: Text(
+              // The dial idles before the first frame arrives; the label under
+              // the hub says whether that's a live-but-quiet channel or one
+              // that hasn't come up yet.
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  Positioned.fill(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: AudioVisualizer(
+                        samples: frame?.samples ?? const <double>[],
+                        rms: frame?.rms ?? 0,
+                        barCount: 56,
+                        color: color,
+                      ),
+                    ),
+                  ),
+                  Text(
                     state.isReady ? s.monitoring : s.initializing,
                     style: TextStyle(
-                      color: AppColors.textSecondary.withAlpha(120),
-                      fontSize: 12,
-                      letterSpacing: 3,
+                      color: AppColors.textSecondary.withAlpha(150),
+                      fontSize: 10,
+                      letterSpacing: 2.5,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                );
-              }
-              return Padding(
-                padding: const EdgeInsets.all(12),
-                child: AudioVisualizer(
-                  samples: frame.samples,
-                  rms: frame.rms,
-                  barCount: 48,
-                  color: color,
-                ),
+                ],
               );
             },
           ),

@@ -114,28 +114,19 @@ class UserTile extends StatelessWidget {
         children: [
           AppAvatar(name: user.name, isActive: isTalking, size: 38),
           const SizedBox(width: 12),
+          // Name only. The second line used to carry the peer's address —
+          // a MAC over Bluetooth, an IP over Wi-Fi — which says nothing to
+          // the person reading it, and the badge on the right already says
+          // whether they're talking.
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  user.name,
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  user.id.localized(context),
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 11,
-                  ),
-                ),
-              ],
+            child: Text(
+              user.name,
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           if (isTalking) ...[

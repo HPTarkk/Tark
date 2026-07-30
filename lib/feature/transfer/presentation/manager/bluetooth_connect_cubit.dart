@@ -9,11 +9,14 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/sfx/sfx_event.dart';
 import '../../../../core/sfx/sfx_player.dart';
+import '../../../../core/utils/android_sdk.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entity/bluetooth_connection_state.dart';
 import '../../domain/entity/bluetooth_peer.dart';
 import '../../domain/entity/bluetooth_role.dart';
 import '../../domain/repository/bluetooth_transport.dart';
+import '../../domain/service/bluetooth_host_faces.dart';
+import '../../domain/service/bluetooth_host_filter.dart';
 
 @injectable
 class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
@@ -25,6 +28,10 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
   StreamSubscription<BluetoothPeer>? _scanSub;
   StreamSubscription<bool>? _bleAdvertisingSub;
   Timer? _reconnectTimeout;
+
+  /// Polls whether this device is still answering inquiries while hosting
+  /// (see [_watchDiscoverability]).
+  Timer? _discoverableTimer;
 
   /// Pending hands-free join of the only Tark host in range (see
   /// [_considerSoloAutoJoin]).
@@ -124,7 +131,9 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
             // it again by name.
             ? BluetoothPeer(
                 id: lastId,
-                name: lastName ?? lastId,
+                // Nameless rather than an address: the quick-reconnect card
+                // says "unnamed device" instead of showing a MAC.
+                name: lastName ?? '',
                 isAppHost: true,
               )
             : null,
@@ -135,8 +144,10 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
   /// Subsequent-connection fast path: once a session has connected, this
   /// device resumes the SAME role hands-free on the next visit to this screen
   /// — a host silently re-hosts, a joiner keeps dialing the remembered host
-  /// until it answers. Only runs when nothing can prompt (permissions already
-  /// granted, adapter already on) and the Auto-reconnect setting allows it.
+  /// until it answers. Only runs when the permissions are already granted and
+  /// the adapter is already on, and the Auto-reconnect setting allows it — the
+  /// one prompt it can still raise is the host's discoverable dialog, and only
+  /// when the device genuinely isn't findable (see [_autoHost]).
   /// First-time use (no remembered role yet) keeps the explicit host/join
   /// confirmation flow.
   Future<void> _maybeAutoReconnect() async {
@@ -158,18 +169,66 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
     // Unknown role / nothing remembered → leave the role-selection screen up.
   }
 
-  /// Hands-free host: bring the beacon up silently (no discoverable dialog —
-  /// the remembered joiner re-dials by address). A start-up failure just
-  /// drops back to role selection so the user can host/join manually.
+  /// Hands-free host: resume the beacon without the user picking a role again.
+  ///
+  /// This used to skip the discoverable dialog entirely, on the theory that
+  /// the remembered joiner re-dials by address. It does — but only while it
+  /// still has that address and its own auto-join runs; the moment the other
+  /// side scans instead (first pairing of the day after a "Cancel", swapped
+  /// roles, auto-reconnect off, permissions re-prompted) it looked for a
+  /// device that was answering nobody's inquiries, and found nothing. The
+  /// dialog is skipped only when discoverability is genuinely already on,
+  /// which the platform side checks before it shows anything, so a resumed
+  /// host that IS still findable stays as silent as before. A start-up
+  /// failure drops back to role selection so the user can host/join manually.
   Future<void> _autoHost() async {
     _autoAttempt = true;
     emit(state.copyWith(role: BluetoothRole.host, peers: const []));
     try {
-      await _transport.startHosting(discoverable: false);
+      await _transport.startHosting();
+      _watchDiscoverability();
     } catch (e) {
       Logger.log('Background auto-host failed to start: $e');
       if (!isClosed && _autoAttempt) backToRoleSelection();
     }
+  }
+
+  /// Android discoverability is a time-limited grant, so a host left waiting
+  /// long enough goes invisible again with nothing on screen saying so. Poll
+  /// while the beacon is up and unconnected, and let the UI offer a re-arm
+  /// (rather than popping a dialog at a user who may have walked away).
+  void _watchDiscoverability() {
+    _discoverableTimer?.cancel();
+    // Hosting can finish starting after the user has already backed out (the
+    // discoverable dialog is awaited) — don't leave a timer polling for a
+    // beacon that isn't on screen any more.
+    if (isClosed || state.role != BluetoothRole.host) return;
+    unawaited(_refreshDiscoverable());
+    _discoverableTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => unawaited(_refreshDiscoverable()),
+    );
+  }
+
+  Future<void> _refreshDiscoverable() async {
+    if (isClosed) return;
+    if (state.role != BluetoothRole.host ||
+        state.connectionState == BluetoothConnectionState.connected) {
+      _discoverableTimer?.cancel();
+      return;
+    }
+    final discoverable = await _transport.isHostDiscoverable;
+    if (isClosed || state.role != BluetoothRole.host) return;
+    if (discoverable != state.hostDiscoverable) {
+      emit(state.copyWith(hostDiscoverable: discoverable));
+    }
+  }
+
+  /// "Let them find me" from the host screen, once the window has lapsed.
+  Future<void> makeDiscoverable() async {
+    final granted = await _transport.requestHostDiscoverable();
+    if (isClosed) return;
+    emit(state.copyWith(hostDiscoverable: granted));
   }
 
   /// Hands-free joiner: keep (re)dialing the remembered host until it answers
@@ -286,6 +345,14 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
   Future<bool> _hasSilentPermissions({required bool forHosting}) async {
     if (Platform.isIOS) return true;
     if (!Platform.isAndroid) return false;
+    // Assumes modern Android when the lookup fails — pre-S is the special
+    // case, so defaulting to S+ keeps the long-standing behaviour.
+    var preAndroidS = false;
+    try {
+      preAndroidS = await AndroidSdk.version() < 31;
+    } catch (e) {
+      Logger.log('SDK lookup failed, assuming Android S+: $e');
+    }
     final statuses = await Future.wait([
       Permission.bluetoothScan.status,
       Permission.bluetoothConnect.status,
@@ -301,6 +368,15 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
       // of this path is not to show one. Failing the check instead drops to
       // role selection, where tapping Host requests the permission properly.
       if (forHosting) Permission.bluetoothAdvertise.status,
+      // Pre-S has no granular Bluetooth permissions, so every status above
+      // reports granted whether or not the app can actually scan or
+      // advertise — location is what gates both there. Without this the
+      // silent path judges itself permitted, and the BLE stack then raises
+      // its own location prompt mid-connect: exactly the unowned dialog that
+      // collides with the walkie session's microphone request. Failing the
+      // check instead drops to role selection, where tapping Host asks for
+      // location properly and up front (see BluetoothConnectPage).
+      if (preAndroidS) Permission.locationWhenInUse.status,
     ]);
     return statuses.every((s) => s.isGranted);
   }
@@ -308,10 +384,25 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
   Future<void> startHosting() async {
     _autoAttempt = false;
     _stopAutoJoin();
-    emit(state.copyWith(role: BluetoothRole.host, peers: const []));
-    // Manual host tap: show the discoverable dialog so a fresh scan can find
-    // this device (a brand-new joiner has no address to dial cold).
-    await _transport.startHosting(discoverable: true);
+    emit(
+      state.copyWith(
+        role: BluetoothRole.host,
+        peers: const [],
+        hostDiscoverable: true,
+      ),
+    );
+    // Show the discoverable dialog if needed, so a fresh scan can find this
+    // device (a brand-new joiner has no address to dial cold).
+    try {
+      await _transport.startHosting();
+      _watchDiscoverability();
+    } catch (e) {
+      // The tap isn't awaited by the caller, so an escaping failure would
+      // surface as an unhandled async error and leave the beacon pulsing over
+      // a host that never started.
+      Logger.log('Hosting failed to start: $e');
+      if (!isClosed) backToRoleSelection();
+    }
   }
 
   Future<void> startScanning() async {
@@ -324,51 +415,64 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
   Future<void> _listenToScan({String? autoConnectId}) async {
     await _scanSub?.cancel();
     late final StreamSubscription<BluetoothPeer> sub;
-    sub = _transport.scanForHosts().listen((peer) {
-      // Upsert: repeat discoveries refresh the RSSI, so the signal bars
-      // (and the radar blip distance) stay live while scanning.
-      final peers = [...state.peers];
-      final idx = peers.indexWhere((p) => p.id == peer.id);
-      if (idx >= 0) {
-        peers[idx] = peer;
-      } else {
-        peers.add(peer);
-      }
-      // Tark hosts first (a classic scan also sweeps up every headset and TV
-      // in range), then strongest signal.
-      peers.sort((a, b) {
-        if (a.isAppHost != b.isAppHost) return a.isAppHost ? -1 : 1;
-        return (b.rssi ?? -999).compareTo(a.rssi ?? -999);
-      });
-      emit(state.copyWith(peers: peers));
-
-      if (autoConnectId != null) {
-        if (peer.id == autoConnectId &&
-            state.connectingPeerId == autoConnectId &&
-            state.connectionState != BluetoothConnectionState.connecting) {
-          // Internal variant: this dial belongs to whichever flow armed the
-          // targeted scan, so it must not clear the auto-attempt marker.
-          _connectTo(peer);
+    sub = _transport.scanForHosts().listen(
+      (peer) {
+        // Only Tark hosts reach the list — everything else a classic inquiry
+        // sweeps up is somebody's headset or TV, and unjoinable (see
+        // [isVisibleHost] for the reconnect-target exception).
+        if (!isVisibleHost(peer, reconnectTargetId: autoConnectId)) return;
+        // Upsert: repeat discoveries refresh the RSSI, so the signal bars
+        // (and the radar blip distance) stay live while scanning.
+        final peers = [...state.peers];
+        final idx = peers.indexWhere((p) => p.id == peer.id);
+        if (idx >= 0) {
+          peers[idx] = peer;
+        } else {
+          peers.add(peer);
         }
-      } else {
-        _considerSoloAutoJoin();
-      }
-    }, onError: (Object e) => Logger.log('BT scan error: $e'), onDone: () {
-      // The repository closes the scan stream whenever it resets — which the
-      // auto-join loop does itself on a hung dial. Without this, [_scanSub]
-      // stayed non-null while pointing at a dead stream, and the loop's
-      // "is a scan already running?" guard below then skipped re-arming it
-      // forever: the joiner sat on the radar, never scanning again, and
-      // could never rediscover the BLE host it was trying to reach.
-      if (identical(_scanSub, sub)) _scanSub = null;
-    });
+        // One entry per phone: an Android host answers on both radios, and the
+        // duplicate read as two people — which also blocked the hands-free solo
+        // join, since that refuses to guess between two hosts.
+        final deduped = mergeHostFaces(peers);
+        // Tark hosts first — everything here is one, bar the reconnect target
+        // let through above — then strongest signal.
+        deduped.sort((a, b) {
+          if (a.isAppHost != b.isAppHost) return a.isAppHost ? -1 : 1;
+          return (b.rssi ?? -999).compareTo(a.rssi ?? -999);
+        });
+        emit(state.copyWith(peers: deduped));
+
+        if (autoConnectId != null) {
+          if (peer.id == autoConnectId &&
+              state.connectingPeerId == autoConnectId &&
+              state.connectionState != BluetoothConnectionState.connecting) {
+            // Internal variant: this dial belongs to whichever flow armed the
+            // targeted scan, so it must not clear the auto-attempt marker.
+            _connectTo(peer);
+          }
+        } else {
+          _considerSoloAutoJoin();
+        }
+      },
+      onError: (Object e) => Logger.log('BT scan error: $e'),
+      onDone: () {
+        // The repository closes the scan stream whenever it resets — which the
+        // auto-join loop does itself on a hung dial. Without this, [_scanSub]
+        // stayed non-null while pointing at a dead stream, and the loop's
+        // "is a scan already running?" guard below then skipped re-arming it
+        // forever: the joiner sat on the radar, never scanning again, and
+        // could never rediscover the BLE host it was trying to reach.
+        if (identical(_scanSub, sub)) _scanSub = null;
+      },
+    );
     _scanSub = sub;
   }
 
   /// Joins hands-free when the scan finds exactly one Tark host: with a
-  /// single obvious peer, tapping it is pure ceremony. Everything else in the
-  /// list is somebody's headset, so only [BluetoothPeer.isAppHost] entries
-  /// count. The [_soloJoinSettle] delay is what keeps this honest — a second
+  /// single obvious peer, tapping it is pure ceremony. Still keyed on
+  /// [BluetoothPeer.isAppHost] rather than the list length, since a targeted
+  /// rescan can park an unconfirmed reconnect target alongside the hosts.
+  /// The [_soloJoinSettle] delay is what keeps this honest — a second
   /// host arriving a moment later cancels the auto-join and hands the choice
   /// back to the user, who can also always Cancel out of the radar.
   void _considerSoloAutoJoin() {
@@ -464,6 +568,7 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
     _autoAttempt = false;
     _stopAutoJoin();
     _reconnectTimeout?.cancel();
+    _discoverableTimer?.cancel();
     _soloJoinTimer?.cancel();
     _scanSub?.cancel();
     _scanSub = null;
@@ -480,6 +585,7 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
   Future<void> close() async {
     _stopAutoJoin();
     _reconnectTimeout?.cancel();
+    _discoverableTimer?.cancel();
     _soloJoinTimer?.cancel();
     await _connectionSub?.cancel();
     await _scanSub?.cancel();
@@ -511,6 +617,11 @@ class BluetoothConnectState extends Equatable {
   /// discover this device over Bluetooth, so the UI offers the Wi-Fi bridge.
   final bool bleUnavailable;
 
+  /// Whether a scanning phone can currently find this one (host role only).
+  /// Android grants discoverability for a fixed window; when it lapses the
+  /// beacon keeps pulsing but nobody can see it, so the UI offers a re-arm.
+  final bool hostDiscoverable;
+
   const BluetoothConnectState({
     required this.role,
     required this.connectionState,
@@ -519,6 +630,7 @@ class BluetoothConnectState extends Equatable {
     required this.lastPeer,
     required this.connectingPeerId,
     required this.bleUnavailable,
+    required this.hostDiscoverable,
   });
 
   factory BluetoothConnectState.initial() => const BluetoothConnectState(
@@ -529,6 +641,7 @@ class BluetoothConnectState extends Equatable {
     lastPeer: null,
     connectingPeerId: null,
     bleUnavailable: false,
+    hostDiscoverable: true,
   );
 
   BluetoothConnectState copyWith({
@@ -539,6 +652,7 @@ class BluetoothConnectState extends Equatable {
     BluetoothPeer? lastPeer,
     Object? connectingPeerId = _unset,
     bool? bleUnavailable,
+    bool? hostDiscoverable,
   }) => BluetoothConnectState(
     role: role ?? this.role,
     connectionState: connectionState ?? this.connectionState,
@@ -549,6 +663,7 @@ class BluetoothConnectState extends Equatable {
         ? this.connectingPeerId
         : connectingPeerId as String?,
     bleUnavailable: bleUnavailable ?? this.bleUnavailable,
+    hostDiscoverable: hostDiscoverable ?? this.hostDiscoverable,
   );
 
   @override
@@ -560,6 +675,7 @@ class BluetoothConnectState extends Equatable {
     lastPeer,
     connectingPeerId,
     bleUnavailable,
+    hostDiscoverable,
   ];
 }
 

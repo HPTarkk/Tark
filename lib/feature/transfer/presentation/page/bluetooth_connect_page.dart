@@ -10,6 +10,9 @@ import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/android_sdk.dart';
+import '../../../../core/utils/logger.dart';
+import '../../../../core/utils/permission_queue.dart';
 import '../../domain/entity/bluetooth_connection_state.dart';
 import '../../domain/entity/bluetooth_role.dart';
 import '../manager/bluetooth_connect_cubit.dart';
@@ -47,14 +50,43 @@ class _BluetoothConnectPageState extends State<BluetoothConnectPage> {
     }
     // Android needs the granular BT runtime permissions (advertise included,
     // for BLE hosting) BEFORE any Bluetooth API works.
-    final statuses = await [
+    final requested = <Permission>[
       Permission.bluetoothScan,
       Permission.bluetoothConnect,
       Permission.bluetoothAdvertise,
-    ].request();
+    ];
+    // Pre-S Android has no granular Bluetooth permissions at all — scanning
+    // and BLE advertising are gated on location instead, so the three above
+    // resolve to "granted" without ever prompting, and the BLE stack raises
+    // the location prompt ITSELF the moment hosting starts. That prompt is a
+    // requestPermissions() call we don't own and can't serialize, so it
+    // collided with the microphone request the walkie session fires when a
+    // peer connects — Android drops whichever lands second
+    // ("W/Activity: Can request only one set of permissions at a time") and
+    // permission_handler never completes the dropped one's Future. Asking for
+    // location up front, through the queue, means the BLE stack finds it
+    // already granted and never prompts. See [PermissionQueue].
+    if (await _isPreAndroidS()) {
+      requested.add(Permission.locationWhenInUse);
+    }
+    if (!mounted) return false;
+    final statuses = await PermissionQueue.run(() => requested.request());
     final granted = statuses.values.every((s) => s.isGranted);
     if (mounted) setState(() => _permissionDenied = !granted);
     return granted;
+  }
+
+  /// Assumes modern Android when the lookup fails, matching PermissionsPage:
+  /// pre-S is the special case, so defaulting to S+ keeps the long-standing
+  /// behaviour rather than asking every modern device for a location
+  /// permission it does not need.
+  Future<bool> _isPreAndroidS() async {
+    try {
+      return await AndroidSdk.version() < 31;
+    } catch (e) {
+      Logger.log('SDK lookup failed, assuming Android S+: $e');
+      return false;
+    }
   }
 
   /// Back steps out of a chosen side first (host ⇄ join is a decision worth
@@ -118,7 +150,18 @@ class _BluetoothConnectPageState extends State<BluetoothConnectPage> {
                 // Let the success check land before jumping to the channel.
                 setState(() => _navigatingToWalkie = true);
                 await Future<void>.delayed(const Duration(milliseconds: 900));
-                if (context.mounted) context.goNamed(AppRoutes.walkieName);
+                if (!context.mounted) return;
+                try {
+                  context.goNamed(AppRoutes.walkieName);
+                } catch (e) {
+                  // The flash keeps rendering for as long as the flag is set,
+                  // so a jump that never lands leaves the user parked on
+                  // "you're in!" with only the back arrow — the link is up and
+                  // the channel is unreachable. Drop the flag so the next
+                  // connected emission gets another go instead of latching.
+                  Logger.log('Walkie navigation failed: $e');
+                  if (mounted) setState(() => _navigatingToWalkie = false);
+                }
               }
             },
             builder: (context, state) {

@@ -13,6 +13,7 @@ import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/sfx/sfx_event.dart';
 import '../../../../core/sfx/sfx_player.dart';
 import '../../../../core/utils/lan_ipv4.dart';
+import '../../../../core/utils/fallback_display_name.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../audio/api/audio_api.dart';
 import '../../../transfer/api/transfer_api.dart';
@@ -62,6 +63,9 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
   /// meter) so presentation never touches the audio feature directly.
   Stream<AudioFrame> get frames => _audioEngine.frames;
 
+  /// Incoming channel audio, for the visualizer while someone else is talking.
+  Stream<AudioFrame> get receivedFrames => _audioEngine.receivedFrames;
+
   Future<void> _init() async {
     final voxThreshold = await _settingsRepository.getVoxThreshold();
     final noiseSuppression = await _settingsRepository.getNoiseSuppression();
@@ -97,8 +101,13 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     final audioStart = _audioEngine.start();
     final localId = await _getLocalId();
     final storedName = await _settingsRepository.getMyName();
+    // Never derived from the address: this name is broadcast with every
+    // packet and shows up in everyone else's roster.
     final myName = storedName.isEmpty
-        ? 'User${localId.split('.').last}'
+        ? localizedFallbackDisplayName(
+            await _settingsRepository.getLocaleCode(),
+            localId,
+          )
         : storedName;
 
     if (isClosed) return;

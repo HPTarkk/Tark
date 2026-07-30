@@ -250,9 +250,6 @@ int audio_io_get_input_session_id(void* handle) {
         context->device.pContext->backend != ma_backend_aaudio) {
         return -1;  // OpenSL ES / other backend: no session id to expose.
     }
-    void* captureStream = (void*)context->device.aaudio.pStreamCapture;
-    if (captureStream == NULL) return -1;
-
     typedef int32_t (*PFN_AAudioStream_getSessionId)(void*);
     static PFN_AAudioStream_getSessionId pGetSessionId = NULL;
     static bool resolved = false;
@@ -265,7 +262,18 @@ int audio_io_get_input_session_id(void* handle) {
         }
     }
     if (pGetSessionId == NULL) return -1;
-    return (int)pGetSessionId(captureStream);
+
+    // Under the reroute lock: the AAudio job thread closes and frees the
+    // capture stream when the route changes (Bluetooth SCO coming up right as
+    // the session starts), and this is called immediately after start, i.e.
+    // squarely inside that window. Reading the pointer unlocked would hand a
+    // freed AAudioStream to getSessionId.
+    ma_bool32 acquired = ma_reroute_lock__aaudio(&context->device);
+    void* captureStream = (void*)context->device.aaudio.pStreamCapture;
+    const int sessionId = (captureStream != NULL) ? (int)pGetSessionId(captureStream) : -1;
+    ma_reroute_unlock__aaudio(&context->device, acquired);
+
+    return sessionId;
 #else
     (void)handle;
     return -1;

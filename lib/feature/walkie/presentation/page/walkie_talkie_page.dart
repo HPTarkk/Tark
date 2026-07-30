@@ -13,7 +13,6 @@ import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/sfx/sfx_event.dart';
 import '../../../../core/sfx/sfx_service.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/utils/extensions.dart';
 import '../../../../core/widget/app_avatar.dart';
 import '../../../../core/widget/ticker_text.dart';
 import '../../../../core/widget/version_badge.dart';
@@ -213,11 +212,16 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
           p.isReady != c.isReady,
       builder: (context, state) {
         final s = context.getString;
-        final displayIp = state.localId.isEmpty
-            ? s.connecting
-            : (state.transferMode == TransferMode.bluetooth
-                  ? s.transport_bluetooth
-                  : state.localId.localized(context));
+        // How you're connected, said with the transport's own glyph. This
+        // line used to spell out "Bluetooth" — or, in every other mode, print
+        // the device's IP address, which is not something a person can use.
+        final isConnecting = state.localId.isEmpty;
+        final transportIcon = switch (state.transferMode) {
+          TransferMode.bluetooth => Icons.bluetooth_rounded,
+          TransferMode.hotspot => Icons.wifi_tethering_rounded,
+          TransferMode.guest => Icons.public_rounded,
+          TransferMode.wifi => Icons.wifi_rounded,
+        };
 
         return _GlowCard(
           child: Row(
@@ -282,23 +286,27 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
                     Row(
                       children: [
                         Icon(
-                          Icons.router_rounded,
+                          transportIcon,
                           color: AppColors.textSecondary,
-                          size: 12,
+                          size: 13,
                         ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: TickerText(
-                            text: displayIp,
-                            duration: const Duration(milliseconds: 300),
-                            style: TextStyle(
-                              color: AppColors.textSecondary,
-                              fontSize: 12,
-                              letterSpacing: 0.5,
+                        // Only while there is something to say: once the link
+                        // is up the glyph alone carries it.
+                        if (isConnecting) ...[
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: TickerText(
+                              text: s.connecting,
+                              duration: const Duration(milliseconds: 300),
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 12,
+                                letterSpacing: 0.5,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ],

@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/home_widget/home_widget_service.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/settings/settings_repository.dart';
@@ -448,6 +449,62 @@ class _AppearanceCard extends StatelessWidget {
   }
 }
 
+/// One-tap "add the home-screen widget", shown only where the launcher can
+/// actually do it.
+///
+/// This is the app's only pointer to the widget existing at all — a widget
+/// nobody knows to look for in the launcher's picker may as well not ship.
+/// It hides itself rather than explaining how to long-press the home screen:
+/// the wording differs per launcher and per iOS version, so instructions we
+/// can't verify would be worse than nothing.
+class _AddWidgetRow extends StatefulWidget {
+  const _AddWidgetRow();
+
+  @override
+  State<_AddWidgetRow> createState() => _AddWidgetRowState();
+}
+
+class _AddWidgetRowState extends State<_AddWidgetRow> {
+  bool _supported = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _check();
+  }
+
+  Future<void> _check() async {
+    final supported = await GetIt.instance<HomeWidgetService>().canPin();
+    if (mounted) setState(() => _supported = supported);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_supported) return const SizedBox.shrink();
+    final s = context.getString;
+    return Column(
+      children: [
+        Divider(color: AppColors.border, height: 1),
+        SettingsRow(
+          icon: Icons.widgets_rounded,
+          label: s.settings_add_widget,
+          subtitle: s.settings_widget_hint,
+          trailing: Icon(
+            Icons.add_rounded,
+            color: AppColors.amber,
+          ),
+          onTap: () {
+            HapticFeedback.selectionClick();
+            // The launcher takes it from here with its own confirmation, so
+            // there's no result worth waiting for.
+            GetIt.instance<HomeWidgetService>().requestPin();
+          },
+        ),
+      ],
+    );
+  }
+}
+
 // ── Startup ──────────────────────────────────────────────────────────────────
 
 class _StartupCard extends StatelessWidget {
@@ -478,6 +535,7 @@ class _StartupCard extends StatelessWidget {
                 },
               ),
             ),
+            const _AddWidgetRow(),
             Divider(color: AppColors.border, height: 1),
             SettingsRow(
               icon: Icons.replay_rounded,

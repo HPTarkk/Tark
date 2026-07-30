@@ -109,6 +109,9 @@ class MainActivity : FlutterActivity() {
         if (systemAudioHandler?.handleActivityResult(requestCode, resultCode, data) == true) {
             return
         }
+        if (bluetoothServerHandler?.handleActivityResult(requestCode, resultCode, data) == true) {
+            return
+        }
         super.onActivityResult(requestCode, resultCode, data)
     }
 

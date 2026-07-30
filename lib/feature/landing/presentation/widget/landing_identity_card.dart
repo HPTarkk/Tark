@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/utils/extensions.dart';
 import '../../../../core/widget/app_avatar.dart';
 import '../../../../core/widget/ticker_text.dart';
+import '../../../transfer/api/transfer_api.dart';
 import '../manager/landing_cubit.dart';
 
 /// Identity card on the landing page: avatar, name, IP and edit button.
@@ -22,9 +22,25 @@ class LandingIdentityCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = context.getString;
     final hasNetwork = state.hasNetwork;
-    final displayIp = state.isLoading
+    // An IP address told the user nothing they could act on. What they
+    // actually want to know from this line is whether they can talk yet —
+    // and over what, which the icon says rather than a second label.
+    //
+    // Bluetooth needs no Wi-Fi at all, so it must not inherit the "no
+    // network" warning: on that mode the local IP is simply irrelevant.
+    final needsNetwork =
+        state.transferMode == TransferMode.wifi ||
+        state.transferMode == TransferMode.hotspot;
+    final ready = !needsNetwork || hasNetwork;
+    final networkStatus = state.isLoading
         ? s.connecting
-        : (hasNetwork ? state.localIp.localized(context) : s.no_network);
+        : (ready ? s.landing_ready : s.no_network);
+    final transportIcon = switch (state.transferMode) {
+      TransferMode.bluetooth => Icons.bluetooth_rounded,
+      TransferMode.hotspot => Icons.wifi_tethering_rounded,
+      TransferMode.guest => Icons.public_rounded,
+      TransferMode.wifi => Icons.wifi_rounded,
+    };
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -60,25 +76,19 @@ class LandingIdentityCard extends StatelessWidget {
                         child: FadeTransition(opacity: anim, child: child),
                       ),
                       child: Icon(
-                        hasNetwork
-                            ? Icons.router_rounded
-                            : Icons.wifi_off_rounded,
-                        key: ValueKey(hasNetwork),
-                        color: hasNetwork
-                            ? AppColors.textSecondary
-                            : AppColors.red,
-                        size: 12,
+                        ready ? transportIcon : Icons.wifi_off_rounded,
+                        key: ValueKey(ready ? state.transferMode : null),
+                        color: ready ? AppColors.textSecondary : AppColors.red,
+                        size: 13,
                       ),
                     ),
                     const SizedBox(width: 4),
                     Expanded(
                       child: TickerText(
-                        text: displayIp,
+                        text: networkStatus,
                         duration: const Duration(milliseconds: 300),
                         style: TextStyle(
-                          color: hasNetwork
-                              ? AppColors.textSecondary
-                              : AppColors.red,
+                          color: ready ? AppColors.textSecondary : AppColors.red,
                           fontSize: 12,
                         ),
                         overflow: TextOverflow.ellipsis,
