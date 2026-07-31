@@ -137,6 +137,12 @@ class AudioPlaybackBuffer {
   /// (e.g. after a VOX silence) instead of filling a huge silence gap.
   static const int _maxConcealedGapChunks = 50;
 
+  /// How far behind the expected sequence a packet may be and still be read as
+  /// ordinary UDP reordering rather than the sender having restarted its
+  /// counter. Real reordering is a handful of packets; a restart lands
+  /// thousands behind, so anything in between is safely on either side.
+  static const int _maxReorderChunks = 50;
+
   /// Short ramp applied right after playback resumes (initial fill, after an
   /// underrun, or after a trim) to avoid an audible click at the
   /// silence→audio or splice boundary.
@@ -194,8 +200,28 @@ class AudioPlaybackBuffer {
     if (expectedSeq == null) {
       // First packet from this sender — nothing to compare against yet.
     } else if (seq < expectedSeq) {
-      // Stale/out-of-order packet — too late to play in sequence.
-      return;
+      final behind = expectedSeq - seq;
+      if (behind <= _maxReorderChunks) {
+        // Genuinely late — too old to splice back into sequence.
+        return;
+      }
+      // Miles behind, which is not lateness: this sender's counter restarted.
+      // A sequence counter lives on the transport repository and starts at
+      // zero — per repository, so switching transport restarts it — while the
+      // sender's identity does not change with it. Before identity was stable
+      // the same thing happened whenever hotspot DHCP recycled an address onto
+      // a different phone.
+      //
+      // Falling through to resync matters more than it looks: the stale branch
+      // above returns WITHOUT advancing the expected sequence, so once a
+      // sender is behind it stays behind, and every packet it ever sends again
+      // is dropped. That is a sender silently muted for the rest of the
+      // session, in one direction, with no way back short of leaving the
+      // channel — which is precisely how it was reported.
+      Logger.diagnostic(
+        'playback: sender $senderId restarted its sequence '
+        '($expectedSeq -> $seq) — resyncing',
+      );
     } else if (seq > expectedSeq) {
       final missing = seq - expectedSeq;
       if (missing <= _maxConcealedGapChunks) {

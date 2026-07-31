@@ -15,6 +15,7 @@ import '../../../audio/domain/vox_gate.dart';
 // Direct file imports (not the transfer barrel) — see GuestWebClient.
 import '../../../transfer/data/codec/waki_packet_codec.dart';
 import '../../../transfer/domain/entity/guest_link_state.dart';
+import '../../../transfer/domain/entity/session_role.dart';
 import '../../../transfer/domain/entity/waki_packet.dart';
 import '../../data/guest_web_client.dart';
 
@@ -154,7 +155,15 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
     );
     _presenceTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       if (_client.isOpen) {
-        _client.send(_codec.encodePresence(state.myName, state.isTalking));
+        _client.send(
+          _codec.encodePresence(
+            state.myName,
+            state.isTalking,
+            // A browser guest is always the one who came in over someone
+            // else's link.
+            role: SessionRole.joiner,
+          ),
+        );
       }
     });
     _staleTimer = Timer.periodic(const Duration(seconds: 3), (_) {
@@ -217,7 +226,13 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
     await _settingsRepository.setMyName(trimmed);
     // Let the host see the new name immediately, not on the next tick.
     if (_client.isOpen) {
-      _client.send(_codec.encodePresence(trimmed, state.isTalking));
+      _client.send(
+        _codec.encodePresence(
+          trimmed,
+          state.isTalking,
+          role: SessionRole.joiner,
+        ),
+      );
     }
   }
 

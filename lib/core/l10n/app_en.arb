@@ -192,7 +192,7 @@
     "hotspot_scan_searching": "LOOKING FOR THE CODE",
     "hotspot_scan_locked": "CODE FOUND",
     "hotspot_scan_again": "SCAN AGAIN",
-    "hotspot_joining": "Joining the network...",
+    "hotspot_joining": "Joining the network... Say yes to Android's \"connect to this network\" prompt — on some phones it turns up in your notifications rather than on screen.",
     "hotspot_joined": "You're on the network",
     "hotspot_joined_network": "You're on {network}",
     "hotspot_join_waiting": "Hop into the channel to start talking.",
@@ -202,6 +202,10 @@
     "hotspot_manual_join_hint": "Open Settings › Wi-Fi, pick this network, then come back and tap the button below.",
     "hotspot_manual_joined": "I'VE JOINED",
     "hotspot_invalid_qr": "That's not a Wi-Fi code. Scan the one showing on the host phone.",
+    "hotspot_wifi_off": "Wi-Fi is off on this phone, so it can't join the hotspot. Switch it on and try again.",
+    "hotspot_enable_wifi": "TURN WI-FI ON",
+    "hotspot_location_off": "Android won't let this phone look for Wi-Fi networks while Location is off, so it can't find the hotspot. Switch Location on and try again.",
+    "hotspot_enable_location": "TURN LOCATION ON",
     "bt_ios_hint": "Bluetooth between an iPhone and an Android drops a lot. For something steadier between them, use Hotspot.",
     "bt_ble_unavailable": "This phone can't make itself findable over Bluetooth, so iPhones won't see it here.",
     "bt_use_wifi_bridge": "USE WI-FI INSTEAD",
@@ -288,5 +292,8 @@
     "widget_peers": "{count} on channel",
     "widget_end": "END",
     "settings_add_widget": "Add the channel widget",
-    "settings_widget_hint": "Put a dial on your home screen — see who's on air and jump in with one tap."
+    "settings_widget_hint": "Put a dial on your home screen — see who's on air and jump in with one tap.",
+    "role_host": "Base Station",
+    "role_joiner": "Field Unit",
+    "role_peer": "Open Air"
 }

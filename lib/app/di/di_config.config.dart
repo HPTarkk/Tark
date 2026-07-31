@@ -17,6 +17,7 @@ import 'package:tark/app/di/di_config.dart' as _i250;
 import 'package:tark/core/home_widget/home_widget_service.dart' as _i590;
 import 'package:tark/core/home_widget/home_widget_service_impl.dart' as _i828;
 import 'package:tark/core/home_widget/widget_control_channel.dart' as _i970;
+import 'package:tark/core/identity/device_identity.dart' as _i990;
 import 'package:tark/core/settings/settings_repository.dart' as _i349;
 import 'package:tark/core/settings/settings_repository_impl.dart' as _i632;
 import 'package:tark/core/sfx/sfx_player.dart' as _i690;
@@ -39,6 +40,10 @@ import 'package:tark/feature/transfer/data/repository/webrtc_transfer_repository
     as _i482;
 import 'package:tark/feature/transfer/data/repository/wifi_transfer_repository_impl.dart'
     as _i627;
+import 'package:tark/feature/transfer/data/service/hotspot_link_keeper_impl.dart'
+    as _i697;
+import 'package:tark/feature/transfer/data/service/session_role_store_impl.dart'
+    as _i1042;
 import 'package:tark/feature/transfer/data/service/transfer_mode_store_impl.dart'
     as _i290;
 import 'package:tark/feature/transfer/domain/repository/bluetooth_transport.dart'
@@ -51,6 +56,10 @@ import 'package:tark/feature/transfer/domain/repository/wifi_transfer_repository
     as _i1043;
 import 'package:tark/feature/transfer/domain/service/hotspot_control.dart'
     as _i794;
+import 'package:tark/feature/transfer/domain/service/hotspot_link_keeper.dart'
+    as _i991;
+import 'package:tark/feature/transfer/domain/service/session_role_store.dart'
+    as _i293;
 import 'package:tark/feature/transfer/domain/service/transfer_mode_store.dart'
     as _i517;
 import 'package:tark/feature/transfer/presentation/manager/bluetooth_connect_cubit.dart'
@@ -78,10 +87,7 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i462.NeHotspotJoiner>(() => _i462.NeHotspotJoiner());
     gh.factory<_i462.AndroidWifiJoiner>(() => _i462.AndroidWifiJoiner());
     gh.lazySingleton<_i891.AudioIo>(() => registerThirdParty.audioIo);
-    gh.lazySingleton<_i482.WebRtcTransferRepository>(
-      () => _i482.WebRtcTransferRepository(),
-      dispose: (i) => i.dispose(),
-    );
+    gh.lazySingleton<_i990.DeviceIdentity>(() => _i990.DeviceIdentity());
     gh.lazySingleton<_i970.WidgetControlChannel>(
       () => _i970.WidgetControlChannelImpl(),
       dispose: (i) => i.dispose(),
@@ -91,9 +97,12 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i430.SessionWakeLock>(
       () => const _i278.SessionKeepAliveWakeLock(),
     );
-    gh.lazySingleton<_i1043.WifiTransferRepository>(
-      () => _i627.WifiTransferRepositoryImpl(),
+    gh.lazySingleton<_i482.WebRtcTransferRepository>(
+      () => _i482.WebRtcTransferRepository(gh<_i990.DeviceIdentity>()),
       dispose: (i) => i.dispose(),
+    );
+    gh.lazySingleton<_i293.SessionRoleStore>(
+      () => _i1042.SessionRoleStoreImpl(),
     );
     gh.lazySingleton<_i590.HomeWidgetService>(
       () => _i828.HomeWidgetServiceImpl(gh<_i460.SharedPreferences>()),
@@ -110,17 +119,41 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i482.WebRtcTransferRepository>(),
       ),
     );
+    gh.lazySingleton<_i517.TransferModeStore>(
+      () => _i290.TransferModeStoreImpl(
+        gh<_i460.SharedPreferences>(),
+        gh<_i293.SessionRoleStore>(),
+      ),
+    );
     gh.lazySingleton<_i349.SettingsRepository>(
       () => _i632.SettingsRepositoryImpl(gh<_i460.SharedPreferences>()),
-    );
-    gh.lazySingleton<_i517.TransferModeStore>(
-      () => _i290.TransferModeStoreImpl(gh<_i460.SharedPreferences>()),
     );
     gh.factory<_i1007.GuestLinkCubit>(
       () => _i1007.GuestLinkCubit(
         gh<_i945.GuestLinkController>(),
         gh<_i690.SfxPlayer>(),
       ),
+    );
+    gh.lazySingleton<_i1043.WifiTransferRepository>(
+      () => _i627.WifiTransferRepositoryImpl(
+        gh<_i990.DeviceIdentity>(),
+        gh<_i293.SessionRoleStore>(),
+      ),
+      dispose: (i) => i.dispose(),
+    );
+    gh.factory<_i565.AudioEngine>(
+      () => _i876.AudioEngineImpl(
+        gh<_i891.AudioIo>(),
+        gh<_i349.SettingsRepository>(),
+      ),
+    );
+    gh.lazySingleton<_i991.HotspotLinkKeeper>(
+      () => _i697.HotspotLinkKeeperImpl(
+        gh<_i794.HotspotHost>(),
+        gh<_i794.HotspotJoiner>(),
+        gh<_i293.SessionRoleStore>(),
+      ),
+      dispose: (i) => i.dispose(),
     );
     gh.factory<_i1045.WifiHotspotCubit>(
       () => _i1045.WifiHotspotCubit(
@@ -129,25 +162,16 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i794.HotspotJoiner>(),
         gh<_i690.SfxPlayer>(),
         gh<_i138.SessionWakeLock>(),
-      ),
-    );
-    gh.factory<_i565.AudioEngine>(
-      () => _i876.AudioEngineImpl(
-        gh<_i891.AudioIo>(),
-        gh<_i349.SettingsRepository>(),
+        gh<_i293.SessionRoleStore>(),
+        gh<_i991.HotspotLinkKeeper>(),
       ),
     );
     gh.lazySingleton<_i485.BluetoothTransferRepository>(
-      () => _i485.BluetoothTransferRepository(gh<_i349.SettingsRepository>()),
-      dispose: (i) => i.dispose(),
-    );
-    gh.factory<_i923.TransferRepository>(
-      () => transferModule.transferRepository(
-        gh<_i517.TransferModeStore>(),
-        gh<_i1043.WifiTransferRepository>(),
-        gh<_i485.BluetoothTransferRepository>(),
-        gh<_i482.WebRtcTransferRepository>(),
+      () => _i485.BluetoothTransferRepository(
+        gh<_i349.SettingsRepository>(),
+        gh<_i990.DeviceIdentity>(),
       ),
+      dispose: (i) => i.dispose(),
     );
     gh.factory<_i638.BluetoothTransport>(
       () => transferModule.bluetoothTransport(
@@ -173,6 +197,14 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i690.SfxPlayer>(),
       ),
     );
+    gh.factory<_i923.TransferRepository>(
+      () => transferModule.transferRepository(
+        gh<_i517.TransferModeStore>(),
+        gh<_i1043.WifiTransferRepository>(),
+        gh<_i485.BluetoothTransferRepository>(),
+        gh<_i482.WebRtcTransferRepository>(),
+      ),
+    );
     gh.factory<_i496.WalkieTalkieCubit>(
       () => _i496.WalkieTalkieCubit(
         gh<_i138.AudioEngine>(),
@@ -183,6 +215,8 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i138.SessionWakeLock>(),
         gh<_i590.HomeWidgetService>(),
         gh<_i970.WidgetControlChannel>(),
+        gh<_i990.DeviceIdentity>(),
+        gh<_i991.HotspotLinkKeeper>(),
       ),
     );
     return this;

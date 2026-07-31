@@ -8,8 +8,10 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../core/widget/app_avatar.dart';
 import '../../../../core/widget/section_header.dart';
+import '../../../transfer/api/transfer_api.dart';
 import '../../domain/entity/channel_user.dart';
 import '../manager/walkie_talkie_cubit.dart';
+import 'role_badge.dart';
 
 // ── User list ─────────────────────────────────────────────────────────────────
 
@@ -114,19 +116,29 @@ class UserTile extends StatelessWidget {
         children: [
           AppAvatar(name: user.name, isActive: isTalking, size: 38),
           const SizedBox(width: 12),
-          // Name only. The second line used to carry the peer's address —
-          // a MAC over Bluetooth, an IP over Wi-Fi — which says nothing to
-          // the person reading it, and the badge on the right already says
-          // whether they're talking.
+          // The second line carries the part this member plays in the link.
+          // It used to be their address — a MAC over Bluetooth, an IP over
+          // Wi-Fi — which says nothing to the person reading it; who is
+          // holding the channel up does.
           Expanded(
-            child: Text(
-              user.name,
-              style: TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-              overflow: TextOverflow.ellipsis,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  user.name,
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (user.role != SessionRole.unknown) ...[
+                  const SizedBox(height: 3),
+                  RoleBadge(role: user.role),
+                ],
+              ],
             ),
           ),
           if (isTalking) ...[

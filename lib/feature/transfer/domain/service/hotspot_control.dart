@@ -20,11 +20,43 @@ abstract interface class HotspotHost {
   Future<void> openFixSettings(String errorCode);
 }
 
-/// Peer side: programmatically joins the host's network, returning whether
-/// the auto-join succeeded (false → the UI falls back to showing the
-/// credentials for a manual join).
+/// How a [HotspotJoiner.join] ended. [declined] and [wifiOff] both mean "not
+/// on the network", but they need opposite screens: one is a dead end the user
+/// works around by joining in Settings, the other is a switch they can flip.
+/// Collapsing them into a bare false sent a phone with its Wi-Fi off to the
+/// manual card, which tells you to pick the network from a Wi-Fi list that
+/// isn't scanning.
+enum HotspotJoinResult {
+  /// Associated and pinned to the host's network.
+  joined,
+
+  /// The Wi-Fi radio is off, so no join of any kind can happen yet.
+  wifiOff,
+
+  /// The system Location toggle is off. Through Android 12 that stops Wi-Fi
+  /// scanning outright, so the framework's network picker finds nothing and
+  /// gives up ~30s later — indistinguishable from a missing host unless we
+  /// catch it first.
+  locationOff,
+
+  /// The OS wouldn't do it: dialog dismissed, wrong passphrase, or the AP
+  /// never turned up. The manual fallback takes over.
+  declined,
+}
+
+/// Peer side: programmatically joins the host's network, reporting how it went
+/// (anything but [HotspotJoinResult.joined] leaves the UI to offer a way out).
 abstract interface class HotspotJoiner {
-  Future<bool> join(HotspotCredentials credentials);
+  Future<HotspotJoinResult> join(HotspotCredentials credentials);
+
+  /// Turns the Wi-Fi radio back on for [HotspotJoinResult.wifiOff]. True when
+  /// it is on by the time this returns; false when the user was handed a
+  /// system toggle and the caller must wait for them to flip it.
+  Future<bool> enableWifi();
+
+  /// Opens the system Location screen for [HotspotJoinResult.locationOff].
+  /// There is no app-facing switch for this one at any API level.
+  Future<void> openLocationSettings();
 
   /// Pins this process's sockets to the Wi-Fi the user joined by hand, for the
   /// manual fallback. Returns whether a Wi-Fi network was there to bind to.

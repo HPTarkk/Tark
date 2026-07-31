@@ -2,10 +2,18 @@ import 'package:dartz/dartz.dart';
 
 import '../../../../core/error/failure.dart';
 import '../entity/connection_health.dart';
+import '../entity/session_role.dart';
 import '../entity/waki_packet.dart';
 
 abstract interface class TransferRepository {
   Stream<WakiPacket> startListening();
+
+  /// The part this device plays in the current link, stamped on every
+  /// presence packet so the other end can name it too. Each transport
+  /// answers from what it knows: which side of the Bluetooth connection it
+  /// is, whether it hosts the guest link, which end of the hotspot bridge
+  /// the user picked. [SessionRole.unknown] until a session exists.
+  SessionRole get sessionRole;
 
   Future<Either<Failure, void>> sendAudio(
     List<double> samples,

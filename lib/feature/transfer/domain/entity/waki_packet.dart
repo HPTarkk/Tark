@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import 'session_role.dart';
+
 sealed class WakiPacket extends Equatable {
   final String senderId;
   final String senderName;
@@ -13,14 +15,20 @@ sealed class WakiPacket extends Equatable {
 final class PresencePacket extends WakiPacket {
   final bool isTalking;
 
+  /// The part the sender says it plays in the link. [SessionRole.unknown]
+  /// when the sender is on a build that predates roles — presence carries it
+  /// as a trailing byte those builds simply never wrote.
+  final SessionRole role;
+
   const PresencePacket({
     required super.senderId,
     required super.senderName,
     required this.isTalking,
+    this.role = SessionRole.unknown,
   });
 
   @override
-  List<Object?> get props => [...super.props, isTalking];
+  List<Object?> get props => [...super.props, isTalking, role];
 }
 
 final class AudioPacket extends WakiPacket {

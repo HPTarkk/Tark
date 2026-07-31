@@ -221,4 +221,77 @@ void main() {
       expect(sink.chunks, isNotEmpty);
     });
   });
+
+  group('sender restarts its sequence counter', () {
+    // A sequence counter lives on the transport repository and starts at zero,
+    // while the sender's identity does not restart with it — so a counter far
+    // behind the expected value is a new stream, not a late packet. Read as
+    // lateness it was fatal: the stale branch returns without advancing the
+    // expected sequence, so the sender never becomes un-stale and is muted for
+    // the rest of the session, in one direction only.
+    test('a counter restart resyncs instead of dropping', () {
+      final sink = _RecordingSink();
+      final buffer = build(sink);
+      addTearDown(buffer.dispose);
+
+      buffer.feed(_tone(480), 5000, 'peer');
+      final afterFirst = buffer.queuedSamples;
+
+      buffer.feed(_tone(480), 0, 'peer');
+      expect(
+        buffer.queuedSamples,
+        greaterThan(afterFirst),
+        reason: 'a restarted stream must be adopted, not discarded',
+      );
+    });
+
+    test('and keeps accepting everything that follows', () {
+      final sink = _RecordingSink();
+      final buffer = build(sink);
+      addTearDown(buffer.dispose);
+
+      buffer.feed(_tone(480), 5000, 'peer');
+      buffer.feed(_tone(480), 0, 'peer');
+
+      // The actual defect: not one dropped packet, but every packet after it.
+      var queued = buffer.queuedSamples;
+      for (var seq = 1; seq <= 10; seq++) {
+        buffer.feed(_tone(480), seq, 'peer');
+        expect(
+          buffer.queuedSamples,
+          greaterThan(queued),
+          reason: 'packet $seq after a resync must still be queued',
+        );
+        queued = buffer.queuedSamples;
+      }
+    });
+
+    test('restarting one sender leaves the other alone', () {
+      final sink = _RecordingSink();
+      final buffer = build(sink);
+      addTearDown(buffer.dispose);
+
+      buffer.feed(_tone(480), 5000, 'a');
+      buffer.feed(_tone(480), 7, 'b');
+      buffer.feed(_tone(480), 0, 'a'); // a restarts
+
+      final queued = buffer.queuedSamples;
+      buffer.feed(_tone(480), 3, 'b'); // still stale for b, still dropped
+      expect(buffer.queuedSamples, queued);
+      buffer.feed(_tone(480), 8, 'b'); // b continues normally
+      expect(buffer.queuedSamples, greaterThan(queued));
+    });
+
+    test('ordinary reordering is still treated as late, not as a restart', () {
+      final sink = _RecordingSink();
+      final buffer = build(sink);
+      addTearDown(buffer.dispose);
+
+      buffer.feed(_tone(480), 40, 'peer');
+      final afterFirst = buffer.queuedSamples;
+      // 39 behind: within the reorder window, so genuinely a late packet.
+      buffer.feed(_tone(480), 2, 'peer');
+      expect(buffer.queuedSamples, afterFirst);
+    });
+  });
 }

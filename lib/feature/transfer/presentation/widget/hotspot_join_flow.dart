@@ -26,6 +26,40 @@ class HotspotJoinFlow extends StatelessWidget {
     required this.onEnterChannel,
   });
 
+  /// A system switch the join needs and can't reach: state it, offer the one
+  /// tap that gets there, and leave a way back in.
+  ///
+  /// The way back is a button rather than an automatic retry because neither
+  /// switch reports back — the Wi-Fi panel and the Location screen are both
+  /// the user's to close, and nothing tells us when they have.
+  List<Widget> _blockedSwitch(
+    BuildContext context, {
+    required IconData icon,
+    required String message,
+    required IconData actionIcon,
+    required String actionLabel,
+    required VoidCallback onAction,
+    required HotspotCredentials? credentials,
+  }) {
+    final s = context.getString;
+    final cubit = context.read<WifiHotspotCubit>();
+    return [
+      HotspotInlineNote(icon: icon, text: message, color: AppColors.red),
+      const SizedBox(height: 18),
+      HotspotPrimaryButton(
+        icon: actionIcon,
+        label: actionLabel,
+        onTap: onAction,
+      ),
+      const SizedBox(height: 12),
+      if (credentials != null)
+        _SecondaryButton(
+          label: s.hotspot_rejoin,
+          onTap: () => cubit.joinNetwork(credentials),
+        ),
+    ];
+  }
+
   Future<void> _scan(BuildContext context) async {
     final cubit = context.read<WifiHotspotCubit>();
     final raw = await HotspotQrScannerPage.open(context);
@@ -100,6 +134,28 @@ class HotspotJoinFlow extends StatelessWidget {
               onTap: onEnterChannel,
             ),
           ],
+          // Both of these sit ahead of the manual card deliberately. They mean
+          // the phone can't see Wi-Fi networks at all, so the manual card's
+          // "pick this network in Settings" would be a dead end — there is
+          // nothing in the list to pick.
+          JoinPhase.wifiOff => _blockedSwitch(
+            context,
+            icon: Icons.wifi_off_rounded,
+            message: s.hotspot_wifi_off,
+            actionIcon: Icons.wifi_rounded,
+            actionLabel: s.hotspot_enable_wifi,
+            onAction: cubit.enableWifiAndRetry,
+            credentials: creds,
+          ),
+          JoinPhase.locationOff => _blockedSwitch(
+            context,
+            icon: Icons.location_off_rounded,
+            message: s.hotspot_location_off,
+            actionIcon: Icons.my_location_rounded,
+            actionLabel: s.hotspot_enable_location,
+            onAction: cubit.openLocationSettings,
+            credentials: creds,
+          ),
           JoinPhase.manual when creds != null => [
             _ManualJoinCard(credentials: creds),
             const SizedBox(height: 18),

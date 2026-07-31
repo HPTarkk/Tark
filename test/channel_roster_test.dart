@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tark/feature/transfer/domain/entity/session_role.dart';
 import 'package:tark/feature/walkie/domain/entity/channel_user.dart';
 import 'package:tark/feature/walkie/domain/service/channel_roster.dart';
 
@@ -6,11 +7,13 @@ ChannelUser user(
   String id, {
   bool isTalking = false,
   DateTime? lastSeen,
+  SessionRole role = SessionRole.unknown,
 }) => ChannelUser(
   id: id,
   name: 'User $id',
   isTalking: isTalking,
   lastSeen: lastSeen ?? DateTime.now(),
+  role: role,
 );
 
 void main() {
@@ -30,6 +33,23 @@ void main() {
       );
       expect(update.change, RosterChange.peerStartedTalking);
       expect(update.users.single.isTalking, isTrue);
+    });
+
+    test('an update with no role keeps the one already announced', () {
+      // Every audio packet arrives role-less; presence only comes every 2s.
+      final update = roster.upsert(
+        [user('a', role: SessionRole.host)],
+        user('a', isTalking: true),
+      );
+      expect(update.users.single.role, SessionRole.host);
+    });
+
+    test('an announced role replaces the one held', () {
+      final update = roster.upsert(
+        [user('a', role: SessionRole.joiner)],
+        user('a', role: SessionRole.host),
+      );
+      expect(update.users.single.role, SessionRole.host);
     });
 
     test('talking → talking refresh reports no change', () {

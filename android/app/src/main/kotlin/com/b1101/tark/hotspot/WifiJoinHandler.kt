@@ -1,6 +1,9 @@
 package com.b1101.tark.hotspot
 
+import android.app.ActivityManager
 import android.content.Context
+import android.content.Intent
+import android.location.LocationManager
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -11,6 +14,10 @@ import android.net.wifi.WifiNetworkSpecifier
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.Process
+import android.os.SystemClock
+import android.provider.Settings
+import android.util.Log
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
@@ -94,6 +101,11 @@ class WifiJoinHandler(
                 result = result,
             )
             "bindCurrent" -> result.success(bindCurrent())
+            "enableWifi" -> result.success(enableWifi())
+            "openLocationSettings" -> {
+                openLocationSettings()
+                result.success(null)
+            }
             "leave" -> {
                 leave()
                 result.success(null)
@@ -109,6 +121,7 @@ class WifiJoinHandler(
         result: MethodChannel.Result,
     ) {
         if (ssid.isEmpty()) {
+            Log.w(TAG, "join rejected: empty SSID")
             result.error("no_ssid", "Join requires an SSID", null)
             return
         }
@@ -117,9 +130,41 @@ class WifiJoinHandler(
         leave()
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            Log.i(TAG, "join '$ssid' via legacy addNetwork (SDK ${Build.VERSION.SDK_INT})")
             joinLegacy(ssid, passphrase, result)
             return
         }
+
+        // A specifier request against a disabled radio is rejected by
+        // WifiNetworkFactory the moment it arrives — the caller would see an
+        // instant "couldn't join" with no dialog and no timeout, which reads as
+        // the app being broken rather than Wi-Fi being off. Say which it is.
+        // From API 29 an app can no longer flip the radio itself, so this can
+        // only be reported, not fixed here.
+        if (!wifiManager.isWifiEnabled) {
+            Log.w(TAG, "join '$ssid' rejected: Wi-Fi radio is off")
+            result.error("wifi_off", "Wi-Fi is turned off", null)
+            return
+        }
+
+        // Through API 32, Wi-Fi scanning is gated on the *system* Location
+        // toggle. The framework does the scanning for a specifier request, so
+        // with Location off its network picker comes up empty and cancels
+        // itself ~32s later — the app just sees onUnavailable and drops to the
+        // manual card, having shown a spinner the whole time. The host side
+        // has always preflighted this (HotspotHandler.preflightError); the
+        // join side is subject to exactly the same requirement.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU && !isLocationEnabled()) {
+            Log.w(TAG, "join '$ssid' rejected: system Location is off (Wi-Fi scans fail)")
+            result.error("location_off", "Location is off, so Wi-Fi can't scan", null)
+            return
+        }
+
+        Log.i(
+            TAG,
+            "join '$ssid' security=$security pass=${passphrase.length}ch " +
+                "sdk=${Build.VERSION.SDK_INT} importance=${uidImportance()}",
+        )
 
         val specifier = WifiNetworkSpecifier.Builder()
             .setSsid(ssid)
@@ -146,14 +191,17 @@ class WifiJoinHandler(
         // callback can fire onAvailable again after a reconnect.
         val pending = PendingJoin(result, AtomicBoolean(false))
         pendingJoin = pending
+        val startedAt = SystemClock.elapsedRealtime()
         val cb = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
+                Log.i(TAG, "onAvailable after ${SystemClock.elapsedRealtime() - startedAt}ms")
                 bind(network)
                 pending.reply(true)
             }
 
             override fun onLost(network: Network) {
                 if (network != boundNetwork) return
+                Log.w(TAG, "onLost: joined network went away")
                 boundNetwork = null
                 // Don't leave the process pinned to a network that no longer
                 // exists — that would block every recovery path, including the
@@ -166,6 +214,14 @@ class WifiJoinHandler(
                 // The user dismissed the system dialog, the passphrase was
                 // wrong, or the AP never showed up before the timeout. Not an
                 // error — the UI falls back to a manual join.
+                //
+                // The elapsed time is the whole diagnosis here: ~JOIN_TIMEOUT_MS
+                // means the framework looked for the AP and never found it,
+                // while a near-instant one means WifiNetworkFactory refused the
+                // request outright (app not judged foreground, radio busy) and
+                // the user never even saw the "Connect to …?" dialog.
+                val elapsed = SystemClock.elapsedRealtime() - startedAt
+                Log.w(TAG, "onUnavailable after ${elapsed}ms (importance=${uidImportance()})")
                 pending.reply(false)
             }
         }
@@ -175,13 +231,30 @@ class WifiJoinHandler(
             connectivity.requestNetwork(request, cb, JOIN_TIMEOUT_MS)
         } catch (e: SecurityException) {
             // requestNetwork with a specifier is foreground-only.
+            Log.e(TAG, "requestNetwork denied (foreground-only)", e)
             callback = null
             pending.fail("foreground_required", e.message)
         } catch (e: Exception) {
+            Log.e(TAG, "requestNetwork failed", e)
             callback = null
             pending.fail("failed", e.message)
         }
     }
+
+    /**
+     * This process's importance as ActivityManager reports it. Purely
+     * diagnostic: WifiNetworkFactory drops a specifier request from anything it
+     * doesn't consider foreground, and that rejection is otherwise
+     * indistinguishable from "the AP wasn't there". Lower is more foreground
+     * (IMPORTANCE_FOREGROUND = 100, FOREGROUND_SERVICE = 125).
+     */
+    private fun uidImportance(): Int = runCatching {
+        val am = context.applicationContext
+            .getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        am.runningAppProcesses
+            ?.firstOrNull { it.pid == Process.myPid() }
+            ?.importance ?: -1
+    }.getOrDefault(-1)
 
     /** A join awaiting its answer, guarded so it is delivered exactly once. */
     private inner class PendingJoin(
@@ -256,6 +329,75 @@ class WifiJoinHandler(
     }
 
     /**
+     * Whether the system Location toggle is on — not the app's permission, the
+     * device-wide switch, which is what Wi-Fi scanning is actually gated on
+     * through API 32. Assumes on when it can't tell, so an unreadable
+     * LocationManager blocks nothing.
+     */
+    private fun isLocationEnabled(): Boolean {
+        val manager =
+            context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager ?: return true
+        return runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                manager.isLocationEnabled
+            } else {
+                manager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+                    manager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+            }
+        }.getOrDefault(true)
+    }
+
+    /** Opens the system Location screen, for the `location_off` dead end. */
+    private fun openLocationSettings() {
+        runCatching {
+            context.startActivity(
+                Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+        }
+    }
+
+    /**
+     * Gets the Wi-Fi radio back on, which is a precondition for [join] that the
+     * user has no other reason to think about — the bridge screen never
+     * mentions Wi-Fi, so "off" just looked like the join being broken.
+     *
+     * Returns true when the radio is on by the time this answers. From API 29
+     * an app can no longer flip it: the best available is [Settings.Panel], a
+     * slide-up over the app with a Wi-Fi toggle in it — no full trip through
+     * Settings, in keeping with the rest of this flow. That path returns false
+     * because the toggle is the user's to make, and the caller has to wait for
+     * them rather than retry the join straight away.
+     */
+    private fun enableWifi(): Boolean {
+        if (wifiManager.isWifiEnabled) return true
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            @Suppress("DEPRECATION")
+            val ok = runCatching { wifiManager.setWifiEnabled(true) }.getOrDefault(false)
+            Log.i(TAG, "enableWifi: setWifiEnabled -> $ok")
+            return ok
+        }
+
+        val panel = Intent(Settings.Panel.ACTION_WIFI)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (runCatching { context.startActivity(panel) }.isSuccess) {
+            Log.i(TAG, "enableWifi: opened the Wi-Fi settings panel")
+            return false
+        }
+        // No panel on this build — the full Wi-Fi settings screen still gets
+        // the user to the same switch.
+        runCatching {
+            context.startActivity(
+                Intent(Settings.ACTION_WIFI_SETTINGS)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+        }
+        Log.w(TAG, "enableWifi: no Wi-Fi panel, fell back to settings")
+        return false
+    }
+
+    /**
      * Pins the process to whatever Wi-Fi network is already connected. Used
      * when the user joined the host's hotspot by hand (the manual fallback):
      * the association exists, it's the default-network switch away from an
@@ -265,7 +407,12 @@ class WifiJoinHandler(
         val network = connectivity.allNetworks.firstOrNull { candidate ->
             connectivity.getNetworkCapabilities(candidate)
                 ?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
-        } ?: return false
+        }
+        if (network == null) {
+            Log.w(TAG, "bindCurrent: no Wi-Fi network to pin to")
+            return false
+        }
+        Log.i(TAG, "bindCurrent: pinning process to $network")
         bind(network)
         return true
     }
@@ -276,6 +423,9 @@ class WifiJoinHandler(
     }
 
     fun leave() {
+        if (callback != null || boundNetwork != null) {
+            Log.i(TAG, "leave: releasing request (bound=${boundNetwork != null})")
+        }
         callback?.let { cb -> runCatching { connectivity.unregisterNetworkCallback(cb) } }
         callback = null
         // Unregistering is silent, so anything still waiting on this request is
@@ -287,6 +437,9 @@ class WifiJoinHandler(
     }
 
     companion object {
+        /** Logcat tag for on-device diagnosis of the join half of the bridge. */
+        private const val TAG = "TarkWifiJoin"
+
         // How long the framework may spend finding and associating with the
         // host AP before reporting onUnavailable. Generous: the host may still
         // be bringing its hotspot up when the peer scans the code.

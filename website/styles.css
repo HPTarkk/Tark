@@ -84,7 +84,8 @@ a { color: inherit; text-decoration: none; }
    `backwards` holds the hidden state through the delay, then hands transform/
    opacity back to the element so hover stays instant. */
 .cards .card.visible,
-.spec-grid .spec.visible {
+.pick-grid .pick.visible,
+.figures .figure.visible {
   animation: tileIn .8s cubic-bezier(.2, .7, .2, 1) backwards;
 }
 
@@ -96,11 +97,13 @@ a { color: inherit; text-decoration: none; }
 .cards .card:nth-child(3).visible { animation-delay: .24s; }
 .cards .card:nth-child(4).visible { animation-delay: .36s; }
 
-.spec-grid .spec:nth-child(2).visible { animation-delay: .08s; }
-.spec-grid .spec:nth-child(3).visible { animation-delay: .16s; }
-.spec-grid .spec:nth-child(4).visible { animation-delay: .24s; }
-.spec-grid .spec:nth-child(5).visible { animation-delay: .32s; }
-.spec-grid .spec:nth-child(6).visible { animation-delay: .4s; }
+.pick-grid .pick:nth-child(2).visible { animation-delay: .08s; }
+.pick-grid .pick:nth-child(3).visible { animation-delay: .16s; }
+.pick-grid .pick:nth-child(4).visible { animation-delay: .24s; }
+
+.figures .figure:nth-child(2).visible { animation-delay: .08s; }
+.figures .figure:nth-child(3).visible { animation-delay: .16s; }
+.figures .figure:nth-child(4).visible { animation-delay: .24s; }
 
 /* ── Nav ────────────────────────────────────────────────────────────── */
 
@@ -926,33 +929,36 @@ nav.scrolled {
   -webkit-mask-image: radial-gradient(ellipse 60% 80% at 50% 40%, #000 40%, transparent 90%);
 }
 
-.spec-grid {
+.tech-deck {
+  max-width: 60ch;
+  margin-top: 18px;
+  color: var(--text-sec);
+  font-size: 1rem;
+  line-height: 1.75;
+}
+
+.pick-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  margin-top: 44px;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  margin-top: 40px;
   border: 1px solid var(--border);
   border-radius: 18px;
   overflow: hidden;
   position: relative;
 }
 
-.spec-grid .spec:nth-child(7).visible { animation-delay: .48s; }
-.spec-grid .spec:nth-child(8).visible { animation-delay: .56s; }
-
 /* Hairlines come from each card's own border, not a background peeking
-   through the grid gap — with an odd item count (or any incomplete last
-   row), a gap-revealed grid background paints a stray solid box over the
-   empty cell. Per-card borders never leave anything to paint when a cell
-   is simply absent. */
-.spec {
+   through the grid gap — with an incomplete last row, a gap-revealed grid
+   background paints a stray solid box over the empty cell. */
+.pick {
   position: relative;
   background: var(--card);
-  padding: 26px;
+  padding: 26px 24px 8px;
   border-inline-end: 1px solid var(--border);
   border-block-end: 1px solid var(--border);
-  /* Own compositing layer per card instead of relying on the shared,
-     rounded+clipped .spec-grid ancestor — that combination is what made the
-     box-shadow hover (below) expensive to paint, worst on the bottom row. */
+  /* Own compositing layer per card rather than relying on the shared,
+     rounded+clipped ancestor — that combination made the hover shadow
+     expensive to paint. */
   isolation: isolate;
   will-change: transform, opacity;
   z-index: 0;
@@ -960,9 +966,9 @@ nav.scrolled {
               opacity .8s cubic-bezier(.2, .7, .2, 1);
 }
 
-/* Pre-sized glow, toggled by opacity (compositor-only) instead of animating
-   box-shadow itself on the hovered element. */
-.spec::after {
+/* Pre-sized glow toggled by opacity (compositor-only) instead of animating
+   box-shadow on the hovered element itself. */
+.pick::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -972,63 +978,180 @@ nav.scrolled {
   pointer-events: none;
 }
 
-.spec:hover {
+.pick:hover {
   background: #202730;
   transform: translateY(-4px);
 }
 
-.spec:hover::after {
-  opacity: 1;
+.pick:hover::after { opacity: 1; }
+
+/* The four cards are only worth comparing if PEOPLE / RANGE / NEEDS line up
+   across them, and the answers are different lengths. Subgrid hands each
+   card the parent's row tracks, so every card's third fact starts on the
+   same line no matter how long the second one ran. Where subgrid is missing
+   the cards simply keep their own heights — still readable, just not
+   scannable across. */
+@supports (grid-template-rows: subgrid) {
+  .pick-grid {
+    grid-template-rows: auto;
+  }
+
+  .pick {
+    display: grid;
+    grid-row: span 5;
+    grid-template-rows: subgrid;
+    align-content: start;
+  }
+
+  /* The <dl> would otherwise be one row of its own, hiding the facts from
+     the shared track list. */
+  .pick-facts {
+    display: contents;
+  }
 }
 
-.spec-icon {
+.pick-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pick-icon {
   color: var(--amber);
   opacity: .85;
-  margin-bottom: 14px;
+  flex-shrink: 0;
   transition: transform .3s cubic-bezier(.2, .7, .2, 1);
 }
 
-.spec-icon svg { width: 22px; height: 22px; }
+.pick-icon svg { width: 20px; height: 20px; display: block; }
 
-.spec:hover .spec-icon { transform: scale(1.12); }
+.pick:hover .pick-icon { transform: scale(1.12); }
 
-.spec-label {
+.pick-name {
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -.01em;
+}
+
+.pick-when {
+  margin-top: 10px;
+  margin-bottom: 18px;
+  color: var(--amber);
+  font-size: .82rem;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+/* Each fact sits under its own hairline, so the three rows line up across
+   all four cards and can be read as columns. */
+.fact {
+  padding: 13px 0;
+  border-block-start: 1px solid var(--border);
+}
+
+.fact-k {
+  display: block;
+  color: var(--text-sec);
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .22em;
+  margin-bottom: 6px;
+}
+
+.fact-v {
+  margin: 0;
+  font-size: .9rem;
+  line-height: 1.55;
+}
+
+/* ── Hard numbers strip ─────────────────────────────────────────────── */
+
+.figures {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  column-gap: 26px;
+  margin-top: 40px;
+}
+
+/* A rule above each figure rather than dividers between them: the row can
+   wrap to two lines on a narrow screen and every cell still reads finished. */
+.figure {
+  padding: 20px 0 0;
+  border-block-start: 1px solid var(--border);
+}
+
+.figure-num {
+  display: block;
+  color: var(--amber);
+  font-size: clamp(1.7rem, 4vw, 2.2rem);
+  font-weight: 800;
+  letter-spacing: -.02em;
+  line-height: 1.1;
+}
+
+.figure-cap {
+  display: block;
+  margin-top: 10px;
+  color: var(--text-sec);
+  font-size: .85rem;
+  line-height: 1.6;
+}
+
+/* ── Asks / never asks ──────────────────────────────────────────────── */
+
+.ledger {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 18px;
+  margin-top: 48px;
+}
+
+.ledger-col {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 26px 24px;
+}
+
+.ledger-title {
   color: var(--text-sec);
   font-size: .68rem;
   font-weight: 800;
   letter-spacing: .24em;
-  margin-bottom: 12px;
+  margin-bottom: 18px;
 }
 
-.spec-value {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--amber);
-  font-size: 1.25rem;
+.ledger-list {
+  list-style: none;
+  display: grid;
+  gap: 14px;
+}
+
+.ledger-list li {
+  position: relative;
+  padding-inline-start: 24px;
+  color: var(--text-sec);
+  font-size: .9rem;
+  line-height: 1.65;
+}
+
+.ledger-list li::before {
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0;
   font-weight: 800;
-  letter-spacing: -.01em;
-  margin-bottom: 10px;
 }
 
-/* Small "it's actually running" pulse next to ALWAYS ON. */
-.spec-live {
-  flex-shrink: 0;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--green);
-  box-shadow: 0 0 0 rgba(76, 175, 80, .6);
-  animation: specLivePulse 2s ease-out infinite;
+.asks li::before {
+  content: '+';
+  color: var(--amber);
 }
 
-@keyframes specLivePulse {
-  0%   { box-shadow: 0 0 0 0 rgba(76, 175, 80, .55); }
-  70%  { box-shadow: 0 0 0 7px rgba(76, 175, 80, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+.nevers li::before {
+  content: '−';
+  color: var(--green);
 }
-
-.spec-desc { color: var(--text-sec); font-size: .86rem; }
 
 /* ── FAQ accordion ──────────────────────────────────────────────────── */
 

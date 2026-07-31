@@ -6,11 +6,13 @@ import 'package:dartz/dartz.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/identity/device_identity.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/utils/android_sdk.dart';
 import '../../../../core/utils/exponential_backoff.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entity/connection_health.dart';
+import '../../domain/entity/session_role.dart';
 import '../../domain/entity/waki_packet.dart';
 import '../../domain/entity/bluetooth_connection_state.dart' as bt;
 import '../../domain/entity/bluetooth_host_name.dart';
@@ -38,10 +40,11 @@ import '../codec/waki_packet_codec.dart';
 @lazySingleton
 class BluetoothTransferRepository
     implements TransferRepository, BluetoothTransport {
-  BluetoothTransferRepository(this._settingsRepository);
+  BluetoothTransferRepository(this._settingsRepository, this._identity);
 
   final SettingsRepository _settingsRepository;
-  final _codec = WakiPacketCodec();
+  final DeviceIdentity _identity;
+  late final _codec = WakiPacketCodec(_identity.id);
 
   // Classic RFCOMM is a raw byte stream, so the repo reassembles frames for
   // it. The BLE engine frames internally and emits complete messages.
@@ -581,7 +584,11 @@ class BluetoothTransferRepository
       if (_connectedPeerId == null) {
         return const Right(null); // not connected yet — nothing to send
       }
-      final payload = _codec.encodePresence(senderName, isTalking);
+      final payload = _codec.encodePresence(
+        senderName,
+        isTalking,
+        role: sessionRole,
+      );
       await _write(payload);
       return const Right(null);
     } catch (error) {
@@ -589,6 +596,16 @@ class BluetoothTransferRepository
       return const Left(DataTransferFailure());
     }
   }
+
+  /// Straight off [_sessionRole] — the same string that decides who re-hosts
+  /// and who re-dials after a drop, so the badge on the peer's screen can
+  /// never disagree with what this device is actually doing.
+  @override
+  SessionRole get sessionRole => switch (_sessionRole) {
+    'host' => SessionRole.host,
+    'joiner' => SessionRole.joiner,
+    _ => SessionRole.unknown,
+  };
 
   @override
   Stream<ConnectionHealth> connect() => connectionState.map(

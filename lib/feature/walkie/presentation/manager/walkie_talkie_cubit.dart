@@ -6,6 +6,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../../../core/home_widget/home_widget_service.dart';
+import '../../../../core/identity/device_identity.dart';
+import '../../../transfer/domain/service/hotspot_link_keeper.dart';
 import '../../../../core/home_widget/home_widget_snapshot.dart';
 import '../../../../core/home_widget/widget_control_channel.dart';
 import '../../../../core/settings/noise_suppression_engine.dart';
@@ -37,6 +39,8 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
   final SessionWakeLock _keepAlive;
   final HomeWidgetService _homeWidget;
   final WidgetControlChannel _widgetControl;
+  final DeviceIdentity _identity;
+  final HotspotLinkKeeper _linkKeeper;
 
   StreamSubscription<AudioFrame>? _frameSub;
   StreamSubscription<AudioEngineStatus>? _statusSub;
@@ -55,6 +59,8 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     this._keepAlive,
     this._homeWidget,
     this._widgetControl,
+    this._identity,
+    this._linkKeeper,
   ) : super(WalkieTalkieState.initial()) {
     _init();
   }
@@ -120,6 +126,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
         noiseSuppressionEngine: noiseSuppressionEngine,
         musicGain: musicGain,
         transferMode: _modeStore.mode,
+        myRole: _transferRepository.sessionRole,
       ),
     );
 
@@ -250,6 +257,9 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
   final VoxGate _voxGate = VoxGate();
   bool _prevVoiceOpen = false;
 
+  /// Starts true so the first frame with no address reports the gate closing.
+  bool _prevIsOnline = true;
+
   // Roster bookkeeping (join/leave/talk-timeout) — see [ChannelRoster].
   final ChannelRoster _roster = const ChannelRoster();
 
@@ -282,6 +292,18 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
 
     // No network → never mark as transmitting.
     final isOnline = state.localId.isNotEmpty && state.localId != '0.0.0.0';
+    // This gate silences transmission completely while the phone still shows a
+    // live channel and still plays everything it receives — one-way audio with
+    // nothing on screen to explain it. Worth a line whenever it flips.
+    if (isOnline != _prevIsOnline) {
+      _prevIsOnline = isOnline;
+      Logger.diagnostic(
+        isOnline
+            ? 'transmit: enabled, local address ${state.localId}'
+            : 'transmit: DISABLED — no local address (localId '
+                  '"${state.localId}"), nothing will be sent',
+      );
+    }
 
     // Self-mute overrides VOX: the gate still advances (its envelope stays
     // correct for the instant the user unmutes) but an open gate no longer
@@ -405,13 +427,29 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     // Self-filter: needed for WiFi (broadcast loops our own packets back to
     // us). Harmless no-op for point-to-point Bluetooth, where a peer's id
     // can never equal our own.
-    if (packet.senderId == state.localId) return;
+    //
+    // Matched on the device id rather than our address: a phone on two
+    // interfaces receives its own echo from whichever of its addresses the
+    // packet went out by, which is not necessarily the one localId holds.
+    if (packet.senderId == _identity.id) return;
 
     switch (packet) {
       case PresencePacket():
-        _updateUser(packet.senderId, packet.senderName, packet.isTalking);
+        _updateUser(
+          packet.senderId,
+          packet.senderName,
+          packet.isTalking,
+          packet.role,
+        );
       case AudioPacket():
-        _updateUser(packet.senderId, packet.senderName, true);
+        // Audio carries no role — the roster keeps whatever this peer last
+        // announced (see [ChannelRoster.upsert]).
+        _updateUser(
+          packet.senderId,
+          packet.senderName,
+          true,
+          SessionRole.unknown,
+        );
         try {
           _audioEngine.playReceived(
             packet.samples,
@@ -424,7 +462,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     }
   }
 
-  void _updateUser(String id, String name, bool isTalking) {
+  void _updateUser(String id, String name, bool isTalking, SessionRole role) {
     final update = _roster.upsert(
       state.activeUsers,
       ChannelUser(
@@ -432,6 +470,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
         name: name,
         isTalking: isTalking,
         lastSeen: DateTime.now(),
+        role: role,
       ),
     );
     switch (update.change) {
@@ -446,9 +485,20 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
   }
 
   void _broadcastPresence() {
+    // Refresh FIRST, unconditionally. This used to sit behind the early return
+    // below, which made an empty id self-sealing: no presence went out, and the
+    // one thing that could have refilled the id never ran either, so the phone
+    // stayed silent for the rest of the session. An address that is missing for
+    // a moment — the hotspot host's AP interface between a teardown and a
+    // re-host — is exactly when this needs to recover on its own.
+    _refreshId();
+    // Cheap, and the transport can settle on a side after this cubit was
+    // built — a Bluetooth link that reconnects as host, a hotspot join that
+    // completed while the channel was already open.
+    final role = _transferRepository.sessionRole;
+    if (role != state.myRole) emit(state.copyWith(myRole: role));
     if (state.localId.isEmpty) return;
     _transferRepository.sendPresence(state.myName, state.isTransmitting);
-    _refreshId();
   }
 
   void _refreshId() {
@@ -541,6 +591,10 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
   Future<void> close() async {
     _presenceTimer?.cancel();
     _cleanupTimer?.cancel();
+    // The session is over, so the hotspot link no longer needs keeping. A no-op
+    // for every transport that never adopted one. Deliberately does not tear
+    // the AP down — that stays the bridge screen's call.
+    unawaited(_linkKeeper.release());
 
     // Initiate both cancels synchronously (no events delivered after this
     // line), then tear the transport down BEFORE any await. This close is
@@ -607,6 +661,9 @@ class WalkieTalkieState extends Equatable {
   final List<ChannelUser> activeUsers;
   final bool isReady;
   final TransferMode transferMode;
+
+  /// The part this device plays in the link, as announced to everyone else.
+  final SessionRole myRole;
   final bool isSharingSystemAudio;
   final bool isStartingSystemAudio;
   final double musicGain;
@@ -628,6 +685,7 @@ class WalkieTalkieState extends Equatable {
     required this.activeUsers,
     required this.isReady,
     required this.transferMode,
+    required this.myRole,
     required this.isSharingSystemAudio,
     required this.isStartingSystemAudio,
     required this.musicGain,
@@ -646,6 +704,7 @@ class WalkieTalkieState extends Equatable {
     activeUsers: [],
     isReady: false,
     transferMode: TransferMode.wifi,
+    myRole: SessionRole.unknown,
     isSharingSystemAudio: false,
     isStartingSystemAudio: false,
     musicGain: 0.85,
@@ -664,6 +723,7 @@ class WalkieTalkieState extends Equatable {
     List<ChannelUser>? activeUsers,
     bool? isReady,
     TransferMode? transferMode,
+    SessionRole? myRole,
     bool? isSharingSystemAudio,
     bool? isStartingSystemAudio,
     double? musicGain,
@@ -681,6 +741,7 @@ class WalkieTalkieState extends Equatable {
     activeUsers: activeUsers ?? this.activeUsers,
     isReady: isReady ?? this.isReady,
     transferMode: transferMode ?? this.transferMode,
+    myRole: myRole ?? this.myRole,
     isSharingSystemAudio: isSharingSystemAudio ?? this.isSharingSystemAudio,
     isStartingSystemAudio: isStartingSystemAudio ?? this.isStartingSystemAudio,
     musicGain: musicGain ?? this.musicGain,
@@ -702,6 +763,7 @@ class WalkieTalkieState extends Equatable {
     activeUsers,
     isReady,
     transferMode,
+    myRole,
     isSharingSystemAudio,
     isStartingSystemAudio,
     musicGain,

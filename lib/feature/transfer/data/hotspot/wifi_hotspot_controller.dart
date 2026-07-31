@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../../../core/utils/logger.dart';
 import '../../domain/entity/hotspot_credentials.dart';
 import '../../domain/service/hotspot_control.dart';
 
@@ -95,19 +96,33 @@ class NeHotspotJoiner implements HotspotJoiner {
   static const _channel = MethodChannel('tark/hotspot_join');
 
   @override
-  Future<bool> join(HotspotCredentials credentials) async {
+  Future<HotspotJoinResult> join(HotspotCredentials credentials) async {
     try {
       final ok = await _channel.invokeMethod<bool>('join', {
         'ssid': credentials.ssid,
         'passphrase': credentials.passphrase,
       });
-      return ok ?? false;
-    } on PlatformException {
-      return false;
+      return ok == true
+          ? HotspotJoinResult.joined
+          : HotspotJoinResult.declined;
+    } on PlatformException catch (e) {
+      Logger.log('iOS hotspot join failed: ${e.code} ${e.message}');
+      return HotspotJoinResult.declined;
     } on MissingPluginException {
-      return false;
+      return HotspotJoinResult.declined;
     }
   }
+
+  /// iOS has no app-facing Wi-Fi switch at all, and NEHotspotConfiguration
+  /// reports a radio-off join as an ordinary failure — so this side never
+  /// reaches [HotspotJoinResult.wifiOff] and has nothing to offer here.
+  @override
+  Future<bool> enableWifi() async => false;
+
+  /// iOS doesn't gate Wi-Fi on a Location toggle, so this side never reports
+  /// [HotspotJoinResult.locationOff] either.
+  @override
+  Future<void> openLocationSettings() async {}
 
   /// iOS keeps a joined network as the system's Wi-Fi and has no per-process
   /// network binding to take — nothing to pin.
@@ -144,18 +159,55 @@ class AndroidWifiJoiner implements HotspotJoiner {
       .map<void>((_) {});
 
   @override
-  Future<bool> join(HotspotCredentials credentials) async {
+  Future<HotspotJoinResult> join(HotspotCredentials credentials) async {
     try {
       final ok = await _channel.invokeMethod<bool>('join', {
         'ssid': credentials.ssid,
         'passphrase': credentials.passphrase,
         'security': credentials.security,
       });
-      return ok ?? false;
-    } on PlatformException {
+      if (ok != true) {
+        Logger.log('Wi-Fi join declined by the framework (see TarkWifiJoin)');
+      }
+      return ok == true
+          ? HotspotJoinResult.joined
+          : HotspotJoinResult.declined;
+    } on PlatformException catch (e) {
+      // `wifi_off`, `foreground_required`, `no_ssid`, `failed`. Only the first
+      // has a fix the user can act on from here; the rest land on the manual
+      // card, and the log line is what tells them apart afterwards.
+      Logger.log('Wi-Fi join failed: ${e.code} ${e.message}');
+      return switch (e.code) {
+        'wifi_off' => HotspotJoinResult.wifiOff,
+        'location_off' => HotspotJoinResult.locationOff,
+        _ => HotspotJoinResult.declined,
+      };
+    } on MissingPluginException {
+      Logger.log('Wi-Fi join unavailable: tark/wifi_join not registered');
+      return HotspotJoinResult.declined;
+    }
+  }
+
+  @override
+  Future<bool> enableWifi() async {
+    try {
+      return await _channel.invokeMethod<bool>('enableWifi') ?? false;
+    } on PlatformException catch (e) {
+      Logger.log('Enable Wi-Fi failed: ${e.code} ${e.message}');
       return false;
     } on MissingPluginException {
       return false;
+    }
+  }
+
+  @override
+  Future<void> openLocationSettings() async {
+    try {
+      await _channel.invokeMethod<void>('openLocationSettings');
+    } on PlatformException {
+      // Some OEM builds have no such screen — nothing else to try.
+    } on MissingPluginException {
+      // Not Android.
     }
   }
 
@@ -199,8 +251,14 @@ class PlatformHotspotJoiner implements HotspotJoiner {
   };
 
   @override
-  Future<bool> join(HotspotCredentials credentials) async =>
-      await _delegate?.join(credentials) ?? false;
+  Future<HotspotJoinResult> join(HotspotCredentials credentials) async =>
+      await _delegate?.join(credentials) ?? HotspotJoinResult.declined;
+
+  @override
+  Future<bool> enableWifi() async => await _delegate?.enableWifi() ?? false;
+
+  @override
+  Future<void> openLocationSettings() async => _delegate?.openLocationSettings();
 
   @override
   Future<bool> bindToCurrentWifi() async =>

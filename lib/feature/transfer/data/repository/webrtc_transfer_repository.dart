@@ -5,10 +5,12 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/identity/device_identity.dart';
 import '../../../../core/utils/exponential_backoff.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entity/connection_health.dart';
 import '../../domain/entity/guest_link_state.dart';
+import '../../domain/entity/session_role.dart';
 import '../../domain/entity/waki_packet.dart';
 import '../../domain/repository/guest_link_controller.dart';
 import '../../domain/repository/transfer_repository.dart';
@@ -33,7 +35,11 @@ const kGuestPeerId = 'guest';
 @lazySingleton
 class WebRtcTransferRepository
     implements TransferRepository, GuestLinkController {
-  final _codec = WakiPacketCodec();
+  final DeviceIdentity _identity;
+
+  WebRtcTransferRepository(this._identity);
+
+  late final _codec = WakiPacketCodec(_identity.id);
 
   final _packetController = StreamController<WakiPacket>.broadcast();
   final _connectionController = StreamController<ConnectionHealth>.broadcast();
@@ -47,6 +53,11 @@ class WebRtcTransferRepository
   bool _autoReconnectEnabled = true;
   int _retryGen = 0;
   static const _kMaxRetryAttempts = 3;
+
+  /// This side always hosts: the app creates the invite and the browser
+  /// answers it, never the other way round.
+  @override
+  SessionRole get sessionRole => SessionRole.host;
 
   void _setHealth(ConnectionHealthStatus status) {
     // Guest/WebRTC has no exposed backoff schedule, so no countdown — the
@@ -225,7 +236,11 @@ class WebRtcTransferRepository
       if (dc == null || _linkState != GuestLinkState.connected) {
         return const Right(null); // not linked yet — nothing to send
       }
-      final payload = _codec.encodePresence(senderName, isTalking);
+      final payload = _codec.encodePresence(
+        senderName,
+        isTalking,
+        role: sessionRole,
+      );
       await dc.send(RTCDataChannelMessage.fromBinary(payload));
       return const Right(null);
     } catch (error) {

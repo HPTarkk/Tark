@@ -2,16 +2,21 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:dartz/dartz.dart';
+import 'package:flutter/foundation.dart' show setEquals;
 import 'package:injectable/injectable.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/identity/device_identity.dart';
 import '../../../../core/utils/exponential_backoff.dart';
 import '../../../../core/utils/lan_ipv4.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entity/connection_health.dart';
+import '../../domain/entity/session_role.dart';
 import '../../domain/entity/waki_packet.dart';
 import '../../domain/repository/wifi_transfer_repository.dart';
+import '../../domain/service/session_role_store.dart';
 import '../codec/waki_packet_codec.dart';
+import 'discovery_sweep.dart';
 
 const kBroadcastPort = 4000;
 
@@ -62,7 +67,26 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   final Map<String, DateTime> _peers = {};
   static const _peerMaxAge = Duration(seconds: 10);
 
-  final _codec = WakiPacketCodec();
+  /// Paces the unicast discovery sweep across ticks instead of emitting the
+  /// whole thing at once.
+  final DiscoverySweep _sweep = DiscoverySweep();
+
+  /// Targets whose last send did not go out, so the failure is reported once
+  /// rather than at the presence tick rate.
+  final Set<String> _failingTargets = {};
+
+  /// Directed broadcasts for subnets we have received traffic from, which
+  /// survive an interface enumeration that missed them (see
+  /// [_rememberHeardSubnet]).
+  final Set<String> _heardSubnets = {};
+  List<InternetAddress> _heardSubnetBroadcasts = const [];
+
+  /// `senderId@address` pairs already reported by [_noteSenderRoute]. Kept
+  /// separate from [_peers], which ages entries out every 10s — a quiet peer
+  /// would otherwise be announced again every time it spoke.
+  final Set<String> _seenSenderRoutes = {};
+
+  late final _codec = WakiPacketCodec(_identity.id);
 
   // Incremented each time startListening() is called so any in-flight
   // generator from a previous session knows to stop when it wakes from
@@ -72,7 +96,17 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   // Per-outgoing-stream counter so receivers can detect UDP loss/reordering.
   int _audioSeq = 0;
 
-  WifiTransferRepositoryImpl();
+  final DeviceIdentity _identity;
+  final SessionRoleStore _roleStore;
+
+  WifiTransferRepositoryImpl(this._identity, this._roleStore);
+
+  /// Nothing about a UDP socket says who brought the network up, so the
+  /// hotspot bridge records the side the user picked and this reads it back.
+  /// Nobody claimed a side → plain Wi-Fi through a router, where every device
+  /// really is an equal peer.
+  @override
+  SessionRole get sessionRole => _roleStore.role ?? SessionRole.peer;
 
   @disposeMethod
   @override
@@ -110,7 +144,11 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   ) async {
     try {
       await _ensureSendSocket();
-      final packet = _codec.encodePresence(senderName, isTalking);
+      final packet = _codec.encodePresence(
+        senderName,
+        isTalking,
+        role: sessionRole,
+      );
       _sendToAllTargets(packet);
       _sweepIfUndiscovered(packet);
       return const Right(null);
@@ -147,10 +185,24 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
           kBroadcastPort,
         );
         _receiveSocket!.broadcastEnabled = true;
+        // Per generation, not per session: navigating from the hotspot screen
+        // into the channel rebinds, and without this the new generation stays
+        // silent about who it hears — leaving "still receiving" and "went deaf
+        // on the rebind" indistinguishable in the log.
+        _seenSenderRoutes.clear();
+        _failingTargets.clear();
         _setHealth(const ConnectionHealth.healthy());
         _lastPacketAt = DateTime.now();
         _startLivenessWatch(myGen);
-        Logger.log('UDP socket bound on port $kBroadcastPort (gen $myGen)');
+        // Local addresses restated here rather than left to the change-only
+        // line in _resolveNetwork: this is the one thing every "why is nothing
+        // arriving" question turns on, and a log captured after the session
+        // started would otherwise never show it.
+        Logger.diagnostic(
+          'wifi: UDP bound on $kBroadcastPort (gen $myGen), '
+          'local $_localAddresses, broadcasting to '
+          '${_broadcastTargets.map((a) => a.address).toList()}',
+        );
 
         await for (final event in _receiveSocket!) {
           if (_generation != myGen) break;
@@ -168,6 +220,8 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
               final packet = _codec.decode(dg.data, dg.address.address);
               if (packet != null) {
                 _rememberPeer(dg.address.address);
+                _rememberHeardSubnet(dg.address.address);
+                _noteSenderRoute(dg.address.address, packet.senderId);
                 yield packet;
               }
             }
@@ -252,7 +306,7 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
       // opened, never-joined channel isn't "unreachable," it's just empty.
       if (_peers.isEmpty) return;
       if (DateTime.now().difference(_lastPacketAt) > _livenessTimeout) {
-        Logger.log('WiFi liveness timeout (gen $myGen) — forcing rebind');
+        Logger.diagnostic('wifi: liveness timeout (gen $myGen) — forcing rebind');
         _receiveSocket?.close();
       }
     });
@@ -298,24 +352,34 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     _sweepSubnets = const [];
     _localAddresses = const {};
     _peers.clear();
+    _seenSenderRoutes.clear();
+    _heardSubnets.clear();
+    _heardSubnetBroadcasts = const [];
+    _sweep.retarget(const []);
 
     _setHealth(const ConnectionHealth.down());
   }
 
   Future<void> _ensureSendSocket() async {
-    if (_sendSocket == null) {
-      _sendSocket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
-      _sendSocket!.broadcastEnabled = true;
-    }
-
-    // Re-resolve periodically so a hotspot/WiFi interface that appears
-    // mid-session (e.g. a client joining the hotspot brings the AP interface
-    // up) starts receiving without needing to leave and rejoin the channel.
+    // Resolve BEFORE ensuring the socket, not after. A resolve that finds the
+    // addresses changed discards the send socket so it can be rebuilt on the
+    // network we are actually on — done in the other order, that discard lands
+    // on the socket this method just created, and every send in the tick that
+    // follows dies on a null.
+    //
+    // Re-resolved periodically so an interface that appears mid-session (a
+    // client joining the hotspot brings the AP interface up) is picked up
+    // without leaving and rejoining the channel.
     final now = DateTime.now();
     if (_broadcastTargets.isEmpty ||
         now.difference(_targetsResolvedAt) > _targetsMaxAge) {
       await _resolveNetwork();
       _targetsResolvedAt = now;
+    }
+
+    if (_sendSocket == null) {
+      _sendSocket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
+      _sendSocket!.broadcastEnabled = true;
     }
   }
 
@@ -323,27 +387,98 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     for (final target in _broadcastTargets) {
       _trySend(packet, target);
     }
+    for (final target in _heardSubnetBroadcasts) {
+      _trySend(packet, target);
+    }
     final now = DateTime.now();
-    _peers.removeWhere((_, seen) => now.difference(seen) > _peerMaxAge);
+    // Losing the unicast path matters on its own: where broadcast does not
+    // cross a SoftAP, unicast is the ONLY delivery, and it lasts exactly as
+    // long as we keep hearing from the peer. Both ends going quiet at once is
+    // therefore self-sustaining, so the moment it happens is worth a line.
+    _peers.removeWhere((addr, seen) {
+      if (now.difference(seen) <= _peerMaxAge) return false;
+      Logger.diagnostic('wifi: peer $addr aged out — no longer unicasting to it');
+      return true;
+    });
     for (final addr in _peers.keys) {
       _trySend(packet, InternetAddress(addr));
     }
   }
 
+  /// Adds the /24 directed broadcast of a subnet we have actually received a
+  /// packet from.
+  ///
+  /// [_resolveNetwork] can only offer subnets it can see on our own
+  /// interfaces, and that enumeration is not always complete — a hotspot host
+  /// whose AP interface does not turn up in `NetworkInterface.list` is left
+  /// with nothing but the limited broadcast, which a SoftAP often will not
+  /// carry. A subnet a datagram genuinely arrived from is known-reachable
+  /// evidence that no enumeration can contradict, and it keeps working after
+  /// the unicast peer entry ages out.
+  void _rememberHeardSubnet(String address) {
+    if (!LanIpv4.isPrivate(address)) return;
+    final parts = address.split('.');
+    if (parts.length != 4) return;
+    final directed = '${parts[0]}.${parts[1]}.${parts[2]}.255';
+    if (!_heardSubnets.add(directed)) return;
+    // Only the ones _resolveNetwork did not already cover — otherwise every
+    // packet goes to the same directed broadcast twice.
+    final known = _broadcastTargets.map((a) => a.address).toSet();
+    _heardSubnetBroadcasts = _heardSubnets
+        .where((a) => !known.contains(a))
+        .map(InternetAddress.new)
+        .toList();
+    _retargetSweep();
+    Logger.diagnostic('wifi: also broadcasting to $directed (heard traffic)');
+  }
+
   /// Discovery fallback for platforms where broadcast never arrives (iOS
   /// without the multicast entitlement): while no peer is known, unicast the
-  /// presence packet to every host of each private /24 we sit on. ~253 tiny
-  /// packets per presence tick, and it stops as soon as anyone answers —
-  /// from then on the peer map carries the session.
+  /// presence packet to hosts of the private /24s we sit on, and stop as soon
+  /// as anyone answers — from then on the peer map carries the session.
+  ///
+  /// Rate-limited by [DiscoverySweep]. Firing every host of every subnet in
+  /// one tick overran the socket's send buffer and silently ate the very
+  /// packets the session runs on, which kept a peer from ever being found and
+  /// so kept the sweep running — see that class for the whole story.
   void _sweepIfUndiscovered(List<int> packet) {
-    if (_peers.isNotEmpty) return;
+    if (_peers.isNotEmpty) {
+      _sweep.reset();
+      return;
+    }
+    for (final addr in _sweep.nextSlice()) {
+      _trySend(packet, InternetAddress(addr));
+    }
+  }
+
+  /// Rebuilds the sweep's target list, subnets we have actually heard traffic
+  /// from first. Those are where a peer demonstrably is, so they get probed
+  /// before a subnet that is merely present on this device (a home Wi-Fi the
+  /// other phone was never on).
+  void _retargetSweep() {
+    final heardFirst = <String>[];
+    final rest = <String>[];
     for (final prefix in _sweepSubnets) {
+      final bucket = _heardSubnets.contains('$prefix.255') ? heardFirst : rest;
       for (var host = 1; host < 255; host++) {
         final addr = '$prefix.$host';
         if (_localAddresses.contains(addr)) continue;
-        _trySend(packet, InternetAddress(addr));
+        bucket.add(addr);
       }
     }
+    _sweep.retarget([...heardFirst, ...rest]);
+  }
+
+  /// Notes each (source address, sender id) pair the first time it is seen.
+  ///
+  /// One line per pair, so it stays quiet during a call while answering the
+  /// two questions that are impossible to reason about from the code alone:
+  /// who is actually on the channel, and whether one device is arriving by
+  /// more than one route (the same id under two addresses is a phone sending
+  /// on two interfaces).
+  void _noteSenderRoute(String address, String senderId) {
+    if (!_seenSenderRoutes.add('$senderId@$address')) return;
+    Logger.diagnostic('wifi: sender $senderId first heard from $address');
   }
 
   void _rememberPeer(String address) {
@@ -355,10 +490,36 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   // A broadcast send is EXPECTED to fail on iOS (errno 65, no multicast
   // entitlement); one failing target must not abort the remaining
   // (unicast) targets, which do work there.
+  //
+  // Failures are reported once per target, and once again on recovery. This
+  // used to swallow both halves of a failed send — the thrown errno AND a
+  // return of 0, which means the datagram never left — so a phone that had
+  // silently stopped transmitting looked identical to one with nothing to say.
+  // Every other stage of the path can be observed; this one could not.
   void _trySend(List<int> packet, InternetAddress target) {
+    // Read once into a local: a rebuild can null the field between targets in
+    // the same loop, and a `!` here turned that into an exception per target
+    // rather than a skipped packet.
+    final socket = _sendSocket;
+    if (socket == null) return;
     try {
-      _sendSocket!.send(packet, target, kBroadcastPort);
-    } catch (_) {}
+      final sent = socket.send(packet, target, kBroadcastPort);
+      if (sent == 0) {
+        if (_failingTargets.add(target.address)) {
+          Logger.diagnostic(
+            'wifi: send to ${target.address} dropped (socket would block)',
+          );
+        }
+        return;
+      }
+      if (_failingTargets.remove(target.address)) {
+        Logger.diagnostic('wifi: send to ${target.address} recovered');
+      }
+    } catch (e) {
+      if (_failingTargets.add(target.address)) {
+        Logger.diagnostic('wifi: send to ${target.address} failed: $e');
+      }
+    }
   }
 
   /// Resolves the directed broadcast address (x.y.z.255) of every private
@@ -388,8 +549,33 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     }
     _broadcastTargets = targets.map(InternetAddress.new).toList();
     _sweepSubnets = subnets.toList();
+    // Only when it actually changes: this re-resolves every 10s while sending,
+    // and the interesting event is an interface appearing or going away (a
+    // client bringing the AP interface up, cellular arriving alongside it) —
+    // not the six identical lines a minute in between.
+    if (!setEquals(locals, _localAddresses)) {
+      Logger.diagnostic('wifi: local addresses $locals, broadcasting to $targets');
+      // The addresses moved under us, which on this path means the OS put us
+      // on a different network — a joiner being pulled off an internet-less
+      // hotspot back onto its saved Wi-Fi is the case that matters. The send
+      // socket was created on the network that just went away; keeping it
+      // leaves every send failing against a route that no longer exists,
+      // silently, while the phone looks perfectly connected on the new one.
+      // Dropping it here makes the next send build a fresh one.
+      if (_localAddresses.isNotEmpty && _sendSocket != null) {
+        Logger.diagnostic('wifi: network changed — rebuilding the send socket');
+        _sendSocket?.close();
+        _sendSocket = null;
+      }
+      // Anyone we knew was reachable from the old network. Clearing them stops
+      // us unicasting into a dead subnet for the next 10s, and lets discovery
+      // start over on the network we are actually on.
+      _peers.clear();
+      _heardSubnets.clear();
+      _heardSubnetBroadcasts = const [];
+    }
     _localAddresses = locals;
-    Logger.log('Broadcast targets: $targets, sweep subnets: $subnets');
+    _retargetSweep();
   }
 
   void _setHealth(ConnectionHealth health) {

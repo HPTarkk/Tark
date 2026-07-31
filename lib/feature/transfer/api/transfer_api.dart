@@ -9,6 +9,7 @@ export '../data/webrtc/ice_config.dart';
 export '../data/webrtc/sdp_codec.dart';
 export '../domain/entity/connection_health.dart';
 export '../domain/entity/guest_link_state.dart';
+export '../domain/entity/session_role.dart';
 export '../domain/entity/transfer_mode.dart';
 export '../domain/entity/waki_packet.dart';
 export '../domain/entity/wifi_hotspot_segment.dart';

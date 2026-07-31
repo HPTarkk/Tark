@@ -644,7 +644,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hotspot_scan_again => 'SCAN AGAIN';
 
   @override
-  String get hotspot_joining => 'Joining the network...';
+  String get hotspot_joining =>
+      'Joining the network... Say yes to Android\'s \"connect to this network\" prompt — on some phones it turns up in your notifications rather than on screen.';
 
   @override
   String get hotspot_joined => 'You\'re on the network';
@@ -677,6 +678,20 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get hotspot_invalid_qr =>
       'That\'s not a Wi-Fi code. Scan the one showing on the host phone.';
+
+  @override
+  String get hotspot_wifi_off =>
+      'Wi-Fi is off on this phone, so it can\'t join the hotspot. Switch it on and try again.';
+
+  @override
+  String get hotspot_enable_wifi => 'TURN WI-FI ON';
+
+  @override
+  String get hotspot_location_off =>
+      'Android won\'t let this phone look for Wi-Fi networks while Location is off, so it can\'t find the hotspot. Switch Location on and try again.';
+
+  @override
+  String get hotspot_enable_location => 'TURN LOCATION ON';
 
   @override
   String get bt_ios_hint =>
@@ -971,4 +986,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settings_widget_hint =>
       'Put a dial on your home screen — see who\'s on air and jump in with one tap.';
+
+  @override
+  String get role_host => 'Base Station';
+
+  @override
+  String get role_joiner => 'Field Unit';
+
+  @override
+  String get role_peer => 'Open Air';
 }

@@ -641,7 +641,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get hotspot_scan_again => 'اسکن دوباره';
 
   @override
-  String get hotspot_joining => 'دارم به شبکه وصل می‌شم...';
+  String get hotspot_joining =>
+      'دارم به شبکه وصل می‌شم... به سؤال اندروید که می‌پرسه به این شبکه وصل بشه یا نه، «آره» بگو — تو بعضی گوشی‌ها به جای صفحه، تو اعلان‌ها میاد.';
 
   @override
   String get hotspot_joined => 'رو شبکه‌ای!';
@@ -673,6 +674,20 @@ class AppLocalizationsFa extends AppLocalizations {
   @override
   String get hotspot_invalid_qr =>
       'این کد وای‌فای نیست. همونی که رو گوشی میزبانه رو اسکن کن.';
+
+  @override
+  String get hotspot_wifi_off =>
+      'وای‌فای این گوشی خاموشه، واسه همین نمی‌تونه به هات‌اسپات وصل شه. روشنش کن و دوباره امتحان کن.';
+
+  @override
+  String get hotspot_enable_wifi => 'وای‌فای رو روشن کن';
+
+  @override
+  String get hotspot_location_off =>
+      'تا «موقعیت مکانی» خاموش باشه، اندروید نمی‌ذاره گوشی دنبال شبکه‌های وای‌فای بگرده، پس هات‌اسپات رو پیدا نمی‌کنه. روشنش کن و دوباره امتحان کن.';
+
+  @override
+  String get hotspot_enable_location => 'موقعیت مکانی رو روشن کن';
 
   @override
   String get bt_ios_hint =>
@@ -967,4 +982,13 @@ class AppLocalizationsFa extends AppLocalizations {
   @override
   String get settings_widget_hint =>
       'یه صفحه بیسیم بذار روی صفحه اصلی — ببین کی روی خطه و با یه ضربه بپر تو.';
+
+  @override
+  String get role_host => 'ایستگاه مرکزی';
+
+  @override
+  String get role_joiner => 'واحد میدانی';
+
+  @override
+  String get role_peer => 'موج آزاد';
 }

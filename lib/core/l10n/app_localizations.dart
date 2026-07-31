@@ -1259,7 +1259,7 @@ abstract class AppLocalizations {
   /// No description provided for @hotspot_joining.
   ///
   /// In fa, this message translates to:
-  /// **'دارم به شبکه وصل می‌شم...'**
+  /// **'دارم به شبکه وصل می‌شم... به سؤال اندروید که می‌پرسه به این شبکه وصل بشه یا نه، «آره» بگو — تو بعضی گوشی‌ها به جای صفحه، تو اعلان‌ها میاد.'**
   String get hotspot_joining;
 
   /// No description provided for @hotspot_joined.
@@ -1315,6 +1315,30 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'این کد وای‌فای نیست. همونی که رو گوشی میزبانه رو اسکن کن.'**
   String get hotspot_invalid_qr;
+
+  /// No description provided for @hotspot_wifi_off.
+  ///
+  /// In fa, this message translates to:
+  /// **'وای‌فای این گوشی خاموشه، واسه همین نمی‌تونه به هات‌اسپات وصل شه. روشنش کن و دوباره امتحان کن.'**
+  String get hotspot_wifi_off;
+
+  /// No description provided for @hotspot_enable_wifi.
+  ///
+  /// In fa, this message translates to:
+  /// **'وای‌فای رو روشن کن'**
+  String get hotspot_enable_wifi;
+
+  /// No description provided for @hotspot_location_off.
+  ///
+  /// In fa, this message translates to:
+  /// **'تا «موقعیت مکانی» خاموش باشه، اندروید نمی‌ذاره گوشی دنبال شبکه‌های وای‌فای بگرده، پس هات‌اسپات رو پیدا نمی‌کنه. روشنش کن و دوباره امتحان کن.'**
+  String get hotspot_location_off;
+
+  /// No description provided for @hotspot_enable_location.
+  ///
+  /// In fa, this message translates to:
+  /// **'موقعیت مکانی رو روشن کن'**
+  String get hotspot_enable_location;
 
   /// No description provided for @bt_ios_hint.
   ///
@@ -1837,6 +1861,24 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'یه صفحه بیسیم بذار روی صفحه اصلی — ببین کی روی خطه و با یه ضربه بپر تو.'**
   String get settings_widget_hint;
+
+  /// No description provided for @role_host.
+  ///
+  /// In fa, this message translates to:
+  /// **'ایستگاه مرکزی'**
+  String get role_host;
+
+  /// No description provided for @role_joiner.
+  ///
+  /// In fa, this message translates to:
+  /// **'واحد میدانی'**
+  String get role_joiner;
+
+  /// No description provided for @role_peer.
+  ///
+  /// In fa, this message translates to:
+  /// **'موج آزاد'**
+  String get role_peer;
 }
 
 class _AppLocalizationsDelegate

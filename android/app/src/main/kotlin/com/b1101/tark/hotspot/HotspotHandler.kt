@@ -10,7 +10,9 @@ import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.provider.Settings
+import android.util.Log
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
@@ -81,6 +83,17 @@ class HotspotHandler(
     // follows then stays silent.
     private var expectingStop = false
 
+    /**
+     * When the AP last went down, by any route. [start] needs this because the
+     * teardown has already cleared [reservation] by the time a re-host arrives:
+     * judging "was the radio just in AP mode?" from the reservation alone said
+     * no exactly when the answer was yes, and skipped the settle delay in the
+     * one case it exists for — the framework then hands back a reservation
+     * whose AP never makes it onto the air, and the peer scans a QR for a
+     * network that isn't there.
+     */
+    private var lastTeardownAt = 0L
+
     init {
         stateEvents.setStreamHandler(object : EventChannel.StreamHandler {
             override fun onListen(arguments: Any?, events: EventChannel.EventSink) {
@@ -120,22 +133,31 @@ class HotspotHandler(
         // us from ever releasing it. Every attempt afterwards failed the same
         // way, telling the user to turn off a hotspot that Settings correctly
         // showed as off.
-        val hadRadio = reservation != null || starting
+        // "Was the radio just in AP mode?" — which includes an AP that went
+        // down a moment ago, not only one we're still holding. A re-host after
+        // an OS teardown arrives with the reservation already cleared, so
+        // asking the reservation alone answered no precisely when it mattered.
+        val sinceTeardown = SystemClock.elapsedRealtime() - lastTeardownAt
+        val hadRadio = reservation != null || starting || sinceTeardown < RESTART_SETTLE_MS
         stop()
         val gen = generation
+        val settle = if (hadRadio) RESTART_SETTLE_MS else 0L
+        Log.i(TAG, "start requested (gen=$gen, settle=${settle}ms)")
         mainHandler.postDelayed({
             if (gen != generation) {
+                Log.i(TAG, "start superseded before it began (gen=$gen)")
                 result.error(CANCELLED, "Superseded by a newer start()", null)
                 return@postDelayed
             }
             preflightError()?.let { code ->
+                Log.w(TAG, "start preflight failed: $code")
                 result.error(code, "Hotspot preflight check failed: $code", null)
                 return@postDelayed
             }
             pendingResult = result
             starting = true
             requestHotspot(gen, attempt = 0)
-        }, if (hadRadio) RESTART_SETTLE_MS else 0L)
+        }, settle)
     }
 
     private fun requestHotspot(gen: Int, attempt: Int) {
@@ -150,6 +172,7 @@ class HotspotHandler(
                         // impossible to stop, and enough to block every later
                         // attempt.
                         if (gen != generation) {
+                            Log.i(TAG, "onStarted for a superseded attempt — closing it")
                             runCatching { res.close() }
                             return
                         }
@@ -159,21 +182,51 @@ class HotspotHandler(
                         reservation = res
                         isHosting = true
                         val creds = credentialsOf(res)
-                        reply(gen) {
-                            it.success(
-                                mapOf(
-                                    "ssid" to creds.ssid,
-                                    "passphrase" to creds.passphrase,
-                                    "security" to creds.security,
+                        Log.i(TAG, "onStarted ssid='${creds.ssid}' security=${creds.security}")
+                        // Hold the credentials back for a beat before handing
+                        // them to the UI. `onStarted` means the framework
+                        // accepted the request, not that the AP reached the
+                        // air — on a radio still unwinding a previous AP it can
+                        // come up and die immediately, and publishing on the
+                        // callback alone puts a QR on screen for a network that
+                        // was never there. The peer then burns its full 40s
+                        // join timeout hunting for that SSID.
+                        mainHandler.postDelayed({
+                            if (gen != generation) return@postDelayed
+                            if (reservation == null) {
+                                Log.w(TAG, "AP '${creds.ssid}' died inside the confirm window")
+                                if (attempt == 0) {
+                                    requestHotspot(gen, attempt + 1)
+                                } else {
+                                    reply(gen) {
+                                        it.error(
+                                            "failed",
+                                            "Hotspot went down as soon as it came up",
+                                            null,
+                                        )
+                                    }
+                                }
+                                return@postDelayed
+                            }
+                            Log.i(TAG, "publishing '${creds.ssid}' to the UI")
+                            reply(gen) {
+                                it.success(
+                                    mapOf(
+                                        "ssid" to creds.ssid,
+                                        "passphrase" to creds.passphrase,
+                                        "security" to creds.security,
+                                    )
                                 )
-                            )
-                        }
+                            }
+                        }, AP_CONFIRM_MS)
                     }
 
                     override fun onFailed(reason: Int) {
                         if (gen != generation) return
+                        Log.w(TAG, "onFailed reason=$reason (${codeFor(reason)}) attempt=$attempt")
                         reservation = null
                         isHosting = false
+                        lastTeardownAt = SystemClock.elapsedRealtime()
                         // A transient reason is worth one silent retry: the
                         // radio is often still mode-switching (a Wi-Fi scan, a
                         // just-released AP) and the second attempt succeeds.
@@ -196,13 +249,22 @@ class HotspotHandler(
                         if (gen != generation) return
                         reservation = null
                         isHosting = false
+                        lastTeardownAt = SystemClock.elapsedRealtime()
                         val wasExpected = expectingStop
                         expectingStop = false
+                        val startInFlight = pendingResult != null
+                        Log.w(
+                            TAG,
+                            "onStopped (expected=$wasExpected, startInFlight=$startInFlight)",
+                        )
                         // The OS killed the AP on its own (radio conflict, Doze,
                         // an STA reconnect stealing the single radio, …). Tell
                         // Dart so the session can react instead of silently
-                        // going dead.
-                        if (!wasExpected) {
+                        // going dead — unless a start is still waiting on its
+                        // answer, in which case the confirm window above owns
+                        // the recovery and telling Dart too would have both
+                        // ends re-hosting into each other.
+                        if (!wasExpected && !startInFlight) {
                             mainHandler.post { eventSink?.success(mapOf("event" to "stopped")) }
                         }
                     }
@@ -210,8 +272,10 @@ class HotspotHandler(
                 mainHandler,
             )
         } catch (e: SecurityException) {
+            Log.e(TAG, "startLocalOnlyHotspot denied", e)
             reply(gen) { it.error("permission_denied", e.message, null) }
         } catch (e: IllegalStateException) {
+            Log.w(TAG, "startLocalOnlyHotspot busy (attempt=$attempt): ${e.message}")
             // "Caller already has an active LocalOnlyHotspot request" — an
             // abandoned attempt is still unwinding inside WifiManager. Its
             // onStarted closes it (above), so one delayed retry clears this.
@@ -223,6 +287,7 @@ class HotspotHandler(
             }
             reply(gen) { it.error("failed", e.message, null) }
         } catch (e: Exception) {
+            Log.e(TAG, "startLocalOnlyHotspot failed", e)
             reply(gen) { it.error("failed", e.message, null) }
         }
     }
@@ -350,6 +415,10 @@ class HotspotHandler(
     }
 
     fun stop() {
+        if (reservation != null || starting) {
+            Log.i(TAG, "stop: releasing our AP (starting=$starting)")
+            lastTeardownAt = SystemClock.elapsedRealtime()
+        }
         // Invalidate any attempt still in flight. An AP that arrives after this
         // belongs to nobody, so onStarted closes it on sight.
         generation++
@@ -376,6 +445,9 @@ class HotspotHandler(
     )
 
     companion object {
+        /** Logcat tag for on-device diagnosis of the host half of the bridge. */
+        private const val TAG = "TarkHotspot"
+
         /**
          * True while this device is hosting a local-only hotspot. Read by
          * [com.b1101.tark.keepalive.SessionKeepAliveService] to avoid holding
@@ -407,5 +479,11 @@ class HotspotHandler(
 
         // Backoff before the single automatic retry of a transient failure.
         private const val RETRY_DELAY_MS = 1_500L
+
+        // How long an AP has to stay up after onStarted before its credentials
+        // are worth putting on screen. Long enough to catch the come-up-and-die
+        // case, short enough to stay inside the "starting the hotspot" state
+        // the host screen is already showing.
+        private const val AP_CONFIRM_MS = 1_500L
     }
 }

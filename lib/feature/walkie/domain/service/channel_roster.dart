@@ -1,3 +1,4 @@
+import '../../../transfer/api/transfer_api.dart';
 import '../entity/channel_user.dart';
 
 /// What a roster operation observed, so the cubit can map it to the matching
@@ -33,7 +34,12 @@ class ChannelRoster {
     final idx = updated.indexWhere((u) => u.id == user.id);
     if (idx >= 0) {
       final startedTalking = !updated[idx].isTalking && user.isTalking;
-      updated[idx] = user;
+      // Only presence announces a role; audio packets say nothing about it.
+      // Without this, every frame of someone talking would wipe the role they
+      // announced two seconds ago and their badge would flicker.
+      updated[idx] = user.role == SessionRole.unknown
+          ? user.copyWith(role: updated[idx].role)
+          : user;
       return RosterUpdate(
         updated,
         startedTalking ? RosterChange.peerStartedTalking : RosterChange.none,

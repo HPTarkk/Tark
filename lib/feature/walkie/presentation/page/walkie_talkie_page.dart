@@ -22,6 +22,7 @@ import '../widget/background_permission_banner.dart';
 import '../widget/connection_health_banner.dart';
 import '../widget/mic_control.dart';
 import '../widget/music_cast_section.dart';
+import '../widget/role_badge.dart';
 import '../widget/usage_tips_sheet.dart';
 import '../widget/user_list.dart';
 import '../widget/visualizer_section.dart';
@@ -209,7 +210,8 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
       buildWhen: (p, c) =>
           p.localId != c.localId ||
           p.myName != c.myName ||
-          p.isReady != c.isReady,
+          p.isReady != c.isReady ||
+          p.myRole != c.myRole,
       builder: (context, state) {
         final s = context.getString;
         // How you're connected, said with the transport's own glyph. This
@@ -290,8 +292,10 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
                           color: AppColors.textSecondary,
                           size: 13,
                         ),
-                        // Only while there is something to say: once the link
-                        // is up the glyph alone carries it.
+                        // While connecting, that's the whole story. Once the
+                        // link is up the glyph carries how, and the badge
+                        // carries which part you're playing in it — the same
+                        // line every other member shows in the roster below.
                         if (isConnecting) ...[
                           const SizedBox(width: 4),
                           Expanded(
@@ -305,6 +309,11 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
+                          ),
+                        ] else if (state.myRole != SessionRole.unknown) ...[
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: RoleBadge(role: state.myRole, fontSize: 12),
                           ),
                         ],
                       ],

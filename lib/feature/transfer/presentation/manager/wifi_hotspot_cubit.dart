@@ -14,10 +14,13 @@ import '../../../../core/utils/logger.dart';
 import '../../../../core/utils/permission_queue.dart';
 import '../../../audio/api/audio_api.dart';
 import '../../domain/entity/hotspot_credentials.dart';
+import '../../domain/entity/session_role.dart';
 import '../../domain/entity/waki_packet.dart';
 import '../../domain/entity/wifi_hotspot_segment.dart';
 import '../../domain/repository/wifi_transfer_repository.dart';
 import '../../domain/service/hotspot_control.dart';
+import '../../domain/service/hotspot_link_keeper.dart';
+import '../../domain/service/session_role_store.dart';
 
 /// Which end of the bridge this device is. Android can be either; iOS can only
 /// join (a local-only hotspot can't be hosted from iOS).
@@ -50,6 +53,15 @@ enum JoinPhase {
 
   /// The programmatic join didn't take — fall back to joining by hand.
   manual,
+
+  /// The Wi-Fi radio is off. Not a failure to work around like [manual]: the
+  /// join can't even be attempted, and pointing the user at a Wi-Fi list that
+  /// isn't scanning is worse than useless. One switch fixes it.
+  wifiOff,
+
+  /// The system Location toggle is off, which stops Wi-Fi scanning through
+  /// Android 12 — same shape as [wifiOff], different switch.
+  locationOff,
 
   /// We were on the network and it went away.
   lost,
@@ -144,6 +156,8 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   final HotspotJoiner _joiner;
   final SfxPlayer _sfx;
   final SessionWakeLock _keepAlive;
+  final SessionRoleStore _roleStore;
+  final HotspotLinkKeeper _linkKeeper;
 
   StreamSubscription<WakiPacket>? _peerSub;
   StreamSubscription<void>? _stoppedSub;
@@ -159,6 +173,8 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
     this._joiner,
     this._sfx,
     this._keepAlive,
+    this._roleStore,
+    this._linkKeeper,
   ) : super(HotspotBridgeState.initial(WifiHotspotSegment.wifi));
 
   /// Switches the visible segment. Picking "Hotspot" only offers the host/join
@@ -182,6 +198,11 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
         errorCode: null,
       ),
     );
+    // The session that follows runs over plain UDP, which carries no trace of
+    // who brought the network up — this is the only moment that knows.
+    _roleStore.setRole(
+      role == HotspotRole.host ? SessionRole.host : SessionRole.joiner,
+    );
     if (role == HotspotRole.host) await startHost();
   }
 
@@ -204,6 +225,7 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
         errorCode: null,
       ),
     );
+    _roleStore.clear();
     // An in-flight startHost() may still land after this; it copies from the
     // state as it finds it, so a late `ready` can't put the role back.
     await _teardownSubscriptions();
@@ -243,6 +265,7 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
       if (isClosed) return;
       emit(state.copyWith(phase: HotspotPhase.ready, credentials: creds));
       _sfx.play(SfxEvent.linkRestored);
+      _linkKeeper.adopt(creds);
       // Guard the AP from the moment it's up — not only once the channel is
       // entered. Without a wake lock during the "waiting for the peer to scan
       // and join" window, the host can hit screen-off/Doze and the OS tears
@@ -318,15 +341,41 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
         errorCode: null,
       ),
     );
-    final joined = await _joiner.join(creds);
+    final result = await _joiner.join(creds);
     if (isClosed) return;
-    if (!joined) {
-      emit(state.copyWith(joinPhase: JoinPhase.manual));
+    if (result != HotspotJoinResult.joined) {
+      Logger.log('Hotspot join for "${creds.ssid}" ended as ${result.name}');
+      emit(
+        state.copyWith(
+          joinPhase: switch (result) {
+            HotspotJoinResult.wifiOff => JoinPhase.wifiOff,
+            HotspotJoinResult.locationOff => JoinPhase.locationOff,
+            _ => JoinPhase.manual,
+          },
+        ),
+      );
       _sfx.play(SfxEvent.error);
       return;
     }
     _onJoined();
   }
+
+  /// The Wi-Fi-off card's "turn it on". Where the OS lets us flip the radio
+  /// ourselves (pre-API-29) the join resumes on the spot; from API 29 the user
+  /// gets a system toggle instead, and the card keeps its "join again" button
+  /// for once they've flipped it — there is no reliable signal for "the panel
+  /// was dismissed" to retry off.
+  Future<void> enableWifiAndRetry() async {
+    final enabled = await _joiner.enableWifi();
+    if (isClosed || !enabled) return;
+    final creds = state.credentials;
+    if (creds != null) await joinNetwork(creds);
+  }
+
+  /// The Location-off card's fix. Always a trip to Settings — no API level
+  /// lets an app flip this one — so the card keeps its "join again" button for
+  /// the way back.
+  Future<void> openLocationSettings() => _joiner.openLocationSettings();
 
   /// The manual fallback's "I've joined" — the association already exists, so
   /// all that's left is pinning this process to it.
@@ -339,6 +388,11 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   void _onJoined() {
     emit(state.copyWith(joinPhase: JoinPhase.joined));
     _sfx.play(SfxEvent.linkRestored);
+    // Hand the link to something that outlives this screen. From here the
+    // session runs for as long as the user talks, and this cubit is disposed
+    // the moment the channel opens — see [HotspotLinkKeeper].
+    final creds = state.credentials;
+    if (creds != null) _linkKeeper.adopt(creds);
     // A socket keeps whatever network it was created on, and the process was
     // only just pinned to the hotspot — drop any socket from before the join
     // so the listener below binds on the right side of the bridge.
@@ -388,6 +442,9 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   /// start().
   Future<void> leaveBridge() async {
     await _teardownSubscriptions();
+    // Before the teardown below, so a recovery in flight cannot re-establish
+    // the very link we are about to drop.
+    await _linkKeeper.release();
     await _hotspot.stop();
     await _joiner.leave();
     // Backing out without entering the channel: the bridge duty is over, so
