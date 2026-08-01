@@ -108,10 +108,14 @@ a { color: inherit; text-decoration: none; }
   margin-bottom: 14px;
 }
 
+/* The inline safe-area insets matter only in landscape on a notched iPhone,
+   where viewport-fit=cover lets the page run under the notch; they are 0
+   everywhere else. */
 .section {
   max-width: 1080px;
   margin: 0 auto;
-  padding: 110px 24px;
+  padding: 110px calc(24px + env(safe-area-inset-right, 0px))
+           110px calc(24px + env(safe-area-inset-left, 0px));
 }
 
 /* ── Reveal-on-scroll ───────────────────────────────────────────────── */
@@ -165,21 +169,47 @@ nav {
   position: fixed;
   inset: 0 0 auto 0;
   z-index: 50;
-  transition: background .3s, border-color .3s, backdrop-filter .3s;
-  border-bottom: 1px solid transparent;
+  /* Deliberately no `transform`/`will-change: transform` here, tempting as
+     it is for a fixed bar: in WebKit a transformed ancestor makes a
+     descendant's backdrop-filter sample the wrong backdrop. The overscan on
+     nav::before below solves the same problem without the side effect. */
 }
 
-nav.scrolled {
+/* The glass panel lives on a pseudo-element that starts well above the
+   viewport, so the band iOS briefly exposes above a fixed bar — when the
+   URL bar collapses, or during a rubber-band overscroll — is covered by the
+   same blur instead of showing raw page content through the gap.
+   It also carries the fade: `backdrop-filter` cannot interpolate from
+   `none`, so transitioning it (as this used to) just snapped the blur on
+   while iOS re-rasterised the whole bar. Opacity animates cleanly. */
+nav::before {
+  content: '';
+  position: absolute;
+  inset: -180px 0 0 0;
+  z-index: -1;
+  pointer-events: none;
   background: rgba(11, 14, 17, .78);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border-bottom-color: var(--border);
+  border-bottom: 1px solid var(--border);
+  opacity: 0;
+  transition: opacity .3s;
+}
+
+nav.scrolled::before {
+  opacity: 1;
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
 }
 
 .nav-inner {
   max-width: 1080px;
   margin: 0 auto;
-  padding: 14px 24px;
+  /* Safe-area insets keep the bar clear of the notch / Dynamic Island when
+     the page runs full-bleed (landscape, or added to the Home Screen).
+     They resolve to 0 everywhere else. */
+  padding: calc(14px + env(safe-area-inset-top, 0px))
+           calc(24px + env(safe-area-inset-right, 0px))
+           14px
+           calc(24px + env(safe-area-inset-left, 0px));
   display: flex;
   align-items: center;
   gap: 26px;
@@ -288,7 +318,8 @@ nav.scrolled {
   align-items: center;
   justify-content: center;
   gap: clamp(30px, 6vw, 90px);
-  padding: 120px 24px 80px;
+  padding: 120px calc(24px + env(safe-area-inset-right, 0px))
+           80px calc(24px + env(safe-area-inset-left, 0px));
   position: relative;
   overflow: hidden;
 }
@@ -1571,7 +1602,9 @@ nav.scrolled {
 
 footer {
   border-top: 1px solid var(--border);
-  padding: 44px 24px 60px;
+  padding: 44px calc(24px + env(safe-area-inset-right, 0px))
+           calc(60px + env(safe-area-inset-bottom, 0px))
+           calc(24px + env(safe-area-inset-left, 0px));
   text-align: center;
 }
 

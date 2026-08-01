@@ -3,7 +3,10 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- viewport-fit=cover: the page paints into the notch/home-indicator
+       area instead of leaving black bars, and env(safe-area-inset-*) starts
+       reporting real values so the nav and footer can keep clear of them. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Tarkk — Talk instantly. No internet needed.</title>
   <meta name="description"
     content="Tarkk is a walkie-talkie app that connects you directly to people nearby using WiFi or Bluetooth. No internet or accounts required.">
