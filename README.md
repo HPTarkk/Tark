@@ -4,6 +4,9 @@ A real-time, push-to-talk **voice walkie-talkie** that works with **no internet 
 
 Cross-platform: **Android ↔ Android, iPhone ↔ iPhone, and Android ↔ iPhone.**
 
+**Website: [tarkk.ir](https://tarkk.ir)** — what it does, how the link is made, and the Android download.
+**Join from a browser: [app.tarkk.ir](https://app.tarkk.ir)** — the guest client, no install.
+
 ---
 
 Copyright (c) 2026 Tarkk
@@ -117,6 +120,12 @@ flutter build web --release -t lib/main_guest.dart
 # deploy build/web to any static HTTPS host; set the URL via
 #   --dart-define GUEST_APP_URL=https://your-host  (see lib/core/config/guest_config.dart)
 ```
+
+The deployed instance is [app.tarkk.ir](https://app.tarkk.ir), which is what `GUEST_APP_URL` defaults to.
+
+### Landing site
+
+`website/` is the static marketing site served at [tarkk.ir](https://tarkk.ir) — plain HTML, CSS and JS with no build step, deployed as-is. `robots.txt`, `sitemap.xml` and the canonical URL in `index.html` all name that origin, so they need updating together if the site ever moves.
 
 ---
 
