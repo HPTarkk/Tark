@@ -7,12 +7,140 @@
        area instead of leaving black bars, and env(safe-area-inset-*) starts
        reporting real values so the nav and footer can keep clear of them. -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Tarkk — Talk instantly. No internet needed.</title>
+  <title>Tarkk — Walkie-talkie app with no internet needed</title>
   <meta name="description"
     content="Tarkk is a walkie-talkie app that connects you directly to people nearby using WiFi or Bluetooth. No internet or accounts required.">
   <meta name="theme-color" content="#0B0E11">
+
+  <!-- ── Search ───────────────────────────────────────────────────────
+       The page is one document served at the site root; the language
+       toggle swaps text client-side rather than changing the URL, so
+       there is a single canonical and no hreflang pair to declare. -->
+  <link rel="canonical" href="https://tarkk.ir/">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
+  <link rel="icon" href="favicon.ico" sizes="any">
+
+  <!-- ── Link previews ───────────────────────────────────────────────── -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Tarkk">
+  <meta property="og:url" content="https://tarkk.ir/">
+  <meta property="og:title" content="Tarkk — Walkie-talkie app with no internet needed">
+  <meta property="og:description"
+    content="Tarkk is a walkie-talkie app that connects you directly to people nearby using WiFi or Bluetooth. No internet or accounts required.">
+  <meta property="og:image" content="https://tarkk.ir/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Tarkk — talk instantly, no cell towers, no internet needed.">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:locale:alternate" content="fa_IR">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Tarkk — Walkie-talkie app with no internet needed">
+  <meta name="twitter:description"
+    content="Talk to people nearby over WiFi or Bluetooth. No internet, no accounts, nothing saved.">
+  <meta name="twitter:image" content="https://tarkk.ir/og-image.png">
+
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vazirmatn@33.0.3/Vazirmatn-font-face.css">
   <link rel="stylesheet" href="styles.css">
+
+  <!-- ── Structured data ──────────────────────────────────────────────
+       Describes the app and mirrors the FAQ section below, so Google can
+       read both without having to infer them from the markup. Keep the
+       questions here in sync with #faq. -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://tarkk.ir/#website",
+        "url": "https://tarkk.ir/",
+        "name": "Tarkk",
+        "inLanguage": ["en", "fa"],
+        "description": "Walkie-talkie app that connects phones nearby over WiFi or Bluetooth, with no internet or accounts."
+      },
+      {
+        "@type": "MobileApplication",
+        "@id": "https://tarkk.ir/#app",
+        "name": "Tarkk",
+        "url": "https://tarkk.ir/",
+        "applicationCategory": "CommunicationApplication",
+        "operatingSystem": "Android",
+        "image": "https://tarkk.ir/og-image.png",
+        "description": "Tarkk is a walkie-talkie app that connects you directly to people nearby using WiFi or Bluetooth. No internet or accounts required, and nothing you say is stored or uploaded.",
+        "featureList": [
+          "Push-to-talk over WiFi Direct or Bluetooth",
+          "Works with no cell signal and no internet",
+          "Background operation with the screen locked",
+          "Automatic reconnection when peers come back in range",
+          "Noise suppression",
+          "Browser access with no install"
+        ],
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "downloadUrl": "https://tarkk.s3.ir-thr-at1.arvanstorage.ir/Tarkk.apk",
+        "isPartOf": { "@id": "https://tarkk.ir/#website" }
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://tarkk.ir/#faq",
+        "isPartOf": { "@id": "https://tarkk.ir/#website" },
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Do I need an account or an internet connection?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. Tarkk goes straight between phones over WiFi or Bluetooth. No sign-ups, no internet, no data plan."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What if I lock my phone while talking?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "The app stays awake in the background. Lock the screen or put your phone in a pocket and you are still connected."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What happens if the connection drops?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Tarkk keeps trying in the background and picks the call back up the second your friend is close enough again."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can iPhone and Android users talk to each other?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. One phone makes the hotspot and the other scans its code inside the app, or you send a link and they join from a browser."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does it work with absolutely no cell network?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Two Android phones link up straight over Bluetooth — no internet, no router, no signal at all."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is my voice clear and high quality?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Voice is compressed in a way that keeps it clear, and noise suppression removes wind, traffic and background noise before it leaves your phone."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
 </head>
 
 <body>
