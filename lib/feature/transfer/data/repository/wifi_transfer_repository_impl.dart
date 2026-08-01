@@ -40,6 +40,27 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   static const _livenessCheckInterval = Duration(seconds: 5);
   static const _livenessTimeout = Duration(seconds: 15);
 
+  /// When a peer was last heard, for the watchdog's "is there a session to
+  /// watch?" question — deliberately separate from [_peers], which is cleared
+  /// whenever our addresses change.
+  ///
+  /// Gating the watchdog on `_peers.isEmpty` made it disable itself in exactly
+  /// the case it was written for: the OS moves the phone to another network,
+  /// [_resolveNetwork] clears the peer map, the watchdog then returns early
+  /// forever, the receive socket is never rebound, and no packet can arrive to
+  /// repopulate the map. A dead link reported itself as healthy, indefinitely.
+  DateTime? _lastPeerAt;
+
+  /// How long after the last peer packet the watchdog keeps trying. Past this
+  /// the other end is treated as genuinely gone rather than unreachable, so a
+  /// user sitting alone in a channel isn't handed a rebind every 15s.
+  static const _watchdogGrace = Duration(minutes: 2);
+
+  /// Set by [rebindSockets] to skip the backoff wait — the network changing
+  /// under us is news, not a failed attempt, and the right move is to bind on
+  /// the new one immediately.
+  bool _rebindRequested = false;
+
   // Every packet is sent to ALL of these. A device can sit on several IPv4
   // networks at once (hotspot AP interface + cellular, or WiFi + hotspot),
   // and only one of them contains the peers. Broadcasting on every private
@@ -193,6 +214,11 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
         _failingTargets.clear();
         _setHealth(const ConnectionHealth.healthy());
         _lastPacketAt = DateTime.now();
+        // Consumed here as well as in the backoff block below: a rebind asked
+        // for while the loop was already sleeping between attempts gets served
+        // by that attempt, and must not leave the flag set to skip the backoff
+        // of some later, unrelated failure.
+        _rebindRequested = false;
         _startLivenessWatch(myGen);
         // Local addresses restated here rather than left to the change-only
         // line in _resolveNetwork: this is the one thing every "why is nothing
@@ -244,6 +270,16 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
       }
 
       if (_generation != myGen) break;
+
+      // The network moved under us and [rebindSockets] tore the sockets down
+      // on purpose. There is nothing to back off from — the bind at the top of
+      // the loop is the whole point — so go straight back to it.
+      if (_rebindRequested) {
+        _rebindRequested = false;
+        backoff.reset();
+        _setHealth(const ConnectionHealth.reconnecting());
+        continue;
+      }
 
       if (_autoReconnectEnabled) {
         // Announce the scheduled attempt so the banner can count down to it —
@@ -304,8 +340,13 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
       }
       // Only fires once we've actually heard from someone — a freshly
       // opened, never-joined channel isn't "unreachable," it's just empty.
-      if (_peers.isEmpty) return;
-      if (DateTime.now().difference(_lastPacketAt) > _livenessTimeout) {
+      final lastPeer = _lastPeerAt;
+      if (lastPeer == null) return;
+      final now = DateTime.now();
+      // …and stops once they've been gone long enough to be gone rather than
+      // unreachable, so a solo channel doesn't rebind forever.
+      if (now.difference(lastPeer) > _watchdogGrace) return;
+      if (now.difference(_lastPacketAt) > _livenessTimeout) {
         Logger.diagnostic('wifi: liveness timeout (gen $myGen) — forcing rebind');
         _receiveSocket?.close();
       }
@@ -334,12 +375,48 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   void resetCodecState() => _codec.resetDecoders();
 
   @override
+  void rebindSockets() {
+    Logger.diagnostic('wifi: rebinding both sockets on the current network');
+    _rebindRequested = true;
+
+    // Both, not just the send socket. _resolveNetwork already rebuilds the
+    // send socket when it notices the addresses changed, and stopping there is
+    // why a recovered link could come back send-only: the RECEIVE socket was
+    // bound before the process was pinned to the new network, so nothing
+    // arrived on it and nothing ever rebuilt it.
+    _sendSocket?.close();
+    _sendSocket = null;
+    // Force the next send to re-resolve rather than target the old subnet.
+    _broadcastTargets = const [];
+    _targetsResolvedAt = DateTime.fromMillisecondsSinceEpoch(0);
+    // Peers and heard subnets belong to the network we just left.
+    _peers.clear();
+    _heardSubnets.clear();
+    _heardSubnetBroadcasts = const [];
+
+    // Closing it breaks the `await for` in startListening, which drops into
+    // the rebind at the top of the loop. The generation is untouched, so the
+    // session's subscription survives.
+    _receiveSocket?.close();
+    _receiveSocket = null;
+
+    // If the loop is already sitting out a backoff delay, cut it short.
+    final completer = _manualRetryCompleter;
+    _manualRetryCompleter = null;
+    if (completer != null && !completer.isCompleted) completer.complete();
+  }
+
+  @override
   void stopConnection() {
     // Invalidate any running generator by advancing the generation counter.
     _generation++;
     _livenessTimer?.cancel();
     _manualRetryCompleter?.complete();
     _manualRetryCompleter = null;
+    _rebindRequested = false;
+    // A new session starts with no history of having heard anyone, so the
+    // watchdog stays quiet until this one has a peer of its own.
+    _lastPeerAt = null;
 
     _receiveSocket?.close();
     _receiveSocket = null;
@@ -484,7 +561,9 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   void _rememberPeer(String address) {
     // Our own broadcast comes back to us — that's not a peer.
     if (_localAddresses.contains(address)) return;
-    _peers[address] = DateTime.now();
+    final now = DateTime.now();
+    _peers[address] = now;
+    _lastPeerAt = now;
   }
 
   // A broadcast send is EXPECTED to fail on iOS (errno 65, no multicast

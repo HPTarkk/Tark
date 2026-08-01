@@ -11,6 +11,7 @@ import android.net.NetworkRequest
 import android.net.wifi.WifiConfiguration
 import android.net.wifi.WifiManager
 import android.net.wifi.WifiNetworkSpecifier
+import android.net.wifi.WifiNetworkSuggestion
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -47,7 +48,36 @@ import java.util.concurrent.atomic.AtomicBoolean
  *     every socket this process opens to it.
  *
  * Because binding only affects sockets opened *afterwards*, Dart must tear down
- * and re-open its UDP sockets once [join] succeeds (see WifiHotspotCubit).
+ * and re-open its UDP sockets once [join] succeeds (see WifiHotspotCubit), and
+ * again on every `rebound` event below.
+ *
+ * ## Surviving the screen going off
+ *
+ * A specifier request is scoped to the requesting app being in the FOREGROUND.
+ * When the screen locks, the activity stops, the process drops from
+ * IMPORTANCE_FOREGROUND to IMPORTANCE_FOREGROUND_SERVICE, and the framework
+ * releases the request and disconnects — the reported "locks the phone, call
+ * dies; wakes the screen, call comes back". A foreground service does not
+ * prevent this, and it cannot be worked around: it is what the API is
+ * specified to do.
+ *
+ * So the specifier is used only to make the FIRST connection (it is the one
+ * API that can join a named AP with no trip through Settings), and two
+ * background-safe mechanisms are layered underneath it to hold the link:
+ *
+ *  1. **A network suggestion** ([installSuggestion]) for the same SSID, so once
+ *     the specifier request is released the platform reconnects to the AP on
+ *     its own, as an ordinary system-owned STA connection that has nothing to
+ *     do with our foreground state.
+ *  2. **A plain, specifier-less [ConnectivityManager.requestNetwork] for Wi-Fi
+ *     without NET_CAPABILITY_INTERNET** ([startKeeper]). That flavour is NOT
+ *     foreground-gated, it stops the framework from reaping an internet-less
+ *     network as useless, and its onAvailable is what re-pins the process (and
+ *     tells Dart to rebuild its sockets) after each reconnect.
+ *
+ * A loss is therefore not announced immediately: [LOST_GRACE_MS] is given to
+ * the two mechanisms above to put us back on the AP silently. Only if they
+ * fail does Dart hear `lost` and fall back to a full (foreground-only) rejoin.
  *
  * Methods (channel "tark/wifi_join"):
  *   join(ssid, passphrase, security) -> Bool   true once bound to the network
@@ -55,7 +85,9 @@ import java.util.concurrent.atomic.AtomicBoolean
  *   leave()                          -> null   release the request and unbind
  *
  * Events (channel "tark/wifi_join/events"):
- *   {event: "lost"}   the joined network went away (host moved off, AP died)
+ *   {event: "rebound"} the OS dropped and re-established the network under us;
+ *                      we are pinned to it again and sockets need rebuilding
+ *   {event: "lost"}    the joined network went away and did not come back
  */
 class WifiJoinHandler(
     private val context: Context,
@@ -74,6 +106,27 @@ class WifiJoinHandler(
 
     private var callback: ConnectivityManager.NetworkCallback? = null
     private var boundNetwork: Network? = null
+
+    /**
+     * The specifier-less request that outlives the foreground. Registered once
+     * a join succeeds and kept until [leave]; its onAvailable is the only thing
+     * that re-pins the process after the OS drops and rebuilds the link.
+     */
+    private var keeperCallback: ConnectivityManager.NetworkCallback? = null
+
+    /** Suggestions we installed, so [leave] can take exactly ours back out. */
+    private var suggested: List<WifiNetworkSuggestion> = emptyList()
+
+    /** SSID of the AP this session belongs to, for the re-bind sanity check. */
+    private var joinedSsid: String? = null
+
+    /**
+     * Pending "the link is really gone" announcement. Held back for
+     * [LOST_GRACE_MS] so the suggestion/keeper pair can reconnect us without
+     * the session ever noticing — an immediate `lost` would kick Dart into a
+     * foreground-only rejoin at the exact moment the app is not foreground.
+     */
+    private var lostAnnouncement: Runnable? = null
 
     // A join that hasn't answered Dart yet. Unregistering a network callback
     // does NOT deliver onUnavailable, so tearing a request down has to settle
@@ -127,7 +180,13 @@ class WifiJoinHandler(
         }
         // Drop any previous request first: two live specifier requests fight
         // over the single STA and the older one usually wins.
-        leave()
+        //
+        // Only the specifier, though, when this is a retry at the SAME AP — the
+        // suggestion and the keeper are what recover a screen-off drop, and a
+        // full leave() here would throw away the working mechanism to make room
+        // for the fallback. A different SSID is a different session and does
+        // get the full teardown.
+        if (ssid == joinedSsid) releaseSpecifier() else leave()
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             Log.i(TAG, "join '$ssid' via legacy addNetwork (SDK ${Build.VERSION.SDK_INT})")
@@ -196,18 +255,32 @@ class WifiJoinHandler(
             override fun onAvailable(network: Network) {
                 Log.i(TAG, "onAvailable after ${SystemClock.elapsedRealtime() - startedAt}ms")
                 bind(network)
+                joinedSsid = ssid
+                // Both of these outlive the foreground; the specifier request
+                // that got us here does not. Installed only once the AP has
+                // actually accepted us, so a failed join leaves nothing behind.
+                installSuggestion(ssid, passphrase, security)
+                startKeeper()
                 pending.reply(true)
             }
 
             override fun onLost(network: Network) {
                 if (network != boundNetwork) return
-                Log.w(TAG, "onLost: joined network went away")
+                // Normally the keeper's to report: this fires every time the
+                // screen goes off (the framework releasing an app-scoped
+                // request), which is precisely the case that must NOT surface
+                // as a dropped link.
+                if (keeperCallback != null) {
+                    Log.i(TAG, "specifier network released — keeper takes over")
+                    return
+                }
+                // Unless there is no keeper — requestNetwork refused it — in
+                // which case nothing else is watching and this is the only
+                // report of the loss there will be.
+                Log.w(TAG, "network lost with no keeper registered")
                 boundNetwork = null
-                // Don't leave the process pinned to a network that no longer
-                // exists — that would block every recovery path, including the
-                // user rejoining by hand.
                 runCatching { connectivity.bindProcessToNetwork(null) }
-                mainHandler.post { eventSink?.success(mapOf("event" to "lost")) }
+                scheduleLostAnnouncement()
             }
 
             override fun onUnavailable() {
@@ -239,6 +312,154 @@ class WifiJoinHandler(
             callback = null
             pending.fail("failed", e.message)
         }
+    }
+
+    /**
+     * Registers the specifier-less Wi-Fi request that holds the link up once
+     * the foreground-scoped one is gone.
+     *
+     * Two jobs. It asks the framework to keep a Wi-Fi network around even
+     * though it has no internet (`removeCapability(NET_CAPABILITY_INTERNET)`),
+     * which is what stops an internet-less AP from being scored as useless and
+     * dropped. And its onAvailable fires on every reconnect the platform makes
+     * on our behalf, which is the only chance we get to re-pin the process —
+     * [ConnectivityManager.bindProcessToNetwork] applies to a Network handle,
+     * and the handle changes with every reassociation.
+     *
+     * Unlike a specifier request this one is not foreground-gated and needs no
+     * user dialog, so it keeps working with the screen off.
+     */
+    private fun startKeeper() {
+        if (keeperCallback != null) return
+        val request = NetworkRequest.Builder()
+            .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+            .removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+        val cb = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                // Whatever this is, the radio found a Wi-Fi network — so the
+                // "it's really gone" verdict is at least premature.
+                cancelLostAnnouncement()
+                if (network == boundNetwork) return
+                if (!looksLikeOurAp()) {
+                    // The phone came up on some OTHER Wi-Fi (a remembered home
+                    // network usually wins the race against a suggestion).
+                    // Pinning to it would send the whole session into a subnet
+                    // the peer is not on, which is worse than admitting the
+                    // link is gone — so let the grace period run out instead.
+                    Log.w(TAG, "keeper: Wi-Fi came up, but not '$joinedSsid' — not binding")
+                    return
+                }
+                Log.i(TAG, "keeper: back on '$joinedSsid' — re-pinning the process")
+                bind(network)
+                mainHandler.post { eventSink?.success(mapOf("event" to "rebound")) }
+            }
+
+            override fun onLost(network: Network) {
+                if (network != boundNetwork) return
+                Log.w(TAG, "keeper: bound network went away")
+                boundNetwork = null
+                // Don't leave the process pinned to a network that no longer
+                // exists — that would block every recovery path, including the
+                // user rejoining by hand.
+                runCatching { connectivity.bindProcessToNetwork(null) }
+                scheduleLostAnnouncement()
+            }
+        }
+        keeperCallback = cb
+        // No timeout: this request has no deadline to meet, it just has to be
+        // there whenever the platform brings Wi-Fi back.
+        if (runCatching { connectivity.requestNetwork(request, cb) }.isFailure) {
+            Log.w(TAG, "keeper: requestNetwork refused — link will not survive background")
+            keeperCallback = null
+        }
+    }
+
+    private fun stopKeeper() {
+        keeperCallback?.let { cb -> runCatching { connectivity.unregisterNetworkCallback(cb) } }
+        keeperCallback = null
+    }
+
+    /**
+     * Whether the Wi-Fi we are on now is the AP we joined.
+     *
+     * Deliberately permissive: from API 31 the SSID is redacted for apps
+     * without location permission and comes back as `<unknown ssid>`. An
+     * unreadable name must not be treated as a mismatch — that would disable
+     * re-binding entirely on exactly the devices that need it — so only a name
+     * we can read AND that disagrees counts as a different network.
+     */
+    private fun looksLikeOurAp(): Boolean {
+        val want = joinedSsid ?: return true
+        @Suppress("DEPRECATION")
+        val current = runCatching { wifiManager.connectionInfo?.ssid?.trim('"') }.getOrNull()
+        if (current.isNullOrEmpty() || current == UNKNOWN_SSID) return true
+        return current == want
+    }
+
+    /**
+     * Asks the platform to remember this AP as a network worth connecting to.
+     *
+     * This is the half that survives the screen going off: a suggestion is
+     * system-owned, so the reconnect it drives has nothing to do with whether
+     * this app is foreground. Best-effort — on API 30+ the user has to approve
+     * suggestions once, and a refusal only costs us the automatic reconnect,
+     * not the session.
+     */
+    private fun installSuggestion(ssid: String, passphrase: String, security: String) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+        removeSuggestions()
+        val builder = WifiNetworkSuggestion.Builder().setSsid(ssid)
+        when {
+            passphrase.isEmpty() -> Unit // open network
+            security.equals("SAE", ignoreCase = true) -> builder.setWpa3Passphrase(passphrase)
+            else -> builder.setWpa2Passphrase(passphrase)
+        }
+        val list = listOf(builder.build())
+        val status = runCatching { wifiManager.addNetworkSuggestions(list) }
+            .getOrElse { e ->
+                Log.w(TAG, "addNetworkSuggestions threw: ${e.message}")
+                return
+            }
+        if (status == WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS) {
+            suggested = list
+            Log.i(TAG, "suggestion installed for '$ssid'")
+        } else {
+            // Most often STATUS_NETWORK_SUGGESTIONS_ERROR_APP_DISALLOWED (3):
+            // the user dismissed the one-time approval. The keeper request
+            // still holds an existing association up; only the automatic
+            // re-association is lost.
+            Log.w(TAG, "addNetworkSuggestions refused (status=$status)")
+        }
+    }
+
+    private fun removeSuggestions() {
+        if (suggested.isEmpty()) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            runCatching { wifiManager.removeNetworkSuggestions(suggested) }
+        }
+        suggested = emptyList()
+    }
+
+    /**
+     * Starts the countdown to telling Dart the link is gone. Cancelled by any
+     * Wi-Fi network turning up in the meantime, which is the normal outcome of
+     * a screen-off drop.
+     */
+    private fun scheduleLostAnnouncement() {
+        cancelLostAnnouncement()
+        val announcement = Runnable {
+            lostAnnouncement = null
+            Log.w(TAG, "no Wi-Fi back after ${LOST_GRACE_MS}ms — reporting the link lost")
+            eventSink?.success(mapOf("event" to "lost"))
+        }
+        lostAnnouncement = announcement
+        mainHandler.postDelayed(announcement, LOST_GRACE_MS)
+    }
+
+    private fun cancelLostAnnouncement() {
+        lostAnnouncement?.let { mainHandler.removeCallbacks(it) }
+        lostAnnouncement = null
     }
 
     /**
@@ -414,6 +635,14 @@ class WifiJoinHandler(
         }
         Log.i(TAG, "bindCurrent: pinning process to $network")
         bind(network)
+        @Suppress("DEPRECATION")
+        joinedSsid = runCatching { wifiManager.connectionInfo?.ssid?.trim('"') }
+            .getOrNull()
+            ?.takeIf { it.isNotEmpty() && it != UNKNOWN_SSID }
+        // A hand-joined network is already system-owned, so it needs no
+        // suggestion — but it still gets a new Network handle on every
+        // reassociation, and the process pin still has to follow it.
+        startKeeper()
         return true
     }
 
@@ -422,16 +651,31 @@ class WifiJoinHandler(
         runCatching { connectivity.bindProcessToNetwork(network) }
     }
 
-    fun leave() {
-        if (callback != null || boundNetwork != null) {
-            Log.i(TAG, "leave: releasing request (bound=${boundNetwork != null})")
-        }
+    /**
+     * Releases only the foreground-scoped specifier request, leaving the
+     * suggestion and the keeper in place. This is what a retry at the same AP
+     * needs; [leave] is what the end of a session needs.
+     */
+    private fun releaseSpecifier() {
+        cancelLostAnnouncement()
         callback?.let { cb -> runCatching { connectivity.unregisterNetworkCallback(cb) } }
         callback = null
         // Unregistering is silent, so anything still waiting on this request is
         // told here that it didn't happen.
         pendingJoin?.reply(false)
         pendingJoin = null
+    }
+
+    fun leave() {
+        if (callback != null || boundNetwork != null) {
+            Log.i(TAG, "leave: releasing request (bound=${boundNetwork != null})")
+        }
+        releaseSpecifier()
+        // Everything else that would otherwise keep pulling this phone back
+        // onto an AP the user has finished with.
+        stopKeeper()
+        removeSuggestions()
+        joinedSsid = null
         boundNetwork = null
         runCatching { connectivity.bindProcessToNetwork(null) }
     }
@@ -444,6 +688,21 @@ class WifiJoinHandler(
         // host AP before reporting onUnavailable. Generous: the host may still
         // be bringing its hotspot up when the peer scans the code.
         private const val JOIN_TIMEOUT_MS = 40_000
+
+        /**
+         * How long the link may be down before Dart is told it is gone.
+         *
+         * Sized for the screen-off case, which is not an error at all: the
+         * framework releases our foreground-scoped specifier request, and the
+         * suggestion + keeper put us back on the AP a few seconds later.
+         * Announcing a loss inside that window would start a rejoin that
+         * cannot succeed (a specifier join needs the foreground) and would
+         * bury the user in "Connect to …?" dialogs on their lock screen.
+         */
+        private const val LOST_GRACE_MS = 15_000L
+
+        /** What WifiInfo returns instead of an SSID when it is redacted. */
+        private const val UNKNOWN_SSID = "<unknown ssid>"
 
         private const val LEGACY_POLL_ATTEMPTS = 50
         private const val LEGACY_POLL_INTERVAL_MS = 500L
