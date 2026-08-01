@@ -23,7 +23,7 @@ If you wish to use this software in a proprietary or closed-source product, or i
 Commercial licenses are available under negotiated terms, including royalty, revenue-sharing, subscription, or one-time licensing agreements.
 
 For commercial licensing inquiries, contact:
-pedramXIII@gmail.com
+tarkk.hp@gmail.com
 
 ## Features
 
