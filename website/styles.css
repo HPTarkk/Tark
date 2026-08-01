@@ -186,7 +186,11 @@ nav::before {
   content: '';
   position: absolute;
   inset: -180px 0 0 0;
-  z-index: -1;
+  /* Not `z-index: -1`, which is the obvious way to get a backdrop behind
+     the bar's own content: WebKit mis-samples the backdrop of a negative
+     z-index child, and a wrong backdrop is exactly the bug this is here to
+     avoid. The layer stays at 0 and .nav-inner is lifted above it. */
+  z-index: 0;
   pointer-events: none;
   background: rgba(11, 14, 17, .78);
   border-bottom: 1px solid var(--border);
@@ -201,6 +205,8 @@ nav.scrolled::before {
 }
 
 .nav-inner {
+  position: relative;
+  z-index: 1;
   max-width: 1080px;
   margin: 0 auto;
   /* Safe-area insets keep the bar clear of the notch / Dynamic Island when
@@ -278,6 +284,88 @@ nav.scrolled::before {
 }
 
 .lang-toggle:hover { border-color: var(--amber); }
+
+/* ── iOS: a real navigation bar ─────────────────────────────────────────
+   html.is-ios is set from an inline script in the document head, so the
+   bar is never painted in its desktop form first.
+
+   iOS is not a narrow desktop, and the shared bar broke on it in a way no
+   amount of tuning fixes: a `position: fixed` element is pinned to the
+   LAYOUT viewport, but what you see is the VISUAL viewport, and the two
+   come apart every time the URL bar collapses or the page rubber-bands.
+   For those frames the bar is somewhere other than the top of the screen
+   and a strip of scrolled page shows above it — through the glass, which
+   is what made it obvious. Sticky is the fix: a sticky element rides the
+   scroller itself and physically cannot separate from the content.
+
+   The rest follows UINavigationBar: 44pt over the status-bar inset, a
+   hairline rather than a 1px rule, a centred title, and a borderless
+   tinted bar button. */
+
+html.is-ios {
+  /* 44pt of bar, plus however much status bar sits above it. */
+  --bar-h: calc(44px + env(safe-area-inset-top, 0px));
+  /* So an in-page anchor lands below the bar instead of under it. */
+  scroll-padding-top: var(--bar-h);
+}
+
+html.is-ios nav {
+  position: sticky;
+  /* Reset the fixed bar's left/right insets — on a sticky box those read
+     as "also stick horizontally". */
+  inset: 0 auto auto auto;
+  height: var(--bar-h);
+  /* Going into flow must not cost layout: the negative margin pulls the
+     hero back up so the bar overlays it exactly as the fixed one did. */
+  margin-bottom: calc(-1 * var(--bar-h));
+}
+
+html.is-ios nav::before {
+  /* Denser fill than the desktop glass. Apple's materials sit over an
+     opaque app background; over a scrolling page a .78 fill lets whole
+     words ghost through the bar. */
+  background: rgba(11, 14, 17, .92);
+  border-bottom: none;
+  /* Hairline, not a border: 1px is a visibly heavy rule at 3x. */
+  box-shadow: 0 .5px 0 rgba(233, 237, 241, .14);
+}
+
+html.is-ios nav.scrolled::before {
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+html.is-ios .nav-inner {
+  height: 100%;
+  padding: env(safe-area-inset-top, 0px)
+           calc(16px + env(safe-area-inset-right, 0px))
+           0
+           calc(16px + env(safe-area-inset-left, 0px));
+  gap: 0;
+}
+
+/* The centred title and bar button only make sense once the inline links
+   are gone, which is the same breakpoint they hide at. */
+@media (max-width: 860px) {
+  html.is-ios .wordmark {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    inset-block: env(safe-area-inset-top, 0px) 0;
+    font-size: .88rem;
+  }
+
+  /* A UIBarButtonItem is tinted text, not a chip. */
+  html.is-ios .lang-toggle {
+    margin-inline-start: auto;
+    background: none;
+    border: none;
+    border-radius: 0;
+    padding: 6px 0;
+    font-size: .95rem;
+    font-weight: 500;
+  }
+}
 
 /* ── Buttons ────────────────────────────────────────────────────────── */
 
