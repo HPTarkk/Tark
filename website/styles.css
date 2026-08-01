@@ -18,24 +18,78 @@
 
 html { scroll-behavior: smooth; }
 
+/* ── Custom scrollbar ───────────────────────────────────────────────
+   The native bar is hidden only once app.js has built the replacement,
+   so a page without JS keeps the one the browser gives it. */
+
+html.has-custom-scrollbar { scrollbar-width: none; }
+html.has-custom-scrollbar::-webkit-scrollbar { width: 0; height: 0; }
+
+.scrollbar {
+  position: fixed;
+  inset-block: 14px;
+  inset-inline-end: 7px;
+  width: 6px;
+  z-index: 210;
+  border-radius: 999px;
+  background: rgba(45, 52, 61, .35);
+  opacity: .35;
+  transition: opacity .35s, width .2s, background .2s;
+}
+
+/* Awake while scrolling, and while the pointer is anywhere near it. */
+.scrollbar.awake,
+.scrollbar:hover { opacity: 1; }
+.scrollbar:hover { width: 10px; background: rgba(45, 52, 61, .6); }
+
+.scrollbar.idle { opacity: 0; }
+
+.scrollbar-thumb {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--amber), var(--amber-dim));
+  box-shadow: 0 0 12px rgba(245, 133, 63, .35);
+  cursor: grab;
+  /* Position is a transform so the bar tracks the page without ever
+     touching layout. */
+  will-change: transform;
+}
+
+.scrollbar-thumb:active { cursor: grabbing; }
+
+/* Touch devices scroll with a finger and get their own overlay bar. */
+@media (pointer: coarse) {
+  .scrollbar { display: none; }
+}
+
 body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font);
-  overflow-x: hidden;
+  /* clip, not hidden: `overflow-x: hidden` makes the body its own
+     scroll container, which puts the pinned handshake scene and the
+     page scroll on different scrollers and costs a frame of work on
+     every wheel event. `clip` cuts the same overflow with none of it. */
+  overflow-x: clip;
   line-height: 1.6;
   position: relative;
 }
 
-/* Subtle film-grain overlay for depth across the whole page. */
+/* Subtle film-grain overlay for depth across the whole page.
+   Deliberately without a blend mode: a fixed, full-viewport blended
+   layer forces the entire page through an extra compositing pass on
+   every scrolled frame, which is the single biggest cause of a page
+   that feels heavy under the wheel. Straight alpha looks the same at
+   this opacity on a dark background. */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
   z-index: 200;
   pointer-events: none;
-  opacity: .05;
-  mix-blend-mode: overlay;
+  opacity: .045;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
@@ -383,28 +437,118 @@ nav.scrolled {
 
 .mock-eq {
   flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
+  display: grid;
+  place-items: center;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 10px;
+  padding: 8px;
 }
 
-.mock-eq span {
-  width: 3.5px;
-  height: 12%;
+/* The app's own audio dial, rebuilt in CSS (see AudioVisualizer in
+   lib/feature/audio): bars stand ON the hub and reach outward toward
+   the rim, each one riding its own envelope, and the ring is mirrored
+   about the vertical axis so both halves show the same frame.
+
+   --hub is where the bars start, --band is how far a full-scale bar
+   reaches, both measured from the centre of the dial. */
+.mock-ring {
+  --n: 24;
+  --hub: 26%;
+  --band: 18%;
+  position: relative;
+  width: min(120px, 90%);
+  aspect-ratio: 1;
+  /* Rim hairline, the same fixed framing the app draws. */
+  background: radial-gradient(circle,
+    transparent 0 43.6%, rgba(245, 133, 63, .2) 43.6% 44.4%, transparent 44.4%);
+}
+
+/* Twelve ticks outside the rim: one static element, no per-frame cost. */
+.mock-ring::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from -.9deg,
+    rgba(245, 133, 63, .55) 0 1.8deg, transparent 1.8deg 30deg);
+  -webkit-mask: radial-gradient(circle, transparent 0 47%, #000 47% 50%, transparent 50%);
+  mask: radial-gradient(circle, transparent 0 47%, #000 47% 50%, transparent 50%);
+}
+
+/* Radar wash: a soft highlight that orbits the dial. Deliberately a
+   radial blob rather than a masked conic wedge, which at this size
+   rendered as a hard-edged plate sitting over the bars. */
+.mock-ring::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle 24% at 50% 8%, rgba(245, 133, 63, .22), transparent 70%);
+  animation: ringSweep 5s linear infinite;
+}
+
+/* The ray ring drifts slowly under the static rim, like the app's dial. */
+.mock-rays {
+  position: absolute;
+  inset: 0;
+  animation: ringDrift 60s linear infinite;
+}
+
+/* Each ray is rotated once and never animates again. */
+.mock-rays span {
+  position: absolute;
+  inset: 0;
+  transform: rotate(calc(var(--i) * (360deg / var(--n))));
+}
+
+/* The bar itself: anchored on the hub, growing outward. Only scaleY
+   animates, so the whole ring stays on the compositor. Every ray's
+   envelope (--lo, --hi, --dur, --delay) is randomised per bar in
+   app.js and mirrored across the vertical axis; the values here are
+   the fallback if that never runs. */
+.mock-rays i {
+  position: absolute;
+  left: 50%;
+  bottom: calc(50% + var(--hub));
+  width: 3px;
+  height: var(--band);
+  margin-left: -1.5px;
   border-radius: 2px;
-  background: var(--amber);
-  animation: eq 1.1s ease-in-out infinite;
+  background: linear-gradient(to top, rgba(245, 133, 63, .45), var(--amber));
+  transform-origin: 50% 100%;
+  animation: ray var(--dur, 1s) ease-in-out var(--delay, 0s) infinite alternate;
 }
 
-.mock-eq span:nth-child(3n)  { animation-delay: .15s; height: 30%; }
-.mock-eq span:nth-child(3n+1){ animation-delay: .38s; height: 55%; }
-.mock-eq span:nth-child(4n)  { animation-delay: .6s;  height: 70%; }
-.mock-eq span:nth-child(5n)  { animation-delay: .8s;  height: 40%; }
+/* The live hub. */
+.mock-ring b {
+  position: absolute;
+  inset: 30%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(245, 133, 63, .45), rgba(245, 133, 63, .06) 72%);
+  border: 1px solid rgba(245, 133, 63, .4);
+  animation: coreBreath 2.6s ease-in-out infinite;
+}
+
+/* Endpoints, not a shape: a bar bounces between its own two levels
+   rather than every bar sweeping the same arc in turn. */
+@keyframes ray {
+  from { transform: scaleY(var(--lo, .3)); opacity: .6; }
+  to   { transform: scaleY(var(--hi, 1)); opacity: 1; }
+}
+
+@keyframes ringSweep {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes ringDrift {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes coreBreath {
+  0%, 100% { transform: scale(.9); opacity: .8; }
+  50%      { transform: scale(1); opacity: 1; }
+}
 
 @keyframes eq { 50% { transform: scaleY(.28); } }
 
@@ -501,29 +645,58 @@ nav.scrolled {
 }
 
 /* Each bar runs two animations on disjoint properties so they compose:
-   sdBar (the playhead sweep) owns background/glow, sdWiggle (idle "audio
-   is playing" motion) owns transform. Durations/delays are set inline per
-   bar in app.js. */
+   sdBar (the playhead sweep) owns the glow, sdWiggle (idle "audio is
+   playing" motion) owns transform. Durations/delays are set inline per
+   bar in app.js.
+
+   The sweep used to animate background-color and box-shadow directly on
+   all 192 bars. Those are paint properties: every frame re-ran style and
+   repainted a blurred shadow for each bar, and it was measurably the
+   heaviest thing on the page while scrolling (over a full second of
+   style work on a page-length scroll). The amber state now lives in a
+   pre-painted ::after that only fades in and out, so the sweep is an
+   opacity animation the compositor can run by itself. */
 .signal-divider span {
+  position: relative;
   flex-shrink: 0;
   width: 3px;
   height: calc(var(--h, 40) * 1%);
   border-radius: 2px;
   background: var(--border);
-  animation: sdBar 6s linear infinite, sdWiggle 2s ease-in-out infinite alternate;
+  /* Timings come from per-bar custom properties written in app.js, so
+     the pseudo-element below can pick up its own pair. */
+  animation: sdWiggle var(--wiggle-dur, 2s) ease-in-out var(--wiggle-delay, 0s) infinite alternate;
+}
+
+.signal-divider span::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--amber);
+  box-shadow: 0 0 12px rgba(245, 133, 63, .6);
+  opacity: 0;
+  animation: sdBar var(--sweep-dur, 6s) linear var(--sweep-delay, 0s) infinite;
 }
 
 @keyframes sdBar {
-  0%, 7%, 100% { background: var(--border); box-shadow: none; }
-  3.5% {
-    background: var(--amber);
-    box-shadow: 0 0 12px rgba(245, 133, 63, .6);
-  }
+  0%, 7%, 100% { opacity: 0; }
+  3.5%         { opacity: 1; }
 }
 
 @keyframes sdWiggle {
   from { transform: scaleY(.62); }
   to   { transform: scaleY(1.22); }
+}
+
+/* Decorative loops are held still while their block is off screen (see
+   app.js). Nothing about a waveform three sections above the fold is
+   worth a frame of work, and the browser keeps animating it otherwise. */
+.anim-idle,
+.anim-idle *,
+.anim-idle *::before,
+.anim-idle *::after {
+  animation-play-state: paused !important;
 }
 
 /* Half the bars bow out on narrow screens — keeps the envelope shape
@@ -704,6 +877,10 @@ nav.scrolled {
   border-radius: 12px;
   opacity: 0;
   transition: opacity .5s;
+  /* Makes this box the query container for the scan line below, so the
+     line's travel can be written against the viewfinder's height
+     instead of its own 2px box. */
+  container-type: size;
 }
 
 .hs-camera i {
@@ -716,7 +893,12 @@ nav.scrolled {
   animation: hsScan 1.6s ease-in-out infinite alternate;
 }
 
-@keyframes hsScan { to { top: 78%; } }
+/* The scan line travels on transform, not on `top`. Animating `top`
+   relaid out the pinned scene on every frame the line was on screen,
+   and that was nearly every layout this page ran while scrolling.
+   58cqh is the same 20% to 78% trip, measured against the viewfinder
+   rather than against the line's own 2px height. */
+@keyframes hsScan { to { transform: translateY(58cqh); } }
 
 .hs-beam {
   position: absolute;
@@ -909,9 +1091,13 @@ nav.scrolled {
 }
 
 /* Faint circuit-board pattern behind the spec grid — reinforces "engineered
-   like software" without competing with the card content on top of it. */
-.tech::before {
-  content: '';
+   like software" without competing with the card content on top of it.
+
+   Its own element rather than .tech::before: the drift is written from
+   app.js on every scrolled frame, and a custom property on the section
+   made the browser recompute the style of every node inside it. Written
+   straight onto this one element, the invalidation stops here. */
+.tech-grid {
   position: absolute;
   left: 0; right: 0;
   top: 220px;
@@ -922,9 +1108,6 @@ nav.scrolled {
     linear-gradient(rgba(245, 133, 63, .05) 1px, transparent 1px),
     linear-gradient(90deg, rgba(245, 133, 63, .05) 1px, transparent 1px);
   background-size: 34px 34px;
-  /* Slow independent-speed drift as the section scrolls by (--tech-parallax,
-     set in app.js), reinforcing depth without any JS-driven transform. */
-  background-position: 0 var(--tech-parallax, 0px);
   mask-image: radial-gradient(ellipse 60% 80% at 50% 40%, #000 40%, transparent 90%);
   -webkit-mask-image: radial-gradient(ellipse 60% 80% at 50% 40%, #000 40%, transparent 90%);
 }

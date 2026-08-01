@@ -107,7 +107,51 @@ public class SwiftAudioIoPlugin: NSObject, FlutterPlugin {
     var _resetting = false
     var bufferPool: DataBufferPool?
 
+    /// Set while the system holds the session away from us (call, Siri,
+    /// another app), so `.ended` can tell an interruption we were running
+    /// through from one that arrived while idle.
+    private var _interrupted = false
+
     private var sourceNode: AVAudioSourceNode?
+
+    /// Whether the user has granted microphone access.
+    ///
+    /// iOS 17 moved this onto AVAudioApplication; the AVAudioSession property
+    /// still answers but is deprecated. Denied and undetermined are folded
+    /// together because `start` reports the same error for both — this plugin
+    /// never prompts, it only refuses.
+    private var hasRecordPermission: Bool {
+        if #available(iOS 17.0, *) {
+            return AVAudioApplication.shared.recordPermission == .granted
+        } else {
+            return AVAudioSession.sharedInstance().recordPermission == .granted
+        }
+    }
+
+    /// Applies the session configuration a walkie session needs.
+    ///
+    /// Mirrors `configureVoice` in ios/Runner/AudioSessionHandler.swift, and
+    /// is applied on every (re)start on purpose. Dart re-asserts the voice
+    /// category after its own `start()` (see AudioEngineImpl._openStreams),
+    /// but `resetAudio()` and the interruption resume restart the engine
+    /// without Dart ever hearing about it — with the plain play-and-record
+    /// category that used to leave the mic stranded on the built-in capsule,
+    /// with no voice processing, until the next route change happened to pass
+    /// through Dart.
+    ///
+    /// `.allowBluetooth` is deprecated from iOS 26 in favour of
+    /// `.allowBluetoothHFP`, but that case only exists in the iOS 26 SDK —
+    /// naming it would fail to compile on any older Xcode, and `#available`
+    /// does not help because the symbol must resolve at build time. The
+    /// deprecated spelling still works, so it stays until the toolchain floor
+    /// moves.
+    private func configureVoiceSession() throws {
+        try AVAudioSession.sharedInstance().setCategory(
+            .playAndRecord,
+            mode: .voiceChat,
+            options: [.allowBluetooth, .allowBluetoothA2DP, .defaultToSpeaker]
+        )
+    }
 
     deinit {
         NotificationCenter.default.removeObserver(self)
@@ -243,29 +287,20 @@ public class SwiftAudioIoPlugin: NSObject, FlutterPlugin {
     public func stop() {
         engine.stop()
         _isRunning = false
+        // An explicit stop outranks a pending interruption: without this, an
+        // `.ended` arriving after Dart tore the session down would restart the
+        // engine behind its back.
+        _interrupted = false
         buffer.clear()
     }
 
     public func start(result: @escaping FlutterResult) {
-        let permissionStatus = AVAudioSession.sharedInstance().recordPermission
-
-        switch permissionStatus {
-        case .denied:
+        guard hasRecordPermission else {
             result(FlutterError(
                 code: AudioIoError.permissionDeniedCode,
                 message: AudioIoError.permissionDeniedMessage,
                 details: nil))
             return
-        case .undetermined:
-            result(FlutterError(
-                code: AudioIoError.permissionDeniedCode,
-                message: AudioIoError.permissionDeniedMessage,
-                details: nil))
-            return
-        case .granted:
-            break
-        @unknown default:
-            break
         }
 
         do {
@@ -288,8 +323,7 @@ public class SwiftAudioIoPlugin: NSObject, FlutterPlugin {
         let bufferSize = expectedFrameSize * MemoryLayout<Double>.stride
         bufferPool = DataBufferPool(bufferSize: bufferSize, poolSize: 8)
 
-        try AVAudioSession.sharedInstance().setCategory(
-            .playAndRecord, options: [.allowBluetoothA2DP, .defaultToSpeaker])
+        try configureVoiceSession()
         try AVAudioSession.sharedInstance().setPreferredIOBufferDuration(_frameDuration)
         try AVAudioSession.sharedInstance().setPreferredSampleRate(_sampleRate)
 
@@ -338,20 +372,52 @@ public class SwiftAudioIoPlugin: NSObject, FlutterPlugin {
         resetAudio()
     }
 
+    /// Gives the session back when a call / Siri / another app takes it, and
+    /// takes it again when they are done.
+    ///
+    /// The engine is stopped by the system on `.began` and does NOT restart
+    /// itself; without this the walkie session stayed silent after every
+    /// incoming call. Dart's stall watchdog (AudioEngineImpl) would eventually
+    /// notice the missing frames and reopen, but only after a 3s timeout and
+    /// a full teardown — resuming here is both faster and quieter.
+    ///
+    /// Note `_isRunning` is deliberately NOT part of the guard: `.began`
+    /// clears it, so testing it would make every `.ended` fall straight
+    /// through. `_interrupted` carries that state across the pair instead.
     @objc func handleInterruption(notification: NSNotification) {
         guard let userInfo = notification.userInfo,
             let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
-            let type = AVAudioSession.InterruptionType(rawValue: typeValue),
-            _isRunning
+            let type = AVAudioSession.InterruptionType(rawValue: typeValue)
         else {
             return
         }
         switch type {
         case .began:
-            break
+            // The system has already stopped the engine and deactivated the
+            // session; this only brings our own state back in step so the
+            // config-change path can't try to reset a stopped engine.
+            guard _isRunning else { return }
+            _interrupted = true
+            engine.stop()
+            _isRunning = false
         case .ended:
+            guard _interrupted else { return }
+            _interrupted = false
+            // Without `.shouldResume` whatever took the session still has it
+            // (a call that is still going). Leave it — the stall watchdog
+            // keeps retrying, and grabbing the session back mid-call would
+            // fail anyway.
+            guard
+                let rawOptions = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt,
+                AVAudioSession.InterruptionOptions(rawValue: rawOptions)
+                    .contains(.shouldResume)
+            else { return }
+            // Re-applies the voice category and reactivates by way of
+            // engine.start(); the pipeline is still attached, so this is a
+            // restart rather than a rebuild.
+            try? startInternal()
+        @unknown default:
             break
-        default: ()
         }
     }
 
@@ -471,8 +537,20 @@ public struct RingBuffer<T> {
         writeIndex = 0
     }
 
+    /// Distance from read to write, in the virtual [0, 2*count) index space.
+    ///
+    /// The subtraction has to be taken modulo that span, not raw: both indices
+    /// wrap independently, so a plain `writeIndex - readIndex` goes NEGATIVE
+    /// for the stretch after the writer wraps past 0 while the reader is still
+    /// high. While it was negative `isFull` could never be true — the producer
+    /// kept writing over samples the render callback had not read yet, which
+    /// is audible as a tick every time the indices came round.
     fileprivate var availableSpaceForReading: Int {
-        return writeIndex - readIndex
+        // A zero-length buffer is the pre-start placeholder (see
+        // SwiftAudioIoPlugin.buffer); modulo by zero would trap.
+        guard !array.isEmpty else { return 0 }
+        let span = array.count * 2
+        return (writeIndex - readIndex + span) % span
     }
 
     public var isEmpty: Bool {

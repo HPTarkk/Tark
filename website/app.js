@@ -3,11 +3,197 @@
 (function () {
   'use strict';
 
+  // ── One scroll pass per frame ─────────────────────────────────────
+  // This page used to attach three separate scroll listeners (nav
+  // state, tech-grid parallax, handshake progress), each reading
+  // layout and writing styles on every wheel event. Interleaving
+  // reads and writes like that forces the browser to re-run layout
+  // several times per event, which is exactly what makes scrolling
+  // feel heavy. Everything now runs in ONE rAF callback, at most once
+  // per frame, no matter how many scroll events fire.
+  const scrollJobs = [];
+  let scrollQueued = false;
+
+  const runScrollJobs = () => {
+    scrollQueued = false;
+    const y = window.scrollY;
+    for (const job of scrollJobs) job(y);
+  };
+
+  window.addEventListener('scroll', () => {
+    if (scrollQueued) return;
+    scrollQueued = true;
+    requestAnimationFrame(runScrollJobs);
+  }, { passive: true });
+
+  // Jobs receive the scroll position, so none of them has to read it
+  // (or anything else) back out of the document.
+  const addScrollJob = (job) => {
+    scrollJobs.push(job);
+    job(window.scrollY);
+  };
+
   // ── Nav background on scroll ──────────────────────────────────────
   const nav = document.getElementById('nav');
-  const onScrollNav = () => nav.classList.toggle('scrolled', window.scrollY > 24);
-  window.addEventListener('scroll', onScrollNav, { passive: true });
-  onScrollNav();
+  addScrollJob((y) => nav.classList.toggle('scrolled', y > 24));
+
+  // ── Eased wheel scrolling ─────────────────────────────────────────
+  // A mouse wheel notch on Windows is a discrete step (three lines, so
+  // roughly a hundred pixels), and the browser applies it in one go:
+  // the page lands somewhere new rather than travelling there. Each
+  // notch is now added to a target and the page eases toward it, which
+  // is the curve you feel rather than the step. Trackpads, touch,
+  // keyboard, and reduced-motion all keep the native behaviour.
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const finePointer = window.matchMedia('(pointer: fine)');
+
+  const maxScroll = () =>
+    Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+
+  let targetY = window.scrollY;
+  let glideY = window.scrollY;
+  let gliding = false;
+
+  const glide = () => {
+    const diff = targetY - glideY;
+    // Exponential ease-out: quick off the mark, settling into the last
+    // few pixels. Anything slower than this reads as lag, not polish.
+    glideY += diff * 0.14;
+    if (Math.abs(diff) < 0.5) {
+      glideY = targetY;
+      gliding = false;
+    } else {
+      requestAnimationFrame(glide);
+    }
+    // 'instant' overrides the CSS `scroll-behavior: smooth` that anchor
+    // links rely on, so the browser does not try to ease our easing.
+    window.scrollTo({ top: glideY, behavior: 'instant' });
+  };
+
+  const onWheel = (e) => {
+    // Pinch-zoom, and anything that wants to scroll itself, stay native.
+    if (e.ctrlKey || e.defaultPrevented) return;
+    if (e.target.closest && e.target.closest('[data-native-scroll]')) return;
+
+    e.preventDefault();
+    const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? window.innerHeight : 1;
+    if (!gliding) glideY = window.scrollY;
+    targetY = Math.min(maxScroll(), Math.max(0, targetY + e.deltaY * unit));
+    if (!gliding) {
+      gliding = true;
+      requestAnimationFrame(glide);
+    }
+  };
+
+  const smoothWheel = !reduceMotion.matches && finePointer.matches;
+  if (smoothWheel) window.addEventListener('wheel', onWheel, { passive: false });
+
+  // Anything that is not the wheel (keyboard, scrollbar drag, an anchor
+  // link) moves the page on its own; keep the glide's idea of where it
+  // is in step with it.
+  addScrollJob((y) => {
+    if (!gliding) {
+      targetY = y;
+      glideY = y;
+    }
+  });
+
+  // ── Custom scrollbar ──────────────────────────────────────────────
+  const scrollbar = document.createElement('div');
+  scrollbar.className = 'scrollbar idle';
+  const thumb = document.createElement('div');
+  thumb.className = 'scrollbar-thumb';
+  scrollbar.appendChild(thumb);
+  document.body.appendChild(scrollbar);
+  document.documentElement.classList.add('has-custom-scrollbar');
+
+  let trackHeight = 0;
+  let thumbHeight = 0;
+  let scrollRange = 0;
+
+  const measureBar = () => {
+    trackHeight = scrollbar.clientHeight;
+    scrollRange = maxScroll();
+    const visible = window.innerHeight / document.documentElement.scrollHeight;
+    thumbHeight = Math.max(40, Math.round(trackHeight * visible));
+    thumb.style.height = thumbHeight + 'px';
+    scrollbar.style.display = scrollRange > 0 ? '' : 'none';
+  };
+
+  measureBar();
+  new ResizeObserver(measureBar).observe(document.body);
+  window.addEventListener('resize', measureBar, { passive: true });
+
+  const thumbTravel = () => Math.max(1, trackHeight - thumbHeight);
+
+  addScrollJob((y) => {
+    if (scrollRange <= 0) return;
+    const progress = Math.min(1, Math.max(0, y / scrollRange));
+    thumb.style.transform =
+      'translate3d(0, ' + (thumbTravel() * progress).toFixed(1) + 'px, 0)';
+  });
+
+  // Fades out once the page has been still for a moment, so it is a
+  // read-out while you scroll rather than a permanent stripe.
+  let idleTimer;
+  let barAwake = false;
+  addScrollJob(() => {
+    if (!barAwake) {
+      barAwake = true;
+      scrollbar.classList.remove('idle');
+      scrollbar.classList.add('awake');
+    }
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      barAwake = false;
+      scrollbar.classList.remove('awake');
+      scrollbar.classList.add('idle');
+    }, 1100);
+  });
+
+  scrollbar.addEventListener('pointerenter', () => {
+    scrollbar.classList.remove('idle');
+  });
+
+  // Drag the thumb, or click the track to jump.
+  const scrollToProgress = (progress, eased) => {
+    const y = Math.min(1, Math.max(0, progress)) * scrollRange;
+    targetY = y;
+    if (eased && smoothWheel) {
+      if (!gliding) {
+        gliding = true;
+        requestAnimationFrame(glide);
+      }
+    } else {
+      glideY = y;
+      window.scrollTo({ top: y, behavior: 'instant' });
+    }
+  };
+
+  thumb.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    thumb.setPointerCapture(e.pointerId);
+    const grabY = e.clientY;
+    const grabTop = thumbTravel() * (window.scrollY / (scrollRange || 1));
+
+    const onMove = (ev) => scrollToProgress((grabTop + ev.clientY - grabY) / thumbTravel());
+    const onUp = (ev) => {
+      thumb.releasePointerCapture(ev.pointerId);
+      thumb.removeEventListener('pointermove', onMove);
+      thumb.removeEventListener('pointerup', onUp);
+      thumb.removeEventListener('pointercancel', onUp);
+    };
+
+    thumb.addEventListener('pointermove', onMove);
+    thumb.addEventListener('pointerup', onUp);
+    thumb.addEventListener('pointercancel', onUp);
+  });
+
+  scrollbar.addEventListener('pointerdown', (e) => {
+    if (e.target === thumb) return;
+    const rect = scrollbar.getBoundingClientRect();
+    scrollToProgress((e.clientY - rect.top - thumbHeight / 2) / thumbTravel(), true);
+  });
 
   // ── Reveal-on-scroll ──────────────────────────────────────────────
   const revealables = document.querySelectorAll('.reveal, .reveal-up');
@@ -90,27 +276,93 @@
         Math.abs(Math.sin(i * 0.32 + di)) *
         (0.55 + 0.45 * Math.sin(i * 0.11 + di * 2)) * taper;
       bar.style.setProperty('--h', (10 + 80 * env).toFixed(1));
-      bar.style.animationDuration =
-        sweep + 's, ' + (1.6 + Math.random()).toFixed(2) + 's';
-      bar.style.animationDelay =
-        ((i / N - 1) * 0.75 * sweep).toFixed(2) + 's, ' +
-        (-Math.random() * 3).toFixed(2) + 's';
+      // The sweep runs on the bar's ::after (opacity only), the wiggle on
+      // the bar itself (transform only), so each gets its own pair rather
+      // than a two-value animation shorthand.
+      bar.style.setProperty('--sweep-dur', sweep + 's');
+      bar.style.setProperty('--sweep-delay', ((i / N - 1) * 0.75 * sweep).toFixed(2) + 's');
+      bar.style.setProperty('--wiggle-dur', (1.6 + Math.random()).toFixed(2) + 's');
+      bar.style.setProperty('--wiggle-delay', (-Math.random() * 3).toFixed(2) + 's');
       div.appendChild(bar);
     }
   });
+
+  // ── Hero phone: the audio dial ────────────────────────────────────
+  // The app's visualizer drives every bar from its own slice of the
+  // waveform, so the ring reads as a level, not as a pattern. A single
+  // shared animation with index-based delays gives the opposite: one
+  // peak marching around the dial. Each ray therefore gets its own
+  // envelope and its own period here, and the two halves are mirrored
+  // about the vertical axis exactly as AudioVisualizer folds its bars.
+  const rays = document.querySelectorAll('.mock-rays span');
+  if (rays.length) {
+    const count = rays.length;
+    const half = Math.floor(count / 2);
+    const envelopes = Array.from({ length: half + 1 }, () => ({
+      lo: 0.12 + Math.random() * 0.22, // resting length
+      hi: 0.5 + Math.random() * 0.5, // how far this bar swings
+      dur: 0.55 + Math.random() * 0.8, // its own period
+      delay: -Math.random() * 2, // already mid-bounce on first paint
+    }));
+
+    rays.forEach((ray, i) => {
+      const env = envelopes[i <= half ? i : count - i];
+      ray.style.setProperty('--lo', env.lo.toFixed(2));
+      ray.style.setProperty('--hi', env.hi.toFixed(2));
+      ray.style.setProperty('--dur', env.dur.toFixed(2) + 's');
+      ray.style.setProperty('--delay', env.delay.toFixed(2) + 's');
+    });
+  }
+
+  // ── Idle the decorative loops that are off screen ─────────────────
+  // The waveform dividers alone are 192 permanently-animating bars, and
+  // the phone mock adds a couple of dozen more. Those loops used to keep
+  // the style engine busy for the entire length of the page; now each
+  // block is held still until it is actually near the viewport.
+  const loopBlocks = document.querySelectorAll(
+    '.signal-divider, .hero-phone, .music-eq, .ticker'
+  );
+  if (loopBlocks.length) {
+    const idleObserver = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          entry.target.classList.toggle('anim-idle', !entry.isIntersecting);
+        }
+      },
+      { rootMargin: '150px 0px' }
+    );
+    loopBlocks.forEach((el) => {
+      el.classList.add('anim-idle');
+      idleObserver.observe(el);
+    });
+  }
 
   // ── Hero + reduced-motion refs (shared by the mesh + parallax below) ──
   const hero = document.querySelector('.hero');
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // ── Scroll parallax: tech-grid background ─────────────────────────
-  const techSection = document.querySelector('.tech');
-  if (!reducedMotion && techSection) {
-    const onScrollParallax = () => {
-      techSection.style.setProperty('--tech-parallax', window.scrollY * -0.06 + 'px');
-    };
-    window.addEventListener('scroll', onScrollParallax, { passive: true });
-    onScrollParallax();
+  const techGrid = document.querySelector('.tech-grid');
+  if (!reducedMotion && techGrid) {
+    // The grid used to be repainted on every scroll event for the whole
+    // length of the page, including the long stretches where the section
+    // is nowhere near the viewport. Now it only moves while it is in
+    // (or just outside) view, and only when the value actually changes.
+    let techVisible = false;
+    let lastOffset = '';
+
+    new IntersectionObserver(
+      ([entry]) => { techVisible = entry.isIntersecting; },
+      { rootMargin: '300px 0px' }
+    ).observe(techGrid);
+
+    addScrollJob((y) => {
+      if (!techVisible) return;
+      const offset = (y * -0.06).toFixed(1) + 'px';
+      if (offset === lastOffset) return;
+      lastOffset = offset;
+      techGrid.style.backgroundPositionY = offset;
+    });
   }
 
   // ── Hero signal mesh: peer dots + links + packet hops ─────────────
@@ -356,22 +608,34 @@
   // to steps 1..4 (show QR → scan → reply → connected).
   const handshake = document.getElementById('handshake');
 
-  const onScrollScene = () => {
-    const rect = handshake.getBoundingClientRect();
-    const total = handshake.offsetHeight - window.innerHeight;
-    if (total <= 0) return;
-    const progress = Math.min(1, Math.max(0, -rect.top / total));
-    const step = progress < 0.02 ? 0 : Math.min(4, Math.floor(progress * 4) + 1);
-    if (String(step) !== handshake.dataset.step) {
-      if (step === 0) {
-        delete handshake.dataset.step;
-      } else {
-        handshake.dataset.step = String(step);
-      }
-    }
+  // The scene's geometry only changes when the layout does, so it is
+  // measured on resize instead of on every frame. Reading
+  // getBoundingClientRect() mid-scroll forces a synchronous layout,
+  // and doing that once per wheel event is what used to stutter here.
+  let sceneTop = 0;
+  let sceneRange = 0;
+
+  const measureScene = () => {
+    sceneTop = handshake.getBoundingClientRect().top + window.scrollY;
+    sceneRange = handshake.offsetHeight - window.innerHeight;
   };
-  window.addEventListener('scroll', onScrollScene, { passive: true });
-  onScrollScene();
+
+  measureScene();
+  // Height moves with the viewport, the font load, and the RTL swap.
+  new ResizeObserver(measureScene).observe(handshake);
+  window.addEventListener('resize', measureScene, { passive: true });
+
+  addScrollJob((y) => {
+    if (sceneRange <= 0) return;
+    const progress = Math.min(1, Math.max(0, (y - sceneTop) / sceneRange));
+    const step = progress < 0.02 ? 0 : Math.min(4, Math.floor(progress * 4) + 1);
+    if (String(step) === handshake.dataset.step) return;
+    if (step === 0) {
+      delete handshake.dataset.step;
+    } else {
+      handshake.dataset.step = String(step);
+    }
+  });
 
   // ── Language toggle (EN ⇄ FA, with RTL) ───────────────────────────
   const langBtn = document.getElementById('langToggle');

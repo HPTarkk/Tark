@@ -69,10 +69,29 @@
             <div class="mock-avatar">P</div>
             <div class="mock-user-lines"><b></b><i></i></div>
           </div>
+          <!-- The app's audio dial, in CSS: bars radiate outward from the
+               hub, each with its own envelope, mirrored about the vertical
+               axis. app.js gives every ray its own timing; the rotation is
+               static per ray and only the bar inside it scales, so the
+               whole ring animates on the compositor. -->
           <div class="mock-eq">
-            <span></span><span></span><span></span><span></span><span></span><span></span>
-            <span></span><span></span><span></span><span></span><span></span><span></span>
-            <span></span><span></span><span></span><span></span><span></span><span></span>
+            <div class="mock-ring">
+              <div class="mock-rays">
+                <span style="--i:0"><i></i></span><span style="--i:1"><i></i></span>
+                <span style="--i:2"><i></i></span><span style="--i:3"><i></i></span>
+                <span style="--i:4"><i></i></span><span style="--i:5"><i></i></span>
+                <span style="--i:6"><i></i></span><span style="--i:7"><i></i></span>
+                <span style="--i:8"><i></i></span><span style="--i:9"><i></i></span>
+                <span style="--i:10"><i></i></span><span style="--i:11"><i></i></span>
+                <span style="--i:12"><i></i></span><span style="--i:13"><i></i></span>
+                <span style="--i:14"><i></i></span><span style="--i:15"><i></i></span>
+                <span style="--i:16"><i></i></span><span style="--i:17"><i></i></span>
+                <span style="--i:18"><i></i></span><span style="--i:19"><i></i></span>
+                <span style="--i:20"><i></i></span><span style="--i:21"><i></i></span>
+                <span style="--i:22"><i></i></span><span style="--i:23"><i></i></span>
+              </div>
+              <b></b>
+            </div>
           </div>
           <div class="mock-chips">
             <span class="mock-chip tx"><i></i><b data-en="TALKING" data-fa="صحبت">TALKING</b></span>
@@ -267,6 +286,7 @@
 
   <!-- ── Under the hood ──────────────────────────────────────────────── -->
   <section class="section tech" id="tech">
+    <div class="tech-grid" aria-hidden="true"></div>
     <p class="eyebrow reveal" data-en="THE ACTUAL NUMBERS" data-fa="عدد و رقم واقعی">THE ACTUAL NUMBERS</p>
     <h2 class="reveal" data-en="What you actually get, way by way."
       data-fa="دقیقاً چی گیرتون میاد، روش به روش.">What you actually get, way by way.</h2>
