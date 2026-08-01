@@ -149,7 +149,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
         if (!didPop) _confirmLeave(context);
       },
       child: AnnotatedRegion<SystemUiOverlayStyle>(
-        value: AppColors.systemOverlayStyle,
+        value: AppColors.systemOverlayStyle.copyWith(statusBarColor: Colors.transparent),
         child: _buildScaffold(context),
       ),
     );
@@ -218,12 +218,12 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
         // line used to spell out "Bluetooth" — or, in every other mode, print
         // the device's IP address, which is not something a person can use.
         final isConnecting = state.localId.isEmpty;
-        final transportIcon = switch (state.transferMode) {
-          TransferMode.bluetooth => Icons.bluetooth_rounded,
-          TransferMode.hotspot => Icons.wifi_tethering_rounded,
-          TransferMode.guest => Icons.public_rounded,
-          TransferMode.wifi => Icons.wifi_rounded,
-        };
+        // final transportIcon = switch (state.transferMode) {
+        //   TransferMode.bluetooth => Icons.bluetooth_rounded,
+        //   TransferMode.hotspot => Icons.wifi_tethering_rounded,
+        //   TransferMode.guest => Icons.public_rounded,
+        //   TransferMode.wifi => Icons.wifi_rounded,
+        // };
 
         return _GlowCard(
           child: Row(
@@ -287,17 +287,17 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(
-                          transportIcon,
-                          color: AppColors.textSecondary,
-                          size: 13,
-                        ),
+                        // Icon(
+                        //   transportIcon,
+                        //   color: AppColors.textSecondary,
+                        //   size: 13,
+                        // ),
                         // While connecting, that's the whole story. Once the
                         // link is up the glyph carries how, and the badge
                         // carries which part you're playing in it — the same
                         // line every other member shows in the roster below.
                         if (isConnecting) ...[
-                          const SizedBox(width: 4),
+                          // const SizedBox(width: 4),
                           Expanded(
                             child: TickerText(
                               text: s.connecting,
@@ -311,8 +311,8 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
                             ),
                           ),
                         ] else if (state.myRole != SessionRole.unknown) ...[
-                          const SizedBox(width: 6),
-                          Flexible(
+                          // const SizedBox(width: 6),
+                          Expanded(
                             child: RoleBadge(role: state.myRole, fontSize: 12),
                           ),
                         ],

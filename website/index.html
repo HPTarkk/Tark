@@ -42,6 +42,19 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vazirmatn@33.0.3/Vazirmatn-font-face.css">
   <link rel="stylesheet" href="styles.css">
 
+  <!-- iOS gets a native-style navigation bar (styles.css, "iOS: a real
+       navigation bar"). The flag is set here rather than in app.js so the
+       bar is never painted in its desktop form for a frame first.
+       `-webkit-touch-callout` is an iOS-only property — desktop Safari does
+       not support it — so this identifies the platform without sniffing the
+       user-agent string, and it covers every browser on the device, all of
+       which are WebKit underneath. -->
+  <script>
+    if (window.CSS && CSS.supports && CSS.supports('-webkit-touch-callout', 'none')) {
+      document.documentElement.classList.add('is-ios');
+    }
+  </script>
+
   <!-- ── Structured data ──────────────────────────────────────────────
        Describes the app and mirrors the FAQ section below, so Google can
        read both without having to infer them from the markup. Keep the
