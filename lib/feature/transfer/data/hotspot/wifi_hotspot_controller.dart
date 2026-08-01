@@ -136,6 +136,11 @@ class NeHotspotJoiner implements HotspotJoiner {
 
   @override
   Stream<void> get onLost => const Stream<void>.empty();
+
+  /// A NEHotspotConfiguration join is already system-owned and survives the
+  /// screen going off, so there is no drop-and-recover cycle to report.
+  @override
+  Stream<void> get onRebound => const Stream<void>.empty();
 }
 
 /// Android join side: joins the host's hotspot from inside the app through
@@ -147,16 +152,33 @@ class NeHotspotJoiner implements HotspotJoiner {
 /// the app's UDP quietly stops reaching the peer — the "connected, then dead
 /// after a few seconds" report. A specifier network is app-scoped and never
 /// evaluated, so that never happens.
+///
+/// Being app-scoped is also why the native side does not stop at the specifier:
+/// that scope includes being in the foreground, so the link is dropped when the
+/// screen locks and rebuilt from a network suggestion instead. [onRebound] is
+/// how that round trip reaches Dart.
 @injectable
 class AndroidWifiJoiner implements HotspotJoiner {
   static const _channel = MethodChannel('tark/wifi_join');
   static const _events = EventChannel('tark/wifi_join/events');
 
-  @override
-  Stream<void> get onLost => _events
+  /// One underlying subscription for both event kinds. `receiveBroadcastStream`
+  /// re-arms the native stream handler per listener, and the second listener
+  /// replaces the first one's sink — so calling it twice left whichever stream
+  /// was subscribed to first permanently silent.
+  late final Stream<Map<Object?, Object?>> _stream = _events
       .receiveBroadcastStream()
-      .where((e) => e is Map && e['event'] == 'lost')
-      .map<void>((_) {});
+      .where((e) => e is Map)
+      .cast<Map<Object?, Object?>>()
+      .asBroadcastStream();
+
+  @override
+  Stream<void> get onLost =>
+      _stream.where((e) => e['event'] == 'lost').map<void>((_) {});
+
+  @override
+  Stream<void> get onRebound =>
+      _stream.where((e) => e['event'] == 'rebound').map<void>((_) {});
 
   @override
   Future<HotspotJoinResult> join(HotspotCredentials credentials) async {
@@ -269,4 +291,8 @@ class PlatformHotspotJoiner implements HotspotJoiner {
 
   @override
   Stream<void> get onLost => _delegate?.onLost ?? const Stream<void>.empty();
+
+  @override
+  Stream<void> get onRebound =>
+      _delegate?.onRebound ?? const Stream<void>.empty();
 }

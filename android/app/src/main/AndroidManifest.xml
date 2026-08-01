@@ -19,7 +19,13 @@
          goes through ConnectivityManager.requestNetwork, and binding the
          process to that network is what stops Android from silently falling
          back to cellular once it notices the hotspot has no internet
-         (see WifiJoinHandler). -->
+         (see WifiJoinHandler).
+
+         CHANGE_NETWORK_STATE also covers the specifier-LESS requestNetwork the
+         same handler keeps open underneath: a specifier request is scoped to
+         this app being in the foreground and is released when the screen locks,
+         so the plain one (plus a WifiNetworkSuggestion, which CHANGE_WIFI_STATE
+         above covers) is what holds the link through a screen-off session. -->
     <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
 
     <!-- Bluetooth Classic transport (Android). Legacy permissions are capped

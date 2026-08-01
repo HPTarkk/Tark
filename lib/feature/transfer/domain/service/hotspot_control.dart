@@ -69,7 +69,18 @@ abstract interface class HotspotJoiner {
   /// the bridge WITHOUT entering the channel — the live session runs over it.
   Future<void> leave();
 
-  /// Fires when the joined network goes away (the host's AP died or moved out
-  /// of range), so the peer can re-scan instead of sitting on a dead link.
+  /// Fires when the joined network goes away for good (the host's AP died or
+  /// moved out of range), so the peer can re-scan instead of sitting on a dead
+  /// link. A drop the platform recovers from on its own reaches [onRebound]
+  /// instead and never surfaces here.
   Stream<void> get onLost;
+
+  /// Fires when the OS dropped the joined network and put us back on it — the
+  /// screen-off case, where an app-scoped connection is released and a
+  /// system-owned one replaces it seconds later.
+  ///
+  /// The link is up again, so this is not a failure. It still needs acting on:
+  /// the process is pinned to a NEW network handle, and every socket built on
+  /// the old one is now sending into a route that no longer exists.
+  Stream<void> get onRebound;
 }
