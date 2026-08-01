@@ -6,6 +6,7 @@ import '../../../../core/utils/exponential_backoff.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entity/hotspot_credentials.dart';
 import '../../domain/entity/session_role.dart';
+import '../../domain/repository/wifi_transfer_repository.dart';
 import '../../domain/service/hotspot_control.dart';
 import '../../domain/service/hotspot_link_keeper.dart';
 import '../../domain/service/session_role_store.dart';
@@ -15,12 +16,19 @@ class HotspotLinkKeeperImpl implements HotspotLinkKeeper {
   final HotspotHost _hotspot;
   final HotspotJoiner _joiner;
   final SessionRoleStore _roleStore;
+  final WifiTransferRepository _wifi;
 
-  HotspotLinkKeeperImpl(this._hotspot, this._joiner, this._roleStore);
+  HotspotLinkKeeperImpl(
+    this._hotspot,
+    this._joiner,
+    this._roleStore,
+    this._wifi,
+  );
 
   HotspotCredentials? _credentials;
   StreamSubscription<void>? _lostSub;
   StreamSubscription<void>? _stoppedSub;
+  StreamSubscription<void>? _reboundSub;
 
   /// Guards against a second recovery starting while one is in flight, and is
   /// the flag [release] flips to make an in-flight one give up — a join
@@ -55,11 +63,17 @@ class HotspotLinkKeeperImpl implements HotspotLinkKeeper {
     _lostSub = null;
     _stoppedSub?.cancel();
     _stoppedSub = null;
+    _reboundSub?.cancel();
+    _reboundSub = null;
     switch (_roleStore.role) {
       case SessionRole.joiner:
         _lostSub = _joiner.onLost.listen(
           (_) => unawaited(_recoverJoin()),
           onError: (Object e) => Logger.log('Link keeper lost-listen: $e'),
+        );
+        _reboundSub = _joiner.onRebound.listen(
+          (_) => _onRebound(),
+          onError: (Object e) => Logger.log('Link keeper rebound-listen: $e'),
         );
       case SessionRole.host:
         _stoppedSub = _hotspot.onStopped.listen(
@@ -70,6 +84,23 @@ class HotspotLinkKeeperImpl implements HotspotLinkKeeper {
         // Nobody is holding a link up, so there is nothing to keep.
         break;
     }
+  }
+
+  /// The OS took the link away and gave it back before we had to do anything —
+  /// a screen-off cycle, where an app-scoped connection is released and a
+  /// system-owned one replaces it (see WifiJoinHandler).
+  ///
+  /// Nothing needs rejoining, and any rejoin already in flight must stop: it
+  /// would drop a link that is now fine and ask the framework for a fresh one,
+  /// which off the foreground it cannot grant. What DOES need doing is the
+  /// sockets — the process is pinned to a new network handle, and the ones
+  /// built on the old handle are sending into a route that is gone.
+  void _onRebound() {
+    if (_credentials == null) return;
+    _recovering = false;
+    Logger.diagnostic('link: OS moved us back onto the AP — rebinding sockets');
+    _wifi.rebindSockets();
+    _emit(HotspotLinkState.up);
   }
 
   /// Climbs back onto the host's AP. The credentials have not changed — the
@@ -93,13 +124,14 @@ class HotspotLinkKeeperImpl implements HotspotLinkKeeper {
       if (!_recovering) return;
       if (result == HotspotJoinResult.joined) {
         _recovering = false;
-        _emit(HotspotLinkState.up);
         Logger.diagnostic('link: back on ${creds.ssid}');
-        // The sockets are not rebuilt here: the transport notices its
-        // addresses changed and rebuilds its send socket itself. Calling
-        // stopConnection() would look right and be badly wrong — it advances
-        // the repository's generation, which ends the listening stream the
-        // live session is subscribed to, permanently.
+        // We are on a new network handle, so both sockets have to be rebuilt.
+        // Note what this is NOT: stopConnection() would look right and be
+        // badly wrong — it advances the repository's generation, which ends
+        // the listening stream the live session is subscribed to, permanently.
+        // rebindSockets() rebuilds underneath that same stream.
+        _wifi.rebindSockets();
+        _emit(HotspotLinkState.up);
         return;
       }
       final delay = backoff.next();
@@ -147,6 +179,8 @@ class HotspotLinkKeeperImpl implements HotspotLinkKeeper {
     _lostSub = null;
     await _stoppedSub?.cancel();
     _stoppedSub = null;
+    await _reboundSub?.cancel();
+    _reboundSub = null;
     _emit(HotspotLinkState.idle);
   }
 
@@ -160,6 +194,7 @@ class HotspotLinkKeeperImpl implements HotspotLinkKeeper {
   void dispose() {
     _lostSub?.cancel();
     _stoppedSub?.cancel();
+    _reboundSub?.cancel();
     _states.close();
   }
 }

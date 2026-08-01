@@ -5,8 +5,10 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.net.wifi.WifiManager
 import android.os.Build
@@ -24,8 +26,9 @@ import com.b1101.tark.hotspot.HotspotHandler
  *
  *  * [PowerManager.PARTIAL_WAKE_LOCK] — CPU stays awake (audio + networking).
  *  * [WifiManager.WifiLock] — keeps the STA (client) radio on and out of
- *    power-save (FULL_LOW_LATENCY on API 29+, else FULL_HIGH_PERF). Skipped
- *    while this device is the hotspot HOST (see acquireLocks / HotspotHandler).
+ *    power-save. The MODE is chosen from the screen state and re-chosen every
+ *    time it changes (see [refreshWifiLock]); skipped entirely while this
+ *    device is the hotspot HOST (see HotspotHandler).
  *  * [WifiManager.MulticastLock] — required to keep RECEIVING UDP broadcast
  *    with the screen off; without it the OS drops non-unicast frames.
  *
@@ -61,6 +64,24 @@ class SessionKeepAliveService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private var wifiLock: WifiManager.WifiLock? = null
     private var multicastLock: WifiManager.MulticastLock? = null
+
+    /** Mode [wifiLock] was created with, so a no-op refresh stays a no-op. */
+    private var wifiLockMode: Int? = null
+
+    private var screenReceiverRegistered = false
+
+    /**
+     * The screen turning off is the moment the Wi-Fi lock has to change shape
+     * (see [wantedWifiLockMode]) — and the moment the whole keep-alive exists
+     * for, so it must not be missed.
+     */
+    private val screenReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                Intent.ACTION_SCREEN_ON, Intent.ACTION_SCREEN_OFF -> refreshWifiLock()
+            }
+        }
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -101,43 +122,104 @@ class SessionKeepAliveService : Service() {
             }
         }
         val wm = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-        // A WifiLock keeps the STA (client) radio awake and out of power-save.
-        // When THIS device is the hotspot host it has no STA link — the single
-        // Wi-Fi radio is in SoftAP mode — so the lock does nothing useful and,
-        // in LOW_LATENCY mode, nudges the chip back toward STA, which on
-        // single-radio phones tears the AP down (the reported "hotspot drops
-        // right after connecting"). Skip it while hosting; the foreground
-        // service + wake lock already keep the AP process alive.
-        if (wifiLock == null && !HotspotHandler.isHosting) {
-            val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                WifiManager.WIFI_MODE_FULL_LOW_LATENCY
-            } else {
-                @Suppress("DEPRECATION")
-                WifiManager.WIFI_MODE_FULL_HIGH_PERF
-            }
-            wifiLock = wm.createWifiLock(mode, WIFI_TAG).apply {
-                setReferenceCounted(false)
-                runCatching { acquire() }
-            }
-        }
         if (multicastLock == null) {
             multicastLock = wm.createMulticastLock(MULTICAST_TAG).apply {
                 setReferenceCounted(false)
                 runCatching { acquire() }
             }
         }
+        registerScreenReceiver()
+        refreshWifiLock()
+    }
+
+    /**
+     * The Wi-Fi lock mode this device should be holding right now, or null for
+     * "hold none".
+     *
+     * WIFI_MODE_FULL_LOW_LATENCY is the better lock — but only while the screen
+     * is on: the platform documents it as active only for a foreground app on a
+     * lit screen, and silently gives you nothing otherwise. Holding it across a
+     * screen-off session therefore left the STA free to enter power save during
+     * the exact stretch this whole service exists to protect. HIGH_PERF is
+     * deprecated in favour of it and still does the one thing needed here, so
+     * the two are swapped as the screen goes on and off.
+     *
+     * Null while hosting: a host has no STA link — the single Wi-Fi radio is in
+     * SoftAP mode — so the lock does nothing useful and, in LOW_LATENCY mode,
+     * nudges the chip back toward STA, which on single-radio phones tears the
+     * AP down (the "hotspot drops right after connecting" report).
+     */
+    private fun wantedWifiLockMode(): Int? {
+        if (HotspotHandler.isHosting) return null
+        @Suppress("DEPRECATION")
+        val highPerf = WifiManager.WIFI_MODE_FULL_HIGH_PERF
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return highPerf
+        return if (isScreenOn()) WifiManager.WIFI_MODE_FULL_LOW_LATENCY else highPerf
+    }
+
+    /**
+     * Brings the Wi-Fi lock in line with [wantedWifiLockMode]. A lock's mode is
+     * fixed at creation, so changing it means dropping one and taking another —
+     * cheap, and it happens only on screen transitions.
+     */
+    private fun refreshWifiLock() {
+        val wanted = wantedWifiLockMode()
+        if (wanted == wifiLockMode && (wanted == null || wifiLock != null)) return
+        releaseWifiLock()
+        if (wanted == null) return
+        val wm = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        wifiLock = runCatching {
+            wm.createWifiLock(wanted, WIFI_TAG).apply {
+                setReferenceCounted(false)
+                acquire()
+            }
+        }.getOrNull()
+        wifiLockMode = if (wifiLock != null) wanted else null
+    }
+
+    private fun isScreenOn(): Boolean {
+        val pm = getSystemService(Context.POWER_SERVICE) as? PowerManager ?: return true
+        return runCatching { pm.isInteractive }.getOrDefault(true)
+    }
+
+    private fun registerScreenReceiver() {
+        if (screenReceiverRegistered) return
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(Intent.ACTION_SCREEN_OFF)
+        }
+        // Screen on/off are protected broadcasts and cannot be registered for
+        // in the manifest, so this receiver lives exactly as long as the
+        // service does. Android 14 wants an explicit export flag; these come
+        // from the system and nothing else may reach this receiver.
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(screenReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                registerReceiver(screenReceiver, filter)
+            }
+        }.onSuccess { screenReceiverRegistered = true }
+    }
+
+    private fun releaseWifiLock() {
+        runCatching { if (wifiLock?.isHeld == true) wifiLock?.release() }
+        wifiLock = null
+        wifiLockMode = null
     }
 
     private fun releaseLocks() {
         runCatching { if (wakeLock?.isHeld == true) wakeLock?.release() }
-        runCatching { if (wifiLock?.isHeld == true) wifiLock?.release() }
         runCatching { if (multicastLock?.isHeld == true) multicastLock?.release() }
+        releaseWifiLock()
         wakeLock = null
-        wifiLock = null
         multicastLock = null
     }
 
     override fun onDestroy() {
+        if (screenReceiverRegistered) {
+            runCatching { unregisterReceiver(screenReceiver) }
+            screenReceiverRegistered = false
+        }
         releaseLocks()
         super.onDestroy()
     }

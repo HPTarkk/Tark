@@ -152,6 +152,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i794.HotspotHost>(),
         gh<_i794.HotspotJoiner>(),
         gh<_i293.SessionRoleStore>(),
+        gh<_i1043.WifiTransferRepository>(),
       ),
       dispose: (i) => i.dispose(),
     );
