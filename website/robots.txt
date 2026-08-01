@@ -1,0 +1,7 @@
+# https://tarkk.ir/robots.txt
+# Everything on the marketing site is meant to be crawled.
+
+User-agent: *
+Allow: /
+
+Sitemap: https://tarkk.ir/sitemap.xml
