@@ -51,12 +51,30 @@
     "@context": "https://schema.org",
     "@graph": [
       {
+        "@type": "Organization",
+        "@id": "https://tarkk.ir/#org",
+        "name": "Tarkk",
+        "alternateName": ["Tark", "تَرک"],
+        "url": "https://tarkk.ir/",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://tarkk.ir/logo.png",
+          "width": 512,
+          "height": 512
+        },
+        "sameAs": [
+          "https://github.com/HPTarkk/Tark"
+        ]
+      },
+      {
         "@type": "WebSite",
         "@id": "https://tarkk.ir/#website",
         "url": "https://tarkk.ir/",
         "name": "Tarkk",
+        "alternateName": ["Tarkk app", "تَرک"],
         "inLanguage": ["en", "fa"],
-        "description": "Walkie-talkie app that connects phones nearby over WiFi or Bluetooth, with no internet or accounts."
+        "description": "Walkie-talkie app that connects phones nearby over WiFi or Bluetooth, with no internet or accounts.",
+        "publisher": { "@id": "https://tarkk.ir/#org" }
       },
       {
         "@type": "MobileApplication",
@@ -81,6 +99,7 @@
           "priceCurrency": "USD"
         },
         "downloadUrl": "https://tarkk.s3.ir-thr-at1.arvanstorage.ir/Tarkk.apk",
+        "publisher": { "@id": "https://tarkk.ir/#org" },
         "isPartOf": { "@id": "https://tarkk.ir/#website" }
       },
       {
