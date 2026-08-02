@@ -1,11 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- The landing page is a single document; the nav targets are in-page
-     anchors, so they are deliberately not listed as separate URLs. -->
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<!-- Two documents, one per language. The nav targets inside each are in-page
+     anchors, so they are deliberately not listed as separate URLs.
+
+     Every entry repeats the full hreflang set, itself included — that is the
+     format's rule, and an incomplete set is ignored rather than partially
+     honoured. It says the same thing as the <link rel="alternate"> tags in
+     each page's head; both are declared because Search Console reconciles
+     them and reports a mismatch, which is a useful check that the generated
+     Persian page is actually being deployed.
+
+     changefreq and priority are omitted: Google has not used either for
+     years, and a stale hint is worse than none.
+
+     lastmod is the date the page content actually changed. Update it when
+     you change the copy, not on every deploy. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://tarkk.ir/</loc>
-    <lastmod>2026-08-01</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://tarkk.ir/"/>
+    <xhtml:link rel="alternate" hreflang="fa" href="https://tarkk.ir/fa/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://tarkk.ir/"/>
+    <lastmod>2026-08-02</lastmod>
+  </url>
+  <url>
+    <loc>https://tarkk.ir/fa/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://tarkk.ir/"/>
+    <xhtml:link rel="alternate" hreflang="fa" href="https://tarkk.ir/fa/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://tarkk.ir/"/>
+    <lastmod>2026-08-02</lastmod>
   </url>
 </urlset>

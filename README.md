@@ -125,7 +125,16 @@ The deployed instance is [app.tarkk.ir](https://app.tarkk.ir), which is what `GU
 
 ### Landing site
 
-`website/` is the static marketing site served at [tarkk.ir](https://tarkk.ir) — plain HTML, CSS and JS with no build step, deployed as-is. `robots.txt`, `sitemap.xml` and the canonical URL in `index.html` all name that origin, so they need updating together if the site ever moves.
+`website/` is the static marketing site served at [tarkk.ir](https://tarkk.ir) — plain HTML, CSS and JS, deployed as-is. `robots.txt`, `sitemap.xml` and the canonical and hreflang URLs in both pages name that origin, so they need updating together if the site ever moves.
+
+It ships in two languages, one URL each: English at `/` and Persian at `/fa/`. Search engines need each language served as its own document with its own title, description and structured data, so `website/fa/index.html` is **generated** from `website/index.html` — every translatable element carries a `data-fa` attribute, and the build swaps them in along with the head metadata and the Persian FAQ structured data.
+
+```sh
+node scripts/build-website-i18n.mjs           # regenerate website/fa/index.html
+node scripts/build-website-i18n.mjs --check    # verify it is current; exits 1 if not
+```
+
+Edit `website/index.html` and rebuild — never edit `website/fa/index.html` by hand. Persian text lives in the `data-fa` attributes; the Persian `<title>`, meta description and social copy live in the `FA` block at the top of the script. `--check` also verifies the English FAQ structured data still quotes the FAQ section verbatim, since a rich result must not show text the page does not contain.
 
 ---
 

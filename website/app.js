@@ -235,8 +235,30 @@
     scrollToProgress((e.clientY - rect.top - thumbHeight / 2) / thumbTravel(), true);
   });
 
-  // ── Reveal-on-scroll ──────────────────────────────────────────────
-  const revealables = document.querySelectorAll('.reveal, .reveal-up');
+  // ── Reveal ────────────────────────────────────────────────────────
+  // Two different effects share the .reveal/.reveal-up classes. Below the
+  // fold they are scroll reveals, driven by the observer. In the hero they
+  // are a staged entrance — .d1….d5 are transition delays choreographing a
+  // single sequence as the page opens — so the hero reveals on load instead.
+  //
+  // It has to. .hero is min-height:100svh and centres its content, so once
+  // the content is taller than the viewport it overflows rather than
+  // shrinking. The hero measures ~757px on a desktop width, and the last
+  // step of the sequence — the "Get the app" buttons — sits at its bottom
+  // edge, so anything under roughly 700px of viewport pushes it past the
+  // fold. A 1280x720 laptop does that as soon as the browser takes its own
+  // chrome off the top. Gated on scroll the button would then sit at
+  // opacity 0: the primary call to action invisible on the first screen,
+  // and the entrance animation visibly cut short after the subtitle.
+  //
+  // Which fold a given visitor gets depends on their chrome, zoom, bookmarks
+  // bar and mobile URL bar — not something worth making the hero's entrance
+  // depend on either way.
+  const heroReveals = [...document.querySelectorAll('.hero .reveal, .hero .reveal-up')];
+  const revealables = [...document.querySelectorAll('.reveal, .reveal-up')].filter(
+    (el) => !heroReveals.includes(el)
+  );
+
   const io = new IntersectionObserver(
     (entries) => {
       for (const entry of entries) {
@@ -249,6 +271,17 @@
     { threshold: 0.18 }
   );
   revealables.forEach((el) => io.observe(el));
+
+  // Two frames, so the hero is painted in its hidden state at least once.
+  // Adding the class in the same style recalc as the element's first layout
+  // leaves the transition with no start value to animate from, and the whole
+  // sequence pops in at once. The observer got this for free — its callback
+  // already runs after the first paint.
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() =>
+      heroReveals.forEach((el) => el.classList.add('visible'))
+    )
+  );
 
   // ── Seamless ticker ───────────────────────────────────────────────
   // translateX(-50%) only loops cleanly when the track is two identical
@@ -288,12 +321,9 @@
     let tickerTimer;
     window.addEventListener('resize', () => {
       clearTimeout(tickerTimer);
-      tickerTimer = setTimeout(() => {
-        buildTicker();
-        // Freshly cloned items carry their English markup — restore the
-        // active language so a resize doesn't reset the ticker to English.
-        applyLang(document.documentElement.lang === 'fa' ? 'fa' : 'en', true);
-      }, 200);
+      // baseNodes were cloned from the source markup, which is already in
+      // this page's language, so a rebuild needs no re-translation.
+      tickerTimer = setTimeout(buildTicker, 200);
     });
   }
 
@@ -684,53 +714,23 @@
     }
   });
 
-  // ── Language toggle (EN ⇄ FA, with RTL) ───────────────────────────
+  // ── Language ──────────────────────────────────────────────────────
+  // The two languages are two documents (/ and /fa/), each served already
+  // translated, so there is no text to swap at runtime and the toggle is an
+  // ordinary link. The only thing left to do here is record which one the
+  // visitor picked, so the first-visit routing in index.html's head script
+  // stops guessing once they have chosen. The redirect lives in the head
+  // rather than here because by the time this file runs the English page
+  // has already painted.
   const langBtn = document.getElementById('langToggle');
-
-  function applyLang(lang, instant) {
-    const swap = () => {
-      document.documentElement.lang = lang;
-      document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr';
-      // Re-query every call: the ticker clones its items on load and on each
-      // resize rebuild, so a NodeList captured once would miss the new nodes.
-      document.querySelectorAll('[data-en]').forEach((el) => {
-        const text = el.dataset[lang];
-        if (text) el.textContent = text;
-      });
-      langBtn.textContent = lang === 'fa' ? 'English' : 'فارسی';
+  if (langBtn) {
+    langBtn.addEventListener('click', () => {
       try {
-        localStorage.setItem('tark_lang', lang);
+        localStorage.setItem(
+          'tark_lang',
+          document.documentElement.lang === 'fa' ? 'en' : 'fa'
+        );
       } catch (_) {}
-    };
-
-    // The ltr/rtl flip can't be animated directly, so it happens while
-    // everything is faded to transparent — reads as a cross-fade instead
-    // of a jump-cut. Skipped on the initial page load (instant) and for
-    // reduced-motion, where it would just be a pointless delay.
-    if (instant || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      swap();
-      return;
-    }
-    // i18n-fade arms the opacity transition, i18n-out drops opacity to 0.
-    // Both go on <html> so element-level transitions stay untouched outside
-    // this window (see the language-switch section of styles.css).
-    const root = document.documentElement;
-    root.classList.add('i18n-fade', 'i18n-out');
-    window.setTimeout(() => {
-      swap();
-      root.classList.remove('i18n-out');
-      window.setTimeout(() => root.classList.remove('i18n-fade'), 220);
-    }, 180);
+    });
   }
-
-  langBtn.addEventListener('click', () => {
-    applyLang(document.documentElement.lang === 'fa' ? 'en' : 'fa');
-  });
-
-  let saved = null;
-  try {
-    saved = localStorage.getItem('tark_lang');
-  } catch (_) {}
-  // Default to Persian on first visit; honour an explicit saved choice after.
-  applyLang(saved === 'en' ? 'en' : 'fa', true);
 })();

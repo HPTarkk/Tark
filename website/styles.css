@@ -283,7 +283,10 @@ nav.scrolled::before {
 .nav-links a:hover, .nav-links a.active { color: var(--amber); }
 .nav-links a:hover::after, .nav-links a.active::after { transform: scaleX(1); }
 
+/* An <a> to the other language's URL, styled as the chip it used to be
+   when it was a <button> — hence the reset of the anchor defaults. */
 .lang-toggle {
+  display: inline-block;
   background: var(--card);
   color: var(--amber);
   border: 1px solid var(--border);
@@ -292,6 +295,9 @@ nav.scrolled::before {
   font-family: var(--font);
   font-size: .8rem;
   font-weight: 700;
+  line-height: 1.4;
+  text-decoration: none;
+  white-space: nowrap;
   cursor: pointer;
   transition: border-color .2s;
 }
@@ -538,6 +544,16 @@ html.is-ios .nav-inner {
 }
 
 .btn-ghost:hover { border-color: var(--text-sec); color: var(--text); }
+
+/* "iOS — coming soon" is a <span>, not a link — there is nowhere for it to
+   go yet. It keeps the button shape so the row still reads as three
+   options, but drops the affordances that would promise a click. */
+.btn.is-disabled {
+  cursor: default;
+  opacity: .55;
+}
+
+.btn.is-disabled:hover { transform: none; }
 
 /* ── Hero ───────────────────────────────────────────────────────────── */
 
@@ -1884,21 +1900,9 @@ footer p { color: var(--text-sec); font-size: .82rem; margin-top: 22px; }
 /* Wide letter-spacing severs Persian cursive joins — drop it on the ticker. */
 [dir="rtl"] .ticker-track span { letter-spacing: 0; }
 
-/* ── Language switch fade ──────────────────────────────────────────── */
-/* Text (and the whole ltr/rtl flip) swaps while faded to transparent, so
-   the direction jump reads as a smooth cross-fade instead of a hard cut.
-   The opacity transition is scoped to html.i18n-fade (present only for the
-   ~400ms swap window, toggled in app.js) — left on permanently it would
-   override every translatable element's own transition list at equal
-   specificity and turn button/link hover animations into instant pops. */
-
-html.i18n-fade [data-en], html.i18n-fade #langToggle {
-  transition: opacity .18s ease;
-}
-
-html.i18n-out [data-en], html.i18n-out #langToggle {
-  opacity: 0;
-}
+/* The language switch used to cross-fade the text in place. It is now a
+   navigation between two documents (/ and /fa/), so the fade — and the
+   html.i18n-fade / html.i18n-out classes it hung off — are gone. */
 
 /* ── Responsive ─────────────────────────────────────────────────────── */
 
