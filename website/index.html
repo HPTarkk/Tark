@@ -5,11 +5,22 @@
   <meta charset="UTF-8">
   <!-- viewport-fit=cover: the page paints into the notch/home-indicator
        area instead of leaving black bars, and env(safe-area-inset-*) starts
-       reporting real values so the nav and footer can keep clear of them. -->
+       reporting real values so the nav and footer can keep clear of them.
+
+       Note for anyone chasing the iOS status-bar colour: this does NOT let
+       the page paint that strip. Measured on an iPhone (Safari 26.5.2),
+       safe-area-inset-top is 0 even with `cover` — Safari insets the web
+       viewport below the status bar rather than running it underneath, so
+       there is no inset to fill. theme-color does not reach it either; it
+       colours Safari's bottom toolbar. Safari derives the strip from the
+       top of the page itself. -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Tarkk — Walkie-talkie app with no internet needed</title>
   <meta name="description"
     content="Tarkk is a walkie-talkie app that connects you directly to people nearby using WiFi or Bluetooth. No internet or accounts required.">
+  <!-- Colours the browser chrome on Android, and Safari's bottom toolbar on
+       iOS. It does NOT reach the iOS status bar (see the viewport note
+       above). Same value as --bg so they read as one surface. -->
   <meta name="theme-color" content="#0B0E11">
 
   <!-- ── Search ───────────────────────────────────────────────────────
@@ -183,7 +194,12 @@
       <a class="wordmark" href="#top">
         <span class="wordmark-dot"></span>TARKK
       </a>
-      <div class="nav-links">
+      <!-- Below 860px this same element becomes the drop-down menu panel
+           rather than being hidden. Reusing it (instead of a second copy of
+           the links for mobile) keeps the scrollspy in app.js, which tracks
+           `.nav-links a`, and the [data-en] translation sweep both pointing
+           at one set of nodes. -->
+      <div class="nav-links" id="navLinks">
         <a href="#features" data-en="Features" data-fa="ویژگی‌ها">Features</a>
         <a href="#handshake" data-en="How it works" data-fa="چطور کار میکنه؟">How it works</a>
         <a href="#music" data-en="Music" data-fa="پخش آهنگ">Music</a>
@@ -191,6 +207,14 @@
         <a href="#download" data-en="Download" data-fa="دریافت">Download</a>
       </div>
       <button id="langToggle" class="lang-toggle" aria-label="Switch language">فارسی</button>
+      <!-- The label is a [data-en] span rather than an aria-label so the
+           existing language swap translates it for free — applyLang() writes
+           textContent, which would blow away the icon if it sat on the
+           button itself. -->
+      <button id="menuToggle" class="menu-toggle" aria-expanded="false" aria-controls="navLinks">
+        <span class="menu-icon" aria-hidden="true"></span>
+        <span class="sr-only" data-en="Menu" data-fa="منو">Menu</span>
+      </button>
     </div>
   </nav>
 

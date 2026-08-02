@@ -93,6 +93,19 @@ body::before {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
+/* iOS picks the status-bar colour by inspecting the top of the page, and it
+   only reads a colour off the topmost layer there. At z-index 200 the grain
+   is that layer, and it is a semi-transparent noise IMAGE, not a colour —
+   which is the difference between this page (status bar shows scrolling
+   content) and sb-debug.html (status bar solid). Dropping it below the nav
+   makes the bar's own fill the topmost thing at the top edge.
+
+   The nav is the only element this stops filming, at .045 opacity over an
+   already near-black bar. Everything else still gets the grain: this is
+   fixed and positioned, so it stays above the page's normal-flow content
+   either way. */
+html.is-ios body::before { z-index: 40; }
+
 ::selection { background: rgba(245, 133, 63, .35); }
 
 h1, h2, h3 { line-height: 1.15; letter-spacing: -.01em; }
@@ -285,6 +298,113 @@ nav.scrolled::before {
 
 .lang-toggle:hover { border-color: var(--amber); }
 
+/* ── Mobile menu ────────────────────────────────────────────────────────
+   Under 860px the inline links have nowhere to sit, so the same .nav-links
+   element turns into a panel under the bar and this button opens it. */
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.menu-toggle {
+  /* Desktop keeps the links inline, so there is nothing to open. */
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-inline-start: 8px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 10px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+/* Three bars out of one element: the middle bar is the element's own
+   background, the outer two are its pseudo-elements pushed above and below.
+   Opening rotates the outer pair into an X and drops the middle one — the
+   middle goes transparent rather than opacity:0, which would take the two
+   pseudo-elements down with it. */
+.menu-icon,
+.menu-icon::before,
+.menu-icon::after {
+  display: block;
+  width: 20px;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  transition: transform .28s cubic-bezier(.2, .7, .2, 1), background-color .18s;
+}
+
+.menu-icon { position: relative; }
+
+.menu-icon::before,
+.menu-icon::after {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+}
+
+.menu-icon::before { top: -6px; }
+.menu-icon::after  { top: 6px; }
+
+nav.menu-open .menu-icon { background: transparent; }
+nav.menu-open .menu-icon::before { transform: translateY(6px) rotate(45deg); }
+nav.menu-open .menu-icon::after  { transform: translateY(-6px) rotate(-45deg); }
+
+@media (max-width: 860px) {
+  .menu-toggle { display: inline-flex; }
+
+  /* Anchored to .nav-inner (position: relative), so the panel spans the bar
+     and cannot widen the document — insetting both edges to 0 is what keeps
+     it out of the horizontal-overflow business the dividers were in. */
+  .nav-links {
+    position: absolute;
+    top: 100%;
+    inset-inline: 0;
+    margin: 0;
+    flex-direction: column;
+    gap: 0;
+    padding: 6px 0 10px;
+    background: rgba(11, 14, 17, .96);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: 1px solid var(--border);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: opacity .26s, transform .26s cubic-bezier(.2, .7, .2, 1),
+                visibility .26s;
+  }
+
+  nav.menu-open .nav-links {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+  }
+
+  /* Full-width rows: the tap target is the whole line, not just the word. */
+  .nav-links a {
+    padding: 14px calc(24px + env(safe-area-inset-right, 0px))
+             14px calc(24px + env(safe-area-inset-left, 0px));
+    font-size: 1rem;
+    color: var(--text);
+  }
+
+  /* The sliding underline is a hover affordance. In a tap list it only ever
+     shows up under the scrollspy's current section as a stray rule. */
+  .nav-links a::after { display: none; }
+}
+
 /* ── iOS: a real navigation bar ─────────────────────────────────────────
    html.is-ios is set from an inline script in the document head, so the
    bar is never painted in its desktop form first.
@@ -298,12 +418,12 @@ nav.scrolled::before {
    is what made it obvious. Sticky is the fix: a sticky element rides the
    scroller itself and physically cannot separate from the content.
 
-   The rest follows UINavigationBar: 44pt over the status-bar inset, a
-   hairline rather than a 1px rule, a centred title, and a borderless
-   tinted bar button. */
+   The rest follows UINavigationBar: 44pt of bar, a hairline rather than a
+   1px rule, a centred title, and a borderless tinted bar button. */
 
 html.is-ios {
-  /* 44pt of bar, plus however much status bar sits above it. */
+  /* 44pt of bar, plus however much status bar sits above it — the bar
+     grows to swallow the inset that body::after fills. */
   --bar-h: calc(44px + env(safe-area-inset-top, 0px));
   /* So an in-page anchor lands below the bar instead of under it. */
   scroll-padding-top: var(--bar-h);
@@ -345,19 +465,40 @@ html.is-ios .nav-inner {
 }
 
 /* The centred title and bar button only make sense once the inline links
-   are gone, which is the same breakpoint they hide at. */
+   are gone, which is the same breakpoint they hide at.
+
+   These three rules are deliberately NOT scoped to iOS. What spreads the bar
+   out on desktop is .nav-links' own margin-inline-start: auto; below this
+   breakpoint .nav-links becomes the absolutely positioned menu panel, leaves
+   the flex line, and stops pushing anything — so without the arrangement
+   below, the wordmark, language button and menu all pack against the leading
+   edge. Only the cosmetics after them are an iPhone treatment. */
 @media (max-width: 860px) {
-  html.is-ios .wordmark {
+  .wordmark {
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
+    /* env() is 0 off iOS, so this centres in the full bar there and in the
+       44pt below the status bar on iPhone. */
     inset-block: env(safe-area-inset-top, 0px) 0;
     font-size: .88rem;
   }
 
-  /* A UIBarButtonItem is tinted text, not a chip. */
+  /* Leading button, centred title, trailing button — the UINavigationBar
+     arrangement. order moves the menu to the inline start without it having
+     to come first in the markup, where it would precede the wordmark for a
+     screen reader. */
+  .menu-toggle {
+    order: -1;
+    margin-inline: -8px 0;
+  }
+
+  /* Takes up the slack .nav-links used to hold, pinning this to the trailing
+     edge with the menu at the leading one. */
+  .lang-toggle { margin-inline-start: auto; }
+
+  /* iOS only: a UIBarButtonItem is tinted text, not a chip. */
   html.is-ios .lang-toggle {
-    margin-inline-start: auto;
     background: none;
     border: none;
     border-radius: 0;
@@ -750,16 +891,36 @@ html.is-ios .nav-inner {
    app.js; each bar's height comes in as --h (a percentage). */
 
 /* Full-bleed: the waveform spans the whole viewport and runs a little past
-   both edges (clipped by body's overflow-x: hidden) so it reads as an
-   endless signal continuing off-screen rather than a centered strip. */
+   both edges so it reads as an endless signal continuing off-screen rather
+   than a centered strip.
+
+   The overspill is clipped HERE rather than left to body's overflow-x,
+   following the same wrapper/track split as .ticker above. Relying on the
+   body clip meant the document really was 80px wider than the viewport;
+   Chromium honoured the clip and refused to pan, but iOS Safari let the
+   page scroll sideways anyway, which is the horizontal-scroll bug on
+   phones. Clipping inside a normal block means nothing overflows the
+   document at all, so no engine has anything to pan.
+
+   overflow-y stays visible: bars are scaleY(1.22) at the top of their
+   wiggle and carry a 12px glow, both of which spill past the 72px box on
+   purpose. `clip` is what allows a one-axis clip without turning this into
+   a scroll container (overflow-x: hidden would force overflow-y: auto). */
 .signal-divider {
+  height: 72px;
+  margin: -46px 0;
+  overflow-x: clip;
+  overflow-y: visible;
+}
+
+.signal-divider-track {
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: calc(100% + 80px);
   max-width: none;
-  height: 72px;
-  margin: -46px -40px;
+  height: 100%;
+  margin-inline: -40px;
   padding: 0;
 }
 
@@ -1744,7 +1905,8 @@ html.i18n-out [data-en], html.i18n-out #langToggle {
 @media (max-width: 860px) {
   .hero { flex-direction: column; text-align: center; padding-top: 110px; }
   .hero-content { display: flex; flex-direction: column; align-items: center; }
-  .nav-links { display: none; }
+  /* .nav-links is not hidden here any more — it becomes the drop-down panel
+     instead (see "Mobile menu"). */
   .music-grid { grid-template-columns: 1fr; }
   .hs-steps { flex-direction: column; gap: 12px; }
   .hs-step { opacity: .45; }

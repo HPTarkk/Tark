@@ -37,6 +37,46 @@
   const nav = document.getElementById('nav');
   addScrollJob((y) => nav.classList.toggle('scrolled', y > 24));
 
+  // ── Mobile menu ───────────────────────────────────────────────────
+  // Below 860px .nav-links is a panel under the bar rather than a row in
+  // it; this opens and closes it. The links themselves are the same nodes
+  // the scrollspy and the language swap already work on, so nothing here
+  // has to keep a second copy of them in step.
+  const menuBtn = document.getElementById('menuToggle');
+  if (menuBtn) {
+    const setMenu = (open) => {
+      nav.classList.toggle('menu-open', open);
+      menuBtn.setAttribute('aria-expanded', String(open));
+    };
+
+    menuBtn.addEventListener('click', (e) => {
+      // Without this the document listener below sees the same click and
+      // closes the panel in the same tick it was opened.
+      e.stopPropagation();
+      setMenu(!nav.classList.contains('menu-open'));
+    });
+
+    // Following a link is the panel's whole purpose; get out of the way.
+    nav.querySelectorAll('.nav-links a').forEach((a) => {
+      a.addEventListener('click', () => setMenu(false));
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!nav.contains(e.target)) setMenu(false);
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') setMenu(false);
+    });
+
+    // Widening past the breakpoint puts the links back in the bar, where
+    // `menu-open` would otherwise sit as a stale class on a bar that no
+    // longer has a panel to open.
+    matchMedia('(min-width: 861px)').addEventListener('change', (e) => {
+      if (e.matches) setMenu(false);
+    });
+  }
+
   // ── Eased wheel scrolling ─────────────────────────────────────────
   // A mouse wheel notch on Windows is a discrete step (three lines, so
   // roughly a hundred pixels), and the browser applies it in one go:
@@ -269,6 +309,12 @@
   document.querySelectorAll('.signal-divider').forEach((div, di) => {
     const N = 96;
     const sweep = di ? 7.5 : 6; // seconds; differ so the two never sync
+    // The bars go on a track inside the divider, not on the divider itself:
+    // the track is the over-wide element that bleeds past both edges and the
+    // divider is what clips it (see "Full-bleed" in styles.css). Building it
+    // here rather than in the markup keeps the empty <div> in index.html.
+    const track = document.createElement('div');
+    track.className = 'signal-divider-track';
     for (let i = 0; i < N; i++) {
       const bar = document.createElement('span');
       const taper = Math.pow(Math.sin((i / (N - 1)) * Math.PI), 0.55);
@@ -283,8 +329,9 @@
       bar.style.setProperty('--sweep-delay', ((i / N - 1) * 0.75 * sweep).toFixed(2) + 's');
       bar.style.setProperty('--wiggle-dur', (1.6 + Math.random()).toFixed(2) + 's');
       bar.style.setProperty('--wiggle-delay', (-Math.random() * 3).toFixed(2) + 's');
-      div.appendChild(bar);
+      track.appendChild(bar);
     }
+    div.appendChild(track);
   });
 
   // ── Hero phone: the audio dial ────────────────────────────────────
