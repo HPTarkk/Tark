@@ -42,6 +42,11 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
   final DeviceIdentity _identity;
   final HotspotLinkKeeper _linkKeeper;
 
+  /// Only ever used for [openWifiSettings] — the channel screen never joins a
+  /// network, but when it finds itself without an address the fastest fix is
+  /// the system Wi-Fi panel, and this already knows how to raise it.
+  final HotspotJoiner _wifiSettings;
+
   StreamSubscription<AudioFrame>? _frameSub;
   StreamSubscription<AudioEngineStatus>? _statusSub;
   StreamSubscription<WakiPacket>? _packetSub;
@@ -62,8 +67,124 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     this._widgetControl,
     this._identity,
     this._linkKeeper,
+    this._wifiSettings,
   ) : super(WalkieTalkieState.initial()) {
-    _init();
+    _start();
+  }
+
+  /// When the channel finished opening, for the "nobody else is here" check —
+  /// which is only worth saying once enough time has passed for someone to
+  /// have shown up.
+  DateTime? _readyAt;
+
+  /// Last mic frame that actually arrived. The engine can report itself
+  /// started and then deliver nothing at all (see [_checkMicHealth]), so
+  /// "started" is not evidence the mic works — a frame is.
+  DateTime? _lastFrameAt;
+
+  /// When this device first had no usable local address, so a momentary gap
+  /// during a network change isn't announced as a failure.
+  DateTime? _noAddressSince;
+
+  /// Silence longer than this, with the engine claiming to be started, means
+  /// the mic is not actually feeding us. Generous: a slow device can take a
+  /// couple of seconds to deliver its first callback.
+  static const _micSilentAfter = Duration(seconds: 6);
+
+  /// How long a missing local address must persist before it's reported.
+  static const _noAddressGrace = Duration(seconds: 5);
+
+  /// How long to sit in an empty channel before saying so. Long enough that
+  /// a peer joining normally is never preceded by a "you're alone" card.
+  static const _aloneAfter = Duration(seconds: 20);
+
+  /// Wraps [_init] so a throw anywhere in it becomes a visible, recoverable
+  /// state instead of a channel screen stuck on "connecting" forever.
+  ///
+  /// This used to be a bare `_init()` call in the constructor. Anything that
+  /// threw in there — a settings read, the transport's first listen — left
+  /// `isReady` false with no packet subscription, no presence timer and no
+  /// health stream, and absolutely nothing on screen to say so. The only way
+  /// out was to leave the channel, and nothing told the user even that much.
+  Future<void> _start() async {
+    try {
+      await _init();
+    } catch (e, st) {
+      Logger.log('Channel failed to open: $e\n$st');
+      if (!isClosed) {
+        emit(state.copyWith(startFailed: true));
+        _sfx.play(SfxEvent.error);
+      }
+    }
+  }
+
+  /// "Try again" from the failure banner. Drops whatever the failed attempt
+  /// managed to wire up first, so the retry starts from the same place a
+  /// fresh session would rather than stacking a second set of subscriptions.
+  Future<void> retryStart() async {
+    if (isClosed) return;
+    await _frameSub?.cancel();
+    _frameSub = null;
+    await _statusSub?.cancel();
+    _statusSub = null;
+    await _packetSub?.cancel();
+    _packetSub = null;
+    await _linkSub?.cancel();
+    _linkSub = null;
+    await _hotspotLinkSub?.cancel();
+    _hotspotLinkSub = null;
+    await _widgetControlSub?.cancel();
+    _widgetControlSub = null;
+    _presenceTimer?.cancel();
+    _cleanupTimer?.cancel();
+    _readyAt = null;
+    _lastFrameAt = null;
+    _noAddressSince = null;
+    emit(
+      state.copyWith(
+        startFailed: false,
+        isReady: false,
+        micDelivering: true,
+        networkMissing: false,
+        isAlone: false,
+      ),
+    );
+    await _start();
+  }
+
+  /// "Restart mic" — re-opens the capture device without leaving the channel.
+  /// The engine's epoch guard makes a second [AudioEngine.start] safe, and it
+  /// re-asks for the permission if that's what's missing, so this one action
+  /// covers both mic failures the UI can show.
+  Future<void> restartMic() async {
+    if (isClosed) return;
+    _lastFrameAt = DateTime.now();
+    emit(state.copyWith(micDelivering: true));
+    try {
+      await _audioEngine.start();
+    } catch (e) {
+      Logger.log('Mic restart failed: $e');
+    }
+  }
+
+  /// "Reconnect" — cuts any backoff wait short and rebinds the transport.
+  /// Shared by the health banner and the troubleshooting sheet.
+  void reconnectNow() {
+    _transferRepository.retryNow();
+    _refreshId();
+  }
+
+  /// Raises the system Wi-Fi panel (and, on older Androids where an app may
+  /// still flip the radio, just turns it on). The address check runs on its
+  /// own timer, so a user who joins a network from here watches the warning
+  /// clear itself on the way back.
+  Future<void> openWifiSettings() async {
+    try {
+      await _wifiSettings.enableWifi();
+    } catch (e) {
+      Logger.log('Could not open Wi-Fi settings: $e');
+    }
+    _refreshId();
   }
 
   /// Outgoing mic frames, exposed for audio-rate widgets (visualizer, VOX
@@ -204,6 +325,12 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
       (_) => _cleanupStaleUsers(),
     );
 
+    // Both clocks start here rather than at construction: everything before
+    // this point is legitimate warm-up, and grading the mic or the roster
+    // against it would report a failure for a channel that is merely opening.
+    _readyAt = DateTime.now();
+    _lastFrameAt = DateTime.now();
+
     emit(state.copyWith(isReady: true));
     _sfx.play(SfxEvent.channelJoin);
     _broadcastPresence();
@@ -248,6 +375,9 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     // happening — with link health on top, since a dropped link makes every
     // other state a lie.
     final session = switch (s) {
+      // Before isReady, so a channel that failed to open reads as down on the
+      // home screen rather than connecting forever.
+      _ when s.startFailed => HomeWidgetSession.down,
       _ when !s.isReady => HomeWidgetSession.connecting,
       _ when s.connectionHealth.status == ConnectionHealthStatus.down =>
         HomeWidgetSession.down,
@@ -305,6 +435,9 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
       _systemAudioMessageController.stream;
 
   void _onAudioFrame(AudioFrame frame) {
+    // Proof the capture device is genuinely alive — see [_checkMicHealth].
+    _lastFrameAt = DateTime.now();
+
     // Full duplex: TX and RX run independently, same as a phone call. No
     // half-duplex gate — the platform's voice processing (echo cancellation /
     // noise suppression / AGC) is engaged for the session: on Android via the
@@ -538,6 +671,80 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
       _sfx.play(SfxEvent.peerLeave);
     }
     emit(state.copyWith(activeUsers: update.users));
+    // Rides the roster tick rather than adding timers of its own — these are
+    // all "has this been wrong for a while now?" questions, and 3s is a finer
+    // grain than any of their grace periods.
+    _checkMicHealth();
+    _checkNetwork();
+    _checkAlone();
+  }
+
+  /// Notices a microphone that is open but mute.
+  ///
+  /// The engine reports `isStarted: true` as soon as its stream setup returns,
+  /// and that setup swallows its own failures — so a device where the capture
+  /// device never actually opened looks identical to a working one. Its
+  /// watchdog then restarts the engine every couple of seconds, forever,
+  /// while the channel screen shows "MIC LIVE" and the user talks to nobody.
+  /// Arriving frames are the only honest evidence, so that's what this grades.
+  void _checkMicHealth() {
+    if (!state.isReady || !state.hasPermission) return;
+    final last = _lastFrameAt;
+    if (last == null) return;
+    final delivering =
+        DateTime.now().difference(last) < _micSilentAfter;
+    if (delivering != state.micDelivering) {
+      if (!delivering) {
+        Logger.diagnostic(
+          'mic: no frames for ${_micSilentAfter.inSeconds}s while started — '
+          'reporting a dead microphone',
+        );
+        _sfx.play(SfxEvent.error);
+      }
+      emit(state.copyWith(micDelivering: delivering));
+    }
+  }
+
+  /// Notices that this phone has no address to send from.
+  ///
+  /// On the IP transports [_onAudioFrame] silently refuses to transmit
+  /// without one, which produces the app's most confusing possible state: a
+  /// live-looking channel that plays everyone else perfectly while nothing
+  /// the user says ever leaves the device. The transmit gate logs it; until
+  /// now nothing showed it.
+  void _checkNetwork() {
+    final needsAddress =
+        state.transferMode == TransferMode.wifi ||
+        state.transferMode == TransferMode.hotspot;
+    final missing =
+        needsAddress &&
+        state.isReady &&
+        (state.localId.isEmpty || state.localId == '0.0.0.0');
+    if (!missing) {
+      _noAddressSince = null;
+      if (state.networkMissing) emit(state.copyWith(networkMissing: false));
+      return;
+    }
+    // A network change legitimately drops the address for a moment — only a
+    // gap that outlasts the grace is worth a card.
+    final since = _noAddressSince ??= DateTime.now();
+    if (DateTime.now().difference(since) < _noAddressGrace) return;
+    if (!state.networkMissing) {
+      Logger.diagnostic('wifi: no local address for ${_noAddressGrace.inSeconds}s');
+      emit(state.copyWith(networkMissing: true));
+    }
+  }
+
+  /// An empty channel is not a failure — but sitting in one with no idea
+  /// whether the app is broken or the other person simply hasn't joined is,
+  /// and that's the state this ends.
+  void _checkAlone() {
+    final readyAt = _readyAt;
+    if (readyAt == null) return;
+    final alone =
+        state.activeUsers.isEmpty &&
+        DateTime.now().difference(readyAt) >= _aloneAfter;
+    if (alone != state.isAlone) emit(state.copyWith(isAlone: alone));
   }
 
   Future<void> setVoxThreshold(double threshold) async {
@@ -697,6 +904,23 @@ class WalkieTalkieState extends Equatable {
   /// reconnecting, the countdown to the next scheduled attempt.
   final ConnectionHealth connectionHealth;
 
+  /// The channel never finished opening — see [WalkieTalkieCubit._start].
+  /// Terminal until the user retries, and the only state in which the page is
+  /// genuinely non-functional rather than merely degraded.
+  final bool startFailed;
+
+  /// Whether mic frames are actually arriving. Starts true: the mic is
+  /// innocent until a stretch of silence proves otherwise, so a healthy
+  /// session never flashes a warning while it warms up.
+  final bool micDelivering;
+
+  /// IP transports only: this device has no local address, so nothing it
+  /// says can leave it.
+  final bool networkMissing;
+
+  /// The channel has been open a while with nobody else in it.
+  final bool isAlone;
+
   const WalkieTalkieState({
     required this.localId,
     required this.myName,
@@ -714,6 +938,10 @@ class WalkieTalkieState extends Equatable {
     required this.isStartingSystemAudio,
     required this.musicGain,
     required this.connectionHealth,
+    required this.startFailed,
+    required this.micDelivering,
+    required this.networkMissing,
+    required this.isAlone,
   });
 
   factory WalkieTalkieState.initial() => const WalkieTalkieState(
@@ -733,6 +961,10 @@ class WalkieTalkieState extends Equatable {
     isStartingSystemAudio: false,
     musicGain: 0.85,
     connectionHealth: ConnectionHealth.healthy(),
+    startFailed: false,
+    micDelivering: true,
+    networkMissing: false,
+    isAlone: false,
   );
 
   WalkieTalkieState copyWith({
@@ -752,6 +984,10 @@ class WalkieTalkieState extends Equatable {
     bool? isStartingSystemAudio,
     double? musicGain,
     ConnectionHealth? connectionHealth,
+    bool? startFailed,
+    bool? micDelivering,
+    bool? networkMissing,
+    bool? isAlone,
   }) => WalkieTalkieState(
     localId: localId ?? this.localId,
     myName: myName ?? this.myName,
@@ -770,9 +1006,19 @@ class WalkieTalkieState extends Equatable {
     isStartingSystemAudio: isStartingSystemAudio ?? this.isStartingSystemAudio,
     musicGain: musicGain ?? this.musicGain,
     connectionHealth: connectionHealth ?? this.connectionHealth,
+    startFailed: startFailed ?? this.startFailed,
+    micDelivering: micDelivering ?? this.micDelivering,
+    networkMissing: networkMissing ?? this.networkMissing,
+    isAlone: isAlone ?? this.isAlone,
   );
 
   bool get isSomeoneElseTalking => activeUsers.any((u) => u.isTalking);
+
+  /// True when the user's voice cannot reach anybody, whatever the cause.
+  /// The channel can look completely normal in every one of these states,
+  /// which is exactly why they need saying out loud.
+  bool get isMuteToTheWorld =>
+      startFailed || !hasPermission || !micDelivering || networkMissing;
 
   @override
   List<Object?> get props => [
@@ -792,5 +1038,9 @@ class WalkieTalkieState extends Equatable {
     isStartingSystemAudio,
     musicGain,
     connectionHealth,
+    startFailed,
+    micDelivering,
+    networkMissing,
+    isAlone,
   ];
 }

@@ -1,13 +1,17 @@
 import 'package:flutter/widgets.dart';
 
+/// Digit localization for callers that have no [BuildContext] to hand — a
+/// stream mapper that outlives the frame it was built in, for instance, where
+/// reaching back into a context would be a use-after-unmount waiting to
+/// happen. Resolve [farsi] once from the tree, then format freely.
+String localizeDigits(String value, {required bool farsi}) =>
+    farsi ? value._toFarsiDigits() : value._toLatinDigits();
+
 extension StringExt on String {
   /// Converts ASCII digits to locale-specific digits.
   /// Farsi locale → Arabic-Indic digits (۰–۹); otherwise keeps ASCII digits.
-  String localized(BuildContext context) {
-    final lang = Localizations.localeOf(context).languageCode;
-    if (lang == 'fa') return _toFarsiDigits();
-    return _toLatinDigits();
-  }
+  String localized(BuildContext context) =>
+      localizeDigits(this, farsi: Localizations.localeOf(context).languageCode == 'fa');
 
   String _toFarsiDigits() => replaceAll('0', '۰')
       .replaceAll('1', '۱')

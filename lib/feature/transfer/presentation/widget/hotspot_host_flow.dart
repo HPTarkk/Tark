@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/recovery/bounded_retry.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/qr_widgets.dart';
 import '../../domain/entity/hotspot_credentials.dart';
@@ -42,7 +43,14 @@ class HotspotHostFlow extends StatelessWidget {
     }
     final creds = state.credentials;
     if (state.phase == HotspotPhase.starting || creds == null) {
-      return HotspotPreparing(label: s.hotspot_creating);
+      // Same screen either way — only the label softens once the automatic
+      // retries have been going long enough that an unchanging "creating..."
+      // would read as a hang.
+      return HotspotPreparing(
+        label: state.hostRetry == RetryPhase.stillTrying
+            ? s.hotspot_still_trying
+            : s.hotspot_creating,
+      );
     }
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),

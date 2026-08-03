@@ -991,4 +991,123 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get role_peer => 'موج آزاد';
+
+  @override
+  String get help_button => 'مشکلی هست؟';
+
+  @override
+  String get help_title => 'چی درست کار نمی‌کنه؟';
+
+  @override
+  String get help_all_good =>
+      'همه چی مرتبه. اگه بازم صداتو نمی‌شنون، ازشون بخواه از کانال بیان بیرون و دوباره برن تو.';
+
+  @override
+  String get help_found_problems => 'این‌هایی که پایین قرمزن رو درست کن.';
+
+  @override
+  String get check_mic => 'میکروفون';
+
+  @override
+  String get check_mic_ok => 'سالمه';
+
+  @override
+  String get check_mic_denied => 'ترک اجازه‌ی استفاده ازش رو نداره';
+
+  @override
+  String get check_mic_silent => 'اجازه هست، ولی هیچ صدایی نمی‌رسه';
+
+  @override
+  String get check_network => 'شبکه';
+
+  @override
+  String get check_network_ok => 'وصلی';
+
+  @override
+  String get check_network_none => 'این گوشی به هیچ وای‌فایی وصل نیست';
+
+  @override
+  String get check_network_bt => 'ارتباط بلوتوث';
+
+  @override
+  String get check_network_bt_ok => 'وصله و بازه';
+
+  @override
+  String get check_people => 'کیا دور و برن';
+
+  @override
+  String check_people_ok(Object count) {
+    return '$count نفر باهاتن';
+  }
+
+  @override
+  String get check_people_alone => 'هنوز کسی نیومده';
+
+  @override
+  String get check_link => 'ارتباط';
+
+  @override
+  String get check_link_ok => 'پایداره';
+
+  @override
+  String get check_link_retrying => 'قطع شد — دارم برش می‌گردونم';
+
+  @override
+  String get check_link_down => 'قطع شده';
+
+  @override
+  String get issue_mic_denied_title => 'کسی صداتو نمی‌شنوه';
+
+  @override
+  String get issue_mic_denied_body =>
+      'ترک برای استفاده از میکروفون اجازه می‌خواد. روشنش کن تا یه‌راست برگردی رو خط.';
+
+  @override
+  String get issue_mic_silent_title => 'میکروفونت چیزی نمی‌گیره';
+
+  @override
+  String get issue_mic_silent_body =>
+      'اجازه‌ش هست، ولی هیچ صدایی به کانال نمی‌رسه. شاید یه برنامه‌ی دیگه گرفتتش — هر چی داره ضبط می‌کنه ببند، یا هندزفری بزن.';
+
+  @override
+  String get issue_no_network_title => 'به هیچ شبکه‌ای وصل نیستی';
+
+  @override
+  String get issue_no_network_body =>
+      'تا این گوشی به وای‌فای وصل نشه صدات جایی نمی‌ره. همه‌ی کسایی که تو کانالن باید رو یه شبکه باشن.';
+
+  @override
+  String get issue_start_failed_title => 'کانال باز نشد';
+
+  @override
+  String get issue_start_failed_body =>
+      'موقع راه‌اندازی یه مشکلی پیش اومد. یه بار دیگه امتحان کن.';
+
+  @override
+  String get issue_alone_title => 'فعلاً تنهایی اینجا';
+
+  @override
+  String get issue_alone_body =>
+      'هنوز کسی نیومده. مطمئن شو گوشی بعدی رو همین شبکه‌ست و رفته تو کانال.';
+
+  @override
+  String get fix_allow_mic => 'اجازه بده';
+
+  @override
+  String get fix_wifi_settings => 'تنظیمات وای‌فای';
+
+  @override
+  String get fix_restart_mic => 'میکروفون رو دوباره راه بنداز';
+
+  @override
+  String get fix_reconnect => 'اتصال دوباره';
+
+  @override
+  String get retry_still_trying => 'هنوز دارم تلاش می‌کنم...';
+
+  @override
+  String get bt_still_trying => 'هنوز دارم دنبالشون می‌گردم...';
+
+  @override
+  String get hotspot_still_trying => 'هنوز دارم راهش می‌ندازم...';
 }

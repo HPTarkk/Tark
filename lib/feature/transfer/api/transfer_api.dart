@@ -15,6 +15,10 @@ export '../domain/entity/waki_packet.dart';
 export '../domain/entity/wifi_hotspot_segment.dart';
 export '../domain/repository/guest_link_controller.dart';
 export '../domain/repository/transfer_repository.dart';
+// Exported for its recovery actions, not for joining: the channel screen's
+// troubleshooting surface offers "turn Wi-Fi on" when a session has no local
+// address, and this is where that native panel call already lives.
+export '../domain/service/hotspot_control.dart' show HotspotJoiner;
 export '../domain/service/transfer_mode_store.dart';
 export '../presentation/page/bluetooth_connect_page.dart';
 export '../presentation/page/guest_link_page.dart';

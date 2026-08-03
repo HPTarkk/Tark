@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../../../core/recovery/bounded_retry.dart';
 import '../../../../core/sfx/sfx_event.dart';
 import '../../../../core/sfx/sfx_player.dart';
 import '../../../../core/utils/android_sdk.dart';
@@ -90,6 +91,10 @@ class HotspotBridgeState extends Equatable {
   /// matching fix.
   final String? errorCode;
 
+  /// How far the automatic host retries have got, so the waiting screen can
+  /// admit it's been a while instead of showing the same label forever.
+  final RetryPhase hostRetry;
+
   const HotspotBridgeState({
     required this.segment,
     required this.role,
@@ -98,6 +103,7 @@ class HotspotBridgeState extends Equatable {
     required this.credentials,
     required this.peerConnected,
     required this.errorCode,
+    required this.hostRetry,
   });
 
   factory HotspotBridgeState.initial(WifiHotspotSegment segment) =>
@@ -109,6 +115,7 @@ class HotspotBridgeState extends Equatable {
         credentials: null,
         peerConnected: false,
         errorCode: null,
+        hostRetry: RetryPhase.idle,
       );
 
   HotspotBridgeState copyWith({
@@ -120,6 +127,7 @@ class HotspotBridgeState extends Equatable {
     HotspotCredentials? credentials,
     bool? peerConnected,
     String? errorCode,
+    RetryPhase? hostRetry,
   }) => HotspotBridgeState(
     segment: segment ?? this.segment,
     role: clearRole ? null : (role ?? this.role),
@@ -128,6 +136,7 @@ class HotspotBridgeState extends Equatable {
     credentials: credentials ?? this.credentials,
     peerConnected: peerConnected ?? this.peerConnected,
     errorCode: errorCode,
+    hostRetry: hostRetry ?? this.hostRetry,
   );
 
   @override
@@ -139,6 +148,7 @@ class HotspotBridgeState extends Equatable {
     credentials,
     peerConnected,
     errorCode,
+    hostRetry,
   ];
 }
 
@@ -167,6 +177,26 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   /// .CANCELLED) — not a failure to report.
   static const _cancelledCode = 'cancelled';
 
+  /// Bringing a SoftAP up fails transiently more often than it fails for
+  /// real: the radio is mid-handoff, the previous AP hasn't finished tearing
+  /// down, the driver wants a moment. Before this, the first such failure
+  /// went straight to a red error card — for a problem that would have
+  /// cleared on its own a second later.
+  late final BoundedRetry _hostRetry = BoundedRetry(name: 'hotspot-host');
+  StreamSubscription<RetryPhase>? _hostRetrySub;
+
+  /// Failures the user has to fix themselves. Retrying these just spends ten
+  /// seconds not telling them the one thing they need to hear.
+  static bool _isRetryable(String code) => switch (code) {
+    'tethering_on' ||
+    'location_off' ||
+    'permission_denied' ||
+    'unsupported' => false,
+    // Everything else — a busy channel, an incompatible Wi-Fi mode mid-switch,
+    // a bare `failed` — is the kind of thing that usually works second time.
+    _ => true,
+  };
+
   WifiHotspotCubit(
     this._wifi,
     this._hotspot,
@@ -175,7 +205,11 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
     this._keepAlive,
     this._roleStore,
     this._linkKeeper,
-  ) : super(HotspotBridgeState.initial(WifiHotspotSegment.wifi));
+  ) : super(HotspotBridgeState.initial(WifiHotspotSegment.wifi)) {
+    _hostRetrySub = _hostRetry.phases.listen((phase) {
+      if (!isClosed) emit(state.copyWith(hostRetry: phase));
+    });
+  }
 
   /// Switches the visible segment. Picking "Hotspot" only offers the host/join
   /// choice — nothing touches the radio until the user commits to a side, so a
@@ -217,12 +251,16 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   /// that emits synchronously, which is exactly the shape of the bug.
   Future<void> backToRoleChoice() async {
     final wasHost = state.role == HotspotRole.host;
+    // Before anything else: a retry cycle still counting down would otherwise
+    // bring an AP up behind a screen the user has just left.
+    _hostRetry.cancel();
     emit(
       state.copyWith(
         clearRole: true,
         phase: HotspotPhase.starting,
         joinPhase: JoinPhase.idle,
         errorCode: null,
+        hostRetry: RetryPhase.idle,
       ),
     );
     _roleStore.clear();
@@ -260,36 +298,56 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
     }
     if (isClosed) return;
 
-    try {
-      final creds = await _hotspot.start();
-      if (isClosed) return;
-      emit(state.copyWith(phase: HotspotPhase.ready, credentials: creds));
-      _sfx.play(SfxEvent.linkRestored);
-      _linkKeeper.adopt(creds);
-      // Guard the AP from the moment it's up — not only once the channel is
-      // entered. Without a wake lock during the "waiting for the peer to scan
-      // and join" window, the host can hit screen-off/Doze and the OS tears
-      // the SoftAP down before anyone connects. usesMicrophone:false because
-      // the mic isn't recording yet (see SessionKeepAlive.start).
-      unawaited(_keepAlive.start(usesMicrophone: false));
-      _watchForTeardown();
-      _listenForPeer();
-    } on PlatformException catch (e) {
-      Logger.log('Hotspot start failed: ${e.code} ${e.message}');
-      // `cancelled` means we tore this attempt down ourselves — the user backed
-      // out to the role picker, or a retry superseded it. Showing an error card
-      // for our own teardown would paint failure over a screen that has already
-      // moved on, so it stays silent.
-      if (isClosed || e.code == _cancelledCode) return;
-      emit(state.copyWith(phase: HotspotPhase.error, errorCode: e.code));
-      _sfx.play(SfxEvent.error);
-    } catch (e) {
-      Logger.log('Hotspot start failed: $e');
-      if (!isClosed) {
-        emit(state.copyWith(phase: HotspotPhase.error, errorCode: 'failed'));
-        _sfx.play(SfxEvent.error);
+    // Up to four goes before anyone is shown a failure. The screen stays on
+    // its ordinary "creating the hotspot" state throughout — a transient
+    // radio hiccup that clears on attempt two should never have looked like
+    // a problem in the first place.
+    String? code;
+    var succeeded = false;
+    await _hostRetry.run((attempt) async {
+      try {
+        final creds = await _hotspot.start();
+        if (isClosed) throw const RetryAbort();
+        succeeded = true;
+        _onHostReady(creds);
+        return true;
+      } on PlatformException catch (e) {
+        code = e.code;
+        Logger.log('Hotspot start failed: ${e.code} ${e.message}');
+        // `cancelled` means we tore this attempt down ourselves — the user
+        // backed out to the role picker, or a retry superseded it. Retrying
+        // our own teardown would fight the user for control of the screen.
+        if (e.code == _cancelledCode || !_isRetryable(e.code)) {
+          throw const RetryAbort();
+        }
+        return false;
+      } catch (e) {
+        code = 'failed';
+        Logger.log('Hotspot start failed: $e');
+        return false;
       }
-    }
+    });
+
+    if (isClosed || succeeded) return;
+    // Showing an error card for our own teardown would paint failure over a
+    // screen that has already moved on, so it stays silent.
+    if (code == _cancelledCode) return;
+    emit(state.copyWith(phase: HotspotPhase.error, errorCode: code ?? 'failed'));
+    _sfx.play(SfxEvent.error);
+  }
+
+  void _onHostReady(HotspotCredentials creds) {
+    emit(state.copyWith(phase: HotspotPhase.ready, credentials: creds));
+    _sfx.play(SfxEvent.linkRestored);
+    _linkKeeper.adopt(creds);
+    // Guard the AP from the moment it's up — not only once the channel is
+    // entered. Without a wake lock during the "waiting for the peer to scan
+    // and join" window, the host can hit screen-off/Doze and the OS tears
+    // the SoftAP down before anyone connects. usesMicrophone:false because
+    // the mic isn't recording yet (see SessionKeepAlive.start).
+    unawaited(_keepAlive.start(usesMicrophone: false));
+    _watchForTeardown();
+    _listenForPeer();
   }
 
   /// Opens the system screen that fixes the current host error (Location for
@@ -441,6 +499,7 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   /// them); the native side then releases them on activity destroy or the next
   /// start().
   Future<void> leaveBridge() async {
+    _hostRetry.cancel();
     await _teardownSubscriptions();
     // Before the teardown below, so a recovery in flight cannot re-establish
     // the very link we are about to drop.
@@ -469,6 +528,8 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
     // stop the keep-alive: navigating into the walkie session disposes this
     // cubit while the link — and the foreground service guarding it — must stay
     // alive.
+    await _hostRetrySub?.cancel();
+    _hostRetry.dispose();
     await _teardownSubscriptions();
     return super.close();
   }

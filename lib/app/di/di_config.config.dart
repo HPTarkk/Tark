@@ -147,26 +147,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i349.SettingsRepository>(),
       ),
     );
-    gh.lazySingleton<_i991.HotspotLinkKeeper>(
-      () => _i697.HotspotLinkKeeperImpl(
-        gh<_i794.HotspotHost>(),
-        gh<_i794.HotspotJoiner>(),
-        gh<_i293.SessionRoleStore>(),
-        gh<_i1043.WifiTransferRepository>(),
-      ),
-      dispose: (i) => i.dispose(),
-    );
-    gh.factory<_i1045.WifiHotspotCubit>(
-      () => _i1045.WifiHotspotCubit(
-        gh<_i1043.WifiTransferRepository>(),
-        gh<_i794.HotspotHost>(),
-        gh<_i794.HotspotJoiner>(),
-        gh<_i690.SfxPlayer>(),
-        gh<_i138.SessionWakeLock>(),
-        gh<_i293.SessionRoleStore>(),
-        gh<_i991.HotspotLinkKeeper>(),
-      ),
-    );
     gh.lazySingleton<_i485.BluetoothTransferRepository>(
       () => _i485.BluetoothTransferRepository(
         gh<_i349.SettingsRepository>(),
@@ -198,6 +178,26 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i690.SfxPlayer>(),
       ),
     );
+    gh.lazySingleton<_i991.HotspotLinkKeeper>(
+      () => _i697.HotspotLinkKeeperImpl(
+        gh<_i794.HotspotHost>(),
+        gh<_i794.HotspotJoiner>(),
+        gh<_i293.SessionRoleStore>(),
+        gh<_i1043.WifiTransferRepository>(),
+      ),
+      dispose: (i) => i.dispose(),
+    );
+    gh.factory<_i1045.WifiHotspotCubit>(
+      () => _i1045.WifiHotspotCubit(
+        gh<_i1043.WifiTransferRepository>(),
+        gh<_i794.HotspotHost>(),
+        gh<_i794.HotspotJoiner>(),
+        gh<_i690.SfxPlayer>(),
+        gh<_i138.SessionWakeLock>(),
+        gh<_i293.SessionRoleStore>(),
+        gh<_i991.HotspotLinkKeeper>(),
+      ),
+    );
     gh.factory<_i923.TransferRepository>(
       () => transferModule.transferRepository(
         gh<_i517.TransferModeStore>(),
@@ -218,6 +218,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i970.WidgetControlChannel>(),
         gh<_i990.DeviceIdentity>(),
         gh<_i991.HotspotLinkKeeper>(),
+        gh<_i431.HotspotJoiner>(),
       ),
     );
     return this;

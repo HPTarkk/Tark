@@ -19,6 +19,7 @@ import '../../../../core/widget/version_badge.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../manager/walkie_talkie_cubit.dart';
 import '../widget/background_permission_banner.dart';
+import '../widget/channel_recovery.dart';
 import '../widget/connection_health_banner.dart';
 import '../widget/mic_control.dart';
 import '../widget/music_cast_section.dart';
@@ -174,6 +175,10 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
                     const SizedBox(height: 16),
                     const BackgroundPermissionBanner(),
                     _buildLinkBanner(),
+                    // Above the mic card on purpose: every issue it can show
+                    // is a reason the control below is lying about being
+                    // live, so it has to be read first.
+                    const ChannelIssueBanner(),
                     // Self-mute: the one control a hands-free rider needs
                     // in-channel — go silent without leaving. Sits where
                     // the old TX/RX chips were; that status now lives in
@@ -190,12 +195,20 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
               ),
             ),
             _buildLeaveButton(context),
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: VersionBadge(
-                  color: AppColors.textSecondary.withAlpha(60),
-                ),
+            // Pinned below the scroll view rather than inside it: the whole
+            // promise of the help sheet is that it's reachable the moment
+            // something feels wrong, and a user who has to go looking for it
+            // has already been stuck for longer than they should have been.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 0, 16, 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const ChannelHelpButton(),
+                  VersionBadge(
+                    color: AppColors.textSecondary.withAlpha(60),
+                  ),
+                ],
               ),
             ),
           ],

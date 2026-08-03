@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../../../core/recovery/bounded_retry.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/sfx/sfx_event.dart';
 import '../../../../core/sfx/sfx_player.dart';
@@ -62,18 +63,42 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
   /// the loop can react immediately instead of waiting out its whole timeout.
   Completer<void>? _attemptSignal;
 
+  /// Bounded retries for a peer the user TAPPED.
+  ///
+  /// Every automatic path in this cubit already knows that a Bluetooth dial
+  /// fails transiently all the time — a host between RFCOMM accepts, a radio
+  /// still finishing an inquiry, a BLE stack mid-handshake — and each of them
+  /// quietly re-dials. The one caller that didn't was the user: a tapped peer
+  /// that failed once went straight to the red error card, which is both the
+  /// least forgiving path and the only one a person actually watches.
+  late final BoundedRetry _manualRetry = BoundedRetry(name: 'bt-manual-dial');
+
+  /// True while [connectTo]'s retry cycle owns the outcome, so a failed dial
+  /// is swallowed (like [_autoJoining]) instead of flipping the UI to the
+  /// error card between attempts.
+  bool _manualRetrying = false;
+
+  /// Bumped to abandon a manual cycle (user backs out, picks another peer,
+  /// or the cubit closes).
+  int _manualGen = 0;
+
+  StreamSubscription<RetryPhase>? _manualRetrySub;
+
   BluetoothConnectCubit(this._transport, this._settingsRepository, this._sfx)
     : super(BluetoothConnectState.initial()) {
     _connectionSub = _transport.connectionState.listen((s) {
       if (s == BluetoothConnectionState.connected) {
         _autoAttempt = false;
+        _manualRetrying = false;
         _stopAutoJoin();
       } else if (s == BluetoothConnectionState.error) {
         // Wake the loop so it re-dials right away, and swallow the error:
         // while auto-joining the UI must stay on the "connecting" radar, not
-        // flip to the error card.
+        // flip to the error card. A tapped peer under [connectTo]'s retry
+        // cycle gets exactly the same treatment — it re-dials too, and its
+        // final failure is emitted by that cycle once the attempts run out.
         _signalAttempt();
-        if (_autoJoining) return;
+        if (_autoJoining || _manualRetrying) return;
         if (_autoAttempt) {
           // A non-looping background attempt (auto-host, or a hung dial that
           // the loop already abandoned) failed — no error chirp/screen, just
@@ -100,7 +125,7 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
       emit(
         state.copyWith(
           connectionState: s,
-          connectingPeerId: (stillConnecting || _autoJoining)
+          connectingPeerId: (stillConnecting || _autoJoining || _manualRetrying)
               ? state.connectingPeerId
               : null,
         ),
@@ -114,6 +139,9 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
         _sfx.play(SfxEvent.error);
       }
     }, onError: (Object e) => Logger.log('BLE advertising state error: $e'));
+    _manualRetrySub = _manualRetry.phases.listen((phase) {
+      if (!isClosed) emit(state.copyWith(dialRetry: phase));
+    });
     _loadIdentity().then((_) => _maybeAutoReconnect());
   }
 
@@ -336,6 +364,14 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
     _attemptSignal = null;
   }
 
+  void _stopManualRetry() {
+    _manualRetrying = false;
+    _manualGen++;
+    _manualRetry.cancel();
+    _signalAttempt();
+    _attemptSignal = null;
+  }
+
   /// Whether connecting can start without any permission dialog. Android:
   /// reading statuses never prompts, so require them already granted. iOS
   /// only ever shows the CoreBluetooth prompt once — a remembered peer means
@@ -486,17 +522,79 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
       if (state.connectionState != BluetoothConnectionState.scanning) return;
       final current = state.peers.where((p) => p.isAppHost).toList();
       if (current.length != 1 || current.single.id != only.id) return;
-      _connectTo(current.single);
+      // Through the retrying path, not the bare dial: this is the app
+      // choosing for the user, so a single unlucky attempt must not drop
+      // them onto an error card for a decision they didn't make.
+      connectTo(current.single);
     });
   }
 
-  Future<void> connectTo(BluetoothPeer peer) {
-    // A tap on a peer tile is an explicit choice — drop the background
-    // auto-attempt semantics (including the persistent loop) so failures
-    // surface normally again.
+  /// A tap on a peer tile.
+  ///
+  /// Drops the background auto-attempt semantics (including the persistent
+  /// loop) — this is an explicit choice and its outcome belongs to the user —
+  /// but gives the dial the same few automatic goes the machine gets before
+  /// anybody is shown a failure. The radar keeps naming the peer throughout,
+  /// so the retries read as one connection taking a moment rather than three
+  /// separate things going wrong.
+  Future<void> connectTo(BluetoothPeer peer) async {
     _autoAttempt = false;
     _stopAutoJoin();
-    return _connectTo(peer);
+    _reconnectTimeout?.cancel();
+    _soloJoinTimer?.cancel();
+    await _scanSub?.cancel();
+    _scanSub = null;
+    _transport.cancelDiscovery();
+
+    final gen = ++_manualGen;
+    _manualRetrying = true;
+    _manualRetry.reset();
+    emit(state.copyWith(connectingPeerId: peer.id));
+
+    await _manualRetry.run((attempt) async {
+      if (isClosed || _manualGen != gen) throw const RetryAbort();
+      if (state.connectionState == BluetoothConnectionState.connected) {
+        return true;
+      }
+      emit(state.copyWith(connectingPeerId: peer.id));
+
+      // Fire-and-forget, matching the auto-join loop: a hung connect must not
+      // block the cycle, so the signal (connected/error) or the timeout below
+      // bounds the attempt rather than the dial itself.
+      _attemptSignal = Completer<void>();
+      unawaited(
+        _transport.connectToHost(peer).catchError((Object e) {
+          Logger.log('Manual dial failed: $e');
+          _signalAttempt();
+        }),
+      );
+
+      final resolved = await _awaitAttempt(const Duration(seconds: 12), gen);
+      if (isClosed || _manualGen != gen) throw const RetryAbort();
+      if (state.connectionState == BluetoothConnectionState.connected) {
+        return true;
+      }
+      // Neither connected nor errored — the dial is hung. Tear it down so the
+      // next attempt starts from a clean radio.
+      if (!resolved) _transport.reset();
+      return false;
+    });
+
+    if (_manualGen != gen) return;
+    _manualRetrying = false;
+    if (isClosed ||
+        state.connectionState == BluetoothConnectionState.connected) {
+      return;
+    }
+    // Out of automatic attempts. NOW the error card is the honest answer, and
+    // the user has lost nothing but a few seconds getting here.
+    _sfx.play(SfxEvent.error);
+    emit(
+      state.copyWith(
+        connectionState: BluetoothConnectionState.error,
+        connectingPeerId: null,
+      ),
+    );
   }
 
   Future<void> _connectTo(BluetoothPeer peer) async {
@@ -567,6 +665,7 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
   void backToRoleSelection() {
     _autoAttempt = false;
     _stopAutoJoin();
+    _stopManualRetry();
     _reconnectTimeout?.cancel();
     _discoverableTimer?.cancel();
     _soloJoinTimer?.cancel();
@@ -584,6 +683,9 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
   @override
   Future<void> close() async {
     _stopAutoJoin();
+    _stopManualRetry();
+    await _manualRetrySub?.cancel();
+    _manualRetry.dispose();
     _reconnectTimeout?.cancel();
     _discoverableTimer?.cancel();
     _soloJoinTimer?.cancel();
@@ -622,6 +724,11 @@ class BluetoothConnectState extends Equatable {
   /// beacon keeps pulsing but nobody can see it, so the UI offers a re-arm.
   final bool hostDiscoverable;
 
+  /// How far the automatic re-dials of a tapped peer have got, so the radar
+  /// can soften its label once it's been a while rather than repeating
+  /// "Hooking up..." at someone for twenty seconds.
+  final RetryPhase dialRetry;
+
   const BluetoothConnectState({
     required this.role,
     required this.connectionState,
@@ -631,6 +738,7 @@ class BluetoothConnectState extends Equatable {
     required this.connectingPeerId,
     required this.bleUnavailable,
     required this.hostDiscoverable,
+    required this.dialRetry,
   });
 
   factory BluetoothConnectState.initial() => const BluetoothConnectState(
@@ -642,6 +750,7 @@ class BluetoothConnectState extends Equatable {
     connectingPeerId: null,
     bleUnavailable: false,
     hostDiscoverable: true,
+    dialRetry: RetryPhase.idle,
   );
 
   BluetoothConnectState copyWith({
@@ -653,6 +762,7 @@ class BluetoothConnectState extends Equatable {
     Object? connectingPeerId = _unset,
     bool? bleUnavailable,
     bool? hostDiscoverable,
+    RetryPhase? dialRetry,
   }) => BluetoothConnectState(
     role: role ?? this.role,
     connectionState: connectionState ?? this.connectionState,
@@ -664,6 +774,7 @@ class BluetoothConnectState extends Equatable {
         : connectingPeerId as String?,
     bleUnavailable: bleUnavailable ?? this.bleUnavailable,
     hostDiscoverable: hostDiscoverable ?? this.hostDiscoverable,
+    dialRetry: dialRetry ?? this.dialRetry,
   );
 
   @override
@@ -676,6 +787,7 @@ class BluetoothConnectState extends Equatable {
     connectingPeerId,
     bleUnavailable,
     hostDiscoverable,
+    dialRetry,
   ];
 }
 

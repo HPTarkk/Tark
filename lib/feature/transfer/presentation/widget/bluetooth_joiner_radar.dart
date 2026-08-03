@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/recovery/bounded_retry.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entity/bluetooth_peer.dart';
 import '../manager/bluetooth_connect_cubit.dart';
@@ -86,8 +87,10 @@ class _BluetoothJoinerRadarState extends State<BluetoothJoinerRadar>
           Text(
             connecting
                 // A nameless peer just drops off the end — better a bare
-                // "Hooking up..." than one trailed by an address.
-                ? '${s.bt_connecting} '
+                // "Hooking up..." than one trailed by an address. Once the
+                // automatic re-dials have been going a while the lead-in
+                // softens, so a slow connect stops looking like a frozen one.
+                ? '${state.dialRetry == RetryPhase.stillTrying ? s.bt_still_trying : s.bt_connecting} '
                           '${connectingPeer?.name ?? state.lastPeer?.name ?? ''}'
                       .trimRight()
                 : s.bt_scanning,

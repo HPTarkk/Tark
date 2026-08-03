@@ -995,4 +995,123 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get role_peer => 'Open Air';
+
+  @override
+  String get help_button => 'SOMETHING WRONG?';
+
+  @override
+  String get help_title => 'What\'s going on?';
+
+  @override
+  String get help_all_good =>
+      'Everything checks out. If people still can\'t hear you, ask them to leave the channel and come back in.';
+
+  @override
+  String get help_found_problems => 'Sort out whatever\'s red below.';
+
+  @override
+  String get check_mic => 'Microphone';
+
+  @override
+  String get check_mic_ok => 'Working';
+
+  @override
+  String get check_mic_denied => 'Tarkk isn\'t allowed to use it';
+
+  @override
+  String get check_mic_silent => 'Allowed, but no sound is coming through';
+
+  @override
+  String get check_network => 'Network';
+
+  @override
+  String get check_network_ok => 'Connected';
+
+  @override
+  String get check_network_none => 'This phone isn\'t on a Wi-Fi network';
+
+  @override
+  String get check_network_bt => 'Bluetooth link';
+
+  @override
+  String get check_network_bt_ok => 'Paired and open';
+
+  @override
+  String get check_people => 'Who\'s in range';
+
+  @override
+  String check_people_ok(Object count) {
+    return '$count here with you';
+  }
+
+  @override
+  String get check_people_alone => 'Nobody else has joined yet';
+
+  @override
+  String get check_link => 'Connection';
+
+  @override
+  String get check_link_ok => 'Steady';
+
+  @override
+  String get check_link_retrying => 'Dropped — getting it back';
+
+  @override
+  String get check_link_down => 'Lost';
+
+  @override
+  String get issue_mic_denied_title => 'Nobody can hear you';
+
+  @override
+  String get issue_mic_denied_body =>
+      'Tarkk needs permission to use your microphone. Switch it on and you\'re straight back on air.';
+
+  @override
+  String get issue_mic_silent_title => 'Your mic isn\'t picking anything up';
+
+  @override
+  String get issue_mic_silent_body =>
+      'The mic is allowed, but no sound is reaching the channel. Another app may have grabbed it — close anything that records, or plug a headset in.';
+
+  @override
+  String get issue_no_network_title => 'You\'re not on a network';
+
+  @override
+  String get issue_no_network_body =>
+      'Your voice can\'t go anywhere until this phone joins a Wi-Fi network. Everyone in the channel has to be on the same one.';
+
+  @override
+  String get issue_start_failed_title => 'The channel didn\'t open';
+
+  @override
+  String get issue_start_failed_body =>
+      'Something went wrong while setting up. Give it another go.';
+
+  @override
+  String get issue_alone_title => 'You\'re on your own in here';
+
+  @override
+  String get issue_alone_body =>
+      'Nobody else has turned up yet. Check the other phone is on the same network and has joined the channel.';
+
+  @override
+  String get fix_allow_mic => 'ALLOW MIC';
+
+  @override
+  String get fix_wifi_settings => 'WI-FI SETTINGS';
+
+  @override
+  String get fix_restart_mic => 'RESTART MIC';
+
+  @override
+  String get fix_reconnect => 'RECONNECT';
+
+  @override
+  String get retry_still_trying => 'Still trying...';
+
+  @override
+  String get bt_still_trying => 'Still trying to reach them...';
+
+  @override
+  String get hotspot_still_trying => 'Still setting it up...';
 }

@@ -1879,6 +1879,228 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'موج آزاد'**
   String get role_peer;
+
+  /// No description provided for @help_button.
+  ///
+  /// In fa, this message translates to:
+  /// **'مشکلی هست؟'**
+  String get help_button;
+
+  /// No description provided for @help_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'چی درست کار نمی‌کنه؟'**
+  String get help_title;
+
+  /// No description provided for @help_all_good.
+  ///
+  /// In fa, this message translates to:
+  /// **'همه چی مرتبه. اگه بازم صداتو نمی‌شنون، ازشون بخواه از کانال بیان بیرون و دوباره برن تو.'**
+  String get help_all_good;
+
+  /// No description provided for @help_found_problems.
+  ///
+  /// In fa, this message translates to:
+  /// **'این‌هایی که پایین قرمزن رو درست کن.'**
+  String get help_found_problems;
+
+  /// No description provided for @check_mic.
+  ///
+  /// In fa, this message translates to:
+  /// **'میکروفون'**
+  String get check_mic;
+
+  /// No description provided for @check_mic_ok.
+  ///
+  /// In fa, this message translates to:
+  /// **'سالمه'**
+  String get check_mic_ok;
+
+  /// No description provided for @check_mic_denied.
+  ///
+  /// In fa, this message translates to:
+  /// **'ترک اجازه‌ی استفاده ازش رو نداره'**
+  String get check_mic_denied;
+
+  /// No description provided for @check_mic_silent.
+  ///
+  /// In fa, this message translates to:
+  /// **'اجازه هست، ولی هیچ صدایی نمی‌رسه'**
+  String get check_mic_silent;
+
+  /// No description provided for @check_network.
+  ///
+  /// In fa, this message translates to:
+  /// **'شبکه'**
+  String get check_network;
+
+  /// No description provided for @check_network_ok.
+  ///
+  /// In fa, this message translates to:
+  /// **'وصلی'**
+  String get check_network_ok;
+
+  /// No description provided for @check_network_none.
+  ///
+  /// In fa, this message translates to:
+  /// **'این گوشی به هیچ وای‌فایی وصل نیست'**
+  String get check_network_none;
+
+  /// No description provided for @check_network_bt.
+  ///
+  /// In fa, this message translates to:
+  /// **'ارتباط بلوتوث'**
+  String get check_network_bt;
+
+  /// No description provided for @check_network_bt_ok.
+  ///
+  /// In fa, this message translates to:
+  /// **'وصله و بازه'**
+  String get check_network_bt_ok;
+
+  /// No description provided for @check_people.
+  ///
+  /// In fa, this message translates to:
+  /// **'کیا دور و برن'**
+  String get check_people;
+
+  /// No description provided for @check_people_ok.
+  ///
+  /// In fa, this message translates to:
+  /// **'{count} نفر باهاتن'**
+  String check_people_ok(Object count);
+
+  /// No description provided for @check_people_alone.
+  ///
+  /// In fa, this message translates to:
+  /// **'هنوز کسی نیومده'**
+  String get check_people_alone;
+
+  /// No description provided for @check_link.
+  ///
+  /// In fa, this message translates to:
+  /// **'ارتباط'**
+  String get check_link;
+
+  /// No description provided for @check_link_ok.
+  ///
+  /// In fa, this message translates to:
+  /// **'پایداره'**
+  String get check_link_ok;
+
+  /// No description provided for @check_link_retrying.
+  ///
+  /// In fa, this message translates to:
+  /// **'قطع شد — دارم برش می‌گردونم'**
+  String get check_link_retrying;
+
+  /// No description provided for @check_link_down.
+  ///
+  /// In fa, this message translates to:
+  /// **'قطع شده'**
+  String get check_link_down;
+
+  /// No description provided for @issue_mic_denied_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'کسی صداتو نمی‌شنوه'**
+  String get issue_mic_denied_title;
+
+  /// No description provided for @issue_mic_denied_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'ترک برای استفاده از میکروفون اجازه می‌خواد. روشنش کن تا یه‌راست برگردی رو خط.'**
+  String get issue_mic_denied_body;
+
+  /// No description provided for @issue_mic_silent_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'میکروفونت چیزی نمی‌گیره'**
+  String get issue_mic_silent_title;
+
+  /// No description provided for @issue_mic_silent_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'اجازه‌ش هست، ولی هیچ صدایی به کانال نمی‌رسه. شاید یه برنامه‌ی دیگه گرفتتش — هر چی داره ضبط می‌کنه ببند، یا هندزفری بزن.'**
+  String get issue_mic_silent_body;
+
+  /// No description provided for @issue_no_network_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'به هیچ شبکه‌ای وصل نیستی'**
+  String get issue_no_network_title;
+
+  /// No description provided for @issue_no_network_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'تا این گوشی به وای‌فای وصل نشه صدات جایی نمی‌ره. همه‌ی کسایی که تو کانالن باید رو یه شبکه باشن.'**
+  String get issue_no_network_body;
+
+  /// No description provided for @issue_start_failed_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'کانال باز نشد'**
+  String get issue_start_failed_title;
+
+  /// No description provided for @issue_start_failed_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'موقع راه‌اندازی یه مشکلی پیش اومد. یه بار دیگه امتحان کن.'**
+  String get issue_start_failed_body;
+
+  /// No description provided for @issue_alone_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'فعلاً تنهایی اینجا'**
+  String get issue_alone_title;
+
+  /// No description provided for @issue_alone_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'هنوز کسی نیومده. مطمئن شو گوشی بعدی رو همین شبکه‌ست و رفته تو کانال.'**
+  String get issue_alone_body;
+
+  /// No description provided for @fix_allow_mic.
+  ///
+  /// In fa, this message translates to:
+  /// **'اجازه بده'**
+  String get fix_allow_mic;
+
+  /// No description provided for @fix_wifi_settings.
+  ///
+  /// In fa, this message translates to:
+  /// **'تنظیمات وای‌فای'**
+  String get fix_wifi_settings;
+
+  /// No description provided for @fix_restart_mic.
+  ///
+  /// In fa, this message translates to:
+  /// **'میکروفون رو دوباره راه بنداز'**
+  String get fix_restart_mic;
+
+  /// No description provided for @fix_reconnect.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتصال دوباره'**
+  String get fix_reconnect;
+
+  /// No description provided for @retry_still_trying.
+  ///
+  /// In fa, this message translates to:
+  /// **'هنوز دارم تلاش می‌کنم...'**
+  String get retry_still_trying;
+
+  /// No description provided for @bt_still_trying.
+  ///
+  /// In fa, this message translates to:
+  /// **'هنوز دارم دنبالشون می‌گردم...'**
+  String get bt_still_trying;
+
+  /// No description provided for @hotspot_still_trying.
+  ///
+  /// In fa, this message translates to:
+  /// **'هنوز دارم راهش می‌ندازم...'**
+  String get hotspot_still_trying;
 }
 
 class _AppLocalizationsDelegate
