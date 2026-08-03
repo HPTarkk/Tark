@@ -2,6 +2,8 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../../../core/analytics/analytics.dart';
+import '../../../../core/analytics/analytics_event.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/theme/theme_service.dart';
 import '../../../transfer/api/transfer_api.dart';
@@ -30,8 +32,9 @@ class OnboardingCubit extends Cubit<OnboardingState> {
 
   final TransferModeStore _modeStore;
   final SettingsRepository _settingsRepository;
+  final Analytics _analytics;
 
-  OnboardingCubit(this._modeStore, this._settingsRepository)
+  OnboardingCubit(this._modeStore, this._settingsRepository, this._analytics)
     : super(
         _resumeAfterThemeRekey ?? OnboardingState.initial(_modeStore.mode),
       ) {
@@ -100,10 +103,20 @@ class OnboardingCubit extends Cubit<OnboardingState> {
   }
 
   /// Marks onboarding done without touching name/mode — the skip path.
-  Future<void> skip() => _markCompleted();
+  Future<void> skip() => _markCompleted(skipped: true);
 
-  Future<void> _markCompleted() =>
-      _settingsRepository.setOnboardingCompleted(true);
+  /// The one exit from onboarding, whichever route got here — so it's also
+  /// the one place the funnel's first event belongs. A replay re-fires it,
+  /// which is correct: the panel counts unique users, not visits.
+  Future<void> _markCompleted({bool skipped = false}) async {
+    await _settingsRepository.setOnboardingCompleted(true);
+    _analytics.track(
+      AnalyticsEvent.onboardingFinished(
+        locale: await _settingsRepository.getLocaleCode(),
+        skipped: skipped,
+      ),
+    );
+  }
 
   @override
   Future<void> close() {

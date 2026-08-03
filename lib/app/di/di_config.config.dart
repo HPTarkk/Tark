@@ -14,6 +14,8 @@ import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
 import 'package:shared_preferences/shared_preferences.dart' as _i460;
 import 'package:tark/app/di/di_config.dart' as _i250;
+import 'package:tark/core/analytics/adtrace_analytics.dart' as _i822;
+import 'package:tark/core/analytics/analytics.dart' as _i4;
 import 'package:tark/core/home_widget/home_widget_service.dart' as _i590;
 import 'package:tark/core/home_widget/home_widget_service_impl.dart' as _i828;
 import 'package:tark/core/home_widget/widget_control_channel.dart' as _i970;
@@ -128,12 +130,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i349.SettingsRepository>(
       () => _i632.SettingsRepositoryImpl(gh<_i460.SharedPreferences>()),
     );
-    gh.factory<_i1007.GuestLinkCubit>(
-      () => _i1007.GuestLinkCubit(
-        gh<_i945.GuestLinkController>(),
-        gh<_i690.SfxPlayer>(),
-      ),
-    );
     gh.lazySingleton<_i1043.WifiTransferRepository>(
       () => _i627.WifiTransferRepositoryImpl(
         gh<_i990.DeviceIdentity>(),
@@ -147,6 +143,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i349.SettingsRepository>(),
       ),
     );
+    gh.lazySingleton<_i4.Analytics>(
+      () => _i822.AdTraceAnalytics(gh<_i349.SettingsRepository>()),
+    );
     gh.lazySingleton<_i485.BluetoothTransferRepository>(
       () => _i485.BluetoothTransferRepository(
         gh<_i349.SettingsRepository>(),
@@ -159,6 +158,13 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i485.BluetoothTransferRepository>(),
       ),
     );
+    gh.factory<_i1007.GuestLinkCubit>(
+      () => _i1007.GuestLinkCubit(
+        gh<_i945.GuestLinkController>(),
+        gh<_i690.SfxPlayer>(),
+        gh<_i4.Analytics>(),
+      ),
+    );
     gh.factory<_i205.LandingCubit>(
       () => _i205.LandingCubit(
         gh<_i431.TransferModeStore>(),
@@ -169,13 +175,7 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i766.OnboardingCubit(
         gh<_i431.TransferModeStore>(),
         gh<_i349.SettingsRepository>(),
-      ),
-    );
-    gh.factory<_i1058.BluetoothConnectCubit>(
-      () => _i1058.BluetoothConnectCubit(
-        gh<_i638.BluetoothTransport>(),
-        gh<_i349.SettingsRepository>(),
-        gh<_i690.SfxPlayer>(),
+        gh<_i4.Analytics>(),
       ),
     );
     gh.lazySingleton<_i991.HotspotLinkKeeper>(
@@ -187,6 +187,14 @@ extension GetItInjectableX on _i174.GetIt {
       ),
       dispose: (i) => i.dispose(),
     );
+    gh.factory<_i1058.BluetoothConnectCubit>(
+      () => _i1058.BluetoothConnectCubit(
+        gh<_i638.BluetoothTransport>(),
+        gh<_i349.SettingsRepository>(),
+        gh<_i690.SfxPlayer>(),
+        gh<_i4.Analytics>(),
+      ),
+    );
     gh.factory<_i1045.WifiHotspotCubit>(
       () => _i1045.WifiHotspotCubit(
         gh<_i1043.WifiTransferRepository>(),
@@ -196,6 +204,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i138.SessionWakeLock>(),
         gh<_i293.SessionRoleStore>(),
         gh<_i991.HotspotLinkKeeper>(),
+        gh<_i4.Analytics>(),
       ),
     );
     gh.factory<_i923.TransferRepository>(
@@ -219,6 +228,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i990.DeviceIdentity>(),
         gh<_i991.HotspotLinkKeeper>(),
         gh<_i431.HotspotJoiner>(),
+        gh<_i4.Analytics>(),
       ),
     );
     return this;

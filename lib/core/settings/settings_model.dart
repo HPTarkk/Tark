@@ -17,6 +17,7 @@ class SettingsModel extends AppSettings {
     required super.autoReconnectEnabled,
     required super.skipSplash,
     required super.usageTipsShown,
+    required super.analyticsEnabled,
   });
 
   factory SettingsModel.fromAppSettings(AppSettings s) => SettingsModel(
@@ -29,6 +30,7 @@ class SettingsModel extends AppSettings {
     autoReconnectEnabled: s.autoReconnectEnabled,
     skipSplash: s.skipSplash,
     usageTipsShown: s.usageTipsShown,
+    analyticsEnabled: s.analyticsEnabled,
   );
 
   factory SettingsModel.fromJson(Map<String, dynamic> json) {
@@ -51,6 +53,8 @@ class SettingsModel extends AppSettings {
           json['autoReconnectEnabled'] as bool? ?? d.autoReconnectEnabled,
       skipSplash: json['skipSplash'] as bool? ?? d.skipSplash,
       usageTipsShown: json['usageTipsShown'] as bool? ?? d.usageTipsShown,
+      analyticsEnabled:
+          json['analyticsEnabled'] as bool? ?? d.analyticsEnabled,
     );
   }
 
@@ -64,6 +68,7 @@ class SettingsModel extends AppSettings {
     'autoReconnectEnabled': autoReconnectEnabled,
     'skipSplash': skipSplash,
     'usageTipsShown': usageTipsShown,
+    'analyticsEnabled': analyticsEnabled,
   };
 
   /// Reads every field from [prefs], falling back to [AppSettings.defaults]
@@ -92,6 +97,8 @@ class SettingsModel extends AppSettings {
       skipSplash: prefs.getBool(SettingsKeys.skipSplash) ?? d.skipSplash,
       usageTipsShown:
           prefs.getBool(SettingsKeys.usageTipsShown) ?? d.usageTipsShown,
+      analyticsEnabled:
+          prefs.getBool(SettingsKeys.analyticsEnabled) ?? d.analyticsEnabled,
     );
   }
 }

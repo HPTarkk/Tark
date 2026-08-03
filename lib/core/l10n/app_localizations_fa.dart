@@ -802,6 +802,16 @@ class AppLocalizationsFa extends AppLocalizations {
   String get settings_skip_splash_desc => 'یه‌راست بپر تو برنامه';
 
   @override
+  String get settings_section_privacy => 'حریم خصوصی';
+
+  @override
+  String get settings_analytics => 'آمار ناشناس استفاده';
+
+  @override
+  String get settings_analytics_desc =>
+      'کمک می‌کنه بفهمیم چی خراب می‌شه. نه اسمی، نه صدایی، نه مخاطبی — فقط اینکه کدوم اتصال جواب می‌ده و کجا قطع می‌شه.';
+
+  @override
   String get usage_tips_title => 'استفاده بهینه از «ترک»';
 
   @override

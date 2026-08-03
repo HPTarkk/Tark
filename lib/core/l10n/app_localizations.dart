@@ -1544,6 +1544,24 @@ abstract class AppLocalizations {
   /// **'یه‌راست بپر تو برنامه'**
   String get settings_skip_splash_desc;
 
+  /// No description provided for @settings_section_privacy.
+  ///
+  /// In fa, this message translates to:
+  /// **'حریم خصوصی'**
+  String get settings_section_privacy;
+
+  /// No description provided for @settings_analytics.
+  ///
+  /// In fa, this message translates to:
+  /// **'آمار ناشناس استفاده'**
+  String get settings_analytics;
+
+  /// No description provided for @settings_analytics_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'کمک می‌کنه بفهمیم چی خراب می‌شه. نه اسمی، نه صدایی، نه مخاطبی — فقط اینکه کدوم اتصال جواب می‌ده و کجا قطع می‌شه.'**
+  String get settings_analytics_desc;
+
   /// No description provided for @usage_tips_title.
   ///
   /// In fa, this message translates to:

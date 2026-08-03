@@ -7,6 +7,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../../../core/analytics/analytics.dart';
+import '../../../../core/analytics/analytics_event.dart';
+import '../../../../core/analytics/pairing_attempt.dart';
 import '../../../../core/recovery/bounded_retry.dart';
 import '../../../../core/sfx/sfx_event.dart';
 import '../../../../core/sfx/sfx_player.dart';
@@ -168,6 +171,8 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   final SessionWakeLock _keepAlive;
   final SessionRoleStore _roleStore;
   final HotspotLinkKeeper _linkKeeper;
+  final Analytics _analytics;
+  late final PairingAttempt _pairing;
 
   StreamSubscription<WakiPacket>? _peerSub;
   StreamSubscription<void>? _stoppedSub;
@@ -205,11 +210,29 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
     this._keepAlive,
     this._roleStore,
     this._linkKeeper,
+    this._analytics,
   ) : super(HotspotBridgeState.initial(WifiHotspotSegment.wifi)) {
+    _pairing = PairingAttempt(
+      _analytics,
+      transport: AnalyticsTransport.hotspot,
+    );
     _hostRetrySub = _hostRetry.phases.listen((phase) {
       if (!isClosed) emit(state.copyWith(hostRetry: phase));
     });
   }
+
+  /// Maps the native hotspot error codes onto the analytics failure
+  /// vocabulary. The distinction that matters operationally is whether the
+  /// framework refused us outright (fixable by the user: a permission, a
+  /// setting) or the AP simply never came on the air (a device/driver
+  /// problem we have to work around) — see HotspotHandler for where these
+  /// codes originate.
+  static PairFailure _hostFailure(String code) => switch (code) {
+    'permission_denied' => PairFailure.permissionDenied,
+    'location_off' || 'tethering_on' || 'unsupported' =>
+      PairFailure.frameworkRefused,
+    _ => PairFailure.apNeverUp,
+  };
 
   /// Switches the visible segment. Picking "Hotspot" only offers the host/join
   /// choice — nothing touches the radio until the user commits to a side, so a
@@ -225,6 +248,9 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   }
 
   Future<void> chooseRole(HotspotRole role) async {
+    _pairing.start(
+      role == HotspotRole.host ? PairRole.host : PairRole.joiner,
+    );
     emit(
       state.copyWith(
         role: role,
@@ -332,6 +358,10 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
     // Showing an error card for our own teardown would paint failure over a
     // screen that has already moved on, so it stays silent.
     if (code == _cancelledCode) return;
+    // Reported only here, after the retry cycle is spent — the transient
+    // failures it swallows are exactly the ones that would make the AP look
+    // far less reliable than it is.
+    _pairing.failed(PairStage.apSetup, _hostFailure(code ?? 'failed'));
     emit(state.copyWith(phase: HotspotPhase.error, errorCode: code ?? 'failed'));
     _sfx.play(SfxEvent.error);
   }
@@ -378,6 +408,7 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
 
   /// Handles a payload from the in-app scanner.
   Future<void> submitScannedCode(String raw) async {
+    _analytics.track(AnalyticsEvent.featureUsed(AppFeature.qrScan));
     final creds = HotspotCredentials.fromWifiQr(raw);
     if (creds == null) {
       emit(state.copyWith(joinPhase: JoinPhase.invalid));
@@ -468,6 +499,11 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
     _lostSub = _joiner.onLost.listen((_) {
       if (isClosed || state.peerConnected) return;
       Logger.log('Hotspot link lost — offering rejoin');
+      // The AP went away before anyone arrived. The earlier join phases
+      // (wifiOff, locationOff, manual) deliberately report nothing: every one
+      // of them is recoverable in place, and calling them failures would
+      // count joins that went on to succeed as losses.
+      _pairing.failed(PairStage.apSetup, PairFailure.apNeverUp);
       _peerSub?.cancel();
       _peerSub = null;
       emit(state.copyWith(joinPhase: JoinPhase.lost));
@@ -487,6 +523,10 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
     // call startListening() again after we navigate.
     _peerSub = _wifi.startListening().listen((_) {
       if (!isClosed && !state.peerConnected) {
+        // The honest "connected" moment for this transport, for both sides:
+        // an AP that is up (host) or joined (joiner) with nobody on the other
+        // end is not a pairing anyone would call successful.
+        _pairing.connected();
         emit(state.copyWith(peerConnected: true));
         _sfx.play(SfxEvent.peerJoin);
       }
@@ -499,6 +539,7 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   /// them); the native side then releases them on activity destroy or the next
   /// start().
   Future<void> leaveBridge() async {
+    _pairing.failed(PairStage.apSetup, PairFailure.userCancelled);
     _hostRetry.cancel();
     await _teardownSubscriptions();
     // Before the teardown below, so a recovery in flight cannot re-establish
@@ -527,7 +568,9 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
     // Intentionally does NOT stop the hotspot, release the joined network OR
     // stop the keep-alive: navigating into the walkie session disposes this
     // cubit while the link — and the foreground service guarding it — must stay
-    // alive.
+    // alive. An attempt still open here is that same navigation, not a
+    // failure, so it's abandoned rather than reported.
+    _pairing.abandon();
     await _hostRetrySub?.cancel();
     _hostRetry.dispose();
     await _teardownSubscriptions();

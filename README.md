@@ -267,6 +267,46 @@ Anything the widget *renders* — its strings are localized and its colors theme
 
 ---
 
+## Privacy & analytics
+
+Conversations never leave the local link. Audio goes phone-to-phone over Wi-Fi,
+Bluetooth or the hosted hotspot, and there is no server in the path — that part
+of the pitch is literal, and nothing below changes it.
+
+The app does collect anonymous usage statistics, so that connection failures
+we can't reproduce still get fixed. It's a plain **on/off switch in Settings →
+Privacy**, on by default.
+
+What's sent, when it's on:
+
+- Which transport a pairing attempt used, and whether it connected or failed —
+  with a failure reason from a fixed list (`perm_denied`, `discover_timeout`,
+  `ap_never_up`, …)
+- Bucketed session shape: roughly how long, roughly how many people, roughly
+  how many transmissions (`2_10m`, `4_5`, `10_plus` — never exact values)
+- Which optional features were used at least once in a session
+
+What is never sent: callsigns, peer names, device names, SSIDs, IP or MAC
+addresses, contacts, location, and no audio of any kind, ever. Every attribute
+is a value from a closed enum defined in
+[`lib/core/analytics/analytics_event.dart`](lib/core/analytics/analytics_event.dart)
+— there is no free-text field to leak into.
+
+The backend is [AdTrace](https://adtrace.io), chosen because it's the one
+option that's both free and reachable from Iranian networks (Firebase and
+Sentry are sanction-blocked at the endpoint). Its SDK merges an advertising-ID
+permission and Facebook/Instagram `<queries>` probes into the manifest by
+default; all three are stripped at merge time — see the comment at the top of
+[`AndroidManifest.xml`](android/app/src/main/AndroidManifest.xml).
+
+Building without analytics at all, no code changes needed:
+
+```bash
+flutter build apk --release --dart-define=ADTRACE_TOKEN=
+```
+
+---
+
 ## License
 
 See [LICENSE](LICENSE).

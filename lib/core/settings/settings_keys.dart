@@ -13,6 +13,7 @@ abstract final class SettingsKeys {
   static const autoReconnectEnabled = 'auto_reconnect_enabled';
   static const skipSplash = 'skip_splash';
   static const usageTipsShown = 'usage_tips_shown';
+  static const analyticsEnabled = 'analytics_enabled';
 
   // Owned by their existing dedicated services/widgets — kept here too so
   // every persisted key in the app has exactly one string literal, even

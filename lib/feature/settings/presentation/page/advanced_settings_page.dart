@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/analytics/analytics.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/settings/noise_suppression_engine.dart';
 import '../../../../core/settings/settings_repository.dart';
@@ -30,6 +31,7 @@ class AdvancedSettingsPage extends StatefulWidget {
     create: (_) => SettingsCubit(
       liveSession: liveSession as WalkieTalkieCubit?,
       repository: GetIt.instance<SettingsRepository>(),
+      analytics: GetIt.instance<Analytics>(),
     ),
     child: const AdvancedSettingsPage._(),
   );

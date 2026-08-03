@@ -9,6 +9,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "100.0.0"
+  adtrace_sdk_flutter:
+    dependency: "direct main"
+    description:
+      name: adtrace_sdk_flutter
+      sha256: bfd230cd5f639ca809625b5c9fa9e1eaae305210d6597736f9cae4c05fb0b5c4
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.5.0"
   analyzer:
     dependency: transitive
     description:

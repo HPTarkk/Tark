@@ -1,4 +1,21 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- The analytics SDK (io.adtrace:android-sdk, see lib/core/analytics)
+         merges in three entries that exist purely for ad attribution: the
+         advertising-ID permission, and <queries> probes for whether Facebook
+         and Instagram are installed. We run no ad campaigns, so all three are
+         dead weight — and on an app whose entire promise is that nothing
+         leaves the local link, an AD_ID permission in the store listing and a
+         manifest that scans for social apps read as exactly the tracking we
+         tell people we don't do. Removed at merge time; re-check after any
+         AdTrace version bump in case they add more. -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID"
+        tools:node="remove" />
+    <queries>
+        <package android:name="com.facebook.katana" tools:node="remove" />
+        <package android:name="com.instagram.android" tools:node="remove" />
+    </queries>
+
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- Voice-call audio mode + Bluetooth SCO routing for handsfree headsets. -->
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />

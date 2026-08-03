@@ -18,6 +18,7 @@ class AppSettings extends Equatable {
   final bool autoReconnectEnabled;
   final bool skipSplash;
   final bool usageTipsShown;
+  final bool analyticsEnabled;
 
   const AppSettings({
     required this.myName,
@@ -29,6 +30,7 @@ class AppSettings extends Equatable {
     required this.autoReconnectEnabled,
     required this.skipSplash,
     required this.usageTipsShown,
+    required this.analyticsEnabled,
   });
 
   /// Canonical defaults, including the hands-free-friendly voice combo: VOX
@@ -55,6 +57,13 @@ class AppSettings extends Equatable {
     autoReconnectEnabled: true,
     skipSplash: false,
     usageTipsShown: false,
+    // Opt-out rather than opt-in: an opt-in analytics toggle is enabled by
+    // roughly nobody, which yields data too sparse to act on. The trade is
+    // that it has to be honest — a visible switch in Settings > Privacy, no
+    // personal data collected (see lib/core/analytics/analytics_event.dart:
+    // every attribute is a bucketed enum, never a name or an address), and
+    // it's disclosed in the README and on the website.
+    analyticsEnabled: true,
   );
 
   AppSettings copyWith({
@@ -67,6 +76,7 @@ class AppSettings extends Equatable {
     bool? autoReconnectEnabled,
     bool? skipSplash,
     bool? usageTipsShown,
+    bool? analyticsEnabled,
   }) => AppSettings(
     myName: myName ?? this.myName,
     voxThreshold: voxThreshold ?? this.voxThreshold,
@@ -77,6 +87,7 @@ class AppSettings extends Equatable {
     autoReconnectEnabled: autoReconnectEnabled ?? this.autoReconnectEnabled,
     skipSplash: skipSplash ?? this.skipSplash,
     usageTipsShown: usageTipsShown ?? this.usageTipsShown,
+    analyticsEnabled: analyticsEnabled ?? this.analyticsEnabled,
   );
 
   @override
@@ -90,5 +101,6 @@ class AppSettings extends Equatable {
     autoReconnectEnabled,
     skipSplash,
     usageTipsShown,
+    analyticsEnabled,
   ];
 }

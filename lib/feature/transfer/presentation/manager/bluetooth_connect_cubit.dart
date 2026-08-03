@@ -6,6 +6,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../../../core/analytics/analytics.dart';
+import '../../../../core/analytics/analytics_event.dart';
+import '../../../../core/analytics/pairing_attempt.dart';
 import '../../../../core/recovery/bounded_retry.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/sfx/sfx_event.dart';
@@ -24,6 +27,8 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
   final BluetoothTransport _transport;
   final SettingsRepository _settingsRepository;
   final SfxPlayer _sfx;
+  final Analytics _analytics;
+  late final PairingAttempt _pairing;
 
   StreamSubscription<BluetoothConnectionState>? _connectionSub;
   StreamSubscription<BluetoothPeer>? _scanSub;
@@ -84,10 +89,19 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
 
   StreamSubscription<RetryPhase>? _manualRetrySub;
 
-  BluetoothConnectCubit(this._transport, this._settingsRepository, this._sfx)
-    : super(BluetoothConnectState.initial()) {
+  BluetoothConnectCubit(
+    this._transport,
+    this._settingsRepository,
+    this._sfx,
+    this._analytics,
+  ) : super(BluetoothConnectState.initial()) {
+    _pairing = PairingAttempt(
+      _analytics,
+      transport: AnalyticsTransport.bluetooth,
+    );
     _connectionSub = _transport.connectionState.listen((s) {
       if (s == BluetoothConnectionState.connected) {
+        _pairing.connected();
         _autoAttempt = false;
         _manualRetrying = false;
         _stopAutoJoin();
@@ -418,6 +432,7 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
   }
 
   Future<void> startHosting() async {
+    _pairing.start(PairRole.host);
     _autoAttempt = false;
     _stopAutoJoin();
     emit(
@@ -437,15 +452,31 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
       // surface as an unhandled async error and leave the beacon pulsing over
       // a host that never started.
       Logger.log('Hosting failed to start: $e');
+      // Reported before backToRoleSelection so this specific reason wins:
+      // that method closes the attempt as a plain user cancellation, and
+      // PairingAttempt keeps whichever outcome lands first.
+      _pairing.failed(PairStage.dial, PairFailure.frameworkRefused);
       if (!isClosed) backToRoleSelection();
     }
   }
 
   Future<void> startScanning() async {
+    _pairing.start(PairRole.joiner);
     _autoAttempt = false;
     _stopAutoJoin();
     emit(state.copyWith(role: BluetoothRole.joiner, peers: const []));
     await _listenToScan();
+  }
+
+  /// The user tapped a role but declined the Bluetooth permissions.
+  ///
+  /// Opened and closed in one go on purpose: they did attempt to pair, and
+  /// the funnel should show the attempt dying at the permission gate rather
+  /// than never having happened. On Android 12+ this is one of the likeliest
+  /// ways pairing fails, and it is invisible from anywhere else.
+  void reportPermissionBlocked(PairRole role) {
+    _pairing.start(role);
+    _pairing.failed(PairStage.permission, PairFailure.permissionDenied);
   }
 
   Future<void> _listenToScan({String? autoConnectId}) async {
@@ -588,6 +619,7 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
     }
     // Out of automatic attempts. NOW the error card is the honest answer, and
     // the user has lost nothing but a few seconds getting here.
+    _pairing.failed(PairStage.dial, PairFailure.dialRefused);
     _sfx.play(SfxEvent.error);
     emit(
       state.copyWith(
@@ -619,6 +651,7 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
   Future<void> reconnectToLast() async {
     final peer = state.lastPeer;
     if (peer == null) return;
+    _pairing.start(PairRole.joiner);
 
     if (!peer.isBle) {
       emit(
@@ -653,6 +686,7 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
       }
       if (_autoAttempt) {
         // The background attempt ran out of time — give up quietly.
+        _pairing.failed(PairStage.discover, PairFailure.discoverTimeout);
         backToRoleSelection();
       } else {
         // Peer never showed up — fall back to a normal scan so the user can
@@ -663,6 +697,11 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
   }
 
   void backToRoleSelection() {
+    // The catch-all outcome for an attempt in flight: whoever had a more
+    // specific reason (permission, dial, timeout) already reported it, and
+    // PairingAttempt ignores this second call. What's left really is the
+    // user backing out.
+    _pairing.failed(PairStage.discover, PairFailure.userCancelled);
     _autoAttempt = false;
     _stopAutoJoin();
     _stopManualRetry();
@@ -682,6 +721,10 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
 
   @override
   Future<void> close() async {
+    // Not reported as a failure: this screen closes on the way INTO a
+    // connected session, and the cold-start auto-reconnect keeps working in
+    // the background after the user navigates away.
+    _pairing.abandon();
     _stopAutoJoin();
     _stopManualRetry();
     await _manualRetrySub?.cancel();

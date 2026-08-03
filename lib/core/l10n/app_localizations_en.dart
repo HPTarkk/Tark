@@ -807,6 +807,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_skip_splash_desc => 'Jump straight into the app';
 
   @override
+  String get settings_section_privacy => 'PRIVACY';
+
+  @override
+  String get settings_analytics => 'Anonymous usage stats';
+
+  @override
+  String get settings_analytics_desc =>
+      'Helps us fix what breaks. No names, no audio, no contacts — just which connections work and where they fail.';
+
+  @override
   String get usage_tips_title => 'Get the most out of TarkK';
 
   @override

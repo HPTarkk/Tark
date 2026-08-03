@@ -48,6 +48,12 @@ abstract interface class SettingsRepository {
   Future<bool> getUsageTipsShown();
   Future<void> setUsageTipsShown(bool value);
 
+  /// Whether anonymous product analytics may be collected (Settings >
+  /// Privacy). Read once at startup — see AdTraceAnalytics.start, which
+  /// declines to initialise the SDK at all when this is false.
+  Future<bool> getAnalyticsEnabled();
+  Future<void> setAnalyticsEnabled(bool value);
+
   // Not part of AppSettings/loadAll() — each of these already has its own
   // narrow, purpose-built owner (BluetoothConnectCubit's "reconnect to last
   // session" shortcut, the background-permission banner's dismissal flag);

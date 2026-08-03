@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/analytics/analytics.dart';
+import '../../../../core/analytics/analytics_event.dart';
 import '../../../../core/settings/noise_suppression_engine.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../walkie/api/walkie_api.dart';
@@ -27,6 +29,7 @@ import '../../../walkie/api/walkie_api.dart';
 class SettingsCubit extends Cubit<SettingsState> {
   final WalkieTalkieCubit? _liveSession;
   final SettingsRepository _repository;
+  final Analytics _analytics;
   StreamSubscription<WalkieTalkieState>? _liveSub;
 
   /// The borrowed live-session cubit (if any), so the Settings page can
@@ -37,8 +40,10 @@ class SettingsCubit extends Cubit<SettingsState> {
   SettingsCubit({
     WalkieTalkieCubit? liveSession,
     required SettingsRepository repository,
+    required Analytics analytics,
   }) : _liveSession = liveSession,
        _repository = repository,
+       _analytics = analytics,
        super(SettingsState.initial(isLive: liveSession != null)) {
     _init();
   }
@@ -80,6 +85,7 @@ class SettingsCubit extends Cubit<SettingsState> {
               targetBufferMs: all.targetBufferMs,
               autoReconnectEnabled: all.autoReconnectEnabled,
               skipSplash: all.skipSplash,
+              analyticsEnabled: all.analyticsEnabled,
             )
           : state.copyWith(
               myName: all.myName,
@@ -89,6 +95,7 @@ class SettingsCubit extends Cubit<SettingsState> {
               targetBufferMs: all.targetBufferMs,
               autoReconnectEnabled: all.autoReconnectEnabled,
               skipSplash: all.skipSplash,
+              analyticsEnabled: all.analyticsEnabled,
             ),
     );
   }
@@ -139,6 +146,7 @@ class SettingsCubit extends Cubit<SettingsState> {
   /// suppression and jitter-buffer delay (the recommended hands-free combo:
   /// VOX wide open, noise suppression at full strength to compensate).
   Future<void> restoreVoiceDefaults() async {
+    _analytics.track(AnalyticsEvent.featureUsed(AppFeature.voiceDefaults));
     final (vox, noise, buffer) = await _repository.restoreVoiceDefaults();
     final live = _liveSession;
     if (live != null) {
@@ -182,6 +190,22 @@ class SettingsCubit extends Cubit<SettingsState> {
     await _repository.setSkipSplash(enabled);
   }
 
+  /// For the rows that are a single deliberate tap rather than a session-long
+  /// mode — pinning the home-screen widget, replaying the intro. No
+  /// once-per-session guard like the channel screen's: these are navigations
+  /// nobody performs twice in a sitting.
+  void recordFeatureUsed(AppFeature feature) =>
+      _analytics.track(AnalyticsEvent.featureUsed(feature));
+
+  /// Takes effect immediately, not on next launch: switching off stops
+  /// uploads from the running SDK, and switching on starts an SDK that this
+  /// launch skipped. Persisting is what makes it stick across launches.
+  Future<void> setAnalyticsEnabled(bool enabled) async {
+    emit(state.copyWith(analyticsEnabled: enabled));
+    await _repository.setAnalyticsEnabled(enabled);
+    await _analytics.setEnabled(enabled);
+  }
+
   @override
   Future<void> close() {
     // _liveSession is a borrowed reference — WalkieTalkiePage's own
@@ -200,6 +224,7 @@ class SettingsState extends Equatable {
   final int targetBufferMs;
   final bool autoReconnectEnabled;
   final bool skipSplash;
+  final bool analyticsEnabled;
 
   const SettingsState({
     required this.isLive,
@@ -210,6 +235,7 @@ class SettingsState extends Equatable {
     required this.targetBufferMs,
     required this.autoReconnectEnabled,
     required this.skipSplash,
+    required this.analyticsEnabled,
   });
 
   factory SettingsState.initial({required bool isLive}) => SettingsState(
@@ -221,6 +247,7 @@ class SettingsState extends Equatable {
     targetBufferMs: 60,
     autoReconnectEnabled: true,
     skipSplash: false,
+    analyticsEnabled: true,
   );
 
   SettingsState copyWith({
@@ -231,6 +258,7 @@ class SettingsState extends Equatable {
     int? targetBufferMs,
     bool? autoReconnectEnabled,
     bool? skipSplash,
+    bool? analyticsEnabled,
   }) => SettingsState(
     isLive: isLive,
     myName: myName ?? this.myName,
@@ -241,6 +269,7 @@ class SettingsState extends Equatable {
     targetBufferMs: targetBufferMs ?? this.targetBufferMs,
     autoReconnectEnabled: autoReconnectEnabled ?? this.autoReconnectEnabled,
     skipSplash: skipSplash ?? this.skipSplash,
+    analyticsEnabled: analyticsEnabled ?? this.analyticsEnabled,
   );
 
   @override
@@ -253,5 +282,6 @@ class SettingsState extends Equatable {
     targetBufferMs,
     autoReconnectEnabled,
     skipSplash,
+    analyticsEnabled,
   ];
 }
