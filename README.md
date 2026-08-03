@@ -7,6 +7,8 @@ Cross-platform: **Android ↔ Android, iPhone ↔ iPhone, and Android ↔ iPhone
 **Website: [tarkk.ir](https://tarkk.ir)** — what it does, how the link is made, and the Android download.
 **Join from a browser: [app.tarkk.ir](https://app.tarkk.ir)** — the guest client, no install.
 
+Current release: **1.0.8-beta.1** (first beta) — see [CHANGELOG.md](CHANGELOG.md).
+
 ---
 
 Copyright (c) 2026 Tarkk
