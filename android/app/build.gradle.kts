@@ -101,4 +101,9 @@ dependencies {
     // unreachable through it. The SDK underneath exposes
     // launchSubscriptionPurchaseFlow — this app binds to that itself.
     implementation("com.github.myketstore:myket-billing-client:1.19")
+
+    // Phone side of the Galaxy Watch companion. The watch and handheld use
+    // MessageClient for low-latency room controls and status requests; voice
+    // audio never enters the Data Layer.
+    implementation("com.google.android.gms:play-services-wearable:20.0.1")
 }
