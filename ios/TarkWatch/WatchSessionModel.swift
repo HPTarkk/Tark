@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import WatchConnectivity
 
@@ -68,7 +69,8 @@ final class WatchSessionModel: NSObject, ObservableObject {
   func send(_ action: String) {
     guard session.activationState == .activated, session.isReachable else { return }
     session.sendMessage(["type": "action", "action": action], replyHandler: nil) { _ in }
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+    Task { @MainActor [weak self] in
+      try? await Task.sleep(for: .milliseconds(250))
       self?.requestState()
     }
   }
