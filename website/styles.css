@@ -1865,6 +1865,15 @@ html.is-ios .nav-inner {
   margin-top: 34px;
 }
 
+/* Reads as a postscript to the download block, not a second pitch: smaller
+   heading than a real section, and no primary button anywhere in it. */
+.support { text-align: center; padding-top: 0; }
+/* Wide enough that the English heading stays on one line at desktop — at
+   ~20ch it broke with a single orphaned word on the second line. */
+.support h2 { max-width: 30ch; margin: 0 auto 18px; font-size: clamp(1.5rem, 3.4vw, 2.1rem); }
+.support p { color: var(--text-sec); max-width: 60ch; margin: 0 auto; }
+.support-cta { margin-top: 28px; }
+
 footer {
   border-top: 1px solid var(--border);
   padding: 44px calc(24px + env(safe-area-inset-right, 0px))

@@ -307,6 +307,24 @@ flutter build apk --release --dart-define=ADTRACE_TOKEN=
 
 ---
 
+## Support the project
+
+Every feature is unlocked — Bluetooth, Wi-Fi, hotspot, music cast, all of it.
+Nothing in the app asks you for money.
+
+Development still costs something, though: test devices to reproduce the radio
+bugs that only show up on one specific phone, a domain, and the hosting behind
+[app.tarkk.ir](https://app.tarkk.ir). If Tark is useful to you and you'd like
+to help with that:
+
+**[reymit.ir/tark](https://reymit.ir/tark)**
+
+Any amount is genuinely useful, and not donating changes nothing about what
+you get. Reporting a bug with enough detail to reproduce it is worth just as
+much — see [ISSUE_TEMPLATE](.github/ISSUE_TEMPLATE).
+
+---
+
 ## License
 
 See [LICENSE](LICENSE).

@@ -1,0 +1,11 @@
+# Renders the "Sponsor" button on the repo header and in the issue/PR sidebar.
+#
+# `custom` rather than one of the named platforms on purpose: GitHub Sponsors,
+# Ko-fi, Patreon, Open Collective and Buy Me a Coffee all settle through
+# Stripe or PayPal, and neither can pay out to an Iranian account. Reymit is
+# on domestic rails, so it is the one that actually works here — the same
+# reason analytics runs on AdTrace rather than Firebase.
+#
+# Holds up to 4 URLs if a second channel is ever added.
+custom:
+  - "https://reymit.ir/tark"
