@@ -9,6 +9,7 @@ import com.b1101.tark.bluetooth.BluetoothServerHandler
 import com.b1101.tark.hotspot.HotspotHandler
 import com.b1101.tark.hotspot.WifiJoinHandler
 import com.b1101.tark.keepalive.KeepAliveHandler
+import com.b1101.tark.watch.WatchCompanionBridge
 import com.b1101.tark.widget.WidgetControlBridge
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -22,6 +23,7 @@ class MainActivity : FlutterActivity() {
     private var keepAliveHandler: KeepAliveHandler? = null
     private var audioSessionHandler: AudioSessionHandler? = null
     private var billingHandler: BillingHandler? = null
+    private var watchCompanionBridge: WatchCompanionBridge? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -106,17 +108,19 @@ class MainActivity : FlutterActivity() {
             BillingHandler.CHANNEL,
         ).setMethodCallHandler(billing)
 
-        // Outbound only: the home-screen widget's mute/end buttons call INTO
-        // Dart through this, from TarkWidgetControlReceiver. Registering the
-        // channel here is what makes those buttons work without opening the
-        // app — while a session is live the process is held up by the
-        // keep-alive service, so this engine is still around to receive them.
+        // Outbound only: the home-screen widget and paired watches call INTO
+        // Dart through this while the live session's keep-alive service keeps
+        // the engine available.
         WidgetControlBridge.attach(
             MethodChannel(
                 flutterEngine.dartExecutor.binaryMessenger,
                 WidgetControlBridge.CHANNEL,
             ),
         )
+
+        watchCompanionBridge = WatchCompanionBridge(applicationContext).also {
+            it.attach()
+        }
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -130,8 +134,10 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
-        // Leaves the widget's control taps with nothing to dispatch to, which
-        // is what tells TarkWidgetControlReceiver the session is gone.
+        watchCompanionBridge?.detach()
+        watchCompanionBridge = null
+        // Leaves widget/watch control taps with nothing to dispatch to, which
+        // is what tells the native clients the session is gone.
         WidgetControlBridge.detach()
         bluetoothServerHandler?.stopHosting()
         hotspotHandler?.stop()
