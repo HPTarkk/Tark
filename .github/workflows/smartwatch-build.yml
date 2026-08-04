@@ -24,10 +24,15 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Java 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
+
+      - name: Set up Gradle 8.14
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.14"
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -45,25 +50,22 @@ jobs:
           FLUTTER_ROOT="$(dirname "$(dirname "$(command -v flutter)")")"
           echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
 
-      - name: Format branch Dart files
-        run: |
-          dart format \
-            lib/app/my_app.dart \
-            lib/core/home_widget/widget_control_channel.dart
-          git diff -- \
-            lib/app/my_app.dart \
-            lib/core/home_widget/widget_control_channel.dart
+      - name: Check Dart formatting
+        run: >-
+          dart format --output=none --set-exit-if-changed
+          lib/app/my_app.dart
+          lib/core/home_widget/widget_control_channel.dart
 
       - name: Flutter analyze
         run: flutter analyze
 
       - name: Build Galaxy Watch debug APK
         working-directory: android
-        run: ./gradlew :wear:assembleDebug --stacktrace
+        run: gradle :wear:assembleDebug --stacktrace
 
       - name: Compile handheld Android bridge
         working-directory: android
-        run: ./gradlew :app:compileDebugKotlin --stacktrace
+        run: gradle :app:compileDebugKotlin --stacktrace
 
       - name: Upload Galaxy Watch APK
         uses: actions/upload-artifact@v4
