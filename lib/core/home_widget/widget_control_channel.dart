@@ -3,11 +3,15 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:injectable/injectable.dart';
 
-/// A control the user pressed on the home-screen widget while a session was
-/// live, delivered without the app ever coming to the foreground.
+/// A control the user pressed on the home-screen widget or smartwatch while a
+/// session was live, delivered without bringing the app to the foreground.
 enum WidgetControlAction {
   /// MUTE / UNMUTE — handled by the running [WalkieTalkieCubit].
   toggleMute,
+
+  /// Retry the active transport immediately. Smartwatches expose this beside
+  /// mute so a rider can heal a degraded room without touching the phone.
+  retryConnection,
 
   /// END — handled at app level (see MyApp), because leaving the channel is
   /// a navigation: routing back to Landing disposes the cubit, and its
@@ -15,12 +19,8 @@ enum WidgetControlAction {
   endSession,
 }
 
-/// Inbound half of the widget bridge: Android's widget buttons calling into
-/// Dart.
-///
-/// Android-only by nature — iOS widgets can't reach a backgrounded app, so
-/// their controls deep-link instead. On every other platform this simply
-/// never emits.
+/// Inbound half of the native control bridge: Android's widget and Wear OS
+/// buttons, plus the iPhone's WatchConnectivity coordinator, calling into Dart.
 abstract interface class WidgetControlChannel {
   Stream<WidgetControlAction> get actions;
 
@@ -30,10 +30,12 @@ abstract interface class WidgetControlChannel {
 @LazySingleton(as: WidgetControlChannel)
 class WidgetControlChannelImpl implements WidgetControlChannel {
   WidgetControlChannelImpl() {
-    // Matches WidgetControlBridge.CHANNEL on the Kotlin side.
+    // Matches WidgetControlBridge.CHANNEL on Android and the control channel
+    // created in AppDelegate on iOS.
     const MethodChannel('tark/widget_control').setMethodCallHandler((call) async {
       final action = switch (call.method) {
         'toggleMute' => WidgetControlAction.toggleMute,
+        'retryConnection' => WidgetControlAction.retryConnection,
         'endSession' => WidgetControlAction.endSession,
         _ => null,
       };
