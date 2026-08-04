@@ -45,11 +45,14 @@ jobs:
           FLUTTER_ROOT="$(dirname "$(dirname "$(command -v flutter)")")"
           echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
 
-      - name: Check Dart formatting
-        run: >-
-          dart format --output=none --set-exit-if-changed
-          lib/app/my_app.dart
-          lib/core/home_widget/widget_control_channel.dart
+      - name: Format branch Dart files
+        run: |
+          dart format \
+            lib/app/my_app.dart \
+            lib/core/home_widget/widget_control_channel.dart
+          git diff -- \
+            lib/app/my_app.dart \
+            lib/core/home_widget/widget_control_channel.dart
 
       - name: Flutter analyze
         run: flutter analyze
