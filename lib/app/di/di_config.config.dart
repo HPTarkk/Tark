@@ -16,6 +16,10 @@ import 'package:shared_preferences/shared_preferences.dart' as _i460;
 import 'package:tark/app/di/di_config.dart' as _i250;
 import 'package:tark/core/analytics/adtrace_analytics.dart' as _i822;
 import 'package:tark/core/analytics/analytics.dart' as _i4;
+import 'package:tark/core/entitlement/billing_service.dart' as _i547;
+import 'package:tark/core/entitlement/entitlement_store.dart' as _i721;
+import 'package:tark/core/entitlement/entitlement_store_impl.dart' as _i165;
+import 'package:tark/core/entitlement/license_gate.dart' as _i52;
 import 'package:tark/core/home_widget/home_widget_service.dart' as _i590;
 import 'package:tark/core/home_widget/home_widget_service_impl.dart' as _i828;
 import 'package:tark/core/home_widget/widget_control_channel.dart' as _i970;
@@ -81,6 +85,7 @@ extension GetItInjectableX on _i174.GetIt {
   }) async {
     final gh = _i526.GetItHelper(this, environment, environmentFilter);
     final registerThirdParty = _$RegisterThirdParty();
+    final billingModule = _$BillingModule();
     final transferModule = _$TransferModule();
     await gh.factoryAsync<_i460.SharedPreferences>(
       () => registerThirdParty.prefs,
@@ -89,6 +94,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i462.NeHotspotJoiner>(() => _i462.NeHotspotJoiner());
     gh.factory<_i462.AndroidWifiJoiner>(() => _i462.AndroidWifiJoiner());
     gh.lazySingleton<_i891.AudioIo>(() => registerThirdParty.audioIo);
+    gh.lazySingleton<_i547.BillingService>(
+      () => billingModule.billingService(),
+    );
     gh.lazySingleton<_i990.DeviceIdentity>(() => _i990.DeviceIdentity());
     gh.lazySingleton<_i970.WidgetControlChannel>(
       () => _i970.WidgetControlChannelImpl(),
@@ -110,6 +118,9 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i828.HomeWidgetServiceImpl(gh<_i460.SharedPreferences>()),
       dispose: (i) => i.dispose(),
     );
+    gh.lazySingleton<_i721.EntitlementStore>(
+      () => _i165.EntitlementStoreImpl(gh<_i460.SharedPreferences>()),
+    );
     gh.lazySingleton<_i794.HotspotJoiner>(
       () => _i462.PlatformHotspotJoiner(
         gh<_i462.NeHotspotJoiner>(),
@@ -121,14 +132,11 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i482.WebRtcTransferRepository>(),
       ),
     );
-    gh.lazySingleton<_i517.TransferModeStore>(
-      () => _i290.TransferModeStoreImpl(
-        gh<_i460.SharedPreferences>(),
-        gh<_i293.SessionRoleStore>(),
-      ),
-    );
     gh.lazySingleton<_i349.SettingsRepository>(
       () => _i632.SettingsRepositoryImpl(gh<_i460.SharedPreferences>()),
+    );
+    gh.lazySingleton<_i52.LicenseGate>(
+      () => _i52.LicenseGateImpl(gh<_i721.EntitlementStore>()),
     );
     gh.lazySingleton<_i1043.WifiTransferRepository>(
       () => _i627.WifiTransferRepositoryImpl(
@@ -141,6 +149,13 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i876.AudioEngineImpl(
         gh<_i891.AudioIo>(),
         gh<_i349.SettingsRepository>(),
+      ),
+    );
+    gh.lazySingleton<_i517.TransferModeStore>(
+      () => _i290.TransferModeStoreImpl(
+        gh<_i460.SharedPreferences>(),
+        gh<_i293.SessionRoleStore>(),
+        gh<_i52.LicenseGate>(),
       ),
     );
     gh.lazySingleton<_i4.Analytics>(
@@ -229,6 +244,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i991.HotspotLinkKeeper>(),
         gh<_i431.HotspotJoiner>(),
         gh<_i4.Analytics>(),
+        gh<_i52.LicenseGate>(),
       ),
     );
     return this;
@@ -236,5 +252,7 @@ extension GetItInjectableX on _i174.GetIt {
 }
 
 class _$RegisterThirdParty extends _i250.RegisterThirdParty {}
+
+class _$BillingModule extends _i250.BillingModule {}
 
 class _$TransferModule extends _i250.TransferModule {}

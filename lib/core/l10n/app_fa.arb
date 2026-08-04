@@ -335,5 +335,22 @@
     "fix_reconnect": "اتصال دوباره",
     "retry_still_trying": "هنوز دارم تلاش می‌کنم...",
     "bt_still_trying": "هنوز دارم دنبالشون می‌گردم...",
-    "hotspot_still_trying": "هنوز دارم راهش می‌ندازم..."
+    "hotspot_still_trying": "هنوز دارم راهش می‌ندازم...",
+    "premium_badge": "ویژه",
+    "paywall_title": "نسخه ویژه",
+    "paywall_locked_wifi": "وای‌فای، هات‌اسپات و مهمان توی نسخه ویژه‌ان",
+    "paywall_locked_mute": "ساکت کردن خودت توی نسخه ویژه‌ست",
+    "paywall_locked_music": "پخش آهنگ توی نسخه ویژه‌ست",
+    "paywall_trial_left": "{days} روز از دوره آزمایشیت مونده",
+    "paywall_trial_over": "دوره آزمایشیت تموم شد",
+    "paywall_free_note": "بلوتوث همیشه رایگان می‌مونه",
+    "paywall_unavailable": "فعلاً امکان خرید توی این نسخه نیست",
+    "paywall_restore": "خریدم رو برگردون",
+    "paywall_restored": "نسخه ویژه فعال شد",
+    "paywall_restore_none": "خریدی پیدا نشد",
+    "paywall_close": "بعداً",
+    "paywall_plan_1m": "یک ماهه",
+    "paywall_plan_6m": "شش ماهه",
+    "paywall_plan_12m": "یک ساله",
+    "paywall_plan_lifetime": "دائمی"
 }

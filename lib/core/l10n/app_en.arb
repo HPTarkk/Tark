@@ -335,5 +335,22 @@
     "fix_reconnect": "RECONNECT",
     "retry_still_trying": "Still trying...",
     "bt_still_trying": "Still trying to reach them...",
-    "hotspot_still_trying": "Still setting it up..."
+    "hotspot_still_trying": "Still setting it up...",
+    "premium_badge": "PREMIUM",
+    "paywall_title": "GO PREMIUM",
+    "paywall_locked_wifi": "Wi-Fi, Hotspot and Guest are premium",
+    "paywall_locked_mute": "Muting yourself is premium",
+    "paywall_locked_music": "Sharing music is premium",
+    "paywall_trial_left": "{days} days left in your trial",
+    "paywall_trial_over": "Your trial has ended",
+    "paywall_free_note": "Bluetooth stays free, always",
+    "paywall_unavailable": "Purchases aren't available in this build yet",
+    "paywall_restore": "RESTORE PURCHASE",
+    "paywall_restored": "Premium restored",
+    "paywall_restore_none": "Nothing to restore",
+    "paywall_close": "NOT NOW",
+    "paywall_plan_1m": "1 MONTH",
+    "paywall_plan_6m": "6 MONTHS",
+    "paywall_plan_12m": "1 YEAR",
+    "paywall_plan_lifetime": "LIFETIME"
 }

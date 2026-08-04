@@ -1,7 +1,13 @@
+import 'dart:io' show Platform;
+
 import 'package:audio_io/audio_io.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:get_it/get_it.dart';
 import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../core/entitlement/billing_service.dart';
+import '../../core/entitlement/myket_billing_service.dart';
 
 import '../../feature/transfer/data/repository/bluetooth_transfer_repository.dart';
 import '../../feature/transfer/data/repository/webrtc_transfer_repository.dart';
@@ -28,6 +34,18 @@ abstract class RegisterThirdParty {
   /// receives this instance instead of calling getInstance() itself.
   @preResolve
   Future<SharedPreferences> get prefs => SharedPreferences.getInstance();
+}
+
+@module
+abstract class BillingModule {
+  /// Android is the only platform with a store behind it (Bazaar and Myket
+  /// are Android-only), so everywhere else takes the stub and LicenseGate
+  /// runs unlocked. Resolved once, at graph build time — the platform does
+  /// not change under a running process.
+  @lazySingleton
+  BillingService billingService() => (!kIsWeb && Platform.isAndroid)
+      ? MyketBillingService()
+      : const UnavailableBillingService();
 }
 
 @module

@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 
+import '../../../../core/entitlement/license_gate.dart';
+import '../../../../core/entitlement/paywall_sheet.dart';
+import '../../../../core/entitlement/premium_feature.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -105,6 +108,11 @@ class _IdleBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
+    // Only the start path is gated — stopping stays free, and the live card
+    // (_LiveBody) is never reachable without entitlement in the first place.
+    final locked = !GetIt.instance<LicenseGate>().allows(
+      PremiumFeature.musicPlayback,
+    );
     return Column(
       children: [
         Row(
@@ -127,8 +135,13 @@ class _IdleBody extends StatelessWidget {
         GestureDetector(
           onTap: starting
               ? null
-              : () =>
-                    context.read<WalkieTalkieCubit>().toggleShareSystemAudio(),
+              : () {
+                  if (locked) {
+                    showPaywallSheet(context, PremiumFeature.musicPlayback);
+                    return;
+                  }
+                  context.read<WalkieTalkieCubit>().toggleShareSystemAudio();
+                },
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             width: double.infinity,
@@ -155,7 +168,7 @@ class _IdleBody extends StatelessWidget {
                   )
                 else
                   Icon(
-                    Icons.podcasts_rounded,
+                    locked ? Icons.lock_rounded : Icons.podcasts_rounded,
                     color: AppColors.amber,
                     size: 17,
                   ),

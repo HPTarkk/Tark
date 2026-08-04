@@ -3,6 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/entitlement/license_gate.dart';
+import '../../../../core/entitlement/paywall_sheet.dart';
+import '../../../../core/entitlement/premium_feature.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -14,6 +17,15 @@ import '../manager/bluetooth_connect_cubit.dart';
 /// Wi-Fi hotspot bridge, and navigates there — the escape hatch for
 /// iPhone↔Android pairs where Bluetooth is flaky.
 Future<void> _switchToHotspot(BuildContext context) async {
+  // Checked before anything is torn down. Without it setMode's own backstop
+  // refuses the switch and we would still navigate — landing the user on the
+  // hotspot page with the Bluetooth transport underneath it, and their
+  // Bluetooth session already dropped.
+  if (!GetIt.instance<LicenseGate>().allows(PremiumFeature.wifiTransport)) {
+    await showPaywallSheet(context, PremiumFeature.wifiTransport);
+    return;
+  }
+  if (!context.mounted) return;
   context.read<BluetoothConnectCubit>().backToRoleSelection();
   await GetIt.instance<TransferModeStore>().setMode(TransferMode.hotspot);
   if (context.mounted) {

@@ -2119,6 +2119,108 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'هنوز دارم راهش می‌ندازم...'**
   String get hotspot_still_trying;
+
+  /// No description provided for @premium_badge.
+  ///
+  /// In fa, this message translates to:
+  /// **'ویژه'**
+  String get premium_badge;
+
+  /// No description provided for @paywall_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'نسخه ویژه'**
+  String get paywall_title;
+
+  /// No description provided for @paywall_locked_wifi.
+  ///
+  /// In fa, this message translates to:
+  /// **'وای‌فای، هات‌اسپات و مهمان توی نسخه ویژه‌ان'**
+  String get paywall_locked_wifi;
+
+  /// No description provided for @paywall_locked_mute.
+  ///
+  /// In fa, this message translates to:
+  /// **'ساکت کردن خودت توی نسخه ویژه‌ست'**
+  String get paywall_locked_mute;
+
+  /// No description provided for @paywall_locked_music.
+  ///
+  /// In fa, this message translates to:
+  /// **'پخش آهنگ توی نسخه ویژه‌ست'**
+  String get paywall_locked_music;
+
+  /// No description provided for @paywall_trial_left.
+  ///
+  /// In fa, this message translates to:
+  /// **'{days} روز از دوره آزمایشیت مونده'**
+  String paywall_trial_left(Object days);
+
+  /// No description provided for @paywall_trial_over.
+  ///
+  /// In fa, this message translates to:
+  /// **'دوره آزمایشیت تموم شد'**
+  String get paywall_trial_over;
+
+  /// No description provided for @paywall_free_note.
+  ///
+  /// In fa, this message translates to:
+  /// **'بلوتوث همیشه رایگان می‌مونه'**
+  String get paywall_free_note;
+
+  /// No description provided for @paywall_unavailable.
+  ///
+  /// In fa, this message translates to:
+  /// **'فعلاً امکان خرید توی این نسخه نیست'**
+  String get paywall_unavailable;
+
+  /// No description provided for @paywall_restore.
+  ///
+  /// In fa, this message translates to:
+  /// **'خریدم رو برگردون'**
+  String get paywall_restore;
+
+  /// No description provided for @paywall_restored.
+  ///
+  /// In fa, this message translates to:
+  /// **'نسخه ویژه فعال شد'**
+  String get paywall_restored;
+
+  /// No description provided for @paywall_restore_none.
+  ///
+  /// In fa, this message translates to:
+  /// **'خریدی پیدا نشد'**
+  String get paywall_restore_none;
+
+  /// No description provided for @paywall_close.
+  ///
+  /// In fa, this message translates to:
+  /// **'بعداً'**
+  String get paywall_close;
+
+  /// No description provided for @paywall_plan_1m.
+  ///
+  /// In fa, this message translates to:
+  /// **'یک ماهه'**
+  String get paywall_plan_1m;
+
+  /// No description provided for @paywall_plan_6m.
+  ///
+  /// In fa, this message translates to:
+  /// **'شش ماهه'**
+  String get paywall_plan_6m;
+
+  /// No description provided for @paywall_plan_12m.
+  ///
+  /// In fa, this message translates to:
+  /// **'یک ساله'**
+  String get paywall_plan_12m;
+
+  /// No description provided for @paywall_plan_lifetime.
+  ///
+  /// In fa, this message translates to:
+  /// **'دائمی'**
+  String get paywall_plan_lifetime;
 }
 
 class _AppLocalizationsDelegate

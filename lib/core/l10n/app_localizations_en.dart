@@ -1124,4 +1124,58 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get hotspot_still_trying => 'Still setting it up...';
+
+  @override
+  String get premium_badge => 'PREMIUM';
+
+  @override
+  String get paywall_title => 'GO PREMIUM';
+
+  @override
+  String get paywall_locked_wifi => 'Wi-Fi, Hotspot and Guest are premium';
+
+  @override
+  String get paywall_locked_mute => 'Muting yourself is premium';
+
+  @override
+  String get paywall_locked_music => 'Sharing music is premium';
+
+  @override
+  String paywall_trial_left(Object days) {
+    return '$days days left in your trial';
+  }
+
+  @override
+  String get paywall_trial_over => 'Your trial has ended';
+
+  @override
+  String get paywall_free_note => 'Bluetooth stays free, always';
+
+  @override
+  String get paywall_unavailable =>
+      'Purchases aren\'t available in this build yet';
+
+  @override
+  String get paywall_restore => 'RESTORE PURCHASE';
+
+  @override
+  String get paywall_restored => 'Premium restored';
+
+  @override
+  String get paywall_restore_none => 'Nothing to restore';
+
+  @override
+  String get paywall_close => 'NOT NOW';
+
+  @override
+  String get paywall_plan_1m => '1 MONTH';
+
+  @override
+  String get paywall_plan_6m => '6 MONTHS';
+
+  @override
+  String get paywall_plan_12m => '1 YEAR';
+
+  @override
+  String get paywall_plan_lifetime => 'LIFETIME';
 }

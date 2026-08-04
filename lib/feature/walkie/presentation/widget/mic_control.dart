@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 
+import '../../../../core/entitlement/license_gate.dart';
+import '../../../../core/entitlement/paywall_sheet.dart';
+import '../../../../core/entitlement/premium_feature.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/section_header.dart';
@@ -40,9 +44,21 @@ class MicControl extends StatefulWidget {
 }
 
 class _MicControlState extends State<MicControl> {
+  final LicenseGate _gate = GetIt.instance<LicenseGate>();
   bool _pressed = false;
 
+  /// Locked only in the live→muted direction: going back on air is never
+  /// gated, so a lapsed entitlement can't strand anyone silent. Mirrors the
+  /// guard in [WalkieTalkieCubit.toggleSelfMute].
+  bool _lockedFor(bool muted) =>
+      !muted && !_gate.allows(PremiumFeature.selfMute);
+
   void _toggle(BuildContext context) {
+    final muted = context.read<WalkieTalkieCubit>().state.isSelfMuted;
+    if (_lockedFor(muted)) {
+      showPaywallSheet(context, PremiumFeature.selfMute);
+      return;
+    }
     HapticFeedback.selectionClick();
     context.read<WalkieTalkieCubit>().toggleSelfMute();
   }
@@ -140,6 +156,14 @@ class _MicControlState extends State<MicControl> {
                         ),
                       ),
                       const SizedBox(width: 8),
+                      if (_lockedFor(muted)) ...[
+                        Icon(
+                          Icons.lock_rounded,
+                          size: 13,
+                          color: AppColors.amber.withAlpha(200),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
                       _ActionChip(muted: muted, accent: accent),
                     ],
                   ),

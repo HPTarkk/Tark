@@ -27,4 +27,14 @@ abstract final class SettingsKeys {
   static const btLastRole = 'bt_last_role';
   static const musicCastNotifHintDismissed = 'music_cast_notif_hint_dismissed';
   static const sfxEnabled = 'sfx_enabled';
+
+  // Owned by EntitlementStore (see core/entitlement/). Never write these
+  // from anywhere else — the paid boundary has exactly one writer.
+  static const entitlementSource = 'entitlement_source';
+  static const entitlementExpiresAt = 'entitlement_expires_at';
+  static const trialStartedAt = 'trial_started_at';
+
+  /// Highest wall-clock instant ever observed, in epoch ms. Guards the trial
+  /// against a device date wound backwards; see EntitlementStoreImpl.now.
+  static const clockHighWaterMark = 'clock_high_water_mark';
 }

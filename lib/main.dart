@@ -10,6 +10,8 @@ import 'app/router/app_router.dart';
 import 'app/router/quick_access.dart';
 import 'core/analytics/analytics.dart';
 import 'core/config/onboarding_config.dart';
+import 'core/entitlement/billing_probe.dart';
+import 'core/entitlement/entitlement_store.dart';
 import 'core/home_widget/home_widget_service.dart';
 import 'core/home_widget/home_widget_snapshot.dart';
 import 'core/locale/locale_service.dart';
@@ -50,6 +52,13 @@ void main() async {
   // critical path to the first frame. It reads the opt-out flag itself and
   // does nothing at all if the user turned it off.
   unawaited(GetIt.instance<Analytics>().start());
+  // Strictly before the mode store below: that one asks LicenseGate whether
+  // the persisted transport is still paid for, and on a genuinely first
+  // launch this call is what starts the trial clock.
+  await GetIt.instance<EntitlementStore>().initialize();
+  // No-op unless TARK_LOCK_PREMIUM is set, and never on the critical path to
+  // the first frame — it binds to the Myket service, which can be slow.
+  unawaited(BillingProbe.run());
   // Must complete before the first page builds: the DI factory that picks
   // the active TransferRepository reads the persisted mode synchronously.
   final modeStore = GetIt.instance<TransferModeStore>();

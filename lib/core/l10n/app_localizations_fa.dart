@@ -1120,4 +1120,58 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get hotspot_still_trying => 'هنوز دارم راهش می‌ندازم...';
+
+  @override
+  String get premium_badge => 'ویژه';
+
+  @override
+  String get paywall_title => 'نسخه ویژه';
+
+  @override
+  String get paywall_locked_wifi =>
+      'وای‌فای، هات‌اسپات و مهمان توی نسخه ویژه‌ان';
+
+  @override
+  String get paywall_locked_mute => 'ساکت کردن خودت توی نسخه ویژه‌ست';
+
+  @override
+  String get paywall_locked_music => 'پخش آهنگ توی نسخه ویژه‌ست';
+
+  @override
+  String paywall_trial_left(Object days) {
+    return '$days روز از دوره آزمایشیت مونده';
+  }
+
+  @override
+  String get paywall_trial_over => 'دوره آزمایشیت تموم شد';
+
+  @override
+  String get paywall_free_note => 'بلوتوث همیشه رایگان می‌مونه';
+
+  @override
+  String get paywall_unavailable => 'فعلاً امکان خرید توی این نسخه نیست';
+
+  @override
+  String get paywall_restore => 'خریدم رو برگردون';
+
+  @override
+  String get paywall_restored => 'نسخه ویژه فعال شد';
+
+  @override
+  String get paywall_restore_none => 'خریدی پیدا نشد';
+
+  @override
+  String get paywall_close => 'بعداً';
+
+  @override
+  String get paywall_plan_1m => 'یک ماهه';
+
+  @override
+  String get paywall_plan_6m => 'شش ماهه';
+
+  @override
+  String get paywall_plan_12m => 'یک ساله';
+
+  @override
+  String get paywall_plan_lifetime => 'دائمی';
 }

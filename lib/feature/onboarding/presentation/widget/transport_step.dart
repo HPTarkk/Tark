@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 
+import '../../../../core/entitlement/license_gate.dart';
+import '../../../../core/entitlement/paywall_sheet.dart';
+import '../../../../core/entitlement/premium_feature.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/sfx/sfx_event.dart';
 import '../../../../core/sfx/sfx_service.dart';
@@ -54,6 +58,7 @@ class TransportStep extends StatelessWidget {
                   sublabel: s.onboarding_mode_wifi_desc,
                   selected: _isWifiGroup(state.mode),
                   onTap: () => _select(
+                    context,
                     cubit,
                     _isWifiGroup(state.mode) ? state.mode : TransferMode.wifi,
                   ),
@@ -64,7 +69,7 @@ class TransportStep extends StatelessWidget {
                   label: s.transport_bluetooth,
                   sublabel: s.onboarding_mode_bluetooth_desc,
                   selected: state.mode == TransferMode.bluetooth,
-                  onTap: () => _select(cubit, TransferMode.bluetooth),
+                  onTap: () => _select(context, cubit,TransferMode.bluetooth),
                 ),
                 const SizedBox(height: 10),
                 HudOption(
@@ -72,7 +77,7 @@ class TransportStep extends StatelessWidget {
                   label: s.transport_guest,
                   sublabel: s.onboarding_mode_guest_desc,
                   selected: state.mode == TransferMode.guest,
-                  onTap: () => _select(cubit, TransferMode.guest),
+                  onTap: () => _select(context, cubit,TransferMode.guest),
                 ),
               ],
             ),
@@ -82,7 +87,21 @@ class TransportStep extends StatelessWidget {
     );
   }
 
-  void _select(OnboardingCubit cubit, TransferMode mode) {
+  void _select(
+    BuildContext context,
+    OnboardingCubit cubit,
+    TransferMode mode,
+  ) {
+    // Reachable in practice only after a trial has lapsed — a first run is
+    // always inside the trial, so onboarding normally sees everything
+    // unlocked. Gated anyway: the cubit persists this choice through
+    // TransferModeStore.setMode at launch, which would silently refuse it
+    // and drop the user somewhere they didn't pick.
+    if (mode.requiresPremium &&
+        !GetIt.instance<LicenseGate>().allows(PremiumFeature.wifiTransport)) {
+      showPaywallSheet(context, PremiumFeature.wifiTransport);
+      return;
+    }
     HapticFeedback.selectionClick();
     Sfx.play(SfxEvent.toggle);
     cubit.selectMode(mode);

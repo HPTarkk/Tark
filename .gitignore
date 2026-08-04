@@ -23,6 +23,11 @@ migrate_working_dir/
 graphify-out
 CLAUDE.md
 
+# Per-store billing keys, consumed via --dart-define-from-file=billing.json.
+# These are *public* keys (they ship inside the APK by design), so this is
+# tidiness and per-flavor separation rather than secrecy.
+billing.json
+
 # IntelliJ related
 *.iml
 *.ipr

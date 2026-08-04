@@ -25,4 +25,13 @@ enum TransferMode {
     TransferMode.hotspot => 'hotspot',
     TransferMode.guest => 'guest',
   };
+
+  /// Whether picking this transport needs [PremiumFeature.wifiTransport].
+  ///
+  /// Written as "anything that isn't Bluetooth" rather than a list of the
+  /// three paid modes on purpose: a transport added later is then paid by
+  /// default, and shipping a new premium transport for free is the more
+  /// expensive mistake of the two. Bluetooth is the free acquisition hook
+  /// (business plan §2A) and must stay on this side of the line.
+  bool get requiresPremium => this != TransferMode.bluetooth;
 }

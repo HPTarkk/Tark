@@ -8,6 +8,8 @@ val configureMirrors: RepositoryHandler.() -> Unit = {
     maven { setUrl("https://maven.aliyun.com/repository/google") }
     maven { setUrl("https://maven.aliyun.com/repository/central") }
     maven { setUrl("https://maven.myket.ir") }
+    // myket-billing-client is published on jitpack only.
+    maven { setUrl("https://jitpack.io") }
     google()
     mavenCentral()
 }

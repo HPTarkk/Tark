@@ -8,6 +8,8 @@ import 'package:injectable/injectable.dart';
 import '../../../../core/analytics/analytics.dart';
 import '../../../../core/analytics/analytics_event.dart';
 import '../../../../core/analytics/pairing_attempt.dart';
+import '../../../../core/entitlement/license_gate.dart';
+import '../../../../core/entitlement/premium_feature.dart';
 import '../../../../core/home_widget/home_widget_service.dart';
 import '../../../../core/identity/device_identity.dart';
 import '../../../transfer/domain/service/hotspot_link_keeper.dart';
@@ -45,6 +47,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
   final DeviceIdentity _identity;
   final HotspotLinkKeeper _linkKeeper;
   final Analytics _analytics;
+  final LicenseGate _gate;
 
   /// Only ever used for [openWifiSettings] — the channel screen never joins a
   /// network, but when it finds itself without an address the fastest fix is
@@ -73,6 +76,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     this._linkKeeper,
     this._wifiSettings,
     this._analytics,
+    this._gate,
   ) : super(WalkieTalkieState.initial()) {
     _start();
   }
@@ -585,8 +589,15 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
   Future<void> toggleShareSystemAudio() async {
     if (state.isStartingSystemAudio) return;
 
+    // Stopping stays free for the same reason unmuting does — the early
+    // return above means only the start path below reaches the gate.
     if (state.isSharingSystemAudio) {
       await _stopSharingSystemAudio();
+      return;
+    }
+
+    if (!_gate.allows(PremiumFeature.musicPlayback)) {
+      Logger.log('Music cast blocked, no entitlement');
       return;
     }
 
@@ -835,6 +846,15 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
   /// Deliberately not persisted: mute is a live, per-moment action that
   /// should never survive into a new session.
   void toggleSelfMute() {
+    // Only *entering* mute is gated. An entitlement that lapses mid-session
+    // while muted would otherwise leave the user permanently silent with no
+    // way out — far worse than giving away one free unmute. The same guard
+    // covers the home-widget button, which routes through here (see the
+    // WidgetControlAction listener in _start).
+    if (!state.isSelfMuted && !_gate.allows(PremiumFeature.selfMute)) {
+      Logger.log('Self-mute blocked, no entitlement');
+      return;
+    }
     _sfx.play(SfxEvent.toggle);
     _useFeature(AppFeature.selfMute);
     emit(state.copyWith(isSelfMuted: !state.isSelfMuted));
