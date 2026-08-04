@@ -1,0 +1,70 @@
+name: Smartwatch branch checks
+
+on:
+  push:
+    branches:
+      - feature/smartwatch-room-control
+  pull_request:
+    paths:
+      - "android/wear/**"
+      - "android/app/**"
+      - "ios/TarkWatch/**"
+      - "ios/Runner/AppDelegate.swift"
+      - "lib/app/my_app.dart"
+      - "lib/core/home_widget/widget_control_channel.dart"
+      - ".github/workflows/smartwatch-build.yml"
+
+jobs:
+  wear-and-flutter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.41.9"
+          channel: stable
+          cache: true
+
+      - name: Flutter dependencies
+        run: flutter pub get
+
+      - name: Configure Android Flutter SDK path
+        shell: bash
+        run: |
+          FLUTTER_ROOT="$(dirname "$(dirname "$(command -v flutter)")")"
+          echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
+
+      - name: Check Dart formatting
+        run: >-
+          dart format --output=none --set-exit-if-changed
+          lib/app/my_app.dart
+          lib/core/home_widget/widget_control_channel.dart
+
+      - name: Flutter analyze
+        run: flutter analyze
+
+      - name: Build Galaxy Watch debug APK
+        working-directory: android
+        run: ./gradlew :wear:assembleDebug --stacktrace
+
+      - name: Compile handheld Android bridge
+        working-directory: android
+        run: ./gradlew :app:compileDebugKotlin --stacktrace
+
+      - name: Upload Galaxy Watch APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: tark-galaxy-watch-debug
+          path: android/wear/build/outputs/apk/debug/wear-debug.apk
+          if-no-files-found: error
