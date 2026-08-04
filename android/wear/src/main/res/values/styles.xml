@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.TarkWatch" parent="android:style/Theme.DeviceDefault.NoActionBar">
+        <item name="android:fontFamily">@font/vazirmatn_regular</item>
+        <item name="android:windowBackground">#090B0F</item>
+        <item name="android:colorAccent">#FF7A32</item>
+        <item name="android:navigationBarColor">#090B0F</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>
