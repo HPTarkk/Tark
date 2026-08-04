@@ -32,9 +32,9 @@ class WidgetControlChannelImpl implements WidgetControlChannel {
   WidgetControlChannelImpl() {
     // Matches WidgetControlBridge.CHANNEL on Android and the control channel
     // created in AppDelegate on iOS.
-    const MethodChannel(
-      'tark/widget_control',
-    ).setMethodCallHandler((call) async {
+    const MethodChannel('tark/widget_control').setMethodCallHandler((
+      call,
+    ) async {
       final action = switch (call.method) {
         'toggleMute' => WidgetControlAction.toggleMute,
         'retryConnection' => WidgetControlAction.retryConnection,
