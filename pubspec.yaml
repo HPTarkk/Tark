@@ -1,47 +1,21 @@
 name: tark
 description: "Tark — an off-grid, push-to-talk voice walkie-talkie. Phones talk directly over Wi-Fi, Bluetooth, or a hosted hotspot, with no internet and no server."
-# The following line prevents the package from being accidentally published to
-# pub.dev using `flutter pub publish`. This is preferred for private packages.
-publish_to: 'none' # Remove this line if you wish to publish to pub.dev
-
-# The following defines the version and build number for your application.
-# A version number is three numbers separated by dots, like 1.2.43
-# followed by an optional build number separated by a +.
-# Both the version and the builder number may be overridden in flutter
-# build by specifying --build-name and --build-number, respectively.
-# In Android, build-name is used as versionName while build-number used as versionCode.
-# Read more about Android versioning at https://developer.android.com/studio/publish/versioning
-# In iOS, build-name is used as CFBundleShortVersionString while build-number is used as CFBundleVersion.
-# Read more about iOS versioning at
-# https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
-# In Windows, build-name is used as the major, minor, and patch parts
-# of the product and file versions while build-number is used as the build suffix.
+publish_to: 'none'
 version: 1.0.8-beta.3+10
 
 environment:
   sdk: ^3.11.5
 
-# Dependencies specify other packages that your package needs in order to work.
-# To automatically upgrade your package dependencies to the latest versions
-# consider running `flutter pub upgrade --major-versions`. Alternatively,
-# dependencies can be manually updated by changing the version numbers below to
-# the latest version available on pub.dev. To see which dependencies have newer
-# versions available, run `flutter pub outdated`.
 dependencies:
   flutter:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
   cupertino_icons: ^1.0.8
-  # Vendored (packages/audio_io) with one Android patch: audio streams are
-  # opened as voice-communication class instead of media, so call-mode
-  # routing (Bluetooth handsfree, speakerphone) actually applies to them.
   audio_io:
     path: packages/audio_io
   rnnoise:
     path: packages/rnnoise
-  # Onboarding beat-to-beat transitions, kept app-agnostic (no palette, no
-  # cubit, no router) so the motion can be reused in other projects.
   beat_transitions:
     path: packages/beat_transitions
   equatable: ^2.0.8
@@ -55,7 +29,10 @@ dependencies:
   permission_handler: ^12.0.1
   shared_preferences: ^2.3.0
   package_info_plus: ^9.0.1
-  flutter_blue_classic: ^0.1.1
+  # 0.1.1 currently ships a Kotlin Gradle script that does not apply the
+  # Kotlin Android plugin before using compilerOptions. Pin the last compatible
+  # release until the upstream build script is corrected.
+  flutter_blue_classic: 0.1.0
   opus_dart: ^3.0.1
   opus_flutter: ^3.0.3
   bluetooth_low_energy: ^6.2.1
@@ -67,7 +44,6 @@ dependencies:
   home_widget: ^0.9.3
   adtrace_sdk_flutter: ^1.5.0
 
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -78,10 +54,6 @@ dev_dependencies:
   flutter_gen_runner:
   flutter_launcher_icons: ^0.14.1
 
-# For information on the generic Dart part of this file, see the
-# following page: https://dart.dev/tools/pub/pubspec
-
-# The following section is specific to Flutter packages.
 flutter_launcher_icons:
   android: true
   ios: true
@@ -122,6 +94,3 @@ flutter:
           weight: 200
         - asset: assets/fonts/Vazirmatn-Thin.ttf
           weight: 100
-  #
-  # For details regarding fonts from package dependencies,
-  # see https://flutter.dev/to/font-from-package
