@@ -8,12 +8,14 @@ import '../../../../core/error/failure.dart';
 import '../../../../core/identity/device_identity.dart';
 import '../../../../core/utils/exponential_backoff.dart';
 import '../../../../core/utils/logger.dart';
+import '../../domain/entity/audio_profile.dart';
 import '../../domain/entity/connection_health.dart';
 import '../../domain/entity/guest_link_state.dart';
 import '../../domain/entity/session_role.dart';
 import '../../domain/entity/waki_packet.dart';
 import '../../domain/repository/guest_link_controller.dart';
 import '../../domain/repository/transfer_repository.dart';
+import '../codec/opus_audio_codec.dart';
 import '../codec/waki_packet_codec.dart';
 import '../webrtc/ice_config.dart';
 import '../webrtc/sdp_codec.dart';
@@ -263,6 +265,13 @@ class WebRtcTransferRepository
     if (_linkState == GuestLinkState.connected) return;
     unawaited(_attemptReconnect());
   }
+
+  @override
+  void setAudioProfile(AudioProfile profile) => _codec.setAudioProfile(
+    profile == AudioProfile.music
+        ? OpusEncodeProfile.music
+        : OpusEncodeProfile.voice,
+  );
 
   @override
   void resetCodecState() => _codec.resetDecoders();

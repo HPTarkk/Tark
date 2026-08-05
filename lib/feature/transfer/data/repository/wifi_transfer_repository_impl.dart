@@ -10,11 +10,13 @@ import '../../../../core/identity/device_identity.dart';
 import '../../../../core/utils/exponential_backoff.dart';
 import '../../../../core/utils/lan_ipv4.dart';
 import '../../../../core/utils/logger.dart';
+import '../../domain/entity/audio_profile.dart';
 import '../../domain/entity/connection_health.dart';
 import '../../domain/entity/session_role.dart';
 import '../../domain/entity/waki_packet.dart';
 import '../../domain/repository/wifi_transfer_repository.dart';
 import '../../domain/service/session_role_store.dart';
+import '../codec/opus_audio_codec.dart';
 import '../codec/waki_packet_codec.dart';
 import 'discovery_sweep.dart';
 
@@ -87,6 +89,34 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   // is idempotent and the playback buffer drops repeated audio seqs.
   final Map<String, DateTime> _peers = {};
   static const _peerMaxAge = Duration(seconds: 10);
+
+  /// Addresses that were peers recently, kept far longer than [_peerMaxAge]
+  /// and unicast to whenever [_peers] is empty.
+  ///
+  /// This is what breaks the deadlock the comment in [_sendToAllTargets]
+  /// describes but did nothing about. Where broadcast does not cross the
+  /// SoftAP — the common hotspot case — unicast to [_peers] is the *only*
+  /// delivery path, and it is sustained purely by hearing from the other end.
+  /// So a stall longer than [_peerMaxAge] in both directions at once (Wi-Fi
+  /// power save, Doze, the host's AP hiccuping when cellular flips) ages the
+  /// peer out on BOTH phones in the same window. From then on neither one
+  /// unicasts, both fall back to a broadcast that never arrives, and nothing
+  /// either side can do will produce the packet that would repopulate the map.
+  /// The channel is dead until the user leaves and rejoins — which is exactly
+  /// how "it dropped every few minutes and I had to re-enter" is reported.
+  ///
+  /// Keeping the address around and still unicasting to it while no live peer
+  /// is known costs a couple of datagrams per send in the failure case and
+  /// nothing at all in the healthy one (the branch in [_sendToAllTargets] only
+  /// consults this map when [_peers] is empty), and it lets a stall of any
+  /// length inside the window heal on its own the moment the air clears.
+  final Map<String, DateTime> _recoveryPeers = {};
+
+  /// How long an aged-out peer stays worth unicasting to. Deliberately equal
+  /// to [_watchdogGrace]: for as long as the liveness watchdog still treats
+  /// the other end as unreachable-rather-than-gone and keeps rebinding for it,
+  /// the send side keeps addressing it. Past that, both give up together.
+  static const _peerRecoveryWindow = _watchdogGrace;
 
   /// Paces the unicast discovery sweep across ticks instead of emitting the
   /// whole thing at once.
@@ -347,7 +377,9 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
       // unreachable, so a solo channel doesn't rebind forever.
       if (now.difference(lastPeer) > _watchdogGrace) return;
       if (now.difference(_lastPacketAt) > _livenessTimeout) {
-        Logger.diagnostic('wifi: liveness timeout (gen $myGen) — forcing rebind');
+        Logger.diagnostic(
+          'wifi: liveness timeout (gen $myGen) — forcing rebind',
+        );
         _receiveSocket?.close();
       }
     });
@@ -372,6 +404,13 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   }
 
   @override
+  void setAudioProfile(AudioProfile profile) => _codec.setAudioProfile(
+    profile == AudioProfile.music
+        ? OpusEncodeProfile.music
+        : OpusEncodeProfile.voice,
+  );
+
+  @override
   void resetCodecState() => _codec.resetDecoders();
 
   @override
@@ -389,10 +428,20 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     // Force the next send to re-resolve rather than target the old subnet.
     _broadcastTargets = const [];
     _targetsResolvedAt = DateTime.fromMillisecondsSinceEpoch(0);
-    // Peers and heard subnets belong to the network we just left.
+    // Live peers belong to the network we just left, so discovery starts over
+    // — but they stay in [_recoveryPeers], which is what carries the session
+    // through the case this method is most often called for: the OS releasing
+    // and re-granting the SAME hotspot (see HotspotLinkKeeper._onRebound).
+    // There the peer is still sitting at the same DHCP-leased address, and
+    // dropping the only unicast path to it at the exact moment we reconnect is
+    // how a recovery turned into a permanent one-way link.
     _peers.clear();
-    _heardSubnets.clear();
-    _heardSubnetBroadcasts = const [];
+    // Heard subnets deliberately survive: they are evidence of where traffic
+    // genuinely came from, and on a SoftAP whose AP interface never enumerates
+    // they are the only broadcast target that works. [_resolveNetwork] runs at
+    // the top of the rebind loop and clears them if the addresses really did
+    // move; a rebind onto the network we were already on should not throw them
+    // away on the mere possibility.
 
     // Closing it breaks the `await for` in startListening, which drops into
     // the rebind at the top of the loop. The generation is untouched, so the
@@ -429,6 +478,10 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     _sweepSubnets = const [];
     _localAddresses = const {};
     _peers.clear();
+    // A new session starts discovery from scratch — unlike a rebind, which
+    // keeps the recovery set precisely so it can heal the link underneath a
+    // still-running session.
+    _recoveryPeers.clear();
     _seenSenderRoutes.clear();
     _heardSubnets.clear();
     _heardSubnetBroadcasts = const [];
@@ -474,10 +527,25 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     // therefore self-sustaining, so the moment it happens is worth a line.
     _peers.removeWhere((addr, seen) {
       if (now.difference(seen) <= _peerMaxAge) return false;
-      Logger.diagnostic('wifi: peer $addr aged out — no longer unicasting to it');
+      Logger.diagnostic(
+        'wifi: peer $addr aged out — still unicasting to it for recovery',
+      );
       return true;
     });
-    for (final addr in _peers.keys) {
+    _recoveryPeers.removeWhere((addr, seen) {
+      if (now.difference(seen) <= _peerRecoveryWindow) return false;
+      Logger.diagnostic(
+        'wifi: peer $addr gave up — no longer unicasting to it',
+      );
+      return true;
+    });
+    // Live peers when we have them, the recovery set when we don't. Never
+    // both: while anyone is actually being heard, the extra sends would be
+    // pure duplication.
+    final unicastTargets = _peers.isNotEmpty
+        ? _peers.keys
+        : _recoveryPeers.keys;
+    for (final addr in unicastTargets) {
       _trySend(packet, InternetAddress(addr));
     }
   }
@@ -532,11 +600,27 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   /// from first. Those are where a peer demonstrably is, so they get probed
   /// before a subnet that is merely present on this device (a home Wi-Fi the
   /// other phone was never on).
+  ///
+  /// Heard subnets are a *source* of targets here, not just an ordering key.
+  /// Ordering them within [_sweepSubnets] alone meant a subnet known only from
+  /// received traffic contributed no hosts at all — and that is precisely the
+  /// case [_rememberHeardSubnet] exists for: a hotspot host whose AP interface
+  /// never turns up in `NetworkInterface.list` has the peer's subnet in
+  /// [_heardSubnets] and nowhere else. Rediscovery on that phone could
+  /// therefore only ever sweep networks the peer was not on, so once the peer
+  /// map emptied the host stayed deaf for the rest of the session.
   void _retargetSweep() {
+    final heardPrefixes = <String>{};
+    for (final directed in _heardSubnets) {
+      final parts = directed.split('.');
+      if (parts.length != 4) continue;
+      heardPrefixes.add('${parts[0]}.${parts[1]}.${parts[2]}');
+    }
+
     final heardFirst = <String>[];
     final rest = <String>[];
-    for (final prefix in _sweepSubnets) {
-      final bucket = _heardSubnets.contains('$prefix.255') ? heardFirst : rest;
+    for (final prefix in {...heardPrefixes, ..._sweepSubnets}) {
+      final bucket = heardPrefixes.contains(prefix) ? heardFirst : rest;
       for (var host = 1; host < 255; host++) {
         final addr = '$prefix.$host';
         if (_localAddresses.contains(addr)) continue;
@@ -563,6 +647,7 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     if (_localAddresses.contains(address)) return;
     final now = DateTime.now();
     _peers[address] = now;
+    _recoveryPeers[address] = now;
     _lastPeerAt = now;
   }
 
@@ -633,7 +718,9 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     // client bringing the AP interface up, cellular arriving alongside it) —
     // not the six identical lines a minute in between.
     if (!setEquals(locals, _localAddresses)) {
-      Logger.diagnostic('wifi: local addresses $locals, broadcasting to $targets');
+      Logger.diagnostic(
+        'wifi: local addresses $locals, broadcasting to $targets',
+      );
       // The addresses moved under us, which on this path means the OS put us
       // on a different network — a joiner being pulled off an internet-less
       // hotspot back onto its saved Wi-Fi is the case that matters. The send

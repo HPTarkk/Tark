@@ -200,6 +200,10 @@ class WakiPacketCodec {
       type == kAudioV2Byte ||
       type == kOpusAudioV2Byte;
 
+  /// Tells the Opus encoder what the outgoing stream is carrying, so a music
+  /// cast is not encoded through a speech model. See [OpusEncodeProfile].
+  void setAudioProfile(OpusEncodeProfile profile) => _opus.setProfile(profile);
+
   /// Frees native Opus state (call when the owning transport shuts down).
   void release() => _opus.release();
 

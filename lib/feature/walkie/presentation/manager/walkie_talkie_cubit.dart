@@ -322,6 +322,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
 
     _presenceTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       _broadcastPresence();
+      _logMusicHealth();
       // Keeps the widget's "last published" timestamp advancing while the
       // session is live but unchanging. onChange alone can go quiet for
       // minutes (nobody talking, roster steady), and the native side demotes
@@ -586,6 +587,33 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     }
   }
 
+  // Last reported mixer counters, so the log below stays quiet unless
+  // something actually changed.
+  int _lastMusicDropouts = 0;
+  int _lastMusicTrims = 0;
+
+  /// Reports the music cast's buffer health while one is running.
+  ///
+  /// The mixer sits between two clocks that nothing synchronises, and a
+  /// stutter there is indistinguishable from a network stutter by ear — which
+  /// is exactly why this was worth chasing through the transport first.
+  /// Dropouts climbing means the cushion is losing to capture jitter; trims
+  /// climbing means the two clocks are drifting apart; both at once means the
+  /// cushion is simply too small for this device.
+  void _logMusicHealth() {
+    if (!state.isSharingSystemAudio) return;
+    final dropouts = _musicMixer.dropouts;
+    final trims = _musicMixer.trims;
+    if (dropouts == _lastMusicDropouts && trims == _lastMusicTrims) return;
+    _lastMusicDropouts = dropouts;
+    _lastMusicTrims = trims;
+    Logger.diagnostic(
+      'music cast: ${_musicMixer.queuedSamples} samples queued '
+      '(cushion ${_musicMixer.prefillSamples}) | dropouts=$dropouts '
+      'trims=$trims capOverflows=${_musicMixer.overflowDrops}',
+    );
+  }
+
   Future<void> toggleShareSystemAudio() async {
     if (state.isStartingSystemAudio) return;
 
@@ -636,6 +664,9 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
         }
       },
     );
+    // The outgoing stream is about to carry music, which a speech codec
+    // models badly — tell the transport before the first mixed frame goes out.
+    _transferRepository.setAudioProfile(AudioProfile.music);
     emit(
       state.copyWith(isSharingSystemAudio: true, isStartingSystemAudio: false),
     );
@@ -647,6 +678,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     await _musicSub?.cancel();
     _musicSub = null;
     _musicMixer.clear();
+    _transferRepository.setAudioProfile(AudioProfile.voice);
     await SystemAudioCapture.stop();
     // AudioPlaybackCapture never touches the source app, so without this the
     // music the user just "stopped" keeps playing on their own speaker.
@@ -779,8 +811,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     if (!state.isReady || !state.hasPermission) return;
     final last = _lastFrameAt;
     if (last == null) return;
-    final delivering =
-        DateTime.now().difference(last) < _micSilentAfter;
+    final delivering = DateTime.now().difference(last) < _micSilentAfter;
     if (delivering != state.micDelivering) {
       if (!delivering) {
         Logger.diagnostic(
@@ -818,7 +849,9 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     final since = _noAddressSince ??= DateTime.now();
     if (DateTime.now().difference(since) < _noAddressGrace) return;
     if (!state.networkMissing) {
-      Logger.diagnostic('wifi: no local address for ${_noAddressGrace.inSeconds}s');
+      Logger.diagnostic(
+        'wifi: no local address for ${_noAddressGrace.inSeconds}s',
+      );
       emit(state.copyWith(networkMissing: true));
     }
   }

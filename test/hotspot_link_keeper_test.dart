@@ -4,6 +4,7 @@ import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tark/core/error/failure.dart';
 import 'package:tark/feature/transfer/data/service/hotspot_link_keeper_impl.dart';
+import 'package:tark/feature/transfer/domain/entity/audio_profile.dart';
 import 'package:tark/feature/transfer/domain/entity/connection_health.dart';
 import 'package:tark/feature/transfer/domain/entity/hotspot_credentials.dart';
 import 'package:tark/feature/transfer/domain/entity/session_role.dart';
@@ -121,6 +122,9 @@ class _FakeWifi implements WifiTransferRepository {
   void retryNow() {}
 
   @override
+  void setAudioProfile(AudioProfile profile) {}
+
+  @override
   void resetCodecState() {}
 
   @override
@@ -179,10 +183,10 @@ void main() {
       joiner.drop();
       await pumpEventQueue();
 
-      expect(seen, containsAllInOrder([
-        HotspotLinkState.recovering,
-        HotspotLinkState.up,
-      ]));
+      expect(
+        seen,
+        containsAllInOrder([HotspotLinkState.recovering, HotspotLinkState.up]),
+      );
     });
 
     test('stays in recovery when the rejoin is refused', () async {
@@ -295,15 +299,18 @@ void main() {
       expect(keeper.state, HotspotLinkState.lost);
     });
 
-    test('a failed re-host is still reported as lost, not left hanging', () async {
-      host.startError = StateError('no channel');
-      keeper.adopt(_creds);
+    test(
+      'a failed re-host is still reported as lost, not left hanging',
+      () async {
+        host.startError = StateError('no channel');
+        keeper.adopt(_creds);
 
-      host.tearDown();
-      await pumpEventQueue();
+        host.tearDown();
+        await pumpEventQueue();
 
-      expect(keeper.state, HotspotLinkState.lost);
-    });
+        expect(keeper.state, HotspotLinkState.lost);
+      },
+    );
 
     test('does not listen on the joiner side', () async {
       keeper.adopt(_creds);
