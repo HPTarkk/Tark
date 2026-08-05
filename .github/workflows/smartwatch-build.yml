@@ -8,18 +8,21 @@ on:
     paths:
       - "android/wear/**"
       - "android/app/**"
-      - "ios/TarkWatch/**"
-      - "ios/Runner/AppDelegate.swift"
       - "lib/app/my_app.dart"
       - "lib/core/home_widget/widget_control_channel.dart"
+      - "lib/feature/walkie/presentation/page/walkie_talkie_page.dart"
       - "pubspec.yaml"
       - ".github/workflows/smartwatch-build.yml"
   workflow_dispatch:
 
+concurrency:
+  group: smartwatch-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  wear-and-flutter:
+  galaxy-watch:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 35
 
     steps:
       - name: Checkout
@@ -57,6 +60,7 @@ jobs:
           dart format --output=none --set-exit-if-changed
           lib/app/my_app.dart
           lib/core/home_widget/widget_control_channel.dart
+          lib/feature/walkie/presentation/page/walkie_talkie_page.dart
 
       - name: Flutter analyze
         run: flutter analyze
@@ -79,44 +83,17 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: Build handheld debug APK
-        id: phone_build
-        if: steps.wear_build.outcome == 'success'
-        continue-on-error: true
-        shell: bash
-        run: |
-          set -o pipefail
-          flutter build apk --debug 2>&1 | tee phone-build.log
-
-      - name: Upload handheld build diagnostics
-        if: always() && steps.wear_build.outcome == 'success'
-        uses: actions/upload-artifact@v4
-        with:
-          name: tark-handheld-build-diagnostics
-          path: phone-build.log
-          if-no-files-found: error
-          retention-days: 7
-
       - name: Upload Galaxy Watch APK
         if: steps.wear_build.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
-          name: tark-galaxy-watch-debug
+          name: tark-galaxy-watch-companion-debug
           path: android/wear/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 14
 
-      - name: Upload handheld APK
-        if: steps.phone_build.outcome == 'success'
-        uses: actions/upload-artifact@v4
-        with:
-          name: tark-handheld-debug
-          path: build/app/outputs/flutter-apk/app-debug.apk
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Fail when an Android build failed
-        if: steps.wear_build.outcome == 'failure' || steps.phone_build.outcome == 'failure'
+      - name: Fail when Wear OS build failed
+        if: steps.wear_build.outcome == 'failure'
         run: |
-          echo "An Android build failed; inspect the diagnostics artifacts."
+          echo "Galaxy Watch build failed; inspect the diagnostics artifact."
           exit 1
