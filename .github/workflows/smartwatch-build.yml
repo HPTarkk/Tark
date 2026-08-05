@@ -13,6 +13,7 @@ on:
       - "lib/app/my_app.dart"
       - "lib/core/home_widget/widget_control_channel.dart"
       - ".github/workflows/smartwatch-build.yml"
+  workflow_dispatch:
 
 jobs:
   wear-and-flutter:
@@ -60,16 +61,39 @@ jobs:
         run: flutter analyze
 
       - name: Build Galaxy Watch debug APK
+        id: wear_build
+        continue-on-error: true
         working-directory: android
-        run: gradle :wear:assembleDebug --stacktrace
+        shell: bash
+        run: |
+          set -o pipefail
+          gradle :wear:assembleDebug --stacktrace --info 2>&1 | tee wear-build.log
+
+      - name: Upload Wear build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tark-wear-build-diagnostics
+          path: android/wear-build.log
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Compile handheld Android bridge
+        if: steps.wear_build.outcome == 'success'
         working-directory: android
         run: gradle :app:compileDebugKotlin --stacktrace
 
       - name: Upload Galaxy Watch APK
+        if: steps.wear_build.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: tark-galaxy-watch-debug
           path: android/wear/build/outputs/apk/debug/wear-debug.apk
           if-no-files-found: error
+          retention-days: 14
+
+      - name: Fail when Wear build failed
+        if: steps.wear_build.outcome == 'failure'
+        run: |
+          echo "Galaxy Watch APK build failed; inspect tark-wear-build-diagnostics."
+          exit 1
