@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "com.b1101.tark.wear"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         // Wear OS and handheld APKs intentionally share the package name and
