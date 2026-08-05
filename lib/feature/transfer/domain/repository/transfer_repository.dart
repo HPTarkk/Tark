@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 
 import '../../../../core/error/failure.dart';
+import '../entity/audio_profile.dart';
 import '../entity/connection_health.dart';
 import '../entity/session_role.dart';
 import '../entity/waki_packet.dart';
@@ -21,6 +22,11 @@ abstract interface class TransferRepository {
   );
 
   Future<Either<Failure, void>> sendPresence(String senderName, bool isTalking);
+
+  /// Declares what [sendAudio] is about to carry, so the transport can encode
+  /// it appropriately. Idempotent — callers set it whenever the channel's
+  /// state changes rather than tracking transitions themselves.
+  void setAudioProfile(AudioProfile profile);
 
   Stream<ConnectionHealth> connect();
 

@@ -11,6 +11,7 @@ import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/utils/android_sdk.dart';
 import '../../../../core/utils/exponential_backoff.dart';
 import '../../../../core/utils/logger.dart';
+import '../../domain/entity/audio_profile.dart';
 import '../../domain/entity/connection_health.dart';
 import '../../domain/entity/session_role.dart';
 import '../../domain/entity/waki_packet.dart';
@@ -22,6 +23,7 @@ import '../../domain/repository/transfer_repository.dart';
 import '../bluetooth/ble_bluetooth_engine.dart';
 import '../bluetooth/classic_bluetooth_engine.dart';
 import '../bluetooth/length_prefixed_framer.dart';
+import '../codec/opus_audio_codec.dart';
 import '../codec/waki_packet_codec.dart';
 
 /// Bluetooth transport for 1-to-1 sessions, running two engines:
@@ -631,6 +633,13 @@ class BluetoothTransferRepository
     if (_connectedPeerId != null || _sessionRole == null) return;
     unawaited(_autoReconnect());
   }
+
+  @override
+  void setAudioProfile(AudioProfile profile) => _codec.setAudioProfile(
+    profile == AudioProfile.music
+        ? OpusEncodeProfile.music
+        : OpusEncodeProfile.voice,
+  );
 
   @override
   void resetCodecState() => _codec.resetDecoders();

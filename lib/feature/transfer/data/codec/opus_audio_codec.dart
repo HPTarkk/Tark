@@ -5,15 +5,43 @@ import 'package:opus_flutter/opus_flutter.dart' as opus_flutter;
 
 import '../../../../core/utils/logger.dart';
 
-/// Opus voice codec for the 16 kHz mono transmit stream.
+/// What the transmit stream is carrying, which decides how libopus is told to
+/// model it.
+///
+/// Opus is not content-agnostic. [Application.voip] puts it in a speech-first
+/// mode built around a vocal-tract model (SILK's LPC/long-term prediction) —
+/// excellent on a voice, and audibly wrong on music: sustained tones and
+/// cymbals get the warbling, smeared quality of a signal being fitted to a
+/// model that does not describe it. [Application.audio] drops that assumption
+/// and optimises for general audio instead.
+///
+/// The mode is fixed at encoder-construction time, so switching it means
+/// rebuilding the encoder. That is fine here: it changes only when the user
+/// starts or stops a music cast, not per frame.
+enum OpusEncodeProfile {
+  /// Speech. The default, and what the channel carries almost all the time.
+  voice(Application.voip),
+
+  /// A music cast is mixed into the outgoing stream — see MusicMixer.
+  music(Application.audio);
+
+  const OpusEncodeProfile(this.application);
+
+  final Application application;
+}
+
+/// Opus codec for the 16 kHz mono transmit stream.
 ///
 /// PCM16 at 16 kHz costs 256 kbps on the wire — fine on an idle LAN, but on
 /// a lossy hotspot link between two motorcycles every dropped ~660-byte
 /// datagram is 20 ms of missing speech, and over BLE that bandwidth simply
-/// doesn't exist. Opus VOIP mode brings a 20 ms frame down to ~40-80 bytes
+/// doesn't exist. Opus brings a 20 ms frame down to ~40-80 bytes
 /// (~20-30 kbps) with better-than-PCM speech quality, which both slashes the
 /// loss rate (smaller packets, less airtime) and makes Bluetooth audio
 /// possible at all.
+///
+/// How the signal is modelled is chosen per [OpusEncodeProfile], because a
+/// music cast is not speech and encoding it as though it were is audible.
 ///
 /// The native libopus is loaded once via [ensureInitialized]; when loading
 /// fails (unsupported desktop platform, missing binary) [isAvailable] stays
@@ -34,6 +62,18 @@ class OpusAudioCodec {
   }
 
   SimpleOpusEncoder? _encoder;
+  OpusEncodeProfile _profile = OpusEncodeProfile.voice;
+
+  /// Switches how the encoder models the signal. The current encoder is
+  /// destroyed so the next [encode] builds one in the new mode; a no-op when
+  /// the profile is unchanged, so callers can set it freely.
+  void setProfile(OpusEncodeProfile profile) {
+    if (_profile == profile) return;
+    _profile = profile;
+    _encoder?.destroy();
+    _encoder = null;
+    Logger.log('Opus encoder profile: ${profile.name}');
+  }
 
   // One decoder per sender: an Opus stream is stateful (prediction across
   // frames), and a WiFi channel can carry several senders at once.
@@ -50,7 +90,7 @@ class OpusAudioCodec {
       _encoder ??= SimpleOpusEncoder(
         sampleRate: 16000,
         channels: 1,
-        application: Application.voip,
+        application: _profile.application,
       );
       final pcm = Int16List(samples.length);
       for (var i = 0; i < samples.length; i++) {
