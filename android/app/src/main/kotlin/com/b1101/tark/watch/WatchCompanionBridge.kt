@@ -1,6 +1,7 @@
 package com.b1101.tark.watch
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.os.Handler
 import android.os.Looper
 import com.b1101.tark.widget.WidgetControlBridge
@@ -14,22 +15,32 @@ import org.json.JSONObject
 /**
  * Live bridge between the paired Wear OS app and the Flutter session.
  *
- * The watch is deliberately a remote, not a second voice endpoint: the phone
- * continues to own audio, transport and reconnect state. While a room is live
- * the keep-alive foreground service keeps the Flutter engine in this process,
- * so watch actions can reuse [WidgetControlBridge], the same proven path as the
- * home-screen widget's MUTE and END buttons.
+ * The watch is a remote for the phone-owned room: audio, transport, music
+ * capture and reconnect all remain on the phone. Room state is pushed to the
+ * watch whenever Flutter republishes its live widget snapshot, which lets the
+ * background listener on the watch raise the "room is ready" notification.
  */
-class WatchCompanionBridge(context: Context) : MessageClient.OnMessageReceivedListener {
+class WatchCompanionBridge(context: Context) :
+    MessageClient.OnMessageReceivedListener,
+    SharedPreferences.OnSharedPreferenceChangeListener {
+
     private val appContext = context.applicationContext
     private val messages by lazy { Wearable.getMessageClient(appContext) }
+    private val nodes by lazy { Wearable.getNodeClient(appContext) }
+    private val prefs by lazy { HomeWidgetPlugin.getData(appContext) }
     private val main = Handler(Looper.getMainLooper())
+
+    private val pushState = Runnable { sendStateToAllNodes() }
 
     fun attach() {
         runCatching { messages.addListener(this) }
+        runCatching { prefs.registerOnSharedPreferenceChangeListener(this) }
+        main.post(pushState)
     }
 
     fun detach() {
+        main.removeCallbacks(pushState)
+        runCatching { prefs.unregisterOnSharedPreferenceChangeListener(this) }
         runCatching { messages.removeListener(this) }
     }
 
@@ -40,19 +51,40 @@ class WatchCompanionBridge(context: Context) : MessageClient.OnMessageReceivedLi
         }
     }
 
+    override fun onSharedPreferenceChanged(
+        sharedPreferences: SharedPreferences?,
+        key: String?,
+    ) {
+        if (key?.startsWith("wk_") != true) return
+        // HomeWidgetService writes a complete snapshot as several preference
+        // edits. Debounce those edits so the watch receives one coherent room
+        // payload instead of a half-updated sequence.
+        main.removeCallbacks(pushState)
+        main.postDelayed(pushState, STATE_PUSH_DEBOUNCE_MS)
+    }
+
     private fun dispatchAction(action: String) {
         val method = when (action) {
             ACTION_TOGGLE_MUTE -> "toggleMute"
+            ACTION_TOGGLE_MUSIC -> "toggleMusic"
             ACTION_RECONNECT -> "retryConnection"
             ACTION_LEAVE -> "endSession"
             else -> return
         }
-        main.post { WidgetControlBridge.dispatch(method) }
+        main.post {
+            WidgetControlBridge.dispatch(method)
+            main.postDelayed(pushState, ACTION_REFRESH_DELAY_MS)
+        }
+    }
+
+    private fun sendStateToAllNodes() {
+        nodes.connectedNodes.addOnSuccessListener { connected ->
+            connected.forEach { node -> sendState(node.id) }
+        }
     }
 
     private fun sendState(nodeId: String) {
         val widget = WidgetState.read(appContext)
-        val prefs = HomeWidgetPlugin.getData(appContext)
         val payload = JSONObject()
             .put("session", widget.session.name.lowercase())
             .put("isLive", widget.session.isLive)
@@ -77,7 +109,11 @@ class WatchCompanionBridge(context: Context) : MessageClient.OnMessageReceivedLi
         const val STATE_RESPONSE_PATH = "/tark/room/state/response"
 
         const val ACTION_TOGGLE_MUTE = "toggle_mute"
+        const val ACTION_TOGGLE_MUSIC = "toggle_music"
         const val ACTION_RECONNECT = "reconnect"
         const val ACTION_LEAVE = "leave"
+
+        private const val STATE_PUSH_DEBOUNCE_MS = 180L
+        private const val ACTION_REFRESH_DELAY_MS = 450L
     }
 }
