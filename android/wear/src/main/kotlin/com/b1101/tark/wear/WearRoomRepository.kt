@@ -15,7 +15,7 @@ class WearRoomRepository(context: Context) : MessageClient.OnMessageReceivedList
     private val nodes by lazy { Wearable.getNodeClient(appContext) }
     private val main = Handler(Looper.getMainLooper())
 
-    private val _state = mutableStateOf(WearRoomState.idle)
+    private val _state = mutableStateOf(WearRoomState.readCached(appContext))
     val state: State<WearRoomState> get() = _state
 
     private var started = false
@@ -59,23 +59,27 @@ class WearRoomRepository(context: Context) : MessageClient.OnMessageReceivedList
                         action.toByteArray(Charsets.UTF_8),
                     )
                 }
-                main.postDelayed({ requestState() }, 250L)
+                main.postDelayed({ requestState() }, ACTION_REFRESH_MS)
             }
     }
 
     override fun onMessageReceived(event: MessageEvent) {
         if (event.path != STATE_RESPONSE_PATH) return
         val decoded = WearRoomState.decode(event.data)
+        decoded.persist(appContext)
         main.post { _state.value = decoded }
     }
 
     companion object {
         private const val POLL_MS = 2_000L
-        private const val ACTION_PATH = "/tark/room/action"
-        private const val STATE_REQUEST_PATH = "/tark/room/state/request"
-        private const val STATE_RESPONSE_PATH = "/tark/room/state/response"
+        private const val ACTION_REFRESH_MS = 350L
+
+        const val ACTION_PATH = "/tark/room/action"
+        const val STATE_REQUEST_PATH = "/tark/room/state/request"
+        const val STATE_RESPONSE_PATH = "/tark/room/state/response"
 
         const val ACTION_TOGGLE_MUTE = "toggle_mute"
+        const val ACTION_TOGGLE_MUSIC = "toggle_music"
         const val ACTION_RECONNECT = "reconnect"
         const val ACTION_LEAVE = "leave"
     }
