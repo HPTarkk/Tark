@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/home_widget/widget_control_channel.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/settings/settings_repository.dart';
@@ -45,10 +46,10 @@ class WalkieTalkiePage extends StatefulWidget {
 
 class _WalkieTalkiePageState extends State<WalkieTalkiePage>
     with TickerProviderStateMixin {
-  // Staggered entrance: [header, identityCard, visualizer, mic, music, members]
   late AnimationController _entranceController;
   late List<Animation<double>> _entranceSections;
   StreamSubscription<String>? _systemAudioMsgSub;
+  StreamSubscription<WidgetControlAction>? _watchControlSub;
   Timer? _usageTipsTimer;
 
   @override
@@ -78,8 +79,6 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
       (_) => _entranceController.forward(),
     );
 
-    // One-shot toast for system-audio sharing notices (currently just the
-    // capture-stalled case — see WalkieTalkieCubit.toggleShareSystemAudio).
     _systemAudioMsgSub = context
         .read<WalkieTalkieCubit>()
         .systemAudioMessages
@@ -95,11 +94,21 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
             ..showSnackBar(SnackBar(content: Text(text)));
         });
 
+    // The watch's music button controls the exact same system-audio sharing
+    // state as the phone UI. Keeping this listener on the live room page means
+    // a stale watch command cannot start a second session outside a channel.
+    _watchControlSub = GetIt.instance<WidgetControlChannel>().actions.listen((
+      action,
+    ) {
+      if (!mounted || action != WidgetControlAction.toggleMusic) return;
+      unawaited(
+        context.read<WalkieTalkieCubit>().toggleShareSystemAudio(),
+      );
+    });
+
     _scheduleUsageTips();
   }
 
-  // Shown once ever, at a randomized moment a few seconds into a session
-  // (not necessarily first launch) rather than the instant the page opens.
   Future<void> _scheduleUsageTips() async {
     final repository = GetIt.instance<SettingsRepository>();
     final alreadyShown = await repository.getUsageTipsShown();
@@ -117,11 +126,11 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
   void dispose() {
     _entranceController.dispose();
     _systemAudioMsgSub?.cancel();
+    _watchControlSub?.cancel();
     _usageTipsTimer?.cancel();
     super.dispose();
   }
 
-  // Pass child through so the builder doesn't recreate it on every tick.
   Widget _entrance(int index, Widget child) => AnimatedBuilder(
     animation: _entranceSections[index],
     child: child,
@@ -137,20 +146,14 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      // System back gets the same confirmation as the on-screen Leave, rather
-      // than dropping the channel outright. Two reasons: this page is often
-      // the ONLY route (quick access and the home-screen widget both land
-      // straight here in Wi-Fi mode), so an unhandled back closes the app
-      // mid-session; and leaving is destructive enough — it tears down the
-      // transport and the keep-alive service — to be worth confirming when
-      // the phone is in a pocket. The dialog is its own route, so a second
-      // back dismisses it instead of re-triggering this.
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _confirmLeave(context);
       },
       child: AnnotatedRegion<SystemUiOverlayStyle>(
-        value: AppColors.systemOverlayStyle.copyWith(statusBarColor: Colors.transparent),
+        value: AppColors.systemOverlayStyle.copyWith(
+          statusBarColor: Colors.transparent,
+        ),
         child: _buildScaffold(context),
       ),
     );
@@ -175,18 +178,8 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
                     const SizedBox(height: 16),
                     const BackgroundPermissionBanner(),
                     _buildLinkBanner(),
-                    // Above the mic card on purpose: every issue it can show
-                    // is a reason the control below is lying about being
-                    // live, so it has to be read first.
                     const ChannelIssueBanner(),
-                    // Self-mute: the one control a hands-free rider needs
-                    // in-channel — go silent without leaving. Sits where
-                    // the old TX/RX chips were; that status now lives in
-                    // the visualizer's pill above.
                     _entrance(3, const MicControl()),
-                    // Renders nothing where playback capture is
-                    // unsupported (iOS, Android < 10) — spacing lives
-                    // inside the section so nothing doubles up here.
                     _entrance(4, const MusicCastSection()),
                     const SizedBox(height: 20),
                     _entrance(5, const UserList()),
@@ -195,10 +188,6 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
               ),
             ),
             _buildLeaveButton(context),
-            // Pinned below the scroll view rather than inside it: the whole
-            // promise of the help sheet is that it's reachable the moment
-            // something feels wrong, and a user who has to go looking for it
-            // has already been stuck for longer than they should have been.
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 0, 16, 8),
               child: Row(
@@ -217,7 +206,6 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
     );
   }
 
-  // ── Identity Card ───────────────────────────────────────────────────────────
   Widget _buildIdentityCard(BuildContext context) {
     return BlocBuilder<WalkieTalkieCubit, WalkieTalkieState>(
       buildWhen: (p, c) =>
@@ -227,16 +215,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
           p.myRole != c.myRole,
       builder: (context, state) {
         final s = context.getString;
-        // How you're connected, said with the transport's own glyph. This
-        // line used to spell out "Bluetooth" — or, in every other mode, print
-        // the device's IP address, which is not something a person can use.
         final isConnecting = state.localId.isEmpty;
-        // final transportIcon = switch (state.transferMode) {
-        //   TransferMode.bluetooth => Icons.bluetooth_rounded,
-        //   TransferMode.hotspot => Icons.wifi_tethering_rounded,
-        //   TransferMode.guest => Icons.public_rounded,
-        //   TransferMode.wifi => Icons.wifi_rounded,
-        // };
 
         return _GlowCard(
           child: Row(
@@ -300,17 +279,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        // Icon(
-                        //   transportIcon,
-                        //   color: AppColors.textSecondary,
-                        //   size: 13,
-                        // ),
-                        // While connecting, that's the whole story. Once the
-                        // link is up the glyph carries how, and the badge
-                        // carries which part you're playing in it — the same
-                        // line every other member shows in the roster below.
-                        if (isConnecting) ...[
-                          // const SizedBox(width: 4),
+                        if (isConnecting)
                           Expanded(
                             child: TickerText(
                               text: s.connecting,
@@ -322,13 +291,11 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                        ] else if (state.myRole != SessionRole.unknown) ...[
-                          // const SizedBox(width: 6),
+                          )
+                        else if (state.myRole != SessionRole.unknown)
                           Expanded(
                             child: RoleBadge(role: state.myRole, fontSize: 12),
                           ),
-                        ],
                       ],
                     ),
                   ],
@@ -341,7 +308,6 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
     );
   }
 
-  // ── Connection health banner ────────────────────────────────────────────────
   Widget _buildLinkBanner() {
     return BlocBuilder<WalkieTalkieCubit, WalkieTalkieState>(
       buildWhen: (p, c) => p.connectionHealth != c.connectionHealth,
@@ -353,7 +319,6 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
     );
   }
 
-  // ── Leave Button ─────────────────────────────────────────────────────────────
   Widget _buildLeaveButton(BuildContext context) {
     final s = context.getString;
     return Padding(
@@ -366,7 +331,10 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
           decoration: BoxDecoration(
             color: AppColors.red.withAlpha(18),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.red.withAlpha(90), width: 1.5),
+            border: Border.all(
+              color: AppColors.red.withAlpha(90),
+              width: 1.5,
+            ),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -393,7 +361,6 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
     );
   }
 
-  // ── Dialogs ─────────────────────────────────────────────────────────────────
   void _confirmLeave(BuildContext context) {
     final s = context.getString;
     showDialog<void>(
@@ -427,11 +394,6 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
             onPressed: () {
               Navigator.of(ctx).pop();
               Sfx.play(SfxEvent.channelLeave);
-              // goNamed (not pop) so leaving always lands cleanly on
-              // Landing regardless of how this screen was reached — the
-              // Bluetooth flow replaces the stack on connect (goNamed in
-              // BluetoothConnectPage), which left plain pop() with nothing
-              // to pop back to.
               context.goNamed(AppRoutes.landingName);
             },
             child: Text(
@@ -448,10 +410,9 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
   }
 }
 
-// ── Shared card ────────────────────────────────────────────────────────────────
-
 class _GlowCard extends StatelessWidget {
   final Widget child;
+
   const _GlowCard({required this.child});
 
   @override
