@@ -9,6 +9,10 @@ enum WidgetControlAction {
   /// MUTE / UNMUTE — handled by the running [WalkieTalkieCubit].
   toggleMute,
 
+  /// START / STOP system-audio sharing. The active walkie page owns this
+  /// because it has the live cubit and can surface Android's capture consent.
+  toggleMusic,
+
   /// Retry the active transport immediately. Smartwatches expose this beside
   /// mute so a rider can heal a degraded room without touching the phone.
   retryConnection,
@@ -37,6 +41,7 @@ class WidgetControlChannelImpl implements WidgetControlChannel {
     ) async {
       final action = switch (call.method) {
         'toggleMute' => WidgetControlAction.toggleMute,
+        'toggleMusic' => WidgetControlAction.toggleMusic,
         'retryConnection' => WidgetControlAction.retryConnection,
         'endSession' => WidgetControlAction.endSession,
         _ => null,
