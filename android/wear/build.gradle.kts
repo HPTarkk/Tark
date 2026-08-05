@@ -17,8 +17,8 @@ android {
         applicationId = "com.b1101.tark"
         minSdk = 30
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0-watch-alpha"
+        versionCode = 2
+        versionName = "0.2.0-watch-companion-alpha"
     }
 
     compileOptions {
