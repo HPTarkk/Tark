@@ -47,16 +47,18 @@ class _MyAppState extends State<MyApp> {
       );
     });
     // Native room controls arrive here from both the home-screen widget and
-    // the paired smartwatch. MUTE stays in WalkieTalkieCubit, which owns that
-    // state. END is navigation: routing to Landing disposes the cubit and its
-    // close() tears the session down. RETRY can safely go straight to the
-    // active transport singleton selected by TransferModule.
+    // the paired smartwatch. MUTE and MUSIC stay in the live walkie screen,
+    // which owns the active cubit. END is navigation: routing to Landing
+    // disposes the cubit and its close() tears the session down. RETRY can
+    // safely go straight to the active transport singleton selected by
+    // TransferModule.
     _controlSub = GetIt.instance<WidgetControlChannel>().actions.listen((
       action,
     ) {
       switch (action) {
         case WidgetControlAction.toggleMute:
-          // The live WalkieTalkieCubit has its own listener.
+        case WidgetControlAction.toggleMusic:
+          // The live WalkieTalkieCubit/page has its own listener.
           break;
         case WidgetControlAction.retryConnection:
           GetIt.instance<TransferRepository>().retryNow();
