@@ -12,6 +12,7 @@ on:
       - "ios/Runner/AppDelegate.swift"
       - "lib/app/my_app.dart"
       - "lib/core/home_widget/widget_control_channel.dart"
+      - "pubspec.yaml"
       - ".github/workflows/smartwatch-build.yml"
   workflow_dispatch:
 
@@ -101,7 +102,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: tark-galaxy-watch-debug
-          path: android/wear/build/outputs/apk/debug/wear-debug.apk
+          path: android/wear/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 14
 
