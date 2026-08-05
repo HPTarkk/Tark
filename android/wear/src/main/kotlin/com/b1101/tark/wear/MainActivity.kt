@@ -1,8 +1,12 @@
 package com.b1101.tark.wear
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -31,6 +35,7 @@ import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Logout
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.MicOff
+import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -50,7 +55,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -64,7 +71,25 @@ import kotlin.math.sin
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        requestRoomNotificationPermission()
         setContent { TarkWearApp() }
+    }
+
+    private fun requestRoomNotificationPermission() {
+        if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(
+                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                ROOM_NOTIFICATION_PERMISSION_REQUEST,
+            )
+        }
+    }
+
+    companion object {
+        private const val ROOM_NOTIFICATION_PERMISSION_REQUEST = 4402
     }
 }
 
@@ -91,11 +116,11 @@ private fun TarkWearApp() {
 
     val vazir = FontFamily(
         androidx.compose.ui.text.font.Font(
-            resId = com.b1101.tark.wear.R.font.vazirmatn_regular,
+            resId = R.font.vazirmatn_regular,
             weight = FontWeight.Normal,
         ),
         androidx.compose.ui.text.font.Font(
-            resId = com.b1101.tark.wear.R.font.vazirmatn_bold,
+            resId = R.font.vazirmatn_bold,
             weight = FontWeight.Bold,
         ),
     )
@@ -138,7 +163,7 @@ private fun TarkWearApp() {
                     page = pager.currentPage,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = 8.dp),
+                        .padding(bottom = 7.dp),
                 )
             }
         }
@@ -148,12 +173,13 @@ private fun TarkWearApp() {
 @Composable
 private fun RoomControlScreen(room: WearRoomState, repository: WearRoomRepository) {
     var confirmLeave by remember { mutableStateOf(false) }
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 22.dp, vertical = 14.dp),
+            .padding(horizontal = 18.dp, vertical = 12.dp),
     ) {
         Text(
             text = "اتاق ترک",
@@ -167,46 +193,93 @@ private fun RoomControlScreen(room: WearRoomState, repository: WearRoomRepositor
             fontSize = 10.sp,
             maxLines = 1,
         )
-        Spacer(Modifier.height(5.dp))
+        Spacer(Modifier.height(3.dp))
 
         RadarControl(
             muted = room.isMuted,
             live = room.isLive,
             onClick = {
-                if (room.isLive) repository.sendAction(WearRoomRepository.ACTION_TOGGLE_MUTE)
-                else repository.requestState()
+                if (room.isLive) {
+                    repository.sendAction(WearRoomRepository.ACTION_TOGGLE_MUTE)
+                } else {
+                    repository.requestState()
+                }
             },
         )
 
-        Spacer(Modifier.height(7.dp))
+        Spacer(Modifier.height(4.dp))
         Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             ActionCircle(
                 label = if (room.isMuted) "باز کن" else "ساکت",
                 tint = if (room.isMuted) TarkGreen else TarkText,
-                onClick = { repository.sendAction(WearRoomRepository.ACTION_TOGGLE_MUTE) },
+                enabled = room.isLive,
+                onClick = {
+                    repository.sendAction(WearRoomRepository.ACTION_TOGGLE_MUTE)
+                },
             ) {
                 Icon(
                     imageVector = if (room.isMuted) Icons.Rounded.Mic else Icons.Rounded.MicOff,
                     contentDescription = null,
                     tint = if (room.isMuted) TarkGreen else TarkText,
+                    modifier = Modifier.size(19.dp),
+                )
+            }
+            ActionCircle(
+                label = "موسیقی",
+                tint = TarkOrange,
+                enabled = room.isLive,
+                onClick = {
+                    repository.sendAction(WearRoomRepository.ACTION_TOGGLE_MUSIC)
+                },
+            ) {
+                Icon(
+                    Icons.Rounded.MusicNote,
+                    null,
+                    tint = TarkOrange,
+                    modifier = Modifier.size(19.dp),
+                )
+            }
+            ActionCircle(
+                label = "اتصال",
+                tint = TarkOrange,
+                enabled = room.isLive,
+                onClick = {
+                    repository.sendAction(WearRoomRepository.ACTION_RECONNECT)
+                },
+            ) {
+                Icon(
+                    Icons.Rounded.Refresh,
+                    null,
+                    tint = TarkOrange,
                     modifier = Modifier.size(20.dp),
                 )
             }
-            ActionCircle(label = "اتصال", onClick = {
-                repository.sendAction(WearRoomRepository.ACTION_RECONNECT)
-            }) {
-                Icon(Icons.Rounded.Refresh, null, tint = TarkOrange, modifier = Modifier.size(21.dp))
-            }
-            ActionCircle(label = "خروج", tint = TarkRed, onClick = { confirmLeave = true }) {
-                Icon(Icons.Rounded.Logout, null, tint = TarkRed, modifier = Modifier.size(20.dp))
+            ActionCircle(
+                label = "خروج",
+                tint = TarkRed,
+                enabled = room.isLive,
+                onClick = { confirmLeave = true },
+            ) {
+                Icon(
+                    Icons.Rounded.Logout,
+                    null,
+                    tint = TarkRed,
+                    modifier = Modifier.size(19.dp),
+                )
             }
         }
-        Spacer(Modifier.height(5.dp))
+
+        Spacer(Modifier.height(4.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.Groups, null, tint = TarkMuted, modifier = Modifier.size(14.dp))
+            Icon(
+                Icons.Rounded.Groups,
+                null,
+                tint = TarkMuted,
+                modifier = Modifier.size(14.dp),
+            )
             Text(
                 text = if (room.peerCount > 0) " ${room.peerCount} عضو" else " تنها هستی",
                 color = TarkMuted,
@@ -221,10 +294,12 @@ private fun RoomControlScreen(room: WearRoomState, repository: WearRoomRepositor
             title = { Text("داری میری؟", fontWeight = FontWeight.Bold) },
             text = { Text("اگه بری، ارتباطت با بچه‌های این کانال قطع میشه.") },
             confirmButton = {
-                TextButton(onClick = {
-                    confirmLeave = false
-                    repository.sendAction(WearRoomRepository.ACTION_LEAVE)
-                }) { Text("خروج", color = TarkRed) }
+                TextButton(
+                    onClick = {
+                        confirmLeave = false
+                        repository.sendAction(WearRoomRepository.ACTION_LEAVE)
+                    },
+                ) { Text("خروج", color = TarkRed) }
             },
             dismissButton = {
                 TextButton(onClick = { confirmLeave = false }) { Text("بیخیال") }
@@ -245,7 +320,12 @@ private fun RoomStatusScreen(room: WearRoomState, repository: WearRoomRepository
             .fillMaxSize()
             .padding(horizontal = 28.dp, vertical = 18.dp),
     ) {
-        Text("وضعیت اتاق", color = TarkText, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+        Text(
+            "وضعیت اتاق",
+            color = TarkText,
+            fontWeight = FontWeight.Bold,
+            fontSize = 15.sp,
+        )
         Spacer(Modifier.height(8.dp))
         StatusCard(
             title = room.callsign.ifBlank { "تَرک" },
@@ -265,38 +345,72 @@ private fun RoomStatusScreen(room: WearRoomState, repository: WearRoomRepository
             accent = statusColor(room),
         )
         Spacer(Modifier.height(10.dp))
-        ActionCircle(label = "تازه‌سازی", onClick = repository::requestState) {
-            Icon(Icons.Rounded.Refresh, null, tint = TarkOrange, modifier = Modifier.size(20.dp))
+        ActionCircle(
+            label = "تازه‌سازی",
+            tint = TarkOrange,
+            enabled = true,
+            onClick = repository::requestState,
+        ) {
+            Icon(
+                Icons.Rounded.Refresh,
+                null,
+                tint = TarkOrange,
+                modifier = Modifier.size(20.dp),
+            )
         }
     }
 }
 
 @Composable
 private fun RadarControl(muted: Boolean, live: Boolean, onClick: () -> Unit) {
-    val pulse by rememberInfiniteTransition(label = "radar").animateFloat(
+    val transition = rememberInfiniteTransition(label = "radar")
+    val pulse by transition.animateFloat(
         initialValue = 0.82f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(tween(1_200), RepeatMode.Reverse),
         label = "pulse",
     )
+    val sweep by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(4_500, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "sweep",
+    )
+
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
-            .size(126.dp)
+            .size(118.dp)
             .clickable(onClick = onClick),
     ) {
         Canvas(Modifier.fillMaxSize()) {
             val center = Offset(size.width / 2f, size.height / 2f)
             val maxRadius = size.minDimension / 2f
             drawCircle(TarkOrange.copy(alpha = 0.10f), maxRadius * pulse)
-            drawCircle(TarkOrange.copy(alpha = 0.30f), maxRadius * 0.92f, style = Stroke(1.dp.toPx()))
-            drawCircle(TarkOrangeDim, maxRadius * 0.67f, style = Stroke(2.dp.toPx()))
+            drawCircle(
+                TarkOrange.copy(alpha = 0.30f),
+                maxRadius * 0.92f,
+                style = Stroke(1.dp.toPx()),
+            )
+            drawCircle(
+                TarkOrangeDim,
+                maxRadius * 0.67f,
+                style = Stroke(2.dp.toPx()),
+            )
             repeat(42) { i ->
                 val angle = Math.toRadians(i * (360.0 / 42.0) - 90.0)
-                val r = maxRadius * 0.73f
-                val x = center.x + cos(angle).toFloat() * r
-                val y = center.y + sin(angle).toFloat() * r
-                drawCircle(TarkOrange, 1.8.dp.toPx(), Offset(x, y))
+                val radius = maxRadius * 0.73f
+                drawCircle(
+                    TarkOrange,
+                    1.8.dp.toPx(),
+                    Offset(
+                        center.x + cos(angle).toFloat() * radius,
+                        center.y + sin(angle).toFloat() * radius,
+                    ),
+                )
             }
             repeat(8) { i ->
                 val angle = Math.toRadians(i * 45.0)
@@ -316,13 +430,26 @@ private fun RadarControl(muted: Boolean, live: Boolean, onClick: () -> Unit) {
                     StrokeCap.Round,
                 )
             }
+            if (live) {
+                val sweepAngle = Math.toRadians(sweep.toDouble() - 90.0)
+                drawLine(
+                    TarkOrange.copy(alpha = 0.72f),
+                    center,
+                    Offset(
+                        center.x + cos(sweepAngle).toFloat() * maxRadius * 0.88f,
+                        center.y + sin(sweepAngle).toFloat() * maxRadius * 0.88f,
+                    ),
+                    2.dp.toPx(),
+                    StrokeCap.Round,
+                )
+            }
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(
                 imageVector = if (muted) Icons.Rounded.MicOff else Icons.Rounded.Mic,
                 contentDescription = null,
                 tint = if (live && !muted) TarkOrange else TarkMuted,
-                modifier = Modifier.size(38.dp),
+                modifier = Modifier.size(36.dp),
             )
             Text(
                 text = when {
@@ -342,19 +469,31 @@ private fun RadarControl(muted: Boolean, live: Boolean, onClick: () -> Unit) {
 private fun ActionCircle(
     label: String,
     tint: Color = TarkText,
+    enabled: Boolean,
     onClick: () -> Unit,
     icon: @Composable () -> Unit,
 ) {
+    val haptic = LocalHapticFeedback.current
+    val effectiveTint = if (enabled) tint else TarkMuted.copy(alpha = 0.45f)
+
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
-                .size(42.dp)
+                .size(39.dp)
                 .background(TarkCard, CircleShape)
-                .border(1.dp, tint.copy(alpha = 0.45f), CircleShape)
-                .clickable(onClick = onClick),
+                .border(1.dp, effectiveTint.copy(alpha = 0.45f), CircleShape)
+                .clickable(enabled = enabled) {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onClick()
+                },
         ) { icon() }
-        Text(label, color = tint, fontSize = 8.sp, maxLines = 1)
+        Text(
+            label,
+            color = effectiveTint,
+            fontSize = 7.5.sp,
+            maxLines = 1,
+        )
     }
 }
 
@@ -370,7 +509,13 @@ private fun StatusCard(title: String, subtitle: String, accent: Color) {
     ) {
         Box(Modifier.size(7.dp).background(accent, CircleShape))
         Column(Modifier.padding(start = 9.dp)) {
-            Text(title, color = TarkText, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+            Text(
+                title,
+                color = TarkText,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+            )
             Text(subtitle, color = TarkMuted, fontSize = 8.sp, maxLines = 1)
         }
     }
@@ -383,7 +528,10 @@ private fun PageDots(page: Int, modifier: Modifier = Modifier) {
             Box(
                 Modifier
                     .size(if (page == index) 6.dp else 4.dp)
-                    .background(if (page == index) TarkOrange else TarkMuted.copy(alpha = 0.45f), CircleShape),
+                    .background(
+                        if (page == index) TarkOrange else TarkMuted.copy(alpha = 0.45f),
+                        CircleShape,
+                    ),
             )
         }
     }
@@ -398,7 +546,9 @@ private fun StarField() {
             Offset(size.width * .12f, size.height * .71f),
             Offset(size.width * .76f, size.height * .78f),
         )
-        points.forEach { drawCircle(TarkOrange.copy(alpha = .24f), 1.4.dp.toPx(), it) }
+        points.forEach {
+            drawCircle(TarkOrange.copy(alpha = .24f), 1.4.dp.toPx(), it)
+        }
     }
 }
 
@@ -406,8 +556,8 @@ private fun statusText(room: WearRoomState): String = when {
     room.isReconnecting -> "در حال اتصال مجدد"
     room.session == RoomSession.DOWN -> "ارتباط قطع است"
     room.session == RoomSession.ON_AIR -> "در حال ارسال"
-    room.isLive -> room.statusLine.ifBlank { "متصل" }
-    else -> "گوشی را باز کن"
+    room.isLive -> room.statusLine.ifBlank { "گوشی متصل" }
+    else -> "منتظر روم گوشی"
 }
 
 private fun statusColor(room: WearRoomState): Color = when {
