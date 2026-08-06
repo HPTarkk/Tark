@@ -575,6 +575,19 @@ if ($publish) {
             Run 'gh' $ghArgs 'gh release create'
         }
 
+        # "gh release create" works in three steps: make a DRAFT, upload the
+        # assets, then flip the draft off. The upload of a ~116 MB APK takes
+        # minutes, so anything that interrupts it (Ctrl-C, a dropped
+        # connection) leaves a draft with no assets — invisible to everyone but
+        # the repo owner. A retry then sees that draft as an existing release,
+        # takes the --clobber path above, and would leave it drafted forever.
+        # So publish it explicitly rather than trusting create to have finished.
+        $isDraft = (gh release view $tag --json isDraft --jq .isDraft 2>$null)
+        if ($isDraft -and $isDraft.Trim() -eq 'true') {
+            Write-Host "  Release $tag is still a draft — publishing it." -ForegroundColor DarkYellow
+            Run 'gh' @('release', 'edit', $tag, '--draft=false') 'gh release edit'
+        }
+
         $url = (gh release view $tag --json url --jq .url 2>$null)
         Write-Host ''
         Write-Host '  Published.' -ForegroundColor Green
