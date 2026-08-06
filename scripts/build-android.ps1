@@ -118,7 +118,16 @@ function Show-Size([string]$Path) {
 
 # Echo then run, and fail loudly. Every git/gh mutation goes through this so a
 # half-finished publish is always visible in the transcript.
+#
+# Call it as  Run 'gh' $argArray 'what'  — NOT  Run 'gh' @argArray 'what'.
+# "@name" is splatting syntax: it explodes the array into separate positional
+# parameters, so $Arguments would bind to the first element only and a simple
+# function swallows the rest into $args without complaint. That silently ran
+# "gh release" instead of "gh release create ..." once already, hence the guard.
 function Run([string]$Exe, [string[]]$Arguments, [string]$What) {
+    if ($args.Count -gt 0) {
+        throw "Run '$Exe' got $($args.Count) stray argument(s) — an array was splatted with @ instead of passed as `$var: $($args -join ' ')"
+    }
     Write-Host "> $Exe $($Arguments -join ' ')" -ForegroundColor Cyan
     & $Exe @Arguments
     if ($LASTEXITCODE -ne 0) { throw "$What failed" }
@@ -563,7 +572,7 @@ if ($publish) {
             )
             if ($isPrerelease) { $ghArgs += '--prerelease' }
             $ghArgs += $asset
-            Run 'gh' @ghArgs 'gh release create'
+            Run 'gh' $ghArgs 'gh release create'
         }
 
         $url = (gh release view $tag --json url --jq .url 2>$null)
