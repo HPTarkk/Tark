@@ -26,6 +26,12 @@
 # A bugfix for a shipped version is therefore a commit on that branch plus the
 # next tag, and a new major opens a new branch the first time it is published.
 #
+# Features live on main, so a feature release needs main merged into the release
+# branch first — offered in preflight, listing the commits, defaulting to yes.
+# Decline it to ship only what is already on the release branch, which is the
+# bugfix case. The merge happens before pubspec.yaml is re-read, because the
+# merged tree is what gets compiled and what the tag has to name.
+#
 # Nothing is tagged, pushed or published until the build has succeeded. A
 # failed build therefore leaves no orphan tag and no assetless release to go
 # clean up by hand.
@@ -214,6 +220,8 @@ if ($publish) {
 #
 # Everything that can fail is checked BEFORE the multi-minute build.
 
+$mergedMain = 0
+
 if ($publish) {
     if (-not (Get-Command git -ErrorAction SilentlyContinue)) { throw 'git not found on PATH' }
     if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
@@ -259,25 +267,81 @@ if ($publish) {
             Run 'git' @('push', '-u', 'origin', $releaseBranch) 'git push'
         }
         $currentBranch = $releaseBranch
+    }
 
-        # The branch that was just checked out has its own pubspec.yaml, and it
-        # is that version — not the one read on the branch we came from — that
-        # gets compiled. Re-derive everything from it.
-        $v = Get-PubspecVersion
-        if ($v.Name -ne $versionName) {
+    Run 'git' @('fetch', 'origin', '--tags', '--quiet') 'git fetch'
+
+    # Nothing below should run on a branch that is missing commits the remote
+    # already has — least of all a merge.
+    git rev-parse --verify --quiet "origin/$releaseBranch" | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "  origin/$releaseBranch does not exist yet — it will be pushed." -ForegroundColor DarkGray
+    } else {
+        $behind = [int](git rev-list --count "HEAD..origin/$releaseBranch").Trim()
+        if ($behind -gt 0) {
             Write-Host ''
-            Write-Host "  $releaseBranch carries version $($v.Name), not $versionName." -ForegroundColor DarkYellow
-            Write-Host "  Building and tagging that instead: $($v.Tag)"
-            $versionName = $v.Name
-            $versionCode = $v.Code
-            $tag = $v.Tag
-            if (-not (AskYesNo 'Continue?' $true)) { throw 'aborted by user' }
+            Write-Host "  origin/$releaseBranch has $behind commit(s) you do not have." -ForegroundColor Red
+            Write-Host '  Run "git pull" and re-run, so the tag includes them.' -ForegroundColor DarkYellow
+            throw 'release branch is behind origin'
         }
-        # A major that disagrees with the branch it lives on means the branch is
-        # not the line it claims to be, and no tag from here would be trustworthy.
-        if ($v.Branch -ne $releaseBranch) {
-            throw "$releaseBranch contains version $($v.Name), which belongs on $($v.Branch) — the release lines are crossed"
+    }
+
+    # ── Bring main in ───────────────────────────────────────────────────────
+    #
+    # Features land on main; the release branch only carries its own bugfixes.
+    # So a feature release needs main merged first, while a bugfix-only release
+    # does not — which is why this is offered rather than assumed.
+    git rev-parse --verify --quiet 'origin/main' | Out-Null
+    if ($LASTEXITCODE -eq 0) {
+        $incoming = @(git log --oneline 'HEAD..origin/main')
+        if ($incoming.Count -gt 0) {
+            Write-Host ''
+            Write-Host "  origin/main has $($incoming.Count) commit(s) not on $releaseBranch" -ForegroundColor Yellow
+            $incoming | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+            Write-Host ''
+            Write-Host '  Merge them to release these changes, or decline to ship only what is' -ForegroundColor DarkGray
+            Write-Host "  already on $releaseBranch (the bugfix case)." -ForegroundColor DarkGray
+
+            if (AskYesNo 'Merge origin/main into the release branch?' $true) {
+                Write-Host "> git merge --no-edit origin/main" -ForegroundColor Cyan
+                git merge --no-edit origin/main
+                if ($LASTEXITCODE -eq 0) {
+                    # Tracked so a later abort can say the commit is sitting
+                    # there. It has to happen this early — pubspec.yaml and the
+                    # tag both depend on the merged tree.
+                    $mergedMain = $incoming.Count
+                }
+                if ($LASTEXITCODE -ne 0) {
+                    # Never leave a half-merged tree behind: the next thing this
+                    # script would do is build and tag it.
+                    Write-Host ''
+                    Write-Host '  Merge failed — backing it out.' -ForegroundColor Red
+                    git merge --abort 2>&1 | Out-Null
+                    Write-Host '  Resolve it by hand, commit, then run this again.' -ForegroundColor DarkYellow
+                    throw 'merge of origin/main failed'
+                }
+            }
+        } else {
+            Write-Host "  origin/main  in sync with $releaseBranch" -ForegroundColor DarkGray
         }
+    }
+
+    # Re-read pubspec last: both a branch switch and a merge can change it, and
+    # it is the version in the tree about to be COMPILED that must name the tag.
+    $v = Get-PubspecVersion
+    if ($v.Name -ne $versionName) {
+        Write-Host ''
+        Write-Host "  $releaseBranch now carries version $($v.Name), not the $versionName read earlier." -ForegroundColor DarkYellow
+        Write-Host "  Building and tagging that instead: $($v.Tag)"
+        $versionName = $v.Name
+        $versionCode = $v.Code
+        $tag = $v.Tag
+        if (-not (AskYesNo 'Continue?' $true)) { throw 'aborted by user' }
+    }
+    # A major that disagrees with the branch it lives on means the branch is not
+    # the line it claims to be, and no tag from here would be trustworthy.
+    if ($v.Branch -ne $releaseBranch) {
+        throw "$releaseBranch contains version $($v.Name), which belongs on $($v.Branch) — the release lines are crossed"
     }
 }
 
@@ -297,8 +361,8 @@ $notesFile = $null
 $tagMessageFile = $null
 
 if ($publish) {
-    Run 'git' @('fetch', 'origin', '--tags', '--quiet') 'git fetch'
-
+    # Read after the merge above, so the tag is checked against the commit that
+    # will actually be built.
     $head = (git rev-parse HEAD).Trim()
 
     git show-ref --verify --quiet "refs/tags/$tag"
@@ -320,22 +384,6 @@ if ($publish) {
             Write-Host '  (raise the +build number too — stores reject a re-used versionCode),'
             Write-Host '  commit it, then run this again.' -ForegroundColor DarkYellow
             throw "tag $tag already in use"
-        }
-    }
-
-    # The release needs the commit to be on the remote, so make sure the branch
-    # is not behind. Being ahead is fine — publishing pushes.
-    git rev-parse --verify --quiet "origin/$releaseBranch" | Out-Null
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "  origin/$releaseBranch does not exist yet — it will be pushed." -ForegroundColor DarkGray
-    } else {
-        $behindRaw = (git rev-list --count "HEAD..origin/$releaseBranch").Trim()
-        $behind = [int]$behindRaw
-        if ($behind -gt 0) {
-            Write-Host ''
-            Write-Host "  origin/$releaseBranch has $behind commit(s) you do not have." -ForegroundColor Red
-            Write-Host '  Run "git pull" and re-run, so the tag includes them.' -ForegroundColor DarkYellow
-            throw 'release branch is behind origin'
         }
     }
 
@@ -377,6 +425,9 @@ if ($publish) {
 
     Write-Host ''
     Write-Host '  Ready to:' -ForegroundColor Yellow
+    if ($mergedMain -gt 0) {
+        Write-Host "    merged    $mergedMain commit(s) from origin/main  (local only so far)" -ForegroundColor DarkGray
+    }
     Write-Host "    build     universal release APK ($versionName)"
     if ($reuseTag) {
         Write-Host "    tag       $tag  (exists, reused)" -ForegroundColor DarkGray
@@ -390,7 +441,14 @@ if ($publish) {
         Write-Host "    publish   $assetName  ->  new GitHub $kind $tag"
     }
     Write-Host ''
-    if (-not (AskYesNo 'Proceed?' $true)) { throw 'aborted by user' }
+    if (-not (AskYesNo 'Proceed?' $true)) {
+        if ($mergedMain -gt 0) {
+            Write-Host ''
+            Write-Host "  Note: the merge of origin/main is already committed on $releaseBranch." -ForegroundColor DarkYellow
+            Write-Host '  It was not pushed. To undo it:  git reset --hard @{u}' -ForegroundColor DarkGray
+        }
+        throw 'aborted by user'
+    }
 }
 
 # ── Build ───────────────────────────────────────────────────────────────────
