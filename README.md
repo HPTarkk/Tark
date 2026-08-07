@@ -322,7 +322,7 @@ that goes one-way after the screen locks, an AP the OS tore down, a mic that
 opened and delivered nothing. `adb logcat` reaches none of that, so the app keeps
 its own log.
 
-**For users.** Settings → Diagnostics → *Share diagnostic log*. It writes a
+**For users.** Settings → Advanced → Diagnostics → *Share diagnostic log*. It writes a
 `.tarklog` file and hands it to the share sheet. The log stays on the phone until
 you send it, and *Clear the log* deletes it.
 

@@ -38,7 +38,7 @@ class Logger {
   ///     adb logcat -s flutter:I | grep tark-diag
   ///
   /// …or, on a phone that isn't plugged into anything, from Settings →
-  /// Diagnostics → Share log, which is where [sink] sends these.
+  /// Advanced → Diagnostics → Share log, which is where [sink] sends these.
   static void diagnostic(Object? data) {
     // ignore: avoid_print
     print('$diagnosticTag $data');

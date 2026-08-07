@@ -10,7 +10,8 @@ import '../../../../core/utils/extensions.dart';
 import 'settings_category_card.dart';
 import 'settings_row.dart';
 
-/// Settings → Diagnostics: hand the on-device log back to us, or wipe it.
+/// Settings → Advanced → Diagnostics: hand the on-device log back to us, or
+/// wipe it.
 ///
 /// The reason this is a user-facing button rather than a debug-menu affair is
 /// that the bugs it exists for cannot be reproduced anywhere else. A hotspot
