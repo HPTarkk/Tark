@@ -126,6 +126,44 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   /// rather than at the presence tick rate.
   final Set<String> _failingTargets = {};
 
+  /// Device ids we have decoded a packet from recently, which is what goes out
+  /// on our presence so the other end can tell whether it is being heard at
+  /// all. Keyed on the device id rather than the address for the same reason
+  /// the roster is: one phone can arrive under two source IPs.
+  final Map<String, DateTime> _heardSenders = {};
+
+  /// How long a sender stays on the heard list. Deliberately longer than the
+  /// 2s presence tick and shorter than the roster's own timeout: it has to
+  /// survive a couple of dropped datagrams without claiming to hear someone
+  /// who has actually gone.
+  static const _heardSenderMaxAge = Duration(seconds: 8);
+
+  /// When the send socket last failed against every target it had.
+  ///
+  /// A socket bound to a Network handle the OS has since torn down does not
+  /// close, report an error, or stop existing — it just fails every `send`
+  /// with ENETUNREACH forever, while the receive side (which is not routed and
+  /// so does not care) carries on delivering perfectly. That asymmetry is
+  /// exactly the reported "I can hear them, they can't hear me", and this is
+  /// what notices it.
+  DateTime? _sendFailingSince;
+
+  /// Grace before a wholly failing send socket is thrown away and rebuilt.
+  /// Long enough that a single blocked send (a full socket buffer) is not a
+  /// reason to rebuild; short enough that a dead link heals inside one breath.
+  static const _sendFailureGrace = Duration(seconds: 2);
+
+  /// Rate limit on those rebuilds, so a genuinely unreachable peer costs one
+  /// socket per interval rather than one per datagram.
+  DateTime _lastSendRebuildAt = DateTime.fromMillisecondsSinceEpoch(0);
+  static const _sendRebuildInterval = Duration(seconds: 5);
+
+  // Traffic counters for the periodic session line in the diagnostic log.
+  // Two numbers answer most of "why did it go quiet": whether we were still
+  // sending, and whether anything was still arriving.
+  int _packetsIn = 0;
+  int _packetsOut = 0;
+
   /// Directed broadcasts for subnets we have received traffic from, which
   /// survive an interface enumeration that missed them (see
   /// [_rememberHeardSubnet]).
@@ -199,9 +237,14 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
         senderName,
         isTalking,
         role: sessionRole,
+        // Never null on this transport: a Wi-Fi channel genuinely knows who it
+        // hears, and an honest empty list is what lets a peer whose send path
+        // has died find out. See [PresencePacket.heardIds].
+        heardIds: _currentlyHeardSenders(),
       );
       _sendToAllTargets(packet);
       _sweepIfUndiscovered(packet);
+      _logSessionState();
       return const Right(null);
     } catch (error) {
       Logger.log(error);
@@ -224,6 +267,23 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
       try {
         _receiveSocket?.close();
         _receiveSocket = null;
+        // BOTH sockets, every time. Rebinding only the receive side was a
+        // half-recovery that produced the app's most confusing failure: the
+        // phone kept hearing everyone (delivery to a bound UDP port does not
+        // depend on which network the socket was created on) while every one
+        // of its own packets died on a route that no longer existed. Its
+        // troubleshooting sheet then reported four green checks — mic working,
+        // address present, link steady, one person here — for a device nobody
+        // could hear.
+        //
+        // The reasons to rebind are all reasons to distrust the send socket
+        // too: the liveness watchdog fired, the socket errored, or
+        // [rebindSockets] was called because the OS moved us. Discarding it
+        // here costs one `bind` per rebind and removes the entire class of
+        // one-way-after-recovery states.
+        _sendSocket?.close();
+        _sendSocket = null;
+        _sendFailingSince = null;
 
         // Re-resolve every rebind: a Wi-Fi/hotspot interface that changed
         // while we were down (screen-off drop, network switch) is picked up
@@ -275,9 +335,11 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
               _lastPacketAt = DateTime.now();
               final packet = _codec.decode(dg.data, dg.address.address);
               if (packet != null) {
+                _packetsIn++;
                 _rememberPeer(dg.address.address);
                 _rememberHeardSubnet(dg.address.address);
                 _noteSenderRoute(dg.address.address, packet.senderId);
+                _heardSenders[packet.senderId] = _lastPacketAt;
                 yield packet;
               }
             }
@@ -361,6 +423,40 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     }
   }
 
+  /// One line every [_sessionLogInterval] describing the whole transport, for
+  /// the on-device log.
+  ///
+  /// This is deliberately a single dense line rather than events, because the
+  /// question it has to answer after the fact is comparative: at the moment
+  /// the user says it went quiet, was this phone still sending, was anything
+  /// still arriving, did it still have peers to send to, and on which
+  /// addresses? Two of these lines side by side from the two phones settle in
+  /// seconds what no amount of reasoning about the code can.
+  ///
+  /// Rides the presence tick (2s) and throttles itself rather than owning a
+  /// timer, so it cannot outlive the session that produces it.
+  void _logSessionState() {
+    final now = DateTime.now();
+    if (now.difference(_lastSessionLogAt) < _sessionLogInterval) return;
+    _lastSessionLogAt = now;
+    final silentFor = now.difference(_lastPacketAt).inSeconds;
+    Logger.diagnostic(
+      'wifi: in=$_packetsIn out=$_packetsOut '
+      'peers=${_peers.keys.toList()} recovery=${_recoveryPeers.length} '
+      'heard=${_heardSenders.keys.toList()} '
+      'local=$_localAddresses '
+      'bcast=${_broadcastTargets.map((a) => a.address).toList()}'
+      '${_heardSubnetBroadcasts.isEmpty ? '' : '+${_heardSubnetBroadcasts.map((a) => a.address).toList()}'} '
+      'sendSocket=${_sendSocket == null ? 'none' : 'up'} '
+      'rxSocket=${_receiveSocket == null ? 'none' : 'up'} '
+      'quietFor=${silentFor}s'
+      '${_sendFailingSince == null ? '' : ' SEND-FAILING'}',
+    );
+  }
+
+  DateTime _lastSessionLogAt = DateTime.fromMillisecondsSinceEpoch(0);
+  static const _sessionLogInterval = Duration(seconds: 15);
+
   void _startLivenessWatch(int myGen) {
     _livenessTimer?.cancel();
     _livenessTimer = Timer.periodic(_livenessCheckInterval, (_) {
@@ -412,6 +508,32 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
 
   @override
   void resetCodecState() => _codec.resetDecoders();
+
+  @override
+  void repairSendPath() {
+    // Rate-limited by the same clock the automatic rebuild uses: a peer whose
+    // presence keeps saying it can't hear us arrives every 2s, and rebuilding
+    // the socket on each one would guarantee it never got a chance to work.
+    final now = DateTime.now();
+    if (now.difference(_lastSendRebuildAt) < _sendRebuildInterval) return;
+    _lastSendRebuildAt = now;
+    Logger.diagnostic(
+      'wifi: a peer we can hear reports it cannot hear us — '
+      'rebuilding the send path',
+    );
+    _sendSocket?.close();
+    _sendSocket = null;
+    _sendFailingSince = null;
+    // Re-resolve rather than trust the targets that have been failing. The
+    // realistic cause is that the OS moved us onto a new network handle
+    // without anything noticing, so both the socket and the addresses it was
+    // aiming at are stale.
+    _broadcastTargets = const [];
+    _targetsResolvedAt = DateTime.fromMillisecondsSinceEpoch(0);
+    // Not a full rebindSockets(): the receive half is demonstrably working —
+    // that is how we heard the complaint — and tearing it down would trade a
+    // one-way link for a moment of no link at all.
+  }
 
   @override
   void rebindSockets() {
@@ -485,6 +607,13 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     _seenSenderRoutes.clear();
     _heardSubnets.clear();
     _heardSubnetBroadcasts = const [];
+    // Carrying these into a new session would have the first presence packet
+    // announce that we hear people we have not heard from in this one — which
+    // is precisely the claim the other end acts on.
+    _heardSenders.clear();
+    _sendFailingSince = null;
+    _packetsIn = 0;
+    _packetsOut = 0;
     _sweep.retarget(const []);
 
     _setHealth(const ConnectionHealth.down());
@@ -511,6 +640,15 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
       _sendSocket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
       _sendSocket!.broadcastEnabled = true;
     }
+  }
+
+  /// Device ids heard recently enough to still be worth announcing.
+  List<String> _currentlyHeardSenders() {
+    final now = DateTime.now();
+    _heardSenders.removeWhere(
+      (_, seen) => now.difference(seen) > _heardSenderMaxAge,
+    );
+    return _heardSenders.keys.toList(growable: false);
   }
 
   void _sendToAllTargets(List<int> packet) {
@@ -545,9 +683,64 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     final unicastTargets = _peers.isNotEmpty
         ? _peers.keys
         : _recoveryPeers.keys;
-    for (final addr in unicastTargets) {
-      _trySend(packet, InternetAddress(addr));
+    // Copied before iterating: [_gradeSendPath] below can discard the send
+    // socket, and keeping a live view of a map across that is asking for
+    // trouble the day something else touches it.
+    final unicast = unicastTargets.toList(growable: false);
+    var failed = 0;
+    for (final addr in unicast) {
+      if (!_trySend(packet, InternetAddress(addr))) failed++;
     }
+
+    _packetsOut++;
+    _gradeSendPath(attempted: unicast.length, failed: failed, now: now);
+  }
+
+  /// Notices a send socket that has stopped working, and throws it away.
+  ///
+  /// The failure this exists for is invisible from every other angle. When the
+  /// OS releases the network a socket was created on — which is exactly what a
+  /// screen lock does to a phone joined to a hotspot, since the app-scoped
+  /// Wi-Fi request is foreground-only — the socket stays open and keeps
+  /// failing every `send` against a route that is gone. Nothing closes it,
+  /// nothing reports it, and the receive path is unaffected, so the phone
+  /// looks completely healthy while nobody can hear it.
+  ///
+  /// Dropping the socket is the whole fix: [_ensureSendSocket] rebuilds it on
+  /// the network the process is on *now*, which after the OS has put us back
+  /// on the AP is the right one.
+  ///
+  /// Graded on the **unicast** targets only, never the broadcasts. A broadcast
+  /// send is expected to fail outright on iOS (errno 65, no multicast
+  /// entitlement), so counting those would have every iPhone sitting alone in
+  /// a channel rebuild its socket on a timer forever. A unicast to an address
+  /// we have actually heard from is the honest test: it should work, and its
+  /// failing is news.
+  void _gradeSendPath({
+    required int attempted,
+    required int failed,
+    required DateTime now,
+  }) {
+    if (attempted == 0 || failed < attempted) {
+      if (_sendFailingSince != null) {
+        Logger.diagnostic('wifi: send path recovered');
+        _sendFailingSince = null;
+      }
+      return;
+    }
+    final since = _sendFailingSince ??= now;
+    if (now.difference(since) < _sendFailureGrace) return;
+    if (now.difference(_lastSendRebuildAt) < _sendRebuildInterval) return;
+    _lastSendRebuildAt = now;
+    Logger.diagnostic(
+      'wifi: every send has failed for ${now.difference(since).inSeconds}s '
+      '($attempted targets) — rebuilding the send socket',
+    );
+    _sendSocket?.close();
+    _sendSocket = null;
+    // Force the next send to re-resolve too: if the addresses moved, the
+    // targets this was failing against are the wrong ones anyway.
+    _targetsResolvedAt = DateTime.fromMillisecondsSinceEpoch(0);
   }
 
   /// Adds the /24 directed broadcast of a subnet we have actually received a
@@ -660,12 +853,14 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   // return of 0, which means the datagram never left — so a phone that had
   // silently stopped transmitting looked identical to one with nothing to say.
   // Every other stage of the path can be observed; this one could not.
-  void _trySend(List<int> packet, InternetAddress target) {
+  /// Returns whether the datagram actually left the device, so the caller can
+  /// tell one dead target apart from a dead socket (see [_gradeSendPath]).
+  bool _trySend(List<int> packet, InternetAddress target) {
     // Read once into a local: a rebuild can null the field between targets in
     // the same loop, and a `!` here turned that into an exception per target
     // rather than a skipped packet.
     final socket = _sendSocket;
-    if (socket == null) return;
+    if (socket == null) return false;
     try {
       final sent = socket.send(packet, target, kBroadcastPort);
       if (sent == 0) {
@@ -674,15 +869,17 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
             'wifi: send to ${target.address} dropped (socket would block)',
           );
         }
-        return;
+        return false;
       }
       if (_failingTargets.remove(target.address)) {
         Logger.diagnostic('wifi: send to ${target.address} recovered');
       }
+      return true;
     } catch (e) {
       if (_failingTargets.add(target.address)) {
         Logger.diagnostic('wifi: send to ${target.address} failed: $e');
       }
+      return false;
     }
   }
 

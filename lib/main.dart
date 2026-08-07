@@ -10,6 +10,8 @@ import 'app/router/app_router.dart';
 import 'app/router/quick_access.dart';
 import 'core/analytics/analytics.dart';
 import 'core/config/onboarding_config.dart';
+import 'core/diagnostics/diagnostic_log.dart';
+import 'core/diagnostics/lifecycle_log.dart';
 import 'core/entitlement/billing_probe.dart';
 import 'core/entitlement/entitlement_store.dart';
 import 'core/home_widget/home_widget_service.dart';
@@ -24,6 +26,16 @@ import 'feature/transfer/api/transfer_api.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // First, so everything below is on the record. The file this opens is what
+  // turns "it stopped working on the ride home" into something diagnosable —
+  // see DiagnosticLog. Not awaited past its own directory lookup: nothing here
+  // may sit in front of the first frame, and lines emitted before the
+  // directory resolves are held in memory and flushed once it does.
+  unawaited(DiagnosticLog.initialize());
+  // Screen-off/on is the single most useful thing to correlate socket and
+  // audio events against — most of what goes wrong mid-session goes wrong
+  // because the phone locked.
+  LifecycleLog.install();
   // Async errors that no call site can own end up here. The one that actually
   // fires is flutter_blue_classic's startScan/stopScan: both are declared
   // `void` and drop the platform-channel Future inside the plugin, so a
@@ -33,7 +45,10 @@ void main() async {
   // no `try` of ours can reach. Log it and keep going — a scan that never
   // started just finds nothing, which the joiner screen already copes with.
   WidgetsBinding.instance.platformDispatcher.onError = (error, stack) {
-    Logger.log('Unhandled async error: $error\n$stack');
+    // diagnostic, not log: an error nobody caught is rare, high-value, and by
+    // definition only observed where it happened — which is the one category
+    // that has to survive into a release build's log file.
+    Logger.diagnostic('Unhandled async error: $error\n$stack');
     return true;
   };
   // The one SharedPreferences resolution for the whole process: handed to

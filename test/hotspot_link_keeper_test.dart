@@ -128,6 +128,9 @@ class _FakeWifi implements WifiTransferRepository {
   void resetCodecState() {}
 
   @override
+  void repairSendPath() {}
+
+  @override
   void dispose() {}
 }
 

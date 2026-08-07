@@ -15,11 +15,16 @@ import '../../../../core/utils/extensions.dart';
 import '../../../../core/widget/ticker_text.dart';
 import '../../../walkie/api/walkie_api.dart';
 import '../manager/settings_cubit.dart';
+import '../widget/diagnostics_card.dart';
 import '../widget/settings_category_card.dart';
 
 /// Advanced/technical settings, split off the main Settings page so casual
-/// users never meet them: the noise-cleaner engine choice and the playback
-/// (jitter-buffer) delay.
+/// users never meet them: the noise-cleaner engine choice, the playback
+/// (jitter-buffer) delay, and the diagnostic log.
+///
+/// The log belongs here rather than on the main page for the same reason as
+/// the rest of it — nobody goes looking for it on an ordinary day, and the
+/// people who do need it have been pointed at it.
 ///
 /// Same live-session threading as [SettingsPage]: [buildPage] accepts the
 /// already-running [WalkieTalkieCubit] via go_router's `extra` so the engine
@@ -43,11 +48,11 @@ class AdvancedSettingsPage extends StatefulWidget {
 class _AdvancedSettingsPageState extends State<AdvancedSettingsPage>
     with TickerProviderStateMixin {
   // Staggered entrance, same pattern as the main Settings page:
-  // [voice, noise cleaner, delay]
+  // [voice, noise cleaner, delay, diagnostics]
   late AnimationController _entranceController;
   late List<Animation<double>> _sections;
 
-  static const _sectionCount = 3;
+  static const _sectionCount = 4;
 
   @override
   void initState() {
@@ -127,6 +132,8 @@ class _AdvancedSettingsPageState extends State<AdvancedSettingsPage>
                 _entrance(1, _NoiseCleanerCard()),
                 const SizedBox(height: 16),
                 _entrance(2, _DelayCard()),
+                const SizedBox(height: 16),
+                _entrance(3, const DiagnosticsCard()),
               ],
             ),
           ),

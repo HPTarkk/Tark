@@ -201,6 +201,21 @@
             </intent-filter>
         </receiver>
 
+        <!-- Hands an exported diagnostic log to the share sheet as a
+             content:// URI — a file:// one throws FileUriExposedException from
+             API 24. Scoped to res/xml/tark_file_paths.xml, which exposes only
+             the diagnostics folder; grantUriPermissions covers the temporary
+             read grant the chooser passes to whichever app the user picks. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/tark_file_paths" />
+        </provider>
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

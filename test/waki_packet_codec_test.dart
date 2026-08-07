@@ -54,6 +54,91 @@ void main() {
       }
     });
 
+    group('the heard list', () {
+      PresencePacket roundTrip({List<String>? heardIds}) =>
+          codec.decode(
+                codec.encodePresence(
+                  'Pedram',
+                  false,
+                  role: SessionRole.peer,
+                  heardIds: heardIds,
+                ),
+                '192.168.43.7',
+              )!
+              as PresencePacket;
+
+      test('carries the ids the sender says it can hear', () {
+        expect(
+          roundTrip(heardIds: ['aaa111aaa111', 'bbb222bbb222']).heardIds,
+          ['aaa111aaa111', 'bbb222bbb222'],
+        );
+      });
+
+      test('an explicit empty list survives as an empty list', () {
+        // The whole point of the field: "I can hear nobody" has to reach the
+        // other end intact, because that is the sentence a phone whose send
+        // path has died needs to receive.
+        expect(roundTrip(heardIds: const []).heardIds, isEmpty);
+      });
+
+      test('saying nothing is null, not an empty list', () {
+        // Point-to-point transports and older builds both land here, and
+        // neither is claiming to hear nobody.
+        expect(roundTrip().heardIds, isNull);
+      });
+
+      test('a packet from a build that predates the field reads as null', () {
+        // Exactly what an older sender emits: header, isTalking, role, end.
+        final legacy = codec.encodePresence(
+          'Old build',
+          false,
+          role: SessionRole.host,
+        );
+        expect(
+          (codec.decode(legacy, '1.2.3.4')! as PresencePacket).heardIds,
+          isNull,
+        );
+      });
+
+      test('a truncated list is no opinion rather than a short one', () {
+        final full = codec.encodePresence(
+          'Pedram',
+          false,
+          role: SessionRole.peer,
+          heardIds: const ['aaa111aaa111', 'bbb222bbb222'],
+        );
+        // Chop the tail, as a clipped datagram would. Reading half a list and
+        // concluding "my id is missing" is how a healthy link gets torn down.
+        final clipped = Uint8List.sublistView(full, 0, full.length - 9);
+        expect(
+          (codec.decode(clipped, '1.2.3.4')! as PresencePacket).heardIds,
+          isNull,
+        );
+      });
+
+      test('the list is capped so presence stays inside one datagram', () {
+        final many = List.generate(40, (i) => 'id${i.toString().padLeft(10, '0')}');
+        final decoded = roundTrip(heardIds: many).heardIds!;
+        expect(decoded.length, lessThanOrEqualTo(12));
+        expect(decoded.first, many.first);
+      });
+
+      test('a peer on an older build still decodes our packet', () {
+        // Trailing bytes, so the fields an old decoder knows about are all
+        // still where it expects them.
+        final withList = codec.encodePresence(
+          'Pedram',
+          true,
+          role: SessionRole.host,
+          heardIds: const ['aaa111aaa111'],
+        );
+        final packet = codec.decode(withList, '1.2.3.4')! as PresencePacket;
+        expect(packet.senderName, 'Pedram');
+        expect(packet.isTalking, isTrue);
+        expect(packet.role, SessionRole.host);
+      });
+    });
+
     test('a role this build has never heard of reads as unknown', () {
       final packet = codec.encodePresence(
         'Future',

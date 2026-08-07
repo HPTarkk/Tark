@@ -2221,6 +2221,90 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'دائمی'**
   String get paywall_plan_lifetime;
+
+  /// No description provided for @settings_section_diagnostics.
+  ///
+  /// In en, this message translates to:
+  /// **'DIAGNOSTICS'**
+  String get settings_section_diagnostics;
+
+  /// No description provided for @settings_share_log.
+  ///
+  /// In en, this message translates to:
+  /// **'Share diagnostic log'**
+  String get settings_share_log;
+
+  /// No description provided for @settings_share_log_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Send us what the app recorded so we can see what went wrong ({size})'**
+  String settings_share_log_desc(Object size);
+
+  /// No description provided for @settings_clear_log.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear the log'**
+  String get settings_clear_log;
+
+  /// No description provided for @settings_clear_log_desc.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete what\'s stored on this phone'**
+  String get settings_clear_log_desc;
+
+  /// No description provided for @settings_log_empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing recorded yet'**
+  String get settings_log_empty;
+
+  /// No description provided for @settings_log_share_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t open the share sheet'**
+  String get settings_log_share_failed;
+
+  /// No description provided for @settings_log_cleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Log cleared'**
+  String get settings_log_cleared;
+
+  /// No description provided for @check_heard.
+  ///
+  /// In en, this message translates to:
+  /// **'Being heard'**
+  String get check_heard;
+
+  /// No description provided for @check_heard_ok.
+  ///
+  /// In en, this message translates to:
+  /// **'Your voice is reaching them'**
+  String get check_heard_ok;
+
+  /// No description provided for @check_heard_unheard.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing you send is arriving — repairing'**
+  String get check_heard_unheard;
+
+  /// No description provided for @issue_unheard_title.
+  ///
+  /// In en, this message translates to:
+  /// **'They can\'t hear you'**
+  String get issue_unheard_title;
+
+  /// No description provided for @issue_unheard_body.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re receiving them, but nothing you send is getting through. Repairing the link automatically — if it doesn\'t come back, leave and rejoin the channel.'**
+  String get issue_unheard_body;
+
+  /// No description provided for @fix_repair_link.
+  ///
+  /// In en, this message translates to:
+  /// **'Repair link'**
+  String get fix_repair_link;
 }
 
 class _AppLocalizationsDelegate

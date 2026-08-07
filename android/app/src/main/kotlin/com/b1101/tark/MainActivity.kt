@@ -6,6 +6,7 @@ import com.b1101.tark.audio.MediaControlHandler
 import com.b1101.tark.audio.SystemAudioHandler
 import com.b1101.tark.billing.BillingHandler
 import com.b1101.tark.bluetooth.BluetoothServerHandler
+import com.b1101.tark.diagnostics.DiagnosticsHandler
 import com.b1101.tark.hotspot.HotspotHandler
 import com.b1101.tark.hotspot.WifiJoinHandler
 import com.b1101.tark.keepalive.KeepAliveHandler
@@ -92,6 +93,16 @@ class MainActivity : FlutterActivity() {
             "tark/media_control",
         ).setMethodCallHandler(
             MediaControlHandler(applicationContext, activityProvider = { this }),
+        )
+
+        // Where the on-device diagnostic log lives, and the share sheet that
+        // gets it off the phone. Registered early on purpose: Dart asks for the
+        // directory in main(), before the first frame.
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "tark/diagnostics",
+        ).setMethodCallHandler(
+            DiagnosticsHandler(applicationContext, activityProvider = { this }),
         )
 
         // Needs the Activity, not just the context: Myket's purchase flow is

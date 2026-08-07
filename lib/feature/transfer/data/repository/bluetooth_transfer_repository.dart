@@ -644,6 +644,12 @@ class BluetoothTransferRepository
   @override
   void resetCodecState() => _codec.resetDecoders();
 
+  /// A Bluetooth link is one socket to one peer: it is either connected or it
+  /// is not, and there is no separate send path that can die on its own. The
+  /// [ConnectionHealth] stream already covers everything this could.
+  @override
+  void repairSendPath() {}
+
   @override
   void stopConnection() => reset();
 

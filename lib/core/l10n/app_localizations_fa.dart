@@ -1174,4 +1174,48 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get paywall_plan_lifetime => 'دائمی';
+
+  @override
+  String get settings_section_diagnostics => 'عیب‌یابی';
+
+  @override
+  String get settings_share_log => 'ارسال گزارش عیب‌یابی';
+
+  @override
+  String settings_share_log_desc(Object size) {
+    return 'چیزی که برنامه ثبت کرده را برای ما بفرست تا ببینیم چه شده ($size)';
+  }
+
+  @override
+  String get settings_clear_log => 'پاک کردن گزارش';
+
+  @override
+  String get settings_clear_log_desc => 'حذف چیزی که روی این گوشی ذخیره شده';
+
+  @override
+  String get settings_log_empty => 'هنوز چیزی ثبت نشده';
+
+  @override
+  String get settings_log_share_failed => 'صفحهٔ اشتراک‌گذاری باز نشد';
+
+  @override
+  String get settings_log_cleared => 'گزارش پاک شد';
+
+  @override
+  String get check_heard => 'شنیده شدن';
+
+  @override
+  String get check_heard_ok => 'صدایت به آن‌ها می‌رسد';
+
+  @override
+  String get check_heard_unheard => 'چیزی که می‌فرستی نمی‌رسد — در حال ترمیم';
+
+  @override
+  String get issue_unheard_title => 'صدایت را نمی‌شنوند';
+
+  @override
+  String get issue_unheard_body => 'تو آن‌ها را می‌شنوی، ولی چیزی که می‌گویی به مقصد نمی‌رسد. اتصال دارد خودکار ترمیم می‌شود؛ اگر برنگشت، از کانال بیرون برو و دوباره وارد شو.';
+
+  @override
+  String get fix_repair_link => 'ترمیم اتصال';
 }

@@ -42,8 +42,47 @@ List<RecoveryCheck> buildChannelChecks({
     _micCheck(s, state, cubit),
     _networkCheck(s, state, cubit),
     _linkCheck(s, state, cubit),
+    _heardCheck(s, state, cubit),
     _peopleCheck(s, state, number),
   ];
+}
+
+/// Whether anybody can actually hear this device.
+///
+/// Every other row here grades something local, and all four of them go green
+/// on a phone whose transmissions are going nowhere — which is exactly the
+/// report this row exists to answer: "the feedback screen said everything was
+/// fine on the phone nobody could hear." The only source for this is the peers
+/// themselves (see [PresencePacket.heardIds]), so it stays unknown until one
+/// of them has said something either way.
+RecoveryCheck _heardCheck(
+  AppLocalizations s,
+  WalkieTalkieState state,
+  WalkieTalkieCubit cubit,
+) {
+  if (state.unheardByPeers) {
+    return RecoveryCheck(
+      label: s.check_heard,
+      detail: s.check_heard_unheard,
+      status: RecoveryStatus.bad,
+      actions: [
+        RecoveryAction(
+          label: s.fix_repair_link,
+          isPrimary: true,
+          run: () async => cubit.repairSendPath(),
+        ),
+      ],
+    );
+  }
+  return RecoveryCheck(
+    label: s.check_heard,
+    detail: s.check_heard_ok,
+    // Nobody to be heard by, or nobody who has said yet — neither is a
+    // failure, and an unknown is never drawn as one.
+    status: state.isReady && state.activeUsers.isNotEmpty
+        ? RecoveryStatus.ok
+        : RecoveryStatus.unknown,
+  );
 }
 
 RecoveryCheck _micCheck(
@@ -215,6 +254,9 @@ enum ChannelIssue {
   /// The mic is permitted but delivering nothing.
   micSilent,
 
+  /// Transmitting, but the people we can hear report they can't hear us.
+  unheard,
+
   /// Working, but nobody else is here.
   alone,
 }
@@ -234,6 +276,11 @@ ChannelIssue channelIssueOf(WalkieTalkieState state) {
   if (!state.hasPermission) return ChannelIssue.micDenied;
   if (state.networkMissing) return ChannelIssue.noNetwork;
   if (!state.micDelivering) return ChannelIssue.micSilent;
+  // Below the local failures and above "you're alone": those three are things
+  // this phone can see and fix, while this one is a report from the far end —
+  // but it still means nothing the user says is arriving, which outranks
+  // anything merely quiet.
+  if (state.unheardByPeers) return ChannelIssue.unheard;
   // Suppressed while the link is unwell: the health banner is already
   // explaining the silence, and "nobody's here" on top of it would read as a
   // second, separate problem.
@@ -300,6 +347,19 @@ RecoveryCheck? primaryChannelIssue({
           ),
         ],
       );
+    case ChannelIssue.unheard:
+      return RecoveryCheck(
+        label: s.issue_unheard_title,
+        detail: s.issue_unheard_body,
+        status: RecoveryStatus.bad,
+        actions: [
+          RecoveryAction(
+            label: s.fix_repair_link,
+            isPrimary: true,
+            run: () async => cubit.repairSendPath(),
+          ),
+        ],
+      );
     case ChannelIssue.alone:
       return RecoveryCheck(
         label: s.issue_alone_title,
@@ -321,6 +381,7 @@ class ChannelIssueBanner extends StatelessWidget {
           p.hasPermission != c.hasPermission ||
           p.networkMissing != c.networkMissing ||
           p.micDelivering != c.micDelivering ||
+          p.unheardByPeers != c.unheardByPeers ||
           p.isAlone != c.isAlone ||
           p.connectionHealth.isHealthy != c.connectionHealth.isHealthy,
       builder: (context, state) => RecoveryBanner(

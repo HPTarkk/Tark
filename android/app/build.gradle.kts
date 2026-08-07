@@ -93,6 +93,14 @@ flutter {
 }
 
 dependencies {
+    // FileProvider, for handing an exported diagnostic log to the share sheet
+    // as a content:// URI (see DiagnosticsHandler). The Flutter embedding
+    // already pulls androidx.core in transitively; declaring it explicitly
+    // means the class we compile against is a stated dependency rather than an
+    // accident of someone else's transitive graph. Gradle resolves conflicts
+    // to the highest version, so this cannot downgrade the embedding's copy.
+    implementation("androidx.core:core:1.13.1")
+
     // Myket's native billing SDK, talked to directly from BillingHandler.
     //
     // Not the myket_iap Flutter plugin: that wrapper only ever calls

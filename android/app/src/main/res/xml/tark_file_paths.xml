@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  What the app's FileProvider is allowed to hand out (see DiagnosticsHandler).
+
+  Exactly one directory: the diagnostics folder under filesDir, which holds the
+  rotating log and the .tarklog exports. Nothing else the app stores is
+  shareable through this provider — a broader path here would make every file
+  in filesDir reachable by any app that receives one of our content:// URIs.
+-->
+<paths>
+    <files-path name="tark_diagnostics" path="diagnostics/" />
+</paths>

@@ -46,5 +46,18 @@ abstract interface class TransferRepository {
   /// doesn't garble audio once a sender resumes.
   void resetCodecState();
 
+  /// Rebuilds whatever this transport uses to transmit, because a peer we can
+  /// hear has told us it cannot hear us.
+  ///
+  /// Separate from [retryNow], which is about a link that has announced itself
+  /// as down. This is the opposite case: every local signal says the session is
+  /// healthy — packets arriving, socket bound, roster populated — and the only
+  /// evidence to the contrary came from the other end. See
+  /// [PresencePacket.heardIds].
+  ///
+  /// A no-op on point-to-point transports, where a one-way data channel isn't
+  /// a state the link can be in.
+  void repairSendPath();
+
   void dispose();
 }
