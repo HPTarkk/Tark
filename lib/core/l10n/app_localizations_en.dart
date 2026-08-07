@@ -1178,4 +1178,48 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get paywall_plan_lifetime => 'LIFETIME';
+
+  @override
+  String get settings_section_diagnostics => 'DIAGNOSTICS';
+
+  @override
+  String get settings_share_log => 'Share diagnostic log';
+
+  @override
+  String settings_share_log_desc(Object size) {
+    return 'Send us what the app recorded so we can see what went wrong ($size)';
+  }
+
+  @override
+  String get settings_clear_log => 'Clear the log';
+
+  @override
+  String get settings_clear_log_desc => 'Delete what\'s stored on this phone';
+
+  @override
+  String get settings_log_empty => 'Nothing recorded yet';
+
+  @override
+  String get settings_log_share_failed => 'Couldn\'t open the share sheet';
+
+  @override
+  String get settings_log_cleared => 'Log cleared';
+
+  @override
+  String get check_heard => 'Being heard';
+
+  @override
+  String get check_heard_ok => 'Your voice is reaching them';
+
+  @override
+  String get check_heard_unheard => 'Nothing you send is arriving — repairing';
+
+  @override
+  String get issue_unheard_title => 'They can\'t hear you';
+
+  @override
+  String get issue_unheard_body => 'You\'re receiving them, but nothing you send is getting through. Repairing the link automatically — if it doesn\'t come back, leave and rejoin the channel.';
+
+  @override
+  String get fix_repair_link => 'Repair link';
 }

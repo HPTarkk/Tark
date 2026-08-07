@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:equatable/equatable.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart'
+    show AppLifecycleState, WidgetsBinding, WidgetsBindingObserver;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
@@ -35,7 +37,8 @@ import '../../domain/service/channel_roster.dart';
 const _kBluetoothLocalId = 'bluetooth-peer';
 
 @injectable
-class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
+class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
+    with WidgetsBindingObserver {
   final AudioEngine _audioEngine;
   final TransferRepository _transferRepository;
   final TransferModeStore _modeStore;
@@ -78,7 +81,53 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     this._analytics,
     this._gate,
   ) : super(WalkieTalkieState.initial()) {
+    WidgetsBinding.instance.addObserver(this);
     _start();
+  }
+
+  /// When the app last left the foreground, so a resume can say how long the
+  /// session ran unattended — the window nearly every mid-session failure
+  /// happens in.
+  DateTime? _backgroundedAt;
+
+  /// Screen off and screen on are the two moments this session is most likely
+  /// to break, and the two the user can point at ("I locked it and it went
+  /// quiet"). Both ends of that get handled here.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState lifecycle) {
+    if (isClosed) return;
+    switch (lifecycle) {
+      case AppLifecycleState.paused ||
+          AppLifecycleState.hidden ||
+          AppLifecycleState.detached:
+        _backgroundedAt ??= DateTime.now();
+      case AppLifecycleState.resumed:
+        final away = _backgroundedAt;
+        _backgroundedAt = null;
+        Logger.diagnostic(
+          'channel: resumed'
+          '${away == null ? '' : ' after ${DateTime.now().difference(away).inSeconds}s away'}'
+          ' — peers=${state.activeUsers.length} local=${state.localId} '
+          'health=${state.connectionHealth.status.name} '
+          'mic=${state.micDelivering} heard=${!state.unheardByPeers}',
+        );
+        // Whatever peers did or didn't say while the phone was locked is not
+        // evidence about the link now: the OS can suspend this process
+        // outright, and every second of that would otherwise be counted as
+        // "nobody could hear me". Moved forward rather than cleared — clearing
+        // it would let the check fall back to the last confirmation, which is
+        // the very timestamp on the far side of the gap we are discounting.
+        _unheardSince = DateTime.now();
+        // The address can have changed under us (a joiner the OS moved between
+        // networks), and the next presence tick is up to 2s away — which is a
+        // long time to spend transmitting from an address nobody can reach.
+        _refreshId();
+        _broadcastPresence();
+      case AppLifecycleState.inactive:
+        // A notification shade or a call banner. Nothing about the session
+        // changes, so nothing here should either.
+        break;
+    }
   }
 
   /// When the channel finished opening, for the "nobody else is here" check —
@@ -94,6 +143,25 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
   /// When this device first had no usable local address, so a momentary gap
   /// during a network change isn't announced as a failure.
   DateTime? _noAddressSince;
+
+  /// Last time a peer's presence packet listed *us* among the devices it can
+  /// hear — proof our transmissions are arriving somewhere.
+  ///
+  /// Everything else this cubit grades is about receiving. A phone whose
+  /// outgoing path has died still has a bound socket, a healthy link, a
+  /// populated roster and a working mic, and every check on the
+  /// troubleshooting sheet goes green while nobody can hear it. This is the
+  /// only local evidence to the contrary there is.
+  DateTime? _lastHeardByPeerAt;
+
+  /// When peers started reporting they can't hear us, so a single dropped
+  /// presence packet isn't treated as going mute.
+  DateTime? _unheardSince;
+
+  /// How long peers must consistently report not hearing us before it counts.
+  /// Several presence ticks (they arrive every 2s), so this needs a sustained
+  /// disagreement rather than one lost datagram.
+  static const _unheardAfter = Duration(seconds: 7);
 
   /// Silence longer than this, with the engine claiming to be started, means
   /// the mic is not actually feeding us. Generous: a slow device can take a
@@ -149,6 +217,8 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     _readyAt = null;
     _lastFrameAt = null;
     _noAddressSince = null;
+    _lastHeardByPeerAt = null;
+    _unheardSince = null;
     emit(
       state.copyWith(
         startFailed: false,
@@ -156,6 +226,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
         micDelivering: true,
         networkMissing: false,
         isAlone: false,
+        unheardByPeers: false,
       ),
     );
     await _start();
@@ -181,6 +252,27 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
   void reconnectNow() {
     _transferRepository.retryNow();
     _refreshId();
+  }
+
+  /// "Repair link" — rebuilds the outgoing path after peers have reported they
+  /// can't hear us.
+  ///
+  /// Offered as a manual action as well as run automatically, because the
+  /// automatic one is rate-limited and a user staring at the warning deserves
+  /// a button that does something. Clears the flag so the next presence round
+  /// gets to answer honestly rather than leaving a stale warning up.
+  void repairSendPath() {
+    Logger.diagnostic('transmit: manual send-path repair requested');
+    _transferRepository.repairSendPath();
+    // From now: the repair deserves a full grace period to prove itself, and
+    // clearing this outright would re-arm the warning against a confirmation
+    // that predates the repair.
+    _unheardSince = DateTime.now();
+    _refreshId();
+    if (!isClosed && state.unheardByPeers) {
+      emit(state.copyWith(unheardByPeers: false));
+    }
+    _broadcastPresence();
   }
 
   /// Raises the system Wi-Fi panel (and, on older Androids where an app may
@@ -709,6 +801,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
 
     switch (packet) {
       case PresencePacket():
+        _noteAudibility(packet);
         _updateUser(
           packet.senderId,
           packet.senderName,
@@ -734,6 +827,71 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
           Logger.log('Playback error: $e');
         }
     }
+  }
+
+  /// Records what a peer says about whether it can hear us.
+  ///
+  /// A null [PresencePacket.heardIds] is silence, not a denial — it comes from
+  /// a build that predates the field and from every point-to-point transport —
+  /// so it neither confirms nor refutes anything and is skipped entirely.
+  /// Anything else is an answer, and one peer hearing us is enough: this asks
+  /// "is my voice reaching *anybody*", which is the question the user has.
+  void _noteAudibility(PresencePacket packet) {
+    final heard = packet.heardIds;
+    if (heard == null) return;
+    if (!heard.contains(_identity.id)) return;
+    _lastHeardByPeerAt = DateTime.now();
+    _unheardSince = null;
+    if (state.unheardByPeers) {
+      Logger.diagnostic('transmit: peers can hear us again');
+      emit(state.copyWith(unheardByPeers: false));
+    }
+  }
+
+  /// Notices that the people we can hear cannot hear us.
+  ///
+  /// This is the state the whole bug report came down to: after a screen-off
+  /// cycle on a hotspot link, one phone kept receiving perfectly while nothing
+  /// it sent arrived — and its own troubleshooting sheet reported four green
+  /// checks, because every check it had was about receiving.
+  ///
+  /// Graded only while there is somebody in the roster whose presence carries
+  /// an opinion. An empty channel says nothing about audibility, and neither
+  /// does a peer on an older build.
+  void _checkAudibility() {
+    if (!state.isReady || state.activeUsers.isEmpty) {
+      // An empty channel is not evidence of anything, and the confirmation
+      // clock goes with it: a peer arriving after a long gap has not had a
+      // chance to hear us yet, and grading it against the last person who did
+      // would flash a warning at every join.
+      _unheardSince = null;
+      _lastHeardByPeerAt = null;
+      if (state.unheardByPeers) emit(state.copyWith(unheardByPeers: false));
+      return;
+    }
+    // Never heard back at all yet: this is a channel still forming, not a
+    // broken one. _lastHeardByPeerAt is set the first time any peer confirms
+    // us, and only from then on is its absence evidence of anything.
+    final confirmed = _lastHeardByPeerAt;
+    if (confirmed == null) return;
+    // The stretch is measured from the last confirmation by default, and from
+    // an explicit reset (a resume, a manual repair) when there has been one —
+    // see where [_unheardSince] is set forward.
+    final since = _unheardSince ??= confirmed;
+    if (DateTime.now().difference(since) < _unheardAfter) return;
+
+    if (!state.unheardByPeers) {
+      Logger.diagnostic(
+        'transmit: peers we can hear stopped listing us for '
+        '${_unheardAfter.inSeconds}s — our send path is one-way',
+      );
+      _sfx.play(SfxEvent.error);
+      emit(state.copyWith(unheardByPeers: true));
+    }
+    // Asked on every tick, not just the transition: the transport rate-limits
+    // itself, and a repair that didn't take needs another go rather than one
+    // attempt and a permanent warning.
+    _transferRepository.repairSendPath();
   }
 
   void _updateUser(String id, String name, bool isTalking, SessionRole role) {
@@ -796,6 +954,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
     // grain than any of their grace periods.
     _checkMicHealth();
     _checkNetwork();
+    _checkAudibility();
     _checkAlone();
   }
 
@@ -986,6 +1145,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState> {
 
   @override
   Future<void> close() async {
+    WidgetsBinding.instance.removeObserver(this);
     _reportSessionEnded();
     _presenceTimer?.cancel();
     _cleanupTimer?.cancel();
@@ -1089,6 +1249,14 @@ class WalkieTalkieState extends Equatable {
   /// The channel has been open a while with nobody else in it.
   final bool isAlone;
 
+  /// Peers we can hear have reported, consistently, that they cannot hear us.
+  ///
+  /// The one failure the rest of this state cannot see: everything here is
+  /// derived from what arrives, and a device whose outgoing path has died
+  /// receives perfectly. Only the other end can tell us, and it does — see
+  /// [PresencePacket.heardIds].
+  final bool unheardByPeers;
+
   const WalkieTalkieState({
     required this.localId,
     required this.myName,
@@ -1110,6 +1278,7 @@ class WalkieTalkieState extends Equatable {
     required this.micDelivering,
     required this.networkMissing,
     required this.isAlone,
+    required this.unheardByPeers,
   });
 
   factory WalkieTalkieState.initial() => const WalkieTalkieState(
@@ -1133,6 +1302,7 @@ class WalkieTalkieState extends Equatable {
     micDelivering: true,
     networkMissing: false,
     isAlone: false,
+    unheardByPeers: false,
   );
 
   WalkieTalkieState copyWith({
@@ -1156,6 +1326,7 @@ class WalkieTalkieState extends Equatable {
     bool? micDelivering,
     bool? networkMissing,
     bool? isAlone,
+    bool? unheardByPeers,
   }) => WalkieTalkieState(
     localId: localId ?? this.localId,
     myName: myName ?? this.myName,
@@ -1178,6 +1349,7 @@ class WalkieTalkieState extends Equatable {
     micDelivering: micDelivering ?? this.micDelivering,
     networkMissing: networkMissing ?? this.networkMissing,
     isAlone: isAlone ?? this.isAlone,
+    unheardByPeers: unheardByPeers ?? this.unheardByPeers,
   );
 
   bool get isSomeoneElseTalking => activeUsers.any((u) => u.isTalking);
@@ -1186,7 +1358,11 @@ class WalkieTalkieState extends Equatable {
   /// The channel can look completely normal in every one of these states,
   /// which is exactly why they need saying out loud.
   bool get isMuteToTheWorld =>
-      startFailed || !hasPermission || !micDelivering || networkMissing;
+      startFailed ||
+      !hasPermission ||
+      !micDelivering ||
+      networkMissing ||
+      unheardByPeers;
 
   @override
   List<Object?> get props => [
@@ -1210,5 +1386,6 @@ class WalkieTalkieState extends Equatable {
     micDelivering,
     networkMissing,
     isAlone,
+    unheardByPeers,
   ];
 }

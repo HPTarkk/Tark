@@ -17,6 +17,7 @@ import '../../../../core/widget/language_toggle.dart';
 import '../../../../core/widget/theme_toggle.dart';
 import '../../../walkie/api/walkie_api.dart';
 import '../manager/settings_cubit.dart';
+import '../widget/diagnostics_card.dart';
 import '../widget/settings_category_card.dart';
 import '../widget/settings_row.dart';
 import '../widget/transport_mode_picker.dart';
@@ -47,11 +48,11 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage>
     with TickerProviderStateMixin {
   // Staggered entrance, same pattern as landing/walkie pages: [profile,
-  // connection, sound, appearance, startup, privacy, advanced-nav]
+  // connection, sound, appearance, startup, privacy, diagnostics, advanced-nav]
   late AnimationController _entranceController;
   late List<Animation<double>> _sections;
 
-  static const _sectionCount = 7;
+  static const _sectionCount = 8;
 
   @override
   void initState() {
@@ -138,7 +139,9 @@ class _SettingsPageState extends State<SettingsPage>
                 const SizedBox(height: 16),
                 _entrance(5, _PrivacyCard()),
                 const SizedBox(height: 16),
-                _entrance(6, _AdvancedNavCard()),
+                _entrance(6, const DiagnosticsCard()),
+                const SizedBox(height: 16),
+                _entrance(7, _AdvancedNavCard()),
               ],
             ),
           ),

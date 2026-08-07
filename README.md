@@ -163,8 +163,16 @@ Transport-agnostic (identical bytes over UDP, RFCOMM, and BLE). All multi-byte i
 | type | 1 | `0x01` presence · `0x02` PCM16 audio · `0x03` Opus audio |
 | name length | 4 | uint32 |
 | name | *n* | UTF-8 display name |
-| presence payload | 1 | `isTalking` (0/1) |
+| presence payload | 1 + 1 + *k* | `isTalking` (0/1) · session role · heard-peer list |
 | audio payload | 4 + *m* | seq (uint32) + Opus packet (or PCM16 samples) |
+
+The presence payload grows by appending, never by changing what came before, so a
+build that predates a field simply stops reading and is unaffected. The **heard-peer
+list** (count byte, then length-prefixed device ids) is how a phone finds out its own
+transmissions are going nowhere: every other signal it has is about receiving, and a
+device whose send path has died still has a bound socket, a healthy link and a full
+roster. Absent means "no opinion" (older build, or a point-to-point transport);
+present but empty is a statement — "I can hear nobody".
 
 | Item | Detail |
 |---|---|
@@ -304,6 +312,39 @@ Building without analytics at all, no code changes needed:
 ```bash
 flutter build apk --release --dart-define=ADTRACE_TOKEN=
 ```
+
+---
+
+## Diagnostics
+
+The bugs worth chasing here only exist on someone else's phone: a hotspot link
+that goes one-way after the screen locks, an AP the OS tore down, a mic that
+opened and delivered nothing. `adb logcat` reaches none of that, so the app keeps
+its own log.
+
+**For users.** Settings → Diagnostics → *Share diagnostic log*. It writes a
+`.tarklog` file and hands it to the share sheet. The log stays on the phone until
+you send it, and *Clear the log* deletes it.
+
+**What's in it.** Session lifecycle, screen on/off transitions, socket bind and
+rebind events, per-peer send failures, and a line every 15 s summarising the whole
+transport — packets in and out, known peers, local addresses, broadcast targets,
+socket state. No audio, ever.
+
+**Reading one.** The file is gzip plus a keystream — opaque in a chat thread, and
+awkward to "tidy up" before sending, which is how the one line that mattered goes
+missing. It is **not encrypted**: the key is a constant in a shipped app. Decode it
+with:
+
+```bash
+python3 scripts/decode_tark_log.py tark-log-20260807-181500.tarklog
+```
+
+The container is defined in
+[`tark_log_format.dart`](lib/core/diagnostics/tark_log_format.dart); the script and
+that file have to move together, and a cross-language golden vector in
+[`test/tark_log_format_test.dart`](test/tark_log_format_test.dart) fails if they
+drift apart.
 
 ---
 

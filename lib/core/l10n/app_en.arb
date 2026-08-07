@@ -352,5 +352,19 @@
     "paywall_plan_1m": "1 MONTH",
     "paywall_plan_6m": "6 MONTHS",
     "paywall_plan_12m": "1 YEAR",
-    "paywall_plan_lifetime": "LIFETIME"
+    "paywall_plan_lifetime": "LIFETIME",
+    "settings_section_diagnostics": "DIAGNOSTICS",
+    "settings_share_log": "Share diagnostic log",
+    "settings_share_log_desc": "Send us what the app recorded so we can see what went wrong ({size})",
+    "settings_clear_log": "Clear the log",
+    "settings_clear_log_desc": "Delete what's stored on this phone",
+    "settings_log_empty": "Nothing recorded yet",
+    "settings_log_share_failed": "Couldn't open the share sheet",
+    "settings_log_cleared": "Log cleared",
+    "check_heard": "Being heard",
+    "check_heard_ok": "Your voice is reaching them",
+    "check_heard_unheard": "Nothing you send is arriving — repairing",
+    "issue_unheard_title": "They can't hear you",
+    "issue_unheard_body": "You're receiving them, but nothing you send is getting through. Repairing the link automatically — if it doesn't come back, leave and rejoin the channel.",
+    "fix_repair_link": "Repair link"
 }

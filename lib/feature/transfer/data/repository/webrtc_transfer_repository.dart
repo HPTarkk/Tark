@@ -276,6 +276,12 @@ class WebRtcTransferRepository
   @override
   void resetCodecState() => _codec.resetDecoders();
 
+  /// A WebRTC data channel is point-to-point and reports its own state, so
+  /// there is no send path that can silently stop working while the receive
+  /// side carries on — the failure this exists for is a Wi-Fi/UDP one.
+  @override
+  void repairSendPath() {}
+
   @override
   void stopConnection() => endSession();
 

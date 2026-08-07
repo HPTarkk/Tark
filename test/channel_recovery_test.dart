@@ -62,6 +62,45 @@ void main() {
     });
   });
 
+  group('being unheard', () {
+    /// A session that receives perfectly while nothing it sends arrives. Every
+    /// local check is green here — that is exactly the failure.
+    WalkieTalkieState unheard() => healthy().copyWith(unheardByPeers: true);
+
+    test('is reported even though everything local looks fine', () {
+      final state = unheard();
+      expect(state.hasPermission, isTrue);
+      expect(state.micDelivering, isTrue);
+      expect(state.networkMissing, isFalse);
+      expect(state.connectionHealth.isHealthy, isTrue);
+      expect(channelIssueOf(state), ChannelIssue.unheard);
+    });
+
+    test('counts as being mute to the world', () {
+      // The help button turns amber off the back of this, which is the point:
+      // the one state where the screen looks perfect and nobody can hear you.
+      expect(unheard().isMuteToTheWorld, isTrue);
+    });
+
+    test('yields to failures this phone can see and fix itself', () {
+      expect(
+        channelIssueOf(unheard().copyWith(micDelivering: false)),
+        ChannelIssue.micSilent,
+      );
+      expect(
+        channelIssueOf(unheard().copyWith(networkMissing: true)),
+        ChannelIssue.noNetwork,
+      );
+    });
+
+    test('outranks being alone', () {
+      expect(
+        channelIssueOf(unheard().copyWith(isAlone: true)),
+        ChannelIssue.unheard,
+      );
+    });
+  });
+
   group('being alone', () {
     test('an empty channel is not an issue until it has had time', () {
       // isAlone is only set by the cubit once the grace has passed; before
@@ -97,6 +136,9 @@ void main() {
       expect(healthy().copyWith(hasPermission: false).isMuteToTheWorld, isTrue);
       expect(healthy().copyWith(micDelivering: false).isMuteToTheWorld, isTrue);
       expect(healthy().copyWith(networkMissing: true).isMuteToTheWorld, isTrue);
+      // The one that isn't visible from this phone at all — it only exists
+      // because the far end said so.
+      expect(healthy().copyWith(unheardByPeers: true).isMuteToTheWorld, isTrue);
     });
 
     test('self-mute is not one of them — that one is deliberate', () {

@@ -352,5 +352,19 @@
     "paywall_plan_1m": "یک ماهه",
     "paywall_plan_6m": "شش ماهه",
     "paywall_plan_12m": "یک ساله",
-    "paywall_plan_lifetime": "دائمی"
+    "paywall_plan_lifetime": "دائمی",
+    "settings_section_diagnostics": "عیب‌یابی",
+    "settings_share_log": "ارسال گزارش عیب‌یابی",
+    "settings_share_log_desc": "چیزی که برنامه ثبت کرده را برای ما بفرست تا ببینیم چه شده ({size})",
+    "settings_clear_log": "پاک کردن گزارش",
+    "settings_clear_log_desc": "حذف چیزی که روی این گوشی ذخیره شده",
+    "settings_log_empty": "هنوز چیزی ثبت نشده",
+    "settings_log_share_failed": "صفحهٔ اشتراک‌گذاری باز نشد",
+    "settings_log_cleared": "گزارش پاک شد",
+    "check_heard": "شنیده شدن",
+    "check_heard_ok": "صدایت به آن‌ها می‌رسد",
+    "check_heard_unheard": "چیزی که می‌فرستی نمی‌رسد — در حال ترمیم",
+    "issue_unheard_title": "صدایت را نمی‌شنوند",
+    "issue_unheard_body": "تو آن‌ها را می‌شنوی، ولی چیزی که می‌گویی به مقصد نمی‌رسد. اتصال دارد خودکار ترمیم می‌شود؛ اگر برنگشت، از کانال بیرون برو و دوباره وارد شو.",
+    "fix_repair_link": "ترمیم اتصال"
 }

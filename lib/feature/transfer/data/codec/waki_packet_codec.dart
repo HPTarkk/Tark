@@ -94,12 +94,52 @@ class WakiPacketCodec {
     String senderName,
     bool isTalking, {
     required SessionRole role,
+    List<String>? heardIds,
   }) {
     final builder = _startV2Packet(kPresenceV2Byte, senderName);
     builder.addByte(isTalking ? 0x01 : 0x00);
     builder.addByte(role.wireByte);
+    // Appended after the role byte, by the same reasoning that put the role
+    // there: a build that predates this stops reading at the role and is
+    // unaffected, so no new type byte (and no split channel of old/new peers)
+    // is needed.
+    //
+    // Null means "no opinion" and writes nothing at all, which is deliberately
+    // indistinguishable from an older build. An *empty* list is a statement —
+    // "I can hear nobody" — and the receiver acts on it, so only a transport
+    // that genuinely tracks who it hears may send one. Point-to-point
+    // transports (Bluetooth, guest link) pass null: their peer set is the
+    // connection itself, and claiming an empty list there would tell a
+    // perfectly healthy peer it had gone mute.
+    if (heardIds == null) return builder.toBytes();
+    // Encoded first, then counted. Writing the count from the input list and
+    // skipping an unencodable entry inside the loop would leave a count that
+    // promises more ids than follow, and the decoder — correctly — throws the
+    // whole list away as truncated. Ids are 12 ASCII characters so nothing is
+    // ever dropped in practice; the ordering is what makes that guaranteed
+    // rather than incidental.
+    //
+    // Capped so a busy channel can't push a presence datagram past a sane MTU.
+    final encoded = <List<int>>[];
+    for (final id in heardIds) {
+      if (encoded.length >= _maxHeardIds) break;
+      final idBytes = utf8.encode(id);
+      // A single length byte, same as the sender id in the v2 header.
+      if (idBytes.isEmpty || idBytes.length > 255) continue;
+      encoded.add(idBytes);
+    }
+    builder.addByte(encoded.length);
+    for (final idBytes in encoded) {
+      builder.addByte(idBytes.length);
+      builder.add(idBytes);
+    }
     return builder.toBytes();
   }
+
+  /// Ceiling on the heard list. Twelve peers is far beyond what a single
+  /// walkie channel is for, and 12 × 13 bytes keeps presence comfortably
+  /// inside one datagram on any link.
+  static const _maxHeardIds = 12;
 
   /// Header every v2 message shares: type, device id, sender name.
   BytesBuilder _startV2Packet(int type, String senderName) {
@@ -169,6 +209,9 @@ class WakiPacketCodec {
         role: bytes.length > bodyStart + 1
             ? SessionRole.fromWire(bytes[bodyStart + 1])
             : SessionRole.unknown,
+        // Optional again, and after the role: absent from every build before
+        // the heard list existed.
+        heardIds: _decodeHeardIds(bytes, bodyStart + 2),
       );
     }
 
@@ -193,6 +236,34 @@ class WakiPacketCodec {
       );
     }
     return null;
+  }
+
+  /// Reads the length-prefixed device ids a presence packet ends with, from
+  /// [start].
+  ///
+  /// Null — "the sender expressed no opinion" — for a packet that simply ends
+  /// there (any build before the heard list, and every point-to-point
+  /// transport), and also for anything that can't be read in full. Truncation
+  /// is never reported as a partial list: the one consumer of this asks "is my
+  /// id absent from it?", and answering yes from half a list is how a healthy
+  /// link gets torn down and rebuilt for no reason.
+  static List<String>? _decodeHeardIds(Uint8List bytes, int start) {
+    if (start >= bytes.length) return null;
+    final count = bytes[start];
+    if (count == 0) return const [];
+    final ids = <String>[];
+    var offset = start + 1;
+    for (var i = 0; i < count; i++) {
+      if (offset >= bytes.length) return null;
+      final len = bytes[offset];
+      offset += 1;
+      if (offset + len > bytes.length) return null;
+      ids.add(
+        utf8.decode(bytes.sublist(offset, offset + len), allowMalformed: true),
+      );
+      offset += len;
+    }
+    return ids;
   }
 
   static bool _isV2(int type) =>
