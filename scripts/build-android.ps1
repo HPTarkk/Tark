@@ -32,6 +32,12 @@
 # bugfix case. The merge happens before pubspec.yaml is re-read, because the
 # merged tree is what gets compiled and what the tag has to name.
 #
+# Every build is then offered a patch bump (1.0.10+11 -> 1.0.11+12), defaulting
+# to yes for release builds and no for debug. It is asked after the merge, so it
+# lands on top of the tree about to be compiled, and before the tag checks, which
+# are derived from it. Publishing commits the bump — the tag must name a real
+# commit; otherwise the edit is left in the working tree for you to deal with.
+#
 # Nothing is tagged, pushed or published until the build has succeeded. A
 # failed build therefore leaves no orphan tag and no assetless release to go
 # clean up by hand.
@@ -76,6 +82,34 @@ function Get-PubspecVersion {
         Tag    = "v$name"
         Branch = "release/$major.0.0"
     }
+}
+
+# The next patch for a "1.2.3" / "1.2.3+45" pair, as the string that goes back
+# into pubspec.yaml. The build number is raised too — stores reject a re-used
+# versionCode outright. Returns $null for anything not major.minor.patch, so the
+# caller can skip the offer rather than guess.
+#
+# A pre-release suffix is dropped: the patch after 1.0.8-beta.3 is 1.0.9. Type
+# the version out in full at the prompt if that is not what you meant.
+function Get-NextPatchVersion([string]$Name, [string]$Code) {
+    if (-not ($Name -match '^(?<major>\d+)\.(?<minor>\d+)\.(?<patch>\d+)')) { return $null }
+    $next = '{0}.{1}.{2}' -f $Matches['major'], $Matches['minor'], ([int]$Matches['patch'] + 1)
+    if ($Code) { $next += '+' + ([int]$Code + 1) }
+    return $next
+}
+
+# Rewrites the "version:" line and nothing else — comments, key order, line
+# endings and the trailing newline all survive byte for byte, because this file
+# is committed and a reformatted pubspec.yaml in a release diff is noise.
+function Set-PubspecVersion([string]$Version) {
+    $path = Join-Path $repoRoot 'pubspec.yaml'
+    $text = [System.IO.File]::ReadAllText($path)
+    # No trailing $ anchor: in .NET multiline it matches only before a bare \n,
+    # so anchoring here would silently miss the line in a CRLF checkout.
+    $rx = [regex]'(?m)^version:[^\r\n]*'
+    if (-not $rx.IsMatch($text)) { throw 'pubspec.yaml has no version: line to rewrite' }
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($path, $rx.Replace($text, "version: $Version", 1), $utf8NoBom)
 }
 
 function Ask([string]$Question, [string]$Default) {
@@ -354,6 +388,64 @@ if ($publish) {
     }
 }
 
+# ── Version bump ────────────────────────────────────────────────────────────
+#
+# Offered on every build, because a version that has already shipped is a dead
+# end in both directions: the stores reject a re-used versionCode, and the tag
+# check below aborts a publish outright. Catching it here costs one Enter;
+# catching it later costs a rebuild.
+#
+# Deliberately placed after the merge of origin/main (so it is the last commit on
+# the release branch, not something the merge could conflict with) and before the
+# tag and notes preflight, which all read the version this sets.
+
+$bumped = $false
+$suggested = Get-NextPatchVersion $versionName $versionCode
+$currentVersion = if ($versionCode) { "$versionName+$versionCode" } else { $versionName }
+
+if (-not $suggested) {
+    Write-Host ''
+    Write-Host "  version $versionName is not major.minor.patch — no bump offered." -ForegroundColor DarkGray
+} else {
+    Write-Host ''
+    Write-Host "  Version bump:  $currentVersion  ->  $suggested" -ForegroundColor Yellow
+    if (-not $isRelease) {
+        Write-Host '  (debug build — usually not worth churning pubspec.yaml)' -ForegroundColor DarkGray
+    }
+
+    if (AskYesNo 'Bump the version in pubspec.yaml?' $isRelease) {
+        $newVersion = Ask 'New version' $suggested
+        if (-not ($newVersion -match '^\d+\.\d+\.\d+[^\s+]*(\+\d+)?$')) {
+            throw "'$newVersion' is not a pubspec version — expected 1.2.3 or 1.2.3+45"
+        }
+
+        Set-PubspecVersion $newVersion
+        $bumped = $true
+
+        $v = Get-PubspecVersion
+        $versionName = $v.Name
+        $versionCode = $v.Code
+        $tag = $v.Tag
+        Write-Host "  pubspec.yaml now reads $newVersion  (tag $tag)" -ForegroundColor Green
+
+        if ($publish) {
+            # Typing a version from another major line would tag it on a branch
+            # that is not its own, so put the file back rather than leave the
+            # tree carrying a version this branch must never build.
+            if ($v.Branch -ne $releaseBranch) {
+                Set-PubspecVersion $currentVersion
+                throw "version $newVersion belongs on $($v.Branch), not $releaseBranch — pubspec.yaml left unchanged"
+            }
+            # Committed, not left dirty: the tag has to point at a real commit,
+            # and the clean-tree check above has already run.
+            Run 'git' @('add', 'pubspec.yaml') 'git add'
+            Run 'git' @('commit', '-m', "update version to $newVersion") 'git commit'
+        } else {
+            Write-Host '  Left uncommitted — commit it yourself if you keep this build.' -ForegroundColor DarkGray
+        }
+    }
+}
+
 # Must match the URL the guest web app is actually hosted at, or the invite
 # QR points somewhere that does not serve the app.
 $guestUrl = Ask 'Guest app URL (baked into the invite QR)' 'https://app.tarkk.ir'
@@ -389,9 +481,9 @@ if ($publish) {
             Write-Host ''
             Write-Host "  $tag already exists, but points at $($tagCommit.Substring(0,7)) — not HEAD ($($head.Substring(0,7)))." -ForegroundColor Red
             Write-Host ''
-            Write-Host '  That version has already shipped. Bump "version:" in pubspec.yaml'
-            Write-Host '  (raise the +build number too — stores reject a re-used versionCode),'
-            Write-Host '  commit it, then run this again.' -ForegroundColor DarkYellow
+            Write-Host '  That version has already shipped. Re-run and answer Yes to the'
+            Write-Host '  version bump, or edit "version:" in pubspec.yaml by hand and commit'
+            Write-Host '  it first.' -ForegroundColor DarkYellow
             throw "tag $tag already in use"
         }
     }
@@ -437,6 +529,9 @@ if ($publish) {
     if ($mergedMain -gt 0) {
         Write-Host "    merged    $mergedMain commit(s) from origin/main  (local only so far)" -ForegroundColor DarkGray
     }
+    if ($bumped) {
+        Write-Host "    bumped    $currentVersion  ->  $newVersion  (committed, local only so far)" -ForegroundColor DarkGray
+    }
     Write-Host "    build     universal release APK ($versionName)"
     if ($reuseTag) {
         Write-Host "    tag       $tag  (exists, reused)" -ForegroundColor DarkGray
@@ -451,9 +546,12 @@ if ($publish) {
     }
     Write-Host ''
     if (-not (AskYesNo 'Proceed?' $true)) {
-        if ($mergedMain -gt 0) {
+        if ($mergedMain -gt 0 -or $bumped) {
+            $what = @()
+            if ($mergedMain -gt 0) { $what += 'the merge of origin/main' }
+            if ($bumped) { $what += "the bump to $newVersion" }
             Write-Host ''
-            Write-Host "  Note: the merge of origin/main is already committed on $releaseBranch." -ForegroundColor DarkYellow
+            Write-Host "  Note: $($what -join ' and ') is already committed on $releaseBranch." -ForegroundColor DarkYellow
             Write-Host '  It was not pushed. To undo it:  git reset --hard @{u}' -ForegroundColor DarkGray
         }
         throw 'aborted by user'
@@ -619,8 +717,8 @@ if ($locked) {
     if ($publish) {
         Write-Host "   * The GitHub asset is unsigned-for-store use only — Bazaar and Myket"
         Write-Host '     still need their own upload through each console.'
-        Write-Host "   * Next bugfix: commit on $releaseBranch, bump version: in pubspec.yaml,"
-        Write-Host '     re-run this script. Merge the fix back to main too.'
+        Write-Host "   * Next bugfix: commit on $releaseBranch, re-run this script and accept"
+        Write-Host '     the version bump. Merge the fix back to main too.'
     }
 }
 Write-Host ''
