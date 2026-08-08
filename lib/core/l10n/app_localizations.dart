@@ -2288,6 +2288,30 @@ abstract class AppLocalizations {
   /// **'گزارش پاک شد'**
   String get settings_log_cleared;
 
+  /// No description provided for @settings_log_max_size.
+  ///
+  /// In fa, this message translates to:
+  /// **'بیشترین حجم گزارش'**
+  String get settings_log_max_size;
+
+  /// No description provided for @settings_log_max_size_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'گزارش هیچ‌وقت از این بیشتر نمی‌شود. وقتی پر شد، قدیمی‌ترین خط‌ها جا را به تازه‌ترین‌ها می‌دهند.'**
+  String get settings_log_max_size_desc;
+
+  /// No description provided for @settings_log_usage.
+  ///
+  /// In fa, this message translates to:
+  /// **'{used} از {max} پر شده'**
+  String settings_log_usage(Object used, Object max);
+
+  /// No description provided for @settings_log_recycling.
+  ///
+  /// In fa, this message translates to:
+  /// **'پر شده — قدیمی‌ترین خط‌ها دارند بازنویسی می‌شوند'**
+  String get settings_log_recycling;
+
   /// No description provided for @check_heard.
   ///
   /// In fa, this message translates to:

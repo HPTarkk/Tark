@@ -1216,6 +1216,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_log_cleared => 'Log cleared';
 
   @override
+  String get settings_log_max_size => 'MAX LOG SIZE';
+
+  @override
+  String get settings_log_max_size_desc =>
+      'The log never grows past this. When it\'s full, the oldest lines make way for the newest.';
+
+  @override
+  String settings_log_usage(Object used, Object max) {
+    return '$used of $max used';
+  }
+
+  @override
+  String get settings_log_recycling =>
+      'Full — the oldest lines are being overwritten';
+
+  @override
   String get check_heard => 'Being heard';
 
   @override

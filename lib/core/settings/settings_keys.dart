@@ -14,6 +14,7 @@ abstract final class SettingsKeys {
   static const skipSplash = 'skip_splash';
   static const usageTipsShown = 'usage_tips_shown';
   static const analyticsEnabled = 'analytics_enabled';
+  static const logMaxBytes = 'log_max_bytes';
 
   // Owned by their existing dedicated services/widgets — kept here too so
   // every persisted key in the app has exactly one string literal, even

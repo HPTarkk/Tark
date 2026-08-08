@@ -54,6 +54,13 @@ abstract interface class SettingsRepository {
   Future<bool> getAnalyticsEnabled();
   Future<void> setAnalyticsEnabled(bool value);
 
+  /// Ceiling on the diagnostic log's size on disk, in bytes (Settings >
+  /// Advanced > Diagnostics). Always returned inside `LogBudget`'s range,
+  /// whatever is stored — the log is not allowed to be uncapped by a bad
+  /// preference.
+  Future<int> getLogMaxBytes();
+  Future<void> setLogMaxBytes(int value);
+
   // Not part of AppSettings/loadAll() — each of these already has its own
   // narrow, purpose-built owner (BluetoothConnectCubit's "reconnect to last
   // session" shortcut, the background-permission banner's dismissal flag);

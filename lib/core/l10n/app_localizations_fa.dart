@@ -1212,6 +1212,22 @@ class AppLocalizationsFa extends AppLocalizations {
   String get settings_log_cleared => 'گزارش پاک شد';
 
   @override
+  String get settings_log_max_size => 'بیشترین حجم گزارش';
+
+  @override
+  String get settings_log_max_size_desc =>
+      'گزارش هیچ‌وقت از این بیشتر نمی‌شود. وقتی پر شد، قدیمی‌ترین خط‌ها جا را به تازه‌ترین‌ها می‌دهند.';
+
+  @override
+  String settings_log_usage(Object used, Object max) {
+    return '$used از $max پر شده';
+  }
+
+  @override
+  String get settings_log_recycling =>
+      'پر شده — قدیمی‌ترین خط‌ها دارند بازنویسی می‌شوند';
+
+  @override
   String get check_heard => 'شنیده شدن';
 
   @override

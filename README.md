@@ -331,6 +331,15 @@ rebind events, per-peer send failures, and a line every 15 s summarising the who
 transport — packets in and out, known peers, local addresses, broadcast targets,
 socket state. No audio, ever.
 
+**How big it gets.** Exactly as big as you allow and no bigger. The same
+Diagnostics section carries a *Max log size* slider — 20 KB to 100 MB, 8 MB by
+default — with a meter showing how much of it is currently spent. On disk the log
+is a chain of numbered segments; when the next line would take it past the
+ceiling, the oldest segment is deleted. It never grows without bound, and lowering
+the ceiling reclaims the space straight away rather than at some later write. See
+[`log_budget.dart`](lib/core/diagnostics/log_budget.dart) for the range and
+[`diagnostic_log.dart`](lib/core/diagnostics/diagnostic_log.dart) for the rotation.
+
 **Reading one.** The file is gzip plus a keystream — opaque in a chat thread, and
 awkward to "tidy up" before sending, which is how the one line that mattered goes
 missing. It is **not encrypted**: the key is a constant in a shipped app. Decode it
