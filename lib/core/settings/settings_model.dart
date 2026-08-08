@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../diagnostics/log_budget.dart';
 import 'app_settings.dart';
 import 'noise_suppression_engine.dart';
 import 'settings_keys.dart';
@@ -18,6 +19,7 @@ class SettingsModel extends AppSettings {
     required super.skipSplash,
     required super.usageTipsShown,
     required super.analyticsEnabled,
+    required super.logMaxBytes,
   });
 
   factory SettingsModel.fromAppSettings(AppSettings s) => SettingsModel(
@@ -31,6 +33,7 @@ class SettingsModel extends AppSettings {
     skipSplash: s.skipSplash,
     usageTipsShown: s.usageTipsShown,
     analyticsEnabled: s.analyticsEnabled,
+    logMaxBytes: s.logMaxBytes,
   );
 
   factory SettingsModel.fromJson(Map<String, dynamic> json) {
@@ -55,6 +58,11 @@ class SettingsModel extends AppSettings {
       usageTipsShown: json['usageTipsShown'] as bool? ?? d.usageTipsShown,
       analyticsEnabled:
           json['analyticsEnabled'] as bool? ?? d.analyticsEnabled,
+      // Clamped, not just defaulted: a value from a build with a different
+      // range must land inside this one's rather than uncapping the log.
+      logMaxBytes: LogBudget.clamp(
+        (json['logMaxBytes'] as num?)?.toInt() ?? d.logMaxBytes,
+      ),
     );
   }
 
@@ -69,6 +77,7 @@ class SettingsModel extends AppSettings {
     'skipSplash': skipSplash,
     'usageTipsShown': usageTipsShown,
     'analyticsEnabled': analyticsEnabled,
+    'logMaxBytes': logMaxBytes,
   };
 
   /// Reads every field from [prefs], falling back to [AppSettings.defaults]
@@ -99,6 +108,9 @@ class SettingsModel extends AppSettings {
           prefs.getBool(SettingsKeys.usageTipsShown) ?? d.usageTipsShown,
       analyticsEnabled:
           prefs.getBool(SettingsKeys.analyticsEnabled) ?? d.analyticsEnabled,
+      logMaxBytes: LogBudget.clamp(
+        prefs.getInt(SettingsKeys.logMaxBytes) ?? d.logMaxBytes,
+      ),
     );
   }
 }

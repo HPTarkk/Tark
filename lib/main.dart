@@ -12,12 +12,14 @@ import 'core/analytics/analytics.dart';
 import 'core/config/onboarding_config.dart';
 import 'core/diagnostics/diagnostic_log.dart';
 import 'core/diagnostics/lifecycle_log.dart';
+import 'core/diagnostics/log_budget.dart';
 import 'core/entitlement/billing_probe.dart';
 import 'core/entitlement/entitlement_store.dart';
 import 'core/home_widget/home_widget_service.dart';
 import 'core/home_widget/home_widget_snapshot.dart';
 import 'core/locale/locale_service.dart';
 import 'core/router/routes.dart';
+import 'core/settings/settings_keys.dart';
 import 'core/settings/settings_repository.dart';
 import 'core/sfx/sfx_service.dart';
 import 'core/utils/logger.dart';
@@ -56,6 +58,14 @@ void main() async {
   // RegisterThirdParty.prefs — getInstance() returns this same cached
   // instance) for everything constructed after configureDependencies().
   final prefs = await SharedPreferences.getInstance();
+  // The log has been buffering since the top of main() under the default
+  // ceiling; hand it the user's own as soon as prefs can be read, so a phone
+  // whose owner asked for 20 KB never briefly holds eight.
+  unawaited(
+    DiagnosticLog.setMaxBytes(
+      prefs.getInt(SettingsKeys.logMaxBytes) ?? LogBudget.defaultBytes,
+    ),
+  );
   LocaleService.initialize(prefs);
   ThemeService.initialize(prefs);
   await Sfx.initialize(prefs);

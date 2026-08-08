@@ -5,6 +5,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/analytics/analytics.dart';
 import '../../../../core/analytics/analytics_event.dart';
+import '../../../../core/diagnostics/diagnostic_log.dart';
+import '../../../../core/diagnostics/log_budget.dart';
 import '../../../../core/settings/noise_suppression_engine.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../walkie/api/walkie_api.dart';
@@ -86,6 +88,7 @@ class SettingsCubit extends Cubit<SettingsState> {
               autoReconnectEnabled: all.autoReconnectEnabled,
               skipSplash: all.skipSplash,
               analyticsEnabled: all.analyticsEnabled,
+              logMaxBytes: all.logMaxBytes,
             )
           : state.copyWith(
               myName: all.myName,
@@ -96,6 +99,7 @@ class SettingsCubit extends Cubit<SettingsState> {
               autoReconnectEnabled: all.autoReconnectEnabled,
               skipSplash: all.skipSplash,
               analyticsEnabled: all.analyticsEnabled,
+              logMaxBytes: all.logMaxBytes,
             ),
     );
   }
@@ -206,6 +210,17 @@ class SettingsCubit extends Cubit<SettingsState> {
     await _analytics.setEnabled(enabled);
   }
 
+  /// Applies immediately as well as persisting, the same way the analytics
+  /// switch does: lowering the ceiling is a request to reclaim that space now,
+  /// and the size readout sitting next to the control has to agree with it
+  /// before the user looks away.
+  Future<void> setLogMaxBytes(int bytes) async {
+    final clamped = LogBudget.clamp(bytes);
+    emit(state.copyWith(logMaxBytes: clamped));
+    await _repository.setLogMaxBytes(clamped);
+    await DiagnosticLog.setMaxBytes(clamped);
+  }
+
   @override
   Future<void> close() {
     // _liveSession is a borrowed reference — WalkieTalkiePage's own
@@ -225,6 +240,7 @@ class SettingsState extends Equatable {
   final bool autoReconnectEnabled;
   final bool skipSplash;
   final bool analyticsEnabled;
+  final int logMaxBytes;
 
   const SettingsState({
     required this.isLive,
@@ -236,6 +252,7 @@ class SettingsState extends Equatable {
     required this.autoReconnectEnabled,
     required this.skipSplash,
     required this.analyticsEnabled,
+    required this.logMaxBytes,
   });
 
   factory SettingsState.initial({required bool isLive}) => SettingsState(
@@ -248,6 +265,7 @@ class SettingsState extends Equatable {
     autoReconnectEnabled: true,
     skipSplash: false,
     analyticsEnabled: true,
+    logMaxBytes: LogBudget.defaultBytes,
   );
 
   SettingsState copyWith({
@@ -259,6 +277,7 @@ class SettingsState extends Equatable {
     bool? autoReconnectEnabled,
     bool? skipSplash,
     bool? analyticsEnabled,
+    int? logMaxBytes,
   }) => SettingsState(
     isLive: isLive,
     myName: myName ?? this.myName,
@@ -270,6 +289,7 @@ class SettingsState extends Equatable {
     autoReconnectEnabled: autoReconnectEnabled ?? this.autoReconnectEnabled,
     skipSplash: skipSplash ?? this.skipSplash,
     analyticsEnabled: analyticsEnabled ?? this.analyticsEnabled,
+    logMaxBytes: logMaxBytes ?? this.logMaxBytes,
   );
 
   @override
@@ -283,5 +303,6 @@ class SettingsState extends Equatable {
     autoReconnectEnabled,
     skipSplash,
     analyticsEnabled,
+    logMaxBytes,
   ];
 }

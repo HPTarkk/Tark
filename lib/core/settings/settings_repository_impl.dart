@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/onboarding_config.dart';
 import '../config/quick_access_config.dart';
+import '../diagnostics/log_budget.dart';
 import 'app_settings.dart';
 import 'noise_suppression_engine.dart';
 import 'settings_keys.dart';
@@ -134,6 +135,16 @@ class SettingsRepositoryImpl implements SettingsRepository {
   @override
   Future<void> setAnalyticsEnabled(bool value) =>
       _prefs.setBool(SettingsKeys.analyticsEnabled, value);
+
+  @override
+  Future<int> getLogMaxBytes() async => LogBudget.clamp(
+    _prefs.getInt(SettingsKeys.logMaxBytes) ??
+        AppSettings.defaults().logMaxBytes,
+  );
+
+  @override
+  Future<void> setLogMaxBytes(int value) =>
+      _prefs.setInt(SettingsKeys.logMaxBytes, LogBudget.clamp(value));
 
   @override
   Future<String?> getLastBluetoothPeerId() async =>

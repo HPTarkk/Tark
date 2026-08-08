@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 
+import '../diagnostics/log_budget.dart';
 import 'noise_suppression_engine.dart';
 
 /// The user-configurable settings this app persists, as a single typed
@@ -20,6 +21,10 @@ class AppSettings extends Equatable {
   final bool usageTipsShown;
   final bool analyticsEnabled;
 
+  /// Ceiling on what the diagnostic log may occupy on disk, in bytes. See
+  /// [LogBudget] for the range, and `DiagnosticLog` for what enforces it.
+  final int logMaxBytes;
+
   const AppSettings({
     required this.myName,
     required this.voxThreshold,
@@ -31,6 +36,7 @@ class AppSettings extends Equatable {
     required this.skipSplash,
     required this.usageTipsShown,
     required this.analyticsEnabled,
+    required this.logMaxBytes,
   });
 
   /// Canonical defaults, including the hands-free-friendly voice combo: VOX
@@ -64,6 +70,10 @@ class AppSettings extends Equatable {
     // every attribute is a bucketed enum, never a name or an address), and
     // it's disclosed in the README and on the website.
     analyticsEnabled: true,
+    // The log is a ring, so this is a ceiling and not a target: it costs
+    // nothing until a phone actually produces that much, and it buys a bug
+    // reported the next morning still being on record. See LogBudget.
+    logMaxBytes: LogBudget.defaultBytes,
   );
 
   AppSettings copyWith({
@@ -77,6 +87,7 @@ class AppSettings extends Equatable {
     bool? skipSplash,
     bool? usageTipsShown,
     bool? analyticsEnabled,
+    int? logMaxBytes,
   }) => AppSettings(
     myName: myName ?? this.myName,
     voxThreshold: voxThreshold ?? this.voxThreshold,
@@ -88,6 +99,7 @@ class AppSettings extends Equatable {
     skipSplash: skipSplash ?? this.skipSplash,
     usageTipsShown: usageTipsShown ?? this.usageTipsShown,
     analyticsEnabled: analyticsEnabled ?? this.analyticsEnabled,
+    logMaxBytes: logMaxBytes ?? this.logMaxBytes,
   );
 
   @override
@@ -102,5 +114,6 @@ class AppSettings extends Equatable {
     skipSplash,
     usageTipsShown,
     analyticsEnabled,
+    logMaxBytes,
   ];
 }
