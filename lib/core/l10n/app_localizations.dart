@@ -2224,86 +2224,86 @@ abstract class AppLocalizations {
 
   /// No description provided for @settings_section_diagnostics.
   ///
-  /// In en, this message translates to:
-  /// **'DIAGNOSTICS'**
+  /// In fa, this message translates to:
+  /// **'عیب‌یابی'**
   String get settings_section_diagnostics;
 
   /// No description provided for @settings_share_log.
   ///
-  /// In en, this message translates to:
-  /// **'Share diagnostic log'**
+  /// In fa, this message translates to:
+  /// **'ارسال گزارش عیب‌یابی'**
   String get settings_share_log;
 
   /// No description provided for @settings_share_log_desc.
   ///
-  /// In en, this message translates to:
-  /// **'Send us what the app recorded so we can see what went wrong ({size})'**
+  /// In fa, this message translates to:
+  /// **'چیزی که برنامه ثبت کرده را برای ما بفرست تا ببینیم چه شده ({size})'**
   String settings_share_log_desc(Object size);
 
   /// No description provided for @settings_clear_log.
   ///
-  /// In en, this message translates to:
-  /// **'Clear the log'**
+  /// In fa, this message translates to:
+  /// **'پاک کردن گزارش'**
   String get settings_clear_log;
 
   /// No description provided for @settings_clear_log_desc.
   ///
-  /// In en, this message translates to:
-  /// **'Delete what\'s stored on this phone'**
+  /// In fa, this message translates to:
+  /// **'حذف چیزی که روی این گوشی ذخیره شده'**
   String get settings_clear_log_desc;
 
   /// No description provided for @settings_log_empty.
   ///
-  /// In en, this message translates to:
-  /// **'Nothing recorded yet'**
+  /// In fa, this message translates to:
+  /// **'هنوز چیزی ثبت نشده'**
   String get settings_log_empty;
 
   /// No description provided for @settings_log_share_failed.
   ///
-  /// In en, this message translates to:
-  /// **'Couldn\'t open the share sheet'**
+  /// In fa, this message translates to:
+  /// **'صفحهٔ اشتراک‌گذاری باز نشد'**
   String get settings_log_share_failed;
 
   /// No description provided for @settings_log_cleared.
   ///
-  /// In en, this message translates to:
-  /// **'Log cleared'**
+  /// In fa, this message translates to:
+  /// **'گزارش پاک شد'**
   String get settings_log_cleared;
 
   /// No description provided for @check_heard.
   ///
-  /// In en, this message translates to:
-  /// **'Being heard'**
+  /// In fa, this message translates to:
+  /// **'شنیده شدن'**
   String get check_heard;
 
   /// No description provided for @check_heard_ok.
   ///
-  /// In en, this message translates to:
-  /// **'Your voice is reaching them'**
+  /// In fa, this message translates to:
+  /// **'صدایت به آن‌ها می‌رسد'**
   String get check_heard_ok;
 
   /// No description provided for @check_heard_unheard.
   ///
-  /// In en, this message translates to:
-  /// **'Nothing you send is arriving — repairing'**
+  /// In fa, this message translates to:
+  /// **'چیزی که می‌فرستی نمی‌رسد — در حال ترمیم'**
   String get check_heard_unheard;
 
   /// No description provided for @issue_unheard_title.
   ///
-  /// In en, this message translates to:
-  /// **'They can\'t hear you'**
+  /// In fa, this message translates to:
+  /// **'صدایت را نمی‌شنوند'**
   String get issue_unheard_title;
 
   /// No description provided for @issue_unheard_body.
   ///
-  /// In en, this message translates to:
-  /// **'You\'re receiving them, but nothing you send is getting through. Repairing the link automatically — if it doesn\'t come back, leave and rejoin the channel.'**
+  /// In fa, this message translates to:
+  /// **'تو آن‌ها را می‌شنوی، ولی چیزی که می‌گویی به مقصد نمی‌رسد. اتصال دارد خودکار ترمیم می‌شود؛ اگر برنگشت، از کانال بیرون برو و دوباره وارد شو.'**
   String get issue_unheard_body;
 
   /// No description provided for @fix_repair_link.
   ///
-  /// In en, this message translates to:
-  /// **'Repair link'**
+  /// In fa, this message translates to:
+  /// **'ترمیم اتصال'**
   String get fix_repair_link;
 }
 

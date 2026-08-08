@@ -1218,7 +1218,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get issue_unheard_title => 'They can\'t hear you';
 
   @override
-  String get issue_unheard_body => 'You\'re receiving them, but nothing you send is getting through. Repairing the link automatically — if it doesn\'t come back, leave and rejoin the channel.';
+  String get issue_unheard_body =>
+      'You\'re receiving them, but nothing you send is getting through. Repairing the link automatically — if it doesn\'t come back, leave and rejoin the channel.';
 
   @override
   String get fix_repair_link => 'Repair link';

@@ -1214,7 +1214,8 @@ class AppLocalizationsFa extends AppLocalizations {
   String get issue_unheard_title => 'صدایت را نمی‌شنوند';
 
   @override
-  String get issue_unheard_body => 'تو آن‌ها را می‌شنوی، ولی چیزی که می‌گویی به مقصد نمی‌رسد. اتصال دارد خودکار ترمیم می‌شود؛ اگر برنگشت، از کانال بیرون برو و دوباره وارد شو.';
+  String get issue_unheard_body =>
+      'تو آن‌ها را می‌شنوی، ولی چیزی که می‌گویی به مقصد نمی‌رسد. اتصال دارد خودکار ترمیم می‌شود؛ اگر برنگشت، از کانال بیرون برو و دوباره وارد شو.';
 
   @override
   String get fix_repair_link => 'ترمیم اتصال';
