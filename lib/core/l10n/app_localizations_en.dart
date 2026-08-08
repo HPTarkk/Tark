@@ -1223,7 +1223,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'The log never grows past this. When it\'s full, the oldest lines make way for the newest.';
 
   @override
-  String settings_log_usage(Object used, Object max) {
+  String settings_log_usage(Object max, Object used) {
     return '$used of $max used';
   }
 

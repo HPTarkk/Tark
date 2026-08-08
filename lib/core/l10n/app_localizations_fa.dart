@@ -1219,7 +1219,7 @@ class AppLocalizationsFa extends AppLocalizations {
       'گزارش هیچ‌وقت از این بیشتر نمی‌شود. وقتی پر شد، قدیمی‌ترین خط‌ها جا را به تازه‌ترین‌ها می‌دهند.';
 
   @override
-  String settings_log_usage(Object used, Object max) {
+  String settings_log_usage(Object max, Object used) {
     return '$used از $max پر شده';
   }
 
