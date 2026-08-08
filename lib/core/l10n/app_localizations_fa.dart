@@ -1193,6 +1193,16 @@ class AppLocalizationsFa extends AppLocalizations {
   String get settings_clear_log_desc => 'حذف چیزی که روی این گوشی ذخیره شده';
 
   @override
+  String get settings_clear_log_confirm_title => 'گزارش پاک بشه؟';
+
+  @override
+  String get settings_clear_log_confirm_message =>
+      'هرچی این گوشی ثبت کرده برای همیشه می‌ره. اگه داری باگ گزارش می‌دی، اول بفرستش.';
+
+  @override
+  String get settings_clear_log_confirm_action => 'پاک کن';
+
+  @override
   String get settings_log_empty => 'هنوز چیزی ثبت نشده';
 
   @override

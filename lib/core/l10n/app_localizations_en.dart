@@ -1197,6 +1197,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_clear_log_desc => 'Delete what\'s stored on this phone';
 
   @override
+  String get settings_clear_log_confirm_title => 'Clear the log?';
+
+  @override
+  String get settings_clear_log_confirm_message =>
+      'Everything this phone recorded goes for good. If you\'re reporting a bug, share it first.';
+
+  @override
+  String get settings_clear_log_confirm_action => 'CLEAR';
+
+  @override
   String get settings_log_empty => 'Nothing recorded yet';
 
   @override

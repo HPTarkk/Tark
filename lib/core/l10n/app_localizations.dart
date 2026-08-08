@@ -2252,6 +2252,24 @@ abstract class AppLocalizations {
   /// **'حذف چیزی که روی این گوشی ذخیره شده'**
   String get settings_clear_log_desc;
 
+  /// No description provided for @settings_clear_log_confirm_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'گزارش پاک بشه؟'**
+  String get settings_clear_log_confirm_title;
+
+  /// No description provided for @settings_clear_log_confirm_message.
+  ///
+  /// In fa, this message translates to:
+  /// **'هرچی این گوشی ثبت کرده برای همیشه می‌ره. اگه داری باگ گزارش می‌دی، اول بفرستش.'**
+  String get settings_clear_log_confirm_message;
+
+  /// No description provided for @settings_clear_log_confirm_action.
+  ///
+  /// In fa, this message translates to:
+  /// **'پاک کن'**
+  String get settings_clear_log_confirm_action;
+
   /// No description provided for @settings_log_empty.
   ///
   /// In fa, this message translates to:

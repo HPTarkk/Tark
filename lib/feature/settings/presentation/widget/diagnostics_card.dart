@@ -75,6 +75,55 @@ class _DiagnosticsCardState extends State<DiagnosticsCard> {
     }
   }
 
+  /// Confirmed before it runs: the log is the only copy of what a phone saw
+  /// during a bug, and it cannot be recovered once wiped. The prompt is also
+  /// the last place to remind someone to share it before it's gone.
+  Future<void> _confirmClear() async {
+    final s = context.getString;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: AppColors.border),
+        ),
+        title: Text(
+          s.settings_clear_log_confirm_title,
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        content: Text(
+          s.settings_clear_log_confirm_message,
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(
+              s.cancel,
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(
+              s.settings_clear_log_confirm_action,
+              style: TextStyle(
+                color: AppColors.red,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await _clear();
+  }
+
   Future<void> _clear() async {
     final s = context.getString;
     await DiagnosticLog.clear();
@@ -142,7 +191,7 @@ class _DiagnosticsCardState extends State<DiagnosticsCard> {
             ),
             onTap: () {
               HapticFeedback.selectionClick();
-              _clear();
+              _confirmClear();
             },
           ),
         ],
