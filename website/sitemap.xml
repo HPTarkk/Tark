@@ -20,14 +20,14 @@
     <loc>https://tarkk.ir/</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://tarkk.ir/"/>
     <xhtml:link rel="alternate" hreflang="fa" href="https://tarkk.ir/fa/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://tarkk.ir/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://tarkk.ir/fa/"/>
     <lastmod>2026-08-02</lastmod>
   </url>
   <url>
     <loc>https://tarkk.ir/fa/</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://tarkk.ir/"/>
     <xhtml:link rel="alternate" hreflang="fa" href="https://tarkk.ir/fa/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://tarkk.ir/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://tarkk.ir/fa/"/>
     <lastmod>2026-08-02</lastmod>
   </url>
 </urlset>

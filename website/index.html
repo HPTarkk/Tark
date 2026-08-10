@@ -28,15 +28,17 @@
        is generated from this file by scripts/build-website-i18n.mjs. Both
        carry the same hreflang set (each page names itself and its sibling)
        and a canonical pointing at itself, so the two rank separately
-       instead of competing. x-default is the English page — it is the one
-       served to visitors whose language we cannot guess.
+       instead of competing. x-default is the Persian page — Tarkk is built
+       for an Iranian audience, so Persian is what a visitor whose language
+       we cannot guess should get, and it has to name the same URL the head
+       script below actually sends them to.
 
        Do not hand-edit fa/index.html; edit the data-fa attributes below
        and re-run the generator. -->
   <link rel="canonical" href="https://tarkk.ir/">
   <link rel="alternate" hreflang="en" href="https://tarkk.ir/">
   <link rel="alternate" hreflang="fa" href="https://tarkk.ir/fa/">
-  <link rel="alternate" hreflang="x-default" href="https://tarkk.ir/">
+  <link rel="alternate" hreflang="x-default" href="https://tarkk.ir/fa/">
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
   <link rel="icon" href="favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="logo.png">
@@ -85,24 +87,29 @@
   </script>
 
   <!-- ── Language routing ─────────────────────────────────────────────
-       Sends Persian readers who land on the English page to /fa/. This sits
-       in the head, before any content is parsed, so they never see a frame
-       of English.
+       Persian is the site. Everyone who lands on / goes to /fa/; the only
+       way to stay here is to have asked for English with the toggle, which
+       writes tark_lang. The browser's language list is deliberately not
+       consulted — an Iranian visitor whose phone is set to English is still
+       an Iranian visitor, and reading navigator.languages sent most of them
+       to the English page. This sits in the head, before any content is
+       parsed, so nobody sees a frame of English on the way past.
 
-       The browser's language list is ranked, and that ranking is the whole
-       signal: a list like ["en-US", "fa"] belongs to someone who reads
-       English first and merely also knows Persian, so only the higher of
-       the two counts. Testing for Persian anywhere in the list instead
-       would redirect most bilingual users away from the language they
-       actually chose in their OS.
+       The guard is `!== 'en'` rather than `=== 'fa'` so an absent or
+       corrupted tark_lang lands on the default rather than on English.
 
-       Two things keep this away from search. It only ever runs on the
-       English document — the generated Persian page has lang="fa", so the
-       guard below is false there and no loop is possible even if the two
-       URLs are misconfigured. And it keys off the browser, not geography:
-       Googlebot crawls as en-US and therefore stays here, which is what
-       lets each document be indexed in its own language instead of one
-       shadowing the other.
+       It only ever runs on the English document — the generated Persian
+       page has lang="fa", so the guard is false there and no loop is
+       possible even if the two URLs are misconfigured.
+
+       What this costs, so nobody has to rediscover it: Googlebot renders
+       JS and crawls as en-US, so it is redirected along with everyone else
+       and this page stops being indexable at its own URL. English search
+       presence is being traded for a Persian front door — a deliberate
+       call for an Iranian-market app. The hreflang set below still names
+       this URL for English; if the English page is ever meant to rank
+       again, the fix is to serve Persian from / directly and move English
+       to /en/ rather than to soften this redirect.
 
        replace() rather than assign() so Back leaves the site instead of
        landing on a page that immediately redirects again. -->
@@ -111,15 +118,7 @@
       if (document.documentElement.lang !== 'en') return;
       var want = null;
       try { want = localStorage.getItem('tark_lang'); } catch (_) {}
-      if (want !== 'en' && want !== 'fa') {
-        var tags = navigator.languages || [navigator.language || ''];
-        want = 'en'; // x-default: nothing in the list to go on
-        for (var i = 0; i < tags.length; i++) {
-          if (/^fa\b/i.test(tags[i])) { want = 'fa'; break; }
-          if (/^en\b/i.test(tags[i])) { want = 'en'; break; }
-        }
-      }
-      if (want === 'fa') window.location.replace('/fa/');
+      if (want !== 'en') window.location.replace('/fa/');
     })();
   </script>
 
