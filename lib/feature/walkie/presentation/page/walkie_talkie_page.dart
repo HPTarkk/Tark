@@ -87,6 +87,9 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
           if (!mounted) return;
           final text = switch (code) {
             'capture_stalled' => context.getString.music_cast_stalled,
+            // Same cause, different outcome: capture is still running and the
+            // cast is still up, so the wording must not claim it stopped.
+            'capture_blocked' => context.getString.music_cast_blocked,
             _ => null,
           };
           if (text == null) return;

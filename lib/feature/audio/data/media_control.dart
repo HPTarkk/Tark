@@ -43,4 +43,19 @@ abstract final class MediaControl {
       Logger.log('MediaControl pauseOtherMedia failed: $e');
     }
   }
+
+  /// Whether another app reports itself as actively playing.
+  ///
+  /// False also means "can't tell" — without notification access there is no
+  /// way to ask — so this may only be used to *confirm* that something is
+  /// playing, never to conclude that nothing is.
+  static Future<bool> isOtherMediaPlaying() async {
+    if (!Platform.isAndroid) return false;
+    try {
+      return await _methods.invokeMethod<bool>('isOtherMediaPlaying') ?? false;
+    } catch (e) {
+      Logger.log('MediaControl isOtherMediaPlaying failed: $e');
+      return false;
+    }
+  }
 }

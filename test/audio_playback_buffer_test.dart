@@ -229,7 +229,7 @@ void main() {
     // lateness it was fatal: the stale branch returns without advancing the
     // expected sequence, so the sender never becomes un-stale and is muted for
     // the rest of the session, in one direction only.
-    test('a counter restart resyncs instead of dropping', () {
+    test('a counter restart is adopted once the new stream proves itself', () {
       final sink = _RecordingSink();
       final buffer = build(sink);
       addTearDown(buffer.dispose);
@@ -237,7 +237,12 @@ void main() {
       buffer.feed(_tone(480), 5000, 'peer');
       final afterFirst = buffer.queuedSamples;
 
-      buffer.feed(_tone(480), 0, 'peer');
+      // Adoption is deferred, not refused: a lone far-behind packet is
+      // indistinguishable from a duplicate arriving by a second route, so the
+      // new numbering has to keep coming before it is believed.
+      for (var seq = 0; seq < 30; seq++) {
+        buffer.feed(_tone(480), seq, 'peer');
+      }
       expect(
         buffer.queuedSamples,
         greaterThan(afterFirst),
@@ -251,18 +256,67 @@ void main() {
       addTearDown(buffer.dispose);
 
       buffer.feed(_tone(480), 5000, 'peer');
-      buffer.feed(_tone(480), 0, 'peer');
-
-      // The actual defect: not one dropped packet, but every packet after it.
+      var seq = 0;
+      // Walk the restarted stream forward until it is adopted, then hold the
+      // buffer to the real invariant: not one dropped packet, but every packet
+      // after it. Read as lateness this was fatal — the stale branch returns
+      // without advancing the expected sequence, so the sender never becomes
+      // un-stale and is muted for the rest of the session, one direction only.
       var queued = buffer.queuedSamples;
-      for (var seq = 1; seq <= 10; seq++) {
-        buffer.feed(_tone(480), seq, 'peer');
+      while (buffer.queuedSamples == queued) {
+        buffer.feed(_tone(480), seq++, 'peer');
+        expect(
+          seq,
+          lessThan(100),
+          reason: 'a restarted sender must never be muted indefinitely',
+        );
+      }
+
+      queued = buffer.queuedSamples;
+      for (var i = 0; i < 10; i++) {
+        buffer.feed(_tone(480), seq++, 'peer');
         expect(
           buffer.queuedSamples,
           greaterThan(queued),
           reason: 'packet $seq after a resync must still be queued',
         );
         queued = buffer.queuedSamples;
+      }
+    });
+
+    // The failure this whole mechanism exists for, measured on a pair of
+    // Galaxy A5x phones: both were multi-homed (hotspot subnet, router subnet,
+    // a VPN tun) and audio goes out to every broadcast address we know, so each
+    // packet arrived twice — the copies seconds apart. Adopting the far-behind
+    // copy on sight put stale audio into the queue interleaved with live audio
+    // at roughly twice the drain rate, and the overflow guard chopped the head
+    // continuously.
+    test('a duplicate arriving by a slower route is never adopted', () {
+      final sink = _RecordingSink();
+      final buffer = build(sink);
+      addTearDown(buffer.dispose);
+
+      // Establish the live stream.
+      buffer.feed(_tone(480), 1000, 'peer');
+
+      // 150 chunks behind is the lag the phones actually showed — comfortably
+      // past the reorder window, which is why it used to read as a restart.
+      const lag = 150;
+      for (var i = 1; i <= 40; i++) {
+        final live = 1000 + i;
+        final before = buffer.queuedSamples;
+        buffer.feed(_tone(480), live - lag, 'peer');
+        expect(
+          buffer.queuedSamples,
+          before,
+          reason: 'the stale copy of packet $live must be dropped',
+        );
+        buffer.feed(_tone(480), live, 'peer');
+        expect(
+          buffer.queuedSamples,
+          greaterThan(before),
+          reason: 'the live packet $live must still be queued',
+        );
       }
     });
 

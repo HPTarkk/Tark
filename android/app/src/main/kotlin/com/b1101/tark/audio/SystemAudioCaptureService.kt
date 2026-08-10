@@ -61,11 +61,19 @@ class SystemAudioCaptureService : Service() {
         var frameListener: ((DoubleArray) -> Unit)? = null
 
         /** Set by [SystemAudioHandler]; invoked on the main thread when the
-         *  capture stream produces zero frames within [STALL_TIMEOUT_MS] of
-         *  starting (see class doc — a known OEM restriction, not a retry-able
-         *  transient failure). The service stops itself right after. */
+         *  capture stream produces nothing usable for [STALL_TIMEOUT_MS] (see
+         *  class doc — a known OEM restriction, not a retry-able transient
+         *  failure). The service stops itself right after. */
         @Volatile
         var stalledListener: (() -> Unit)? = null
+
+        /** Set by [SystemAudioHandler]; invoked on the main thread when the
+         *  OS takes the projection away — the user stopping the share from the
+         *  status bar, another app claiming projection, or the service being
+         *  killed. Without this the stream simply stops and the Dart side goes
+         *  on believing it is casting. */
+        @Volatile
+        var revokedListener: (() -> Unit)? = null
 
         @Volatile
         var isRunning = false
@@ -78,13 +86,23 @@ class SystemAudioCaptureService : Service() {
     private var captureThread: Thread? = null
 
     // Read by the main-thread stall check below; written only from
-    // captureThread — plain @Volatile is enough since it's a single flag
-    // flipped once (no read-modify-write race to worry about there).
+    // captureThread — plain @Volatile is enough since these are single values
+    // published across threads (no read-modify-write race to worry about).
     @Volatile
     private var gotFirstFrame = false
 
+    /** When the capture thread last completed a read, so a stream that dies
+     *  mid-cast is caught too. The original check ran once, four seconds after
+     *  start, and returned early forever after the first frame — so a stall
+     *  that began later was undetectable by construction. */
+    @Volatile
+    private var lastReadAtMs = 0L
+
     private val projectionCallback = object : MediaProjection.Callback() {
         override fun onStop() {
+            android.util.Log.w("TarkSysAudio", "media projection revoked by the system")
+            // Before stopSelf(), which tears the listener down with the service.
+            revokedListener?.invoke()
             stopSelf()
         }
     }
@@ -149,6 +167,7 @@ class SystemAudioCaptureService : Service() {
         record = audioRecord
         audioRecord.startRecording()
         gotFirstFrame = false
+        lastReadAtMs = android.os.SystemClock.elapsedRealtime()
         mainHandler.postDelayed({ checkStall() }, STALL_TIMEOUT_MS)
 
         captureThread = Thread {
@@ -193,6 +212,7 @@ class SystemAudioCaptureService : Service() {
                 }
                 diagReads++
                 gotFirstFrame = true
+                lastReadAtMs = android.os.SystemClock.elapsedRealtime()
                 if (diagReads % 10 == 0) {
                     android.util.Log.d(
                         "TarkSysAudio",
@@ -206,13 +226,28 @@ class SystemAudioCaptureService : Service() {
         }.also { it.start() }
     }
 
-    /** Runs once, [STALL_TIMEOUT_MS] after capture starts. */
+    /**
+     * Re-arms itself every [STALL_TIMEOUT_MS] for as long as capture runs.
+     *
+     * Deliberately keyed on *reads*, not on the audio being audible: a capture
+     * stream delivering silence is the normal state whenever nothing is playing,
+     * and stopping a cast over that would tear it down every time the user
+     * paused between songs. Silence that is NOT normal — this device refusing
+     * to hand over audio that is demonstrably playing — is diagnosed on the Dart
+     * side, where what the other media sessions claim to be doing is visible.
+     */
     private fun checkStall() {
-        if (!isRunning || gotFirstFrame) return
+        if (!isRunning) return
+        val sinceRead = android.os.SystemClock.elapsedRealtime() - lastReadAtMs
+        if (sinceRead < STALL_TIMEOUT_MS) {
+            mainHandler.postDelayed({ checkStall() }, STALL_TIMEOUT_MS)
+            return
+        }
         android.util.Log.w(
             "TarkSysAudio",
-            "capture stalled: zero frames after ${STALL_TIMEOUT_MS}ms — likely blocked by " +
-                "the OEM audio policy while a call-mode (VOICE_COMMUNICATION) session is open",
+            "capture stalled: no frames for ${sinceRead}ms (gotFirstFrame=$gotFirstFrame) — " +
+                "at start, likely blocked by the OEM audio policy while a call-mode " +
+                "(VOICE_COMMUNICATION) session is open; mid-cast, the stream died",
         )
         stalledListener?.invoke()
         stopSelf()

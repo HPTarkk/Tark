@@ -167,6 +167,52 @@ void main() {
     });
   });
 
+  group('MusicMixer backlog', () {
+    // Both sides of this queue live on the UI isolate, so backgrounding the app
+    // stalls capture delivery and the drain together; on resume the buffered
+    // chunks land at once. Walking that down in 10 ms steps is what produced
+    // bursts of 25-48 trims per 2 s in the logs from a Galaxy A53, each one an
+    // audible seam.
+    MusicMixer real() => MusicMixer(sampleRate: 1000, prefillMs: 200);
+
+    test('a backlog is dropped in one splice, not walked down', () {
+      final mixer = real();
+      // 1.5 s at 1 kHz — past floodSamples (900 ms), so not drift.
+      mixer.addChunk(List<double>.filled(1500, 0.5));
+
+      mixer.mix(List<double>.filled(20, 0.0), 1.0);
+
+      expect(mixer.floods, 1);
+      expect(
+        mixer.trims,
+        0,
+        reason: 'a backlog must not be charged to the drift path',
+      );
+      expect(
+        mixer.queuedSamples,
+        lessThanOrEqualTo(mixer.prefillSamples),
+        reason: 'one splice must land back at the cushion, not near the cap',
+      );
+    });
+
+    test('ordinary drift is still walked down in steps', () {
+      final mixer = real();
+      // Just over the high-water mark (450 ms) but well under the flood
+      // threshold: this is the clock drift the stepped trim exists for.
+      mixer.addChunk(List<double>.filled(500, 0.5));
+
+      mixer.mix(List<double>.filled(20, 0.0), 1.0);
+
+      expect(mixer.floods, 0);
+      expect(mixer.trims, 1);
+      expect(
+        mixer.queuedSamples,
+        greaterThan(mixer.prefillSamples),
+        reason: 'drift is corrected a step at a time, not snapped back',
+      );
+    });
+  });
+
   group('MusicMixer.levelOf', () {
     test('empty chunk is 0', () {
       expect(MusicMixer.levelOf([]), 0);

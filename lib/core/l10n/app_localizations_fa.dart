@@ -728,6 +728,10 @@ class AppLocalizationsFa extends AppLocalizations {
       'این گوشی وسط تماس کانال آهنگ پخش نمی‌کنه. پخش قطع شد.';
 
   @override
+  String get music_cast_blocked =>
+      'این گوشی وسط تماس کانال آهنگ پخش نمی‌کنه. آهنگت داره پخش می‌شه ولی بقیه نمی‌شنون.';
+
+  @override
   String get settings_title => 'تنظیمات';
 
   @override

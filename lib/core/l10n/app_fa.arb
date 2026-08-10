@@ -217,6 +217,7 @@
     "background_autostart": "خودش شروع کنه",
     "background_dismiss": "بعداً",
     "music_cast_stalled": "این گوشی وسط تماس کانال آهنگ پخش نمی‌کنه. پخش قطع شد.",
+    "music_cast_blocked": "این گوشی وسط تماس کانال آهنگ پخش نمی‌کنه. آهنگت داره پخش می‌شه ولی بقیه نمی‌شنون.",
     "settings_title": "تنظیمات",
     "settings_section_identity": "درباره تو",
     "settings_section_voice": "صدا و میکروفون",

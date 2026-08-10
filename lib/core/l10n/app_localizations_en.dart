@@ -732,6 +732,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'This phone won\'t share music during a channel call. Music sharing stopped.';
 
   @override
+  String get music_cast_blocked =>
+      'This phone won\'t share music during a channel call. Your song is playing, but peers can\'t hear it.';
+
+  @override
   String get settings_title => 'Settings';
 
   @override

@@ -143,6 +143,27 @@ class AudioPlaybackBuffer {
   /// thousands behind, so anything in between is safely on either side.
   static const int _maxReorderChunks = 50;
 
+  /// Consecutive packets a far-behind stream must deliver before it is accepted
+  /// as the sender's restarted counter rather than a stale duplicate.
+  ///
+  /// A restart and a duplicate look identical in the first packet — both land
+  /// far below [_expectedSeqBySender]. They differ in what happens next: after
+  /// a real restart the old numbering never returns, whereas a second delivery
+  /// path keeps interleaving packets from both. So the decision is deferred
+  /// until the new numbering has proved it is the only one left.
+  ///
+  /// Ten chunks is ~200 ms. That is the one-off cost of a genuine restart (the
+  /// old branch paid nothing but let duplicates through), and it is far longer
+  /// than the alternation period of a duplicate path, which resets the
+  /// candidate on every live packet and so can never accumulate it.
+  static const int _restartConfirmChunks = 10;
+
+  /// Minimum spacing between the "hearing a sender twice" diagnostics. The
+  /// condition fires per packet — a line each would be ~150 a minute, which is
+  /// how the original report arrived — so the log carries a rate and a lag
+  /// instead of a transcript.
+  static const Duration _duplicateLogInterval = Duration(seconds: 30);
+
   /// Short ramp applied right after playback resumes (initial fill, after an
   /// underrun, or after a trim) to avoid an audible click at the
   /// silence→audio or splice boundary.
@@ -164,6 +185,15 @@ class AudioPlaybackBuffer {
   // Sequence tracking for loss/reorder detection, per sender id.
   final Map<String, int> _expectedSeqBySender = {};
   final Map<String, int> _lastChunkLenBySender = {};
+
+  /// In-progress evidence that a sender's counter has restarted, per sender.
+  /// Cleared the moment a packet arrives on the established numbering — that
+  /// is the proof the far-behind stream was a duplicate, not a restart.
+  final Map<String, _RestartCandidate> _restartCandidateBySender = {};
+
+  /// Stale duplicates dropped per sender, and when we last said so.
+  final Map<String, int> _duplicateDropsBySender = {};
+  final Map<String, DateTime> _duplicateLoggedAtBySender = {};
 
   // Diagnostics. The per-window sample counters are the important ones: they
   // measure directly whether the feed outruns the fixed-cadence drain, and by
@@ -205,19 +235,39 @@ class AudioPlaybackBuffer {
         // Genuinely late — too old to splice back into sequence.
         return;
       }
-      // Miles behind, which is not lateness: this sender's counter restarted.
-      // A sequence counter lives on the transport repository and starts at
-      // zero — per repository, so switching transport restarts it — while the
-      // sender's identity does not change with it. Before identity was stable
-      // the same thing happened whenever hotspot DHCP recycled an address onto
-      // a different phone.
+      // Miles behind. Two different things look exactly like this:
       //
-      // Falling through to resync matters more than it looks: the stale branch
-      // above returns WITHOUT advancing the expected sequence, so once a
-      // sender is behind it stays behind, and every packet it ever sends again
-      // is dropped. That is a sender silently muted for the rest of the
-      // session, in one direction, with no way back short of leaving the
-      // channel — which is precisely how it was reported.
+      //  * the sender's counter restarted. A sequence counter lives on the
+      //    transport repository and starts at zero — per repository, so
+      //    switching transport restarts it — while the sender's identity does
+      //    not change with it. Before identity was stable the same thing
+      //    happened whenever hotspot DHCP recycled an address onto a different
+      //    phone.
+      //  * the same packet reached us a second time by another route. Phones
+      //    here are routinely multi-homed (hotspot subnet, router subnet, a VPN
+      //    tun) and audio goes out to every broadcast address we know, so a
+      //    peer can be heard twice with the copies seconds apart.
+      //
+      // Telling them apart cannot be done from one packet, so it is done from
+      // what follows: [_restartCandidate] accumulates consecutive far-behind
+      // packets and only switches over once the old numbering has stayed gone
+      // for [_restartConfirmChunks]. A duplicate path never gets there — every
+      // live packet clears the candidate below.
+      //
+      // Until it is decided, the packet is dropped. Handing it to [_enqueue]
+      // instead (which is what this branch used to do) is what put seconds-old
+      // audio into the queue interleaved with live audio, at roughly twice the
+      // drain rate, so [_dropOverflow] chopped the head continuously.
+      //
+      // The confirmation must stay bounded for the reason the old fallthrough
+      // existed: the stale branch above returns WITHOUT advancing the expected
+      // sequence, so a sender that is never resynced is silently muted for the
+      // rest of the session, in one direction, with no way back short of
+      // leaving the channel — which is precisely how it was reported.
+      if (!_confirmsRestart(senderId, seq)) {
+        _noteDuplicate(senderId, behind, lastChunkLen);
+        return;
+      }
       Logger.diagnostic(
         'playback: sender $senderId restarted its sequence '
         '($expectedSeq -> $seq) — resyncing',
@@ -230,6 +280,12 @@ class AudioPlaybackBuffer {
       // else: large gap (new talk burst) — resync without filling silence.
     }
 
+    // This packet is on the numbering we are playing, so any far-behind stream
+    // still gathering evidence has just been contradicted: the counter it
+    // claimed had restarted is demonstrably still in use. (After a confirmed
+    // restart the candidate has done its job and goes for the same reason.)
+    _restartCandidateBySender.remove(senderId);
+
     _expectedSeqBySender[senderId] = seq + 1;
     _lastChunkLenBySender[senderId] = samples.length;
     _enqueue(samples);
@@ -238,6 +294,54 @@ class AudioPlaybackBuffer {
       _filling = false;
       _startDraining();
     }
+  }
+
+  /// Whether [seq] completes the evidence that [senderId]'s counter restarted.
+  ///
+  /// Each call either extends a run of consecutive far-behind packets or starts
+  /// a new one. Only a run reaching [_restartConfirmChunks] returns true, and
+  /// only the packet that completes it — everything before is dropped by the
+  /// caller.
+  bool _confirmsRestart(String senderId, int seq) {
+    final candidate = _restartCandidateBySender[senderId];
+    // "Continues the candidate" is the same test the established stream gets:
+    // ordinary reordering behind it, an ordinary concealable gap ahead. A
+    // far-behind packet that fits neither is a different stream again, so it
+    // replaces the candidate rather than extending it.
+    if (candidate == null ||
+        seq < candidate.nextSeq - _maxReorderChunks ||
+        seq > candidate.nextSeq + _maxConcealedGapChunks) {
+      _restartCandidateBySender[senderId] = _RestartCandidate(seq + 1);
+      return false;
+    }
+    candidate.nextSeq = seq + 1;
+    candidate.chunks++;
+    if (candidate.chunks < _restartConfirmChunks) return false;
+    _restartCandidateBySender.remove(senderId);
+    return true;
+  }
+
+  /// Counts a dropped far-behind packet and, at most every
+  /// [_duplicateLogInterval], says so.
+  ///
+  /// The lag is the diagnostic worth having: a few hundred milliseconds is a
+  /// slow second path, while seconds mean one route is buffering without
+  /// bound and the peer should be looked at rather than the audio code.
+  void _noteDuplicate(String senderId, int behind, int lastChunkLen) {
+    final drops = (_duplicateDropsBySender[senderId] ?? 0) + 1;
+    _duplicateDropsBySender[senderId] = drops;
+
+    final now = DateTime.now();
+    final lastLoggedAt = _duplicateLoggedAtBySender[senderId];
+    if (lastLoggedAt != null && now.difference(lastLoggedAt) < _duplicateLogInterval) {
+      return;
+    }
+    _duplicateLoggedAtBySender[senderId] = now;
+    final lagMs = behind * lastChunkLen * 1000 ~/ _sampleRate;
+    Logger.diagnostic(
+      'playback: sender $senderId heard twice — dropped $drops far-behind '
+      'packets, newest lag ${lagMs}ms',
+    );
   }
 
   void _dropOverflow(int incoming) {
@@ -383,6 +487,9 @@ class AudioPlaybackBuffer {
     _filling = true;
     _expectedSeqBySender.clear();
     _lastChunkLenBySender.clear();
+    _restartCandidateBySender.clear();
+    _duplicateDropsBySender.clear();
+    _duplicateLoggedAtBySender.clear();
     _fadeRemaining = 0;
     _sinceTrimTicks = 0;
   }
@@ -392,4 +499,18 @@ class AudioPlaybackBuffer {
     _drainTimer?.cancel();
     _drainTimer = null;
   }
+}
+
+/// A run of consecutive packets numbered well below what a sender was last
+/// playing at — the shape a restarted counter makes, and also the shape a
+/// second delivery path makes. See [AudioPlaybackBuffer._confirmsRestart].
+class _RestartCandidate {
+  _RestartCandidate(this.nextSeq);
+
+  /// Sequence the run expects next, so the following packet can be checked
+  /// against it the same way the established stream is.
+  int nextSeq;
+
+  /// Packets seen on this run so far.
+  int chunks = 1;
 }

@@ -95,6 +95,30 @@ class AudioEngineImpl implements AudioEngine {
   bool _restarting = false;
   static const _kStallTimeout = Duration(seconds: 3);
   static const _kMinRestartInterval = Duration(seconds: 5);
+  static const _kWatchdogInterval = Duration(seconds: 2);
+
+  /// When the watchdog last actually ran.
+  ///
+  /// [_lastInputAt] is advanced from `_onInput`, on the UI isolate. When the OS
+  /// suspends that isolate — the phone locked, the app backgrounded — frames
+  /// stop being *delivered* while the mic itself is fine, and nothing is
+  /// running to notice either way. On resume the watchdog would find
+  /// [_lastInputAt] as old as the nap and restart a working engine.
+  ///
+  /// That restart is not free: it tears the duplex VOICE_COMMUNICATION device
+  /// down and reopens it, and on Android that is exactly the churn that makes
+  /// another app's media playback pause itself. The logs behind this fix show
+  /// phones backgrounded over and over (naps of 4.8 s, 16.6 s, 31.2 s, 33.7 s),
+  /// every one of them long past [_kStallTimeout] — so the user's music was
+  /// being stopped by a watchdog reacting to the screen going off.
+  ///
+  /// This timer firing on schedule is the proof that we were awake to judge the
+  /// mic at all, so the gap it reports is what gets discounted below.
+  DateTime _lastWatchdogAt = DateTime.now();
+
+  /// Ordinary lateness for a timer sharing an isolate with rendering. Anything
+  /// past this is the isolate not having run, not jitter.
+  static const _kWatchdogJitter = Duration(milliseconds: 500);
 
   // ── Route changes ──────────────────────────────────────────────────────
   // Headsets that arrive AFTER the engine is up are their own problem: the
@@ -205,6 +229,19 @@ class AudioEngineImpl implements AudioEngine {
   /// disappearing needs it.
   Future<void> _openStreams({bool renegotiateRoute = false}) async {
     try {
+      // Before the device goes down, not after the new one comes up.
+      //
+      // [_audioIo.stop] closes the output sink, and the buffer below drains
+      // into it on a 10 ms timer. Disposing it at the far end of this method
+      // instead left that timer running across the whole reopen — the route
+      // settle alone is 700 ms, plus a start that may retry after 300 ms — so
+      // for a second or more every tick threw `Bad state: Cannot add event
+      // after closing` out of a Timer callback, where nothing could catch it.
+      // Seen in the field on a Galaxy A53 (1.0.14+15), and for that whole
+      // window received audio went nowhere: the buffer was still draining, but
+      // into a sink that was gone.
+      _buffer?.dispose();
+      _buffer = null;
       await _audioIo.stop();
       // Android: bring the Bluetooth SCO route up — and confirmed — BEFORE
       // the engine opens its streams. Older devices don't re-route streams
@@ -272,7 +309,8 @@ class AudioEngineImpl implements AudioEngine {
       );
 
       final targetBufferMs = await _settingsRepository.getTargetBufferMs();
-      _buffer?.dispose();
+      // Already disposed at the top of this method, before the sink it writes
+      // to was closed.
       _buffer = AudioPlaybackBuffer(
         output: _audioIo.output,
         sampleRate: outputRate.toInt(),
@@ -345,25 +383,44 @@ class AudioEngineImpl implements AudioEngine {
   void _startWatchdog() {
     _watchdog?.cancel();
     _lastInputAt = DateTime.now();
-    _watchdog = Timer.periodic(
-      const Duration(seconds: 2),
-      (_) => _checkStall(),
-    );
+    _lastWatchdogAt = DateTime.now();
+    _watchdog = Timer.periodic(_kWatchdogInterval, (_) => _checkStall());
   }
 
   Future<void> _checkStall() async {
+    // First, and on every path out of here: a stale [_lastWatchdogAt] would
+    // itself read as a suspension the next time around.
+    final now = DateTime.now();
+    final sinceCheck = now.difference(_lastWatchdogAt);
+    _lastWatchdogAt = now;
+
+    // Time the isolate demonstrably did not run is time the mic was never
+    // observed, so it cannot count toward a stall. Discounted precisely rather
+    // than by a threshold: the mic is then given a full [_kStallTimeout] of
+    // real, awake silence before the engine is touched — a genuine stall that
+    // happens to straddle a resume is still caught, just one cycle later.
+    final lateBy = sinceCheck - _kWatchdogInterval;
+    if (lateBy > _kWatchdogJitter) {
+      final credited = _lastInputAt.add(lateBy);
+      _lastInputAt = credited.isAfter(now) ? now : credited;
+    }
+
     if (_disposed || _restarting) return;
     if (_engineEpoch != _myEpoch) return; // a newer session owns the engine
     if (!_currentStatus.isStarted) return;
-    final now = DateTime.now();
     if (now.difference(_lastInputAt) < _kStallTimeout) return;
     // Don't hammer restarts if reopening doesn't immediately deliver frames.
     if (now.difference(_lastRestartAt) < _kMinRestartInterval) return;
 
     _restarting = true;
     _lastRestartAt = now;
-    Logger.log(
-      'Audio input stalled ${now.difference(_lastInputAt).inMilliseconds}ms — restarting engine',
+    // Diagnostic, not [log]: an engine restart closes and reopens the voice
+    // streams, which is both an audible gap and — per this class's own notes on
+    // media playback interrupting VOICE_COMMUNICATION — a plausible reason for
+    // a media app to pause itself. A release log that cannot show when this
+    // happened cannot answer "the music stopped on its own".
+    Logger.diagnostic(
+      'audio: input stalled ${now.difference(_lastInputAt).inMilliseconds}ms — restarting engine',
     );
     try {
       await _withEngineLock(() async {
@@ -403,7 +460,10 @@ class AudioEngineImpl implements AudioEngine {
     // Counts as a restart for the watchdog: reopening resets the stall clock
     // anyway, and this keeps the two paths from stacking up on each other.
     _lastRestartAt = DateTime.now();
-    Logger.log('Audio route changed — reselecting device');
+    // Diagnostic for the same reason as the stall restart above: this tears the
+    // streams down and, on a Bluetooth route, cycles SCO — which stops A2DP
+    // media on most phones.
+    Logger.diagnostic('audio: route changed — reselecting device');
     try {
       await _withEngineLock(() async {
         if (_disposed || _engineEpoch != _myEpoch) return;

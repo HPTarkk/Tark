@@ -217,6 +217,7 @@
     "background_autostart": "START ON ITS OWN",
     "background_dismiss": "NOT NOW",
     "music_cast_stalled": "This phone won't share music during a channel call. Music sharing stopped.",
+    "music_cast_blocked": "This phone won't share music during a channel call. Your song is playing, but peers can't hear it.",
     "settings_title": "Settings",
     "settings_section_identity": "ABOUT YOU",
     "settings_section_voice": "VOICE & SOUND",

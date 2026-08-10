@@ -1406,6 +1406,12 @@ abstract class AppLocalizations {
   /// **'این گوشی وسط تماس کانال آهنگ پخش نمی‌کنه. پخش قطع شد.'**
   String get music_cast_stalled;
 
+  /// No description provided for @music_cast_blocked.
+  ///
+  /// In fa, this message translates to:
+  /// **'این گوشی وسط تماس کانال آهنگ پخش نمی‌کنه. آهنگت داره پخش می‌شه ولی بقیه نمی‌شنون.'**
+  String get music_cast_blocked;
+
   /// No description provided for @settings_title.
   ///
   /// In fa, this message translates to:

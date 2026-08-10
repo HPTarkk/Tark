@@ -46,8 +46,10 @@ class MusicMixer {
     int prefillMs = kDefaultPrefillMs,
     int highWaterMs = kDefaultHighWaterMs,
     int fadeMs = kDefaultFadeMs,
+    int floodMs = kDefaultFloodMs,
   }) : prefillSamples = sampleRate * prefillMs ~/ 1000,
        highWaterSamples = sampleRate * highWaterMs ~/ 1000,
+       floodSamples = sampleRate * floodMs ~/ 1000,
        _trimStepSamples = sampleRate * 10 ~/ 1000,
        // At least one sample, which is the same as no ramp: a zero-length
        // ramp has nothing to divide by, and a one-sample ramp is unity.
@@ -68,6 +70,23 @@ class MusicMixer {
   /// slope, short enough that no music is perceptibly lost to it.
   static const int kDefaultFadeMs = 3;
 
+  /// Depth past which the backlog is dropped in one splice instead of being
+  /// walked down.
+  ///
+  /// Stepped trimming is right for drift, which is what [highWaterSamples] is
+  /// sized for. It is wrong for a *backlog*, and the two arrive by completely
+  /// different routes: capture chunks reach [addChunk] over an EventChannel on
+  /// the UI isolate, and [mix] is driven by the mic callback on that same
+  /// isolate. Backgrounding the app stalls both together; on resume the
+  /// buffered chunks all land at once while the drain is still one frame at a
+  /// time. Measured on a Galaxy A53, that put ~1 s in the queue and the 10 ms
+  /// step then spliced its way down over ~80 consecutive frames — a burst of 25
+  /// to 48 trims per 2 s in the diagnostic log, each one an audible seam.
+  ///
+  /// One splice costs one seam. Set well above [kDefaultHighWaterMs] so genuine
+  /// drift never reaches it.
+  static const int kDefaultFloodMs = 900;
+
   /// Cap on buffered capture audio — 1 s at 16 kHz. The capture and mic
   /// clocks drift, and a runaway queue would turn into pure latency. Only a
   /// memory backstop now: [highWaterSamples] bounds latency well before this.
@@ -78,6 +97,9 @@ class MusicMixer {
 
   /// Depth at which drift is walked back down.
   final int highWaterSamples;
+
+  /// Depth at which a backlog is dropped in one splice — see [kDefaultFloodMs].
+  final int floodSamples;
 
   final int _trimStepSamples;
 
@@ -102,6 +124,7 @@ class MusicMixer {
   // a log line per dropout would be the loudest thing in the file.
   int _dropouts = 0;
   int _trims = 0;
+  int _floods = 0;
   int _overflowDrops = 0;
 
   /// How many times the queue has run dry mid-cast. Non-zero means the
@@ -110,6 +133,11 @@ class MusicMixer {
 
   /// How many times drift has been walked back from [highWaterSamples].
   int get trims => _trims;
+
+  /// How many times a whole backlog has been dropped at [floodSamples].
+  /// Non-zero means delivery stalled and resumed — normally the app being
+  /// backgrounded — rather than the clocks drifting apart.
+  int get floods => _floods;
 
   /// How many times the hard [maxQueuedSamples] cap has had to cut. Should
   /// stay at zero — the trim exists to keep it there.
@@ -167,10 +195,16 @@ class MusicMixer {
       _fadeInRemaining = _fadeSamples;
     }
 
-    // Drift correction, one small step per frame. Small enough to be masked by
-    // the ramp below, and repeated across frames it still catches any drift a
-    // real clock pair can produce.
-    if (_queue.length > highWaterSamples) {
+    // A backlog rather than drift (see [kDefaultFloodMs]): stepping down would
+    // seam every frame for the best part of a second, so take it in one.
+    if (_queue.length > floodSamples) {
+      _queue.discardFirst(_queue.length - prefillSamples);
+      _fadeInRemaining = _fadeSamples;
+      _floods++;
+    } else if (_queue.length > highWaterSamples) {
+      // Drift correction, one small step per frame. Small enough to be masked
+      // by the ramp below, and repeated across frames it still catches any
+      // drift a real clock pair can produce.
       final excess = _queue.length - prefillSamples;
       _queue.discardFirst(min(excess, _trimStepSamples));
       _fadeInRemaining = _fadeSamples;

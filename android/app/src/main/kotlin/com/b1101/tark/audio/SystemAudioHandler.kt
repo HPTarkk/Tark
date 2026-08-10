@@ -84,6 +84,10 @@ class SystemAudioHandler(
                 val context = activityProvider()
                 SystemAudioCaptureService.frameListener = null
                 SystemAudioCaptureService.stalledListener = null
+                // Cleared before the service goes down, or its own onStop
+                // callback would report the teardown we just asked for as a
+                // revocation and Dart would stop a cast that already stopped.
+                SystemAudioCaptureService.revokedListener = null
                 context?.stopService(Intent(context, SystemAudioCaptureService::class.java))
                 result.success(null)
             }
@@ -130,6 +134,14 @@ class SystemAudioHandler(
             // cast instead of sitting on an "on air" card that never plays.
             SystemAudioCaptureService.stalledListener = {
                 sink?.error("capture_stalled", "System audio capture produced no data", null)
+            }
+            // Distinct from a stall: nothing failed, the OS simply took the
+            // projection back (status-bar stop, another app claiming it).
+            // Reported as an error rather than endOfStream because Dart caches
+            // this broadcast stream for the life of the process — closing it
+            // would leave the *next* cast subscribing to a dead stream.
+            SystemAudioCaptureService.revokedListener = {
+                sink?.error("capture_revoked", "Media projection was revoked", null)
             }
             val intent = Intent(activity, SystemAudioCaptureService::class.java)
                 .putExtra(SystemAudioCaptureService.EXTRA_RESULT_CODE, resultCode)

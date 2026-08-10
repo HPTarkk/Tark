@@ -118,6 +118,12 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
         // it would let the check fall back to the last confirmation, which is
         // the very timestamp on the far side of the gap we are discounting.
         _unheardSince = DateTime.now();
+        // Capture chunks buffered up on the platform channel while the isolate
+        // was stalled, and they land as one burst. That backlog is stale by
+        // definition — it is audio from while the phone was locked — so it goes
+        // rather than being played out late. [MusicMixer.floodSamples] is the
+        // backstop for the same thing when the burst arrives after this runs.
+        if (state.isSharingSystemAudio) _musicMixer.clear();
         // The address can have changed under us (a joiner the OS moved between
         // networks), and the next presence tick is up to 2s away — which is a
         // long time to spend transmitting from an address nobody can reach.
@@ -415,6 +421,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     _presenceTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       _broadcastPresence();
       _logMusicHealth();
+      unawaited(_checkMusicBlocked());
       // Keeps the widget's "last published" timestamp advancing while the
       // session is live but unchanging. onChange alone can go quiet for
       // minutes (nobody talking, roster steady), and the native side demotes
@@ -575,6 +582,10 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
 
   // System-audio (music) sharing: capture chunks queue up in the mixer,
   // which re-cuts them onto the mic's 20 ms frame grid — see [MusicMixer].
+  //
+  // The mixer is deliberately NOT cleared when a cast ends by itself: the
+  // reason it ended is what a report needs, and its counters are the record of
+  // it — see [_stopSharingSystemAudio].
   StreamSubscription<List<double>>? _musicSub;
   final MusicMixer _musicMixer = MusicMixer();
 
@@ -683,6 +694,32 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   // something actually changed.
   int _lastMusicDropouts = 0;
   int _lastMusicTrims = 0;
+  int _lastMusicFloods = 0;
+
+  /// Level below which a capture chunk counts as silence. The same threshold
+  /// the equalizer uses to decide it is flatlining, so what the log says and
+  /// what the card shows can never disagree.
+  static const double _kMusicAudibleLevel = 0.004;
+
+  /// Since when every captured chunk has been silent, or null if the last one
+  /// carried audio.
+  DateTime? _musicSilentSince;
+
+  /// Whether this cast has *ever* produced audible capture. A device that has
+  /// managed it once is not the blocked case, whatever it does later.
+  bool _musicEverAudible = false;
+
+  /// Whether the blocked-capture diagnosis has already been delivered, so it is
+  /// said once per cast rather than every tick.
+  bool _musicBlockedReported = false;
+
+  /// How long capture must be silent before another app claiming to be playing
+  /// counts as this device refusing to hand over the audio.
+  ///
+  /// Generous on purpose: starting the cast before choosing a song is normal
+  /// (the idle copy invites exactly that), and a cast must never be second-
+  /// guessed for a pause between tracks.
+  static const _musicBlockedAfter = Duration(seconds: 8);
 
   /// Reports the music cast's buffer health while one is running.
   ///
@@ -696,14 +733,56 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     if (!state.isSharingSystemAudio) return;
     final dropouts = _musicMixer.dropouts;
     final trims = _musicMixer.trims;
-    if (dropouts == _lastMusicDropouts && trims == _lastMusicTrims) return;
+    final floods = _musicMixer.floods;
+    if (dropouts == _lastMusicDropouts &&
+        trims == _lastMusicTrims &&
+        floods == _lastMusicFloods) {
+      return;
+    }
     _lastMusicDropouts = dropouts;
     _lastMusicTrims = trims;
+    _lastMusicFloods = floods;
     Logger.diagnostic(
       'music cast: ${_musicMixer.queuedSamples} samples queued '
       '(cushion ${_musicMixer.prefillSamples}) | dropouts=$dropouts '
-      'trims=$trims capOverflows=${_musicMixer.overflowDrops}',
+      'trims=$trims floods=$floods capOverflows=${_musicMixer.overflowDrops}',
     );
+  }
+
+  /// Catches the one silence that isn't the user's fault.
+  ///
+  /// Playback capture that runs but delivers only zeros is normal — nothing is
+  /// playing — and it is also exactly what a device does when its audio policy
+  /// refuses to share playback while our call-mode session is open (confirmed
+  /// on a Redmi Note 9 Pro / MIUI 12). The capture stream cannot tell those
+  /// apart, so the card said "Nothing's playing — go put a song on" to someone
+  /// staring at a playing song.
+  ///
+  /// The tiebreak is what the other app says about itself. Only ever used to
+  /// confirm the blocked case: [MediaControl.isOtherMediaPlaying] returns false
+  /// both when nothing plays and when we have no notification access, so the
+  /// absence of a signal proves nothing and changes nothing.
+  Future<void> _checkMusicBlocked() async {
+    if (!state.isSharingSystemAudio) return;
+    if (_musicBlockedReported || _musicEverAudible) return;
+    final silentSince = _musicSilentSince;
+    if (silentSince == null) return;
+    if (DateTime.now().difference(silentSince) < _musicBlockedAfter) return;
+    if (!await MediaControl.isOtherMediaPlaying()) return;
+    if (isClosed || !state.isSharingSystemAudio || _musicEverAudible) return;
+
+    _musicBlockedReported = true;
+    Logger.diagnostic(
+      'music cast: capture silent for ${_musicBlockedAfter.inSeconds}s while '
+      'another app reports playing — this device is withholding playback '
+      'capture, most likely while our call-mode session is open',
+    );
+    // Left running rather than torn down: the cast is doing no harm, the user
+    // may have a second player that is not capture-protected, and stopping
+    // would pause their music — the very complaint this is here to explain.
+    if (!_systemAudioMessageController.isClosed) {
+      _systemAudioMessageController.add('capture_blocked');
+    }
   }
 
   Future<void> toggleShareSystemAudio() async {
@@ -712,7 +791,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     // Stopping stays free for the same reason unmuting does — the early
     // return above means only the start path below reaches the gate.
     if (state.isSharingSystemAudio) {
-      await _stopSharingSystemAudio();
+      await _stopSharingSystemAudio(MusicCastStopReason.userRequest);
       return;
     }
 
@@ -731,31 +810,53 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
       return;
     }
     await _musicSub?.cancel();
+    _musicSilentSince = DateTime.now();
+    _musicEverAudible = false;
     _musicSub = SystemAudioCapture.frames.listen(
       (chunk) {
         _musicMixer.addChunk(chunk);
+        final level = MusicMixer.levelOf(chunk);
+        if (level >= _kMusicAudibleLevel) {
+          _musicSilentSince = null;
+          _musicEverAudible = true;
+        } else {
+          _musicSilentSince ??= DateTime.now();
+        }
         if (!_musicLevelController.isClosed &&
             _musicLevelController.hasListener &&
             chunk.isNotEmpty) {
-          _musicLevelController.add(MusicMixer.levelOf(chunk));
+          _musicLevelController.add(level);
         }
       },
       onError: (Object e) {
-        Logger.log('System audio stream error: $e');
+        // Diagnostic, not [log]: a cast that ends by itself is exactly the
+        // thing a release build has to be able to explain afterwards, and
+        // `log` is compiled out there.
+        Logger.diagnostic('music cast: capture stream error — $e');
         // Confirmed on-device (MIUI): the native side reports this specific
         // code when playback capture delivers zero frames within a few
         // seconds — an OEM restriction while our call-mode session is open,
         // not a transient glitch worth retrying. Stop pretending to cast
         // instead of leaving the "on air" card silently lying forever.
-        if (e is PlatformException && e.code == 'capture_stalled') {
-          unawaited(_stopSharingSystemAudio());
-          _sfx.play(SfxEvent.error);
-          if (!_systemAudioMessageController.isClosed) {
-            _systemAudioMessageController.add('capture_stalled');
-          }
+        if (e is! PlatformException) return;
+        // 'capture_revoked': the OS took the projection back — the user
+        // stopping the share from the status bar, or another app claiming it.
+        // Nothing failed, but the capture is gone, and without this the frames
+        // simply stopped while the card went on saying ON AIR.
+        final reason = switch (e.code) {
+          'capture_stalled' => MusicCastStopReason.captureStalled,
+          'capture_revoked' => MusicCastStopReason.captureEnded,
+          _ => null,
+        };
+        if (reason == null || !state.isSharingSystemAudio) return;
+        unawaited(_stopSharingSystemAudio(reason));
+        _sfx.play(SfxEvent.error);
+        if (!_systemAudioMessageController.isClosed) {
+          _systemAudioMessageController.add('capture_stalled');
         }
       },
     );
+    Logger.diagnostic('music cast: started');
     // The outgoing stream is about to carry music, which a speech codec
     // models badly — tell the transport before the first mixed frame goes out.
     _transferRepository.setAudioProfile(AudioProfile.music);
@@ -765,16 +866,31 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     unawaited(SystemAudioCapture.setLocalVolume(state.musicGain));
   }
 
-  Future<void> _stopSharingSystemAudio() async {
+  /// Ends a cast. [reason] is logged because the user-visible symptom of every
+  /// path through here is identical — the music stops — and the only report we
+  /// could act on is one that says which path ran.
+  Future<void> _stopSharingSystemAudio(MusicCastStopReason reason) async {
+    Logger.diagnostic(
+      'music cast: stopping (${reason.name}) | dropouts=${_musicMixer.dropouts} '
+      'trims=${_musicMixer.trims} floods=${_musicMixer.floods}',
+    );
     _sfx.play(SfxEvent.toggle);
     await _musicSub?.cancel();
     _musicSub = null;
     _musicMixer.clear();
+    _musicSilentSince = null;
+    _musicEverAudible = false;
+    _musicBlockedReported = false;
     _transferRepository.setAudioProfile(AudioProfile.voice);
     await SystemAudioCapture.stop();
     // AudioPlaybackCapture never touches the source app, so without this the
     // music the user just "stopped" keeps playing on their own speaker.
     // Silent no-op if the user hasn't granted Notification access.
+    //
+    // This is also the one call in the app that can pause someone's music
+    // player outright, so it is worth being able to point at it in a log when
+    // a user reports exactly that happening on its own.
+    Logger.diagnostic('music cast: pausing other media');
     unawaited(MediaControl.pauseOtherMedia());
     if (!_musicLevelController.isClosed) _musicLevelController.add(0);
     if (!isClosed) emit(state.copyWith(isSharingSystemAudio: false));
@@ -1189,8 +1305,13 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     );
 
     // Leaving the channel ends music sharing too — the capture service must
-    // not outlive the session it feeds.
+    // not outlive the session it feeds. Deliberately not routed through
+    // [_stopSharingSystemAudio]: this is a teardown, and pausing the user's
+    // music player on the way out of a channel is not something they asked for.
     if (state.isSharingSystemAudio) {
+      Logger.diagnostic(
+        'music cast: stopping (${MusicCastStopReason.leavingChannel.name})',
+      );
       unawaited(SystemAudioCapture.stop());
     }
     unawaited(_musicSub?.cancel());
@@ -1388,4 +1509,25 @@ class WalkieTalkieState extends Equatable {
     isAlone,
     unheardByPeers,
   ];
+}
+
+/// Why a music cast ended.
+///
+/// Every one of these looks the same to the user — the music stops, and on the
+/// casting phone [MediaControl.pauseOtherMedia] pauses their player outright —
+/// so the reason only exists in the log. Without it a report of "it paused on
+/// its own" cannot be told apart from a mis-tap.
+enum MusicCastStopReason {
+  /// The user pressed stop.
+  userRequest,
+
+  /// Playback capture delivered nothing — see [SystemAudioCaptureService].
+  captureStalled,
+
+  /// The capture stream closed without an error: the OS revoked the media
+  /// projection, or the service was killed.
+  captureEnded,
+
+  /// The channel is being left, which ends everything with it.
+  leavingChannel,
 }
