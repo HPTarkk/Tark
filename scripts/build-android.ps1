@@ -11,6 +11,16 @@
 # an app where every purchase path reports "unavailable" and nothing looks
 # broken until a user tries to pay. That case is a hard stop below.
 #
+# ── Build artifacts ─────────────────────────────────────────────────────────
+# Every non-publishing build asks what to produce:
+#
+#   fat-apk     one universal APK, ~116 MB, installs on any device
+#   split-apk   flutter build apk --split-per-abi — one APK per ABI, much smaller
+#   appbundle   flutter build appbundle — a single .aab, split store-side
+#
+# A publish does not ask: the GitHub release carries one asset that works on any
+# device, matching every release before it, so it is pinned to the fat APK.
+#
 # ── Release model ───────────────────────────────────────────────────────────
 # Answer Yes to "Publish" and this script also tags and uploads.
 #
@@ -123,6 +133,35 @@ function AskYesNo([string]$Question, [bool]$Default) {
     $answer = Read-Host "$Question [$hint]"
     if ([string]::IsNullOrWhiteSpace($answer)) { return $Default }
     return $answer.Trim().ToLower().StartsWith('y')
+}
+
+# A numbered menu. $Options is an array of objects with Value/Label/Hint, and the
+# chosen Value comes back. $Default is a Value rather than an index, so reordering
+# the menu cannot silently change what Enter picks. Either the number or the Value
+# itself is accepted, and anything else re-asks — a typo here would otherwise pick
+# an artifact silently and only show up minutes later in the output listing.
+function AskChoice([string]$Question, $Options, [string]$Default) {
+    Write-Host ''
+    Write-Host "  $Question" -ForegroundColor Yellow
+    for ($i = 0; $i -lt $Options.Count; $i++) {
+        $o = $Options[$i]
+        $mark = if ($o.Value -eq $Default) { '*' } else { ' ' }
+        Write-Host ("   $mark {0}) {1}" -f ($i + 1), $o.Label)
+        if ($o.Hint) { Write-Host "        $($o.Hint)" -ForegroundColor DarkGray }
+    }
+    while ($true) {
+        $answer = Read-Host "  Choice [$Default]"
+        if ([string]::IsNullOrWhiteSpace($answer)) { return $Default }
+        $answer = $answer.Trim()
+        if ($answer -match '^\d+$') {
+            $idx = [int]$answer
+            if ($idx -ge 1 -and $idx -le $Options.Count) { return $Options[$idx - 1].Value }
+        } else {
+            $match = @($Options | Where-Object { $_.Value -eq $answer.ToLower() })
+            if ($match.Count -eq 1) { return $match[0].Value }
+        }
+        Write-Host '  Not one of the choices.' -ForegroundColor DarkYellow
+    }
 }
 
 # Multi-line free text, finished with an empty line. Used for the tag message,
@@ -240,16 +279,30 @@ if ($isRelease -and -not $locked) {
     $publish = AskYesNo 'Publish this build as a GitHub release?' $false
 }
 
-$asBundle = $false
-$splitPerAbi = $false
-if ($isRelease -and -not $publish) {
-    $asBundle = AskYesNo 'Build an .aab app bundle instead of APKs?' $false
-    if (-not $asBundle) {
-        # The universal APK is ~116 MB because every ABI's native libs (Opus,
-        # RNNoise, WebRTC) ride along. Splitting is almost always what you
-        # want for a store upload.
-        $splitPerAbi = AskYesNo 'Split APKs per ABI (much smaller uploads)?' $true
-    }
+# What the build produces. A publish is pinned to the fat APK below, so the
+# question is only worth asking otherwise.
+#
+# Default: splits for a release (that is what a store upload wants), fat for a
+# debug build (one file to shove onto whatever device is plugged in).
+$artifact = 'fat-apk'
+if (-not $publish) {
+    $artifact = AskChoice 'What should this build produce?' @(
+        [pscustomobject]@{
+            Value = 'fat-apk'
+            Label = 'Fat APK  — one universal file'
+            Hint  = '~116 MB: every ABI''s native libs (Opus, RNNoise, WebRTC) ride along. Installs anywhere.'
+        }
+        [pscustomobject]@{
+            Value = 'split-apk'
+            Label = 'Split APKs — one per ABI'
+            Hint  = 'Much smaller each. Upload the set; the store hands each device its own.'
+        }
+        [pscustomobject]@{
+            Value = 'appbundle'
+            Label = 'App bundle (.aab)'
+            Hint  = 'One upload, split store-side. Only for a store that accepts AAB.'
+        }
+    ) $(if ($isRelease) { 'split-apk' } else { 'fat-apk' })
 }
 if ($publish) {
     # A release carries one asset that works on any device, matching every
@@ -577,10 +630,10 @@ if ($cleanFirst) {
     if ($LASTEXITCODE -ne 0) { throw 'build_runner failed' }
 }
 
-$target = if ($asBundle) { 'appbundle' } else { 'apk' }
+$target = if ($artifact -eq 'appbundle') { 'appbundle' } else { 'apk' }
 
 $buildArgs = @('build', $target, "--$mode")
-if ($splitPerAbi) { $buildArgs += '--split-per-abi' }
+if ($artifact -eq 'split-apk') { $buildArgs += '--split-per-abi' }
 $buildArgs += "--dart-define-from-file=billing.json"
 $buildArgs += "--dart-define=GUEST_APP_URL=$guestUrl"
 if ($locked) { $buildArgs += '--dart-define=TARK_LOCK_PREMIUM=true' }
@@ -610,15 +663,19 @@ $apkDir = Join-Path $repoRoot 'build\app\outputs\flutter-apk'
 Write-Host ''
 Write-Host '  Build complete.' -ForegroundColor Green
 
-if ($asBundle) {
+if ($artifact -eq 'appbundle') {
     $aab = Join-Path $repoRoot "build\app\outputs\bundle\$mode\app-$mode.aab"
     Write-Host "  Bundle:  $aab  $(Show-Size $aab)"
 } else {
-    Get-ChildItem $apkDir -Filter "*$mode.apk" -ErrorAction SilentlyContinue |
-        Sort-Object Name |
-        ForEach-Object {
-            Write-Host ("  APK:     {0}  {1}" -f $_.FullName, (Show-Size $_.FullName))
-        }
+    # --split-per-abi writes app-<abi>-$mode.apk and no universal one, so this
+    # listing is also how you see which ABIs the build actually covered.
+    $built = @(Get-ChildItem $apkDir -Filter "*$mode.apk" -ErrorAction SilentlyContinue | Sort-Object Name)
+    foreach ($f in $built) {
+        Write-Host ("  APK:     {0}  {1}" -f $f.FullName, (Show-Size $f.FullName))
+    }
+    if ($artifact -eq 'split-apk') {
+        Write-Host '  (per-ABI split — there is no single universal APK in this build.)' -ForegroundColor DarkGray
+    }
 }
 
 # ── Publish ─────────────────────────────────────────────────────────────────
