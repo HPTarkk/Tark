@@ -301,12 +301,72 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
     }
   }
 
+  /// Gives up whichever side of the bridge this device is NOT playing.
+  ///
+  /// A phone can be a hotspot host and someone else's hotspot client at the
+  /// same time. Android is perfectly happy to do it, the pairing screen never
+  /// stopped it, and two people each tapping "host" and then scanning the
+  /// other's QR is all it takes — which is exactly what a field session
+  /// produced. Both phones ended up on both networks:
+  ///
+  ///   A: local={192.168.43.1, 10.122.230.134}
+  ///   B: local={10.122.230.245, 192.168.43.181}
+  ///
+  /// Every packet then went out on both subnets and arrived several times by
+  /// paths seconds apart. [SenderRoutePin] now discards the extra copies so
+  /// the audio survives, but nothing downstream can give back the air time and
+  /// battery already spent putting them there: the receiving phone counted
+  /// 4.5x more datagrams in than the sender counted out, and the host's SoftAP
+  /// queue jammed under the load.
+  ///
+  /// So the roles are made exclusive at the only place that knows: the moment
+  /// this device commits to one. Called from [startHost] and [_onJoined]
+  /// rather than from [chooseRole], because those two are the funnels every
+  /// path arrives through — including the ones that never touch the role
+  /// picker, which is how the state above was reached despite
+  /// [backToRoleChoice] already tearing down the abandoned side.
+  ///
+  /// Idempotent and best-effort by design. Stopping a hotspot that was never
+  /// started, or leaving a network we never joined, is a no-op on every
+  /// platform; and a failure here must not block the side we are actually
+  /// taking, so it is logged and swallowed.
+  ///
+  /// One case this cannot fix: a hotspot the user turned on from the system
+  /// quick-settings panel rather than through the app. Android only lets an
+  /// app release its own LocalOnlyHotspot reservation. The transport's SPLIT
+  /// ROUTE warning is what catches that one.
+  Future<void> _dropOtherSide({required bool nowHosting}) async {
+    try {
+      if (nowHosting) {
+        await _joiner.leave();
+      } else {
+        await _hotspot.stop();
+        unawaited(_keepAlive.stop());
+      }
+      Logger.diagnostic(
+        nowHosting
+            ? 'link: hosting now — left any hotspot we had joined, so we are '
+                  'on one network rather than two'
+            : 'link: joined now — dropped our own hotspot, so we are on one '
+                  'network rather than two',
+      );
+    } catch (e) {
+      // Not fatal: the worst case is the multi-homed state we were avoiding,
+      // which the transport already detects and copes with.
+      Logger.diagnostic('link: could not release the other side: $e');
+    }
+  }
+
   // ---------------------------------------------------------------- hosting
 
   /// Host flow: request the Wi-Fi/location permissions LocalOnlyHotspot needs,
   /// start the hotspot, then listen for the peer.
   Future<void> startHost() async {
     emit(state.copyWith(phase: HotspotPhase.starting, errorCode: null));
+
+    // Taking one side of the bridge gives up the other. See [_dropOtherSide].
+    await _dropOtherSide(nowHosting: true);
+    if (isClosed) return;
 
     // LocalOnlyHotspot needs fine location (API 26–32) or NEARBY_WIFI_DEVICES
     // (33+). On API 31–32 the fine-location request only works because COARSE
@@ -477,6 +537,11 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   void _onJoined() {
     emit(state.copyWith(joinPhase: JoinPhase.joined));
     _sfx.play(SfxEvent.linkRestored);
+    // We are on someone else's AP now, so ours has no reason to exist — and
+    // every reason not to. See [_dropOtherSide]. Not awaited: the join has
+    // already succeeded and the link handoff below must not wait on a platform
+    // teardown that can take its time (or, on some devices, never answer).
+    unawaited(_dropOtherSide(nowHosting: false));
     // Hand the link to something that outlives this screen. From here the
     // session runs for as long as the user talks, and this cubit is disposed
     // the moment the channel opens — see [HotspotLinkKeeper].
