@@ -15,6 +15,7 @@ import '../../domain/entity/connection_health.dart';
 import '../../domain/entity/session_role.dart';
 import '../../domain/entity/waki_packet.dart';
 import '../../domain/repository/wifi_transfer_repository.dart';
+import '../../domain/service/sender_route_pin.dart';
 import '../../domain/service/session_role_store.dart';
 import '../codec/opus_audio_codec.dart';
 import '../codec/waki_packet_codec.dart';
@@ -376,9 +377,17 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
               final packet = _codec.decode(dg.data, dg.address.address);
               if (packet != null) {
                 _packetsIn++;
+                _noteSenderRoute(dg.address.address, packet.senderId);
+                // Subnet pinning, receive half. A sender reaching us by a
+                // second path is dropped here, before anything downstream can
+                // act on it — the jitter buffer in particular, which cannot
+                // tell a second copy from a restarted stream and spends the
+                // session flip-flopping between the two numberings.
+                if (!_acceptRoute(packet.senderId, dg.address.address)) {
+                  continue;
+                }
                 _rememberPeer(dg.address.address);
                 _rememberHeardSubnet(dg.address.address);
-                _noteSenderRoute(dg.address.address, packet.senderId);
                 _heardSenders[packet.senderId] = _lastPacketAt;
                 yield packet;
               }
@@ -493,14 +502,17 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     _lastPacketsOut = _packetsOut;
     final blocked = _wouldBlockWindow;
     final errored = _sendErrorWindow;
+    final dupRoute = _duplicateRouteWindow;
     _wouldBlockWindow = 0;
     _sendErrorWindow = 0;
+    _duplicateRouteWindow = 0;
     Logger.diagnostic(
       'wifi: in=$_packetsIn(+$inDelta) out=$_packetsOut(+$outDelta) '
       'over ${window.inSeconds}s '
       'peers=${_peers.keys.toList()} recovery=${_recoveryPeers.length} '
       'heard=${_heardSenders.keys.toList()} '
-      'routes=${_routeSummary()} '
+      'routes=${_routeSummary()} pinned=${_routePin.pinnedAddresses} '
+      'dupRoute=$dupRoute '
       'local=$_localAddresses '
       'bcast=${_broadcastTargets.map((a) => a.address).toList()}'
       '${_heardSubnetBroadcasts.isEmpty ? '' : '+${_heardSubnetBroadcasts.map((a) => a.address).toList()}'} '
@@ -691,8 +703,14 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     _senderRoutes.clear();
     _lastSplitRouteLogAt = DateTime.fromMillisecondsSinceEpoch(0);
     _targetLoggedAt.clear();
+    // Route pins belong to the topology of the session that just ended. A new
+    // session must be free to pin wherever its peers turn out to be — carrying
+    // a pin over would have it silently ignore the network it is now on.
+    _routePin.clear();
+    _narrowedTo = const {};
     _wouldBlockWindow = 0;
     _sendErrorWindow = 0;
+    _duplicateRouteWindow = 0;
     _sweep.retarget(const []);
 
     _setHealth(const ConnectionHealth.down());
@@ -731,12 +749,6 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   }
 
   void _sendToAllTargets(List<int> packet) {
-    for (final target in _broadcastTargets) {
-      _trySend(packet, target);
-    }
-    for (final target in _heardSubnetBroadcasts) {
-      _trySend(packet, target);
-    }
     final now = DateTime.now();
     // Losing the unicast path matters on its own: where broadcast does not
     // cross a SoftAP, unicast is the ONLY delivery, and it lasts exactly as
@@ -766,6 +778,15 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     // socket, and keeping a live view of a map across that is asking for
     // trouble the day something else touches it.
     final unicast = unicastTargets.toList(growable: false);
+
+    // Broadcast targets, narrowed to the subnets the channel is actually on.
+    // See [_broadcastsFor] — this is the send half of subnet pinning, and the
+    // ordering matters: the peer set is aged above, so a subnet whose peers
+    // have all gone silent stops being broadcast to on this very tick.
+    for (final target in _broadcastsFor(unicast)) {
+      _trySend(packet, target);
+    }
+
     var failed = 0;
     for (final addr in unicast) {
       if (!_trySend(packet, InternetAddress(addr))) failed++;
@@ -774,6 +795,74 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     _packetsOut++;
     _gradeSendPath(attempted: unicast.length, failed: failed, now: now);
   }
+
+  /// Which broadcast addresses this packet goes to, given where the peers are.
+  ///
+  /// Until a peer is known there is nothing to narrow to, so this is every
+  /// private subnet on the device plus the limited broadcast — discovery has
+  /// to be able to reach a network we have not heard from yet, and that is
+  /// what the wide spray is for.
+  ///
+  /// Once peers ARE known it collapses to the directed broadcast of each
+  /// subnet a peer sits on, and the limited broadcast is dropped. This is
+  /// subnet pinning on the send side, and it does two things:
+  ///
+  ///  * It stops us putting the same audio onto a network the channel is not
+  ///    using. A phone hosting a hotspot while still associated to a router
+  ///    was broadcasting every packet onto both, and the peer — also on both —
+  ///    received each one several times, seconds apart, on paths of wildly
+  ///    different delay. That is what makes speech repeat and break up.
+  ///  * It cuts what we put on the air. A measured session sent each packet to
+  ///    three broadcast addresses and two unicasts; the receiving phone counted
+  ///    4.5x more datagrams in than the sender counted out, and the host's
+  ///    SoftAP queue jammed under it (37042 blocked sends in one session, up to
+  ///    42 a second). Narrowing removes that load at the source, which matters
+  ///    on exactly the marginal links where it hurts most.
+  ///
+  /// Deliberately keyed on the peers rather than on a single pinned subnet: a
+  /// channel legitimately spanning two networks (someone on the router, someone
+  /// on the hotspot) keeps working, because every subnet with a peer on it is
+  /// still addressed. What stops is broadcasting into subnets with nobody
+  /// there.
+  List<InternetAddress> _broadcastsFor(List<String> peerAddresses) {
+    if (peerAddresses.isEmpty) {
+      return _wideSpray();
+    }
+    final directed = <String>{};
+    for (final addr in peerAddresses) {
+      final parts = addr.split('.');
+      if (parts.length != 4) continue;
+      directed.add('${parts[0]}.${parts[1]}.${parts[2]}.255');
+    }
+    if (directed.isEmpty) {
+      return _wideSpray();
+    }
+    if (!setEquals(directed, _narrowedTo)) {
+      _narrowedTo = directed;
+      Logger.diagnostic(
+        'wifi: broadcasting only to $directed — the subnet(s) our peers are '
+        'actually on; other interfaces are no longer sprayed',
+      );
+    }
+    return directed.map(InternetAddress.new).toList(growable: false);
+  }
+
+  /// Every private subnet we can see plus the limited broadcast — the
+  /// discovery posture, used until peers say where the channel actually is.
+  List<InternetAddress> _wideSpray() {
+    if (_narrowedTo.isNotEmpty) {
+      _narrowedTo = const {};
+      Logger.diagnostic(
+        'wifi: no peers to aim at — broadcasting to every interface again '
+        'until one answers',
+      );
+    }
+    return [..._broadcastTargets, ..._heardSubnetBroadcasts];
+  }
+
+  /// Last narrowed set, so the line above is written on change rather than
+  /// every 20 ms.
+  Set<String> _narrowedTo = const {};
 
   /// Notices a send socket that has stopped working, and throws it away.
   ///
@@ -942,14 +1031,59 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
       final routes = entry.value.entries
           .map((r) => '${r.key}(${r.value.packets})')
           .join(' + ');
+      // Still reported even though [_acceptRoute] now discards the extra
+      // copies: the duplicate delivery is a fact about the network, and the
+      // fact that we are coping with it is not a reason to stop saying the
+      // topology is wrong. Both phones being on each other's hotspot costs
+      // air time and battery on every hop regardless of which copies we use.
       Logger.diagnostic(
         'wifi: SPLIT ROUTE — sender ${entry.key} is arriving on '
-        '${entry.value.length} paths: $routes. Every packet is being '
-        'delivered more than once, on paths with different delay; expect '
-        'the jitter buffer to resync and audio to repeat/break up.',
+        '${entry.value.length} paths: $routes. Only the pinned one is used '
+        '(pinned=${_routePin.pinnedFor(entry.key) ?? 'none'}); the rest are dropped. '
+        'Both devices are probably on two shared networks at once.',
       );
     }
   }
+
+  /// Whether a packet from [senderId] arriving at [address] should be used.
+  ///
+  /// The decision itself lives in [SenderRoutePin], which documents why one
+  /// route per sender is the right rule and why the pin has to expire. This
+  /// wrapper does the two things that need the repository: saying so in the
+  /// log, and dropping an abandoned address out of the peer sets so we stop
+  /// transmitting onto a network we no longer listen to.
+  bool _acceptRoute(String senderId, String address) {
+    final verdict = _routePin.offer(senderId, address, DateTime.now());
+    switch (verdict.decision) {
+      case RouteDecision.pinned:
+        Logger.diagnostic('wifi: pinned sender $senderId to $address');
+      case RouteDecision.accepted:
+        break;
+      case RouteDecision.rejected:
+        // Counted rather than logged: this arrives at the full audio rate, and
+        // the count on the session line is what makes it legible.
+        _duplicateRouteWindow++;
+      case RouteDecision.repinned:
+        Logger.diagnostic(
+          'wifi: sender $senderId moved from ${verdict.previous} to $address '
+          '(old route silent for '
+          '${verdict.previousSilence?.inSeconds ?? '?'}s) — repinning',
+        );
+        // The abandoned address may still be in the peer/recovery sets, where
+        // it would keep drawing unicasts and keep its subnet in the narrowed
+        // broadcast set. Dropping it here is what actually stops us
+        // transmitting onto the network we just stopped listening to.
+        _peers.remove(verdict.previous);
+        _recoveryPeers.remove(verdict.previous);
+    }
+    return verdict.isAccepted;
+  }
+
+  /// One source address per sender — see [SenderRoutePin].
+  final SenderRoutePin _routePin = SenderRoutePin();
+
+  /// Packets dropped as a second copy since the last session line.
+  int _duplicateRouteWindow = 0;
 
   void _rememberPeer(String address) {
     // Our own broadcast comes back to us — that's not a peer.
