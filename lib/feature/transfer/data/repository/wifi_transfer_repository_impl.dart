@@ -690,6 +690,7 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     // warning's rate limit.
     _senderRoutes.clear();
     _lastSplitRouteLogAt = DateTime.fromMillisecondsSinceEpoch(0);
+    _targetLoggedAt.clear();
     _wouldBlockWindow = 0;
     _sendErrorWindow = 0;
     _sweep.retarget(const []);
@@ -801,7 +802,12 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   }) {
     if (attempted == 0 || failed < attempted) {
       if (_sendFailingSince != null) {
-        Logger.diagnostic('wifi: send path recovered');
+        // Same rate limit as the per-target lines, for the same reason: a send
+        // path that flaps sets and clears this flag on alternate ticks, and
+        // the unguarded line came back 6959 times in one session.
+        if (_mayLogTarget('<send-path>', now)) {
+          Logger.diagnostic('wifi: send path recovered');
+        }
         _sendFailingSince = null;
       }
       return;
@@ -954,15 +960,41 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     _lastPeerAt = now;
   }
 
+  /// Minimum spacing between transition lines for one target.
+  ///
+  /// "Reported once per target, and once again on recovery" was true only of a
+  /// target that fails and then stays failed. A target that blocks and clears
+  /// on alternate sends — a SoftAP whose driver queue is right at its limit,
+  /// which is the normal state of a hotspot host with a client at the edge of
+  /// range — crosses that boundary tens of times a second, and each crossing
+  /// wrote two lines. A real capture of this came back 99.7% these two
+  /// messages: 37042 "dropped" and 34833 "recovered" out of 79081 lines, at up
+  /// to 42 a second, with every other category of evidence squeezed into what
+  /// was left of the ring.
+  ///
+  /// The rate itself is not lost — it is the `blocked=`/`errs=` counters on
+  /// the session line, which is where a rate belongs. What is kept here is the
+  /// occasional statement of WHICH target and WHICH errno, which a counter
+  /// cannot carry.
+  static const _targetLogInterval = Duration(seconds: 30);
+  final Map<String, DateTime> _targetLoggedAt = {};
+
+  /// Whether [target] may write a transition line now.
+  bool _mayLogTarget(String target, DateTime now) {
+    final last = _targetLoggedAt[target];
+    if (last != null && now.difference(last) < _targetLogInterval) return false;
+    _targetLoggedAt[target] = now;
+    return true;
+  }
+
   // A broadcast send is EXPECTED to fail on iOS (errno 65, no multicast
   // entitlement); one failing target must not abort the remaining
   // (unicast) targets, which do work there.
   //
-  // Failures are reported once per target, and once again on recovery. This
-  // used to swallow both halves of a failed send — the thrown errno AND a
-  // return of 0, which means the datagram never left — so a phone that had
-  // silently stopped transmitting looked identical to one with nothing to say.
-  // Every other stage of the path can be observed; this one could not.
+  // Both halves of a failed send are caught — the thrown errno AND a return of
+  // 0, which means the datagram never left. Swallowing them made a phone that
+  // had silently stopped transmitting look identical to one with nothing to
+  // say; every other stage of the path can be observed, this one could not.
   /// Returns whether the datagram actually left the device, so the caller can
   /// tell one dead target apart from a dead socket (see [_gradeSendPath]).
   bool _trySend(List<int> packet, InternetAddress target) {
@@ -975,20 +1007,23 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
       final sent = socket.send(packet, target, kBroadcastPort);
       if (sent == 0) {
         _wouldBlockWindow++;
-        if (_failingTargets.add(target.address)) {
+        if (_failingTargets.add(target.address) &&
+            _mayLogTarget(target.address, DateTime.now())) {
           Logger.diagnostic(
             'wifi: send to ${target.address} dropped (socket would block)',
           );
         }
         return false;
       }
-      if (_failingTargets.remove(target.address)) {
+      if (_failingTargets.remove(target.address) &&
+          _mayLogTarget(target.address, DateTime.now())) {
         Logger.diagnostic('wifi: send to ${target.address} recovered');
       }
       return true;
     } catch (e) {
       _sendErrorWindow++;
-      if (_failingTargets.add(target.address)) {
+      if (_failingTargets.add(target.address) &&
+          _mayLogTarget(target.address, DateTime.now())) {
         Logger.diagnostic('wifi: send to ${target.address} failed: $e');
       }
       return false;
