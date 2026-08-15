@@ -4,6 +4,21 @@
 /// lib/feature/audio/domain/ for the two implementations — this enum is just
 /// the persisted choice between them.
 enum NoiseSuppressionEngine {
+  /// No cleaning at all — the mic signal reaches VOX and the encoder exactly
+  /// as the resampler produced it.
+  ///
+  /// This is not the same as dragging the strength slider to 0, even though
+  /// both end up as passthrough today: this one is a stated preference that
+  /// survives a strength change, and it is the only setting that stays off
+  /// when someone later raises the slider again. It exists because every
+  /// suppressor here trades intelligibility for quiet, and on a bad link
+  /// (a moving motorcycle, a hotspot at the edge of its range) the audio is
+  /// already being chewed by packet loss — a denoiser eating the consonants
+  /// on top of that is what turns "hard to understand" into "unintelligible".
+  /// Being able to take the whole stage out of the chain is the only way to
+  /// find out whether it is the cleaner or the link doing the damage.
+  off,
+
   /// Classic short-time spectral subtraction. Locks onto stationary noise
   /// (wind hiss, engine drone); pure Dart, works on every platform.
   spectral,

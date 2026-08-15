@@ -274,11 +274,23 @@ class AudioEngineImpl implements AudioEngine {
       await VoiceAudioSession.attachEffects(sessionId);
 
       final fmt = await _audioIo.getFormat();
-      Logger.log('AudioIo format: $fmt');
       final inputRate =
           (fmt?['input']?['sampleRate'] as num?)?.toDouble() ?? 48000.0;
       final outputRate =
           (fmt?['output']?['sampleRate'] as num?)?.toDouble() ?? inputRate;
+      // Diagnostic, not debug: the rates the OS actually handed us decide
+      // every resampler ratio downstream, and a device that negotiates
+      // something unexpected (16 kHz capture over a Bluetooth headset, a
+      // 44.1 kHz output) changes how the whole pipeline sounds. Reported
+      // once per session start, where a fault is either present or absent —
+      // and previously only on a debug build, i.e. never on the phone that
+      // had the problem.
+      Logger.diagnostic(
+        'audio: session started — capture ${inputRate.toStringAsFixed(0)}Hz, '
+        'playback ${outputRate.toStringAsFixed(0)}Hz, '
+        'wire ${kTxSampleRate}Hz/${kFrameSamples}smp frames, '
+        'effectsSession=$sessionId, raw=$fmt',
+      );
 
       _processor = AudioProcessor(sampleRate: kTxSampleRate.toDouble());
       _spectralSuppressor.reset();
@@ -345,6 +357,9 @@ class AudioEngineImpl implements AudioEngine {
     final resampler = _txResampler;
     if (resampler == null) return;
 
+    _capCallbacks++;
+    _capSamplesIn += samples.length;
+
     var filtered = _txLowPassA?.process(samples) ?? samples;
     filtered = _txLowPassB?.process(filtered) ?? filtered;
     final resampled = resampler.process(filtered);
@@ -352,13 +367,24 @@ class AudioEngineImpl implements AudioEngine {
 
     // `both` cascades rnnoise → spectral (rnnoise wants the raw-ish mic
     // signal it was trained on; spectral then mops up residual steady hum).
-    // Wherever rnnoise isn't compiled in, every choice degrades to spectral
-    // alone, matching the long-standing fallback.
-    final useRnnoise =
-        _suppressionEngine != NoiseSuppressionEngine.spectral &&
-        _rnnoiseSuppressor.isAvailable;
+    // Wherever rnnoise isn't compiled in, `rnnoise` and `both` degrade to
+    // spectral alone, matching the long-standing fallback.
+    //
+    // `off` is the one choice that degrades to nothing rather than to
+    // spectral: a user who asked for no cleaning has not asked for a
+    // different cleaner. Spelled out per-engine rather than as "!= x"
+    // conditions — the negative form silently enrolled any newly added enum
+    // value into both suppressors, which is exactly the bug `off` would have
+    // hit.
+    final engine = _suppressionEngine;
+    final wantsRnnoise =
+        engine == NoiseSuppressionEngine.rnnoise ||
+        engine == NoiseSuppressionEngine.both;
+    final useRnnoise = wantsRnnoise && _rnnoiseSuppressor.isAvailable;
     final useSpectral =
-        _suppressionEngine != NoiseSuppressionEngine.rnnoise || !useRnnoise;
+        engine == NoiseSuppressionEngine.spectral ||
+        engine == NoiseSuppressionEngine.both ||
+        (wantsRnnoise && !useRnnoise);
     var suppressed = resampled;
     if (useRnnoise) suppressed = _rnnoiseSuppressor.process(suppressed);
     if (useSpectral) suppressed = _spectralSuppressor.process(suppressed);
@@ -367,8 +393,73 @@ class AudioEngineImpl implements AudioEngine {
     while (_txAccum.length >= kFrameSamples) {
       final frame = _txAccum.takeFirst(kFrameSamples);
       final rms = _computeRms(frame);
+      _capFrames++;
+      if (rms > _capPeakRms) _capPeakRms = rms;
+      _capRmsSum += rms;
       _frameController.add(AudioFrame(rms: rms, samples: frame));
     }
+    _logCaptureState();
+  }
+
+  // ── Capture diagnostics ────────────────────────────────────────────────────
+  //
+  // Before these, the entire microphone half of the pipeline was silent in the
+  // exported log. A session where the mic delivered nothing, delivered silence,
+  // or delivered at an unexpected rate looked exactly like a session where it
+  // worked perfectly — and the only way to tell them apart was to ask the user
+  // whether the other person could hear them.
+  int _capCallbacks = 0;
+  int _capSamplesIn = 0;
+  int _capFrames = 0;
+  double _capPeakRms = 0.0;
+  double _capRmsSum = 0.0;
+  DateTime _lastCaptureLogAt = DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// Matches the wifi transport's and the jitter buffer's period, so all three
+  /// lines land together and a bad moment can be read across the whole
+  /// pipeline at one timestamp.
+  static const _captureLogInterval = Duration(seconds: 15);
+
+  /// One line for the capture → filter → resample → suppress → frame stage.
+  ///
+  /// Rides the input callback rather than owning a timer: no callbacks means
+  /// no mic, and a stage that has stopped delivering must not keep cheerfully
+  /// printing that it is fine. (The stall watchdog covers the silence itself.)
+  void _logCaptureState() {
+    final now = DateTime.now();
+    if (now.difference(_lastCaptureLogAt) < _captureLogInterval) return;
+    final window = now.difference(_lastCaptureLogAt);
+    _lastCaptureLogAt = now;
+    final frames = _capFrames;
+    // A first call after start would divide a full window's worth of counters
+    // by an epoch-sized interval; skip it and report from the next one.
+    if (window.inSeconds > 60) {
+      _resetCaptureCounters();
+      return;
+    }
+    final meanRms = frames == 0 ? 0.0 : _capRmsSum / frames;
+    // Expected frame count for the elapsed time, so "the mic is delivering,
+    // but at two thirds of real time" is visible as a number rather than as a
+    // vague complaint that voices sound wrong.
+    final expected =
+        window.inMilliseconds * kTxSampleRate ~/ 1000 ~/ kFrameSamples;
+    Logger.diagnostic(
+      'capture: ${window.inSeconds}s window — callbacks=$_capCallbacks '
+      'samplesIn=$_capSamplesIn frames=$frames/$expected '
+      'peakRms=${_capPeakRms.toStringAsFixed(4)} '
+      'meanRms=${meanRms.toStringAsFixed(4)} '
+      'cleaner=${_suppressionEngine.name}'
+      '${_rnnoiseSuppressor.isAvailable ? '' : ' (rnnoise unavailable)'}',
+    );
+    _resetCaptureCounters();
+  }
+
+  void _resetCaptureCounters() {
+    _capCallbacks = 0;
+    _capSamplesIn = 0;
+    _capFrames = 0;
+    _capPeakRms = 0.0;
+    _capRmsSum = 0.0;
   }
 
   double _computeRms(List<double> samples) {
@@ -491,7 +582,16 @@ class AudioEngineImpl implements AudioEngine {
 
   @override
   void setNoiseSuppressionEngine(NoiseSuppressionEngine engine) {
+    if (engine == _suppressionEngine) return;
     _suppressionEngine = engine;
+    // A suppressor that stops being called keeps whatever streaming state it
+    // held — a spectral noise floor tracked minutes ago, an RNNoise FIFO still
+    // carrying the samples it had not emitted yet. Switching back later would
+    // then start from that stale state and produce a burst of wrongly-gained
+    // or out-of-order audio on the first frames, which is precisely what the
+    // user is listening for when they change the setting to compare.
+    _spectralSuppressor.reset();
+    _rnnoiseSuppressor.reset();
   }
 
   @override

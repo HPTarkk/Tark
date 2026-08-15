@@ -433,6 +433,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noise_filter_strong => 'HIGH';
 
   @override
+  String get noise_filter_cleaner_off => 'Off while no cleaner is picked below.';
+
+  @override
   String get settings_advanced_row => 'Advanced settings';
 
   @override
@@ -480,6 +483,17 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get noise_cleaner_both_downside =>
       'Eats the most battery, and your voice might sound a bit thin.';
+
+  @override
+  String get noise_cleaner_off_title => 'No cleaner';
+
+  @override
+  String get noise_cleaner_off_desc =>
+      'Sends your voice exactly as the mic hears it. Nothing is removed, so nothing of your voice is lost either.';
+
+  @override
+  String get noise_cleaner_off_downside =>
+      'Everything around you goes through too — wind, engine, traffic.';
 
   @override
   String get noise_cleaner_downside_label => 'The catch';

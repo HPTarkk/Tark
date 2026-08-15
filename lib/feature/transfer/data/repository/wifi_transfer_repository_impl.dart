@@ -15,6 +15,7 @@ import '../../domain/entity/connection_health.dart';
 import '../../domain/entity/session_role.dart';
 import '../../domain/entity/waki_packet.dart';
 import '../../domain/repository/wifi_transfer_repository.dart';
+import '../../domain/service/sender_route_pin.dart';
 import '../../domain/service/session_role_store.dart';
 import '../codec/opus_audio_codec.dart';
 import '../codec/waki_packet_codec.dart';
@@ -174,6 +175,46 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   /// separate from [_peers], which ages entries out every 10s — a quiet peer
   /// would otherwise be announced again every time it spoke.
   final Set<String> _seenSenderRoutes = {};
+
+  /// Per sender, per source address: how many packets arrived and when the
+  /// last one did.
+  ///
+  /// One phone arriving under two addresses at once is the worst failure this
+  /// transport has, and the hardest to see. It happens whenever both ends are
+  /// multi-homed — each hosting a hotspot the other has joined, or both still
+  /// on a router alongside the hotspot — and then every packet reaches us
+  /// twice by paths with completely different latency. The jitter buffer
+  /// downstream sees one sender's sequence jumping forward and back by
+  /// hundreds of packets and spends the whole session resyncing, which is
+  /// heard as syllables repeating and speech breaking up.
+  ///
+  /// Nothing about that is visible in the counters: `in=` climbs, the peer is
+  /// in the roster, the sockets are up, health is green. The only evidence is
+  /// exactly this — the same sender id under two addresses — which is why it
+  /// is tracked per route rather than inferred from [_peers] (whose keys are
+  /// addresses, and so cannot tell two phones from one phone twice).
+  final Map<String, Map<String, _RouteStats>> _senderRoutes = {};
+
+  /// A route unheard for this long stops counting toward the split-route
+  /// warning. Long enough to survive a burst of loss on one path, short enough
+  /// that a genuinely abandoned route clears within a couple of report cycles.
+  static const _routeMaxAge = Duration(seconds: 12);
+
+  /// When the split-route warning last went out, so a session that stays
+  /// split reports at the session-line rate instead of per packet.
+  DateTime _lastSplitRouteLogAt = DateTime.fromMillisecondsSinceEpoch(0);
+  static const _splitRouteLogInterval = Duration(seconds: 15);
+
+  /// Datagrams the socket refused to queue since the last session line.
+  ///
+  /// Distinct from [_failingTargets], which reports a target's FIRST failure
+  /// and then stays quiet: a target that blocks on nearly every send and one
+  /// that blocked once look identical there. On a SoftAP whose driver queue is
+  /// backing up — a client at the edge of range, which is exactly the case the
+  /// user is in when they report bad audio — this is the number that moves,
+  /// and it has to be a rate to mean anything.
+  int _wouldBlockWindow = 0;
+  int _sendErrorWindow = 0;
 
   late final _codec = WakiPacketCodec(_identity.id);
 
@@ -336,9 +377,17 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
               final packet = _codec.decode(dg.data, dg.address.address);
               if (packet != null) {
                 _packetsIn++;
+                _noteSenderRoute(dg.address.address, packet.senderId);
+                // Subnet pinning, receive half. A sender reaching us by a
+                // second path is dropped here, before anything downstream can
+                // act on it — the jitter buffer in particular, which cannot
+                // tell a second copy from a restarted stream and spends the
+                // session flip-flopping between the two numberings.
+                if (!_acceptRoute(packet.senderId, dg.address.address)) {
+                  continue;
+                }
                 _rememberPeer(dg.address.address);
                 _rememberHeardSubnet(dg.address.address);
-                _noteSenderRoute(dg.address.address, packet.senderId);
                 _heardSenders[packet.senderId] = _lastPacketAt;
                 yield packet;
               }
@@ -437,22 +486,53 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   /// timer, so it cannot outlive the session that produces it.
   void _logSessionState() {
     final now = DateTime.now();
+    // Checked before the throttle: a split route is the one condition worth
+    // knowing about at its own cadence, and it owns its own rate limit.
+    _logSplitRoutes(now);
     if (now.difference(_lastSessionLogAt) < _sessionLogInterval) return;
+    final window = now.difference(_lastSessionLogAt);
     _lastSessionLogAt = now;
     final silentFor = now.difference(_lastPacketAt).inSeconds;
+    // Deltas alongside the totals. The totals answer "did it ever work"; only
+    // a rate answers "is it working now", and reading one off two cumulative
+    // lines 15s apart is exactly the arithmetic nobody does at 2am.
+    final inDelta = _packetsIn - _lastPacketsIn;
+    final outDelta = _packetsOut - _lastPacketsOut;
+    _lastPacketsIn = _packetsIn;
+    _lastPacketsOut = _packetsOut;
+    final blocked = _wouldBlockWindow;
+    final errored = _sendErrorWindow;
+    final dupRoute = _duplicateRouteWindow;
+    _wouldBlockWindow = 0;
+    _sendErrorWindow = 0;
+    _duplicateRouteWindow = 0;
     Logger.diagnostic(
-      'wifi: in=$_packetsIn out=$_packetsOut '
+      'wifi: in=$_packetsIn(+$inDelta) out=$_packetsOut(+$outDelta) '
+      'over ${window.inSeconds}s '
       'peers=${_peers.keys.toList()} recovery=${_recoveryPeers.length} '
       'heard=${_heardSenders.keys.toList()} '
+      'routes=${_routeSummary()} pinned=${_routePin.pinnedAddresses} '
+      'dupRoute=$dupRoute '
       'local=$_localAddresses '
       'bcast=${_broadcastTargets.map((a) => a.address).toList()}'
       '${_heardSubnetBroadcasts.isEmpty ? '' : '+${_heardSubnetBroadcasts.map((a) => a.address).toList()}'} '
       'sendSocket=${_sendSocket == null ? 'none' : 'up'} '
       'rxSocket=${_receiveSocket == null ? 'none' : 'up'} '
+      'blocked=$blocked errs=$errored '
       'quietFor=${silentFor}s'
       '${_sendFailingSince == null ? '' : ' SEND-FAILING'}',
     );
   }
+
+  /// `senderId:routeCount` for everyone currently being heard, so the ordinary
+  /// session line carries the multi-route fact even when the dedicated warning
+  /// above is inside its rate limit.
+  String _routeSummary() => _senderRoutes.isEmpty
+      ? '{}'
+      : '{${_senderRoutes.entries.map((e) => '${e.key}:${e.value.length}').join(', ')}}';
+
+  int _lastPacketsIn = 0;
+  int _lastPacketsOut = 0;
 
   DateTime _lastSessionLogAt = DateTime.fromMillisecondsSinceEpoch(0);
   static const _sessionLogInterval = Duration(seconds: 15);
@@ -614,6 +694,23 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     _sendFailingSince = null;
     _packetsIn = 0;
     _packetsOut = 0;
+    _lastPacketsIn = 0;
+    _lastPacketsOut = 0;
+    // Routes belong to the network topology of the session that just ended.
+    // Carrying them over would have a fresh session open by announcing a split
+    // route that no longer exists — and, worse, hide a real one behind the
+    // warning's rate limit.
+    _senderRoutes.clear();
+    _lastSplitRouteLogAt = DateTime.fromMillisecondsSinceEpoch(0);
+    _targetLoggedAt.clear();
+    // Route pins belong to the topology of the session that just ended. A new
+    // session must be free to pin wherever its peers turn out to be — carrying
+    // a pin over would have it silently ignore the network it is now on.
+    _routePin.clear();
+    _narrowedTo = const {};
+    _wouldBlockWindow = 0;
+    _sendErrorWindow = 0;
+    _duplicateRouteWindow = 0;
     _sweep.retarget(const []);
 
     _setHealth(const ConnectionHealth.down());
@@ -652,12 +749,6 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   }
 
   void _sendToAllTargets(List<int> packet) {
-    for (final target in _broadcastTargets) {
-      _trySend(packet, target);
-    }
-    for (final target in _heardSubnetBroadcasts) {
-      _trySend(packet, target);
-    }
     final now = DateTime.now();
     // Losing the unicast path matters on its own: where broadcast does not
     // cross a SoftAP, unicast is the ONLY delivery, and it lasts exactly as
@@ -687,6 +778,15 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     // socket, and keeping a live view of a map across that is asking for
     // trouble the day something else touches it.
     final unicast = unicastTargets.toList(growable: false);
+
+    // Broadcast targets, narrowed to the subnets the channel is actually on.
+    // See [_broadcastsFor] — this is the send half of subnet pinning, and the
+    // ordering matters: the peer set is aged above, so a subnet whose peers
+    // have all gone silent stops being broadcast to on this very tick.
+    for (final target in _broadcastsFor(unicast)) {
+      _trySend(packet, target);
+    }
+
     var failed = 0;
     for (final addr in unicast) {
       if (!_trySend(packet, InternetAddress(addr))) failed++;
@@ -695,6 +795,74 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     _packetsOut++;
     _gradeSendPath(attempted: unicast.length, failed: failed, now: now);
   }
+
+  /// Which broadcast addresses this packet goes to, given where the peers are.
+  ///
+  /// Until a peer is known there is nothing to narrow to, so this is every
+  /// private subnet on the device plus the limited broadcast — discovery has
+  /// to be able to reach a network we have not heard from yet, and that is
+  /// what the wide spray is for.
+  ///
+  /// Once peers ARE known it collapses to the directed broadcast of each
+  /// subnet a peer sits on, and the limited broadcast is dropped. This is
+  /// subnet pinning on the send side, and it does two things:
+  ///
+  ///  * It stops us putting the same audio onto a network the channel is not
+  ///    using. A phone hosting a hotspot while still associated to a router
+  ///    was broadcasting every packet onto both, and the peer — also on both —
+  ///    received each one several times, seconds apart, on paths of wildly
+  ///    different delay. That is what makes speech repeat and break up.
+  ///  * It cuts what we put on the air. A measured session sent each packet to
+  ///    three broadcast addresses and two unicasts; the receiving phone counted
+  ///    4.5x more datagrams in than the sender counted out, and the host's
+  ///    SoftAP queue jammed under it (37042 blocked sends in one session, up to
+  ///    42 a second). Narrowing removes that load at the source, which matters
+  ///    on exactly the marginal links where it hurts most.
+  ///
+  /// Deliberately keyed on the peers rather than on a single pinned subnet: a
+  /// channel legitimately spanning two networks (someone on the router, someone
+  /// on the hotspot) keeps working, because every subnet with a peer on it is
+  /// still addressed. What stops is broadcasting into subnets with nobody
+  /// there.
+  List<InternetAddress> _broadcastsFor(List<String> peerAddresses) {
+    if (peerAddresses.isEmpty) {
+      return _wideSpray();
+    }
+    final directed = <String>{};
+    for (final addr in peerAddresses) {
+      final parts = addr.split('.');
+      if (parts.length != 4) continue;
+      directed.add('${parts[0]}.${parts[1]}.${parts[2]}.255');
+    }
+    if (directed.isEmpty) {
+      return _wideSpray();
+    }
+    if (!setEquals(directed, _narrowedTo)) {
+      _narrowedTo = directed;
+      Logger.diagnostic(
+        'wifi: broadcasting only to $directed — the subnet(s) our peers are '
+        'actually on; other interfaces are no longer sprayed',
+      );
+    }
+    return directed.map(InternetAddress.new).toList(growable: false);
+  }
+
+  /// Every private subnet we can see plus the limited broadcast — the
+  /// discovery posture, used until peers say where the channel actually is.
+  List<InternetAddress> _wideSpray() {
+    if (_narrowedTo.isNotEmpty) {
+      _narrowedTo = const {};
+      Logger.diagnostic(
+        'wifi: no peers to aim at — broadcasting to every interface again '
+        'until one answers',
+      );
+    }
+    return [..._broadcastTargets, ..._heardSubnetBroadcasts];
+  }
+
+  /// Last narrowed set, so the line above is written on change rather than
+  /// every 20 ms.
+  Set<String> _narrowedTo = const {};
 
   /// Notices a send socket that has stopped working, and throws it away.
   ///
@@ -723,7 +891,12 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   }) {
     if (attempted == 0 || failed < attempted) {
       if (_sendFailingSince != null) {
-        Logger.diagnostic('wifi: send path recovered');
+        // Same rate limit as the per-target lines, for the same reason: a send
+        // path that flaps sets and clears this flag on alternate ticks, and
+        // the unguarded line came back 6959 times in one session.
+        if (_mayLogTarget('<send-path>', now)) {
+          Logger.diagnostic('wifi: send path recovered');
+        }
         _sendFailingSince = null;
       }
       return;
@@ -831,9 +1004,86 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   /// more than one route (the same id under two addresses is a phone sending
   /// on two interfaces).
   void _noteSenderRoute(String address, String senderId) {
+    final routes = _senderRoutes.putIfAbsent(senderId, () => {});
+    (routes[address] ??= _RouteStats()).hit();
     if (!_seenSenderRoutes.add('$senderId@$address')) return;
     Logger.diagnostic('wifi: sender $senderId first heard from $address');
   }
+
+  /// Names any sender currently arriving by more than one route.
+  ///
+  /// Deliberately its own line rather than a field on the session line: it is
+  /// the difference between a session that will sound fine and one that cannot
+  /// possibly sound fine, and it needs to be greppable on its own. The packet
+  /// counts per route are what says which path to blame — a route carrying a
+  /// tenth of the traffic is a straggler adding latency, two roughly equal
+  /// routes means every packet is genuinely being delivered twice.
+  void _logSplitRoutes(DateTime now) {
+    for (final routes in _senderRoutes.values) {
+      routes.removeWhere((_, s) => now.difference(s.lastAt) > _routeMaxAge);
+    }
+    _senderRoutes.removeWhere((_, routes) => routes.isEmpty);
+    final split = _senderRoutes.entries.where((e) => e.value.length > 1);
+    if (split.isEmpty) return;
+    if (now.difference(_lastSplitRouteLogAt) < _splitRouteLogInterval) return;
+    _lastSplitRouteLogAt = now;
+    for (final entry in split) {
+      final routes = entry.value.entries
+          .map((r) => '${r.key}(${r.value.packets})')
+          .join(' + ');
+      // Still reported even though [_acceptRoute] now discards the extra
+      // copies: the duplicate delivery is a fact about the network, and the
+      // fact that we are coping with it is not a reason to stop saying the
+      // topology is wrong. Both phones being on each other's hotspot costs
+      // air time and battery on every hop regardless of which copies we use.
+      Logger.diagnostic(
+        'wifi: SPLIT ROUTE — sender ${entry.key} is arriving on '
+        '${entry.value.length} paths: $routes. Only the pinned one is used '
+        '(pinned=${_routePin.pinnedFor(entry.key) ?? 'none'}); the rest are dropped. '
+        'Both devices are probably on two shared networks at once.',
+      );
+    }
+  }
+
+  /// Whether a packet from [senderId] arriving at [address] should be used.
+  ///
+  /// The decision itself lives in [SenderRoutePin], which documents why one
+  /// route per sender is the right rule and why the pin has to expire. This
+  /// wrapper does the two things that need the repository: saying so in the
+  /// log, and dropping an abandoned address out of the peer sets so we stop
+  /// transmitting onto a network we no longer listen to.
+  bool _acceptRoute(String senderId, String address) {
+    final verdict = _routePin.offer(senderId, address, DateTime.now());
+    switch (verdict.decision) {
+      case RouteDecision.pinned:
+        Logger.diagnostic('wifi: pinned sender $senderId to $address');
+      case RouteDecision.accepted:
+        break;
+      case RouteDecision.rejected:
+        // Counted rather than logged: this arrives at the full audio rate, and
+        // the count on the session line is what makes it legible.
+        _duplicateRouteWindow++;
+      case RouteDecision.repinned:
+        Logger.diagnostic(
+          'wifi: sender $senderId moved from ${verdict.previous} to $address '
+          '(old route silent for '
+          '${verdict.previousSilence?.inSeconds ?? '?'}s) — repinning',
+        );
+        // The abandoned address may still be in the peer/recovery sets, where
+        // it would keep drawing unicasts and keep its subnet in the narrowed
+        // broadcast set. Dropping it here is what actually stops us
+        // transmitting onto the network we just stopped listening to.
+        _peers.remove(verdict.previous);
+        _recoveryPeers.remove(verdict.previous);
+    }
+    return verdict.isAccepted;
+  }
+
+  /// One source address per sender — see [SenderRoutePin].
+  final SenderRoutePin _routePin = SenderRoutePin();
+
+  /// Packets dropped as a second copy since the last session line.
+  int _duplicateRouteWindow = 0;
 
   void _rememberPeer(String address) {
     // Our own broadcast comes back to us — that's not a peer.
@@ -844,15 +1094,41 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     _lastPeerAt = now;
   }
 
+  /// Minimum spacing between transition lines for one target.
+  ///
+  /// "Reported once per target, and once again on recovery" was true only of a
+  /// target that fails and then stays failed. A target that blocks and clears
+  /// on alternate sends — a SoftAP whose driver queue is right at its limit,
+  /// which is the normal state of a hotspot host with a client at the edge of
+  /// range — crosses that boundary tens of times a second, and each crossing
+  /// wrote two lines. A real capture of this came back 99.7% these two
+  /// messages: 37042 "dropped" and 34833 "recovered" out of 79081 lines, at up
+  /// to 42 a second, with every other category of evidence squeezed into what
+  /// was left of the ring.
+  ///
+  /// The rate itself is not lost — it is the `blocked=`/`errs=` counters on
+  /// the session line, which is where a rate belongs. What is kept here is the
+  /// occasional statement of WHICH target and WHICH errno, which a counter
+  /// cannot carry.
+  static const _targetLogInterval = Duration(seconds: 30);
+  final Map<String, DateTime> _targetLoggedAt = {};
+
+  /// Whether [target] may write a transition line now.
+  bool _mayLogTarget(String target, DateTime now) {
+    final last = _targetLoggedAt[target];
+    if (last != null && now.difference(last) < _targetLogInterval) return false;
+    _targetLoggedAt[target] = now;
+    return true;
+  }
+
   // A broadcast send is EXPECTED to fail on iOS (errno 65, no multicast
   // entitlement); one failing target must not abort the remaining
   // (unicast) targets, which do work there.
   //
-  // Failures are reported once per target, and once again on recovery. This
-  // used to swallow both halves of a failed send — the thrown errno AND a
-  // return of 0, which means the datagram never left — so a phone that had
-  // silently stopped transmitting looked identical to one with nothing to say.
-  // Every other stage of the path can be observed; this one could not.
+  // Both halves of a failed send are caught — the thrown errno AND a return of
+  // 0, which means the datagram never left. Swallowing them made a phone that
+  // had silently stopped transmitting look identical to one with nothing to
+  // say; every other stage of the path can be observed, this one could not.
   /// Returns whether the datagram actually left the device, so the caller can
   /// tell one dead target apart from a dead socket (see [_gradeSendPath]).
   bool _trySend(List<int> packet, InternetAddress target) {
@@ -864,19 +1140,24 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     try {
       final sent = socket.send(packet, target, kBroadcastPort);
       if (sent == 0) {
-        if (_failingTargets.add(target.address)) {
+        _wouldBlockWindow++;
+        if (_failingTargets.add(target.address) &&
+            _mayLogTarget(target.address, DateTime.now())) {
           Logger.diagnostic(
             'wifi: send to ${target.address} dropped (socket would block)',
           );
         }
         return false;
       }
-      if (_failingTargets.remove(target.address)) {
+      if (_failingTargets.remove(target.address) &&
+          _mayLogTarget(target.address, DateTime.now())) {
         Logger.diagnostic('wifi: send to ${target.address} recovered');
       }
       return true;
     } catch (e) {
-      if (_failingTargets.add(target.address)) {
+      _sendErrorWindow++;
+      if (_failingTargets.add(target.address) &&
+          _mayLogTarget(target.address, DateTime.now())) {
         Logger.diagnostic('wifi: send to ${target.address} failed: $e');
       }
       return false;
@@ -944,5 +1225,16 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   void _setHealth(ConnectionHealth health) {
     if (_connectionController.isClosed) return;
     _connectionController.add(health);
+  }
+}
+
+/// Traffic seen from one sender on one source address. See [_senderRoutes].
+class _RouteStats {
+  int packets = 0;
+  DateTime lastAt = DateTime.now();
+
+  void hit() {
+    packets++;
+    lastAt = DateTime.now();
   }
 }
