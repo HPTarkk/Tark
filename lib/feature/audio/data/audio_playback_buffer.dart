@@ -164,6 +164,11 @@ class AudioPlaybackBuffer {
   /// instead of a transcript.
   static const Duration _duplicateLogInterval = Duration(seconds: 30);
 
+  /// Same treatment for the resync line — see where it is emitted for why it
+  /// cannot be one line per event.
+  static const Duration _resyncLogInterval = Duration(seconds: 10);
+  final Map<String, DateTime> _resyncLoggedAtBySender = {};
+
   /// Short ramp applied right after playback resumes (initial fill, after an
   /// underrun, or after a trim) to avoid an audible click at the
   /// silence→audio or splice boundary.
@@ -195,6 +200,18 @@ class AudioPlaybackBuffer {
   final Map<String, int> _duplicateDropsBySender = {};
   final Map<String, DateTime> _duplicateLoggedAtBySender = {};
 
+  /// Everything that happened to each sender's stream since the last report.
+  ///
+  /// Per sender rather than global because the failures that matter here are
+  /// per stream and cancel out when summed: one peer resyncing 300 times a
+  /// minute while another plays perfectly is the exact shape of a split
+  /// delivery route, and a single combined counter would show only "some
+  /// resyncs" and lose which peer to look at.
+  final Map<String, _SenderStats> _statsBySender = {};
+
+  _SenderStats _stats(String senderId) =>
+      _statsBySender[senderId] ??= _SenderStats();
+
   // Diagnostics. The per-window sample counters are the important ones: they
   // measure directly whether the feed outruns the fixed-cadence drain, and by
   // how much, which is the thing every theory about this bug has hinged on.
@@ -206,7 +223,15 @@ class AudioPlaybackBuffer {
   int _concealedWindow = 0;
   int _drainedWindow = 0;
   int _logTicks = 0;
-  late final int _logEveryTicks = (2000 / _drainIntervalMs).ceil();
+
+  /// Reporting period for [_logHealth]. Fifteen seconds, matching the wifi
+  /// transport's session line so the two can be read side by side against the
+  /// same clock — that pairing is what turns "audio was bad here" into "and
+  /// here is what the network was doing at that second". It was two seconds
+  /// while this only went to a debug console; at that rate a persistent log
+  /// would be nothing but this line.
+  static const int _logIntervalMs = 15000;
+  late final int _logEveryTicks = (_logIntervalMs / _drainIntervalMs).ceil();
 
   int _ms(int samples) => samples * 1000 ~/ _sampleRate;
   int get _queueMs => _ms(_queue.length);
@@ -227,12 +252,16 @@ class AudioPlaybackBuffer {
     final expectedSeq = _expectedSeqBySender[senderId];
     final lastChunkLen = _lastChunkLenBySender[senderId] ?? _defaultChunkLen;
 
+    final stats = _stats(senderId);
+    stats.packets++;
+
     if (expectedSeq == null) {
       // First packet from this sender — nothing to compare against yet.
     } else if (seq < expectedSeq) {
       final behind = expectedSeq - seq;
       if (behind <= _maxReorderChunks) {
         // Genuinely late — too old to splice back into sequence.
+        stats.lateDrops++;
         return;
       }
       // Miles behind. Two different things look exactly like this:
@@ -268,16 +297,35 @@ class AudioPlaybackBuffer {
         _noteDuplicate(senderId, behind, lastChunkLen);
         return;
       }
-      Logger.diagnostic(
-        'playback: sender $senderId restarted its sequence '
-        '($expectedSeq -> $seq) — resyncing',
-      );
+      stats.resyncs++;
+      // Rate-limited like the duplicate line below, and for the same reason:
+      // when this fires it does not fire once. A stream split across two
+      // delivery paths flips numbering every few hundred milliseconds, and a
+      // line per flip buries every other category in the log — which is
+      // exactly what a real capture of this bug looked like: thousands of
+      // these, and no room left for anything that explained them.
+      final now = DateTime.now();
+      final lastAt = _resyncLoggedAtBySender[senderId];
+      if (lastAt == null || now.difference(lastAt) >= _resyncLogInterval) {
+        _resyncLoggedAtBySender[senderId] = now;
+        Logger.diagnostic(
+          'playback: sender $senderId restarted its sequence '
+          '($expectedSeq -> $seq) — resyncing '
+          '(${stats.resyncs} resyncs so far this window)',
+        );
+      }
     } else if (seq > expectedSeq) {
       final missing = seq - expectedSeq;
       if (missing <= _maxConcealedGapChunks) {
+        stats.concealedChunks += missing;
         _enqueueSilence(missing * lastChunkLen);
+      } else {
+        // A large gap (new talk burst, or a stretch of loss too long to paper
+        // over) resyncs without filling silence. Counted because the two are
+        // very different symptoms: concealed chunks are heard as small holes,
+        // while a jump here is heard as speech starting mid-word.
+        stats.bigGaps++;
       }
-      // else: large gap (new talk burst) — resync without filling silence.
     }
 
     // This packet is on the numbering we are playing, so any far-behind stream
@@ -330,6 +378,13 @@ class AudioPlaybackBuffer {
   void _noteDuplicate(String senderId, int behind, int lastChunkLen) {
     final drops = (_duplicateDropsBySender[senderId] ?? 0) + 1;
     _duplicateDropsBySender[senderId] = drops;
+    final stats = _stats(senderId);
+    stats.duplicateDrops++;
+    // The worst lag seen in the window, not the latest. A second path's delay
+    // swings a lot; the peak is what decides whether it is a straggler worth
+    // tolerating or a route holding seconds of audio.
+    final lagMs = behind * lastChunkLen * 1000 ~/ _sampleRate;
+    if (lagMs > stats.worstLagMs) stats.worstLagMs = lagMs;
 
     final now = DateTime.now();
     final lastLoggedAt = _duplicateLoggedAtBySender[senderId];
@@ -337,11 +392,71 @@ class AudioPlaybackBuffer {
       return;
     }
     _duplicateLoggedAtBySender[senderId] = now;
-    final lagMs = behind * lastChunkLen * 1000 ~/ _sampleRate;
     Logger.diagnostic(
       'playback: sender $senderId heard twice — dropped $drops far-behind '
-      'packets, newest lag ${lagMs}ms',
+      'packets, newest lag ${lagMs}ms. This sender is reaching us by more '
+      'than one network path; see the wifi SPLIT ROUTE line for which.',
     );
+  }
+
+  /// One line describing the whole playback stage, plus one per active sender.
+  ///
+  /// This used to go to [Logger.log], which is compiled out of release builds
+  /// — so on the only phones that ever reproduce anything, the stage between
+  /// "packets arrived" and "the user heard it" reported nothing at all. Every
+  /// question about chopped, delayed, or repeating audio lands exactly here,
+  /// and the answer was being discarded on the devices that had it.
+  ///
+  /// The counters are per window, not cumulative: what matters is whether the
+  /// queue is starving or overflowing *now*, and a total that only ever grows
+  /// answers that for nobody.
+  void _logHealth() {
+    // devUnderrun counts frames the DEVICE had to invent, which is the click
+    // the user actually hears; `underruns` only counts this queue running dry.
+    // They are different failures — the device can starve while this queue is
+    // comfortably full, purely from timer jitter — so both are reported.
+    final devFrames = _outputUnderrunFrames?.call() ?? 0;
+    final devDelta = devFrames - _lastDeviceUnderrunFrames;
+    _lastDeviceUnderrunFrames = devFrames;
+    final windowSec = _logEveryTicks * _drainIntervalMs / 1000;
+
+    Logger.diagnostic(
+      'playback: ${_queueMs}ms queued (target ${_ms(_targetSamples)}ms)'
+      ' | ${windowSec.toStringAsFixed(0)}s window: fed ${_ms(_fedWindow)}ms'
+      ' + concealed ${_ms(_concealedWindow)}ms'
+      ' vs drained ${_ms(_drainedWindow)}ms'
+      ' | underruns=$_underruns trims=$_trims overflow=$_overflowDrops'
+      ' | device starved ${_ms(devDelta)}ms'
+      ' (${_ms(devFrames)}ms total)',
+    );
+
+    // Per sender, and only for senders that actually delivered something in
+    // the window — a channel of five people should not print four idle lines
+    // to say so.
+    for (final entry in _statsBySender.entries) {
+      final s = entry.value;
+      if (s.packets == 0) {
+        s.idleWindows++;
+        continue;
+      }
+      s.idleWindows = 0;
+      Logger.diagnostic(
+        'playback: sender ${entry.key} pkts=${s.packets} '
+        'late=${s.lateDrops} dup=${s.duplicateDrops} '
+        'resync=${s.resyncs} concealed=${s.concealedChunks} '
+        'bigGaps=${s.bigGaps}'
+        '${s.worstLagMs > 0 ? ' worstDupLag=${s.worstLagMs}ms' : ''}',
+      );
+      s.reset();
+    }
+    _statsBySender.removeWhere((_, s) => s.idleWindows > 4);
+
+    _underruns = 0;
+    _trims = 0;
+    _overflowDrops = 0;
+    _fedWindow = 0;
+    _concealedWindow = 0;
+    _drainedWindow = 0;
   }
 
   void _dropOverflow(int incoming) {
@@ -389,26 +504,7 @@ class AudioPlaybackBuffer {
     _drainTimer = Timer.periodic(Duration(milliseconds: _drainIntervalMs), (_) {
       if (debugLogging && ++_logTicks >= _logEveryTicks) {
         _logTicks = 0;
-        // devUnderrun counts frames the DEVICE had to invent, which is the
-        // click the user actually hears; `underruns` above only counts this
-        // queue running dry. They are different failures — the device can
-        // starve while this queue is comfortably full, purely from timer
-        // jitter — so both are reported.
-        final devFrames = _outputUnderrunFrames?.call() ?? 0;
-        final devDelta = devFrames - _lastDeviceUnderrunFrames;
-        _lastDeviceUnderrunFrames = devFrames;
-        Logger.log(
-          'jitter buffer: ${_queueMs}ms queued (target ${_ms(_targetSamples)}ms)'
-          ' | 2s window: fed ${_ms(_fedWindow)}ms'
-          ' + concealed ${_ms(_concealedWindow)}ms'
-          ' vs drained ${_ms(_drainedWindow)}ms'
-          ' | underruns=$_underruns trims=$_trims drops=$_overflowDrops'
-          ' | device starved ${_ms(devDelta)}ms this window'
-          ' (${_ms(devFrames)}ms total)',
-        );
-        _fedWindow = 0;
-        _concealedWindow = 0;
-        _drainedWindow = 0;
+        _logHealth();
       }
 
       if (_queue.length < _drainSize) {
@@ -490,6 +586,8 @@ class AudioPlaybackBuffer {
     _restartCandidateBySender.clear();
     _duplicateDropsBySender.clear();
     _duplicateLoggedAtBySender.clear();
+    _resyncLoggedAtBySender.clear();
+    _statsBySender.clear();
     _fadeRemaining = 0;
     _sinceTrimTicks = 0;
   }
@@ -498,6 +596,52 @@ class AudioPlaybackBuffer {
   void dispose() {
     _drainTimer?.cancel();
     _drainTimer = null;
+  }
+}
+
+/// What happened to one sender's stream in one reporting window.
+///
+/// Counters rather than events: each of these fires far too often to log
+/// individually (a split delivery route produces thousands of resyncs a
+/// minute), and the rate is the diagnostic anyway — one resync is normal,
+/// three hundred a minute is a broken session.
+class _SenderStats {
+  int packets = 0;
+
+  /// Arrived behind what we are playing, but close enough to be ordinary UDP
+  /// reordering. A few is healthy; a steady stream means real jitter.
+  int lateDrops = 0;
+
+  /// Arrived so far behind it can only be a second copy of audio we already
+  /// played. Non-zero here means multi-path delivery, full stop.
+  int duplicateDrops = 0;
+
+  /// Times the stream's numbering was accepted as having restarted. Should be
+  /// ~0. Repeated resyncs mean two numberings are fighting for the stream.
+  int resyncs = 0;
+
+  /// Missing packets papered over with silence — small holes in speech.
+  int concealedChunks = 0;
+
+  /// Gaps too large to conceal, resumed mid-stream — heard as speech starting
+  /// abruptly. Normal at the start of each talk burst.
+  int bigGaps = 0;
+
+  /// Worst delay seen on a duplicate copy this window.
+  int worstLagMs = 0;
+
+  /// Consecutive windows with no traffic, so a peer who left is eventually
+  /// forgotten instead of accumulating map entries for the session's life.
+  int idleWindows = 0;
+
+  void reset() {
+    packets = 0;
+    lateDrops = 0;
+    duplicateDrops = 0;
+    resyncs = 0;
+    concealedChunks = 0;
+    bigGaps = 0;
+    worstLagMs = 0;
   }
 }
 

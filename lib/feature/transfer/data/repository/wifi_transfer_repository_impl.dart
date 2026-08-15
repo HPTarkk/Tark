@@ -175,6 +175,46 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   /// would otherwise be announced again every time it spoke.
   final Set<String> _seenSenderRoutes = {};
 
+  /// Per sender, per source address: how many packets arrived and when the
+  /// last one did.
+  ///
+  /// One phone arriving under two addresses at once is the worst failure this
+  /// transport has, and the hardest to see. It happens whenever both ends are
+  /// multi-homed — each hosting a hotspot the other has joined, or both still
+  /// on a router alongside the hotspot — and then every packet reaches us
+  /// twice by paths with completely different latency. The jitter buffer
+  /// downstream sees one sender's sequence jumping forward and back by
+  /// hundreds of packets and spends the whole session resyncing, which is
+  /// heard as syllables repeating and speech breaking up.
+  ///
+  /// Nothing about that is visible in the counters: `in=` climbs, the peer is
+  /// in the roster, the sockets are up, health is green. The only evidence is
+  /// exactly this — the same sender id under two addresses — which is why it
+  /// is tracked per route rather than inferred from [_peers] (whose keys are
+  /// addresses, and so cannot tell two phones from one phone twice).
+  final Map<String, Map<String, _RouteStats>> _senderRoutes = {};
+
+  /// A route unheard for this long stops counting toward the split-route
+  /// warning. Long enough to survive a burst of loss on one path, short enough
+  /// that a genuinely abandoned route clears within a couple of report cycles.
+  static const _routeMaxAge = Duration(seconds: 12);
+
+  /// When the split-route warning last went out, so a session that stays
+  /// split reports at the session-line rate instead of per packet.
+  DateTime _lastSplitRouteLogAt = DateTime.fromMillisecondsSinceEpoch(0);
+  static const _splitRouteLogInterval = Duration(seconds: 15);
+
+  /// Datagrams the socket refused to queue since the last session line.
+  ///
+  /// Distinct from [_failingTargets], which reports a target's FIRST failure
+  /// and then stays quiet: a target that blocks on nearly every send and one
+  /// that blocked once look identical there. On a SoftAP whose driver queue is
+  /// backing up — a client at the edge of range, which is exactly the case the
+  /// user is in when they report bad audio — this is the number that moves,
+  /// and it has to be a rate to mean anything.
+  int _wouldBlockWindow = 0;
+  int _sendErrorWindow = 0;
+
   late final _codec = WakiPacketCodec(_identity.id);
 
   // Incremented each time startListening() is called so any in-flight
@@ -437,22 +477,50 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   /// timer, so it cannot outlive the session that produces it.
   void _logSessionState() {
     final now = DateTime.now();
+    // Checked before the throttle: a split route is the one condition worth
+    // knowing about at its own cadence, and it owns its own rate limit.
+    _logSplitRoutes(now);
     if (now.difference(_lastSessionLogAt) < _sessionLogInterval) return;
+    final window = now.difference(_lastSessionLogAt);
     _lastSessionLogAt = now;
     final silentFor = now.difference(_lastPacketAt).inSeconds;
+    // Deltas alongside the totals. The totals answer "did it ever work"; only
+    // a rate answers "is it working now", and reading one off two cumulative
+    // lines 15s apart is exactly the arithmetic nobody does at 2am.
+    final inDelta = _packetsIn - _lastPacketsIn;
+    final outDelta = _packetsOut - _lastPacketsOut;
+    _lastPacketsIn = _packetsIn;
+    _lastPacketsOut = _packetsOut;
+    final blocked = _wouldBlockWindow;
+    final errored = _sendErrorWindow;
+    _wouldBlockWindow = 0;
+    _sendErrorWindow = 0;
     Logger.diagnostic(
-      'wifi: in=$_packetsIn out=$_packetsOut '
+      'wifi: in=$_packetsIn(+$inDelta) out=$_packetsOut(+$outDelta) '
+      'over ${window.inSeconds}s '
       'peers=${_peers.keys.toList()} recovery=${_recoveryPeers.length} '
       'heard=${_heardSenders.keys.toList()} '
+      'routes=${_routeSummary()} '
       'local=$_localAddresses '
       'bcast=${_broadcastTargets.map((a) => a.address).toList()}'
       '${_heardSubnetBroadcasts.isEmpty ? '' : '+${_heardSubnetBroadcasts.map((a) => a.address).toList()}'} '
       'sendSocket=${_sendSocket == null ? 'none' : 'up'} '
       'rxSocket=${_receiveSocket == null ? 'none' : 'up'} '
+      'blocked=$blocked errs=$errored '
       'quietFor=${silentFor}s'
       '${_sendFailingSince == null ? '' : ' SEND-FAILING'}',
     );
   }
+
+  /// `senderId:routeCount` for everyone currently being heard, so the ordinary
+  /// session line carries the multi-route fact even when the dedicated warning
+  /// above is inside its rate limit.
+  String _routeSummary() => _senderRoutes.isEmpty
+      ? '{}'
+      : '{${_senderRoutes.entries.map((e) => '${e.key}:${e.value.length}').join(', ')}}';
+
+  int _lastPacketsIn = 0;
+  int _lastPacketsOut = 0;
 
   DateTime _lastSessionLogAt = DateTime.fromMillisecondsSinceEpoch(0);
   static const _sessionLogInterval = Duration(seconds: 15);
@@ -614,6 +682,16 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     _sendFailingSince = null;
     _packetsIn = 0;
     _packetsOut = 0;
+    _lastPacketsIn = 0;
+    _lastPacketsOut = 0;
+    // Routes belong to the network topology of the session that just ended.
+    // Carrying them over would have a fresh session open by announcing a split
+    // route that no longer exists — and, worse, hide a real one behind the
+    // warning's rate limit.
+    _senderRoutes.clear();
+    _lastSplitRouteLogAt = DateTime.fromMillisecondsSinceEpoch(0);
+    _wouldBlockWindow = 0;
+    _sendErrorWindow = 0;
     _sweep.retarget(const []);
 
     _setHealth(const ConnectionHealth.down());
@@ -831,8 +909,40 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   /// more than one route (the same id under two addresses is a phone sending
   /// on two interfaces).
   void _noteSenderRoute(String address, String senderId) {
+    final routes = _senderRoutes.putIfAbsent(senderId, () => {});
+    (routes[address] ??= _RouteStats()).hit();
     if (!_seenSenderRoutes.add('$senderId@$address')) return;
     Logger.diagnostic('wifi: sender $senderId first heard from $address');
+  }
+
+  /// Names any sender currently arriving by more than one route.
+  ///
+  /// Deliberately its own line rather than a field on the session line: it is
+  /// the difference between a session that will sound fine and one that cannot
+  /// possibly sound fine, and it needs to be greppable on its own. The packet
+  /// counts per route are what says which path to blame — a route carrying a
+  /// tenth of the traffic is a straggler adding latency, two roughly equal
+  /// routes means every packet is genuinely being delivered twice.
+  void _logSplitRoutes(DateTime now) {
+    for (final routes in _senderRoutes.values) {
+      routes.removeWhere((_, s) => now.difference(s.lastAt) > _routeMaxAge);
+    }
+    _senderRoutes.removeWhere((_, routes) => routes.isEmpty);
+    final split = _senderRoutes.entries.where((e) => e.value.length > 1);
+    if (split.isEmpty) return;
+    if (now.difference(_lastSplitRouteLogAt) < _splitRouteLogInterval) return;
+    _lastSplitRouteLogAt = now;
+    for (final entry in split) {
+      final routes = entry.value.entries
+          .map((r) => '${r.key}(${r.value.packets})')
+          .join(' + ');
+      Logger.diagnostic(
+        'wifi: SPLIT ROUTE — sender ${entry.key} is arriving on '
+        '${entry.value.length} paths: $routes. Every packet is being '
+        'delivered more than once, on paths with different delay; expect '
+        'the jitter buffer to resync and audio to repeat/break up.',
+      );
+    }
   }
 
   void _rememberPeer(String address) {
@@ -864,6 +974,7 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     try {
       final sent = socket.send(packet, target, kBroadcastPort);
       if (sent == 0) {
+        _wouldBlockWindow++;
         if (_failingTargets.add(target.address)) {
           Logger.diagnostic(
             'wifi: send to ${target.address} dropped (socket would block)',
@@ -876,6 +987,7 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
       }
       return true;
     } catch (e) {
+      _sendErrorWindow++;
       if (_failingTargets.add(target.address)) {
         Logger.diagnostic('wifi: send to ${target.address} failed: $e');
       }
@@ -944,5 +1056,16 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   void _setHealth(ConnectionHealth health) {
     if (_connectionController.isClosed) return;
     _connectionController.add(health);
+  }
+}
+
+/// Traffic seen from one sender on one source address. See [_senderRoutes].
+class _RouteStats {
+  int packets = 0;
+  DateTime lastAt = DateTime.now();
+
+  void hit() {
+    packets++;
+    lastAt = DateTime.now();
   }
 }

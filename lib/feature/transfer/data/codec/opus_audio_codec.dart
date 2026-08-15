@@ -55,9 +55,18 @@ class OpusAudioCodec {
     try {
       initOpus(await opus_flutter.load());
       _initialized = true;
-      Logger.log('Opus initialized: ${getOpusVersion()}');
+      Logger.diagnostic('codec: Opus initialized (${getOpusVersion()})');
     } catch (e) {
-      Logger.log('Opus unavailable, falling back to PCM16: $e');
+      // Diagnostic, loudly. Losing Opus is not a cosmetic fallback: PCM16 is
+      // roughly an order of magnitude more bytes for the same 20 ms of speech,
+      // and a link that carried a conversation comfortably under Opus can be
+      // saturated by the same conversation under PCM16. "It sounded terrible
+      // on that phone" and "Opus failed to load on that phone" are the same
+      // sentence, and nothing in a release build used to say the second half.
+      Logger.diagnostic(
+        'codec: Opus UNAVAILABLE — falling back to PCM16, which costs '
+        'several times the bandwidth per frame and may not fit the link: $e',
+      );
     }
   }
 
@@ -101,9 +110,33 @@ class OpusAudioCodec {
       }
       return _encoder!.encode(input: pcm);
     } catch (e) {
-      Logger.log('Opus encode failed: $e');
+      _noteFailure('encode', e);
       return null;
     }
+  }
+
+  // Codec failures come per frame — fifty a second while whatever broke stays
+  // broken — so they are counted and reported at a rate instead of logged
+  // individually. The count is the diagnostic anyway: one failed frame is a
+  // glitch nobody hears, a sustained rate is why a peer sounds like static.
+  int _encodeFailures = 0;
+  int _decodeFailures = 0;
+  DateTime _lastFailureLogAt = DateTime.fromMillisecondsSinceEpoch(0);
+  static const _failureLogInterval = Duration(seconds: 15);
+
+  void _noteFailure(String stage, Object error) {
+    if (stage == 'encode') {
+      _encodeFailures++;
+    } else {
+      _decodeFailures++;
+    }
+    final now = DateTime.now();
+    if (now.difference(_lastFailureLogAt) < _failureLogInterval) return;
+    _lastFailureLogAt = now;
+    Logger.diagnostic(
+      'codec: Opus failing — $_encodeFailures encode / $_decodeFailures '
+      'decode errors so far; latest on $stage: $error',
+    );
   }
 
   /// Decodes one Opus packet from [senderId] back to normalized samples.
@@ -124,7 +157,7 @@ class OpusAudioCodec {
       }
       return samples;
     } catch (e) {
-      Logger.log('Opus decode failed: $e');
+      _noteFailure('decode', e);
       return null;
     }
   }
