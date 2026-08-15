@@ -433,6 +433,10 @@ class AppLocalizationsFa extends AppLocalizations {
   String get noise_filter_strong => 'زیاد';
 
   @override
+  String get noise_filter_cleaner_off =>
+      'چون پایین‌تر هیچ پاک‌کنی انتخاب نشده، این خاموشه.';
+
+  @override
   String get settings_advanced_row => 'تنظیمات ریزتر';
 
   @override
@@ -479,6 +483,17 @@ class AppLocalizationsFa extends AppLocalizations {
   @override
   String get noise_cleaner_both_downside =>
       'بیشترین باتری رو می‌خوره و صدات ممکنه یه کم نازک بشه.';
+
+  @override
+  String get noise_cleaner_off_title => 'بدون پاک‌کن';
+
+  @override
+  String get noise_cleaner_off_desc =>
+      'صدات دقیقاً همون‌طور که میکروفون می‌شنوه فرستاده می‌شه. چیزی حذف نمی‌شه، پس چیزی هم از صدای خودت کم نمی‌شه.';
+
+  @override
+  String get noise_cleaner_off_downside =>
+      'صداهای اطرافت هم رد می‌شن — باد، موتور، خیابون.';
 
   @override
   String get noise_cleaner_downside_label => 'نکته منفی';

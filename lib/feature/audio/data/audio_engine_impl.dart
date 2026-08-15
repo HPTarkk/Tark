@@ -352,13 +352,24 @@ class AudioEngineImpl implements AudioEngine {
 
     // `both` cascades rnnoise → spectral (rnnoise wants the raw-ish mic
     // signal it was trained on; spectral then mops up residual steady hum).
-    // Wherever rnnoise isn't compiled in, every choice degrades to spectral
-    // alone, matching the long-standing fallback.
-    final useRnnoise =
-        _suppressionEngine != NoiseSuppressionEngine.spectral &&
-        _rnnoiseSuppressor.isAvailable;
+    // Wherever rnnoise isn't compiled in, `rnnoise` and `both` degrade to
+    // spectral alone, matching the long-standing fallback.
+    //
+    // `off` is the one choice that degrades to nothing rather than to
+    // spectral: a user who asked for no cleaning has not asked for a
+    // different cleaner. Spelled out per-engine rather than as "!= x"
+    // conditions — the negative form silently enrolled any newly added enum
+    // value into both suppressors, which is exactly the bug `off` would have
+    // hit.
+    final engine = _suppressionEngine;
+    final wantsRnnoise =
+        engine == NoiseSuppressionEngine.rnnoise ||
+        engine == NoiseSuppressionEngine.both;
+    final useRnnoise = wantsRnnoise && _rnnoiseSuppressor.isAvailable;
     final useSpectral =
-        _suppressionEngine != NoiseSuppressionEngine.rnnoise || !useRnnoise;
+        engine == NoiseSuppressionEngine.spectral ||
+        engine == NoiseSuppressionEngine.both ||
+        (wantsRnnoise && !useRnnoise);
     var suppressed = resampled;
     if (useRnnoise) suppressed = _rnnoiseSuppressor.process(suppressed);
     if (useSpectral) suppressed = _spectralSuppressor.process(suppressed);
@@ -491,7 +502,16 @@ class AudioEngineImpl implements AudioEngine {
 
   @override
   void setNoiseSuppressionEngine(NoiseSuppressionEngine engine) {
+    if (engine == _suppressionEngine) return;
     _suppressionEngine = engine;
+    // A suppressor that stops being called keeps whatever streaming state it
+    // held — a spectral noise floor tracked minutes ago, an RNNoise FIFO still
+    // carrying the samples it had not emitted yet. Switching back later would
+    // then start from that stale state and produce a burst of wrongly-gained
+    // or out-of-order audio on the first frames, which is precisely what the
+    // user is listening for when they change the setting to compare.
+    _spectralSuppressor.reset();
+    _rnnoiseSuppressor.reset();
   }
 
   @override

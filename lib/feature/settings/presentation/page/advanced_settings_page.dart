@@ -156,13 +156,21 @@ class _VoiceCard extends StatelessWidget {
         buildWhen: (p, c) =>
             p.voxThreshold != c.voxThreshold ||
             p.noiseSuppression != c.noiseSuppression ||
+            p.noiseSuppressionEngine != c.noiseSuppressionEngine ||
             p.isLive != c.isLive,
         builder: (context, state) {
           final thresholdPercent = ((state.voxThreshold / 0.15) * 100)
               .clamp(0.0, 100.0)
               .toInt();
+          // With no cleaner selected there is nothing for the strength to
+          // apply to, so the slider is shown reading OFF and inert rather
+          // than left live and lying about having an effect. The stored
+          // value is deliberately untouched — it comes back exactly as the
+          // user left it the moment they pick a cleaner again.
+          final cleanerOff =
+              state.noiseSuppressionEngine == NoiseSuppressionEngine.off;
           final noisePercent = (state.noiseSuppression * 100).round();
-          final noiseLabel = noisePercent == 0
+          final noiseLabel = cleanerOff || noisePercent == 0
               ? s.noise_filter_off
               : '${noisePercent.localized(context)}%';
           return Padding(
@@ -204,7 +212,7 @@ class _VoiceCard extends StatelessWidget {
                 _sliderHeader(
                   s.noise_filter,
                   noiseLabel,
-                  active: noisePercent != 0,
+                  active: !cleanerOff && noisePercent != 0,
                 ),
                 SliderTheme(
                   data: _sliderTheme(context),
@@ -212,18 +220,30 @@ class _VoiceCard extends StatelessWidget {
                     value: state.noiseSuppression.clamp(0.0, 1.0),
                     min: 0.0,
                     max: 1.0,
-                    onChanged: (v) =>
-                        context.read<SettingsCubit>().setNoiseSuppression(v),
+                    // Null disables the Slider outright, which is the point:
+                    // see [cleanerOff] above.
+                    onChanged: cleanerOff
+                        ? null
+                        : (v) =>
+                              context.read<SettingsCubit>().setNoiseSuppression(
+                                v,
+                              ),
                     onChangeEnd: (_) => HapticFeedback.selectionClick(),
                   ),
                 ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(s.noise_filter_weak, style: _hintStyle),
-                    Text(s.noise_filter_strong, style: _hintStyle),
-                  ],
-                ),
+                if (cleanerOff)
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Text(s.noise_filter_cleaner_off, style: _hintStyle),
+                  )
+                else
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(s.noise_filter_weak, style: _hintStyle),
+                      Text(s.noise_filter_strong, style: _hintStyle),
+                    ],
+                  ),
                 const SizedBox(height: 10),
                 _RestoreDefaultsButton(),
               ],
@@ -354,9 +374,19 @@ class _NoiseCleanerCard extends StatelessWidget {
           // regardless of the stored preference — show what's really
           // running, not a selected-but-disabled option that misrepresents
           // the active engine.
-          final effectiveEngine = _smartAvailable
-              ? state.noiseSuppressionEngine
-              : NoiseSuppressionEngine.spectral;
+          //
+          // Only the two rnnoise-backed choices fall back. "Off" runs
+          // identically everywhere, so coercing it to spectral here would
+          // have a phone without the native library tell a user who asked
+          // for no cleaning that the simple cleaner is on — while the engine
+          // correctly runs nothing at all.
+          final stored = state.noiseSuppressionEngine;
+          final needsNative =
+              stored == NoiseSuppressionEngine.rnnoise ||
+              stored == NoiseSuppressionEngine.both;
+          final effectiveEngine = needsNative && !_smartAvailable
+              ? NoiseSuppressionEngine.spectral
+              : stored;
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Column(
@@ -405,6 +435,18 @@ class _NoiseCleanerCard extends StatelessWidget {
                   selected: effectiveEngine == NoiseSuppressionEngine.both,
                   enabled: _smartAvailable,
                   onTap: () => _select(context, NoiseSuppressionEngine.both),
+                ),
+                const SizedBox(height: 10),
+                // Last, not first: it is the escape hatch for when a cleaner
+                // is doing more harm than good, not the choice most people
+                // should land on by reading top to bottom.
+                _CleanerOption(
+                  icon: Icons.block_rounded,
+                  title: s.noise_cleaner_off_title,
+                  description: s.noise_cleaner_off_desc,
+                  downside: s.noise_cleaner_off_downside,
+                  selected: effectiveEngine == NoiseSuppressionEngine.off,
+                  onTap: () => _select(context, NoiseSuppressionEngine.off),
                 ),
                 if (!_smartAvailable) ...[
                   const SizedBox(height: 10),

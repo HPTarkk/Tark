@@ -896,6 +896,12 @@ abstract class AppLocalizations {
   /// **'زیاد'**
   String get noise_filter_strong;
 
+  /// No description provided for @noise_filter_cleaner_off.
+  ///
+  /// In fa, this message translates to:
+  /// **'چون پایین‌تر هیچ پاک‌کنی انتخاب نشده، این خاموشه.'**
+  String get noise_filter_cleaner_off;
+
   /// No description provided for @settings_advanced_row.
   ///
   /// In fa, this message translates to:
@@ -979,6 +985,24 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'بیشترین باتری رو می‌خوره و صدات ممکنه یه کم نازک بشه.'**
   String get noise_cleaner_both_downside;
+
+  /// No description provided for @noise_cleaner_off_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'بدون پاک‌کن'**
+  String get noise_cleaner_off_title;
+
+  /// No description provided for @noise_cleaner_off_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'صدات دقیقاً همون‌طور که میکروفون می‌شنوه فرستاده می‌شه. چیزی حذف نمی‌شه، پس چیزی هم از صدای خودت کم نمی‌شه.'**
+  String get noise_cleaner_off_desc;
+
+  /// No description provided for @noise_cleaner_off_downside.
+  ///
+  /// In fa, this message translates to:
+  /// **'صداهای اطرافت هم رد می‌شن — باد، موتور، خیابون.'**
+  String get noise_cleaner_off_downside;
 
   /// No description provided for @noise_cleaner_downside_label.
   ///
