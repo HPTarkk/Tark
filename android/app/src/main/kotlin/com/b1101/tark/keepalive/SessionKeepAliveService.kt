@@ -59,6 +59,79 @@ class SessionKeepAliveService : Service() {
          * as `connectedDevice` instead (we're sustaining a Wi-Fi AP link).
          */
         const val EXTRA_USES_MIC = "uses_mic"
+
+        // ---- start/stop handshake ------------------------------------------
+        //
+        // `startForegroundService()` opens a window: the OS gives the app ~10s
+        // to get [startForeground] called, and killing the service inside that
+        // window is a fatal RemoteServiceException ("did not then call
+        // Service.startForeground()"). The service cannot defend itself —
+        // [startForeground] is the first thing onStartCommand does, but a
+        // `stopService()` that lands before onStartCommand runs means it never
+        // runs at all. Confirmed on a Galaxy S8+ (Android 9) by tapping host
+        // and immediately backing out of the pairing screen.
+        //
+        // So a stop arriving mid-window is not delivered as `stopService()` at
+        // all: [KeepAliveHandler] parks it here and this service honours it via
+        // [stopSelf] the moment it has legally entered the foreground.
+        //
+        // Main thread only, by construction: onStartCommand and the Dart method
+        // channel both run there, so no locking and no volatiles.
+
+        /** startForegroundService() calls whose onStartCommand hasn't run yet. */
+        private var pendingStarts = 0
+
+        /** A stop that arrived mid-window, waiting for the start to land. */
+        private var stopQueued = false
+
+        /** True while a parked stop is still waiting on a start. */
+        val isStopPending: Boolean get() = stopQueued
+
+        /** Records that a start was just handed to the OS. */
+        fun onStartIssued() {
+            pendingStarts++
+            // A start supersedes a stop parked before it, or the service would
+            // shut itself down the instant this new start landed.
+            stopQueued = false
+        }
+
+        /** Undoes [onStartIssued] when the OS refused the start outright. */
+        fun onStartFailed() {
+            pendingStarts = (pendingStarts - 1).coerceAtLeast(0)
+        }
+
+        /**
+         * @return true if the caller may `stopService()` right now; false if the
+         * stop was parked because a start is still in flight.
+         */
+        fun queueStopIfStarting(): Boolean {
+            if (pendingStarts == 0) return true
+            stopQueued = true
+            return false
+        }
+
+        /** Gives up on a start that never reached onStartCommand. */
+        fun abandonPendingStart() {
+            pendingStarts = 0
+            stopQueued = false
+        }
+
+        /** Marks one queued start as delivered. */
+        private fun onStartDelivered() {
+            pendingStarts = (pendingStarts - 1).coerceAtLeast(0)
+        }
+
+        /**
+         * Whether this delivery should shut the service back down: a stop was
+         * parked mid-window and this was the last start still owed. With more
+         * starts still queued the flag is left for the last of them, since
+         * stopping now would only reopen the same window.
+         */
+        private fun consumeQueuedStop(): Boolean {
+            if (!stopQueued || pendingStarts > 0) return false
+            stopQueued = false
+            return true
+        }
     }
 
     private var wakeLock: PowerManager.WakeLock? = null
@@ -105,6 +178,17 @@ class SessionKeepAliveService : Service() {
             // Best-effort: e.g. Android 14 rejecting a microphone FGS when the
             // mic while-in-use op isn't held. Bail cleanly rather than crash —
             // the session simply runs without the keep-alive guarantees.
+            abandonPendingStart()
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        // Past startForeground(), so the window is closed and stopping is safe
+        // again. START_STICKY restarts arrive with no start of ours behind them;
+        // the counter floors at zero for those.
+        onStartDelivered()
+        if (consumeQueuedStop()) {
+            // Someone asked to stop while we were still starting. Honour it now
+            // rather than take locks we'd release in the same breath.
             stopSelf()
             return START_NOT_STICKY
         }

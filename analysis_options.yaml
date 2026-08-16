@@ -14,6 +14,13 @@ analyzer:
     # Vendored third-party plugin (patched copy of pub's audio_io) — not
     # held to this project's lint standards.
     - packages/audio_io/**
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
 
 linter:
   # The lint rules applied to this project can be customized in the

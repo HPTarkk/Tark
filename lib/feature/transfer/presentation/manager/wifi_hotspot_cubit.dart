@@ -341,7 +341,27 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
         await _joiner.leave();
       } else {
         await _hotspot.stop();
-        unawaited(_keepAlive.stop());
+        // The keep-alive deliberately survives this. It is one process-wide
+        // foreground service, not a thing each role owns a copy of, and
+        // [_onJoined] — the only caller that gets here — starts it again with
+        // the same arguments the host used, two statements later.
+        //
+        // Stopping it here therefore bought nothing and cost the app: this
+        // method is not awaited, so the start lands first and the stop arrives
+        // in the window between `startForegroundService()` and the service's
+        // own `startForeground()`. Android answers that with a fatal
+        // RemoteServiceException — "did not then call Service.startForeground()"
+        // — which is not an ANR but a kill, and reads on the phone as the app
+        // vanishing to the launcher a moment after the join. Caught on a Galaxy
+        // S8+ 52ms after the join line:
+        //
+        //   07:27:30.179  link: joined now — dropped our own hotspot
+        //   07:27:30.196  Bringing down service while still waiting for start
+        //                 foreground: SessionKeepAliveService
+        //   07:27:30.230  FATAL EXCEPTION: main
+        //
+        // [backToRoleChoice] still stops it, and should: nothing restarts it
+        // there.
       }
       Logger.diagnostic(
         nowHosting

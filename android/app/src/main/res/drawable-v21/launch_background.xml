@@ -2,8 +2,14 @@
 <!-- Modify this file to customize your launch splash screen -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Brand background (matches AppPalette.dark.background) so cold start
-         doesn't flash white before the Flutter splash page takes over. -->
-    <item android:color="#FF0B0E11" />
+         doesn't flash white before the Flutter splash page takes over.
+
+         Must be a nested drawable rather than an android:color attribute on
+         the item — see the drawable/ copy of this file for what an item with
+         no drawable does to the starting window. -->
+    <item>
+        <color android:color="#FF0B0E11" />
+    </item>
 
     <!-- You can insert your own image assets here -->
     <!-- <item>

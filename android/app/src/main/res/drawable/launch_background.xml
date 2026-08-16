@@ -2,8 +2,28 @@
 <!-- Modify this file to customize your launch splash screen -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Brand background (matches AppPalette.dark.background) so cold start
-         doesn't flash white before the Flutter splash page takes over. -->
-    <item android:color="#FF0B0E11" />
+         doesn't flash white before the Flutter splash page takes over.
+
+         The colour must be a nested drawable, not an android:color attribute
+         on the item. A layer-list item takes android:drawable or a child
+         drawable tag and nothing else; android:color is a real attribute id
+         elsewhere (shape solids, colour state lists), so aapt accepts it here
+         without complaint and LayerDrawable then throws at inflation time for
+         an item that declares no drawable at all.
+
+         Nothing in the app notices, because the failure lands in the system:
+         the starting window is inflated by system_server from this theme, and
+         when it cannot be inflated the window is simply not created —
+
+           W WindowManager: Token{... com.b1101.tark/.MainActivity ...}
+                            failed creating starting window
+
+         which on the home screen reads as the launcher's icon expanding into
+         an empty transparent frame instead of the brand colour, until Flutter
+         draws its first frame. -->
+    <item>
+        <color android:color="#FF0B0E11" />
+    </item>
 
     <!-- You can insert your own image assets here -->
     <!-- <item>

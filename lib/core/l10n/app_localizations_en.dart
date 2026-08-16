@@ -433,7 +433,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noise_filter_strong => 'HIGH';
 
   @override
-  String get noise_filter_cleaner_off => 'Off while no cleaner is picked below.';
+  String get noise_filter_cleaner_off =>
+      'Off while no cleaner is picked below.';
 
   @override
   String get settings_advanced_row => 'Advanced settings';

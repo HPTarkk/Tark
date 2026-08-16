@@ -19,6 +19,7 @@ import '../../domain/service/sender_route_pin.dart';
 import '../../domain/service/session_role_store.dart';
 import '../codec/opus_audio_codec.dart';
 import '../codec/waki_packet_codec.dart';
+import 'broadcast_policy.dart';
 import 'discovery_sweep.dart';
 
 const kBroadcastPort = 4000;
@@ -259,7 +260,7 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     try {
       await _ensureSendSocket();
       final packet = _codec.encodeAudio(samples, senderName, _audioSeq++);
-      _sendToAllTargets(packet);
+      _sendToAllTargets(packet, isAudio: true);
       return const Right(null);
     } catch (error) {
       Logger.log(error);
@@ -283,7 +284,7 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
         // has died find out. See [PresencePacket.heardIds].
         heardIds: _currentlyHeardSenders(),
       );
-      _sendToAllTargets(packet);
+      _sendToAllTargets(packet, isAudio: false);
       _sweepIfUndiscovered(packet);
       _logSessionState();
       return const Right(null);
@@ -748,7 +749,7 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     return _heardSenders.keys.toList(growable: false);
   }
 
-  void _sendToAllTargets(List<int> packet) {
+  void _sendToAllTargets(List<int> packet, {required bool isAudio}) {
     final now = DateTime.now();
     // Losing the unicast path matters on its own: where broadcast does not
     // cross a SoftAP, unicast is the ONLY delivery, and it lasts exactly as
@@ -783,8 +784,18 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     // See [_broadcastsFor] — this is the send half of subnet pinning, and the
     // ordering matters: the peer set is aged above, so a subnet whose peers
     // have all gone silent stops being broadcast to on this very tick.
-    for (final target in _broadcastsFor(unicast)) {
-      _trySend(packet, target);
+    //
+    // Audio skips this leg entirely while the unicasts already cover every
+    // known peer, which after narrowing they always do — see
+    // [needsBroadcastLeg] for the doubled-delivery this ends.
+    if (needsBroadcastLeg(
+      isAudio: isAudio,
+      hasLivePeers: _peers.isNotEmpty,
+      unicastFailing: _sendFailingSince != null,
+    )) {
+      for (final target in _broadcastsFor(unicast)) {
+        _trySend(packet, target);
+      }
     }
 
     var failed = 0;

@@ -173,7 +173,11 @@ class HotspotHandler(
                         // attempt.
                         if (gen != generation) {
                             Log.i(TAG, "onStarted for a superseded attempt — closing it")
-                            runCatching { res.close() }
+                            // Off the main thread for the same reason as [stop]
+                            // — this callback lands on the main looper, and the
+                            // supersession that got us here is usually a
+                            // re-host, so the radio is as busy as it ever gets.
+                            releaseAsync(res)
                             return
                         }
                         // A fresh AP is up: any later onStopped without an
@@ -430,12 +434,45 @@ class HotspotHandler(
             pendingResult = null
             mainHandler.post { result.error(CANCELLED, "Hotspot start cancelled", null) }
         }
-        try {
-            reservation?.close()
-        } catch (_: Exception) {
-        }
+        // State first, close after. Every field this method touches is now
+        // consistent for anything that runs before the AP has actually gone,
+        // and the release itself no longer sits in the way — see [releaseAsync].
+        val doomed = reservation
         reservation = null
         isHosting = false
+        releaseAsync(doomed)
+    }
+
+    /**
+     * Hands a reservation back to the framework off the main thread.
+     *
+     * `LocalOnlyHotspotReservation.close()` is a synchronous binder call into
+     * system_server, and method-channel handlers run on the platform thread —
+     * which on Android is the main thread. That was survivable while the only
+     * caller was the user leaving a session they had been hosting.
+     *
+     * It stopped being survivable when joining started releasing our own AP
+     * (WifiHotspotCubit._dropOtherSide, reached from _onJoined). That fires the
+     * teardown at the single worst moment: WifiService is mid-association on the
+     * network we just joined, and on a single-radio phone releasing the SoftAP
+     * means a full radio mode switch it cannot even begin until the association
+     * settles. The binder call blocks behind all of it. Measured on a Galaxy S8+
+     * (Android 9): ANR immediately after the join, app gone from the screen.
+     *
+     * Nothing here needs the answer. `close()` returns no result, and the AP
+     * going down is reported through `onStopped` on the main looper regardless
+     * of which thread asked for it — so [stop] clears its own state up front and
+     * lets the release land whenever the framework gets to it.
+     *
+     * The thread is a daemon on purpose: `onDestroy` calls [stop], and a release
+     * in flight must not be what keeps the process alive, nor be cancelled by
+     * the activity going away before the AP is down.
+     */
+    private fun releaseAsync(res: WifiManager.LocalOnlyHotspotReservation?) {
+        if (res == null) return
+        Thread({ runCatching { res.close() } }, "tark-hotspot-release")
+            .apply { isDaemon = true }
+            .start()
     }
 
     private data class Credentials(
