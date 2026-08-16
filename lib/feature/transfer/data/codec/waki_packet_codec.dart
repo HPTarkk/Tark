@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import '../../../../core/identity/session_epoch.dart';
+import '../../domain/entity/control_packet.dart';
 import '../../domain/entity/session_role.dart';
 import '../../domain/entity/waki_packet.dart';
 import 'opus_audio_codec.dart';
@@ -17,48 +19,82 @@ const kPresenceV2Byte = 0x04;
 const kAudioV2Byte = 0x05;
 const kOpusAudioV2Byte = 0x06;
 
+// v3 adds the sender's session epoch after the device id. Same reasoning as
+// v1 → v2: a new type byte rather than a new field, because a v2 decoder
+// reading 0x05 would take the epoch's bytes as the start of the name length
+// and produce garbage, while 0x08 is simply dropped.
+//
+// The epoch could not ride as a trailing byte the way the presence role and
+// heard list do. That trick works only where the message ends in a known
+// place — an audio packet ends in a variable-length payload with no
+// terminator, so anything appended is indistinguishable from more audio.
+const kPresenceV3Byte = 0x07;
+const kAudioV3Byte = 0x08;
+const kOpusAudioV3Byte = 0x09;
+
+// Transport control, on the same v3 header. Decoded into [ControlPacket] and
+// answered by the transport itself, never surfaced to the session — see
+// [WakiPacketCodec.decodeControl].
+const kPingByte = 0x0A;
+const kPongByte = 0x0B;
+
 /// Transport-agnostic encode/decode for the [WakiPacket] wire format.
 ///
 /// Shared by every [TransferRepository] implementation (WiFi UDP, Bluetooth
 /// Classic, BLE) so they all speak identical bytes — only how those bytes
 /// reach the other device differs per transport.
 ///
-/// Wire format, v2 — what this build sends (integers little-endian):
-///   byte 0:        type (0x04 = presence, 0x05 = PCM16 audio, 0x06 = Opus)
+/// Wire format, v3 — what this build sends (integers little-endian):
+///   byte 0:        type (0x07 = presence, 0x08 = PCM16 audio, 0x09 = Opus)
 ///   byte 1:        sender device id length (uint8)
 ///   bytes 2..:     sender device id (ASCII hex, see [DeviceIdentity])
+///   next 4:        sender session epoch (uint32, see [SessionEpoch])
 ///   next 4:        sender name length (uint32)
 ///   next:          sender name (UTF-8)
 ///   presence:      1 byte isTalking (0/1) + 1 byte session role
+///                  + optional heard-id list
 ///   audio:         4 bytes seq (uint32) + payload (PCM16 or one Opus packet)
 ///
 /// The role byte was appended after v2 shipped, deliberately without a new
 /// type: a build that predates it stops reading after isTalking, so its
 /// decode is unaffected, and a packet from such a build is simply one byte
-/// short — read back as [SessionRole.unknown].
+/// short — read back as [SessionRole.unknown]. The heard-id list was appended
+/// after the role byte on the same terms.
 ///
-/// v1 (types 0x01/0x02/0x03) is the same without the device-id prefix, and is
-/// still decoded — the sender's id then falls back to whatever the transport
-/// supplies. Nothing emits it any more: identity that came from the transport
-/// was the bug the id exists to fix (see [DeviceIdentity]).
+/// v2 (types 0x04/0x05/0x06) is the same without the epoch, and v1
+/// (0x01/0x02/0x03) without the device-id prefix either. Both are still
+/// decoded, so a newer build hears an older one; a v1 sender's id falls back
+/// to whatever the transport supplies, and a v1/v2 sender's epoch reads back
+/// as [kUnknownSessionEpoch] — "expressed no opinion", never compared against
+/// a real epoch and never a reason to drop anything.
+///
+/// Nothing emits v1 or v2 any more. Identity that came from the transport was
+/// the bug the device id exists to fix (see [DeviceIdentity]), and a session
+/// with no epoch cannot have its ghost packets told apart from its live ones
+/// (see [SessionEpochGate]).
 ///
 /// Audio is sent as Opus whenever libopus loaded ([OpusAudioCodec]); PCM16
 /// remains both the fallback and understood on receive, so mixed app
 /// versions still hear each other.
 class WakiPacketCodec {
-  WakiPacketCodec(this._deviceId) : _opus = OpusAudioCodec();
+  WakiPacketCodec(this._deviceId, this._epoch) : _opus = OpusAudioCodec();
 
   /// Stamped on everything this codec encodes, so a receiver keys the roster
   /// and the jitter buffer on the device rather than on the address the
   /// datagram happened to arrive from.
   final String _deviceId;
 
+  /// Read at encode time rather than captured in the constructor: the codec
+  /// outlives any one session, and a rejoin has to change what goes on the
+  /// wire without rebuilding it.
+  final SessionEpoch _epoch;
+
   final OpusAudioCodec _opus;
 
   Uint8List encodeAudio(List<double> samples, String senderName, int seq) {
     final opusPacket = _opus.encode(samples);
     if (opusPacket != null) {
-      return _buildAudioPacket(kOpusAudioV2Byte, senderName, seq, opusPacket);
+      return _buildAudioPacket(kOpusAudioV3Byte, senderName, seq, opusPacket);
     }
     // PCM16 fallback — halves float32 bandwidth with no audible quality
     // loss for voice.
@@ -69,7 +105,7 @@ class WakiPacketCodec {
       audioData.setInt16(i * 2, intVal, Endian.little);
     }
     return _buildAudioPacket(
-      kAudioV2Byte,
+      kAudioV3Byte,
       senderName,
       seq,
       audioData.buffer.asUint8List(),
@@ -82,7 +118,7 @@ class WakiPacketCodec {
     int seq,
     Uint8List payload,
   ) {
-    final builder = _startV2Packet(type, senderName);
+    final builder = _startV3Packet(type, senderName);
     builder.add(
       (ByteData(4)..setUint32(0, seq, Endian.little)).buffer.asUint8List(),
     );
@@ -96,7 +132,7 @@ class WakiPacketCodec {
     required SessionRole role,
     List<String>? heardIds,
   }) {
-    final builder = _startV2Packet(kPresenceV2Byte, senderName);
+    final builder = _startV3Packet(kPresenceV3Byte, senderName);
     builder.addByte(isTalking ? 0x01 : 0x00);
     builder.addByte(role.wireByte);
     // Appended after the role byte, by the same reasoning that put the role
@@ -141,8 +177,84 @@ class WakiPacketCodec {
   /// inside one datagram on any link.
   static const _maxHeardIds = 12;
 
-  /// Header every v2 message shares: type, device id, sender name.
-  BytesBuilder _startV2Packet(int type, String senderName) {
+  /// Whether [typeByte] is transport control rather than session traffic.
+  ///
+  /// Takes the raw first byte so a caller can branch before any parsing
+  /// happens. Audio arrives fifty times a second and control once — the common
+  /// path must not pay for the rare one.
+  static bool isControl(int typeByte) =>
+      typeByte == kPingByte || typeByte == kPongByte;
+
+  Uint8List encodePing({
+    required int token,
+    required int lastTxSeq,
+    required int lastRxSeq,
+    required int audioRxPackets,
+  }) => _buildControl(kPingByte, token, lastTxSeq, lastRxSeq, audioRxPackets);
+
+  Uint8List encodePong({
+    required int token,
+    required int lastTxSeq,
+    required int lastRxSeq,
+    required int audioRxPackets,
+  }) => _buildControl(kPongByte, token, lastTxSeq, lastRxSeq, audioRxPackets);
+
+  /// Control body: four uint32s after the shared header.
+  ///
+  /// The sender name is written as empty rather than omitted. Control rides the
+  /// same header as everything else so one parser serves the whole wire format,
+  /// and a name nobody displays would be bytes spent once a second forever.
+  Uint8List _buildControl(
+    int type,
+    int token,
+    int lastTxSeq,
+    int lastRxSeq,
+    int audioRxPackets,
+  ) {
+    final builder = _startV3Packet(type, '');
+    final body = ByteData(16)
+      ..setUint32(0, token, Endian.little)
+      ..setUint32(4, lastTxSeq, Endian.little)
+      ..setUint32(8, lastRxSeq, Endian.little)
+      ..setUint32(12, audioRxPackets, Endian.little);
+    builder.add(body.buffer.asUint8List());
+    return builder.toBytes();
+  }
+
+  /// Decodes a ping or pong. Null for anything else, including a well-formed
+  /// presence or audio packet — callers gate on [isControl] first.
+  ControlPacket? decodeControl(Uint8List bytes, String fallbackSenderId) {
+    if (bytes.isEmpty || !isControl(bytes[0])) return null;
+    final header = _readV3Header(bytes, fallbackSenderId);
+    if (header == null) return null;
+    final bodyStart = header.bodyStart;
+    if (bytes.length < bodyStart + 16) return null;
+    final bd = ByteData.sublistView(bytes);
+    final token = bd.getUint32(bodyStart, Endian.little);
+    final lastTxSeq = bd.getUint32(bodyStart + 4, Endian.little);
+    final lastRxSeq = bd.getUint32(bodyStart + 8, Endian.little);
+    final audioRx = bd.getUint32(bodyStart + 12, Endian.little);
+    return bytes[0] == kPingByte
+        ? PingPacket(
+            senderId: header.senderId,
+            sessionEpoch: header.epoch,
+            token: token,
+            lastTxSeq: lastTxSeq,
+            lastRxSeq: lastRxSeq,
+            audioRxPackets: audioRx,
+          )
+        : PongPacket(
+            senderId: header.senderId,
+            sessionEpoch: header.epoch,
+            token: token,
+            lastTxSeq: lastTxSeq,
+            lastRxSeq: lastRxSeq,
+            audioRxPackets: audioRx,
+          );
+  }
+
+  /// Header every v3 message shares: type, device id, session epoch, name.
+  BytesBuilder _startV3Packet(int type, String senderName) {
     final idBytes = utf8.encode(_deviceId);
     final nameBytes = utf8.encode(senderName);
     final builder = BytesBuilder(copy: false);
@@ -151,6 +263,11 @@ class WakiPacketCodec {
     // would be three wasted bytes on every audio frame.
     builder.addByte(idBytes.length);
     builder.add(idBytes);
+    builder.add(
+      (ByteData(
+        4,
+      )..setUint32(0, _epoch.value, Endian.little)).buffer.asUint8List(),
+    );
     builder.add(
       (ByteData(
         4,
@@ -170,40 +287,22 @@ class WakiPacketCodec {
   WakiPacket? decode(Uint8List bytes, String fallbackSenderId) {
     if (bytes.isEmpty) return null;
     final type = bytes[0];
-
-    // Where the v1 header starts, and who the sender is, are the only two
-    // things that differ between the versions — the rest is byte-identical.
-    final int headerEnd;
-    final String senderId;
-    if (_isV2(type)) {
-      if (bytes.length < 2) return null;
-      final idLen = bytes[1];
-      if (bytes.length < 2 + idLen) return null;
-      senderId = utf8.decode(bytes.sublist(2, 2 + idLen), allowMalformed: true);
-      if (senderId.isEmpty) return null;
-      headerEnd = 2 + idLen;
-    } else {
-      senderId = fallbackSenderId;
-      headerEnd = 1;
-    }
-
-    if (bytes.length < headerEnd + 4) return null;
+    final header = _readV3Header(bytes, fallbackSenderId);
+    if (header == null) return null;
+    final senderId = header.senderId;
+    final epoch = header.epoch;
+    final name = header.senderName;
+    final bodyStart = header.bodyStart;
     final bd = ByteData.sublistView(bytes);
-    final nameLen = bd.getUint32(headerEnd, Endian.little);
-    final nameStart = headerEnd + 4;
-    if (bytes.length < nameStart + nameLen) return null;
 
-    final name = utf8.decode(
-      bytes.sublist(nameStart, nameStart + nameLen),
-      allowMalformed: true,
-    );
-    final bodyStart = nameStart + nameLen;
-
-    if (type == kPresenceByte || type == kPresenceV2Byte) {
+    if (type == kPresenceByte ||
+        type == kPresenceV2Byte ||
+        type == kPresenceV3Byte) {
       if (bytes.length < bodyStart + 1) return null;
       return PresencePacket(
         senderId: senderId,
         senderName: name,
+        sessionEpoch: epoch,
         isTalking: bytes[bodyStart] == 0x01,
         // Optional trailing byte — absent from every build before roles.
         role: bytes.length > bodyStart + 1
@@ -215,8 +314,12 @@ class WakiPacketCodec {
       );
     }
 
-    final isOpus = type == kOpusAudioByte || type == kOpusAudioV2Byte;
-    final isPcm = type == kAudioByte || type == kAudioV2Byte;
+    final isOpus =
+        type == kOpusAudioByte ||
+        type == kOpusAudioV2Byte ||
+        type == kOpusAudioV3Byte;
+    final isPcm =
+        type == kAudioByte || type == kAudioV2Byte || type == kAudioV3Byte;
     if (isOpus || isPcm) {
       if (bytes.length < bodyStart + 4) return null;
       final seq = bd.getUint32(bodyStart, Endian.little);
@@ -231,6 +334,7 @@ class WakiPacketCodec {
       return AudioPacket(
         senderId: senderId,
         senderName: name,
+        sessionEpoch: epoch,
         samples: samples,
         seq: seq,
       );
@@ -266,10 +370,73 @@ class WakiPacketCodec {
     return ids;
   }
 
+  /// The part of the header every message shares, whatever its version or
+  /// whether it is session traffic or control.
+  ///
+  /// Where the name length starts, who the sender is, and whether an epoch was
+  /// stated are the only things that differ between versions — from the name
+  /// length on, all of them are byte-identical, which is what lets one parser
+  /// serve presence, audio, ping and pong alike.
+  ///
+  /// Null for anything too short to hold what it claims. Every length check
+  /// lives here rather than at the call sites, so a truncated datagram cannot
+  /// reach a body reader at all.
+  _V3Header? _readV3Header(Uint8List bytes, String fallbackSenderId) {
+    if (bytes.isEmpty) return null;
+    final type = bytes[0];
+
+    final int headerEnd;
+    final String senderId;
+    var epoch = kUnknownSessionEpoch;
+    final carriesId = _isV2(type) || _isV3(type) || isControl(type);
+    if (carriesId) {
+      if (bytes.length < 2) return null;
+      final idLen = bytes[1];
+      if (bytes.length < 2 + idLen) return null;
+      senderId = utf8.decode(bytes.sublist(2, 2 + idLen), allowMalformed: true);
+      if (senderId.isEmpty) return null;
+      final idEnd = 2 + idLen;
+      // Control was born on v3 and has no earlier form, so it always states an
+      // epoch — a pong that could not say which join it answered for would be
+      // unable to do the one job it has.
+      if (_isV3(type) || isControl(type)) {
+        if (bytes.length < idEnd + 4) return null;
+        epoch = ByteData.sublistView(bytes).getUint32(idEnd, Endian.little);
+        headerEnd = idEnd + 4;
+      } else {
+        headerEnd = idEnd;
+      }
+    } else {
+      senderId = fallbackSenderId;
+      headerEnd = 1;
+    }
+
+    if (bytes.length < headerEnd + 4) return null;
+    final nameLen = ByteData.sublistView(
+      bytes,
+    ).getUint32(headerEnd, Endian.little);
+    final nameStart = headerEnd + 4;
+    if (bytes.length < nameStart + nameLen) return null;
+    return _V3Header(
+      senderId: senderId,
+      epoch: epoch,
+      senderName: utf8.decode(
+        bytes.sublist(nameStart, nameStart + nameLen),
+        allowMalformed: true,
+      ),
+      bodyStart: nameStart + nameLen,
+    );
+  }
+
   static bool _isV2(int type) =>
       type == kPresenceV2Byte ||
       type == kAudioV2Byte ||
       type == kOpusAudioV2Byte;
+
+  static bool _isV3(int type) =>
+      type == kPresenceV3Byte ||
+      type == kAudioV3Byte ||
+      type == kOpusAudioV3Byte;
 
   /// Tells the Opus encoder what the outgoing stream is carrying, so a music
   /// cast is not encoded through a speech model. See [OpusEncodeProfile].
@@ -289,4 +456,22 @@ class WakiPacketCodec {
       (i) => bd.getInt16(i * 2, Endian.little) / 32768.0,
     );
   }
+}
+
+/// Everything a decoder needs before it knows what kind of message it has.
+class _V3Header {
+  const _V3Header({
+    required this.senderId,
+    required this.epoch,
+    required this.senderName,
+    required this.bodyStart,
+  });
+
+  final String senderId;
+  final int epoch;
+  final String senderName;
+
+  /// Index of the first byte after the header — where the type-specific body
+  /// begins.
+  final int bodyStart;
 }

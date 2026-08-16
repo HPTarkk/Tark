@@ -13,6 +13,7 @@ export '../domain/entity/guest_link_state.dart';
 export '../domain/entity/session_role.dart';
 export '../domain/entity/transfer_mode.dart';
 export '../domain/entity/transfer_mode_analytics.dart';
+export '../domain/entity/transport_stats.dart';
 export '../domain/entity/waki_packet.dart';
 export '../domain/entity/wifi_hotspot_segment.dart';
 export '../domain/repository/guest_link_controller.dart';
@@ -21,6 +22,10 @@ export '../domain/repository/transfer_repository.dart';
 // troubleshooting surface offers "turn Wi-Fi on" when a session has no local
 // address, and this is where that native panel call already lives.
 export '../domain/service/hotspot_control.dart' show HotspotJoiner;
+// The channel screen grades its own link: the two inputs the transport cannot
+// know about (whether peers confirm they hear us, and whether the roster is
+// empty) live in the cubit, so the grading happens there rather than here.
+export '../domain/service/link_quality.dart';
 export '../domain/service/transfer_mode_store.dart';
 export '../presentation/page/bluetooth_connect_page.dart';
 export '../presentation/page/guest_link_page.dart';

@@ -42,7 +42,7 @@
 /// entitlement. Keeping the leg that is known to have carried traffic is the
 /// conservative choice, not the aggressive one.
 ///
-/// Two ways back to broadcasting audio anyway, both meaning unicast cannot be
+/// Three ways back to broadcasting audio anyway, all meaning unicast cannot be
 /// trusted to carry the session on its own:
 ///
 ///  * [hasLivePeers] false — the sender is falling back to its recovery set, or
@@ -50,11 +50,30 @@
 ///  * [unicastFailing] true — every unicast in the last window failed, and
 ///    until the send path grades healthy again the broadcast is the only leg
 ///    that might still be getting through.
+///  * [unicastUnconfirmed] true — a peer we can plainly hear has stopped
+///    answering pings on the unicast path (see `PeerPingTracker`).
+///
+/// ## Why the third one had to be added
+///
+/// [unicastFailing] is graded from send() return values across *all* targets
+/// at once, and a send that the kernel accepts is counted as a success — which
+/// it is, locally. Neither of those catches the case where the datagram leaves
+/// happily and is dropped somewhere between here and one particular peer: AP
+/// client isolation, a stale ARP entry, a peer that moved subnet. The send
+/// grader sees `failed < attempted` and calls the path healthy.
+///
+/// Everything else then agrees with it. The peer is still heard, because its
+/// presence reaches us; it still lists us in `heardIds`, because our presence
+/// reaches it on the broadcast leg. The only thing that does not arrive is the
+/// audio, which is the one thing travelling unicast-only. A pong is the single
+/// signal that can tell those apart, which is why it is worth a packet a
+/// second.
 bool needsBroadcastLeg({
   required bool isAudio,
   required bool hasLivePeers,
   required bool unicastFailing,
+  bool unicastUnconfirmed = false,
 }) {
   if (!isAudio) return true;
-  return !hasLivePeers || unicastFailing;
+  return !hasLivePeers || unicastFailing || unicastUnconfirmed;
 }

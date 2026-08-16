@@ -6,12 +6,14 @@ import 'package:injectable/injectable.dart';
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/identity/device_identity.dart';
+import '../../../../core/identity/session_epoch.dart';
 import '../../../../core/utils/exponential_backoff.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entity/audio_profile.dart';
 import '../../domain/entity/connection_health.dart';
 import '../../domain/entity/guest_link_state.dart';
 import '../../domain/entity/session_role.dart';
+import '../../domain/entity/transport_stats.dart';
 import '../../domain/entity/waki_packet.dart';
 import '../../domain/repository/guest_link_controller.dart';
 import '../../domain/repository/transfer_repository.dart';
@@ -39,9 +41,15 @@ class WebRtcTransferRepository
     implements TransferRepository, GuestLinkController {
   final DeviceIdentity _identity;
 
-  WebRtcTransferRepository(this._identity);
+  /// Stamped but not enforced, for the same reason as Bluetooth — see the
+  /// note on [BluetoothTransferRepository]. A closed data channel takes its
+  /// buffered frames with it, so no packet can outlive the session it was
+  /// sent in.
+  final SessionEpoch _epoch;
 
-  late final _codec = WakiPacketCodec(_identity.id);
+  WebRtcTransferRepository(this._identity, this._epoch);
+
+  late final _codec = WakiPacketCodec(_identity.id, _epoch);
 
   final _packetController = StreamController<WakiPacket>.broadcast();
   final _connectionController = StreamController<ConnectionHealth>.broadcast();
@@ -208,6 +216,12 @@ class WebRtcTransferRepository
 
   @override
   Stream<WakiPacket> startListening() => _packetController.stream;
+
+  /// Point-to-point: no routes to duplicate across, no broadcast queue to back
+  /// up, and a send path that either works or has already reported the link
+  /// down. Nothing here to measure that the health status does not say.
+  @override
+  TransportStats get stats => TransportStats.none;
 
   @override
   Future<Either<Failure, void>> sendAudio(

@@ -2,14 +2,32 @@ import 'package:equatable/equatable.dart';
 
 import 'session_role.dart';
 
+/// Epoch carried by a packet from a build that predates the field (wire v1 and
+/// v2). Not a session anyone can reason about — it means "the sender expressed
+/// no opinion" — so it is never compared against a real epoch and never used
+/// to drop anything. [SessionEpoch] starts its counting at 1, so no build that
+/// does stamp an epoch can ever emit this value.
+const kUnknownSessionEpoch = 0;
+
 sealed class WakiPacket extends Equatable {
   final String senderId;
   final String senderName;
 
-  const WakiPacket({required this.senderId, required this.senderName});
+  /// Which of the sender's joins this packet belongs to. See [SessionEpoch]
+  /// for why it exists and [SessionEpochGate] for what reads it.
+  final int sessionEpoch;
+
+  const WakiPacket({
+    required this.senderId,
+    required this.senderName,
+    this.sessionEpoch = kUnknownSessionEpoch,
+  });
+
+  /// Whether this packet says anything about which join it came from.
+  bool get hasSessionEpoch => sessionEpoch != kUnknownSessionEpoch;
 
   @override
-  List<Object?> get props => [senderId, senderName];
+  List<Object?> get props => [senderId, senderName, sessionEpoch];
 }
 
 final class PresencePacket extends WakiPacket {
@@ -42,6 +60,7 @@ final class PresencePacket extends WakiPacket {
     required super.senderId,
     required super.senderName,
     required this.isTalking,
+    super.sessionEpoch,
     this.role = SessionRole.unknown,
     this.heardIds,
   });
@@ -62,6 +81,7 @@ final class AudioPacket extends WakiPacket {
     required super.senderName,
     required this.samples,
     required this.seq,
+    super.sessionEpoch,
   });
 
   @override

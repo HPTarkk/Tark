@@ -4,6 +4,7 @@ import '../../../../core/error/failure.dart';
 import '../entity/audio_profile.dart';
 import '../entity/connection_health.dart';
 import '../entity/session_role.dart';
+import '../entity/transport_stats.dart';
 import '../entity/waki_packet.dart';
 
 abstract interface class TransferRepository {
@@ -29,6 +30,12 @@ abstract interface class TransferRepository {
   void setAudioProfile(AudioProfile profile);
 
   Stream<ConnectionHealth> connect();
+
+  /// Cumulative counters for grading the link, sampled by the caller on
+  /// whatever cadence it likes. [TransportStats.none] on transports that
+  /// measure none of it — a point-to-point link either carries traffic or is
+  /// disconnected, and has no route duplicates or broadcast queue to report.
+  TransportStats get stats;
 
   void stopConnection();
 

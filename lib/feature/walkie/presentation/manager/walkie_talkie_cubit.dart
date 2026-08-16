@@ -420,6 +420,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
 
     _presenceTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       _broadcastPresence();
+      _gradeLink();
       _logTransmitState();
       _logMusicHealth();
       unawaited(_checkMusicBlocked());
@@ -466,11 +467,15 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   /// two noticed it first.
   void _applyHealth(ConnectionHealth health) {
     if (isClosed || state.connectionHealth == health) return;
-    final wasHealthy = state.connectionHealth.isHealthy;
+    // Graded on [ConnectionHealth.isLive], not isHealthy. A degraded link is
+    // being repaired quietly and by design says nothing — playing link-lost
+    // for it would put the alarm back on exactly the two-second dips the
+    // degraded rung exists to absorb.
+    final wasLive = state.connectionHealth.isLive;
     emit(state.copyWith(connectionHealth: health));
-    if (wasHealthy && !health.isHealthy) {
+    if (wasLive && !health.isLive) {
       _sfx.play(SfxEvent.linkLost);
-    } else if (!wasHealthy && health.isHealthy) {
+    } else if (!wasLive && health.isLive) {
       _sfx.play(SfxEvent.linkRestored);
       // Recovering from a drop can leave stale jitter-buffer/decoder state
       // from before the gap — clear it so playback doesn't pick up
@@ -525,8 +530,16 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
       _ when !s.isReady => HomeWidgetSession.connecting,
       _ when s.connectionHealth.status == ConnectionHealthStatus.down =>
         HomeWidgetSession.down,
-      _ when s.connectionHealth.status == ConnectionHealthStatus.reconnecting =>
-        HomeWidgetSession.reconnecting,
+      // Every rung that is not live reads as reconnecting here, rather than
+      // naming them: the widget has one glyph for "the app is working on it",
+      // and matching only ConnectionHealthStatus.reconnecting would let the
+      // harder rung above it (renegotiating) fall through to "listening" — the
+      // widget cheerfully reporting a healthy channel during the worst state
+      // the link can be in short of down.
+      //
+      // Degraded is live and so lands below with the ordinary states, which is
+      // the intent: the quiet rung is quiet here too.
+      _ when !s.connectionHealth.isLive => HomeWidgetSession.reconnecting,
       _ when s.isTransmitting => HomeWidgetSession.onAir,
       // Muted only wins when nothing is actually going out — a music share
       // keeps the channel hot even with the mic closed.
@@ -1000,6 +1013,46 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     }
   }
 
+  /// Grades the link from what the transport has counted since the last tick.
+  ///
+  /// Diffed rather than read absolutely: [TransportStats] counters are
+  /// cumulative for the session, so the rate over this 2 s window is the
+  /// difference from the previous sample. A session that shed packets early
+  /// and has been clean for ten minutes must not still be reporting weak.
+  void _gradeLink() {
+    if (isClosed) return;
+    final now = _transferRepository.stats;
+    final previous = _lastStats;
+    _lastStats = now;
+
+    final quality = const LinkQualityGrader().grade(
+      LinkSignals(
+        health: state.connectionHealth,
+        sendFailing: now.sendFailing,
+        unheardByPeers: state.unheardByPeers,
+        unicastUnconfirmed: now.unicastUnconfirmed,
+        rtt: now.rtt,
+        staleEpochDrops: now.staleEpochDrops - previous.staleEpochDrops,
+        duplicateRouteDrops:
+            now.duplicateRouteDrops - previous.duplicateRouteDrops,
+        blockedSends: now.blockedSends - previous.blockedSends,
+        // The roster, not the transport's peer map: Bluetooth and the guest
+        // link report no peers at all (TransportStats.none), and grading those
+        // as an empty channel would peg every point-to-point session at good.
+        hasPeers: state.activeUsers.isNotEmpty,
+      ),
+    );
+    if (quality != state.linkQuality) {
+      Logger.diagnostic(
+        'link quality: ${state.linkQuality.name} → ${quality.name}',
+      );
+      emit(state.copyWith(linkQuality: quality));
+    }
+  }
+
+  /// Previous [TransportStats] sample, so the counters can be diffed.
+  TransportStats _lastStats = TransportStats.none;
+
   /// Records what a peer says about whether it can hear us.
   ///
   /// A null [PresencePacket.heardIds] is silence, not a denial — it comes from
@@ -1306,7 +1359,12 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
         txCount: _txCount,
         reason: switch (state) {
           _ when state.startFailed => SessionEndReason.error,
-          _ when !state.connectionHealth.isHealthy =>
+          // isLive, not isHealthy: a session that ended during a quiet repair
+          // was almost certainly ended by the user — the degraded rung lasts a
+          // few seconds and they were never told about it. Counting those as
+          // connection losses would inflate the one number this event exists
+          // to measure.
+          _ when !state.connectionHealth.isLive =>
             SessionEndReason.connectionLost,
           _ => SessionEndReason.userLeft,
         },
@@ -1433,6 +1491,11 @@ class WalkieTalkieState extends Equatable {
   /// [PresencePacket.heardIds].
   final bool unheardByPeers;
 
+  /// How well the link is carrying voice right now, as one word. Graded on the
+  /// presence tick from [LinkQualityGrader]; see it for why this is not a
+  /// packet-loss percentage.
+  final LinkQuality linkQuality;
+
   const WalkieTalkieState({
     required this.localId,
     required this.myName,
@@ -1455,6 +1518,7 @@ class WalkieTalkieState extends Equatable {
     required this.networkMissing,
     required this.isAlone,
     required this.unheardByPeers,
+    required this.linkQuality,
   });
 
   factory WalkieTalkieState.initial() => const WalkieTalkieState(
@@ -1479,6 +1543,7 @@ class WalkieTalkieState extends Equatable {
     networkMissing: false,
     isAlone: false,
     unheardByPeers: false,
+    linkQuality: LinkQuality.excellent,
   );
 
   WalkieTalkieState copyWith({
@@ -1503,6 +1568,7 @@ class WalkieTalkieState extends Equatable {
     bool? networkMissing,
     bool? isAlone,
     bool? unheardByPeers,
+    LinkQuality? linkQuality,
   }) => WalkieTalkieState(
     localId: localId ?? this.localId,
     myName: myName ?? this.myName,
@@ -1526,6 +1592,7 @@ class WalkieTalkieState extends Equatable {
     networkMissing: networkMissing ?? this.networkMissing,
     isAlone: isAlone ?? this.isAlone,
     unheardByPeers: unheardByPeers ?? this.unheardByPeers,
+    linkQuality: linkQuality ?? this.linkQuality,
   );
 
   bool get isSomeoneElseTalking => activeUsers.any((u) => u.isTalking);
@@ -1563,6 +1630,7 @@ class WalkieTalkieState extends Equatable {
     networkMissing,
     isAlone,
     unheardByPeers,
+    linkQuality,
   ];
 }
 

@@ -2,7 +2,9 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tark/core/identity/session_epoch.dart';
 import 'package:tark/feature/transfer/data/codec/waki_packet_codec.dart';
+import 'package:tark/feature/transfer/domain/entity/control_packet.dart';
 import 'package:tark/feature/transfer/domain/entity/session_role.dart';
 import 'package:tark/feature/transfer/domain/entity/waki_packet.dart';
 
@@ -22,13 +24,48 @@ Uint8List v1Presence(String name, {required bool isTalking}) {
   return builder.toBytes();
 }
 
+/// Builds a v2 packet — the pre-epoch format, which nothing emits any more but
+/// every decoder still has to understand.
+Uint8List v2Presence(
+  String deviceId,
+  String name, {
+  required bool isTalking,
+  required SessionRole role,
+}) {
+  final idBytes = utf8.encode(deviceId);
+  final nameBytes = utf8.encode(name);
+  final builder = BytesBuilder(copy: false);
+  builder.addByte(kPresenceV2Byte);
+  builder.addByte(idBytes.length);
+  builder.add(idBytes);
+  builder.add(
+    (ByteData(
+      4,
+    )..setUint32(0, nameBytes.length, Endian.little)).buffer.asUint8List(),
+  );
+  builder.add(nameBytes);
+  builder.addByte(isTalking ? 0x01 : 0x00);
+  builder.addByte(role.wireByte);
+  return builder.toBytes();
+}
+
+/// A recognisable non-zero epoch, so a field that failed to make it onto the
+/// wire reads back as [kUnknownSessionEpoch] rather than coincidentally
+/// matching.
+const kTestEpoch = 7;
+
 void main() {
   late WakiPacketCodec codec;
 
-  setUp(() => codec = WakiPacketCodec('abc123abc123'));
+  setUp(
+    () => codec = WakiPacketCodec(
+      'abc123abc123',
+      SessionEpoch.startingAt(kTestEpoch),
+    ),
+  );
   tearDown(() => codec.release());
 
-  group('v2 round trip', () {
+  group('v3 round trip', () {
     test('presence carries the sender device id, not the transport id', () {
       final packet = codec.decode(
         codec.encodePresence('Pedram', true, role: SessionRole.host),
@@ -68,10 +105,10 @@ void main() {
               as PresencePacket;
 
       test('carries the ids the sender says it can hear', () {
-        expect(
-          roundTrip(heardIds: ['aaa111aaa111', 'bbb222bbb222']).heardIds,
-          ['aaa111aaa111', 'bbb222bbb222'],
-        );
+        expect(roundTrip(heardIds: ['aaa111aaa111', 'bbb222bbb222']).heardIds, [
+          'aaa111aaa111',
+          'bbb222bbb222',
+        ]);
       });
 
       test('an explicit empty list survives as an empty list', () {
@@ -117,7 +154,10 @@ void main() {
       });
 
       test('the list is capped so presence stays inside one datagram', () {
-        final many = List.generate(40, (i) => 'id${i.toString().padLeft(10, '0')}');
+        final many = List.generate(
+          40,
+          (i) => 'id${i.toString().padLeft(10, '0')}',
+        );
         final decoded = roundTrip(heardIds: many).heardIds!;
         expect(decoded.length, lessThanOrEqualTo(12));
         expect(decoded.first, many.first);
@@ -168,7 +208,10 @@ void main() {
     });
 
     test('two codecs on one host stay distinguishable', () {
-      final other = WakiPacketCodec('ffffffffffff');
+      final other = WakiPacketCodec(
+        'ffffffffffff',
+        SessionEpoch.startingAt(kTestEpoch),
+      );
       addTearDown(other.release);
 
       final mine = codec.decode(
@@ -196,6 +239,188 @@ void main() {
     });
   });
 
+  group('session epoch', () {
+    test('presence carries the epoch', () {
+      final packet = codec.decode(
+        codec.encodePresence('Pedram', true, role: SessionRole.host),
+        '192.168.43.7',
+      );
+
+      expect(packet!.sessionEpoch, kTestEpoch);
+      expect(packet.hasSessionEpoch, isTrue);
+    });
+
+    test('audio carries the epoch alongside the sequence', () {
+      final packet = codec.decode(
+        codec.encodeAudio(List.filled(320, 0.1), 'Pedram', 4242),
+        '192.168.43.7',
+      );
+
+      expect(packet!.sessionEpoch, kTestEpoch);
+      expect((packet as AudioPacket).seq, 4242);
+    });
+
+    // The epoch is read at encode time, not captured when the codec is built:
+    // a rejoin has to change what goes on the wire without the transport
+    // rebuilding its codec.
+    test('a renewed epoch reaches the wire without rebuilding the codec', () {
+      final epoch = SessionEpoch.startingAt(kTestEpoch);
+      final live = WakiPacketCodec('abc123abc123', epoch);
+      addTearDown(live.release);
+
+      final before = live.decode(
+        live.encodePresence('A', false, role: SessionRole.peer),
+        'x',
+      );
+      epoch.renew();
+      final after = live.decode(
+        live.encodePresence('A', false, role: SessionRole.peer),
+        'x',
+      );
+
+      expect(before!.sessionEpoch, kTestEpoch);
+      expect(after!.sessionEpoch, kTestEpoch + 1);
+    });
+
+    test('a large epoch survives the uint32 field', () {
+      final epoch = SessionEpoch.startingAt(0xFFFFFFFE);
+      final live = WakiPacketCodec('abc123abc123', epoch);
+      addTearDown(live.release);
+      epoch.renew();
+
+      final packet = live.decode(
+        live.encodePresence('A', false, role: SessionRole.peer),
+        'x',
+      );
+      expect(packet!.sessionEpoch, 0xFFFFFFFF);
+    });
+  });
+
+  group('control packets', () {
+    test('a ping round trips with its counters', () {
+      final packet = codec.decodeControl(
+        codec.encodePing(
+          token: 77,
+          lastTxSeq: 1200,
+          lastRxSeq: 1180,
+          audioRxPackets: 5000,
+        ),
+        '192.168.43.7',
+      );
+
+      expect(packet, isA<PingPacket>());
+      expect(packet!.senderId, 'abc123abc123');
+      expect(packet.sessionEpoch, kTestEpoch);
+      expect(packet.token, 77);
+      expect(packet.lastTxSeq, 1200);
+      expect(packet.lastRxSeq, 1180);
+      expect(packet.audioRxPackets, 5000);
+    });
+
+    test('a pong is distinguishable from a ping', () {
+      final pong = codec.decodeControl(
+        codec.encodePong(
+          token: 77,
+          lastTxSeq: 0,
+          lastRxSeq: 0,
+          audioRxPackets: 0,
+        ),
+        '1.2.3.4',
+      );
+      expect(pong, isA<PongPacket>());
+      expect(pong!.token, 77);
+    });
+
+    // Control is answered by the transport and never surfaced to the session,
+    // so the two decoders must not see each other's traffic.
+    test('control does not decode as session traffic, or the reverse', () {
+      final ping = codec.encodePing(
+        token: 1,
+        lastTxSeq: 0,
+        lastRxSeq: 0,
+        audioRxPackets: 0,
+      );
+      expect(codec.decode(ping, 'x'), isNull);
+
+      final presence = codec.encodePresence(
+        'Pedram',
+        false,
+        role: SessionRole.peer,
+      );
+      expect(codec.decodeControl(presence, 'x'), isNull);
+    });
+
+    test('the type byte alone identifies control, before any parsing', () {
+      expect(WakiPacketCodec.isControl(kPingByte), isTrue);
+      expect(WakiPacketCodec.isControl(kPongByte), isTrue);
+      expect(WakiPacketCodec.isControl(kPresenceV3Byte), isFalse);
+      expect(WakiPacketCodec.isControl(kOpusAudioV3Byte), isFalse);
+    });
+
+    test('a truncated control packet is rejected at every prefix length', () {
+      final full = codec.encodePing(
+        token: 5,
+        lastTxSeq: 1,
+        lastRxSeq: 2,
+        audioRxPackets: 3,
+      );
+      for (var length = 0; length < full.length; length++) {
+        expect(
+          codec.decodeControl(Uint8List.sublistView(full, 0, length), 'x'),
+          isNull,
+          reason: 'prefix of length $length should not decode',
+        );
+      }
+      expect(codec.decodeControl(full, 'x'), isNotNull);
+    });
+
+    // A pong that could not say which join it answered for would be unable to
+    // do its job — a stale one would confirm a session that has ended.
+    test('control always states an epoch', () {
+      final epoch = SessionEpoch.startingAt(41);
+      final live = WakiPacketCodec('abc123abc123', epoch);
+      addTearDown(live.release);
+      epoch.renew();
+
+      final packet = live.decodeControl(
+        live.encodePing(
+          token: 1,
+          lastTxSeq: 0,
+          lastRxSeq: 0,
+          audioRxPackets: 0,
+        ),
+        'x',
+      );
+      expect(packet!.sessionEpoch, 42);
+    });
+  });
+
+  group('v2 compatibility', () {
+    // A build from before the epoch expressed no opinion about which join it
+    // was on. That has to stay distinguishable from a real epoch, because the
+    // gate treats it as "do not judge" — grading it would put every peer on an
+    // older build permanently out of the channel.
+    test('presence decodes with no epoch stated', () {
+      final packet = codec.decode(
+        v2Presence(
+          'ffffffffffff',
+          'Older',
+          isTalking: true,
+          role: SessionRole.host,
+        ),
+        '192.168.43.7',
+      );
+
+      expect(packet, isA<PresencePacket>());
+      expect(packet!.senderId, 'ffffffffffff');
+      expect(packet.senderName, 'Older');
+      expect(packet.sessionEpoch, kUnknownSessionEpoch);
+      expect(packet.hasSessionEpoch, isFalse);
+      expect((packet as PresencePacket).isTalking, isTrue);
+      expect(packet.role, SessionRole.host);
+    });
+  });
+
   group('v1 compatibility', () {
     test('presence still decodes, falling back to the transport id', () {
       final packet = codec.decode(
@@ -204,7 +429,8 @@ void main() {
       );
 
       expect(packet, isA<PresencePacket>());
-      expect(packet!.senderId, '192.168.43.7');
+      expect(packet!.sessionEpoch, kUnknownSessionEpoch);
+      expect(packet.senderId, '192.168.43.7');
       expect(packet.senderName, 'Legacy');
       expect((packet as PresencePacket).isTalking, isTrue);
       expect(packet.role, SessionRole.unknown);
@@ -245,7 +471,22 @@ void main() {
       );
     });
 
-    test('a truncated v2 packet is rejected at every prefix length', () {
+    // The epoch sits between the device id and the name length, so a packet
+    // cut off inside it must not be read as a v2 header that happens to start
+    // where the epoch does.
+    test('a v3 packet truncated inside the epoch is rejected', () {
+      final full = codec.encodePresence('Pedram', true, role: SessionRole.host);
+      // 1 type + 1 idLen + 12 id = 14, then four epoch bytes.
+      for (var length = 14; length < 18; length++) {
+        expect(
+          codec.decode(Uint8List.sublistView(full, 0, length), 'x'),
+          isNull,
+          reason: 'prefix of length $length should not decode',
+        );
+      }
+    });
+
+    test('a truncated v3 packet is rejected at every prefix length', () {
       final full = codec.encodePresence('Pedram', true, role: SessionRole.host);
       // Stops one short of the role byte: that prefix is not truncation but
       // the pre-role format, and it decodes on purpose (covered above).
@@ -260,8 +501,10 @@ void main() {
     });
 
     test('an unknown type byte is dropped', () {
-      expect(codec.decode(Uint8List.fromList([0x7f, 0, 0, 0, 0, 0]), 'x'),
-          isNull);
+      expect(
+        codec.decode(Uint8List.fromList([0x7f, 0, 0, 0, 0, 0]), 'x'),
+        isNull,
+      );
     });
   });
 }

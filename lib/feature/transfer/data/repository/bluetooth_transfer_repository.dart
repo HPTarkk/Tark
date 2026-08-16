@@ -7,6 +7,7 @@ import 'package:injectable/injectable.dart';
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/identity/device_identity.dart';
+import '../../../../core/identity/session_epoch.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/utils/android_sdk.dart';
 import '../../../../core/utils/exponential_backoff.dart';
@@ -14,6 +15,7 @@ import '../../../../core/utils/logger.dart';
 import '../../domain/entity/audio_profile.dart';
 import '../../domain/entity/connection_health.dart';
 import '../../domain/entity/session_role.dart';
+import '../../domain/entity/transport_stats.dart';
 import '../../domain/entity/waki_packet.dart';
 import '../../domain/entity/bluetooth_connection_state.dart' as bt;
 import '../../domain/entity/bluetooth_host_name.dart';
@@ -42,11 +44,24 @@ import '../codec/waki_packet_codec.dart';
 @lazySingleton
 class BluetoothTransferRepository
     implements TransferRepository, BluetoothTransport {
-  BluetoothTransferRepository(this._settingsRepository, this._identity);
+  BluetoothTransferRepository(
+    this._settingsRepository,
+    this._identity,
+    this._epoch,
+  );
 
   final SettingsRepository _settingsRepository;
   final DeviceIdentity _identity;
-  late final _codec = WakiPacketCodec(_identity.id);
+
+  /// Stamped on what we send, but never enforced on what arrives — see
+  /// [SessionEpochGate], which only the Wi-Fi transport needs. A ghost packet
+  /// requires a delivery path that outlives the session that produced it, and
+  /// RFCOMM has none: the socket is torn down on disconnect and anything still
+  /// buffered in it goes with it. Sending the epoch anyway keeps one wire
+  /// format across every transport and costs four bytes.
+  final SessionEpoch _epoch;
+
+  late final _codec = WakiPacketCodec(_identity.id, _epoch);
 
   // Classic RFCOMM is a raw byte stream, so the repo reassembles frames for
   // it. The BLE engine frames internally and emits complete messages.
@@ -558,6 +573,12 @@ class BluetoothTransferRepository
 
   @override
   Stream<WakiPacket> startListening() => _packetController.stream;
+
+  /// Point-to-point: no routes to duplicate across, no broadcast queue to back
+  /// up, and a send path that either works or has already reported the link
+  /// down. Nothing here to measure that the health status does not say.
+  @override
+  TransportStats get stats => TransportStats.none;
 
   @override
   Future<Either<Failure, void>> sendAudio(

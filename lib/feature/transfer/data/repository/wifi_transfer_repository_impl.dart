@@ -7,15 +7,21 @@ import 'package:injectable/injectable.dart';
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/identity/device_identity.dart';
+import '../../../../core/identity/session_epoch.dart';
 import '../../../../core/utils/exponential_backoff.dart';
 import '../../../../core/utils/lan_ipv4.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entity/audio_profile.dart';
 import '../../domain/entity/connection_health.dart';
+import '../../domain/entity/control_packet.dart';
 import '../../domain/entity/session_role.dart';
+import '../../domain/entity/transport_stats.dart';
 import '../../domain/entity/waki_packet.dart';
 import '../../domain/repository/wifi_transfer_repository.dart';
+import '../../domain/service/recovery_ladder.dart';
+import '../../domain/service/peer_ping_tracker.dart';
 import '../../domain/service/sender_route_pin.dart';
+import '../../domain/service/session_epoch_gate.dart';
 import '../../domain/service/session_role_store.dart';
 import '../codec/opus_audio_codec.dart';
 import '../codec/waki_packet_codec.dart';
@@ -217,7 +223,40 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   int _wouldBlockWindow = 0;
   int _sendErrorWindow = 0;
 
-  late final _codec = WakiPacketCodec(_identity.id);
+  /// Session totals for the same three drop classes the window counters above
+  /// report.
+  ///
+  /// Deliberately not the same fields. Those are reset by the diagnostic log
+  /// line every 15 s, which makes them useless to a second consumer — the
+  /// quality indicator samples every 2 s and would read a window the logger
+  /// had just emptied, so a link shedding packets steadily would grade clean
+  /// six times out of seven. Cumulative totals let each consumer subtract its
+  /// own previous reading and get an honest rate over its own window.
+  int _staleEpochTotal = 0;
+  int _duplicateRouteTotal = 0;
+  int _blockedTotal = 0;
+
+  @override
+  TransportStats get stats => TransportStats(
+    sendFailing: _sendFailingSince != null,
+    unicastUnconfirmed: _unicastUnconfirmed,
+    rtt: _lastRtt,
+    staleEpochDrops: _staleEpochTotal,
+    duplicateRouteDrops: _duplicateRouteTotal,
+    blockedSends: _blockedTotal,
+    peerCount: _peers.length,
+  );
+
+  late final _codec = WakiPacketCodec(_identity.id, _epoch);
+
+  /// Drops packets from a peer's previous join that arrive after its new one
+  /// has started. See [SessionEpochGate].
+  final SessionEpochGate _epochGate = SessionEpochGate();
+
+  /// Ghost packets dropped since the last session line, so a link that is
+  /// quietly shedding them shows up in the diagnostic log as a rate rather
+  /// than as a one-off.
+  int _staleEpochWindow = 0;
 
   // Incremented each time startListening() is called so any in-flight
   // generator from a previous session knows to stop when it wakes from
@@ -228,9 +267,10 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   int _audioSeq = 0;
 
   final DeviceIdentity _identity;
+  final SessionEpoch _epoch;
   final SessionRoleStore _roleStore;
 
-  WifiTransferRepositoryImpl(this._identity, this._roleStore);
+  WifiTransferRepositoryImpl(this._identity, this._epoch, this._roleStore);
 
   /// Nothing about a UDP socket says who brought the network up, so the
   /// hotspot bridge records the side the user picked and this reads it back.
@@ -244,6 +284,7 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   void dispose() {
     _generation++;
     _livenessTimer?.cancel();
+    _pingTimer?.cancel();
     _sendSocket?.close();
     _sendSocket = null;
     _receiveSocket?.close();
@@ -300,6 +341,14 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     // retry-delay sleep will see _generation != myGen and exit cleanly.
     final myGen = ++_generation;
 
+    // A new join, so a new epoch on everything we send from here — this is the
+    // one place that means "the user entered a channel". Deliberately outside
+    // the loop below: every iteration of that is a *rebind*, the same session
+    // repairing itself, and renewing there would have every peer treat each of
+    // our recoveries as a rejoin and re-adopt us mid-call.
+    final epoch = _epoch.renew();
+    Logger.diagnostic('wifi: session epoch $epoch (gen $myGen)');
+
     // Telegram-style reconnect backoff: 4s → 8s → 16s … 64s between rebind
     // attempts, reset the moment traffic actually flows again (first datagram
     // after a bind) so an isolated drop doesn't inherit a long stale delay.
@@ -327,6 +376,10 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
         _sendSocket = null;
         _sendFailingSince = null;
 
+        // Past the rebind rungs, the network we keep binding to is itself the
+        // suspect — discard what we believe about it before resolving again.
+        if (_ladder.shouldRenegotiate) _renegotiate();
+
         // Re-resolve every rebind: a Wi-Fi/hotspot interface that changed
         // while we were down (screen-off drop, network switch) is picked up
         // here so the send side targets the right subnet on recovery.
@@ -352,6 +405,7 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
         // of some later, unrelated failure.
         _rebindRequested = false;
         _startLivenessWatch(myGen);
+        _startPingLoop(myGen);
         // Local addresses restated here rather than left to the change-only
         // line in _resolveNetwork: this is the one thing every "why is nothing
         // arriving" question turns on, and a log captured after the session
@@ -372,12 +426,38 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
               // filters on — drop them here where all of them are known.
               if (_localAddresses.contains(dg!.address.address)) continue;
               // Real traffic is flowing — the link is healthy, so the next
-              // drop backs off from 4s again rather than from where we left.
+              // drop backs off from 4s again rather than from where we left,
+              // and starts back at the quiet rung of the ladder rather than
+              // wherever the last run of failures had climbed to.
               backoff.reset();
+              _ladder.reset();
               _lastPacketAt = DateTime.now();
+
+              // Control is answered here and never yielded: a ping is a
+              // transport question with a transport answer, and the session
+              // has no opinion about it. Gated on the raw type byte so the
+              // audio path — fifty times more traffic — pays one comparison.
+              if (WakiPacketCodec.isControl(dg.data[0])) {
+                final control = _codec.decodeControl(
+                  dg.data,
+                  dg.address.address,
+                );
+                if (control != null) {
+                  _rememberPeer(dg.address.address);
+                  _handleControl(control, dg.address.address);
+                }
+                continue;
+              }
+
               final packet = _codec.decode(dg.data, dg.address.address);
               if (packet != null) {
                 _packetsIn++;
+                // Epoch first, before anything is recorded about the sender. A
+                // ghost from its previous join must not refresh the peer map,
+                // the heard list or the route pin — all three would be taking
+                // a session that has already ended as evidence the current one
+                // is alive.
+                if (!_acceptEpoch(packet)) continue;
                 _noteSenderRoute(dg.address.address, packet.senderId);
                 // Subnet pinning, receive half. A sender reaching us by a
                 // second path is dropped here, before anything downstream can
@@ -390,6 +470,14 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
                 _rememberPeer(dg.address.address);
                 _rememberHeardSubnet(dg.address.address);
                 _heardSenders[packet.senderId] = _lastPacketAt;
+                // Which device is at which address, so a unicast ping can
+                // carry the right peer's counters.
+                _senderAtAddress[dg.address.address] = packet.senderId;
+                if (packet is AudioPacket) {
+                  (_rxBySender[packet.senderId] ??= _PeerAudioStats()).record(
+                    packet.seq,
+                  );
+                }
                 yield packet;
               }
             }
@@ -419,6 +507,10 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
       if (_rebindRequested) {
         _rebindRequested = false;
         backoff.reset();
+        // Not a failed attempt, so it does not climb the ladder — but not
+        // silent either: the network moving under a live session is worth the
+        // banner, and it is news the user can act on if it does not settle.
+        _ladder.reset();
         _setHealth(const ConnectionHealth.reconnecting());
         continue;
       }
@@ -428,12 +520,8 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
         // the delay grows each failed cycle (backoff) and resets to 4s once
         // real traffic flows again (backoff.reset above).
         final delay = backoff.next();
-        _setHealth(
-          ConnectionHealth.reconnecting(
-            nextRetryAt: DateTime.now().add(delay),
-            retryDelay: delay,
-          ),
-        );
+        _ladder.escalate();
+        _setHealth(_ladder.rung(delay));
 
         // Retry delay, sliced short: async* cancellation only takes effect
         // between awaits, so one long sleep here would make cancel() (and
@@ -458,10 +546,10 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
 
         // Countdown's over — the rebind at the top of the loop is now the
         // active attempt; drop the countdown so the banner shows the
-        // indeterminate "reconnecting…" until it succeeds or reschedules.
-        if (_generation == myGen) {
-          _setHealth(const ConnectionHealth.reconnecting());
-        }
+        // indeterminate state until it succeeds or reschedules. The rung is
+        // kept: an attempt that is about to renegotiate must not flash back
+        // through "reconnecting" on its way there.
+        if (_generation == myGen) _setHealth(_ladder.rung(null));
       } else {
         // Auto-reconnect is off: wait indefinitely for an explicit
         // retryNow() instead of retrying on our own.
@@ -504,16 +592,26 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     final blocked = _wouldBlockWindow;
     final errored = _sendErrorWindow;
     final dupRoute = _duplicateRouteWindow;
+    final staleEpoch = _staleEpochWindow;
     _wouldBlockWindow = 0;
     _sendErrorWindow = 0;
     _duplicateRouteWindow = 0;
+    _staleEpochWindow = 0;
+    // Totals go too: they are session-scoped by definition, and the quality
+    // indicator diffing across a session boundary would read the reset as a
+    // huge negative delta.
+    _staleEpochTotal = 0;
+    _duplicateRouteTotal = 0;
+    _blockedTotal = 0;
     Logger.diagnostic(
       'wifi: in=$_packetsIn(+$inDelta) out=$_packetsOut(+$outDelta) '
       'over ${window.inSeconds}s '
       'peers=${_peers.keys.toList()} recovery=${_recoveryPeers.length} '
       'heard=${_heardSenders.keys.toList()} '
       'routes=${_routeSummary()} pinned=${_routePin.pinnedAddresses} '
-      'dupRoute=$dupRoute '
+      'dupRoute=$dupRoute staleEpoch=$staleEpoch epoch=${_epoch.value} '
+      'rtt=${_lastRtt?.inMilliseconds ?? '?'}ms '
+      '${_unicastUnconfirmed ? 'UNICAST-UNCONFIRMED ' : ''}'
       'local=$_localAddresses '
       'bcast=${_broadcastTargets.map((a) => a.address).toList()}'
       '${_heardSubnetBroadcasts.isEmpty ? '' : '+${_heardSubnetBroadcasts.map((a) => a.address).toList()}'} '
@@ -537,6 +635,39 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
 
   DateTime _lastSessionLogAt = DateTime.fromMillisecondsSinceEpoch(0);
   static const _sessionLogInterval = Duration(seconds: 15);
+
+  /// How far the current run of failures has escalated, and what to report at
+  /// each step. See [RecoveryLadder].
+  final RecoveryLadder _ladder = RecoveryLadder();
+
+  /// Throws away what we think we know about the network, so the next bind
+  /// starts from discovery rather than from a topology that has stopped
+  /// working.
+  ///
+  /// Rebinding repeatedly onto the same resolved addresses is the failure this
+  /// answers: every attempt is technically successful — the socket binds, the
+  /// targets resolve — and not one packet reaches anybody, because the subnet
+  /// we narrowed onto is not where the channel is any more. Nothing in the
+  /// retry loop notices, because from inside it every attempt looks the same.
+  ///
+  /// [_recoveryPeers] deliberately survives. It is the set that keeps unicast
+  /// alive when broadcast cannot cross a SoftAP, and clearing it here would
+  /// remove the one delivery path most likely to still work at exactly the
+  /// moment we are trying everything.
+  void _renegotiate() {
+    Logger.diagnostic(
+      'wifi: ${_ladder.attempts} rebinds have not restored traffic — '
+      'renegotiating (re-resolving addresses, widening discovery)',
+    );
+    // Peers scope the broadcast down to the subnets they were last seen on
+    // (see [_broadcastsFor]). Dropping them reopens the wide spray.
+    _peers.clear();
+    _narrowedTo = const {};
+    // Force a re-resolve rather than reusing targets inside their max age.
+    _targetsResolvedAt = DateTime.fromMillisecondsSinceEpoch(0);
+    _broadcastTargets = const [];
+    _sweep.retarget(const []);
+  }
 
   void _startLivenessWatch(int myGen) {
     _livenessTimer?.cancel();
@@ -663,12 +794,17 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     // Invalidate any running generator by advancing the generation counter.
     _generation++;
     _livenessTimer?.cancel();
+    _pingTimer?.cancel();
     _manualRetryCompleter?.complete();
     _manualRetryCompleter = null;
     _rebindRequested = false;
     // A new session starts with no history of having heard anyone, so the
     // watchdog stays quiet until this one has a peer of its own.
     _lastPeerAt = null;
+    // …and on the bottom rung of the recovery ladder, so its first hiccup is
+    // repaired quietly rather than inheriting the escalation of the session
+    // that just ended.
+    _ladder.reset();
 
     _receiveSocket?.close();
     _receiveSocket = null;
@@ -708,10 +844,27 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     // session must be free to pin wherever its peers turn out to be — carrying
     // a pin over would have it silently ignore the network it is now on.
     _routePin.clear();
+    // Likewise session-scoped: the epochs held here are what the peers were on
+    // during the session that just ended. Carrying them into a new one would
+    // have a peer that has *not* restarted — and so is still on the same epoch
+    // it was — read as ordinary traffic, which is correct, while a peer that
+    // rejoined below its previous number could not exist. Clearing is simply
+    // the honest starting point: adopt whatever the new session hears first.
+    _epochGate.clear();
+    // Ping state belongs to the peers of the session that just ended: a new
+    // one must earn its confirmations rather than inherit them, and starting
+    // with _unicastUnconfirmed set would put audio on the broadcast leg for a
+    // session that has not sent a single ping yet.
+    _pings.clear();
+    _unicastUnconfirmed = false;
+    _lastRtt = null;
+    _rxBySender.clear();
+    _senderAtAddress.clear();
     _narrowedTo = const {};
     _wouldBlockWindow = 0;
     _sendErrorWindow = 0;
     _duplicateRouteWindow = 0;
+    _staleEpochWindow = 0;
     _sweep.retarget(const []);
 
     _setHealth(const ConnectionHealth.down());
@@ -792,6 +945,7 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
       isAudio: isAudio,
       hasLivePeers: _peers.isNotEmpty,
       unicastFailing: _sendFailingSince != null,
+      unicastUnconfirmed: _unicastUnconfirmed,
     )) {
       for (final target in _broadcastsFor(unicast)) {
         _trySend(packet, target);
@@ -1074,6 +1228,7 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
         // Counted rather than logged: this arrives at the full audio rate, and
         // the count on the session line is what makes it legible.
         _duplicateRouteWindow++;
+        _duplicateRouteTotal++;
       case RouteDecision.repinned:
         Logger.diagnostic(
           'wifi: sender $senderId moved from ${verdict.previous} to $address '
@@ -1089,6 +1244,159 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     }
     return verdict.isAccepted;
   }
+
+  /// Whether [packet] belongs to the join of its sender we are listening to.
+  ///
+  /// The decision lives in [SessionEpochGate], which documents why a rejoin
+  /// has to be told apart from the session it replaced. This wrapper does the
+  /// parts that need the repository: the log line, the drop counter, and
+  /// clearing the per-sender state a rejoin invalidates.
+  bool _acceptEpoch(WakiPacket packet) {
+    // A build that predates the epoch says nothing about which join it is on,
+    // and silence is not a claim. Grading it would put every peer on an older
+    // version permanently out of the channel — the exact mixed-version split
+    // the wire format's forward compatibility exists to avoid.
+    if (!packet.hasSessionEpoch) return true;
+
+    final verdict = _epochGate.offer(packet.senderId, packet.sessionEpoch);
+    switch (verdict.decision) {
+      case EpochDecision.adopted:
+        Logger.diagnostic(
+          'wifi: sender ${packet.senderId} on epoch ${packet.sessionEpoch}',
+        );
+      case EpochDecision.accepted:
+        break;
+      case EpochDecision.stale:
+        // Counted rather than logged: a ghost burst arrives at the full audio
+        // rate, and the count on the session line is what makes it legible.
+        _staleEpochWindow++;
+        _staleEpochTotal++;
+      case EpochDecision.renewed:
+        Logger.diagnostic(
+          'wifi: sender ${packet.senderId} rejoined — epoch '
+          '${verdict.previous} → ${verdict.offered}',
+        );
+        // Everything below is keyed to the session that just ended. The route
+        // pin is the one that matters: the peer may well come back on a
+        // different address, and a pin from its previous join would reject the
+        // new one for the whole grace period — silence at exactly the moment
+        // the user reconnected.
+        _routePin.forget(packet.senderId);
+        _senderRoutes.remove(packet.senderId);
+        _seenSenderRoutes.removeWhere(
+          (r) => r.startsWith('${packet.senderId}@'),
+        );
+        // Its old sequence numbering went with it, so the per-sender Opus
+        // decoder must not carry state across the boundary.
+        _codec.resetDecoders();
+    }
+    return verdict.isAccepted;
+  }
+
+  // ── Unicast heartbeat ───────────────────────────────────────────────────
+
+  /// Whether any peer we can hear has stopped answering on the unicast path.
+  ///
+  /// Recomputed on each ping tick rather than asked per send: [_sendToAllTargets]
+  /// runs fifty times a second and must not walk the peer set to answer it.
+  bool _unicastUnconfirmed = false;
+
+  /// Round-trip confirmation per peer — see [PeerPingTracker].
+  final PeerPingTracker _pings = PeerPingTracker();
+
+  Timer? _pingTimer;
+  int _pingToken = 0;
+
+  /// One ping per second, which is the review's figure and a reasonable one:
+  /// fast enough that [PeerPingTracker.grace] is six lost pings rather than
+  /// two, and 36 bytes/s per peer against roughly 8 kB/s of Opus.
+  static const _pingInterval = Duration(seconds: 1);
+
+  /// Highest audio sequence and packet count received per sender, so a ping
+  /// can tell the far end what we have actually got from it. Two ends
+  /// comparing "you say you sent up to N" against "I have up to M" is a loss
+  /// measurement neither could make alone.
+  final Map<String, _PeerAudioStats> _rxBySender = {};
+
+  /// Which sender is currently at which address, so a ping addressed by IP can
+  /// carry the counters for the device that lives there. The route pin holds
+  /// the same relation the other way round; this is the direction a unicast
+  /// needs.
+  final Map<String, String> _senderAtAddress = {};
+
+  void _startPingLoop(int myGen) {
+    _pingTimer?.cancel();
+    _pingTimer = Timer.periodic(_pingInterval, (_) {
+      if (_generation != myGen) {
+        _pingTimer?.cancel();
+        return;
+      }
+      _pingPeers();
+    });
+  }
+
+  /// Pings every live peer, unicast only.
+  ///
+  /// Deliberately not [_sendToAllTargets]: that adds the broadcast leg for
+  /// anything that is not audio, and a ping answered over broadcast would
+  /// confirm the one path we are not trying to test. This is the whole point
+  /// of the mechanism — it has to travel exactly where audio travels.
+  void _pingPeers() {
+    final now = DateTime.now();
+    final targets = _peers.keys.toList(growable: false);
+    for (final address in targets) {
+      final senderId = _senderAtAddress[address];
+      final rx = senderId == null ? null : _rxBySender[senderId];
+      final token = ++_pingToken;
+      final packet = _codec.encodePing(
+        token: token,
+        lastTxSeq: _audioSeq,
+        lastRxSeq: rx?.lastSeq ?? 0,
+        audioRxPackets: rx?.count ?? 0,
+      );
+      if (_trySend(packet, InternetAddress(address))) {
+        _pings.sent(address, token, now);
+      }
+    }
+
+    // Peers that have gone silent on unicast while still being heard. Recorded
+    // as a flag the send path can read for free.
+    final unconfirmed = _pings.unconfirmedAmong(targets, now);
+    final wasUnconfirmed = _unicastUnconfirmed;
+    _unicastUnconfirmed = unconfirmed.isNotEmpty;
+    if (_unicastUnconfirmed != wasUnconfirmed) {
+      Logger.diagnostic(
+        _unicastUnconfirmed
+            ? 'wifi: $unconfirmed heard but not answering unicast pings — '
+                  'audio is going back on the broadcast leg for them'
+            : 'wifi: every heard peer is answering unicast again — '
+                  'audio back to unicast only',
+      );
+    }
+  }
+
+  /// Answers a ping on the same unicast path it arrived by, and records a pong.
+  void _handleControl(ControlPacket packet, String fromAddress) {
+    switch (packet) {
+      case PingPacket():
+        final rx = _rxBySender[packet.senderId];
+        _trySend(
+          _codec.encodePong(
+            token: packet.token,
+            lastTxSeq: _audioSeq,
+            lastRxSeq: rx?.lastSeq ?? 0,
+            audioRxPackets: rx?.count ?? 0,
+          ),
+          InternetAddress(fromAddress),
+        );
+      case PongPacket():
+        final rtt = _pings.pong(fromAddress, packet.token, DateTime.now());
+        if (rtt != null) _lastRtt = rtt;
+    }
+  }
+
+  /// Most recent measured round trip, for the link-quality grade.
+  Duration? _lastRtt;
 
   /// One source address per sender — see [SenderRoutePin].
   final SenderRoutePin _routePin = SenderRoutePin();
@@ -1152,6 +1460,7 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
       final sent = socket.send(packet, target, kBroadcastPort);
       if (sent == 0) {
         _wouldBlockWindow++;
+        _blockedTotal++;
         if (_failingTargets.add(target.address) &&
             _mayLogTarget(target.address, DateTime.now())) {
           Logger.diagnostic(
@@ -1247,5 +1556,20 @@ class _RouteStats {
   void hit() {
     packets++;
     lastAt = DateTime.now();
+  }
+}
+
+/// Highest audio sequence and packet count seen from one sender, reported back
+/// to it on pings so both ends can compare what was sent against what arrived.
+class _PeerAudioStats {
+  int lastSeq = 0;
+  int count = 0;
+
+  void record(int seq) {
+    count++;
+    // Highest rather than latest: reordering is routine on UDP, and a straggler
+    // must not walk the high-water mark backwards and invent loss that the far
+    // end would then read as its own.
+    if (seq > lastSeq) lastSeq = seq;
   }
 }

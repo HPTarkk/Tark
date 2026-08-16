@@ -44,7 +44,7 @@ class _ConnectionHealthBannerState extends State<ConnectionHealthBanner>
   static const _connectedFlash = Duration(milliseconds: 1400);
   static const _tick = Duration(milliseconds: 200);
 
-  late _Display _display = _computeDisplay(wasHealthy: true);
+  late _Display _display = _computeDisplay(wasLive: true);
   Timer? _flashTimer;
   Timer? _countdownTimer;
 
@@ -67,7 +67,7 @@ class _ConnectionHealthBannerState extends State<ConnectionHealthBanner>
     if (old.health == widget.health) return;
     _flashTimer?.cancel();
     setState(() {
-      _display = _computeDisplay(wasHealthy: old.health.isHealthy);
+      _display = _computeDisplay(wasLive: old.health.isLive);
     });
     if (_display == _Display.connected) {
       _flashTimer = Timer(_connectedFlash, () {
@@ -77,19 +77,31 @@ class _ConnectionHealthBannerState extends State<ConnectionHealthBanner>
     _syncCountdownTimer();
   }
 
-  _Display _computeDisplay({required bool wasHealthy}) {
+  _Display _computeDisplay({required bool wasLive}) {
     final h = widget.health;
     switch (h.status) {
+      // Renegotiating is a harder recovery than reconnecting, but not a
+      // different situation from where the user sits: the link is down and the
+      // app is working on it. Which rung it is on belongs in the diagnostic
+      // log, not in a second banner nobody can act on differently.
       case ConnectionHealthStatus.reconnecting:
+      case ConnectionHealthStatus.renegotiating:
         final at = h.nextRetryAt;
         return (at != null && at.isAfter(DateTime.now()))
             ? _Display.countdown
             : _Display.attempting;
       case ConnectionHealthStatus.down:
         return _Display.down;
+      // The quiet rung. Saying nothing is the entire feature — see
+      // [ConnectionHealth.isLive].
+      case ConnectionHealthStatus.degraded:
+        return _Display.hidden;
       case ConnectionHealthStatus.healthy:
-        // Only celebrate an actual recovery, not a channel that opened healthy.
-        return wasHealthy ? _Display.hidden : _Display.connected;
+        // Only celebrate an actual recovery, not a channel that opened healthy
+        // and not a dip that was repaired quietly — flashing "Connected" for a
+        // drop the user was never told about only raises the question of what
+        // happened.
+        return wasLive ? _Display.hidden : _Display.connected;
     }
   }
 
@@ -144,10 +156,7 @@ class _ConnectionHealthBannerState extends State<ConnectionHealthBanner>
       alignment: Alignment.topCenter,
       child: _display == _Display.hidden
           ? const SizedBox(width: double.infinity)
-          : Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: _bar(s),
-            ),
+          : Padding(padding: const EdgeInsets.only(bottom: 16), child: _bar(s)),
     );
   }
 

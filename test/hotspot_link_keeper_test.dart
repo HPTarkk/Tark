@@ -8,6 +8,7 @@ import 'package:tark/feature/transfer/domain/entity/audio_profile.dart';
 import 'package:tark/feature/transfer/domain/entity/connection_health.dart';
 import 'package:tark/feature/transfer/domain/entity/hotspot_credentials.dart';
 import 'package:tark/feature/transfer/domain/entity/session_role.dart';
+import 'package:tark/feature/transfer/domain/entity/transport_stats.dart';
 import 'package:tark/feature/transfer/domain/entity/waki_packet.dart';
 import 'package:tark/feature/transfer/domain/repository/wifi_transfer_repository.dart';
 import 'package:tark/feature/transfer/domain/service/hotspot_control.dart';
@@ -99,6 +100,9 @@ class _FakeWifi implements WifiTransferRepository {
 
   @override
   Stream<ConnectionHealth> connect() => const Stream<ConnectionHealth>.empty();
+
+  @override
+  TransportStats get stats => TransportStats.none;
 
   @override
   Future<Either<Failure, void>> sendAudio(

@@ -11,6 +11,7 @@ import 'package:audio_io/audio_io.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/identity/device_identity.dart';
+import '../../../core/identity/session_epoch.dart';
 import '../../../core/settings/settings_repository_impl.dart';
 import '../../../core/sfx/sfx_player.dart';
 import '../../audio/data/audio_engine_impl.dart';
@@ -34,7 +35,10 @@ GuestSessionCubit createGuestSessionCubit(GuestWebClient client) {
     client,
     engine: AudioEngineImpl(AudioIo.instance, settings),
     settingsRepository: settings,
-    codec: WakiPacketCodec(DeviceIdentity().id),
+    // A web guest joins exactly one session per page load, so its epoch never
+    // advances past the first — nothing here can rejoin without reloading, and
+    // a reload is a new [DeviceIdentity] anyway.
+    codec: WakiPacketCodec(DeviceIdentity().id, SessionEpoch()..renew()),
     sfx: const SfxServicePlayer(),
   );
 }

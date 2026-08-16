@@ -198,7 +198,15 @@ RecoveryCheck _linkCheck(
     ),
     // Already retrying on its own, so this is news rather than a job for the
     // user — amber, with the manual shortcut still offered.
-    ConnectionHealthStatus.reconnecting => RecoveryCheck(
+    //
+    // Degraded is on this branch rather than with healthy. The banner stays
+    // silent for it by design, but this sheet is not the banner: the user has
+    // opened it to ask what is wrong, and a link that is mid-repair is the
+    // honest answer to that question. Reporting it as OK here is how someone
+    // ends up staring at four green checks on a phone nobody can hear.
+    ConnectionHealthStatus.degraded ||
+    ConnectionHealthStatus.reconnecting ||
+    ConnectionHealthStatus.renegotiating => RecoveryCheck(
       label: s.check_link,
       detail: s.check_link_retrying,
       status: RecoveryStatus.warn,
@@ -425,9 +433,7 @@ class ChannelHelpButton extends StatelessWidget {
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
           icon: Icon(
-            urgent
-                ? Icons.error_outline_rounded
-                : Icons.help_outline_rounded,
+            urgent ? Icons.error_outline_rounded : Icons.help_outline_rounded,
             size: 14,
             color: color,
           ),
@@ -453,12 +459,8 @@ class ChannelHelpButton extends StatelessWidget {
     final isFarsi = Localizations.localeOf(context).languageCode == 'fa';
     String number(int n) => localizeDigits('$n', farsi: isFarsi);
 
-    List<RecoveryCheck> build(WalkieTalkieState state) => buildChannelChecks(
-      s: s,
-      state: state,
-      cubit: cubit,
-      number: number,
-    );
+    List<RecoveryCheck> build(WalkieTalkieState state) =>
+        buildChannelChecks(s: s, state: state, cubit: cubit, number: number);
 
     showRecoverySheet(
       context,
