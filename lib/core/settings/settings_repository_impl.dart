@@ -52,13 +52,11 @@ class SettingsRepositoryImpl implements SettingsRepository {
   Stream<String> get myNameChanges => _myNameController.stream;
 
   @override
-  Future<double> getVoxThreshold() async =>
-      _prefs.getDouble(SettingsKeys.voxThreshold) ??
-      AppSettings.defaults().voxThreshold;
+  Future<double> getVoxMargin() async => SettingsModel.readVoxMargin(_prefs);
 
   @override
-  Future<void> setVoxThreshold(double value) =>
-      _prefs.setDouble(SettingsKeys.voxThreshold, value);
+  Future<void> setVoxMargin(double value) =>
+      _prefs.setDouble(SettingsKeys.voxMargin, value);
 
   @override
   Future<double> getNoiseSuppression() async =>
@@ -117,7 +115,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
     final s = SettingsModel.fromPrefs(_prefs);
     return AudioProfile.resolve(
       ridingPreset: s.ridingPreset,
-      voxThreshold: s.voxThreshold,
+      voxMargin: s.voxMargin,
       noiseSuppression: s.noiseSuppression,
       noiseSuppressionEngine: s.noiseSuppressionEngine,
       targetBufferMs: s.targetBufferMs,
@@ -222,7 +220,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
   @override
   Future<(double, double, int)> restoreVoiceDefaults() async {
     final defaults = AppSettings.defaults();
-    await setVoxThreshold(defaults.voxThreshold);
+    await setVoxMargin(defaults.voxMargin);
     await setNoiseSuppression(defaults.noiseSuppression);
     await setTargetBufferMs(defaults.targetBufferMs);
     // Last, and not optional — see the interface doc. With the preset still
@@ -230,7 +228,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
     // broken.
     await setRidingPreset(defaults.ridingPreset);
     return (
-      defaults.voxThreshold,
+      defaults.voxMargin,
       defaults.noiseSuppression,
       defaults.targetBufferMs,
     );

@@ -616,13 +616,13 @@ class _VoxCard extends StatelessWidget {
     final s = context.getString;
     return BlocBuilder<GuestSessionCubit, GuestSessionState>(
       buildWhen: (p, c) =>
-          p.voxThreshold != c.voxThreshold ||
+          p.voxMargin != c.voxMargin ||
           p.noiseSuppression != c.noiseSuppression,
       builder: (context, state) {
         final cubit = context.read<GuestSessionCubit>();
-        final voxPct = ((state.voxThreshold / 0.15) * 100)
-            .clamp(0.0, 100.0)
-            .round();
+        // A margin above the measured background, still drawn 0–100 % — see
+        // [VoxMargin] and the mobile twin in AdvancedSettingsPage.
+        final voxPct = (state.voxMargin * 100).clamp(0.0, 100.0).round();
         final noisePct = (state.noiseSuppression * 100).round();
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -641,10 +641,10 @@ class _VoxCard extends StatelessWidget {
                   _SliderRow(
                     label: s.vox_threshold,
                     valueLabel: '$voxPct%',
-                    value: state.voxThreshold,
+                    value: state.voxMargin.clamp(0.0, 1.0),
                     min: 0.0,
-                    max: 0.15,
-                    onChanged: cubit.setVoxThreshold,
+                    max: 1.0,
+                    onChanged: cubit.setVoxMargin,
                   ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,

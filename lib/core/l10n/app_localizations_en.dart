@@ -107,6 +107,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get vox_threshold => 'HOW LOUD TO START';
 
   @override
+  String get vox_margin_hint =>
+      'Measured against the room, so one setting works parked and at speed';
+
+  @override
   String get voice_loud => 'LOUD';
 
   @override

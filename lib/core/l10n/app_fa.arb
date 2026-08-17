@@ -31,6 +31,7 @@
     "no_users_on_network": "هنوز کسی اینجا نیست",
     "vox_sensitivity": "چقدر راحت صدات رو بشنوه",
     "vox_threshold": "چقدر بلند حرف بزنی",
+    "vox_margin_hint": "نسبت به صدای محیط سنجیده می‌شه، پس یک تنظیم هم در توقف کار می‌کنه هم توی سرعت",
     "voice_loud": "بلند",
     "voice_quiet": "آرام",
     "level_label": "صدای تو",

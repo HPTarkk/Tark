@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tark/core/settings/vox_margin.dart';
 import 'package:tark/feature/audio/domain/noise_floor_tracker.dart';
 
 void main() {
@@ -72,30 +73,57 @@ void main() {
       test('zero stays zero, however loud the background', () {
         final tracker = NoiseFloorTracker();
         soak(tracker, 0.5, 100);
-        expect(tracker.thresholdFor(0.0), 0.0);
+        expect(tracker.thresholdFor(VoxMargin.off), 0.0);
       });
 
-      test('a quiet room leaves the user\'s setting alone', () {
-        final tracker = NoiseFloorTracker();
-        soak(tracker, 0.001, 200);
-        expect(tracker.thresholdFor(0.02), 0.02);
+      // The whole point of the reframe: one setting, two rooms, two levels.
+      // The old absolute slider gave the same number in both, and so was wrong
+      // in at least one of them.
+      test('the same setting means a different level in a different room', () {
+        final quiet = NoiseFloorTracker();
+        soak(quiet, 0.002, 200);
+        final loud = NoiseFloorTracker();
+        soak(loud, 0.03, 200);
+
+        expect(loud.thresholdFor(0.5), greaterThan(quiet.thresholdFor(0.5)));
       });
 
-      // The highway case: wind noise well above the user's static threshold
-      // would hold the channel open permanently.
-      test('a loud background raises the bar above the setting', () {
+      test('the level sits the requested distance above the background', () {
         final tracker = NoiseFloorTracker();
-        soak(tracker, 0.05, 200);
-        expect(tracker.thresholdFor(0.02), greaterThan(0.02));
+        soak(tracker, 0.02, 400);
+        final floor = tracker.noiseFloor!;
+
+        expect(
+          tracker.thresholdFor(0.5),
+          closeTo(floor * VoxMargin.multiplierFor(0.5), floor * 0.05),
+        );
       });
 
-      // The slider is a statement about what the user does not want
-      // transmitted, so a measured background may raise the bar but never
-      // lower it past their own floor.
-      test('never returns less than the user asked for', () {
+      test('a bigger margin asks for more', () {
         final tracker = NoiseFloorTracker();
-        soak(tracker, 0.0001, 200);
-        expect(tracker.thresholdFor(0.08), 0.08);
+        soak(tracker, 0.01, 200);
+        expect(tracker.thresholdFor(1.0), greaterThan(tracker.thresholdFor(0.2)));
+      });
+
+      // The hazard a pure margin introduces and _minFloor exists to stop: the
+      // platform noise suppressor on some phones hands back exact digital
+      // silence between words, which would drag the floor to zero and
+      // disarm the gate by multiplication. See VoxGate's field report.
+      group('a mic that reports digital silence', () {
+        test('cannot disarm the gate', () {
+          final tracker = NoiseFloorTracker();
+          soak(tracker, 0.01, 50);
+          soak(tracker, 0.0, 200); // the suppressor doing "its job"
+
+          expect(tracker.thresholdFor(0.5), greaterThan(0.0));
+        });
+
+        test('still leaves a level a speaking voice clears easily', () {
+          final tracker = NoiseFloorTracker();
+          soak(tracker, 0.0, 200);
+          // Conversational speech sits an order of magnitude above this.
+          expect(tracker.thresholdFor(1.0), lessThan(0.05));
+        });
       });
 
       // A mic fault reporting an enormous level must not be able to set a
@@ -103,11 +131,14 @@ void main() {
       test('a broken mic cannot mute the phone', () {
         final tracker = NoiseFloorTracker();
         soak(tracker, 5.0, 200);
-        expect(tracker.thresholdFor(0.02), lessThanOrEqualTo(0.15));
+        expect(tracker.thresholdFor(1.0), lessThanOrEqualTo(0.15));
       });
 
-      test('before any frame the setting is used unchanged', () {
-        expect(NoiseFloorTracker().thresholdFor(0.03), 0.03);
+      // Failing open: the cost of guessing high before the first frame is a
+      // clipped word, and the cost of guessing wrong for longer is a phone
+      // that is quietly mute.
+      test('before any frame the gate is open', () {
+        expect(NoiseFloorTracker().thresholdFor(0.5), 0.0);
       });
     });
 
@@ -116,7 +147,7 @@ void main() {
       soak(tracker, 0.05, 100);
       tracker.reset();
       expect(tracker.noiseFloor, isNull);
-      expect(tracker.thresholdFor(0.02), 0.02);
+      expect(tracker.thresholdFor(0.5), 0.0);
     });
 
     test('a nonsense level is ignored rather than poisoning the estimate', () {

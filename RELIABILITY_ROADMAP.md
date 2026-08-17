@@ -20,7 +20,7 @@ architecture.
 | Phase | Focus | State |
 | --- | --- | --- |
 | **P0** | Core reliability | **Done** — all four |
-| **P1** | Audio quality | **In progress** — 6 of 7 |
+| **P1** | Audio quality | **Done** — every code item; clock drift is a field test |
 | **P2** | Connection UX | Started — 4 of 9 (the unification is untouched) |
 | **P3** | Polish & diagnostics | Link quality indicator done |
 | **CI** | Re-enable pipeline | **Parked** — deliberately deferred |
@@ -189,7 +189,7 @@ with one phone firewalled would settle it.
 
 ---
 
-## P1 — Audio quality *(current)*
+## P1 — Audio quality *(code complete)*
 
 ### The blocker that shaped this phase
 
@@ -325,13 +325,13 @@ about why the fixed cadence must not be "improved".
       up behind it and close the gate on the speaker's own voice mid-sentence
 - [x] The "zero means VOX off" contract is preserved exactly — no measured
       background may override it
-- [x] The result never goes *below* the user's setting. The slider is a
-      statement about what they do not want transmitted; a measurement may raise
-      the bar to clear a noisy background but not lower it past their own floor
-- [x] Capped at the top of the slider's range, so a mic fault reporting an
-      enormous level cannot set a threshold no voice could cross — that would be
-      a silently muted phone, which is the failure this whole area exists to
-      avoid
+- [x] ~~The result never goes *below* the user's setting~~ — superseded by §7,
+      which is what this bullet was hiding: taking the max of a stored absolute
+      and the measured one meant the stored value won for everyone who had
+      turned the slider up, and they never got the adaptation at all
+- [x] Capped, so a mic fault reporting an enormous level cannot set a threshold
+      no voice could cross — that would be a silently muted phone, which is the
+      failure this whole area exists to avoid
 - [x] Tests: [noise_floor_tracker_test.dart](test/noise_floor_tracker_test.dart)
 
 The fuller answer — reframing the slider itself from an absolute threshold into
@@ -342,7 +342,7 @@ touch the same four surfaces. **Deliberately not done there.** That was a
 batching argument, not a dependency, and reinterpreting a stored 0–0.15 value
 as a margin silently changes the gate on every existing install. Landing it
 alongside the preset would make the first field report of a misbehaving mic
-unattributable to either. Still open, on its own.
+unattributable to either. Done on its own, as **§7** below.
 
 ### 5. Riding preset — **done**
 
@@ -464,12 +464,87 @@ suppressor curves themselves (β 2→4, −30 dB floor at full strength) are als
 untouched: changing a DSP curve without a measurement is how the 1.0 default got
 written in the first place.
 
+### 7. VOX slider as a pure margin — **done**
+
+Filed against §4 as "the fuller answer", split out of the riding preset on
+purpose, and held back on the grounds that it needed a migration story for
+stored values. It did. Here it is.
+
+**Why the half-answer was worse than it looked.** `thresholdFor` returned
+`max(userValue, floor × 2.5)` — two settings in one control, and the wrong one
+usually won. A stored value above roughly 0.06 beats `floor × 2.5` in any room
+quiet enough to hold a conversation, so for everyone who dragged the slider
+up — the people who found the gate twitchy, i.e. **exactly the people the
+adaptation was written for** — the measured background was never consulted at
+all. The adaptation only ever reached users who had left the slider low.
+
+- [x] [`VoxMargin`](lib/core/settings/vox_margin.dart) — the slider stores a
+      distance above the background, 3–18 dB, and the measured floor supplies
+      the level. The fixed 2.5 × (≈ 8 dB) everyone has been running lands at
+      about a third of the slider, so there is room either way from the
+      behaviour people already know
+- [x] Zero still means **off**, unchanged and deliberately *not* a point on the
+      dB scale: `isOff` is asked first, by the tracker, by `VoxGate`, and by the
+      migration
+- [x] `NoiseFloorTracker.thresholdFor(margin)` is now pure margin × floor. It
+      fails **open** before the first frame — a clipped word costs less than a
+      phone that is quietly mute
+- [x] **The hazard the reframe introduces**, and the one thing that had to hold
+      it off: a margin is a multiplication, and the platform suppressor on some
+      phones hands back frames of exact digital silence between words (the
+      Galaxy S8+ measured in `VoxGate`'s doc: 301 of 800 frames). Those zeros
+      drag the estimate down and would disarm the gate by arithmetic, on
+      precisely the devices whose mics behave worst. The old absolute slider hid
+      this because the user's own number sat underneath; a pure margin has
+      nothing underneath, so `_minFloor` (≈ −54 dBFS) refuses to believe
+      silence. Below any real acoustic background, so it never raises the bar in
+      a room someone is actually speaking in
+- [x] `RidingPreset.voxMargin` = 0.5 (≈ 10.5 dB). The old 0.02 was tiny on
+      purpose — on an absolute scale anything higher would out-shout the
+      tracker and clip word onsets indoors, so the preset could only arm the
+      gate and get out of the way. A margin cannot out-shout the tracker, it
+      *is* the tracker's setting, so the preset finally states one
+- [x] `processForTransmit` now receives the **resolved** level rather than the
+      stored setting. It was already slightly wrong (the expander ran off the
+      raw value while VOX ran off the adaptive one); with a margin it would have
+      been nonsense arithmetic. Both cubits resolve once per frame and pass the
+      same number to the gate and the expander
+- [x] `vox=` on the transmit log line now carries margin, dB, measured floor and
+      resolved gate level. A field report of "it kept cutting me off" is
+      unattributable with fewer: the setting alone cannot say what the mic was
+      hearing, and the level alone cannot say whether the rider or the room
+      chose it
+- [x] Tests: [vox_margin_test.dart](test/vox_margin_test.dart) (scale,
+      migration, read-back), rewritten threshold group in
+      [noise_floor_tracker_test.dart](test/noise_floor_tracker_test.dart)
+- [x] fa + en strings (one new hint line under the slider), README
+
+**The migration story: the number on the slider does not move.** The old control
+ran 0 – 0.15 and drew itself as 0 – 100 %, so the conversion is the percentage
+the user was actually looking at — 60 % stays 60 %, now meaning 12 dB above the
+room rather than an absolute 0.09. That is the best available answer, because
+the one thing needed to convert properly, *how loud their room was*, is exactly
+what the old setting never recorded. Off maps to off exactly; an update must not
+arm a gate someone left disarmed.
+
+It is a **read-through**, not a rewrite: `vox_margin` is the new key, the legacy
+`vox_threshold` is translated on every read until the slider is next touched,
+and never written. No write racing a read, nothing half-finished if the process
+dies mid-migration, and a downgrade to an older build still finds its own key
+intact. `SettingsModel.readVoxMargin` is the single reader, shared by `loadAll`
+and the getter so the settings page cannot draw one value while the engine runs
+another.
+
+**Not done: the label.** "HOW LOUD TO START" survives the reframe intact — it is
+still how loud you have to be — so the change is carried by one added hint line
+("measured against the room, so one setting works parked and at speed") rather
+than by re-cutting a string that is already right in both languages. The website
+never described the VOX control at all, so it needed nothing.
+
 ### Still open
 
 - [ ] **Clock drift** — gradual correction already started; verify over long runs
       that neither side starves or overflows. A field-test item, not a code one
-- [ ] **VOX slider as a pure margin** — see the note under §4. Split out of the
-      riding preset on purpose; needs a migration story for stored values
 
 ---
 

@@ -21,13 +21,13 @@ void main() {
     final r = await repo();
     final profile = await r.getAudioProfile();
     expect(profile.fromPreset, isFalse);
-    expect(profile.voxThreshold, AppSettings.defaults().voxThreshold);
+    expect(profile.voxMargin, AppSettings.defaults().voxMargin);
     expect(profile.playbackGain, 1.0);
   });
 
   test('turning it on changes the profile without touching a stored knob', () async {
     final r = await repo();
-    await r.setVoxThreshold(0.11);
+    await r.setVoxMargin(0.11);
     await r.setNoiseSuppression(0.25);
     await r.setNoiseSuppressionEngine(NoiseSuppressionEngine.spectral);
     await r.setTargetBufferMs(240);
@@ -39,7 +39,7 @@ void main() {
     // What is stored is still theirs, to the digit. This is the property the
     // whole design rests on — a rider who tries the switch mid-ride and hates
     // it has to get their own setup back, not the factory's.
-    expect(await r.getVoxThreshold(), 0.11);
+    expect(await r.getVoxMargin(), 0.11);
     expect(await r.getNoiseSuppression(), 0.25);
     expect(await r.getTargetBufferMs(), 240);
     expect(
@@ -50,7 +50,7 @@ void main() {
 
   test('turning it back off restores exactly what was there', () async {
     final r = await repo();
-    await r.setVoxThreshold(0.11);
+    await r.setVoxMargin(0.11);
     await r.setNoiseSuppression(0.25);
     await r.setTargetBufferMs(240);
     final before = await r.getAudioProfile();
@@ -65,7 +65,7 @@ void main() {
     // Otherwise the button restores three values the preset immediately
     // overrides again, and reads to the user as broken.
     final r = await repo();
-    await r.setVoxThreshold(0.11);
+    await r.setVoxMargin(0.11);
     await r.setRidingPreset(true);
 
     await r.restoreVoiceDefaults();
@@ -73,7 +73,7 @@ void main() {
     expect(await r.getRidingPreset(), isFalse);
     final profile = await r.getAudioProfile();
     expect(profile.fromPreset, isFalse);
-    expect(profile.voxThreshold, AppSettings.defaults().voxThreshold);
+    expect(profile.voxMargin, AppSettings.defaults().voxMargin);
     expect(profile.noiseSuppression, AppSettings.defaults().noiseSuppression);
     expect(profile.targetBufferMs, AppSettings.defaults().targetBufferMs);
   });
@@ -93,6 +93,10 @@ void main() {
     // asking.
     final r = await repo({'vox_threshold': 0.05});
     expect(await r.getRidingPreset(), isFalse);
-    expect((await r.getAudioProfile()).voxThreshold, 0.05);
+    // The stored VOX value is the legacy absolute one, so the profile reports
+    // it on the margin scale — 0.05 of the old 0.15 full scale is the same
+    // one-third of the slider the user was already looking at. See
+    // VoxMargin.fromLegacyThreshold.
+    expect((await r.getAudioProfile()).voxMargin, closeTo(1 / 3, 1e-9));
   });
 }

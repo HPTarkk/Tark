@@ -31,6 +31,7 @@
     "no_users_on_network": "Nobody else here yet",
     "vox_sensitivity": "HOW IT HEARS YOU",
     "vox_threshold": "HOW LOUD TO START",
+    "vox_margin_hint": "Measured against the room, so one setting works parked and at speed",
     "voice_loud": "LOUD",
     "voice_quiet": "QUIET",
     "level_label": "YOUR VOICE",

@@ -154,16 +154,19 @@ class _VoiceCard extends StatelessWidget {
       title: s.settings_section_voice,
       child: BlocBuilder<SettingsCubit, SettingsState>(
         buildWhen: (p, c) =>
-            p.voxThreshold != c.voxThreshold ||
+            p.voxMargin != c.voxMargin ||
             p.noiseSuppression != c.noiseSuppression ||
             p.noiseSuppressionEngine != c.noiseSuppressionEngine ||
             p.ridingPreset != c.ridingPreset ||
             p.isLive != c.isLive,
         builder: (context, state) {
           final riding = state.ridingPreset;
-          final thresholdPercent = ((state.voxThreshold / 0.15) * 100)
-              .clamp(0.0, 100.0)
-              .toInt();
+          // The slider is a margin above the measured background now, not an
+          // absolute level — but it is still drawn as 0–100 %, and a value
+          // migrated from the old scale lands on the same percentage it always
+          // showed. So this control looks untouched to someone who set it
+          // months ago; only what it does changed. See [VoxMargin].
+          final marginPercent = (state.voxMargin * 100).clamp(0.0, 100.0).toInt();
           // With no cleaner selected there is nothing for the strength to
           // apply to, so the slider is shown reading OFF and inert rather
           // than left live and lying about having an effect. The stored
@@ -197,19 +200,18 @@ class _VoiceCard extends StatelessWidget {
                 const SizedBox(height: 12),
                 _sliderHeader(
                   s.vox_threshold,
-                  '${thresholdPercent.localized(context)}%',
+                  '${marginPercent.localized(context)}%',
                   active: !riding,
                 ),
                 SliderTheme(
                   data: _sliderTheme(context),
                   child: Slider(
-                    value: state.voxThreshold,
+                    value: state.voxMargin.clamp(0.0, 1.0),
                     min: 0.0,
-                    max: 0.15,
+                    max: 1.0,
                     onChanged: riding
                         ? null
-                        : (v) =>
-                              context.read<SettingsCubit>().setVoxThreshold(v),
+                        : (v) => context.read<SettingsCubit>().setVoxMargin(v),
                     onChangeEnd: (_) => HapticFeedback.selectionClick(),
                   ),
                 ),
@@ -219,6 +221,17 @@ class _VoiceCard extends StatelessWidget {
                     Text(s.voice_quiet, style: _hintStyle),
                     Text(s.voice_loud, style: _hintStyle),
                   ],
+                ),
+                const SizedBox(height: 8),
+                // The one thing the percentage cannot say by itself: it is
+                // measured against the room, not against silence. Without this
+                // line the control reads as the absolute level it used to be,
+                // and someone would keep re-tuning it per environment — the
+                // exact chore the reframe removes.
+                Text(
+                  s.vox_margin_hint,
+                  style: _hintStyle,
+                  textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 10),
                 Divider(color: AppColors.border, height: 1),

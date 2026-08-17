@@ -134,7 +134,7 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
     emit(
       state.copyWith(
         myName: storedName.isEmpty ? state.myName : storedName,
-        voxThreshold: profile.voxThreshold,
+        voxMargin: profile.voxMargin,
         noiseSuppression: profile.noiseSuppression,
         noiseSuppressionEngine: profile.noiseSuppressionEngine,
       ),
@@ -194,10 +194,12 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
 
   void _onFrame(AudioFrame frame) {
     _noiseFloor.observe(frame.rms);
-    final gateOpen = _voxGate.advance(
-      frame.rms,
-      _noiseFloor.thresholdFor(state.voxThreshold),
-    );
+    // Resolved once and reused: the gate and the transmit expander have to be
+    // told the same absolute level. The stored value is a *margin* — a distance
+    // above the background — so handing that number to anything expecting a
+    // level would be nonsense arithmetic rather than a bad setting.
+    final voxLevel = _noiseFloor.thresholdFor(state.voxMargin);
+    final gateOpen = _voxGate.advance(frame.rms, voxLevel);
     final isTalking = gateOpen && !state.muted && _client.isOpen;
 
     if (isTalking != state.isTalking) {
@@ -209,10 +211,10 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
       if (!state.isTalking) {
         // Gate just opened — flush the pre-roll so the word onset survives.
         for (final samples in buffered) {
-          _sendAudio(samples);
+          _sendAudio(samples, voxLevel);
         }
       }
-      _sendAudio(frame.samples);
+      _sendAudio(frame.samples, voxLevel);
     } else {
       _voxGate.bufferWhileClosed(frame.samples);
     }
@@ -222,8 +224,8 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
     }
   }
 
-  void _sendAudio(List<double> samples) {
-    final processed = _engine.processForTransmit(samples, state.voxThreshold);
+  void _sendAudio(List<double> samples, double voxLevel) {
+    final processed = _engine.processForTransmit(samples, voxLevel);
     _client.send(_codec.encodeAudio(processed, state.myName, _audioSeq++));
   }
 
@@ -254,9 +256,9 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
     }
   }
 
-  Future<void> setVoxThreshold(double threshold) async {
-    emit(state.copyWith(voxThreshold: threshold));
-    await _settingsRepository.setVoxThreshold(threshold);
+  Future<void> setVoxMargin(double threshold) async {
+    emit(state.copyWith(voxMargin: threshold));
+    await _settingsRepository.setVoxMargin(threshold);
   }
 
   Future<void> setNoiseSuppression(double strength) async {
@@ -296,7 +298,7 @@ class GuestSessionState extends Equatable {
   final bool audioStarted;
   final bool isReady;
   final bool hasPermission;
-  final double voxThreshold;
+  final double voxMargin;
   final double noiseSuppression;
   final NoiseSuppressionEngine noiseSuppressionEngine;
 
@@ -311,7 +313,7 @@ class GuestSessionState extends Equatable {
     required this.audioStarted,
     required this.isReady,
     required this.hasPermission,
-    required this.voxThreshold,
+    required this.voxMargin,
     required this.noiseSuppression,
     required this.noiseSuppressionEngine,
   });
@@ -327,7 +329,7 @@ class GuestSessionState extends Equatable {
     audioStarted: false,
     isReady: false,
     hasPermission: true,
-    voxThreshold: 0.0,
+    voxMargin: 0.0,
     noiseSuppression: 1.0,
     noiseSuppressionEngine: NoiseSuppressionEngine.spectral,
   );
@@ -343,7 +345,7 @@ class GuestSessionState extends Equatable {
     bool? audioStarted,
     bool? isReady,
     bool? hasPermission,
-    double? voxThreshold,
+    double? voxMargin,
     double? noiseSuppression,
     NoiseSuppressionEngine? noiseSuppressionEngine,
   }) => GuestSessionState(
@@ -357,7 +359,7 @@ class GuestSessionState extends Equatable {
     audioStarted: audioStarted ?? this.audioStarted,
     isReady: isReady ?? this.isReady,
     hasPermission: hasPermission ?? this.hasPermission,
-    voxThreshold: voxThreshold ?? this.voxThreshold,
+    voxMargin: voxMargin ?? this.voxMargin,
     noiseSuppression: noiseSuppression ?? this.noiseSuppression,
     noiseSuppressionEngine: noiseSuppressionEngine ?? this.noiseSuppressionEngine,
   );
@@ -376,7 +378,7 @@ class GuestSessionState extends Equatable {
     audioStarted,
     isReady,
     hasPermission,
-    voxThreshold,
+    voxMargin,
     noiseSuppression,
     noiseSuppressionEngine,
   ];

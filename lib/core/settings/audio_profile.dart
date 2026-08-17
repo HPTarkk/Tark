@@ -14,7 +14,7 @@ import 'suppression_plan.dart';
 /// would apply to some of the chain and not the rest, which is worse than not
 /// having it.
 class AudioProfile extends Equatable {
-  final double voxThreshold;
+  final double voxMargin;
   final double noiseSuppression;
   final NoiseSuppressionEngine noiseSuppressionEngine;
   final int targetBufferMs;
@@ -31,7 +31,7 @@ class AudioProfile extends Equatable {
   final bool fromPreset;
 
   const AudioProfile({
-    required this.voxThreshold,
+    required this.voxMargin,
     required this.noiseSuppression,
     required this.noiseSuppressionEngine,
     required this.targetBufferMs,
@@ -50,14 +50,14 @@ class AudioProfile extends Equatable {
   /// inert when the cleaner is off (see AdvancedSettingsPage).
   factory AudioProfile.resolve({
     required bool ridingPreset,
-    required double voxThreshold,
+    required double voxMargin,
     required double noiseSuppression,
     required NoiseSuppressionEngine noiseSuppressionEngine,
     required int targetBufferMs,
   }) => ridingPreset
       ? RidingPreset.profile
       : AudioProfile(
-          voxThreshold: voxThreshold,
+          voxMargin: voxMargin,
           noiseSuppression: noiseSuppression,
           noiseSuppressionEngine: noiseSuppressionEngine,
           targetBufferMs: targetBufferMs,
@@ -67,7 +67,7 @@ class AudioProfile extends Equatable {
 
   @override
   List<Object?> get props => [
-    voxThreshold,
+    voxMargin,
     noiseSuppression,
     noiseSuppressionEngine,
     targetBufferMs,
@@ -98,23 +98,36 @@ class AudioProfile extends Equatable {
 ///
 /// ## Why VOX is the one that matters
 ///
-/// The app ships with the VOX threshold at 0, and 0 is a hard contract meaning
+/// The app ships with the VOX margin at 0, and 0 is a hard contract meaning
 /// *the gate is off entirely* — `NoiseFloorTracker.thresholdFor` returns 0
 /// unchanged and `VoxGate` takes its never-hold-anything-back path. The
-/// consequence is easy to miss: on a default install the adaptive noise-floor
-/// tracking never runs at all, because there is no gate for it to move. At a
+/// consequence is easy to miss: on a default install the noise-floor tracking
+/// never gates anything at all, because there is no gate for it to move. At a
 /// desk that is the right default — everything the mic hears is worth sending.
 /// At 100 km/h it means the rider holds the channel open with wind noise for
 /// the whole ride and nothing on their own phone tells them so.
 ///
-/// [voxThreshold] is therefore deliberately *low* rather than high. Its job is
-/// to arm the gate, not to set the bar — once armed, the tracker raises the
-/// threshold to `2.5×` the measured background, which is a far better number
-/// than any fixed one, and this value only survives as the floor beneath it.
+/// Arming that gate is the preset's real work, and now that the slider is a
+/// margin rather than an absolute level, arming it is also the *only* work: the
+/// value below is a distance above whatever the mic is hearing, so the preset
+/// no longer has to guess how loud a helmet is.
 abstract final class RidingPreset {
-  /// Low on purpose — this arms the adaptive gate rather than setting the
-  /// level. See the class doc.
-  static const double voxThreshold = 0.02;
+  /// ≈ 10.5 dB above the measured background.
+  ///
+  /// The value this replaced was 0.02 on the old absolute scale, chosen to be
+  /// deliberately *low* — its whole job was to arm the gate and then get out of
+  /// the way of the fixed 2.5× the tracker applied, because a higher absolute
+  /// number would have out-shouted the tracker and clipped word onsets indoors.
+  /// That trade is gone: a margin cannot out-shout the tracker, it *is* the
+  /// tracker's setting, so the preset can finally state a real one.
+  ///
+  /// 10.5 dB rather than the 8 dB everyone has been running, because the helmet
+  /// is the case where wind gusts push the background around between the
+  /// tracker's updates, and a rider on a boom mic clears a wide margin easily —
+  /// their mouth is centimetres from the capsule while the wind is not.
+  ///
+  /// Unverified on hardware, like the rest of the preset's numbers.
+  static const double voxMargin = 0.5;
 
   /// Moderate, not maximum. The standing P1 constraint is *intelligibility*,
   /// not silence: aggressive suppression eats the consonants that carry a word
@@ -147,7 +160,7 @@ abstract final class RidingPreset {
   static const double playbackGain = 1.3;
 
   static const AudioProfile profile = AudioProfile(
-    voxThreshold: voxThreshold,
+    voxMargin: voxMargin,
     noiseSuppression: noiseSuppression,
     noiseSuppressionEngine: engine,
     targetBufferMs: targetBufferMs,

@@ -4,13 +4,14 @@ import '../diagnostics/log_budget.dart';
 import 'app_settings.dart';
 import 'noise_suppression_engine.dart';
 import 'settings_keys.dart';
+import 'vox_margin.dart';
 
 /// Data-layer representation of [AppSettings]: adds JSON (de)serialization
 /// and SharedPreferences loading on top of the plain domain entity.
 class SettingsModel extends AppSettings {
   const SettingsModel({
     required super.myName,
-    required super.voxThreshold,
+    required super.voxMargin,
     required super.noiseSuppression,
     required super.noiseSuppressionEngine,
     required super.musicGain,
@@ -25,7 +26,7 @@ class SettingsModel extends AppSettings {
 
   factory SettingsModel.fromAppSettings(AppSettings s) => SettingsModel(
     myName: s.myName,
-    voxThreshold: s.voxThreshold,
+    voxMargin: s.voxMargin,
     noiseSuppression: s.noiseSuppression,
     noiseSuppressionEngine: s.noiseSuppressionEngine,
     musicGain: s.musicGain,
@@ -42,8 +43,15 @@ class SettingsModel extends AppSettings {
     final d = AppSettings.defaults();
     return SettingsModel(
       myName: json['myName'] as String? ?? d.myName,
-      voxThreshold:
-          (json['voxThreshold'] as num?)?.toDouble() ?? d.voxThreshold,
+      // The legacy name carried an absolute threshold, so it is translated
+      // rather than read straight — same rule as the preference key.
+      voxMargin:
+          (json['voxMargin'] as num?)?.toDouble() ??
+          (json['voxThreshold'] == null
+              ? d.voxMargin
+              : VoxMargin.fromLegacyThreshold(
+                  (json['voxThreshold'] as num).toDouble(),
+                )),
       noiseSuppression:
           (json['noiseSuppression'] as num?)?.toDouble() ?? d.noiseSuppression,
       noiseSuppressionEngine: json['noiseSuppressionEngine'] == null
@@ -71,7 +79,7 @@ class SettingsModel extends AppSettings {
 
   Map<String, dynamic> toJson() => {
     'myName': myName,
-    'voxThreshold': voxThreshold,
+    'voxMargin': voxMargin,
     'noiseSuppression': noiseSuppression,
     'noiseSuppressionEngine': noiseSuppressionEngine.name,
     'musicGain': musicGain,
@@ -84,6 +92,27 @@ class SettingsModel extends AppSettings {
     'logMaxBytes': logMaxBytes,
   };
 
+  /// Reads the VOX margin, translating the absolute-threshold key that builds
+  /// predating the reframe wrote — see [VoxMargin.fromLegacyThreshold].
+  ///
+  /// Shared with `SettingsRepositoryImpl.getVoxMargin` so `loadAll` and the
+  /// single getter cannot disagree about a migrated install; a disagreement
+  /// there draws one value on the settings page while the engine runs another.
+  ///
+  /// **Read-through, never rewritten.** Translating on every read rather than
+  /// converting once and writing back keeps the read free of side effects
+  /// (no write racing a concurrent read, nothing half-finished if the process
+  /// dies mid-migration) and leaves the old key intact, so a downgrade to an
+  /// older build still finds its own setting. The first touch of the slider
+  /// writes the new key, and the legacy value is never consulted again.
+  static double readVoxMargin(SharedPreferences prefs) {
+    final stored = prefs.getDouble(SettingsKeys.voxMargin);
+    if (stored != null) return stored;
+    final legacy = prefs.getDouble(SettingsKeys.legacyVoxThreshold);
+    if (legacy != null) return VoxMargin.fromLegacyThreshold(legacy);
+    return AppSettings.defaults().voxMargin;
+  }
+
   /// Reads every field from [prefs], falling back to [AppSettings.defaults]
   /// per-field so a partially-populated store (e.g. an older app version)
   /// still yields a fully valid settings object.
@@ -91,8 +120,7 @@ class SettingsModel extends AppSettings {
     final d = AppSettings.defaults();
     return SettingsModel(
       myName: prefs.getString(SettingsKeys.userName) ?? d.myName,
-      voxThreshold:
-          prefs.getDouble(SettingsKeys.voxThreshold) ?? d.voxThreshold,
+      voxMargin: readVoxMargin(prefs),
       noiseSuppression:
           prefs.getDouble(SettingsKeys.noiseSuppression) ?? d.noiseSuppression,
       noiseSuppressionEngine:

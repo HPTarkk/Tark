@@ -25,8 +25,8 @@ abstract interface class SettingsRepository {
   /// show the new name without polling or restarting.
   Stream<String> get myNameChanges;
 
-  Future<double> getVoxThreshold();
-  Future<void> setVoxThreshold(double value);
+  Future<double> getVoxMargin();
+  Future<void> setVoxMargin(double value);
 
   Future<double> getNoiseSuppression();
   Future<void> setNoiseSuppression(double value);
@@ -110,6 +110,6 @@ abstract interface class SettingsRepository {
   /// Turns the riding preset off as part of the reset. Leaving it on would
   /// make "reset to normal" a button that visibly does nothing — every value
   /// it restores is one the preset overrides.
-  Future<(double voxThreshold, double noiseSuppression, int targetBufferMs)>
+  Future<(double voxMargin, double noiseSuppression, int targetBufferMs)>
   restoreVoiceDefaults();
 }

@@ -59,7 +59,7 @@ class SettingsCubit extends Cubit<SettingsState> {
       emit(
         state.copyWith(
           myName: live.state.myName,
-          voxThreshold: live.state.voxThreshold,
+          voxMargin: live.state.voxMargin,
           noiseSuppression: live.state.noiseSuppression,
           noiseSuppressionEngine: live.state.noiseSuppressionEngine,
           ridingPreset: live.state.ridingPreset,
@@ -70,7 +70,7 @@ class SettingsCubit extends Cubit<SettingsState> {
         emit(
           state.copyWith(
             myName: s.myName,
-            voxThreshold: s.voxThreshold,
+            voxMargin: s.voxMargin,
             noiseSuppression: s.noiseSuppression,
             noiseSuppressionEngine: s.noiseSuppressionEngine,
             ridingPreset: s.ridingPreset,
@@ -90,7 +90,7 @@ class SettingsCubit extends Cubit<SettingsState> {
     // one thing it exists to report.
     final profile = AudioProfile.resolve(
       ridingPreset: all.ridingPreset,
-      voxThreshold: all.voxThreshold,
+      voxMargin: all.voxMargin,
       noiseSuppression: all.noiseSuppression,
       noiseSuppressionEngine: all.noiseSuppressionEngine,
       targetBufferMs: all.targetBufferMs,
@@ -106,7 +106,7 @@ class SettingsCubit extends Cubit<SettingsState> {
             )
           : state.copyWith(
               myName: all.myName,
-              voxThreshold: profile.voxThreshold,
+              voxMargin: profile.voxMargin,
               noiseSuppression: profile.noiseSuppression,
               noiseSuppressionEngine: profile.noiseSuppressionEngine,
               ridingPreset: profile.fromPreset,
@@ -131,13 +131,13 @@ class SettingsCubit extends Cubit<SettingsState> {
     }
   }
 
-  Future<void> setVoxThreshold(double value) async {
+  Future<void> setVoxMargin(double value) async {
     final live = _liveSession;
     if (live != null) {
-      await live.setVoxThreshold(value);
+      await live.setVoxMargin(value);
     } else {
-      emit(state.copyWith(voxThreshold: value));
-      await _repository.setVoxThreshold(value);
+      emit(state.copyWith(voxMargin: value));
+      await _repository.setVoxMargin(value);
     }
   }
 
@@ -184,7 +184,7 @@ class SettingsCubit extends Cubit<SettingsState> {
     emit(
       state.copyWith(
         ridingPreset: profile.fromPreset,
-        voxThreshold: profile.voxThreshold,
+        voxMargin: profile.voxMargin,
         noiseSuppression: profile.noiseSuppression,
         noiseSuppressionEngine: profile.noiseSuppressionEngine,
         targetBufferMs: profile.targetBufferMs,
@@ -216,7 +216,7 @@ class SettingsCubit extends Cubit<SettingsState> {
       emit(
         state.copyWith(
           ridingPreset: false,
-          voxThreshold: vox,
+          voxMargin: vox,
           noiseSuppression: noise,
           targetBufferMs: buffer,
         ),
@@ -286,7 +286,7 @@ class SettingsCubit extends Cubit<SettingsState> {
 class SettingsState extends Equatable {
   final bool isLive;
   final String myName;
-  final double voxThreshold;
+  final double voxMargin;
   final double noiseSuppression;
   final NoiseSuppressionEngine noiseSuppressionEngine;
 
@@ -303,7 +303,7 @@ class SettingsState extends Equatable {
   const SettingsState({
     required this.isLive,
     required this.myName,
-    required this.voxThreshold,
+    required this.voxMargin,
     required this.noiseSuppression,
     required this.noiseSuppressionEngine,
     required this.ridingPreset,
@@ -317,7 +317,7 @@ class SettingsState extends Equatable {
   factory SettingsState.initial({required bool isLive}) => SettingsState(
     isLive: isLive,
     myName: '',
-    voxThreshold: 0.0,
+    voxMargin: 0.0,
     noiseSuppression: 1.0,
     noiseSuppressionEngine: NoiseSuppressionEngine.spectral,
     ridingPreset: false,
@@ -330,7 +330,7 @@ class SettingsState extends Equatable {
 
   SettingsState copyWith({
     String? myName,
-    double? voxThreshold,
+    double? voxMargin,
     double? noiseSuppression,
     NoiseSuppressionEngine? noiseSuppressionEngine,
     bool? ridingPreset,
@@ -342,7 +342,7 @@ class SettingsState extends Equatable {
   }) => SettingsState(
     isLive: isLive,
     myName: myName ?? this.myName,
-    voxThreshold: voxThreshold ?? this.voxThreshold,
+    voxMargin: voxMargin ?? this.voxMargin,
     noiseSuppression: noiseSuppression ?? this.noiseSuppression,
     noiseSuppressionEngine:
         noiseSuppressionEngine ?? this.noiseSuppressionEngine,
@@ -358,7 +358,7 @@ class SettingsState extends Equatable {
   List<Object?> get props => [
     isLive,
     myName,
-    voxThreshold,
+    voxMargin,
     noiseSuppression,
     noiseSuppressionEngine,
     ridingPreset,

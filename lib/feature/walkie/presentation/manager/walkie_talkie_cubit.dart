@@ -19,6 +19,7 @@ import '../../../../core/home_widget/home_widget_snapshot.dart';
 import '../../../../core/home_widget/widget_control_channel.dart';
 import '../../../../core/settings/noise_suppression_engine.dart';
 import '../../../../core/settings/settings_repository.dart';
+import '../../../../core/settings/vox_margin.dart';
 import '../../../../core/sfx/sfx_event.dart';
 import '../../../../core/sfx/sfx_player.dart';
 import '../../../../core/utils/lan_ipv4.dart';
@@ -305,7 +306,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     // One resolved profile rather than three getters: with the riding preset
     // on, the values the engine runs are the preset's, not the stored ones.
     final profile = await _settingsRepository.getAudioProfile();
-    final voxThreshold = profile.voxThreshold;
+    final voxMargin = profile.voxMargin;
     final noiseSuppression = profile.noiseSuppression;
     final noiseSuppressionEngine = profile.noiseSuppressionEngine;
     final ridingPreset = profile.fromPreset;
@@ -353,7 +354,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
       state.copyWith(
         localId: localId,
         myName: myName,
-        voxThreshold: voxThreshold,
+        voxMargin: voxMargin,
         noiseSuppression: noiseSuppression,
         noiseSuppressionEngine: noiseSuppressionEngine,
         ridingPreset: ridingPreset,
@@ -660,10 +661,12 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     // decides for itself which are background and which are speech, and hiding
     // the loud ones from it would leave it estimating from half the signal.
     _noiseFloor.observe(frame.rms);
-    final gateOpen = _voxGate.advance(
-      frame.rms,
-      _noiseFloor.thresholdFor(state.voxThreshold),
-    );
+    // Resolved once and reused: the gate and the transmit expander have to be
+    // told the same absolute level. The stored value is a *margin* now — a
+    // distance above the background — so handing that number to anything
+    // expecting a level would be nonsense arithmetic rather than a bad setting.
+    final voxLevel = _noiseFloor.thresholdFor(state.voxMargin);
+    final gateOpen = _voxGate.advance(frame.rms, voxLevel);
     final voiceOpen = gateOpen && !state.isSelfMuted;
     if (isOnline && voiceOpen != _prevVoiceOpen) {
       _sfx.play(voiceOpen ? SfxEvent.pttOpen : SfxEvent.pttClose);
@@ -690,13 +693,13 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
         for (final samples in buffered) {
           _txPrerollFrames++;
           _transferRepository.sendAudio(
-            _audioEngine.processForTransmit(samples, state.voxThreshold),
+            _audioEngine.processForTransmit(samples, voxLevel),
             state.myName,
           );
         }
       }
       var outgoing = voiceOpen
-          ? _audioEngine.processForTransmit(frame.samples, state.voxThreshold)
+          ? _audioEngine.processForTransmit(frame.samples, voxLevel)
           : List<double>.filled(frame.samples.length, 0.0);
       if (sharingMusic) {
         outgoing = _musicMixer.mix(outgoing, state.musicGain);
@@ -798,7 +801,14 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
       'transmit: ${window.inSeconds}s window — frames=$_txFramesSeen '
       'sent=$_txFramesSent gated=$_txFramesGated '
       'preroll=$_txPrerollFrames/${_txPrerollFlushes}bursts '
-      'vox=${state.voxThreshold.toStringAsFixed(3)} '
+      // Margin, measured background and the level they resolve to. All three,
+      // because a field report of "it kept cutting me off" is unattributable
+      // with only one: the setting alone cannot say what the mic was hearing,
+      // and the level alone cannot say whether the rider or the room chose it.
+      'vox=${state.voxMargin.toStringAsFixed(2)}'
+      '/${VoxMargin.decibelsFor(state.voxMargin).toStringAsFixed(1)}dB '
+      'floor=${_noiseFloor.noiseFloor?.toStringAsFixed(4) ?? '-'} '
+      'gate=${_noiseFloor.thresholdFor(state.voxMargin).toStringAsFixed(4)} '
       // Which profile produced that vox figure. A field-test log where the
       // gate behaved unexpectedly is unreadable without knowing whether the
       // rider was on the preset or their own sliders.
@@ -1283,9 +1293,9 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     if (alone != state.isAlone) emit(state.copyWith(isAlone: alone));
   }
 
-  Future<void> setVoxThreshold(double threshold) async {
-    emit(state.copyWith(voxThreshold: threshold));
-    await _settingsRepository.setVoxThreshold(threshold);
+  Future<void> setVoxMargin(double threshold) async {
+    emit(state.copyWith(voxMargin: threshold));
+    await _settingsRepository.setVoxMargin(threshold);
   }
 
   /// Self-mute toggle — silences your mic without leaving the channel (for a
@@ -1350,7 +1360,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     _audioEngine.setPlaybackGain(profile.playbackGain);
     emit(
       state.copyWith(
-        voxThreshold: profile.voxThreshold,
+        voxMargin: profile.voxMargin,
         noiseSuppression: profile.noiseSuppression,
         noiseSuppressionEngine: profile.noiseSuppressionEngine,
         ridingPreset: profile.fromPreset,
@@ -1517,7 +1527,7 @@ class WalkieTalkieState extends Equatable {
   final bool isTransmitting;
   final bool isSelfMuted;
   final bool hasPermission;
-  final double voxThreshold;
+  final double voxMargin;
   final double noiseSuppression;
   final NoiseSuppressionEngine noiseSuppressionEngine;
 
@@ -1576,7 +1586,7 @@ class WalkieTalkieState extends Equatable {
     required this.isTransmitting,
     required this.isSelfMuted,
     required this.hasPermission,
-    required this.voxThreshold,
+    required this.voxMargin,
     required this.noiseSuppression,
     required this.noiseSuppressionEngine,
     required this.ridingPreset,
@@ -1602,7 +1612,7 @@ class WalkieTalkieState extends Equatable {
     isTransmitting: false,
     isSelfMuted: false,
     hasPermission: true,
-    voxThreshold: 0.0,
+    voxMargin: 0.0,
     noiseSuppression: 1.0,
     noiseSuppressionEngine: NoiseSuppressionEngine.spectral,
     ridingPreset: false,
@@ -1628,7 +1638,7 @@ class WalkieTalkieState extends Equatable {
     bool? isTransmitting,
     bool? isSelfMuted,
     bool? hasPermission,
-    double? voxThreshold,
+    double? voxMargin,
     double? noiseSuppression,
     NoiseSuppressionEngine? noiseSuppressionEngine,
     bool? ridingPreset,
@@ -1652,7 +1662,7 @@ class WalkieTalkieState extends Equatable {
     isTransmitting: isTransmitting ?? this.isTransmitting,
     isSelfMuted: isSelfMuted ?? this.isSelfMuted,
     hasPermission: hasPermission ?? this.hasPermission,
-    voxThreshold: voxThreshold ?? this.voxThreshold,
+    voxMargin: voxMargin ?? this.voxMargin,
     noiseSuppression: noiseSuppression ?? this.noiseSuppression,
     noiseSuppressionEngine:
         noiseSuppressionEngine ?? this.noiseSuppressionEngine,
@@ -1692,7 +1702,7 @@ class WalkieTalkieState extends Equatable {
     isTransmitting,
     isSelfMuted,
     hasPermission,
-    voxThreshold,
+    voxMargin,
     noiseSuppression,
     noiseSuppressionEngine,
     ridingPreset,

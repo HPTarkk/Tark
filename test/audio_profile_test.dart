@@ -11,7 +11,7 @@ AudioProfile resolve({
   int buffer = 100,
 }) => AudioProfile.resolve(
   ridingPreset: riding,
-  voxThreshold: vox,
+  voxMargin: vox,
   noiseSuppression: noise,
   noiseSuppressionEngine: engine,
   targetBufferMs: buffer,
@@ -27,7 +27,7 @@ void main() {
         engine: NoiseSuppressionEngine.both,
         buffer: 220,
       );
-      expect(p.voxThreshold, 0.07);
+      expect(p.voxMargin, 0.07);
       expect(p.noiseSuppression, 0.3);
       expect(p.noiseSuppressionEngine, NoiseSuppressionEngine.both);
       expect(p.targetBufferMs, 220);
@@ -39,7 +39,7 @@ void main() {
     });
 
     test('preserves "0 means VOX off" — nothing may arm the gate but the user', () {
-      expect(resolve(riding: false, vox: 0.0).voxThreshold, 0.0);
+      expect(resolve(riding: false, vox: 0.0).voxMargin, 0.0);
     });
   });
 
@@ -60,15 +60,19 @@ void main() {
       // The whole point of the preset: at the shipped default of 0 the
       // adaptive noise-floor tracking never runs, because there is no gate for
       // it to move. Anything > 0 hands NoiseFloorTracker something to raise.
-      expect(AppSettings.defaults().voxThreshold, 0.0);
-      expect(RidingPreset.voxThreshold, greaterThan(0.0));
+      expect(AppSettings.defaults().voxMargin, 0.0);
+      expect(RidingPreset.voxMargin, greaterThan(0.0));
     });
 
-    test('arms the gate low rather than setting a high fixed bar', () {
-      // It is a floor beneath an adaptive threshold, not the threshold. A high
-      // value here would out-shout the tracker and clip word onsets indoors,
-      // which is the failure the tracker exists to prevent.
-      expect(RidingPreset.voxThreshold, lessThan(0.05));
+    test('states a real margin instead of tiptoeing around the tracker', () {
+      // The old value was tiny on purpose: on the absolute scale, anything
+      // higher would have out-shouted the tracker's fixed 2.5x and clipped
+      // word onsets indoors, so the preset could only arm the gate and then
+      // get out of the way. A margin cannot out-shout the tracker — it *is*
+      // the tracker's setting — so the preset finally gets to choose one, and
+      // it chooses more separation than the middle of the slider.
+      expect(RidingPreset.voxMargin, greaterThanOrEqualTo(0.5));
+      expect(RidingPreset.voxMargin, lessThan(1.0));
     });
 
     test('does not over-suppress: moderate strength, never cascaded', () {

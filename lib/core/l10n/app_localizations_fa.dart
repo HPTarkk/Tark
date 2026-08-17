@@ -107,6 +107,10 @@ class AppLocalizationsFa extends AppLocalizations {
   String get vox_threshold => 'چقدر بلند حرف بزنی';
 
   @override
+  String get vox_margin_hint =>
+      'نسبت به صدای محیط سنجیده می‌شه، پس یک تنظیم هم توقف کار می‌کنه هم توی سرعت';
+
+  @override
   String get voice_loud => 'بلند';
 
   @override

@@ -13,7 +13,7 @@ import 'suppression_plan.dart';
 /// and folding them in here would just create a second source of truth.
 class AppSettings extends Equatable {
   final String myName;
-  final double voxThreshold;
+  final double voxMargin;
   final double noiseSuppression;
   final NoiseSuppressionEngine noiseSuppressionEngine;
   final double musicGain;
@@ -34,7 +34,7 @@ class AppSettings extends Equatable {
 
   const AppSettings({
     required this.myName,
-    required this.voxThreshold,
+    required this.voxMargin,
     required this.noiseSuppression,
     required this.noiseSuppressionEngine,
     required this.musicGain,
@@ -52,7 +52,7 @@ class AppSettings extends Equatable {
   /// the background noise on its own.
   factory AppSettings.defaults() => const AppSettings(
     myName: '',
-    voxThreshold: 0.0,
+    voxMargin: 0.0,
     // Not full strength, deliberately. This was 1.0, on the reasoning that a
     // wide-open VOX gate had to be paid for by cleaning harder — which is the
     // over-suppression trade in its purest form, and it shipped one notch past
@@ -96,7 +96,7 @@ class AppSettings extends Equatable {
 
   AppSettings copyWith({
     String? myName,
-    double? voxThreshold,
+    double? voxMargin,
     double? noiseSuppression,
     NoiseSuppressionEngine? noiseSuppressionEngine,
     double? musicGain,
@@ -109,7 +109,7 @@ class AppSettings extends Equatable {
     int? logMaxBytes,
   }) => AppSettings(
     myName: myName ?? this.myName,
-    voxThreshold: voxThreshold ?? this.voxThreshold,
+    voxMargin: voxMargin ?? this.voxMargin,
     noiseSuppression: noiseSuppression ?? this.noiseSuppression,
     noiseSuppressionEngine: noiseSuppressionEngine ?? this.noiseSuppressionEngine,
     musicGain: musicGain ?? this.musicGain,
@@ -125,7 +125,7 @@ class AppSettings extends Equatable {
   @override
   List<Object?> get props => [
     myName,
-    voxThreshold,
+    voxMargin,
     noiseSuppression,
     noiseSuppressionEngine,
     musicGain,

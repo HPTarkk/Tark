@@ -5,7 +5,16 @@
 abstract final class SettingsKeys {
   // Owned by SettingsRepository (see settings_repository_impl.dart).
   static const userName = 'user_name';
-  static const voxThreshold = 'vox_threshold';
+
+  /// How far above the measured background the VOX gate sits — see [VoxMargin].
+  static const voxMargin = 'vox_margin';
+
+  /// The absolute-RMS VOX threshold this replaced. Still read (never written)
+  /// so an install that predates the reframe keeps the setting it chose, via
+  /// `VoxMargin.fromLegacyThreshold`. Kept as a read-through rather than
+  /// rewritten in place, which also means a downgrade to an older build finds
+  /// its own key intact.
+  static const legacyVoxThreshold = 'vox_threshold';
   static const noiseSuppression = 'noise_suppression';
   static const noiseSuppressionEngine = 'noise_suppression_engine';
   static const musicGain = 'music_gain';

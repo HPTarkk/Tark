@@ -290,6 +290,12 @@ abstract class AppLocalizations {
   /// **'چقدر بلند حرف بزنی'**
   String get vox_threshold;
 
+  /// No description provided for @vox_margin_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'نسبت به صدای محیط سنجیده می‌شه، پس یک تنظیم هم توقف کار می‌کنه هم توی سرعت'**
+  String get vox_margin_hint;
+
   /// No description provided for @voice_loud.
   ///
   /// In fa, this message translates to:

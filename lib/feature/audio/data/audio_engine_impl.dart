@@ -581,8 +581,13 @@ class AudioEngineImpl implements AudioEngine {
   // ── Public API ─────────────────────────────────────────────────────────────
 
   @override
-  List<double> processForTransmit(List<double> samples, double voxThreshold) {
-    _processor.gateThreshold = (voxThreshold * 0.5).clamp(0.0, 0.05);
+  List<double> processForTransmit(List<double> samples, double voxLevel) {
+    // Half the gate's own level, so the expander only trims residual noise
+    // inside frames VOX has already decided are speech — it must never be the
+    // thing deciding. Capped, because this level now follows the measured
+    // background and a loud room could otherwise push a *within-frame*
+    // expander up to where it chews quiet syllables.
+    _processor.gateThreshold = (voxLevel * 0.5).clamp(0.0, 0.05);
     return _processor.process(samples);
   }
 

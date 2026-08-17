@@ -43,11 +43,13 @@ abstract interface class AudioEngine {
   /// Apply the audio processing chain (normalisation + high-pass + noise
   /// gate) to a fixed-size 16 kHz mic frame before it is transmitted.
   ///
-  /// [voxThreshold] ties the internal noise gate to the user's VOX setting:
-  /// it scales down as the VOX threshold is lowered and disables entirely
-  /// at 0, so a VOX threshold of "0 = always on" truly means no gating
-  /// anywhere in the chain (not just at the frame level).
-  List<double> processForTransmit(List<double> samples, double voxThreshold);
+  /// [voxLevel] is the **resolved** absolute level the VOX gate is comparing
+  /// frames against this instant — `NoiseFloorTracker.thresholdFor`'s output,
+  /// not the stored setting, which is a margin above the measured background
+  /// and means nothing on its own. It ties the internal noise gate to VOX: it
+  /// scales down as the gate's level drops and disables entirely at 0, so VOX
+  /// off truly means no gating anywhere in the chain, not just at frame level.
+  List<double> processForTransmit(List<double> samples, double voxLevel);
 
   /// Set noise suppression strength (0 = off, 1 = maximum) for whichever
   /// engine is currently selected via [setNoiseSuppressionEngine]. Applied
