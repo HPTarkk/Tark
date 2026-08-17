@@ -19,6 +19,8 @@ import '../../domain/entity/transport_stats.dart';
 import '../../domain/entity/waki_packet.dart';
 import '../../domain/repository/wifi_transfer_repository.dart';
 import '../../domain/service/recovery_ladder.dart';
+import '../../domain/service/opus_tuner.dart';
+import '../../domain/service/peer_loss_tracker.dart';
 import '../../domain/service/peer_ping_tracker.dart';
 import '../../domain/service/sender_route_pin.dart';
 import '../../domain/service/session_epoch_gate.dart';
@@ -611,6 +613,7 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
       'routes=${_routeSummary()} pinned=${_routePin.pinnedAddresses} '
       'dupRoute=$dupRoute staleEpoch=$staleEpoch epoch=${_epoch.value} '
       'rtt=${_lastRtt?.inMilliseconds ?? '?'}ms '
+      'txLoss=${_lossSummary()} opus=${_opusSummary()} '
       '${_unicastUnconfirmed ? 'UNICAST-UNCONFIRMED ' : ''}'
       'local=$_localAddresses '
       'bcast=${_broadcastTargets.map((a) => a.address).toList()}'
@@ -621,6 +624,28 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
       'quietFor=${silentFor}s'
       '${_sendFailingSince == null ? '' : ' SEND-FAILING'}',
     );
+  }
+
+  /// What the encoder is actually set to, and whether it could be set at all.
+  ///
+  /// `fec=off` is the one that matters when a report says a peer sounds torn up
+  /// under loss: it means the controlled bindings were unavailable on that
+  /// phone, so the tuning beside it describes what the link was measured to
+  /// want rather than anything in force.
+  String _opusSummary() {
+    final tuning = _codec.tuning;
+    return '${tuning.bitrate ~/ 1000}kbps/loss${tuning.packetLossPerc}%'
+        '/fec${_codec.hasFec ? 'on' : 'off'}';
+  }
+
+  /// Worst far-end loss and which peer is reporting it. Named because "13 %
+  /// loss" and "13 % loss, always that same phone" are different problems: the
+  /// first is the channel, the second is one rider dropping behind.
+  String _lossSummary() {
+    final worstId = _loss.worstPeerId;
+    if (worstId == null) return '?';
+    final percent = (_loss.worstLossFraction * 100).toStringAsFixed(1);
+    return '$percent%@$worstId';
   }
 
   /// `senderId:routeCount` for everyone currently being heard, so the ordinary
@@ -858,6 +883,9 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     _pings.clear();
     _unicastUnconfirmed = false;
     _lastRtt = null;
+    // Session-scoped for the same reason: the estimate describes peers that
+    // are gone, and both counters it diffs against restart with the transport.
+    _loss.clear();
     _rxBySender.clear();
     _senderAtAddress.clear();
     _narrowedTo = const {};
@@ -1359,6 +1387,25 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
       }
     }
 
+    // Expire the loss estimates of peers who have gone. Before reading the
+    // worst below, because the worst is exactly what a departed peer would
+    // otherwise go on being: a rider who drops off the back of the group at
+    // 40 % loss would hold the encoder at its lowest bitrate for everyone still
+    // talking, for the rest of the session.
+    _loss.retain(_currentlyHeardSenders());
+
+    // Retune the encoder for the link we just measured. On this tick rather
+    // than per frame because that is the cadence a new measurement arrives at,
+    // and the codec ignores an unchanged tuning anyway.
+    _codec.applyTuning(
+      const OpusTuner().tune(
+        AudioLinkConditions(
+          lossFraction: _loss.worstLossFraction,
+          rtt: _lastRtt,
+        ),
+      ),
+    );
+
     // Peers that have gone silent on unicast while still being heard. Recorded
     // as a flag the send path can read for free.
     final unconfirmed = _pings.unconfirmedAmong(targets, now);
@@ -1392,8 +1439,19 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
       case PongPacket():
         final rtt = _pings.pong(fromAddress, packet.token, DateTime.now());
         if (rtt != null) _lastRtt = rtt;
+        // The counters this pong carries are the only measurement of loss in
+        // the direction our voice travels — see [PeerLossTracker]. They were
+        // already on the wire from P0; this is what finally reads them.
+        _loss.sample(
+          packet.senderId,
+          ourSentCount: _audioSeq,
+          theirReceivedCount: packet.audioRxPackets,
+        );
     }
   }
+
+  /// How much of our audio each peer is failing to receive.
+  final PeerLossTracker _loss = PeerLossTracker();
 
   /// Most recent measured round trip, for the link-quality grade.
   Duration? _lastRtt;

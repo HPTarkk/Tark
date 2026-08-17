@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widget/link_established.dart';
 
 /// Small shared pieces of the WiFi/Hotspot page family — entrance animation,
 /// buttons, notes, spinners, and the status screens the page switches to.
@@ -12,7 +13,11 @@ class HotspotEntrance extends StatefulWidget {
   final Widget child;
   final int delayMs;
 
-  const HotspotEntrance({super.key, required this.child, required this.delayMs});
+  const HotspotEntrance({
+    super.key,
+    required this.child,
+    required this.delayMs,
+  });
 
   @override
   State<HotspotEntrance> createState() => _HotspotEntranceState();
@@ -185,52 +190,7 @@ class HotspotConnectedFlash extends StatelessWidget {
   const HotspotConnectedFlash({super.key, required this.label});
 
   @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0.4, end: 1.0),
-            duration: const Duration(milliseconds: 450),
-            curve: Curves.elasticOut,
-            builder: (context, scale, child) =>
-                Transform.scale(scale: scale, child: child),
-            child: Container(
-              width: 84,
-              height: 84,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.green.withAlpha(26),
-                border: Border.all(color: AppColors.green, width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.green.withAlpha(70),
-                    blurRadius: 26,
-                  ),
-                ],
-              ),
-              child: Icon(
-                Icons.check_rounded,
-                color: AppColors.green,
-                size: 42,
-              ),
-            ),
-          ),
-          const SizedBox(height: 18),
-          Text(
-            label,
-            style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => LinkEstablished(label: label);
 }
 
 class HotspotErrorCard extends StatelessWidget {

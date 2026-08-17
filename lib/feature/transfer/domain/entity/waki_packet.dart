@@ -76,14 +76,27 @@ final class AudioPacket extends WakiPacket {
   /// to detect lost/out-of-order UDP packets and conceal the gaps.
   final int seq;
 
+  /// The frame at `seq - 1`, rebuilt because that packet never arrived.
+  ///
+  /// Non-null only when exactly one packet was lost and the Opus decoder could
+  /// reconstruct it — from the in-band FEC copy this packet carries for it, or
+  /// failing that from libopus's own concealment. See [OpusDecodeResult].
+  ///
+  /// Consumers must play it **before** [samples], at sequence `seq - 1`. Doing
+  /// so is what makes the recovery worth having: the jitter buffer then sees an
+  /// unbroken run of sequence numbers and never conceals the gap with silence,
+  /// which is what a lost packet used to sound like.
+  final List<double>? recoveredSamples;
+
   const AudioPacket({
     required super.senderId,
     required super.senderName,
     required this.samples,
     required this.seq,
     super.sessionEpoch,
+    this.recoveredSamples,
   });
 
   @override
-  List<Object?> get props => [...super.props, samples, seq];
+  List<Object?> get props => [...super.props, samples, seq, recoveredSamples];
 }

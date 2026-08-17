@@ -586,6 +586,11 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
 
   // Hangover + pre-roll VOX shaping — see [VoxGate] for the why.
   final VoxGate _voxGate = VoxGate();
+
+  // Ambient level, so the VOX threshold rides the background instead of being
+  // tuned once and then wrong for the rest of the ride — see
+  // [NoiseFloorTracker].
+  final NoiseFloorTracker _noiseFloor = NoiseFloorTracker();
   bool _prevVoiceOpen = false;
 
   /// Starts true so the first frame with no address reports the gate closing.
@@ -647,7 +652,14 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     // correct for the instant the user unmutes) but an open gate no longer
     // keys the channel. Music casting keeps the channel keyed regardless —
     // muting silences your voice, not a music share you started.
-    final gateOpen = _voxGate.advance(frame.rms, state.voxThreshold);
+    // The floor sees every frame, including the ones that key the channel: it
+    // decides for itself which are background and which are speech, and hiding
+    // the loud ones from it would leave it estimating from half the signal.
+    _noiseFloor.observe(frame.rms);
+    final gateOpen = _voxGate.advance(
+      frame.rms,
+      _noiseFloor.thresholdFor(state.voxThreshold),
+    );
     final voiceOpen = gateOpen && !state.isSelfMuted;
     if (isOnline && voiceOpen != _prevVoiceOpen) {
       _sfx.play(voiceOpen ? SfxEvent.pttOpen : SfxEvent.pttClose);
@@ -1002,6 +1014,18 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
           SessionRole.unknown,
         );
         try {
+          // A frame rebuilt from this packet's in-band FEC copy goes in first,
+          // at the sequence it was lost from. Order is the whole point: fed in
+          // this order the jitter buffer sees an unbroken run and never
+          // conceals the gap, which is what a lost packet used to sound like.
+          final recovered = packet.recoveredSamples;
+          if (recovered != null) {
+            _audioEngine.playReceived(
+              recovered,
+              packet.seq - 1,
+              packet.senderId,
+            );
+          }
           _audioEngine.playReceived(
             packet.samples,
             packet.seq,

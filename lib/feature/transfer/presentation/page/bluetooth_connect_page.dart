@@ -9,6 +9,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
+import '../../../../core/widget/link_established.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/android_sdk.dart';
 import '../../../../core/utils/logger.dart';
@@ -149,7 +150,7 @@ class _BluetoothConnectPageState extends State<BluetoothConnectPage> {
                   !_navigatingToWalkie) {
                 // Let the success check land before jumping to the channel.
                 setState(() => _navigatingToWalkie = true);
-                await Future<void>.delayed(const Duration(milliseconds: 900));
+                await Future<void>.delayed(LinkEstablished.hold);
                 if (!context.mounted) return;
                 try {
                   context.goNamed(AppRoutes.walkieName);

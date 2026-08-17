@@ -10,6 +10,7 @@ export '../data/system_audio_capture.dart' show SystemAudioCapture;
 export '../domain/entity/audio_engine_status.dart';
 export '../domain/entity/audio_frame.dart';
 export '../domain/music_mixer.dart';
+export '../domain/noise_floor_tracker.dart';
 export '../domain/service/audio_engine.dart';
 export '../domain/service/session_wake_lock.dart';
 export '../domain/vox_gate.dart';

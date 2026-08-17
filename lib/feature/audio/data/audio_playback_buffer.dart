@@ -39,6 +39,20 @@ import '../domain/float64_fifo.dart';
 /// is pushed, never how fast, so it cannot starve or overrun the downstream
 /// native ring.
 ///
+/// The adaptive depth below obeys the same rule. It moves [_targetSamples] —
+/// how much is accumulated before playback starts and what the trim walks back
+/// down to — and never [_drainSize] or [_drainIntervalMs]. Everything the
+/// paragraph above warns about stays exactly as it was.
+///
+/// ## The depth adapts, the cadence does not
+///
+/// A fixed depth is wrong in both directions: 100 ms is needless delay for two
+/// phones on one desk, and too shallow for a hotspot between two moving bikes.
+/// So the target tracks the link between [_minTargetSamples] and
+/// [_maxTargetSamples], growing the moment the queue runs dry and shrinking
+/// only after a sustained calm stretch. See the adaptation section for why
+/// those two directions are deliberately not symmetric.
+///
 /// ## Where playback latency actually lives
 ///
 /// End-to-end delay is this queue plus the native output ring downstream
@@ -65,16 +79,33 @@ class AudioPlaybackBuffer {
     int targetBufferMs = 100,
     int drainIntervalMs = 10,
     int outputPrefillMs = kDefaultOutputPrefillMs,
+    this.adaptive = true,
     this.debugLogging = false,
     int Function()? outputUnderrunFrames,
   }) : _output = output,
        _sampleRate = sampleRate,
        _targetSamples = sampleRate * targetBufferMs ~/ 1000,
+       _minTargetSamples =
+           (sampleRate * targetBufferMs * _kMinTargetRatio ~/ 1000).round(),
+       _maxTargetSamples =
+           (sampleRate * targetBufferMs * _kMaxTargetRatio ~/ 1000).round(),
        _drainSize = sampleRate * drainIntervalMs ~/ 1000,
        _drainIntervalMs = drainIntervalMs,
        _defaultChunkLen = sampleRate * 10 ~/ 1000,
        _prefillSamples = sampleRate * outputPrefillMs ~/ 1000,
        _outputUnderrunFrames = outputUnderrunFrames;
+
+  /// How far below and above the configured depth adaptation may travel.
+  ///
+  /// Anchored to the user's setting rather than fixed in milliseconds, so the
+  /// setting keeps meaning "how much buffer I want" — now as the centre of a
+  /// range instead of a fixed point. At the default 100 ms this lands exactly
+  /// on the roadmap's band: 60 ms for close WiFi, ~100 for a hotspot, 180 for a
+  /// weak link. Someone who raises the slider to 300 because their link is
+  /// genuinely awful gets the whole range raised with it, rather than having
+  /// adaptation quietly overrule them back down to 180.
+  static const double _kMinTargetRatio = 0.6;
+  static const double _kMaxTargetRatio = 1.8;
 
   /// Head start handed to the native output ring whenever playback starts.
   ///
@@ -93,10 +124,19 @@ class AudioPlaybackBuffer {
   /// rather than another theory.
   final int Function()? _outputUnderrunFrames;
   final int _sampleRate;
-  final int _targetSamples;
+
+  /// Depth the buffer fills to before playing, and walks back down to when it
+  /// overruns. Mutable: see the adaptation section below.
+  int _targetSamples;
+  final int _minTargetSamples;
+  final int _maxTargetSamples;
   final int _drainSize;
   final int _drainIntervalMs;
   final int _defaultChunkLen;
+
+  /// Whether [_targetSamples] tracks the link. Off only in tests that need a
+  /// pinned depth to assert against.
+  final bool adaptive;
 
   /// Periodically logs queue depth and event counters. Left in deliberately:
   /// this bug was chased through several wrong theories for want of a single
@@ -120,8 +160,10 @@ class AudioPlaybackBuffer {
 
   /// Depth above which the queue is considered to be holding stale audio.
   /// Must be above target: Bluetooth delivery is bursty and the queue
-  /// routinely spikes for a moment.
-  late final int _trimThreshold = _targetSamples * 2;
+  /// routinely spikes for a moment. A getter rather than a cached value because
+  /// [_targetSamples] moves — a threshold left behind at a stale target would
+  /// trim against a depth the buffer is no longer aiming for.
+  int get _trimThreshold => _targetSamples * 2;
 
   /// Latency is walked down in small steps rather than snapped back in one
   /// splice. A single trim big enough to cover the whole backlog removes an
@@ -132,6 +174,50 @@ class AudioPlaybackBuffer {
   late final int _trimStepSamples = _sampleRate * 10 ~/ 1000;
   late final int _trimIntervalTicks = (200 / _drainIntervalMs).ceil();
   int _sinceTrimTicks = 0;
+
+  // ── Adaptive depth ─────────────────────────────────────────────────────
+  //
+  // The target was a fixed 100 ms, which is the wrong depth twice over: too
+  // deep for two phones on the same desk, and too shallow for a hotspot at
+  // speed. The two signals that say which way it is wrong are already measured
+  // here — an underrun means the buffer ran dry and was too shallow, a late
+  // drop means a packet arrived after its slot had already been played, which
+  // is the same statement about jitter from the other side.
+  //
+  // ## Growing and shrinking are deliberately not symmetric
+  //
+  // Being too shallow is audible immediately: the drain stops, the ramp decays
+  // to silence, and the listener hears speech chopped. Being too deep is a
+  // slowly-annoying delay nobody notices in a sentence. So the buffer grows
+  // **on the underrun itself** — not on the next window boundary — and shrinks
+  // only after a sustained stretch with nothing wrong at all.
+  //
+  // Growing on the underrun rather than on a tick also avoids a trap: the drain
+  // timer is cancelled while the queue refills, so a buffer that is underrunning
+  // constantly barely advances its tick count, and a purely tick-driven
+  // adaptation would grow slowest in exactly the conditions that need it most.
+
+  /// How often the calm-weather half of adaptation is evaluated.
+  static const int _adaptIntervalMs = 2000;
+  late final int _adaptEveryTicks = (_adaptIntervalMs / _drainIntervalMs)
+      .ceil();
+  int _adaptTicks = 0;
+
+  /// Consecutive clean windows before the depth is walked back down. Five
+  /// windows is ten seconds — long enough that a lull between two bursts of
+  /// jitter cannot be mistaken for a link that has genuinely improved.
+  static const int _calmWindowsBeforeShrink = 5;
+  int _calmWindows = 0;
+
+  /// Late arrivals in the current window past which the depth grows. Not zero:
+  /// a single straggler is ordinary UDP, and reacting to it would ratchet the
+  /// depth up on a link that is behaving.
+  static const int _lateDropsBeforeGrow = 3;
+  int _lateDropsSinceAdapt = 0;
+
+  /// Grown in bigger steps than it shrinks, for the reason above.
+  late final int _growStepSamples = _sampleRate * 20 ~/ 1000;
+  late final int _shrinkStepSamples = _sampleRate * 10 ~/ 1000;
 
   /// Beyond this many missing chunks in a row, treat it as a new talk burst
   /// (e.g. after a VOX silence) instead of filling a huge silence gap.
@@ -241,6 +327,38 @@ class AudioPlaybackBuffer {
   /// than inferring them from what eventually reaches the device.
   int get queuedSamples => _queue.length;
 
+  /// Depth the buffer is currently aiming for, in milliseconds. Exposed so
+  /// adaptation can be asserted on directly and read off the health log.
+  int get targetBufferMs => _ms(_targetSamples);
+
+  /// Grows the depth by one step, bounded. Called the moment the queue runs
+  /// dry, which is the one signal that cannot wait for a window boundary.
+  void _growTarget() {
+    if (!adaptive) return;
+    _calmWindows = 0;
+    if (_targetSamples >= _maxTargetSamples) return;
+    final grown = _targetSamples + _growStepSamples;
+    _targetSamples = grown > _maxTargetSamples ? _maxTargetSamples : grown;
+  }
+
+  /// The calm-weather half: shrink after a sustained stretch with nothing
+  /// wrong, and grow on sustained late arrivals even if the queue never
+  /// actually ran dry.
+  void _adaptStep() {
+    if (!adaptive) return;
+    if (_lateDropsSinceAdapt >= _lateDropsBeforeGrow) {
+      _lateDropsSinceAdapt = 0;
+      _growTarget();
+      return;
+    }
+    _lateDropsSinceAdapt = 0;
+    if (++_calmWindows < _calmWindowsBeforeShrink) return;
+    _calmWindows = 0;
+    if (_targetSamples <= _minTargetSamples) return;
+    final shrunk = _targetSamples - _shrinkStepSamples;
+    _targetSamples = shrunk < _minTargetSamples ? _minTargetSamples : shrunk;
+  }
+
   /// Feed incoming samples into the buffer.
   ///
   /// [seq] is the sender's monotonically increasing packet counter, scoped
@@ -260,8 +378,11 @@ class AudioPlaybackBuffer {
     } else if (seq < expectedSeq) {
       final behind = expectedSeq - seq;
       if (behind <= _maxReorderChunks) {
-        // Genuinely late — too old to splice back into sequence.
+        // Genuinely late — too old to splice back into sequence. Also the
+        // gentler of the two signals that the depth is too shallow: this packet
+        // would have played if the buffer had been holding a little more.
         stats.lateDrops++;
+        _lateDropsSinceAdapt++;
         return;
       }
       // Miles behind. Two different things look exactly like this:
@@ -507,6 +628,14 @@ class AudioPlaybackBuffer {
         _logHealth();
       }
 
+      // Its own window, not the log's: the two run at very different periods,
+      // and sharing counters would have each steal the other's evidence — the
+      // same trap TransportStats was built to avoid on the transport side.
+      if (++_adaptTicks >= _adaptEveryTicks) {
+        _adaptTicks = 0;
+        _adaptStep();
+      }
+
       if (_queue.length < _drainSize) {
         // Underrun — stop and wait for the buffer to refill, but ramp down on
         // the way out. Stopping mid-waveform leaves the signal at whatever
@@ -538,6 +667,11 @@ class AudioPlaybackBuffer {
         _lastEmittedSample = 0.0;
 
         _underruns++;
+        // The strongest evidence the depth is too shallow, and acted on here
+        // rather than at the next window boundary — the drain timer is about to
+        // be cancelled, so waiting for a tick would mean growing slowest under
+        // exactly the conditions that need it fastest.
+        _growTarget();
         _filling = true;
         _drainTimer?.cancel();
         _drainTimer = null;
@@ -590,6 +724,15 @@ class AudioPlaybackBuffer {
     _statsBySender.clear();
     _fadeRemaining = 0;
     _sinceTrimTicks = 0;
+    // The in-progress evidence goes, because it describes a stream that has
+    // just been discarded. The learned depth deliberately does NOT: this runs
+    // on a reconnect, and a reconnect mid-ride is overwhelmingly the same link
+    // with the same jitter. Starting over at the configured depth would pay for
+    // the lesson again in underruns — audible ones — while keeping it costs at
+    // most a few seconds of extra latency that shrinks itself back out.
+    _adaptTicks = 0;
+    _calmWindows = 0;
+    _lateDropsSinceAdapt = 0;
   }
 
   /// Cancel the drain timer. Call before discarding this object.

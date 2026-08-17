@@ -20,7 +20,7 @@ architecture.
 | Phase | Focus | State |
 | --- | --- | --- |
 | **P0** | Core reliability | **Done** — all four |
-| **P1** | Audio quality | Not started |
+| **P1** | Audio quality | **In progress** — 4 of 7 |
 | **P2** | Connection UX | Not started |
 | **P3** | Polish & diagnostics | Link quality indicator done |
 | **CI** | Re-enable pipeline | **Parked** — deliberately deferred |
@@ -189,32 +189,170 @@ with one phone firewalled would settle it.
 
 ---
 
-## P1 — Audio quality
+## P1 — Audio quality *(current)*
 
-Verified current state: Opus is hardcoded to **16 kHz** at
-[opus_audio_codec.dart:100,148](lib/feature/transfer/data/codec/opus_audio_codec.dart),
-with **no in-band FEC**. The jitter buffer target is a static **100 ms**
-([audio_playback_buffer.dart:65](lib/feature/audio/data/audio_playback_buffer.dart)).
-`VoxGate` has hangover + preroll but takes a **fixed threshold**
-([vox_gate.dart](lib/feature/audio/domain/vox_gate.dart)).
+### The blocker that shaped this phase
 
-- [ ] **Adaptive Opus profile** — good link: 24/48 kHz higher bitrate; weak link:
-      lower bitrate + resilience. Decided locally from loss/jitter/queue depth
-- [ ] **In-band FEC + PLC** — highest value item for riding. A lost packet gets
-      reconstructed instead of leaving a hole. Retransmission is *not* the
-      answer for realtime
-- [ ] **Adaptive jitter buffer** — 60–80 ms close Wi-Fi, 80–120 ms hotspot,
-      120–180 ms weak. Must not grow unbounded (latency bloat)
+`opus_dart` cannot do FEC, and finding out why decided the whole approach.
+
+The package **never binds `opus_encoder_ctl`** — its FFI wrapper covers only
+`opus_encoder_get_size/create/init/encode/destroy` — and it hides both the
+native encoder pointer and its own library handle behind private fields, so
+there is no seam to reach a CTL through from outside. Bitrate, complexity and
+in-band FEC are unreachable through it at any level.
+
+Its **decoder** does expose a `fec` flag, and that cannot work either: the value
+it forwards to libopus as `frame_size` — a *sample* count — is computed in
+*milliseconds* (`_packetDuration`, returned unchanged by `_estimateLoss`). For
+this app's 20 ms frames it passes 20 where libopus needs 320, so every FEC
+decode returns `OPUS_BUFFER_TOO_SMALL` and the package turns it into a throw.
+The bug is latent for Tark today only because nothing had ever asked it to
+conceal a packet.
+
+So both calls are bound directly, against the **same** `libopus` handle
+`opus_flutter` already loaded — loading a second copy would put the encoder and
+decoder in different library instances, which is a bug that only appears at
+runtime. Everything else about `opus_dart` is unchanged.
+
+**Three rungs, each a working codec**, so no native failure can cost more than
+the status quo:
+
+1. [`ControlledOpusEncoder`/`Decoder`](lib/feature/transfer/data/codec/controlled_opus.dart) —
+   direct bindings. The only rung with FEC or tuning.
+2. `opus_dart`'s own encoder/decoder — no FEC, fixed bitrate. Exactly what
+   shipped before.
+3. Raw PCM16, when libopus did not load at all.
+
+Falling from 1 to 2 is silent and safe by design; falling to 3 stays loud,
+because it is not. The bindings are behind a conditional import
+([stub](lib/feature/transfer/data/codec/controlled_opus_stub.dart) /
+[ffi](lib/feature/transfer/data/codec/controlled_opus_ffi.dart)) so the guest
+web build still compiles — verified with `flutter build web`.
+
+### 1. In-band FEC + PLC — **done**
+
+- [x] FEC is enabled once at encoder creation and never turned off. It costs
+      nothing at a zero loss budget — libopus spends bits on the redundant copy
+      only in proportion to `OPUS_SET_PACKET_LOSS_PERC` — which removes the
+      whole class of bug where a link degrades and something forgot to enable
+      FEC in time to matter
+- [x] [`FecGapTracker`](lib/feature/transfer/domain/service/fec_gap_tracker.dart)
+      decides when recovery is possible: **exactly one** missing packet. Opus
+      carries a copy of the immediately preceding frame and no further back
+- [x] `AudioPacket.recoveredSamples` carries the rebuilt frame, played at
+      `seq - 1` **before** the real one. That ordering is what makes it worth
+      having: the jitter buffer then sees an unbroken run and never conceals the
+      gap with silence, which is what a lost packet used to sound like
+- [x] Where the packet carries no FEC data (older peer, or the sender budgeted
+      no loss), libopus synthesises a concealment frame instead — the PLC half,
+      and still far better than a hole
+- [x] Tests: [fec_gap_tracker_test.dart](test/fec_gap_tracker_test.dart)
+
+**The case that took the most care** is ordinary UDP reordering. Given 10, 12,
+11, 13: packet 12 correctly recovers 11, then the real 11 arrives late. If the
+straggler is allowed to rewind the sequence, 13 then looks like a one-packet gap
+and "recovers" 12 — a frame already played, decoded a second time and out of
+order. A FEC decode advances the native decoder by a frame, so that does not
+merely waste work, it desynchronises the decoder for everything after it. The
+sequence therefore only ever moves forward.
+
+### 2. Adaptive Opus profile — **done**, minus the sample rate
+
+- [x] [`PeerLossTracker`](lib/feature/transfer/domain/service/peer_loss_tracker.dart) —
+      loss in the direction our voice travels, which **cannot be measured at
+      this end**. We count what we sent; only the far end counts what arrived
+- [x] [`OpusTuner`](lib/feature/transfer/domain/service/opus_tuner.dart) maps
+      loss + RTT to bitrate / complexity / loss budget, applied on the 1 s ping
+      tick. No hysteresis, deliberately: `OPUS_SET_BITRATE` is a per-frame-cheap
+      operation libopus is built to absorb, and damping a change nobody can hear
+      would only make the tuning lag the link
+- [x] The **worst** peer decides, not the average — one encoded packet goes to
+      every peer, so the stream has to survive the worst link it is addressed to
+- [x] `txLoss=` and `fec=` on the session log line
+- [x] Tests: [peer_loss_tracker_test.dart](test/peer_loss_tracker_test.dart),
+      [opus_tuner_test.dart](test/opus_tuner_test.dart)
+
+**The measurement was already on the wire.** P0's unicast ping/pong has carried
+`audioRxPackets` since it was written, and `ControlPacket` has said all along
+that comparing it against the sender's own count is "a direct loss measurement
+that neither end could make alone". Until now those counters were sent,
+answered, and thrown away — only the token was read, for RTT. This is the
+consumer they were put there for.
+
+**Not done: the 24/48 kHz half.** That is not a codec setting. The capture chain
+is 16 kHz end to end (`kTxSampleRate` — the mic resampler targets it,
+`AudioProcessor` is built at it, and a frame is 320 samples because of it), so
+raising it is a pipeline change on both ends plus a wire-format negotiation.
+Audio **bandwidth** is also deliberately left at libopus's own choice rather
+than narrowed on a weak link: stripping the high end is where consonants die,
+which is the exact trap the "do not over-suppress" item warns about. Loss is
+answered with redundancy instead.
+
+### 3. Adaptive jitter buffer — **done**
+
+- [x] The target depth now tracks the link instead of sitting at a static
+      100 ms, which is wrong twice over: needless delay for two phones on one
+      desk, too shallow for a hotspot between two moving bikes
+- [x] Bounds are anchored to the user's setting (×0.6 to ×1.8) rather than fixed
+      in milliseconds, so the default 100 ms lands exactly on the roadmap's
+      60–180 ms band while someone who raises the slider raises the whole range
+      with it, instead of being quietly overruled back down
+- [x] **Growth and shrink are not symmetric.** Too shallow is audible
+      immediately — the drain stops and speech is chopped — so the depth grows
+      *on the underrun itself*, not at the next window. Too deep is a delay
+      nobody notices in a sentence, so it is only given back after five clean
+      windows (10 s)
+- [x] A reset (reconnect) keeps the learned depth: a reconnect mid-ride is
+      overwhelmingly the same link, and relearning would be paid for in
+      underruns to save a latency nobody notices
+- [x] Tests: [audio_playback_buffer_adaptive_test.dart](test/audio_playback_buffer_adaptive_test.dart)
+
+Growing on the underrun rather than on a tick also avoids a trap: the drain
+timer is cancelled while the queue refills, so a buffer that is underrunning
+constantly barely advances its tick count, and a purely tick-driven adaptation
+would grow slowest in exactly the conditions needing it most.
+
+**The drain cadence is untouched.** Adaptation moves the target depth and
+nothing else — see the standing warning in
+[audio_playback_buffer.dart](lib/feature/audio/data/audio_playback_buffer.dart)
+about why the fixed cadence must not be "improved".
+
+### 4. Adaptive VOX noise floor — **done**
+
+- [x] [`NoiseFloorTracker`](lib/feature/audio/domain/noise_floor_tracker.dart) —
+      tracks ambient level, moving down fast and up slowly, and **excludes
+      frames that are clearly speech** so a long sentence cannot drag the floor
+      up behind it and close the gate on the speaker's own voice mid-sentence
+- [x] The "zero means VOX off" contract is preserved exactly — no measured
+      background may override it
+- [x] The result never goes *below* the user's setting. The slider is a
+      statement about what they do not want transmitted; a measurement may raise
+      the bar to clear a noisy background but not lower it past their own floor
+- [x] Capped at the top of the slider's range, so a mic fault reporting an
+      enormous level cannot set a threshold no voice could cross — that would be
+      a silently muted phone, which is the failure this whole area exists to
+      avoid
+- [x] Tests: [noise_floor_tracker_test.dart](test/noise_floor_tracker_test.dart)
+
+The fuller answer — reframing the slider itself from an absolute threshold into
+a pure margin above the floor — changes what a persisted setting means and
+needs the label, the translations, the README and the website with it. That
+belongs with the riding preset below, which renames it anyway.
+
+### Still open
+
 - [ ] **Clock drift** — gradual correction already started; verify over long runs
-      that neither side starves or overflows
+      that neither side starves or overflows. A field-test item, not a code one
 - [ ] **Do not over-suppress** — target is *maximum intelligibility*, not studio
-      quality. Aggressive RNNoise + packet loss destroys consonants
+      quality. Aggressive RNNoise + packet loss destroys consonants. Honoured as
+      a constraint in the three decisions above (bandwidth left alone, loss
+      answered with redundancy, complexity kept modest); still owed a pass over
+      the suppressor defaults themselves
 - [ ] **Riding preset** — one toggle: moderate RNNoise, controlled AGC, echo
       cancel, VOX for high noise, Opus robust, adaptive jitter, headset priority,
-      slightly higher playback gain
-- [ ] **Adaptive VOX noise floor** — sample ambient for a few seconds, then
-      `threshold = noiseFloor + margin`. Removes manual tuning between a quiet
-      room and a highway
+      slightly higher playback gain. Now mostly a *wiring* job, since the
+      adaptive halves exist — but it touches settings UI, translated strings,
+      README and website, so it is its own piece of work
 
 ---
 
@@ -255,6 +393,16 @@ unification.
       the 2 s indicator cannot steal each other's windows.
       Tests: [link_quality_test.dart](test/link_quality_test.dart),
       [link_quality_bars_test.dart](test/link_quality_bars_test.dart)
+- [x] **Connect-success moment** — [`LinkEstablished`](lib/core/widget/link_established.dart)
+      replaces the check-in-a-circle each transport had its own copy of: two
+      peers close, a beam locks and pulses, the pair resolves into a ring, the
+      check strokes in. One painter, no blurs, for the low-end 60 fps floor.
+      **The hotspot flow never actually showed it** — `_enterChannel` navigated
+      on the same frame the peer connected, so the animation was built and
+      thrown away undrawn, while Bluetooth and the guest link both held the
+      beat. Fixed with `_enterChannelAfterFlash`, and the three hardcoded
+      `900`s replaced by `LinkEstablished.hold` so the waits cannot drift from
+      the choreography.
 - [ ] **Session summary** — duration, transport, peers, packet stats, duplicates,
       peak jitter, underruns, reconnects, route changes, mic failures
 - [ ] **Field Test Mode** (advanced settings) — log `AUDIO`, `NETWORK`, `JITTER`,

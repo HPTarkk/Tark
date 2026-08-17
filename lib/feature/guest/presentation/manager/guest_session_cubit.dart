@@ -11,6 +11,7 @@ import '../../../../core/utils/logger.dart';
 import '../../../audio/domain/entity/audio_engine_status.dart';
 import '../../../audio/domain/entity/audio_frame.dart';
 import '../../../audio/domain/service/audio_engine.dart';
+import '../../../audio/domain/noise_floor_tracker.dart';
 import '../../../audio/domain/vox_gate.dart';
 // Direct file imports (not the transfer barrel) — see GuestWebClient.
 import '../../../transfer/data/codec/waki_packet_codec.dart';
@@ -58,6 +59,13 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
           if (!state.hostTalking) _sfx.play(SfxEvent.rxStart);
           emit(state.copyWith(hostName: packet.senderName, hostTalking: true));
           try {
+            // FEC-recovered frame first, at the sequence it was lost from —
+            // see the same handling in WalkieTalkieCubit for why the order is
+            // what makes the recovery worth having.
+            final recovered = packet.recoveredSamples;
+            if (recovered != null) {
+              _engine.playReceived(recovered, packet.seq - 1, 'host');
+            }
             _engine.playReceived(packet.samples, packet.seq, 'host');
           } catch (e) {
             Logger.log('Guest playback error: $e');
@@ -99,6 +107,10 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
   // Hangover + pre-roll VOX shaping, shared with the walkie page — see
   // [VoxGate] for the why.
   final VoxGate _voxGate = VoxGate();
+
+  // Ambient level, so the threshold rides the background rather than a value
+  // tuned somewhere else — see [NoiseFloorTracker].
+  final NoiseFloorTracker _noiseFloor = NoiseFloorTracker();
   int _audioSeq = 0;
 
   /// Mic frames, for the visualizer (same audio-rate side stream the walkie
@@ -179,7 +191,11 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
   }
 
   void _onFrame(AudioFrame frame) {
-    final gateOpen = _voxGate.advance(frame.rms, state.voxThreshold);
+    _noiseFloor.observe(frame.rms);
+    final gateOpen = _voxGate.advance(
+      frame.rms,
+      _noiseFloor.thresholdFor(state.voxThreshold),
+    );
     final isTalking = gateOpen && !state.muted && _client.isOpen;
 
     if (isTalking != state.isTalking) {

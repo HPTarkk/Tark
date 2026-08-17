@@ -3,8 +3,10 @@ import 'dart:typed_data';
 
 import '../../../../core/identity/session_epoch.dart';
 import '../../domain/entity/control_packet.dart';
+import '../../domain/entity/opus_tuning.dart';
 import '../../domain/entity/session_role.dart';
 import '../../domain/entity/waki_packet.dart';
+import '../../domain/service/opus_tuner.dart';
 import 'opus_audio_codec.dart';
 
 const kPresenceByte = 0x01;
@@ -326,10 +328,11 @@ class WakiPacketCodec {
       final audioBytes = bytes.sublist(bodyStart + 4);
       if (audioBytes.isEmpty) return null;
       // Keyed on the sender id, so a per-sender Opus decoder follows the
-      // device rather than the address it arrived from.
-      final samples = isOpus
-          ? _opus.decode(audioBytes, senderId)
-          : _bytesToSamples(audioBytes);
+      // device rather than the address it arrived from. The sequence goes in
+      // too: a one-packet gap is what lets the decoder rebuild the missing
+      // frame from this packet's in-band FEC copy.
+      final decoded = isOpus ? _opus.decode(audioBytes, senderId, seq) : null;
+      final samples = isOpus ? decoded?.samples : _bytesToSamples(audioBytes);
       if (samples == null || samples.isEmpty) return null;
       return AudioPacket(
         senderId: senderId,
@@ -337,6 +340,7 @@ class WakiPacketCodec {
         sessionEpoch: epoch,
         samples: samples,
         seq: seq,
+        recoveredSamples: decoded?.recoveredPrevious,
       );
     }
     return null;
@@ -441,6 +445,18 @@ class WakiPacketCodec {
   /// Tells the Opus encoder what the outgoing stream is carrying, so a music
   /// cast is not encoded through a speech model. See [OpusEncodeProfile].
   void setAudioProfile(OpusEncodeProfile profile) => _opus.setProfile(profile);
+
+  /// Retunes the encoder for the link this codec is transmitting over — see
+  /// [OpusTuner]. A no-op when the tuning is unchanged, so a transport can hand
+  /// this its latest measurement on every tick.
+  void applyTuning(OpusTuning tuning) => _opus.applyTuning(tuning);
+
+  /// Whether the transmit path is running with in-band FEC, for the session
+  /// log — it changes what a lossy link sounds like at the far end.
+  bool get hasFec => _opus.hasFec;
+
+  /// What the encoder is currently tuned to, for the session log.
+  OpusTuning get tuning => _opus.tuning;
 
   /// Frees native Opus state (call when the owning transport shuts down).
   void release() => _opus.release();
