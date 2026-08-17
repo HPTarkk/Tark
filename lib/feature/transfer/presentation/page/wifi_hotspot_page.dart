@@ -56,37 +56,37 @@ class WifiHotspotPage extends StatefulWidget {
 class _WifiHotspotPageState extends State<WifiHotspotPage> {
   bool _navigating = false;
 
-  /// Enters the channel straight away — the manual "enter" on the plain Wi-Fi
-  /// flow, where the user pressed a button and nothing has just connected.
-  /// Holding a success animation in front of a deliberate tap would only read
-  /// as lag.
-  void _enterChannel(BuildContext context) {
-    if (_navigating) return;
-    setState(() => _navigating = true);
-    // Leave the hotspot up — and the joined network bound — if one was set up;
-    // the walkie session runs over it.
-    context.goNamed(AppRoutes.walkieName);
-  }
-
-  /// Enters after letting [LinkEstablished] play, for a peer that arrived on
-  /// its own.
+  /// Enters the channel, letting [LinkEstablished] play first.
   ///
-  /// Without this wait the hotspot flow navigated on the same frame it learned
-  /// the peer had connected, so its success animation was built, laid out and
-  /// thrown away without ever being drawn — the one transport whose pairing
-  /// takes the longest was also the only one that never acknowledged it had
-  /// worked. Bluetooth and the guest link had held this beat all along.
-  Future<void> _enterChannelAfterFlash(BuildContext context) async {
+  /// **Every** way into the channel comes through here — the peer arriving on
+  /// its own, and all three "Enter channel" buttons (plain Wi-Fi, hotspot host,
+  /// hotspot join). Previously this navigated on the same frame it was called,
+  /// so the success animation was built, laid out and thrown away without ever
+  /// being drawn: the transport whose pairing takes the longest was the only
+  /// one that never acknowledged it had worked.
+  ///
+  /// An earlier attempt at this held the beat only for the automatic path, on
+  /// the theory that delaying a deliberate tap would read as lag. That was
+  /// wrong about the screen it was describing. The button on the join flow
+  /// appears at `JoinPhase.joined` — the phone has *just* associated with the
+  /// host's AP — and the host flow's appears once the hotspot is up. Tapping
+  /// them is the user confirming a connection that already happened, not
+  /// requesting a page change, so the acknowledgement belongs on all of them.
+  Future<void> _enterChannel(BuildContext context) async {
     if (_navigating) return;
+    // Flips the body to the flash immediately; the wait below is what gives it
+    // time to be seen.
     setState(() => _navigating = true);
     await Future<void>.delayed(LinkEstablished.hold);
     if (!context.mounted) return;
     try {
+      // Leave the hotspot up — and the joined network bound — if one was set
+      // up; the walkie session runs over it.
       context.goNamed(AppRoutes.walkieName);
     } catch (e) {
       // The flash renders for as long as the flag is set, so a jump that never
       // lands would park the user on "you're in!" with only the back arrow.
-      // Drop the flag so the next connected emission gets another go.
+      // Drop the flag so another attempt can get through.
       Logger.log('Walkie navigation failed: $e');
       if (mounted) setState(() => _navigating = false);
     }
@@ -149,7 +149,7 @@ class _WifiHotspotPageState extends State<WifiHotspotPage> {
         child: BlocConsumer<WifiHotspotCubit, HotspotBridgeState>(
           listener: (context, state) {
             if (state.peerConnected && !_navigating) {
-              unawaited(_enterChannelAfterFlash(context));
+              unawaited(_enterChannel(context));
             }
           },
           builder: (context, state) {
@@ -171,7 +171,8 @@ class _WifiHotspotPageState extends State<WifiHotspotPage> {
                       ? HotspotConnectedFlash(label: s.bt_connected)
                       : state.segment == WifiHotspotSegment.wifi
                       ? WifiOnlyFlow(
-                          onEnterChannel: () => _enterChannel(context),
+                          onEnterChannel: () =>
+                              unawaited(_enterChannel(context)),
                         )
                       : _buildHotspotSegment(context, s, state),
                 ),
@@ -202,11 +203,11 @@ class _WifiHotspotPageState extends State<WifiHotspotPage> {
       ),
       HotspotRole.host => HotspotHostFlow(
         state: state,
-        onEnterChannel: () => _enterChannel(context),
+        onEnterChannel: () => unawaited(_enterChannel(context)),
       ),
       HotspotRole.join => HotspotJoinFlow(
         state: state,
-        onEnterChannel: () => _enterChannel(context),
+        onEnterChannel: () => unawaited(_enterChannel(context)),
       ),
     };
   }

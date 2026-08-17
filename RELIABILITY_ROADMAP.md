@@ -370,6 +370,22 @@ unification.
       *before* entering the room
 - [ ] Self-test mode in settings: record 2 s, play back locally, report active
       route, verify headset, benchmark latency
+- [x] **Join screen stops contradicting itself.** `hotspot_join_instructions`
+      rendered unconditionally above the phase switch, so it stayed up through
+      every later state — over a spinner while joining, and over
+      "joined <ssid>" once already on the network, telling the user to do a
+      thing they had just finished. Now shown for `JoinPhase.idle` only; every
+      other phase already says something specific of its own.
+- [x] **Joiner loading + success are animated**
+      ([hotspot_join_states.dart](lib/feature/transfer/presentation/widget/hotspot_join_states.dart)).
+      A stock `CircularProgressIndicator` was the only thing on this journey
+      not speaking the app's language. Replaced by one state-driven header
+      graphic that cross-fades: amber Wi-Fi arcs pulsing outward while
+      associating, a green node with slow listening rings once on the network.
+      Deliberately calm rather than triumphant — the peer still has to arrive,
+      and the celebration belongs to `LinkEstablished` when the channel opens.
+      Ring weights were tuned against a render, not by eye: the first pass was
+      invisible at the size it actually draws at.
 - [ ] Clearer recovery messaging
 
 ---
@@ -398,11 +414,17 @@ unification.
       peers close, a beam locks and pulses, the pair resolves into a ring, the
       check strokes in. One painter, no blurs, for the low-end 60 fps floor.
       **The hotspot flow never actually showed it** — `_enterChannel` navigated
-      on the same frame the peer connected, so the animation was built and
-      thrown away undrawn, while Bluetooth and the guest link both held the
-      beat. Fixed with `_enterChannelAfterFlash`, and the three hardcoded
-      `900`s replaced by `LinkEstablished.hold` so the waits cannot drift from
-      the choreography.
+      on the same frame it was called, so the animation was built and thrown
+      away undrawn, while Bluetooth and the guest link both held the beat.
+      All four routes into the channel (the peer arriving on its own, plus the
+      "Enter channel" buttons on plain Wi-Fi, hotspot host and hotspot join)
+      now go through one delaying `_enterChannel`. A first attempt held the
+      beat only for the automatic path, on the theory that delaying a
+      deliberate tap reads as lag — wrong, because the join flow's button
+      appears at `JoinPhase.joined`, i.e. immediately after associating with
+      the host AP, so tapping it *is* acknowledging a connection. The three
+      hardcoded `900`s are now `LinkEstablished.hold`, derived from the
+      animation's own length so the waits cannot drift from the choreography.
 - [ ] **Session summary** — duration, transport, peers, packet stats, duplicates,
       peak jitter, underruns, reconnects, route changes, mic failures
 - [ ] **Field Test Mode** (advanced settings) — log `AUDIO`, `NETWORK`, `JITTER`,

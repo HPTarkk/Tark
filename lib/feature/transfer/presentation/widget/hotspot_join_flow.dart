@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../domain/entity/hotspot_credentials.dart';
 import '../manager/wifi_hotspot_cubit.dart';
 import 'hotspot_qr_scanner.dart';
+import 'hotspot_join_states.dart';
 import 'hotspot_shared_widgets.dart';
 
 /// Peer side of the hotspot bridge, on both platforms: scan the host's Wi-Fi QR
@@ -60,6 +61,32 @@ class HotspotJoinFlow extends StatelessWidget {
     ];
   }
 
+  /// The one graphic at the top of the screen, chosen by phase.
+  ///
+  /// Keyed so [AnimatedSwitcher] cross-fades between them; without a key it
+  /// sees "a widget" both sides of a phase change and swaps the contents in
+  /// place, which loses the transition that makes the states feel connected.
+  Widget _headerGraphic(Color color) => switch (state.joinPhase) {
+    JoinPhase.joining => const HotspotReachPulse(key: ValueKey('reaching')),
+    JoinPhase.joined => const HotspotJoinedPulse(
+      key: ValueKey('listening'),
+      size: 84,
+    ),
+    // Idle and every failure: still hunting, or waiting to be pointed at
+    // something. The magnifier is right for all of them.
+    _ => Container(
+      key: const ValueKey('idle'),
+      width: 84,
+      height: 84,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color.withAlpha(20),
+        border: Border.all(color: color.withAlpha(120)),
+      ),
+      child: Icon(Icons.wifi_find_rounded, color: color, size: 38),
+    ),
+  };
+
   Future<void> _scan(BuildContext context) async {
     final cubit = context.read<WifiHotspotCubit>();
     final raw = await HotspotQrScannerPage.open(context);
@@ -72,44 +99,67 @@ class HotspotJoinFlow extends StatelessWidget {
     final s = context.getString;
     final cubit = context.read<WifiHotspotCubit>();
     final creds = state.credentials;
+    // The standing "scan the host's QR code" paragraph belongs to the empty
+    // screen and nothing else. It used to render above the phase switch
+    // unconditionally, so it stayed up through every later state — stacked on
+    // top of a spinner while joining, and on top of "joined <ssid>" once we
+    // were already on the network, telling the user to do a thing they had
+    // just finished doing.
+    //
+    // Every other phase says something specific of its own directly below:
+    // a loader for [JoinPhase.joining], the success note and Enter button for
+    // [JoinPhase.joined], and a message-with-a-fix for each failure. None of
+    // them is improved by generic instructions above it.
+    final joined = state.joinPhase == JoinPhase.joined;
+    final showInstructions = state.joinPhase == JoinPhase.idle;
+    final headerColor = joined ? AppColors.green : AppColors.amber;
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
       children: [
         HotspotEntrance(
           delayMs: 0,
           child: Center(
-            child: Container(
-              width: 84,
+            // One graphic carries the state, rather than a static badge with a
+            // second indicator underneath it. Stacking them put two green
+            // circles and a green tick on screen at once the moment the join
+            // succeeded, which reads as three separate pieces of good news for
+            // one event.
+            child: SizedBox(
               height: 84,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.amber.withAlpha(20),
-                border: Border.all(color: AppColors.amber.withAlpha(120)),
-              ),
-              child: Icon(
-                Icons.wifi_find_rounded,
-                color: AppColors.amber,
-                size: 38,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 320),
+                child: _headerGraphic(headerColor),
               ),
             ),
           ),
         ),
         const SizedBox(height: 20),
-        HotspotEntrance(
-          delayMs: 80,
-          child: Text(
-            s.hotspot_join_instructions,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 13.5,
-              height: 1.5,
+        if (showInstructions) ...[
+          HotspotEntrance(
+            delayMs: 80,
+            child: Text(
+              s.hotspot_join_instructions,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 13.5,
+                height: 1.5,
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 24),
+          const SizedBox(height: 24),
+        ] else
+          const SizedBox(height: 8),
         ...switch (state.joinPhase) {
-          JoinPhase.joining => [HotspotPreparing(label: s.hotspot_joining)],
+          // The header is already showing the reaching arcs, so this is the
+          // caption for them and nothing more.
+          JoinPhase.joining => [
+            Text(
+              s.hotspot_joining,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            ),
+          ],
           JoinPhase.joined => [
             HotspotInlineNote(
               icon: Icons.check_circle_rounded,
