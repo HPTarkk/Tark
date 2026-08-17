@@ -53,14 +53,14 @@ class LinkEstablished extends StatefulWidget {
   /// bare `900` cannot be kept in step with an animation length none of them
   /// can see — the first thing to go wrong would be someone lengthening the
   /// choreography and leaving every call site cutting it off.
-  static const hold = Duration(milliseconds: _sequenceMs + 20);
+  static const hold = Duration(milliseconds: _sequenceMs + 200);
 
   @override
   State<LinkEstablished> createState() => _LinkEstablishedState();
 }
 
 /// Total choreography, comfortably inside the 900 ms the call sites allow.
-const _sequenceMs = 880;
+const _sequenceMs = 1000;
 
 class _LinkEstablishedState extends State<LinkEstablished>
     with SingleTickerProviderStateMixin {
