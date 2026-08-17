@@ -44,38 +44,28 @@ class SettingsPage extends StatefulWidget {
   State<SettingsPage> createState() => _SettingsPageState();
 }
 
-class _SettingsPageState extends State<SettingsPage>
-    with TickerProviderStateMixin {
+class _SettingsPageState extends State<SettingsPage> with TickerProviderStateMixin {
   // Staggered entrance, same pattern as landing/walkie pages: [profile,
-  // connection, sound, appearance, startup, privacy, advanced-nav]
+  // riding, connection, sound, appearance, startup, privacy, advanced-nav]
   late AnimationController _entranceController;
   late List<Animation<double>> _sections;
 
-  static const _sectionCount = 7;
+  static const _sectionCount = 8;
 
   @override
   void initState() {
     super.initState();
-    _entranceController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1000),
-    );
+    _entranceController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1000));
     final starts = List.generate(_sectionCount, (i) => i * 0.6 / _sectionCount);
     _sections = starts
         .map(
           (s) => CurvedAnimation(
             parent: _entranceController,
-            curve: Interval(
-              s,
-              (s + 0.4).clamp(0.0, 1.0),
-              curve: Curves.easeOutCubic,
-            ),
+            curve: Interval(s, (s + 0.4).clamp(0.0, 1.0), curve: Curves.easeOutCubic),
           ),
         )
         .toList();
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _entranceController.forward(),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) => _entranceController.forward());
   }
 
   @override
@@ -89,10 +79,7 @@ class _SettingsPageState extends State<SettingsPage>
     child: child,
     builder: (_, prebuilt) => Opacity(
       opacity: _sections[index].value,
-      child: Transform.translate(
-        offset: Offset(0, 18 * (1 - _sections[index].value)),
-        child: prebuilt,
-      ),
+      child: Transform.translate(offset: Offset(0, 18 * (1 - _sections[index].value)), child: prebuilt),
     ),
   );
 
@@ -113,11 +100,7 @@ class _SettingsPageState extends State<SettingsPage>
           ),
           title: Text(
             s.settings_title,
-            style: TextStyle(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
-            ),
+            style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700, fontSize: 16),
           ),
         ),
         body: SafeArea(
@@ -128,17 +111,23 @@ class _SettingsPageState extends State<SettingsPage>
               children: [
                 _entrance(0, _ProfileCard()),
                 const SizedBox(height: 16),
-                _entrance(1, _ConnectionCard()),
+                // Second, above everything technical: for the audience this
+                // app is built for, it is the most consequential switch on
+                // the page. Burying it under Advanced with the sliders it
+                // overrides would be filing the answer behind the question.
+                _entrance(1, _RidingCard()),
                 const SizedBox(height: 16),
-                _entrance(2, _SoundCard()),
+                _entrance(2, _ConnectionCard()),
                 const SizedBox(height: 16),
-                _entrance(3, _AppearanceCard()),
+                _entrance(3, _SoundCard()),
                 const SizedBox(height: 16),
-                _entrance(4, _StartupCard()),
+                _entrance(4, _AppearanceCard()),
                 const SizedBox(height: 16),
-                _entrance(5, _PrivacyCard()),
+                _entrance(5, _StartupCard()),
                 const SizedBox(height: 16),
-                _entrance(6, _AdvancedNavCard()),
+                _entrance(6, _PrivacyCard()),
+                const SizedBox(height: 16),
+                _entrance(7, _AdvancedNavCard()),
               ],
             ),
           ),
@@ -168,11 +157,7 @@ class _ProfileCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   state.myName.isEmpty ? '...' : state.myName,
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -182,30 +167,16 @@ class _ProfileCard extends StatelessWidget {
                   _showEditNameDialog(context, state.myName);
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.border,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(8)),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        Icons.edit_rounded,
-                        color: AppColors.amber,
-                        size: 14,
-                      ),
+                      Icon(Icons.edit_rounded, color: AppColors.amber, size: 14),
                       const SizedBox(width: 4),
                       Text(
                         s.edit_name,
-                        style: TextStyle(
-                          color: AppColors.amber,
-                          fontSize: 10,
-                          letterSpacing: 1,
-                        ),
+                        style: TextStyle(color: AppColors.amber, fontSize: 10, letterSpacing: 1),
                       ),
                     ],
                   ),
@@ -232,10 +203,7 @@ class _ProfileCard extends StatelessWidget {
         ),
         title: Text(
           s.set_name_title,
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.w700,
-          ),
+          style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700),
         ),
         content: TextField(
           controller: controller,
@@ -245,9 +213,7 @@ class _ProfileCard extends StatelessWidget {
           decoration: InputDecoration(
             hintText: s.name_hint,
             hintStyle: TextStyle(color: AppColors.textSecondary.withAlpha(160)),
-            counterStyle: TextStyle(
-              color: AppColors.textSecondary.withAlpha(120),
-            ),
+            counterStyle: TextStyle(color: AppColors.textSecondary.withAlpha(120)),
             filled: true,
             fillColor: AppColors.surface,
             border: OutlineInputBorder(
@@ -271,10 +237,7 @@ class _ProfileCard extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(
-              s.cancel,
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
+            child: Text(s.cancel, style: TextStyle(color: AppColors.textSecondary)),
           ),
           TextButton(
             onPressed: () {
@@ -283,13 +246,88 @@ class _ProfileCard extends StatelessWidget {
             },
             child: Text(
               s.save,
-              style: TextStyle(
-                color: AppColors.amber,
-                fontWeight: FontWeight.w700,
-              ),
+              style: TextStyle(color: AppColors.amber, fontWeight: FontWeight.w700),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Riding mode ──────────────────────────────────────────────────────────────
+
+/// The one-switch road profile (see [RidingPreset]).
+///
+/// Says what it changes in plain words, and — just as importantly — that it
+/// gives the rider's own settings back untouched. A preset nobody dares try
+/// because they can't tell what it will cost them is a preset nobody uses.
+class _RidingCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    return SettingsCategoryCard(
+      icon: Icons.two_wheeler_rounded,
+      title: s.settings_riding_section,
+      child: BlocBuilder<SettingsCubit, SettingsState>(
+        buildWhen: (p, c) => p.ridingPreset != c.ridingPreset,
+        builder: (context, state) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SettingsRow(
+              icon: state.ridingPreset ? Icons.check_circle_rounded : Icons.route_rounded,
+              label: s.settings_riding_label,
+              trailing: Switch(
+                value: state.ridingPreset,
+                activeThumbColor: AppColors.amber,
+                onChanged: (v) {
+                  HapticFeedback.selectionClick();
+                  context.read<SettingsCubit>().setRidingPreset(v);
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
+              child: Text(
+                s.settings_riding_desc,
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 11.5, height: 1.45),
+              ),
+            ),
+            // Only once it's on: before that it answers a worry nobody has
+            // yet, and the card is long enough already.
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: AnimatedCrossFade(
+                duration: const Duration(milliseconds: 300),
+                sizeCurve: Curves.ease,
+                firstCurve: Curves.ease,
+                secondCurve: Curves.ease,
+                crossFadeState: state.ridingPreset ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+                firstChild: const SizedBox(width: double.infinity),
+                secondChild: Padding(
+                  padding: const EdgeInsetsDirectional.only(start: 12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.lock_open_rounded, size: 12, color: AppColors.amber.withAlpha(200)),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          s.settings_riding_kept,
+                          style: TextStyle(
+                            color: AppColors.amber.withAlpha(200),
+                            fontSize: 10.5,
+                            height: 1.45,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -309,29 +347,17 @@ class _AdvancedNavCard extends StatelessWidget {
         color: AppColors.card,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.amber.withAlpha(10),
-            blurRadius: 22,
-            spreadRadius: -6,
-          ),
-        ],
+        boxShadow: [BoxShadow(color: AppColors.amber.withAlpha(10), blurRadius: 22, spreadRadius: -6)],
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: SettingsRow(
         icon: Icons.tune_rounded,
         label: s.settings_advanced_row,
         subtitle: s.settings_advanced_row_desc,
-        trailing: Icon(
-          Icons.chevron_right_rounded,
-          color: AppColors.textSecondary,
-        ),
+        trailing: Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
         onTap: () {
           HapticFeedback.selectionClick();
-          context.pushNamed(
-            AppRoutes.advancedSettingsName,
-            extra: context.read<SettingsCubit>().liveSession,
-          );
+          context.pushNamed(AppRoutes.advancedSettingsName, extra: context.read<SettingsCubit>().liveSession);
         },
       ),
     );
@@ -355,8 +381,7 @@ class _ConnectionCard extends StatelessWidget {
             const SizedBox(height: 4),
             Divider(color: AppColors.border, height: 1),
             BlocBuilder<SettingsCubit, SettingsState>(
-              buildWhen: (p, c) =>
-                  p.autoReconnectEnabled != c.autoReconnectEnabled,
+              buildWhen: (p, c) => p.autoReconnectEnabled != c.autoReconnectEnabled,
               builder: (context, state) => SettingsRow(
                 icon: Icons.sync_rounded,
                 label: s.settings_auto_reconnect,
@@ -376,24 +401,16 @@ class _ConnectionCard extends StatelessWidget {
               icon: Icons.wifi_tethering_rounded,
               label: s.settings_wifi_hotspot_row,
               subtitle: s.settings_wifi_hotspot_row_desc,
-              trailing: Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.textSecondary,
-              ),
-              onTap: () => context.pushNamed(
-                AppRoutes.wifiHotspotName,
-                queryParameters: const {'mode': 'wifi'},
-              ),
+              trailing: Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+              onTap: () =>
+                  context.pushNamed(AppRoutes.wifiHotspotName, queryParameters: const {'mode': 'wifi'}),
             ),
             Divider(color: AppColors.border, height: 1),
             SettingsRow(
               icon: Icons.shield_rounded,
               label: s.settings_permissions_row,
               subtitle: s.settings_permissions_row_desc,
-              trailing: Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.textSecondary,
-              ),
+              trailing: Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
               onTap: () => context.pushNamed(AppRoutes.permissionsName),
             ),
           ],
@@ -442,13 +459,7 @@ class _AppearanceCard extends StatelessWidget {
       title: s.settings_section_appearance,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 14),
-        child: Column(
-          children: [
-            const ThemeToggle(),
-            const SizedBox(height: 16),
-            const LanguageToggle(),
-          ],
-        ),
+        child: Column(children: [const ThemeToggle(), const SizedBox(height: 16), const LanguageToggle()]),
       ),
     );
   }
@@ -494,15 +505,10 @@ class _AddWidgetRowState extends State<_AddWidgetRow> {
           icon: Icons.widgets_rounded,
           label: s.settings_add_widget,
           subtitle: s.settings_widget_hint,
-          trailing: Icon(
-            Icons.add_rounded,
-            color: AppColors.amber,
-          ),
+          trailing: Icon(Icons.add_rounded, color: AppColors.amber),
           onTap: () {
             HapticFeedback.selectionClick();
-            context.read<SettingsCubit>().recordFeatureUsed(
-              AppFeature.homeWidget,
-            );
+            context.read<SettingsCubit>().recordFeatureUsed(AppFeature.homeWidget);
             // The launcher takes it from here with its own confirmation, so
             // there's no result worth waiting for.
             GetIt.instance<HomeWidgetService>().requestPin();
@@ -586,18 +592,10 @@ class _StartupCard extends StatelessWidget {
               icon: Icons.replay_rounded,
               label: s.settings_replay_intro,
               subtitle: s.settings_replay_intro_desc,
-              trailing: Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.textSecondary,
-              ),
+              trailing: Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
               onTap: () {
-                context.read<SettingsCubit>().recordFeatureUsed(
-                  AppFeature.replayIntro,
-                );
-                context.pushNamed(
-                  AppRoutes.onboardingName,
-                  queryParameters: const {'replay': 'true'},
-                );
+                context.read<SettingsCubit>().recordFeatureUsed(AppFeature.replayIntro);
+                context.pushNamed(AppRoutes.onboardingName, queryParameters: const {'replay': 'true'});
               },
             ),
           ],

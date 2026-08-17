@@ -105,6 +105,7 @@ enum AppFeature {
   homeWidget('home_widget'),
   autoReconnect('auto_reconnect'),
   noiseSuppression('noise_suppression'),
+  ridingPreset('riding_preset'),
   voiceDefaults('voice_defaults'),
   replayIntro('replay_intro');
 

@@ -1,5 +1,51 @@
 import '../entity/hotspot_credentials.dart';
 
+/// Whether leaving Wi-Fi on is likely to cost this host its hotspot.
+///
+/// On a phone whose chipset can't run a client connection and an access point
+/// at once, the framework tears our AP down as soon as the Wi-Fi side
+/// reconnects — a saved network drifting back into range mid-ride ends the
+/// channel, and it arrives as an ordinary OS teardown with nothing marking it
+/// as this cause. The device knows the answer in advance
+/// (`isStaApConcurrencySupported`), so the warning can come before the failure
+/// instead of after it.
+///
+/// **Advisory only.** Nothing in this app can turn Wi-Fi off:
+/// `setWifiEnabled` has been a no-op returning false for non-system apps since
+/// Android 10, with no replacement. The switch is the user's, so the whole job
+/// is asking for it at the right moment and making it one tap.
+class HotspotWifiAdvice {
+  /// The Wi-Fi radio is on right now.
+  final bool wifiEnabled;
+
+  /// This device can hold a client connection and an AP simultaneously.
+  final bool concurrent;
+
+  /// The system offers the floating Wi-Fi panel (Android 10+), which toggles
+  /// the radio without taking the user off our screen. Where false, the button
+  /// still works but navigates to full settings.
+  final bool canPanel;
+
+  const HotspotWifiAdvice({
+    required this.wifiEnabled,
+    required this.concurrent,
+    required this.canPanel,
+  });
+
+  /// Nothing to say — the safe default everywhere the question can't be asked
+  /// (iOS, desktop, a channel that isn't there).
+  static const none = HotspotWifiAdvice(
+    wifiEnabled: false,
+    concurrent: true,
+    canPanel: false,
+  );
+
+  /// Worth telling the user about: the radio is on, and this device can't hold
+  /// both. Either alone is fine — Wi-Fi off is already the good state, and a
+  /// concurrent chipset copes with it being on.
+  bool get shouldSuggestWifiOff => wifiEnabled && !concurrent;
+}
+
 /// Android host side of the hotspot bridge: brings up a local-only AP and
 /// reports OS-initiated teardowns so the UI can re-host.
 abstract interface class HotspotHost {
@@ -18,6 +64,16 @@ abstract interface class HotspotHost {
   /// Location for `location_off`, tethering for `tethering_on`. No-op where
   /// the screen doesn't exist.
   Future<void> openFixSettings(String errorCode);
+
+  /// Reads whether this device's Wi-Fi state puts the hotspot at risk. Cheap
+  /// enough to re-ask whenever the app comes back to the foreground, which is
+  /// how the note learns the user has acted on it.
+  Future<HotspotWifiAdvice> wifiAdvice();
+
+  /// Opens the Wi-Fi toggle — the floating panel where the platform has one,
+  /// so the host keeps the QR on screen for the other phone. Returns whether
+  /// it stayed in-place.
+  Future<bool> openWifiPanel();
 }
 
 /// How a [HotspotJoiner.join] ended. [declined] and [wifiOff] both mean "not

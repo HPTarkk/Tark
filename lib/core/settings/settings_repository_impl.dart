@@ -7,6 +7,7 @@ import '../config/onboarding_config.dart';
 import '../config/quick_access_config.dart';
 import '../diagnostics/log_budget.dart';
 import 'app_settings.dart';
+import 'audio_profile.dart';
 import 'noise_suppression_engine.dart';
 import 'settings_keys.dart';
 import 'settings_model.dart';
@@ -99,6 +100,29 @@ class SettingsRepositoryImpl implements SettingsRepository {
   @override
   Future<void> setTargetBufferMs(int value) =>
       _prefs.setInt(SettingsKeys.targetBufferMs, value);
+
+  @override
+  Future<bool> getRidingPreset() async =>
+      _prefs.getBool(SettingsKeys.ridingPreset) ??
+      AppSettings.defaults().ridingPreset;
+
+  @override
+  Future<void> setRidingPreset(bool value) =>
+      _prefs.setBool(SettingsKeys.ridingPreset, value);
+
+  @override
+  Future<AudioProfile> getAudioProfile() async {
+    // Straight off SettingsModel rather than five awaited getters: this runs
+    // on the path into a channel, where the point is to reach the mic fast.
+    final s = SettingsModel.fromPrefs(_prefs);
+    return AudioProfile.resolve(
+      ridingPreset: s.ridingPreset,
+      voxThreshold: s.voxThreshold,
+      noiseSuppression: s.noiseSuppression,
+      noiseSuppressionEngine: s.noiseSuppressionEngine,
+      targetBufferMs: s.targetBufferMs,
+    );
+  }
 
   @override
   Future<bool> getAutoReconnectEnabled() async =>
@@ -201,6 +225,10 @@ class SettingsRepositoryImpl implements SettingsRepository {
     await setVoxThreshold(defaults.voxThreshold);
     await setNoiseSuppression(defaults.noiseSuppression);
     await setTargetBufferMs(defaults.targetBufferMs);
+    // Last, and not optional — see the interface doc. With the preset still
+    // on, every value restored above stays overridden and the button reads as
+    // broken.
+    await setRidingPreset(defaults.ridingPreset);
     return (
       defaults.voxThreshold,
       defaults.noiseSuppression,

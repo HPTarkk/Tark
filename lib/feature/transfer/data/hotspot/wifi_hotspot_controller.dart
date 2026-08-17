@@ -82,6 +82,41 @@ class WifiHotspotController implements HotspotHost {
       // Some OEM builds have no such screen — nothing else to try.
     }
   }
+
+  @override
+  Future<HotspotWifiAdvice> wifiAdvice() async {
+    if (!isSupported) return HotspotWifiAdvice.none;
+    try {
+      final r =
+          await _channel.invokeMapMethod<String, dynamic>('wifiAdvice') ??
+          const {};
+      return HotspotWifiAdvice(
+        wifiEnabled: r['wifiEnabled'] as bool? ?? false,
+        // Defaults to *concurrent* when the value is missing, which is the
+        // quiet answer. A channel that didn't respond is not evidence of a
+        // problem, and a note that appears because a read failed teaches the
+        // user to ignore the one that appears because it didn't.
+        concurrent: r['concurrent'] as bool? ?? true,
+        canPanel: r['canPanel'] as bool? ?? false,
+      );
+    } on PlatformException catch (e) {
+      Logger.log('Hotspot wifi advice unavailable: $e');
+      return HotspotWifiAdvice.none;
+    } on MissingPluginException {
+      return HotspotWifiAdvice.none;
+    }
+  }
+
+  @override
+  Future<bool> openWifiPanel() async {
+    if (!isSupported) return false;
+    try {
+      return await _channel.invokeMethod<bool>('openWifiPanel') ?? false;
+    } on PlatformException catch (e) {
+      Logger.log('Hotspot wifi panel failed: $e');
+      return false;
+    }
+  }
 }
 
 /// iOS join side: asks CoreLocation-free `NEHotspotConfiguration` to join the

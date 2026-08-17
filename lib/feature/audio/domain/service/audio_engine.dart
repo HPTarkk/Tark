@@ -60,6 +60,17 @@ abstract interface class AudioEngine {
   /// back to spectral suppression silently (for `both` too).
   void setNoiseSuppressionEngine(NoiseSuppressionEngine engine);
 
+  /// Linear gain applied to received voice on its way into the jitter buffer.
+  /// 1.0 (the default) passes samples through untouched, and implementations
+  /// must skip the work entirely at that value — this is the RX hot path and
+  /// the overwhelming majority of sessions never move it.
+  ///
+  /// Above 1.0 the boost is soft-limited rather than clipped. A rider raising
+  /// this is trying to hear a voice over road noise, and hard clipping would
+  /// hand them a louder but *less* intelligible signal, which defeats the
+  /// point. See [RidingPreset.playbackGain].
+  void setPlaybackGain(double gain);
+
   /// Feed received network audio (16 kHz PCM) into the jitter buffer,
   /// upsampling to the device's output rate first.
   /// [seq] is the sender's packet sequence number and [senderId] identifies

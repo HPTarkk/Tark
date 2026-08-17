@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 import '../diagnostics/log_budget.dart';
+import 'audio_profile.dart';
 import 'noise_suppression_engine.dart';
 
 /// The user-configurable settings this app persists, as a single typed
@@ -16,6 +17,11 @@ class AppSettings extends Equatable {
   final NoiseSuppressionEngine noiseSuppressionEngine;
   final double musicGain;
   final int targetBufferMs;
+
+  /// Whether the riding preset overrides the voice knobs above. Deliberately
+  /// an override and not a writer — see [AudioProfile.resolve], which is the
+  /// only thing allowed to combine this with the stored values.
+  final bool ridingPreset;
   final bool autoReconnectEnabled;
   final bool skipSplash;
   final bool usageTipsShown;
@@ -32,6 +38,7 @@ class AppSettings extends Equatable {
     required this.noiseSuppressionEngine,
     required this.musicGain,
     required this.targetBufferMs,
+    required this.ridingPreset,
     required this.autoReconnectEnabled,
     required this.skipSplash,
     required this.usageTipsShown,
@@ -60,6 +67,12 @@ class AppSettings extends Equatable {
     // over WiFi, and far worse over Bluetooth, where each underrun costs a
     // full refill pause (heard as chopped speech).
     targetBufferMs: 100,
+    // Off by default. The preset is tuned for one situation — a phone in a
+    // pocket, a helmet headset, road noise — and it is the wrong setup at a
+    // desk, where gating the mic at all only costs word onsets. Making it a
+    // deliberate choice also means the sliders on the Advanced page keep
+    // meaning what they say for everyone who never touches it.
+    ridingPreset: false,
     autoReconnectEnabled: true,
     skipSplash: false,
     usageTipsShown: false,
@@ -83,6 +96,7 @@ class AppSettings extends Equatable {
     NoiseSuppressionEngine? noiseSuppressionEngine,
     double? musicGain,
     int? targetBufferMs,
+    bool? ridingPreset,
     bool? autoReconnectEnabled,
     bool? skipSplash,
     bool? usageTipsShown,
@@ -95,6 +109,7 @@ class AppSettings extends Equatable {
     noiseSuppressionEngine: noiseSuppressionEngine ?? this.noiseSuppressionEngine,
     musicGain: musicGain ?? this.musicGain,
     targetBufferMs: targetBufferMs ?? this.targetBufferMs,
+    ridingPreset: ridingPreset ?? this.ridingPreset,
     autoReconnectEnabled: autoReconnectEnabled ?? this.autoReconnectEnabled,
     skipSplash: skipSplash ?? this.skipSplash,
     usageTipsShown: usageTipsShown ?? this.usageTipsShown,
@@ -110,6 +125,7 @@ class AppSettings extends Equatable {
     noiseSuppressionEngine,
     musicGain,
     targetBufferMs,
+    ridingPreset,
     autoReconnectEnabled,
     skipSplash,
     usageTipsShown,

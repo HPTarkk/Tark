@@ -53,8 +53,34 @@ class WifiHotspotPage extends StatefulWidget {
   State<WifiHotspotPage> createState() => _WifiHotspotPageState();
 }
 
-class _WifiHotspotPageState extends State<WifiHotspotPage> {
+class _WifiHotspotPageState extends State<WifiHotspotPage>
+    with WidgetsBindingObserver {
   bool _navigating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// Re-reads the Wi-Fi advice whenever we come back to the front.
+  ///
+  /// This is the whole reason the "switch Wi-Fi off" note ever goes away: the
+  /// user leaves for the system panel, flips the radio, and returns — and a
+  /// card still asking for something already done is how advice stops being
+  /// read. The floating panel does not always produce a lifecycle change on
+  /// every build, which is why the cubit also re-reads on its own.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !mounted) return;
+    context.read<WifiHotspotCubit>().refreshWifiAdvice();
+  }
 
   /// Enters the channel, letting [LinkEstablished] play first.
   ///

@@ -13,6 +13,7 @@ import '../domain/audio_processor.dart';
 import '../domain/entity/audio_engine_status.dart';
 import '../domain/entity/audio_frame.dart';
 import '../domain/float64_fifo.dart';
+import '../domain/playback_gain.dart';
 import '../domain/resampler.dart';
 import '../domain/rnnoise_suppressor.dart';
 import '../domain/service/audio_engine.dart';
@@ -71,6 +72,11 @@ class AudioEngineImpl implements AudioEngine {
   final SpectralNoiseSuppressor _spectralSuppressor = SpectralNoiseSuppressor();
   final RnnoiseSuppressor _rnnoiseSuppressor = RnnoiseSuppressor();
   NoiseSuppressionEngine _suppressionEngine = NoiseSuppressionEngine.spectral;
+
+  // Survives _openStreams (which rebuilds _buffer on every route change), so a
+  // gain set once at session start isn't silently reverted by a headset being
+  // plugged in mid-ride.
+  final PlaybackGain _playbackGain = PlaybackGain();
 
   AudioPlaybackBuffer? _buffer;
   StreamSubscription<List<double>>? _inputSub;
@@ -320,13 +326,18 @@ class AudioEngineImpl implements AudioEngine {
         outRate: outputRate,
       );
 
-      final targetBufferMs = await _settingsRepository.getTargetBufferMs();
+      // Via the profile, not getTargetBufferMs(): the riding preset anchors
+      // the adaptive buffer deeper, and reading the raw preference here would
+      // apply the preset to the VOX gate and the cleaner but not to the one
+      // knob that decides whether a link between two moving bikes stutters.
+      final profile = await _settingsRepository.getAudioProfile();
+      _playbackGain.gain = profile.playbackGain;
       // Already disposed at the top of this method, before the sink it writes
       // to was closed.
       _buffer = AudioPlaybackBuffer(
         output: _audioIo.output,
         sampleRate: outputRate.toInt(),
-        targetBufferMs: targetBufferMs,
+        targetBufferMs: profile.targetBufferMs,
         debugLogging: true,
         outputUnderrunFrames: _audioIo.outputUnderrunFrames,
       );
@@ -581,6 +592,9 @@ class AudioEngineImpl implements AudioEngine {
   }
 
   @override
+  void setPlaybackGain(double gain) => _playbackGain.gain = gain;
+
+  @override
   void setNoiseSuppressionEngine(NoiseSuppressionEngine engine) {
     if (engine == _suppressionEngine) return;
     _suppressionEngine = engine;
@@ -607,8 +621,14 @@ class AudioEngineImpl implements AudioEngine {
         AudioFrame(rms: _computeRms(samples), samples: samples),
       );
     }
+    // Gain last, after the visualizer tap above has already taken its copy:
+    // the dial should show what arrived on the wire, not what this listener
+    // chose to turn up. Both stages pass their argument straight through at
+    // their no-op setting, so a session with neither a resampler nor a gain
+    // hands the buffer the caller's own list — which is why nothing here may
+    // write into a list in place.
     final upsampled = _rxResampler?.process(samples) ?? samples;
-    _buffer?.feed(upsampled, seq, senderId);
+    _buffer?.feed(_playbackGain.apply(upsampled), seq, senderId);
   }
 
   @override

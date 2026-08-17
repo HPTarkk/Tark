@@ -1136,6 +1136,48 @@ abstract class AppLocalizations {
   /// **'دارم هات‌اسپات می‌سازم...'**
   String get hotspot_creating;
 
+  /// No description provided for @hotspot_wifi_note_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'وای‌فای رو خاموش کن تا ارتباط بهتر بشه'**
+  String get hotspot_wifi_note_title;
+
+  /// No description provided for @hotspot_wifi_note_title_dropped.
+  ///
+  /// In fa, this message translates to:
+  /// **'وای‌فای رو خاموش کن تا دیگه تکرار نشه'**
+  String get hotspot_wifi_note_title_dropped;
+
+  /// No description provided for @hotspot_wifi_note_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'گوشیت نمی‌تونه همزمان هم وای‌فای وصل باشه هم هات‌اسپات درست بده. با وای‌فای خاموش، ارتباطت با بقیه قوی‌تره و قطع نمی‌شه.'**
+  String get hotspot_wifi_note_body;
+
+  /// No description provided for @hotspot_wifi_note_body_dropped.
+  ///
+  /// In fa, this message translates to:
+  /// **'هات‌اسپاتت همین الان قطع شد و دلیلش روشن بودن وای‌فایه. خاموشش کن تا ارتباط سر جاش بمونه.'**
+  String get hotspot_wifi_note_body_dropped;
+
+  /// No description provided for @hotspot_wifi_note_action.
+  ///
+  /// In fa, this message translates to:
+  /// **'خاموش کردن وای‌فای'**
+  String get hotspot_wifi_note_action;
+
+  /// No description provided for @hotspot_wifi_note_dismiss.
+  ///
+  /// In fa, this message translates to:
+  /// **'فعلاً نه'**
+  String get hotspot_wifi_note_dismiss;
+
+  /// No description provided for @hotspot_wifi_note_reassure.
+  ///
+  /// In fa, this message translates to:
+  /// **'صدای همه رو می‌شنوی — کانال به وای‌فای احتیاجی نداره.'**
+  String get hotspot_wifi_note_reassure;
+
   /// No description provided for @hotspot_waiting.
   ///
   /// In fa, this message translates to:
@@ -1513,6 +1555,36 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'صدای روون‌تر'**
   String get settings_delay_high_hint;
+
+  /// No description provided for @settings_riding_section.
+  ///
+  /// In fa, this message translates to:
+  /// **'حالت موتورسواری'**
+  String get settings_riding_section;
+
+  /// No description provided for @settings_riding_label.
+  ///
+  /// In fa, this message translates to:
+  /// **'تنظیم برای جاده'**
+  String get settings_riding_label;
+
+  /// No description provided for @settings_riding_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'یه سوییچ که صدات رو از لای باد و صدای موتور رد می‌کنه: میکروفون منتظر صدای خودت می‌مونه به‌جای اینکه هرچی می‌شنوه بفرسته، حذف نویز اون‌قدری کار می‌کنه که کلمه‌ها واضح بمونن، برنامه یه کم صدای بیشتری ذخیره نگه می‌داره تا ارتباطِ در حال حرکت بریده‌بریده نشه، و صدای بقیه یه کم بلندتر پخش می‌شه.'**
+  String get settings_riding_desc;
+
+  /// No description provided for @settings_riding_kept.
+  ///
+  /// In fa, this message translates to:
+  /// **'تنظیمات خودت دست‌نخورده می‌مونه — همین که خاموشش کنی برمی‌گرده.'**
+  String get settings_riding_kept;
+
+  /// No description provided for @settings_riding_overridden.
+  ///
+  /// In fa, this message translates to:
+  /// **'حالت موتورسواری خودش این رو انتخاب کرده. خاموشش کن تا خودت تنظیمش کنی.'**
+  String get settings_riding_overridden;
 
   /// No description provided for @settings_restore_defaults.
   ///

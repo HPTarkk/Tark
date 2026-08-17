@@ -574,6 +574,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hotspot_creating => 'Making the hotspot...';
 
   @override
+  String get hotspot_wifi_note_title =>
+      'Turn Wi-Fi off for a better connection';
+
+  @override
+  String get hotspot_wifi_note_title_dropped =>
+      'Turn Wi-Fi off so this stops happening';
+
+  @override
+  String get hotspot_wifi_note_body =>
+      'Your phone can\'t do Wi-Fi and a hotspot properly at the same time. With Wi-Fi off, the connection to your friends is stronger and won\'t drop.';
+
+  @override
+  String get hotspot_wifi_note_body_dropped =>
+      'Your hotspot just went down, and Wi-Fi being on is why. Turn it off and the connection stays put.';
+
+  @override
+  String get hotspot_wifi_note_action => 'TURN WI-FI OFF';
+
+  @override
+  String get hotspot_wifi_note_dismiss => 'NOT NOW';
+
+  @override
+  String get hotspot_wifi_note_reassure =>
+      'You\'ll still hear everyone — the channel doesn\'t need Wi-Fi.';
+
+  @override
   String get hotspot_waiting => 'Waiting on the other phone...';
 
   @override
@@ -790,6 +816,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settings_delay_high_hint => 'SMOOTHER SOUND';
+
+  @override
+  String get settings_riding_section => 'RIDING MODE';
+
+  @override
+  String get settings_riding_label => 'Set up for the road';
+
+  @override
+  String get settings_riding_desc =>
+      'One switch that gets your voice through wind and engine noise: the mic waits for you to actually talk instead of sending everything it hears, the noise cleaner runs at a level that keeps words crisp, the app holds a bit more sound in reserve so a connection on the move doesn\'t chop, and everyone else comes through a touch louder.';
+
+  @override
+  String get settings_riding_kept =>
+      'Your own settings stay put — they come back the moment you switch it off.';
+
+  @override
+  String get settings_riding_overridden =>
+      'Riding mode is choosing this for you. Switch it off to set it yourself.';
 
   @override
   String get settings_restore_defaults => 'RESET TO NORMAL';

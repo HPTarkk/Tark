@@ -98,6 +98,21 @@ class HotspotBridgeState extends Equatable {
   /// admit it's been a while instead of showing the same label forever.
   final RetryPhase hostRetry;
 
+  /// Whether this device's Wi-Fi is on while its radio can't hold a client
+  /// connection and the AP at once — see [HotspotWifiAdvice].
+  final HotspotWifiAdvice wifiAdvice;
+
+  /// The OS has already torn our AP down at least once this session. Doesn't
+  /// change what the note advises, only how hard it presses: before a drop it
+  /// is a suggestion, after one it is the likeliest explanation for what the
+  /// user just watched happen.
+  final bool hotspotDropped;
+
+  /// The user dismissed the note. Held in session state rather than persisted —
+  /// this is advice about the phone's state *right now*, and a phone whose
+  /// Wi-Fi is off next time will never show it again anyway.
+  final bool wifiNoteDismissed;
+
   const HotspotBridgeState({
     required this.segment,
     required this.role,
@@ -107,7 +122,19 @@ class HotspotBridgeState extends Equatable {
     required this.peerConnected,
     required this.errorCode,
     required this.hostRetry,
+    required this.wifiAdvice,
+    required this.hotspotDropped,
+    required this.wifiNoteDismissed,
   });
+
+  /// Whether the host screen should show the "turn Wi-Fi off" note: there is
+  /// something worth saying, the user hasn't waved it away, and we are actually
+  /// hosting — the advice is meaningless to the joiner, whose Wi-Fi has to stay
+  /// on to reach the host at all.
+  bool get showWifiNote =>
+      role == HotspotRole.host &&
+      wifiAdvice.shouldSuggestWifiOff &&
+      !wifiNoteDismissed;
 
   factory HotspotBridgeState.initial(WifiHotspotSegment segment) =>
       HotspotBridgeState(
@@ -119,6 +146,9 @@ class HotspotBridgeState extends Equatable {
         peerConnected: false,
         errorCode: null,
         hostRetry: RetryPhase.idle,
+        wifiAdvice: HotspotWifiAdvice.none,
+        hotspotDropped: false,
+        wifiNoteDismissed: false,
       );
 
   HotspotBridgeState copyWith({
@@ -131,6 +161,9 @@ class HotspotBridgeState extends Equatable {
     bool? peerConnected,
     String? errorCode,
     RetryPhase? hostRetry,
+    HotspotWifiAdvice? wifiAdvice,
+    bool? hotspotDropped,
+    bool? wifiNoteDismissed,
   }) => HotspotBridgeState(
     segment: segment ?? this.segment,
     role: clearRole ? null : (role ?? this.role),
@@ -140,6 +173,9 @@ class HotspotBridgeState extends Equatable {
     peerConnected: peerConnected ?? this.peerConnected,
     errorCode: errorCode,
     hostRetry: hostRetry ?? this.hostRetry,
+    wifiAdvice: wifiAdvice ?? this.wifiAdvice,
+    hotspotDropped: hotspotDropped ?? this.hotspotDropped,
+    wifiNoteDismissed: wifiNoteDismissed ?? this.wifiNoteDismissed,
   );
 
   @override
@@ -152,6 +188,9 @@ class HotspotBridgeState extends Equatable {
     peerConnected,
     errorCode,
     hostRetry,
+    wifiAdvice,
+    hotspotDropped,
+    wifiNoteDismissed,
   ];
 }
 
@@ -384,6 +423,12 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   Future<void> startHost() async {
     emit(state.copyWith(phase: HotspotPhase.starting, errorCode: null));
 
+    // Asked before the AP goes up, not after. On a single-radio phone the
+    // framework may drop the STA connection as the hotspot starts, so reading
+    // afterwards can report Wi-Fi already off and stay quiet about a radio
+    // that will reconnect and take the AP with it minutes later.
+    unawaited(refreshWifiAdvice());
+
     // Taking one side of the bridge gives up the other. See [_dropOtherSide].
     await _dropOtherSide(nowHosting: true);
     if (isClosed) return;
@@ -467,6 +512,46 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
     if (code != null) await _hotspot.openFixSettings(code);
   }
 
+  /// Re-reads whether Wi-Fi is putting this host's AP at risk.
+  ///
+  /// Called on entering the host flow and again every time the app comes back
+  /// to the foreground, which is what makes the note disappear by itself once
+  /// the user has acted on it — the alternative is a card still asking for
+  /// something they have already done, which is how advice stops being read.
+  Future<void> refreshWifiAdvice() async {
+    final advice = await _hotspot.wifiAdvice();
+    if (isClosed) return;
+    emit(state.copyWith(wifiAdvice: advice));
+  }
+
+  /// Hands the user the Wi-Fi toggle. We cannot flip it ourselves —
+  /// `setWifiEnabled` is a no-op for non-system apps since Android 10 — so the
+  /// most this can do is put the switch one tap away without losing the screen
+  /// the other phone is scanning.
+  Future<void> openWifiPanel() async {
+    _sfx.play(SfxEvent.toggle);
+    final floated = await _hotspot.openWifiPanel();
+    if (isClosed) return;
+    // The floating panel sits *over* us without backgrounding the app, so the
+    // page's resume hook never fires and the note would sit there contradicted
+    // by a radio the user just switched off. Re-read on a short leash instead.
+    // A handful of cheap reads over a few seconds, not a standing timer: the
+    // answer only changes because of something happening on screen right now.
+    if (floated) {
+      for (var i = 0; i < 6; i++) {
+        await Future<void>.delayed(const Duration(seconds: 1));
+        if (isClosed) return;
+        await refreshWifiAdvice();
+        if (isClosed || !state.wifiAdvice.wifiEnabled) return;
+      }
+    }
+  }
+
+  /// Waves the note away for the rest of this session. Never persisted — it is
+  /// advice about the radio's state right now, and a phone that arrives with
+  /// Wi-Fi already off never shows it in the first place.
+  void dismissWifiNote() => emit(state.copyWith(wifiNoteDismissed: true));
+
   /// Recovers from an OS-initiated hotspot teardown while we're still on this
   /// page waiting for the peer. The native side only fires this for a teardown
   /// it didn't initiate (radio conflict, Doze, an STA reconnect stealing the
@@ -480,6 +565,12 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
     _stoppedSub = _hotspot.onStopped.listen((_) {
       if (isClosed || state.peerConnected) return;
       Logger.log('Hotspot torn down by OS — re-hosting');
+      // Remembered, and un-dismissible from here on: with Wi-Fi on and no
+      // STA+AP concurrency, an STA reconnect stealing the radio is the single
+      // likeliest cause of what just happened. Having waved the note away
+      // before the drop is not a reason to stay quiet after it — that is the
+      // moment the advice stopped being hypothetical.
+      emit(state.copyWith(hotspotDropped: true, wifiNoteDismissed: false));
       startHost();
     }, onError: (Object e) => Logger.log('Hotspot teardown listen error: $e'));
   }

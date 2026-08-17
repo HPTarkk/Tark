@@ -11,6 +11,7 @@ import '../../../../core/widget/qr_widgets.dart';
 import '../../domain/entity/hotspot_credentials.dart';
 import '../manager/wifi_hotspot_cubit.dart';
 import 'hotspot_shared_widgets.dart';
+import 'hotspot_wifi_note.dart';
 
 /// Android host side of the hotspot bridge: shows the Wi-Fi QR + credentials
 /// while waiting for the peer to scan it and join.
@@ -60,6 +61,21 @@ class HotspotHostFlow extends StatelessWidget {
           child: Center(child: _HostBadge(label: s.hotspot_host_badge)),
         ),
         const SizedBox(height: 16),
+        // Above the QR, not below it. The advice is about keeping the AP alive
+        // long enough to matter, so it has to be read before the user hands
+        // the phone over — and after a teardown it is the explanation for a
+        // screen that just visibly reset itself.
+        if (state.showWifiNote) ...[
+          HotspotEntrance(
+            delayMs: 40,
+            child: HotspotWifiNote(
+              afterDrop: state.hotspotDropped,
+              onOpenWifi: cubit.openWifiPanel,
+              onDismiss: cubit.dismissWifiNote,
+            ),
+          ),
+          const SizedBox(height: 18),
+        ],
         HotspotEntrance(
           delayMs: 80,
           child: Center(

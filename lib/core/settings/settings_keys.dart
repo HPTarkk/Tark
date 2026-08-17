@@ -10,6 +10,7 @@ abstract final class SettingsKeys {
   static const noiseSuppressionEngine = 'noise_suppression_engine';
   static const musicGain = 'music_gain';
   static const targetBufferMs = 'target_buffer_ms';
+  static const ridingPreset = 'riding_preset';
   static const autoReconnectEnabled = 'auto_reconnect_enabled';
   static const skipSplash = 'skip_splash';
   static const usageTipsShown = 'usage_tips_shown';

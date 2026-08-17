@@ -20,8 +20,8 @@ architecture.
 | Phase | Focus | State |
 | --- | --- | --- |
 | **P0** | Core reliability | **Done** — all four |
-| **P1** | Audio quality | **In progress** — 4 of 7 |
-| **P2** | Connection UX | Not started |
+| **P1** | Audio quality | **In progress** — 5 of 7 |
+| **P2** | Connection UX | Started — 4 of 9 (the unification is untouched) |
 | **P3** | Polish & diagnostics | Link quality indicator done |
 | **CI** | Re-enable pipeline | **Parked** — deliberately deferred |
 
@@ -336,8 +336,65 @@ about why the fixed cadence must not be "improved".
 
 The fuller answer — reframing the slider itself from an absolute threshold into
 a pure margin above the floor — changes what a persisted setting means and
-needs the label, the translations, the README and the website with it. That
-belongs with the riding preset below, which renames it anyway.
+needs the label, the translations, the README and the website with it. It was
+originally filed against the riding preset below, on the grounds that both
+touch the same four surfaces. **Deliberately not done there.** That was a
+batching argument, not a dependency, and reinterpreting a stored 0–0.15 value
+as a margin silently changes the gate on every existing install. Landing it
+alongside the preset would make the first field report of a misbehaving mic
+unattributable to either. Still open, on its own.
+
+### 5. Riding preset — **done**
+
+One switch, on the *main* Settings page rather than under Advanced with the
+sliders it overrides — for this audience it is the most consequential control
+on the screen.
+
+- [x] [`AudioProfile.resolve`](lib/core/settings/audio_profile.dart) — the
+      single seam between stored preferences and the audio chain. Both
+      consumers (`AudioEngineImpl` for jitter depth + playback gain,
+      `WalkieTalkieCubit` for VOX + cleaner) read the resolved profile, so
+      "preset on" reaches all of it or none of it. A caller reading a raw
+      preference would half-apply it, which is worse than not having the feature
+- [x] **Override, never overwrite.** No preset value is ever written to prefs;
+      every slider comes back untouched. That is what makes it safe to try at a
+      red light, and it is asserted end-to-end through real `SharedPreferences`
+- [x] `PlaybackGain` — a soft knee asymptotic to full scale, continuous in
+      value *and* slope, returning its argument identically at unity so the RX
+      hot path pays nothing. Hard-clamping a boost is square-wave distortion
+      across the consonant band: louder and *less* intelligible
+- [x] The Advanced page stops contradicting the switch — overridden controls
+      report the running value, say why, and go inert. `_CleanerOption` grew
+      `locked` as distinct from `enabled`: the engine that *is* running must
+      keep reading as selected, only the alternatives dim
+- [x] "Reset to normal" turns the preset off as part of the reset — otherwise
+      it restores three values the preset immediately overrides again, and
+      reads as a broken button
+- [x] `riding` on the transmit log line, so a field-test log says which profile
+      produced its VOX figures
+- [x] fa + en strings, README, website FAQ (+ the mirrored JSON-LD)
+- [x] Tests: [audio_profile_test.dart](test/audio_profile_test.dart),
+      [playback_gain_test.dart](test/playback_gain_test.dart),
+      [riding_preset_settings_test.dart](test/riding_preset_settings_test.dart)
+
+**The finding that gave the preset its point.** The roadmap listed eight things
+for it to switch on; six were already permanent — echo cancel, AGC and NS are
+bound to every capture session, headset priority is `configureVoice`, jitter
+adaptation and Opus retuning run off measured conditions regardless. So the
+preset does not pretend to toggle them.
+
+What was left turned out to matter more than the list suggested. **VOX ships at
+0, and 0 means the gate is off entirely** — so on a stock install P1 §4's
+adaptive noise-floor tracking *never runs*, because there is no gate for it to
+move. At a desk that is the right default. At speed it means the rider holds
+the channel open on wind noise for the whole ride with nothing on their own
+phone saying so. Arming that gate is the preset's real work, which is why its
+VOX value is deliberately *low* — it is the floor beneath the adaptive
+threshold, not the threshold.
+
+**Unverified on hardware**, like P0 §4: the gain, the depth anchor and the
+suppression strength are reasoned, not measured. They are the field matrix's
+"real motorcycle ride" line item's first job.
 
 ### Still open
 
@@ -345,14 +402,12 @@ belongs with the riding preset below, which renames it anyway.
       that neither side starves or overflows. A field-test item, not a code one
 - [ ] **Do not over-suppress** — target is *maximum intelligibility*, not studio
       quality. Aggressive RNNoise + packet loss destroys consonants. Honoured as
-      a constraint in the three decisions above (bandwidth left alone, loss
-      answered with redundancy, complexity kept modest); still owed a pass over
-      the suppressor defaults themselves
-- [ ] **Riding preset** — one toggle: moderate RNNoise, controlled AGC, echo
-      cancel, VOX for high noise, Opus robust, adaptive jitter, headset priority,
-      slightly higher playback gain. Now mostly a *wiring* job, since the
-      adaptive halves exist — but it touches settings UI, translated strings,
-      README and website, so it is its own piece of work
+      a constraint in the four decisions above (bandwidth left alone, loss
+      answered with redundancy, complexity kept modest, and the riding preset
+      running RNNoise at 0.65 alone rather than cascaded at full strength);
+      still owed a pass over the suppressor defaults themselves
+- [ ] **VOX slider as a pure margin** — see the note under §4. Split out of the
+      riding preset on purpose; needs a migration story for stored values
 
 ---
 
@@ -368,6 +423,39 @@ unification.
       (note: `sessionId` here depends on P0 #1)
 - [ ] Preflight check (~0.5–1 s): mic, headset, network, audio route — surfaced
       *before* entering the room
+- [x] **A host announces itself only on its own AP.** Found in a field test:
+      host on home Wi-Fi *and* hosting, joiner on the AP, both entered the
+      channel, neither ever heard the other — two halves of one session on two
+      subnets, both screens reporting an empty room while every other
+      diagnostic read healthy. The discovery posture sprays every private
+      subnet, which is right while looking for peers and wrong for a host that
+      already knows where they are.
+      [`HostSubnetFilter`](lib/feature/transfer/domain/service/host_subnet_filter.dart)
+      drops the subnet of a network we are only a client of, keyed on the
+      client address read from `WifiManager` — interface names can't tell an AP
+      apart (`ap0`/`swlan0`/`wlan1` by vendor) but the STA address is by
+      definition not the AP. Never filters to empty: on a single-radio phone
+      the client side is torn down as the AP rises, and a stale read can name
+      the only subnet currently visible.
+      Tests: [host_subnet_filter_test.dart](test/host_subnet_filter_test.dart)
+- [x] **"Turn Wi-Fi off" advice on the host screen.** A local-only hotspot and
+      a Wi-Fi client connection are one radio on most phones, so a remembered
+      network drifting back into range makes the framework hand the radio over
+      and tear the AP down — arriving as an ordinary `onStopped` with nothing
+      marking the cause. `isStaApConcurrencySupported` (API 30+; read as "can't"
+      below that) answers it *before* the failure, so the note appears while the
+      QR is still up.
+      [`HotspotWifiAdvice`](lib/feature/transfer/domain/service/hotspot_control.dart)
+      decides, [`HotspotWifiNote`](lib/feature/transfer/presentation/widget/hotspot_wifi_note.dart)
+      says it: an animated one-radio-two-claimants diagram that resolves back to
+      the healthy state rather than resting on failure, plus the objection
+      answered before it is raised ("your channel keeps working — it runs over
+      the hotspot, not over Wi-Fi"). The app **cannot** flip the switch —
+      `setWifiEnabled` is a no-op for non-system apps since API 29 — so
+      `Settings.Panel.ACTION_INTERNET_CONNECTIVITY` floats the toggle over the
+      app, keeping the code on screen for the other phone. A teardown
+      un-dismisses the note and turns it from prediction into explanation.
+      Tests: [hotspot_wifi_advice_test.dart](test/hotspot_wifi_advice_test.dart)
 - [ ] Self-test mode in settings: record 2 s, play back locally, report active
       route, verify headset, benchmark latency
 - [x] **Join screen stops contradicting itself.** `hotspot_join_instructions`

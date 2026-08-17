@@ -18,6 +18,7 @@ import '../../domain/entity/session_role.dart';
 import '../../domain/entity/transport_stats.dart';
 import '../../domain/entity/waki_packet.dart';
 import '../../domain/repository/wifi_transfer_repository.dart';
+import '../../domain/service/host_subnet_filter.dart';
 import '../../domain/service/recovery_ladder.dart';
 import '../../domain/service/opus_tuner.dart';
 import '../../domain/service/peer_loss_tracker.dart';
@@ -27,6 +28,7 @@ import '../../domain/service/session_epoch_gate.dart';
 import '../../domain/service/session_role_store.dart';
 import '../codec/opus_audio_codec.dart';
 import '../codec/waki_packet_codec.dart';
+import '../hotspot/wifi_client_address.dart';
 import 'broadcast_policy.dart';
 import 'discovery_sweep.dart';
 
@@ -1552,7 +1554,6 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   /// CLAT (192.0.0.x) addresses are skipped: peers can never be there, and a
   /// directed broadcast to a public range would leave the LAN.
   Future<void> _resolveNetwork() async {
-    final targets = <String>{'255.255.255.255'};
     final subnets = <String>{};
     final locals = <String>{};
     try {
@@ -1560,15 +1561,40 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
         locals.add(entry.address);
         if (!LanIpv4.isPrivate(entry.address)) continue;
         final parts = entry.address.split('.');
-        final prefix = '${parts[0]}.${parts[1]}.${parts[2]}';
-        targets.add('$prefix.255');
-        subnets.add(prefix);
+        subnets.add('${parts[0]}.${parts[1]}.${parts[2]}');
       }
     } catch (e) {
       Logger.log('Could not enumerate network interfaces: $e');
     }
+
+    // A host serves exactly one network — its own AP — and must not announce
+    // itself on a Wi-Fi it happens to still be a client of. Doing so puts the
+    // two halves of the same session on two subnets, and both phones then show
+    // an empty channel while every diagnostic reads healthy. See
+    // [HostSubnetFilter]; the platform read is what tells the AP apart from the
+    // joined network, since interface names cannot.
+    final isHost = sessionRole == SessionRole.host;
+    final kept = HostSubnetFilter.apply(
+      subnets: subnets.toList(),
+      clientIp: isHost ? await WifiClientAddress.current() : null,
+      isHost: isHost,
+    );
+    if (kept.length != subnets.length) {
+      Logger.diagnostic(
+        'wifi: hosting — not announcing on ${subnets.difference(kept.toSet())}, '
+        'the network this phone is only a client of. Peers are on our AP.',
+      );
+    }
+
+    // The limited broadcast stays whatever happens: it names no subnet, costs
+    // one datagram, and is the only thing that reaches a device whose AP
+    // interface never appears in NetworkInterface.list.
+    final targets = <String>{
+      '255.255.255.255',
+      for (final prefix in kept) '$prefix.255',
+    };
     _broadcastTargets = targets.map(InternetAddress.new).toList();
-    _sweepSubnets = subnets.toList();
+    _sweepSubnets = kept;
     // Only when it actually changes: this re-resolves every 10s while sending,
     // and the interesting event is an interface appearing or going away (a
     // client bringing the AP interface up, cellular arriving alongside it) —

@@ -572,6 +572,32 @@ class AppLocalizationsFa extends AppLocalizations {
   String get hotspot_creating => 'دارم هات‌اسپات می‌سازم...';
 
   @override
+  String get hotspot_wifi_note_title =>
+      'وای‌فای رو خاموش کن تا ارتباط بهتر بشه';
+
+  @override
+  String get hotspot_wifi_note_title_dropped =>
+      'وای‌فای رو خاموش کن تا دیگه تکرار نشه';
+
+  @override
+  String get hotspot_wifi_note_body =>
+      'گوشیت نمی‌تونه همزمان هم وای‌فای وصل باشه هم هات‌اسپات درست بده. با وای‌فای خاموش، ارتباطت با بقیه قوی‌تره و قطع نمی‌شه.';
+
+  @override
+  String get hotspot_wifi_note_body_dropped =>
+      'هات‌اسپاتت همین الان قطع شد و دلیلش روشن بودن وای‌فایه. خاموشش کن تا ارتباط سر جاش بمونه.';
+
+  @override
+  String get hotspot_wifi_note_action => 'خاموش کردن وای‌فای';
+
+  @override
+  String get hotspot_wifi_note_dismiss => 'فعلاً نه';
+
+  @override
+  String get hotspot_wifi_note_reassure =>
+      'صدای همه رو می‌شنوی — کانال به وای‌فای احتیاجی نداره.';
+
+  @override
   String get hotspot_waiting => 'منتظر گوشی دیگه‌ام...';
 
   @override
@@ -786,6 +812,24 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get settings_delay_high_hint => 'صدای روون‌تر';
+
+  @override
+  String get settings_riding_section => 'حالت موتورسواری';
+
+  @override
+  String get settings_riding_label => 'تنظیم برای جاده';
+
+  @override
+  String get settings_riding_desc =>
+      'یه سوییچ که صدات رو از لای باد و صدای موتور رد می‌کنه: میکروفون منتظر صدای خودت می‌مونه به‌جای اینکه هرچی می‌شنوه بفرسته، حذف نویز اون‌قدری کار می‌کنه که کلمه‌ها واضح بمونن، برنامه یه کم صدای بیشتری ذخیره نگه می‌داره تا ارتباطِ در حال حرکت بریده‌بریده نشه، و صدای بقیه یه کم بلندتر پخش می‌شه.';
+
+  @override
+  String get settings_riding_kept =>
+      'تنظیمات خودت دست‌نخورده می‌مونه — همین که خاموشش کنی برمی‌گرده.';
+
+  @override
+  String get settings_riding_overridden =>
+      'حالت موتورسواری خودش این رو انتخاب کرده. خاموشش کن تا خودت تنظیمش کنی.';
 
   @override
   String get settings_restore_defaults => 'برگردون به حالت اول';

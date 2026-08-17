@@ -15,6 +15,7 @@ class SettingsModel extends AppSettings {
     required super.noiseSuppressionEngine,
     required super.musicGain,
     required super.targetBufferMs,
+    required super.ridingPreset,
     required super.autoReconnectEnabled,
     required super.skipSplash,
     required super.usageTipsShown,
@@ -29,6 +30,7 @@ class SettingsModel extends AppSettings {
     noiseSuppressionEngine: s.noiseSuppressionEngine,
     musicGain: s.musicGain,
     targetBufferMs: s.targetBufferMs,
+    ridingPreset: s.ridingPreset,
     autoReconnectEnabled: s.autoReconnectEnabled,
     skipSplash: s.skipSplash,
     usageTipsShown: s.usageTipsShown,
@@ -52,6 +54,7 @@ class SettingsModel extends AppSettings {
       musicGain: (json['musicGain'] as num?)?.toDouble() ?? d.musicGain,
       targetBufferMs:
           (json['targetBufferMs'] as num?)?.toInt() ?? d.targetBufferMs,
+      ridingPreset: json['ridingPreset'] as bool? ?? d.ridingPreset,
       autoReconnectEnabled:
           json['autoReconnectEnabled'] as bool? ?? d.autoReconnectEnabled,
       skipSplash: json['skipSplash'] as bool? ?? d.skipSplash,
@@ -73,6 +76,7 @@ class SettingsModel extends AppSettings {
     'noiseSuppressionEngine': noiseSuppressionEngine.name,
     'musicGain': musicGain,
     'targetBufferMs': targetBufferMs,
+    'ridingPreset': ridingPreset,
     'autoReconnectEnabled': autoReconnectEnabled,
     'skipSplash': skipSplash,
     'usageTipsShown': usageTipsShown,
@@ -100,6 +104,8 @@ class SettingsModel extends AppSettings {
       musicGain: prefs.getDouble(SettingsKeys.musicGain) ?? d.musicGain,
       targetBufferMs:
           prefs.getInt(SettingsKeys.targetBufferMs) ?? d.targetBufferMs,
+      ridingPreset:
+          prefs.getBool(SettingsKeys.ridingPreset) ?? d.ridingPreset,
       autoReconnectEnabled:
           prefs.getBool(SettingsKeys.autoReconnectEnabled) ??
           d.autoReconnectEnabled,

@@ -43,6 +43,14 @@ class _FakeHost implements HotspotHost {
 
   @override
   Future<void> openFixSettings(String errorCode) async {}
+
+  /// Advice this fake has nothing to say about — the link keeper is about
+  /// re-hosting, not about what the radio is doing.
+  @override
+  Future<HotspotWifiAdvice> wifiAdvice() async => HotspotWifiAdvice.none;
+
+  @override
+  Future<bool> openWifiPanel() async => false;
 }
 
 class _FakeJoiner implements HotspotJoiner {

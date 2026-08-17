@@ -302,10 +302,13 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   Stream<AudioFrame> get receivedFrames => _audioEngine.receivedFrames;
 
   Future<void> _init() async {
-    final voxThreshold = await _settingsRepository.getVoxThreshold();
-    final noiseSuppression = await _settingsRepository.getNoiseSuppression();
-    final noiseSuppressionEngine = await _settingsRepository
-        .getNoiseSuppressionEngine();
+    // One resolved profile rather than three getters: with the riding preset
+    // on, the values the engine runs are the preset's, not the stored ones.
+    final profile = await _settingsRepository.getAudioProfile();
+    final voxThreshold = profile.voxThreshold;
+    final noiseSuppression = profile.noiseSuppression;
+    final noiseSuppressionEngine = profile.noiseSuppressionEngine;
+    final ridingPreset = profile.fromPreset;
     final musicGain = await _settingsRepository.getMusicGain();
 
     // The page can be exited while _init is still awaiting (fast back-out).
@@ -353,6 +356,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
         voxThreshold: voxThreshold,
         noiseSuppression: noiseSuppression,
         noiseSuppressionEngine: noiseSuppressionEngine,
+        ridingPreset: ridingPreset,
         musicGain: musicGain,
         transferMode: _modeStore.mode,
         myRole: _transferRepository.sessionRole,
@@ -795,6 +799,10 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
       'sent=$_txFramesSent gated=$_txFramesGated '
       'preroll=$_txPrerollFrames/${_txPrerollFlushes}bursts '
       'vox=${state.voxThreshold.toStringAsFixed(3)} '
+      // Which profile produced that vox figure. A field-test log where the
+      // gate behaved unexpectedly is unreadable without knowing whether the
+      // rider was on the preset or their own sliders.
+      '${state.ridingPreset ? 'riding ' : ''}'
       'muted=${state.isSelfMuted} music=${state.isSharingSystemAudio} '
       'peers=${state.activeUsers.length} localId=${state.localId}',
     );
@@ -1313,6 +1321,43 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     await _settingsRepository.setNoiseSuppressionEngine(engine);
   }
 
+  /// Turns the riding preset on or off mid-session.
+  ///
+  /// Persists only the switch — never the values it implies. The rider's own
+  /// slider positions stay exactly where they were, so switching back is a
+  /// return to their setup rather than to the factory's, which is what makes
+  /// this safe to try at a red light.
+  Future<void> setRidingPreset(bool enabled) async {
+    _useFeature(AppFeature.ridingPreset);
+    await _settingsRepository.setRidingPreset(enabled);
+    await applyAudioProfile();
+  }
+
+  /// Re-reads the resolved audio profile and pushes it at the running engine.
+  ///
+  /// The one path by which stored settings reach a live session, so a caller
+  /// that changed several of them at once (the riding switch, "reset to
+  /// normal") cannot leave the engine agreeing with some and not others.
+  ///
+  /// Jitter depth is the exception and always waits for the next session — the
+  /// playback buffer is built once per route, and rebuilding it under a live
+  /// call would cost an audible gap to save a latency nobody asked about.
+  Future<void> applyAudioProfile() async {
+    final profile = await _settingsRepository.getAudioProfile();
+    if (isClosed) return;
+    _audioEngine.setNoiseSuppression(profile.noiseSuppression);
+    _audioEngine.setNoiseSuppressionEngine(profile.noiseSuppressionEngine);
+    _audioEngine.setPlaybackGain(profile.playbackGain);
+    emit(
+      state.copyWith(
+        voxThreshold: profile.voxThreshold,
+        noiseSuppression: profile.noiseSuppression,
+        noiseSuppressionEngine: profile.noiseSuppressionEngine,
+        ridingPreset: profile.fromPreset,
+      ),
+    );
+  }
+
   /// Manual "Retry now" action for the connection-health banner — bypasses
   /// any backoff wait and is the only way to recover when auto-reconnect is
   /// turned off.
@@ -1475,6 +1520,11 @@ class WalkieTalkieState extends Equatable {
   final double voxThreshold;
   final double noiseSuppression;
   final NoiseSuppressionEngine noiseSuppressionEngine;
+
+  /// Whether the three values above came from the riding preset rather than
+  /// the rider's own sliders. Presentation needs it to say so — a preset that
+  /// silently contradicts a control two taps away is worse than no preset.
+  final bool ridingPreset;
   final List<ChannelUser> activeUsers;
   final bool isReady;
   final TransferMode transferMode;
@@ -1529,6 +1579,7 @@ class WalkieTalkieState extends Equatable {
     required this.voxThreshold,
     required this.noiseSuppression,
     required this.noiseSuppressionEngine,
+    required this.ridingPreset,
     required this.activeUsers,
     required this.isReady,
     required this.transferMode,
@@ -1554,6 +1605,7 @@ class WalkieTalkieState extends Equatable {
     voxThreshold: 0.0,
     noiseSuppression: 1.0,
     noiseSuppressionEngine: NoiseSuppressionEngine.spectral,
+    ridingPreset: false,
     activeUsers: [],
     isReady: false,
     transferMode: TransferMode.wifi,
@@ -1579,6 +1631,7 @@ class WalkieTalkieState extends Equatable {
     double? voxThreshold,
     double? noiseSuppression,
     NoiseSuppressionEngine? noiseSuppressionEngine,
+    bool? ridingPreset,
     List<ChannelUser>? activeUsers,
     bool? isReady,
     TransferMode? transferMode,
@@ -1603,6 +1656,7 @@ class WalkieTalkieState extends Equatable {
     noiseSuppression: noiseSuppression ?? this.noiseSuppression,
     noiseSuppressionEngine:
         noiseSuppressionEngine ?? this.noiseSuppressionEngine,
+    ridingPreset: ridingPreset ?? this.ridingPreset,
     activeUsers: activeUsers ?? this.activeUsers,
     isReady: isReady ?? this.isReady,
     transferMode: transferMode ?? this.transferMode,
@@ -1641,6 +1695,7 @@ class WalkieTalkieState extends Equatable {
     voxThreshold,
     noiseSuppression,
     noiseSuppressionEngine,
+    ridingPreset,
     activeUsers,
     isReady,
     transferMode,

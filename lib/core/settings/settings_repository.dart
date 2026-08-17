@@ -1,4 +1,5 @@
 import 'app_settings.dart';
+import 'audio_profile.dart';
 import 'noise_suppression_engine.dart';
 
 /// Single point of truth for reading/writing every [AppSettings] field.
@@ -38,6 +39,19 @@ abstract interface class SettingsRepository {
 
   Future<int> getTargetBufferMs();
   Future<void> setTargetBufferMs(int value);
+
+  /// Whether the riding preset is on. Prefer [getAudioProfile] wherever the
+  /// answer is going to be combined with the voice knobs — this getter is for
+  /// presentation, which needs the raw switch position to draw it.
+  Future<bool> getRidingPreset();
+  Future<void> setRidingPreset(bool value);
+
+  /// What the audio chain should actually run: the stored voice knobs with
+  /// the riding preset applied on top, resolved in one place so no caller can
+  /// half-apply it. Every consumer of VOX threshold, cleaner strength/engine,
+  /// jitter depth or playback gain goes through this rather than reading the
+  /// individual getters above.
+  Future<AudioProfile> getAudioProfile();
 
   Future<bool> getAutoReconnectEnabled();
   Future<void> setAutoReconnectEnabled(bool value);
@@ -92,6 +106,10 @@ abstract interface class SettingsRepository {
   /// jitter-buffer delay — to [AppSettings.defaults] and persists them,
   /// returning the restored `(vox, noiseSuppression, targetBufferMs)` tuple
   /// so callers can push it into a live session / their own state.
+  ///
+  /// Turns the riding preset off as part of the reset. Leaving it on would
+  /// make "reset to normal" a button that visibly does nothing — every value
+  /// it restores is one the preset overrides.
   Future<(double voxThreshold, double noiseSuppression, int targetBufferMs)>
   restoreVoiceDefaults();
 }

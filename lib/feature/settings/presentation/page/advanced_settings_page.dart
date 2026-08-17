@@ -157,8 +157,10 @@ class _VoiceCard extends StatelessWidget {
             p.voxThreshold != c.voxThreshold ||
             p.noiseSuppression != c.noiseSuppression ||
             p.noiseSuppressionEngine != c.noiseSuppressionEngine ||
+            p.ridingPreset != c.ridingPreset ||
             p.isLive != c.isLive,
         builder: (context, state) {
+          final riding = state.ridingPreset;
           final thresholdPercent = ((state.voxThreshold / 0.15) * 100)
               .clamp(0.0, 100.0)
               .toInt();
@@ -169,6 +171,12 @@ class _VoiceCard extends StatelessWidget {
           // user left it the moment they pick a cleaner again.
           final cleanerOff =
               state.noiseSuppressionEngine == NoiseSuppressionEngine.off;
+          // Two different reasons a slider stops accepting input, kept apart
+          // on purpose. "Cleaner off" means there is nothing for the strength
+          // to apply to, and the readout says OFF. The riding preset means
+          // something else is choosing the value — the readout must keep
+          // showing that value, because it is what the engine is running.
+          final locked = cleanerOff || riding;
           final noisePercent = (state.noiseSuppression * 100).round();
           final noiseLabel = cleanerOff || noisePercent == 0
               ? s.noise_filter_off
@@ -177,16 +185,20 @@ class _VoiceCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Column(
               children: [
-                _AppliesHint(
-                  live: state.isLive,
-                  text: state.isLive
-                      ? s.settings_applies_live
-                      : s.settings_applies_next_session,
-                ),
+                if (riding)
+                  const _RidingOverrideHint()
+                else
+                  _AppliesHint(
+                    live: state.isLive,
+                    text: state.isLive
+                        ? s.settings_applies_live
+                        : s.settings_applies_next_session,
+                  ),
                 const SizedBox(height: 12),
                 _sliderHeader(
                   s.vox_threshold,
                   '${thresholdPercent.localized(context)}%',
+                  active: !riding,
                 ),
                 SliderTheme(
                   data: _sliderTheme(context),
@@ -194,8 +206,10 @@ class _VoiceCard extends StatelessWidget {
                     value: state.voxThreshold,
                     min: 0.0,
                     max: 0.15,
-                    onChanged: (v) =>
-                        context.read<SettingsCubit>().setVoxThreshold(v),
+                    onChanged: riding
+                        ? null
+                        : (v) =>
+                              context.read<SettingsCubit>().setVoxThreshold(v),
                     onChangeEnd: (_) => HapticFeedback.selectionClick(),
                   ),
                 ),
@@ -212,7 +226,7 @@ class _VoiceCard extends StatelessWidget {
                 _sliderHeader(
                   s.noise_filter,
                   noiseLabel,
-                  active: !cleanerOff && noisePercent != 0,
+                  active: !locked && noisePercent != 0,
                 ),
                 SliderTheme(
                   data: _sliderTheme(context),
@@ -221,8 +235,8 @@ class _VoiceCard extends StatelessWidget {
                     min: 0.0,
                     max: 1.0,
                     // Null disables the Slider outright, which is the point:
-                    // see [cleanerOff] above.
-                    onChanged: cleanerOff
+                    // see [locked] above.
+                    onChanged: locked
                         ? null
                         : (v) =>
                               context.read<SettingsCubit>().setNoiseSuppression(
@@ -368,6 +382,7 @@ class _NoiseCleanerCard extends StatelessWidget {
       child: BlocBuilder<SettingsCubit, SettingsState>(
         buildWhen: (p, c) =>
             p.noiseSuppressionEngine != c.noiseSuppressionEngine ||
+            p.ridingPreset != c.ridingPreset ||
             p.isLive != c.isLive,
         builder: (context, state) {
           // A platform with no native build path can't run rnnoise
@@ -387,17 +402,25 @@ class _NoiseCleanerCard extends StatelessWidget {
           final effectiveEngine = needsNative && !_smartAvailable
               ? NoiseSuppressionEngine.spectral
               : stored;
+          // While the preset runs, the selected option is the preset's — shown
+          // as the live one, and not re-selectable. Same rule as the platform
+          // fallback above: the card reports the running engine, never a
+          // stored preference that isn't in effect.
+          final riding = state.ridingPreset;
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _AppliesHint(
-                  live: state.isLive,
-                  text: state.isLive
-                      ? s.settings_applies_live
-                      : s.settings_applies_next_session,
-                ),
+                if (riding)
+                  const _RidingOverrideHint()
+                else
+                  _AppliesHint(
+                    live: state.isLive,
+                    text: state.isLive
+                        ? s.settings_applies_live
+                        : s.settings_applies_next_session,
+                  ),
                 const SizedBox(height: 10),
                 Text(
                   s.noise_cleaner_intro,
@@ -414,6 +437,7 @@ class _NoiseCleanerCard extends StatelessWidget {
                   description: s.noise_cleaner_simple_desc,
                   downside: s.noise_cleaner_simple_downside,
                   selected: effectiveEngine == NoiseSuppressionEngine.spectral,
+                  locked: riding,
                   onTap: () => _select(context, NoiseSuppressionEngine.spectral),
                 ),
                 const SizedBox(height: 10),
@@ -424,6 +448,7 @@ class _NoiseCleanerCard extends StatelessWidget {
                   downside: s.noise_cleaner_smart_downside,
                   selected: effectiveEngine == NoiseSuppressionEngine.rnnoise,
                   enabled: _smartAvailable,
+                  locked: riding,
                   onTap: () => _select(context, NoiseSuppressionEngine.rnnoise),
                 ),
                 const SizedBox(height: 10),
@@ -434,6 +459,7 @@ class _NoiseCleanerCard extends StatelessWidget {
                   downside: s.noise_cleaner_both_downside,
                   selected: effectiveEngine == NoiseSuppressionEngine.both,
                   enabled: _smartAvailable,
+                  locked: riding,
                   onTap: () => _select(context, NoiseSuppressionEngine.both),
                 ),
                 const SizedBox(height: 10),
@@ -446,6 +472,7 @@ class _NoiseCleanerCard extends StatelessWidget {
                   description: s.noise_cleaner_off_desc,
                   downside: s.noise_cleaner_off_downside,
                   selected: effectiveEngine == NoiseSuppressionEngine.off,
+                  locked: riding,
                   onTap: () => _select(context, NoiseSuppressionEngine.off),
                 ),
                 if (!_smartAvailable) ...[
@@ -482,7 +509,16 @@ class _CleanerOption extends StatelessWidget {
   final String description;
   final String downside;
   final bool selected;
+
+  /// This platform can actually run it — false greys the option out as
+  /// unavailable, and it can never appear selected.
   final bool enabled;
+
+  /// Something else is choosing right now (the riding preset). Distinct from
+  /// [enabled]: a locked option is still perfectly capable of running, and the
+  /// one that *is* running must keep showing as selected. Only the tap goes
+  /// away, and only the alternatives dim.
+  final bool locked;
   final VoidCallback onTap;
 
   const _CleanerOption({
@@ -492,6 +528,7 @@ class _CleanerOption extends StatelessWidget {
     required this.downside,
     required this.selected,
     this.enabled = true,
+    this.locked = false,
     required this.onTap,
   });
 
@@ -499,14 +536,18 @@ class _CleanerOption extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = context.getString;
     final active = selected && enabled;
-    final titleColor = !enabled
+    // Dimmed when this phone can't run it, or when the preset is choosing and
+    // it isn't the choice. The active one under a lock stays at full contrast:
+    // it is what the engine is doing.
+    final dim = !enabled || (locked && !active);
+    final titleColor = dim
         ? AppColors.textSecondary.withAlpha(110)
         : AppColors.textPrimary;
-    final bodyColor = enabled
-        ? AppColors.textSecondary
-        : AppColors.textSecondary.withAlpha(110);
+    final bodyColor = dim
+        ? AppColors.textSecondary.withAlpha(110)
+        : AppColors.textSecondary;
     return GestureDetector(
-      onTap: enabled ? onTap : null,
+      onTap: enabled && !locked ? onTap : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(12),
@@ -545,7 +586,7 @@ class _CleanerOption extends StatelessWidget {
                   size: 18,
                   color: active
                       ? AppColors.amber
-                      : AppColors.textSecondary.withAlpha(enabled ? 140 : 80),
+                      : AppColors.textSecondary.withAlpha(dim ? 80 : 140),
                 ),
               ],
             ),
@@ -561,7 +602,7 @@ class _CleanerOption extends StatelessWidget {
                 Icon(
                   Icons.info_outline_rounded,
                   size: 12,
-                  color: bodyColor.withAlpha(enabled ? 190 : 110),
+                  color: bodyColor.withAlpha(dim ? 110 : 190),
                 ),
                 const SizedBox(width: 5),
                 Expanded(
@@ -576,7 +617,7 @@ class _CleanerOption extends StatelessWidget {
                       ],
                     ),
                     style: TextStyle(
-                      color: bodyColor.withAlpha(enabled ? 190 : 110),
+                      color: bodyColor.withAlpha(dim ? 110 : 190),
                       fontSize: 10.5,
                       height: 1.4,
                     ),
@@ -601,7 +642,9 @@ class _DelayCard extends StatelessWidget {
       icon: Icons.schedule_rounded,
       title: s.settings_delay,
       child: BlocBuilder<SettingsCubit, SettingsState>(
-        buildWhen: (p, c) => p.targetBufferMs != c.targetBufferMs,
+        buildWhen: (p, c) =>
+            p.targetBufferMs != c.targetBufferMs ||
+            p.ridingPreset != c.ridingPreset,
         builder: (context, state) => Padding(
           padding: const EdgeInsets.symmetric(vertical: 12),
           child: Column(
@@ -609,7 +652,13 @@ class _DelayCard extends StatelessWidget {
             children: [
               // The jitter buffer never rebuilds mid-call, so unlike the
               // noise cleaner this one always waits for the next session.
-              _AppliesHint(live: false, text: s.settings_applies_next_session),
+              if (state.ridingPreset)
+                const _RidingOverrideHint()
+              else
+                _AppliesHint(
+                  live: false,
+                  text: s.settings_applies_next_session,
+                ),
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -636,7 +685,9 @@ class _DelayCard extends StatelessWidget {
                       text: '${state.targetBufferMs} ms',
                       duration: const Duration(milliseconds: 200),
                       style: TextStyle(
-                        color: AppColors.amber,
+                        color: state.ridingPreset
+                            ? AppColors.textSecondary
+                            : AppColors.amber,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
@@ -663,10 +714,11 @@ class _DelayCard extends StatelessWidget {
                   min: 60,
                   max: 300,
                   divisions: 24,
-                  onChanged: (v) =>
-                      context.read<SettingsCubit>().setTargetBufferMs(
-                        v.round(),
-                      ),
+                  onChanged: state.ridingPreset
+                      ? null
+                      : (v) => context.read<SettingsCubit>().setTargetBufferMs(
+                          v.round(),
+                        ),
                   onChangeEnd: (_) => HapticFeedback.selectionClick(),
                 ),
               ),
@@ -704,6 +756,42 @@ class _DelayCard extends StatelessWidget {
 }
 
 // ── Shared bits ─────────────────────────────────────────────────────────────
+
+/// Replaces the "applies instantly / next session" note on any card the
+/// riding preset has taken over.
+///
+/// It stands in for that note rather than sitting alongside it because *when*
+/// a change lands stops being the interesting question once no change can be
+/// made — and it points at the switch that gives control back, so nobody has
+/// to work out why a slider stopped moving.
+class _RidingOverrideHint extends StatelessWidget {
+  const _RidingOverrideHint();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          Icons.two_wheeler_rounded,
+          color: AppColors.amber.withAlpha(200),
+          size: 12,
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            context.getString.settings_riding_overridden,
+            style: TextStyle(
+              color: AppColors.amber.withAlpha(200),
+              fontSize: 10.5,
+              height: 1.4,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
 
 /// "Applies instantly / next session" note, same look as the one on the main
 /// Settings page's voice card.

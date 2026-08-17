@@ -31,6 +31,8 @@ import io.flutter.plugin.common.MethodChannel
  *                                                      (async; completes on onStarted)
  *   stop()  -> null                                    (closes the reservation)
  *   openLocationSettings() / openTetherSettings() -> null
+ *   wifiAdvice() -> { wifiEnabled: Bool, concurrent: Bool, canPanel: Bool }
+ *   openWifiPanel() -> Bool                            (false = no panel, fell back)
  *
  * Events (channel "tark/hotspot/events"):
  *   {event: "stopped"}   the OS tore the hotspot down on its own (NOT our stop())
@@ -121,6 +123,9 @@ class HotspotHandler(
                 openTetherSettings()
                 result.success(null)
             }
+            "wifiAdvice" -> result.success(wifiAdvice())
+            "openWifiPanel" -> result.success(openWifiPanel())
+            "clientIpv4" -> result.success(clientIpv4())
             else -> result.notImplemented()
         }
     }
@@ -356,6 +361,95 @@ class HotspotHandler(
         ERROR_INCOMPATIBLE_MODE -> "incompatible_mode"
         ERROR_NO_CHANNEL -> "no_channel"
         else -> "failed"
+    }
+
+    /**
+     * Whether leaving Wi-Fi on is likely to cost this device its hotspot.
+     *
+     * A local-only hotspot and a Wi-Fi client connection are the same radio on
+     * most phones. Where the chipset can't run both, the framework tears the AP
+     * down the moment the STA side reconnects — a saved network drifting back
+     * into range mid-ride kills the channel, and it arrives as our own
+     * `onStopped` with nothing to distinguish it from any other teardown.
+     *
+     * `isStaApConcurrencySupported` (API 30+) answers this directly. Below that
+     * there is no query at all, and single-radio is overwhelmingly the norm on
+     * hardware that old, so the absence is reported as "not concurrent" rather
+     * than as unknown: warning someone whose phone would have coped costs them
+     * one dismissed note, while staying quiet on a phone that won't cope costs
+     * them the ride.
+     *
+     * Note this is advisory only — nothing here turns anything off.
+     * `setWifiEnabled` has been a no-op returning false for non-system apps
+     * since API 29, so the switch is the user's to flip and our job is to ask
+     * for it well.
+     */
+    private fun wifiAdvice(): Map<String, Any> {
+        val enabled = runCatching { wifiManager.isWifiEnabled }.getOrDefault(false)
+        val concurrent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            runCatching { wifiManager.isStaApConcurrencySupported }.getOrDefault(false)
+        } else {
+            false
+        }
+        return mapOf(
+            "wifiEnabled" to enabled,
+            "concurrent" to concurrent,
+            // The inline panel is API 29+. Older builds get the full Wi-Fi
+            // settings screen instead, which works but navigates away — worth
+            // telling Dart, so the button can say so.
+            "canPanel" to (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q),
+        )
+    }
+
+    /**
+     * This device's IPv4 address **as a Wi-Fi client**, or null when it isn't
+     * connected to one.
+     *
+     * The point is to tell our own access point apart from a network we merely
+     * joined, on a phone that has both. Interface names can't do it — the AP
+     * lands on `ap0`, `swlan0` or `wlan1` depending on the vendor — but the
+     * client address is unambiguous: whatever `WifiManager` reports here is by
+     * definition the STA side, so every other private address we can see is
+     * not.
+     *
+     * `connectionInfo` is deprecated from API 31 in favour of
+     * `NetworkCallback.onCapabilitiesChanged`, and is kept anyway: the
+     * replacement is a subscription that answers later, while this is a
+     * one-shot question asked from a routing decision that has to be made now.
+     * It still returns the right address on every supported release.
+     */
+    @Suppress("DEPRECATION")
+    private fun clientIpv4(): String? = runCatching {
+        val raw = wifiManager.connectionInfo?.ipAddress ?: 0
+        if (raw == 0) return@runCatching null
+        // Little-endian int, as this API has always returned it.
+        "%d.%d.%d.%d".format(
+            raw and 0xff,
+            raw shr 8 and 0xff,
+            raw shr 16 and 0xff,
+            raw shr 24 and 0xff,
+        )
+    }.getOrNull()
+
+    /**
+     * Opens the Wi-Fi toggle as close to in-place as the platform allows.
+     *
+     * [Settings.Panel.ACTION_INTERNET_CONNECTIVITY] floats over the calling app,
+     * so the host never loses the QR screen it is showing the other phone —
+     * which matters more here than usual, since the whole point of the moment
+     * is that a second person is looking at this display.
+     *
+     * Returns true when the floating panel opened, false when we had to fall
+     * back to the full settings screen (or nothing at all).
+     */
+    private fun openWifiPanel(): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val panel = Intent(Settings.Panel.ACTION_INTERNET_CONNECTIVITY)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            if (runCatching { context.startActivity(panel) }.isSuccess) return true
+        }
+        openSettings(Settings.ACTION_WIFI_SETTINGS)
+        return false
     }
 
     private fun openSettings(action: String) {

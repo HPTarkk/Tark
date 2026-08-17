@@ -7,6 +7,7 @@ import '../../../../core/analytics/analytics.dart';
 import '../../../../core/analytics/analytics_event.dart';
 import '../../../../core/diagnostics/diagnostic_log.dart';
 import '../../../../core/diagnostics/log_budget.dart';
+import '../../../../core/settings/audio_profile.dart';
 import '../../../../core/settings/noise_suppression_engine.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../walkie/api/walkie_api.dart';
@@ -61,6 +62,7 @@ class SettingsCubit extends Cubit<SettingsState> {
           voxThreshold: live.state.voxThreshold,
           noiseSuppression: live.state.noiseSuppression,
           noiseSuppressionEngine: live.state.noiseSuppressionEngine,
+          ridingPreset: live.state.ridingPreset,
         ),
       );
       _liveSub = live.stream.listen((s) {
@@ -71,6 +73,7 @@ class SettingsCubit extends Cubit<SettingsState> {
             voxThreshold: s.voxThreshold,
             noiseSuppression: s.noiseSuppression,
             noiseSuppressionEngine: s.noiseSuppressionEngine,
+            ridingPreset: s.ridingPreset,
           ),
         );
       });
@@ -81,10 +84,21 @@ class SettingsCubit extends Cubit<SettingsState> {
     // fewer emits means fewer whole-page rebuild passes mid-transition.
     final all = await _repository.loadAll();
     if (isClosed) return;
+    // Resolved, not raw: with the riding preset on, the controls have to show
+    // what is actually running. A slider parked at the user's stored value
+    // while the engine runs the preset's would be the page lying about the
+    // one thing it exists to report.
+    final profile = AudioProfile.resolve(
+      ridingPreset: all.ridingPreset,
+      voxThreshold: all.voxThreshold,
+      noiseSuppression: all.noiseSuppression,
+      noiseSuppressionEngine: all.noiseSuppressionEngine,
+      targetBufferMs: all.targetBufferMs,
+    );
     emit(
       live != null
           ? state.copyWith(
-              targetBufferMs: all.targetBufferMs,
+              targetBufferMs: profile.targetBufferMs,
               autoReconnectEnabled: all.autoReconnectEnabled,
               skipSplash: all.skipSplash,
               analyticsEnabled: all.analyticsEnabled,
@@ -92,10 +106,11 @@ class SettingsCubit extends Cubit<SettingsState> {
             )
           : state.copyWith(
               myName: all.myName,
-              voxThreshold: all.voxThreshold,
-              noiseSuppression: all.noiseSuppression,
-              noiseSuppressionEngine: all.noiseSuppressionEngine,
-              targetBufferMs: all.targetBufferMs,
+              voxThreshold: profile.voxThreshold,
+              noiseSuppression: profile.noiseSuppression,
+              noiseSuppressionEngine: profile.noiseSuppressionEngine,
+              ridingPreset: profile.fromPreset,
+              targetBufferMs: profile.targetBufferMs,
               autoReconnectEnabled: all.autoReconnectEnabled,
               skipSplash: all.skipSplash,
               analyticsEnabled: all.analyticsEnabled,
@@ -146,16 +161,53 @@ class SettingsCubit extends Cubit<SettingsState> {
     }
   }
 
+  /// Turns the riding preset on or off.
+  ///
+  /// Emits the resolved values, not just the switch — every control the preset
+  /// overrides has to move at the same moment the switch does, or the page
+  /// spends the next frame showing a setup nothing is running.
+  Future<void> setRidingPreset(bool enabled) async {
+    final live = _liveSession;
+    if (live != null) {
+      // The live session persists and re-resolves, then streams the result
+      // back through _liveSub — emitting here as well would only race it.
+      await live.setRidingPreset(enabled);
+      final profile = await _repository.getAudioProfile();
+      if (isClosed) return;
+      emit(state.copyWith(targetBufferMs: profile.targetBufferMs));
+      return;
+    }
+    _analytics.track(AnalyticsEvent.featureUsed(AppFeature.ridingPreset));
+    await _repository.setRidingPreset(enabled);
+    final profile = await _repository.getAudioProfile();
+    if (isClosed) return;
+    emit(
+      state.copyWith(
+        ridingPreset: profile.fromPreset,
+        voxThreshold: profile.voxThreshold,
+        noiseSuppression: profile.noiseSuppression,
+        noiseSuppressionEngine: profile.noiseSuppressionEngine,
+        targetBufferMs: profile.targetBufferMs,
+      ),
+    );
+  }
+
   /// Resets every Voice-section field to defaults — VOX threshold, noise
   /// suppression and jitter-buffer delay (the recommended hands-free combo:
-  /// VOX wide open, noise suppression at full strength to compensate).
+  /// VOX wide open, noise suppression at full strength to compensate) — and
+  /// turns the riding preset off, since otherwise it would keep overriding
+  /// every value this just restored.
   Future<void> restoreVoiceDefaults() async {
     _analytics.track(AnalyticsEvent.featureUsed(AppFeature.voiceDefaults));
     final (vox, noise, buffer) = await _repository.restoreVoiceDefaults();
     final live = _liveSession;
     if (live != null) {
-      await live.setVoxThreshold(vox);
-      await live.setNoiseSuppression(noise);
+      // One call, not three: the repository has already written all of them
+      // (preset included), so the live session re-reads the resolved profile
+      // rather than being handed the pieces one at a time — which is what
+      // stops the engine from briefly running the preset's cleaner against
+      // the restored VOX threshold.
+      await live.applyAudioProfile();
       // targetBufferMs isn't pushed to the live session (the jitter buffer
       // doesn't rebuild mid-call) — just reflect the restored value in the
       // page's own state; it's already persisted for the next session.
@@ -163,6 +215,7 @@ class SettingsCubit extends Cubit<SettingsState> {
     } else {
       emit(
         state.copyWith(
+          ridingPreset: false,
           voxThreshold: vox,
           noiseSuppression: noise,
           targetBufferMs: buffer,
@@ -236,6 +289,11 @@ class SettingsState extends Equatable {
   final double voxThreshold;
   final double noiseSuppression;
   final NoiseSuppressionEngine noiseSuppressionEngine;
+
+  /// Whether the three voice values above are the riding preset's rather than
+  /// the user's own. The controls stay visible and keep showing what is
+  /// running — they just stop accepting input while it is on.
+  final bool ridingPreset;
   final int targetBufferMs;
   final bool autoReconnectEnabled;
   final bool skipSplash;
@@ -248,6 +306,7 @@ class SettingsState extends Equatable {
     required this.voxThreshold,
     required this.noiseSuppression,
     required this.noiseSuppressionEngine,
+    required this.ridingPreset,
     required this.targetBufferMs,
     required this.autoReconnectEnabled,
     required this.skipSplash,
@@ -261,6 +320,7 @@ class SettingsState extends Equatable {
     voxThreshold: 0.0,
     noiseSuppression: 1.0,
     noiseSuppressionEngine: NoiseSuppressionEngine.spectral,
+    ridingPreset: false,
     targetBufferMs: 60,
     autoReconnectEnabled: true,
     skipSplash: false,
@@ -273,6 +333,7 @@ class SettingsState extends Equatable {
     double? voxThreshold,
     double? noiseSuppression,
     NoiseSuppressionEngine? noiseSuppressionEngine,
+    bool? ridingPreset,
     int? targetBufferMs,
     bool? autoReconnectEnabled,
     bool? skipSplash,
@@ -285,6 +346,7 @@ class SettingsState extends Equatable {
     noiseSuppression: noiseSuppression ?? this.noiseSuppression,
     noiseSuppressionEngine:
         noiseSuppressionEngine ?? this.noiseSuppressionEngine,
+    ridingPreset: ridingPreset ?? this.ridingPreset,
     targetBufferMs: targetBufferMs ?? this.targetBufferMs,
     autoReconnectEnabled: autoReconnectEnabled ?? this.autoReconnectEnabled,
     skipSplash: skipSplash ?? this.skipSplash,
@@ -299,6 +361,7 @@ class SettingsState extends Equatable {
     voxThreshold,
     noiseSuppression,
     noiseSuppressionEngine,
+    ridingPreset,
     targetBufferMs,
     autoReconnectEnabled,
     skipSplash,

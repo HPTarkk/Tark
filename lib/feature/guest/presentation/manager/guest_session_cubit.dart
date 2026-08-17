@@ -122,19 +122,21 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
 
   Future<void> _loadPrefs() async {
     final storedName = await _settingsRepository.getMyName();
-    final voxThreshold = await _settingsRepository.getVoxThreshold();
-    final noiseSuppression = await _settingsRepository.getNoiseSuppression();
-    final noiseSuppressionEngine = await _settingsRepository
-        .getNoiseSuppressionEngine();
+    // The resolved profile, not the three raw getters — a guest browser shares
+    // this device's stored voice settings, so it has to share the riding
+    // preset's override of them too. Reading them raw here would apply the
+    // preset in the app and not in the guest tab beside it.
+    final profile = await _settingsRepository.getAudioProfile();
     if (isClosed) return;
-    _engine.setNoiseSuppression(noiseSuppression);
-    _engine.setNoiseSuppressionEngine(noiseSuppressionEngine);
+    _engine.setNoiseSuppression(profile.noiseSuppression);
+    _engine.setNoiseSuppressionEngine(profile.noiseSuppressionEngine);
+    _engine.setPlaybackGain(profile.playbackGain);
     emit(
       state.copyWith(
         myName: storedName.isEmpty ? state.myName : storedName,
-        voxThreshold: voxThreshold,
-        noiseSuppression: noiseSuppression,
-        noiseSuppressionEngine: noiseSuppressionEngine,
+        voxThreshold: profile.voxThreshold,
+        noiseSuppression: profile.noiseSuppression,
+        noiseSuppressionEngine: profile.noiseSuppressionEngine,
       ),
     );
   }
