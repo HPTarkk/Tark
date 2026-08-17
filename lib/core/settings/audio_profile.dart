@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 import 'noise_suppression_engine.dart';
+import 'suppression_plan.dart';
 
 /// The audio values that actually reach the engine, after the riding preset
 /// has had its say.
@@ -120,7 +121,12 @@ abstract final class RidingPreset {
   /// through a helmet, and it does it worst on exactly the non-stationary wind
   /// noise a rider has most of. Full strength is still one slider away for
   /// anyone who wants it.
-  static const double noiseSuppression = 0.65;
+  ///
+  /// The stock default now reads the same ceiling, so what this does here is
+  /// **pin** the value rather than lower it: a rider who dragged the slider to
+  /// 100 % gets pulled back for the ride, and finds their own value again
+  /// untouched the moment they turn the preset off.
+  static const double noiseSuppression = SuppressionPlan.ceiling;
 
   /// RNNoise alone, never [NoiseSuppressionEngine.both]. Cascading spectral
   /// subtraction on top of a recurrent denoiser is the over-suppression trap

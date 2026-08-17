@@ -20,7 +20,7 @@ architecture.
 | Phase | Focus | State |
 | --- | --- | --- |
 | **P0** | Core reliability | **Done** — all four |
-| **P1** | Audio quality | **In progress** — 5 of 7 |
+| **P1** | Audio quality | **In progress** — 6 of 7 |
 | **P2** | Connection UX | Started — 4 of 9 (the unification is untouched) |
 | **P3** | Polish & diagnostics | Link quality indicator done |
 | **CI** | Re-enable pipeline | **Parked** — deliberately deferred |
@@ -396,16 +396,78 @@ threshold, not the threshold.
 suppression strength are reasoned, not measured. They are the field matrix's
 "real motorcycle ride" line item's first job.
 
+### 6. Do not over-suppress — **done**
+
+Was carried as a standing constraint honoured by four other decisions
+(bandwidth left alone, loss answered with redundancy, complexity kept modest,
+the riding preset running RNNoise at 0.65 alone rather than cascaded at full
+strength), and owed a pass over the suppressor defaults themselves. The pass
+found the constraint being broken in the two places nobody had looked.
+
+**The stock default was more aggressive than the riding preset.**
+`AppSettings.defaults()` shipped `noiseSuppression: 1.0`, justified in its own
+comment as compensation for VOX being wide open — which is the over-suppression
+trade in its purest form. So a default install ran the exact setting the
+tuned-for-a-motorcycle profile documents itself as backing away from, and ran it
+in the environment with the *least* noise to justify it: at a desk there is the
+least to remove and therefore the worst ratio of speech damaged to noise gained.
+The damage does not scale with the ambient level; the benefit does.
+
+**The cascade doubled up.** `NoiseSuppressionEngine.both` has always been
+described as RNNoise first, then spectral subtraction "to mop up any residual
+steady hum" — and was implemented as two cleaners at the same full slider value.
+The residuals multiply, and worse, the second stage subtracts against a signal
+whose remaining noise is no longer the stationary kind its floor tracker
+assumes, so it over-subtracts, into speech.
+
+- [x] [`SuppressionPlan`](lib/core/settings/suppression_plan.dart) — one pure
+      resolver from *(engine, strength, is the native denoiser available)* to
+      which stages run and what strength each gets. `ceiling` (0.65) is now the
+      most any shipped configuration asks for, read by both the stock default
+      and `RidingPreset` rather than written out twice
+- [x] The preset's cleaner value stops being a *lowering* and becomes a **pin**:
+      a rider who dragged the slider to 100 % is pulled back for the ride and
+      finds their own value untouched when they switch it off
+- [x] A running cascade gives its second stage `mopUpShare` (half) of the
+      slider. Keyed on the cascade actually **running**, not on `both` being
+      selected — with the native library missing, `both` collapses to spectral
+      alone, and halving a lone cleaner there would be a second silent downgrade
+      on precisely the devices that already lost the better engine
+- [x] The engine/availability branching moved out of the mic callback, where it
+      ran per buffer, into the plan — rebuilt only when one of its three inputs
+      changes (including after `_openStreams`, since `RnnoiseSuppressor.reset`
+      recreates the denoiser and availability can change there)
+- [x] Tests: [suppression_plan_test.dart](test/suppression_plan_test.dart) —
+      the full engine × availability matrix, plus the two invariants the pass
+      exists to hold: nothing shipped exceeds the ceiling, and the default is
+      never more aggressive than the riding preset
+- [x] README: the "bounded noise cleaning" bullet in the audio pipeline
+
+**One slider, two engines that do not mean the same thing by it.** Spectral's
+0..1 is an aggression curve (over-subtraction factor 2→4, attenuation floor
+0→−30 dB); RNNoise's is a dry/wet mix. That is why the mapping needs a resolver
+that knows both rather than one `clamp` writing the same number into each, which
+is what `setNoiseSuppression` used to do.
+
+**No migration needed, deliberately.** The stored value wins where one exists,
+so an install that ever touched the slider keeps its own choice — that is the
+user's decision and not ours to revise. Installs that never touched it read the
+default through `SettingsRepositoryImpl`'s `?? AppSettings.defaults()` fallback
+and pick the new value up on next launch.
+
+**Left undone on purpose.** The roadmap line reads "aggressive RNNoise **+
+packet loss** destroys consonants", and P1 §2 now measures far-end loss on the
+ping/pong. Backing the cleaner off on a lossy link is therefore buildable —
+and is not built here, because it would make the mic path move with network
+state, and loss is already answered where the evidence points, with FEC. The
+suppressor curves themselves (β 2→4, −30 dB floor at full strength) are also
+untouched: changing a DSP curve without a measurement is how the 1.0 default got
+written in the first place.
+
 ### Still open
 
 - [ ] **Clock drift** — gradual correction already started; verify over long runs
       that neither side starves or overflows. A field-test item, not a code one
-- [ ] **Do not over-suppress** — target is *maximum intelligibility*, not studio
-      quality. Aggressive RNNoise + packet loss destroys consonants. Honoured as
-      a constraint in the four decisions above (bandwidth left alone, loss
-      answered with redundancy, complexity kept modest, and the riding preset
-      running RNNoise at 0.65 alone rather than cascaded at full strength);
-      still owed a pass over the suppressor defaults themselves
 - [ ] **VOX slider as a pure margin** — see the note under §4. Split out of the
       riding preset on purpose; needs a migration story for stored values
 
@@ -541,7 +603,7 @@ that nobody has touched** — the tree predates the formatter version in the
 current SDK. A `--set-exit-if-changed` step would fail on day one. Land the
 reformat as its own isolated commit *before* switching CI on, so the noise
 never lands in a review diff. `flutter analyze` and `flutter test` are both
-clean today (265 tests), so those two can be enabled immediately.
+clean today (419 tests), so those two can be enabled immediately.
 
 ---
 

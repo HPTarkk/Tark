@@ -7,6 +7,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/settings/noise_suppression_engine.dart';
 import '../../../core/settings/settings_repository.dart';
+import '../../../core/settings/suppression_plan.dart';
 import '../../../core/utils/logger.dart';
 import '../../../core/utils/permission_queue.dart';
 import '../domain/audio_processor.dart';
@@ -72,6 +73,19 @@ class AudioEngineImpl implements AudioEngine {
   final SpectralNoiseSuppressor _spectralSuppressor = SpectralNoiseSuppressor();
   final RnnoiseSuppressor _rnnoiseSuppressor = RnnoiseSuppressor();
   NoiseSuppressionEngine _suppressionEngine = NoiseSuppressionEngine.spectral;
+  double _suppressionStrength = 0.0;
+
+  // Which cleaners run, and at what strength each. Rebuilt by
+  // [_applySuppression] whenever one of its three inputs changes — never per
+  // callback, which is where this branching used to live. The initial value is
+  // the resolution of the two fields above (spectral, silent) written out,
+  // since a field initialiser cannot read `_rnnoiseSuppressor`.
+  SuppressionPlan _suppressionPlan = const SuppressionPlan(
+    useRnnoise: false,
+    rnnoiseStrength: 0.0,
+    useSpectral: true,
+    spectralStrength: 0.0,
+  );
 
   // Survives _openStreams (which rebuilds _buffer on every route change), so a
   // gain set once at session start isn't silently reverted by a headset being
@@ -301,6 +315,9 @@ class AudioEngineImpl implements AudioEngine {
       _processor = AudioProcessor(sampleRate: kTxSampleRate.toDouble());
       _spectralSuppressor.reset();
       _rnnoiseSuppressor.reset();
+      // After the resets, not before: rnnoise's recreates the denoiser, so
+      // availability — and with it the plan — can change here.
+      _applySuppression();
 
       if (inputRate > kTxSampleRate) {
         _txLowPassA = OnePoleLowPass(
@@ -376,29 +393,14 @@ class AudioEngineImpl implements AudioEngine {
     final resampled = resampler.process(filtered);
     if (resampled.isEmpty) return;
 
-    // `both` cascades rnnoise → spectral (rnnoise wants the raw-ish mic
-    // signal it was trained on; spectral then mops up residual steady hum).
-    // Wherever rnnoise isn't compiled in, `rnnoise` and `both` degrade to
-    // spectral alone, matching the long-standing fallback.
-    //
-    // `off` is the one choice that degrades to nothing rather than to
-    // spectral: a user who asked for no cleaning has not asked for a
-    // different cleaner. Spelled out per-engine rather than as "!= x"
-    // conditions — the negative form silently enrolled any newly added enum
-    // value into both suppressors, which is exactly the bug `off` would have
-    // hit.
-    final engine = _suppressionEngine;
-    final wantsRnnoise =
-        engine == NoiseSuppressionEngine.rnnoise ||
-        engine == NoiseSuppressionEngine.both;
-    final useRnnoise = wantsRnnoise && _rnnoiseSuppressor.isAvailable;
-    final useSpectral =
-        engine == NoiseSuppressionEngine.spectral ||
-        engine == NoiseSuppressionEngine.both ||
-        (wantsRnnoise && !useRnnoise);
+    // `both` cascades rnnoise → spectral (rnnoise wants the raw-ish mic signal
+    // it was trained on; spectral then mops up residual steady hum, at a
+    // reduced strength so the two don't compound). Which stages run and how
+    // hard is decided by [SuppressionPlan], not here — see [_applySuppression].
+    final plan = _suppressionPlan;
     var suppressed = resampled;
-    if (useRnnoise) suppressed = _rnnoiseSuppressor.process(suppressed);
-    if (useSpectral) suppressed = _spectralSuppressor.process(suppressed);
+    if (plan.useRnnoise) suppressed = _rnnoiseSuppressor.process(suppressed);
+    if (plan.useSpectral) suppressed = _spectralSuppressor.process(suppressed);
     _txAccum.addAll(suppressed);
 
     while (_txAccum.length >= kFrameSamples) {
@@ -586,9 +588,26 @@ class AudioEngineImpl implements AudioEngine {
 
   @override
   void setNoiseSuppression(double strength) {
-    final clamped = strength.clamp(0.0, 1.0);
-    _spectralSuppressor.strength = clamped;
-    _rnnoiseSuppressor.strength = clamped;
+    _suppressionStrength = strength.clamp(0.0, 1.0);
+    _applySuppression();
+  }
+
+  /// Re-resolves the plan from its three inputs — the selected engine, the
+  /// user's strength, and whether the native denoiser loaded — and pushes the
+  /// per-engine strengths into the suppressors.
+  ///
+  /// Availability is read here rather than cached because
+  /// [RnnoiseSuppressor.reset] recreates the denoiser, so a session restart is
+  /// the one moment it can change.
+  void _applySuppression() {
+    final plan = SuppressionPlan.resolve(
+      engine: _suppressionEngine,
+      strength: _suppressionStrength,
+      rnnoiseAvailable: _rnnoiseSuppressor.isAvailable,
+    );
+    _suppressionPlan = plan;
+    _spectralSuppressor.strength = plan.spectralStrength;
+    _rnnoiseSuppressor.strength = plan.rnnoiseStrength;
   }
 
   @override
@@ -606,6 +625,7 @@ class AudioEngineImpl implements AudioEngine {
     // user is listening for when they change the setting to compare.
     _spectralSuppressor.reset();
     _rnnoiseSuppressor.reset();
+    _applySuppression();
   }
 
   @override

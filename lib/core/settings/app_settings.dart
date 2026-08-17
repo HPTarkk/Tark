@@ -3,6 +3,7 @@ import 'package:equatable/equatable.dart';
 import '../diagnostics/log_budget.dart';
 import 'audio_profile.dart';
 import 'noise_suppression_engine.dart';
+import 'suppression_plan.dart';
 
 /// The user-configurable settings this app persists, as a single typed
 /// value object. Excludes transport mode, locale, theme, last-Bluetooth-peer
@@ -47,13 +48,17 @@ class AppSettings extends Equatable {
   });
 
   /// Canonical defaults, including the hands-free-friendly voice combo: VOX
-  /// wide open (0.0) so the mic never gates, with noise suppression at full
-  /// strength (1.0) to compensate by cleaning up background/engine noise on
-  /// its own.
+  /// wide open (0.0) so the mic never gates, with the cleaner left to carry
+  /// the background noise on its own.
   factory AppSettings.defaults() => const AppSettings(
     myName: '',
     voxThreshold: 0.0,
-    noiseSuppression: 1.0,
+    // Not full strength, deliberately. This was 1.0, on the reasoning that a
+    // wide-open VOX gate had to be paid for by cleaning harder — which is the
+    // over-suppression trade in its purest form, and it shipped one notch past
+    // what the riding preset, tuned for a helmet at road speed, is willing to
+    // run. See SuppressionPlan.ceiling for why nothing we choose goes above it.
+    noiseSuppression: SuppressionPlan.ceiling,
     // RNNoise is the production-grade choice — a recurrent-network denoiser
     // handles non-stationary noise (wind, traffic) that spectral subtraction
     // structurally can't, and it's what modern VoIP stacks (WebRTC, Discord)
