@@ -19,7 +19,6 @@ import '../../../walkie/api/walkie_api.dart';
 import '../manager/settings_cubit.dart';
 import '../widget/settings_category_card.dart';
 import '../widget/settings_row.dart';
-import '../widget/transport_mode_picker.dart';
 
 /// Categorized Settings/Profile page — Profile, Voice & Audio, Connection,
 /// Sound & Alerts, Appearance, and Startup, each its own
@@ -377,9 +376,11 @@ class _ConnectionCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 10),
         child: Column(
           children: [
-            const TransportModePicker(),
-            const SizedBox(height: 4),
-            Divider(color: AppColors.border, height: 1),
+            // The transport picker used to open this card. It moved to
+            // Advanced settings with P2 §1: the transport is now derived from
+            // what the phone can see every time a room is entered, so a
+            // control for overriding that belongs with the other knobs nobody
+            // needs on an ordinary day.
             BlocBuilder<SettingsCubit, SettingsState>(
               buildWhen: (p, c) => p.autoReconnectEnabled != c.autoReconnectEnabled,
               builder: (context, state) => SettingsRow(

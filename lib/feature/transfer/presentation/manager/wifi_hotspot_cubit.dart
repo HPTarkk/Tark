@@ -10,6 +10,8 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../../../core/analytics/analytics.dart';
 import '../../../../core/analytics/analytics_event.dart';
 import '../../../../core/analytics/pairing_attempt.dart';
+import '../../../../core/identity/channel_id.dart';
+import '../../../../core/identity/channel_membership.dart';
 import '../../../../core/recovery/bounded_retry.dart';
 import '../../../../core/sfx/sfx_event.dart';
 import '../../../../core/sfx/sfx_player.dart';
@@ -113,6 +115,11 @@ class HotspotBridgeState extends Equatable {
   /// Wi-Fi is off next time will never show it again anyway.
   final bool wifiNoteDismissed;
 
+  /// The channel this device is in, mirrored here so the host screen can print
+  /// the code beneath the QR without reaching into [ChannelMembership] from a
+  /// widget. [ChannelId.open] until hosting creates one.
+  final ChannelId channelId;
+
   const HotspotBridgeState({
     required this.segment,
     required this.role,
@@ -125,6 +132,7 @@ class HotspotBridgeState extends Equatable {
     required this.wifiAdvice,
     required this.hotspotDropped,
     required this.wifiNoteDismissed,
+    required this.channelId,
   });
 
   /// Whether the host screen should show the "turn Wi-Fi off" note: there is
@@ -149,6 +157,7 @@ class HotspotBridgeState extends Equatable {
         wifiAdvice: HotspotWifiAdvice.none,
         hotspotDropped: false,
         wifiNoteDismissed: false,
+        channelId: ChannelId.open,
       );
 
   HotspotBridgeState copyWith({
@@ -164,6 +173,7 @@ class HotspotBridgeState extends Equatable {
     HotspotWifiAdvice? wifiAdvice,
     bool? hotspotDropped,
     bool? wifiNoteDismissed,
+    ChannelId? channelId,
   }) => HotspotBridgeState(
     segment: segment ?? this.segment,
     role: clearRole ? null : (role ?? this.role),
@@ -176,6 +186,7 @@ class HotspotBridgeState extends Equatable {
     wifiAdvice: wifiAdvice ?? this.wifiAdvice,
     hotspotDropped: hotspotDropped ?? this.hotspotDropped,
     wifiNoteDismissed: wifiNoteDismissed ?? this.wifiNoteDismissed,
+    channelId: channelId ?? this.channelId,
   );
 
   @override
@@ -191,6 +202,7 @@ class HotspotBridgeState extends Equatable {
     wifiAdvice,
     hotspotDropped,
     wifiNoteDismissed,
+    channelId.value,
   ];
 }
 
@@ -211,6 +223,7 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   final SessionRoleStore _roleStore;
   final HotspotLinkKeeper _linkKeeper;
   final Analytics _analytics;
+  final ChannelMembership _membership;
   late final PairingAttempt _pairing;
 
   StreamSubscription<WakiPacket>? _peerSub;
@@ -250,6 +263,7 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
     this._roleStore,
     this._linkKeeper,
     this._analytics,
+    this._membership,
   ) : super(HotspotBridgeState.initial(WifiHotspotSegment.wifi)) {
     _pairing = PairingAttempt(
       _analytics,
@@ -290,6 +304,13 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
     _pairing.start(
       role == HotspotRole.host ? PairRole.host : PairRole.joiner,
     );
+    // Hosting means there is a channel to be in, and its code has to exist
+    // before the QR is drawn. `createIfNone` rather than `create` because the
+    // landing page's "start a channel" has usually made one already, and
+    // renumbering here would change a code the other phone may be looking at.
+    if (role == HotspotRole.host) {
+      emit(state.copyWith(channelId: _membership.createIfNone()));
+    }
     emit(
       state.copyWith(
         role: role,
@@ -578,12 +599,30 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   // ---------------------------------------------------------------- joining
 
   /// Handles a payload from the in-app scanner.
+  ///
+  /// The channel is adopted *before* the network is joined, and stays adopted
+  /// even where the code carried no network at all. Both halves of a scanned
+  /// code are independent — see [ScannedCode] — and the ordering matters:
+  /// joining the network is what starts traffic flowing, so a channel adopted
+  /// afterwards would leave a window in which we transmit into the open and
+  /// hear a neighbouring group.
   Future<void> submitScannedCode(String raw) async {
     _analytics.track(AnalyticsEvent.featureUsed(AppFeature.qrScan));
-    final creds = HotspotCredentials.fromWifiQr(raw);
-    if (creds == null) {
+    final scanned = ScannedCode.parse(raw);
+    if (scanned == null) {
       emit(state.copyWith(joinPhase: JoinPhase.invalid));
       _sfx.play(SfxEvent.error);
+      return;
+    }
+    if (!scanned.channel.isOpen) _membership.join(scanned.channel);
+    final creds = scanned.credentials;
+    if (creds == null) {
+      // A channel-only code: we are already on the right network, so there is
+      // nothing to associate with and the bridge's job is done the moment the
+      // channel is adopted.
+      emit(state.copyWith(joinPhase: JoinPhase.joined));
+      _sfx.play(SfxEvent.linkRestored);
+      _listenForPeer();
       return;
     }
     await joinNetwork(creds);
@@ -716,6 +755,13 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   /// start().
   Future<void> leaveBridge() async {
     _pairing.failed(PairStage.apSetup, PairFailure.userCancelled);
+    // Backing out without connecting gives up the channel too. Keeping it
+    // would leave the phone filtering against a code nobody else is using —
+    // silence, with a screen reporting a perfectly healthy link, which is the
+    // exact failure the channel id exists to make diagnosable rather than to
+    // cause. (Entering the channel takes the other path, `close()`, which
+    // deliberately keeps it: the session runs on it.)
+    _membership.leave();
     _hostRetry.cancel();
     await _teardownSubscriptions();
     // Before the teardown below, so a recovery in flight cannot re-establish

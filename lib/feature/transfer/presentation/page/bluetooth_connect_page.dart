@@ -14,8 +14,10 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/android_sdk.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../../core/utils/permission_queue.dart';
+import '../../../../core/analytics/analytics_event.dart';
 import '../../domain/entity/bluetooth_connection_state.dart';
 import '../../domain/entity/bluetooth_role.dart';
+import '../../domain/entity/channel_intent.dart';
 import '../manager/bluetooth_connect_cubit.dart';
 import '../widget/bluetooth_host_beacon.dart';
 import '../widget/bluetooth_joiner_radar.dart';
@@ -23,12 +25,18 @@ import '../widget/bluetooth_role_selection.dart';
 import '../widget/bluetooth_status_views.dart';
 
 class BluetoothConnectPage extends StatefulWidget {
-  const BluetoothConnectPage._();
+  const BluetoothConnectPage._({this.intent});
 
-  static Widget buildPage() => BlocProvider<BluetoothConnectCubit>(
-    create: (_) => GetIt.instance<BluetoothConnectCubit>(),
-    child: const BluetoothConnectPage._(),
-  );
+  /// The side the user already chose on the landing page, or null when the
+  /// page was reached without one (quick access, the home-screen widget) and
+  /// should ask for itself.
+  final ChannelIntent? intent;
+
+  static Widget buildPage({ChannelIntent? intent}) =>
+      BlocProvider<BluetoothConnectCubit>(
+        create: (_) => GetIt.instance<BluetoothConnectCubit>(),
+        child: BluetoothConnectPage._(intent: intent),
+      );
 
   @override
   State<BluetoothConnectPage> createState() => _BluetoothConnectPageState();
@@ -37,6 +45,41 @@ class BluetoothConnectPage extends StatefulWidget {
 class _BluetoothConnectPageState extends State<BluetoothConnectPage> {
   bool _permissionDenied = false;
   bool _navigatingToWalkie = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.intent != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _applyIntent());
+    }
+  }
+
+  /// Takes the side the landing page already asked about.
+  ///
+  /// Runs the same permission gate the role cards run rather than starting
+  /// straight away — the Bluetooth APIs do nothing at all without it on
+  /// Android, and skipping it here would turn a preselected side into a screen
+  /// that silently never finds anybody. A denial leaves [role] unset, so the
+  /// page falls back to its own role selection with the permission notice
+  /// showing: the intent is a shortcut past a question, never past a
+  /// requirement.
+  ///
+  /// Deferred to after the first frame because it awaits, and the permission
+  /// prompt has to have something to sit in front of.
+  Future<void> _applyIntent() async {
+    final host = widget.intent == ChannelIntent.create;
+    final cubit = context.read<BluetoothConnectCubit>();
+    if (!await _ensurePermissions()) {
+      cubit.reportPermissionBlocked(host ? PairRole.host : PairRole.joiner);
+      return;
+    }
+    if (!mounted) return;
+    if (host) {
+      cubit.startHosting();
+    } else {
+      cubit.startScanning();
+    }
+  }
 
   Future<bool> _ensurePermissions() async {
     // iOS: the system Bluetooth prompt only appears when CoreBluetooth is

@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import '../../../../core/identity/channel_id.dart';
+import '../../../../core/identity/channel_membership.dart';
 import '../../../../core/identity/session_epoch.dart';
 import '../../domain/entity/control_packet.dart';
 import '../../domain/entity/opus_tuning.dart';
@@ -40,17 +42,44 @@ const kOpusAudioV3Byte = 0x09;
 const kPingByte = 0x0A;
 const kPongByte = 0x0B;
 
+// v4 adds the sender's channel id after the epoch. A new type byte again, for
+// the third time and for the third identical reason: a v3 decoder reading 0x0D
+// would take the channel's four bytes as the start of the name length and
+// decode garbage, while an unrecognised type byte is dropped.
+//
+// The channel could not ride as a trailing field the way the presence role and
+// heard list do, and the reason is the one that put the epoch in the header:
+// an audio packet ends in a variable-length payload with no terminator, so
+// anything appended to it is indistinguishable from more audio. Nor could it
+// be presence-only — audio from a neighbouring channel would then be admitted
+// until that channel's next presence tick, which is up to two seconds of
+// someone else's conversation.
+//
+// **v4 is emitted only when there is a channel to state.** A session on
+// [ChannelId.open] — which is every zero-setup Wi-Fi session, every Bluetooth
+// link and every browser guest — keeps sending v3, byte for byte what it sent
+// before. The four bytes are real on the transport that can least afford them
+// (RFCOMM caps in-flight audio writes), and a version bump that costs bandwidth
+// should be paid by the packets that carry something for it. Both versions
+// decode through the same path, so a channel adopted mid-session simply changes
+// which one goes out next.
+const kPresenceV4Byte = 0x0C;
+const kAudioV4Byte = 0x0D;
+const kOpusAudioV4Byte = 0x0E;
+
 /// Transport-agnostic encode/decode for the [WakiPacket] wire format.
 ///
 /// Shared by every [TransferRepository] implementation (WiFi UDP, Bluetooth
 /// Classic, BLE) so they all speak identical bytes — only how those bytes
 /// reach the other device differs per transport.
 ///
-/// Wire format, v3 — what this build sends (integers little-endian):
-///   byte 0:        type (0x07 = presence, 0x08 = PCM16 audio, 0x09 = Opus)
+/// Wire format, v4 — the widest form this build sends (integers
+/// little-endian):
+///   byte 0:        type (0x0C = presence, 0x0D = PCM16 audio, 0x0E = Opus)
 ///   byte 1:        sender device id length (uint8)
 ///   bytes 2..:     sender device id (ASCII hex, see [DeviceIdentity])
 ///   next 4:        sender session epoch (uint32, see [SessionEpoch])
+///   next 4:        sender channel id (uint32, see [ChannelId]) — **v4 only**
 ///   next 4:        sender name length (uint32)
 ///   next:          sender name (UTF-8)
 ///   presence:      1 byte isTalking (0/1) + 1 byte session role
@@ -63,12 +92,18 @@ const kPongByte = 0x0B;
 /// short — read back as [SessionRole.unknown]. The heard-id list was appended
 /// after the role byte on the same terms.
 ///
-/// v2 (types 0x04/0x05/0x06) is the same without the epoch, and v1
-/// (0x01/0x02/0x03) without the device-id prefix either. Both are still
-/// decoded, so a newer build hears an older one; a v1 sender's id falls back
-/// to whatever the transport supplies, and a v1/v2 sender's epoch reads back
-/// as [kUnknownSessionEpoch] — "expressed no opinion", never compared against
-/// a real epoch and never a reason to drop anything.
+/// v3 (types 0x07/0x08/0x09) is the same without the channel id, v2
+/// (0x04/0x05/0x06) without the epoch either, and v1 (0x01/0x02/0x03) without
+/// the device-id prefix on top of that. All are still decoded, so a newer
+/// build hears an older one; a v1 sender's id falls back to whatever the
+/// transport supplies, a v1/v2 sender's epoch reads back as
+/// [kUnknownSessionEpoch], and anything below v4 reads back as
+/// [ChannelId.open]. All three are "expressed no opinion" values — never
+/// compared against a real one, and never a reason to drop anything.
+///
+/// **This build still emits v3 most of the time**, and that is deliberate
+/// rather than a leftover: v4 is sent only while a channel is actually named.
+/// See the type-byte block above.
 ///
 /// Nothing emits v1 or v2 any more. Identity that came from the transport was
 /// the bug the device id exists to fix (see [DeviceIdentity]), and a session
@@ -79,7 +114,8 @@ const kPongByte = 0x0B;
 /// remains both the fallback and understood on receive, so mixed app
 /// versions still hear each other.
 class WakiPacketCodec {
-  WakiPacketCodec(this._deviceId, this._epoch) : _opus = OpusAudioCodec();
+  WakiPacketCodec(this._deviceId, this._epoch, [this._channel])
+    : _opus = OpusAudioCodec();
 
   /// Stamped on everything this codec encodes, so a receiver keys the roster
   /// and the jitter buffer on the device rather than on the address the
@@ -91,12 +127,29 @@ class WakiPacketCodec {
   /// wire without rebuilding it.
   final SessionEpoch _epoch;
 
+  /// Which channel to stamp, or null on a transport that cannot have more than
+  /// one conversation on it.
+  ///
+  /// Optional rather than required because only the shared-medium transport has
+  /// the problem: a Bluetooth link and a WebRTC guest link each *are* the
+  /// channel, so there is nobody else on them to be separated from and the
+  /// four bytes would buy nothing. Read at encode time, like the epoch, so a
+  /// channel adopted by the scanner reaches the wire without rebuilding this.
+  final ChannelMembership? _channel;
+
+  ChannelId get _channelId => _channel?.current ?? ChannelId.open;
+
   final OpusAudioCodec _opus;
 
   Uint8List encodeAudio(List<double> samples, String senderName, int seq) {
     final opusPacket = _opus.encode(samples);
     if (opusPacket != null) {
-      return _buildAudioPacket(kOpusAudioV3Byte, senderName, seq, opusPacket);
+      return _buildAudioPacket(
+        _sessionType(kOpusAudioV3Byte, kOpusAudioV4Byte),
+        senderName,
+        seq,
+        opusPacket,
+      );
     }
     // PCM16 fallback — halves float32 bandwidth with no audible quality
     // loss for voice.
@@ -107,12 +160,18 @@ class WakiPacketCodec {
       audioData.setInt16(i * 2, intVal, Endian.little);
     }
     return _buildAudioPacket(
-      kAudioV3Byte,
+      _sessionType(kAudioV3Byte, kAudioV4Byte),
       senderName,
       seq,
       audioData.buffer.asUint8List(),
     );
   }
+
+  /// The newest version that carries something: v4 while a channel is named,
+  /// v3 otherwise. See the type-byte block above for why this is not simply
+  /// "always the newest".
+  int _sessionType(int v3Type, int v4Type) =>
+      _channelId.isOpen ? v3Type : v4Type;
 
   Uint8List _buildAudioPacket(
     int type,
@@ -120,7 +179,7 @@ class WakiPacketCodec {
     int seq,
     Uint8List payload,
   ) {
-    final builder = _startV3Packet(type, senderName);
+    final builder = _startPacket(type, senderName);
     builder.add(
       (ByteData(4)..setUint32(0, seq, Endian.little)).buffer.asUint8List(),
     );
@@ -134,7 +193,10 @@ class WakiPacketCodec {
     required SessionRole role,
     List<String>? heardIds,
   }) {
-    final builder = _startV3Packet(kPresenceV3Byte, senderName);
+    final builder = _startPacket(
+      _sessionType(kPresenceV3Byte, kPresenceV4Byte),
+      senderName,
+    );
     builder.addByte(isTalking ? 0x01 : 0x00);
     builder.addByte(role.wireByte);
     // Appended after the role byte, by the same reasoning that put the role
@@ -206,6 +268,14 @@ class WakiPacketCodec {
   /// The sender name is written as empty rather than omitted. Control rides the
   /// same header as everything else so one parser serves the whole wire format,
   /// and a name nobody displays would be bytes spent once a second forever.
+  ///
+  /// **Stays on the v3 header even inside a channel**, deliberately. A ping
+  /// asks "can you reach me by unicast", and we only ever ping addresses the
+  /// peer map holds — which [ChannelGate] has already filtered. A stray ping
+  /// from a neighbouring channel costs us exactly one pong and gets its sender
+  /// nowhere, because the roster it would need to enter is gated upstream. Two
+  /// more type bytes to say something the peer map already says would be worse
+  /// than the pong.
   Uint8List _buildControl(
     int type,
     int token,
@@ -213,7 +283,7 @@ class WakiPacketCodec {
     int lastRxSeq,
     int audioRxPackets,
   ) {
-    final builder = _startV3Packet(type, '');
+    final builder = _startPacket(type, '');
     final body = ByteData(16)
       ..setUint32(0, token, Endian.little)
       ..setUint32(4, lastTxSeq, Endian.little)
@@ -255,8 +325,15 @@ class WakiPacketCodec {
           );
   }
 
-  /// Header every v3 message shares: type, device id, session epoch, name.
-  BytesBuilder _startV3Packet(int type, String senderName) {
+  /// Header every message shares: type, device id, session epoch, then — on v4
+  /// only — the channel id, then the name.
+  ///
+  /// The channel is written iff [type] is a v4 type, which [_sessionType] has
+  /// already decided from the same value this reads. Keeping the decision in
+  /// one place and the writing in another would let the two disagree, and a
+  /// header whose length does not match its type byte is unparseable at the
+  /// far end.
+  BytesBuilder _startPacket(int type, String senderName) {
     final idBytes = utf8.encode(_deviceId);
     final nameBytes = utf8.encode(senderName);
     final builder = BytesBuilder(copy: false);
@@ -265,19 +342,15 @@ class WakiPacketCodec {
     // would be three wasted bytes on every audio frame.
     builder.addByte(idBytes.length);
     builder.add(idBytes);
-    builder.add(
-      (ByteData(
-        4,
-      )..setUint32(0, _epoch.value, Endian.little)).buffer.asUint8List(),
-    );
-    builder.add(
-      (ByteData(
-        4,
-      )..setUint32(0, nameBytes.length, Endian.little)).buffer.asUint8List(),
-    );
+    builder.add(_uint32(_epoch.value));
+    if (_isV4(type)) builder.add(_uint32(_channelId.value));
+    builder.add(_uint32(nameBytes.length));
     builder.add(nameBytes);
     return builder;
   }
+
+  static Uint8List _uint32(int value) =>
+      (ByteData(4)..setUint32(0, value, Endian.little)).buffer.asUint8List();
 
   /// Decodes a single complete message.
   ///
@@ -293,18 +366,21 @@ class WakiPacketCodec {
     if (header == null) return null;
     final senderId = header.senderId;
     final epoch = header.epoch;
+    final channelId = header.channelId;
     final name = header.senderName;
     final bodyStart = header.bodyStart;
     final bd = ByteData.sublistView(bytes);
 
     if (type == kPresenceByte ||
         type == kPresenceV2Byte ||
-        type == kPresenceV3Byte) {
+        type == kPresenceV3Byte ||
+        type == kPresenceV4Byte) {
       if (bytes.length < bodyStart + 1) return null;
       return PresencePacket(
         senderId: senderId,
         senderName: name,
         sessionEpoch: epoch,
+        channelId: channelId,
         isTalking: bytes[bodyStart] == 0x01,
         // Optional trailing byte — absent from every build before roles.
         role: bytes.length > bodyStart + 1
@@ -319,9 +395,13 @@ class WakiPacketCodec {
     final isOpus =
         type == kOpusAudioByte ||
         type == kOpusAudioV2Byte ||
-        type == kOpusAudioV3Byte;
+        type == kOpusAudioV3Byte ||
+        type == kOpusAudioV4Byte;
     final isPcm =
-        type == kAudioByte || type == kAudioV2Byte || type == kAudioV3Byte;
+        type == kAudioByte ||
+        type == kAudioV2Byte ||
+        type == kAudioV3Byte ||
+        type == kAudioV4Byte;
     if (isOpus || isPcm) {
       if (bytes.length < bodyStart + 4) return null;
       final seq = bd.getUint32(bodyStart, Endian.little);
@@ -338,6 +418,7 @@ class WakiPacketCodec {
         senderId: senderId,
         senderName: name,
         sessionEpoch: epoch,
+        channelId: channelId,
         samples: samples,
         seq: seq,
         recoveredSamples: decoded?.recoveredPrevious,
@@ -392,24 +473,35 @@ class WakiPacketCodec {
     final int headerEnd;
     final String senderId;
     var epoch = kUnknownSessionEpoch;
-    final carriesId = _isV2(type) || _isV3(type) || isControl(type);
+    var channel = ChannelId.open;
+    final carriesId =
+        _isV2(type) || _isV3(type) || _isV4(type) || isControl(type);
     if (carriesId) {
       if (bytes.length < 2) return null;
       final idLen = bytes[1];
       if (bytes.length < 2 + idLen) return null;
       senderId = utf8.decode(bytes.sublist(2, 2 + idLen), allowMalformed: true);
       if (senderId.isEmpty) return null;
-      final idEnd = 2 + idLen;
+      var offset = 2 + idLen;
       // Control was born on v3 and has no earlier form, so it always states an
       // epoch — a pong that could not say which join it answered for would be
       // unable to do the one job it has.
-      if (_isV3(type) || isControl(type)) {
-        if (bytes.length < idEnd + 4) return null;
-        epoch = ByteData.sublistView(bytes).getUint32(idEnd, Endian.little);
-        headerEnd = idEnd + 4;
-      } else {
-        headerEnd = idEnd;
+      if (_isV3(type) || _isV4(type) || isControl(type)) {
+        if (bytes.length < offset + 4) return null;
+        epoch = ByteData.sublistView(bytes).getUint32(offset, Endian.little);
+        offset += 4;
       }
+      // v4 only. A v3 sender said nothing about a channel, which reads back as
+      // [ChannelId.open] — "I have not asked to be separated from anyone" —
+      // and is exactly what [ChannelGate] needs it to mean.
+      if (_isV4(type)) {
+        if (bytes.length < offset + 4) return null;
+        channel = ChannelId.fromWire(
+          ByteData.sublistView(bytes).getUint32(offset, Endian.little),
+        );
+        offset += 4;
+      }
+      headerEnd = offset;
     } else {
       senderId = fallbackSenderId;
       headerEnd = 1;
@@ -424,6 +516,7 @@ class WakiPacketCodec {
     return _V3Header(
       senderId: senderId,
       epoch: epoch,
+      channelId: channel,
       senderName: utf8.decode(
         bytes.sublist(nameStart, nameStart + nameLen),
         allowMalformed: true,
@@ -441,6 +534,11 @@ class WakiPacketCodec {
       type == kPresenceV3Byte ||
       type == kAudioV3Byte ||
       type == kOpusAudioV3Byte;
+
+  static bool _isV4(int type) =>
+      type == kPresenceV4Byte ||
+      type == kAudioV4Byte ||
+      type == kOpusAudioV4Byte;
 
   /// Tells the Opus encoder what the outgoing stream is carrying, so a music
   /// cast is not encoded through a speech model. See [OpusEncodeProfile].
@@ -479,12 +577,16 @@ class _V3Header {
   const _V3Header({
     required this.senderId,
     required this.epoch,
+    required this.channelId,
     required this.senderName,
     required this.bodyStart,
   });
 
   final String senderId;
   final int epoch;
+
+  /// [ChannelId.open] for anything below v4 — the sender named no channel.
+  final ChannelId channelId;
   final String senderName;
 
   /// Index of the first byte after the header — where the type-specific body

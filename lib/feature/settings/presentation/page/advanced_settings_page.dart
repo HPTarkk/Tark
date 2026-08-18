@@ -17,6 +17,7 @@ import '../../../walkie/api/walkie_api.dart';
 import '../manager/settings_cubit.dart';
 import '../widget/diagnostics_card.dart';
 import '../widget/settings_category_card.dart';
+import '../widget/transport_mode_picker.dart';
 
 /// Advanced/technical settings, split off the main Settings page so casual
 /// users never meet them: the noise-cleaner engine choice, the playback
@@ -48,11 +49,11 @@ class AdvancedSettingsPage extends StatefulWidget {
 class _AdvancedSettingsPageState extends State<AdvancedSettingsPage>
     with TickerProviderStateMixin {
   // Staggered entrance, same pattern as the main Settings page:
-  // [voice, noise cleaner, delay, diagnostics]
+  // [transport, voice, noise cleaner, delay, diagnostics]
   late AnimationController _entranceController;
   late List<Animation<double>> _sections;
 
-  static const _sectionCount = 4;
+  static const _sectionCount = 5;
 
   @override
   void initState() {
@@ -127,17 +128,42 @@ class _AdvancedSettingsPageState extends State<AdvancedSettingsPage>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _entrance(0, _VoiceCard()),
+                _entrance(0, _TransportCard()),
                 const SizedBox(height: 16),
-                _entrance(1, _NoiseCleanerCard()),
+                _entrance(1, _VoiceCard()),
                 const SizedBox(height: 16),
-                _entrance(2, _DelayCard()),
+                _entrance(2, _NoiseCleanerCard()),
                 const SizedBox(height: 16),
-                _entrance(3, const DiagnosticsCard()),
+                _entrance(3, _DelayCard()),
+                const SizedBox(height: 16),
+                _entrance(4, const DiagnosticsCard()),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ── Transport (how the phones link up) ──────────────────────────────────────
+
+/// The hand-pin for the transport, moved off the main Settings page by P2 §1.
+///
+/// First card rather than last, despite being the newest arrival: it is the
+/// only control here that changes what the *primary* screen does, so someone
+/// who came looking for "why did it use Bluetooth" should meet it before four
+/// cards of audio tuning.
+class _TransportCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    return SettingsCategoryCard(
+      icon: Icons.podcasts_rounded,
+      title: s.settings_section_transport,
+      child: const Padding(
+        padding: EdgeInsets.symmetric(vertical: 10),
+        child: TransportModePicker(),
       ),
     );
   }

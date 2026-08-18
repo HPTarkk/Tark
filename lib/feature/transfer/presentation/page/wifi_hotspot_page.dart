@@ -12,6 +12,7 @@ import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../../core/widget/link_established.dart';
+import '../../domain/entity/channel_intent.dart';
 import '../../domain/entity/wifi_hotspot_segment.dart';
 import '../manager/wifi_hotspot_cubit.dart';
 import '../widget/hotspot_host_flow.dart';
@@ -36,18 +37,38 @@ class WifiHotspotPage extends StatefulWidget {
 
   final WifiHotspotSegment initialSegment;
 
-  static Widget buildPage({WifiHotspotSegment? initialSegment}) =>
-      BlocProvider<WifiHotspotCubit>(
-        create: (_) {
-          final cubit = GetIt.instance<WifiHotspotCubit>();
-          final segment = initialSegment ?? WifiHotspotSegment.wifi;
-          if (segment != WifiHotspotSegment.wifi) cubit.switchSegment(segment);
-          return cubit;
-        },
-        child: WifiHotspotPage._(
-          initialSegment: initialSegment ?? WifiHotspotSegment.wifi,
-        ),
-      );
+  /// [intent] carries a side the user has already chosen on the landing page,
+  /// so the bridge does not open by asking "are you the host?" one screen
+  /// after they answered exactly that. Null when the page is reached without
+  /// an intent — the Settings row, quick access, the "not on the same
+  /// network?" way out — and then the role picker does its original job.
+  ///
+  /// Applied through [WifiHotspotCubit.chooseRole], not by pre-seeding state,
+  /// so a preselected host still takes the side-exclusivity teardown and the
+  /// role-store write that every other path takes. iOS is left alone: the
+  /// cubit already pins it to joining, and it cannot host whatever the user
+  /// tapped.
+  static Widget buildPage({
+    WifiHotspotSegment? initialSegment,
+    ChannelIntent? intent,
+  }) => BlocProvider<WifiHotspotCubit>(
+    create: (_) {
+      final cubit = GetIt.instance<WifiHotspotCubit>();
+      final segment = initialSegment ?? WifiHotspotSegment.wifi;
+      if (segment != WifiHotspotSegment.wifi) cubit.switchSegment(segment);
+      if (segment == WifiHotspotSegment.hotspot &&
+          intent != null &&
+          Platform.isAndroid) {
+        cubit.chooseRole(
+          intent == ChannelIntent.create ? HotspotRole.host : HotspotRole.join,
+        );
+      }
+      return cubit;
+    },
+    child: WifiHotspotPage._(
+      initialSegment: initialSegment ?? WifiHotspotSegment.wifi,
+    ),
+  );
 
   @override
   State<WifiHotspotPage> createState() => _WifiHotspotPageState();

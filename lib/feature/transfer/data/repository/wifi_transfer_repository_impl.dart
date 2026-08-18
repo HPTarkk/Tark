@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart' show setEquals;
 import 'package:injectable/injectable.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/identity/channel_membership.dart';
 import '../../../../core/identity/device_identity.dart';
 import '../../../../core/identity/session_epoch.dart';
 import '../../../../core/utils/exponential_backoff.dart';
@@ -23,6 +24,7 @@ import '../../domain/service/recovery_ladder.dart';
 import '../../domain/service/opus_tuner.dart';
 import '../../domain/service/peer_loss_tracker.dart';
 import '../../domain/service/peer_ping_tracker.dart';
+import '../../domain/service/channel_gate.dart';
 import '../../domain/service/sender_route_pin.dart';
 import '../../domain/service/session_epoch_gate.dart';
 import '../../domain/service/session_role_store.dart';
@@ -251,7 +253,7 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     peerCount: _peers.length,
   );
 
-  late final _codec = WakiPacketCodec(_identity.id, _epoch);
+  late final _codec = WakiPacketCodec(_identity.id, _epoch, _membership);
 
   /// Drops packets from a peer's previous join that arrive after its new one
   /// has started. See [SessionEpochGate].
@@ -261,6 +263,21 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   /// quietly shedding them shows up in the diagnostic log as a rate rather
   /// than as a one-off.
   int _staleEpochWindow = 0;
+
+  /// Packets belonging to a *different* conversation on this network, dropped
+  /// since the last session line.
+  ///
+  /// Worth its own counter rather than folding into the others, because it is
+  /// the only drop class that is good news. A non-zero value says there is a
+  /// second group in earshot and we are correctly ignoring them — which is
+  /// exactly the question behind "why can't my friend hear me on this Wi-Fi",
+  /// and impossible to answer from a screenshot without it.
+  int _otherChannelWindow = 0;
+
+  /// The distinct channels we have heard and excluded this session, so the log
+  /// can say *how many* other groups are here rather than only how loud they
+  /// are. Bounded by the log line resetting it.
+  final Set<int> _otherChannelsHeard = {};
 
   // Incremented each time startListening() is called so any in-flight
   // generator from a previous session knows to stop when it wakes from
@@ -273,8 +290,14 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   final DeviceIdentity _identity;
   final SessionEpoch _epoch;
   final SessionRoleStore _roleStore;
+  final ChannelMembership _membership;
 
-  WifiTransferRepositoryImpl(this._identity, this._epoch, this._roleStore);
+  WifiTransferRepositoryImpl(
+    this._identity,
+    this._epoch,
+    this._roleStore,
+    this._membership,
+  );
 
   /// Nothing about a UDP socket says who brought the network up, so the
   /// hotspot bridge records the side the user picked and this reads it back.
@@ -456,11 +479,18 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
               final packet = _codec.decode(dg.data, dg.address.address);
               if (packet != null) {
                 _packetsIn++;
-                // Epoch first, before anything is recorded about the sender. A
-                // ghost from its previous join must not refresh the peer map,
-                // the heard list or the route pin — all three would be taking
-                // a session that has already ended as evidence the current one
-                // is alive.
+                // Channel before epoch, and both before anything is recorded
+                // about the sender. The order is by how fundamental the
+                // question is: a packet from a different conversation is not
+                // a peer of ours at all, so it must not reach the epoch gate
+                // (where it would claim a slot in a per-sender map that only
+                // grows) any more than it may refresh the peer map, the heard
+                // list or the route pin.
+                if (!_acceptChannel(packet)) continue;
+                // Then epoch. A ghost from a sender's previous join must not
+                // refresh the peer map, the heard list or the route pin —
+                // all three would be taking a session that has already ended
+                // as evidence the current one is alive.
                 if (!_acceptEpoch(packet)) continue;
                 _noteSenderRoute(dg.address.address, packet.senderId);
                 // Subnet pinning, receive half. A sender reaching us by a
@@ -597,10 +627,14 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     final errored = _sendErrorWindow;
     final dupRoute = _duplicateRouteWindow;
     final staleEpoch = _staleEpochWindow;
+    final otherChannels = _otherChannelWindow;
+    final otherChannelCount = _otherChannelsHeard.length;
     _wouldBlockWindow = 0;
     _sendErrorWindow = 0;
     _duplicateRouteWindow = 0;
     _staleEpochWindow = 0;
+    _otherChannelWindow = 0;
+    _otherChannelsHeard.clear();
     // Totals go too: they are session-scoped by definition, and the quality
     // indicator diffing across a session boundary would read the reset as a
     // huge negative delta.
@@ -614,6 +648,8 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
       'heard=${_heardSenders.keys.toList()} '
       'routes=${_routeSummary()} pinned=${_routePin.pinnedAddresses} '
       'dupRoute=$dupRoute staleEpoch=$staleEpoch epoch=${_epoch.value} '
+      'channel=${_membership.current.code ?? 'open'} '
+      '${otherChannels == 0 ? '' : 'otherChannels=$otherChannelCount($otherChannels pkts) '}'
       'rtt=${_lastRtt?.inMilliseconds ?? '?'}ms '
       'txLoss=${_lossSummary()} opus=${_opusSummary()} '
       '${_unicastUnconfirmed ? 'UNICAST-UNCONFIRMED ' : ''}'
@@ -895,6 +931,14 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     _sendErrorWindow = 0;
     _duplicateRouteWindow = 0;
     _staleEpochWindow = 0;
+    // Session-scoped like the rest: the neighbouring channels counted here are
+    // the ones sharing the network we were on, and the next session may well
+    // be on a different one entirely. Our *own* membership is deliberately not
+    // cleared here — leaving the channel is the user's act, not the socket's,
+    // and a rebind that silently opened the channel back up would put a group
+    // that had separated itself back in with everyone else.
+    _otherChannelWindow = 0;
+    _otherChannelsHeard.clear();
     _sweep.retarget(const []);
 
     _setHealth(const ConnectionHealth.down());
@@ -1273,6 +1317,27 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
         _recoveryPeers.remove(verdict.previous);
     }
     return verdict.isAccepted;
+  }
+
+  /// Whether [packet] belongs to the conversation this device is having.
+  ///
+  /// The decision lives in [ChannelGate], which documents why an unstated
+  /// channel on either side has to be admitted. This wrapper does the parts
+  /// that need the repository: counting the drops, and remembering *which*
+  /// other channels are out there so the session line can say how many groups
+  /// share this network rather than only how much of their traffic we threw
+  /// away.
+  ///
+  /// The gate is rebuilt per packet rather than held as a field, because our
+  /// own membership can change mid-session — the scanner adopts a channel on
+  /// another page — and a gate captured at bind time would go on filtering
+  /// against the channel we used to be in.
+  bool _acceptChannel(WakiPacket packet) {
+    final gate = ChannelGate(_membership.current);
+    if (gate.admits(packet.channelId)) return true;
+    _otherChannelWindow++;
+    _otherChannelsHeard.add(packet.channelId.value);
+    return false;
   }
 
   /// Whether [packet] belongs to the join of its sender we are listening to.

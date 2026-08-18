@@ -29,7 +29,20 @@ abstract final class SettingsKeys {
   // Owned by their existing dedicated services/widgets — kept here too so
   // every persisted key in the app has exactly one string literal, even
   // where SettingsRepository isn't the reader/writer.
+  /// The transport currently in effect. Written by every path that picks one —
+  /// the advisor on the landing page as well as the manual picker — because
+  /// the DI factory reads it synchronously at cold start to decide which
+  /// TransferRepository to hand out. It is a record of what happened, not of
+  /// what the user asked for; [transportPin] is the latter.
   static const transportMode = 'transport_mode';
+
+  /// A transport pinned by hand in Advanced settings. Absent (or `auto`) means
+  /// automatic, which is the default and what an install that never opens
+  /// Advanced settings runs forever. Kept apart from [transportMode] so that
+  /// choosing automatic does not have to invent an effective mode to store,
+  /// and so an install that predates the pin reads as automatic rather than as
+  /// having pinned whatever it happened to be using.
+  static const transportPin = 'transport_pin';
   static const appLocale = 'app_locale';
   static const appTheme = 'app_theme';
   static const bgPermBannerDismissed = 'bg_perm_banner_dismissed';

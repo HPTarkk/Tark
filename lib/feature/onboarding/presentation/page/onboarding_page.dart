@@ -210,9 +210,16 @@ class _OnboardingPageState extends State<OnboardingPage>
   }
 
   /// Primary hand-off: persist everything, mark the quick-access flag, and
-  /// drop the user into their transport's join flow — the same destination
-  /// Landing's Join button routes to — with Landing stacked beneath so back
-  /// behaves normally.
+  /// drop the user into their transport's setup flow, with Landing stacked
+  /// beneath so back behaves normally.
+  ///
+  /// **Automatic stops on Landing, deliberately.** With no pinned transport
+  /// there is no flow to push: the advisor needs an intent to resolve one, and
+  /// the only thing that supplies an intent is the user tapping START or JOIN.
+  /// Guessing here would put a first-run user inside a hotspot or a Bluetooth
+  /// scan they never asked for. Landing is not a detour out of the journey —
+  /// P2 §1 made it the room screen, so the flow still ends on two lit buttons
+  /// with the primary one breathing.
   Future<void> _launch(OnboardingCubit cubit) async {
     if (_finishing) return;
     _finishing = true;
@@ -221,6 +228,8 @@ class _OnboardingPageState extends State<OnboardingPage>
     if (!mounted) return;
     context.go(AppRoutes.landingPath);
     switch (cubit.state.mode) {
+      case null:
+        break;
       case TransferMode.bluetooth:
         context.pushNamed(AppRoutes.bluetoothConnectName);
       case TransferMode.guest:

@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tark/core/identity/channel_id.dart';
+import 'package:tark/core/identity/channel_membership.dart';
 import 'package:tark/core/identity/session_epoch.dart';
 import 'package:tark/feature/transfer/data/codec/waki_packet_codec.dart';
 import 'package:tark/feature/transfer/domain/entity/control_packet.dart';
@@ -505,6 +507,154 @@ void main() {
         codec.decode(Uint8List.fromList([0x7f, 0, 0, 0, 0, 0]), 'x'),
         isNull,
       );
+    });
+  });
+
+  group('channel id', () {
+    /// A codec in a named channel. Separate from the shared [codec] because
+    /// most of this file is about the v3 form, which is what a codec with no
+    /// channel still emits.
+    WakiPacketCodec inChannel(ChannelId id) {
+      final membership = ChannelMembership()..join(id);
+      return WakiPacketCodec(
+        'abc123abc123',
+        SessionEpoch.startingAt(kTestEpoch),
+        membership,
+      );
+    }
+
+    const channel = ChannelId(0xA83F21);
+
+    // The property that keeps every existing session on exactly the bytes it
+    // was already sending: v4 costs four bytes per frame and is paid only by
+    // the packets that carry something for it.
+    test('an open channel still sends v3, byte for byte', () {
+      final open = WakiPacketCodec(
+        'abc123abc123',
+        SessionEpoch.startingAt(kTestEpoch),
+        ChannelMembership(),
+      );
+      addTearDown(open.release);
+      final withHolder = open.encodePresence(
+        'Pedram',
+        true,
+        role: SessionRole.host,
+      );
+      final withoutHolder = codec.encodePresence(
+        'Pedram',
+        true,
+        role: SessionRole.host,
+      );
+      expect(withHolder[0], kPresenceV3Byte);
+      expect(withHolder, withoutHolder);
+    });
+
+    test('a named channel switches presence and audio to v4', () {
+      final live = inChannel(channel);
+      addTearDown(live.release);
+      expect(
+        live.encodePresence('Pedram', true, role: SessionRole.host)[0],
+        kPresenceV4Byte,
+      );
+      final audio = live.encodeAudio(List.filled(320, 0.1), 'Pedram', 5);
+      expect(audio[0], anyOf(kAudioV4Byte, kOpusAudioV4Byte));
+    });
+
+    test('and the channel survives the round trip on both', () {
+      final live = inChannel(channel);
+      addTearDown(live.release);
+      final presence = live.decode(
+        live.encodePresence('Pedram', true, role: SessionRole.host),
+        'x',
+      );
+      expect(presence!.channelId.value, channel.value);
+      // Everything the v3 header carried is still where it was.
+      expect(presence.senderId, 'abc123abc123');
+      expect(presence.senderName, 'Pedram');
+      expect(presence.sessionEpoch, kTestEpoch);
+      expect((presence as PresencePacket).role, SessionRole.host);
+
+      final audio = live.decode(
+        live.encodeAudio(List.filled(320, 0.1), 'Pedram', 5),
+        'x',
+      );
+      expect(audio!.channelId.value, channel.value);
+      expect((audio as AudioPacket).seq, 5);
+    });
+
+    // Read at encode time, like the epoch: the scanner adopts a channel from
+    // another page and the running transport must pick it up without being
+    // rebuilt.
+    test('a channel joined mid-session reaches the wire immediately', () {
+      final membership = ChannelMembership();
+      final live = WakiPacketCodec(
+        'abc123abc123',
+        SessionEpoch.startingAt(kTestEpoch),
+        membership,
+      );
+      addTearDown(live.release);
+      expect(
+        live.encodePresence('P', false, role: SessionRole.unknown)[0],
+        kPresenceV3Byte,
+      );
+      membership.join(channel);
+      final after = live.encodePresence('P', false, role: SessionRole.unknown);
+      expect(after[0], kPresenceV4Byte);
+      expect(live.decode(after, 'x')!.channelId.value, channel.value);
+    });
+
+    // The no-migration guarantee, from the receiving side.
+    test('a v3 packet reads back as the open channel', () {
+      final packet = codec.decode(
+        codec.encodePresence('Pedram', true, role: SessionRole.host),
+        'x',
+      );
+      expect(packet!.channelId.isOpen, isTrue);
+    });
+
+    test('so does a v2 one', () {
+      final packet = codec.decode(
+        v2Presence(
+          'abc123abc123',
+          'P',
+          isTalking: false,
+          role: SessionRole.unknown,
+        ),
+        'x',
+      );
+      expect(packet!.channelId.isOpen, isTrue);
+    });
+
+    test('a v4 packet truncated inside the channel is rejected', () {
+      final live = inChannel(channel);
+      addTearDown(live.release);
+      final full = live.encodePresence('P', true, role: SessionRole.host);
+      for (var length = 1; length < full.length - 1; length++) {
+        expect(
+          live.decode(Uint8List.sublistView(full, 0, length), 'x'),
+          isNull,
+          reason: 'prefix of length $length should not decode',
+        );
+      }
+      expect(live.decode(full, 'x'), isNotNull);
+    });
+
+    // Control stays on v3 deliberately — the peer map is the real gate, and
+    // two more type bytes to restate it would cost more than the stray pong
+    // they would save.
+    test('control is unaffected by the channel', () {
+      final live = inChannel(channel);
+      addTearDown(live.release);
+      final ping = live.encodePing(
+        token: 1,
+        lastTxSeq: 2,
+        lastRxSeq: 3,
+        audioRxPackets: 4,
+      );
+      expect(ping[0], kPingByte);
+      final decoded = live.decodeControl(ping, 'x');
+      expect(decoded, isA<PingPacket>());
+      expect(decoded!.sessionEpoch, kTestEpoch);
     });
   });
 }

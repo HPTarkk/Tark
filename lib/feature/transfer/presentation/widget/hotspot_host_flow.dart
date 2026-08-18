@@ -80,12 +80,31 @@ class HotspotHostFlow extends StatelessWidget {
           delayMs: 80,
           child: Center(
             child: GlowingQrCard(
-              data: creds.wifiQrPayload,
+              // One code, both jobs — the network and the channel. See
+              // [HotspotCredentials.qrPayload] for why the channel rides
+              // inside the Wi-Fi payload instead of replacing it.
+              data: creds.qrPayload(channel: state.channelId),
               size: 216,
               branded: true,
             ),
           ),
         ),
+        // Under the code, not instead of it: scanning is the fast path and
+        // stays the headline. The written code is here because a channel
+        // nobody can read out is one that cannot be checked — "are we both on
+        // A83F21?" is the question that settles a silent link in one sentence.
+        if (state.channelId.code != null) ...[
+          const SizedBox(height: 12),
+          HotspotEntrance(
+            delayMs: 110,
+            child: Center(
+              child: _ChannelCodeChip(
+                label: s.channel_code_label,
+                code: state.channelId.code!,
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: 18),
         HotspotEntrance(
           delayMs: 140,
@@ -153,6 +172,60 @@ class HotspotHostFlow extends StatelessWidget {
 
   bool _hasFixScreen(String? code) =>
       code == 'tethering_on' || code == 'location_off';
+}
+
+/// The channel code in plain characters, spaced so it can be read aloud.
+///
+/// Monospace-ish tracking and a wide letter gap are the whole design: this
+/// string exists to survive being shouted between two helmets, and `A83F21`
+/// set tight is six characters nobody can dictate reliably.
+class _ChannelCodeChip extends StatelessWidget {
+  final String label;
+  final String code;
+
+  const _ChannelCodeChip({required this.label, required this.code});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.amber.withAlpha(70)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 9.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.4,
+            ),
+          ),
+          const SizedBox(width: 10),
+          // Always left-to-right: a hex code is not text, and in an RTL layout
+          // the digits would otherwise be read back in the wrong order by the
+          // one person who most needs to read them out.
+          Directionality(
+            textDirection: TextDirection.ltr,
+            child: Text(
+              code,
+              style: TextStyle(
+                color: AppColors.amber,
+                fontSize: 15,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 3,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _HostBadge extends StatelessWidget {

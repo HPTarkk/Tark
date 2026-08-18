@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/identity/channel_id.dart';
 import 'session_role.dart';
 
 /// Epoch carried by a packet from a build that predates the field (wire v1 and
@@ -17,17 +18,27 @@ sealed class WakiPacket extends Equatable {
   /// for why it exists and [SessionEpochGate] for what reads it.
   final int sessionEpoch;
 
+  /// Which conversation this packet belongs to, when more than one is sharing
+  /// a network. See [ChannelId] for the value and [ChannelGate] for the admission
+  /// rule.
+  ///
+  /// [ChannelId.open] for every build that predates wire v4 and for every session
+  /// nobody named a channel in — which is most of them, and is why the gate has
+  /// to treat open as permissive rather than as a channel of its own.
+  final ChannelId channelId;
+
   const WakiPacket({
     required this.senderId,
     required this.senderName,
     this.sessionEpoch = kUnknownSessionEpoch,
+    this.channelId = ChannelId.open,
   });
 
   /// Whether this packet says anything about which join it came from.
   bool get hasSessionEpoch => sessionEpoch != kUnknownSessionEpoch;
 
   @override
-  List<Object?> get props => [senderId, senderName, sessionEpoch];
+  List<Object?> get props => [senderId, senderName, sessionEpoch, channelId.value];
 }
 
 final class PresencePacket extends WakiPacket {
@@ -61,6 +72,7 @@ final class PresencePacket extends WakiPacket {
     required super.senderName,
     required this.isTalking,
     super.sessionEpoch,
+    super.channelId,
     this.role = SessionRole.unknown,
     this.heardIds,
   });
@@ -94,6 +106,7 @@ final class AudioPacket extends WakiPacket {
     required this.samples,
     required this.seq,
     super.sessionEpoch,
+    super.channelId,
     this.recoveredSamples,
   });
 

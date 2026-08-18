@@ -36,7 +36,8 @@ class OnboardingCubit extends Cubit<OnboardingState> {
 
   OnboardingCubit(this._modeStore, this._settingsRepository, this._analytics)
     : super(
-        _resumeAfterThemeRekey ?? OnboardingState.initial(_modeStore.mode),
+        _resumeAfterThemeRekey ??
+            OnboardingState.initial(_modeStore.pinnedMode),
       ) {
     _resumeAfterThemeRekey = null;
     ThemeService.mode.addListener(_onThemeChanged);
@@ -72,7 +73,9 @@ class OnboardingCubit extends Cubit<OnboardingState> {
 
   void setName(String value) => emit(state.copyWith(name: value));
 
-  void selectMode(TransferMode mode) => emit(state.copyWith(mode: mode));
+  /// Null is "automatic", and is a real selection here rather than the absence
+  /// of one — see [OnboardingState.mode].
+  void selectMode(TransferMode? mode) => emit(state.withMode(mode));
 
   /// Records the theme preference (previewed live as the sky's time of day);
   /// the real [ThemeService] switch is deferred to [finish] so the flow stays
@@ -85,7 +88,11 @@ class OnboardingCubit extends Cubit<OnboardingState> {
   Future<void> finish() async {
     final name = state.name.trim();
     if (name.isNotEmpty) await _settingsRepository.setMyName(name);
-    await _modeStore.setMode(state.mode);
+    // A *pin*, not the effective mode. The beat is pre-selected on AUTOMATIC,
+    // so walking past it without touching anything leaves the advisor free to
+    // choose — which is the whole of P2 §1, and would be undone on the very
+    // first run if onboarding wrote a transport on the way out.
+    await _modeStore.setPinnedMode(state.mode);
     // Apply the deferred theme choice now, on the way out — the global re-key
     // it triggers is harmless here since we're leaving the flow.
     if (ThemeService.currentMode != state.themePref) {
@@ -128,7 +135,11 @@ class OnboardingCubit extends Cubit<OnboardingState> {
 class OnboardingState extends Equatable {
   final int step;
   final String name;
-  final TransferMode mode;
+
+  /// The transport the user pinned on beat 3, or null for automatic — which
+  /// is where the beat starts and where the overwhelming majority of runs
+  /// leave it.
+  final TransferMode? mode;
 
   /// The theme the user has chosen on the tune beat. Held here (not pushed to
   /// [ThemeService]) so the flow never triggers the global theme re-key that
@@ -144,7 +155,7 @@ class OnboardingState extends Equatable {
     required this.themePref,
   });
 
-  factory OnboardingState.initial(TransferMode mode) => OnboardingState(
+  factory OnboardingState.initial(TransferMode? mode) => OnboardingState(
     step: 0,
     name: '',
     mode: mode,
@@ -159,13 +170,21 @@ class OnboardingState extends Equatable {
   OnboardingState copyWith({
     int? step,
     String? name,
-    TransferMode? mode,
     AppThemeMode? themePref,
   }) => OnboardingState(
     step: step ?? this.step,
     name: name ?? this.name,
-    mode: mode ?? this.mode,
+    mode: mode,
     themePref: themePref ?? this.themePref,
+  );
+
+  /// Separate from [copyWith] because null means automatic here, and the
+  /// `?? this.mode` idiom cannot say it.
+  OnboardingState withMode(TransferMode? value) => OnboardingState(
+    step: step,
+    name: name,
+    mode: value,
+    themePref: themePref,
   );
 
   @override

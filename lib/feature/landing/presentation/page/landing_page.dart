@@ -4,6 +4,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/entitlement/license_gate.dart';
+import '../../../../core/entitlement/paywall_sheet.dart';
+import '../../../../core/entitlement/premium_feature.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
@@ -15,6 +18,7 @@ import '../../../transfer/api/transfer_api.dart';
 import '../manager/landing_cubit.dart';
 import '../widget/landing_identity_card.dart';
 import '../widget/landing_logo.dart';
+import '../widget/channel_actions.dart';
 
 class LandingPage extends StatefulWidget {
   const LandingPage._();
@@ -30,11 +34,11 @@ class LandingPage extends StatefulWidget {
 
 class _LandingPageState extends State<LandingPage>
     with TickerProviderStateMixin {
-  // Staggered entrance for all sections: [logo, card, btn, footer]
+  // Staggered entrance for all sections: [logo, card, actions, footer]
   late AnimationController _entranceController;
   late List<Animation<double>> _sections;
 
-  // pulse animation used by the join button only
+  // pulse animation used by the primary channel action only
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
@@ -126,12 +130,12 @@ class _LandingPageState extends State<LandingPage>
                                       context.pushNamed(AppRoutes.settingsName),
                                 ),
                                 const SizedBox(height: 12),
-                                const _ModeChip(),
+                                _TransportChip(pinned: state.pinnedMode),
                               ],
                             ),
                           ),
                           const SizedBox(height: 20),
-                          _entrance(2, _buildJoinButton(context, state)),
+                          _entrance(2, _buildChannelActions(context, state)),
                           const Spacer(flex: 1),
                           _entrance(
                             3,
@@ -160,270 +164,120 @@ class _LandingPageState extends State<LandingPage>
     );
   }
 
-  // ── Join Button ─────────────────────────────────────────────────────────────
-  Widget _buildJoinButton(BuildContext context, LandingState state) {
-    // Plain Wi-Fi mode with no network: JOIN CHANNEL has nothing to join, so
-    // it's meaningless here. Once loading has settled and we know the phone
-    // isn't on a Wi-Fi network, collapse to a single, full-width Hotspot
-    // action — hosting/joining a hotspot creates its own network. (While still
-    // loading we keep the normal layout to avoid a flash before the IP lands.)
-    if (state.transferMode == TransferMode.wifi &&
-        !state.isLoading &&
-        !state.hasNetwork) {
-      return const _HotspotConnectButton();
-    }
+  // ── Channel actions ────────────────────────────────────────────────────────────
 
-    final enabled = state.hasNetwork && !state.isLoading;
-    // The border/glow pulse repaints every frame forever (blurred shadow
-    // included) — keep that off the layer shared with the rest of the page.
-    final joinButton = RepaintBoundary(
-      child: _buildPulsingJoinButton(context, state, enabled),
-    );
-    // Wi-Fi mode goes straight into the channel — but hosting a hotspot is a
-    // common next step for a cross-phone (iPhone↔Android) link, so surface a
-    // compact shortcut right beside JOIN instead of making users switch mode
-    // in Settings first. Only shown for plain Wi-Fi; the Hotspot mode already
-    // routes JOIN itself there.
-    if (state.transferMode == TransferMode.wifi) {
-      return IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(child: joinButton),
-            const SizedBox(width: 12),
-            _HotspotShortcutButton(enabled: !state.isLoading),
-          ],
-        ),
-      );
-    }
-    return joinButton;
-  }
-
-  Widget _buildPulsingJoinButton(
-    BuildContext context,
-    LandingState state,
-    bool enabled,
-  ) {
+  Widget _buildChannelActions(BuildContext context, LandingState state) {
     return AnimatedBuilder(
       animation: _pulseAnimation,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.podcasts_rounded,
-            color: state.hasNetwork ? AppColors.amber : AppColors.textSecondary,
-            size: 22,
-          ),
-          const SizedBox(width: 12),
-          Text(
-            context.getString.join_channel,
-            style: TextStyle(
-              color: state.hasNetwork
-                  ? AppColors.amber
-                  : AppColors.textSecondary,
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 2,
-            ),
-          ),
-        ],
-      ),
-      builder: (_, child) => GestureDetector(
-        onTap: enabled
-            ? () {
-                HapticFeedback.selectionClick();
-                context.read<LandingCubit>().markLaunched();
-                switch (state.transferMode) {
-                  case TransferMode.bluetooth:
-                    context.pushNamed(AppRoutes.bluetoothConnectName);
-                  case TransferMode.guest:
-                    context.pushNamed(AppRoutes.guestLinkName);
-                  case TransferMode.wifi:
-                    // Direct Wi-Fi has nothing to set up — go straight into
-                    // the channel (same fast path as quick-access cold
-                    // start). The Wi-Fi/Hotspot setup page is only for the
-                    // explicit hotspot flow below.
-                    context.goNamed(AppRoutes.walkieName);
-                  case TransferMode.hotspot:
-                    context.pushNamed(
-                      AppRoutes.wifiHotspotName,
-                      queryParameters: const {'mode': 'hotspot'},
-                    );
-                }
-              }
-            : null,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 20),
-          decoration: BoxDecoration(
-            color: enabled
-                ? AppColors.amber.withAlpha(25)
-                : AppColors.border.withAlpha(40),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: enabled
-                  ? Color.lerp(
-                      AppColors.amber,
-                      AppColors.amber.withAlpha(120),
-                      _pulseAnimation.value,
-                    )!
-                  : AppColors.border,
-              width: 2,
-            ),
-            boxShadow: enabled
-                ? [
-                    BoxShadow(
-                      color: AppColors.amber.withAlpha(
-                        (15 + 40 * _pulseAnimation.value).toInt(),
-                      ),
-                      blurRadius: 28,
-                      spreadRadius: 2,
-                    ),
-                  ]
-                : null,
-          ),
-          child: child!,
-        ),
+      builder: (_, _) => ChannelActions(
+        createPlan: state.planFor(ChannelIntent.create),
+        joinPlan: state.planFor(ChannelIntent.join),
+        pulse: _pulseAnimation.value,
+        // The local address is still being read. Every plan turns on it, so
+        // acting now would commit to a transport chosen from a fact we have
+        // not finished establishing.
+        enabled: !state.isLoading,
+        onTap: (plan) => _enterChannel(context, plan),
+        onDifferentNetwork: () => _openHotspotBridge(context),
       ),
     );
   }
-}
 
-// ── Hotspot shortcut (Wi-Fi mode only) ──────────────────────────────────────
-// Sits beside JOIN CHANNEL and jumps straight to the Hotspot flow (Android
-// host / iPhone join) without changing the selected transport. Enabled
-// regardless of network — hosting a hotspot creates its own.
-
-class _HotspotShortcutButton extends StatelessWidget {
-  final bool enabled;
-
-  const _HotspotShortcutButton({required this.enabled});
-
-  @override
-  Widget build(BuildContext context) {
-    final s = context.getString;
-    return GestureDetector(
-      onTap: enabled
-          ? () {
-              HapticFeedback.selectionClick();
-              context.read<LandingCubit>().markLaunched();
-              context.pushNamed(
-                AppRoutes.wifiHotspotName,
-                queryParameters: const {'mode': 'hotspot'},
-              );
-            }
-          : null,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 18),
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.amber.withAlpha(90), width: 2),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.wifi_tethering_rounded,
-              color: AppColors.amber,
-              size: 22,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              s.transport_hotspot,
-              style: TextStyle(
-                color: AppColors.amber,
-                fontSize: 9,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Hotspot connect (Wi-Fi mode, no network) ────────────────────────────────
-// When plain Wi-Fi is selected but the phone isn't on a network, JOIN CHANNEL
-// has nothing to join. Hosting/joining a hotspot creates its own network, so
-// it becomes the sole, full-width action — styled to match the enabled JOIN
-// button so it reads as the primary call to action.
-
-class _HotspotConnectButton extends StatelessWidget {
-  const _HotspotConnectButton();
-
-  @override
-  Widget build(BuildContext context) {
-    final s = context.getString;
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        context.read<LandingCubit>().markLaunched();
+  /// Commits to the plan's transport and walks it.
+  ///
+  /// The entitlement check comes first and opens the paywall rather than
+  /// silently routing somewhere cheaper. Under automatic the advisor would
+  /// happily hand back Bluetooth for a user whose Wi-Fi entitlement has
+  /// lapsed, and that reads as the app quietly getting worse; a lock the user
+  /// can act on does not. (Monetization is parked, so today the gate always
+  /// allows and this is a no-op — it is here so that un-parking it does not
+  /// have to find this call site.)
+  Future<void> _enterChannel(BuildContext context, ChannelPlan plan) async {
+    if (plan.mode.requiresPremium &&
+        !GetIt.instance<LicenseGate>().allows(PremiumFeature.wifiTransport)) {
+      showPaywallSheet(context, PremiumFeature.wifiTransport);
+      return;
+    }
+    final cubit = context.read<LandingCubit>();
+    // Before the transport is committed and before we navigate: the channel
+    // has to be settled by the time anything can put a packet on the wire.
+    cubit.takeChannel(plan.intent);
+    await cubit.markLaunched();
+    // Written before navigating, not after: the page we are about to open
+    // resolves its repository from the stored mode.
+    await cubit.commit(plan.mode);
+    if (!context.mounted) return;
+    switch (plan.mode) {
+      case TransferMode.wifi:
+        // Nothing to set up — both phones are already on one network, so the
+        // channel is the destination rather than a step past a setup screen.
+        context.goNamed(AppRoutes.walkieName);
+      case TransferMode.hotspot:
         context.pushNamed(
           AppRoutes.wifiHotspotName,
-          queryParameters: const {'mode': 'hotspot'},
+          queryParameters: {
+            'mode': 'hotspot',
+            // Carries the side the user already chose, so the bridge does not
+            // re-ask "are you the host?" one screen after they answered it.
+            'intent': plan.intent.key,
+          },
         );
-      },
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 20),
-        decoration: BoxDecoration(
-          color: AppColors.amber.withAlpha(25),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.amber, width: 2),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.amber.withAlpha(30),
-              blurRadius: 28,
-              spreadRadius: 2,
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.wifi_tethering_rounded,
-              color: AppColors.amber,
-              size: 22,
-            ),
-            const SizedBox(width: 12),
-            Text(
-              s.connect_via_hotspot,
-              style: TextStyle(
-                color: AppColors.amber,
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 2,
-              ),
-            ),
-          ],
-        ),
-      ),
+      case TransferMode.bluetooth:
+        context.pushNamed(
+          AppRoutes.bluetoothConnectName,
+          queryParameters: {'intent': plan.intent.key},
+        );
+      case TransferMode.guest:
+        context.pushNamed(AppRoutes.guestLinkName);
+    }
+  }
+
+  /// "Not on the same network?" — the hotspot bridge with no side chosen.
+  ///
+  /// Deliberately lands on the host/join picker rather than assuming: the user
+  /// is telling us our reading of the situation was wrong, which is the worst
+  /// possible moment to guess again.
+  Future<void> _openHotspotBridge(BuildContext context) async {
+    if (!GetIt.instance<LicenseGate>().allows(PremiumFeature.wifiTransport)) {
+      showPaywallSheet(context, PremiumFeature.wifiTransport);
+      return;
+    }
+    final cubit = context.read<LandingCubit>();
+    await cubit.markLaunched();
+    await cubit.commit(TransferMode.hotspot);
+    if (!context.mounted) return;
+    context.pushNamed(
+      AppRoutes.wifiHotspotName,
+      queryParameters: const {'mode': 'hotspot'},
     );
   }
 }
 
-// ── Transport mode chip ───────────────────────────────────────────────────────
-// Read-only display of the mode picked in Settings (item 5 moved editing
-// there) — tapping jumps straight to it. Reacts to TransferModeStore.modeChanges
-// so a mode switched in Settings updates here even though Landing's own
-// cubit/widget isn't rebuilt when Settings is merely popped back from.
+// ── Transport chip ───────────────────────────────────────────────────────────
 
-class _ModeChip extends StatelessWidget {
-  const _ModeChip();
+/// Says how the transport is being chosen, and opens the place to change it.
+///
+/// It reads "AUTOMATIC" for almost everyone, which is the point: the picker it
+/// used to shortcut to has moved to Advanced settings, and this line is what
+/// keeps that from feeling like the choice was taken away. When a transport
+/// *has* been pinned it names it and marks it as hand-picked — a pin that
+/// stops suiting the phone's situation is otherwise indistinguishable from the
+/// app choosing badly, and the difference decides whether the user changes a
+/// setting or files a bug.
+class _TransportChip extends StatelessWidget {
+  final TransferMode? pinned;
 
-  String _label(AppLocalizations s, TransferMode mode) => switch (mode) {
+  const _TransportChip({required this.pinned});
+
+  String _label(AppLocalizations s, TransferMode? mode) => switch (mode) {
+    null => s.transport_automatic,
     TransferMode.wifi || TransferMode.hotspot => s.transport_wifi_hotspot,
     TransferMode.bluetooth => s.transport_bluetooth,
     TransferMode.guest => s.transport_guest,
   };
 
-  IconData _icon(TransferMode mode) => switch (mode) {
+  IconData _icon(TransferMode? mode) => switch (mode) {
+    null => Icons.auto_awesome_rounded,
     TransferMode.wifi || TransferMode.hotspot => Icons.wifi_rounded,
     TransferMode.bluetooth => Icons.bluetooth_rounded,
     TransferMode.guest => Icons.qr_code_rounded,
@@ -432,46 +286,48 @@ class _ModeChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
-    final store = GetIt.instance<TransferModeStore>();
-    return StreamBuilder<TransferMode>(
-      initialData: store.mode,
-      stream: store.modeChanges,
-      builder: (context, snapshot) {
-        final mode = snapshot.data ?? store.mode;
-        return GestureDetector(
-          onTap: () => context.pushNamed(AppRoutes.settingsName),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppColors.card,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.border),
+    return GestureDetector(
+      onTap: () => context.pushNamed(AppRoutes.advancedSettingsName),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(_icon(pinned), size: 14, color: AppColors.textSecondary),
+            const SizedBox(width: 6),
+            Text(
+              _label(s, pinned),
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
+              ),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(_icon(mode), size: 14, color: AppColors.textSecondary),
-                const SizedBox(width: 6),
-                Text(
-                  _label(s, mode),
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
-                  ),
+            if (pinned != null) ...[
+              const SizedBox(width: 6),
+              Text(
+                s.channel_pinned_note,
+                style: TextStyle(
+                  color: AppColors.textSecondary.withAlpha(150),
+                  fontSize: 10,
                 ),
-                const SizedBox(width: 4),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  size: 14,
-                  color: AppColors.textSecondary,
-                ),
-              ],
+              ),
+            ],
+            const SizedBox(width: 4),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 14,
+              color: AppColors.textSecondary,
             ),
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 }

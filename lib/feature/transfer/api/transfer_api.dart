@@ -10,6 +10,7 @@ export '../data/webrtc/sdp_codec.dart';
 export '../domain/entity/audio_profile.dart';
 export '../domain/entity/connection_health.dart';
 export '../domain/entity/guest_link_state.dart';
+export '../domain/entity/channel_intent.dart';
 export '../domain/entity/session_role.dart';
 export '../domain/entity/transfer_mode.dart';
 export '../domain/entity/transfer_mode_analytics.dart';
@@ -27,6 +28,9 @@ export '../domain/service/hotspot_control.dart' show HotspotJoiner;
 // empty) live in the cubit, so the grading happens there rather than here.
 export '../domain/service/link_quality.dart';
 export '../domain/service/transfer_mode_store.dart';
+// The landing page's Create/Join actions resolve their route through this;
+// it is pure and holds no state, so it is exported rather than injected.
+export '../domain/service/transport_advisor.dart';
 export '../presentation/page/bluetooth_connect_page.dart';
 export '../presentation/page/guest_link_page.dart';
 export '../presentation/page/wifi_hotspot_page.dart';

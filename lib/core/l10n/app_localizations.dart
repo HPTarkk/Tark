@@ -293,7 +293,7 @@ abstract class AppLocalizations {
   /// No description provided for @vox_margin_hint.
   ///
   /// In fa, this message translates to:
-  /// **'نسبت به صدای محیط سنجیده می‌شه، پس یک تنظیم هم توقف کار می‌کنه هم توی سرعت'**
+  /// **'نسبت به صدای محیط سنجیده می‌شه، پس یک تنظیم هم در توقف کار می‌کنه هم توی سرعت'**
   String get vox_margin_hint;
 
   /// No description provided for @voice_loud.
@@ -373,6 +373,78 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'اتصال با هات‌اسپات'**
   String get connect_via_hotspot;
+
+  /// No description provided for @channel_create.
+  ///
+  /// In fa, this message translates to:
+  /// **'ساخت کانال'**
+  String get channel_create;
+
+  /// No description provided for @channel_join.
+  ///
+  /// In fa, this message translates to:
+  /// **'ورود به کانال'**
+  String get channel_join;
+
+  /// No description provided for @channel_via_shared_network.
+  ///
+  /// In fa, this message translates to:
+  /// **'روی همین شبکه وای‌فای'**
+  String get channel_via_shared_network;
+
+  /// No description provided for @channel_via_own_hotspot.
+  ///
+  /// In fa, this message translates to:
+  /// **'این گوشی شبکه رو می‌سازه'**
+  String get channel_via_own_hotspot;
+
+  /// No description provided for @channel_via_scan_code.
+  ///
+  /// In fa, this message translates to:
+  /// **'اسکن کد گوشی مقابل'**
+  String get channel_via_scan_code;
+
+  /// No description provided for @channel_via_bluetooth.
+  ///
+  /// In fa, this message translates to:
+  /// **'با بلوتوث، بدون نیاز به شبکه'**
+  String get channel_via_bluetooth;
+
+  /// No description provided for @channel_via_guest.
+  ///
+  /// In fa, this message translates to:
+  /// **'دعوت از مهمون مرورگری'**
+  String get channel_via_guest;
+
+  /// No description provided for @channel_via_no_network.
+  ///
+  /// In fa, this message translates to:
+  /// **'هنوز شبکه‌ای در دسترس نیست'**
+  String get channel_via_no_network;
+
+  /// No description provided for @channel_different_network.
+  ///
+  /// In fa, this message translates to:
+  /// **'روی یه شبکه نیستین؟'**
+  String get channel_different_network;
+
+  /// No description provided for @channel_pinned_note.
+  ///
+  /// In fa, this message translates to:
+  /// **'دستی انتخاب شده'**
+  String get channel_pinned_note;
+
+  /// No description provided for @transport_automatic.
+  ///
+  /// In fa, this message translates to:
+  /// **'خودکار'**
+  String get transport_automatic;
+
+  /// No description provided for @channel_code_label.
+  ///
+  /// In fa, this message translates to:
+  /// **'کد کانال'**
+  String get channel_code_label;
 
   /// No description provided for @leave_channel.
   ///
@@ -1520,6 +1592,18 @@ abstract class AppLocalizations {
   /// **'اتصال'**
   String get settings_section_connection;
 
+  /// No description provided for @settings_section_transport.
+  ///
+  /// In fa, this message translates to:
+  /// **'گوشی‌ها چطور وصل می‌شن'**
+  String get settings_section_transport;
+
+  /// No description provided for @settings_transport_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'«ترک» خودش مناسب‌ترین راه ارتباط رو با توجه به جایی که هستی انتخاب می‌کنه. فقط اگه دلیلی داری یکی رو ثابت کن.'**
+  String get settings_transport_desc;
+
   /// No description provided for @settings_section_startup.
   ///
   /// In fa, this message translates to:
@@ -1817,8 +1901,14 @@ abstract class AppLocalizations {
   /// No description provided for @onboarding_mode_help.
   ///
   /// In fa, this message translates to:
-  /// **'هر وقت خواستی می‌تونی توی تنظیمات عوضش کنی.'**
+  /// **'روی خودکار بذارش تا «ترک» هر بار خودش تصمیم بگیره. بعداً از تنظیمات پیشرفته می‌تونی یکی رو ثابت کنی.'**
   String get onboarding_mode_help;
+
+  /// No description provided for @onboarding_mode_auto_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'خود «ترک» انتخاب می‌کنه — وای‌فای مشترک، هات‌اسپات خودش، یا بلوتوث'**
+  String get onboarding_mode_auto_desc;
 
   /// No description provided for @onboarding_mode_wifi_desc.
   ///

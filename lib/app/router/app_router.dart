@@ -83,7 +83,12 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.bluetoothConnectPath,
         name: AppRoutes.bluetoothConnectName,
-        builder: (context, state) => BluetoothConnectPage.buildPage(),
+        // `intent` is set when Landing's Create/Join already asked which side
+        // this phone is; absent when the page is reached any other way, and
+        // then it asks for itself.
+        builder: (context, state) => BluetoothConnectPage.buildPage(
+          intent: ChannelIntent.fromKey(state.uri.queryParameters['intent']),
+        ),
       ),
       GoRoute(
         path: AppRoutes.wifiHotspotPath,
@@ -92,6 +97,7 @@ class AppRouter {
           initialSegment: state.uri.queryParameters['mode'] == 'hotspot'
               ? WifiHotspotSegment.hotspot
               : WifiHotspotSegment.wifi,
+          intent: ChannelIntent.fromKey(state.uri.queryParameters['intent']),
         ),
       ),
       GoRoute(

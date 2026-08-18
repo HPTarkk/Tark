@@ -108,7 +108,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get vox_margin_hint =>
-      'نسبت به صدای محیط سنجیده می‌شه، پس یک تنظیم هم توقف کار می‌کنه هم توی سرعت';
+      'نسبت به صدای محیط سنجیده می‌شه، پس یک تنظیم هم در توقف کار می‌کنه هم توی سرعت';
 
   @override
   String get voice_loud => 'بلند';
@@ -149,6 +149,42 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get connect_via_hotspot => 'اتصال با هات‌اسپات';
+
+  @override
+  String get channel_create => 'ساخت کانال';
+
+  @override
+  String get channel_join => 'ورود به کانال';
+
+  @override
+  String get channel_via_shared_network => 'روی همین شبکه وای‌فای';
+
+  @override
+  String get channel_via_own_hotspot => 'این گوشی شبکه رو می‌سازه';
+
+  @override
+  String get channel_via_scan_code => 'اسکن کد گوشی مقابل';
+
+  @override
+  String get channel_via_bluetooth => 'با بلوتوث، بدون نیاز به شبکه';
+
+  @override
+  String get channel_via_guest => 'دعوت از مهمون مرورگری';
+
+  @override
+  String get channel_via_no_network => 'هنوز شبکه‌ای در دسترس نیست';
+
+  @override
+  String get channel_different_network => 'روی یه شبکه نیستین؟';
+
+  @override
+  String get channel_pinned_note => 'دستی انتخاب شده';
+
+  @override
+  String get transport_automatic => 'خودکار';
+
+  @override
+  String get channel_code_label => 'کد کانال';
 
   @override
   String get leave_channel => 'خروج از کانال';
@@ -795,6 +831,13 @@ class AppLocalizationsFa extends AppLocalizations {
   String get settings_section_connection => 'اتصال';
 
   @override
+  String get settings_section_transport => 'گوشی‌ها چطور وصل می‌شن';
+
+  @override
+  String get settings_transport_desc =>
+      '«ترک» خودش مناسب‌ترین راه ارتباط رو با توجه به جایی که هستی انتخاب می‌کنه. فقط اگه دلیلی داری یکی رو ثابت کن.';
+
+  @override
   String get settings_section_startup => 'وقتی برنامه باز می‌شه';
 
   @override
@@ -960,7 +1003,11 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get onboarding_mode_help =>
-      'هر وقت خواستی می‌تونی توی تنظیمات عوضش کنی.';
+      'روی خودکار بذارش تا «ترک» هر بار خودش تصمیم بگیره. بعداً از تنظیمات پیشرفته می‌تونی یکی رو ثابت کنی.';
+
+  @override
+  String get onboarding_mode_auto_desc =>
+      'خود «ترک» انتخاب می‌کنه — وای‌فای مشترک، هات‌اسپات خودش، یا بلوتوث';
 
   @override
   String get onboarding_mode_wifi_desc =>

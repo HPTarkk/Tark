@@ -9,9 +9,19 @@ import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../transfer/api/transfer_api.dart';
 
-/// Transport picker, relocated here from Landing (item 5). WiFi and Hotspot
-/// (item 9) merge into one entry — the host-vs-join choice now lives on the
-/// combined WiFi/Hotspot page itself, not this picker.
+/// Pins a transport by hand, or leaves it automatic.
+///
+/// **Demoted here from the main Settings page (P2 §1).** It used to be the
+/// first control under CONNECTION, and before that it was on the landing page
+/// itself — which made choosing a transport a prerequisite for making a call,
+/// and left the answer sitting in a preference long after the situation that
+/// produced it had gone. `TransportAdvisor` now derives it from what the phone
+/// can actually see, every time, so this control's job shrank to the case that
+/// derivation gets wrong.
+///
+/// Hence AUTOMATIC as a first-class, default option rather than an absent one.
+/// Without it the picker would have no way to express "stop deciding for me"
+/// and every visit here would leave a pin behind.
 ///
 /// WiFi and Guest carry a lock without entitlement: tapping one opens the
 /// paywall instead of switching, so the transport gate is never a dead end.
@@ -19,7 +29,7 @@ import '../../../transfer/api/transfer_api.dart';
 class TransportModePicker extends StatelessWidget {
   const TransportModePicker({super.key});
 
-  bool _isWifiGroup(TransferMode mode) =>
+  bool _isWifiGroup(TransferMode? mode) =>
       mode == TransferMode.wifi || mode == TransferMode.hotspot;
 
   @override
@@ -27,61 +37,86 @@ class TransportModePicker extends StatelessWidget {
     final s = context.getString;
     final store = GetIt.instance<TransferModeStore>();
     final gate = GetIt.instance<LicenseGate>();
-    // Outer stream is entitlement, inner is the selected mode: a purchase
-    // completing in the paywall has to unlock the buttons here without the
-    // user backing out of Settings and coming back.
+    // Outer stream is entitlement, inner is the pin: a purchase completing in
+    // the paywall has to unlock the buttons here without the user backing out
+    // of Settings and coming back.
     return StreamBuilder<Entitlement>(
       stream: gate.changes,
       builder: (context, _) {
         final unlocked = gate.allows(PremiumFeature.wifiTransport);
-        return StreamBuilder<TransferMode>(
-          initialData: store.mode,
-          stream: store.modeChanges,
+        return StreamBuilder<TransferMode?>(
+          initialData: store.pinnedMode,
+          stream: store.pinChanges,
           builder: (context, snapshot) {
-            final mode = snapshot.data ?? store.mode;
-            void select(TransferMode target) {
-              if (target.requiresPremium && !unlocked) {
+            // `snapshot.data` is null both for "automatic" and for "nothing
+            // has arrived yet", and here those mean the same thing, so the
+            // ambiguity is harmless — unlike in the store, where it is not.
+            final pinned = snapshot.data;
+            void select(TransferMode? target) {
+              if (target != null && target.requiresPremium && !unlocked) {
                 showPaywallSheet(context, PremiumFeature.wifiTransport);
                 return;
               }
-              store.setMode(target);
+              store.setPinnedMode(target);
             }
 
-            return Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: AppColors.card,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Row(
-                children: [
-                  _ModeButton(
-                    label: s.transport_wifi_hotspot,
-                    icon: Icons.wifi_rounded,
-                    selected: _isWifiGroup(mode),
-                    locked: !unlocked,
-                    // Leave an existing hotspot selection alone — only switch
-                    // to plain WiFi when coming from a different group.
-                    onTap: () =>
-                        select(_isWifiGroup(mode) ? mode : TransferMode.wifi),
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: AppColors.card,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.border),
                   ),
-                  _ModeButton(
-                    label: s.transport_bluetooth,
-                    icon: Icons.bluetooth_rounded,
-                    selected: mode == TransferMode.bluetooth,
-                    locked: false,
-                    onTap: () => select(TransferMode.bluetooth),
+                  child: Row(
+                    children: [
+                      _ModeButton(
+                        label: s.transport_automatic,
+                        icon: Icons.auto_awesome_rounded,
+                        selected: pinned == null,
+                        locked: false,
+                        onTap: () => select(null),
+                      ),
+                      _ModeButton(
+                        label: s.transport_wifi_hotspot,
+                        icon: Icons.wifi_rounded,
+                        selected: _isWifiGroup(pinned),
+                        locked: !unlocked,
+                        // Leave an existing hotspot pin alone — only switch to
+                        // plain WiFi when coming from a different group.
+                        onTap: () => select(
+                          _isWifiGroup(pinned) ? pinned : TransferMode.wifi,
+                        ),
+                      ),
+                      _ModeButton(
+                        label: s.transport_bluetooth,
+                        icon: Icons.bluetooth_rounded,
+                        selected: pinned == TransferMode.bluetooth,
+                        locked: false,
+                        onTap: () => select(TransferMode.bluetooth),
+                      ),
+                      _ModeButton(
+                        label: s.transport_guest,
+                        icon: Icons.qr_code_rounded,
+                        selected: pinned == TransferMode.guest,
+                        locked: !unlocked,
+                        onTap: () => select(TransferMode.guest),
+                      ),
+                    ],
                   ),
-                  _ModeButton(
-                    label: s.transport_guest,
-                    icon: Icons.qr_code_rounded,
-                    selected: mode == TransferMode.guest,
-                    locked: !unlocked,
-                    onTap: () => select(TransferMode.guest),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  s.settings_transport_desc,
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 11.5,
+                    height: 1.5,
                   ),
-                ],
-              ),
+                ),
+              ],
             );
           },
         );
@@ -119,7 +154,7 @@ class _ModeButton extends StatelessWidget {
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 2),
           decoration: BoxDecoration(
             color: selected ? AppColors.amber.withAlpha(25) : null,
             borderRadius: BorderRadius.circular(9),
@@ -150,11 +185,13 @@ class _ModeButton extends StatelessWidget {
               Text(
                 label,
                 textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: foreground,
-                  fontSize: 10,
+                  fontSize: 9,
                   fontWeight: FontWeight.w700,
-                  letterSpacing: 0.3,
+                  letterSpacing: 0.2,
                 ),
               ),
             ],

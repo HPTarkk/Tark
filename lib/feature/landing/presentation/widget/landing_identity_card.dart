@@ -21,21 +21,22 @@ class LandingIdentityCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
-    final hasNetwork = state.hasNetwork;
     // An IP address told the user nothing they could act on. What they
     // actually want to know from this line is whether they can talk yet —
     // and over what, which the icon says rather than a second label.
     //
-    // Bluetooth needs no Wi-Fi at all, so it must not inherit the "no
-    // network" warning: on that mode the local IP is simply irrelevant.
-    final needsNetwork =
-        state.transferMode == TransferMode.wifi ||
-        state.transferMode == TransferMode.hotspot;
-    final ready = !needsNetwork || hasNetwork;
+    // Read off the plan rather than off `state.transferMode`, which is the
+    // *last* transport used and, under automatic, says nothing about the one
+    // the buttons below are about to take. Bluetooth and a hotspot need no
+    // existing Wi-Fi, so a phone with no network still reads READY when the
+    // advisor has a route for it — only a plan with nowhere to go says
+    // otherwise, which is [ChannelPlan.blocked].
+    final plan = state.planFor(ChannelIntent.create);
+    final ready = !plan.blocked;
     final networkStatus = state.isLoading
         ? s.connecting
         : (ready ? s.landing_ready : s.no_network);
-    final transportIcon = switch (state.transferMode) {
+    final transportIcon = switch (plan.mode) {
       TransferMode.bluetooth => Icons.bluetooth_rounded,
       TransferMode.hotspot => Icons.wifi_tethering_rounded,
       TransferMode.guest => Icons.public_rounded,

@@ -21,7 +21,7 @@ architecture.
 | --- | --- | --- |
 | **P0** | Core reliability | **Done** — all four |
 | **P1** | Audio quality | **Done** — every code item; clock drift is a field test |
-| **P2** | Connection UX | Started — 4 of 9 (the unification is untouched) |
+| **P2** | Connection UX | Started — 6 of 11 (Create/Join + the channel id landed) |
 | **P3** | Polish & diagnostics | Link quality indicator done |
 | **CI** | Re-enable pipeline | **Parked** — deliberately deferred |
 
@@ -65,7 +65,7 @@ the user hears as repeated or broken speech.
 Matters most during: Wi-Fi reconnects, hotspot restarts, app resume, network
 handoff, Bluetooth reconnect.
 
-**Done**, as a per-sender *session epoch* rather than a shared room id:
+**Done**, as a per-sender *session epoch* rather than a shared channel id:
 
 - [x] [`SessionEpoch`](lib/core/identity/session_epoch.dart) — a counter
       renewed on each join
@@ -87,15 +87,17 @@ case the review lists — Wi-Fi reconnect, hotspot restart, app resume, network
 handoff, Bluetooth reconnect — is one device's *own* previous join leaking into
 its next one. That needs a value comparable within a single sender, which a
 counter does with `<`, needing no clock, no agreement between devices and no
-distribution channel. A shared room id answers a different question ("are we in
-the same room as those other people"), needs the QR/credential plumbing that is
-itself P2 work, and would have blocked this behind it. The two compose: a room
-id can be added in P2 without revisiting any of the above.
+distribution channel. A shared channel id answers a different question ("are we
+in the same channel as those other people"), needs the QR/credential plumbing
+that is itself P2 work, and would have blocked this behind it. The two compose:
+a channel id can be added in P2 without revisiting any of the above.
 
-Not done, deferred with the rest of the QR work:
+Deferred with the rest of the QR work, and now landed there:
 
-- [ ] Shared room id in the QR / hotspot credentials, to keep two adjacent
-      channels on one Wi-Fi apart (P2)
+- [x] Shared channel id in the QR / hotspot credentials, to keep two adjacent
+      channels on one Wi-Fi apart — see P2 §2, as
+      [`ChannelId`](lib/core/identity/channel_id.dart). It composed exactly as
+      predicted: the epoch was not revisited
 
 ### 2. Reconnect state machine
 
@@ -550,20 +552,211 @@ never described the VOX control at all, so it needed nothing.
 
 ## P2 — Connection UX
 
-Reduce the primary screen to **Create Room** / **Join Room**, with transport
+Reduce the primary screen to **start a channel** / **join a channel**, with transport
 chosen under the hood (same Wi-Fi → direct; different network → suggest hotspot;
 Bluetooth when more suitable). Most of the machinery exists — this is mostly
 unification.
 
-- [ ] Create/Join as the primary choice; transport picker demoted to advanced
-- [ ] Unified QR carrying `protocolVersion, sessionId, transport, ssid, password, hostAddress`
-      (note: `sessionId` here depends on P0 #1)
+The unification itself landed first (§1 below), because the two items after it
+both need it: the unified QR is produced by Create and consumed by Join, and
+the preflight check needs one funnel into the channel to sit in rather than
+four call sites to be re-placed across.
+
+> **"Room" is not a word this app says.** The review's wording is kept above
+> because it is the review's, but the product has called this thing a
+> **channel** since its first screen — `JOIN CHANNEL`, `LEAVE CHANNEL`,
+> `channel_members`, the channel header, in both languages — and shipping
+> "room" alongside it would have been two words for one concept in a two-tap
+> flow. Everything built for P2 §1 and §2 is therefore named `Channel*`
+> (`ChannelIntent`, `ChannelPlan`, `ChannelActions`, `ChannelId`,
+> `ChannelGate`). Read "Create Room / Join Room" below as **start a channel /
+> join a channel**.
+
+- [x] **Create/Join as the primary choice; transport picker demoted to
+      advanced.** The screen opened on `WIFI / HOTSPOT · BLUETOOTH · GUEST` —
+      a question about where the two phones are and what is around them, which
+      the app measures continuously and the person holding one phone has to
+      guess at. Worse, the answer lived in Settings, so it outlived the
+      situation that produced it, and two riders in a field with no Wi-Fi had
+      to leave the main screen before the app would do the only thing that
+      could work there.
+
+      So the axis is inverted. The one question left on screen is the one the
+      user is the sole authority on — *am I starting this, or arriving?* — and
+      [`TransportAdvisor`](lib/feature/transfer/domain/service/transport_advisor.dart)
+      derives the transport from observable facts, on every tap rather than
+      once and forever. The ladder is a shared network, then a hotspot, then
+      Bluetooth, then a self-reported dead end; each rung is refused rather
+      than guessed at, so **automatic can never produce a blocked plan while
+      any rung is available** (asserted).
+
+      **The asymmetry is why the two intents cannot share one capability
+      flag.** `canHostHotspot` and `canJoinHotspot` differ on iOS, which can
+      walk onto an access point it could never have raised — so the same phone
+      in the same room resolves to a hotspot for *join* and Bluetooth for
+      *start*. A single "supports hotspot" bool would have been wrong for one
+      of them on every iPhone.
+
+      Each action names its route underneath itself, keyed on
+      `RoomPlanReason` rather than on the transport: the two hotspot ends are
+      the same transport and opposite instructions, and one "over a hotspot"
+      line would be wrong for whichever end read it. A decision made silently
+      is indistinguishable from a decision made wrong — a rider who taps START
+      and watches a hotspot come up needs to know that was the plan.
+
+      **The pin is a second key, not the same one.** `transport_mode` keeps
+      meaning "what is in effect" (the DI factory and quick access read it
+      synchronously at cold start); `transport_pin` is new and means "what the
+      user asked for", absent for automatic. Collapsing them would force
+      automatic to store a transport to be automatic about. It also decides
+      the upgrade: reading the pin with `TransferMode.fromKey` — which answers
+      Wi-Fi for an absent value — would have silently pinned **every existing
+      install** and made the advisor dead code on upgrade. `_readPin` refuses
+      that, and the test that fixes it in place is the first one in the file.
+
+      The same trap sat in onboarding, whose transport beat opened with Wi-Fi
+      already lit: every first run would have ended by writing a preference
+      nobody chose. AUTOMATIC now leads the beat and is pre-selected, and the
+      beat writes a *pin*, so walking past it leaves the advisor free.
+
+      - [x] [`RoomIntent`](lib/feature/transfer/domain/entity/room_intent.dart),
+            carried into the next screen as a query parameter so the hotspot
+            bridge and the Bluetooth page stop re-asking "are you the host?"
+            one screen after it was answered. Applied through `chooseRole` /
+            the page's own permission gate, never by pre-seeding state, so a
+            preselected side still takes the side-exclusivity teardown, the
+            role-store write and the Android permission request. An unknown
+            key is *no* intent rather than a default one — a guessed side
+            starts an access point nobody asked for
+      - [x] [`RoomActions`](lib/feature/landing/presentation/widget/room_actions.dart) —
+            Create leads with the fill, the border pulse and the glow, Join is
+            the same shape drawn quietly. Deliberately not equal weight: there
+            is nothing to join until someone starts, so leading with Create
+            answers the question two identical buttons would leave the user
+            standing in front of. The glow is inside a `RepaintBoundary`, since
+            it repaints every frame of the breath and the low-end floor is a
+            Galaxy S8+
+      - [x] The identity card reads its icon and READY/no-network off the plan
+            instead of `state.transferMode`, which under automatic is the
+            *last* transport used and says nothing about the next one
+      - [x] **"Not on the same network?"**, under the pair and only while the
+            plan assumed one network — the single thing the advisor provably
+            cannot check is whether the *other* phone is on this one. Still
+            offered for a hand-pinned Wi-Fi with no network, because that is
+            the only route off the screen and a pin is a preference, not
+            grounds for stranding someone
+      - [x] Picker moved to Advanced settings with AUTOMATIC as a first-class
+            default option, and the landing chip says which is in force. A pin
+            that stops suiting the situation is otherwise indistinguishable
+            from the app choosing badly, and the difference decides whether
+            someone changes a setting or files a bug
+      - [x] Entitlement is checked in the UI before committing, as the picker
+            already did, rather than having automatic quietly route somewhere
+            cheaper. (Parked, so a no-op today — it is there so un-parking does
+            not have to find the call site.) A paid *pin* that loses
+            entitlement falls back to automatic, not to Bluetooth: rewriting it
+            would put a hand-picked value in a slot the user never touched, so
+            a later purchase would restore nothing
+      - [x] fa + en strings, README (feature bullet, "which transport should I
+            use", Settings and onboarding bullets), website FAQ + the mirrored
+            JSON-LD, `node scripts/build-website-i18n.mjs` re-run
+      - [x] Tests: [transport_advisor_test.dart](test/transport_advisor_test.dart)
+            (the full ladder, the iOS asymmetry, pin short-circuiting, the
+            never-blocks property), [transport_pin_test.dart](test/transport_pin_test.dart)
+            (the upgrade path, pin/mode independence, entitlement demotion),
+            [room_actions_test.dart](test/room_actions_test.dart) (what each
+            button says and hands back, plus no overflow at 320 px in both
+            languages)
+
+      **Unverified on a device.** The layout is asserted by widget test at
+      320 px in fa and en, and the routing by unit test, but nothing here has
+      been run on hardware — the repo has no landing preview harness and the
+      full web target does not build.
+
+- [x] **Unified QR carrying `protocolVersion, sessionId, ssid, password`** —
+      and, with it, P0 §1's deferred half: a shared channel id, so two groups
+      on one café Wi-Fi stop hearing each other. The transport had no idea of a
+      channel at all; "the channel" meant "the subnet", so everything on that
+      LAN heard everything else by construction.
+
+      **The design problem was that the existing QR is a *standard Wi-Fi* QR**,
+      and that is load-bearing: iOS Camera and Android's own scanner both offer
+      a one-tap "join this network" when they read it, which is the fastest
+      route onto a hotspot the app has. A Tarkk-specific payload would have
+      bought the channel id at the cost of that path. So the channel rides
+      **inside** the Wi-Fi payload as a `TARK1:` field. The format is a list of
+      `KEY:value;` pairs and scanners skip keys they do not know — not an
+      assumption but the format's own history, since WPA3 added `K:` and every
+      pre-existing scanner had to keep working. The version lives in the *key*
+      rather than the value, so a future `TARK2:` is an unknown key to this
+      build (ignored, open channel) rather than a value it would misparse.
+
+      - [x] [`ChannelId`](lib/core/identity/channel_id.dart) — 24 bits shown as
+            six hex characters, because it is read aloud through a helmet at
+            least as often as it is scanned. `ChannelId.open` (zero) is a legal
+            value meaning "I have not asked to be separated from anyone"
+      - [x] [`ChannelGate`](lib/feature/transfer/domain/service/channel_gate.dart) —
+            admits when the ids match **or either side is open**. Only
+            *named ≠ named* drops anything
+      - [x] Wire v4 (`0x0C/0x0D/0x0E`) carries it after the epoch, for the same
+            reason the epoch is in the header: an audio packet ends in a
+            variable-length payload, so nothing can be appended to it. Presence-
+            only would have admitted a neighbouring channel's audio until its
+            next presence tick — up to two seconds of someone else's
+            conversation
+      - [x] **v4 is emitted only while a channel is named.** Every zero-setup
+            Wi-Fi session, every Bluetooth link and every browser guest keeps
+            sending v3, byte for byte what it sent before — asserted. The four
+            bytes are real on the transport that can least afford them (RFCOMM
+            caps in-flight audio writes), and a version bump that costs
+            bandwidth should be paid by packets that carry something for it
+      - [x] Gated in the Wi-Fi receive path *before* the epoch gate: a packet
+            from another conversation is not a peer of ours at all, so it must
+            not claim a slot in the epoch gate's per-sender map any more than
+            it may refresh the peer map, heard list or route pin
+      - [x] `channel=` on the session log, plus `otherChannels=N(M pkts)` when
+            we are excluding anyone. That counter is the only drop class that
+            is *good* news — it says there is a second group in earshot and we
+            are correctly ignoring them, which is exactly the question behind
+            "why can't my friend hear me on this Wi-Fi"
+      - [x] Start-a-channel names one; join deliberately does not, and stays
+            open. A joiner who has not scanned has said nothing about which
+            conversation they are in, and inventing one for them would exclude
+            them from every group on the network including the one they meant
+      - [x] Tests: [channel_id_test.dart](test/channel_id_test.dart) (value,
+            gate, membership, both payload shapes), plus a `channel id` group in
+            [waki_packet_codec_test.dart](test/waki_packet_codec_test.dart)
+      - [x] fa + en strings, README, website FAQ + mirrored JSON-LD
+
+      **What this is not.** The id travels in clear on every packet and anyone
+      can set theirs to match, so it separates channels and does not protect
+      them. Calling it privacy would be the kind of claim that stops people
+      taking the real limits seriously.
+
+      **The half that is left**, and it is the half that closes the café case
+      completely: on plain Wi-Fi there is nowhere yet to *show* a code or type
+      one in — the host screen that displays it only exists in the hotspot
+      flow. So two groups are separated as soon as one person in each has
+      started a channel, but a joiner who tapped straight through still hears
+      both. The intended answer is not a mandatory pairing step: the transport
+      can already see it is excluding traffic (`otherChannels`), so the channel
+      screen can offer "2 groups here — enter a code" only once there provably
+      are two. Filed below.
+
+- [ ] Channel code on plain Wi-Fi: show the host's code in the channel, and
+      offer code entry — but only when `otherChannels` proves a second group is
+      present, so the zero-setup path keeps costing nothing
+- [ ] `transport` and `hostAddress` in the payload. Deliberately left out:
+      transport is implied by which payload shape was scanned, and a host
+      address is a discovery shortcut rather than a separation mechanism —
+      landing it here would make the first field report ambiguous between "the
+      channel worked" and "the address hint worked"
 - [ ] Preflight check (~0.5–1 s): mic, headset, network, audio route — surfaced
-      *before* entering the room
+      *before* entering the channel
 - [x] **A host announces itself only on its own AP.** Found in a field test:
       host on home Wi-Fi *and* hosting, joiner on the AP, both entered the
       channel, neither ever heard the other — two halves of one session on two
-      subnets, both screens reporting an empty room while every other
+      subnets, both screens reporting an empty channel while every other
       diagnostic read healthy. The discovery posture sprays every private
       subnet, which is right while looking for peers and wrong for a host that
       already knows where they are.
@@ -678,7 +871,7 @@ that nobody has touched** — the tree predates the formatter version in the
 current SDK. A `--set-exit-if-changed` step would fail on day one. Land the
 reformat as its own isolated commit *before* switching CI on, so the noise
 never lands in a review diff. `flutter analyze` and `flutter test` are both
-clean today (419 tests), so those two can be enabled immediately.
+clean today (512 tests), so those two can be enabled immediately.
 
 ---
 
@@ -704,7 +897,7 @@ this list.
 
 ## Explicitly out of scope
 
-Smartwatch · backend / accounts / database · cloud rooms & remote signaling ·
+Smartwatch · backend / accounts / database · cloud channels & remote signaling ·
 social features · WebRTC / web guests (low priority — core value is offline P2P).
 
 > Core focus: **phone-to-phone, no internet, reliable voice.**

@@ -151,6 +151,42 @@ class AppLocalizationsEn extends AppLocalizations {
   String get connect_via_hotspot => 'CONNECT VIA HOTSPOT';
 
   @override
+  String get channel_create => 'START A CHANNEL';
+
+  @override
+  String get channel_join => 'JOIN A CHANNEL';
+
+  @override
+  String get channel_via_shared_network => 'on this WiFi network';
+
+  @override
+  String get channel_via_own_hotspot => 'this phone makes the network';
+
+  @override
+  String get channel_via_scan_code => 'scan the other phone\'s code';
+
+  @override
+  String get channel_via_bluetooth => 'over Bluetooth, no network needed';
+
+  @override
+  String get channel_via_guest => 'invite a browser guest';
+
+  @override
+  String get channel_via_no_network => 'no network to use yet';
+
+  @override
+  String get channel_different_network => 'Not on the same network?';
+
+  @override
+  String get channel_pinned_note => 'picked by hand';
+
+  @override
+  String get transport_automatic => 'AUTOMATIC';
+
+  @override
+  String get channel_code_label => 'CHANNEL CODE';
+
+  @override
   String get leave_channel => 'LEAVE CHANNEL';
 
   @override
@@ -799,6 +835,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_section_connection => 'CONNECTION';
 
   @override
+  String get settings_section_transport => 'HOW PHONES LINK UP';
+
+  @override
+  String get settings_transport_desc =>
+      'Tarkk picks the link that suits wherever you are. Pin one only if you have a reason to.';
+
+  @override
   String get settings_section_startup => 'WHEN THE APP OPENS';
 
   @override
@@ -964,7 +1007,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onboarding_mode_title => 'How will you connect?';
 
   @override
-  String get onboarding_mode_help => 'You can switch this anytime in Settings.';
+  String get onboarding_mode_help =>
+      'Leave it automatic and Tarkk works this out each time. You can pin one later in Advanced settings.';
+
+  @override
+  String get onboarding_mode_auto_desc =>
+      'Tarkk picks — same WiFi, its own hotspot, or Bluetooth';
 
   @override
   String get onboarding_mode_wifi_desc =>
