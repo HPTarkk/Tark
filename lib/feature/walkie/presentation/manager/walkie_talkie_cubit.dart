@@ -949,6 +949,17 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
       emit(state.copyWith(isStartingSystemAudio: false));
       return;
     }
+    // #29 checkpoint 4 diagnostic: capture only starts at all if Android
+    // granted the exact format requested (see SystemAudioCaptureService's
+    // AudioRecord.Builder), so a successful `started` already proves this —
+    // logged so a `.tarklog` export states the confirmed HD capture format
+    // for every real cast, not just the legacy path MusicMixer consumes.
+    Logger.diagnostic(
+      'music cast: capture started — legacy 16k mono feeds MusicMixer; '
+      'HD capture confirmed at ${SystemAudioCapture.hdFormat.label} '
+      '(${SystemAudioCapture.hdFormat.sampleRateHz}Hz/'
+      '${SystemAudioCapture.hdFormat.channels}ch), unwired pending #30',
+    );
     await _musicSub?.cancel();
     _musicSilentSince = DateTime.now();
     _musicEverAudible = false;

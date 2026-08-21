@@ -16,12 +16,14 @@ import '../../../../core/utils/logger.dart';
 import '../../domain/entity/audio_profile.dart';
 import '../../domain/entity/connection_health.dart';
 import '../../domain/entity/control_packet.dart';
+import '../../domain/entity/opus_tuning.dart';
 import '../../domain/entity/session_role.dart';
 import '../../domain/entity/transport_stats.dart';
 import '../../domain/entity/waki_packet.dart';
 import '../../domain/repository/wifi_transfer_repository.dart';
 import '../../domain/service/audio_capability_negotiator.dart';
 import '../../domain/service/host_subnet_filter.dart';
+import '../../domain/service/media_opus_tuner.dart';
 import '../../domain/service/recovery_ladder.dart';
 import '../../domain/service/opus_tuner.dart';
 import '../../domain/service/peer_loss_tracker.dart';
@@ -311,6 +313,42 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
       'wifi: negotiated media profile ${previous?.label ?? 'none'} -> '
       '${resolved?.label ?? 'none'}',
     );
+  }
+
+  /// #29 checkpoint 4's diagnostic-only counterpart of the tuning
+  /// [_measureLink] applies to [_codec] via [OpusTuner.forProfile]. There is
+  /// no media codec instance here to apply this to yet (that's #30's job —
+  /// see [_syncMediaFormatProfile]'s doc) so this exists purely to answer
+  /// "what would the media policy pick right now" for [_mediaOpusSummary],
+  /// from the same measured link [_lastRtt]/[_loss] already feed the voice
+  /// tuner. Null whenever no media profile is currently negotiated.
+  OpusTuning? _mediaTuning;
+
+  /// Recomputes [_mediaTuning] from the same link measurement
+  /// [_measureLink] just fed the voice tuner. Cheap bookkeeping — no codec,
+  /// no allocation beyond one [OpusTuning] value — so it costs nothing to
+  /// call on every measurement tick even while nothing is casting.
+  void _updateMediaTuning() {
+    final profile = _negotiatedMediaFormat;
+    _mediaTuning = profile == null
+        ? null
+        : MediaOpusTuner.forProfile(profile).tune(
+            AudioLinkConditions(
+              lossFraction: _loss.worstLossFraction,
+              rtt: _lastRtt,
+            ),
+          );
+  }
+
+  /// The media analog of [_opusSummary], for the session log line — what the
+  /// #29 media bitrate policy currently computes, whether or not anything is
+  /// actually casting. `media=none` when no peer has negotiated an HD media
+  /// profile.
+  String _mediaOpusSummary() {
+    final format = _negotiatedMediaFormat;
+    final tuning = _mediaTuning;
+    if (format == null || tuning == null) return 'media=none';
+    return 'media=${format.label}/${tuning.bitrate ~/ 1000}kbps';
   }
 
   /// Packets belonging to a *different* conversation on this network, dropped
@@ -707,7 +745,7 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
       'channel=${_membership.current.code ?? 'open'} '
       '${otherChannels == 0 ? '' : 'otherChannels=$otherChannelCount($otherChannels pkts) '}'
       'rtt=${_lastRtt?.inMilliseconds ?? '?'}ms '
-      'txLoss=${_lossSummary()} opus=${_opusSummary()} '
+      'txLoss=${_lossSummary()} opus=${_opusSummary()} ${_mediaOpusSummary()} '
       '${_unicastUnconfirmed ? 'UNICAST-UNCONFIRMED ' : ''}'
       'local=$_localAddresses '
       'bcast=${_broadcastTargets.map((a) => a.address).toList()}'
@@ -990,6 +1028,7 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     _codec.setFormatProfile(AudioFormatProfile.legacy16k);
     _mediaCapabilities.clear();
     _negotiatedMediaFormat = null;
+    _mediaTuning = null;
     _rxBySender.clear();
     _senderAtAddress.clear();
     _narrowedTo = const {};
@@ -1545,6 +1584,7 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
         ),
       ),
     );
+    _updateMediaTuning();
 
     // Peers that have gone silent on unicast while still being heard. Recorded
     // as a flag the send path can read for free.
