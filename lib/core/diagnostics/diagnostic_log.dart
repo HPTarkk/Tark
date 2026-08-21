@@ -101,6 +101,14 @@ abstract final class DiagnosticLog {
 
   static bool get isEnabled => _enabled;
 
+  /// Whether logging has a writable directory behind it, as opposed to
+  /// memory-only (ring buffer only, lost on process death). Preflight's
+  /// diagnostics-readiness check (#33) is the reason this needs to be public:
+  /// [sizeOnDisk] and [export] already degrade silently when there is no
+  /// directory, which is the right behavior for them but leaves no signal a
+  /// caller can act on.
+  static bool get isPersisting => _dir != null;
+
   /// The ceiling currently in force, in bytes. Always within [LogBudget]'s
   /// range — see [setMaxBytes].
   static int get maxBytes => _maxBytes;

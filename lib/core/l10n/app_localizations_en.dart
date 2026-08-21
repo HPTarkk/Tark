@@ -1371,4 +1371,41 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get fix_repair_link => 'Repair link';
+
+  @override
+  String get preflight_check_hd_voice => 'HD Voice';
+
+  @override
+  String get preflight_hd_voice_ready => 'HD Voice ready';
+
+  @override
+  String get preflight_hd_voice_negotiated_hd =>
+      'HD Voice — negotiated with your peer';
+
+  @override
+  String get preflight_hd_voice_standard =>
+      'Standard voice — your peer doesn\'t support HD yet';
+
+  @override
+  String get preflight_check_shared_music => 'Shared Music';
+
+  @override
+  String get preflight_shared_music_available => 'Available';
+
+  @override
+  String get preflight_shared_music_unavailable =>
+      'Not supported on this device';
+
+  @override
+  String get preflight_check_diagnostics => 'Diagnostics';
+
+  @override
+  String get preflight_diagnostics_ok => 'Ready to record support evidence';
+
+  @override
+  String get preflight_diagnostics_memory_only =>
+      'Recording, but won\'t survive the app closing';
+
+  @override
+  String get preflight_diagnostics_disabled => 'Turned off';
 }

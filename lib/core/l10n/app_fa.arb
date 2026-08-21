@@ -408,5 +408,16 @@
     "check_heard_unheard": "چیزی که می‌فرستی نمی‌رسد — در حال ترمیم",
     "issue_unheard_title": "صدایت را نمی‌شنوند",
     "issue_unheard_body": "تو آن‌ها را می‌شنوی، ولی چیزی که می‌گویی به مقصد نمی‌رسد. اتصال دارد خودکار ترمیم می‌شود؛ اگر برنگشت، از کانال بیرون برو و دوباره وارد شو.",
-    "fix_repair_link": "ترمیم اتصال"
+    "fix_repair_link": "ترمیم اتصال",
+    "preflight_check_hd_voice": "صدای باکیفیت",
+    "preflight_hd_voice_ready": "صدای باکیفیت آماده‌ست",
+    "preflight_hd_voice_negotiated_hd": "صدای باکیفیت — با طرف مقابل هماهنگ شد",
+    "preflight_hd_voice_standard": "صدای معمولی — طرف مقابل هنوز صدای باکیفیت رو پشتیبانی نمی‌کنه",
+    "preflight_check_shared_music": "آهنگ مشترک",
+    "preflight_shared_music_available": "در دسترسه",
+    "preflight_shared_music_unavailable": "روی این گوشی پشتیبانی نمی‌شه",
+    "preflight_check_diagnostics": "گزارش فنی",
+    "preflight_diagnostics_ok": "آماده‌ی ثبت شواهد پشتیبانیه",
+    "preflight_diagnostics_memory_only": "در حال ثبته، ولی با بسته شدن برنامه از بین می‌ره",
+    "preflight_diagnostics_disabled": "خاموشه"
 }

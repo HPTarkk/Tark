@@ -408,5 +408,16 @@
     "check_heard_unheard": "Nothing you send is arriving — repairing",
     "issue_unheard_title": "They can't hear you",
     "issue_unheard_body": "You're receiving them, but nothing you send is getting through. Repairing the link automatically — if it doesn't come back, leave and rejoin the channel.",
-    "fix_repair_link": "Repair link"
+    "fix_repair_link": "Repair link",
+    "preflight_check_hd_voice": "HD Voice",
+    "preflight_hd_voice_ready": "HD Voice ready",
+    "preflight_hd_voice_negotiated_hd": "HD Voice — negotiated with your peer",
+    "preflight_hd_voice_standard": "Standard voice — your peer doesn't support HD yet",
+    "preflight_check_shared_music": "Shared Music",
+    "preflight_shared_music_available": "Available",
+    "preflight_shared_music_unavailable": "Not supported on this device",
+    "preflight_check_diagnostics": "Diagnostics",
+    "preflight_diagnostics_ok": "Ready to record support evidence",
+    "preflight_diagnostics_memory_only": "Recording, but won't survive the app closing",
+    "preflight_diagnostics_disabled": "Turned off"
 }

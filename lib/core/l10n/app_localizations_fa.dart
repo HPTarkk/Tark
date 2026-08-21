@@ -1366,4 +1366,41 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get fix_repair_link => 'ترمیم اتصال';
+
+  @override
+  String get preflight_check_hd_voice => 'صدای باکیفیت';
+
+  @override
+  String get preflight_hd_voice_ready => 'صدای باکیفیت آماده‌ست';
+
+  @override
+  String get preflight_hd_voice_negotiated_hd =>
+      'صدای باکیفیت — با طرف مقابل هماهنگ شد';
+
+  @override
+  String get preflight_hd_voice_standard =>
+      'صدای معمولی — طرف مقابل هنوز صدای باکیفیت رو پشتیبانی نمی‌کنه';
+
+  @override
+  String get preflight_check_shared_music => 'آهنگ مشترک';
+
+  @override
+  String get preflight_shared_music_available => 'در دسترسه';
+
+  @override
+  String get preflight_shared_music_unavailable =>
+      'روی این گوشی پشتیبانی نمی‌شه';
+
+  @override
+  String get preflight_check_diagnostics => 'گزارش فنی';
+
+  @override
+  String get preflight_diagnostics_ok => 'آماده‌ی ثبت شواهد پشتیبانیه';
+
+  @override
+  String get preflight_diagnostics_memory_only =>
+      'در حال ثبته، ولی با بسته شدن برنامه از بین می‌ره';
+
+  @override
+  String get preflight_diagnostics_disabled => 'خاموشه';
 }

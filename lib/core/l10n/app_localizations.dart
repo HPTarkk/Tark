@@ -62,7 +62,8 @@ import 'app_localizations_fa.dart';
 /// be consistent with the languages listed in the AppLocalizations.supportedLocales
 /// property.
 abstract class AppLocalizations {
-  AppLocalizations(String locale) : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+  AppLocalizations(String locale)
+    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -70,7 +71,8 @@ abstract class AppLocalizations {
     return Localizations.of<AppLocalizations>(context, AppLocalizations);
   }
 
-  static const LocalizationsDelegate<AppLocalizations> delegate = _AppLocalizationsDelegate();
+  static const LocalizationsDelegate<AppLocalizations> delegate =
+      _AppLocalizationsDelegate();
 
   /// A list of this localizations delegate along with the default localizations
   /// delegates.
@@ -82,17 +84,18 @@ abstract class AppLocalizations {
   /// Additional delegates can be added by appending to this list in
   /// MaterialApp. This list does not have to be used at all if a custom list
   /// of delegates is preferred or required.
-  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates = <LocalizationsDelegate<dynamic>>[
-    delegate,
-    GlobalMaterialLocalizations.delegate,
-    GlobalCupertinoLocalizations.delegate,
-    GlobalWidgetsLocalizations.delegate,
-  ];
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
+      <LocalizationsDelegate<dynamic>>[
+        delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
-    Locale('fa')
+    Locale('fa'),
   ];
 
   /// No description provided for @app_name.
@@ -2554,9 +2557,76 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'ترمیم اتصال'**
   String get fix_repair_link;
+
+  /// No description provided for @preflight_check_hd_voice.
+  ///
+  /// In fa, this message translates to:
+  /// **'صدای باکیفیت'**
+  String get preflight_check_hd_voice;
+
+  /// No description provided for @preflight_hd_voice_ready.
+  ///
+  /// In fa, this message translates to:
+  /// **'صدای باکیفیت آماده‌ست'**
+  String get preflight_hd_voice_ready;
+
+  /// No description provided for @preflight_hd_voice_negotiated_hd.
+  ///
+  /// In fa, this message translates to:
+  /// **'صدای باکیفیت — با طرف مقابل هماهنگ شد'**
+  String get preflight_hd_voice_negotiated_hd;
+
+  /// No description provided for @preflight_hd_voice_standard.
+  ///
+  /// In fa, this message translates to:
+  /// **'صدای معمولی — طرف مقابل هنوز صدای باکیفیت رو پشتیبانی نمی‌کنه'**
+  String get preflight_hd_voice_standard;
+
+  /// No description provided for @preflight_check_shared_music.
+  ///
+  /// In fa, this message translates to:
+  /// **'آهنگ مشترک'**
+  String get preflight_check_shared_music;
+
+  /// No description provided for @preflight_shared_music_available.
+  ///
+  /// In fa, this message translates to:
+  /// **'در دسترسه'**
+  String get preflight_shared_music_available;
+
+  /// No description provided for @preflight_shared_music_unavailable.
+  ///
+  /// In fa, this message translates to:
+  /// **'روی این گوشی پشتیبانی نمی‌شه'**
+  String get preflight_shared_music_unavailable;
+
+  /// No description provided for @preflight_check_diagnostics.
+  ///
+  /// In fa, this message translates to:
+  /// **'گزارش فنی'**
+  String get preflight_check_diagnostics;
+
+  /// No description provided for @preflight_diagnostics_ok.
+  ///
+  /// In fa, this message translates to:
+  /// **'آماده‌ی ثبت شواهد پشتیبانیه'**
+  String get preflight_diagnostics_ok;
+
+  /// No description provided for @preflight_diagnostics_memory_only.
+  ///
+  /// In fa, this message translates to:
+  /// **'در حال ثبته، ولی با بسته شدن برنامه از بین می‌ره'**
+  String get preflight_diagnostics_memory_only;
+
+  /// No description provided for @preflight_diagnostics_disabled.
+  ///
+  /// In fa, this message translates to:
+  /// **'خاموشه'**
+  String get preflight_diagnostics_disabled;
 }
 
-class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
+class _AppLocalizationsDelegate
+    extends LocalizationsDelegate<AppLocalizations> {
   const _AppLocalizationsDelegate();
 
   @override
@@ -2565,25 +2635,26 @@ class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> 
   }
 
   @override
-  bool isSupported(Locale locale) => <String>['en', 'fa'].contains(locale.languageCode);
+  bool isSupported(Locale locale) =>
+      <String>['en', 'fa'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
 }
 
 AppLocalizations lookupAppLocalizations(Locale locale) {
-
-
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
-    case 'en': return AppLocalizationsEn();
-    case 'fa': return AppLocalizationsFa();
+    case 'en':
+      return AppLocalizationsEn();
+    case 'fa':
+      return AppLocalizationsFa();
   }
 
   throw FlutterError(
     'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
     'an issue with the localizations generation tool. Please file an issue '
     'on GitHub with a reproducible sample app and the gen-l10n configuration '
-    'that was used.'
+    'that was used.',
   );
 }
