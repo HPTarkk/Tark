@@ -85,6 +85,20 @@ abstract interface class AudioEngine {
   /// point. See [RidingPreset.playbackGain].
   void setPlaybackGain(double gain);
 
+  /// #31 — whether the local mic's VOX gate is open right now, i.e. this
+  /// device is transmitting. One of the two "duck shared music" triggers
+  /// alongside remote voice actually arriving (which this engine already
+  /// knows on its own, from the voice jitter buffer draining) — pushed
+  /// rather than derived here because VOX lives in `WalkieTalkieCubit`, not
+  /// this engine.
+  void setLocalVoiceActive(bool active);
+
+  /// #31 — master on/off for Smart Music Ducking. Off leaves shared-music
+  /// gain completely unchanged, including releasing a duck already in
+  /// progress the instant this is set to `false` — never merely "stop
+  /// ducking further".
+  void setSmartMusicDuckingEnabled(bool enabled);
+
   /// Feed received network audio (PCM at the active [AudioFormatProfile]'s
   /// rate) into the jitter buffer, upsampling to the device's output rate
   /// first.

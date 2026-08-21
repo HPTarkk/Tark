@@ -340,6 +340,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
 
     _audioEngine.setNoiseSuppression(noiseSuppression);
     _audioEngine.setNoiseSuppressionEngine(noiseSuppressionEngine);
+    _audioEngine.setSmartMusicDuckingEnabled(smartMusicDuckingEnabled);
     // Attached before start() so no status event can fire and be missed —
     // the controller is a plain broadcast stream, not a replay one.
     _statusSub = _resources.register(
@@ -724,6 +725,13 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     final voxLevel = _noiseFloor.thresholdFor(state.voxMargin);
     final gateOpen = _voxGate.advance(frame.rms, voxLevel);
     final voiceOpen = gateOpen && !state.isSelfMuted;
+    // #31's "local VOX gate open" duck trigger — deliberately voiceOpen, not
+    // isTransmitting below: isTransmitting is also true while musicKeysVoice
+    // (legacy mode) keys the channel with silence to carry a music cast, and
+    // ducking your own shared music because your own cast is keying the
+    // channel would be backwards. A field write every frame is negligible
+    // next to VOX/noise-floor tracking already running here.
+    _audioEngine.setLocalVoiceActive(voiceOpen);
     if (isOnline && voiceOpen != _prevVoiceOpen) {
       // Only on open, not close. VOX keys up and down far more often than a
       // human pressing PTT ever would — every natural pause in speech long
@@ -1576,15 +1584,13 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     await _settingsRepository.setAutoReconnectEnabled(enabled);
   }
 
-  /// #31 — no transport/engine call here by design: unlike auto-reconnect,
-  /// ducking is a local playback-mix concern, so flipping this can never
-  /// itself cause a reconnect. Not yet consumed by the receive-side mix —
-  /// this checkpoint only lands the persisted setting and its live-session
-  /// mirror; a later checkpoint wires [state.smartMusicDuckingEnabled] into
-  /// [MusicDuckingEnvelope].
+  /// #31 — pushes straight to [AudioEngine], not through [_transferRepository]
+  /// or anything reconnect-adjacent: ducking is a local playback-mix
+  /// concern, so flipping this can never itself cause a reconnect.
   Future<void> setSmartMusicDuckingEnabled(bool enabled) async {
     _useFeature(AppFeature.smartMusicDucking);
     emit(state.copyWith(smartMusicDuckingEnabled: enabled));
+    _audioEngine.setSmartMusicDuckingEnabled(enabled);
     await _settingsRepository.setSmartMusicDuckingEnabled(enabled);
   }
 
