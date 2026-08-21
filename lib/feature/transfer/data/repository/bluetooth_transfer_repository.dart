@@ -24,6 +24,7 @@ import '../../domain/entity/bluetooth_peer.dart';
 import '../../domain/repository/bluetooth_transport.dart';
 import '../../domain/repository/transfer_repository.dart';
 import '../../domain/service/audio_capability_negotiator.dart';
+import '../../domain/service/priority_write_scheduler.dart';
 import '../bluetooth/ble_bluetooth_engine.dart';
 import '../bluetooth/classic_bluetooth_engine.dart';
 import '../bluetooth/length_prefixed_framer.dart';
@@ -64,6 +65,15 @@ class BluetoothTransferRepository
   final SessionEpoch _epoch;
 
   late final _codec = WakiPacketCodec(_identity.id, _epoch);
+
+  /// #30: Bluetooth is the one transport with a single, shared, ordered
+  /// write pipe — a queued write here genuinely blocks whatever comes after
+  /// it, unlike WiFi's independent UDP sends or WebRTC's own outbound queue.
+  /// Voice/presence always drain before any pending media write; see
+  /// [PriorityWriteScheduler].
+  late final _writeScheduler = PriorityWriteScheduler<Uint8List>(
+    write: _writeNow,
+  );
 
   // Classic RFCOMM is a raw byte stream, so the repo reassembles frames for
   // it. The BLE engine frames internally and emits complete messages.
@@ -401,6 +411,10 @@ class BluetoothTransferRepository
     _connectedPeerId = null;
     _activeEngine = null;
     _classicFramer.reset();
+    // Stale writes from the session that just ended must not bleed into the
+    // next one — and any high-priority caller still waiting on one is freed
+    // rather than left hanging.
+    _writeScheduler.clear();
     _closeScan();
     unawaited(_classicEngine?.reset());
     unawaited(_bleEngine?.reset());
@@ -547,6 +561,9 @@ class BluetoothTransferRepository
     _connectedPeerId = null;
     _activeEngine = null;
     _classicFramer.reset();
+    // Same reasoning as [reset]'s own clear — a dropped session's queued
+    // writes have nowhere left to go.
+    _writeScheduler.clear();
     // What the departed peer advertised says nothing about whoever connects
     // next — clear rather than carry a stale mutual profile into a session
     // that hasn't confirmed anything yet.
@@ -625,7 +642,9 @@ class BluetoothTransferRepository
     }
   }
 
-  Future<void> _write(Uint8List payload) async {
+  /// The actual write to whichever engine is active — [PriorityWriteScheduler]
+  /// is what decides *when* this runs relative to other pending writes.
+  Future<void> _writeNow(Uint8List payload) async {
     switch (_activeEngine) {
       case 'ble':
         await _bleEngine?.write(payload);
@@ -659,7 +678,7 @@ class BluetoothTransferRepository
         return const Left(DataTransferFailure());
       }
       final payload = _codec.encodeAudio(samples, senderName, _audioSeq++);
-      await _write(payload);
+      await _writeScheduler.writeHighPriority(payload);
       return const Right(null);
     } catch (error) {
       Logger.log(error);
@@ -681,7 +700,10 @@ class BluetoothTransferRepository
         senderName,
         _mediaSeq++,
       );
-      await _write(payload);
+      // Fire-and-forget, on purpose: media never queues behind — or makes
+      // this call wait behind — anything voice/presence need to send. See
+      // [PriorityWriteScheduler.writeLowPriority].
+      _writeScheduler.writeLowPriority(payload);
       return const Right(null);
     } catch (error) {
       Logger.log(error);
@@ -703,7 +725,7 @@ class BluetoothTransferRepository
         isTalking,
         role: sessionRole,
       );
-      await _write(payload);
+      await _writeScheduler.writeHighPriority(payload);
       return const Right(null);
     } catch (error) {
       Logger.log(error);
