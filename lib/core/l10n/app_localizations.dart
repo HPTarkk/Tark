@@ -2737,6 +2737,36 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'صدات رو می‌شنوه'**
   String get preflight_peer_confirmed;
+
+  /// No description provided for @preflight_check_background.
+  ///
+  /// In fa, this message translates to:
+  /// **'کارکرد در پس‌زمینه'**
+  String get preflight_check_background;
+
+  /// No description provided for @preflight_background_ok.
+  ///
+  /// In fa, this message translates to:
+  /// **'برای خاموش شدن صفحه آماده‌ست'**
+  String get preflight_background_ok;
+
+  /// No description provided for @preflight_background_restricted.
+  ///
+  /// In fa, this message translates to:
+  /// **'تنظیمات باتری ممکنه با خاموش شدن صفحه ترک رو متوقف کنه'**
+  String get preflight_background_restricted;
+
+  /// No description provided for @preflight_background_notification_denied.
+  ///
+  /// In fa, this message translates to:
+  /// **'اعلان‌ها خاموشه — متوجه نمی‌شی جلسه هنوز روشنه'**
+  String get preflight_background_notification_denied;
+
+  /// No description provided for @preflight_fix_allow_notifications.
+  ///
+  /// In fa, this message translates to:
+  /// **'اجازه‌ی اعلان‌ها'**
+  String get preflight_fix_allow_notifications;
 }
 
 class _AppLocalizationsDelegate

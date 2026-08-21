@@ -1462,4 +1462,21 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get preflight_peer_confirmed => 'صدات رو می‌شنوه';
+
+  @override
+  String get preflight_check_background => 'کارکرد در پس‌زمینه';
+
+  @override
+  String get preflight_background_ok => 'برای خاموش شدن صفحه آماده‌ست';
+
+  @override
+  String get preflight_background_restricted =>
+      'تنظیمات باتری ممکنه با خاموش شدن صفحه ترک رو متوقف کنه';
+
+  @override
+  String get preflight_background_notification_denied =>
+      'اعلان‌ها خاموشه — متوجه نمی‌شی جلسه هنوز روشنه';
+
+  @override
+  String get preflight_fix_allow_notifications => 'اجازه‌ی اعلان‌ها';
 }

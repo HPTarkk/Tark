@@ -438,5 +438,10 @@
     "preflight_check_peer_reachability": "شنیده شدن",
     "preflight_peer_not_present": "هنوز کسی وارد نشده",
     "preflight_peer_unconfirmed": "منتظریم تأیید کنه که صدات رو می‌شنوه",
-    "preflight_peer_confirmed": "صدات رو می‌شنوه"
+    "preflight_peer_confirmed": "صدات رو می‌شنوه",
+    "preflight_check_background": "کارکرد در پس‌زمینه",
+    "preflight_background_ok": "برای خاموش شدن صفحه آماده‌ست",
+    "preflight_background_restricted": "تنظیمات باتری ممکنه با خاموش شدن صفحه ترک رو متوقف کنه",
+    "preflight_background_notification_denied": "اعلان‌ها خاموشه — متوجه نمی‌شی جلسه هنوز روشنه",
+    "preflight_fix_allow_notifications": "اجازه‌ی اعلان‌ها"
 }

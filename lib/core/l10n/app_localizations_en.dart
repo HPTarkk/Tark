@@ -1468,4 +1468,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get preflight_peer_confirmed => 'They can hear you';
+
+  @override
+  String get preflight_check_background => 'Background mode';
+
+  @override
+  String get preflight_background_ok => 'Ready for the screen to turn off';
+
+  @override
+  String get preflight_background_restricted =>
+      'Battery settings might stop Tarkk once the screen turns off';
+
+  @override
+  String get preflight_background_notification_denied =>
+      'Notifications are off — you won\'t see that a session is still running';
+
+  @override
+  String get preflight_fix_allow_notifications => 'ALLOW NOTIFICATIONS';
 }

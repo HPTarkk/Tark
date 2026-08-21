@@ -438,5 +438,10 @@
     "preflight_check_peer_reachability": "Being heard",
     "preflight_peer_not_present": "Nobody's joined yet",
     "preflight_peer_unconfirmed": "Waiting to hear back that they can hear you",
-    "preflight_peer_confirmed": "They can hear you"
+    "preflight_peer_confirmed": "They can hear you",
+    "preflight_check_background": "Background mode",
+    "preflight_background_ok": "Ready for the screen to turn off",
+    "preflight_background_restricted": "Battery settings might stop Tarkk once the screen turns off",
+    "preflight_background_notification_denied": "Notifications are off — you won't see that a session is still running",
+    "preflight_fix_allow_notifications": "ALLOW NOTIFICATIONS"
 }

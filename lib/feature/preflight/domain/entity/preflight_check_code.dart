@@ -28,6 +28,11 @@ abstract final class PreflightCheckCode {
   static const peerUnconfirmed = 'peer_unconfirmed';
   static const peerConfirmed = 'peer_confirmed';
 
+  // Check 6 — background execution readiness.
+  static const backgroundOk = 'background_ok';
+  static const backgroundNotificationDenied = 'background_notification_denied';
+  static const backgroundBatteryRestricted = 'background_battery_restricted';
+
   // Check 3 — audio profile/capability readiness.
   static const hdVoiceReady = 'hd_voice_ready';
   static const hdVoiceNegotiatedHd = 'hd_voice_negotiated_hd';

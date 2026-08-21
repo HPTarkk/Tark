@@ -90,6 +90,13 @@
          microphone. Qualified by CHANGE_WIFI_STATE (declared above). -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- Android 13+ requires this to show the keep-alive foreground service's
+         own notification; without it the service still runs, but silently -
+         the user has no visible sign the session survives backgrounding.
+         Preflight's background-readiness check (#33) is what surfaces the
+         missing permission as a fixable warning rather than leaving it
+         invisible. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
         android:label="تَرک"
         android:name="${applicationName}"
