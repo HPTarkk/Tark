@@ -33,6 +33,7 @@ import '../../domain/service/sender_route_pin.dart';
 import '../../domain/service/session_epoch_gate.dart';
 import '../../domain/service/session_role_store.dart';
 import '../../domain/service/transport_drop_counters.dart';
+import '../../domain/service/voice_quality_controller.dart';
 import '../codec/opus_audio_codec.dart';
 import '../codec/waki_packet_codec.dart';
 import '../hotspot/wifi_client_address.dart';
@@ -269,15 +270,32 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   /// this feeds it the *whole* heard roster rather than one peer.
   final AudioCapabilityNegotiator _capabilities = AudioCapabilityNegotiator();
 
+  /// #32 — the slow, hysteresis-gated "should voice actually run HD right
+  /// now" decision on top of [_capabilities]' static ceiling. Fed the same
+  /// [AudioLinkConditions] [OpusTuner.tune] already gets, so a link poor
+  /// enough to be at the bottom of the fast bitrate ladder is exactly the
+  /// evidence that eventually earns a real profile fallback too.
+  final VoiceQualityController _quality = VoiceQualityController();
+
+  /// Real wall-clock gap since [_quality] last advanced, since
+  /// [_syncFormatProfile] fires at two different, uneven cadences — every
+  /// presence packet (frequent, per-peer) and every [_pingPeers] tick — and
+  /// [VoiceQualityController]'s hysteresis windows are defined in real
+  /// elapsed time, not "however many calls." `null` reads as "no time has
+  /// passed yet" rather than a fabricated interval.
+  DateTime? _lastQualityAdvanceAt;
+
   AudioFormatProfile _negotiatedFormat = AudioFormatProfile.legacy16k;
 
   @override
   AudioFormatProfile get negotiatedFormat => _negotiatedFormat;
 
-  /// Recomputes the mutual profile from what's currently tracked and applies
-  /// it if it changed. Cheap to call on every presence tick — a no-op change
-  /// is the overwhelmingly common case — which is what keeps a negotiated
-  /// profile from flapping packet to packet.
+  /// Advances [_quality] toward whatever [_capabilities] currently allows
+  /// and applies the result if it changed. Cheap to call on every presence
+  /// tick — a no-op change is the overwhelmingly common case, and advancing
+  /// with no transition is itself cheap — which is what keeps a negotiated
+  /// profile from flapping packet to packet the way a bare capability-only
+  /// resolve once could.
   ///
   /// The log line doubles as #28's A/B evidence: everything measurable about
   /// the link at the moment it crossed from one profile to the other, so a
@@ -287,14 +305,28 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   /// transition from the other side of the negotiation. Subjective listening
   /// quality stays owner/field evidence; this only captures what's measured.
   void _syncFormatProfile() {
-    final resolved = _capabilities.resolve();
-    if (resolved == _negotiatedFormat) return;
-    final previous = _negotiatedFormat;
-    _negotiatedFormat = resolved;
-    _codec.setFormatProfile(resolved);
+    final now = DateTime.now();
+    final elapsedMs = _lastQualityAdvanceAt == null
+        ? 0
+        : now.difference(_lastQualityAdvanceAt!).inMilliseconds;
+    _lastQualityAdvanceAt = now;
+
+    final transition = _quality.advance(
+      conditions: AudioLinkConditions(
+        lossFraction: _loss.worstLossFraction,
+        rtt: _lastRtt,
+      ),
+      ceiling: _capabilities.resolve(),
+      elapsedMs: elapsedMs,
+    );
+    if (transition == null) return;
+
+    _negotiatedFormat = transition.to;
+    _codec.setFormatProfile(transition.to);
     Logger.diagnostic(
-      'wifi: negotiated audio profile ${previous.label} -> ${resolved.label} '
-      '| ${_opusSummary()} rtt=${_lastRtt?.inMilliseconds ?? '?'}ms',
+      'wifi: negotiated audio profile ${transition.from.label} -> '
+      '${transition.to.label} | reason=${transition.reason} '
+      '${_opusSummary()} rtt=${_lastRtt?.inMilliseconds ?? '?'}ms',
     );
   }
 
@@ -1074,6 +1106,8 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     // (worse, once HD is reachable) claim a profile before anyone on the new
     // session has said they support it.
     _capabilities.clear();
+    _quality.reset();
+    _lastQualityAdvanceAt = null;
     _negotiatedFormat = AudioFormatProfile.legacy16k;
     _codec.setFormatProfile(AudioFormatProfile.legacy16k);
     _mediaCapabilities.clear();
