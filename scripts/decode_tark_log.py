@@ -210,6 +210,41 @@ def _field(pattern: str, line: str) -> str | None:
     return m.group(1) if m else None
 
 
+def _tier_durations(
+    events: list[tuple[datetime | None, str, str]],
+    initial_state: str,
+    start: datetime,
+    end: datetime | None,
+) -> dict[str, float]:
+    """#32's "time-in-tier" ask: seconds spent in each state across
+    `[start, end)`, given `events` — a chronological `(at, from, to)` list of
+    every transition line found (e.g. #28's negotiated-profile line, #32's
+    media-transmission line). `initial_state` is what held from `start` until
+    the first event, since the app itself never logs "still on the tier it
+    started on."
+
+    Needs a real `end` to bound the final tier's span — an unclosed session
+    (no further timestamped line after its last one, so `SessionBlock.closed_at`
+    is `None`) has no defensible answer for "how long," so this returns `{}`
+    rather than guess. A transition with no per-line timestamp (never happens
+    in practice — only the opening banner lacks one, and banners are not
+    transition lines) is skipped for the same reason.
+    """
+    if end is None:
+        return {}
+    durations: dict[str, float] = {}
+    state = initial_state
+    cursor = start
+    for at, _from, to in events:
+        if at is None or at < cursor:
+            continue
+        durations[state] = durations.get(state, 0.0) + (at - cursor).total_seconds()
+        state = to
+        cursor = at
+    durations[state] = durations.get(state, 0.0) + (end - cursor).total_seconds()
+    return durations
+
+
 def analyze_session(block: SessionBlock) -> dict:
     """Extracts the privacy-safe field-test metrics from one [SessionBlock].
 
@@ -259,6 +294,72 @@ def analyze_session(block: SessionBlock) -> dict:
         m.group(1) for line in lines if (m := negotiation_re.search(line))
     ]
 
+    # #32: the same transitions, with timestamp and reason, for time-in-tier
+    # and upgrade/downgrade counts below — [_TIER_REASONS] mirrors
+    # AdaptiveTierGate's exact reason strings (see that class's `advance`)
+    # rather than a generic capture, the same "known marker, not a loose
+    # pattern" style every other counter in this analyzer already uses.
+    _TIER_REASONS = "sustained clean link|sustained poor link|capability ceiling dropped"
+    voice_transition_re = re.compile(
+        rf"negotiated audio profile (\S+) -> (\S+) \| reason=({_TIER_REASONS}) "
+    )
+    voice_events = [
+        (at, m.group(1), m.group(2))
+        for at, line in block.timestamped_lines
+        if (m := voice_transition_re.search(line))
+    ]
+    metrics["voice_profile_seconds"] = _tier_durations(
+        # "16k" — [AudioFormatProfile.legacy16k]'s wire *label*, the same
+        # string every negotiation line and [wire_profile_initial] already
+        # use, not the Dart constant's name.
+        voice_events,
+        "16k",
+        block.opened_at,
+        block.closed_at,
+    )
+    metrics["voice_upgrade_count"] = sum(
+        1
+        for _at, line in block.timestamped_lines
+        if voice_transition_re.search(line)
+        and "reason=sustained clean link" in line
+    )
+    metrics["voice_downgrade_count"] = sum(
+        1
+        for _at, line in block.timestamped_lines
+        if voice_transition_re.search(line) and "reason=sustained poor link" in line
+    )
+
+    # #32: MediaQualityController's suspended/active transitions — same shape
+    # as the voice ones above, kept separate since the two streams' tiers are
+    # not comparable (legacy16k/hd24k vs suspended/active) and mixing them
+    # into one time-in-tier map would silently conflate two different axes.
+    # No time-in-tier duration for media, deliberately: unlike voice (whose
+    # format applies for the whole session regardless of whether anyone is
+    # talking), [MediaQualityController] keeps advancing even while nothing
+    # is casting, so "seconds suspended" would misreport idle time between
+    # casts as media being throttled — [media_suspended_drops] below is the
+    # honest, cast-gated version of that same question (sendMedia only
+    # increments it for a frame that was actually withheld).
+    media_transition_re = re.compile(
+        rf"media transmission (\S+) -> (\S+) \| reason=({_TIER_REASONS}) "
+    )
+    metrics["media_transmission_events"] = [
+        f"{m.group(1)} -> {m.group(2)}"
+        for _at, line in block.timestamped_lines
+        if (m := media_transition_re.search(line))
+    ]
+    metrics["media_resume_count"] = sum(
+        1
+        for _at, line in block.timestamped_lines
+        if media_transition_re.search(line)
+        and "reason=sustained clean link" in line
+    )
+    metrics["media_suspend_count"] = sum(
+        1
+        for _at, line in block.timestamped_lines
+        if media_transition_re.search(line) and "reason=sustained poor link" in line
+    )
+
     # The periodic wifi summary line: last one wins for point-in-time values
     # (rtt, blocked/errs window), packets in/out are read from the last line
     # too since they are already-cumulative totals within the session.
@@ -271,6 +372,11 @@ def analyze_session(block: SessionBlock) -> dict:
         # existed.
         "media_packets_in": r"mediaIn=(\d+)\(",
         "media_packets_out": r"mediaOut=(\d+)\(",
+        # #32: media frames [_mediaQuality] withheld to protect voice/control
+        # from a link that can't carry both — "media drops performed to
+        # protect voice" from the roadmap's own diagnostics list, distinct
+        # from ordinary transport loss.
+        "media_suspended_drops": r"mediaSuspended=(\d+)\(",
         "recovery_peers": r"recovery=(\d+)",
         "dup_route": r"dupRoute=(\d+)",
         "stale_epoch": r"staleEpoch=(\d+)",
@@ -420,6 +526,16 @@ def format_report(header: dict, metrics: dict) -> str:
         f"-> end={metrics.get('wire_profile_final')} "
         f"({metrics.get('wire_hz_final')}Hz/{metrics.get('wire_frame_samples_final')}smp)",
         f"negotiations: {metrics.get('profile_negotiations') or 'none'}",
+        # #32: time-in-tier + upgrade/downgrade counts, so a session that
+        # spent 90% of its length in HD and flapped down once reads
+        # differently from one that spent 90% on the legacy floor.
+        f"voice time-in-tier(s): {metrics.get('voice_profile_seconds') or 'n/a'} "
+        f"upgrades={metrics.get('voice_upgrade_count')} "
+        f"downgrades={metrics.get('voice_downgrade_count')}",
+        f"media transmission: {metrics.get('media_transmission_events') or 'none'} "
+        f"resumes={metrics.get('media_resume_count')} "
+        f"suspends={metrics.get('media_suspend_count')} "
+        f"withheld(cumulative)={metrics.get('media_suspended_drops')}",
         "",
         "-- transport --",
         f"packets in={metrics.get('packets_in')} out={metrics.get('packets_out')} "

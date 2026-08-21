@@ -180,6 +180,83 @@ class MetricExtractionTest(unittest.TestCase):
         self.assertEqual(metrics["wire_frame_samples_final"], 480)
         self.assertEqual(metrics["profile_negotiations"], ["16k -> 24k-HD"])
 
+    def test_voice_time_in_tier_and_upgrade_downgrade_counts(self) -> None:
+        # #32: legacy16k for the first 10s, hd24k for the next 30s, back to
+        # legacy16k for the last 20s of a 60s session (opened at
+        # 08:00:00.000 per `_analyze`, closed by the final line at
+        # 08:01:00.000).
+        metrics = self._analyze(
+            [
+                "08:00:10.000 wifi: negotiated audio profile 16k -> 24k-HD "
+                "| reason=sustained clean link 24k-HD/24kbps/loss0%/fecon "
+                "rtt=12ms",
+                "08:00:40.000 wifi: negotiated audio profile 24k-HD -> 16k "
+                "| reason=sustained poor link 16k/12kbps/loss20%/fecon "
+                "rtt=200ms",
+                "08:01:00.000 wifi: in=0(+0) out=0(+0) mediaIn=0(+0) "
+                "mediaOut=0(+0) mediaSuspended=0(+0) over 15s peers=[] "
+                "recovery=0 heard=[] routes=[] pinned=[] dupRoute=0 "
+                "staleEpoch=0 epoch=1 channel=open rtt=200ms txLoss=? "
+                "opus=16k/12kbps/loss20%/fecon media=none local=[] "
+                "bcast=[] sendSocket=up rxSocket=up blocked=0 errs=0 "
+                "quietFor=0s",
+            ]
+        )
+        self.assertEqual(
+            metrics["voice_profile_seconds"],
+            {"16k": 30.0, "24k-HD": 30.0},
+        )
+        self.assertEqual(metrics["voice_upgrade_count"], 1)
+        self.assertEqual(metrics["voice_downgrade_count"], 1)
+
+    def test_tier_durations_needs_a_real_end_to_bound_the_final_tier(
+        self,
+    ) -> None:
+        # A session with no further timestamped line after its last one
+        # (`closed_at` is None — see `SessionBlock.closed_at`) has no honest
+        # answer for "how long was it in the final tier," so this returns
+        # `{}` rather than guess. Exercised directly against `_tier_durations`
+        # since a real analyzed session's `closed_at` is only None when
+        # *nothing* in the block carries a timestamp, which a transition line
+        # itself always does — not reachable by feeding lines through
+        # `_analyze`.
+        start = dtl.datetime(2026, 8, 19, 8, 0, 0)
+        at = dtl.datetime(2026, 8, 19, 8, 0, 10)
+        durations = dtl._tier_durations(
+            [(at, "16k", "24k-HD")], "16k", start, None
+        )
+        self.assertEqual(durations, {})
+
+    def test_media_transmission_events_and_suspended_drops(self) -> None:
+        # #32: media suspends 5s in, resumes at 50s, and the periodic wifi
+        # line's cumulative withheld-frame counter is read the same way
+        # media_packets_in/out already are.
+        metrics = self._analyze(
+            [
+                "08:00:05.000 wifi: media transmission active -> suspended "
+                "| reason=sustained poor link "
+                "media=48k-HD-stereo/32kbps/fecon/SUSPENDED rtt=200ms",
+                "08:00:50.000 wifi: media transmission suspended -> active "
+                "| reason=sustained clean link "
+                "media=48k-HD-stereo/64kbps/fecon/active rtt=12ms",
+                "08:01:00.000 wifi: in=0(+0) out=0(+0) mediaIn=0(+0) "
+                "mediaOut=0(+0) mediaSuspended=7(+7) over 15s peers=[] "
+                "recovery=0 heard=[] routes=[] pinned=[] dupRoute=0 "
+                "staleEpoch=0 epoch=1 channel=open rtt=12ms txLoss=? "
+                "opus=16k/12kbps/loss0%/fecon "
+                "media=48k-HD-stereo/64kbps/fecon/active local=[] "
+                "bcast=[] sendSocket=up rxSocket=up blocked=0 errs=0 "
+                "quietFor=0s",
+            ]
+        )
+        self.assertEqual(
+            metrics["media_transmission_events"],
+            ["active -> suspended", "suspended -> active"],
+        )
+        self.assertEqual(metrics["media_suspend_count"], 1)
+        self.assertEqual(metrics["media_resume_count"], 1)
+        self.assertEqual(metrics["media_suspended_drops"], "7")
+
     def test_recovery_event_markers_are_counted_independently(self) -> None:
         metrics = self._analyze(
             [
