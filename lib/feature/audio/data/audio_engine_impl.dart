@@ -5,6 +5,7 @@ import 'package:audio_io/audio_io.dart';
 import 'package:injectable/injectable.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../../core/audio/audio_format_profile.dart';
 import '../../../core/settings/noise_suppression_engine.dart';
 import '../../../core/settings/settings_repository.dart';
 import '../../../core/settings/suppression_plan.dart';
@@ -60,19 +61,31 @@ class AudioEngineImpl implements AudioEngine {
     await VoiceAudioSession.release();
   });
 
+  // The wire-format contract this engine currently runs. Always
+  // [AudioFormatProfile.legacy16k] until #28's negotiation lands (see
+  // `AudioFormatProfile.supported`) — held as a field rather than inlined so
+  // the negotiated-format work has one place to change it instead of a
+  // scattered search-and-replace. `final` today because nothing mutates it
+  // yet; becomes reassignable once negotiation can pick something else.
+  final AudioFormatProfile _activeProfile = AudioFormatProfile.legacy16k;
+
   AudioProcessor _processor = AudioProcessor(
-    sampleRate: kTxSampleRate.toDouble(),
+    sampleRate: AudioFormatProfile.legacy16k.sampleRateHz.toDouble(),
   );
 
-  // Noise suppression on the 16 kHz mic signal, applied BEFORE frames are
-  // emitted so both the VOX RMS decision and the visualizer see the cleaned
-  // signal. That's the point: with noise subtracted, a low VOX threshold no
-  // longer keys up on noise. Two suppressors, user-selectable in Advanced
-  // settings (either alone, or cascaded via NoiseSuppressionEngine.both) —
-  // both kept warm (reset when idle costs nothing) so switching engines
-  // mid-session doesn't need to rebuild anything.
-  final SpectralNoiseSuppressor _spectralSuppressor = SpectralNoiseSuppressor();
-  final RnnoiseSuppressor _rnnoiseSuppressor = RnnoiseSuppressor();
+  // Noise suppression on the mic signal, applied BEFORE frames are emitted so
+  // both the VOX RMS decision and the visualizer see the cleaned signal.
+  // That's the point: with noise subtracted, a low VOX threshold no longer
+  // keys up on noise. Two suppressors, user-selectable in Advanced settings
+  // (either alone, or cascaded via NoiseSuppressionEngine.both) — both kept
+  // warm (reset when idle costs nothing) so switching engines mid-session
+  // doesn't need to rebuild anything.
+  final SpectralNoiseSuppressor _spectralSuppressor = SpectralNoiseSuppressor(
+    sampleRateHz: AudioFormatProfile.legacy16k.sampleRateHz,
+  );
+  final RnnoiseSuppressor _rnnoiseSuppressor = RnnoiseSuppressor(
+    txRateHz: AudioFormatProfile.legacy16k.sampleRateHz,
+  );
   NoiseSuppressionEngine _suppressionEngine = NoiseSuppressionEngine.spectral;
   double _suppressionStrength = 0.0;
 
@@ -167,17 +180,17 @@ class AudioEngineImpl implements AudioEngine {
     if (!_statusController.isClosed) _statusController.add(status);
   }
 
-  // TX path: device mic rate → anti-alias filter → 16 kHz → fixed 20 ms frames.
-  // Two cascaded one-pole stages give a steeper (~12 dB/octave) rolloff than
-  // a single stage, which matters here: a gentle single-pole filter lets
-  // energy above the new Nyquist (8 kHz) fold back as audible hiss/noise
-  // when downsampling from 44.1/48 kHz to 16 kHz.
+  // TX path: device mic rate → anti-alias filter → _activeProfile's rate →
+  // fixed-size frames. Two cascaded one-pole stages give a steeper
+  // (~12 dB/octave) rolloff than a single stage, which matters here: a gentle
+  // single-pole filter lets energy above the new Nyquist fold back as audible
+  // hiss/noise when downsampling from 44.1/48 kHz to the wire rate.
   OnePoleLowPass? _txLowPassA;
   OnePoleLowPass? _txLowPassB;
   LinearResampler? _txResampler;
   final Float64Fifo _txAccum = Float64Fifo();
 
-  // RX path: 16 kHz network audio → device output rate.
+  // RX path: network audio at _activeProfile's rate → device output rate.
   LinearResampler? _rxResampler;
 
   @override
@@ -312,43 +325,39 @@ class AudioEngineImpl implements AudioEngine {
       // once per session start, where a fault is either present or absent —
       // and previously only on a debug build, i.e. never on the phone that
       // had the problem.
+      final profileRate = _activeProfile.sampleRateHz.toDouble();
       Logger.diagnostic(
         'audio: session started — capture ${inputRate.toStringAsFixed(0)}Hz, '
         'playback ${outputRate.toStringAsFixed(0)}Hz, '
-        'wire ${kTxSampleRate}Hz/${kFrameSamples}smp frames, '
+        'wire ${_activeProfile.sampleRateHz}Hz/${_activeProfile.frameSamples}smp '
+        'frames (${_activeProfile.label}), '
         'effectsSession=$sessionId, raw=$fmt',
       );
 
-      _processor = AudioProcessor(sampleRate: kTxSampleRate.toDouble());
+      _processor = AudioProcessor(sampleRate: profileRate);
       _spectralSuppressor.reset();
       _rnnoiseSuppressor.reset();
       // After the resets, not before: rnnoise's recreates the denoiser, so
       // availability — and with it the plan — can change here.
       _applySuppression();
 
-      if (inputRate > kTxSampleRate) {
+      if (inputRate > profileRate) {
         _txLowPassA = OnePoleLowPass(
           sampleRate: inputRate,
-          cutoffHz: kTxSampleRate * 0.45,
+          cutoffHz: profileRate * 0.45,
         );
         _txLowPassB = OnePoleLowPass(
           sampleRate: inputRate,
-          cutoffHz: kTxSampleRate * 0.45,
+          cutoffHz: profileRate * 0.45,
         );
       } else {
         _txLowPassA = null;
         _txLowPassB = null;
       }
-      _txResampler = LinearResampler(
-        inRate: inputRate,
-        outRate: kTxSampleRate.toDouble(),
-      );
+      _txResampler = LinearResampler(inRate: inputRate, outRate: profileRate);
       _txAccum.clear();
 
-      _rxResampler = LinearResampler(
-        inRate: kTxSampleRate.toDouble(),
-        outRate: outputRate,
-      );
+      _rxResampler = LinearResampler(inRate: profileRate, outRate: outputRate);
 
       // Via the profile, not getTargetBufferMs(): the riding preset anchors
       // the adaptive buffer deeper, and reading the raw preference here would
@@ -410,8 +419,9 @@ class AudioEngineImpl implements AudioEngine {
     if (plan.useSpectral) suppressed = _spectralSuppressor.process(suppressed);
     _txAccum.addAll(suppressed);
 
-    while (_txAccum.length >= kFrameSamples) {
-      final frame = _txAccum.takeFirst(kFrameSamples);
+    final frameSamples = _activeProfile.frameSamples;
+    while (_txAccum.length >= frameSamples) {
+      final frame = _txAccum.takeFirst(frameSamples);
       final rms = _computeRms(frame);
       _capFrames++;
       if (rms > _capPeakRms) _capPeakRms = rms;
@@ -462,7 +472,10 @@ class AudioEngineImpl implements AudioEngine {
     // but at two thirds of real time" is visible as a number rather than as a
     // vague complaint that voices sound wrong.
     final expected =
-        window.inMilliseconds * kTxSampleRate ~/ 1000 ~/ kFrameSamples;
+        window.inMilliseconds *
+        _activeProfile.sampleRateHz ~/
+        1000 ~/
+        _activeProfile.frameSamples;
     Logger.diagnostic(
       'capture: ${window.inSeconds}s window — callbacks=$_capCallbacks '
       'samplesIn=$_capSamplesIn frames=$frames/$expected '

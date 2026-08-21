@@ -11,10 +11,10 @@ import 'package:equatable/equatable.dart';
 /// ## What is not tuned, and why
 ///
 /// **Sample rate.** The roadmap asks for 24/48 kHz on a good link. That is not
-/// a codec setting here: the capture chain is 16 kHz end to end (`kTxSampleRate`
-/// — the mic resampler targets it, `AudioProcessor` is built at it, and a frame
-/// is 320 samples because of it), so raising it is a pipeline change on both
-/// ends plus a wire-format negotiation, not a CTL. Left for its own task.
+/// a codec setting here: it is `AudioFormatProfile` (`core/audio/`) — the mic
+/// resampler targets its rate, `AudioProcessor` is built at it, and a frame is
+/// sized by it — so raising it is a pipeline change on both ends plus a
+/// wire-format negotiation, not a CTL. See `AudioFormatProfile.supported`.
 ///
 /// **Audio bandwidth.** Left at libopus's own choice (`OPUS_AUTO`). Forcing
 /// narrowband on a weak link is the obvious lever and the wrong one: it strips

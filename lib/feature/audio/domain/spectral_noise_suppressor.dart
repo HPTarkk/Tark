@@ -1,14 +1,15 @@
 import 'dart:math';
 import 'dart:typed_data';
 
+import '../../../core/audio/audio_format_profile.dart';
 import 'float64_fifo.dart';
 
-/// Streaming spectral noise suppressor for the 16 kHz TX path.
+/// Streaming spectral noise suppressor for the TX path.
 ///
 /// Classic short-time spectral subtraction, the same family of algorithm
 /// used in two-way radios and VoIP noise reduction:
 ///
-///   1. STFT: sqrt-Hann windows of 256 samples (16 ms) with 50% overlap.
+///   1. STFT: sqrt-Hann windows with 50% overlap, sized in [_win] below.
 ///   2. Per-frequency-bin noise floor tracking: the estimate falls quickly
 ///      when a bin's power drops (silence between words) and creeps up
 ///      slowly otherwise, so it locks onto *stationary* noise — wind hiss,
@@ -25,39 +26,82 @@ import 'float64_fifo.dart';
 ///
 /// [strength] 0 disables (pure passthrough); 1 is maximum suppression
 /// (up to ~-30 dB on noise-only bins). The output is delayed by one hop
-/// (8 ms) relative to the input; output length always equals input length.
+/// relative to the input; output length always equals input length.
 class SpectralNoiseSuppressor {
-  static const int _win = 256;
-  static const int _hop = 128;
-  static const int _bins = _win ~/ 2; // bins 0.._bins (Nyquist inclusive)
+  /// [sampleRateHz] sizes the analysis window: the target is a 16 ms window
+  /// (matching [AudioFormatProfile.legacy16k]'s exact 256-sample result),
+  /// rounded UP to the FFT's required power-of-two — at 16 kHz that target is
+  /// already 256, exact; at 24 kHz the 16 ms-equivalent 384 samples isn't a
+  /// power of two, so this deliberately rounds up to 512 (≈21.3 ms) rather
+  /// than down to 256 (≈10.7 ms), a documented, slightly more conservative
+  /// window instead of a silently shrinking one. Keeps the existing
+  /// radix-2-only [_Fft] rather than taking on a mixed-radix/Bluestein
+  /// transform for an exact window at every rate. Defaults to
+  /// [AudioFormatProfile.legacy16k]'s rate — not a compile-time constant
+  /// default (field access on a const object isn't a constant expression in
+  /// Dart), so it's resolved here via a factory instead of inline.
+  factory SpectralNoiseSuppressor({int? sampleRateHz}) =>
+      SpectralNoiseSuppressor._(
+        _windowFor(sampleRateHz ?? AudioFormatProfile.legacy16k.sampleRateHz),
+      );
+
+  SpectralNoiseSuppressor._(int win)
+    : _win = win,
+      _hop = win ~/ 2,
+      _bins = win ~/ 2 {
+    _fft = _Fft(_win);
+    _window = _buildSqrtHann(_win);
+    _re = Float64List(_win);
+    _im = Float64List(_win);
+    _ola = Float64List(_win);
+    _pSm = Float64List(_bins + 1);
+    _noise = Float64List(_bins + 1);
+    _gain = Float64List(_bins + 1);
+    _gainSm = Float64List(_bins + 1);
+  }
+
+  /// STFT window/hop, in samples — see the constructor doc for how
+  /// [sampleRateHz] decides these. bins 0.._bins (Nyquist inclusive).
+  final int _win;
+  final int _hop;
+  final int _bins;
+
+  static int _windowFor(int sampleRateHz) {
+    final targetSamples = sampleRateHz * 16 ~/ 1000; // 16 ms-equivalent
+    var pot = 1;
+    while (pot < targetSamples) {
+      pot <<= 1;
+    }
+    return pot;
+  }
 
   /// Suppression strength, 0..1. Mutable so the UI slider takes effect
   /// immediately; 0 bypasses processing entirely.
   double strength = 0.0;
 
-  final _Fft _fft = _Fft(_win);
-  final Float64List _window = _buildSqrtHann();
+  late final _Fft _fft;
+  late final Float64List _window;
 
   // Unboxed ring buffers — see Float64Fifo: growable List<double> here boxed
   // every sample and shifted the remainder on each hop, i.e. steady GC churn
   // at audio rate.
   final Float64Fifo _inFifo = Float64Fifo();
   final Float64Fifo _outFifo = Float64Fifo();
-  final Float64List _re = Float64List(_win);
-  final Float64List _im = Float64List(_win);
-  final Float64List _ola = Float64List(_win);
-  final Float64List _pSm = Float64List(_bins + 1);
-  final Float64List _noise = Float64List(_bins + 1);
-  final Float64List _gain = Float64List(_bins + 1);
-  final Float64List _gainSm = Float64List(_bins + 1);
+  late final Float64List _re;
+  late final Float64List _im;
+  late final Float64List _ola;
+  late final Float64List _pSm;
+  late final Float64List _noise;
+  late final Float64List _gain;
+  late final Float64List _gainSm;
   int _hopsProcessed = 0;
 
-  static Float64List _buildSqrtHann() {
+  static Float64List _buildSqrtHann(int win) {
     // Periodic Hann: w²(n) sums to exactly 1 at 50% overlap, so
     // analysis+synthesis windowing reconstructs perfectly at unity gain.
-    final w = Float64List(_win);
-    for (var i = 0; i < _win; i++) {
-      w[i] = sqrt(0.5 * (1.0 - cos(2.0 * pi * i / _win)));
+    final w = Float64List(win);
+    for (var i = 0; i < win; i++) {
+      w[i] = sqrt(0.5 * (1.0 - cos(2.0 * pi * i / win)));
     }
     return w;
   }

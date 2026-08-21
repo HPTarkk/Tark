@@ -1,34 +1,30 @@
+import '../../../../core/audio/audio_format_profile.dart';
 import '../../../../core/settings/noise_suppression_engine.dart';
 import '../entity/audio_engine_status.dart';
 import '../entity/audio_frame.dart';
 
-// ── Wire format constants ───────────────────────────────────────────────────
-
-/// Sample rate audio is transmitted at. 16 kHz is plenty for intelligible
-/// voice (telephony-grade) and keeps bandwidth + per-packet size low so
-/// packets never fragment on the wire — the main source of dropouts when
-/// streaming raw mic-rate audio over UDP.
-const int kTxSampleRate = 16000;
-
-/// 20 ms per network frame: 320 samples @ 16 kHz × 2 bytes (PCM16) = 640
-/// bytes of payload, safely under the ~1472-byte UDP-safe MTU even with
-/// headers — guarantees one frame == one unfragmented IP packet.
-const int kFrameSamples = 320;
-
-/// Duplex audio engine: mic capture → DSP → fixed 16 kHz frames out, and
+/// Duplex audio engine: mic capture → DSP → fixed-format frames out, and
 /// received network audio → jitter buffer → speaker.
+///
+/// Wire format (sample rate, frame size) is [AudioFormatProfile.legacy16k]
+/// today — 16 kHz is plenty for intelligible voice (telephony-grade) and
+/// keeps per-packet size low so packets never fragment on the wire, the main
+/// source of dropouts when streaming raw mic-rate audio over UDP. #28
+/// introduces negotiating up to [AudioFormatProfile.hd24k] on capable links;
+/// see [AudioFormatProfile.supported].
 ///
 /// Implementations own the platform audio device. The process-wide device
 /// is a singleton while engine instances come and go per session, so
 /// implementations must guarantee that a stale [dispose] never tears down
 /// a newer session's engine (see AudioEngineImpl's epoch/lock guards).
 abstract interface class AudioEngine {
-  /// Audio-rate stream of fixed-size (20 ms @ 16 kHz) outgoing frames.
+  /// Audio-rate stream of fixed-size outgoing frames, sized per the active
+  /// [AudioFormatProfile].
   Stream<AudioFrame> get frames;
 
-  /// Audio-rate stream of incoming 16 kHz frames handed to [playReceived],
-  /// so the UI can show what the channel is playing rather than only what the
-  /// mic is hearing. Tapped off the wire, ahead of the jitter buffer.
+  /// Audio-rate stream of incoming frames handed to [playReceived], so the
+  /// UI can show what the channel is playing rather than only what the mic
+  /// is hearing. Tapped off the wire, ahead of the jitter buffer.
   Stream<AudioFrame> get receivedFrames;
 
   /// Emits whenever permission/started state changes.
@@ -41,7 +37,8 @@ abstract interface class AudioEngine {
   Future<void> start();
 
   /// Apply the audio processing chain (normalisation + high-pass + noise
-  /// gate) to a fixed-size 16 kHz mic frame before it is transmitted.
+  /// gate) to a fixed-size mic frame, sized per the active
+  /// [AudioFormatProfile], before it is transmitted.
   ///
   /// [voxLevel] is the **resolved** absolute level the VOX gate is comparing
   /// frames against this instant — `NoiseFloorTracker.thresholdFor`'s output,
@@ -73,8 +70,9 @@ abstract interface class AudioEngine {
   /// point. See [RidingPreset.playbackGain].
   void setPlaybackGain(double gain);
 
-  /// Feed received network audio (16 kHz PCM) into the jitter buffer,
-  /// upsampling to the device's output rate first.
+  /// Feed received network audio (PCM at the active [AudioFormatProfile]'s
+  /// rate) into the jitter buffer, upsampling to the device's output rate
+  /// first.
   /// [seq] is the sender's packet sequence number and [senderId] identifies
   /// which peer sent it — the jitter buffer tracks sequence gaps per sender
   /// so one participant's stream can't desync playback of another's (a WiFi

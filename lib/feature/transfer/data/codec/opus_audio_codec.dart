@@ -4,6 +4,7 @@ import 'package:opus_dart/opus_dart.dart';
 import 'package:opus_dart/wrappers/opus_defines.dart' as defines;
 import 'package:opus_flutter/opus_flutter.dart' as opus_flutter;
 
+import '../../../../core/audio/audio_format_profile.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entity/opus_tuning.dart';
 import '../../domain/service/fec_gap_tracker.dart';
@@ -11,16 +12,6 @@ import '../../domain/service/opus_tuner.dart';
 import 'controlled_opus.dart';
 import 'controlled_opus_stub.dart'
     if (dart.library.ffi) 'controlled_opus_ffi.dart';
-
-/// Samples in one transmitted frame: 20 ms at [kOpusSampleRate].
-///
-/// Opus only accepts exact frame durations (2.5/5/10/20/40/60 ms), so this is
-/// a hard constraint on the capture path rather than a tuning choice.
-const int kOpusFrameSamples = 320;
-
-/// The rate the whole transmit chain runs at — see `kTxSampleRate`, which this
-/// must agree with.
-const int kOpusSampleRate = 16000;
 
 /// What the transmit stream is carrying, which decides how libopus is told to
 /// model it.
@@ -69,7 +60,8 @@ class OpusDecodeResult {
   final List<double>? recoveredPrevious;
 }
 
-/// Opus codec for the 16 kHz mono transmit stream.
+/// Opus codec for the mono transmit stream, at [AudioFormatProfile.legacy16k]
+/// today — negotiating to a higher profile is #28's next step.
 ///
 /// PCM16 at 16 kHz costs 256 kbps on the wire — fine on an idle LAN, but on
 /// a lossy hotspot link between two motorcycles every dropped ~660-byte
@@ -193,13 +185,15 @@ class OpusAudioCodec {
   /// [FecGapTracker].
   final FecGapTracker _gaps = FecGapTracker();
 
-  /// Encodes one 20 ms / [kOpusFrameSamples]-sample frame. Returns null when
-  /// Opus is unavailable or the frame has an unexpected length (callers then
-  /// send PCM16 instead).
+  /// Encodes one frame sized per [AudioFormatProfile.legacy16k]. Returns null
+  /// when Opus is unavailable or the frame has an unexpected length (callers
+  /// then send PCM16 instead).
   Uint8List? encode(List<double> samples) {
     if (!_initialized) return null;
     // Opus only accepts exact frame sizes (2.5/5/10/20/40/60 ms).
-    if (samples.length != kOpusFrameSamples) return null;
+    if (samples.length != AudioFormatProfile.legacy16k.frameSamples) {
+      return null;
+    }
     try {
       final pcm = Int16List(samples.length);
       for (var i = 0; i < samples.length; i++) {
@@ -228,7 +222,7 @@ class OpusAudioCodec {
 
     final built = tryCreateControlledOpusEncoder(
       library: _library,
-      sampleRate: kOpusSampleRate,
+      sampleRate: AudioFormatProfile.legacy16k.sampleRateHz,
       channels: 1,
       application: _profile.applicationCode,
     );
@@ -249,7 +243,7 @@ class OpusAudioCodec {
       'codec: no controlled Opus encoder — encoding without in-band FEC',
     );
     final simpleEncoder = SimpleOpusEncoder(
-      sampleRate: kOpusSampleRate,
+      sampleRate: AudioFormatProfile.legacy16k.sampleRateHz,
       channels: 1,
       application: _profile.application,
     );
@@ -291,10 +285,12 @@ class OpusAudioCodec {
     if (!_initialized) return null;
     try {
       final controlled = _controlledDecoder(senderId);
-      if (controlled != null) return _decodeControlled(controlled, senderId, seq, packet);
+      if (controlled != null) {
+        return _decodeControlled(controlled, senderId, seq, packet);
+      }
 
       final decoder = _decoders[senderId] ??= SimpleOpusDecoder(
-        sampleRate: kOpusSampleRate,
+        sampleRate: AudioFormatProfile.legacy16k.sampleRateHz,
         channels: 1,
       );
       // Tracked even on this rung, which cannot recover anything: the sender
@@ -334,7 +330,10 @@ class OpusAudioCodec {
         // pulls out the redundant copy of the previous frame and leaves the
         // decoder positioned to decode this one next. The reverse order
         // produces the current frame twice.
-        recovered = decoder.decodeFec(packet, kOpusFrameSamples);
+        recovered = decoder.decodeFec(
+          packet,
+          AudioFormatProfile.legacy16k.frameSamples,
+        );
       } catch (e) {
         // The packet carried no usable FEC and concealment failed too. The gap
         // then falls through to the jitter buffer exactly as it did before.
@@ -355,7 +354,7 @@ class OpusAudioCodec {
     if (_decoders.containsKey(senderId)) return null; // already on the fallback
     final built = tryCreateControlledOpusDecoder(
       library: _library,
-      sampleRate: kOpusSampleRate,
+      sampleRate: AudioFormatProfile.legacy16k.sampleRateHz,
       channels: 1,
     );
     if (built == null) return null;
