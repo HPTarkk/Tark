@@ -895,11 +895,32 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     _txPrerollFrames = 0;
   }
 
+  /// Same line shape regardless of mode (#30) — `MediaFrameScheduler`
+  /// exposes the identical `dropouts`/`trims`/`floods`/`overflowDrops`/
+  /// `queuedSamples`/`prefillSamples` fields `MusicMixer` does, deliberately
+  /// (see that class's doc), so `decode_tark_log.py`'s existing
+  /// `music cast: ... samples queued ...` regex needs no change to parse
+  /// either source.
   void _logMusicHealth() {
     if (!state.isSharingSystemAudio) return;
-    final dropouts = _musicMixer.dropouts;
-    final trims = _musicMixer.trims;
-    final floods = _musicMixer.floods;
+    final int dropouts, trims, floods, queued, prefill, overflow;
+    if (_usingIndependentMedia) {
+      final s = _mediaScheduler;
+      if (s == null) return;
+      dropouts = s.dropouts;
+      trims = s.trims;
+      floods = s.floods;
+      queued = s.queuedSamples;
+      prefill = s.prefillSamples;
+      overflow = s.overflowDrops;
+    } else {
+      dropouts = _musicMixer.dropouts;
+      trims = _musicMixer.trims;
+      floods = _musicMixer.floods;
+      queued = _musicMixer.queuedSamples;
+      prefill = _musicMixer.prefillSamples;
+      overflow = _musicMixer.overflowDrops;
+    }
     if (dropouts == _lastMusicDropouts &&
         trims == _lastMusicTrims &&
         floods == _lastMusicFloods) {
@@ -909,9 +930,9 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     _lastMusicTrims = trims;
     _lastMusicFloods = floods;
     Logger.diagnostic(
-      'music cast: ${_musicMixer.queuedSamples} samples queued '
-      '(cushion ${_musicMixer.prefillSamples}) | dropouts=$dropouts '
-      'trims=$trims floods=$floods capOverflows=${_musicMixer.overflowDrops}',
+      'music cast: $queued samples queued '
+      '(cushion $prefill) | dropouts=$dropouts '
+      'trims=$trims floods=$floods capOverflows=$overflow',
     );
   }
 
@@ -981,7 +1002,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     _usingIndependentMedia = _transferRepository.negotiatedMediaFormat != null;
     Logger.diagnostic(
       'music cast: capture started — mode='
-      '${_usingIndependentMedia ? 'independent (#30)' : 'mixed-into-voice'}; '
+      '${_usingIndependentMedia ? 'independent' : 'mixed-into-voice'}; '
       'HD capture confirmed at ${SystemAudioCapture.hdFormat.label} '
       '(${SystemAudioCapture.hdFormat.sampleRateHz}Hz/'
       '${SystemAudioCapture.hdFormat.channels}ch)',
@@ -1080,7 +1101,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   Future<void> _stopSharingSystemAudio(MusicCastStopReason reason) async {
     Logger.diagnostic(
       'music cast: stopping (${reason.name}) | '
-      'mode=${_usingIndependentMedia ? 'independent (#30)' : 'mixed-into-voice'} '
+      'mode=${_usingIndependentMedia ? 'independent' : 'mixed-into-voice'} '
       '${_usingIndependentMedia ? 'dropouts=${_mediaScheduler?.dropouts ?? 0} '
               'trims=${_mediaScheduler?.trims ?? 0} '
               'floods=${_mediaScheduler?.floods ?? 0}' : 'dropouts=${_musicMixer.dropouts} '

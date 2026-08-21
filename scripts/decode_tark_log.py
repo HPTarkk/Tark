@@ -265,6 +265,12 @@ def analyze_session(block: SessionBlock) -> dict:
     wifi_fields = {
         "packets_in": r"in=(\d+)\(",
         "packets_out": r"out=(\d+)\(",
+        # #30: counted separately from packets_in/out (which already include
+        # every packet type, media included) so a report can say how much of
+        # the traffic was actually music rather than only that traffic
+        # existed.
+        "media_packets_in": r"mediaIn=(\d+)\(",
+        "media_packets_out": r"mediaOut=(\d+)\(",
         "recovery_peers": r"recovery=(\d+)",
         "dup_route": r"dupRoute=(\d+)",
         "stale_epoch": r"staleEpoch=(\d+)",
@@ -332,8 +338,11 @@ def analyze_session(block: SessionBlock) -> dict:
             }
     metrics["playback_per_sender"] = per_sender
 
-    # MusicMixer: last-seen dropout/trim/flood/overflow tally, plus how many
-    # start/stop cycles happened this session.
+    # MusicMixer or MediaFrameScheduler (#30) — whichever mode the cast ran
+    # in this session; last-seen dropout/trim/flood/overflow tally, plus how
+    # many start/stop cycles happened. Both sources log the identical line
+    # shape (see WalkieTalkieCubit._logMusicHealth's own doc), so no mode
+    # branch is needed here to parse it.
     metrics["music_cast_started"] = _count_matching(lines, "music cast: started")
     metrics["music_cast_stopped"] = _count_matching(lines, "music cast: stopping")
     metrics["music_capture_withheld_warnings"] = _count_matching(
@@ -351,6 +360,20 @@ def analyze_session(block: SessionBlock) -> dict:
             metrics["music_trims"] = int(trims)
             metrics["music_floods"] = int(floods)
             metrics["music_cap_overflows"] = int(overflows)
+
+    # #30: which mode each cast ran in this session — "independent (#30)"
+    # once every currently-known peer negotiated a media profile, else
+    # "mixed-into-voice" (the pre-#30 MusicMixer path). First and last are
+    # both kept, same reasoning as wire_profile_initial/final above: decided
+    # once per cast and held for its lifetime, so a session with several
+    # casts can show whether the mode ever changed between them.
+    media_mode_re = re.compile(r"music cast: capture started — mode=([^;]+);")
+    media_modes = [
+        m.group(1) for line in lines if (m := media_mode_re.search(line))
+    ]
+    if media_modes:
+        metrics["media_mode_initial"] = media_modes[0]
+        metrics["media_mode_final"] = media_modes[-1]
 
     # Background/resume — both the app-level lifecycle line and the
     # channel-level "resumed after Ns away" line, which is the one carrying
@@ -400,6 +423,7 @@ def format_report(header: dict, metrics: dict) -> str:
         "",
         "-- transport --",
         f"packets in={metrics.get('packets_in')} out={metrics.get('packets_out')} "
+        f"(media in={metrics.get('media_packets_in')} out={metrics.get('media_packets_out')}) "
         f"rtt={metrics.get('rtt_ms')}ms quietFor={metrics.get('quiet_for_s')}s",
         f"recovery peers={metrics.get('recovery_peers')} "
         f"dupRoute={metrics.get('dup_route')} staleEpoch={metrics.get('stale_epoch')} "
@@ -414,6 +438,7 @@ def format_report(header: dict, metrics: dict) -> str:
         f"per-sender: {metrics.get('playback_per_sender')}",
         "",
         "-- shared music --",
+        f"mode start={metrics.get('media_mode_initial')} -> end={metrics.get('media_mode_final')}",
         f"started={metrics.get('music_cast_started')} stopped={metrics.get('music_cast_stopped')} "
         f"dropouts={metrics.get('music_dropouts')} trims={metrics.get('music_trims')} "
         f"floods={metrics.get('music_floods')} capOverflows={metrics.get('music_cap_overflows')} "

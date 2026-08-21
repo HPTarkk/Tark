@@ -23,6 +23,9 @@ introduced anywhere in this workstream.
 
 ## Status at a glance
 
+Issues 1/8 through 5/8 (#26–#30) have landed — see their own checkpoint
+commit history. 6/8–8/8 (#31–#33) are next.
+
 | # | Issue | Priority | Focus | Depends on |
 | --- | --- | --- | --- | --- |
 | 1/8 | [#26](https://github.com/HPTarkk/Tark/issues/26) | P0 | Lock the field-test reliability baseline | — |

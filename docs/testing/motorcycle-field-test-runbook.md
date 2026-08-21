@@ -10,7 +10,10 @@ workflow for the one behavior that matters most on a ride:
 Confirmed working in the 2026-08-19 two-device rider/pillion field test. The
 next seven roadmap issues change the audio stack substantially (HD voice, HD
 music, independent streams, adaptive QoS) — this runbook is what protects the
-behavior below from silently regressing while that happens.
+behavior below from silently regressing while that happens. Issues #27–#30
+(transport-stat fix, HD Voice, HD Shared Music, independent voice/media
+streams) have since landed; #31–#33 (ducking, adaptive QoS, preflight) are
+still ahead.
 
 ## What "automatable" and "physical-device-only" mean here
 
@@ -77,13 +80,19 @@ export, and never a screenshot of one.
 - [ ] **Documented gap, not automated** — music-cast capture must not be torn
   down by backgrounding. Traced in code: `WalkieTalkieCubit`'s
   `didChangeAppLifecycleState` only clears the stale queued-audio backlog on
-  resume (`_musicMixer.clear()`), it never cancels or recreates the capture
-  subscription — see the comment at that call site. Proving this with an
-  automated test would need either a full `WalkieTalkieCubit` test harness
-  (13 constructor dependencies, none of which have fakes in this repo today)
-  or platform-channel mocking for the static `SystemAudioCapture.frames`
-  `EventChannel` — both a meaningfully bigger investment than this issue's
-  scope. Verify physically instead.
+  resume (`_musicMixer.clear()` in the legacy mixed-into-voice mode,
+  `_mediaScheduler?.clear()` in #30's independent mode — both get the exact
+  same treatment), it never cancels or recreates either capture subscription
+  (`_musicSub` / `_mediaHdSub`) — see the comments at those call sites.
+  Proving this with an automated test would need either a full
+  `WalkieTalkieCubit` test harness (13+ constructor dependencies, none of
+  which have fakes in this repo today) or platform-channel mocking for the
+  static `SystemAudioCapture.frames`/`hdFrames` `EventChannel`s — both a
+  meaningfully bigger investment than this issue's scope. Verify physically
+  instead, in **both** modes: whichever one the two test phones actually
+  negotiate (`negotiatedMediaFormat` non-null → independent; otherwise
+  legacy) is the one this run exercises — check the `music cast: capture
+  started — mode=...` line in the export to see which.
 - [ ] **Physical** — put both phones in pockets, screen off, for at least 10
   continuous minutes during active conversation + shared music. No dropouts,
   no permanent one-way audio, no unexpected mic-restart banner on resume.
@@ -108,6 +117,46 @@ export, and never a screenshot of one.
 - [ ] **Physical** — shared music/podcast runs for a long continuous interval
   on the sender without a MusicMixer dropout or a user-visible channel
   disconnect.
+
+### Shared music as an independent stream (#30)
+
+- [ ] **Automatable** — wire round-trip, independent voice/media sequence
+  spaces, mixed-version peer fallback (an unrecognised media type byte is
+  dropped, not misread as voice), and independent per-stream decoder reset:
+  `test/waki_packet_codec_test.dart` (`shared music as an independent
+  stream (#30)` group).
+- [ ] **Automatable** — send-side cushion (prefill/drift/flood/overflow),
+  stereo-vs-mono channel handling, and clock lifecycle for the independent
+  media scheduler: `test/media_frame_scheduler_test.dart`.
+- [ ] **Automatable** — receive-side jitter buffer (filling, concealment,
+  drift, overflow, starvation, reset) for the independent media stream,
+  fully separate from voice's own: `test/media_receive_buffer_test.dart`.
+- [ ] **Automatable** — voice-first write priority on Bluetooth's shared pipe
+  (ordering, priority preemption of an already-queued low-priority write,
+  bounded drop, error propagation, `clear()`):
+  `test/priority_write_scheduler_test.dart`.
+- [ ] **Automatable** — the deterministic stress/replay fixture: simultaneous
+  voice+media under independent injected loss without exceptions or
+  cross-contamination, a corrupt media packet never disturbing voice
+  decoding, voice's send clock running undisturbed under heavy media
+  jitter, clean simultaneous reconnect recovery for both streams, no leaks
+  across repeated media stop/start cycles, and a high-priority voice write
+  completing promptly under a saturated media write queue:
+  `test/media_voice_stress_test.dart`.
+- [ ] **Physical** — with two devices that both negotiate a media profile
+  (independent mode confirmed via the `music cast: capture started —
+  mode=independent` log line), shared music keeps playing while voice is
+  muted or VOX-gated closed, and muting/VOX never interrupts an active
+  cast — the safety invariant this issue's mode split exists for.
+  **Not yet validated on real hardware this session** (no device attached)
+  — the receive-side mix (`AudioEngineImpl._MixingOutputSink` +
+  `_mediaCoordinatorTimer`) in particular needs real listening evidence:
+  correct timing, levels, and no audible seam at the boundary where voice's
+  own drain timer starts/stops covering the tick.
+- [ ] **Physical** — the same two-device pair with one on an older build (or
+  a build with `AudioCapabilityNegotiator.media` never resolving) falls back
+  to the legacy mixed-into-voice path cleanly — no missing music, no
+  double-mixed music, no crash.
 
 ### Diagnostics
 
@@ -135,17 +184,19 @@ Prints, for the selected session (defaults to the most recent `--- session
 ... opened` block; pass `--session N` to pick another): duration, negotiated
 capture/playback/wire sample rates, RTT and loss summary, reconnect/rebind/
 recovery event counts, codec-profile transitions, jitter-buffer underrun/
-resync/concealment counts, MusicMixer dropout/trim/flood/overflow counts,
-background/resume events, and terminal-failure lines. No IPs, SSIDs, device
-identifiers or names — only what the existing diagnostic log lines already
-carry.
+resync/concealment counts, media packet counts and which mode (#30
+independent vs. legacy mixed-into-voice) each cast ran in, shared-music
+dropout/trim/flood/overflow counts (from whichever of `MusicMixer`/
+`MediaFrameScheduler` was actually active), background/resume events, and
+terminal-failure lines. No IPs, SSIDs, device identifiers or names — only
+what the existing diagnostic log lines already carry.
 
 ## Field acceptance gates
 
 These protect *today's* proven behavior as a regression gate for the HD-audio
-workstream (issues 3–7 of the roadmap). They are deliberately about
-protecting what already works, not a universal SLO derived from one day's RF
-conditions:
+workstream (issues 3–7 of the roadmap — 3/8 through 5/8 have landed as of
+#30). They are deliberately about protecting what already works, not a
+universal SLO derived from one day's RF conditions:
 
 - No manual leave/rejoin should be required for a transient, recoverable
   link event.

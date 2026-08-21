@@ -233,6 +233,59 @@ class MetricExtractionTest(unittest.TestCase):
         self.assertEqual(metrics["music_dropouts"], 1)
         self.assertEqual(metrics["music_trims"], 2)
 
+    def test_media_packet_counts_are_separate_from_the_totals(self) -> None:
+        # #30: mediaIn/mediaOut are a subset of in/out (which already count
+        # every packet type), not an alternative to them.
+        metrics = self._analyze(
+            [
+                "08:00:01.000 wifi: in=110(+110) out=105(+105) "
+                "mediaIn=10(+10) mediaOut=5(+5) over 15s "
+                "peers=[] recovery=0 heard=[] routes=[] pinned=[] "
+                "dupRoute=0 staleEpoch=0 epoch=1 channel=open "
+                "rtt=40ms txLoss=? opus=20kbps/loss0%/fecon "
+                "media=48k-HD-stereo/64kbps/fecon local=[] "
+                "bcast=[] sendSocket=up rxSocket=up blocked=0 errs=0 "
+                "quietFor=0s"
+            ]
+        )
+        self.assertEqual(metrics["packets_in"], "110")
+        self.assertEqual(metrics["packets_out"], "105")
+        self.assertEqual(metrics["media_packets_in"], "10")
+        self.assertEqual(metrics["media_packets_out"], "5")
+
+    def test_media_mode_transition(self) -> None:
+        # #30: mode is decided once per cast and held for its lifetime —
+        # first/last shows whether it ever changed between casts this
+        # session (e.g. a peer that later negotiated a media profile).
+        metrics = self._analyze(
+            [
+                "08:00:01.000 music cast: capture started — mode=mixed-into-voice; "
+                "HD capture confirmed at 48k-HD-stereo (48000Hz/2ch)",
+                "08:00:05.000 music cast: stopping (userRequest) | "
+                "mode=mixed-into-voice dropouts=0 trims=0 floods=0",
+                "08:01:00.000 music cast: capture started — mode=independent; "
+                "HD capture confirmed at 48k-HD-stereo (48000Hz/2ch)",
+            ]
+        )
+        self.assertEqual(metrics["media_mode_initial"], "mixed-into-voice")
+        self.assertEqual(metrics["media_mode_final"], "independent")
+
+    def test_media_queue_health_line_reuses_the_music_cast_regex(self) -> None:
+        # MediaFrameScheduler exposes the identical field shape MusicMixer
+        # does (see WalkieTalkieCubit._logMusicHealth's doc), so the exact
+        # same "music cast: N samples queued ..." line, sourced from either
+        # object, must parse identically without a mode-specific regex.
+        metrics = self._analyze(
+            [
+                "08:00:01.000 music cast: capture started — mode=independent; "
+                "HD capture confirmed at 48k-HD-stereo (48000Hz/2ch)",
+                "08:00:02.000 music cast: 9600 samples queued "
+                "(cushion 400ms) | dropouts=2 trims=1 floods=0 capOverflows=0",
+            ]
+        )
+        self.assertEqual(metrics["music_dropouts"], 2)
+        self.assertEqual(metrics["music_trims"], 1)
+
     def test_lifecycle_and_channel_resume_counts(self) -> None:
         metrics = self._analyze(
             [
