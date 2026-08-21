@@ -428,5 +428,15 @@
     "preflight_route_bluetooth": "وصله — هدست بلوتوث",
     "preflight_route_wired": "وصله — هدست سیمی",
     "preflight_route_speaker": "صدا از بلندگوی گوشیه",
-    "preflight_route_unknown": "هنوز معلوم نیست"
+    "preflight_route_unknown": "هنوز معلوم نیست",
+    "preflight_check_connection": "اتصال",
+    "preflight_transport_blocked": "مسیر شبکه‌ی قابل استفاده‌ای نیست",
+    "preflight_transport_not_attempted": "هنوز وصل نشده",
+    "preflight_transport_ready": "وصله",
+    "preflight_transport_degraded": "در حال وصل شدن دوباره",
+    "preflight_transport_down": "وصل نیست",
+    "preflight_check_peer_reachability": "شنیده شدن",
+    "preflight_peer_not_present": "هنوز کسی وارد نشده",
+    "preflight_peer_unconfirmed": "منتظریم تأیید کنه که صدات رو می‌شنوه",
+    "preflight_peer_confirmed": "صدات رو می‌شنوه"
 }

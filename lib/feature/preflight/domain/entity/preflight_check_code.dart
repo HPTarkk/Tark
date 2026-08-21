@@ -16,6 +16,18 @@ abstract final class PreflightCheckCode {
   static const routePhoneSpeaker = 'route_phone_speaker';
   static const routeUnknown = 'route_unknown';
 
+  // Check 4 — network/transport readiness.
+  static const transportBlocked = 'transport_blocked';
+  static const transportNotAttempted = 'transport_not_attempted';
+  static const transportReady = 'transport_ready';
+  static const transportDegraded = 'transport_degraded';
+  static const transportDown = 'transport_down';
+
+  // Check 5 — peer reachability/bidirectional audibility.
+  static const peerNotPresent = 'peer_not_present';
+  static const peerUnconfirmed = 'peer_unconfirmed';
+  static const peerConfirmed = 'peer_confirmed';
+
   // Check 3 — audio profile/capability readiness.
   static const hdVoiceReady = 'hd_voice_ready';
   static const hdVoiceNegotiatedHd = 'hd_voice_negotiated_hd';

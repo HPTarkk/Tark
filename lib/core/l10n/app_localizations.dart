@@ -2677,6 +2677,66 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'هنوز معلوم نیست'**
   String get preflight_route_unknown;
+
+  /// No description provided for @preflight_check_connection.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتصال'**
+  String get preflight_check_connection;
+
+  /// No description provided for @preflight_transport_blocked.
+  ///
+  /// In fa, this message translates to:
+  /// **'مسیر شبکه‌ی قابل استفاده‌ای نیست'**
+  String get preflight_transport_blocked;
+
+  /// No description provided for @preflight_transport_not_attempted.
+  ///
+  /// In fa, this message translates to:
+  /// **'هنوز وصل نشده'**
+  String get preflight_transport_not_attempted;
+
+  /// No description provided for @preflight_transport_ready.
+  ///
+  /// In fa, this message translates to:
+  /// **'وصله'**
+  String get preflight_transport_ready;
+
+  /// No description provided for @preflight_transport_degraded.
+  ///
+  /// In fa, this message translates to:
+  /// **'در حال وصل شدن دوباره'**
+  String get preflight_transport_degraded;
+
+  /// No description provided for @preflight_transport_down.
+  ///
+  /// In fa, this message translates to:
+  /// **'وصل نیست'**
+  String get preflight_transport_down;
+
+  /// No description provided for @preflight_check_peer_reachability.
+  ///
+  /// In fa, this message translates to:
+  /// **'شنیده شدن'**
+  String get preflight_check_peer_reachability;
+
+  /// No description provided for @preflight_peer_not_present.
+  ///
+  /// In fa, this message translates to:
+  /// **'هنوز کسی وارد نشده'**
+  String get preflight_peer_not_present;
+
+  /// No description provided for @preflight_peer_unconfirmed.
+  ///
+  /// In fa, this message translates to:
+  /// **'منتظریم تأیید کنه که صدات رو می‌شنوه'**
+  String get preflight_peer_unconfirmed;
+
+  /// No description provided for @preflight_peer_confirmed.
+  ///
+  /// In fa, this message translates to:
+  /// **'صدات رو می‌شنوه'**
+  String get preflight_peer_confirmed;
 }
 
 class _AppLocalizationsDelegate

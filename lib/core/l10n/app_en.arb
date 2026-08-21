@@ -428,5 +428,15 @@
     "preflight_route_bluetooth": "Connected — Bluetooth headset",
     "preflight_route_wired": "Connected — wired headset",
     "preflight_route_speaker": "Playing through the phone speaker",
-    "preflight_route_unknown": "Can't tell yet"
+    "preflight_route_unknown": "Can't tell yet",
+    "preflight_check_connection": "Connection",
+    "preflight_transport_blocked": "No usable network path",
+    "preflight_transport_not_attempted": "Not connected yet",
+    "preflight_transport_ready": "Connected",
+    "preflight_transport_degraded": "Reconnecting",
+    "preflight_transport_down": "Not connected",
+    "preflight_check_peer_reachability": "Being heard",
+    "preflight_peer_not_present": "Nobody's joined yet",
+    "preflight_peer_unconfirmed": "Waiting to hear back that they can hear you",
+    "preflight_peer_confirmed": "They can hear you"
 }

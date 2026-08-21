@@ -1437,4 +1437,35 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get preflight_route_unknown => 'Can\'t tell yet';
+
+  @override
+  String get preflight_check_connection => 'Connection';
+
+  @override
+  String get preflight_transport_blocked => 'No usable network path';
+
+  @override
+  String get preflight_transport_not_attempted => 'Not connected yet';
+
+  @override
+  String get preflight_transport_ready => 'Connected';
+
+  @override
+  String get preflight_transport_degraded => 'Reconnecting';
+
+  @override
+  String get preflight_transport_down => 'Not connected';
+
+  @override
+  String get preflight_check_peer_reachability => 'Being heard';
+
+  @override
+  String get preflight_peer_not_present => 'Nobody\'s joined yet';
+
+  @override
+  String get preflight_peer_unconfirmed =>
+      'Waiting to hear back that they can hear you';
+
+  @override
+  String get preflight_peer_confirmed => 'They can hear you';
 }

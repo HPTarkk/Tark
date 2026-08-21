@@ -1431,4 +1431,35 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get preflight_route_unknown => 'هنوز معلوم نیست';
+
+  @override
+  String get preflight_check_connection => 'اتصال';
+
+  @override
+  String get preflight_transport_blocked => 'مسیر شبکه‌ی قابل استفاده‌ای نیست';
+
+  @override
+  String get preflight_transport_not_attempted => 'هنوز وصل نشده';
+
+  @override
+  String get preflight_transport_ready => 'وصله';
+
+  @override
+  String get preflight_transport_degraded => 'در حال وصل شدن دوباره';
+
+  @override
+  String get preflight_transport_down => 'وصل نیست';
+
+  @override
+  String get preflight_check_peer_reachability => 'شنیده شدن';
+
+  @override
+  String get preflight_peer_not_present => 'هنوز کسی وارد نشده';
+
+  @override
+  String get preflight_peer_unconfirmed =>
+      'منتظریم تأیید کنه که صدات رو می‌شنوه';
+
+  @override
+  String get preflight_peer_confirmed => 'صدات رو می‌شنوه';
 }
