@@ -28,6 +28,7 @@ import '../../domain/service/channel_gate.dart';
 import '../../domain/service/sender_route_pin.dart';
 import '../../domain/service/session_epoch_gate.dart';
 import '../../domain/service/session_role_store.dart';
+import '../../domain/service/transport_drop_counters.dart';
 import '../codec/opus_audio_codec.dart';
 import '../codec/waki_packet_codec.dart';
 import '../hotspot/wifi_client_address.dart';
@@ -226,30 +227,22 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   /// backing up — a client at the edge of range, which is exactly the case the
   /// user is in when they report bad audio — this is the number that moves,
   /// and it has to be a rate to mean anything.
-  int _wouldBlockWindow = 0;
   int _sendErrorWindow = 0;
 
-  /// Session totals for the same three drop classes the window counters above
-  /// report.
-  ///
-  /// Deliberately not the same fields. Those are reset by the diagnostic log
-  /// line every 15 s, which makes them useless to a second consumer — the
-  /// quality indicator samples every 2 s and would read a window the logger
-  /// had just emptied, so a link shedding packets steadily would grade clean
-  /// six times out of seven. Cumulative totals let each consumer subtract its
-  /// own previous reading and get an honest rate over its own window.
-  int _staleEpochTotal = 0;
-  int _duplicateRouteTotal = 0;
-  int _blockedTotal = 0;
+  /// Windowed AND session-cumulative counts for the three drop/block classes
+  /// below, kept independent by [TransportDropCounters] — see its doc for why
+  /// the log line's 15s window reset must never touch the totals the quality
+  /// indicator diffs every 2s.
+  final _drops = TransportDropCounters();
 
   @override
   TransportStats get stats => TransportStats(
     sendFailing: _sendFailingSince != null,
     unicastUnconfirmed: _unicastUnconfirmed,
     rtt: _lastRtt,
-    staleEpochDrops: _staleEpochTotal,
-    duplicateRouteDrops: _duplicateRouteTotal,
-    blockedSends: _blockedTotal,
+    staleEpochDrops: _drops.staleEpochTotal,
+    duplicateRouteDrops: _drops.duplicateRouteTotal,
+    blockedSends: _drops.blockedTotal,
     peerCount: _peers.length,
   );
 
@@ -258,11 +251,6 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   /// Drops packets from a peer's previous join that arrive after its new one
   /// has started. See [SessionEpochGate].
   final SessionEpochGate _epochGate = SessionEpochGate();
-
-  /// Ghost packets dropped since the last session line, so a link that is
-  /// quietly shedding them shows up in the diagnostic log as a rate rather
-  /// than as a one-off.
-  int _staleEpochWindow = 0;
 
   /// Packets belonging to a *different* conversation on this network, dropped
   /// since the last session line.
@@ -623,24 +611,20 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     final outDelta = _packetsOut - _lastPacketsOut;
     _lastPacketsIn = _packetsIn;
     _lastPacketsOut = _packetsOut;
-    final blocked = _wouldBlockWindow;
+    final dropWindow = _drops.takeWindow();
+    final blocked = dropWindow.blocked;
     final errored = _sendErrorWindow;
-    final dupRoute = _duplicateRouteWindow;
-    final staleEpoch = _staleEpochWindow;
+    final dupRoute = dropWindow.duplicateRoute;
+    final staleEpoch = dropWindow.staleEpoch;
     final otherChannels = _otherChannelWindow;
     final otherChannelCount = _otherChannelsHeard.length;
-    _wouldBlockWindow = 0;
     _sendErrorWindow = 0;
-    _duplicateRouteWindow = 0;
-    _staleEpochWindow = 0;
     _otherChannelWindow = 0;
     _otherChannelsHeard.clear();
-    // Totals go too: they are session-scoped by definition, and the quality
-    // indicator diffing across a session boundary would read the reset as a
-    // huge negative delta.
-    _staleEpochTotal = 0;
-    _duplicateRouteTotal = 0;
-    _blockedTotal = 0;
+    // The cumulative totals are deliberately NOT reset here — see
+    // TransportDropCounters' doc. Only stopConnection()'s real session
+    // boundary zeroes them; this log line only takes and zeroes its own
+    // window.
     Logger.diagnostic(
       'wifi: in=$_packetsIn(+$inDelta) out=$_packetsOut(+$outDelta) '
       'over ${window.inSeconds}s '
@@ -927,10 +911,10 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     _rxBySender.clear();
     _senderAtAddress.clear();
     _narrowedTo = const {};
-    _wouldBlockWindow = 0;
     _sendErrorWindow = 0;
-    _duplicateRouteWindow = 0;
-    _staleEpochWindow = 0;
+    // The real session boundary: this is the one place the cumulative totals
+    // reset, not the diagnostic log line (see TransportDropCounters).
+    _drops.reset();
     // Session-scoped like the rest: the neighbouring channels counted here are
     // the ones sharing the network we were on, and the next session may well
     // be on a different one entirely. Our *own* membership is deliberately not
@@ -1301,8 +1285,7 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
       case RouteDecision.rejected:
         // Counted rather than logged: this arrives at the full audio rate, and
         // the count on the session line is what makes it legible.
-        _duplicateRouteWindow++;
-        _duplicateRouteTotal++;
+        _drops.duplicateRouteDropped();
       case RouteDecision.repinned:
         Logger.diagnostic(
           'wifi: sender $senderId moved from ${verdict.previous} to $address '
@@ -1364,8 +1347,7 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
       case EpochDecision.stale:
         // Counted rather than logged: a ghost burst arrives at the full audio
         // rate, and the count on the session line is what makes it legible.
-        _staleEpochWindow++;
-        _staleEpochTotal++;
+        _drops.staleEpochDropped();
       case EpochDecision.renewed:
         Logger.diagnostic(
           'wifi: sender ${packet.senderId} rejoined — epoch '
@@ -1526,9 +1508,6 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   /// One source address per sender — see [SenderRoutePin].
   final SenderRoutePin _routePin = SenderRoutePin();
 
-  /// Packets dropped as a second copy since the last session line.
-  int _duplicateRouteWindow = 0;
-
   void _rememberPeer(String address) {
     // Our own broadcast comes back to us — that's not a peer.
     if (_localAddresses.contains(address)) return;
@@ -1584,8 +1563,7 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     try {
       final sent = socket.send(packet, target, kBroadcastPort);
       if (sent == 0) {
-        _wouldBlockWindow++;
-        _blockedTotal++;
+        _drops.blocked();
         if (_failingTargets.add(target.address) &&
             _mayLogTarget(target.address, DateTime.now())) {
           Logger.diagnostic(
