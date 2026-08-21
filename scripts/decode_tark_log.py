@@ -160,7 +160,13 @@ def split_sessions(text: str) -> list[SessionBlock]:
     prev_tod: time | None = None
 
     for raw in text.splitlines():
-        opened = _SESSION_OPEN_RE.match(raw)
+        # The banner goes through the same `_append` as every other line (see
+        # `DiagnosticLog.initialize`), so it carries the same HH:mm:ss.mmm
+        # stamp on disk — strip it before testing for the banner, not after,
+        # or the banner never matches and every session gets silently dropped.
+        m = _LINE_RE.match(raw)
+        candidate = m.group(5) if m else raw
+        opened = _SESSION_OPEN_RE.match(candidate)
         if opened:
             session_id, opened_at_raw = opened.groups()
             try:
@@ -176,7 +182,6 @@ def split_sessions(text: str) -> list[SessionBlock]:
         if current is None:
             continue  # lines before the first session banner: ignore
 
-        m = _LINE_RE.match(raw)
         if not m:
             current.add(None, raw)
             continue
@@ -220,16 +225,39 @@ def analyze_session(block: SessionBlock) -> dict:
         "duration": str(block.duration) if block.duration else None,
     }
 
-    # Negotiated capture/playback/wire rates — first line wins, a mid-session
-    # route change logs another and this deliberately keeps the session's
-    # opening rate as the headline number.
+    # Negotiated capture/playback rates — first line wins, a mid-session route
+    # change logs another and this deliberately keeps the session's opening
+    # rate as the headline number.
     for line in lines:
         if line.startswith("audio: session started"):
             metrics["capture_hz"] = _field(r"capture (\d+)Hz", line)
             metrics["playback_hz"] = _field(r"playback (\d+)Hz", line)
-            metrics["wire_hz"] = _field(r"wire (\d+)Hz", line)
-            metrics["wire_frame_samples"] = _field(r"Hz/(\d+)smp", line)
             break
+
+    # Wire format — a *different* line from "session started" (see
+    # AudioEngineImpl's wire-format log), stamped once at session start and
+    # again on every #28 capability renegotiation. First and last are both
+    # kept: for a session that negotiates up to HD this shows the starting
+    # (legacy) rate and where it ended up, which is the "actual vs negotiated"
+    # evidence #28's acceptance criteria asks for.
+    wire_re = re.compile(r"wire format (\S+) — (\d+)Hz/(\d+)smp")
+    wire_matches = [m for line in lines if (m := wire_re.search(line))]
+    if wire_matches:
+        first, last = wire_matches[0], wire_matches[-1]
+        metrics["wire_profile_initial"] = first.group(1)
+        metrics["wire_hz_initial"] = int(first.group(2))
+        metrics["wire_frame_samples_initial"] = int(first.group(3))
+        metrics["wire_profile_final"] = last.group(1)
+        metrics["wire_hz_final"] = int(last.group(2))
+        metrics["wire_frame_samples_final"] = int(last.group(3))
+
+    # Every negotiated-profile transition this session went through, e.g.
+    # "16k -> 24k-HD" — the direct evidence of #28's capability negotiation
+    # actually running against a real peer, not just unit tests.
+    negotiation_re = re.compile(r"negotiated audio profile (\S+ -> \S+)")
+    metrics["profile_negotiations"] = [
+        m.group(1) for line in lines if (m := negotiation_re.search(line))
+    ]
 
     # The periodic wifi summary line: last one wins for point-in-time values
     # (rtt, blocked/errs window), packets in/out are read from the last line
@@ -363,8 +391,12 @@ def format_report(header: dict, metrics: dict) -> str:
         f"duration  : {metrics['duration']}",
         "",
         "-- audio format --",
-        f"capture={metrics.get('capture_hz')}Hz playback={metrics.get('playback_hz')}Hz "
-        f"wire={metrics.get('wire_hz')}Hz/{metrics.get('wire_frame_samples')}smp",
+        f"capture={metrics.get('capture_hz')}Hz playback={metrics.get('playback_hz')}Hz",
+        f"wire start={metrics.get('wire_profile_initial')} "
+        f"({metrics.get('wire_hz_initial')}Hz/{metrics.get('wire_frame_samples_initial')}smp) "
+        f"-> end={metrics.get('wire_profile_final')} "
+        f"({metrics.get('wire_hz_final')}Hz/{metrics.get('wire_frame_samples_final')}smp)",
+        f"negotiations: {metrics.get('profile_negotiations') or 'none'}",
         "",
         "-- transport --",
         f"packets in={metrics.get('packets_in')} out={metrics.get('packets_out')} "

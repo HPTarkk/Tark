@@ -74,6 +74,21 @@ class SplitSessionsTest(unittest.TestCase):
         self.assertEqual(second_metrics["rtt_ms"], "999")
         self.assertEqual(second_metrics["packets_in"], "999")
 
+    def test_banner_carries_the_same_HHmmss_stamp_as_every_other_line(self) -> None:
+        # `_session_text` above deliberately does NOT model this: it writes a
+        # bare banner. On a real device `DiagnosticLog._append` stamps every
+        # line it appends, the banner included (see `initialize()`), so the
+        # banner actually looks like "13:45:24.376 --- session X opened ...".
+        # A regex that only matched the bare form silently dropped every real
+        # export's sessions — this pins the real shape down.
+        text = (
+            "13:45:24.376 --- session real opened 2026-08-21T13:45:24.364447\n"
+            "13:45:25.000 app: tark 1.0.0+1 on android (14)\n"
+        )
+        sessions = dtl.split_sessions(text)
+        self.assertEqual(len(sessions), 1)
+        self.assertEqual(sessions[0].session_id, "real")
+
     def test_lines_before_the_first_banner_are_ignored(self) -> None:
         text = (
             "08:00:00.000 stray line from a previous, unreadable run\n"
@@ -124,17 +139,46 @@ class MetricExtractionTest(unittest.TestCase):
         return dtl.analyze_session(sessions[0])
 
     def test_audio_session_started_line(self) -> None:
+        # "session started" carries the device capture/playback rates; the
+        # wire format (#28's negotiated profile) is a separate line —
+        # AudioEngineImpl logs them independently.
         metrics = self._analyze(
             [
                 "08:00:01.000 audio: session started — capture 48000Hz, "
-                "playback 48000Hz, wire 16000Hz/320smp frames, "
-                "effectsSession=1, raw=pcm16"
+                "playback 48000Hz, effectsSession=1, raw=pcm16",
+                "08:00:01.010 audio: wire format 16k — 16000Hz/320smp frames "
+                "(capture 48000Hz, playback 48000Hz)",
             ]
         )
         self.assertEqual(metrics["capture_hz"], "48000")
         self.assertEqual(metrics["playback_hz"], "48000")
-        self.assertEqual(metrics["wire_hz"], "16000")
-        self.assertEqual(metrics["wire_frame_samples"], "320")
+        self.assertEqual(metrics["wire_profile_initial"], "16k")
+        self.assertEqual(metrics["wire_hz_initial"], 16000)
+        self.assertEqual(metrics["wire_frame_samples_initial"], 320)
+        self.assertEqual(metrics["wire_profile_final"], "16k")
+        self.assertEqual(metrics["wire_hz_final"], 16000)
+        self.assertEqual(metrics["wire_frame_samples_final"], 320)
+        self.assertEqual(metrics["profile_negotiations"], [])
+
+    def test_wire_format_negotiation_to_hd(self) -> None:
+        metrics = self._analyze(
+            [
+                "08:00:01.000 audio: session started — capture 48000Hz, "
+                "playback 48000Hz, effectsSession=1, raw=pcm16",
+                "08:00:01.010 audio: wire format 16k — 16000Hz/320smp frames "
+                "(capture 48000Hz, playback 48000Hz)",
+                "08:00:09.000 wifi: negotiated audio profile 16k -> 24k-HD "
+                "| 24k-HD/24kbps/loss0%/fecoff rtt=12ms",
+                "08:00:09.010 audio: wire format 24k-HD — 24000Hz/480smp "
+                "frames (capture 48000Hz, playback 48000Hz)",
+            ]
+        )
+        self.assertEqual(metrics["wire_profile_initial"], "16k")
+        self.assertEqual(metrics["wire_hz_initial"], 16000)
+        self.assertEqual(metrics["wire_profile_final"], "24k-HD")
+        self.assertEqual(metrics["wire_hz_final"], 24000)
+        self.assertEqual(metrics["wire_frame_samples_final"], 480)
+        self.assertEqual(metrics["profile_negotiations"], ["16k -> 24k-HD"])
 
     def test_recovery_event_markers_are_counted_independently(self) -> None:
         metrics = self._analyze(
