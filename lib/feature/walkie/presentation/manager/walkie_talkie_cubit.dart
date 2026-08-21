@@ -141,7 +141,14 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
         // mic. Only the stale queue contents get discarded here — see the
         // motorcycle field-test runbook's reliability-gate notes before
         // adding a cancel/restart of `_musicSub` anywhere in this handler.
-        if (state.isSharingSystemAudio) _musicMixer.clear();
+        if (state.isSharingSystemAudio) {
+          _musicMixer.clear();
+          // Same treatment for the independent-mode path (#30): stale
+          // buffered audio from while the isolate was stalled goes, the
+          // scheduler's own subscription survives — see [MediaFrameScheduler]
+          // and the comment above about `_musicSub`.
+          _mediaScheduler?.clear();
+        }
         // The address can have changed under us (a joiner the OS moved between
         // networks), and the next presence tick is up to 2s away — which is a
         // long time to spend transmitting from an address nobody can reach.
@@ -646,6 +653,19 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   StreamSubscription<List<double>>? _musicSub;
   final MusicMixer _musicMixer = MusicMixer();
 
+  // #30: an independent media transport stream once every currently-known
+  // peer has negotiated one (TransferRepository.negotiatedMediaFormat) —
+  // MediaFrameScheduler sends on its own clock, decoupled from the mic
+  // callback, instead of MusicMixer's mixed-into-voice path above. Which
+  // mode is active is decided once when a cast starts and held for that
+  // cast's whole lifetime (see [toggleShareSystemAudio]): a negotiation
+  // change mid-cast does not retroactively switch modes, so live audio is
+  // never torn down and rebuilt over a peer-roster change — only the next
+  // cast picks up a fresh answer.
+  bool _usingIndependentMedia = false;
+  MediaFrameScheduler? _mediaScheduler;
+  StreamSubscription<List<double>>? _mediaHdSub;
+
   // Level of the captured system audio (~10 Hz, one value per capture
   // chunk), for the music-cast equalizer. Same pattern as [frames]: an
   // audio-rate side stream so the UI can animate without state emissions.
@@ -718,13 +738,19 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
       }
     }
     _prevVoiceOpen = voiceOpen;
-    final sharingMusic = state.isSharingSystemAudio;
+    // Only the legacy mixed-into-voice path needs music to key the channel
+    // continuously — an independent media stream (#30) transmits on its own
+    // clock regardless of whether voice is keyed at all, which is exactly
+    // the safety invariant the roadmap requires: muting/VOX-gating voice
+    // must never stop music unless the user stops the cast.
+    final musicKeysVoice = state.isSharingSystemAudio && !_usingIndependentMedia;
     // Music sharing keeps the channel keyed continuously; voice rides on
-    // top of it. Without sharing, VOX (with hangover) gates as usual.
+    // top of it. Without sharing (or once media has its own stream), VOX
+    // (with hangover) gates as usual.
     final isTransmitting =
         _audioEngine.currentStatus.hasPermission &&
         isOnline &&
-        (voiceOpen || sharingMusic);
+        (voiceOpen || musicKeysVoice);
 
     _txFramesSeen++;
     if (isTransmitting) {
@@ -743,7 +769,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
       var outgoing = voiceOpen
           ? _audioEngine.processForTransmit(frame.samples, voxLevel)
           : List<double>.filled(frame.samples.length, 0.0);
-      if (sharingMusic) {
+      if (musicKeysVoice) {
         outgoing = _musicMixer.mix(outgoing, state.musicGain);
       }
       _txFramesSent++;
@@ -949,23 +975,29 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
       emit(state.copyWith(isStartingSystemAudio: false));
       return;
     }
-    // #29 checkpoint 4 diagnostic: capture only starts at all if Android
-    // granted the exact format requested (see SystemAudioCaptureService's
-    // AudioRecord.Builder), so a successful `started` already proves this —
-    // logged so a `.tarklog` export states the confirmed HD capture format
-    // for every real cast, not just the legacy path MusicMixer consumes.
+    // #30: independent stream once every currently-known peer has negotiated
+    // a media profile, held for this cast's whole lifetime — see the field
+    // doc on [_usingIndependentMedia].
+    _usingIndependentMedia = _transferRepository.negotiatedMediaFormat != null;
     Logger.diagnostic(
-      'music cast: capture started — legacy 16k mono feeds MusicMixer; '
+      'music cast: capture started — mode='
+      '${_usingIndependentMedia ? 'independent (#30)' : 'mixed-into-voice'}; '
       'HD capture confirmed at ${SystemAudioCapture.hdFormat.label} '
       '(${SystemAudioCapture.hdFormat.sampleRateHz}Hz/'
-      '${SystemAudioCapture.hdFormat.channels}ch), unwired pending #30',
+      '${SystemAudioCapture.hdFormat.channels}ch)',
     );
     await _musicSub?.cancel();
     _musicSilentSince = DateTime.now();
     _musicEverAudible = false;
+    // Always subscribed, in both modes: this is the only capture stream the
+    // native side reports capture_stalled/capture_revoked errors through
+    // (see SystemAudioHandler.handleActivityResult — hd_frames has no error
+    // channel of its own), and it drives the audible-level meter either way.
+    // Only actually feeds [_musicMixer] in the legacy (mixed-into-voice)
+    // mode; in independent mode the chunk is used for level/liveness only.
     _musicSub = SystemAudioCapture.frames.listen(
       (chunk) {
-        _musicMixer.addChunk(chunk);
+        if (!_usingIndependentMedia) _musicMixer.addChunk(chunk);
         final level = MusicMixer.levelOf(chunk);
         if (level >= _kMusicAudibleLevel) {
           _musicSilentSince = null;
@@ -1007,10 +1039,35 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
         }
       },
     );
+    if (_usingIndependentMedia) {
+      final profile = _transferRepository.negotiatedMediaFormat!;
+      await _mediaHdSub?.cancel();
+      _mediaScheduler?.dispose();
+      _mediaScheduler =
+          MediaFrameScheduler(
+              profile: profile,
+              sendFrame: (samples) =>
+                  _transferRepository.sendMedia(samples, state.myName),
+            )
+            ..start();
+      _mediaHdSub = SystemAudioCapture.hdFrames.listen(
+        (chunk) => _mediaScheduler?.addChunk(chunk),
+        onError: (Object e) {
+          // Stall/revoke already surface via the always-on `frames`
+          // subscription above — this exists only so an error on this
+          // broadcast stream can never reach an uncaught-exception zone.
+          Logger.diagnostic('music cast: hd capture stream error — $e');
+        },
+      );
+    }
     Logger.diagnostic('music cast: started');
-    // The outgoing stream is about to carry music, which a speech codec
-    // models badly — tell the transport before the first mixed frame goes out.
-    _transferRepository.setAudioProfile(AudioProfile.music);
+    if (!_usingIndependentMedia) {
+      // The outgoing stream is about to carry mixed music, which a speech
+      // codec models badly — tell the transport before the first mixed
+      // frame goes out. Independent mode leaves voice's codec on its speech
+      // profile: nothing is mixed into it, so nothing about it should change.
+      _transferRepository.setAudioProfile(AudioProfile.music);
+    }
     emit(
       state.copyWith(isSharingSystemAudio: true, isStartingSystemAudio: false),
     );
@@ -1022,13 +1079,22 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   /// could act on is one that says which path ran.
   Future<void> _stopSharingSystemAudio(MusicCastStopReason reason) async {
     Logger.diagnostic(
-      'music cast: stopping (${reason.name}) | dropouts=${_musicMixer.dropouts} '
-      'trims=${_musicMixer.trims} floods=${_musicMixer.floods}',
+      'music cast: stopping (${reason.name}) | '
+      'mode=${_usingIndependentMedia ? 'independent (#30)' : 'mixed-into-voice'} '
+      '${_usingIndependentMedia ? 'dropouts=${_mediaScheduler?.dropouts ?? 0} '
+              'trims=${_mediaScheduler?.trims ?? 0} '
+              'floods=${_mediaScheduler?.floods ?? 0}' : 'dropouts=${_musicMixer.dropouts} '
+              'trims=${_musicMixer.trims} floods=${_musicMixer.floods}'}',
     );
     _sfx.play(SfxEvent.toggle);
     await _musicSub?.cancel();
     _musicSub = null;
     _musicMixer.clear();
+    await _mediaHdSub?.cancel();
+    _mediaHdSub = null;
+    _mediaScheduler?.dispose();
+    _mediaScheduler = null;
+    _usingIndependentMedia = false;
     _musicSilentSince = null;
     _musicEverAudible = false;
     _musicBlockedReported = false;
@@ -1596,6 +1662,10 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     }
     unawaited(_musicSub?.cancel());
     _musicSub = null;
+    unawaited(_mediaHdSub?.cancel());
+    _mediaHdSub = null;
+    _mediaScheduler?.dispose();
+    _mediaScheduler = null;
     unawaited(_musicLevelController.close());
     unawaited(_systemAudioMessageController.close());
 
