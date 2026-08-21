@@ -51,6 +51,88 @@ Uint8List v2Presence(
   return builder.toBytes();
 }
 
+/// Builds a v3 presence packet ending right after the role byte — exactly
+/// what a build between roles shipping and the heard list (and, later, #28's
+/// capability byte) emits. What "reads back as null/no opinion" is tested
+/// against for both later fields.
+Uint8List v3PresenceNoTrailer(
+  String deviceId,
+  String name,
+  int epoch, {
+  required bool isTalking,
+  required SessionRole role,
+}) {
+  final idBytes = utf8.encode(deviceId);
+  final nameBytes = utf8.encode(name);
+  final builder = BytesBuilder(copy: false);
+  builder.addByte(kPresenceV3Byte);
+  builder.addByte(idBytes.length);
+  builder.add(idBytes);
+  builder.add(
+    (ByteData(4)..setUint32(0, epoch, Endian.little)).buffer.asUint8List(),
+  );
+  builder.add(
+    (ByteData(
+      4,
+    )..setUint32(0, nameBytes.length, Endian.little)).buffer.asUint8List(),
+  );
+  builder.add(nameBytes);
+  builder.addByte(isTalking ? 0x01 : 0x00);
+  builder.addByte(role.wireByte);
+  return builder.toBytes();
+}
+
+/// Builds a v3 presence packet with an explicit capability byte.
+///
+/// [codec.encodePresence] can't produce a non-zero one today — its
+/// capability byte tracks the real, still legacy-only
+/// `AudioFormatProfile.supported` — so this is how the decode side gets
+/// exercised against a value it will only see from a future HD-capable
+/// build. [heardIds] null writes the no-opinion sentinel (`0xFF`, see
+/// `WakiPacketCodec._kNoHeardIdsOpinion`) instead of omitting the section —
+/// which is the whole fix this file is pinning down: a genuinely *omitted*
+/// heardIds section would leave nothing to tell "this next byte is a heard-id
+/// count" from "this next byte is the capability byte" apart.
+Uint8List v3PresenceWithCapability(
+  String deviceId,
+  String name,
+  int epoch, {
+  required bool isTalking,
+  required SessionRole role,
+  List<String>? heardIds,
+  required int capabilityBitmask,
+}) {
+  final idBytes = utf8.encode(deviceId);
+  final nameBytes = utf8.encode(name);
+  final builder = BytesBuilder(copy: false);
+  builder.addByte(kPresenceV3Byte);
+  builder.addByte(idBytes.length);
+  builder.add(idBytes);
+  builder.add(
+    (ByteData(4)..setUint32(0, epoch, Endian.little)).buffer.asUint8List(),
+  );
+  builder.add(
+    (ByteData(
+      4,
+    )..setUint32(0, nameBytes.length, Endian.little)).buffer.asUint8List(),
+  );
+  builder.add(nameBytes);
+  builder.addByte(isTalking ? 0x01 : 0x00);
+  builder.addByte(role.wireByte);
+  if (heardIds == null) {
+    builder.addByte(0xFF); // the no-opinion sentinel
+  } else {
+    builder.addByte(heardIds.length);
+    for (final id in heardIds) {
+      final idBytes2 = utf8.encode(id);
+      builder.addByte(idBytes2.length);
+      builder.add(idBytes2);
+    }
+  }
+  builder.addByte(capabilityBitmask);
+  return builder.toBytes();
+}
+
 /// A recognisable non-zero epoch, so a field that failed to make it onto the
 /// wire reads back as [kUnknownSessionEpoch] rather than coincidentally
 /// matching.
@@ -127,16 +209,22 @@ void main() {
       });
 
       test('a packet from a build that predates the field reads as null', () {
-        // Exactly what an older sender emits: header, isTalking, role, end.
-        final legacy = codec.encodePresence(
+        // Exactly what an older sender emits: header, isTalking, role, end —
+        // codec.encodePresence can't produce this shape any more itself
+        // (it always writes a heard-list section, real or the no-opinion
+        // sentinel, plus a capability byte), so this is built by hand.
+        final legacy = v3PresenceNoTrailer(
+          'abc123abc123',
           'Old build',
-          false,
+          kTestEpoch,
+          isTalking: false,
           role: SessionRole.host,
         );
-        expect(
-          (codec.decode(legacy, '1.2.3.4')! as PresencePacket).heardIds,
-          isNull,
-        );
+        final decoded = codec.decode(legacy, '1.2.3.4')! as PresencePacket;
+        expect(decoded.heardIds, isNull);
+        // And #28's capability field, appended after the heard list, reads
+        // the same "no opinion" way for the same reason.
+        expect(decoded.capabilityBitmask, 0);
       });
 
       test('a truncated list is no opinion rather than a short one', () {
@@ -181,14 +269,121 @@ void main() {
       });
     });
 
+    group('capability (#28)', () {
+      test("encodePresence's capability byte is 0 while AudioFormatProfile"
+          '.supported is legacy-only', () {
+        final packet =
+            codec.decode(
+                  codec.encodePresence('Pedram', false, role: SessionRole.peer),
+                  '192.168.43.7',
+                )!
+                as PresencePacket;
+        expect(packet.capabilityBitmask, 0);
+      });
+
+      test('the null-heardIds sentinel is not misread as a heard-id count '
+          '(the point-to-point transport case)', () {
+        // This is exactly what Bluetooth/WebRTC guest send: heardIds
+        // null, a real (non-zero, once a future build can advertise one)
+        // capability byte right after it. Before the no-opinion sentinel
+        // existed, an encoder that wrote nothing for heardIds and then a
+        // capability byte of 1 would have this decode as "one heard id,
+        // of a length that reads off whatever byte comes next" — silently
+        // wrong, not a crash.
+        final packet = v3PresenceWithCapability(
+          'abc123abc123',
+          'Pedram',
+          kTestEpoch,
+          isTalking: true,
+          role: SessionRole.host,
+          heardIds: null,
+          capabilityBitmask: 1,
+        );
+        final decoded = codec.decode(packet, '1.2.3.4')! as PresencePacket;
+        expect(decoded.heardIds, isNull);
+        expect(decoded.capabilityBitmask, 1);
+        expect(decoded.senderName, 'Pedram');
+      });
+
+      test(
+        'a non-zero capability byte round-trips exactly alongside a real heard list',
+        () {
+          final packet = v3PresenceWithCapability(
+            'abc123abc123',
+            'Pedram',
+            kTestEpoch,
+            isTalking: false,
+            role: SessionRole.peer,
+            heardIds: const ['aaa111aaa111'],
+            capabilityBitmask: 3,
+          );
+          final decoded = codec.decode(packet, '1.2.3.4')! as PresencePacket;
+          expect(decoded.heardIds, ['aaa111aaa111']);
+          expect(decoded.capabilityBitmask, 3);
+        },
+      );
+
+      test(
+        'a non-zero capability byte round-trips exactly alongside an explicit empty heard list',
+        () {
+          final packet = v3PresenceWithCapability(
+            'abc123abc123',
+            'Pedram',
+            kTestEpoch,
+            isTalking: false,
+            role: SessionRole.peer,
+            heardIds: const [],
+            capabilityBitmask: 1,
+          );
+          final decoded = codec.decode(packet, '1.2.3.4')! as PresencePacket;
+          expect(decoded.heardIds, isEmpty);
+          expect(decoded.capabilityBitmask, 1);
+        },
+      );
+
+      test('an old-shaped packet (role + heard list, no capability byte) still '
+          'decodes the heard list correctly and reads capability as 0', () {
+        // A build that shipped after the heard list but before #28 —
+        // the exact backward-compatibility case the capability byte's
+        // placement (after, not before, heardIds) exists to preserve.
+        final idBytes = utf8.encode('abc123abc123');
+        final nameBytes = utf8.encode('Pedram');
+        final builder = BytesBuilder(copy: false)
+          ..addByte(kPresenceV3Byte)
+          ..addByte(idBytes.length)
+          ..add(idBytes)
+          ..add(
+            (ByteData(
+              4,
+            )..setUint32(0, kTestEpoch, Endian.little)).buffer.asUint8List(),
+          )
+          ..add(
+            (ByteData(4)..setUint32(0, nameBytes.length, Endian.little)).buffer
+                .asUint8List(),
+          )
+          ..add(nameBytes)
+          ..addByte(0x00) // isTalking
+          ..addByte(SessionRole.peer.wireByte)
+          ..addByte(1) // heardIds count
+          ..addByte(3) // "abc".length
+          ..add(utf8.encode('abc'));
+        final decoded =
+            codec.decode(builder.toBytes(), '1.2.3.4')! as PresencePacket;
+        expect(decoded.heardIds, ['abc']);
+        expect(decoded.capabilityBitmask, 0);
+      });
+    });
+
     test('a role this build has never heard of reads as unknown', () {
       final packet = codec.encodePresence(
         'Future',
         false,
         role: SessionRole.host,
       );
-      // Last byte is the role — a later build may put anything there.
-      packet[packet.length - 1] = 99;
+      // Role is 3 bytes from the end now: after it come the heard-list
+      // no-opinion sentinel and the #28 capability byte (heardIds is null
+      // here) — a later build may put anything in the role byte itself.
+      packet[packet.length - 3] = 99;
 
       final decoded = codec.decode(packet, '192.168.43.7');
       expect(decoded, isNotNull, reason: 'the packet is still perfectly good');
@@ -442,7 +637,9 @@ void main() {
   group('pre-role compatibility', () {
     test('a v2 presence without the role byte still decodes', () {
       // Byte-for-byte what a build from before roles puts on the wire: the
-      // v2 header, isTalking, and nothing after it.
+      // v2 header, isTalking, and nothing after it. Strips 3 trailing bytes
+      // — role, the heard-list no-opinion sentinel, and the #28 capability
+      // byte (heardIds is null here) — all of which postdate this format.
       final withRole = codec.encodePresence(
         'Older',
         true,
@@ -451,7 +648,7 @@ void main() {
       final withoutRole = Uint8List.sublistView(
         withRole,
         0,
-        withRole.length - 1,
+        withRole.length - 3,
       );
 
       final packet = codec.decode(withoutRole, '192.168.43.7');
@@ -490,9 +687,11 @@ void main() {
 
     test('a truncated v3 packet is rejected at every prefix length', () {
       final full = codec.encodePresence('Pedram', true, role: SessionRole.host);
-      // Stops one short of the role byte: that prefix is not truncation but
-      // the pre-role format, and it decodes on purpose (covered above).
-      for (var length = 1; length < full.length - 1; length++) {
+      // Stops 3 bytes short (role, the heard-list sentinel, and the #28
+      // capability byte, in that order — heardIds is null here): every one
+      // of those prefixes is not truncation but a legitimate older format
+      // that decodes on purpose (covered above and in the capability group).
+      for (var length = 1; length < full.length - 3; length++) {
         expect(
           codec.decode(Uint8List.sublistView(full, 0, length), 'x'),
           isNull,
@@ -629,7 +828,8 @@ void main() {
       final live = inChannel(channel);
       addTearDown(live.release);
       final full = live.encodePresence('P', true, role: SessionRole.host);
-      for (var length = 1; length < full.length - 1; length++) {
+      // See the v3 version of this test for why the bound is 3, not 1.
+      for (var length = 1; length < full.length - 3; length++) {
         expect(
           live.decode(Uint8List.sublistView(full, 0, length), 'x'),
           isNull,

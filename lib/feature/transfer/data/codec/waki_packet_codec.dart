@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import '../../../../core/audio/audio_format_profile.dart';
 import '../../../../core/identity/channel_id.dart';
 import '../../../../core/identity/channel_membership.dart';
 import '../../../../core/identity/session_epoch.dart';
@@ -8,6 +9,7 @@ import '../../domain/entity/control_packet.dart';
 import '../../domain/entity/opus_tuning.dart';
 import '../../domain/entity/session_role.dart';
 import '../../domain/entity/waki_packet.dart';
+import '../../domain/service/audio_capability_negotiator.dart';
 import '../../domain/service/opus_tuner.dart';
 import 'opus_audio_codec.dart';
 
@@ -204,35 +206,50 @@ class WakiPacketCodec {
     // unaffected, so no new type byte (and no split channel of old/new peers)
     // is needed.
     //
-    // Null means "no opinion" and writes nothing at all, which is deliberately
-    // indistinguishable from an older build. An *empty* list is a statement —
-    // "I can hear nobody" — and the receiver acts on it, so only a transport
-    // that genuinely tracks who it hears may send one. Point-to-point
-    // transports (Bluetooth, guest link) pass null: their peer set is the
-    // connection itself, and claiming an empty list there would tell a
-    // perfectly healthy peer it had gone mute.
-    if (heardIds == null) return builder.toBytes();
-    // Encoded first, then counted. Writing the count from the input list and
-    // skipping an unencodable entry inside the loop would leave a count that
-    // promises more ids than follow, and the decoder — correctly — throws the
-    // whole list away as truncated. Ids are 12 ASCII characters so nothing is
-    // ever dropped in practice; the ordering is what makes that guaranteed
-    // rather than incidental.
-    //
-    // Capped so a busy channel can't push a presence datagram past a sane MTU.
-    final encoded = <List<int>>[];
-    for (final id in heardIds) {
-      if (encoded.length >= _maxHeardIds) break;
-      final idBytes = utf8.encode(id);
-      // A single length byte, same as the sender id in the v2 header.
-      if (idBytes.isEmpty || idBytes.length > 255) continue;
-      encoded.add(idBytes);
+    // Null means "no opinion", and — unlike role — this still writes one
+    // byte: [_kNoHeardIdsOpinion]. Nothing lived after this section until
+    // #28 added the capability byte below it; leaving zero bytes here now
+    // would make that byte indistinguishable from a one-byte heard-id count,
+    // and our own decoder would misparse it as one. An *empty* list is a
+    // real statement — "I can hear nobody" — and the receiver acts on it, so
+    // only a transport that genuinely tracks who it hears may send one.
+    // Point-to-point transports (Bluetooth, guest link) pass null: their peer
+    // set is the connection itself, and claiming an empty list there would
+    // tell a perfectly healthy peer it had gone mute.
+    if (heardIds == null) {
+      builder.addByte(_kNoHeardIdsOpinion);
+    } else {
+      // Encoded first, then counted. Writing the count from the input list
+      // and skipping an unencodable entry inside the loop would leave a
+      // count that promises more ids than follow, and the decoder —
+      // correctly — throws the whole list away as truncated. Ids are 12
+      // ASCII characters so nothing is ever dropped in practice; the
+      // ordering is what makes that guaranteed rather than incidental.
+      //
+      // Capped so a busy channel can't push a presence datagram past a sane
+      // MTU, and so [_kNoHeardIdsOpinion] stays outside the range of any
+      // real count.
+      final encoded = <List<int>>[];
+      for (final id in heardIds) {
+        if (encoded.length >= _maxHeardIds) break;
+        final idBytes = utf8.encode(id);
+        // A single length byte, same as the sender id in the v2 header.
+        if (idBytes.isEmpty || idBytes.length > 255) continue;
+        encoded.add(idBytes);
+      }
+      builder.addByte(encoded.length);
+      for (final idBytes in encoded) {
+        builder.addByte(idBytes.length);
+        builder.add(idBytes);
+      }
     }
-    builder.addByte(encoded.length);
-    for (final idBytes in encoded) {
-      builder.addByte(idBytes.length);
-      builder.add(idBytes);
-    }
+    // Capability, appended after heardIds by the same "old build stops
+    // reading first" reasoning — see [AudioCapabilityNegotiator]. Always
+    // written by this build, whether heardIds above was a real list or the
+    // no-opinion sentinel, which is exactly why that sentinel has to exist:
+    // without it, a point-to-point transport's presence would end right
+    // where this byte begins, and it would be misread as a heard-id count.
+    builder.addByte(AudioCapabilityNegotiator.localBitmask);
     return builder.toBytes();
   }
 
@@ -240,6 +257,13 @@ class WakiPacketCodec {
   /// walkie channel is for, and 12 × 13 bytes keeps presence comfortably
   /// inside one datagram on any link.
   static const _maxHeardIds = 12;
+
+  /// Sentinel heard-id count meaning "no opinion" (a null [heardIds]) rather
+  /// than a real, possibly-empty list. Any value above [_maxHeardIds] works —
+  /// no real count can ever reach it — but this name is what encode/decode
+  /// both refer to, so the two stay in agreement without repeating "some
+  /// value bigger than 12" as a comment at each site.
+  static const _kNoHeardIdsOpinion = 0xFF;
 
   /// Whether [typeByte] is transport control rather than session traffic.
   ///
@@ -376,6 +400,7 @@ class WakiPacketCodec {
         type == kPresenceV3Byte ||
         type == kPresenceV4Byte) {
       if (bytes.length < bodyStart + 1) return null;
+      final (heardIds, afterHeardIds) = _decodeHeardIds(bytes, bodyStart + 2);
       return PresencePacket(
         senderId: senderId,
         senderName: name,
@@ -388,7 +413,13 @@ class WakiPacketCodec {
             : SessionRole.unknown,
         // Optional again, and after the role: absent from every build before
         // the heard list existed.
-        heardIds: _decodeHeardIds(bytes, bodyStart + 2),
+        heardIds: heardIds,
+        // Optional again, and after heardIds (real or the no-opinion
+        // sentinel): absent from every build before #28, and from a
+        // truncated packet — both read as "legacy only", the safe default.
+        capabilityBitmask: afterHeardIds < bytes.length
+            ? bytes[afterHeardIds]
+            : 0,
       );
     }
 
@@ -427,32 +458,43 @@ class WakiPacketCodec {
     return null;
   }
 
-  /// Reads the length-prefixed device ids a presence packet ends with, from
-  /// [start].
+  /// Reads the length-prefixed device ids a presence packet carries from
+  /// [start], and reports where that section ended so the caller can read
+  /// whatever comes after it (the capability byte).
   ///
-  /// Null — "the sender expressed no opinion" — for a packet that simply ends
-  /// there (any build before the heard list, and every point-to-point
-  /// transport), and also for anything that can't be read in full. Truncation
-  /// is never reported as a partial list: the one consumer of this asks "is my
-  /// id absent from it?", and answering yes from half a list is how a healthy
-  /// link gets torn down and rebuilt for no reason.
-  static List<String>? _decodeHeardIds(Uint8List bytes, int start) {
-    if (start >= bytes.length) return null;
+  /// Null ids — "the sender expressed no opinion" — for a packet that simply
+  /// ends there (any build before the heard list, and every point-to-point
+  /// transport before #28), for one carrying [_kNoHeardIdsOpinion] (every
+  /// point-to-point transport since), and for anything that can't be read in
+  /// full. Truncation is never reported as a partial list: the one consumer
+  /// of this asks "is my id absent from it?", and answering yes from half a
+  /// list is how a healthy link gets torn down and rebuilt for no reason.
+  ///
+  /// The returned offset on a truncated packet is [Uint8List.length] — "there
+  /// is nothing left that can be safely read" — rather than [start], so a
+  /// corrupt heard-id section can't be misread as leaving a valid capability
+  /// byte right after it.
+  static (List<String>? ids, int end) _decodeHeardIds(
+    Uint8List bytes,
+    int start,
+  ) {
+    if (start >= bytes.length) return (null, start);
     final count = bytes[start];
-    if (count == 0) return const [];
+    if (count > _maxHeardIds) return (null, start + 1); // sentinel
+    if (count == 0) return (const [], start + 1);
     final ids = <String>[];
     var offset = start + 1;
     for (var i = 0; i < count; i++) {
-      if (offset >= bytes.length) return null;
+      if (offset >= bytes.length) return (null, bytes.length);
       final len = bytes[offset];
       offset += 1;
-      if (offset + len > bytes.length) return null;
+      if (offset + len > bytes.length) return (null, bytes.length);
       ids.add(
         utf8.decode(bytes.sublist(offset, offset + len), allowMalformed: true),
       );
       offset += len;
     }
-    return ids;
+    return (ids, offset);
   }
 
   /// The part of the header every message shares, whatever its version or
@@ -561,6 +603,14 @@ class WakiPacketCodec {
 
   /// Frees per-sender Opus decoder state (call after a detected reconnect).
   void resetDecoders() => _opus.resetDecoders();
+
+  /// Switches the wire format the encoder/decoders run at, once negotiation
+  /// (see [AudioCapabilityNegotiator]) has settled on a new mutual profile.
+  /// A no-op when unchanged; otherwise resets per-sender decoder state, since
+  /// a decoder built for the old rate/frame size cannot continue mid-stream —
+  /// see [OpusAudioCodec.setFormatProfile].
+  void setFormatProfile(AudioFormatProfile profile) =>
+      _opus.setFormatProfile(profile);
 
   List<double> _bytesToSamples(Uint8List bytes) {
     final bd = ByteData.sublistView(bytes);

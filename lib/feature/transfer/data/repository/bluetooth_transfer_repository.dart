@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:dartz/dartz.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../../../core/audio/audio_format_profile.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/identity/device_identity.dart';
 import '../../../../core/identity/session_epoch.dart';
@@ -22,6 +23,7 @@ import '../../domain/entity/bluetooth_host_name.dart';
 import '../../domain/entity/bluetooth_peer.dart';
 import '../../domain/repository/bluetooth_transport.dart';
 import '../../domain/repository/transfer_repository.dart';
+import '../../domain/service/audio_capability_negotiator.dart';
 import '../bluetooth/ble_bluetooth_engine.dart';
 import '../bluetooth/classic_bluetooth_engine.dart';
 import '../bluetooth/length_prefixed_framer.dart';
@@ -66,6 +68,27 @@ class BluetoothTransferRepository
   // Classic RFCOMM is a raw byte stream, so the repo reassembles frames for
   // it. The BLE engine frames internally and emits complete messages.
   final _classicFramer = FrameReassembler();
+
+  /// One peer at a time on this transport — see [AudioCapabilityNegotiator]'s
+  /// class doc for why a point-to-point transport still uses the same
+  /// negotiator as WiFi's whole-roster case.
+  final AudioCapabilityNegotiator _capabilities = AudioCapabilityNegotiator();
+
+  AudioFormatProfile _negotiatedFormat = AudioFormatProfile.legacy16k;
+
+  @override
+  AudioFormatProfile get negotiatedFormat => _negotiatedFormat;
+
+  void _syncFormatProfile() {
+    final resolved = _capabilities.resolve();
+    if (resolved == _negotiatedFormat) return;
+    final previous = _negotiatedFormat;
+    _negotiatedFormat = resolved;
+    _codec.setFormatProfile(resolved);
+    Logger.diagnostic(
+      'bluetooth: negotiated audio profile ${previous.label} -> ${resolved.label}',
+    );
+  }
 
   final _packetController = StreamController<WakiPacket>.broadcast();
   final _connectionStateController =
@@ -411,7 +434,12 @@ class BluetoothTransferRepository
     final peerId = _connectedPeerId;
     if (peerId == null) return;
     final packet = _codec.decode(message, peerId);
-    if (packet != null) _packetController.add(packet);
+    if (packet == null) return;
+    if (packet is PresencePacket) {
+      _capabilities.observePeer(peerId, packet.capabilityBitmask);
+      _syncFormatProfile();
+    }
+    _packetController.add(packet);
   }
 
   void _onPeerConnected(String engine, String peerId) {
@@ -490,6 +518,12 @@ class BluetoothTransferRepository
     _connectedPeerId = null;
     _activeEngine = null;
     _classicFramer.reset();
+    // What the departed peer advertised says nothing about whoever connects
+    // next — clear rather than carry a stale mutual profile into a session
+    // that hasn't confirmed anything yet.
+    _capabilities.clear();
+    _negotiatedFormat = AudioFormatProfile.legacy16k;
+    _codec.setFormatProfile(AudioFormatProfile.legacy16k);
     if (hadSession && _sessionRole != null && _autoReconnectEnabled) {
       unawaited(_autoReconnect());
     } else {

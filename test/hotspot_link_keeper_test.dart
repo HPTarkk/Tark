@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tark/core/audio/audio_format_profile.dart';
 import 'package:tark/core/error/failure.dart';
 import 'package:tark/feature/transfer/data/service/hotspot_link_keeper_impl.dart';
 import 'package:tark/feature/transfer/domain/entity/audio_profile.dart';
@@ -138,6 +139,9 @@ class _FakeWifi implements WifiTransferRepository {
 
   @override
   void resetCodecState() {}
+
+  @override
+  AudioFormatProfile get negotiatedFormat => AudioFormatProfile.legacy16k;
 
   @override
   void repairSendPath() {}

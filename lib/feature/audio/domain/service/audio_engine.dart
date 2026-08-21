@@ -36,6 +36,21 @@ abstract interface class AudioEngine {
   /// Request mic permission and start the duplex engine.
   Future<void> start();
 
+  /// Switches the wire format the capture/playback chains run at, once
+  /// negotiation (`AudioCapabilityNegotiator`, `feature/transfer`) has
+  /// settled on a new mutual profile with the peers currently on the
+  /// channel.
+  ///
+  /// A hot-swap, not a device reopen: the platform mic/speaker stay open at
+  /// whatever rate the OS gave them, and only the resamplers, frame
+  /// accumulator, and noise-suppression chain between them and the wire are
+  /// rebuilt — so a legitimate profile transition cannot itself cause a
+  /// screen-off disconnect, a route-change deadlock, or any of the other
+  /// reliability properties `#26`'s baseline pinned down. A no-op when
+  /// [profile] is unchanged, so a caller can pass this the negotiator's
+  /// result on every presence tick without checking first.
+  void setWireFormat(AudioFormatProfile profile);
+
   /// Apply the audio processing chain (normalisation + high-pass + noise
   /// gate) to a fixed-size mic frame, sized per the active
   /// [AudioFormatProfile], before it is transmitted.

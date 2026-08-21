@@ -1,5 +1,6 @@
 import 'package:dartz/dartz.dart';
 
+import '../../../../core/audio/audio_format_profile.dart';
 import '../../../../core/error/failure.dart';
 import '../entity/audio_profile.dart';
 import '../entity/connection_health.dart';
@@ -9,6 +10,15 @@ import '../entity/waki_packet.dart';
 
 abstract interface class TransferRepository {
   Stream<WakiPacket> startListening();
+
+  /// The audio wire format every peer this transport currently knows about
+  /// has confirmed it can run — see `AudioCapabilityNegotiator`.
+  /// [AudioFormatProfile.legacy16k] until at least one peer has been heard
+  /// from, and always again once none has. Read after each [PresencePacket]
+  /// to notice a change (the transport applies its own encoder to the new
+  /// profile automatically; a caller driving playback — see
+  /// `AudioEngine.setWireFormat` — has to notice separately).
+  AudioFormatProfile get negotiatedFormat;
 
   /// The part this device plays in the current link, stamped on every
   /// presence packet so the other end can name it too. Each transport

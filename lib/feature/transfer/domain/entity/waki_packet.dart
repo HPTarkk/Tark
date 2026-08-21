@@ -67,6 +67,14 @@ final class PresencePacket extends WakiPacket {
   /// channel permanently repairing itself.
   final List<String>? heardIds;
 
+  /// Which [AudioFormatProfile]s (`core/audio/`) beyond
+  /// `AudioFormatProfile.legacy16k` the sender can negotiate to — bit
+  /// `p.id - 2` for profile `p`. 0 from a build that predates this field (the
+  /// trailing byte is simply absent) and from a build that hasn't advertised
+  /// anything beyond legacy — both read the same way: legacy only. See
+  /// [AudioCapabilityNegotiator].
+  final int capabilityBitmask;
+
   const PresencePacket({
     required super.senderId,
     required super.senderName,
@@ -75,10 +83,17 @@ final class PresencePacket extends WakiPacket {
     super.channelId,
     this.role = SessionRole.unknown,
     this.heardIds,
+    this.capabilityBitmask = 0,
   });
 
   @override
-  List<Object?> get props => [...super.props, isTalking, role, heardIds];
+  List<Object?> get props => [
+    ...super.props,
+    isTalking,
+    role,
+    heardIds,
+    capabilityBitmask,
+  ];
 }
 
 final class AudioPacket extends WakiPacket {

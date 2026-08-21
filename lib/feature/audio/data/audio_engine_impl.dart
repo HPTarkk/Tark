@@ -61,13 +61,17 @@ class AudioEngineImpl implements AudioEngine {
     await VoiceAudioSession.release();
   });
 
-  // The wire-format contract this engine currently runs. Always
-  // [AudioFormatProfile.legacy16k] until #28's negotiation lands (see
-  // `AudioFormatProfile.supported`) — held as a field rather than inlined so
-  // the negotiated-format work has one place to change it instead of a
-  // scattered search-and-replace. `final` today because nothing mutates it
-  // yet; becomes reassignable once negotiation can pick something else.
-  final AudioFormatProfile _activeProfile = AudioFormatProfile.legacy16k;
+  // The wire-format contract this engine currently runs. Only ever changed by
+  // [setWireFormat], once negotiation (`AudioCapabilityNegotiator`,
+  // `feature/transfer`) has picked something other than the default.
+  AudioFormatProfile _activeProfile = AudioFormatProfile.legacy16k;
+
+  // Device rates the OS actually handed back, cached from the last
+  // [_openStreams] so [setWireFormat] can rebuild the wire-format-dependent
+  // half of the pipeline (see [_rebuildForFormat]) without re-querying
+  // [_audioIo] — a format switch never needs to touch the device.
+  double _inputRate = 48000.0;
+  double _outputRate = 48000.0;
 
   AudioProcessor _processor = AudioProcessor(
     sampleRate: AudioFormatProfile.legacy16k.sampleRateHz.toDouble(),
@@ -79,11 +83,13 @@ class AudioEngineImpl implements AudioEngine {
   // keys up on noise. Two suppressors, user-selectable in Advanced settings
   // (either alone, or cascaded via NoiseSuppressionEngine.both) — both kept
   // warm (reset when idle costs nothing) so switching engines mid-session
-  // doesn't need to rebuild anything.
-  final SpectralNoiseSuppressor _spectralSuppressor = SpectralNoiseSuppressor(
+  // doesn't need to rebuild anything. Reconstructed rather than reset by
+  // [_rebuildForFormat] on a wire-format change: their internal sizing (the
+  // spectral window, RNNoise's resample ratio) is fixed at construction.
+  SpectralNoiseSuppressor _spectralSuppressor = SpectralNoiseSuppressor(
     sampleRateHz: AudioFormatProfile.legacy16k.sampleRateHz,
   );
-  final RnnoiseSuppressor _rnnoiseSuppressor = RnnoiseSuppressor(
+  RnnoiseSuppressor _rnnoiseSuppressor = RnnoiseSuppressor(
     txRateHz: AudioFormatProfile.legacy16k.sampleRateHz,
   );
   NoiseSuppressionEngine _suppressionEngine = NoiseSuppressionEngine.spectral;
@@ -314,10 +320,9 @@ class AudioEngineImpl implements AudioEngine {
       await VoiceAudioSession.attachEffects(sessionId);
 
       final fmt = await _audioIo.getFormat();
-      final inputRate =
-          (fmt?['input']?['sampleRate'] as num?)?.toDouble() ?? 48000.0;
-      final outputRate =
-          (fmt?['output']?['sampleRate'] as num?)?.toDouble() ?? inputRate;
+      _inputRate = (fmt?['input']?['sampleRate'] as num?)?.toDouble() ?? 48000.0;
+      _outputRate =
+          (fmt?['output']?['sampleRate'] as num?)?.toDouble() ?? _inputRate;
       // Diagnostic, not debug: the rates the OS actually handed us decide
       // every resampler ratio downstream, and a device that negotiates
       // something unexpected (16 kHz capture over a Bluetooth headset, a
@@ -325,39 +330,13 @@ class AudioEngineImpl implements AudioEngine {
       // once per session start, where a fault is either present or absent —
       // and previously only on a debug build, i.e. never on the phone that
       // had the problem.
-      final profileRate = _activeProfile.sampleRateHz.toDouble();
       Logger.diagnostic(
-        'audio: session started — capture ${inputRate.toStringAsFixed(0)}Hz, '
-        'playback ${outputRate.toStringAsFixed(0)}Hz, '
-        'wire ${_activeProfile.sampleRateHz}Hz/${_activeProfile.frameSamples}smp '
-        'frames (${_activeProfile.label}), '
+        'audio: session started — capture ${_inputRate.toStringAsFixed(0)}Hz, '
+        'playback ${_outputRate.toStringAsFixed(0)}Hz, '
         'effectsSession=$sessionId, raw=$fmt',
       );
 
-      _processor = AudioProcessor(sampleRate: profileRate);
-      _spectralSuppressor.reset();
-      _rnnoiseSuppressor.reset();
-      // After the resets, not before: rnnoise's recreates the denoiser, so
-      // availability — and with it the plan — can change here.
-      _applySuppression();
-
-      if (inputRate > profileRate) {
-        _txLowPassA = OnePoleLowPass(
-          sampleRate: inputRate,
-          cutoffHz: profileRate * 0.45,
-        );
-        _txLowPassB = OnePoleLowPass(
-          sampleRate: inputRate,
-          cutoffHz: profileRate * 0.45,
-        );
-      } else {
-        _txLowPassA = null;
-        _txLowPassB = null;
-      }
-      _txResampler = LinearResampler(inRate: inputRate, outRate: profileRate);
-      _txAccum.clear();
-
-      _rxResampler = LinearResampler(inRate: profileRate, outRate: outputRate);
+      _rebuildForFormat(_activeProfile);
 
       // Via the profile, not getTargetBufferMs(): the riding preset anchors
       // the adaptive buffer deeper, and reading the raw preference here would
@@ -369,7 +348,7 @@ class AudioEngineImpl implements AudioEngine {
       // to was closed.
       _buffer = AudioPlaybackBuffer(
         output: _audioIo.output,
-        sampleRate: outputRate.toInt(),
+        sampleRate: _outputRate.toInt(),
         targetBufferMs: profile.targetBufferMs,
         debugLogging: true,
         outputUnderrunFrames: _audioIo.outputUnderrunFrames,
@@ -387,6 +366,62 @@ class AudioEngineImpl implements AudioEngine {
     // Fresh streams — reset the stall clock so the watchdog gives them time
     // to start delivering before considering another restart.
     _lastInputAt = DateTime.now();
+  }
+
+  /// Rebuilds everything downstream of the wire-format contract: the
+  /// processor/suppressor chain, the TX anti-alias filters and resampler
+  /// (and its accumulator), and the RX resampler. Never touches [_audioIo],
+  /// [VoiceAudioSession], or route selection — a wire-format switch is a
+  /// hot-swap of the pipeline between the already-open device and the
+  /// already-open jitter buffer, not a device reopen, which is what keeps
+  /// [setWireFormat] from being able to cause a screen-off disconnect or a
+  /// route-change deadlock: there is no device teardown in this method for
+  /// either of those to happen to.
+  ///
+  /// Shared by [_openStreams] (where [_inputRate]/[_outputRate] were just
+  /// freshly queried) and [setWireFormat] (where they're whatever
+  /// [_openStreams] last found), so both paths build this half of the
+  /// pipeline identically.
+  void _rebuildForFormat(AudioFormatProfile profile) {
+    final profileRate = profile.sampleRateHz.toDouble();
+    Logger.diagnostic(
+      'audio: wire format ${profile.label} — '
+      '${profile.sampleRateHz}Hz/${profile.frameSamples}smp frames '
+      '(capture ${_inputRate.toStringAsFixed(0)}Hz, '
+      'playback ${_outputRate.toStringAsFixed(0)}Hz)',
+    );
+
+    _processor = AudioProcessor(sampleRate: profileRate);
+    // Reconstructed, not reset: each one's internal sizing (the spectral
+    // window, RNNoise's up/down resample ratio) is fixed at construction and
+    // depends on this rate. The old RNNoise instance holds native denoiser
+    // state that [reset] doesn't free — only [dispose] does.
+    _spectralSuppressor = SpectralNoiseSuppressor(
+      sampleRateHz: profile.sampleRateHz,
+    );
+    _rnnoiseSuppressor.dispose();
+    _rnnoiseSuppressor = RnnoiseSuppressor(txRateHz: profile.sampleRateHz);
+    // After the suppressors are rebuilt, not before: rnnoise's construction
+    // re-probes native availability, so the plan can change here.
+    _applySuppression();
+
+    if (_inputRate > profileRate) {
+      _txLowPassA = OnePoleLowPass(
+        sampleRate: _inputRate,
+        cutoffHz: profileRate * 0.45,
+      );
+      _txLowPassB = OnePoleLowPass(
+        sampleRate: _inputRate,
+        cutoffHz: profileRate * 0.45,
+      );
+    } else {
+      _txLowPassA = null;
+      _txLowPassB = null;
+    }
+    _txResampler = LinearResampler(inRate: _inputRate, outRate: profileRate);
+    _txAccum.clear();
+
+    _rxResampler = LinearResampler(inRate: profileRate, outRate: _outputRate);
   }
 
   // ── Internal ───────────────────────────────────────────────────────────────
@@ -601,6 +636,13 @@ class AudioEngineImpl implements AudioEngine {
   // ── Public API ─────────────────────────────────────────────────────────────
 
   @override
+  void setWireFormat(AudioFormatProfile profile) {
+    if (profile == _activeProfile) return;
+    _activeProfile = profile;
+    _rebuildForFormat(profile);
+  }
+
+  @override
   List<double> processForTransmit(List<double> samples, double voxLevel) {
     // Half the gate's own level, so the expander only trims residual noise
     // inside frames VOX has already decided are speech — it must never be the
@@ -621,9 +663,10 @@ class AudioEngineImpl implements AudioEngine {
   /// user's strength, and whether the native denoiser loaded — and pushes the
   /// per-engine strengths into the suppressors.
   ///
-  /// Availability is read here rather than cached because
-  /// [RnnoiseSuppressor.reset] recreates the denoiser, so a session restart is
-  /// the one moment it can change.
+  /// Availability is read here rather than cached because [RnnoiseSuppressor]
+  /// gets a fresh denoiser probe on a session restart ([RnnoiseSuppressor.reset])
+  /// and on a wire-format switch ([_rebuildForFormat] reconstructs it), so
+  /// either is a moment it can change.
   void _applySuppression() {
     final plan = SuppressionPlan.resolve(
       engine: _suppressionEngine,

@@ -10,6 +10,7 @@ import 'package:injectable/injectable.dart';
 import '../../../../core/analytics/analytics.dart';
 import '../../../../core/analytics/analytics_event.dart';
 import '../../../../core/analytics/pairing_attempt.dart';
+import '../../../../core/audio/audio_format_profile.dart';
 import '../../../../core/entitlement/license_gate.dart';
 import '../../../../core/entitlement/premium_feature.dart';
 import '../../../../core/home_widget/home_widget_service.dart';
@@ -1054,6 +1055,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
           packet.isTalking,
           packet.role,
         );
+        _syncWireFormat();
       case AudioPacket():
         // Audio carries no role — the roster keeps whatever this peer last
         // announced (see [ChannelRoster.upsert]).
@@ -1126,6 +1128,33 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
 
   /// Previous [TransportStats] sample, so the counters can be diffed.
   TransportStats _lastStats = TransportStats.none;
+
+  /// What was last pushed to [_audioEngine] via [_syncWireFormat] — the
+  /// transfer layer's own `TransferRepository.negotiatedFormat` already
+  /// no-ops internally, but this is what tells the cubit whether anything
+  /// actually changed, so [AudioEngine.resetPlayback] fires on a genuine
+  /// transition and not on every presence tick.
+  AudioFormatProfile _lastNegotiatedFormat = AudioFormatProfile.legacy16k;
+
+  /// Applies a change in the transfer layer's negotiated audio wire format
+  /// (`AudioCapabilityNegotiator`) to the engine.
+  ///
+  /// Checked on every presence packet — cheap, since both
+  /// [TransferRepository.negotiatedFormat] and [AudioEngine.setWireFormat]
+  /// are no-ops when nothing changed — but only acts, and only resets
+  /// playback, when the transfer layer's own answer has actually moved.
+  /// Mirrors [_applyHealth]'s reconnect pairing: a legitimate transition
+  /// resets per-sender Opus decoder state on the transfer side (already done
+  /// by the time this runs — see `WakiPacketCodec.setFormatProfile`), so
+  /// stale jitter-buffer state from before the switch must go with it.
+  void _syncWireFormat() {
+    final negotiated = _transferRepository.negotiatedFormat;
+    if (negotiated == _lastNegotiatedFormat) return;
+    _lastNegotiatedFormat = negotiated;
+    _audioEngine.setWireFormat(negotiated);
+    _audioEngine.resetPlayback();
+    Logger.diagnostic('walkie: wire format -> ${negotiated.label}');
+  }
 
   /// Records what a peer says about whether it can hear us.
   ///
@@ -1765,7 +1794,7 @@ enum MusicCastStopReason {
   /// The user pressed stop.
   userRequest,
 
-  /// Playback capture delivered nothing — see [SystemAudioCaptureService].
+  /// Playback capture delivered nothing — see SystemAudioCaptureService.kt.
   captureStalled,
 
   /// The capture stream closed without an error: the OS revoked the media

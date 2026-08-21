@@ -5,6 +5,7 @@ import 'package:dartz/dartz.dart';
 import 'package:flutter/foundation.dart' show setEquals;
 import 'package:injectable/injectable.dart';
 
+import '../../../../core/audio/audio_format_profile.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/identity/channel_membership.dart';
 import '../../../../core/identity/device_identity.dart';
@@ -19,6 +20,7 @@ import '../../domain/entity/session_role.dart';
 import '../../domain/entity/transport_stats.dart';
 import '../../domain/entity/waki_packet.dart';
 import '../../domain/repository/wifi_transfer_repository.dart';
+import '../../domain/service/audio_capability_negotiator.dart';
 import '../../domain/service/host_subnet_filter.dart';
 import '../../domain/service/recovery_ladder.dart';
 import '../../domain/service/opus_tuner.dart';
@@ -251,6 +253,32 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   /// Drops packets from a peer's previous join that arrive after its new one
   /// has started. See [SessionEpochGate].
   final SessionEpochGate _epochGate = SessionEpochGate();
+
+  /// Tracks what every currently-heard peer has advertised, and resolves the
+  /// mutual audio wire format. WiFi is a broadcast transport with one encoder
+  /// for the whole roster (see [AudioCapabilityNegotiator]'s class doc), so
+  /// this feeds it the *whole* heard roster rather than one peer.
+  final AudioCapabilityNegotiator _capabilities = AudioCapabilityNegotiator();
+
+  AudioFormatProfile _negotiatedFormat = AudioFormatProfile.legacy16k;
+
+  @override
+  AudioFormatProfile get negotiatedFormat => _negotiatedFormat;
+
+  /// Recomputes the mutual profile from what's currently tracked and applies
+  /// it if it changed. Cheap to call on every presence tick — a no-op change
+  /// is the overwhelmingly common case — which is what keeps a negotiated
+  /// profile from flapping packet to packet.
+  void _syncFormatProfile() {
+    final resolved = _capabilities.resolve();
+    if (resolved == _negotiatedFormat) return;
+    final previous = _negotiatedFormat;
+    _negotiatedFormat = resolved;
+    _codec.setFormatProfile(resolved);
+    Logger.diagnostic(
+      'wifi: negotiated audio profile ${previous.label} -> ${resolved.label}',
+    );
+  }
 
   /// Packets belonging to a *different* conversation on this network, dropped
   /// since the last session line.
@@ -499,6 +527,12 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
                   (_rxBySender[packet.senderId] ??= _PeerAudioStats()).record(
                     packet.seq,
                   );
+                } else if (packet is PresencePacket) {
+                  _capabilities.observePeer(
+                    packet.senderId,
+                    packet.capabilityBitmask,
+                  );
+                  _syncFormatProfile();
                 }
                 yield packet;
               }
@@ -908,6 +942,14 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     // Session-scoped for the same reason: the estimate describes peers that
     // are gone, and both counters it diffs against restart with the transport.
     _loss.clear();
+    // Likewise: what the last session's peers advertised says nothing about
+    // the next session's, and a stale mutual profile would either hold a
+    // fresh, still-unconfirmed pair below what they can actually run or
+    // (worse, once HD is reachable) claim a profile before anyone on the new
+    // session has said they support it.
+    _capabilities.clear();
+    _negotiatedFormat = AudioFormatProfile.legacy16k;
+    _codec.setFormatProfile(AudioFormatProfile.legacy16k);
     _rxBySender.clear();
     _senderAtAddress.clear();
     _narrowedTo = const {};
@@ -1442,6 +1484,11 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     // 40 % loss would hold the encoder at its lowest bitrate for everyone still
     // talking, for the rest of the session.
     _loss.retain(_currentlyHeardSenders());
+    // Same reasoning for capability: a peer who dropped off must not go on
+    // holding (or, once a higher profile is reachable, blocking) the mutual
+    // format for everyone still here.
+    _capabilities.retain(_currentlyHeardSenders());
+    _syncFormatProfile();
 
     // Retune the encoder for the link we just measured. On this tick rather
     // than per frame because that is the cadence a new measurement arrives at,

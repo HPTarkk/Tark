@@ -4,6 +4,7 @@ import 'package:dartz/dartz.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../../../core/audio/audio_format_profile.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/identity/device_identity.dart';
 import '../../../../core/identity/session_epoch.dart';
@@ -17,6 +18,7 @@ import '../../domain/entity/transport_stats.dart';
 import '../../domain/entity/waki_packet.dart';
 import '../../domain/repository/guest_link_controller.dart';
 import '../../domain/repository/transfer_repository.dart';
+import '../../domain/service/audio_capability_negotiator.dart';
 import '../codec/opus_audio_codec.dart';
 import '../codec/waki_packet_codec.dart';
 import '../webrtc/ice_config.dart';
@@ -50,6 +52,27 @@ class WebRtcTransferRepository
   WebRtcTransferRepository(this._identity, this._epoch);
 
   late final _codec = WakiPacketCodec(_identity.id, _epoch);
+
+  /// One peer at a time on this transport — see [AudioCapabilityNegotiator]'s
+  /// class doc for why a point-to-point transport still uses the same
+  /// negotiator as WiFi's whole-roster case.
+  final AudioCapabilityNegotiator _capabilities = AudioCapabilityNegotiator();
+
+  AudioFormatProfile _negotiatedFormat = AudioFormatProfile.legacy16k;
+
+  @override
+  AudioFormatProfile get negotiatedFormat => _negotiatedFormat;
+
+  void _syncFormatProfile() {
+    final resolved = _capabilities.resolve();
+    if (resolved == _negotiatedFormat) return;
+    final previous = _negotiatedFormat;
+    _negotiatedFormat = resolved;
+    _codec.setFormatProfile(resolved);
+    Logger.diagnostic(
+      'webrtc: negotiated audio profile ${previous.label} -> ${resolved.label}',
+    );
+  }
 
   final _packetController = StreamController<WakiPacket>.broadcast();
   final _connectionController = StreamController<ConnectionHealth>.broadcast();
@@ -166,7 +189,12 @@ class WebRtcTransferRepository
     dc.onMessage = (message) {
       if (!message.isBinary) return;
       final packet = _codec.decode(message.binary, kGuestPeerId);
-      if (packet != null) _packetController.add(packet);
+      if (packet == null) return;
+      if (packet is PresencePacket) {
+        _capabilities.observePeer(kGuestPeerId, packet.capabilityBitmask);
+        _syncFormatProfile();
+      }
+      _packetController.add(packet);
     };
   }
 
@@ -204,6 +232,12 @@ class WebRtcTransferRepository
     final pc = _pc;
     _dc = null;
     _pc = null;
+    // What the departed guest advertised says nothing about whoever connects
+    // next — clear rather than carry a stale mutual profile into a session
+    // that hasn't confirmed anything yet.
+    _capabilities.clear();
+    _negotiatedFormat = AudioFormatProfile.legacy16k;
+    _codec.setFormatProfile(AudioFormatProfile.legacy16k);
     try {
       await dc?.close();
       await pc?.close();

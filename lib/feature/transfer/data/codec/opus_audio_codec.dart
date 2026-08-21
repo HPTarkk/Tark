@@ -60,8 +60,8 @@ class OpusDecodeResult {
   final List<double>? recoveredPrevious;
 }
 
-/// Opus codec for the mono transmit stream, at [AudioFormatProfile.legacy16k]
-/// today — negotiating to a higher profile is #28's next step.
+/// Opus codec for the mono transmit stream, at whichever [AudioFormatProfile]
+/// [setFormatProfile] last set (default [AudioFormatProfile.legacy16k]).
 ///
 /// PCM16 at 16 kHz costs 256 kbps on the wire — fine on an idle LAN, but on
 /// a lossy hotspot link between two motorcycles every dropped ~660-byte
@@ -128,6 +128,10 @@ class OpusAudioCodec {
   SimpleOpusEncoder? _encoder;
   OpusEncodeProfile _profile = OpusEncodeProfile.voice;
 
+  /// The wire-format contract (rate, frame size) this codec currently runs.
+  /// See [setFormatProfile].
+  AudioFormatProfile _formatProfile = AudioFormatProfile.legacy16k;
+
   /// Whether the transmit path is running with in-band FEC. False means rung 2
   /// or 3 above — worth reporting, because it changes what a lossy link sounds
   /// like on the far end.
@@ -175,6 +179,22 @@ class OpusAudioCodec {
     Logger.log('Opus encoder profile: ${profile.name}');
   }
 
+  /// Switches the negotiated wire format (see [AudioCapabilityNegotiator]).
+  /// A no-op when unchanged, so a caller can hand this the negotiator's
+  /// result on every presence tick without checking first.
+  ///
+  /// Rebuilds the encoder (its sample rate is fixed at construction, same as
+  /// [OpusEncodeProfile]) and resets every per-sender decoder — a decoder
+  /// built for the old rate/frame size cannot continue decoding mid-stream,
+  /// same as [resetDecoders]' own reasoning for a detected reconnect.
+  void setFormatProfile(AudioFormatProfile profile) {
+    if (_formatProfile == profile) return;
+    _formatProfile = profile;
+    _releaseEncoder();
+    resetDecoders();
+    Logger.log('Opus wire format: ${profile.label}');
+  }
+
   // One decoder per sender: an Opus stream is stateful (prediction across
   // frames), and a WiFi channel can carry several senders at once.
   final Map<String, ControlledOpusDecoder> _controlledDecoders = {};
@@ -185,13 +205,13 @@ class OpusAudioCodec {
   /// [FecGapTracker].
   final FecGapTracker _gaps = FecGapTracker();
 
-  /// Encodes one frame sized per [AudioFormatProfile.legacy16k]. Returns null
-  /// when Opus is unavailable or the frame has an unexpected length (callers
-  /// then send PCM16 instead).
+  /// Encodes one frame sized per the active [AudioFormatProfile]. Returns
+  /// null when Opus is unavailable or the frame has an unexpected length
+  /// (callers then send PCM16 instead).
   Uint8List? encode(List<double> samples) {
     if (!_initialized) return null;
     // Opus only accepts exact frame sizes (2.5/5/10/20/40/60 ms).
-    if (samples.length != AudioFormatProfile.legacy16k.frameSamples) {
+    if (samples.length != _formatProfile.frameSamples) {
       return null;
     }
     try {
@@ -222,7 +242,7 @@ class OpusAudioCodec {
 
     final built = tryCreateControlledOpusEncoder(
       library: _library,
-      sampleRate: AudioFormatProfile.legacy16k.sampleRateHz,
+      sampleRate: _formatProfile.sampleRateHz,
       channels: 1,
       application: _profile.applicationCode,
     );
@@ -243,7 +263,7 @@ class OpusAudioCodec {
       'codec: no controlled Opus encoder — encoding without in-band FEC',
     );
     final simpleEncoder = SimpleOpusEncoder(
-      sampleRate: AudioFormatProfile.legacy16k.sampleRateHz,
+      sampleRate: _formatProfile.sampleRateHz,
       channels: 1,
       application: _profile.application,
     );
@@ -290,7 +310,7 @@ class OpusAudioCodec {
       }
 
       final decoder = _decoders[senderId] ??= SimpleOpusDecoder(
-        sampleRate: AudioFormatProfile.legacy16k.sampleRateHz,
+        sampleRate: _formatProfile.sampleRateHz,
         channels: 1,
       );
       // Tracked even on this rung, which cannot recover anything: the sender
@@ -330,10 +350,7 @@ class OpusAudioCodec {
         // pulls out the redundant copy of the previous frame and leaves the
         // decoder positioned to decode this one next. The reverse order
         // produces the current frame twice.
-        recovered = decoder.decodeFec(
-          packet,
-          AudioFormatProfile.legacy16k.frameSamples,
-        );
+        recovered = decoder.decodeFec(packet, _formatProfile.frameSamples);
       } catch (e) {
         // The packet carried no usable FEC and concealment failed too. The gap
         // then falls through to the jitter buffer exactly as it did before.
@@ -354,7 +371,7 @@ class OpusAudioCodec {
     if (_decoders.containsKey(senderId)) return null; // already on the fallback
     final built = tryCreateControlledOpusDecoder(
       library: _library,
-      sampleRate: AudioFormatProfile.legacy16k.sampleRateHz,
+      sampleRate: _formatProfile.sampleRateHz,
       channels: 1,
     );
     if (built == null) return null;
