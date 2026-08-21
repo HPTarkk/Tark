@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tark/feature/audio/domain/entity/audio_engine_status.dart';
 import 'package:tark/feature/audio/domain/entity/audio_frame.dart';
+import 'package:tark/feature/audio/domain/entity/audio_route.dart';
 import 'package:tark/feature/audio/domain/service/audio_engine.dart';
 import 'package:tark/feature/preflight/data/mic_probe.dart';
 
@@ -37,6 +38,8 @@ class _FakeAudioEngine implements AudioEngine {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+Future<AudioRoute> _fakeRoute(AudioRoute route) async => route;
+
 void main() {
   test('permission denied is reported without waiting for a frame', () async {
     final engine = _FakeAudioEngine(
@@ -46,9 +49,14 @@ void main() {
       ),
     );
 
-    final outcome = await MicProbe.run(resolveEngine: () => engine);
+    final result = await MicProbe.run(resolveEngine: () => engine);
 
-    expect(outcome, MicProbeOutcome.permissionDenied);
+    expect(result.outcome, MicProbeOutcome.permissionDenied);
+    expect(
+      result.route,
+      AudioRoute.unknown,
+      reason: 'start() never reached configureVoice on this branch',
+    );
     expect(engine.started, isTrue);
     expect(engine.disposed, isTrue, reason: 'the probe engine must not leak');
   });
@@ -64,12 +72,13 @@ void main() {
         frameToEmit: null,
       );
 
-      final outcome = await MicProbe.run(
+      final result = await MicProbe.run(
         resolveEngine: () => engine,
+        resolveRoute: () => _fakeRoute(AudioRoute.unknown),
         timeout: const Duration(milliseconds: 50),
       );
 
-      expect(outcome, MicProbeOutcome.noFrames);
+      expect(result.outcome, MicProbeOutcome.noFrames);
       expect(engine.disposed, isTrue);
     },
   );
@@ -83,11 +92,36 @@ void main() {
       frameToEmit: const AudioFrame(rms: 0.2, samples: [0.1, 0.2]),
     );
 
-    final outcome = await MicProbe.run(resolveEngine: () => engine);
+    final result = await MicProbe.run(
+      resolveEngine: () => engine,
+      resolveRoute: () => _fakeRoute(AudioRoute.unknown),
+    );
 
-    expect(outcome, MicProbeOutcome.ok);
+    expect(result.outcome, MicProbeOutcome.ok);
     expect(engine.disposed, isTrue);
   });
+
+  test(
+    'the route is queried on this same probe session, before dispose '
+    'releases it — and handed back alongside the frame outcome',
+    () async {
+      final engine = _FakeAudioEngine(
+        statusAfterStart: const AudioEngineStatus(
+          hasPermission: true,
+          isStarted: true,
+        ),
+        frameToEmit: const AudioFrame(rms: 0.2, samples: [0.1, 0.2]),
+      );
+
+      final result = await MicProbe.run(
+        resolveEngine: () => engine,
+        resolveRoute: () => _fakeRoute(AudioRoute.bluetoothHeadset),
+      );
+
+      expect(result.outcome, MicProbeOutcome.ok);
+      expect(result.route, AudioRoute.bluetoothHeadset);
+    },
+  );
 
   test('the probe engine is disposed on every outcome, never left running', () async {
     for (final engine in [
@@ -113,6 +147,7 @@ void main() {
     ]) {
       await MicProbe.run(
         resolveEngine: () => engine,
+        resolveRoute: () => _fakeRoute(AudioRoute.unknown),
         timeout: const Duration(milliseconds: 30),
       );
       expect(engine.disposed, isTrue);

@@ -1479,4 +1479,31 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get preflight_fix_allow_notifications => 'اجازه‌ی اعلان‌ها';
+
+  @override
+  String get preflight_title => 'بررسی قبل از حرکت';
+
+  @override
+  String get preflight_subtitle_checking => 'در حال بررسی وضعیت...';
+
+  @override
+  String get preflight_subtitle_ready => 'همه چی آماده‌ست';
+
+  @override
+  String get preflight_subtitle_warning => 'کار می‌کنه، ولی یه نگاه بنداز';
+
+  @override
+  String get preflight_subtitle_blocked => 'چندتا چیز باید درست بشه';
+
+  @override
+  String get preflight_checking => 'در حال بررسی...';
+
+  @override
+  String get preflight_fix_issues => 'موارد بالا رو درست کن';
+
+  @override
+  String get preflight_continue_anyway => 'به هر حال ادامه بده';
+
+  @override
+  String get preflight_enter_channel => 'ورود به کانال';
 }

@@ -2767,6 +2767,60 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'اجازه‌ی اعلان‌ها'**
   String get preflight_fix_allow_notifications;
+
+  /// No description provided for @preflight_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'بررسی قبل از حرکت'**
+  String get preflight_title;
+
+  /// No description provided for @preflight_subtitle_checking.
+  ///
+  /// In fa, this message translates to:
+  /// **'در حال بررسی وضعیت...'**
+  String get preflight_subtitle_checking;
+
+  /// No description provided for @preflight_subtitle_ready.
+  ///
+  /// In fa, this message translates to:
+  /// **'همه چی آماده‌ست'**
+  String get preflight_subtitle_ready;
+
+  /// No description provided for @preflight_subtitle_warning.
+  ///
+  /// In fa, this message translates to:
+  /// **'کار می‌کنه، ولی یه نگاه بنداز'**
+  String get preflight_subtitle_warning;
+
+  /// No description provided for @preflight_subtitle_blocked.
+  ///
+  /// In fa, this message translates to:
+  /// **'چندتا چیز باید درست بشه'**
+  String get preflight_subtitle_blocked;
+
+  /// No description provided for @preflight_checking.
+  ///
+  /// In fa, this message translates to:
+  /// **'در حال بررسی...'**
+  String get preflight_checking;
+
+  /// No description provided for @preflight_fix_issues.
+  ///
+  /// In fa, this message translates to:
+  /// **'موارد بالا رو درست کن'**
+  String get preflight_fix_issues;
+
+  /// No description provided for @preflight_continue_anyway.
+  ///
+  /// In fa, this message translates to:
+  /// **'به هر حال ادامه بده'**
+  String get preflight_continue_anyway;
+
+  /// No description provided for @preflight_enter_channel.
+  ///
+  /// In fa, this message translates to:
+  /// **'ورود به کانال'**
+  String get preflight_enter_channel;
 }
 
 class _AppLocalizationsDelegate

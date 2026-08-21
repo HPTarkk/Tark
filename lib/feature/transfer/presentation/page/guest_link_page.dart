@@ -11,7 +11,9 @@ import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/qr_widgets.dart';
+import '../../../preflight/presentation/widget/silent_preflight_guard.dart';
 import '../../domain/entity/guest_link_state.dart';
+import '../../domain/entity/transfer_mode.dart';
 import '../manager/guest_link_cubit.dart';
 
 /// Host flow for inviting a browser guest: show the invite QR/link, then
@@ -31,8 +33,12 @@ class GuestLinkPage extends StatefulWidget {
   State<GuestLinkPage> createState() => _GuestLinkPageState();
 }
 
-class _GuestLinkPageState extends State<GuestLinkPage> {
+class _GuestLinkPageState extends State<GuestLinkPage>
+    with SilentPreflightGuard<GuestLinkPage> {
   bool _navigating = false;
+
+  @override
+  TransferMode get preflightMode => TransferMode.guest;
 
   Future<void> _openScanner(BuildContext context) async {
     final cubit = context.read<GuestLinkCubit>();

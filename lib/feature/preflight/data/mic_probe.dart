@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:get_it/get_it.dart';
 
+import '../../audio/data/voice_audio_session.dart';
+import '../../audio/domain/entity/audio_route.dart';
 import '../../audio/domain/service/audio_engine.dart';
 
 /// What Preflight's bounded mic probe found.
@@ -17,7 +19,18 @@ enum MicProbeOutcome {
   ok,
 }
 
-/// Check 1 — bounded-window real-frame-delivery probe.
+/// [MicProbe.run]'s result: the frame-delivery outcome plus the route the
+/// same probe session settled on (check 2 piggybacks on check 1's engine —
+/// see the class doc for why this can't be two independent probes).
+class MicProbeResult {
+  const MicProbeResult({required this.outcome, required this.route});
+
+  final MicProbeOutcome outcome;
+  final AudioRoute route;
+}
+
+/// Check 1 (and check 2's route classification) — bounded-window
+/// real-frame-delivery probe.
 ///
 /// Deliberately a **throwaway probe engine**, not a warm handoff into the
 /// real `WalkieTalkieCubit`'s `AudioEngine`: that cubit resolves and starts
@@ -28,32 +41,57 @@ enum MicProbeOutcome {
 /// lifecycle section warns against. One extra native audio-device
 /// open/close cycle is an accepted cost for zero duplicate-ownership risk.
 /// Do not "optimize" this into sharing an engine with the real session.
+///
+/// Check 2 (output route) reads off this same session rather than running
+/// independently: the route only settles once `engine.start()` has run
+/// `VoiceAudioSession.configure()` internally, and `engine.dispose()`
+/// releases that same voice session — querying the route after disposal
+/// would read whatever the OS falls back to, not what this probe actually
+/// used. So the route is captured here, between start and dispose, and
+/// handed back alongside the frame-delivery outcome.
 abstract final class MicProbe {
   /// Long enough to absorb AAudio/OpenSL startup jitter, short enough to
   /// keep Preflight's "a few seconds" budget.
   static const defaultTimeout = Duration(milliseconds: 1200);
 
-  static Future<MicProbeOutcome> run({
+  static Future<MicProbeResult> run({
     AudioEngine Function()? resolveEngine,
+    Future<AudioRoute> Function()? resolveRoute,
     Duration timeout = defaultTimeout,
   }) async {
     final engine = (resolveEngine ?? () => GetIt.instance<AudioEngine>())();
+    final route = resolveRoute ?? VoiceAudioSession.getCurrentRoute;
     try {
       await engine.start();
       if (!engine.currentStatus.hasPermission) {
-        return MicProbeOutcome.permissionDenied;
+        // start() never reached configureVoice on this branch — nothing to
+        // classify.
+        return const MicProbeResult(
+          outcome: MicProbeOutcome.permissionDenied,
+          route: AudioRoute.unknown,
+        );
       }
+      final resolvedRoute = await route();
       try {
         await engine.frames.first.timeout(timeout);
-        return MicProbeOutcome.ok;
+        return MicProbeResult(
+          outcome: MicProbeOutcome.ok,
+          route: resolvedRoute,
+        );
       } on TimeoutException {
-        return MicProbeOutcome.noFrames;
+        return MicProbeResult(
+          outcome: MicProbeOutcome.noFrames,
+          route: resolvedRoute,
+        );
       } on StateError {
         // The frames stream closed without ever emitting — same verdict as
         // timing out (a broadcast engine stream isn't expected to close on
         // its own while started, but `.first` throws this for any stream
         // that completes with no elements, so it's handled the same way).
-        return MicProbeOutcome.noFrames;
+        return MicProbeResult(
+          outcome: MicProbeOutcome.noFrames,
+          route: resolvedRoute,
+        );
       }
     } finally {
       // Whichever branch above returns, this probe's engine must not

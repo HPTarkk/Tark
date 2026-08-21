@@ -443,5 +443,14 @@
     "preflight_background_ok": "برای خاموش شدن صفحه آماده‌ست",
     "preflight_background_restricted": "تنظیمات باتری ممکنه با خاموش شدن صفحه ترک رو متوقف کنه",
     "preflight_background_notification_denied": "اعلان‌ها خاموشه — متوجه نمی‌شی جلسه هنوز روشنه",
-    "preflight_fix_allow_notifications": "اجازه‌ی اعلان‌ها"
+    "preflight_fix_allow_notifications": "اجازه‌ی اعلان‌ها",
+    "preflight_title": "بررسی قبل از حرکت",
+    "preflight_subtitle_checking": "در حال بررسی وضعیت...",
+    "preflight_subtitle_ready": "همه چی آماده‌ست",
+    "preflight_subtitle_warning": "کار می‌کنه، ولی یه نگاه بنداز",
+    "preflight_subtitle_blocked": "چندتا چیز باید درست بشه",
+    "preflight_checking": "در حال بررسی...",
+    "preflight_fix_issues": "موارد بالا رو درست کن",
+    "preflight_continue_anyway": "به هر حال ادامه بده",
+    "preflight_enter_channel": "ورود به کانال"
 }

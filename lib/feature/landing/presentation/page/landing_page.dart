@@ -14,6 +14,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/mesh_background.dart';
 import '../../../../core/widget/settings_icon_button.dart';
 import '../../../../core/widget/version_badge.dart';
+import '../../../preflight/presentation/page/preflight_sheet.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../manager/landing_cubit.dart';
 import '../widget/landing_identity_card.dart';
@@ -198,6 +199,13 @@ class _LandingPageState extends State<LandingPage>
       showPaywallSheet(context, PremiumFeature.wifiTransport);
       return;
     }
+    // Preflight (#33): the actual "before the phone goes in a pocket" moment
+    // for every returning user — onboarding's own launch only ever fires
+    // once, on a fresh install. Runs before anything below is committed, so
+    // cancelling leaves Landing exactly as it was.
+    final proceed = await showPreflightSheet(context, plan: plan);
+    if (!proceed || !context.mounted) return;
+
     final cubit = context.read<LandingCubit>();
     // Before the transport is committed and before we navigate: the channel
     // has to be settled by the time anything can put a packet on the wire.

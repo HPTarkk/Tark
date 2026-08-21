@@ -443,5 +443,14 @@
     "preflight_background_ok": "Ready for the screen to turn off",
     "preflight_background_restricted": "Battery settings might stop Tarkk once the screen turns off",
     "preflight_background_notification_denied": "Notifications are off — you won't see that a session is still running",
-    "preflight_fix_allow_notifications": "ALLOW NOTIFICATIONS"
+    "preflight_fix_allow_notifications": "ALLOW NOTIFICATIONS",
+    "preflight_title": "Preflight check",
+    "preflight_subtitle_checking": "Checking your setup…",
+    "preflight_subtitle_ready": "You're all set",
+    "preflight_subtitle_warning": "Works, but worth a look",
+    "preflight_subtitle_blocked": "A couple things need fixing first",
+    "preflight_checking": "Checking…",
+    "preflight_fix_issues": "FIX THE ISSUES ABOVE",
+    "preflight_continue_anyway": "CONTINUE ANYWAY",
+    "preflight_enter_channel": "ENTER CHANNEL"
 }

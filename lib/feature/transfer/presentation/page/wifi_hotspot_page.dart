@@ -12,7 +12,9 @@ import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../../core/widget/link_established.dart';
+import '../../../preflight/presentation/widget/silent_preflight_guard.dart';
 import '../../domain/entity/channel_intent.dart';
+import '../../domain/entity/transfer_mode.dart';
 import '../../domain/entity/wifi_hotspot_segment.dart';
 import '../manager/wifi_hotspot_cubit.dart';
 import '../widget/hotspot_host_flow.dart';
@@ -75,8 +77,13 @@ class WifiHotspotPage extends StatefulWidget {
 }
 
 class _WifiHotspotPageState extends State<WifiHotspotPage>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SilentPreflightGuard<WifiHotspotPage> {
   bool _navigating = false;
+
+  @override
+  TransferMode get preflightMode => widget.initialSegment == WifiHotspotSegment.hotspot
+      ? TransferMode.hotspot
+      : TransferMode.wifi;
 
   @override
   void initState() {

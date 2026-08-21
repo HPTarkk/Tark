@@ -1485,4 +1485,31 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get preflight_fix_allow_notifications => 'ALLOW NOTIFICATIONS';
+
+  @override
+  String get preflight_title => 'Preflight check';
+
+  @override
+  String get preflight_subtitle_checking => 'Checking your setup…';
+
+  @override
+  String get preflight_subtitle_ready => 'You\'re all set';
+
+  @override
+  String get preflight_subtitle_warning => 'Works, but worth a look';
+
+  @override
+  String get preflight_subtitle_blocked => 'A couple things need fixing first';
+
+  @override
+  String get preflight_checking => 'Checking…';
+
+  @override
+  String get preflight_fix_issues => 'FIX THE ISSUES ABOVE';
+
+  @override
+  String get preflight_continue_anyway => 'CONTINUE ANYWAY';
+
+  @override
+  String get preflight_enter_channel => 'ENTER CHANNEL';
 }

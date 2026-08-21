@@ -8,7 +8,7 @@ import 'package:injectable/injectable.dart';
 import '../../../../core/identity/channel_membership.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/utils/fallback_display_name.dart';
-import '../../../../core/utils/logger.dart';
+import '../../../../core/utils/local_network.dart';
 import '../../../transfer/api/transfer_api.dart';
 
 @injectable
@@ -100,21 +100,7 @@ class LandingCubit extends Cubit<LandingState> {
     return super.close();
   }
 
-  Future<String> _getLocalIp() async {
-    try {
-      final interfaces = await NetworkInterface.list(
-        type: InternetAddressType.IPv4,
-      );
-      for (final iface in interfaces) {
-        for (final addr in iface.addresses) {
-          if (!addr.isLoopback) return addr.address;
-        }
-      }
-    } catch (e) {
-      Logger.log('Could not get local IP: $e');
-    }
-    return '0.0.0.0';
-  }
+  Future<String> _getLocalIp() async => await LocalNetwork.ipv4Address() ?? '0.0.0.0';
 }
 
 class LandingState extends Equatable {

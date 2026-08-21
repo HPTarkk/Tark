@@ -11,6 +11,8 @@ import '../../../../core/sfx/sfx_event.dart';
 import '../../../../core/sfx/sfx_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/theme_service.dart';
+import '../../../preflight/domain/service/pinned_plan.dart';
+import '../../../preflight/presentation/page/preflight_sheet.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../manager/onboarding_cubit.dart';
 import '../widget/callsign_step.dart';
@@ -226,6 +228,16 @@ class _OnboardingPageState extends State<OnboardingPage>
     HapticFeedback.mediumImpact();
     await cubit.launch();
     if (!mounted) return;
+    final mode = cubit.state.mode;
+    // Preflight (#33): only meaningful once a transport is actually about to
+    // be walked — "automatic" (mode == null) stops on Landing with nothing
+    // committed yet, same as before this existed.
+    if (mode != null) {
+      final plan = await pinnedPlanFor(mode);
+      if (!mounted) return;
+      final proceed = await showPreflightSheet(context, plan: plan);
+      if (!proceed || !mounted) return;
+    }
     context.go(AppRoutes.landingPath);
     switch (cubit.state.mode) {
       case null:

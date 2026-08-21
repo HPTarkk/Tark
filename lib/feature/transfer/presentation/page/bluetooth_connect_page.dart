@@ -15,9 +15,11 @@ import '../../../../core/utils/android_sdk.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../../core/utils/permission_queue.dart';
 import '../../../../core/analytics/analytics_event.dart';
+import '../../../preflight/presentation/widget/silent_preflight_guard.dart';
 import '../../domain/entity/bluetooth_connection_state.dart';
 import '../../domain/entity/bluetooth_role.dart';
 import '../../domain/entity/channel_intent.dart';
+import '../../domain/entity/transfer_mode.dart';
 import '../manager/bluetooth_connect_cubit.dart';
 import '../widget/bluetooth_host_beacon.dart';
 import '../widget/bluetooth_joiner_radar.dart';
@@ -42,9 +44,13 @@ class BluetoothConnectPage extends StatefulWidget {
   State<BluetoothConnectPage> createState() => _BluetoothConnectPageState();
 }
 
-class _BluetoothConnectPageState extends State<BluetoothConnectPage> {
+class _BluetoothConnectPageState extends State<BluetoothConnectPage>
+    with SilentPreflightGuard<BluetoothConnectPage> {
   bool _permissionDenied = false;
   bool _navigatingToWalkie = false;
+
+  @override
+  TransferMode get preflightMode => TransferMode.bluetooth;
 
   @override
   void initState() {
