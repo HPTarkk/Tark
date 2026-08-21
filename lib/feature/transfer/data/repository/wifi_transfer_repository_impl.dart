@@ -24,6 +24,7 @@ import '../../domain/repository/wifi_transfer_repository.dart';
 import '../../domain/service/audio_capability_negotiator.dart';
 import '../../domain/service/host_subnet_filter.dart';
 import '../../domain/service/media_opus_tuner.dart';
+import '../../domain/service/media_quality_controller.dart';
 import '../../domain/service/recovery_ladder.dart';
 import '../../domain/service/opus_tuner.dart';
 import '../../domain/service/peer_loss_tracker.dart';
@@ -191,6 +192,14 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   int _mediaPacketsIn = 0;
   int _mediaPacketsOut = 0;
 
+  /// #32: media frames withheld by [_mediaQuality] rather than transmitted —
+  /// the media analog of `PriorityWriteScheduler.lowPriorityDrops`, at the
+  /// send-decision layer rather than a shared write pipe. Counted separately
+  /// from [_mediaPacketsOut] so the session line can distinguish "casting
+  /// stopped" from "casting is being protected from a link that can't carry
+  /// it."
+  int _mediaSuspendedDrops = 0;
+
   /// Directed broadcasts for subnets we have received traffic from, which
   /// survive an interface enumeration that missed them (see
   /// [_rememberHeardSubnet]).
@@ -357,6 +366,46 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     );
   }
 
+  /// #32 — the slow, hysteresis-gated "should media transmission continue at
+  /// all" decision, on top of (not instead of) [_updateMediaTuning]'s fast
+  /// bitrate ladder — see [MediaQualityController]'s own doc for why the two
+  /// stay separate. [sendMedia] is the only thing that reads
+  /// [MediaQualityController.shouldSend]; nothing here depends on whether a
+  /// media profile is even currently negotiated, the same way
+  /// [_syncMediaFormatProfile] runs unconditionally too.
+  final MediaQualityController _mediaQuality = MediaQualityController();
+
+  /// Real wall-clock gap since [_mediaQuality] last advanced — same reasoning
+  /// as [_lastQualityAdvanceAt], since [_syncMediaQuality] fires at the same
+  /// two uneven cadences [_syncFormatProfile] does.
+  DateTime? _lastMediaQualityAdvanceAt;
+
+  /// Advances [_mediaQuality] toward whatever the measured link supports and
+  /// logs it when the suspended/active state actually flips. Cheap to call on
+  /// every presence tick, same as [_syncFormatProfile].
+  void _syncMediaQuality() {
+    final now = DateTime.now();
+    final elapsedMs = _lastMediaQualityAdvanceAt == null
+        ? 0
+        : now.difference(_lastMediaQualityAdvanceAt!).inMilliseconds;
+    _lastMediaQualityAdvanceAt = now;
+
+    final transition = _mediaQuality.advance(
+      conditions: AudioLinkConditions(
+        lossFraction: _loss.worstLossFraction,
+        rtt: _lastRtt,
+      ),
+      elapsedMs: elapsedMs,
+    );
+    if (transition == null) return;
+
+    Logger.diagnostic(
+      'wifi: media transmission ${transition.from.name} -> '
+      '${transition.to.name} | reason=${transition.reason} '
+      '${_mediaOpusSummary()} rtt=${_lastRtt?.inMilliseconds ?? '?'}ms',
+    );
+  }
+
   /// Counterpart of the tuning [_measureLink] applies to [_codec] via
   /// [OpusTuner.forProfile] — now (#30) actually applied to [_codec]'s media
   /// stream, and also read by [_mediaOpusSummary] for the session log. Null
@@ -382,14 +431,16 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
 
   /// The media analog of [_opusSummary], for the session log line — what the
   /// #29 media bitrate policy currently computes, whether or not anything is
-  /// actually casting. `media=none` when no peer has negotiated an HD media
-  /// profile.
+  /// actually casting, plus #32's [_mediaQuality] verdict on whether
+  /// [sendMedia] is actually honouring it. `media=none` when no peer has
+  /// negotiated an HD media profile.
   String _mediaOpusSummary() {
     final format = _negotiatedMediaFormat;
     final tuning = _mediaTuning;
     if (format == null || tuning == null) return 'media=none';
     return 'media=${format.label}/${tuning.bitrate ~/ 1000}kbps/'
-        'fec${_codec.hasMediaFec ? 'on' : 'off'}';
+        'fec${_codec.hasMediaFec ? 'on' : 'off'}/'
+        '${_mediaQuality.shouldSend ? 'active' : 'SUSPENDED'}';
   }
 
   /// Packets belonging to a *different* conversation on this network, dropped
@@ -474,6 +525,15 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     List<double> samples,
     String senderName,
   ) async {
+    // #32: withheld, not failed — a caller still casting into a suspended
+    // stream is not an error condition, the same way a caller with nothing
+    // negotiated isn't. [_mediaQuality] is advanced independently of this
+    // call ([_syncMediaQuality]), so this is a cheap read, never a place that
+    // itself measures the link.
+    if (!_mediaQuality.shouldSend) {
+      _mediaSuspendedDrops++;
+      return const Right(null);
+    }
     try {
       await _ensureSendSocket();
       final packet = _codec.encodeMediaAudio(samples, senderName, _mediaSeq++);
@@ -680,6 +740,7 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
                     packet.capabilityBitmask,
                   );
                   _syncMediaFormatProfile();
+                  _syncMediaQuality();
                 }
                 yield packet;
               }
@@ -796,6 +857,8 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     final mediaOutDelta = _mediaPacketsOut - _lastMediaPacketsOut;
     _lastMediaPacketsIn = _mediaPacketsIn;
     _lastMediaPacketsOut = _mediaPacketsOut;
+    final mediaSuspendedDelta = _mediaSuspendedDrops - _lastMediaSuspendedDrops;
+    _lastMediaSuspendedDrops = _mediaSuspendedDrops;
     final dropWindow = _drops.takeWindow();
     final blocked = dropWindow.blocked;
     final errored = _sendErrorWindow;
@@ -814,6 +877,7 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
       'wifi: in=$_packetsIn(+$inDelta) out=$_packetsOut(+$outDelta) '
       'mediaIn=$_mediaPacketsIn(+$mediaInDelta) '
       'mediaOut=$_mediaPacketsOut(+$mediaOutDelta) '
+      'mediaSuspended=$_mediaSuspendedDrops(+$mediaSuspendedDelta) '
       'over ${window.inSeconds}s '
       'peers=${_peers.keys.toList()} recovery=${_recoveryPeers.length} '
       'heard=${_heardSenders.keys.toList()} '
@@ -868,6 +932,7 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   int _lastPacketsOut = 0;
   int _lastMediaPacketsIn = 0;
   int _lastMediaPacketsOut = 0;
+  int _lastMediaSuspendedDrops = 0;
 
   DateTime _lastSessionLogAt = DateTime.fromMillisecondsSinceEpoch(0);
   static const _sessionLogInterval = Duration(seconds: 15);
@@ -1113,6 +1178,12 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     _mediaCapabilities.clear();
     _negotiatedMediaFormat = null;
     _mediaTuning = null;
+    // A suspension describes the link the session that just ended measured —
+    // carrying it into a new one would silently withhold media from a
+    // session that has not sent a single frame yet, the same class of bug
+    // [_quality.reset] above exists to avoid for voice.
+    _mediaQuality.reset();
+    _lastMediaQualityAdvanceAt = null;
     // Independent of voice's decoder reset just above: a media-only event
     // must never touch voice's decoder state and vice versa — see
     // [WakiPacketCodec.resetMediaDecoders].
@@ -1122,6 +1193,8 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     _mediaPacketsOut = 0;
     _lastMediaPacketsIn = 0;
     _lastMediaPacketsOut = 0;
+    _mediaSuspendedDrops = 0;
+    _lastMediaSuspendedDrops = 0;
     _rxBySender.clear();
     _senderAtAddress.clear();
     _narrowedTo = const {};
@@ -1665,6 +1738,7 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     _syncFormatProfile();
     _mediaCapabilities.retain(_currentlyHeardSenders());
     _syncMediaFormatProfile();
+    _syncMediaQuality();
 
     // Retune the encoder for the link we just measured. On this tick rather
     // than per frame because that is the cadence a new measurement arrives at,
