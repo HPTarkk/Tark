@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tark/core/audio/audio_format_profile.dart';
 import 'package:tark/feature/transfer/domain/service/audio_capability_negotiator.dart';
@@ -16,13 +17,13 @@ AudioCapabilityNegotiator _hdNegotiator() =>
 
 void main() {
   group('localBitmask (production default)', () {
-    test('is 0 while the real AudioFormatProfile.supported is legacy-only', () {
-      // Pinned as a regression guard: #28's negotiation is wired end to end
-      // but must stay unreachable until AudioFormatProfile.supported grows
-      // past legacy16k (checkpoint 3). If this ever fails because
-      // .supported changed, the checkpoint boundary changed with it —
-      // update this test deliberately, don't just silence it.
-      expect(AudioCapabilityNegotiator.localBitmask, 0);
+    test('reflects the real, kDebugMode-gated AudioFormatProfile.supported', () {
+      // #28 checkpoint 3 gates hd24k to kDebugMode until a physical
+      // motorcycle A/B clears it for release (see AudioFormatProfile
+      // .supported) — checked dynamically so this passes in both build
+      // modes rather than assuming whichever one `flutter test` happens to
+      // run in.
+      expect(AudioCapabilityNegotiator.localBitmask, kDebugMode ? _hdBit : 0);
     });
   });
 

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tark/core/audio/audio_format_profile.dart';
 
@@ -22,9 +23,21 @@ void main() {
       expect(AudioFormatProfile.hd24k.id, 2);
     });
 
-    test('supported is legacy-only until negotiation lands', () {
-      expect(AudioFormatProfile.supported, [AudioFormatProfile.legacy16k]);
-    });
+    test(
+      'supported is hd24k-then-legacy16k in a debug build, legacy-only otherwise',
+      () {
+        // #28 checkpoint 3 gates hd24k to kDebugMode until a physical
+        // motorcycle A/B (an owner/field action) clears it for release —
+        // checked dynamically rather than hardcoded so this test is correct
+        // in both build modes, not just whichever one `flutter test` runs.
+        expect(
+          AudioFormatProfile.supported,
+          kDebugMode
+              ? [AudioFormatProfile.hd24k, AudioFormatProfile.legacy16k]
+              : [AudioFormatProfile.legacy16k],
+        );
+      },
+    );
 
     test('equality is by value, not identity', () {
       expect(

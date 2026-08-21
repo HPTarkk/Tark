@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 
 /// The wire-format contract for one direction of real-time audio: sample
 /// rate, channel count, and frame duration.
@@ -59,7 +60,8 @@ class AudioFormatProfile extends Equatable {
     label: '16k',
   );
 
-  /// The roadmap's HD target. Not yet reachable: see [supported].
+  /// The roadmap's HD target. Live behind negotiation as of #28's checkpoint
+  /// 3 — but see [supported] for who can actually reach it.
   static const hd24k = AudioFormatProfile(
     id: 2,
     sampleRateHz: 24000,
@@ -71,11 +73,18 @@ class AudioFormatProfile extends Equatable {
   /// Every profile this build can negotiate to, highest-preference-first.
   ///
   /// The single source of truth both the capability negotiator and (later)
-  /// #29's media-profile registry key off. [legacy16k] only for now —
-  /// negotiation cannot yet resolve to [hd24k] regardless of what a peer
-  /// advertises. Ids 3+ are reserved for a future media profile so #29 can
-  /// extend this without touching voice's numbering.
-  static const supported = [legacy16k];
+  /// #29's media-profile registry key off. Ids 3+ are reserved for a future
+  /// media profile so #29 can extend this without touching voice's
+  /// numbering.
+  ///
+  /// [hd24k] is gated to debug builds ([kDebugMode]) rather than shipped —
+  /// #28's own acceptance criteria require a physical motorcycle A/B before
+  /// HD becomes the default for real users, which is an owner/field action,
+  /// not something a coding session can satisfy on its own. A release build
+  /// negotiates [legacy16k] only, exactly as it did before #28, until that
+  /// validation happens and this list is deliberately widened for everyone
+  /// (checkpoint 4 — a config change, not new code).
+  static const supported = kDebugMode ? [hd24k, legacy16k] : [legacy16k];
 
   @override
   List<Object?> get props => [id, sampleRateHz, channels, frameDurationMs];

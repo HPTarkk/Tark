@@ -690,8 +690,8 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   /// want rather than anything in force.
   String _opusSummary() {
     final tuning = _codec.tuning;
-    return '${tuning.bitrate ~/ 1000}kbps/loss${tuning.packetLossPerc}%'
-        '/fec${_codec.hasFec ? 'on' : 'off'}';
+    return '${_negotiatedFormat.label}/${tuning.bitrate ~/ 1000}kbps/'
+        'loss${tuning.packetLossPerc}%/fec${_codec.hasFec ? 'on' : 'off'}';
   }
 
   /// Worst far-end loss and which peer is reporting it. Named because "13 %
@@ -1492,9 +1492,11 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
 
     // Retune the encoder for the link we just measured. On this tick rather
     // than per frame because that is the cadence a new measurement arrives at,
-    // and the codec ignores an unchanged tuning anyway.
+    // and the codec ignores an unchanged tuning anyway. The ladder itself
+    // follows the negotiated profile — HD's is re-derived, not the legacy
+    // tiers scaled up, see [OpusTuner.hd].
     _codec.applyTuning(
-      const OpusTuner().tune(
+      OpusTuner.forProfile(_negotiatedFormat).tune(
         AudioLinkConditions(
           lossFraction: _loss.worstLossFraction,
           rtt: _lastRtt,

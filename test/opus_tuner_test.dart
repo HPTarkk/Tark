@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tark/core/audio/audio_format_profile.dart';
 import 'package:tark/feature/transfer/domain/service/opus_tuner.dart';
 
 void main() {
@@ -21,8 +22,18 @@ void main() {
     });
 
     test('measured loss becomes the redundancy budget', () {
-      expect(tuner.tune(const AudioLinkConditions(lossFraction: 0.05)).packetLossPerc, 5);
-      expect(tuner.tune(const AudioLinkConditions(lossFraction: 0.12)).packetLossPerc, 12);
+      expect(
+        tuner
+            .tune(const AudioLinkConditions(lossFraction: 0.05))
+            .packetLossPerc,
+        5,
+      );
+      expect(
+        tuner
+            .tune(const AudioLinkConditions(lossFraction: 0.12))
+            .packetLossPerc,
+        12,
+      );
     });
 
     // Past this, libopus spends so much of the frame on the FEC copy that the
@@ -66,9 +77,97 @@ void main() {
       expect(tuning.bitrate, 24000);
     });
 
-    test('identical conditions produce an equal tuning, so nothing is re-applied', () {
-      const conditions = AudioLinkConditions(lossFraction: 0.05);
-      expect(tuner.tune(conditions), tuner.tune(conditions));
+    test(
+      'identical conditions produce an equal tuning, so nothing is re-applied',
+      () {
+        const conditions = AudioLinkConditions(lossFraction: 0.05);
+        expect(tuner.tune(conditions), tuner.tune(conditions));
+      },
+    );
+  });
+
+  group('OpusTuner.hd', () {
+    const hdTuner = OpusTuner.hd;
+
+    test(
+      'mirrors the legacy ladder shape: clean gets the top bitrate, no redundancy',
+      () {
+        final tuning = hdTuner.tune(const AudioLinkConditions());
+        expect(tuning.bitrate, 32000);
+        expect(tuning.packetLossPerc, 0);
+      },
+    );
+
+    test('bitrate and complexity fall as loss rises, same as legacy', () {
+      final clean = hdTuner.tune(const AudioLinkConditions(lossFraction: 0.0));
+      final light = hdTuner.tune(const AudioLinkConditions(lossFraction: 0.05));
+      final heavy = hdTuner.tune(const AudioLinkConditions(lossFraction: 0.12));
+      final severe = hdTuner.tune(const AudioLinkConditions(lossFraction: 0.3));
+
+      expect(clean.bitrate, greaterThan(light.bitrate));
+      expect(light.bitrate, greaterThan(heavy.bitrate));
+      expect(heavy.bitrate, greaterThan(severe.bitrate));
+      expect(clean.complexity, greaterThan(severe.complexity));
+    });
+
+    test(
+      'a congested link is backed off before it starts losing, same as legacy',
+      () {
+        const congested = AudioLinkConditions(
+          lossFraction: 0.0,
+          rtt: Duration(milliseconds: 400),
+        );
+        final tuning = hdTuner.tune(congested);
+        expect(tuning.bitrate, lessThan(32000));
+        expect(tuning.packetLossPerc, 0);
+      },
+    );
+
+    // Re-derived, not copied: the roadmap explicitly warns against just
+    // scaling the legacy ladder by a multiplier, and this is the guard that
+    // it stays a distinct ladder rather than silently regressing to one.
+    test(
+      'bitrate differs from the legacy ladder at every equivalent loss tier',
+      () {
+        for (final loss in [0.0, 0.05, 0.12, 0.3]) {
+          final conditions = AudioLinkConditions(lossFraction: loss);
+          expect(
+            hdTuner.tune(conditions).bitrate,
+            isNot(tuner.tune(conditions).bitrate),
+            reason: 'loss=$loss',
+          );
+        }
+      },
+    );
+
+    // HD's floor is still well above legacy's floor — never "12-20 kbps and
+    // call it HD" territory, even under heavy loss on both.
+    test("HD's worst tier still budgets more than legacy's worst tier", () {
+      const severe = AudioLinkConditions(lossFraction: 0.8);
+      expect(
+        hdTuner.tune(severe).bitrate,
+        greaterThan(tuner.tune(severe).bitrate),
+      );
+    });
+  });
+
+  group('OpusTuner.forProfile', () {
+    test('hd24k selects the HD ladder', () {
+      expect(
+        OpusTuner.forProfile(
+          AudioFormatProfile.hd24k,
+        ).tune(const AudioLinkConditions()).bitrate,
+        OpusTuner.hd.tune(const AudioLinkConditions()).bitrate,
+      );
+    });
+
+    test('legacy16k selects the default ladder', () {
+      expect(
+        OpusTuner.forProfile(
+          AudioFormatProfile.legacy16k,
+        ).tune(const AudioLinkConditions()).bitrate,
+        tuner.tune(const AudioLinkConditions()).bitrate,
+      );
     });
   });
 }

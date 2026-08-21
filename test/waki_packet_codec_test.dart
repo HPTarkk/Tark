@@ -9,6 +9,7 @@ import 'package:tark/feature/transfer/data/codec/waki_packet_codec.dart';
 import 'package:tark/feature/transfer/domain/entity/control_packet.dart';
 import 'package:tark/feature/transfer/domain/entity/session_role.dart';
 import 'package:tark/feature/transfer/domain/entity/waki_packet.dart';
+import 'package:tark/feature/transfer/domain/service/audio_capability_negotiator.dart';
 
 /// Builds a v1 packet — the pre-device-id format, which nothing emits any more
 /// but every decoder still has to understand.
@@ -270,16 +271,30 @@ void main() {
     });
 
     group('capability (#28)', () {
-      test("encodePresence's capability byte is 0 while AudioFormatProfile"
-          '.supported is legacy-only', () {
-        final packet =
-            codec.decode(
-                  codec.encodePresence('Pedram', false, role: SessionRole.peer),
-                  '192.168.43.7',
-                )!
-                as PresencePacket;
-        expect(packet.capabilityBitmask, 0);
-      });
+      test(
+        "encodePresence's capability byte matches "
+        'AudioCapabilityNegotiator.localBitmask',
+        () {
+          final packet =
+              codec.decode(
+                    codec.encodePresence(
+                      'Pedram',
+                      false,
+                      role: SessionRole.peer,
+                    ),
+                    '192.168.43.7',
+                  )!
+                  as PresencePacket;
+          // Not hardcoded 0: AudioFormatProfile.supported (and so
+          // localBitmask) is kDebugMode-gated as of checkpoint 3, so this
+          // build's real advertised bitmask depends on the build mode
+          // `flutter test` runs in.
+          expect(
+            packet.capabilityBitmask,
+            AudioCapabilityNegotiator.localBitmask,
+          );
+        },
+      );
 
       test('the null-heardIds sentinel is not misread as a heard-id count '
           '(the point-to-point transport case)', () {

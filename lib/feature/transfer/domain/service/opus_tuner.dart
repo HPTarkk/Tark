@@ -1,3 +1,7 @@
+import 'package:tark/feature/transfer/api/transfer_api.dart';
+import 'package:tark/feature/transfer/domain/service/peer_loss_tracker.dart';
+
+import '../../../../core/audio/audio_format_profile.dart';
 import '../entity/opus_tuning.dart';
 
 /// What the transmit path knows about the link it is encoding for.
@@ -36,7 +40,32 @@ class AudioLinkConditions {
 /// Pure — no clock, no I/O, no encoder — so the thresholds can be tested
 /// directly, the same way [LinkQualityGrader] is.
 class OpusTuner {
-  const OpusTuner();
+  /// Today's ladder — 16 kHz Opus voice. Unchanged by #28.
+  const OpusTuner() : _ladder = _Ladder.legacy;
+
+  const OpusTuner._(this._ladder);
+
+  /// HD's ladder — 24 kHz Opus voice, re-derived rather than the legacy
+  /// tiers scaled by a multiplier (a multiplier would just be the copy the
+  /// roadmap warns against). Bitrates are a deliberate starting point —
+  /// roughly the legacy tiers' shape shifted up for the extra bandwidth a
+  /// 24 kHz signal needs to sound like an improvement rather than merely
+  /// wider silence — not a final, listening-validated ladder; see #28's
+  /// physical motorcycle A/B requirement before treating these as settled.
+  /// Complexity is one step above the matching legacy tier throughout,
+  /// still held well under libopus's max: the CPU floor this app targets
+  /// (a Galaxy S8+, sharing the UI isolate with everything else) doesn't
+  /// change because the wire got faster.
+  static const hd = OpusTuner._(_Ladder.hd);
+
+  /// [profile]'s ladder — [hd] for [AudioFormatProfile.hd24k], the default
+  /// (legacy) ladder otherwise. The single place a repository picks between
+  /// them, so the branch isn't duplicated at every `_pingPeers`-style tuning
+  /// call site.
+  factory OpusTuner.forProfile(AudioFormatProfile profile) =>
+      profile == AudioFormatProfile.hd24k ? hd : const OpusTuner();
+
+  final _Ladder _ladder;
 
   /// What a link with no measurements gets.
   ///
@@ -75,11 +104,19 @@ class OpusTuner {
     final rtt = conditions.rtt;
     final congested = rtt != null && rtt > congestedRtt;
 
-    final (bitrate, complexity) = switch (lossPerc) {
-      < 2 when !congested => (24000, 6),
-      < 8 => (20000, 5),
-      < 15 => (16000, 4),
-      _ => (12000, 3),
+    final (bitrate, complexity) = switch (_ladder) {
+      _Ladder.legacy => switch (lossPerc) {
+        < 2 when !congested => (24000, 6),
+        < 8 => (20000, 5),
+        < 15 => (16000, 4),
+        _ => (12000, 3),
+      },
+      _Ladder.hd => switch (lossPerc) {
+        < 2 when !congested => (32000, 7),
+        < 8 => (28000, 6),
+        < 15 => (24000, 5),
+        _ => (18000, 4),
+      },
     };
 
     return OpusTuning(
@@ -89,3 +126,5 @@ class OpusTuner {
     );
   }
 }
+
+enum _Ladder { legacy, hd }
