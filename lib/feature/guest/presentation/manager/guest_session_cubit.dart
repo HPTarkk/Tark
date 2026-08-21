@@ -202,8 +202,11 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
     final gateOpen = _voxGate.advance(frame.rms, voxLevel);
     final isTalking = gateOpen && !state.muted && _client.isOpen;
 
-    if (isTalking != state.isTalking) {
-      _sfx.play(isTalking ? SfxEvent.pttOpen : SfxEvent.pttClose);
+    // Only on open, not close — see the walkie cubit's _onAudioFrame for why:
+    // VOX keys up and down on every natural pause, so a cue on both edges
+    // beeped on every breath in a real conversation.
+    if (isTalking && !state.isTalking) {
+      _sfx.play(SfxEvent.pttOpen);
     }
 
     if (isTalking) {

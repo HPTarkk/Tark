@@ -702,11 +702,20 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     final gateOpen = _voxGate.advance(frame.rms, voxLevel);
     final voiceOpen = gateOpen && !state.isSelfMuted;
     if (isOnline && voiceOpen != _prevVoiceOpen) {
-      _sfx.play(voiceOpen ? SfxEvent.pttOpen : SfxEvent.pttClose);
-      // Light tactile confirmation that the channel just keyed up — only on
-      // open, not close, so a run of short words doesn't buzz repeatedly.
-      if (voiceOpen) unawaited(HapticFeedback.lightImpact());
-      if (voiceOpen) _txCount++;
+      // Only on open, not close. VOX keys up and down far more often than a
+      // human pressing PTT ever would — every natural pause in speech long
+      // enough to clear the gate's 700 ms hangover is a close-then-reopen —
+      // so a cue on both edges turned into a beep on every breath in a real
+      // conversation. One confirmation that the channel is live is enough;
+      // there's nothing a close cue tells the talker that the UI doesn't
+      // already show. Tactile feedback dropped the same edge for the same
+      // reason ("a run of short words doesn't buzz repeatedly") — this keeps
+      // sound and haptics consistent with each other.
+      if (voiceOpen) {
+        _sfx.play(SfxEvent.pttOpen);
+        unawaited(HapticFeedback.lightImpact());
+        _txCount++;
+      }
     }
     _prevVoiceOpen = voiceOpen;
     final sharingMusic = state.isSharingSystemAudio;

@@ -1,59 +1,44 @@
 # Tark (تَرک) — Off-Grid Walkie-Talkie
 
-A real-time, push-to-talk **voice walkie-talkie** that works with **no internet and no server**. Two or more phones talk to each other directly over Wi-Fi, Bluetooth, or a phone-hosted hotspot. Built for the field — e.g. two riders on motorcycles with handsfree headsets on a shared phone-hotspot link.
+Real-time, push-to-talk voice between two or more phones — **no internet, no server, no account.** Wi-Fi, Bluetooth, or a phone-hosted hotspot carry the audio directly, phone to phone. Built for the field: two riders on motorcycles, handsfree headsets, a shared hotspot link, and nothing else around.
 
-Cross-platform: **Android ↔ Android, iPhone ↔ iPhone, and Android ↔ iPhone.**
+**Android ↔ Android, iPhone ↔ iPhone, Android ↔ iPhone.**
 
-**Website: [tarkk.ir](https://tarkk.ir)** — what it does, how the link is made, and the Android download.
-**Join from a browser: [app.tarkk.ir](https://app.tarkk.ir)** — the guest client, no install.
+**Website: [tarkk.ir](https://tarkk.ir)** · **Join from a browser, no install: [app.tarkk.ir](https://app.tarkk.ir)**
 
 ---
 
-Copyright (c) 2026 Tarkk
+Copyright (c) 2026 Tarkk — dual-licensed.
 
-This project is dual-licensed.
-
-Open Source License:
-This software is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
-You may use, modify, and distribute this software under the terms of the AGPL-3.0.
-
-Commercial License:
-If you wish to use this software in a proprietary or closed-source product, or if you do not wish to comply with the AGPL-3.0, you must obtain a separate commercial license from Tarkk.
-
-Commercial licenses are available under negotiated terms, including royalty, revenue-sharing, subscription, or one-time licensing agreements.
-
-For commercial licensing inquiries, contact:
-tarkk.hp@gmail.com
+**Open source:** AGPL-3.0. Use, modify, distribute freely under its terms.
+**Commercial:** want it in a closed-source product, or don't want AGPL's terms? Email **tarkk.hp@gmail.com** for a negotiated license (royalty, revenue-share, subscription, or one-time).
 
 ## Features
 
-- **Real-time voice** — Opus-coded 16 kHz VOIP with **in-band FEC**, so a single lost packet is rebuilt from the next one rather than leaving a hole in a sentence, and how much redundancy to spend is decided from the loss the *far end* reports rather than guessed locally. Playback runs through a jitter buffer whose depth **tracks the link** (default 60–180 ms, centred on the configurable setting) instead of sitting at a fixed delay, and which self-corrects clock drift instead of letting playback delay silently grow over a long session. The buffer also keeps a small silent cushion (30 ms) queued in the native output ring: the drain timer shares an isolate with rendering, and without a head start an ordinary late tick left the audio callback with nothing to play, which it filled with zeros — a faint recurring tick on every transport. Stopping and resuming the drain is ramped rather than cut, so neither boundary steps.
-- **Four transports**, all speaking the same wire format. Every packet carries a **stable per-process device id**, and the roster and the jitter buffer key on it. They used to key on whatever address the transport reported, which is not one value per device: a phone sitting on the hotspot subnet *and* another interface sends each packet from two source IPs (the limited broadcast leaves by the default route, the directed one by the AP interface), so every peer appeared **twice** in the roster and its audio was split across two jitter-buffer streams, each seeing every other sequence number and treating the gaps as loss.
-  - **Wi-Fi (LAN)** — UDP broadcast + unicast on the local network; primary transport.
-  - **Bluetooth** — Bluetooth **Classic (RFCOMM)** on Android (highest bandwidth) and **BLE GATT** for iPhone and cross-OS. Both ends of a classic link are **insecure RFCOMM sockets**, so two phones talk without first completing a system pairing prompt — and, just as importantly, symmetrically: a secure dial against an insecure listener has the host's `accept()` return before the client has finished authenticating, which on an unbonded pair left the host "connected" to a session the joiner had already failed out of. Android advertises on both at once for maximum compatibility. Both engines cap in-flight audio writes and drop the newest packet once the link falls behind (stale audio is worse than lost audio) instead of letting a slow link balloon into growing latency. A host also shows up **under your own name, not the phone's model number**: a classic inquiry only ever reports the remote adapter name, so hosting temporarily renames the adapter (restored on stop, on exit, and on the next launch after a kill) and tags it so a joiner can tell Tark hosts apart from the headsets and TVs in the same scan — untagged devices are **filtered out of the list entirely**, so the joiner sees people rather than hardware (BLE peers are filtered on the service UUID instead, and a remembered host being re-dialed is let through regardless, since Android can still be reporting its stale cached adapter name). When exactly one host is in range the join happens **hands-free after a two-second settle**, with a Cancel always on screen.
-  - **Wi-Fi Hotspot Bridge** — the reliable path when there's no shared network, cross-OS or Android-to-Android: one phone creates a local hotspot and shows a Wi-Fi QR, the other scans it **in the app's own scanner** — a framed viewfinder wearing the same amber brackets and scanline as the code it's reading, with a torch toggle, tap-to-focus, and a haptic green lock on the hit — and joins **without ever leaving the app**: Android through a `WifiNetworkSpecifier` request (a single system dialog), iOS through `NEHotspotConfiguration`. The joining side is then pinned to that network with `bindProcessToNetwork`, which is what keeps the session alive: a local-only hotspot has no internet, so left alone Android moves the default network back to cellular a few seconds in and the app's UDP quietly stops reaching the peer while every socket still looks healthy.
-  - **Guest (web)** — invite a browser guest over a serverless WebRTC link via a QR code or a copyable invite link; no app install for the guest. Public STUN lets this reach a genuinely remote guest (not just the same LAN) — a real, legal group call over the internet, no server involved. A manual paste-code fallback covers the reply when scanning each other's screen isn't possible.
-- **Everyone's part in the link, named** — each member's tile in the channel (and your own card at the top) carries a second line saying what that device is: **Base Station** for whoever is holding the link up (the Bluetooth host, the phone running the hotspot, the app hosting a browser guest), **Field Unit** for whoever came in over it, **Open Air** when nobody hosts and everyone simply met on the same network. Every device *announces its own part* in its presence packets rather than having it inferred at the far end, because the far end frequently can't: on a hotspot with three phones, a joiner sees the other two on the subnet with nothing to say which of them brought the AP up. The role rides along as a trailing byte on the existing presence message with no new packet type — a build from before this reads exactly what it always did and simply never says what it is, so it goes unlabelled rather than mislabelled, and audio packets (which carry no role) never overwrite what a peer last announced.
-- **OS voice processing** — the platform's call-mode pipeline (echo cancellation, noise suppression, auto-gain) is engaged via `VOICE_COMMUNICATION` streams + `MODE_IN_COMMUNICATION` on Android — and, on Android, `AcousticEchoCanceler`/`NoiseSuppressor`/`AutomaticGainControl` are also attached explicitly to the capture session — and via the `.voiceChat` AVAudioSession on iOS, plus an app-level noise suppressor on top with a choice of engine: RNNoise, a recurrent-network denoiser (the production-grade choice — handles non-stationary noise like wind and traffic that classic spectral subtraction structurally can't, same family of approach WebRTC and Discord use), classic spectral subtraction as the universal fallback, or both cascaded (RNNoise first, spectral mopping up residual steady hum) for the quietest result at the highest battery cost. RNNoise is the default; it's wired for both Android (verified) and iOS (built, not yet tested on-device), and falls back to spectral automatically anywhere the native library isn't available (web, desktop). Switchable in Settings → Advanced settings, presented as a plain-words three-way choice (simple / smart / both together) with each option's trade-off spelled out.
-- **Handsfree routing** — mic + playback follow AirPods / helmet / wired headsets (Bluetooth SCO engaged before the audio engine opens its streams); falls back to speakerphone. The headset is always preferred, whether it was already on when you joined **or connected mid-channel**: the OS reports the device appearing or disappearing, and the engine re-picks the route and re-opens its streams (Android has to release the pinned communication device first, or a session that started on speaker would stay on speaker). Unplugging mid-channel drops back to speakerphone the same way.
-- **VOX (voice-activated)** — no button to hold; transmits when your voice rises far enough above the room, with 700 ms hangover + 60 ms pre-roll so words aren't clipped. The setting is a **margin, not a level**: you choose how much louder than the background you have to be, and the measured background supplies the rest, so one setting works in a parked car and at highway speed instead of holding the channel open on wind noise. 0 % still means off — nothing the mic hands over is ever withheld.
-- **A host talks on its own hotspot and nowhere else** — a phone hosting while still connected to a Wi-Fi network holds *two* private interfaces, and the discovery posture sprays every subnet it can see. That is right for a phone still looking for its peers and wrong for a host, which knows exactly where they are: two phones in the same room then land in what looks like two different rooms, both showing an empty channel while every diagnostic on both reads healthy (observed in a field test — host on home Wi-Fi, joiner on the AP, neither ever saw the other). [`HostSubnetFilter`](lib/feature/transfer/domain/service/host_subnet_filter.dart) drops the subnet of any network this phone is merely a *client* of while it is the host. Interface names can't identify the AP — it lands on `ap0`, `swlan0` or `wlan1` by vendor — so the discriminator is the client address itself, read from `WifiManager`: whatever it reports is by definition the STA side, and every other private address is not. It never filters down to nothing, since on a single-radio phone the client connection is torn down as the AP comes up and a stale read can name the only subnet currently visible; the limited broadcast is always kept.
-- **"Turn Wi-Fi off" advice, before the failure rather than after it** — on top of the routing fix, when the chipset can't run a client connection and an AP at once (`isStaApConcurrencySupported`, API 30+; treated as "can't" below that, where single-radio is the norm) a remembered network coming back into range makes Android hand the radio over and tear the AP down mid-ride. The host screen says so *while the QR is still up* rather than leaving the drop unexplained. The app **cannot** do it itself — `setWifiEnabled` has been a no-op returning `false` for non-system apps since Android 10, with no replacement — so the whole job is asking well: plain words about a stronger connection rather than a lecture on radios, an animated diagram of one radio with two claimants (the other network sweeping in, the hotspot's arcs going out as it takes the node, then recovering, so the loop never rests on failure), the objection answered before it's raised (*you'll still hear everyone — the channel doesn't need Wi-Fi*), and `Settings.Panel.ACTION_INTERNET_CONNECTIVITY` floating the toggle **over** the app so the host never loses the code the other phone is scanning. Dismissible — but a teardown un-dismisses it and switches the copy from a prediction to an explanation of what just happened. Re-read on resume and on a short leash after the panel opens, so it disappears once acted on rather than nagging for something already done.
-- **Riding mode** — one switch that re-aims the whole voice chain at a phone in a jacket pocket behind a helmet headset, and the reason it exists is a default that is right at a desk and wrong at speed: VOX ships at 0, which means *the gate is off entirely*, so on a stock install the adaptive noise-floor tracking never runs — there is no gate for it to move, and a rider holds the channel open on wind noise for a whole ride with nothing on their own phone saying so. Riding mode arms it (deliberately *low* — it is the floor beneath the adaptive threshold, not the threshold), runs the neural cleaner at a moderate strength rather than full (aggressive suppression eats the consonants that carry a word through a helmet, and cascading two cleaners is the same trap twice), anchors the jitter buffer deeper so a link between two moving bikes has somewhere to grow, and lifts playback slightly through a soft limiter that cannot clip. It **overrides, it never overwrites**: every slider keeps the value you set, comes back untouched the moment you switch it off, and the Advanced page shows those controls reporting what is actually running instead of quietly contradicting the switch. Everything else a riding mode would want — echo cancellation, AGC, headset priority, buffer adaptation, Opus retuning — is already permanent on every session, so it doesn't pretend to toggle them.
-- **Music / device-audio cast** (Android) — forward whatever is playing on the phone (music, navigation) into the channel; it plays as live audio on everyone else's device. The mix-level slider also nudges the broadcaster's own device volume to match, and stopping the cast can pause the source app too (needs one-time Notification access, since Android has no API for one app to pause another's playback directly).
-- **Auto-reconnect** — a dropped link heals itself with exponential backoff (Bluetooth: host re-advertises, joiner re-dials; Wi-Fi: the UDP socket rebinds, backed by a liveness watchdog that detects a socket gone silent — not just closed — so a dead peer or a networking hiccup no longer needs a manual leave/rejoin to fix; Guest/WebRTC gets a bounded best-effort retry) — shown on-screen as a unified health banner (reconnecting spinner, or a manual "Retry now" once auto-reconnect is off or exhausted) across every transport, toggleable from Settings. The same toggle also covers **reconnect across launches** for Bluetooth: after the first explicitly-confirmed session, reopening the Bluetooth screen resumes the *same role* hands-free — the device that hosted re-hosts, the device that joined keeps re-dialing the remembered host until it answers, so the two reconnect no matter which app launches first. Runs only when nothing would prompt (permissions already granted, adapter already on), with a Cancel escape back to the manual host/join choice. The resumed host still confirms Android's discoverable window when it isn't already open — listening on RFCOMM alone makes a device *connectable*, not *findable*, so skipping it left a joiner that scanned (rather than re-dialing a remembered address) staring at an empty list. If that timed window later lapses while the host is still waiting, the beacon says so and offers a one-tap re-arm instead of silently going invisible. Both sides also put one presence packet on the wire the instant a link forms, which is what lets a host tell a real session from a *phantom* one — an RFCOMM socket it accepted but the joiner never registered (the joiner keeps dialing while the host thinks it is connected, and with the 1-to-1 server socket closed after that first accept, nothing can get in). Silence past a grace period drops the phantom and re-listens rather than stranding the pair.
-- **Nothing fails silently, and nothing is a dead end** — the failures that hurt most in a walkie-talkie are the ones that look like success: the channel is up, everyone else comes through perfectly, and not a word you say leaves the phone. Three of those were previously invisible — a microphone permission that was refused, a capture device that reported itself started and then delivered nothing (the engine's watchdog restarting it every two seconds behind a screen that still read **MIC LIVE**), and an IP transport with no local address, where the transmit gate silently refuses to send. All three now say so in plain words with the fix attached, and a channel that failed to open mid-setup is a retry button rather than a screen stuck on "connecting" forever with only Leave to press. Failures that clear on their own are never shown at all: hotspot hosting and a tapped Bluetooth peer get **up to four automatic attempts** first, staying on their ordinary "connecting" screen for the first two and softening to "still trying…" after that, so a radio hiccup that resolves on attempt two never looked like a problem — while a failure retrying *cannot* fix (tethering already on, location off, permission refused) skips the attempts entirely and shows the fix immediately, because spending ten seconds not telling someone the one thing they need to hear is worse than a bare error. Backing all of it is a **"Something wrong?"** sheet on the channel screen, always one tap away, listing the live state of every dependency — microphone, network, connection, who's in range — with a green tick or a fix beside each. The healthy rows matter as much as the broken ones: *microphone: working, network: connected* is what tells you the problem is at the other end.
-- **Eyes-free audio feedback** — a distinct sound for every event that matters while riding with the phone in a pocket: push-to-talk open/close, someone else talking, a peer joining/leaving, a link dropping or recovering, errors, and toggles, plus a light haptic tap when the channel keys up. Mutable from Settings.
-- **Categorized Settings** — Profile, **Riding mode**, Connection (auto-reconnect, WiFi/Hotspot setup, Permissions), Sound & Alerts, Appearance, and Startup (skip splash, replay intro), each its own card (reachable from Landing or a gear icon on the live channel). Technical knobs live on a separate **Advanced settings** sub-page: the transport pin (AUTOMATIC by default — see the channel screen above), Voice & Audio (VOX threshold, noise-filter strength, restore-defaults), the noise-cleaner engine as a jargon-free three-way choice (simple / smart / both together, each with its trade-off spelled out), and the jitter-buffer playback delay. Riding mode sits on the *main* page above all of it rather than under Advanced with the sliders it overrides — for this audience it's the most consequential switch on the screen, and filing it behind the question would be filing the answer. While it's on, each overridden control says so, keeps showing the value that is running, and stops accepting input; "reset to normal" switches it off as part of the reset, since otherwise it would immediately re-override everything that button just restored. Opened from an active channel, voice changes apply live to that session instantly. Defaults to a hands-free voice combo — VOX wide open, noise suppression doing the work — so there's nothing to press to talk.
-- **Home-screen widget** (Android + iOS) — a radio-dial console on the home screen: one tap drops you straight into your last-used channel with the mic already live (VOX is open by default, so arriving *is* going on air), and the face itself reports the session — ON AIR, who's talking, muted, reconnecting, or how many people are on the channel — as a lit rim whose ticks track the roster, a bloom that swells with activity, a gauge that swings with the state, and a level strip under the status line that genuinely animates on Android — a widget can't run code, but `ViewFlipper` is a RemoteViews-supported class that cycles its own children, so cross-fading three phase-shifted level frames reads as a meter that's actually moving (off a live session all three frames render identically, so it sits still). iOS has no equivalent: WidgetKit renders static snapshots, so there the strip is still. Both platforms set their type in Vazirmatn — the app's own family, shipped as Android font resources and bundled into the iOS extension — since the platform default would otherwise render the widget in a different typeface from every screen it launches into, and has no Persian weights. It follows the app's own language *and* theme rather than the system's (both are in-app settings, and the two routinely disagree), so display strings are published pre-localized from the ARB files instead of being duplicated into `strings.xml`. On **Android** the wide size also carries working **MUTE and END buttons that never open the app**: while a session is live the process is already held up by the keep-alive foreground service, so the tap is forwarded straight into the running Dart isolate. iOS has no equivalent — an extension can't reach a backgrounded app — so it deep-links instead. Discoverability rides on the existing one-time usage-tips sheet — a fourth tip, with its own looping animation (`core/widget/animations/widget_loop_animation.dart`), rather than a prompt of its own: that sheet is already an earned moment a few seconds into a first session, so the widget gets found without anything new interrupting. Settings → Startup then carries **Add the channel widget**, which where the launcher supports pinning (Android 8+, most launchers) hands it over in one tap instead of making anyone hunt through the widget picker; the row hides itself where that can't work (iOS has no such API), since instructions that vary per launcher and OS version would be worse than nothing. A session killed by the OS (rather than ended cleanly) can never leave a permanent "LIVE" on the home screen: state carries a publish timestamp and is demoted once stale, and on iOS the timeline is scheduled to refresh at exactly that moment.
-- **Branded splash screen** — a short (≤3.5 s) cinematic launch sequence: an aurora backdrop, a frosted-glass emblem disc with an orbiting halo and broadcast ripples, a shimmering wordmark, and a hairline progress bar tied to the real wait — skippable from Settings for an instant cold start.
-- **First-run onboarding** — a five-beat animated journey on a single continuous canvas (no page swipes): tune in (language + theme, applied live with the circular reveal), what the app is (three quick facts), pick a callsign with a live avatar preview and a shuffle die that rolls radio handles, see how phones link up (AUTOMATIC leads and is pre-selected — the beat used to open with Wi-Fi already lit, which meant every first run ended by writing a preference nobody had so much as chosen, and a preference beats the advisor by definition), and a final operator card stamped READY. Beats hand over in stages: the old panel winds up and is thrown off the end of the screen, the stage sits deliberately empty for a moment while parallax wind tears through it, and the next panel is brought in from the start under a targeting reticle that snaps onto its corners. Progress is a filling signal-strength meter (SIGNAL 20%→100%), and the last beat drives straight into the product — with a transport pinned it lands you in that transport's setup flow; on AUTOMATIC it lands on the channel screen, since resolving a route needs an intent and only a tap on START or JOIN supplies one. A quieter link explores the lobby first either way. Skippable at any point, shown exactly once (existing installs never see it), and replayable from Settings → Startup.
-- **Start a channel / join a channel, with the transport chosen for you** — the main screen used to open on a transport picker: *WIFI / HOTSPOT · BLUETOOTH · GUEST*. That is a question about where the two phones are and what's around them — which the app measures continuously and the person holding one phone has to guess at — and the answer lived in Settings, where it outlived the situation that produced it. Two riders in a field with no Wi-Fi had to leave the main screen before the app would do the only thing that could work there. So the axis is inverted: the only question left is the one the user is the sole authority on — *am I starting this, or arriving?* — and [`TransportAdvisor`](lib/feature/transfer/domain/service/transport_advisor.dart) derives the rest from what the phone can see, every time, rather than once and forever. A shared network first, since it costs nothing and neither phone gives anything up for it; then a hotspot, which each side reaches by a *different* capability (an iPhone can walk onto an access point it could never have raised, so the same phone in the same room resolves to a hotspot for "join" and Bluetooth for "start"); then Bluetooth. Each button names the route under its own label, because a decision made silently is indistinguishable from a decision made wrong — a rider who taps START and watches a hotspot come up needs to know that was the plan. The side you picked is carried into the next screen, so the bridge no longer asks "are you the host?" immediately after you answered it. The one thing the advisor provably *cannot* check is whether the other phone is on the same network, so that stays a question: a **"Not on the same network?"** line sits under the pair, and only while the plan assumed one. Pinning a transport by hand still works, from Settings → **Advanced settings** — it short-circuits the whole ladder and the landing chip says so, so a pin that stops suiting the situation reads as a setting rather than as the app choosing badly.
-- **Channel codes, so two groups on one Wi-Fi don't hear each other** — the transport never had an idea of a channel: "the channel" meant "the subnet", so everyone on a café router landed in one conversation by construction. Starting a channel now names one — six hex characters, `A83F21`, sized to be *read aloud through a helmet* as much as scanned — and [`ChannelGate`](lib/feature/transfer/domain/service/channel_gate.dart) drops traffic from a different one. The rule is deliberately permissive: it admits when the ids match **or either side named none**, so nothing changes for a zero-setup Wi-Fi session, a Bluetooth link, or a peer on an older build. Only *named ≠ named* drops anything. The code rides **inside** the existing Wi-Fi QR as a `TARK1:` field rather than replacing it, which is what preserves the fastest route onto a hotspot the app has: iOS Camera and Android's own scanner still read it as an ordinary network QR and still offer their one-tap join, because the format is `KEY:value;` pairs and scanners skip keys they don't know — not an assumption, but the format's own history, since WPA3 added `K:` and every existing scanner had to keep working. The version sits in the *key*, so a future `TARK2:` is an unknown key to this build rather than a value it would misparse. On the wire it is packet **v4**, four bytes after the session epoch — in the header for the same reason the epoch is, since an audio packet ends in a variable-length payload that nothing can be appended to, and presence-only would have let a neighbouring channel's audio through until its next tick. v4 is sent **only while a channel is named**, so every session that doesn't use one is byte-for-byte what it was. It separates channels; it does not secure them — the id travels in clear and anyone can set theirs to match.
-- **Combined WiFi / Hotspot page** — one entry point with a segmented "Wi-Fi" / "Hotspot" choice instead of two separate flows. Plain Wi-Fi bypasses the page entirely — starting or joining drops straight into the channel, since there's nothing to set up — so it only appears for the explicit Hotspot flow or when opened deliberately from Settings → Connection. Picking Hotspot asks which end this phone is — **create** or **join** — rather than assuming (Android used to be hard-wired as the host, which left two Androids with no in-app way to pair, and meant a phone that couldn't host greeted you with a failure you never asked for). Nothing touches the radio until you commit to a side, and when hosting genuinely can't work the error says *which* thing to fix, offers to open that settings screen, and offers to join the other phone instead. The host screen is just the code — Tarkk's mark stamped in its centre — for the first ten seconds; only once a scan has visibly gone nowhere does a line fade in offering the network name and password. Credentials on screen invite people to type what the camera was about to do for them, so they stay off it while the fast path is still live.
-- **Clearer permissions** — a dedicated Permissions page (mic, Bluetooth, hotspot, background battery exemption) shows what's granted and why, instead of scattered ad hoc prompts.
-- **Usage tips** — a one-time (ever), animated tips sheet with practical suggestions (ANC/handsfree headset, wearing a proper helmet, the hands-free voice defaults) surfaces a few seconds into your first session.
-- **Bilingual** — Persian (فارسی) and English, RTL-aware, with a warm dark "night radio" and light "field radio" theme, and a circular-reveal transition (not a plain cross-fade) when you switch either one.
+- **Real-time voice** — Opus at 16 kHz with in-band FEC (a lost packet is rebuilt from the next one, not left as a hole), tuned from the *far end's* loss reports rather than a local guess. An adaptive jitter buffer (60–180 ms) tracks the link instead of sitting at a fixed delay, self-corrects clock drift, and ramps its own start/stop instead of clicking.
+- **Four transports, one wire format.** Every packet carries a stable per-device id, so the roster and jitter buffer never mistake one phone's two network interfaces for two different peers.
+  - **Wi-Fi (LAN)** — UDP broadcast + unicast on a shared network. The default, and the fastest to set up.
+  - **Bluetooth** — Classic RFCOMM on Android (best range/quality), BLE GATT for iPhone and cross-OS. No pairing prompt required. Auto-joins hands-free when exactly one host is in range.
+  - **Wi-Fi Hotspot Bridge** — the reliable cross-OS path with no shared network: one phone hosts, the other scans the QR in the app's own scanner (torch, tap-to-focus, haptic lock) and joins without leaving the app.
+  - **Guest (web)** — invite a browser over a serverless WebRTC link (QR or copyable invite), no install. Public STUN means this reaches a genuinely remote guest, not just the same room.
+- **Everyone's role, labeled** — each member's tile says what they *are*: Base Station (whoever's holding the link up), Field Unit (whoever joined through it), or Open Air (nobody's hosting). Self-announced by each device, so it's never guessed wrong.
+- **OS-grade voice processing** — platform echo cancellation / noise suppression / AGC (`VOICE_COMMUNICATION` on Android, `.voiceChat` on iOS), plus an app-level cleaner: RNNoise (neural, default, Android verified / iOS built but untested), classic spectral subtraction as the universal fallback, or both cascaded. Switchable in Advanced settings.
+- **Handsfree routing** — mic and playback follow AirPods, a helmet headset, or wired audio, whether connected before or during a call. Falls back to speakerphone.
+- **VOX (voice-activated)** — no button to hold. Transmits when your voice clears the background by a *margin* you set (not an absolute level), so one setting works parked and at highway speed. 700 ms hangover and 60 ms pre-roll keep words from clipping. 0% is truly off — nothing is ever held back.
+- **A host stays on its own hotspot** — if a phone is hosting *and* still connected to some other Wi-Fi, it only looks for peers on the hotspot it's actually running, not every network it can see.
+- **"Turn Wi-Fi off" — before the drop, not after.** Some Android chipsets can't run a hotspot and a Wi-Fi client at once; if a remembered network comes back in range mid-ride, Android can silently kill the hotspot. The host screen says so *while the QR is still up*, with a one-tap system panel — the app can't flip the toggle itself (no API since Android 10), so it just asks well.
+- **Riding mode** — one switch for "phone in a jacket pocket, behind a helmet." Arms the VOX floor, runs the neural cleaner at a moderate strength, deepens the jitter buffer, and lifts playback through a limiter that can't clip. It overrides your other settings without touching them — turn it off and everything reverts exactly as you left it.
+- **Music / device-audio cast** (Android) — share whatever's playing on your phone into the channel as live audio, with its own volume slider and a one-tap "pause the source app" on stop.
+- **Auto-reconnect** — a dropped link heals itself (exponential backoff, socket liveness watchdog, cross-launch Bluetooth role resumption) with a unified health banner and manual "Retry now." No leave-and-rejoin needed for a hiccup.
+- **Nothing fails silently** — a refused mic permission, a mic that's "started" but delivering nothing, a dead send path — all three used to look like a working session. Now they say so, with the fix attached, and a **"Something wrong?"** sheet is always one tap away showing every dependency's live state.
+- **Eyes-free audio feedback** — a distinct sound for push-to-talk keying up, someone else talking, a peer joining/leaving, a link dropping/recovering, and errors, plus a light haptic tap when you key up. Mutable from Settings.
+- **Categorized Settings** — Profile, Riding mode, Connection, Sound & Alerts, Appearance, Startup, each its own card, plus an Advanced page for the technical knobs (transport pin, VOX threshold, noise-filter engine, jitter-buffer delay). Edits an active session live.
+- **Home-screen widget** (Android + iOS) — one tap into your last channel, mic already live. The face itself shows session state — on air, who's talking, muted, reconnecting — as an animated dial. Android's wide widget also has working MUTE/END buttons that never open the app.
+- **Branded splash & first-run onboarding** — a short cinematic launch and a five-beat animated intro (language/theme, what the app is, pick a callsign, how phones link up, ready). Both skippable, onboarding shown once.
+- **Start or join, transport chosen for you** — the main screen asks one question you're actually the authority on (*starting, or arriving?*) and works out Wi-Fi vs. hotspot vs. Bluetooth from what your phone can see. Pin one by hand in Advanced settings if you'd rather.
+- **Channel codes** — six characters, readable aloud through a helmet, so two groups on the same café Wi-Fi don't land in one conversation. Rides inside the existing hotspot QR, so it costs nothing extra to scan.
+- **Combined Wi-Fi / Hotspot page** — one entry point, a segmented Wi-Fi/Hotspot choice, and Hotspot asks which side you are instead of assuming.
+- **Clear permissions, one-time tips, bilingual** — a dedicated permissions page, a one-time practical-tips sheet, and full Persian (فارسی, RTL) + English support with a proper day/night theme.
 
 ---
 
@@ -61,16 +46,16 @@ tarkk.hp@gmail.com
 
 | Feature | Android | iOS |
 |---|---|---|
-| Wi-Fi (LAN) voice | ✅ | ✅ (unicast; broadcast is blocked without Apple's multicast entitlement) |
+| Wi-Fi (LAN) voice | ✅ | ✅ (unicast; broadcast needs Apple's multicast entitlement) |
 | Bluetooth Classic (RFCOMM) | ✅ | ❌ (Apple forbids Classic for apps) |
 | Bluetooth LE (GATT) | ✅ | ✅ |
-| Wi-Fi Hotspot Bridge — **host** | ✅ (API 26+) | ❌ (iOS can't create a local hotspot programmatically) |
-| Wi-Fi Hotspot Bridge — **join** | ✅ (in-app `WifiNetworkSpecifier`, API 29+; legacy `addNetwork` below that) | ✅ (auto-join needs the *Hotspot Configuration* capability, else manual) |
-| Music / device-audio cast | ✅ (API 29+) | ❌ (no OS API to capture other apps' audio) |
-| OS echo-cancel / noise-suppress / AGC | ✅ (`VOICE_COMMUNICATION`) | ✅ (`.voiceChat`) |
+| Wi-Fi Hotspot Bridge — **host** | ✅ (API 26+) | ❌ (no programmatic hotspot API) |
+| Wi-Fi Hotspot Bridge — **join** | ✅ (in-app, API 29+) | ✅ (auto-join needs *Hotspot Configuration*, else manual) |
+| Music / device-audio cast | ✅ (API 29+) | ❌ (no OS capture API) |
+| OS echo-cancel / noise-suppress / AGC | ✅ | ✅ |
 | Neural (RNNoise) noise suppression | ✅ default, verified | wired, unbuilt/untested on-device |
-| Home-screen widget | ✅ (resizable; compact + wide faces) | ✅ (WidgetKit, small + medium; needs iOS 14+) |
-| Widget MUTE / END without opening the app | ✅ | ❌ (an extension can't reach a backgrounded app) |
+| Home-screen widget | ✅ (compact + wide) | ✅ (WidgetKit, iOS 14+) |
+| Widget MUTE/END without opening the app | ✅ | ❌ (extensions can't reach a backgrounded app) |
 
 Minimum OS: **Android 8.0+** (hotspot host needs 8.0, music cast needs 10.0) / **iOS 13+**.
 
@@ -78,21 +63,14 @@ Minimum OS: **Android 8.0+** (hotspot host needs 8.0, music cast needs 10.0) / *
 
 ## Which transport should I use?
 
-**You don't have to answer this.** The main screen asks one question — are you
-**starting a channel** or **joining** one? — and picks the transport from what the
-phone can actually see: a shared Wi-Fi if you're on one, otherwise a hotspot
-this phone raises (or, joining, one it scans its way onto), and Bluetooth where
-neither is possible. Each button names the route it's about to take, so nothing
-happens that the screen didn't say first. The table below is what it's deciding
-between, and the same choice is available by hand in Settings → Advanced
-settings if you'd rather pin one.
+**You don't have to pick.** The main screen asks one thing — starting a channel, or joining one? — and resolves the rest from what your phone can see. Each button names the route before it takes it. Pin one by hand in Settings → Advanced settings if you'd rather skip the ladder.
 
-- **Same Wi-Fi network already?** Use **Wi-Fi**.
-- **Two Androids, no network?** Use **Bluetooth** (Classic — best range/quality) or Hotspot — either phone can be the host, and the other scans its code in the app.
-- **iPhone + Android, no network?** Use the **Hotspot Bridge** (most reliable). Bluetooth LE cross-OS also works but can be flaky (iOS hides its advertisement when backgrounded; some Android chipsets can't advertise) — the Bluetooth screen offers a one-tap jump to the Hotspot Bridge.
-- **Talk to someone with no app — anywhere, not just the same room?** Use **Guest** and send them the QR or the invite link (works over the internet via STUN; a few strict/corporate networks may still block it).
+- **Same Wi-Fi already?** → **Wi-Fi.**
+- **Two Androids, no network?** → **Bluetooth** (best range/quality) or the **Hotspot Bridge**.
+- **iPhone + Android, no network?** → **Hotspot Bridge** (most reliable). Bluetooth LE also works but can be flaky cross-OS.
+- **Someone with no app, anywhere?** → **Guest** — send the QR or link. Works over the real internet via STUN; a few strict corporate networks may block it.
 
-> **Scanning the host's code lands on "join this network yourself"?** Two system switches on the *scanning* phone can cause it, and the join screen now names whichever one it is instead of dropping you at the manual card. **Wi-Fi off** — `WifiNetworkSpecifier` needs the radio, and Android rejects the request instantly rather than prompting; the screen offers the toggle inline (a system panel from Android 10, as far as an app is allowed to reach). **Location off** — through Android 12 that stops Wi-Fi *scanning*, so the system's network picker comes up empty and cancels itself ~30s later; same requirement the hotspot host has always preflighted. Worth knowing if you host on the same phone: some builds leave Wi-Fi off after a local-only hotspot is torn down.
+> **Scanning a host's code drops you into "join this Wi-Fi yourself"?** Usually **Wi-Fi is off** on your phone (the join screen now offers the toggle inline) or **Location is off** (needed for Wi-Fi scanning through Android 12).
 
 ---
 
@@ -118,17 +96,17 @@ After pulling native changes, in `ios/`:
 pod install
 ```
 
-Then open `ios/Runner.xcworkspace` in Xcode and confirm, under **Signing & Capabilities** for the *Runner* target:
+Then in `ios/Runner.xcworkspace`, under **Signing & Capabilities** for the *Runner* target, confirm:
 
-- **Hotspot Configuration** capability is present (it drives `Runner.entitlements` / `NEHotspotConfiguration` for iOS auto-join). With automatic signing Xcode adds it from the entitlement automatically; if not, click **+ Capability → Hotspot Configuration**. Without it, iOS falls back to a manual "join this Wi-Fi in Settings" flow.
-- **App Groups** capability is present, containing `group.com.b1101.tark`, on **both** the *Runner* and *TarkWidgetExtension* targets. The App Group is the only channel through which the home-screen widget can read app state; if the group is missing (or the two targets disagree), the widget builds and installs fine but reads an empty store and shows its "finish setup" placeholder forever. Both `.entitlements` files already declare it — automatic signing registers the group on first build, otherwise click **+ Capability → App Groups** on each target.
-- `Info.plist` already declares the usage strings (`NSMicrophoneUsageDescription`, `NSLocalNetworkUsageDescription`, `NSBluetoothAlwaysUsageDescription`, `NSCameraUsageDescription`) and `UIBackgroundModes` (`audio`, `bluetooth-central`, `bluetooth-peripheral`).
+- **Hotspot Configuration** is present (drives `NEHotspotConfiguration` for auto-join). Automatic signing usually adds it; otherwise **+ Capability → Hotspot Configuration**. Without it, iOS falls back to a manual "join this Wi-Fi in Settings" flow.
+- **App Groups** contains `group.com.b1101.tark` on **both** *Runner* and *TarkWidgetExtension*. This is the only channel the home-screen widget has into app state — miss it (or let the two targets disagree) and the widget shows its "finish setup" placeholder forever.
+- `Info.plist` already declares the usage strings and `UIBackgroundModes` (`audio`, `bluetooth-central`, `bluetooth-peripheral`).
 
-> iOS Wi-Fi note: UDP broadcast is blocked without Apple's restricted `com.apple.developer.networking.multicast` entitlement, so on iOS the app discovers peers by unicast sweep + Local Network permission instead.
+> iOS Wi-Fi note: UDP broadcast needs Apple's restricted multicast entitlement, which this app doesn't have — iOS discovers peers by unicast sweep + Local Network permission instead.
 
 ### Guest web app
 
-The browser-guest experience is a separate web entrypoint:
+A separate web entrypoint:
 
 ```bash
 flutter build web --release -t lib/main_guest.dart
@@ -136,68 +114,61 @@ flutter build web --release -t lib/main_guest.dart
 #   --dart-define GUEST_APP_URL=https://your-host  (see lib/core/config/guest_config.dart)
 ```
 
-The deployed instance is [app.tarkk.ir](https://app.tarkk.ir), which is what `GUEST_APP_URL` defaults to.
+Deployed at [app.tarkk.ir](https://app.tarkk.ir), which is `GUEST_APP_URL`'s default.
 
 ### Landing site
 
-`website/` is the static marketing site served at [tarkk.ir](https://tarkk.ir) — plain HTML, CSS and JS, deployed as-is. `robots.txt`, `sitemap.xml` and the canonical and hreflang URLs in both pages name that origin, so they need updating together if the site ever moves.
+`website/` is the static marketing site at [tarkk.ir](https://tarkk.ir) — plain HTML/CSS/JS, deployed as-is, in two languages (English at `/`, Persian at `/fa/`).
 
-It ships in two languages, one URL each: English at `/` and Persian at `/fa/`. Search engines need each language served as its own document with its own title, description and structured data, so `website/fa/index.html` is **generated** from `website/index.html` — every translatable element carries a `data-fa` attribute, and the build swaps them in along with the head metadata and the Persian FAQ structured data.
+**Edit `website/index.html` only** — `website/fa/index.html` is generated from it (every translatable element carries a `data-fa` attribute; Persian `<title>`/meta/social copy live in the `FA` block at the top of the build script).
 
 ```sh
 node scripts/build-website-i18n.mjs           # regenerate website/fa/index.html
-node scripts/build-website-i18n.mjs --check    # verify it is current; exits 1 if not
+node scripts/build-website-i18n.mjs --check    # verify it's current; exits 1 if not
 ```
-
-Edit `website/index.html` and rebuild — never edit `website/fa/index.html` by hand. Persian text lives in the `data-fa` attributes; the Persian `<title>`, meta description and social copy live in the `FA` block at the top of the script. `--check` also verifies the English FAQ structured data still quotes the FAQ section verbatim, since a rich result must not show text the page does not contain.
 
 ---
 
 ## Audio pipeline
 
 ```
-mic ─▶ anti-alias LPF ─▶ resample to 16 kHz ─▶ noise suppress (spectral, RNNoise, or both cascaded) ─▶ 20 ms frames
+mic ─▶ anti-alias LPF ─▶ resample to wire rate ─▶ noise suppress (spectral, RNNoise, or both) ─▶ 20 ms frames
      ─▶ VOX gate (adaptive floor, hangover + pre-roll) ─▶ [+ mixed device audio] ─▶ Opus encode (in-band FEC) ─▶ transport
 transport ─▶ Opus decode (per-sender, FEC recovery) ─▶ jitter buffer (adaptive 60–180 ms) ─▶ resample to device rate ─▶ speaker
 ```
 
-- **Codec:** Opus 16 kHz mono VOIP (`opus_dart` + `opus_flutter`), packet type `0x03`. PCM16 (`0x02`) is a fallback and stays decodable for back-compat.
-- **Packet loss recovery:** the encoder carries **in-band FEC** — a low-bitrate copy of the previous frame inside each packet — so a single lost packet is rebuilt from the next one instead of leaving a hole. Where a packet carries no FEC copy, libopus synthesises a concealment frame instead. This needs `opus_encoder_ctl`, which `opus_dart` never binds (and its own decoder-side `fec` flag passes milliseconds where libopus expects a sample count, so it always fails), so encode and decode are bound directly against the same `libopus` handle `opus_flutter` loads — behind a conditional import, so the web guest build still compiles. If those bindings are unavailable the codec falls back to `opus_dart`, and then to PCM16; each rung is a working codec.
-- **Adaptive bitrate:** how much redundancy to spend is decided from **the far end's** loss, not ours — we can count what we sent, only the peer can count what arrived, and it reports that on the ping/pong that already runs once a second. The worst peer decides, since one encoded packet goes to everyone.
-- **Adaptive jitter buffer:** depth tracks the link (default 60–180 ms) rather than sitting at a fixed delay. It grows the moment the queue runs dry — being too shallow is heard immediately as chopped speech — and gives depth back only after ten seconds with nothing wrong, since being too deep is a delay nobody notices mid-sentence.
-- **VOX as a margin, not a level:** the slider stores *how far above the background* your voice must rise ([`VoxMargin`](lib/core/settings/vox_margin.dart), 3–18 dB), and [`NoiseFloorTracker`](lib/feature/audio/domain/noise_floor_tracker.dart) measures the background. It used to store an absolute RMS and take `max(that, floor × 2.5)`, which meant the adaptation only ever reached people who had left the slider low — any value above roughly a third of the scale beat the measured floor in any room quiet enough to talk in, so the users who found the gate twitchy and turned it up were exactly the users it stopped adapting for. Frames loud enough to be speech are excluded from the estimate, or a long sentence would drag the floor up behind it and gate the speaker mid-word. Two guards the reframe needs and the absolute scale didn't: a floor is refused below ≈ −54 dBFS, since a phone whose platform suppressor emits digital silence between words would otherwise multiply its way to a threshold of zero and disarm the gate, and the result is capped, since a broken mic must never be able to mute a phone silently. VOX off (0 %) still means nothing is ever held back — which also means the adaptation only runs once the gate is armed, and arming it is what **Riding mode** is for. Upgrading keeps the percentage you set; only what it means changed.
-- **Bounded noise cleaning:** the target is *intelligibility*, not silence. Every suppressor buys quiet by removing signal, and the first signal it removes is the fricatives and stops that separate "fifty" from "sixty" — which a lossy link is already chewing from the other end. So nothing the app chooses **for** you runs the cleaner flat out: the stock default and Riding mode read one shared ceiling from [`SuppressionPlan`](lib/core/settings/suppression_plan.dart), and `both` runs its second stage at half the slider — mopping up residual hum, rather than a second full cleaner over-subtracting against a signal the first already cleaned. The slider itself still reaches 100 % for anyone who wants it; the ceiling bounds our choices, not theirs.
-- **Riding mode:** a single resolved [`AudioProfile`](lib/core/settings/audio_profile.dart) stands between stored preferences and the audio chain, so "preset on" reaches the VOX gate, the cleaner, the jitter depth and the playback gain or none of them — a consumer reading a raw preference would half-apply it, which is worse than not having it. Playback gain runs through a soft knee that is asymptotic to full scale and continuous in value *and* slope, so quiet speech passes through bit-identical and loud speech bends rather than clipping: hard-clamping a boost is square-wave distortion right across the band the consonants live in, i.e. louder and *less* intelligible, which is the over-suppression trap arriving from the other direction.
-- **OS voice session:** engaged before the engine opens its streams (`tark/audio_session` channel → `AudioSessionHandler` on each platform). This gives call-grade echo cancellation / noise suppression / AGC where the device supports it. On Android the vendored `audio_io` allocates an AAudio session id (miniaudio patch) so the three effects are attached explicitly, not just implied by the input preset.
-- **Full duplex:** TX and RX run independently like a phone call. On loudspeaker (not headphones) some residual echo can occur on devices with weak OS AEC — headphones eliminate it.
-- **Realtime boundary:** mic and speaker samples cross between miniaudio's realtime callback and the Dart isolate through a lock-free single-producer/single-consumer ring buffer (`packages/audio_io/src/double_ring_buffer.h`). The callback never locks or allocates — a mutex shared with the isolate is a priority-inversion trap, and either one costs a missed deadline, i.e. an audible dropout.
+- **Codec** — Opus mono VOIP via direct `libopus` bindings (`opus_dart` + `opus_flutter`), with a same-quality `opus_dart`-only fallback and a PCM16 fallback below that, so there's always a working codec.
+- **In-band FEC** — each packet carries a low-bitrate copy of the previous frame, so one lost packet is rebuilt from the next instead of leaving a hole. How much redundancy to spend is decided from **the far end's** measured loss (reported once a second), never guessed locally.
+- **Adaptive jitter buffer** — depth tracks the link instead of sitting at a fixed delay: it grows the instant the queue runs dry (a shallow buffer is heard immediately as chopped speech) and only gives depth back after ten clean seconds.
+- **VOX as a margin** — the slider is *how far above the background* your voice must rise, not an absolute level, so the same setting works in a quiet room and at highway speed. Off (0%) truly means nothing is ever held back.
+- **Bounded noise cleaning** — the goal is intelligibility, not silence. Nothing the app chooses *for* you (the default, Riding mode) runs a cleaner flat out, since over-cleaning eats exactly the consonants a lossy link is already chewing.
+- **Full duplex** — TX and RX run independently, like a phone call.
+- **Realtime-safe** — mic/speaker samples cross the native↔Dart boundary through a lock-free ring buffer; the realtime audio callback never locks or allocates.
+
+**In development — negotiated 24 kHz HD voice.** The wire format is being generalized so two capable phones can automatically negotiate up to 24 kHz instead of the current fixed 16 kHz, falling back to 16 kHz for any peer that doesn't support it — no setting, no version mismatch, ever. It's implemented and covered by tests, but currently gated to debug builds only: it needs a real motorcycle A/B listening pass before it's trusted as the default for everyone. Follow along in [ROADMAP.md](ROADMAP.md).
 
 ---
 
 ## Wire protocol
 
-Transport-agnostic (identical bytes over UDP, RFCOMM, and BLE). All multi-byte integers little-endian.
+Transport-agnostic (identical bytes over UDP, RFCOMM, and BLE). All multi-byte integers little-endian. Shown here is the current (widest) shape; older, shorter variants are still decoded for backward compatibility — a build that predates a field simply stops reading it.
 
 | Field | Bytes | Notes |
 |---|---|---|
-| type | 1 | `0x01` presence · `0x02` PCM16 audio · `0x03` Opus audio |
-| name length | 4 | uint32 |
-| name | *n* | UTF-8 display name |
-| presence payload | 1 + 1 + *k* | `isTalking` (0/1) · session role · heard-peer list |
+| type | 1 | one byte per message-kind × version, e.g. presence / PCM16 audio / Opus audio |
+| device id | 1 + *n* | length-prefixed, stable per process |
+| session epoch | 4 | tells a rejoin apart from a stale packet still in flight |
+| channel id | 4 | only present once a channel is named |
+| name | 4 + *n* | length-prefixed UTF-8 display name |
+| presence payload | 1 + 1 + *k* + 1 | `isTalking` · session role · heard-peer list · audio capability bitmask |
 | audio payload | 4 + *m* | seq (uint32) + Opus packet (or PCM16 samples) |
 
-The presence payload grows by appending, never by changing what came before, so a
-build that predates a field simply stops reading and is unaffected. The **heard-peer
-list** (count byte, then length-prefixed device ids) is how a phone finds out its own
-transmissions are going nowhere: every other signal it has is about receiving, and a
-device whose send path has died still has a bound socket, a healthy link and a full
-roster. Absent means "no opinion" (older build, or a point-to-point transport);
-present but empty is a statement — "I can hear nobody".
+Every field beyond the header was added by *appending*, never by changing what came before — a build that predates a field just stops reading and is unaffected. The **heard-peer list** is how a phone learns its own transmissions are going nowhere (every other signal it has is about *receiving*). The **capability bitmask** is what the in-development HD-voice negotiation above rides on.
 
 | Item | Detail |
 |---|---|
-| Wi-Fi port | UDP 4000 (directed broadcast on every private /24 + limited broadcast + unicast to known peers) |
-| Discovery | presence every 2 s; users expire after 8 s |
+| Wi-Fi port | UDP 4000 (broadcast + unicast to known peers) |
+| Discovery | presence every 2 s; peers expire after 8 s |
 | Bluetooth | Classic SPP UUID `00001101-…`; BLE service `C0DE0001-57A1-4B1E-9A0B-2D6577616B69` |
 | BLE framing | length-prefixed + chunked to the negotiated ATT MTU |
 
@@ -205,76 +176,31 @@ present but empty is a statement — "I can hear nobody".
 
 ## Architecture
 
-Clean architecture + BLoC (Cubit), `injectable`/`get_it` DI, `go_router`. Each feature has `api/` + `domain/` + `data/` + `presentation/`; cross-feature access is **only** through a feature's `api/` barrel. `lib/app/` is the composition root (router + DI); `lib/core/` is the shared kernel. See [ARCHITECTURE.md](ARCHITECTURE.md) for the full breakdown.
+Clean architecture + BLoC (Cubit), `injectable`/`get_it` DI, `go_router`. Each feature is `api/` + `domain/` + `data/` + `presentation/`; cross-feature access only ever goes through a feature's `api/` barrel. `lib/app/` is the composition root; `lib/core/` is the shared kernel. Full breakdown in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ```
 lib/
-├── app/            — composition root: DI wiring (di_config.dart) + GoRouter,
-│                     quick_access.dart (cold-start routing decision)
-├── core/           — theme, l10n (fa/en), router, shared widgets (incl.
-│                     theme/language toggles + circular-reveal transition,
-│                     permission tile), utils, sfx, settings/ (the shared
-│                     SettingsKeys/AppSettings/SettingsModel/SettingsRepository
-│                     every cubit persists through), and home_widget/ (the
-│                     home-screen widget bridge: the key contract shared with
-│                     native, snapshot publishing, and launch-tap parsing)
+├── app/            — composition root: DI wiring, GoRouter, cold-start routing
+├── core/           — theme, l10n (fa/en), shared widgets, settings, sfx,
+│                     home-widget bridge, and core/audio/ (the shared
+│                     wire-format contract both audio and transfer key off)
 └── feature/
-    ├── audio/      — AudioEngine (mic in / speaker out via vendored audio_io),
-    │                 noise suppression (spectral subtraction, or RNNoise via
-    │                 the vendored FFI package in packages/rnnoise — Android
-    │                 only so far), resampler, jitter buffer (drift-correcting,
-    │                 sample-rate-scaled cap), device-audio capture,
-    │                 voice-session bridge
-    ├── transfer/   — transports + wire protocol: Wi-Fi UDP (+ liveness
-    │                 watchdog), Bluetooth (Classic + BLE engines), combined
-    │                 WiFi/Hotspot page, WebRTC guest (shared ice_config.dart:
-    │                 STUN + gathering timeout); ConnectionHealthStatus is the
-    │                 unified healthy/reconnecting/down signal every transport
-    │                 emits
+    ├── audio/      — AudioEngine (mic/speaker via vendored audio_io), noise
+    │                 suppression, resampler, jitter buffer, device-audio capture
+    ├── transfer/   — transports + wire protocol: Wi-Fi UDP, Bluetooth
+    │                 (Classic + BLE), combined WiFi/Hotspot page, WebRTC guest
     ├── walkie/     — WalkieTalkieCubit + main push-to-talk console
-    ├── landing/    — lobby: identity, read-only transport-mode chip, Join
-    ├── onboarding/ — first-run journey: language/theme tune-in, welcome
-    │                 facts, callsign (+shuffle), transport choice, stamped
-    │                 operator card → straight into the join flow (one-time,
-    │                 replayable from Settings). Beats change via
-    │                 packages/beat_transitions; the horizon scene caches its
-    │                 ridge paths, stars and shaders so the 60fps layer stays
-    │                 affordable on older phones
-    ├── settings/   — categorized Settings page (Profile/Voice & Audio/
-    │                 Connection/Sound/Appearance/Startup) + Permissions page;
-    │                 edits an active session live when opened from the
-    │                 channel page
-    └── splash/     — branded cold-start splash page (skippable via Settings)
+    ├── landing/    — lobby: identity, transport-mode chip, Join
+    ├── onboarding/ — first-run journey (one-time, replayable from Settings)
+    ├── settings/   — categorized Settings + Permissions pages
+    └── splash/     — branded cold-start splash (skippable)
 packages/
-├── audio_io/       — vendored, one Android patch: streams open as
-│                     VOICE_COMMUNICATION class so call-mode routing applies
+├── audio_io/       — vendored native audio I/O, patched for call-mode routing
 ├── rnnoise/        — FFI binding to RNNoise, vendored + built per platform
-└── beat_transitions/ — app-agnostic step transitions for the onboarding
-                      journey (HandoverTransition + the older SignalSweep),
-                      with no palette/cubit/router coupling so they are
-                      reusable
-android/…/kotlin/com/b1101/tark/
-├── audio/          — AudioSessionHandler (call routing/SCO), SystemAudioCapture,
-│                     MediaControlHandler + TarkNotificationListenerService
-│                     (pause other apps' media on stop-cast)
-├── bluetooth/      — BluetoothServerHandler (insecure RFCOMM host *and* dial, bounded write queue)
-├── hotspot/        — HotspotHandler (LocalOnlyHotspot host)
-│                     WifiJoinHandler (WifiNetworkSpecifier join + process binding)
-└── widget/         — home-screen widget: TarkWidgetProvider (RemoteViews),
-                      DialRenderer (the Canvas-drawn dial), and
-                      TarkWidgetControlReceiver + WidgetControlBridge, which
-                      carry MUTE/END into the running engine without
-                      foregrounding the app
-ios/Runner/         — AudioSessionHandler + HotspotJoinHandler (Swift)
-ios/TarkWidget/     — WidgetKit extension (SwiftUI): TarkWidget.swift draws the
-                      same dial, SharedState.swift reads the App Group store
+└── beat_transitions/ — app-agnostic step transitions for onboarding
+android/…/kotlin/com/b1101/tark/ — audio session/BT/hotspot handlers, widget provider
+ios/Runner/, ios/TarkWidget/      — Swift equivalents + WidgetKit extension
 ```
-
-The active transport is chosen in Settings (moved off the lobby); `TransferMode.hotspot` resolves to the Wi-Fi repository in the DI selector (the hotspot is only connection setup — the combined WiFi/Hotspot page's segmented control just picks which setup flow to show). `WalkieTalkieCubit` is an `@injectable` factory (not a GetIt singleton), so when Settings is opened from an active channel, the running cubit is threaded through go_router's `extra` param rather than looked up — Settings edits it in place for instant effect, and reads/writes through `SettingsRepository` (`lib/core/settings/`) the same way when opened standalone from Landing (no session yet).
-
-Cold start decides where to land before `runApp()`: `main.dart` calls `QuickAccess.resolveStartLocation` (same pattern as the existing `TransferModeStore.initialize()` preload) to compute `AppRouter.startLocation` — onboarding on a true first run, Landing otherwise. It used to skip Landing and drop returning users straight into their last-used transport; the home-screen widget replaced that, offering the same one-tap route into a channel but only when asked for, rather than taking the decision away from every launch. A widget tap is resolved in the same place and outranks the splash screen, since it names a destination explicitly. Widget taps carry a nonce that is consumed once: the platform never clears the launch intent and `MainActivity` is `singleTop`, so without it every later engine start would replay the last tap — and that tap lands on an open mic.
-
-Anything the widget *renders* — its strings are localized and its colors themed at publish time — has to be pushed to it when those settings change, since no session event fires: `MyApp` calls `HomeWidgetService.refresh()` from the same listener that rebuilds the tree on a language or theme switch.
 
 ---
 
@@ -285,49 +211,25 @@ Anything the widget *renders* — its strings are localized and its colors theme
 | `RECORD_AUDIO` | Microphone |
 | `MODIFY_AUDIO_SETTINGS` | Call-mode + Bluetooth SCO routing |
 | `INTERNET`, `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE`, `CHANGE_WIFI_MULTICAST_STATE` | Wi-Fi sockets & broadcast |
-| `CHANGE_WIFI_STATE`, `NEARBY_WIFI_DEVICES` | Hotspot Bridge (LocalOnlyHotspot) |
-| `CHANGE_NETWORK_STATE` | Joining the host's hotspot in-app (`requestNetwork` + process binding) |
-| `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION` (≤ API 32) | Required by BT scan / LocalOnlyHotspot on older APIs. Both run to 32 on purpose: from Android 12 a fine-location request is ignored unless coarse is requested in the same call, so capping coarse lower makes the hotspot permission ungrantable |
-| `BLUETOOTH_CONNECT`, `BLUETOOTH_SCAN`, `BLUETOOTH_ADVERTISE` | Bluetooth Classic + BLE (host & join) |
+| `CHANGE_WIFI_STATE`, `NEARBY_WIFI_DEVICES` | Hotspot Bridge |
+| `CHANGE_NETWORK_STATE` | Joining a hotspot in-app |
+| `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION` (≤ API 32) | Required by BT scan / hotspot on older APIs |
+| `BLUETOOTH_CONNECT`, `BLUETOOTH_SCAN`, `BLUETOOTH_ADVERTISE` | Bluetooth Classic + BLE |
 | `BLUETOOTH`, `BLUETOOTH_ADMIN` (≤ API 30) | Legacy Bluetooth |
 | `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MEDIA_PROJECTION` | Device-audio (music) cast |
-| Notification access (optional, granted via system settings — not a manifest permission) | Lets stopping music-cast also pause the source app's playback |
+| Notification access (optional, granted via system settings) | Lets stopping music-cast also pause the source app |
 
 ---
 
 ## Privacy & analytics
 
-Conversations never leave the local link. Audio goes phone-to-phone over Wi-Fi,
-Bluetooth or the hosted hotspot, and there is no server in the path — that part
-of the pitch is literal, and nothing below changes it.
+Conversations never leave the local link — phone to phone over Wi-Fi, Bluetooth, or a hosted hotspot, no server in the path. That's literal, and nothing below changes it.
 
-The app does collect anonymous usage statistics, so that connection failures
-we can't reproduce still get fixed. It's a plain **on/off switch in Settings →
-Privacy**, on by default.
+Anonymous usage stats are **off by default**, toggled in Settings → Privacy, and exist purely so connection failures we can't reproduce still get fixed. When on, what's sent: which transport a pairing attempt used and whether it connected; a bucketed session shape (never exact numbers); which optional features got used. What's never sent: callsigns, peer names, device names, SSIDs, IP/MAC addresses, contacts, location, or any audio — every attribute is a value from a closed enum in [`analytics_event.dart`](lib/core/analytics/analytics_event.dart), so there's no free-text field to leak into.
 
-What's sent, when it's on:
+Backend is [AdTrace](https://adtrace.io) — the one option that's free and reachable from Iranian networks. Its SDK's advertising-ID permission and Facebook/Instagram `<queries>` probes are stripped at merge time.
 
-- Which transport a pairing attempt used, and whether it connected or failed —
-  with a failure reason from a fixed list (`perm_denied`, `discover_timeout`,
-  `ap_never_up`, …)
-- Bucketed session shape: roughly how long, roughly how many people, roughly
-  how many transmissions (`2_10m`, `4_5`, `10_plus` — never exact values)
-- Which optional features were used at least once in a session
-
-What is never sent: callsigns, peer names, device names, SSIDs, IP or MAC
-addresses, contacts, location, and no audio of any kind, ever. Every attribute
-is a value from a closed enum defined in
-[`lib/core/analytics/analytics_event.dart`](lib/core/analytics/analytics_event.dart)
-— there is no free-text field to leak into.
-
-The backend is [AdTrace](https://adtrace.io), chosen because it's the one
-option that's both free and reachable from Iranian networks (Firebase and
-Sentry are sanction-blocked at the endpoint). Its SDK merges an advertising-ID
-permission and Facebook/Instagram `<queries>` probes into the manifest by
-default; all three are stripped at merge time — see the comment at the top of
-[`AndroidManifest.xml`](android/app/src/main/AndroidManifest.xml).
-
-Building without analytics at all, no code changes needed:
+Build without analytics entirely:
 
 ```bash
 flutter build apk --release --dart-define=ADTRACE_TOKEN=
@@ -337,61 +239,31 @@ flutter build apk --release --dart-define=ADTRACE_TOKEN=
 
 ## Diagnostics
 
-The bugs worth chasing here only exist on someone else's phone: a hotspot link
-that goes one-way after the screen locks, an AP the OS tore down, a mic that
-opened and delivered nothing. `adb logcat` reaches none of that, so the app keeps
-its own log.
+The bugs worth chasing here only happen on someone else's phone, mid-ride. `adb logcat` reaches none of that, so the app keeps its own rotating log.
 
-**For users.** Settings → Advanced → Diagnostics → *Share diagnostic log*. It writes a
-`.tarklog` file and hands it to the share sheet. The log stays on the phone until
-you send it, and *Clear the log* deletes it.
+**For users:** Settings → Advanced → Diagnostics → *Share diagnostic log* hands a `.tarklog` file to the share sheet. It stays on the phone until you send it; *Clear the log* deletes it. A *Max log size* slider (20 KB–100 MB, 8 MB default) caps it — the oldest segment is dropped, never the whole thing.
 
-**What's in it.** Session lifecycle, screen on/off transitions, socket bind and
-rebind events, per-peer send failures, and a line every 15 s summarising the whole
-transport — packets in and out, known peers, local addresses, broadcast targets,
-socket state. No audio, ever.
+**What's in it:** session lifecycle, screen on/off, socket events, per-peer send failures, a transport summary line every 15 s. No audio, ever.
 
-**How big it gets.** Exactly as big as you allow and no bigger. The same
-Diagnostics section carries a *Max log size* slider — 20 KB to 100 MB, 8 MB by
-default — with a meter showing how much of it is currently spent. On disk the log
-is a chain of numbered segments; when the next line would take it past the
-ceiling, the oldest segment is deleted. It never grows without bound, and lowering
-the ceiling reclaims the space straight away rather than at some later write. See
-[`log_budget.dart`](lib/core/diagnostics/log_budget.dart) for the range and
-[`diagnostic_log.dart`](lib/core/diagnostics/diagnostic_log.dart) for the rotation.
-
-**Reading one.** The file is gzip plus a keystream — opaque in a chat thread, and
-awkward to "tidy up" before sending, which is how the one line that mattered goes
-missing. It is **not encrypted**: the key is a constant in a shipped app. Decode it
-with:
+**Reading one:** it's gzip plus a keystream — opaque in a chat thread, not encrypted (the key ships in the app). Decode with:
 
 ```bash
 python3 scripts/decode_tark_log.py tark-log-20260807-181500.tarklog
 ```
 
-The container is defined in
-[`tark_log_format.dart`](lib/core/diagnostics/tark_log_format.dart); the script and
-that file have to move together, and a cross-language golden vector in
-[`test/tark_log_format_test.dart`](test/tark_log_format_test.dart) fails if they
-drift apart.
+Format defined in [`tark_log_format.dart`](lib/core/diagnostics/tark_log_format.dart); a cross-language golden test keeps the script and that file honest with each other.
 
 ---
 
 ## Support the project
 
-Every feature is unlocked — Bluetooth, Wi-Fi, hotspot, music cast, all of it.
-Nothing in the app asks you for money.
+Every feature is unlocked — Bluetooth, Wi-Fi, hotspot, music cast, all of it. Nothing in the app asks you for money.
 
-Development still costs something, though: test devices to reproduce the radio
-bugs that only show up on one specific phone, a domain, and the hosting behind
-[app.tarkk.ir](https://app.tarkk.ir). If Tark is useful to you and you'd like
-to help with that:
+Development still costs something: test devices for radio bugs that only show up on one specific phone, a domain, hosting for [app.tarkk.ir](https://app.tarkk.ir). If Tark's useful to you:
 
 **[reymit.ir/tark](https://reymit.ir/tark)**
 
-Any amount is genuinely useful, and not donating changes nothing about what
-you get. Reporting a bug with enough detail to reproduce it is worth just as
-much — see [ISSUE_TEMPLATE](.github/ISSUE_TEMPLATE).
+Any amount helps, and not donating changes nothing about what you get. A well-reproduced bug report is worth just as much — see [ISSUE_TEMPLATE](.github/ISSUE_TEMPLATE).
 
 ---
 

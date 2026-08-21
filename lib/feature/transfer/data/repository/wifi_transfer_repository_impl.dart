@@ -269,6 +269,14 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   /// it if it changed. Cheap to call on every presence tick — a no-op change
   /// is the overwhelmingly common case — which is what keeps a negotiated
   /// profile from flapping packet to packet.
+  ///
+  /// The log line doubles as #28's A/B evidence: everything measurable about
+  /// the link at the moment it crossed from one profile to the other, so a
+  /// session that ran through both a legacy and an HD stretch can be
+  /// compared from its own diagnostic export — device capture/playback rate
+  /// is AudioEngineImpl's own "wire format" line, logged at the same
+  /// transition from the other side of the negotiation. Subjective listening
+  /// quality stays owner/field evidence; this only captures what's measured.
   void _syncFormatProfile() {
     final resolved = _capabilities.resolve();
     if (resolved == _negotiatedFormat) return;
@@ -276,7 +284,8 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     _negotiatedFormat = resolved;
     _codec.setFormatProfile(resolved);
     Logger.diagnostic(
-      'wifi: negotiated audio profile ${previous.label} -> ${resolved.label}',
+      'wifi: negotiated audio profile ${previous.label} -> ${resolved.label} '
+      '| ${_opusSummary()} rtt=${_lastRtt?.inMilliseconds ?? '?'}ms',
     );
   }
 
