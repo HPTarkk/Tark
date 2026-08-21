@@ -1,5 +1,4 @@
 import 'package:equatable/equatable.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
 
 /// The wire-format contract for one direction of real-time audio: sample
 /// rate, channel count, and frame duration.
@@ -77,14 +76,17 @@ class AudioFormatProfile extends Equatable {
   /// media profile so #29 can extend this without touching voice's
   /// numbering.
   ///
-  /// [hd24k] is gated to debug builds ([kDebugMode]) rather than shipped —
-  /// #28's own acceptance criteria require a physical motorcycle A/B before
-  /// HD becomes the default for real users, which is an owner/field action,
-  /// not something a coding session can satisfy on its own. A release build
-  /// negotiates [legacy16k] only, exactly as it did before #28, until that
-  /// validation happens and this list is deliberately widened for everyone
-  /// (checkpoint 4 — a config change, not new code).
-  static const supported = kDebugMode ? [hd24k, legacy16k] : [legacy16k];
+  /// [hd24k] was gated to debug builds ([kDebugMode]) through #28's first
+  /// three checkpoints, pending the owner/field validation a coding session
+  /// can't produce on its own. Checkpoint 4 (2026-08-21) widens it to every
+  /// build: two real Android devices ran a live channel end to end,
+  /// negotiated `16k -> 24k-HD` within seconds, and held it with zero
+  /// jitter-buffer resyncs/drops and zero recovery-ladder events across
+  /// 12-14 minute sessions including 500s+ screen-off stretches — see the
+  /// decoded `.tarklog` reports attached to #28. Negotiation still falls
+  /// back to [legacy16k] automatically for any peer that doesn't advertise
+  /// [hd24k] support, so this is additive, not a break for older builds.
+  static const supported = [hd24k, legacy16k];
 
   @override
   List<Object?> get props => [id, sampleRateHz, channels, frameDurationMs];

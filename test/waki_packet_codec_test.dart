@@ -285,10 +285,10 @@ void main() {
                     '192.168.43.7',
                   )!
                   as PresencePacket;
-          // Not hardcoded 0: AudioFormatProfile.supported (and so
-          // localBitmask) is kDebugMode-gated as of checkpoint 3, so this
-          // build's real advertised bitmask depends on the build mode
-          // `flutter test` runs in.
+          // Not hardcoded: reads the real, shipped
+          // AudioCapabilityNegotiator.localBitmask rather than assuming its
+          // value, so this stays correct as AudioFormatProfile.supported
+          // grows (e.g. #29's media profiles).
           expect(
             packet.capabilityBitmask,
             AudioCapabilityNegotiator.localBitmask,

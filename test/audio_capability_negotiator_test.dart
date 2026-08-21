@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tark/core/audio/audio_format_profile.dart';
 import 'package:tark/feature/transfer/domain/service/audio_capability_negotiator.dart';
@@ -6,10 +5,9 @@ import 'package:tark/feature/transfer/domain/service/audio_capability_negotiator
 /// Bit for [AudioFormatProfile.hd24k] (id 2) per the class doc: bit `id - 2`.
 const _hdBit = 1; // 1 << (2 - 2)
 
-/// Only [AudioFormatProfile.hd24k]/[AudioFormatProfile.legacy16k] are testing
-/// the bit-matching logic itself against a profile above legacy16k,
-/// independently of when the real [AudioFormatProfile.supported] grows past
-/// it (checkpoint 3) — see [AudioCapabilityNegotiator]'s constructor doc.
+/// A standalone list mirroring the real [AudioFormatProfile.supported] — kept
+/// separate so this file's bit-matching tests don't silently change shape if
+/// that list is ever extended (e.g. #29's media profiles land on ids 3+).
 const _hdSupported = [AudioFormatProfile.hd24k, AudioFormatProfile.legacy16k];
 
 AudioCapabilityNegotiator _hdNegotiator() =>
@@ -17,13 +15,11 @@ AudioCapabilityNegotiator _hdNegotiator() =>
 
 void main() {
   group('localBitmask (production default)', () {
-    test('reflects the real, kDebugMode-gated AudioFormatProfile.supported', () {
-      // #28 checkpoint 3 gates hd24k to kDebugMode until a physical
-      // motorcycle A/B clears it for release (see AudioFormatProfile
-      // .supported) — checked dynamically so this passes in both build
-      // modes rather than assuming whichever one `flutter test` happens to
-      // run in.
-      expect(AudioCapabilityNegotiator.localBitmask, kDebugMode ? _hdBit : 0);
+    test('reflects the real, shipped AudioFormatProfile.supported', () {
+      // #28 checkpoint 4: hd24k shipped past kDebugMode once the field
+      // evidence attached to #28 cleared it for release, so every build now
+      // advertises it.
+      expect(AudioCapabilityNegotiator.localBitmask, _hdBit);
     });
   });
 
