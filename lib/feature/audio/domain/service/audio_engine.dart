@@ -94,9 +94,30 @@ abstract interface class AudioEngine {
   /// channel can have more than 2 participants).
   void playReceived(List<double> samples, int seq, String senderId);
 
-  /// Clears jitter-buffer playback state (queued audio, sequence tracking).
-  /// Call after a detected reconnect so stale buffered audio doesn't play
-  /// back "late" once the link recovers.
+  /// Media analog of [playReceived] — see #30. [samples] are at 48 kHz (the
+  /// fixed rate every negotiated media profile uses —
+  /// `AudioFormatProfile.media48kStereo`/`media48kMono`), interleaved when
+  /// [channels] is 2. [seq]/[senderId] carry the same per-sender, independent
+  /// sequence-space contract [playReceived] does — media's own jitter buffer
+  /// tracks it separately, so one stream's loss/reorder can never affect the
+  /// other's.
+  ///
+  /// Mixed into the device's single output alongside voice, downmixed to
+  /// mono first when [channels] is 2: the underlying output path is mono
+  /// (see [playReceived]'s wire format), and mixing genuinely separate L/R
+  /// audio into it would require a stereo-capable output path this engine
+  /// doesn't have. That only affects local playback — the wire stream stays
+  /// genuinely stereo where negotiated.
+  void playReceivedMedia(
+    List<double> samples,
+    int channels,
+    int seq,
+    String senderId,
+  );
+
+  /// Clears jitter-buffer playback state (queued audio, sequence tracking)
+  /// for both voice and media. Call after a detected reconnect so stale
+  /// buffered audio doesn't play back "late" once the link recovers.
   void resetPlayback();
 
   /// Stop the engine (unless a newer session already owns it) and release

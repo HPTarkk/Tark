@@ -327,6 +327,15 @@ class AudioPlaybackBuffer {
   /// than inferring them from what eventually reaches the device.
   int get queuedSamples => _queue.length;
 
+  /// Whether the drain timer is currently running — i.e. whether this
+  /// buffer's own write to [_output] is what's covering the current tick.
+  /// #30's media mixing reads this: a second, independent timer writing to
+  /// the same output sink would not *mix* with what this one writes, it
+  /// would interleave two unrelated PCM streams (see
+  /// `AudioEngineImpl`'s media coordinator for the full reasoning) — so
+  /// media's own tick only writes directly when this is false.
+  bool get isDraining => _drainTimer != null;
+
   /// Depth the buffer is currently aiming for, in milliseconds. Exposed so
   /// adaptation can be asserted on directly and read off the health log.
   int get targetBufferMs => _ms(_targetSamples);

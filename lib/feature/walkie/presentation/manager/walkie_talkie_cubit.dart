@@ -1173,12 +1173,31 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
           Logger.log('Playback error: $e');
         }
       case MediaAudioPacket():
-        // #30 checkpoint 4 wires this into an independent receive buffer
-        // (mirroring the AudioPacket branch above but through
-        // AudioEngine.playReceivedMedia, on its own sequence space) — not yet
-        // reachable in practice, since nothing sends this packet type until
-        // checkpoint 3's independent-mode media scheduler is wired in too.
-        break;
+        // No roster/keying side effects — unlike voice, media never keys
+        // "who's talking" (see MusicCastStopReason and the independent-mode
+        // notes on [_onAudioFrame]); this exists purely to get the samples
+        // to the independent media receive buffer.
+        try {
+          final channels =
+              _transferRepository.negotiatedMediaFormat?.channels ?? 1;
+          final recovered = packet.recoveredSamples;
+          if (recovered != null) {
+            _audioEngine.playReceivedMedia(
+              recovered,
+              channels,
+              packet.seq - 1,
+              packet.senderId,
+            );
+          }
+          _audioEngine.playReceivedMedia(
+            packet.samples,
+            channels,
+            packet.seq,
+            packet.senderId,
+          );
+        } catch (e) {
+          Logger.log('Media playback error: $e');
+        }
     }
   }
 

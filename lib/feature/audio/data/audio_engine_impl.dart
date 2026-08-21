@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:audio_io/audio_io.dart';
 import 'package:injectable/injectable.dart';
@@ -15,6 +16,8 @@ import '../domain/audio_processor.dart';
 import '../domain/entity/audio_engine_status.dart';
 import '../domain/entity/audio_frame.dart';
 import '../domain/float64_fifo.dart';
+import '../domain/media_channel_converter.dart';
+import '../domain/media_receive_buffer.dart';
 import '../domain/playback_gain.dart';
 import '../domain/resampler.dart';
 import '../domain/rnnoise_suppressor.dart';
@@ -113,6 +116,24 @@ class AudioEngineImpl implements AudioEngine {
   final PlaybackGain _playbackGain = PlaybackGain();
 
   AudioPlaybackBuffer? _buffer;
+
+  // #30: Shared Music's own receive-side jitter buffer, independent of
+  // [_buffer]'s (own queue, own per-sender sequence tracking, own
+  // counters) — see [MediaReceiveBuffer]. Pull-based, mixed onto whatever
+  // [_buffer] writes via [_MixingOutputSink] (built in [_openStreams]), plus
+  // [_mediaCoordinatorTimer] for stretches where voice has nothing queued at
+  // all and [_buffer]'s own drain timer is idle.
+  MediaReceiveBuffer? _mediaBuffer;
+
+  // Media's wire rate is fixed at 48 kHz for every negotiated profile
+  // (AudioFormatProfile.media48kStereo/media48kMono), unlike voice's
+  // [_rxResampler] which is rebuilt per negotiated profile — so this only
+  // ever needs rebuilding when [_outputRate] itself changes (i.e. alongside
+  // [_openStreams], same as [_rxResampler]).
+  LinearResampler? _rxMediaResampler;
+
+  Timer? _mediaCoordinatorTimer;
+
   StreamSubscription<List<double>>? _inputSub;
   final StreamController<AudioFrame> _frameController =
       StreamController<AudioFrame>.broadcast();
@@ -288,6 +309,10 @@ class AudioEngineImpl implements AudioEngine {
       // into a sink that was gone.
       _buffer?.dispose();
       _buffer = null;
+      _mediaCoordinatorTimer?.cancel();
+      _mediaCoordinatorTimer = null;
+      _mediaBuffer?.dispose();
+      _mediaBuffer = null;
       await _audioIo.stop();
       // Android: bring the Bluetooth SCO route up — and confirmed — BEFORE
       // the engine opens its streams. Older devices don't re-route streams
@@ -346,12 +371,24 @@ class AudioEngineImpl implements AudioEngine {
       _playbackGain.gain = profile.playbackGain;
       // Already disposed at the top of this method, before the sink it writes
       // to was closed.
+      //
+      // #30: voice writes through [_MixingOutputSink] rather than straight to
+      // [_audioIo.output] — it pulls a same-length media frame (if any) each
+      // time voice writes and sums it in before the one real write. See that
+      // class and [_mediaCoordinatorTimer] for the stretches voice writes
+      // nothing at all.
+      _mediaBuffer = MediaReceiveBuffer(sampleRate: _outputRate.toInt());
+      _rxMediaResampler = LinearResampler(inRate: 48000, outRate: _outputRate);
       _buffer = AudioPlaybackBuffer(
-        output: _audioIo.output,
+        output: _MixingOutputSink(_audioIo.output, () => _mediaBuffer),
         sampleRate: _outputRate.toInt(),
         targetBufferMs: profile.targetBufferMs,
         debugLogging: true,
         outputUnderrunFrames: _audioIo.outputUnderrunFrames,
+      );
+      _mediaCoordinatorTimer = Timer.periodic(
+        const Duration(milliseconds: 10),
+        (_) => _mediaCoordinatorTick(),
       );
     } catch (e) {
       Logger.log('AudioIo start error: $e');
@@ -720,7 +757,41 @@ class AudioEngineImpl implements AudioEngine {
   }
 
   @override
-  void resetPlayback() => _buffer?.reset();
+  void playReceivedMedia(
+    List<double> samples,
+    int channels,
+    int seq,
+    String senderId,
+  ) {
+    // Downmixed before resampling — cheaper (half the samples through the
+    // resampler) and order-independent, since averaging L/R and linear
+    // resampling both commute over a stream with no other processing
+    // between them.
+    final mono = channels == 2
+        ? MediaChannelConverter.downmixToMono(samples)
+        : samples;
+    final upsampled = _rxMediaResampler?.process(mono) ?? mono;
+    _mediaBuffer?.feed(upsampled, seq, senderId);
+  }
+
+  /// Writes media directly to the real output for stretches where [_buffer]
+  /// has nothing queued at all and its own drain timer is idle — see
+  /// [MediaReceiveBuffer]'s class doc. A no-op the overwhelming majority of
+  /// ticks: [_buffer.isDraining] true (voice is playing, [_MixingOutputSink]
+  /// already covers this tick) or [_mediaBuffer] has nothing ready (no music
+  /// cast active) are both cheap early-outs.
+  void _mediaCoordinatorTick() {
+    if (_buffer?.isDraining ?? false) return;
+    final media = _mediaBuffer?.pullFrame(_outputRate.toInt() * 10 ~/ 1000);
+    if (media == null) return;
+    _audioIo.output.add(media);
+  }
+
+  @override
+  void resetPlayback() {
+    _buffer?.reset();
+    _mediaBuffer?.reset();
+  }
 
   // ── dispose ────────────────────────────────────────────────────────────────
 
@@ -740,10 +811,50 @@ class AudioEngineImpl implements AudioEngine {
     await _receivedFrameController.close();
     await _statusController.close();
     _buffer?.dispose();
+    _mediaCoordinatorTimer?.cancel();
+    _mediaCoordinatorTimer = null;
+    _mediaBuffer?.dispose();
+    _mediaBuffer = null;
     _rnnoiseSuppressor.dispose();
     // Epoch-guarded: if a newer session already claimed the engine (the
     // user re-entered the walkie page before this dispose chain finished),
     // leave it running for them instead of killing their session.
     await _stopEngineIfOwned();
   }
+}
+
+/// Wraps the real output sink so [AudioPlaybackBuffer] (voice) can go on
+/// writing exactly as it always has, while every write also carries
+/// whatever Shared Music (#30) has ready — see [MediaReceiveBuffer] and
+/// [AudioEngineImpl._mediaCoordinatorTick] for why this has to be a mix
+/// at voice's own write point rather than a second independent writer:
+/// two unsynchronized timers both calling `add` on the same output sink
+/// would interleave two unrelated PCM streams, not mix them.
+class _MixingOutputSink implements Sink<List<double>> {
+  _MixingOutputSink(this._real, this._mediaBuffer);
+
+  final Sink<List<double>> _real;
+
+  /// A closure rather than a captured reference: [AudioEngineImpl] rebuilds
+  /// [AudioEngineImpl._mediaBuffer] on every [AudioEngineImpl._openStreams]
+  /// call (route changes), and this sink must always read whichever instance
+  /// is current rather than one frozen at construction time.
+  final MediaReceiveBuffer? Function() _mediaBuffer;
+
+  @override
+  void add(List<double> data) {
+    final media = _mediaBuffer()?.pullFrame(data.length);
+    if (media == null) {
+      _real.add(data);
+      return;
+    }
+    final mixed = Float64List(data.length);
+    for (var i = 0; i < data.length; i++) {
+      mixed[i] = (data[i] + media[i]).clamp(-1.0, 1.0);
+    }
+    _real.add(mixed);
+  }
+
+  @override
+  void close() => _real.close();
 }

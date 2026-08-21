@@ -52,6 +52,36 @@ void main() {
     }
   }
 
+  group('isDraining (#30)', () {
+    test('false before anything is fed, true once draining starts', () {
+      final buffer = build(_RecordingSink());
+      addTearDown(buffer.dispose);
+      expect(buffer.isDraining, isFalse);
+
+      fillToStart(buffer);
+      expect(buffer.isDraining, isTrue);
+    });
+
+    test('false again after an underrun stops the drain timer', () async {
+      final buffer = build(_RecordingSink());
+      addTearDown(buffer.dispose);
+      fillToStart(buffer);
+      expect(buffer.isDraining, isTrue);
+
+      // Nothing more fed — the queue runs dry and the drain timer stops.
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      expect(buffer.isDraining, isFalse);
+    });
+
+    test('false after dispose', () {
+      final buffer = build(_RecordingSink());
+      fillToStart(buffer);
+      expect(buffer.isDraining, isTrue);
+      buffer.dispose();
+      expect(buffer.isDraining, isFalse);
+    });
+  });
+
   group('output prefill', () {
     test('pushes a silent cushion before the first audio slice', () {
       final sink = _RecordingSink();
