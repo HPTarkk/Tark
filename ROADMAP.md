@@ -23,8 +23,8 @@ introduced anywhere in this workstream.
 
 ## Status at a glance
 
-Issues 1/8 through 5/8 (#26–#30) have landed — see their own checkpoint
-commit history. 6/8–8/8 (#31–#33) are next.
+Issues 1/8 through 6/8 (#26–#31) have landed — see their own checkpoint
+commit history. 7/8–8/8 (#32–#33) are next.
 
 | # | Issue | Priority | Focus | Depends on |
 | --- | --- | --- | --- | --- |
