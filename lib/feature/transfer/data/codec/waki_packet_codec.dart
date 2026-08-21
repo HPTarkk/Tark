@@ -69,6 +69,21 @@ const kPresenceV4Byte = 0x0C;
 const kAudioV4Byte = 0x0D;
 const kOpusAudioV4Byte = 0x0E;
 
+// #30 — Shared Music as an independent transport stream, alongside voice
+// rather than mixed into it. Same reasoning as every version bump above:
+// a media audio packet's body is seq + unterminated payload too, so a new
+// type byte is the only safe way to add it — a build that predates #30
+// simply drops an unrecognised type, which is exactly the fallback the
+// roadmap wants for a peer that hasn't negotiated media (see
+// AudioCapabilityNegotiator.media, TransferRepository.negotiatedMediaFormat).
+//
+// Unlike voice, there is no v1/v2/v3 media format to keep small for — this
+// is the only shape it has ever had — so it always carries the full
+// v4-style header (device id + epoch + channel), never a shorter one; see
+// [WakiPacketCodec._isV4].
+const kMediaAudioByte = 0x0F;
+const kOpusMediaAudioByte = 0x10;
+
 /// Transport-agnostic encode/decode for the [WakiPacket] wire format.
 ///
 /// Shared by every [TransferRepository] implementation (WiFi UDP, Bluetooth
@@ -87,6 +102,10 @@ const kOpusAudioV4Byte = 0x0E;
 ///   presence:      1 byte isTalking (0/1) + 1 byte session role
 ///                  + optional heard-id list
 ///   audio:         4 bytes seq (uint32) + payload (PCM16 or one Opus packet)
+///
+/// Shared Music (#30) is the same shape again, on its own type bytes
+/// (0x0F = PCM16 media, 0x10 = Opus media) and its own sequence space,
+/// always carrying the full header above — see the type-byte block below.
 ///
 /// The role byte was appended after v2 shipped, deliberately without a new
 /// type: a build that predates it stops reading after isTalking, so its
@@ -117,7 +136,13 @@ const kOpusAudioV4Byte = 0x0E;
 /// versions still hear each other.
 class WakiPacketCodec {
   WakiPacketCodec(this._deviceId, this._epoch, [this._channel])
-    : _opus = OpusAudioCodec();
+    : _opus = OpusAudioCodec(),
+      _mediaOpus = OpusAudioCodec() {
+    // Shared Music is never speech — this instance carries nothing else, so
+    // the profile is set once here rather than toggled per session the way
+    // voice's [_opus] is (see [setAudioProfile]).
+    _mediaOpus.setProfile(OpusEncodeProfile.music);
+  }
 
   /// Stamped on everything this codec encodes, so a receiver keys the roster
   /// and the jitter buffer on the device rather than on the address the
@@ -142,6 +167,13 @@ class WakiPacketCodec {
   ChannelId get _channelId => _channel?.current ?? ChannelId.open;
 
   final OpusAudioCodec _opus;
+
+  /// Shared Music's own codec instance — see #30 and
+  /// [OpusAudioCodec]'s class doc ("a voice instance and a #29 HD-media
+  /// instance are two separate objects, each with its own profile/tuning/
+  /// rungs"). Its own per-sender decoder maps and FEC gap tracker mean a
+  /// corrupt or lost media packet can never disturb voice's.
+  final OpusAudioCodec _mediaOpus;
 
   Uint8List encodeAudio(List<double> samples, String senderName, int seq) {
     final opusPacket = _opus.encode(samples);
@@ -174,6 +206,30 @@ class WakiPacketCodec {
   /// "always the newest".
   int _sessionType(int v3Type, int v4Type) =>
       _channelId.isOpen ? v3Type : v4Type;
+
+  /// Encodes one Shared Music frame. Mirrors [encodeAudio] exactly — same
+  /// Opus-then-PCM16 fallback, same body shape — on [_mediaOpus] and the #30
+  /// media type bytes instead. Always the full header ([kMediaAudioByte]/
+  /// [kOpusMediaAudioByte] are always [_isV4]), so unlike voice there is no
+  /// channel-open/named distinction to make here.
+  Uint8List encodeMediaAudio(List<double> samples, String senderName, int seq) {
+    final opusPacket = _mediaOpus.encode(samples);
+    if (opusPacket != null) {
+      return _buildAudioPacket(kOpusMediaAudioByte, senderName, seq, opusPacket);
+    }
+    final audioData = ByteData(samples.length * 2);
+    for (int i = 0; i < samples.length; i++) {
+      final clamped = samples[i].clamp(-1.0, 1.0);
+      final intVal = (clamped * 32767).round().clamp(-32768, 32767);
+      audioData.setInt16(i * 2, intVal, Endian.little);
+    }
+    return _buildAudioPacket(
+      kMediaAudioByte,
+      senderName,
+      seq,
+      audioData.buffer.asUint8List(),
+    );
+  }
 
   Uint8List _buildAudioPacket(
     int type,
@@ -455,6 +511,33 @@ class WakiPacketCodec {
         recoveredSamples: decoded?.recoveredPrevious,
       );
     }
+
+    final isMediaOpus = type == kOpusMediaAudioByte;
+    final isMediaPcm = type == kMediaAudioByte;
+    if (isMediaOpus || isMediaPcm) {
+      if (bytes.length < bodyStart + 4) return null;
+      final seq = bd.getUint32(bodyStart, Endian.little);
+      final audioBytes = bytes.sublist(bodyStart + 4);
+      if (audioBytes.isEmpty) return null;
+      // A separate codec instance, so a corrupt/lost media packet can never
+      // disturb voice's per-sender decoder/FEC-gap state — see [_mediaOpus].
+      final decoded = isMediaOpus
+          ? _mediaOpus.decode(audioBytes, senderId, seq)
+          : null;
+      final samples = isMediaOpus
+          ? decoded?.samples
+          : _bytesToSamples(audioBytes);
+      if (samples == null || samples.isEmpty) return null;
+      return MediaAudioPacket(
+        senderId: senderId,
+        senderName: name,
+        sessionEpoch: epoch,
+        channelId: channelId,
+        samples: samples,
+        seq: seq,
+        recoveredSamples: decoded?.recoveredPrevious,
+      );
+    }
     return null;
   }
 
@@ -580,7 +663,11 @@ class WakiPacketCodec {
   static bool _isV4(int type) =>
       type == kPresenceV4Byte ||
       type == kAudioV4Byte ||
-      type == kOpusAudioV4Byte;
+      type == kOpusAudioV4Byte ||
+      // #30's media types have only ever had this one (full) header shape —
+      // see the type-byte block's doc comment.
+      type == kMediaAudioByte ||
+      type == kOpusMediaAudioByte;
 
   /// Tells the Opus encoder what the outgoing stream is carrying, so a music
   /// cast is not encoded through a speech model. See [OpusEncodeProfile].
@@ -598,11 +685,22 @@ class WakiPacketCodec {
   /// What the encoder is currently tuned to, for the session log.
   OpusTuning get tuning => _opus.tuning;
 
-  /// Frees native Opus state (call when the owning transport shuts down).
-  void release() => _opus.release();
+  /// Frees native Opus state for both streams (call when the owning
+  /// transport shuts down).
+  void release() {
+    _opus.release();
+    _mediaOpus.release();
+  }
 
   /// Frees per-sender Opus decoder state (call after a detected reconnect).
+  /// Voice only — see [resetMediaDecoders] for media's independent reset, so
+  /// a per-sender voice rejoin doesn't disturb an unrelated media stream.
   void resetDecoders() => _opus.resetDecoders();
+
+  /// Media's counterpart to [resetDecoders] — independent so a media-only
+  /// event (e.g. a music cast stopping and restarting) never resets voice's
+  /// decoder state, and vice versa.
+  void resetMediaDecoders() => _mediaOpus.resetDecoders();
 
   /// Switches the wire format the encoder/decoders run at, once negotiation
   /// (see [AudioCapabilityNegotiator]) has settled on a new mutual profile.
@@ -611,6 +709,26 @@ class WakiPacketCodec {
   /// see [OpusAudioCodec.setFormatProfile].
   void setFormatProfile(AudioFormatProfile profile) =>
       _opus.setFormatProfile(profile);
+
+  /// Media's counterpart to [setFormatProfile] — switches once
+  /// [AudioCapabilityNegotiator.media] settles on a mutual media profile
+  /// (see `TransferRepository.negotiatedMediaFormat`). Independent of voice's
+  /// format, and a no-op when unchanged.
+  void setMediaFormatProfile(AudioFormatProfile profile) =>
+      _mediaOpus.setFormatProfile(profile);
+
+  /// Retunes the media encoder for the measured link — see
+  /// [OpusAudioCodec.applyTuning]. Independent of voice's tuning ([applyTuning]),
+  /// so media bitrate never overrides voice's under the same congestion signal.
+  void applyMediaTuning(OpusTuning tuning) => _mediaOpus.applyTuning(tuning);
+
+  /// Whether the media transmit path is running with in-band FEC — the media
+  /// analog of [hasFec].
+  bool get hasMediaFec => _mediaOpus.hasFec;
+
+  /// What the media encoder is currently tuned to — the media analog of
+  /// [tuning].
+  OpusTuning get mediaTuning => _mediaOpus.tuning;
 
   List<double> _bytesToSamples(Uint8List bytes) {
     final bd = ByteData.sublistView(bytes);

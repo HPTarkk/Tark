@@ -1106,6 +1106,13 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
         } catch (e) {
           Logger.log('Playback error: $e');
         }
+      case MediaAudioPacket():
+        // #30 checkpoint 4 wires this into an independent receive buffer
+        // (mirroring the AudioPacket branch above but through
+        // AudioEngine.playReceivedMedia, on its own sequence space) — not yet
+        // reachable in practice, since nothing sends this packet type until
+        // checkpoint 3's independent-mode media scheduler is wired in too.
+        break;
     }
   }
 

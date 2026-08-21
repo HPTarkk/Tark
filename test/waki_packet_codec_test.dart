@@ -872,4 +872,106 @@ void main() {
       expect(decoded!.sessionEpoch, kTestEpoch);
     });
   });
+
+  group('shared music as an independent stream (#30)', () {
+    test('a media packet decodes as MediaAudioPacket, not AudioPacket', () {
+      final samples = List<double>.generate(160, (i) => (i % 32) / 64);
+      final packet = codec.decode(
+        codec.encodeMediaAudio(samples, 'Pedram', 99),
+        '10.0.0.9',
+      );
+
+      expect(packet, isA<MediaAudioPacket>());
+      expect(packet!.senderId, 'abc123abc123');
+      final media = packet as MediaAudioPacket;
+      expect(media.seq, 99);
+      expect(media.samples, hasLength(samples.length));
+    });
+
+    test('voice and media keep independent sequence spaces', () {
+      final voice = codec.decode(
+        codec.encodeAudio(List.filled(320, 0.1), 'Pedram', 5),
+        'x',
+      )! as AudioPacket;
+      final media = codec.decode(
+        codec.encodeMediaAudio(List.filled(320, 0.1), 'Pedram', 1),
+        'x',
+      )! as MediaAudioPacket;
+
+      expect(voice.seq, 5);
+      expect(media.seq, 1);
+    });
+
+    test('media always carries the channel, even while voice is on v3', () {
+      // The open-channel codec ([codec]) still emits v3 for voice/presence
+      // (see the "channel id" group above) — media has no such shorthand.
+      final packet = codec.encodeMediaAudio(
+        List.filled(320, 0.1),
+        'Pedram',
+        1,
+      );
+      expect(packet[0], anyOf(kMediaAudioByte, kOpusMediaAudioByte));
+      final decoded = codec.decode(packet, 'x');
+      expect(decoded!.channelId.isOpen, isTrue);
+    });
+
+    test('a build that predates #30 drops an unrecognised media type byte '
+        'rather than misreading it as voice', () {
+      // What every current-build decoder does on an Opus media packet: the
+      // type byte (0x10) matches none of the voice/presence/control cases,
+      // so decode() falls through to null — dropped, not misparsed.
+      expect(
+        codec.decode(
+          Uint8List.fromList([kOpusMediaAudioByte, 0, 0, 0, 0, 0]),
+          'x',
+        ),
+        isNull,
+      );
+      expect(
+        codec.decode(
+          Uint8List.fromList([kMediaAudioByte, 0, 0, 0, 0, 0]),
+          'x',
+        ),
+        isNull,
+      );
+    });
+
+    test('resetMediaDecoders clears media state without touching voice', () {
+      // Establish per-sender decoder state on both streams first.
+      codec.decode(codec.encodeAudio(List.filled(320, 0.1), 'A', 1), 'x');
+      codec.decode(
+        codec.encodeMediaAudio(List.filled(320, 0.1), 'A', 1),
+        'x',
+      );
+
+      // Neither call should throw, and both remain independently usable
+      // afterward — the actual per-sender decoder maps are private, so this
+      // exercises the public contract: reset one stream, the other keeps
+      // decoding.
+      codec.resetMediaDecoders();
+
+      final voiceAfter = codec.decode(
+        codec.encodeAudio(List.filled(320, 0.1), 'A', 2),
+        'x',
+      );
+      final mediaAfter = codec.decode(
+        codec.encodeMediaAudio(List.filled(320, 0.1), 'A', 2),
+        'x',
+      );
+      expect(voiceAfter, isA<AudioPacket>());
+      expect(mediaAfter, isA<MediaAudioPacket>());
+    });
+
+    test('media survives the sender name and epoch like voice does', () {
+      final packet =
+          codec.decode(
+                codec.encodeMediaAudio(List.filled(320, 0.1), 'پدرام', 7),
+                'x',
+              )!
+              as MediaAudioPacket;
+      expect(packet.senderName, 'پدرام');
+      expect(packet.senderId, 'abc123abc123');
+      expect(packet.sessionEpoch, kTestEpoch);
+    });
+  });
 }

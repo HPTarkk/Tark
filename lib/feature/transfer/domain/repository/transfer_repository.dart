@@ -44,6 +44,18 @@ abstract interface class TransferRepository {
     String senderName,
   );
 
+  /// Sends one Shared Music frame as an independent stream — see #30 and
+  /// [negotiatedMediaFormat]. Callers must only call this once
+  /// [negotiatedMediaFormat] is non-null (every currently-known peer has
+  /// negotiated a media profile); a transport is free to assume it and skip
+  /// re-checking per frame. Carries its own sequence space, separate from
+  /// [sendAudio]'s, so one stream's loss/reorder never affects the other's
+  /// jitter buffer or Opus decoder state.
+  Future<Either<Failure, void>> sendMedia(
+    List<double> samples,
+    String senderName,
+  );
+
   Future<Either<Failure, void>> sendPresence(String senderName, bool isTalking);
 
   /// Declares what [sendAudio] is about to carry, so the transport can encode
@@ -70,9 +82,9 @@ abstract interface class TransferRepository {
   /// wait (and, if auto-reconnect is off, the only way to retry at all).
   void retryNow();
 
-  /// Clears stateful per-sender codec state (Opus decoders). Call after a
-  /// detected reconnect so stale prediction state from before the drop
-  /// doesn't garble audio once a sender resumes.
+  /// Clears stateful per-sender codec state (Opus decoders), both voice and
+  /// media. Call after a detected reconnect so stale prediction state from
+  /// before the drop doesn't garble audio once a sender resumes.
   void resetCodecState();
 
   /// Rebuilds whatever this transport uses to transmit, because a peer we can

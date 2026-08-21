@@ -183,6 +183,13 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   int _packetsIn = 0;
   int _packetsOut = 0;
 
+  /// #30's media stream, counted separately from [_packetsIn]/[_packetsOut]
+  /// (which count every packet type, media included) so the session line can
+  /// say how much of the traffic is actually music rather than only that
+  /// traffic exists.
+  int _mediaPacketsIn = 0;
+  int _mediaPacketsOut = 0;
+
   /// Directed broadcasts for subnets we have received traffic from, which
   /// survive an interface enumeration that missed them (see
   /// [_rememberHeardSubnet]).
@@ -291,11 +298,9 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     );
   }
 
-  /// #29 checkpoint 2's media analog of [_capabilities]/[_syncFormatProfile]
-  /// — same whole-roster reasoning, same wire byte, different bits (see
-  /// [AudioCapabilityNegotiator.media]). Negotiation only: nothing sends HD
-  /// media over the wire from this value yet, so unlike [_syncFormatProfile]
-  /// there is no codec to apply it to — see [negotiatedMediaFormat]'s doc.
+  /// #29's media analog of [_capabilities]/[_syncFormatProfile] — same
+  /// whole-roster reasoning, same wire byte, different bits (see
+  /// [AudioCapabilityNegotiator.media]).
   final AudioCapabilityNegotiator _mediaCapabilities =
       AudioCapabilityNegotiator.media();
 
@@ -309,35 +314,38 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     if (resolved == _negotiatedMediaFormat) return;
     final previous = _negotiatedMediaFormat;
     _negotiatedMediaFormat = resolved;
+    // #30: unlike before, there is now a real media codec instance to apply
+    // this to. A null [resolved] leaves the encoder on whatever it was last
+    // set to — harmless, since nothing calls [sendMedia] once no peer
+    // negotiates a media profile.
+    if (resolved != null) _codec.setMediaFormatProfile(resolved);
     Logger.diagnostic(
       'wifi: negotiated media profile ${previous?.label ?? 'none'} -> '
       '${resolved?.label ?? 'none'}',
     );
   }
 
-  /// #29 checkpoint 4's diagnostic-only counterpart of the tuning
-  /// [_measureLink] applies to [_codec] via [OpusTuner.forProfile]. There is
-  /// no media codec instance here to apply this to yet (that's #30's job —
-  /// see [_syncMediaFormatProfile]'s doc) so this exists purely to answer
-  /// "what would the media policy pick right now" for [_mediaOpusSummary],
-  /// from the same measured link [_lastRtt]/[_loss] already feed the voice
-  /// tuner. Null whenever no media profile is currently negotiated.
+  /// Counterpart of the tuning [_measureLink] applies to [_codec] via
+  /// [OpusTuner.forProfile] — now (#30) actually applied to [_codec]'s media
+  /// stream, and also read by [_mediaOpusSummary] for the session log. Null
+  /// whenever no media profile is currently negotiated.
   OpusTuning? _mediaTuning;
 
   /// Recomputes [_mediaTuning] from the same link measurement
-  /// [_measureLink] just fed the voice tuner. Cheap bookkeeping — no codec,
-  /// no allocation beyond one [OpusTuning] value — so it costs nothing to
-  /// call on every measurement tick even while nothing is casting.
+  /// [_measureLink] just fed the voice tuner, and applies it to [_codec]'s
+  /// media encoder. Cheap to call on every measurement tick even while
+  /// nothing is casting — [OpusAudioCodec.applyTuning] no-ops when unchanged.
   void _updateMediaTuning() {
     final profile = _negotiatedMediaFormat;
-    _mediaTuning = profile == null
-        ? null
-        : MediaOpusTuner.forProfile(profile).tune(
-            AudioLinkConditions(
-              lossFraction: _loss.worstLossFraction,
-              rtt: _lastRtt,
-            ),
-          );
+    if (profile == null) {
+      _mediaTuning = null;
+      return;
+    }
+    final tuning = MediaOpusTuner.forProfile(profile).tune(
+      AudioLinkConditions(lossFraction: _loss.worstLossFraction, rtt: _lastRtt),
+    );
+    _mediaTuning = tuning;
+    _codec.applyMediaTuning(tuning);
   }
 
   /// The media analog of [_opusSummary], for the session log line — what the
@@ -348,7 +356,8 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     final format = _negotiatedMediaFormat;
     final tuning = _mediaTuning;
     if (format == null || tuning == null) return 'media=none';
-    return 'media=${format.label}/${tuning.bitrate ~/ 1000}kbps';
+    return 'media=${format.label}/${tuning.bitrate ~/ 1000}kbps/'
+        'fec${_codec.hasMediaFec ? 'on' : 'off'}';
   }
 
   /// Packets belonging to a *different* conversation on this network, dropped
@@ -373,6 +382,11 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
 
   // Per-outgoing-stream counter so receivers can detect UDP loss/reordering.
   int _audioSeq = 0;
+
+  /// #30's independent counter for the media stream — deliberately not
+  /// [_audioSeq]: voice and media are separate sequence spaces, so loss or
+  /// reordering on one is invisible to the other's jitter buffer.
+  int _mediaSeq = 0;
 
   final DeviceIdentity _identity;
   final SessionEpoch _epoch;
@@ -416,6 +430,25 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
       await _ensureSendSocket();
       final packet = _codec.encodeAudio(samples, senderName, _audioSeq++);
       _sendToAllTargets(packet, isAudio: true);
+      return const Right(null);
+    } catch (error) {
+      Logger.log(error);
+      return const Left(DataTransferFailure());
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> sendMedia(
+    List<double> samples,
+    String senderName,
+  ) async {
+    try {
+      await _ensureSendSocket();
+      final packet = _codec.encodeMediaAudio(samples, senderName, _mediaSeq++);
+      // Same "unicast-covers-everyone skips the broadcast leg" treatment as
+      // voice — see [needsBroadcastLeg] — media is just as high-frequency.
+      _sendToAllTargets(packet, isAudio: true);
+      _mediaPacketsOut++;
       return const Right(null);
     } catch (error) {
       Logger.log(error);
@@ -598,6 +631,12 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
                   (_rxBySender[packet.senderId] ??= _PeerAudioStats()).record(
                     packet.seq,
                   );
+                } else if (packet is MediaAudioPacket) {
+                  // No per-sender stats map of its own yet — #30 checkpoint 4
+                  // adds the receive-side media buffer that per-sender
+                  // tracking actually belongs to; this transport only counts
+                  // the traffic, the way it counts everything else.
+                  _mediaPacketsIn++;
                 } else if (packet is PresencePacket) {
                   _capabilities.observePeer(
                     packet.senderId,
@@ -721,6 +760,10 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     final outDelta = _packetsOut - _lastPacketsOut;
     _lastPacketsIn = _packetsIn;
     _lastPacketsOut = _packetsOut;
+    final mediaInDelta = _mediaPacketsIn - _lastMediaPacketsIn;
+    final mediaOutDelta = _mediaPacketsOut - _lastMediaPacketsOut;
+    _lastMediaPacketsIn = _mediaPacketsIn;
+    _lastMediaPacketsOut = _mediaPacketsOut;
     final dropWindow = _drops.takeWindow();
     final blocked = dropWindow.blocked;
     final errored = _sendErrorWindow;
@@ -737,6 +780,8 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     // window.
     Logger.diagnostic(
       'wifi: in=$_packetsIn(+$inDelta) out=$_packetsOut(+$outDelta) '
+      'mediaIn=$_mediaPacketsIn(+$mediaInDelta) '
+      'mediaOut=$_mediaPacketsOut(+$mediaOutDelta) '
       'over ${window.inSeconds}s '
       'peers=${_peers.keys.toList()} recovery=${_recoveryPeers.length} '
       'heard=${_heardSenders.keys.toList()} '
@@ -789,6 +834,8 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
 
   int _lastPacketsIn = 0;
   int _lastPacketsOut = 0;
+  int _lastMediaPacketsIn = 0;
+  int _lastMediaPacketsOut = 0;
 
   DateTime _lastSessionLogAt = DateTime.fromMillisecondsSinceEpoch(0);
   static const _sessionLogInterval = Duration(seconds: 15);
@@ -876,7 +923,10 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   );
 
   @override
-  void resetCodecState() => _codec.resetDecoders();
+  void resetCodecState() {
+    _codec.resetDecoders();
+    _codec.resetMediaDecoders();
+  }
 
   @override
   void repairSendPath() {
@@ -1029,6 +1079,15 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     _mediaCapabilities.clear();
     _negotiatedMediaFormat = null;
     _mediaTuning = null;
+    // Independent of voice's decoder reset just above: a media-only event
+    // must never touch voice's decoder state and vice versa — see
+    // [WakiPacketCodec.resetMediaDecoders].
+    _codec.resetMediaDecoders();
+    _mediaSeq = 0;
+    _mediaPacketsIn = 0;
+    _mediaPacketsOut = 0;
+    _lastMediaPacketsIn = 0;
+    _lastMediaPacketsOut = 0;
     _rxBySender.clear();
     _senderAtAddress.clear();
     _narrowedTo = const {};
@@ -1485,8 +1544,10 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
           (r) => r.startsWith('${packet.senderId}@'),
         );
         // Its old sequence numbering went with it, so the per-sender Opus
-        // decoder must not carry state across the boundary.
+        // decoder must not carry state across the boundary — for both
+        // streams, since the rejoin restarts both sequence spaces at once.
         _codec.resetDecoders();
+        _codec.resetMediaDecoders();
     }
     return verdict.isAccepted;
   }

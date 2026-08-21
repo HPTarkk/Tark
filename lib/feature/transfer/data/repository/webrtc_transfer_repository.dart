@@ -74,11 +74,9 @@ class WebRtcTransferRepository
     );
   }
 
-  /// #29 checkpoint 2's media analog — same one-peer-at-a-time reasoning as
+  /// #29's media analog — same one-peer-at-a-time reasoning as
   /// [_capabilities], same wire byte, different bits (see
-  /// [AudioCapabilityNegotiator.media]). Negotiation only: nothing sends HD
-  /// media over the wire from this value yet — see [negotiatedMediaFormat]'s
-  /// doc.
+  /// [AudioCapabilityNegotiator.media]).
   final AudioCapabilityNegotiator _mediaCapabilities =
       AudioCapabilityNegotiator.media();
 
@@ -92,6 +90,7 @@ class WebRtcTransferRepository
     if (resolved == _negotiatedMediaFormat) return;
     final previous = _negotiatedMediaFormat;
     _negotiatedMediaFormat = resolved;
+    if (resolved != null) _codec.setMediaFormatProfile(resolved);
     Logger.diagnostic(
       'webrtc: negotiated media profile ${previous?.label ?? 'none'} -> '
       '${resolved?.label ?? 'none'}',
@@ -106,6 +105,10 @@ class WebRtcTransferRepository
   RTCDataChannel? _dc;
   GuestLinkState _linkState = GuestLinkState.idle;
   int _audioSeq = 0;
+
+  /// #30's independent counter for the media stream — its own sequence
+  /// space, separate from [_audioSeq].
+  int _mediaSeq = 0;
 
   bool _autoReconnectEnabled = true;
   int _retryGen = 0;
@@ -266,6 +269,10 @@ class WebRtcTransferRepository
     _codec.setFormatProfile(AudioFormatProfile.legacy16k);
     _mediaCapabilities.clear();
     _negotiatedMediaFormat = null;
+    // Independent of voice's reset — a media-only event never resets voice
+    // and vice versa (see [WakiPacketCodec.resetMediaDecoders]).
+    _codec.resetMediaDecoders();
+    _mediaSeq = 0;
     try {
       await dc?.close();
       await pc?.close();
@@ -296,6 +303,29 @@ class WebRtcTransferRepository
         return const Left(DataTransferFailure());
       }
       final payload = _codec.encodeAudio(samples, senderName, _audioSeq++);
+      await dc.send(RTCDataChannelMessage.fromBinary(payload));
+      return const Right(null);
+    } catch (error) {
+      Logger.log(error);
+      return const Left(DataTransferFailure());
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> sendMedia(
+    List<double> samples,
+    String senderName,
+  ) async {
+    try {
+      final dc = _dc;
+      if (dc == null || _linkState != GuestLinkState.connected) {
+        return const Left(DataTransferFailure());
+      }
+      final payload = _codec.encodeMediaAudio(
+        samples,
+        senderName,
+        _mediaSeq++,
+      );
       await dc.send(RTCDataChannelMessage.fromBinary(payload));
       return const Right(null);
     } catch (error) {
@@ -350,7 +380,10 @@ class WebRtcTransferRepository
   );
 
   @override
-  void resetCodecState() => _codec.resetDecoders();
+  void resetCodecState() {
+    _codec.resetDecoders();
+    _codec.resetMediaDecoders();
+  }
 
   /// A WebRTC data channel is point-to-point and reports its own state, so
   /// there is no send path that can silently stop working while the receive

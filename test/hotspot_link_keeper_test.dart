@@ -120,6 +120,12 @@ class _FakeWifi implements WifiTransferRepository {
   ) async => const Right(null);
 
   @override
+  Future<Either<Failure, void>> sendMedia(
+    List<double> samples,
+    String senderName,
+  ) async => const Right(null);
+
+  @override
   Future<Either<Failure, void>> sendPresence(
     String senderName,
     bool isTalking,

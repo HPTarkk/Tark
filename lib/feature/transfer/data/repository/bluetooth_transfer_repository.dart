@@ -90,11 +90,9 @@ class BluetoothTransferRepository
     );
   }
 
-  /// #29 checkpoint 2's media analog — same one-peer-at-a-time reasoning as
+  /// #29's media analog — same one-peer-at-a-time reasoning as
   /// [_capabilities], same wire byte, different bits (see
-  /// [AudioCapabilityNegotiator.media]). Negotiation only: nothing sends HD
-  /// media over the wire from this value yet — see [negotiatedMediaFormat]'s
-  /// doc.
+  /// [AudioCapabilityNegotiator.media]).
   final AudioCapabilityNegotiator _mediaCapabilities =
       AudioCapabilityNegotiator.media();
 
@@ -108,6 +106,7 @@ class BluetoothTransferRepository
     if (resolved == _negotiatedMediaFormat) return;
     final previous = _negotiatedMediaFormat;
     _negotiatedMediaFormat = resolved;
+    if (resolved != null) _codec.setMediaFormatProfile(resolved);
     Logger.diagnostic(
       'bluetooth: negotiated media profile ${previous?.label ?? 'none'} -> '
       '${resolved?.label ?? 'none'}',
@@ -134,6 +133,10 @@ class BluetoothTransferRepository
   String? _activeEngine;
   String? _connectedPeerId;
   int _audioSeq = 0;
+
+  /// #30's independent counter for the media stream — its own sequence
+  /// space, separate from [_audioSeq].
+  int _mediaSeq = 0;
 
   // Auto-reconnect bookkeeping. A dropped session on a ride must heal by
   // itself: the host resumes listening/advertising (the joiner re-dials by
@@ -552,6 +555,10 @@ class BluetoothTransferRepository
     _codec.setFormatProfile(AudioFormatProfile.legacy16k);
     _mediaCapabilities.clear();
     _negotiatedMediaFormat = null;
+    // Independent of voice's reset — a media-only event never resets voice
+    // and vice versa (see [WakiPacketCodec.resetMediaDecoders]).
+    _codec.resetMediaDecoders();
+    _mediaSeq = 0;
     if (hadSession && _sessionRole != null && _autoReconnectEnabled) {
       unawaited(_autoReconnect());
     } else {
@@ -661,6 +668,28 @@ class BluetoothTransferRepository
   }
 
   @override
+  Future<Either<Failure, void>> sendMedia(
+    List<double> samples,
+    String senderName,
+  ) async {
+    try {
+      if (_connectedPeerId == null) {
+        return const Left(DataTransferFailure());
+      }
+      final payload = _codec.encodeMediaAudio(
+        samples,
+        senderName,
+        _mediaSeq++,
+      );
+      await _write(payload);
+      return const Right(null);
+    } catch (error) {
+      Logger.log(error);
+      return const Left(DataTransferFailure());
+    }
+  }
+
+  @override
   Future<Either<Failure, void>> sendPresence(
     String senderName,
     bool isTalking,
@@ -725,7 +754,10 @@ class BluetoothTransferRepository
   );
 
   @override
-  void resetCodecState() => _codec.resetDecoders();
+  void resetCodecState() {
+    _codec.resetDecoders();
+    _codec.resetMediaDecoders();
+  }
 
   /// A Bluetooth link is one socket to one peer: it is either connected or it
   /// is not, and there is no separate send path that can die on its own. The

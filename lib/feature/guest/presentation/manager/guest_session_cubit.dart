@@ -70,6 +70,11 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
           } catch (e) {
             Logger.log('Guest playback error: $e');
           }
+        case MediaAudioPacket():
+          // Shared Music isn't offered from a browser guest — nothing here
+          // captures or negotiates a media profile, so this is unreachable
+          // in practice. Handled explicitly so the switch stays exhaustive.
+          break;
       }
     });
     _linkSub = _client.linkState.listen((link) {

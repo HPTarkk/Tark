@@ -128,3 +128,38 @@ final class AudioPacket extends WakiPacket {
   @override
   List<Object?> get props => [...super.props, samples, seq, recoveredSamples];
 }
+
+/// Shared Music, carried on its own sequence space — see #30. Byte-for-byte
+/// the same shape as [AudioPacket] ([samples]/[seq]/[recoveredSamples]), and
+/// deliberately not a variant of it: they travel as distinct wire types (see
+/// `WakiPacketCodec`) so an old decoder that has never heard of an
+/// independent media stream drops it outright rather than misreading it as
+/// more voice, and so a corrupt/lost media packet can never disturb voice's
+/// own sequence tracking, jitter buffer, or Opus decoder state.
+final class MediaAudioPacket extends WakiPacket {
+  final List<double> samples;
+
+  /// Monotonically increasing per-sender counter, independent of
+  /// [AudioPacket.seq] — voice and media are two separate streams with two
+  /// separate sequence spaces, so one can drop or reorder packets without
+  /// the other's jitter buffer ever finding out.
+  final int seq;
+
+  /// The frame at `seq - 1`, rebuilt the same way [AudioPacket.recoveredSamples]
+  /// is — from this packet's in-band Opus FEC copy, or libopus's own
+  /// concealment. See that field for the full contract.
+  final List<double>? recoveredSamples;
+
+  const MediaAudioPacket({
+    required super.senderId,
+    required super.senderName,
+    required this.samples,
+    required this.seq,
+    super.sessionEpoch,
+    super.channelId,
+    this.recoveredSamples,
+  });
+
+  @override
+  List<Object?> get props => [...super.props, samples, seq, recoveredSamples];
+}
