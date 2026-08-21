@@ -31,6 +31,7 @@ Copyright (c) 2026 Tarkk — dual-licensed.
 - **Music / device-audio cast** (Android) — share whatever's playing on your phone into the channel as live audio, with its own volume slider and a one-tap "pause the source app" on stop.
 - **Auto-reconnect** — a dropped link heals itself (exponential backoff, socket liveness watchdog, cross-launch Bluetooth role resumption) with a unified health banner and manual "Retry now." No leave-and-rejoin needed for a hiccup.
 - **Nothing fails silently** — a refused mic permission, a mic that's "started" but delivering nothing, a dead send path — all three used to look like a working session. Now they say so, with the fix attached, and a **"Something wrong?"** sheet is always one tap away showing every dependency's live state.
+- **Pre-ride Preflight** — before you're on air, a quick check answers "ready to ride?": real mic frames actually arriving (not just permission granted), which route you'll be heard through (helmet vs. phone speaker), local network/transport health, and background-execution posture (battery optimization, notification permission) — each with a one-tap fix, never a dead end. Warnings never block; only a genuine hard failure (denied mic, no usable network) does.
 - **Eyes-free audio feedback** — a distinct sound for push-to-talk keying up, someone else talking, a peer joining/leaving, a link dropping/recovering, and errors, plus a light haptic tap when you key up. Mutable from Settings.
 - **Categorized Settings** — Profile, Riding mode, Connection, Sound & Alerts, Appearance, Startup, each its own card, plus an Advanced page for the technical knobs (transport pin, VOX threshold, noise-filter engine, jitter-buffer delay). Edits an active session live.
 - **Home-screen widget** (Android + iOS) — one tap into your last channel, mic already live. The face itself shows session state — on air, who's talking, muted, reconnecting — as an animated dial. Android's wide widget also has working MUTE/END buttons that never open the app.
@@ -145,7 +146,7 @@ transport ─▶ Opus decode (per-sender, FEC recovery) ─▶ jitter buffer (ad
 - **Full duplex** — TX and RX run independently, like a phone call.
 - **Realtime-safe** — mic/speaker samples cross the native↔Dart boundary through a lock-free ring buffer; the realtime audio callback never locks or allocates.
 
-**In development — negotiated 24 kHz HD voice.** The wire format is being generalized so two capable phones can automatically negotiate up to 24 kHz instead of the current fixed 16 kHz, falling back to 16 kHz for any peer that doesn't support it — no setting, no version mismatch, ever. It's implemented and covered by tests, but currently gated to debug builds only: it needs a real motorcycle A/B listening pass before it's trusted as the default for everyone. Follow along in [ROADMAP.md](ROADMAP.md).
+**Negotiated 24 kHz HD voice.** Two capable phones automatically negotiate up to 24 kHz instead of the older fixed 16 kHz, falling back to 16 kHz for any peer that doesn't support it — no setting, no version mismatch, ever. Validated on two real Android devices end to end (negotiation, jitter buffer, and reliability all held across screen-off stretches) before becoming the default for everyone.
 
 ---
 

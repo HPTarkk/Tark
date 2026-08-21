@@ -1,8 +1,10 @@
 # Motorcycle field-test runbook
 
-Tracks GitHub issue [#26](https://github.com/HPTarkk/Tark/issues/26), phase
-1/8 of [ROADMAP.md](../../ROADMAP.md). This is the reproducible verification
-workflow for the one behavior that matters most on a ride:
+Tracks GitHub issue [#26](https://github.com/HPTarkk/Tark/issues/26), the
+first of an 8-issue reliability/fidelity workstream (`#26`-`#33`, all landed)
+that used to be tracked in a now-retired `ROADMAP.md`. This is the
+reproducible verification workflow for the one behavior that matters most on
+a ride:
 
 > Connect two phones, put them in your pockets, ride for an hour, and never
 > have to pull the phone out to touch the app.

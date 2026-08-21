@@ -13,7 +13,10 @@ import '../../service/preflight_service.dart';
 /// fake session instead of a real probe/platform-channel run, the same way
 /// [MicProbe.run]'s `resolveEngine` lets its own tests avoid the real engine.
 typedef PreflightSessionStarter =
-    PreflightSession Function({required AppLocalizations s, required ChannelPlan plan});
+    PreflightSession Function({
+      required AppLocalizations s,
+      required ChannelPlan plan,
+    });
 
 /// Shows the full pre-ride Preflight sheet and waits for the user's answer.
 ///
@@ -251,7 +254,11 @@ class _PreflightRow extends StatelessWidget {
     final start = (index * 0.09).clamp(0.0, 0.55);
     final curved = CurvedAnimation(
       parent: entrance,
-      curve: Interval(start, (start + 0.45).clamp(0.0, 1.0), curve: Curves.easeOutCubic),
+      curve: Interval(
+        start,
+        (start + 0.45).clamp(0.0, 1.0),
+        curve: Curves.easeOutCubic,
+      ),
     );
     return AnimatedBuilder(
       animation: curved,
@@ -279,7 +286,9 @@ class _PreflightRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: unhealthy ? accent.withAlpha(16) : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: unhealthy ? accent.withAlpha(110) : AppColors.border),
+        border: Border.all(
+          color: unhealthy ? accent.withAlpha(110) : AppColors.border,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -307,7 +316,9 @@ class _PreflightRow extends StatelessWidget {
                       style: TextStyle(
                         color: resolved == null
                             ? AppColors.textSecondary
-                            : (resolved.isHealthy ? AppColors.textSecondary : accent),
+                            : (resolved.isHealthy
+                                  ? AppColors.textSecondary
+                                  : accent),
                         fontSize: 12,
                         height: 1.45,
                       ),
@@ -383,13 +394,17 @@ class _PendingDotState extends State<_PendingDot>
   @override
   Widget build(BuildContext context) {
     return FadeTransition(
-      opacity: CurvedAnimation(parent: _controller, curve: Curves.easeInOut).drive(
-        Tween(begin: 0.35, end: 1.0),
-      ),
+      opacity: CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeInOut,
+      ).drive(Tween(begin: 0.35, end: 1.0)),
       child: Container(
         width: 9,
         height: 9,
-        decoration: BoxDecoration(color: AppColors.amber, shape: BoxShape.circle),
+        decoration: BoxDecoration(
+          color: AppColors.amber,
+          shape: BoxShape.circle,
+        ),
       ),
     );
   }
@@ -419,47 +434,66 @@ class _Cta extends StatelessWidget {
         ? AppColors.amber
         : AppColors.green;
 
-    return SizedBox(
-      width: double.infinity,
-      height: 50,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-        decoration: BoxDecoration(
-          color: enabled ? accent : AppColors.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: enabled ? null : Border.all(color: AppColors.border),
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
+    return Semantics(
+      // One merged button node with the row's own label, rather than a
+      // screen reader separately reading an unlabeled tappable region and
+      // then the text inside it as two things. onTap is repeated here
+      // (not just left to the inner InkWell) because excludeSemantics
+      // drops the descendant's own semantics annotations wholesale,
+      // including the tap action InkWell would otherwise have
+      // contributed — without this, a screen reader's activation gesture
+      // would land on a correctly-labeled button that silently did nothing.
+      button: true,
+      enabled: enabled,
+      label: label,
+      onTap: enabled ? () => Navigator.of(context).pop(true) : null,
+      excludeSemantics: true,
+      child: SizedBox(
+        width: double.infinity,
+        height: 50,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+          decoration: BoxDecoration(
+            color: enabled ? accent : AppColors.surface,
             borderRadius: BorderRadius.circular(14),
-            onTap: enabled ? () => Navigator.of(context).pop(true) : null,
-            child: Center(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (incomplete) ...[
-                    SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation(AppColors.textSecondary),
+            border: enabled ? null : Border.all(color: AppColors.border),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: enabled ? () => Navigator.of(context).pop(true) : null,
+              child: Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (incomplete) ...[
+                      SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation(
+                            AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                    ],
+                    Text(
+                      label,
+                      style: TextStyle(
+                        color: enabled
+                            ? Colors.black.withAlpha(220)
+                            : AppColors.textSecondary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.1,
                       ),
                     ),
-                    const SizedBox(width: 10),
                   ],
-                  Text(
-                    label,
-                    style: TextStyle(
-                      color: enabled ? Colors.black.withAlpha(220) : AppColors.textSecondary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.1,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
