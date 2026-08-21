@@ -10,14 +10,30 @@ import '../../../../core/audio/audio_format_profile.dart';
 ///
 /// ## The advertisement
 ///
-/// Each [PresencePacket] carries a capability bitmask — bit `p.id - 2` for
-/// profile `p` in [AudioFormatProfile.supported] — see
+/// Each [PresencePacket] carries one capability bitmask — bit `p.id - 2` for
+/// profile `p`, shared across every [AudioProfileKind] because ids are a
+/// single space (see that field's doc) — see
 /// [WakiPacketCodec.encodePresence]. [AudioFormatProfile.legacy16k] is never
 /// encoded: an absent presence field (a build that predates this) and a zero
 /// bitmask both mean the same thing, "legacy only," which is also the correct
 /// safe default. That is what makes a mixed-version pair fall out of [resolve]
 /// with no special-casing: an old peer's bitmask reads as 0, no bit it could
 /// ever need is set, and the loop below settles on [AudioFormatProfile.legacy16k].
+///
+/// ## Voice vs media: one bitmask, two negotiators
+///
+/// A build constructs **two** instances of this class over the identical
+/// bitmask stream: the default one (voice, ranked by
+/// [AudioFormatProfile.supported]) and [AudioCapabilityNegotiator.media]
+/// (ranked by [AudioFormatProfile.mediaSupported]). Every caller that already
+/// tracks a peer's presence for voice feeds the same
+/// `packet.capabilityBitmask` to both — see `observePeer`'s call sites in
+/// each `TransferRepository`. Voice always has a safe floor to fall back to
+/// ([AudioFormatProfile.legacy16k] — the channel has to carry speech
+/// regardless), so [resolve] is what voice calls; media does not (there is no
+/// "must always run" media profile — no mutual support just means no HD
+/// media), so a media-kind instance calls [resolveOptional] instead, never
+/// [resolve].
 ///
 /// ## No acknowledgement round trip
 ///
@@ -48,27 +64,37 @@ import '../../../../core/audio/audio_format_profile.dart';
 /// than at audio rate.
 class AudioCapabilityNegotiator {
   /// [supported] defaults to the real, shipped [AudioFormatProfile.supported]
-  /// — overridable only so tests can exercise the bit-matching logic against
-  /// a profile above [AudioFormatProfile.legacy16k] independently of when
-  /// the shipped list actually grows past it (checkpoint 3). Production code
-  /// should never pass this.
+  /// (voice). Two legitimate reasons to override it: [media] below
+  /// (production), and a test exercising the bit-matching logic against a
+  /// profile independently of when a shipped list actually grows to include
+  /// it.
   AudioCapabilityNegotiator({List<AudioFormatProfile>? supported})
     : _supported = supported ?? AudioFormatProfile.supported;
+
+  /// A media-kind negotiator, ranked by [AudioFormatProfile.mediaSupported]
+  /// instead of the voice list. Reads peer bitmasks exactly like a voice
+  /// instance (same wire byte, different bits) — see the class doc — but
+  /// must be resolved with [resolveOptional], never [resolve].
+  factory AudioCapabilityNegotiator.media() =>
+      AudioCapabilityNegotiator(supported: AudioFormatProfile.mediaSupported);
 
   final List<AudioFormatProfile> _supported;
 
   final Map<String, int> _bitmaskByPeer = {};
 
-  /// The bits this build advertises about itself, derived from the real,
-  /// shipped [AudioFormatProfile.supported] — the single source of truth for
-  /// both what this build is willing to negotiate to and what it claims to
-  /// support. Always the real list, not an instance's overridden one: what a
-  /// build advertises on the wire is a build-wide fact, not something a
-  /// negotiator instance's test override should change — see
-  /// [WakiPacketCodec.encodePresence], which has no negotiator instance to
-  /// ask. [AudioFormatProfile.legacy16k] is skipped: it is never encoded (see
-  /// the class doc).
-  static int get localBitmask => _bitmaskFor(AudioFormatProfile.supported);
+  /// The bits this build advertises about itself, derived from every real,
+  /// shipped profile — voice ([AudioFormatProfile.supported]) and media
+  /// ([AudioFormatProfile.mediaSupported]) together, since both ride the one
+  /// wire byte (see the class doc) — the single source of truth for what
+  /// this build claims to support, of either kind. Always the real lists,
+  /// not an instance's overridden one: what a build advertises on the wire
+  /// is a build-wide fact, not something a negotiator instance's test
+  /// override should change — see [WakiPacketCodec.encodePresence], which
+  /// has no negotiator instance to ask. [AudioFormatProfile.legacy16k] is
+  /// skipped: it is never encoded (see the class doc).
+  static int get localBitmask =>
+      _bitmaskFor(AudioFormatProfile.supported) |
+      _bitmaskFor(AudioFormatProfile.mediaSupported);
 
   static int _bitmaskFor(List<AudioFormatProfile> supported) {
     var mask = 0;
@@ -121,5 +147,23 @@ class AudioCapabilityNegotiator {
       if (mutual) return profile;
     }
     return AudioFormatProfile.legacy16k;
+  }
+
+  /// [resolve]'s counterpart for a negotiator with no guaranteed-available
+  /// floor in [_supported] — [media] instances, where "no currently-known
+  /// peer supports any HD media profile" has to mean "don't attempt HD
+  /// media," not silently fall back to a voice-shaped profile the way
+  /// [resolve] falls back to [AudioFormatProfile.legacy16k]. Null covers
+  /// both that case and an empty roster; a non-null result is ranked by
+  /// [_supported] exactly like [resolve].
+  AudioFormatProfile? resolveOptional() {
+    for (final profile in _supported) {
+      final bit = 1 << (profile.id - 2);
+      final mutual =
+          _bitmaskByPeer.isNotEmpty &&
+          _bitmaskByPeer.values.every((mask) => mask & bit != 0);
+      if (mutual) return profile;
+    }
+    return null;
   }
 }

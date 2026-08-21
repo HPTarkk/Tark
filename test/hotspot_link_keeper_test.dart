@@ -144,6 +144,9 @@ class _FakeWifi implements WifiTransferRepository {
   AudioFormatProfile get negotiatedFormat => AudioFormatProfile.legacy16k;
 
   @override
+  AudioFormatProfile? get negotiatedMediaFormat => null;
+
+  @override
   void repairSendPath() {}
 
   @override

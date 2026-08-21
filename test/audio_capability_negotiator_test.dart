@@ -5,9 +5,14 @@ import 'package:tark/feature/transfer/domain/service/audio_capability_negotiator
 /// Bit for [AudioFormatProfile.hd24k] (id 2) per the class doc: bit `id - 2`.
 const _hdBit = 1; // 1 << (2 - 2)
 
+/// Bits for #29's media profiles, same id-2 scheme, sharing the one wire byte
+/// with [_hdBit] rather than colliding with it.
+const _mediaStereoBit = 2; // 1 << (3 - 2)
+const _mediaMonoBit = 4; // 1 << (4 - 2)
+
 /// A standalone list mirroring the real [AudioFormatProfile.supported] — kept
 /// separate so this file's bit-matching tests don't silently change shape if
-/// that list is ever extended (e.g. #29's media profiles land on ids 3+).
+/// that list is ever extended further.
 const _hdSupported = [AudioFormatProfile.hd24k, AudioFormatProfile.legacy16k];
 
 AudioCapabilityNegotiator _hdNegotiator() =>
@@ -15,11 +20,15 @@ AudioCapabilityNegotiator _hdNegotiator() =>
 
 void main() {
   group('localBitmask (production default)', () {
-    test('reflects the real, shipped AudioFormatProfile.supported', () {
+    test('reflects every real, shipped profile — voice and media together', () {
       // #28 checkpoint 4: hd24k shipped past kDebugMode once the field
       // evidence attached to #28 cleared it for release, so every build now
-      // advertises it.
-      expect(AudioCapabilityNegotiator.localBitmask, _hdBit);
+      // advertises it. #29 checkpoint 2: media48kStereo/media48kMono ride
+      // the same byte, so a build now advertises all three at once.
+      expect(
+        AudioCapabilityNegotiator.localBitmask,
+        _hdBit | _mediaStereoBit | _mediaMonoBit,
+      );
     });
   });
 
@@ -130,6 +139,61 @@ void main() {
         ..observePeer('legacy-peer', 0)
         ..observePeer('modern-b', _hdBit);
       expect(n.resolve(), AudioFormatProfile.legacy16k);
+    });
+  });
+
+  group('AudioCapabilityNegotiator.media / resolveOptional', () {
+    test('is ranked by mediaSupported, not the voice list', () {
+      final n = AudioCapabilityNegotiator.media();
+      // A voice-only bitmask (hd24k's bit) has no bearing on a media
+      // negotiator — it is checking entirely different bits.
+      n.observePeer('a', _hdBit);
+      expect(n.resolveOptional(), isNull);
+    });
+
+    test('null with no peers known, unlike resolve()', () {
+      expect(AudioCapabilityNegotiator.media().resolveOptional(), isNull);
+    });
+
+    test('one peer advertising stereo resolves to media48kStereo', () {
+      final n = AudioCapabilityNegotiator.media()
+        ..observePeer('a', _mediaStereoBit);
+      expect(n.resolveOptional(), AudioFormatProfile.media48kStereo);
+    });
+
+    test('mono-only support resolves to media48kMono, not stereo', () {
+      final n = AudioCapabilityNegotiator.media()
+        ..observePeer('a', _mediaMonoBit);
+      expect(n.resolveOptional(), AudioFormatProfile.media48kMono);
+    });
+
+    test('stereo ranks above mono when a peer advertises both', () {
+      final n = AudioCapabilityNegotiator.media()
+        ..observePeer('a', _mediaStereoBit | _mediaMonoBit);
+      expect(n.resolveOptional(), AudioFormatProfile.media48kStereo);
+    });
+
+    test('one peer supporting neither media bit resolves to null', () {
+      final n = AudioCapabilityNegotiator.media()
+        ..observePeer('a', _mediaStereoBit)
+        ..observePeer('b', 0);
+      expect(n.resolveOptional(), isNull);
+    });
+
+    test('null again once every peer is forgotten, same as resolve()', () {
+      final n = AudioCapabilityNegotiator.media()
+        ..observePeer('a', _mediaStereoBit);
+      n.forget('a');
+      expect(n.resolveOptional(), isNull);
+    });
+
+    test('the real, shipped localBitmask satisfies a media negotiator', () {
+      // Proves the two negotiators a real repository builds — voice and
+      // media — actually agree with what this build's own presence claims,
+      // rather than each testing an artificial bit in isolation.
+      final n = AudioCapabilityNegotiator.media()
+        ..observePeer('self-like-peer', AudioCapabilityNegotiator.localBitmask);
+      expect(n.resolveOptional(), AudioFormatProfile.media48kStereo);
     });
   });
 }

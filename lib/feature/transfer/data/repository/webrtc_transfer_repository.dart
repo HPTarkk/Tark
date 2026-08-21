@@ -74,6 +74,30 @@ class WebRtcTransferRepository
     );
   }
 
+  /// #29 checkpoint 2's media analog — same one-peer-at-a-time reasoning as
+  /// [_capabilities], same wire byte, different bits (see
+  /// [AudioCapabilityNegotiator.media]). Negotiation only: nothing sends HD
+  /// media over the wire from this value yet — see [negotiatedMediaFormat]'s
+  /// doc.
+  final AudioCapabilityNegotiator _mediaCapabilities =
+      AudioCapabilityNegotiator.media();
+
+  AudioFormatProfile? _negotiatedMediaFormat;
+
+  @override
+  AudioFormatProfile? get negotiatedMediaFormat => _negotiatedMediaFormat;
+
+  void _syncMediaFormatProfile() {
+    final resolved = _mediaCapabilities.resolveOptional();
+    if (resolved == _negotiatedMediaFormat) return;
+    final previous = _negotiatedMediaFormat;
+    _negotiatedMediaFormat = resolved;
+    Logger.diagnostic(
+      'webrtc: negotiated media profile ${previous?.label ?? 'none'} -> '
+      '${resolved?.label ?? 'none'}',
+    );
+  }
+
   final _packetController = StreamController<WakiPacket>.broadcast();
   final _connectionController = StreamController<ConnectionHealth>.broadcast();
   final _linkStateController = StreamController<GuestLinkState>.broadcast();
@@ -193,6 +217,8 @@ class WebRtcTransferRepository
       if (packet is PresencePacket) {
         _capabilities.observePeer(kGuestPeerId, packet.capabilityBitmask);
         _syncFormatProfile();
+        _mediaCapabilities.observePeer(kGuestPeerId, packet.capabilityBitmask);
+        _syncMediaFormatProfile();
       }
       _packetController.add(packet);
     };
@@ -238,6 +264,8 @@ class WebRtcTransferRepository
     _capabilities.clear();
     _negotiatedFormat = AudioFormatProfile.legacy16k;
     _codec.setFormatProfile(AudioFormatProfile.legacy16k);
+    _mediaCapabilities.clear();
+    _negotiatedMediaFormat = null;
     try {
       await dc?.close();
       await pc?.close();

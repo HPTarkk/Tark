@@ -289,6 +289,30 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     );
   }
 
+  /// #29 checkpoint 2's media analog of [_capabilities]/[_syncFormatProfile]
+  /// — same whole-roster reasoning, same wire byte, different bits (see
+  /// [AudioCapabilityNegotiator.media]). Negotiation only: nothing sends HD
+  /// media over the wire from this value yet, so unlike [_syncFormatProfile]
+  /// there is no codec to apply it to — see [negotiatedMediaFormat]'s doc.
+  final AudioCapabilityNegotiator _mediaCapabilities =
+      AudioCapabilityNegotiator.media();
+
+  AudioFormatProfile? _negotiatedMediaFormat;
+
+  @override
+  AudioFormatProfile? get negotiatedMediaFormat => _negotiatedMediaFormat;
+
+  void _syncMediaFormatProfile() {
+    final resolved = _mediaCapabilities.resolveOptional();
+    if (resolved == _negotiatedMediaFormat) return;
+    final previous = _negotiatedMediaFormat;
+    _negotiatedMediaFormat = resolved;
+    Logger.diagnostic(
+      'wifi: negotiated media profile ${previous?.label ?? 'none'} -> '
+      '${resolved?.label ?? 'none'}',
+    );
+  }
+
   /// Packets belonging to a *different* conversation on this network, dropped
   /// since the last session line.
   ///
@@ -542,6 +566,11 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
                     packet.capabilityBitmask,
                   );
                   _syncFormatProfile();
+                  _mediaCapabilities.observePeer(
+                    packet.senderId,
+                    packet.capabilityBitmask,
+                  );
+                  _syncMediaFormatProfile();
                 }
                 yield packet;
               }
@@ -959,6 +988,8 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     _capabilities.clear();
     _negotiatedFormat = AudioFormatProfile.legacy16k;
     _codec.setFormatProfile(AudioFormatProfile.legacy16k);
+    _mediaCapabilities.clear();
+    _negotiatedMediaFormat = null;
     _rxBySender.clear();
     _senderAtAddress.clear();
     _narrowedTo = const {};
@@ -1498,6 +1529,8 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     // format for everyone still here.
     _capabilities.retain(_currentlyHeardSenders());
     _syncFormatProfile();
+    _mediaCapabilities.retain(_currentlyHeardSenders());
+    _syncMediaFormatProfile();
 
     // Retune the encoder for the link we just measured. On this tick rather
     // than per frame because that is the cadence a new measurement arrives at,

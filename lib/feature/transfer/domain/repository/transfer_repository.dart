@@ -20,6 +20,18 @@ abstract interface class TransferRepository {
   /// `AudioEngine.setWireFormat` — has to notice separately).
   AudioFormatProfile get negotiatedFormat;
 
+  /// The HD Shared Music profile every peer this transport currently knows
+  /// about has confirmed it can run — the media analog of [negotiatedFormat],
+  /// resolved the same way (see `AudioCapabilityNegotiator.media`) but with
+  /// no floor to fall back to: null means no currently-known peer supports
+  /// any media profile (including "no peer known yet"), which is a normal
+  /// state rather than a degraded one — sharing music is optional, unlike
+  /// voice. Nothing sends HD media over the wire from this negotiated value
+  /// yet (#29 checkpoint 2 is negotiation only; issue #30 owns the send
+  /// path) — this exists so the capability itself is discoverable, tested,
+  /// and loggable ahead of that.
+  AudioFormatProfile? get negotiatedMediaFormat;
+
   /// The part this device plays in the current link, stamped on every
   /// presence packet so the other end can name it too. Each transport
   /// answers from what it knows: which side of the Bluetooth connection it
