@@ -32,6 +32,12 @@ class AppSettings extends Equatable {
   /// [LogBudget] for the range, and `DiagnosticLog` for what enforces it.
   final int logMaxBytes;
 
+  /// #31 — whether Shared Music automatically ducks while someone is
+  /// talking (remote peer speaking, local VOX gate open, or both). A pure
+  /// gain envelope on top of [musicGain]; off leaves shared-music gain
+  /// completely unchanged, per the issue's "must be fully optional" rule.
+  final bool smartMusicDuckingEnabled;
+
   const AppSettings({
     required this.myName,
     required this.voxMargin,
@@ -45,6 +51,7 @@ class AppSettings extends Equatable {
     required this.usageTipsShown,
     required this.analyticsEnabled,
     required this.logMaxBytes,
+    required this.smartMusicDuckingEnabled,
   });
 
   /// Canonical defaults, including the hands-free-friendly voice combo: VOX
@@ -92,6 +99,10 @@ class AppSettings extends Equatable {
     // nothing until a phone actually produces that much, and it buys a bug
     // reported the next morning still being on record. See LogBudget.
     logMaxBytes: LogBudget.defaultBytes,
+    // Enabled by default for new installs, per the issue — the effect is a
+    // small, reversible gain dip while someone is talking, not a change to
+    // anything the user chose (their own musicGain stays the base).
+    smartMusicDuckingEnabled: true,
   );
 
   AppSettings copyWith({
@@ -107,6 +118,7 @@ class AppSettings extends Equatable {
     bool? usageTipsShown,
     bool? analyticsEnabled,
     int? logMaxBytes,
+    bool? smartMusicDuckingEnabled,
   }) => AppSettings(
     myName: myName ?? this.myName,
     voxMargin: voxMargin ?? this.voxMargin,
@@ -120,6 +132,8 @@ class AppSettings extends Equatable {
     usageTipsShown: usageTipsShown ?? this.usageTipsShown,
     analyticsEnabled: analyticsEnabled ?? this.analyticsEnabled,
     logMaxBytes: logMaxBytes ?? this.logMaxBytes,
+    smartMusicDuckingEnabled:
+        smartMusicDuckingEnabled ?? this.smartMusicDuckingEnabled,
   );
 
   @override
@@ -136,5 +150,6 @@ class AppSettings extends Equatable {
     usageTipsShown,
     analyticsEnabled,
     logMaxBytes,
+    smartMusicDuckingEnabled,
   ];
 }

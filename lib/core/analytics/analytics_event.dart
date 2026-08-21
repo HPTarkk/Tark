@@ -107,7 +107,8 @@ enum AppFeature {
   noiseSuppression('noise_suppression'),
   ridingPreset('riding_preset'),
   voiceDefaults('voice_defaults'),
-  replayIntro('replay_intro');
+  replayIntro('replay_intro'),
+  smartMusicDucking('smart_music_ducking');
 
   const AppFeature(this.wire);
   final String wire;

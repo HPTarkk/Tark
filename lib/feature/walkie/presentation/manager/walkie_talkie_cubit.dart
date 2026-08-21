@@ -330,6 +330,8 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     final noiseSuppressionEngine = profile.noiseSuppressionEngine;
     final ridingPreset = profile.fromPreset;
     final musicGain = await _settingsRepository.getMusicGain();
+    final smartMusicDuckingEnabled =
+        await _settingsRepository.getSmartMusicDuckingEnabled();
 
     // The page can be exited while _init is still awaiting (fast back-out).
     // close() has then already run, so bail instead of resurrecting
@@ -383,6 +385,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
         musicGain: musicGain,
         transferMode: _modeStore.mode,
         myRole: _transferRepository.sessionRole,
+        smartMusicDuckingEnabled: smartMusicDuckingEnabled,
       ),
     );
 
@@ -1573,6 +1576,18 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     await _settingsRepository.setAutoReconnectEnabled(enabled);
   }
 
+  /// #31 — no transport/engine call here by design: unlike auto-reconnect,
+  /// ducking is a local playback-mix concern, so flipping this can never
+  /// itself cause a reconnect. Not yet consumed by the receive-side mix —
+  /// this checkpoint only lands the persisted setting and its live-session
+  /// mirror; a later checkpoint wires [state.smartMusicDuckingEnabled] into
+  /// [MusicDuckingEnvelope].
+  Future<void> setSmartMusicDuckingEnabled(bool enabled) async {
+    _useFeature(AppFeature.smartMusicDucking);
+    emit(state.copyWith(smartMusicDuckingEnabled: enabled));
+    await _settingsRepository.setSmartMusicDuckingEnabled(enabled);
+  }
+
   Future<void> setMyName(String name) async {
     final trimmed = name.trim();
     if (trimmed.isEmpty) return;
@@ -1778,6 +1793,11 @@ class WalkieTalkieState extends Equatable {
   /// packet-loss percentage.
   final LinkQuality linkQuality;
 
+  /// #31 — whether Shared Music automatically ducks while someone is
+  /// talking. Mirrors [AppSettings.smartMusicDuckingEnabled] into the live
+  /// session so toggling it applies immediately without a reconnect.
+  final bool smartMusicDuckingEnabled;
+
   const WalkieTalkieState({
     required this.localId,
     required this.myName,
@@ -1802,6 +1822,7 @@ class WalkieTalkieState extends Equatable {
     required this.isAlone,
     required this.unheardByPeers,
     required this.linkQuality,
+    required this.smartMusicDuckingEnabled,
   });
 
   factory WalkieTalkieState.initial() => const WalkieTalkieState(
@@ -1828,6 +1849,7 @@ class WalkieTalkieState extends Equatable {
     isAlone: false,
     unheardByPeers: false,
     linkQuality: LinkQuality.excellent,
+    smartMusicDuckingEnabled: true,
   );
 
   WalkieTalkieState copyWith({
@@ -1854,6 +1876,7 @@ class WalkieTalkieState extends Equatable {
     bool? isAlone,
     bool? unheardByPeers,
     LinkQuality? linkQuality,
+    bool? smartMusicDuckingEnabled,
   }) => WalkieTalkieState(
     localId: localId ?? this.localId,
     myName: myName ?? this.myName,
@@ -1879,6 +1902,8 @@ class WalkieTalkieState extends Equatable {
     isAlone: isAlone ?? this.isAlone,
     unheardByPeers: unheardByPeers ?? this.unheardByPeers,
     linkQuality: linkQuality ?? this.linkQuality,
+    smartMusicDuckingEnabled:
+        smartMusicDuckingEnabled ?? this.smartMusicDuckingEnabled,
   );
 
   bool get isSomeoneElseTalking => activeUsers.any((u) => u.isTalking);
@@ -1918,6 +1943,7 @@ class WalkieTalkieState extends Equatable {
     isAlone,
     unheardByPeers,
     linkQuality,
+    smartMusicDuckingEnabled,
   ];
 }
 

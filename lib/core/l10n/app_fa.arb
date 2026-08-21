@@ -166,6 +166,8 @@
     "noise_cleaner_downside_label": "نکته منفی",
     "noise_cleaner_unavailable": "پاک‌کن هوشمند هنوز روی این گوشی آماده نیست، پس فعلاً پاک‌کن ساده کار می‌کنه.",
     "sfx_feedback": "بوق و صداهای برنامه",
+    "smart_music_ducking": "آهنگ خودش کم بشه وقتی یکی حرف می‌زنه",
+    "smart_music_ducking_desc": "وقتی یکی تو کانال داره حرف می‌زنه، صدای آهنگ مشترک خودش کم می‌شه تا صداش واضح بمونه.",
     "link_reconnecting": "گمت کردم — دارم دوباره تلاش می‌کنم...",
     "link_reconnecting_in": "تا {seconds} ثانیه دیگه دوباره تلاش می‌کنم",
     "link_down": "ارتباط قطع شد",

@@ -75,6 +75,12 @@ abstract interface class SettingsRepository {
   Future<int> getLogMaxBytes();
   Future<void> setLogMaxBytes(int value);
 
+  /// #31 — whether Shared Music automatically ducks while someone is
+  /// talking. Enabled by default for new installs; off leaves shared-music
+  /// gain completely unchanged.
+  Future<bool> getSmartMusicDuckingEnabled();
+  Future<void> setSmartMusicDuckingEnabled(bool value);
+
   // Not part of AppSettings/loadAll() — each of these already has its own
   // narrow, purpose-built owner (BluetoothConnectCubit's "reconnect to last
   // session" shortcut, the background-permission banner's dismissal flag);

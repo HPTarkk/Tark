@@ -166,6 +166,8 @@
     "noise_cleaner_downside_label": "The catch",
     "noise_cleaner_unavailable": "The smart cleaner isn't ready on this phone yet, so you get the simple one.",
     "sfx_feedback": "BEEPS & CLICKS",
+    "smart_music_ducking": "Smart music ducking",
+    "smart_music_ducking_desc": "Automatically lowers shared music while someone is talking",
     "link_reconnecting": "Lost you — trying again...",
     "link_reconnecting_in": "Trying again in {seconds}s",
     "link_down": "Connection lost",

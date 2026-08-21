@@ -103,6 +103,7 @@ class SettingsCubit extends Cubit<SettingsState> {
               skipSplash: all.skipSplash,
               analyticsEnabled: all.analyticsEnabled,
               logMaxBytes: all.logMaxBytes,
+              smartMusicDuckingEnabled: all.smartMusicDuckingEnabled,
             )
           : state.copyWith(
               myName: all.myName,
@@ -115,6 +116,7 @@ class SettingsCubit extends Cubit<SettingsState> {
               skipSplash: all.skipSplash,
               analyticsEnabled: all.analyticsEnabled,
               logMaxBytes: all.logMaxBytes,
+              smartMusicDuckingEnabled: all.smartMusicDuckingEnabled,
             ),
     );
   }
@@ -247,6 +249,19 @@ class SettingsCubit extends Cubit<SettingsState> {
     await _repository.setSkipSplash(enabled);
   }
 
+  /// #31 — toggling this must never restart or reconnect the channel, so it
+  /// follows [setAutoReconnectEnabled]'s live-session-first pattern rather
+  /// than always writing through the repository.
+  Future<void> setSmartMusicDuckingEnabled(bool enabled) async {
+    emit(state.copyWith(smartMusicDuckingEnabled: enabled));
+    final live = _liveSession;
+    if (live != null) {
+      await live.setSmartMusicDuckingEnabled(enabled);
+    } else {
+      await _repository.setSmartMusicDuckingEnabled(enabled);
+    }
+  }
+
   /// For the rows that are a single deliberate tap rather than a session-long
   /// mode — pinning the home-screen widget, replaying the intro. No
   /// once-per-session guard like the channel screen's: these are navigations
@@ -299,6 +314,7 @@ class SettingsState extends Equatable {
   final bool skipSplash;
   final bool analyticsEnabled;
   final int logMaxBytes;
+  final bool smartMusicDuckingEnabled;
 
   const SettingsState({
     required this.isLive,
@@ -312,6 +328,7 @@ class SettingsState extends Equatable {
     required this.skipSplash,
     required this.analyticsEnabled,
     required this.logMaxBytes,
+    required this.smartMusicDuckingEnabled,
   });
 
   factory SettingsState.initial({required bool isLive}) => SettingsState(
@@ -326,6 +343,7 @@ class SettingsState extends Equatable {
     skipSplash: false,
     analyticsEnabled: true,
     logMaxBytes: LogBudget.defaultBytes,
+    smartMusicDuckingEnabled: true,
   );
 
   SettingsState copyWith({
@@ -339,6 +357,7 @@ class SettingsState extends Equatable {
     bool? skipSplash,
     bool? analyticsEnabled,
     int? logMaxBytes,
+    bool? smartMusicDuckingEnabled,
   }) => SettingsState(
     isLive: isLive,
     myName: myName ?? this.myName,
@@ -352,6 +371,8 @@ class SettingsState extends Equatable {
     skipSplash: skipSplash ?? this.skipSplash,
     analyticsEnabled: analyticsEnabled ?? this.analyticsEnabled,
     logMaxBytes: logMaxBytes ?? this.logMaxBytes,
+    smartMusicDuckingEnabled:
+        smartMusicDuckingEnabled ?? this.smartMusicDuckingEnabled,
   );
 
   @override
@@ -367,5 +388,6 @@ class SettingsState extends Equatable {
     skipSplash,
     analyticsEnabled,
     logMaxBytes,
+    smartMusicDuckingEnabled,
   ];
 }

@@ -169,6 +169,15 @@ class SettingsRepositoryImpl implements SettingsRepository {
       _prefs.setInt(SettingsKeys.logMaxBytes, LogBudget.clamp(value));
 
   @override
+  Future<bool> getSmartMusicDuckingEnabled() async =>
+      _prefs.getBool(SettingsKeys.smartMusicDuckingEnabled) ??
+      AppSettings.defaults().smartMusicDuckingEnabled;
+
+  @override
+  Future<void> setSmartMusicDuckingEnabled(bool value) =>
+      _prefs.setBool(SettingsKeys.smartMusicDuckingEnabled, value);
+
+  @override
   Future<String?> getLastBluetoothPeerId() async =>
       _prefs.getString(SettingsKeys.btLastPeerId);
 

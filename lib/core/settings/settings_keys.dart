@@ -26,6 +26,10 @@ abstract final class SettingsKeys {
   static const analyticsEnabled = 'analytics_enabled';
   static const logMaxBytes = 'log_max_bytes';
 
+  /// #31 — whether Shared Music automatically ducks while someone is
+  /// talking. See [AppSettings.smartMusicDuckingEnabled].
+  static const smartMusicDuckingEnabled = 'smart_music_ducking_enabled';
+
   // Owned by their existing dedicated services/widgets — kept here too so
   // every persisted key in the app has exactly one string literal, even
   // where SettingsRepository isn't the reader/writer.

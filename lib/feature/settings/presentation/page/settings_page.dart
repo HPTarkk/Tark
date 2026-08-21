@@ -430,20 +430,46 @@ class _SoundCard extends StatelessWidget {
     return SettingsCategoryCard(
       icon: Icons.volume_up_rounded,
       title: s.settings_section_sound,
-      child: ValueListenableBuilder<bool>(
-        valueListenable: Sfx.enabled,
-        builder: (context, enabled, _) => SettingsRow(
-          icon: enabled ? Icons.volume_up_rounded : Icons.volume_off_rounded,
-          label: s.sfx_feedback,
-          trailing: Switch(
-            value: enabled,
-            activeThumbColor: AppColors.amber,
-            onChanged: (v) {
-              HapticFeedback.selectionClick();
-              Sfx.setEnabled(v);
-            },
+      child: Column(
+        children: [
+          ValueListenableBuilder<bool>(
+            valueListenable: Sfx.enabled,
+            builder: (context, enabled, _) => SettingsRow(
+              icon: enabled
+                  ? Icons.volume_up_rounded
+                  : Icons.volume_off_rounded,
+              label: s.sfx_feedback,
+              trailing: Switch(
+                value: enabled,
+                activeThumbColor: AppColors.amber,
+                onChanged: (v) {
+                  HapticFeedback.selectionClick();
+                  Sfx.setEnabled(v);
+                },
+              ),
+            ),
           ),
-        ),
+          Divider(color: AppColors.border, height: 1),
+          BlocBuilder<SettingsCubit, SettingsState>(
+            buildWhen: (p, c) =>
+                p.smartMusicDuckingEnabled != c.smartMusicDuckingEnabled,
+            builder: (context, state) => SettingsRow(
+              icon: Icons.graphic_eq_rounded,
+              label: s.smart_music_ducking,
+              subtitle: s.smart_music_ducking_desc,
+              trailing: Switch(
+                value: state.smartMusicDuckingEnabled,
+                activeThumbColor: AppColors.amber,
+                onChanged: (v) {
+                  HapticFeedback.selectionClick();
+                  context.read<SettingsCubit>().setSmartMusicDuckingEnabled(
+                    v,
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

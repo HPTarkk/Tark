@@ -22,6 +22,7 @@ class SettingsModel extends AppSettings {
     required super.usageTipsShown,
     required super.analyticsEnabled,
     required super.logMaxBytes,
+    required super.smartMusicDuckingEnabled,
   });
 
   factory SettingsModel.fromAppSettings(AppSettings s) => SettingsModel(
@@ -37,6 +38,7 @@ class SettingsModel extends AppSettings {
     usageTipsShown: s.usageTipsShown,
     analyticsEnabled: s.analyticsEnabled,
     logMaxBytes: s.logMaxBytes,
+    smartMusicDuckingEnabled: s.smartMusicDuckingEnabled,
   );
 
   factory SettingsModel.fromJson(Map<String, dynamic> json) {
@@ -74,6 +76,9 @@ class SettingsModel extends AppSettings {
       logMaxBytes: LogBudget.clamp(
         (json['logMaxBytes'] as num?)?.toInt() ?? d.logMaxBytes,
       ),
+      smartMusicDuckingEnabled:
+          json['smartMusicDuckingEnabled'] as bool? ??
+          d.smartMusicDuckingEnabled,
     );
   }
 
@@ -90,6 +95,7 @@ class SettingsModel extends AppSettings {
     'usageTipsShown': usageTipsShown,
     'analyticsEnabled': analyticsEnabled,
     'logMaxBytes': logMaxBytes,
+    'smartMusicDuckingEnabled': smartMusicDuckingEnabled,
   };
 
   /// Reads the VOX margin, translating the absolute-threshold key that builds
@@ -145,6 +151,9 @@ class SettingsModel extends AppSettings {
       logMaxBytes: LogBudget.clamp(
         prefs.getInt(SettingsKeys.logMaxBytes) ?? d.logMaxBytes,
       ),
+      smartMusicDuckingEnabled:
+          prefs.getBool(SettingsKeys.smartMusicDuckingEnabled) ??
+          d.smartMusicDuckingEnabled,
     );
   }
 }

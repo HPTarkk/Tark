@@ -546,6 +546,13 @@ class AppLocalizationsFa extends AppLocalizations {
   String get sfx_feedback => 'بوق و صداهای برنامه';
 
   @override
+  String get smart_music_ducking => 'آهنگ خودش کم بشه وقتی یکی حرف می‌زنه';
+
+  @override
+  String get smart_music_ducking_desc =>
+      'وقتی یکی تو کانال داره حرف می‌زنه، صدای آهنگ مشترک خودش کم می‌شه تا صداش واضح بمونه.';
+
+  @override
   String get link_reconnecting => 'گمت کردم — دارم دوباره تلاش می‌کنم...';
 
   @override

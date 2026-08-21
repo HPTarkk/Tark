@@ -547,6 +547,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sfx_feedback => 'BEEPS & CLICKS';
 
   @override
+  String get smart_music_ducking => 'Smart music ducking';
+
+  @override
+  String get smart_music_ducking_desc =>
+      'Automatically lowers shared music while someone is talking';
+
+  @override
   String get link_reconnecting => 'Lost you — trying again...';
 
   @override
