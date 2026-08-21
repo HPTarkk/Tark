@@ -26,9 +26,11 @@ from __future__ import annotations
 import argparse
 import gzip
 import json
+import re
 import struct
 import sys
 import zlib
+from datetime import date, datetime, time, timedelta
 
 MAGIC = b"TARKLOG"
 SUPPORTED_VERSIONS = (1,)
@@ -96,6 +98,321 @@ def decode(raw: bytes) -> tuple[dict, str, bool]:
     return header, text, intact
 
 
+### --report: a session-scoped, privacy-safe field metrics summary #########
+#
+# Everything below reads the already-decoded plaintext `text` a session's
+# lines are already public within the app (diagnostics, not secrets) — this
+# just groups the ones that matter for the motorcycle field-test baseline
+# (see docs/testing/motorcycle-field-test-runbook.md) into one summary
+# instead of making a field engineer grep a multi-thousand-line export by
+# hand. Keep the patterns below in step with the `Logger.diagnostic(...)`
+# call sites they read from — grep the marker string in `lib/` if a report
+# field goes missing after a refactor there.
+
+_LINE_RE = re.compile(r"^(\d{2}):(\d{2}):(\d{2})\.(\d{3}) (.*)$")
+_SESSION_OPEN_RE = re.compile(r"^--- session (\S+) opened (\S+)$")
+
+
+class SessionBlock:
+    """One `--- session <id> opened <iso>` run's worth of lines.
+
+    A single `.tarklog` body can contain several of these back to back — the
+    diagnostic ring log persists across app restarts — so every metric below
+    is scoped to exactly one block, never the whole file.
+    """
+
+    def __init__(self, session_id: str, opened_at: datetime) -> None:
+        self.session_id = session_id
+        self.opened_at = opened_at
+        self.timestamped_lines: list[tuple[datetime | None, str]] = []
+
+    def add(self, at: datetime | None, text: str) -> None:
+        self.timestamped_lines.append((at, text))
+
+    @property
+    def closed_at(self) -> datetime | None:
+        for at, _ in reversed(self.timestamped_lines):
+            if at is not None:
+                return at
+        return None
+
+    @property
+    def duration(self):
+        closed = self.closed_at
+        if closed is None:
+            return None
+        return closed - self.opened_at
+
+
+def split_sessions(text: str) -> list[SessionBlock]:
+    """Splits a decoded log body into its `--- session ... opened ...` runs.
+
+    Lines that carry a per-line `HH:mm:ss.mmm` stamp (every ordinary
+    diagnostic line does — see `DiagnosticLog._timestamp` in
+    `lib/core/diagnostics/diagnostic_log.dart`) are converted to an absolute
+    timestamp anchored on the block's own opening date, rolling over to the
+    next day whenever the clock value goes backwards within the block — the
+    date itself is only ever written once, in the opening banner.
+    """
+    blocks: list[SessionBlock] = []
+    current: SessionBlock | None = None
+    current_date: date | None = None
+    prev_tod: time | None = None
+
+    for raw in text.splitlines():
+        opened = _SESSION_OPEN_RE.match(raw)
+        if opened:
+            session_id, opened_at_raw = opened.groups()
+            try:
+                opened_at = datetime.fromisoformat(opened_at_raw)
+            except ValueError:
+                opened_at = datetime.min
+            current = SessionBlock(session_id, opened_at)
+            blocks.append(current)
+            current_date = opened_at.date()
+            prev_tod = opened_at.time()
+            continue
+
+        if current is None:
+            continue  # lines before the first session banner: ignore
+
+        m = _LINE_RE.match(raw)
+        if not m:
+            current.add(None, raw)
+            continue
+
+        hh, mm, ss, ms, rest = m.groups()
+        tod = time(int(hh), int(mm), int(ss), int(ms) * 1000)
+        if prev_tod is not None and tod < prev_tod and current_date is not None:
+            current_date += timedelta(days=1)
+        prev_tod = tod
+        at = (
+            datetime.combine(current_date, tod)
+            if current_date is not None
+            else None
+        )
+        current.add(at, rest)
+
+    return blocks
+
+
+def _count_matching(lines: list[str], needle: str) -> int:
+    return sum(1 for line in lines if needle in line)
+
+
+def _field(pattern: str, line: str) -> str | None:
+    m = re.search(pattern, line)
+    return m.group(1) if m else None
+
+
+def analyze_session(block: SessionBlock) -> dict:
+    """Extracts the privacy-safe field-test metrics from one [SessionBlock].
+
+    Every field here is either a count, a rate, or a value already present in
+    an existing `Logger.diagnostic(...)` line — nothing here reads or
+    reproduces an IP, SSID, device id, or display name.
+    """
+    lines = [text for _at, text in block.timestamped_lines]
+
+    metrics: dict = {
+        "session_id": block.session_id,
+        "opened_at": block.opened_at.isoformat(),
+        "duration": str(block.duration) if block.duration else None,
+    }
+
+    # Negotiated capture/playback/wire rates — first line wins, a mid-session
+    # route change logs another and this deliberately keeps the session's
+    # opening rate as the headline number.
+    for line in lines:
+        if line.startswith("audio: session started"):
+            metrics["capture_hz"] = _field(r"capture (\d+)Hz", line)
+            metrics["playback_hz"] = _field(r"playback (\d+)Hz", line)
+            metrics["wire_hz"] = _field(r"wire (\d+)Hz", line)
+            metrics["wire_frame_samples"] = _field(r"Hz/(\d+)smp", line)
+            break
+
+    # The periodic wifi summary line: last one wins for point-in-time values
+    # (rtt, blocked/errs window), packets in/out are read from the last line
+    # too since they are already-cumulative totals within the session.
+    wifi_fields = {
+        "packets_in": r"in=(\d+)\(",
+        "packets_out": r"out=(\d+)\(",
+        "recovery_peers": r"recovery=(\d+)",
+        "dup_route": r"dupRoute=(\d+)",
+        "stale_epoch": r"staleEpoch=(\d+)",
+        "rtt_ms": r"rtt=(\d+|\?)ms",
+        "blocked_window": r"blocked=(\d+)",
+        "errs_window": r"errs=(\d+)",
+        "quiet_for_s": r"quietFor=(\d+)s",
+    }
+    for line in lines:
+        if line.startswith("wifi: in="):
+            for key, pattern in wifi_fields.items():
+                metrics[key] = _field(pattern, line)
+
+    # Reconnect / rebind / recovery events — each counted independently so a
+    # report can tell "rebound cleanly" from "kept renegotiating".
+    recovery_markers = {
+        "rebind_not_restored": "rebinds have not restored traffic",
+        "liveness_timeout": "liveness timeout",
+        "send_path_rebuilt": "rebuilding the send path",
+        "sockets_rebound": "rebinding both sockets on the current network",
+        "os_moved_back_on_ap": "OS moved us back onto the AP",
+        "dropped_off_ap": "link: dropped off ",
+        "back_on_ap": "link: back on ",
+        "rejoin_failed": "rejoin failed",
+        "ap_torn_down": "AP torn down mid-session",
+        "re_hosted": "re-hosted as ",
+        "re_host_failed": "re-host failed",
+    }
+    metrics["recovery_events"] = {
+        key: _count_matching(lines, needle)
+        for key, needle in recovery_markers.items()
+    }
+
+    # Codec profile transitions.
+    codec_markers = {
+        "opus_initialized": "codec: Opus initialized",
+        "opus_unavailable": "codec: Opus UNAVAILABLE",
+        "opus_tuning_rejected": "codec: Opus rejected",
+        "opus_fec_encoder": "codec: Opus encoder with in-band FEC",
+        "opus_failing": "codec: Opus failing",
+    }
+    metrics["codec_events"] = {
+        key: _count_matching(lines, needle) for key, needle in codec_markers.items()
+    }
+
+    # Jitter buffer: resync events, plus the last-seen per-sender tally
+    # (these lines report a running total since the buffer's last reset()).
+    metrics["playback_resync_events"] = _count_matching(lines, "— resyncing (")
+    per_sender_re = re.compile(
+        r"^playback: sender (\S+) pkts=(\d+) late=(\d+) dup=(\d+) "
+        r"resync=(\d+) concealed=(\d+) bigGaps=(\d+)"
+    )
+    per_sender: dict[str, dict[str, int]] = {}
+    for line in lines:
+        m = per_sender_re.match(line)
+        if m:
+            sender, pkts, late, dup, resync, concealed, big_gaps = m.groups()
+            per_sender[sender] = {
+                "packets": int(pkts),
+                "late_drops": int(late),
+                "duplicate_drops": int(dup),
+                "resyncs": int(resync),
+                "concealed_chunks": int(concealed),
+                "big_gaps": int(big_gaps),
+            }
+    metrics["playback_per_sender"] = per_sender
+
+    # MusicMixer: last-seen dropout/trim/flood/overflow tally, plus how many
+    # start/stop cycles happened this session.
+    metrics["music_cast_started"] = _count_matching(lines, "music cast: started")
+    metrics["music_cast_stopped"] = _count_matching(lines, "music cast: stopping")
+    metrics["music_capture_withheld_warnings"] = _count_matching(
+        lines, "this device is withholding playback capture"
+    )
+    music_queue_re = re.compile(
+        r"^music cast: \d+ samples queued .*\| dropouts=(\d+) trims=(\d+) "
+        r"floods=(\d+) capOverflows=(\d+)"
+    )
+    for line in lines:
+        m = music_queue_re.match(line)
+        if m:
+            dropouts, trims, floods, overflows = m.groups()
+            metrics["music_dropouts"] = int(dropouts)
+            metrics["music_trims"] = int(trims)
+            metrics["music_floods"] = int(floods)
+            metrics["music_cap_overflows"] = int(overflows)
+
+    # Background/resume — both the app-level lifecycle line and the
+    # channel-level "resumed after Ns away" line, which is the one carrying
+    # roster/health context.
+    metrics["lifecycle_resumed_count"] = _count_matching(lines, "lifecycle: resumed")
+    away_seconds = [
+        int(s)
+        for line in lines
+        if (s := _field(r"channel: resumed after (\d+)s away", line)) is not None
+    ]
+    metrics["channel_resumed_count"] = _count_matching(lines, "channel: resumed")
+    metrics["longest_away_s"] = max(away_seconds) if away_seconds else None
+
+    # User-visible terminal failures.
+    terminal_markers = {
+        "mic_dead": "reporting a dead microphone",
+        "send_path_one_way": "our send path is one-way",
+        "no_local_address": "wifi: no local address for",
+        "music_capture_error": "music cast: capture stream error",
+        "diagnostics_export_failed": "diagnostics: export failed",
+    }
+    metrics["terminal_failures"] = {
+        key: _count_matching(lines, needle)
+        for key, needle in terminal_markers.items()
+    }
+
+    return metrics
+
+
+def format_report(header: dict, metrics: dict) -> str:
+    lines = [
+        "# tark field-test report",
+        f"# app      : {header.get('app')} {header.get('version')}",
+        f"# platform : {header.get('platform')} ({header.get('os')})",
+        "",
+        f"session   : {metrics['session_id']}",
+        f"opened at : {metrics['opened_at']}",
+        f"duration  : {metrics['duration']}",
+        "",
+        "-- audio format --",
+        f"capture={metrics.get('capture_hz')}Hz playback={metrics.get('playback_hz')}Hz "
+        f"wire={metrics.get('wire_hz')}Hz/{metrics.get('wire_frame_samples')}smp",
+        "",
+        "-- transport --",
+        f"packets in={metrics.get('packets_in')} out={metrics.get('packets_out')} "
+        f"rtt={metrics.get('rtt_ms')}ms quietFor={metrics.get('quiet_for_s')}s",
+        f"recovery peers={metrics.get('recovery_peers')} "
+        f"dupRoute={metrics.get('dup_route')} staleEpoch={metrics.get('stale_epoch')} "
+        f"blocked(window)={metrics.get('blocked_window')} errs(window)={metrics.get('errs_window')}",
+        f"recovery events: {metrics.get('recovery_events')}",
+        "",
+        "-- codec --",
+        f"{metrics.get('codec_events')}",
+        "",
+        "-- jitter buffer --",
+        f"resync events={metrics.get('playback_resync_events')}",
+        f"per-sender: {metrics.get('playback_per_sender')}",
+        "",
+        "-- shared music --",
+        f"started={metrics.get('music_cast_started')} stopped={metrics.get('music_cast_stopped')} "
+        f"dropouts={metrics.get('music_dropouts')} trims={metrics.get('music_trims')} "
+        f"floods={metrics.get('music_floods')} capOverflows={metrics.get('music_cap_overflows')} "
+        f"captureWithheldWarnings={metrics.get('music_capture_withheld_warnings')}",
+        "",
+        "-- background/resume --",
+        f"lifecycle resumed={metrics.get('lifecycle_resumed_count')} "
+        f"channel resumed={metrics.get('channel_resumed_count')} "
+        f"longest away={metrics.get('longest_away_s')}s",
+        "",
+        "-- terminal failures --",
+        f"{metrics.get('terminal_failures')}",
+    ]
+    return "\n".join(lines) + "\n"
+
+
+def build_report(header: dict, text: str, session_index: int | None) -> str:
+    """`session_index` is 1-based per `--session`; `None` means the last one."""
+    sessions = split_sessions(text)
+    if not sessions:
+        raise ValueError("no '--- session ... opened' marker found in this log")
+    index = len(sessions) - 1 if session_index is None else session_index - 1
+    if index < 0 or index >= len(sessions):
+        raise ValueError(
+            f"--session {session_index} out of range: this log has {len(sessions)} "
+            f"session(s)"
+        )
+    metrics = analyze_session(sessions[index])
+    return format_report(header, metrics)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("file", help="the .tarklog export")
@@ -104,6 +421,23 @@ def main() -> int:
         "--json-header",
         action="store_true",
         help="print only the header, as JSON (for scripting)",
+    )
+    parser.add_argument(
+        "--report",
+        action="store_true",
+        help=(
+            "print a privacy-safe field-test metrics summary for one session "
+            "in this log instead of the raw text (see --session)"
+        ),
+    )
+    parser.add_argument(
+        "--session",
+        type=int,
+        metavar="N",
+        help=(
+            "with --report: which '--- session ... opened' run to summarize "
+            "(1-based; default is the most recent one in this log)"
+        ),
     )
     args = parser.parse_args()
 
@@ -118,6 +452,23 @@ def main() -> int:
 
     if args.json_header:
         print(json.dumps(header, indent=2))
+        return 0
+
+    if args.report:
+        try:
+            output = build_report(header, text, args.session)
+        except ValueError as error:
+            print(f"could not build a report: {error}", file=sys.stderr)
+            return 1
+        if args.out:
+            with open(args.out, "w", encoding="utf-8") as handle:
+                handle.write(output)
+            print(f"wrote {args.out}", file=sys.stderr)
+        else:
+            sys.stdout.write(output)
+        if not intact:
+            print("warning: checksum mismatch", file=sys.stderr)
+            return 2
         return 0
 
     banner = [

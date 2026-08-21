@@ -120,31 +120,33 @@ void main() {
   });
 
   group('underrun', () {
-    test('ramps the final samples to zero instead of cutting mid-waveform',
-        () async {
-      final sink = _RecordingSink();
-      final buffer = build(sink, prefillMs: 0);
-      addTearDown(buffer.dispose);
+    test(
+      'ramps the final samples to zero instead of cutting mid-waveform',
+      () async {
+        final sink = _RecordingSink();
+        final buffer = build(sink, prefillMs: 0);
+        addTearDown(buffer.dispose);
 
-      // Start draining, then stop feeding entirely so the queue runs dry.
-      fillToStart(buffer);
-      await Future<void>.delayed(const Duration(milliseconds: 300));
+        // Start draining, then stop feeding entirely so the queue runs dry.
+        fillToStart(buffer);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
 
-      expect(sink.chunks.length, greaterThan(1));
-      final last = sink.chunks.last;
-      expect(last, isNotEmpty);
-      // A hard cut would leave the tail at full level; the ramp lands on zero.
-      expect(
-        last.last,
-        closeTo(0.0, 1e-9),
-        reason: 'final sample must be faded to zero to avoid a click',
-      );
-      expect(
-        last.first,
-        greaterThan(last.last),
-        reason: 'ramp should descend across the tail',
-      );
-    });
+        expect(sink.chunks.length, greaterThan(1));
+        final last = sink.chunks.last;
+        expect(last, isNotEmpty);
+        // A hard cut would leave the tail at full level; the ramp lands on zero.
+        expect(
+          last.last,
+          closeTo(0.0, 1e-9),
+          reason: 'final sample must be faded to zero to avoid a click',
+        );
+        expect(
+          last.first,
+          greaterThan(last.last),
+          reason: 'ramp should descend across the tail',
+        );
+      },
+    );
 
     test('resumes with a fade-in after refilling', () async {
       final sink = _RecordingSink();
@@ -346,6 +348,89 @@ void main() {
       // 39 behind: within the reorder window, so genuinely a late packet.
       buffer.feed(_tone(480), 2, 'peer');
       expect(buffer.queuedSamples, afterFirst);
+    });
+  });
+
+  group('reset() after a real reconnect', () {
+    // reset() is what _applyHealth (WalkieTalkieCubit) calls on the
+    // not-live -> live transition when a genuine reconnect happens — a
+    // deliberate, explicit "this is a new stream" signal, unlike the
+    // in-stream restart heuristic above, which needs ~30 packets before it
+    // trusts a far-behind sequence as anything but a stale duplicate. A
+    // reconnect must not pay that adoption tax: the very next packet has to
+    // play, or the field-test baseline's "no permanent one-way audio after
+    // recovery" gate is exactly what would fail.
+    test(
+      'the first packet after reset is queued immediately, not deferred',
+      () {
+        final sink = _RecordingSink();
+        final buffer = build(sink);
+        addTearDown(buffer.dispose);
+
+        // Establish a live stream at a high sequence number.
+        buffer.feed(_tone(480), 5000, 'peer');
+        buffer.feed(_tone(480), 5001, 'peer');
+
+        buffer.reset();
+        expect(buffer.queuedSamples, 0, reason: 'reset clears the queue too');
+
+        // A sequence number that, without a reset first, would read as
+        // far-behind and require proving itself over many packets (see the
+        // 'sender restarts its sequence counter' group above).
+        buffer.feed(_tone(480), 0, 'peer');
+
+        expect(
+          buffer.queuedSamples,
+          greaterThan(0),
+          reason:
+              'reset must forget the old expected sequence, so the first '
+              'packet of a reconnected stream plays immediately',
+        );
+      },
+    );
+
+    test('without reset, the same low sequence is deferred, not immediate — '
+        'the contrast that makes the case above meaningful', () {
+      final sink = _RecordingSink();
+      final buffer = build(sink);
+      addTearDown(buffer.dispose);
+
+      buffer.feed(_tone(480), 5000, 'peer');
+      buffer.feed(_tone(480), 5001, 'peer');
+
+      final beforeLowSeq = buffer.queuedSamples;
+      buffer.feed(_tone(480), 0, 'peer');
+      expect(
+        buffer.queuedSamples,
+        beforeLowSeq,
+        reason:
+            'without reset, a lone far-behind packet must still be '
+            'deferred rather than trusted on sight',
+      );
+    });
+
+    test('reset lets a second sender start fresh too', () {
+      final sink = _RecordingSink();
+      final buffer = build(sink);
+      addTearDown(buffer.dispose);
+
+      buffer.feed(_tone(480), 5000, 'a');
+      buffer.feed(_tone(480), 7, 'b');
+
+      buffer.reset();
+
+      buffer.feed(_tone(480), 0, 'a');
+      final afterA = buffer.queuedSamples;
+      expect(afterA, greaterThan(0));
+
+      buffer.feed(_tone(480), 0, 'b');
+      expect(
+        buffer.queuedSamples,
+        greaterThan(afterA),
+        reason:
+            'reset must clear per-sender state for every sender, not '
+            'just the first one fed after it',
+      );
     });
   });
 }

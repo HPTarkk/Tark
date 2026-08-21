@@ -19,6 +19,7 @@ import '../domain/resampler.dart';
 import '../domain/rnnoise_suppressor.dart';
 import '../domain/service/audio_engine.dart';
 import '../domain/spectral_noise_suppressor.dart';
+import '../domain/stall_watchdog.dart';
 import 'audio_playback_buffer.dart';
 import 'voice_audio_session.dart';
 
@@ -116,6 +117,12 @@ class AudioEngineImpl implements AudioEngine {
   static const _kStallTimeout = Duration(seconds: 3);
   static const _kMinRestartInterval = Duration(seconds: 5);
   static const _kWatchdogInterval = Duration(seconds: 2);
+  static const _stallWatchdog = StallWatchdog(
+    stallTimeout: _kStallTimeout,
+    minRestartInterval: _kMinRestartInterval,
+    watchdogInterval: _kWatchdogInterval,
+    watchdogJitter: _kWatchdogJitter,
+  );
 
   /// When the watchdog last actually ran.
   ///
@@ -493,28 +500,26 @@ class AudioEngineImpl implements AudioEngine {
 
   Future<void> _checkStall() async {
     // First, and on every path out of here: a stale [_lastWatchdogAt] would
-    // itself read as a suspension the next time around.
+    // itself read as a suspension the next time around. The discounting math
+    // itself — crediting time the isolate demonstrably did not run so it
+    // can't count toward a stall — lives in [StallWatchdog], pure and
+    // independently tested.
     final now = DateTime.now();
-    final sinceCheck = now.difference(_lastWatchdogAt);
+    final result = _stallWatchdog.check(
+      now: now,
+      lastInputAt: _lastInputAt,
+      lastWatchdogAt: _lastWatchdogAt,
+      lastRestartAt: _lastRestartAt,
+    );
     _lastWatchdogAt = now;
-
-    // Time the isolate demonstrably did not run is time the mic was never
-    // observed, so it cannot count toward a stall. Discounted precisely rather
-    // than by a threshold: the mic is then given a full [_kStallTimeout] of
-    // real, awake silence before the engine is touched — a genuine stall that
-    // happens to straddle a resume is still caught, just one cycle later.
-    final lateBy = sinceCheck - _kWatchdogInterval;
-    if (lateBy > _kWatchdogJitter) {
-      final credited = _lastInputAt.add(lateBy);
-      _lastInputAt = credited.isAfter(now) ? now : credited;
-    }
+    _lastInputAt = result.creditedInputAt;
 
     if (_disposed || _restarting) return;
     if (_engineEpoch != _myEpoch) return; // a newer session owns the engine
     if (!_currentStatus.isStarted) return;
-    if (now.difference(_lastInputAt) < _kStallTimeout) return;
-    // Don't hammer restarts if reopening doesn't immediately deliver frames.
-    if (now.difference(_lastRestartAt) < _kMinRestartInterval) return;
+    // Don't hammer restarts if reopening doesn't immediately deliver frames,
+    // and don't restart at all unless a real, cooled-down stall was found.
+    if (!result.shouldRestart) return;
 
     _restarting = true;
     _lastRestartAt = now;
@@ -538,7 +543,9 @@ class AudioEngineImpl implements AudioEngine {
 
   void _watchRouteChanges() {
     _routeSub?.cancel();
-    _routeSub = VoiceAudioSession.routeChanges.listen((_) => _scheduleReroute());
+    _routeSub = VoiceAudioSession.routeChanges.listen(
+      (_) => _scheduleReroute(),
+    );
   }
 
   /// One headset lands as several device events (A2DP then SCO, capture and

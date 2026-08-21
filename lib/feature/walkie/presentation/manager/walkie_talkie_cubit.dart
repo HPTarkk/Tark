@@ -23,6 +23,7 @@ import '../../../../core/settings/vox_margin.dart';
 import '../../../../core/sfx/sfx_event.dart';
 import '../../../../core/sfx/sfx_player.dart';
 import '../../../../core/utils/lan_ipv4.dart';
+import '../../../../core/utils/dispose_bag.dart';
 import '../../../../core/utils/fallback_display_name.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../audio/api/audio_api.dart';
@@ -66,6 +67,15 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   StreamSubscription<WidgetControlAction>? _widgetControlSub;
   Timer? _presenceTimer;
   Timer? _cleanupTimer;
+
+  /// Registry for the eight subscriptions/timers above, keyed by name.
+  /// [DisposeBag.register] cancels whatever was previously registered under
+  /// the same key first, so re-wiring on a retry can't leave a duplicate
+  /// running even if a future edit forgets to cancel one by hand. Not used by
+  /// [close] — that teardown deliberately fires cancels before other
+  /// side effects, ahead of any await, which a bag that awaits each cancel
+  /// in turn would reorder.
+  final DisposeBag _resources = DisposeBag();
 
   WalkieTalkieCubit(
     this._audioEngine,
@@ -124,6 +134,12 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
         // definition — it is audio from while the phone was locked — so it goes
         // rather than being played out late. [MusicMixer.floodSamples] is the
         // backstop for the same thing when the burst arrives after this runs.
+        //
+        // Deliberately does NOT touch `_musicSub`: the [SystemAudioCapture]
+        // subscription must survive backgrounding on its own, same as the
+        // mic. Only the stale queue contents get discarded here — see the
+        // motorcycle field-test runbook's reliability-gate notes before
+        // adding a cancel/restart of `_musicSub` anywhere in this handler.
         if (state.isSharingSystemAudio) _musicMixer.clear();
         // The address can have changed under us (a joiner the OS moved between
         // networks), and the next presence tick is up to 2s away — which is a
@@ -207,20 +223,15 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   /// fresh session would rather than stacking a second set of subscriptions.
   Future<void> retryStart() async {
     if (isClosed) return;
-    await _frameSub?.cancel();
+    await _resources.disposeAll();
     _frameSub = null;
-    await _statusSub?.cancel();
     _statusSub = null;
-    await _packetSub?.cancel();
     _packetSub = null;
-    await _linkSub?.cancel();
     _linkSub = null;
-    await _hotspotLinkSub?.cancel();
     _hotspotLinkSub = null;
-    await _widgetControlSub?.cancel();
     _widgetControlSub = null;
-    _presenceTimer?.cancel();
-    _cleanupTimer?.cancel();
+    _presenceTimer = null;
+    _cleanupTimer = null;
     _readyAt = null;
     _lastFrameAt = null;
     _noAddressSince = null;
@@ -321,14 +332,17 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     _audioEngine.setNoiseSuppressionEngine(noiseSuppressionEngine);
     // Attached before start() so no status event can fire and be missed —
     // the controller is a plain broadcast stream, not a replay one.
-    _statusSub = _audioEngine.status.listen((status) {
-      if (!isClosed && status.hasPermission != state.hasPermission) {
-        if (state.hasPermission && !status.hasPermission) {
-          _sfx.play(SfxEvent.error);
+    _statusSub = _resources.register(
+      'status',
+      _audioEngine.status.listen((status) {
+        if (!isClosed && status.hasPermission != state.hasPermission) {
+          if (state.hasPermission && !status.hasPermission) {
+            _sfx.play(SfxEvent.error);
+          }
+          emit(state.copyWith(hasPermission: status.hasPermission));
         }
-        emit(state.copyWith(hasPermission: status.hasPermission));
-      }
-    });
+      }),
+    );
 
     // Mic start and network-identity resolution are independent — run them
     // concurrently. Previously localId was awaited FIRST, so quick access
@@ -372,14 +386,20 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     // foreground service + wake/Wi-Fi/multicast locks; a no-op elsewhere.
     unawaited(_keepAlive.start());
 
-    _frameSub = _audioEngine.frames.listen(
-      _onAudioFrame,
-      onError: (Object e) => Logger.log('AudioFrame error: $e'),
+    _frameSub = _resources.register(
+      'frame',
+      _audioEngine.frames.listen(
+        _onAudioFrame,
+        onError: (Object e) => Logger.log('AudioFrame error: $e'),
+      ),
     );
 
-    _packetSub = _transferRepository.startListening().listen(
-      _onPacketReceived,
-      onError: (Object e) => Logger.log('Packet error: $e'),
+    _packetSub = _resources.register(
+      'packet',
+      _transferRepository.startListening().listen(
+        _onPacketReceived,
+        onError: (Object e) => Logger.log('Packet error: $e'),
+      ),
     );
 
     _transferRepository.setAutoReconnectEnabled(
@@ -393,7 +413,10 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     // (see WifiTransferRepositoryImpl). A drop means the same
     // "link lost — reconnecting" banner + sound applies, so this is no
     // longer gated to specific transports.
-    _linkSub = _transferRepository.connect().listen(_applyHealth);
+    _linkSub = _resources.register(
+      'link',
+      _transferRepository.connect().listen(_applyHealth),
+    );
 
     // The hotspot link underneath the transport, which has its own failure
     // modes the sockets cannot see: a joiner the OS pulled off the AP, or a
@@ -402,43 +425,52 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     // were invisible — the call simply went quiet and stayed quiet. Only the
     // bad news is mapped here; "up" is left to the transport, which knows the
     // difference between a link being back and traffic actually flowing again.
-    _hotspotLinkSub = _linkKeeper.states.listen((link) {
-      if (isClosed) return;
-      switch (link) {
-        case HotspotLinkState.recovering:
-          _applyHealth(const ConnectionHealth.reconnecting());
-        case HotspotLinkState.lost:
-          _applyHealth(const ConnectionHealth.down());
-        case HotspotLinkState.up || HotspotLinkState.idle:
-          break;
-      }
-    }, onError: (Object e) => Logger.log('Hotspot link state error: $e'));
+    _hotspotLinkSub = _resources.register(
+      'hotspotLink',
+      _linkKeeper.states.listen((link) {
+        if (isClosed) return;
+        switch (link) {
+          case HotspotLinkState.recovering:
+            _applyHealth(const ConnectionHealth.reconnecting());
+          case HotspotLinkState.lost:
+            _applyHealth(const ConnectionHealth.down());
+          case HotspotLinkState.up || HotspotLinkState.idle:
+            break;
+        }
+      }, onError: (Object e) => Logger.log('Hotspot link state error: $e')),
+    );
 
     // MUTE on the home-screen widget, pressed while the app is in the
     // background. Scoped to the live cubit on purpose: no session, nothing
     // subscribed, so a stale widget button can't mute a channel that the
     // user has already left.
-    _widgetControlSub = _widgetControl.actions.listen((action) {
-      if (isClosed) return;
-      if (action == WidgetControlAction.toggleMute) toggleSelfMute();
-    });
+    _widgetControlSub = _resources.register(
+      'widgetControl',
+      _widgetControl.actions.listen((action) {
+        if (isClosed) return;
+        if (action == WidgetControlAction.toggleMute) toggleSelfMute();
+      }),
+    );
 
-    _presenceTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-      _broadcastPresence();
-      _gradeLink();
-      _logTransmitState();
-      _logMusicHealth();
-      unawaited(_checkMusicBlocked());
-      // Keeps the widget's "last published" timestamp advancing while the
-      // session is live but unchanging. onChange alone can go quiet for
-      // minutes (nobody talking, roster steady), and the native side demotes
-      // state it hasn't heard about to "idle". publish() throttles this down
-      // to one actual write every 30s.
-      unawaited(_homeWidget.publish(_widgetSnapshot(state)));
-    });
-    _cleanupTimer = Timer.periodic(
-      const Duration(seconds: 3),
-      (_) => _cleanupStaleUsers(),
+    _presenceTimer = _resources.register(
+      'presence',
+      Timer.periodic(const Duration(seconds: 2), (_) {
+        _broadcastPresence();
+        _gradeLink();
+        _logTransmitState();
+        _logMusicHealth();
+        unawaited(_checkMusicBlocked());
+        // Keeps the widget's "last published" timestamp advancing while the
+        // session is live but unchanging. onChange alone can go quiet for
+        // minutes (nobody talking, roster steady), and the native side
+        // demotes state it hasn't heard about to "idle". publish() throttles
+        // this down to one actual write every 30s.
+        unawaited(_homeWidget.publish(_widgetSnapshot(state)));
+      }),
+    );
+    _cleanupTimer = _resources.register(
+      'cleanup',
+      Timer.periodic(const Duration(seconds: 3), (_) => _cleanupStaleUsers()),
     );
 
     // Both clocks start here rather than at construction: everything before
