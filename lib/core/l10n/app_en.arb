@@ -419,5 +419,14 @@
     "preflight_check_diagnostics": "Diagnostics",
     "preflight_diagnostics_ok": "Ready to record support evidence",
     "preflight_diagnostics_memory_only": "Recording, but won't survive the app closing",
-    "preflight_diagnostics_disabled": "Turned off"
+    "preflight_diagnostics_disabled": "Turned off",
+    "preflight_check_mic": "Microphone",
+    "preflight_mic_permission_denied": "Tarkk isn't allowed to use it",
+    "preflight_mic_no_frames": "Started, but no sound is coming through",
+    "preflight_mic_ok": "Working",
+    "preflight_check_headset": "Headset",
+    "preflight_route_bluetooth": "Connected — Bluetooth headset",
+    "preflight_route_wired": "Connected — wired headset",
+    "preflight_route_speaker": "Playing through the phone speaker",
+    "preflight_route_unknown": "Can't tell yet"
 }

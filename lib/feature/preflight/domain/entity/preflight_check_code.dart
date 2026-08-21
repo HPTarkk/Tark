@@ -5,6 +5,17 @@
 /// requirement logs (check code + pass/warn/fail + duration), so once
 /// shipped a code should not be renamed or reused for a different meaning.
 abstract final class PreflightCheckCode {
+  // Check 1 — microphone.
+  static const micOk = 'mic_ok';
+  static const micPermissionDenied = 'mic_permission_denied';
+  static const micNoFrames = 'mic_no_frames';
+
+  // Check 2 — playback/output route.
+  static const routeBluetooth = 'route_bluetooth';
+  static const routeWired = 'route_wired';
+  static const routePhoneSpeaker = 'route_phone_speaker';
+  static const routeUnknown = 'route_unknown';
+
   // Check 3 — audio profile/capability readiness.
   static const hdVoiceReady = 'hd_voice_ready';
   static const hdVoiceNegotiatedHd = 'hd_voice_negotiated_hd';

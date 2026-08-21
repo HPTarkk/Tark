@@ -141,6 +141,7 @@ class AudioSessionHandler(
                 releaseVoice()
                 result.success(true)
             }
+            "getCurrentRoute" -> result.success(currentRoute())
             else -> result.notImplemented()
         }
     }
@@ -430,6 +431,50 @@ class AudioSessionHandler(
         }
         runCatching { am.mode = AudioManager.MODE_NORMAL }
         settleRouting()
+    }
+
+    /**
+     * Classifies what voice is actually routed through right now, for
+     * Preflight's headset check (#33) — "helmet detected" vs a phone-route
+     * warning. Read-only: unlike [configureVoice]/[reconfigureVoice], this
+     * never engages call mode or changes anything, so it's safe to call
+     * whether or not a session has engaged voice yet.
+     *
+     * API 31+: [AudioManager.communicationDevice] is Android's own answer for
+     * the device actually carrying the call-mode route, read directly rather
+     * than re-derived from the attached-device list — critically, this is
+     * what keeps a merely-connected A2DP device from being reported as proof
+     * the communication mic route works (A2DP and the SCO route
+     * [configureVoice] actually engages are different profiles of the same
+     * headset). Below API 31 there is no such query; the fallback reuses the
+     * same [hasBluetoothScoDevice]/[hasWiredHeadset] checks [configureVoice]
+     * itself uses, so it can't distinguish "engaged as the active route" from
+     * merely "attached" — reported as a best-effort heuristic, not an
+     * authoritative read.
+     */
+    private fun currentRoute(): String {
+        val am = audioManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val device = runCatching { am.communicationDevice }.getOrNull()
+            return when (device?.type) {
+                null -> "unknown"
+                AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+                AudioDeviceInfo.TYPE_BLE_HEADSET,
+                AudioDeviceInfo.TYPE_HEARING_AID -> "bluetooth"
+                AudioDeviceInfo.TYPE_WIRED_HEADSET,
+                AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+                AudioDeviceInfo.TYPE_USB_HEADSET -> "wired"
+                else -> "speaker"
+            }
+        }
+        // Pre-S heuristic — see doc above. Mirrors routeToWiredOrSpeaker's own
+        // ordering (wired wins, otherwise speaker), so this never reports a
+        // route configureVoice itself wouldn't have picked.
+        return when {
+            hasBluetoothScoDevice(am) -> "bluetooth"
+            hasWiredHeadset(am) -> "wired"
+            else -> "speaker"
+        }
     }
 
     /** Activity teardown: Dart never gets to cancel its subscription when the

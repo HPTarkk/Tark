@@ -1408,4 +1408,33 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get preflight_diagnostics_disabled => 'Turned off';
+
+  @override
+  String get preflight_check_mic => 'Microphone';
+
+  @override
+  String get preflight_mic_permission_denied =>
+      'Tarkk isn\'t allowed to use it';
+
+  @override
+  String get preflight_mic_no_frames =>
+      'Started, but no sound is coming through';
+
+  @override
+  String get preflight_mic_ok => 'Working';
+
+  @override
+  String get preflight_check_headset => 'Headset';
+
+  @override
+  String get preflight_route_bluetooth => 'Connected — Bluetooth headset';
+
+  @override
+  String get preflight_route_wired => 'Connected — wired headset';
+
+  @override
+  String get preflight_route_speaker => 'Playing through the phone speaker';
+
+  @override
+  String get preflight_route_unknown => 'Can\'t tell yet';
 }

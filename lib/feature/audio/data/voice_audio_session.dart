@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 
 import '../../../core/utils/logger.dart';
+import '../domain/entity/audio_route.dart';
 
 /// Bridge to the native voice-session helpers (see
 /// android/.../audio/AudioSessionHandler.kt and
@@ -72,6 +73,26 @@ abstract final class VoiceAudioSession {
       await _channel.invokeMethod<void>('releaseVoice');
     } catch (e) {
       Logger.log('Voice audio session release failed: $e');
+    }
+  }
+
+  /// What voice is actually routed through right now — Preflight's headset
+  /// check (#33). Read-only: never engages call mode, safe to call whether
+  /// or not a session has [configure]d voice yet. [AudioRoute.unknown] on any
+  /// platform without this channel (all of iOS today — no Swift counterpart
+  /// exists yet) or native failure; never treated as a failure by callers.
+  static Future<AudioRoute> getCurrentRoute() async {
+    try {
+      final raw = await _channel.invokeMethod<String>('getCurrentRoute');
+      return switch (raw) {
+        'bluetooth' => AudioRoute.bluetoothHeadset,
+        'wired' => AudioRoute.wired,
+        'speaker' => AudioRoute.builtInSpeaker,
+        _ => AudioRoute.unknown,
+      };
+    } catch (e) {
+      Logger.log('Voice audio route query failed: $e');
+      return AudioRoute.unknown;
     }
   }
 }

@@ -2623,6 +2623,60 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'خاموشه'**
   String get preflight_diagnostics_disabled;
+
+  /// No description provided for @preflight_check_mic.
+  ///
+  /// In fa, this message translates to:
+  /// **'میکروفون'**
+  String get preflight_check_mic;
+
+  /// No description provided for @preflight_mic_permission_denied.
+  ///
+  /// In fa, this message translates to:
+  /// **'ترک اجازه‌ی استفاده ازش رو نداره'**
+  String get preflight_mic_permission_denied;
+
+  /// No description provided for @preflight_mic_no_frames.
+  ///
+  /// In fa, this message translates to:
+  /// **'روشن شده، ولی صدایی نمی‌رسه'**
+  String get preflight_mic_no_frames;
+
+  /// No description provided for @preflight_mic_ok.
+  ///
+  /// In fa, this message translates to:
+  /// **'سالمه'**
+  String get preflight_mic_ok;
+
+  /// No description provided for @preflight_check_headset.
+  ///
+  /// In fa, this message translates to:
+  /// **'هدست'**
+  String get preflight_check_headset;
+
+  /// No description provided for @preflight_route_bluetooth.
+  ///
+  /// In fa, this message translates to:
+  /// **'وصله — هدست بلوتوث'**
+  String get preflight_route_bluetooth;
+
+  /// No description provided for @preflight_route_wired.
+  ///
+  /// In fa, this message translates to:
+  /// **'وصله — هدست سیمی'**
+  String get preflight_route_wired;
+
+  /// No description provided for @preflight_route_speaker.
+  ///
+  /// In fa, this message translates to:
+  /// **'صدا از بلندگوی گوشیه'**
+  String get preflight_route_speaker;
+
+  /// No description provided for @preflight_route_unknown.
+  ///
+  /// In fa, this message translates to:
+  /// **'هنوز معلوم نیست'**
+  String get preflight_route_unknown;
 }
 
 class _AppLocalizationsDelegate

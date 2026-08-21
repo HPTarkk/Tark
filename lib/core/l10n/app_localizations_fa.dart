@@ -1403,4 +1403,32 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get preflight_diagnostics_disabled => 'خاموشه';
+
+  @override
+  String get preflight_check_mic => 'میکروفون';
+
+  @override
+  String get preflight_mic_permission_denied =>
+      'ترک اجازه‌ی استفاده ازش رو نداره';
+
+  @override
+  String get preflight_mic_no_frames => 'روشن شده، ولی صدایی نمی‌رسه';
+
+  @override
+  String get preflight_mic_ok => 'سالمه';
+
+  @override
+  String get preflight_check_headset => 'هدست';
+
+  @override
+  String get preflight_route_bluetooth => 'وصله — هدست بلوتوث';
+
+  @override
+  String get preflight_route_wired => 'وصله — هدست سیمی';
+
+  @override
+  String get preflight_route_speaker => 'صدا از بلندگوی گوشیه';
+
+  @override
+  String get preflight_route_unknown => 'هنوز معلوم نیست';
 }

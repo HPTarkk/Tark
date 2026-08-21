@@ -419,5 +419,14 @@
     "preflight_check_diagnostics": "گزارش فنی",
     "preflight_diagnostics_ok": "آماده‌ی ثبت شواهد پشتیبانیه",
     "preflight_diagnostics_memory_only": "در حال ثبته، ولی با بسته شدن برنامه از بین می‌ره",
-    "preflight_diagnostics_disabled": "خاموشه"
+    "preflight_diagnostics_disabled": "خاموشه",
+    "preflight_check_mic": "میکروفون",
+    "preflight_mic_permission_denied": "ترک اجازه‌ی استفاده ازش رو نداره",
+    "preflight_mic_no_frames": "روشن شده، ولی صدایی نمی‌رسه",
+    "preflight_mic_ok": "سالمه",
+    "preflight_check_headset": "هدست",
+    "preflight_route_bluetooth": "وصله — هدست بلوتوث",
+    "preflight_route_wired": "وصله — هدست سیمی",
+    "preflight_route_speaker": "صدا از بلندگوی گوشیه",
+    "preflight_route_unknown": "هنوز معلوم نیست"
 }
