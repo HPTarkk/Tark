@@ -22,13 +22,18 @@ import android.os.Looper
 /**
  * Foreground service that captures other apps' playback (music, navigation
  * prompts — NOT phone calls, which the OS never exposes) via the Android 10+
- * AudioPlaybackCapture API and hands 16 kHz mono frames to
- * [SystemAudioHandler] for mixing into the walkie transmit stream.
+ * AudioPlaybackCapture API and hands frames to [SystemAudioHandler] for
+ * mixing into the walkie transmit stream.
  *
  * MediaProjection rules require the projection to be used from a foreground
  * service with type mediaProjection — that is this service's only job.
- * Capture runs at 48 kHz stereo (the guaranteed-supported format), then is
- * downmixed and box-filter decimated ×3 to the pipeline's 16 kHz mono.
+ * Capture always runs at 48 kHz stereo (the guaranteed-supported format).
+ * From there it fans out to two independent listeners on every read:
+ * [frameListener] gets it downmixed and box-filter decimated ×3 to the
+ * legacy 16 kHz mono `MusicMixer` still expects, and [hdFrameListener] (#29)
+ * gets the same buffer untouched — genuine 48 kHz interleaved stereo, no
+ * downmix, no decimation. Whether anything is subscribed to the HD listener
+ * has no effect on the legacy path or on each other.
  *
  * Apps can opt out of playback capture (some streaming apps do); those
  * simply come through as silence.
@@ -59,6 +64,22 @@ class SystemAudioCaptureService : Service() {
         /** Set by [SystemAudioHandler]; invoked on the main thread. */
         @Volatile
         var frameListener: ((DoubleArray) -> Unit)? = null
+
+        /**
+         * Set by [SystemAudioHandler]; invoked on the main thread with the
+         * genuine captured audio — 48 kHz, interleaved stereo, normalized to
+         * [-1, 1] — with none of [frameListener]'s downmix/decimation applied.
+         *
+         * Added for #29 (HD Shared Music) alongside [frameListener], not in
+         * place of it: [frameListener] is what `MusicMixer` consumes today
+         * and stays byte-for-byte what it always was, so this is purely
+         * additive — nothing about the existing Music Cast path changes by
+         * this listener existing, whether or not anything is subscribed to
+         * it. Genuinely unverified on a physical device this session, same
+         * caveat as every other native audio change in this repo.
+         */
+        @Volatile
+        var hdFrameListener: ((DoubleArray) -> Unit)? = null
 
         /** Set by [SystemAudioHandler]; invoked on the main thread when the
          *  capture stream produces nothing usable for [STALL_TIMEOUT_MS] (see
@@ -220,6 +241,19 @@ class SystemAudioCaptureService : Service() {
                     )
                     diagPeak = 0
                 }
+
+                // Genuine-fidelity path for #29: the same `stereo` buffer this
+                // read just filled, normalized in place with no downmix and no
+                // decimation — everything the box filter above throws away.
+                val hdListener = hdFrameListener
+                if (hdListener != null) {
+                    val hdOut = DoubleArray(frames * 2)
+                    for (s in 0 until frames * 2) {
+                        hdOut[s] = stereo[s] / 32768.0
+                    }
+                    mainHandler.post { hdListener(hdOut) }
+                }
+
                 val listener = frameListener ?: continue
                 mainHandler.post { listener(out) }
             }

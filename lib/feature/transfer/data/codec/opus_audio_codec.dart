@@ -60,8 +60,14 @@ class OpusDecodeResult {
   final List<double>? recoveredPrevious;
 }
 
-/// Opus codec for the mono transmit stream, at whichever [AudioFormatProfile]
+/// Opus codec for one transmit stream, at whichever [AudioFormatProfile]
 /// [setFormatProfile] last set (default [AudioFormatProfile.legacy16k]).
+/// Mono or interleaved stereo per that profile's [AudioFormatProfile.channels]
+/// — every encoder/decoder construction site reads it from there, so an
+/// instance never assumes a channel count of its own. One instance handles
+/// one stream: a voice instance and a #29 HD-media instance are two separate
+/// objects, each with its own profile/tuning/rungs, sharing nothing but the
+/// static libopus handle.
 ///
 /// PCM16 at 16 kHz costs 256 kbps on the wire — fine on an idle LAN, but on
 /// a lossy hotspot link between two motorcycles every dropped ~660-byte
@@ -205,13 +211,24 @@ class OpusAudioCodec {
   /// [FecGapTracker].
   final FecGapTracker _gaps = FecGapTracker();
 
+  /// Interleaved sample count of one wire frame — [AudioFormatProfile
+  /// .frameSamples] is per channel, and everywhere a raw sample count is
+  /// compared against a frame boundary (encode, PCM packing) needs the
+  /// interleaved total instead.
+  int get _interleavedFrameSamples =>
+      _formatProfile.frameSamples * _formatProfile.channels;
+
   /// Encodes one frame sized per the active [AudioFormatProfile]. Returns
   /// null when Opus is unavailable or the frame has an unexpected length
   /// (callers then send PCM16 instead).
+  ///
+  /// [samples] is interleaved when [AudioFormatProfile.channels] is 2 (L, R,
+  /// L, R, ...), same convention as libopus and every PCM API this codec
+  /// talks to.
   Uint8List? encode(List<double> samples) {
     if (!_initialized) return null;
     // Opus only accepts exact frame sizes (2.5/5/10/20/40/60 ms).
-    if (samples.length != _formatProfile.frameSamples) {
+    if (samples.length != _interleavedFrameSamples) {
       return null;
     }
     try {
@@ -243,7 +260,7 @@ class OpusAudioCodec {
     final built = tryCreateControlledOpusEncoder(
       library: _library,
       sampleRate: _formatProfile.sampleRateHz,
-      channels: 1,
+      channels: _formatProfile.channels,
       application: _profile.applicationCode,
     );
     if (built != null) {
@@ -264,7 +281,7 @@ class OpusAudioCodec {
     );
     final simpleEncoder = SimpleOpusEncoder(
       sampleRate: _formatProfile.sampleRateHz,
-      channels: 1,
+      channels: _formatProfile.channels,
       application: _profile.application,
     );
     _encoder = simpleEncoder;
@@ -311,7 +328,7 @@ class OpusAudioCodec {
 
       final decoder = _decoders[senderId] ??= SimpleOpusDecoder(
         sampleRate: _formatProfile.sampleRateHz,
-        channels: 1,
+        channels: _formatProfile.channels,
       );
       // Tracked even on this rung, which cannot recover anything: the sender
       // may move onto a controlled decoder after a reset, and starting it with
@@ -372,7 +389,7 @@ class OpusAudioCodec {
     final built = tryCreateControlledOpusDecoder(
       library: _library,
       sampleRate: _formatProfile.sampleRateHz,
-      channels: 1,
+      channels: _formatProfile.channels,
     );
     if (built == null) return null;
     _controlledDecoders[senderId] = built;

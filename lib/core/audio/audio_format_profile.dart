@@ -1,5 +1,12 @@
 import 'package:equatable/equatable.dart';
 
+/// Which negotiation/capability space a profile belongs to. [supported] and
+/// [mediaSupported] are kept as two separate ranked lists precisely so a
+/// media profile can never be picked by voice's negotiation — [kind] is what
+/// documents and enforces that split at the type level rather than by
+/// convention alone.
+enum AudioProfileKind { voice, media }
+
 /// The wire-format contract for one direction of real-time audio: sample
 /// rate, channel count, and frame duration.
 ///
@@ -27,19 +34,29 @@ class AudioFormatProfile extends Equatable {
     required this.channels,
     required this.frameDurationMs,
     required this.label,
+    this.kind = AudioProfileKind.voice,
   });
 
   /// Stable wire capability id, once shipped — this is what a peer advertises
   /// and what negotiation picks between. Never renumber a shipped profile.
+  /// Voice and media share this id space (each id still maps to exactly one
+  /// profile) even though they negotiate through separate lists — see [kind].
   final int id;
 
   final int sampleRateHz;
 
-  /// 1 today. Carried as a field rather than assumed so a future stereo
-  /// profile (e.g. for #29's HD music) isn't a shape change to this class.
+  /// 1 for mono, 2 for interleaved stereo. Carried as a field rather than
+  /// assumed so #29's stereo media profiles are not a shape change to this
+  /// class.
   final int channels;
 
   final int frameDurationMs;
+
+  /// [AudioProfileKind.voice] or [AudioProfileKind.media]. Purely a
+  /// classification/diagnostics tag — [supported] and [mediaSupported] are
+  /// the two lists actually consulted at negotiation time, and each already
+  /// only contains profiles of the matching kind by construction.
+  final AudioProfileKind kind;
 
   /// Samples in one wire frame. Opus only accepts exact frame durations
   /// (2.5/5/10/20/40/60 ms), so this is a hard constraint on the capture path
@@ -69,12 +86,12 @@ class AudioFormatProfile extends Equatable {
     label: '24k-HD',
   );
 
-  /// Every profile this build can negotiate to, highest-preference-first.
+  /// Every voice profile this build can negotiate to, highest-preference-first.
   ///
-  /// The single source of truth both the capability negotiator and (later)
-  /// #29's media-profile registry key off. Ids 3+ are reserved for a future
-  /// media profile so #29 can extend this without touching voice's
-  /// numbering.
+  /// The single source of truth [AudioCapabilityNegotiator] keys off for
+  /// voice. Media profiles ([media48kStereo]/[media48kMono]) are
+  /// deliberately **not** in this list — see [mediaSupported] — so media
+  /// capability can never be picked for the voice channel.
   ///
   /// [hd24k] was gated to debug builds ([kDebugMode]) through #28's first
   /// three checkpoints, pending the owner/field validation a coding session
@@ -88,11 +105,48 @@ class AudioFormatProfile extends Equatable {
   /// [hd24k] support, so this is additive, not a break for older builds.
   static const supported = [hd24k, legacy16k];
 
+  /// #29's HD Shared Music target: 48 kHz, genuinely stereo when the capture
+  /// path provides real stereo. Never used to manufacture stereo from a mono
+  /// source — see [media48kMono] and `MusicMixer`'s capture-fidelity docs.
+  static const media48kStereo = AudioFormatProfile(
+    id: 3,
+    sampleRateHz: 48000,
+    channels: 2,
+    frameDurationMs: 20,
+    label: '48k-HD-stereo',
+    kind: AudioProfileKind.media,
+  );
+
+  /// Same wire rate as [media48kStereo], truthful mono for a capture path
+  /// that genuinely only provides one channel.
+  static const media48kMono = AudioFormatProfile(
+    id: 4,
+    sampleRateHz: 48000,
+    channels: 1,
+    frameDurationMs: 20,
+    label: '48k-HD-mono',
+    kind: AudioProfileKind.media,
+  );
+
+  /// Every media profile this build can negotiate to, highest-preference-
+  /// first. Kept separate from [supported] on purpose — see that field's
+  /// doc. Negotiator/presence-bitmask wiring for media capability is a later
+  /// checkpoint; this list exists now so the codec/bitrate primitives it
+  /// feeds (`OpusAudioCodec`, `MediaOpusTuner`) have a fixed id space to
+  /// build and test against.
+  static const mediaSupported = [media48kStereo, media48kMono];
+
   @override
-  List<Object?> get props => [id, sampleRateHz, channels, frameDurationMs];
+  List<Object?> get props => [
+    id,
+    sampleRateHz,
+    channels,
+    frameDurationMs,
+    kind,
+  ];
 
   @override
   String toString() =>
       'AudioFormatProfile($label, ${sampleRateHz}Hz, ${channels}ch, '
-      '${frameDurationMs}ms/$frameSamples samples)';
+      '${frameDurationMs}ms/$frameSamples samples, ${kind.name})';
 }

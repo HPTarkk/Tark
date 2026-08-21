@@ -3,21 +3,40 @@ import 'dart:typed_data';
 
 import 'package:flutter/services.dart';
 
+import '../../../core/audio/audio_format_profile.dart';
 import '../../../core/utils/logger.dart';
 
 /// Bridge to Android's system-audio capture (see
 /// android/.../audio/SystemAudioHandler.kt and SystemAudioCaptureService.kt).
 ///
 /// Streams other apps' playback (music, navigation — never phone calls,
-/// which no app can capture) as 16 kHz mono samples for mixing into the
-/// transmit path. Android 10+ only; [isSupported] is false everywhere else,
-/// including all of iOS (Apple offers no equivalent API without a
-/// screen-broadcast extension).
+/// which no app can capture). Android 10+ only; [isSupported] is false
+/// everywhere else, including all of iOS (Apple offers no equivalent API
+/// without a screen-broadcast extension).
+///
+/// Two independent streams come off the same native capture:
+/// - [frames]: 16 kHz mono, for mixing into the transmit path — what
+///   `MusicMixer` has always consumed, unchanged.
+/// - [hdFrames] (#29): genuine 48 kHz interleaved stereo, matching
+///   [AudioFormatProfile.media48kStereo] — [hdFormat] describes what it
+///   carries. Nothing in production subscribes to this yet; it exists for
+///   the HD Shared Music codec/profile work ahead of #30's network
+///   integration. Subscribing has no effect on [frames].
 abstract final class SystemAudioCapture {
   static const _methods = MethodChannel('tark/system_audio');
   static const _frameEvents = EventChannel('tark/system_audio/frames');
+  static const _hdFrameEvents = EventChannel('tark/system_audio/hd_frames');
 
   static Stream<List<double>>? _frames;
+  static Stream<List<double>>? _hdFrames;
+
+  /// The wire-format contract [hdFrames] always delivers. A constant, not a
+  /// query, because the native capture path always requests Android's one
+  /// guaranteed-supported playback-capture format (48 kHz stereo) — see
+  /// `SystemAudioCaptureService.CAPTURE_RATE`. If a genuinely mono capture
+  /// source is ever added, this becomes a real per-session query instead of
+  /// a constant.
+  static const hdFormat = AudioFormatProfile.media48kStereo;
 
   static Future<bool> get isSupported async {
     if (!Platform.isAndroid) return false;
@@ -62,6 +81,15 @@ abstract final class SystemAudioCapture {
 
   /// Captured playback as normalized 16 kHz mono chunks (~100 ms each).
   static Stream<List<double>> get frames => _frames ??= _frameEvents
+      .receiveBroadcastStream()
+      .map((event) => (event as Float64List).toList());
+
+  /// Captured playback as normalized, genuinely 48 kHz interleaved-stereo
+  /// chunks (~100 ms each; interleaved sample count, so ~2x [frames]'
+  /// element count for the same time window) — see [hdFormat] and the class
+  /// doc. Independent broadcast stream from [frames]; starting/stopping a
+  /// subscription here doesn't touch the legacy path.
+  static Stream<List<double>> get hdFrames => _hdFrames ??= _hdFrameEvents
       .receiveBroadcastStream()
       .map((event) => (event as Float64List).toList());
 }

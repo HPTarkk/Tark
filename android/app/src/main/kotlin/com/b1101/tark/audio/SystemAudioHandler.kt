@@ -29,7 +29,14 @@ import io.flutter.plugin.common.MethodChannel
  *                  media-volume change, not per-app)
  *
  * Events (channel "tark/system_audio/frames"): Float64List of 16 kHz mono
- * samples, normalized to [-1, 1].
+ * samples, normalized to [-1, 1] — the legacy path `MusicMixer` consumes.
+ *
+ * Events (channel "tark/system_audio/hd_frames", #29): Float64List of the
+ * same capture, genuinely 48 kHz interleaved stereo, normalized to [-1, 1].
+ * Nothing subscribes to this in production yet — it exists so #29's HD media
+ * codec/profile work has real capture data to build and test against, ahead
+ * of the network integration issue #30 owns. Subscribing or not has no
+ * effect on the legacy "frames" stream.
  */
 class SystemAudioHandler(
     messenger: BinaryMessenger,
@@ -44,8 +51,24 @@ class SystemAudioHandler(
     private var sink: EventChannel.EventSink? = null
     private var pendingStart: MethodChannel.Result? = null
 
+    /** Sink for the #29 HD stream — separate object so its lifecycle
+     *  (onListen/onCancel) is independent of the legacy [sink] above. */
+    private val hdStreamHandler = object : EventChannel.StreamHandler {
+        var hdSink: EventChannel.EventSink? = null
+
+        override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+            hdSink = events
+        }
+
+        override fun onCancel(arguments: Any?) {
+            hdSink = null
+        }
+    }
+
     init {
         EventChannel(messenger, "tark/system_audio/frames").setStreamHandler(this)
+        EventChannel(messenger, "tark/system_audio/hd_frames")
+            .setStreamHandler(hdStreamHandler)
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
@@ -83,6 +106,7 @@ class SystemAudioHandler(
             "stop" -> {
                 val context = activityProvider()
                 SystemAudioCaptureService.frameListener = null
+                SystemAudioCaptureService.hdFrameListener = null
                 SystemAudioCaptureService.stalledListener = null
                 // Cleared before the service goes down, or its own onStop
                 // callback would report the teardown we just asked for as a
@@ -126,6 +150,9 @@ class SystemAudioHandler(
         if (resultCode == Activity.RESULT_OK && data != null && activity != null) {
             SystemAudioCaptureService.frameListener = { frame ->
                 mainHandler.post { sink?.success(frame) }
+            }
+            SystemAudioCaptureService.hdFrameListener = { frame ->
+                mainHandler.post { hdStreamHandler.hdSink?.success(frame) }
             }
             // See SystemAudioCaptureService's class doc: confirmed on MIUI, the
             // capture stream can silently deliver zero frames forever while our

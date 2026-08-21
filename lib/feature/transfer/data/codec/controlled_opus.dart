@@ -35,7 +35,9 @@ import '../../domain/entity/opus_tuning.dart';
 
 /// An Opus encoder whose settings can be changed while it runs.
 abstract interface class ControlledOpusEncoder {
-  /// Encodes one frame of mono PCM16 and returns the Opus packet.
+  /// Encodes one frame of PCM16 and returns the Opus packet. Interleaved
+  /// (L, R, L, R, ...) when the encoder was built for 2 channels, same
+  /// convention libopus itself uses.
   ///
   /// Throws on a native error, like the `opus_dart` encoder it replaces, so the
   /// existing per-frame failure counting keeps working unchanged.
