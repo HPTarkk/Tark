@@ -132,6 +132,12 @@ class AudioEngineImpl implements AudioEngine {
   bool _duckingEnabled = true;
   bool _localVoiceActive = false;
 
+  /// Last logged ducked/normal state, so [_advanceDucking] only writes to
+  /// `.tarklog` on a real `normal→ducked→normal` transition (#31's own
+  /// "no per-frame spam" rule) rather than every frame either mixing path
+  /// advances the envelope.
+  bool _wasDucked = false;
+
   AudioPlaybackBuffer? _buffer;
 
   // #30: Shared Music's own receive-side jitter buffer, independent of
@@ -362,7 +368,8 @@ class AudioEngineImpl implements AudioEngine {
       await VoiceAudioSession.attachEffects(sessionId);
 
       final fmt = await _audioIo.getFormat();
-      _inputRate = (fmt?['input']?['sampleRate'] as num?)?.toDouble() ?? 48000.0;
+      _inputRate =
+          (fmt?['input']?['sampleRate'] as num?)?.toDouble() ?? 48000.0;
       _outputRate =
           (fmt?['output']?['sampleRate'] as num?)?.toDouble() ?? _inputRate;
       // Diagnostic, not debug: the rates the OS actually handed us decide
@@ -400,8 +407,7 @@ class AudioEngineImpl implements AudioEngine {
         output: _MixingOutputSink(
           _audioIo.output,
           () => _mediaBuffer,
-          _ducking,
-          duckingEnabled: () => _duckingEnabled,
+          advanceDucking: _advanceDucking,
           outputRate: () => _outputRate,
         ),
         sampleRate: _outputRate.toInt(),
@@ -746,13 +752,45 @@ class AudioEngineImpl implements AudioEngine {
 
   @override
   void setSmartMusicDuckingEnabled(bool enabled) {
+    // Covers both #31's "log enabled/disabled at session start" (the
+    // cubit's _init pushes the loaded setting here before anything else
+    // touches this engine) and every later toggle, from the one chokepoint
+    // both paths already go through — no separate session-start log needed.
+    Logger.diagnostic('music ducking: ${enabled ? 'enabled' : 'disabled'}');
     _duckingEnabled = enabled;
     // Immediately, not just "stop ducking further" — off must mean shared
     // music's gain is completely unchanged (#31), and a duck already in
     // progress the instant the user flips this is exactly the case that
     // would otherwise leave it audibly stuck low with nothing left running
     // to release it.
-    if (!enabled) _ducking.reset();
+    if (!enabled) {
+      _ducking.reset();
+      _wasDucked = false;
+    }
+  }
+
+  /// Advances the shared [_ducking] envelope (a no-op returning unity gain
+  /// while disabled) and logs a `.tarklog` line on a real ducked/normal
+  /// transition — shared by [_MixingOutputSink.add] and
+  /// [_mediaCoordinatorTick] so the edge-detection and rate-limiting exist
+  /// in exactly one place rather than being duplicated per call site.
+  double _advanceDucking({
+    required bool voiceActive,
+    required int frameDurationMs,
+  }) {
+    if (!_duckingEnabled) return 1.0;
+    final gain = _ducking.advance(
+      voiceActive: voiceActive,
+      frameDurationMs: frameDurationMs,
+    );
+    final isDucked = _ducking.isDucked;
+    if (isDucked != _wasDucked) {
+      _wasDucked = isDucked;
+      Logger.diagnostic(
+        'music ducking: ${isDucked ? 'normal -> ducked' : 'ducked -> normal'}',
+      );
+    }
+    return gain;
   }
 
   @override
@@ -828,12 +866,10 @@ class AudioEngineImpl implements AudioEngine {
     // Remote voice is guaranteed NOT draining here (the guard above), so the
     // local VOX flag is the only signal left that can still call for a duck
     // — see [_MixingOutputSink.add] for the other half of this split.
-    final gain = _duckingEnabled
-        ? _ducking.advance(
-            voiceActive: _localVoiceActive,
-            frameDurationMs: _kCoordinatorFrameMs,
-          )
-        : 1.0;
+    final gain = _advanceDucking(
+      voiceActive: _localVoiceActive,
+      frameDurationMs: _kCoordinatorFrameMs,
+    );
     _audioIo.output.add(gain == 1.0 ? media : _scale(media, gain));
   }
 
@@ -899,11 +935,14 @@ class AudioEngineImpl implements AudioEngine {
 class _MixingOutputSink implements Sink<List<double>> {
   _MixingOutputSink(
     this._real,
-    this._mediaBuffer,
-    this._ducking, {
-    required bool Function() duckingEnabled,
+    this._mediaBuffer, {
+    required double Function({
+      required bool voiceActive,
+      required int frameDurationMs,
+    })
+    advanceDucking,
     required double Function() outputRate,
-  }) : _duckingEnabled = duckingEnabled,
+  }) : _advanceDucking = advanceDucking,
        _outputRate = outputRate;
 
   final Sink<List<double>> _real;
@@ -914,12 +953,15 @@ class _MixingOutputSink implements Sink<List<double>> {
   /// is current rather than one frozen at construction time.
   final MediaReceiveBuffer? Function() _mediaBuffer;
 
-  /// #31 — the one envelope instance [AudioEngineImpl] shares with
-  /// [AudioEngineImpl._mediaCoordinatorTick]; a direct reference rather than
-  /// a closure because, unlike [_mediaBuffer], it is never rebuilt on a route
-  /// change and both sites must advance the same state.
-  final MusicDuckingEnvelope _ducking;
-  final bool Function() _duckingEnabled;
+  /// #31 — bound to [AudioEngineImpl._advanceDucking], which owns the one
+  /// envelope instance shared with [AudioEngineImpl._mediaCoordinatorTick]
+  /// plus the edge-detection that logs a transition at most once per real
+  /// ducked/normal change, not once per call site.
+  final double Function({
+    required bool voiceActive,
+    required int frameDurationMs,
+  })
+  _advanceDucking;
   final double Function() _outputRate;
 
   @override
@@ -932,15 +974,13 @@ class _MixingOutputSink implements Sink<List<double>> {
     // This call itself is the "remote voice is playing right now" signal —
     // it only ever runs when [data] is a real voice frame the jitter buffer
     // just drained, so voiceActive is unconditionally true here regardless
-    // of [_localVoiceActive] (that flag is what the OTHER mixing site,
+    // of the local VOX flag (that's what the OTHER mixing site,
     // [AudioEngineImpl._mediaCoordinatorTick], has to fall back on, since it
     // only ever runs when remote voice is NOT draining).
-    final gain = _duckingEnabled()
-        ? _ducking.advance(
-            voiceActive: true,
-            frameDurationMs: (data.length / _outputRate() * 1000).round(),
-          )
-        : 1.0;
+    final gain = _advanceDucking(
+      voiceActive: true,
+      frameDurationMs: (data.length / _outputRate() * 1000).round(),
+    );
     final mixed = Float64List(data.length);
     for (var i = 0; i < data.length; i++) {
       mixed[i] = (data[i] + media[i] * gain).clamp(-1.0, 1.0);
