@@ -397,7 +397,7 @@
   // the style engine busy for the entire length of the page; now each
   // block is held still until it is actually near the viewport.
   const loopBlocks = document.querySelectorAll(
-    '.signal-divider, .hero-phone, .music-eq, .ticker'
+    '.signal-divider, .hero-phone, .music-eq, .ticker, .preflight-phone'
   );
   if (loopBlocks.length) {
     const idleObserver = new IntersectionObserver(

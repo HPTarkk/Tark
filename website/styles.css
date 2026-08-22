@@ -1380,6 +1380,110 @@ html.is-ios .nav-inner {
 .music-eq span:nth-child(5n)  { animation-delay: .12s; height: 34%; }
 .music-eq span:nth-child(7n)  { animation-delay: .66s; height: 90%; }
 
+/* ── Preflight ──────────────────────────────────────────────────────── */
+
+.preflight-grid {
+  display: grid;
+  grid-template-columns: .9fr 1.1fr;
+  gap: 50px;
+  align-items: center;
+}
+
+.preflight-copy p:not(.eyebrow) { color: var(--text-sec); margin-top: 16px; max-width: 48ch; }
+
+.preflight-phone-wrap { display: flex; justify-content: center; }
+
+/* Visually leads with the phone on wide screens while staying textbefore-
+   image in the markup (better reading order, better for anyone whose
+   browser never paints the decorative mockup at all). */
+@media (min-width: 861px) {
+  .preflight-phone-wrap { order: -1; }
+}
+
+/* Reuses .phone/.phone-notch/.phone-screen as-is (see the hero mockup) —
+   same physical device, different screen content, so this reads as "here's
+   what's actually inside the app" rather than a second invented phone. */
+.pf-header { display: flex; justify-content: center; margin-bottom: 2px; }
+.pf-title { color: var(--amber); font-size: .55rem; font-weight: 900; letter-spacing: .35em; }
+
+.pf-rows { flex: 1; display: flex; flex-direction: column; gap: 7px; justify-content: center; }
+
+.pf-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 7px 10px;
+}
+
+.pf-row b { flex: 1; font-size: .6rem; font-weight: 700; color: var(--text-sec); }
+
+.pf-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--text-sec);
+  opacity: .4;
+  flex-shrink: 0;
+}
+
+/* One shared resolve curve, restaggered per row by animation-delay alone —
+   the same trick .music-eq's nth-child delays use above. Dim, a bright
+   green hold, dim again as the shared loop resets; each row just starts
+   its own copy of the cycle a little later than the last. */
+@keyframes pfResolve {
+  0%, 6%    { background: var(--text-sec); box-shadow: none; opacity: .4; }
+  14%       { background: var(--green); box-shadow: 0 0 8px var(--green); opacity: 1; }
+  86%       { background: var(--green); box-shadow: 0 0 8px var(--green); opacity: 1; }
+  96%, 100% { background: var(--text-sec); box-shadow: none; opacity: .4; }
+}
+
+.pf-row1 .pf-dot { animation: pfResolve 8s ease-in-out infinite; }
+.pf-row2 .pf-dot { animation: pfResolve 8s ease-in-out infinite; animation-delay: .7s; }
+.pf-row3 .pf-dot { animation: pfResolve 8s ease-in-out infinite; animation-delay: 1.4s; }
+.pf-row4 .pf-dot { animation: pfResolve 8s ease-in-out infinite; animation-delay: 2.1s; }
+.pf-row5 .pf-dot { animation: pfResolve 8s ease-in-out infinite; animation-delay: 2.8s; }
+
+.pf-cta {
+  margin-top: 4px;
+  text-align: center;
+  border-radius: 10px;
+  padding: 8px 0;
+  font-size: .58rem;
+  font-weight: 800;
+  letter-spacing: .15em;
+  border: 1px solid var(--border);
+  color: var(--text-sec);
+  background: transparent;
+  animation: pfCtaReady 8s ease-in-out infinite;
+  animation-delay: 3.2s;
+}
+
+/* Same shape as .pf-row's own resolve curve (6%/14%/86%/96%) — with a 3.2s
+   delay this lands ~0.4s after the last row (row5 resolves at 3.92s
+   absolute), a deliberate beat behind the checklist rather than in step
+   with it, then holds and resets in lockstep with every row's own fade. */
+@keyframes pfCtaReady {
+  0%, 6%    { background: transparent; border-color: var(--border); color: var(--text-sec); }
+  14%       { background: var(--green); border-color: var(--green); color: #07110A; }
+  86%       { background: var(--green); border-color: var(--green); color: #07110A; }
+  96%, 100% { background: transparent; border-color: var(--border); color: var(--text-sec); }
+}
+
+/* The whole phone glows the same colour the CTA does — "ready" reads on the
+   device itself, not only inside one row. Overrides .phone's own animation
+   shorthand to add this as a second animation without dropping the float. */
+.preflight-phone .phone {
+  animation: phoneFloat 6s ease-in-out infinite, pfPhoneGlow 8s ease-in-out infinite;
+}
+
+@keyframes pfPhoneGlow {
+  0%, 44%   { box-shadow: 0 30px 80px rgba(0, 0, 0, .6), 0 0 60px rgba(245, 133, 63, .08); }
+  54%, 86%  { box-shadow: 0 30px 80px rgba(0, 0, 0, .6), 0 0 70px rgba(76, 175, 80, .22); }
+  96%, 100% { box-shadow: 0 30px 80px rgba(0, 0, 0, .6), 0 0 60px rgba(245, 133, 63, .08); }
+}
+
 /* ── Under the hood (spec grid) ────────────────────────────────────── */
 
 .tech {
@@ -1921,6 +2025,7 @@ footer p { color: var(--text-sec); font-size: .82rem; margin-top: 22px; }
   /* .nav-links is not hidden here any more — it becomes the drop-down panel
      instead (see "Mobile menu"). */
   .music-grid { grid-template-columns: 1fr; }
+  .preflight-grid { grid-template-columns: 1fr; }
   .hs-steps { flex-direction: column; gap: 12px; }
   .hs-step { opacity: .45; }
 }
