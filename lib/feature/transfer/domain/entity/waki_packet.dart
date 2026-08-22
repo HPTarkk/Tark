@@ -38,7 +38,12 @@ sealed class WakiPacket extends Equatable {
   bool get hasSessionEpoch => sessionEpoch != kUnknownSessionEpoch;
 
   @override
-  List<Object?> get props => [senderId, senderName, sessionEpoch, channelId.value];
+  List<Object?> get props => [
+    senderId,
+    senderName,
+    sessionEpoch,
+    channelId.value,
+  ];
 }
 
 final class PresencePacket extends WakiPacket {
@@ -75,6 +80,18 @@ final class PresencePacket extends WakiPacket {
   /// [AudioCapabilityNegotiator].
   final int capabilityBitmask;
 
+  /// Whether the sender is announcing its own departure rather than stating
+  /// it is present.
+  ///
+  /// A graceful goodbye rather than the passive way every departure has
+  /// always been noticed — 8+ seconds of silence past
+  /// [ChannelRoster.staleAfterSeconds]. False from a build that predates this
+  /// field, the same "no opinion" default as every trailing byte before it
+  /// (see [capabilityBitmask]): a normal presence tick simply stops one byte
+  /// short of a leave announcement, and reads as still-present, which is
+  /// correct — that build has no way to send this at all.
+  final bool isLeaving;
+
   const PresencePacket({
     required super.senderId,
     required super.senderName,
@@ -84,6 +101,7 @@ final class PresencePacket extends WakiPacket {
     this.role = SessionRole.unknown,
     this.heardIds,
     this.capabilityBitmask = 0,
+    this.isLeaving = false,
   });
 
   @override
@@ -93,6 +111,7 @@ final class PresencePacket extends WakiPacket {
     role,
     heardIds,
     capabilityBitmask,
+    isLeaving,
   ];
 }
 

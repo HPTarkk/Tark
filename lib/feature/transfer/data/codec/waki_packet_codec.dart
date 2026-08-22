@@ -215,7 +215,12 @@ class WakiPacketCodec {
   Uint8List encodeMediaAudio(List<double> samples, String senderName, int seq) {
     final opusPacket = _mediaOpus.encode(samples);
     if (opusPacket != null) {
-      return _buildAudioPacket(kOpusMediaAudioByte, senderName, seq, opusPacket);
+      return _buildAudioPacket(
+        kOpusMediaAudioByte,
+        senderName,
+        seq,
+        opusPacket,
+      );
     }
     final audioData = ByteData(samples.length * 2);
     for (int i = 0; i < samples.length; i++) {
@@ -250,6 +255,7 @@ class WakiPacketCodec {
     bool isTalking, {
     required SessionRole role,
     List<String>? heardIds,
+    bool isLeaving = false,
   }) {
     final builder = _startPacket(
       _sessionType(kPresenceV3Byte, kPresenceV4Byte),
@@ -306,6 +312,9 @@ class WakiPacketCodec {
     // without it, a point-to-point transport's presence would end right
     // where this byte begins, and it would be misread as a heard-id count.
     builder.addByte(AudioCapabilityNegotiator.localBitmask);
+    // Appended last, by the same "old build stops reading first" reasoning
+    // as every field above it — see [PresencePacket.isLeaving].
+    builder.addByte(isLeaving ? 0x01 : 0x00);
     return builder.toBytes();
   }
 
@@ -457,6 +466,14 @@ class WakiPacketCodec {
         type == kPresenceV4Byte) {
       if (bytes.length < bodyStart + 1) return null;
       final (heardIds, afterHeardIds) = _decodeHeardIds(bytes, bodyStart + 2);
+      // Optional again, and after heardIds (real or the no-opinion
+      // sentinel): absent from every build before #28, and from a
+      // truncated packet — both read as "legacy only", the safe default.
+      final hasCapability = afterHeardIds < bytes.length;
+      // Optional last of all, and after capability: absent from every build
+      // before this field existed, which reads as "still present" — see
+      // [PresencePacket.isLeaving].
+      final leavingOffset = afterHeardIds + 1;
       return PresencePacket(
         senderId: senderId,
         senderName: name,
@@ -470,12 +487,11 @@ class WakiPacketCodec {
         // Optional again, and after the role: absent from every build before
         // the heard list existed.
         heardIds: heardIds,
-        // Optional again, and after heardIds (real or the no-opinion
-        // sentinel): absent from every build before #28, and from a
-        // truncated packet — both read as "legacy only", the safe default.
-        capabilityBitmask: afterHeardIds < bytes.length
-            ? bytes[afterHeardIds]
-            : 0,
+        capabilityBitmask: hasCapability ? bytes[afterHeardIds] : 0,
+        isLeaving:
+            hasCapability &&
+            leavingOffset < bytes.length &&
+            bytes[leavingOffset] == 0x01,
       );
     }
 

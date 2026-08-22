@@ -567,6 +567,11 @@ class AppLocalizationsFa extends AppLocalizations {
   String get link_down => 'ارتباط قطع شد';
 
   @override
+  String peer_left_channel(Object name) {
+    return '$name از کانال خارج شد';
+  }
+
+  @override
   String get transport_hotspot => 'هات‌اسپات';
 
   @override

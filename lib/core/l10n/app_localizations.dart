@@ -1136,6 +1136,12 @@ abstract class AppLocalizations {
   /// **'ارتباط قطع شد'**
   String get link_down;
 
+  /// No description provided for @peer_left_channel.
+  ///
+  /// In fa, this message translates to:
+  /// **'{name} از کانال خارج شد'**
+  String peer_left_channel(Object name);
+
   /// No description provided for @transport_hotspot.
   ///
   /// In fa, this message translates to:

@@ -568,6 +568,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get link_down => 'Connection lost';
 
   @override
+  String peer_left_channel(Object name) {
+    return '$name left the channel';
+  }
+
+  @override
   String get transport_hotspot => 'HOTSPOT';
 
   @override

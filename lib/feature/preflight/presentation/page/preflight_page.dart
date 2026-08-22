@@ -128,13 +128,18 @@ class _PreflightPageState extends State<_PreflightPage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // The battery-exemption and Autostart actions both hand off to a system
-    // screen and report success the instant it *opens*, not once the user
-    // has actually granted anything there — see PreflightSession
-    // .recheckBackground. Re-checking on every resume (not just after those
-    // two actions specifically) is the same blunt-but-correct approach
-    // BackgroundPermissionBanner already uses for this exact hand-off.
-    if (state == AppLifecycleState.resumed) _session?.recheckBackground();
+    // The battery-exemption/Autostart actions and the mic row's "Open
+    // Settings" action (offered once permission is permanently denied) all
+    // hand off to a system screen and either report success the instant it
+    // *opens* or don't report back at all — never once the user has
+    // actually made the change there. See PreflightSession
+    // .recheckBackground/.recheckMic. Re-checking both on every resume (not
+    // just after one specific action) is the same blunt-but-correct
+    // approach BackgroundPermissionBanner already uses for its own identical
+    // hand-off.
+    if (state != AppLifecycleState.resumed) return;
+    _session?.recheckBackground();
+    _session?.recheckMic();
   }
 
   @override

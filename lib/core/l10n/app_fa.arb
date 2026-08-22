@@ -172,6 +172,7 @@
     "link_reconnecting": "گمت کردم — دارم دوباره تلاش می‌کنم...",
     "link_reconnecting_in": "تا {seconds} ثانیه دیگه دوباره تلاش می‌کنم",
     "link_down": "ارتباط قطع شد",
+    "peer_left_channel": "{name} از کانال خارج شد",
     "transport_hotspot": "هات‌اسپات",
     "hotspot_title": "راه‌اندازی هات‌اسپات",
     "wifi_only_instructions": "از قبل رو یه وای‌فای هستی؟ چیزی لازم نیست تنظیم کنی — بپر تو کانال.",

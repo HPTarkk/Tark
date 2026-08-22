@@ -3,13 +3,29 @@ import '../entity/channel_user.dart';
 
 /// What a roster operation observed, so the cubit can map it to the matching
 /// audio cue without the roster knowing about SFX.
-enum RosterChange { none, peerJoined, peerStartedTalking, peerLeft }
+enum RosterChange {
+  none,
+  peerJoined,
+  peerStartedTalking,
+  peerLeft,
+
+  /// A peer announced its own departure (see [ChannelRoster.announceLeave]),
+  /// distinct from [peerLeft]'s timeout-based removal so the UI can react
+  /// instantly and visibly rather than only after the peer has aged past
+  /// [ChannelRoster.staleAfterSeconds] in silence.
+  peerAnnouncedLeave,
+}
 
 class RosterUpdate {
-  const RosterUpdate(this.users, this.change);
+  const RosterUpdate(this.users, this.change, {this.subject});
 
   final List<ChannelUser> users;
   final RosterChange change;
+
+  /// Who triggered the change, when there is exactly one — null for
+  /// [cleanup]'s bulk removals, where more than one user can go stale in the
+  /// same tick.
+  final ChannelUser? subject;
 }
 
 /// Pure bookkeeping over the channel's user list — who's present, who's
@@ -47,6 +63,21 @@ class ChannelRoster {
     }
     updated.add(user);
     return RosterUpdate(updated, RosterChange.peerJoined);
+  }
+
+  /// Removes [id] immediately because it announced its own departure,
+  /// instead of waiting for it to age past [staleAfterSeconds] in silence.
+  /// [RosterChange.none] if [id] was not present — a stray or duplicate
+  /// leave announcement, which is not a change worth reacting to.
+  RosterUpdate announceLeave(List<ChannelUser> users, String id) {
+    final idx = users.indexWhere((u) => u.id == id);
+    if (idx < 0) return RosterUpdate(users, RosterChange.none);
+    final updated = List<ChannelUser>.of(users)..removeAt(idx);
+    return RosterUpdate(
+      updated,
+      RosterChange.peerAnnouncedLeave,
+      subject: users[idx],
+    );
   }
 
   /// Drops stale users and un-flags silent talkers, reporting a leave when

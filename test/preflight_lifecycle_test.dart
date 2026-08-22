@@ -139,11 +139,14 @@ void main() {
   );
 
   testWidgets(
-    'resuming from the background rechecks background readiness — the '
-    'battery-exemption/Autostart hand-off only takes effect once the user '
-    'is back from Settings, not the instant the screen opens',
+    'resuming from the background rechecks background readiness AND the mic '
+    'probe — the battery-exemption/Autostart hand-off and the mic row\'s '
+    '"Open Settings" action (permanently-denied permission) both only take '
+    'effect once the user is back from Settings, not the instant the screen '
+    'opens (or, for "Open Settings", ever reports back at all)',
     (tester) async {
-      var recheckCount = 0;
+      var backgroundRecheckCount = 0;
+      var micRecheckCount = 0;
 
       await tester.pumpWidget(
         MaterialApp(
@@ -162,7 +165,10 @@ void main() {
                           initial: const PreflightResult(),
                           results: const Stream.empty(),
                           recheckBackground: () async {
-                            recheckCount++;
+                            backgroundRecheckCount++;
+                          },
+                          recheckMic: () async {
+                            micRecheckCount++;
                           },
                         ),
                   ),
@@ -177,7 +183,8 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 700));
-      expect(recheckCount, 0, reason: 'no resume has happened yet');
+      expect(backgroundRecheckCount, 0, reason: 'no resume has happened yet');
+      expect(micRecheckCount, 0, reason: 'no resume has happened yet');
 
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
       tester.binding.handleAppLifecycleStateChanged(
@@ -185,7 +192,8 @@ void main() {
       );
       await tester.pump();
 
-      expect(recheckCount, 1);
+      expect(backgroundRecheckCount, 1);
+      expect(micRecheckCount, 1);
 
       // Not just a one-shot subscription — every return from Settings should
       // pick up whatever changed while the user was away.
@@ -195,7 +203,8 @@ void main() {
       );
       await tester.pump();
 
-      expect(recheckCount, 2);
+      expect(backgroundRecheckCount, 2);
+      expect(micRecheckCount, 2);
     },
   );
 }

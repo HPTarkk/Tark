@@ -330,8 +330,8 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     final noiseSuppressionEngine = profile.noiseSuppressionEngine;
     final ridingPreset = profile.fromPreset;
     final musicGain = await _settingsRepository.getMusicGain();
-    final smartMusicDuckingEnabled =
-        await _settingsRepository.getSmartMusicDuckingEnabled();
+    final smartMusicDuckingEnabled = await _settingsRepository
+        .getSmartMusicDuckingEnabled();
 
     // The page can be exited while _init is still awaiting (fast back-out).
     // close() has then already run, so bail instead of resurrecting
@@ -754,7 +754,8 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     // clock regardless of whether voice is keyed at all, which is exactly
     // the safety invariant the roadmap requires: muting/VOX-gating voice
     // must never stop music unless the user stops the cast.
-    final musicKeysVoice = state.isSharingSystemAudio && !_usingIndependentMedia;
+    final musicKeysVoice =
+        state.isSharingSystemAudio && !_usingIndependentMedia;
     // Music sharing keeps the channel keyed continuously; voice rides on
     // top of it. Without sharing (or once media has its own stream), VOX
     // (with hangover) gates as usual.
@@ -1075,13 +1076,11 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
       final profile = _transferRepository.negotiatedMediaFormat!;
       await _mediaHdSub?.cancel();
       _mediaScheduler?.dispose();
-      _mediaScheduler =
-          MediaFrameScheduler(
-              profile: profile,
-              sendFrame: (samples) =>
-                  _transferRepository.sendMedia(samples, state.myName),
-            )
-            ..start();
+      _mediaScheduler = MediaFrameScheduler(
+        profile: profile,
+        sendFrame: (samples) =>
+            _transferRepository.sendMedia(samples, state.myName),
+      )..start();
       _mediaHdSub = SystemAudioCapture.hdFrames.listen(
         (chunk) => _mediaScheduler?.addChunk(chunk),
         onError: (Object e) {
@@ -1114,9 +1113,9 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
       'music cast: stopping (${reason.name}) | '
       'mode=${_usingIndependentMedia ? 'independent' : 'mixed-into-voice'} '
       '${_usingIndependentMedia ? 'dropouts=${_mediaScheduler?.dropouts ?? 0} '
-              'trims=${_mediaScheduler?.trims ?? 0} '
-              'floods=${_mediaScheduler?.floods ?? 0}' : 'dropouts=${_musicMixer.dropouts} '
-              'trims=${_musicMixer.trims} floods=${_musicMixer.floods}'}',
+                'trims=${_mediaScheduler?.trims ?? 0} '
+                'floods=${_mediaScheduler?.floods ?? 0}' : 'dropouts=${_musicMixer.dropouts} '
+                'trims=${_musicMixer.trims} floods=${_musicMixer.floods}'}',
     );
     _sfx.play(SfxEvent.toggle);
     await _musicSub?.cancel();
@@ -1166,6 +1165,14 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
 
     switch (packet) {
       case PresencePacket():
+        if (packet.isLeaving) {
+          // A graceful goodbye, not another presence tick: drop it now
+          // rather than let it ride out ChannelRoster.staleAfterSeconds in
+          // silence, and skip everything below that assumes the sender is
+          // still here to hear us or negotiate a wire format with.
+          _removeUser(packet.senderId);
+          return;
+        }
         _noteAudibility(packet);
         _updateUser(
           packet.senderId,
@@ -1383,10 +1390,34 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
         // Someone else is actually here — for Wi-Fi that IS the connection.
         _wifiPairing.connected();
         _sfx.play(SfxEvent.peerJoin);
-      case RosterChange.peerLeft || RosterChange.none:
+      // upsert() never produces either — see [ChannelRoster.cleanup] and
+      // [ChannelRoster.announceLeave], the only callers that do.
+      case RosterChange.peerLeft || RosterChange.peerAnnouncedLeave:
+      case RosterChange.none:
         break;
     }
     emit(state.copyWith(activeUsers: update.users));
+  }
+
+  /// Handles a [PresencePacket.isLeaving] announcement — removes [id] at
+  /// once and, when it was actually present, plays the leave cue and records
+  /// who it was for [PeerDepartureBanner]. A no-op beyond the roster update
+  /// for a stray announcement from an id already gone (a duplicate, or a
+  /// peer that had already aged out).
+  void _removeUser(String id) {
+    final update = _roster.announceLeave(state.activeUsers, id);
+    final subject = update.subject;
+    if (update.change != RosterChange.peerAnnouncedLeave || subject == null) {
+      emit(state.copyWith(activeUsers: update.users));
+      return;
+    }
+    _sfx.play(SfxEvent.peerLeave);
+    emit(
+      state.copyWith(
+        activeUsers: update.users,
+        lastPeerDeparture: (name: subject.name, at: DateTime.now()),
+      ),
+    );
   }
 
   void _broadcastPresence() {
@@ -1575,8 +1606,14 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
 
   /// Manual "Retry now" action for the connection-health banner — bypasses
   /// any backoff wait and is the only way to recover when auto-reconnect is
-  /// turned off.
-  void retryNow() => _transferRepository.retryNow();
+  /// turned off. Also nudges the hotspot link keeper, which is otherwise the
+  /// only path with a hard give-up: once it reports
+  /// [HotspotLinkState.lost] after exhausting [HotspotLinkKeeperImpl.recoveryTimeout],
+  /// nothing else here would ever ask it to try again.
+  void retryNow() {
+    _transferRepository.retryNow();
+    _linkKeeper.retryNow();
+  }
 
   Future<void> setAutoReconnectEnabled(bool enabled) async {
     _useFeature(AppFeature.autoReconnect);
@@ -1672,6 +1709,19 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     _reportSessionEnded();
     _presenceTimer?.cancel();
     _cleanupTimer?.cancel();
+    // A graceful goodbye, sent while the transport is still fully alive so
+    // it has a chance to reach peers before the teardown below tears
+    // anything down under it. Fire-and-forget: this is best-effort UX
+    // polish, not correctness — a peer that misses it (the send loses the
+    // race, the app was killed outright) still ages out via
+    // ChannelRoster.staleAfterSeconds, same as before this existed. Not
+    // awaited, so it cannot delay the synchronous cancel block below, whose
+    // ordering this must not disturb (see the comment on it).
+    if (state.localId.isNotEmpty) {
+      unawaited(
+        _transferRepository.sendPresence(state.myName, false, isLeaving: true),
+      );
+    }
     // The session is over, so the hotspot link no longer needs keeping. A no-op
     // for every transport that never adopted one. Deliberately does not tear
     // the AP down — that stays the bridge screen's call.
@@ -1804,6 +1854,13 @@ class WalkieTalkieState extends Equatable {
   /// session so toggling it applies immediately without a reconnect.
   final bool smartMusicDuckingEnabled;
 
+  /// The most recent peer to announce its own departure (see
+  /// [ChannelRoster.announceLeave]), and when. A transient event rather than
+  /// state to render continuously — [PeerDepartureBanner] keys its toast on
+  /// [at] so a repeat departure with the same name still triggers a fresh
+  /// showing. Null once nobody has announced a leave this session.
+  final ({String name, DateTime at})? lastPeerDeparture;
+
   const WalkieTalkieState({
     required this.localId,
     required this.myName,
@@ -1829,6 +1886,7 @@ class WalkieTalkieState extends Equatable {
     required this.unheardByPeers,
     required this.linkQuality,
     required this.smartMusicDuckingEnabled,
+    this.lastPeerDeparture,
   });
 
   factory WalkieTalkieState.initial() => const WalkieTalkieState(
@@ -1883,6 +1941,7 @@ class WalkieTalkieState extends Equatable {
     bool? unheardByPeers,
     LinkQuality? linkQuality,
     bool? smartMusicDuckingEnabled,
+    ({String name, DateTime at})? lastPeerDeparture,
   }) => WalkieTalkieState(
     localId: localId ?? this.localId,
     myName: myName ?? this.myName,
@@ -1910,6 +1969,7 @@ class WalkieTalkieState extends Equatable {
     linkQuality: linkQuality ?? this.linkQuality,
     smartMusicDuckingEnabled:
         smartMusicDuckingEnabled ?? this.smartMusicDuckingEnabled,
+    lastPeerDeparture: lastPeerDeparture ?? this.lastPeerDeparture,
   );
 
   bool get isSomeoneElseTalking => activeUsers.any((u) => u.isTalking);
@@ -1950,6 +2010,7 @@ class WalkieTalkieState extends Equatable {
     unheardByPeers,
     linkQuality,
     smartMusicDuckingEnabled,
+    lastPeerDeparture,
   ];
 }
 

@@ -321,11 +321,7 @@ class WebRtcTransferRepository
       if (dc == null || _linkState != GuestLinkState.connected) {
         return const Left(DataTransferFailure());
       }
-      final payload = _codec.encodeMediaAudio(
-        samples,
-        senderName,
-        _mediaSeq++,
-      );
+      final payload = _codec.encodeMediaAudio(samples, senderName, _mediaSeq++);
       await dc.send(RTCDataChannelMessage.fromBinary(payload));
       return const Right(null);
     } catch (error) {
@@ -337,8 +333,9 @@ class WebRtcTransferRepository
   @override
   Future<Either<Failure, void>> sendPresence(
     String senderName,
-    bool isTalking,
-  ) async {
+    bool isTalking, {
+    bool isLeaving = false,
+  }) async {
     try {
       final dc = _dc;
       if (dc == null || _linkState != GuestLinkState.connected) {
@@ -348,6 +345,7 @@ class WebRtcTransferRepository
         senderName,
         isTalking,
         role: sessionRole,
+        isLeaving: isLeaving,
       );
       await dc.send(RTCDataChannelMessage.fromBinary(payload));
       return const Right(null);

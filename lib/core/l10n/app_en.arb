@@ -172,6 +172,7 @@
     "link_reconnecting": "Lost you — trying again...",
     "link_reconnecting_in": "Trying again in {seconds}s",
     "link_down": "Connection lost",
+    "peer_left_channel": "{name} left the channel",
     "transport_hotspot": "HOTSPOT",
     "hotspot_title": "Hotspot setup",
     "wifi_only_instructions": "Already on the same Wi-Fi? Nothing to set up — just hop in.",

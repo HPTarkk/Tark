@@ -4,6 +4,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/diagnostics/diagnostic_log.dart';
 import '../../../core/l10n/app_localizations.dart';
+import '../../../core/utils/latest_only.dart';
 import '../../../core/utils/permission_queue.dart';
 import '../../audio/data/session_keep_alive.dart';
 import '../../audio/data/system_audio_capture.dart';
@@ -32,8 +33,13 @@ import 'preflight_result.dart';
 /// down, so a cancelled Preflight doesn't leave the controller (or an
 /// in-flight retry closing over it) live behind the real channel.
 class PreflightSession {
-  PreflightSession._(this.initial, this._controller, {Recheck? recheckBackground})
-    : _recheckBackground = recheckBackground;
+  PreflightSession._(
+    this.initial,
+    this._controller, {
+    Recheck? recheckBackground,
+    Recheck? recheckMic,
+  }) : _recheckBackground = recheckBackground,
+       _recheckMic = recheckMic;
 
   /// Test seam: wraps a fixed, already-resolved result with no further
   /// updates. Mirrors `DiagnosticLog.debugAttach`'s naming — this is not for
@@ -45,13 +51,15 @@ class PreflightSession {
 
   /// Test seam: wraps [initial] plus a caller-driven [results] stream, for
   /// tests that need to exercise the sheet's progressive/pending-row
-  /// rendering without a real probe. [recheckBackground] lets a test observe
-  /// the sheet's resume-triggered recheck (see [PreflightSession
-  /// .recheckBackground]) without a real platform channel.
+  /// rendering without a real probe. [recheckBackground]/[recheckMic] let a
+  /// test observe the sheet's resume-triggered rechecks (see [PreflightSession
+  /// .recheckBackground]/[PreflightSession.recheckMic]) without a real
+  /// platform channel.
   factory PreflightSession.debugStream({
     required PreflightResult initial,
     required Stream<PreflightResult> results,
     Recheck? recheckBackground,
+    Recheck? recheckMic,
   }) {
     final controller = StreamController<PreflightResult>();
     results.listen(controller.add, onDone: controller.close);
@@ -59,12 +67,14 @@ class PreflightSession {
       initial,
       controller,
       recheckBackground: recheckBackground,
+      recheckMic: recheckMic,
     );
   }
 
   final PreflightResult initial;
   final StreamController<PreflightResult> _controller;
   final Recheck? _recheckBackground;
+  final Recheck? _recheckMic;
 
   Stream<PreflightResult> get results => _controller.stream;
 
@@ -82,6 +92,20 @@ class PreflightSession {
   /// identical hand-off. A no-op for the debug sessions, which have no live
   /// probe to rerun.
   Future<void> recheckBackground() => _recheckBackground?.call() ?? Future.value();
+
+  /// Re-runs the mic probe (and its piggybacked route check) on demand.
+  ///
+  /// The mic row's own "Open Settings" action (see `mic_check.dart`'s
+  /// `permissionDenied` case — offered once permission is permanently
+  /// denied and re-requesting it can no longer show the OS dialog) hands off
+  /// to the app's Settings page the same blunt way the background checks
+  /// hand off to a system screen: it just opens Settings and stops, with no
+  /// way to know when — or whether — the user actually flipped the
+  /// permission there. Without this, granting mic access in Settings and
+  /// coming back left the row stuck on "denied" until the *other* action
+  /// ("Allow mic") was tapped separately. The sheet calls this on every
+  /// resume, same as [recheckBackground]. A no-op for the debug sessions.
+  Future<void> recheckMic() => _recheckMic?.call() ?? Future.value();
 
   void dispose() => _controller.close();
 }
@@ -114,9 +138,21 @@ abstract final class PreflightService {
       controller.add(current);
     }
 
+    // Same dual-trigger shape as the background check below: the row's own
+    // "Allow mic" retry and the resume-triggered recheck (armed after the
+    // permanently-denied row's "Open Settings" action) can both have a
+    // MicProbe run in flight at once, and a probe opens the mic hardware and
+    // waits up to MicProbe.defaultTimeout for a frame — plenty of time for a
+    // later-started, faster-resolving probe to finish first. [LatestOnly]
+    // keeps the last-issued probe authoritative regardless of which
+    // finishes first.
+    final micGeneration = LatestOnly();
+
     Future<void> runMicAndRoute() async {
+      final generation = micGeneration.start();
       Future<void> retry() => runMicAndRoute();
       final probe = await MicProbe.run();
+      if (!micGeneration.isCurrent(generation)) return;
       update(
         (r) => r.copyWith(
           mic: micCheck(s: s, outcome: probe.outcome, retry: retry),
@@ -125,7 +161,21 @@ abstract final class PreflightService {
       );
     }
 
+    // Two things can each trigger a background recheck: the row's own
+    // action ("Allow" -> requestIgnoreBatteryOptimizations) and the
+    // resume-triggered recheck in _PreflightPageState. The action's own
+    // retry fires the instant the settings hand-off *opens* — see
+    // PreflightSession.recheckBackground's doc — so it is reading stale OS
+    // state and, on a device slow enough for that stale read to still be
+    // in flight when the user has already granted the permission and
+    // resumed, it can complete *after* the resume recheck and clobber a
+    // correct "granted" result with a stale "not yet" one. [LatestOnly]
+    // makes the two racing calls resolve in issue order rather than
+    // completion order.
+    final backgroundGeneration = LatestOnly();
+
     Future<void> runBackground() async {
+      final generation = backgroundGeneration.start();
       Future<void> retry() => runBackground();
       final notificationRequired =
           await BackgroundReadinessProbe.notificationRequired();
@@ -134,6 +184,7 @@ abstract final class PreflightService {
       final batteryExempt =
           await SessionKeepAlive.isIgnoringBatteryOptimizations();
       final isMiui = await SessionKeepAlive.isMiui();
+      if (!backgroundGeneration.isCurrent(generation)) return;
       update(
         (r) => r.copyWith(
           background: backgroundReadinessCheck(
@@ -172,6 +223,11 @@ abstract final class PreflightService {
       Future.wait([runMicAndRoute(), runBackground(), runSharedMusic()]),
     );
 
-    return PreflightSession._(current, controller, recheckBackground: runBackground);
+    return PreflightSession._(
+      current,
+      controller,
+      recheckBackground: runBackground,
+      recheckMic: runMicAndRoute,
+    );
   }
 }

@@ -271,30 +271,23 @@ void main() {
     });
 
     group('capability (#28)', () {
-      test(
-        "encodePresence's capability byte matches "
-        'AudioCapabilityNegotiator.localBitmask',
-        () {
-          final packet =
-              codec.decode(
-                    codec.encodePresence(
-                      'Pedram',
-                      false,
-                      role: SessionRole.peer,
-                    ),
-                    '192.168.43.7',
-                  )!
-                  as PresencePacket;
-          // Not hardcoded: reads the real, shipped
-          // AudioCapabilityNegotiator.localBitmask rather than assuming its
-          // value, so this stays correct as AudioFormatProfile.supported
-          // grows (e.g. #29's media profiles).
-          expect(
-            packet.capabilityBitmask,
-            AudioCapabilityNegotiator.localBitmask,
-          );
-        },
-      );
+      test("encodePresence's capability byte matches "
+          'AudioCapabilityNegotiator.localBitmask', () {
+        final packet =
+            codec.decode(
+                  codec.encodePresence('Pedram', false, role: SessionRole.peer),
+                  '192.168.43.7',
+                )!
+                as PresencePacket;
+        // Not hardcoded: reads the real, shipped
+        // AudioCapabilityNegotiator.localBitmask rather than assuming its
+        // value, so this stays correct as AudioFormatProfile.supported
+        // grows (e.g. #29's media profiles).
+        expect(
+          packet.capabilityBitmask,
+          AudioCapabilityNegotiator.localBitmask,
+        );
+      });
 
       test('the null-heardIds sentinel is not misread as a heard-id count '
           '(the point-to-point transport case)', () {
@@ -389,16 +382,60 @@ void main() {
       });
     });
 
+    group('leaving flag (isLeaving)', () {
+      test('round-trips true through encode/decode', () {
+        final packet = codec.encodePresence(
+          'Pedram',
+          false,
+          role: SessionRole.peer,
+          isLeaving: true,
+        );
+        final decoded = codec.decode(packet, '1.2.3.4')! as PresencePacket;
+        expect(decoded.isLeaving, isTrue);
+      });
+
+      test('defaults to false when not passed', () {
+        final packet = codec.encodePresence(
+          'Pedram',
+          false,
+          role: SessionRole.peer,
+        );
+        final decoded = codec.decode(packet, '1.2.3.4')! as PresencePacket;
+        expect(decoded.isLeaving, isFalse);
+      });
+
+      test('an old-shaped packet (capability byte, no leaving byte) reads '
+          'isLeaving as false', () {
+        // Exactly what every build before this field shipped: the capability
+        // byte is the last thing on the wire. The same "old build stops
+        // reading first" backward compatibility as #28's capability byte
+        // over the heard list before it.
+        final packet = v3PresenceWithCapability(
+          'abc123abc123',
+          'Pedram',
+          kTestEpoch,
+          isTalking: false,
+          role: SessionRole.peer,
+          heardIds: null,
+          capabilityBitmask: 1,
+        );
+        final decoded = codec.decode(packet, '1.2.3.4')! as PresencePacket;
+        expect(decoded.capabilityBitmask, 1);
+        expect(decoded.isLeaving, isFalse);
+      });
+    });
+
     test('a role this build has never heard of reads as unknown', () {
       final packet = codec.encodePresence(
         'Future',
         false,
         role: SessionRole.host,
       );
-      // Role is 3 bytes from the end now: after it come the heard-list
-      // no-opinion sentinel and the #28 capability byte (heardIds is null
-      // here) — a later build may put anything in the role byte itself.
-      packet[packet.length - 3] = 99;
+      // Role is 4 bytes from the end now: after it come the heard-list
+      // no-opinion sentinel, the #28 capability byte, and the leaving byte
+      // (heardIds is null here) — a later build may put anything in the
+      // role byte itself.
+      packet[packet.length - 4] = 99;
 
       final decoded = codec.decode(packet, '192.168.43.7');
       expect(decoded, isNotNull, reason: 'the packet is still perfectly good');
@@ -652,9 +689,10 @@ void main() {
   group('pre-role compatibility', () {
     test('a v2 presence without the role byte still decodes', () {
       // Byte-for-byte what a build from before roles puts on the wire: the
-      // v2 header, isTalking, and nothing after it. Strips 3 trailing bytes
-      // — role, the heard-list no-opinion sentinel, and the #28 capability
-      // byte (heardIds is null here) — all of which postdate this format.
+      // v2 header, isTalking, and nothing after it. Strips 4 trailing bytes
+      // — role, the heard-list no-opinion sentinel, the #28 capability
+      // byte, and the leaving byte (heardIds is null here) — all of which
+      // postdate this format.
       final withRole = codec.encodePresence(
         'Older',
         true,
@@ -663,7 +701,7 @@ void main() {
       final withoutRole = Uint8List.sublistView(
         withRole,
         0,
-        withRole.length - 3,
+        withRole.length - 4,
       );
 
       final packet = codec.decode(withoutRole, '192.168.43.7');
@@ -702,11 +740,12 @@ void main() {
 
     test('a truncated v3 packet is rejected at every prefix length', () {
       final full = codec.encodePresence('Pedram', true, role: SessionRole.host);
-      // Stops 3 bytes short (role, the heard-list sentinel, and the #28
-      // capability byte, in that order — heardIds is null here): every one
-      // of those prefixes is not truncation but a legitimate older format
-      // that decodes on purpose (covered above and in the capability group).
-      for (var length = 1; length < full.length - 3; length++) {
+      // Stops 4 bytes short (role, the heard-list sentinel, the #28
+      // capability byte, and the leaving byte, in that order — heardIds is
+      // null here): every one of those prefixes is not truncation but a
+      // legitimate older format that decodes on purpose (covered above and
+      // in the capability and leaving-flag groups).
+      for (var length = 1; length < full.length - 4; length++) {
         expect(
           codec.decode(Uint8List.sublistView(full, 0, length), 'x'),
           isNull,
@@ -843,8 +882,8 @@ void main() {
       final live = inChannel(channel);
       addTearDown(live.release);
       final full = live.encodePresence('P', true, role: SessionRole.host);
-      // See the v3 version of this test for why the bound is 3, not 1.
-      for (var length = 1; length < full.length - 3; length++) {
+      // See the v3 version of this test for why the bound is 4, not 1.
+      for (var length = 1; length < full.length - 4; length++) {
         expect(
           live.decode(Uint8List.sublistView(full, 0, length), 'x'),
           isNull,
@@ -889,14 +928,18 @@ void main() {
     });
 
     test('voice and media keep independent sequence spaces', () {
-      final voice = codec.decode(
-        codec.encodeAudio(List.filled(320, 0.1), 'Pedram', 5),
-        'x',
-      )! as AudioPacket;
-      final media = codec.decode(
-        codec.encodeMediaAudio(List.filled(320, 0.1), 'Pedram', 1),
-        'x',
-      )! as MediaAudioPacket;
+      final voice =
+          codec.decode(
+                codec.encodeAudio(List.filled(320, 0.1), 'Pedram', 5),
+                'x',
+              )!
+              as AudioPacket;
+      final media =
+          codec.decode(
+                codec.encodeMediaAudio(List.filled(320, 0.1), 'Pedram', 1),
+                'x',
+              )!
+              as MediaAudioPacket;
 
       expect(voice.seq, 5);
       expect(media.seq, 1);
@@ -905,11 +948,7 @@ void main() {
     test('media always carries the channel, even while voice is on v3', () {
       // The open-channel codec ([codec]) still emits v3 for voice/presence
       // (see the "channel id" group above) — media has no such shorthand.
-      final packet = codec.encodeMediaAudio(
-        List.filled(320, 0.1),
-        'Pedram',
-        1,
-      );
+      final packet = codec.encodeMediaAudio(List.filled(320, 0.1), 'Pedram', 1);
       expect(packet[0], anyOf(kMediaAudioByte, kOpusMediaAudioByte));
       final decoded = codec.decode(packet, 'x');
       expect(decoded!.channelId.isOpen, isTrue);
@@ -928,10 +967,7 @@ void main() {
         isNull,
       );
       expect(
-        codec.decode(
-          Uint8List.fromList([kMediaAudioByte, 0, 0, 0, 0, 0]),
-          'x',
-        ),
+        codec.decode(Uint8List.fromList([kMediaAudioByte, 0, 0, 0, 0, 0]), 'x'),
         isNull,
       );
     });
@@ -939,10 +975,7 @@ void main() {
     test('resetMediaDecoders clears media state without touching voice', () {
       // Establish per-sender decoder state on both streams first.
       codec.decode(codec.encodeAudio(List.filled(320, 0.1), 'A', 1), 'x');
-      codec.decode(
-        codec.encodeMediaAudio(List.filled(320, 0.1), 'A', 1),
-        'x',
-      );
+      codec.decode(codec.encodeMediaAudio(List.filled(320, 0.1), 'A', 1), 'x');
 
       // Neither call should throw, and both remain independently usable
       // afterward — the actual per-sender decoder maps are private, so this

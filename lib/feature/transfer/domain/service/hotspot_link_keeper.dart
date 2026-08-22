@@ -44,6 +44,12 @@ abstract interface class HotspotLinkKeeper {
   /// decisions, and the AP outlives this by design.
   Future<void> release();
 
+  /// Restarts a rejoin attempt after recovery gave up
+  /// ([HotspotLinkState.lost] on the joiner side only — a host's [lost]
+  /// means the AP came back under a name the peer cannot guess, which a
+  /// resend of the old join cannot fix). No-op in every other state.
+  void retryNow();
+
   /// Final teardown, on DI reset. [release] is what ends a session; this ends
   /// the object.
   void dispose();

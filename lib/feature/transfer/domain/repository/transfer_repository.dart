@@ -56,7 +56,15 @@ abstract interface class TransferRepository {
     String senderName,
   );
 
-  Future<Either<Failure, void>> sendPresence(String senderName, bool isTalking);
+  /// [isLeaving] announces the sender's own departure rather than its
+  /// continued presence — see [PresencePacket.isLeaving]. Callers send this
+  /// once, on the way out, so peers drop them from the roster immediately
+  /// instead of waiting out the staleness timeout.
+  Future<Either<Failure, void>> sendPresence(
+    String senderName,
+    bool isTalking, {
+    bool isLeaving = false,
+  });
 
   /// Declares what [sendAudio] is about to carry, so the transport can encode
   /// it appropriately. Idempotent — callers set it whenever the channel's

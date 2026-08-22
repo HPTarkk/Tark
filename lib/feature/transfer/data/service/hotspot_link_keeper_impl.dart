@@ -22,10 +22,34 @@ class HotspotLinkKeeperImpl implements HotspotLinkKeeper {
     this._hotspot,
     this._joiner,
     this._roleStore,
-    this._wifi,
-  );
+    this._wifi, {
+    this.recoveryTimeout = const Duration(minutes: 10),
+    this.backoffFactory = ExponentialBackoff.new,
+  });
+
+  /// How long a joiner keeps rejoining before giving up and reporting
+  /// [HotspotLinkState.lost].
+  ///
+  /// A permanent separation — a rider peeling off for the day, not a truck
+  /// passing overhead — looks identical to this loop for the first several
+  /// attempts: every result is the same "didn't join". Ten minutes is long
+  /// enough that a real gap (a tunnel, a phone left locked in a bag) has
+  /// almost always closed by then, and short enough that a genuine goodbye
+  /// stops draining the radio and silently retrying forever.
+  final Duration recoveryTimeout;
+
+  /// Builds the backoff schedule for one recovery cycle. A factory rather
+  /// than a shared instance because each `_recoverJoin` run needs its own,
+  /// starting fresh from [ExponentialBackoff.initial] — and injectable so
+  /// tests can run the whole timeout on a millisecond schedule instead of
+  /// waiting out real minutes.
+  final ExponentialBackoff Function() backoffFactory;
 
   HotspotCredentials? _credentials;
+
+  /// When the current (or most recent) `_recoverJoin` run started, so the
+  /// loop can measure how long it has been trying against [recoveryTimeout].
+  DateTime? _recoveryStartedAt;
   StreamSubscription<void>? _lostSub;
   StreamSubscription<void>? _stoppedSub;
   StreamSubscription<void>? _reboundSub;
@@ -113,10 +137,11 @@ class HotspotLinkKeeperImpl implements HotspotLinkKeeper {
     if (creds == null) return;
 
     _recovering = true;
+    _recoveryStartedAt = DateTime.now();
     _emit(HotspotLinkState.recovering);
     Logger.diagnostic('link: dropped off ${creds.ssid} — rejoining');
 
-    final backoff = ExponentialBackoff();
+    final backoff = backoffFactory();
     while (_recovering) {
       final result = await _joiner.join(creds);
       // release() while the join was in flight: the session is over and this
@@ -132,6 +157,23 @@ class HotspotLinkKeeperImpl implements HotspotLinkKeeper {
         // rebindSockets() rebuilds underneath that same stream.
         _wifi.rebindSockets();
         _emit(HotspotLinkState.up);
+        return;
+      }
+      // Every attempt so far has looked identical to a truck passing
+      // overhead. Past the timeout it no longer does — the same "didn't
+      // join" result, this many times, is what a permanent separation
+      // looks like from here — so the diagnosis changes rather than the
+      // wording: give up and ask the human, same as a re-host under a name
+      // the peer cannot guess (see [_recoverHost]).
+      final startedAt = _recoveryStartedAt;
+      if (startedAt != null &&
+          DateTime.now().difference(startedAt) > recoveryTimeout) {
+        _recovering = false;
+        Logger.diagnostic(
+          'link: gave up rejoining ${creds.ssid} after '
+          '${recoveryTimeout.inMinutes}m — peer likely out of range',
+        );
+        _emit(HotspotLinkState.lost);
         return;
       }
       final delay = backoff.next();
@@ -175,6 +217,7 @@ class HotspotLinkKeeperImpl implements HotspotLinkKeeper {
   Future<void> release() async {
     _recovering = false;
     _credentials = null;
+    _recoveryStartedAt = null;
     await _lostSub?.cancel();
     _lostSub = null;
     await _stoppedSub?.cancel();
@@ -182,6 +225,18 @@ class HotspotLinkKeeperImpl implements HotspotLinkKeeper {
     await _reboundSub?.cancel();
     _reboundSub = null;
     _emit(HotspotLinkState.idle);
+  }
+
+  @override
+  void retryNow() {
+    // A host's "lost" means the AP came back under a name the peer cannot
+    // guess — see [_recoverHost]. Resending the same join there would fix
+    // nothing, so only the joiner side, and only once recovery has actually
+    // given up, restarts anything.
+    if (_state != HotspotLinkState.lost) return;
+    if (_roleStore.role != SessionRole.joiner) return;
+    if (_credentials == null) return;
+    unawaited(_recoverJoin());
   }
 
   void _emit(HotspotLinkState next) {

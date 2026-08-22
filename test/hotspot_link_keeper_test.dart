@@ -4,6 +4,7 @@ import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tark/core/audio/audio_format_profile.dart';
 import 'package:tark/core/error/failure.dart';
+import 'package:tark/core/utils/exponential_backoff.dart';
 import 'package:tark/feature/transfer/data/service/hotspot_link_keeper_impl.dart';
 import 'package:tark/feature/transfer/domain/entity/audio_profile.dart';
 import 'package:tark/feature/transfer/domain/entity/connection_health.dart';
@@ -128,8 +129,9 @@ class _FakeWifi implements WifiTransferRepository {
   @override
   Future<Either<Failure, void>> sendPresence(
     String senderName,
-    bool isTalking,
-  ) async => const Right(null);
+    bool isTalking, {
+    bool isLeaving = false,
+  }) async => const Right(null);
 
   @override
   void stopConnection() {}
@@ -255,6 +257,68 @@ void main() {
       expect(wifi.rebinds, 1);
     });
 
+    group('give-up ceiling', () {
+      // Millisecond-scale so the whole cycle — several failed attempts plus
+      // the timeout itself — runs in real test time instead of waiting out
+      // real minutes.
+      HotspotLinkKeeper fastKeeper() => HotspotLinkKeeperImpl(
+        host,
+        joiner,
+        roles,
+        wifi,
+        recoveryTimeout: const Duration(milliseconds: 30),
+        backoffFactory: () => ExponentialBackoff(
+          initial: const Duration(milliseconds: 5),
+          max: const Duration(milliseconds: 5),
+        ),
+      );
+
+      test('gives up and reports lost once the timeout is exceeded', () async {
+        joiner.results = [HotspotJoinResult.declined];
+        keeper = fastKeeper();
+        keeper.adopt(_creds);
+
+        joiner.drop();
+        await pumpEventQueue();
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+
+        expect(keeper.state, HotspotLinkState.lost);
+      });
+
+      test('retryNow restarts a rejoin after giving up', () async {
+        joiner.results = [HotspotJoinResult.declined];
+        keeper = fastKeeper();
+        keeper.adopt(_creds);
+        joiner.drop();
+        await pumpEventQueue();
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        expect(keeper.state, HotspotLinkState.lost);
+
+        joiner.results = [HotspotJoinResult.joined];
+        keeper.retryNow();
+        await pumpEventQueue();
+
+        expect(keeper.state, HotspotLinkState.up);
+        expect(wifi.rebinds, 1);
+      });
+
+      test('retryNow is a no-op while recovery is still in progress', () async {
+        joiner.results = [HotspotJoinResult.declined];
+        keeper.adopt(_creds);
+        joiner.drop();
+        await pumpEventQueue();
+        expect(keeper.state, HotspotLinkState.recovering);
+
+        final attemptsBefore = joiner.joins.length;
+        keeper.retryNow();
+        await pumpEventQueue();
+
+        // Still recovering on its own schedule — a second concurrent
+        // rejoin loop would only pile up duplicate attempts.
+        expect(joiner.joins, hasLength(attemptsBefore));
+      });
+    });
+
     group('when the OS drops and restores the link itself', () {
       // The screen-off case. An in-app Wi-Fi join is scoped to the app being
       // foreground, so locking the phone tears it down and a system-owned
@@ -325,6 +389,19 @@ void main() {
       // startLocalOnlyHotspot mints a new random SSID and offers no way to ask
       // for the old one, so the peer is looking for a name that is gone.
       expect(keeper.state, HotspotLinkState.lost);
+    });
+
+    test('retryNow does nothing for a host — resending the old join fixes '
+        "nothing when the peer can't guess the new name", () async {
+      keeper.adopt(_creds);
+      host.tearDown();
+      await pumpEventQueue();
+      expect(keeper.state, HotspotLinkState.lost);
+
+      keeper.retryNow();
+      await pumpEventQueue();
+
+      expect(joiner.joins, isEmpty);
     });
 
     test(

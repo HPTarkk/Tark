@@ -23,6 +23,7 @@ import '../widget/channel_recovery.dart';
 import '../widget/connection_health_banner.dart';
 import '../widget/mic_control.dart';
 import '../widget/music_cast_section.dart';
+import '../widget/peer_departure_banner.dart';
 import '../widget/role_badge.dart';
 import '../widget/usage_tips_sheet.dart';
 import '../widget/user_list.dart';
@@ -153,7 +154,9 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
         if (!didPop) _confirmLeave(context);
       },
       child: AnnotatedRegion<SystemUiOverlayStyle>(
-        value: AppColors.systemOverlayStyle.copyWith(statusBarColor: Colors.transparent),
+        value: AppColors.systemOverlayStyle.copyWith(
+          statusBarColor: Colors.transparent,
+        ),
         child: _buildScaffold(context),
       ),
     );
@@ -192,6 +195,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
                     // inside the section so nothing doubles up here.
                     _entrance(4, const MusicCastSection()),
                     const SizedBox(height: 20),
+                    _buildPeerDepartureBanner(),
                     _entrance(5, const UserList()),
                   ],
                 ),
@@ -208,9 +212,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const ChannelHelpButton(),
-                  VersionBadge(
-                    color: AppColors.textSecondary.withAlpha(60),
-                  ),
+                  VersionBadge(color: AppColors.textSecondary.withAlpha(60)),
                 ],
               ),
             ),
@@ -353,6 +355,15 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
         transferMode: state.transferMode,
         onRetry: () => context.read<WalkieTalkieCubit>().retryNow(),
       ),
+    );
+  }
+
+  // ── Peer departure banner ───────────────────────────────────────────────────
+  Widget _buildPeerDepartureBanner() {
+    return BlocBuilder<WalkieTalkieCubit, WalkieTalkieState>(
+      buildWhen: (p, c) => p.lastPeerDeparture != c.lastPeerDeparture,
+      builder: (context, state) =>
+          PeerDepartureBanner(departure: state.lastPeerDeparture),
     );
   }
 

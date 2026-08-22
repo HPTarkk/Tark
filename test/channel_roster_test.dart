@@ -27,44 +27,35 @@ void main() {
     });
 
     test('silent → talking reports a talk onset', () {
-      final update = roster.upsert(
-        [user('a')],
-        user('a', isTalking: true),
-      );
+      final update = roster.upsert([user('a')], user('a', isTalking: true));
       expect(update.change, RosterChange.peerStartedTalking);
       expect(update.users.single.isTalking, isTrue);
     });
 
     test('an update with no role keeps the one already announced', () {
       // Every audio packet arrives role-less; presence only comes every 2s.
-      final update = roster.upsert(
-        [user('a', role: SessionRole.host)],
-        user('a', isTalking: true),
-      );
+      final update = roster.upsert([
+        user('a', role: SessionRole.host),
+      ], user('a', isTalking: true));
       expect(update.users.single.role, SessionRole.host);
     });
 
     test('an announced role replaces the one held', () {
-      final update = roster.upsert(
-        [user('a', role: SessionRole.joiner)],
-        user('a', role: SessionRole.host),
-      );
+      final update = roster.upsert([
+        user('a', role: SessionRole.joiner),
+      ], user('a', role: SessionRole.host));
       expect(update.users.single.role, SessionRole.host);
     });
 
     test('talking → talking refresh reports no change', () {
-      final update = roster.upsert(
-        [user('a', isTalking: true)],
+      final update = roster.upsert([
         user('a', isTalking: true),
-      );
+      ], user('a', isTalking: true));
       expect(update.change, RosterChange.none);
     });
 
     test('talking → silent reports no change (timeout owns the cue)', () {
-      final update = roster.upsert(
-        [user('a', isTalking: true)],
-        user('a'),
-      );
+      final update = roster.upsert([user('a', isTalking: true)], user('a'));
       expect(update.change, RosterChange.none);
       expect(update.users.single.isTalking, isFalse);
     });
@@ -80,36 +71,55 @@ void main() {
     final now = DateTime(2026, 7, 20, 12);
 
     test('drops users unseen past staleAfterSeconds and reports a leave', () {
-      final update = roster.cleanup(
-        [user('a', lastSeen: now.subtract(const Duration(seconds: 8)))],
-        now,
-      );
+      final update = roster.cleanup([
+        user('a', lastSeen: now.subtract(const Duration(seconds: 8))),
+      ], now);
       expect(update.change, RosterChange.peerLeft);
       expect(update.users, isEmpty);
     });
 
     test('silences a talker unseen past talkTimeoutSeconds but keeps them', () {
-      final update = roster.cleanup(
-        [
-          user(
-            'a',
-            isTalking: true,
-            lastSeen: now.subtract(const Duration(seconds: 4)),
-          ),
-        ],
-        now,
-      );
+      final update = roster.cleanup([
+        user(
+          'a',
+          isTalking: true,
+          lastSeen: now.subtract(const Duration(seconds: 4)),
+        ),
+      ], now);
       expect(update.change, RosterChange.none);
       expect(update.users.single.isTalking, isFalse);
     });
 
     test('fresh users pass through untouched', () {
-      final update = roster.cleanup(
-        [user('a', isTalking: true, lastSeen: now)],
-        now,
-      );
+      final update = roster.cleanup([
+        user('a', isTalking: true, lastSeen: now),
+      ], now);
       expect(update.change, RosterChange.none);
       expect(update.users.single.isTalking, isTrue);
+    });
+  });
+
+  group('ChannelRoster.announceLeave', () {
+    test('removes the announced user at once and reports it', () {
+      final leaving = user('a');
+      final update = roster.announceLeave([leaving, user('b')], 'a');
+      expect(update.change, RosterChange.peerAnnouncedLeave);
+      expect(update.users.map((u) => u.id), ['b']);
+      expect(update.subject, leaving);
+    });
+
+    test('an id not on the roster is a no-op', () {
+      final input = [user('a')];
+      final update = roster.announceLeave(input, 'ghost');
+      expect(update.change, RosterChange.none);
+      expect(update.users, input);
+      expect(update.subject, isNull);
+    });
+
+    test('does not mutate the input list', () {
+      final input = [user('a')];
+      roster.announceLeave(input, 'a');
+      expect(input, hasLength(1));
     });
   });
 }

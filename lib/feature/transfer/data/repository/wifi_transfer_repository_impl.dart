@@ -551,8 +551,9 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   @override
   Future<Either<Failure, void>> sendPresence(
     String senderName,
-    bool isTalking,
-  ) async {
+    bool isTalking, {
+    bool isLeaving = false,
+  }) async {
     try {
       await _ensureSendSocket();
       final packet = _codec.encodePresence(
@@ -563,6 +564,7 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
         // hears, and an honest empty list is what lets a peer whose send path
         // has died find out. See [PresencePacket.heardIds].
         heardIds: _currentlyHeardSenders(),
+        isLeaving: isLeaving,
       );
       _sendToAllTargets(packet, isAudio: false);
       _sweepIfUndiscovered(packet);

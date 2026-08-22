@@ -695,11 +695,7 @@ class BluetoothTransferRepository
       if (_connectedPeerId == null) {
         return const Left(DataTransferFailure());
       }
-      final payload = _codec.encodeMediaAudio(
-        samples,
-        senderName,
-        _mediaSeq++,
-      );
+      final payload = _codec.encodeMediaAudio(samples, senderName, _mediaSeq++);
       // Fire-and-forget, on purpose: media never queues behind — or makes
       // this call wait behind — anything voice/presence need to send. See
       // [PriorityWriteScheduler.writeLowPriority].
@@ -714,8 +710,9 @@ class BluetoothTransferRepository
   @override
   Future<Either<Failure, void>> sendPresence(
     String senderName,
-    bool isTalking,
-  ) async {
+    bool isTalking, {
+    bool isLeaving = false,
+  }) async {
     try {
       if (_connectedPeerId == null) {
         return const Right(null); // not connected yet — nothing to send
@@ -724,6 +721,7 @@ class BluetoothTransferRepository
         senderName,
         isTalking,
         role: sessionRole,
+        isLeaving: isLeaving,
       );
       await _writeScheduler.writeHighPriority(payload);
       return const Right(null);
