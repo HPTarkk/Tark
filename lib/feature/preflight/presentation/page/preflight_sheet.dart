@@ -8,6 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../transfer/domain/service/transport_advisor.dart';
 import '../../service/preflight_result.dart';
 import '../../service/preflight_service.dart';
+import '../widget/signal_radar.dart';
 
 /// Signature of [PreflightService.start] — a seam so tests can substitute a
 /// fake session instead of a real probe/platform-channel run, the same way
@@ -119,7 +120,16 @@ class _PreflightSheetState extends State<_PreflightSheet>
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 10),
+                SignalRadar(
+                  checks: _Slot.values
+                      .map((slot) => slot.checkOf(result))
+                      .toList(),
+                  isComplete: result.isComplete,
+                  hasBlocking: result.hasBlocking,
+                  hasOnlyWarning: result.hasOnlyWarning,
+                ),
+                const SizedBox(height: 14),
                 _Header(s: s, result: result),
                 const SizedBox(height: 16),
                 Flexible(
