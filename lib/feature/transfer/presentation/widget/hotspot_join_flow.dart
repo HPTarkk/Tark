@@ -9,6 +9,20 @@ import 'hotspot_qr_scanner.dart';
 import 'hotspot_join_states.dart';
 import 'hotspot_shared_widgets.dart';
 
+/// Opens the in-app scanner and hands whatever it reads to the cubit.
+///
+/// A top-level function rather than a method on [HotspotJoinFlow] so
+/// [WifiHotspotPage] can fire the very same scan for the "arrived already
+/// meaning to join" case, without a manual tap on this screen's own button —
+/// see its `_maybeAutoScan`. Every other button here (idle, invalid, manual
+/// fallback, lost link) still calls this directly on a tap.
+Future<void> openHotspotScanner(BuildContext context) async {
+  final cubit = context.read<WifiHotspotCubit>();
+  final raw = await HotspotQrScannerPage.open(context);
+  if (raw == null) return;
+  await cubit.submitScannedCode(raw);
+}
+
 /// Peer side of the hotspot bridge, on both platforms: scan the host's Wi-Fi QR
 /// in the app's own scanner and join that network without leaving the app.
 ///
@@ -86,13 +100,6 @@ class HotspotJoinFlow extends StatelessWidget {
       child: Icon(Icons.wifi_find_rounded, color: color, size: 38),
     ),
   };
-
-  Future<void> _scan(BuildContext context) async {
-    final cubit = context.read<WifiHotspotCubit>();
-    final raw = await HotspotQrScannerPage.open(context);
-    if (raw == null) return;
-    await cubit.submitScannedCode(raw);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -217,7 +224,7 @@ class HotspotJoinFlow extends StatelessWidget {
             const SizedBox(height: 12),
             _SecondaryButton(
               label: s.hotspot_scan_again,
-              onTap: () => _scan(context),
+              onTap: () => openHotspotScanner(context),
             ),
           ],
           JoinPhase.lost => [
@@ -236,7 +243,7 @@ class HotspotJoinFlow extends StatelessWidget {
             const SizedBox(height: 12),
             _SecondaryButton(
               label: s.hotspot_scan_again,
-              onTap: () => _scan(context),
+              onTap: () => openHotspotScanner(context),
             ),
           ],
           _ => [
@@ -251,7 +258,7 @@ class HotspotJoinFlow extends StatelessWidget {
             HotspotPrimaryButton(
               icon: Icons.qr_code_scanner_rounded,
               label: s.hotspot_scan_host,
-              onTap: () => _scan(context),
+              onTap: () => openHotspotScanner(context),
             ),
           ],
         },

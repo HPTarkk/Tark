@@ -6,13 +6,12 @@ import '../../../transfer/domain/service/transport_advisor.dart';
 import '../../domain/service/pinned_plan.dart';
 import '../../service/preflight_result.dart';
 import '../../service/preflight_service.dart';
-import '../page/preflight_sheet.dart';
+import '../page/preflight_page.dart';
 
 /// Runs Preflight silently for a quick-access ("goLive") destination page,
 /// per the product decision behind #33: the home-widget shortcut exists to
-/// be instant, so it must not gain the full modal sheet's beat of friction.
-/// Checks still run — they only ever interrupt on a hard failure, never a
-/// warning.
+/// be instant, so it must not gain the full page's beat of friction. Checks
+/// still run — they only ever interrupt on a hard failure, never a warning.
 ///
 /// **Only mix this into a page that does not yet own the real
 /// `AudioEngine`/`WalkieTalkieCubit`** — `MicProbe`'s throwaway engine would
@@ -31,7 +30,7 @@ mixin SilentPreflightGuard<T extends StatefulWidget> on State<T> {
 
   /// Test seam: a page's `State` (or a test double standing in for one) can
   /// override this to substitute a fake session, the same way
-  /// `showPreflightSheet`'s own `startSession` parameter does.
+  /// `showPreflightPage`'s own `startSession` parameter does.
   @protected
   PreflightSessionStarter get preflightStarter => PreflightService.start;
 
@@ -71,12 +70,12 @@ mixin SilentPreflightGuard<T extends StatefulWidget> on State<T> {
 
   Future<void> _reactTo(PreflightResult result, ChannelPlan plan) async {
     if (!mounted || !result.hasBlocking) return;
-    // The same full sheet as the normal flow — familiar UI, and its own CTA
+    // The same full page as the normal flow — familiar UI, and its own CTA
     // gating is what actually resolves the failure; this guard's only job is
     // deciding *whether* to show it. Same starter as above (not just the
     // same function): a test double substituted via [preflightStarter] must
-    // govern the forced sheet too, or a test can prove the silent check but
+    // govern the forced page too, or a test can prove the silent check but
     // not what it triggers.
-    await showPreflightSheet(context, plan: plan, startSession: preflightStarter);
+    await showPreflightPage(context, plan: plan, startSession: preflightStarter);
   }
 }

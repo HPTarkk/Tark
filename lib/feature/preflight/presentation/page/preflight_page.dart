@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/extension.dart';
@@ -19,44 +22,96 @@ typedef PreflightSessionStarter =
       required ChannelPlan plan,
     });
 
-/// Shows the full pre-ride Preflight sheet and waits for the user's answer.
+/// Shows the full pre-ride Preflight page and waits for the user's answer.
 ///
 /// Returns `true` the moment they choose to proceed ("Enter channel" once
 /// everything's clear, "Continue anyway" if only warnings remain) and
-/// `false` on cancel (drag-to-dismiss or back) — never while a hard failure
-/// is still standing, since the CTA itself stays disabled until then.
-Future<bool> showPreflightSheet(
+/// `false` on cancel (back button/gesture) — never while a hard failure is
+/// still standing, since the CTA itself stays disabled until then.
+///
+/// A full page rather than a modal sheet: the six-row checklist is exactly
+/// the content a bottom sheet handles worst, since the sheet's own
+/// drag-to-dismiss gesture and the list's scroll gesture are reaching for
+/// the same swipe, and a phone with more than a handful of low-end-floor
+/// pixels to spare (six rows, a hero dial, a header and a CTA) forced a
+/// nested-scroll compromise a sheet was never sized for. A pushed page owns
+/// its full height instead, so the list gets [Expanded] rather than
+/// `shrinkWrap` fighting a percentage-of-screen [Container] constraint.
+///
+/// A fully clear picture doesn't wait for a tap at all: this is the check
+/// that runs before *every* return to a channel, not just a first install,
+/// and a person is not owed a button press for a screen that has nothing to
+/// tell them. See `_PreflightPageState._scheduleAutoLaunch` for the short
+/// grace pause and the launch flourish that plays instead of an instant cut.
+/// A warning or a hard failure always waits for the tap — those are the
+/// moments the screen exists for.
+Future<bool> showPreflightPage(
   BuildContext context, {
   required ChannelPlan plan,
   PreflightSessionStarter startSession = PreflightService.start,
 }) async {
-  final result = await showModalBottomSheet<bool>(
-    context: context,
-    backgroundColor: Colors.transparent,
-    isScrollControlled: true,
-    builder: (_) => _PreflightSheet(plan: plan, startSession: startSession),
+  final result = await Navigator.of(context).push<bool>(
+    PageRouteBuilder<bool>(
+      transitionDuration: const Duration(milliseconds: 360),
+      reverseTransitionDuration: const Duration(milliseconds: 240),
+      pageBuilder: (_, _, _) =>
+          _PreflightPage(plan: plan, startSession: startSession),
+      // Rises in from just below rather than a flat cross-fade — the last
+      // physical trace of the sheet this replaced, kept because "the next
+      // screen comes up from where your thumb is" is still the right story
+      // for a page that opens on a tap, not a plain navigation.
+      transitionsBuilder: (_, animation, _, child) => FadeTransition(
+        opacity: animation,
+        child: SlideTransition(
+          position:
+              Tween<Offset>(
+                begin: const Offset(0, 0.05),
+                end: Offset.zero,
+              ).animate(
+                CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+              ),
+          child: child,
+        ),
+      ),
+    ),
   );
   return result ?? false;
 }
 
-class _PreflightSheet extends StatefulWidget {
-  const _PreflightSheet({required this.plan, required this.startSession});
+class _PreflightPage extends StatefulWidget {
+  const _PreflightPage({required this.plan, required this.startSession});
 
   final ChannelPlan plan;
   final PreflightSessionStarter startSession;
 
   @override
-  State<_PreflightSheet> createState() => _PreflightSheetState();
+  State<_PreflightPage> createState() => _PreflightPageState();
 }
 
-class _PreflightSheetState extends State<_PreflightSheet>
-    with SingleTickerProviderStateMixin {
+class _PreflightPageState extends State<_PreflightPage>
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   PreflightSession? _session;
+  PreflightResult? _result;
+  StreamSubscription<PreflightResult>? _resultsSub;
+  Timer? _autoLaunchTimer;
+  bool _launching = false;
+
   late final AnimationController _entrance;
+
+  /// Drives the launch flourish — see [_scheduleAutoLaunch]. Idle (and
+  /// therefore free) until the one moment it's needed, unlike [_entrance]
+  /// which always plays.
+  late final AnimationController _launch;
+
+  /// How long a fully-clear result sits on screen before the page moves on
+  /// by itself — long enough to read as "all clear" rather than a flicker,
+  /// short enough that it never feels like the app is making someone wait.
+  static const _autoLaunchGrace = Duration(milliseconds: 900);
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // One controller drives every row's staggered entrance (see _PreflightRow)
     // — six independent controllers would each tick a frame callback for the
     // same single visual beat, which is the kind of per-row animation cost
@@ -65,6 +120,21 @@ class _PreflightSheetState extends State<_PreflightSheet>
       vsync: this,
       duration: const Duration(milliseconds: 620),
     )..forward();
+    _launch = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 640),
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // The battery-exemption and Autostart actions both hand off to a system
+    // screen and report success the instant it *opens*, not once the user
+    // has actually granted anything there — see PreflightSession
+    // .recheckBackground. Re-checking on every resume (not just after those
+    // two actions specifically) is the same blunt-but-correct approach
+    // BackgroundPermissionBanner already uses for this exact hand-off.
+    if (state == AppLifecycleState.resumed) _session?.recheckBackground();
   }
 
   @override
@@ -72,95 +142,263 @@ class _PreflightSheetState extends State<_PreflightSheet>
     super.didChangeDependencies();
     // Not initState: resolving AppLocalizations depends on an inherited
     // widget, which the framework forbids before initState has returned.
-    // Guarded so a later dependency change (a locale switch mid-sheet)
-    // can't start a second, orphaned session.
-    _session ??= widget.startSession(s: context.getString, plan: widget.plan);
+    // Guarded so a later dependency change (a locale switch mid-page) can't
+    // start a second, orphaned session.
+    if (_session == null) {
+      final session = widget.startSession(s: context.getString, plan: widget.plan);
+      _session = session;
+      _result = session.initial;
+      _scheduleAutoLaunch(session.initial);
+      // A single subscription, not a second one alongside a StreamBuilder:
+      // [PreflightSession.results] is single-subscription, and this is the
+      // one place both the row rendering and the auto-launch watch need to
+      // read from.
+      _resultsSub = session.results.listen((result) {
+        if (!mounted) return;
+        setState(() => _result = result);
+        _scheduleAutoLaunch(result);
+      });
+    }
+  }
+
+  /// Arms (or disarms) the walk-away timer for a fully-clear result.
+  ///
+  /// Only ever reads the picture as "clear enough to leave alone" when
+  /// nothing is pending, blocking, or merely a warning — a warning still
+  /// gets its own deliberate "Continue anyway" tap, because it is a real
+  /// trade-off someone is owed a say in, not a formality. A remediation that
+  /// un-clears an already-scheduled result (rare, but the mic retry path
+  /// makes it possible) disarms the timer rather than letting a stale one
+  /// fire into a picture that no longer earned it.
+  void _scheduleAutoLaunch(PreflightResult result) {
+    final allClear =
+        result.isComplete && !result.hasBlocking && !result.hasOnlyWarning;
+    if (!allClear) {
+      _autoLaunchTimer?.cancel();
+      _autoLaunchTimer = null;
+      return;
+    }
+    _autoLaunchTimer ??= Timer(_autoLaunchGrace, () {
+      _autoLaunchTimer = null;
+      if (mounted && !_launching) _autoLaunch();
+    });
+  }
+
+  /// The one-shot "we're going in" sequence: a launch flourish plays, then
+  /// the page closes itself. Manual taps on the CTA skip straight to
+  /// [Navigator.pop] instead — a person who already reached out and pressed
+  /// something is not owed a flourish delaying the very thing they asked for;
+  /// the flourish exists to explain why the *screen* moved when nobody
+  /// touched it.
+  Future<void> _autoLaunch() async {
+    if (_launching) return;
+    setState(() => _launching = true);
+    HapticFeedback.heavyImpact();
+    await _launch.forward();
+    if (mounted) Navigator.of(context).pop(true);
   }
 
   @override
   void dispose() {
-    // The session must not outlive this sheet: a cancelled Preflight leaving
+    WidgetsBinding.instance.removeObserver(this);
+    _autoLaunchTimer?.cancel();
+    // The session must not outlive this page: a cancelled Preflight leaving
     // its controller (and any in-flight retry closing over it) alive behind
     // the real channel is exactly the leak the issue's lifecycle section
     // warns against.
+    _resultsSub?.cancel();
     _session?.dispose();
     _entrance.dispose();
+    _launch.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
-    final session = _session!;
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.85,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
-        border: Border.all(color: AppColors.border, width: 1.5),
-      ),
-      child: SafeArea(
-        top: false,
-        child: StreamBuilder<PreflightResult>(
-          stream: session.results,
-          initialData: session.initial,
-          builder: (context, snapshot) {
-            final result = snapshot.data ?? session.initial;
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 10),
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.border,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+    final result = _result!;
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: Stack(
+        children: [
+          SafeArea(
+            child: AnimatedBuilder(
+              animation: _launch,
+              builder: (context, child) => Opacity(
+                opacity: 1 - _launch.value,
+                child: Transform.translate(
+                  offset: Offset(0, -18 * _launch.value),
+                  child: child,
                 ),
-                const SizedBox(height: 10),
-                SignalRadar(
-                  checks: _Slot.values
-                      .map((slot) => slot.checkOf(result))
-                      .toList(),
-                  isComplete: result.isComplete,
-                  hasBlocking: result.hasBlocking,
-                  hasOnlyWarning: result.hasOnlyWarning,
-                ),
-                const SizedBox(height: 14),
-                _Header(s: s, result: result),
-                const SizedBox(height: 16),
-                Flexible(
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                    itemCount: _Slot.values.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 10),
-                    itemBuilder: (_, i) => _PreflightRow(
-                      slot: _Slot.values[i],
-                      s: s,
-                      check: _Slot.values[i].checkOf(result),
-                      index: i,
-                      entrance: _entrance,
+              ),
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                    child: Row(
+                      children: [
+                        _BackButton(
+                          onTap: () => Navigator.of(context).pop(false),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                  child: _Cta(s: s, result: result),
-                ),
-              ],
-            );
-          },
+                  const SizedBox(height: 12),
+                  SignalRadar(
+                    checks: _Slot.values
+                        .map((slot) => slot.checkOf(result))
+                        .toList(),
+                    isComplete: result.isComplete,
+                    hasBlocking: result.hasBlocking,
+                    hasOnlyWarning: result.hasOnlyWarning,
+                  ),
+                  const SizedBox(height: 16),
+                  _Header(s: s, result: result),
+                  const SizedBox(height: 12),
+                  // Expanded, not Flexible+shrinkWrap: the whole reason this
+                  // is a page and not a sheet is that the list now owns
+                  // real, fixed vertical space to scroll within instead of
+                  // negotiating height against a modal's own drag gesture.
+                  Expanded(
+                    child: ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                      itemCount: _Slot.values.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 10),
+                      itemBuilder: (_, i) => _PreflightRow(
+                        slot: _Slot.values[i],
+                        s: s,
+                        check: _Slot.values[i].checkOf(result),
+                        index: i,
+                        entrance: _entrance,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                    child: _Cta(s: s, result: result),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Only ever mounted for the auto path (see _autoLaunch) — a
+          // manual tap never sets _launching, so this never competes with
+          // the instant close a deliberate press is owed.
+          if (_launching)
+            Positioned.fill(child: _LaunchBurst(animation: _launch)),
+        ],
+      ),
+    );
+  }
+}
+
+/// The one way back that doesn't depend on the platform providing its own —
+/// mirrors [WifiHotspotPage]'s leading arrow, but as a standalone chip rather
+/// than an AppBar's, since this page is full-bleed rather than boxed under a
+/// bar.
+class _BackButton extends StatelessWidget {
+  const _BackButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      child: Container(
+        width: 40,
+        height: 40,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Icon(
+          Icons.arrow_back_rounded,
+          color: AppColors.textPrimary,
+          size: 20,
         ),
       ),
     );
   }
 }
 
-/// The six rows the sheet shows, in display order — see [PreflightResult]'s
+/// The launch flourish: two rings of the "all clear" green bursting outward
+/// from the page's centre and fading as the checklist itself lifts away
+/// (see the [AnimatedBuilder] wrapping the page's [Column]) — the one moment
+/// this screen spends looking like a launch rather than a checklist.
+///
+/// Both rings are plain [Container]s scaled and faded by a single
+/// [AnimationController], the same idiom [SignalRadar]'s own bloom already
+/// uses — no [CustomPainter], no shader rebuilt per frame, and it only ever
+/// exists for this one 640ms pass rather than sitting in the tree accruing an
+/// idle cost the way a looping effect would.
+class _LaunchBurst extends StatelessWidget {
+  const _LaunchBurst({required this.animation});
+
+  final Animation<double> animation;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: animation,
+        builder: (context, _) {
+          final t = animation.value;
+          // Held near-full through most of the sweep, then eased out right
+          // at the end so the page doesn't get yanked shut mid-glow.
+          final fade = t < 0.7 ? 1.0 : (1 - (t - 0.7) / 0.3).clamp(0.0, 1.0);
+          return Opacity(
+            opacity: fade,
+            child: Center(
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Transform.scale(
+                    scale: 0.3 + t * 2.6,
+                    child: Container(
+                      width: 96,
+                      height: 96,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.green.withAlpha(
+                          (60 * (1 - t)).round(),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Transform.scale(
+                    scale: 0.3 + t * 3.6,
+                    child: Container(
+                      width: 96,
+                      height: 96,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: AppColors.green.withAlpha(
+                            (200 * (1 - t)).round(),
+                          ),
+                          width: 2,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// The six rows the page shows, in display order — see [PreflightResult]'s
 /// doc for why checks 5/8 aren't in this list.
 enum _Slot { mic, headset, connection, background, hdVoice, sharedMusic }
 
@@ -260,7 +498,7 @@ class _PreflightRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Staggered off one shared controller: each row's own slice of the same
-    // 620ms sweep, not an independent animation — see _PreflightSheetState.
+    // 620ms sweep, not an independent animation — see _PreflightPageState.
     final start = (index * 0.09).clamp(0.0, 0.55);
     final curved = CurvedAnimation(
       parent: entrance,

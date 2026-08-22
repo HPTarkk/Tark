@@ -178,6 +178,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get channel_different_network => 'Not on the same network?';
 
   @override
+  String get channel_same_wifi => 'On the same Wi-Fi?';
+
+  @override
   String get channel_pinned_note => 'picked by hand';
 
   @override

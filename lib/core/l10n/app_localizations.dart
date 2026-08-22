@@ -428,6 +428,12 @@ abstract class AppLocalizations {
   /// **'روی یه شبکه نیستین؟'**
   String get channel_different_network;
 
+  /// No description provided for @channel_same_wifi.
+  ///
+  /// In fa, this message translates to:
+  /// **'روی یه وای‌فای هستین؟'**
+  String get channel_same_wifi;
+
   /// No description provided for @channel_pinned_note.
   ///
   /// In fa, this message translates to:

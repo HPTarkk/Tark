@@ -14,7 +14,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/mesh_background.dart';
 import '../../../../core/widget/settings_icon_button.dart';
 import '../../../../core/widget/version_badge.dart';
-import '../../../preflight/presentation/page/preflight_sheet.dart';
+import '../../../preflight/presentation/page/preflight_page.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../manager/landing_cubit.dart';
 import '../widget/landing_identity_card.dart';
@@ -180,6 +180,8 @@ class _LandingPageState extends State<LandingPage>
         enabled: !state.isLoading,
         onTap: (plan) => _enterChannel(context, plan),
         onDifferentNetwork: () => _openHotspotBridge(context),
+        onSameWifi: () => context.read<LandingCubit>().preferSharedNetwork(),
+        hasWifi: state.hasWifiAddress,
       ),
     );
   }
@@ -203,7 +205,7 @@ class _LandingPageState extends State<LandingPage>
     // for every returning user — onboarding's own launch only ever fires
     // once, on a fresh install. Runs before anything below is committed, so
     // cancelling leaves Landing exactly as it was.
-    final proceed = await showPreflightSheet(context, plan: plan);
+    final proceed = await showPreflightPage(context, plan: plan);
     if (!proceed || !context.mounted) return;
 
     final cubit = context.read<LandingCubit>();

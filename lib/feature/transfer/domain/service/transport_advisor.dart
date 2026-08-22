@@ -104,6 +104,19 @@ class ChannelPlan {
   /// screen when that pin has no network to run over — a pin is a preference,
   /// not a reason to strand someone.
   bool get canFallBackToHotspot => mode == TransferMode.wifi;
+
+  /// The mirror image: whether "actually, we're already together" is worth
+  /// offering.
+  ///
+  /// Automatic reaches for a hotspot first precisely because it *cannot*
+  /// check the thing [canFallBackToHotspot] is named for — so the common case
+  /// of two phones genuinely on one network (an office, a home Wi-Fi neither
+  /// side is about to leave) needs its own way back, the same size as the way
+  /// out. Home Wi-Fi is deliberately *not* read as that signal on its own: at
+  /// the moment someone opens this screen they are as likely to be about to
+  /// walk out the door as to stay, so the plan defaults to the transport that
+  /// works either way and lets the person say otherwise.
+  bool get canFallBackToWifi => mode == TransferMode.hotspot;
 }
 
 /// Picks the transport from what the device can see, so that choosing one is
@@ -147,22 +160,30 @@ abstract final class TransportAdvisor {
 
   /// The ladder, in the order a person would reason through it.
   ///
-  /// A shared network first, because it costs nothing and neither phone has to
-  /// give anything up for it. Then the hotspot, which makes a network where
-  /// there wasn't one — and which each intent reaches by a different
-  /// capability, since iOS can join an AP it could never have hosted. Then
-  /// Bluetooth, which needs no network at all but pays for it in range and
-  /// bandwidth. Wi-Fi is the floor rather than the ceiling: on a device that
-  /// can do none of the above (desktop, web) it is the only transport that
-  /// still binds a socket, and a plan that goes nowhere reports itself as
-  /// [ChannelPlan.blocked] rather than pretending.
+  /// The hotspot rung leads, ahead of a network already in hand — and which
+  /// each intent reaches by a different capability, since iOS can join an AP
+  /// it could never have hosted. That ordering is deliberate, not an
+  /// oversight: `hasWifi` only ever says *this* phone can reach a network, and
+  /// the one moment this screen matters most is someone standing at home,
+  /// on the home Wi-Fi, about to walk out the door with it — the exact
+  /// situation where "we're both on a network right now" is the least
+  /// trustworthy reading of "we'll still share one in a minute." A hotspot the
+  /// two phones make between themselves works whether they stay put or leave,
+  /// so it is the default and shared-Wi-Fi is the opt-in (see
+  /// [ChannelPlan.canFallBackToWifi]) rather than the other way around.
+  /// Bluetooth comes after, needing no network at all but paying for it in
+  /// range and bandwidth. Wi-Fi is the floor rather than the ceiling: on a
+  /// device that can do none of the above (desktop, web, an iPhone hosting) it
+  /// is the only transport left that still binds a socket, and a plan that
+  /// goes nowhere reports itself as [ChannelPlan.blocked] rather than
+  /// pretending.
   static TransferMode _automatic(ChannelIntent intent, LinkConditions c) {
-    if (c.hasWifi) return TransferMode.wifi;
     final canBridge = switch (intent) {
       ChannelIntent.create => c.canHostHotspot,
       ChannelIntent.join => c.canJoinHotspot,
     };
     if (canBridge) return TransferMode.hotspot;
+    if (c.hasWifi) return TransferMode.wifi;
     if (c.bluetoothSupported) return TransferMode.bluetooth;
     return TransferMode.wifi;
   }

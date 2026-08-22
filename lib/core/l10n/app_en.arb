@@ -54,6 +54,7 @@
     "channel_via_guest": "invite a browser guest",
     "channel_via_no_network": "no network to use yet",
     "channel_different_network": "Not on the same network?",
+    "channel_same_wifi": "On the same Wi-Fi?",
     "channel_pinned_note": "picked by hand",
     "transport_automatic": "AUTOMATIC",
     "channel_code_label": "CHANNEL CODE",

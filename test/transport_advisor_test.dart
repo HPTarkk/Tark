@@ -37,13 +37,25 @@ void main() {
       );
 
   group('the automatic ladder', () {
-    test('a shared network wins for both intents, and needs no setup', () {
+    // Home Wi-Fi is the least trustworthy moment to read "shared network" —
+    // it's exactly when someone is standing at home about to walk out the
+    // door with it. So a hotspot, which works either way, leads even when a
+    // network is already in hand.
+    test('hotspot leads over a network already in hand, for both intents', () {
       for (final intent in ChannelIntent.values) {
         final plan = TransportAdvisor.plan(intent, android(wifi: true));
-        expect(plan.mode, TransferMode.wifi);
-        expect(plan.reason, ChannelPlanReason.sharedNetwork);
+        expect(plan.mode, TransferMode.hotspot);
         expect(plan.blocked, isFalse);
       }
+    });
+
+    test('a shared network is the fallback once bridging is off the table', () {
+      // iOS hosting an access point cannot happen at all, so a network
+      // already in hand is the best this device has.
+      final plan = TransportAdvisor.plan(ChannelIntent.create, ios(wifi: true));
+      expect(plan.mode, TransferMode.wifi);
+      expect(plan.reason, ChannelPlanReason.sharedNetwork);
+      expect(plan.blocked, isFalse);
     });
 
     test('with no network, Android makes one', () {
@@ -196,12 +208,12 @@ void main() {
     // exactly where the plan assumed it, and nowhere else.
     test('the different-network way out appears only on a Wi-Fi plan', () {
       expect(
-        TransportAdvisor.plan(ChannelIntent.create, android(wifi: true))
+        TransportAdvisor.plan(ChannelIntent.create, ios(wifi: true))
             .canFallBackToHotspot,
         isTrue,
       );
       expect(
-        TransportAdvisor.plan(ChannelIntent.create, android())
+        TransportAdvisor.plan(ChannelIntent.create, android(wifi: true))
             .canFallBackToHotspot,
         isFalse,
       );
@@ -210,6 +222,28 @@ void main() {
           ChannelIntent.create,
           android(wifi: true, pin: TransferMode.bluetooth),
         ).canFallBackToHotspot,
+        isFalse,
+      );
+    });
+
+    // The mirror link: "On the same Wi-Fi?" answers for the hotspot default,
+    // and only makes sense while it's the plan on screen.
+    test('the same-wifi way out appears only on a hotspot plan', () {
+      expect(
+        TransportAdvisor.plan(ChannelIntent.create, android(wifi: true))
+            .canFallBackToWifi,
+        isTrue,
+      );
+      expect(
+        TransportAdvisor.plan(ChannelIntent.create, ios(wifi: true))
+            .canFallBackToWifi,
+        isFalse,
+      );
+      expect(
+        TransportAdvisor.plan(
+          ChannelIntent.create,
+          android(wifi: true, pin: TransferMode.bluetooth),
+        ).canFallBackToWifi,
         isFalse,
       );
     });

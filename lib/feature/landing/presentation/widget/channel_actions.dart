@@ -35,6 +35,16 @@ class ChannelActions extends StatelessWidget {
   /// networks" — the one thing the advisor provably cannot observe.
   final VoidCallback onDifferentNetwork;
 
+  /// The mirror of [onDifferentNetwork]: "actually, we're already together" —
+  /// switches both actions from the hotspot default over to the shared
+  /// network this phone can already see.
+  final VoidCallback onSameWifi;
+
+  /// Whether this phone can currently see a Wi-Fi network at all — gates
+  /// [onSameWifi], since offering to fall back to a network that does not
+  /// exist would be a dead link.
+  final bool hasWifi;
+
   const ChannelActions({
     super.key,
     required this.createPlan,
@@ -43,6 +53,8 @@ class ChannelActions extends StatelessWidget {
     required this.enabled,
     required this.onTap,
     required this.onDifferentNetwork,
+    required this.onSameWifi,
+    required this.hasWifi,
   });
 
   @override
@@ -85,9 +97,20 @@ class ChannelActions extends StatelessWidget {
         // doing.
         if (createPlan.canFallBackToHotspot) ...[
           const SizedBox(height: 10),
-          _DifferentNetworkLink(
+          _WayOutLink(
+            icon: Icons.wifi_tethering_rounded,
             label: s.channel_different_network,
             onTap: onDifferentNetwork,
+          ),
+        ],
+        // The reverse case: the default assumed a hotspot, but there is a
+        // network right here that both phones could just use instead.
+        if (createPlan.canFallBackToWifi && hasWifi) ...[
+          const SizedBox(height: 10),
+          _WayOutLink(
+            icon: Icons.wifi_rounded,
+            label: s.channel_same_wifi,
+            onTap: onSameWifi,
           ),
         ],
       ],
@@ -216,11 +239,16 @@ String routeLabel(AppLocalizations s, ChannelPlan plan) => switch (plan.reason) 
   ChannelPlanReason.noNetwork => s.channel_via_no_network,
 };
 
-class _DifferentNetworkLink extends StatelessWidget {
+class _WayOutLink extends StatelessWidget {
+  final IconData icon;
   final String label;
   final VoidCallback onTap;
 
-  const _DifferentNetworkLink({required this.label, required this.onTap});
+  const _WayOutLink({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -235,11 +263,7 @@ class _DifferentNetworkLink extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.wifi_tethering_rounded,
-              size: 14,
-              color: AppColors.textSecondary,
-            ),
+            Icon(icon, size: 14, color: AppColors.textSecondary),
             const SizedBox(width: 7),
             Text(
               label,

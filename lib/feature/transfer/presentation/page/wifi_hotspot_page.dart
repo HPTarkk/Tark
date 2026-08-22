@@ -80,6 +80,11 @@ class _WifiHotspotPageState extends State<WifiHotspotPage>
     with WidgetsBindingObserver, SilentPreflightGuard<WifiHotspotPage> {
   bool _navigating = false;
 
+  /// One-shot guard for [_maybeAutoScan] — fires at most once per page
+  /// instance, so a scan that comes back invalid (or a manual "scan again")
+  /// never re-triggers the camera on its own.
+  bool _autoScanTriggered = false;
+
   @override
   TransferMode get preflightMode => widget.initialSegment == WifiHotspotSegment.hotspot
       ? TransferMode.hotspot
@@ -89,6 +94,33 @@ class _WifiHotspotPageState extends State<WifiHotspotPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Covers the case the listener below can't: an intent of "join" resolves
+    // role/joinPhase synchronously inside chooseRole, before this widget ever
+    // subscribes to the cubit — so the *first* state it would see is already
+    // idle-at-join, not a transition into it. A post-frame callback rather
+    // than reading state here directly, because opening the scanner has to
+    // push a route, and no route exists to push onto before the first frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _maybeAutoScan(context, context.read<WifiHotspotCubit>().state);
+    });
+  }
+
+  /// Skips the "scan the host's code" tap for whoever already told us,
+  /// one screen ago, that scanning is exactly what they're here to do —
+  /// whether that arrived as the landing page's "join" intent or a manual
+  /// tap on [HotspotRolePicker]'s own join button. Guarded to once per page:
+  /// an invalid code or a lost link puts [JoinPhase] back to a state this
+  /// would otherwise match again, and re-opening the camera unasked at that
+  /// point would be a surprise, not a courtesy.
+  void _maybeAutoScan(BuildContext context, HotspotBridgeState state) {
+    if (_autoScanTriggered) return;
+    if (state.role == HotspotRole.join &&
+        state.joinPhase == JoinPhase.idle &&
+        state.credentials == null) {
+      _autoScanTriggered = true;
+      unawaited(openHotspotScanner(context));
+    }
   }
 
   @override
@@ -205,6 +237,7 @@ class _WifiHotspotPageState extends State<WifiHotspotPage>
             if (state.peerConnected && !_navigating) {
               unawaited(_enterChannel(context));
             }
+            _maybeAutoScan(context, state);
           },
           builder: (context, state) {
             final showSegments = !_navigating && !state.peerConnected;

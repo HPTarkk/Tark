@@ -12,7 +12,7 @@ import '../../../../core/sfx/sfx_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/theme_service.dart';
 import '../../../preflight/domain/service/pinned_plan.dart';
-import '../../../preflight/presentation/page/preflight_sheet.dart';
+import '../../../preflight/presentation/page/preflight_page.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../manager/onboarding_cubit.dart';
 import '../widget/callsign_step.dart';
@@ -235,7 +235,7 @@ class _OnboardingPageState extends State<OnboardingPage>
     if (mode != null) {
       final plan = await pinnedPlanFor(mode);
       if (!mounted) return;
-      final proceed = await showPreflightSheet(context, plan: plan);
+      final proceed = await showPreflightPage(context, plan: plan);
       if (!proceed || !mounted) return;
     }
     context.go(AppRoutes.landingPath);

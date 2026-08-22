@@ -54,6 +54,7 @@
     "channel_via_guest": "دعوت از مهمون مرورگری",
     "channel_via_no_network": "هنوز شبکه‌ای در دسترس نیست",
     "channel_different_network": "روی یه شبکه نیستین؟",
+    "channel_same_wifi": "روی یه وای‌فای هستین؟",
     "channel_pinned_note": "دستی انتخاب شده",
     "transport_automatic": "خودکار",
     "channel_code_label": "کد کانال",

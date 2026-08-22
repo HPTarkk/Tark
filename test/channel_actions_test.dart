@@ -6,25 +6,38 @@ import 'package:tark/feature/landing/presentation/widget/channel_actions.dart';
 import 'package:tark/feature/transfer/api/transfer_api.dart';
 
 void main() {
+  // Android, no network: both intents fall to the hotspot rung.
   const androidNoWifi = LinkConditions(
     hasWifi: false,
     canHostHotspot: true,
     canJoinHotspot: true,
     bluetoothSupported: true,
   );
+  // Android, on a network: hotspot still leads (it's the default), but a
+  // network is right there for the "On the same Wi-Fi?" link to offer.
   const androidOnWifi = LinkConditions(
     hasWifi: true,
     canHostHotspot: true,
     canJoinHotspot: true,
     bluetoothSupported: true,
   );
+  // Can bridge nothing itself, but has a network — the one shape that still
+  // resolves to a shared-network plan under the new ladder.
+  const bareOnWifi = LinkConditions(
+    hasWifi: true,
+    canHostHotspot: false,
+    canJoinHotspot: false,
+    bluetoothSupported: false,
+  );
 
   late List<ChannelPlan> tapped;
   late int differentNetworkTaps;
+  late int sameWifiTaps;
 
   setUp(() {
     tapped = [];
     differentNetworkTaps = 0;
+    sameWifiTaps = 0;
   });
 
   Future<AppLocalizations> pump(
@@ -61,6 +74,8 @@ void main() {
                 enabled: enabled,
                 onTap: tapped.add,
                 onDifferentNetwork: () => differentNetworkTaps++,
+                onSameWifi: () => sameWifiTaps++,
+                hasWifi: conditions.hasWifi,
               );
             },
           ),
@@ -87,7 +102,7 @@ void main() {
     });
 
     testWidgets('on a shared network both say so', (tester) async {
-      final s = await pump(tester, androidOnWifi);
+      final s = await pump(tester, bareOnWifi);
       expect(find.text(s.channel_via_shared_network), findsNWidgets(2));
     });
 
@@ -133,10 +148,14 @@ void main() {
           tester.view.physicalSize = const Size(320, 640);
           tester.view.devicePixelRatio = 1;
           addTearDown(tester.view.reset);
-          // No network: the longest route lines, plus the way-out link.
+          // No network: the longest route lines, no way-out link at all.
           await pump(tester, androidNoWifi, locale: locale);
           expect(tester.takeException(), isNull);
+          // Hotspot default with a network in reach: the "same Wi-Fi?" link.
           await pump(tester, androidOnWifi, locale: locale);
+          expect(tester.takeException(), isNull);
+          // Shared-network plan: the "different network?" link.
+          await pump(tester, bareOnWifi, locale: locale);
           expect(tester.takeException(), isNull);
         });
       }
@@ -146,7 +165,7 @@ void main() {
       testWidgets('is offered while the plan assumes one network', (
         tester,
       ) async {
-        final s = await pump(tester, androidOnWifi);
+        final s = await pump(tester, bareOnWifi);
         await tester.tap(find.text(s.channel_different_network));
         await tester.pump();
         expect(differentNetworkTaps, 1);
@@ -157,6 +176,28 @@ void main() {
       ) async {
         final s = await pump(tester, androidNoWifi);
         expect(find.text(s.channel_different_network), findsNothing);
+      });
+    });
+
+    group('the same-wifi way out', () {
+      testWidgets('is offered while the default assumes a hotspot but a '
+          'network is in reach', (tester) async {
+        final s = await pump(tester, androidOnWifi);
+        await tester.tap(find.text(s.channel_same_wifi));
+        await tester.pump();
+        expect(sameWifiTaps, 1);
+      });
+
+      testWidgets('is gone with no network to fall back to', (tester) async {
+        final s = await pump(tester, androidNoWifi);
+        expect(find.text(s.channel_same_wifi), findsNothing);
+      });
+
+      testWidgets('is gone once the plan is already the shared network', (
+        tester,
+      ) async {
+        final s = await pump(tester, bareOnWifi);
+        expect(find.text(s.channel_same_wifi), findsNothing);
       });
     });
   });

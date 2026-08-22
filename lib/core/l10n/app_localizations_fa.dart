@@ -178,6 +178,9 @@ class AppLocalizationsFa extends AppLocalizations {
   String get channel_different_network => 'روی یه شبکه نیستین؟';
 
   @override
+  String get channel_same_wifi => 'روی یه وای‌فای هستین؟';
+
+  @override
   String get channel_pinned_note => 'دستی انتخاب شده';
 
   @override

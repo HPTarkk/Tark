@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tark/core/l10n/app_localizations.dart';
 import 'package:tark/core/l10n/app_localizations_en.dart';
 import 'package:tark/core/recovery/recovery_check.dart';
-import 'package:tark/feature/preflight/presentation/page/preflight_sheet.dart';
+import 'package:tark/feature/preflight/presentation/page/preflight_page.dart';
 import 'package:tark/feature/preflight/service/preflight_result.dart';
 import 'package:tark/feature/preflight/service/preflight_service.dart';
 import 'package:tark/feature/transfer/domain/entity/channel_intent.dart';
@@ -58,7 +58,7 @@ Future<void> _openSheet(
         builder: (context) => Scaffold(
           body: Center(
             child: ElevatedButton(
-              onPressed: () => showPreflightSheet(
+              onPressed: () => showPreflightPage(
                 context,
                 plan: _plan,
                 startSession: starter,
@@ -161,6 +161,118 @@ void main() {
 
       expect(find.text('ENTER CHANNEL'), findsOneWidget);
     });
+  });
+
+  group('the automatic walk-away', () {
+    testWidgets('a fully clear result lets itself in without a tap', (
+      tester,
+    ) async {
+      await _openSheet(
+        tester,
+        ({required s, required plan}) =>
+            PreflightSession.debugFixed(_allGreen),
+      );
+
+      expect(
+        find.text('ENTER CHANNEL'),
+        findsOneWidget,
+        reason: 'still sitting out the grace pause',
+      );
+      // Two bounded pumps, not pumpAndSettle: a bare Timer firing doesn't
+      // itself schedule a frame, so pumpAndSettle's "stop once nothing's
+      // scheduled" heuristic would give up before the 900ms grace timer ever
+      // gets a chance to fire. The first pump crosses the grace pause and
+      // starts the launch controller; the second gives that controller
+      // enough elapsed time (measured from when it started, not from this
+      // pump's own start) to finish its 640ms sweep and pop.
+      await tester.pump(const Duration(milliseconds: 920));
+      await tester.pump(const Duration(milliseconds: 700));
+      // The pop itself still has the modal sheet's own exit transition to
+      // play out before the route is actually gone.
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(
+        find.text('ENTER CHANNEL'),
+        findsNothing,
+        reason: 'walked itself in with nobody tapping anything',
+      );
+    });
+
+    testWidgets('a warning-only result still waits for the tap', (
+      tester,
+    ) async {
+      final warnOnly = PreflightResult(
+        mic: _allGreen.mic,
+        route: _row(RecoveryStatus.warn, detail: 'phone speaker'),
+        connection: _allGreen.connection,
+        background: _allGreen.background,
+        hdVoice: _allGreen.hdVoice,
+        sharedMusic: _allGreen.sharedMusic,
+        diagnostics: _allGreen.diagnostics,
+      );
+
+      await _openSheet(
+        tester,
+        ({required s, required plan}) =>
+            PreflightSession.debugFixed(warnOnly),
+      );
+      await tester.pump(const Duration(milliseconds: 1000));
+      expect(
+        find.text('CONTINUE ANYWAY'),
+        findsOneWidget,
+        reason: 'a warning is a trade-off someone is owed a say in',
+      );
+    });
+
+    testWidgets('a blocked result never lets itself in', (tester) async {
+      final blocked = PreflightResult(
+        mic: _row(RecoveryStatus.bad, detail: 'mic denied'),
+        route: _allGreen.route,
+        connection: _allGreen.connection,
+        background: _allGreen.background,
+        hdVoice: _allGreen.hdVoice,
+        sharedMusic: _allGreen.sharedMusic,
+        diagnostics: _allGreen.diagnostics,
+      );
+
+      await _openSheet(
+        tester,
+        ({required s, required plan}) => PreflightSession.debugFixed(blocked),
+      );
+      await tester.pump(const Duration(milliseconds: 1000));
+      expect(find.text('FIX THE ISSUES ABOVE'), findsOneWidget);
+    });
+
+    testWidgets(
+      'a result that clears mid-sheet still waits out its own grace pause',
+      (tester) async {
+        final controller = StreamController<PreflightResult>();
+        addTearDown(controller.close);
+
+        await _openSheet(
+          tester,
+          ({required s, required plan}) => PreflightSession.debugStream(
+            initial: const PreflightResult(),
+            results: controller.stream,
+          ),
+        );
+
+        controller.add(_allGreen);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(
+          find.text('ENTER CHANNEL'),
+          findsOneWidget,
+          reason: 'grace pause only just started',
+        );
+
+        await tester.pump(const Duration(milliseconds: 920));
+        await tester.pump(const Duration(milliseconds: 700));
+        // The pop itself still has the modal sheet's own exit transition to
+        // play out before the route is actually gone.
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(find.text('ENTER CHANNEL'), findsNothing);
+      },
+    );
   });
 
   group('row rendering', () {

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tark/core/l10n/app_localizations.dart';
 import 'package:tark/core/recovery/recovery_check.dart';
-import 'package:tark/feature/preflight/presentation/page/preflight_sheet.dart';
+import 'package:tark/feature/preflight/presentation/page/preflight_page.dart';
 import 'package:tark/feature/preflight/service/preflight_result.dart';
 import 'package:tark/feature/preflight/service/preflight_service.dart';
 import 'package:tark/feature/transfer/domain/entity/channel_intent.dart';
@@ -55,7 +55,7 @@ Future<void> _openSheet(
         builder: (context) => Scaffold(
           body: Center(
             child: ElevatedButton(
-              onPressed: () => showPreflightSheet(
+              onPressed: () => showPreflightPage(
                 context,
                 plan: _plan,
                 startSession: ({required s, required plan}) =>

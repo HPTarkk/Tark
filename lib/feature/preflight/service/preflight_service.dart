@@ -32,7 +32,8 @@ import 'preflight_result.dart';
 /// down, so a cancelled Preflight doesn't leave the controller (or an
 /// in-flight retry closing over it) live behind the real channel.
 class PreflightSession {
-  PreflightSession._(this.initial, this._controller);
+  PreflightSession._(this.initial, this._controller, {Recheck? recheckBackground})
+    : _recheckBackground = recheckBackground;
 
   /// Test seam: wraps a fixed, already-resolved result with no further
   /// updates. Mirrors `DiagnosticLog.debugAttach`'s naming — this is not for
@@ -44,23 +45,48 @@ class PreflightSession {
 
   /// Test seam: wraps [initial] plus a caller-driven [results] stream, for
   /// tests that need to exercise the sheet's progressive/pending-row
-  /// rendering without a real probe.
+  /// rendering without a real probe. [recheckBackground] lets a test observe
+  /// the sheet's resume-triggered recheck (see [PreflightSession
+  /// .recheckBackground]) without a real platform channel.
   factory PreflightSession.debugStream({
     required PreflightResult initial,
     required Stream<PreflightResult> results,
+    Recheck? recheckBackground,
   }) {
     final controller = StreamController<PreflightResult>();
     results.listen(controller.add, onDone: controller.close);
-    return PreflightSession._(initial, controller);
+    return PreflightSession._(
+      initial,
+      controller,
+      recheckBackground: recheckBackground,
+    );
   }
 
   final PreflightResult initial;
   final StreamController<PreflightResult> _controller;
+  final Recheck? _recheckBackground;
 
   Stream<PreflightResult> get results => _controller.stream;
 
+  /// Re-runs the background-readiness check on demand.
+  ///
+  /// Exists because [PreflightService]'s battery-exemption and Autostart
+  /// actions both hand off to a system screen (`ACTION_REQUEST_IGNORE_
+  /// BATTERY_OPTIMIZATIONS`, MIUI's Autostart manager) via a bare
+  /// `startActivity`, which returns to Dart the instant the screen opens —
+  /// long before the user has actually granted anything. The retry that used
+  /// to run right after used to read the OS state mid-transition and land on
+  /// "still not exempt" every time, only correcting itself on a second manual
+  /// tap. The sheet calls this instead when the app resumes, the same
+  /// re-check-on-resume `BackgroundPermissionBanner` already uses for the
+  /// identical hand-off. A no-op for the debug sessions, which have no live
+  /// probe to rerun.
+  Future<void> recheckBackground() => _recheckBackground?.call() ?? Future.value();
+
   void dispose() => _controller.close();
 }
+
+typedef Recheck = Future<void> Function();
 
 /// Runs every check Preflight can answer before a peer exists — see the
 /// module doc on why checks 5 (peer reachability) isn't run from here:
@@ -146,6 +172,6 @@ abstract final class PreflightService {
       Future.wait([runMicAndRoute(), runBackground(), runSharedMusic()]),
     );
 
-    return PreflightSession._(current, controller);
+    return PreflightSession._(current, controller, recheckBackground: runBackground);
   }
 }

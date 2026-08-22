@@ -86,6 +86,17 @@ class LandingCubit extends Cubit<LandingState> {
   /// the value they already hold.
   Future<void> commit(TransferMode mode) => _modeStore.setMode(mode);
 
+  /// "Actually, we're already together" — the answer to [ChannelPlan
+  /// .canFallBackToWifi]'s question.
+  ///
+  /// Session-only and one-way on purpose: it just tells the advisor to stop
+  /// reaching for a hotspot this visit, by pretending the device cannot bridge
+  /// one. Nothing is written to storage, so the next cold start (or the next
+  /// time this page mounts) goes back to defaulting on the situation rather
+  /// than remembering today's exception — unlike [pinnedMode], which is a
+  /// standing preference set in Advanced settings, this is not one.
+  void preferSharedNetwork() => emit(state.copyWith(preferSharedNetwork: true));
+
   /// Marks onboarding complete so subsequent cold starts skip this page and
   /// resume the last channel/mode directly — see QuickAccess.
   Future<void> markLaunched() =>
@@ -114,12 +125,17 @@ class LandingState extends Equatable {
   /// actions mean anything.
   final TransferMode? pinnedMode;
 
+  /// Set by [LandingCubit.preferSharedNetwork] when the person taps "On the
+  /// same Wi-Fi?" — see that method for why it lives here and not in storage.
+  final bool preferSharedNetwork;
+
   const LandingState({
     required this.localIp,
     required this.myName,
     required this.isLoading,
     required this.transferMode,
     required this.pinnedMode,
+    this.preferSharedNetwork = false,
   });
 
   factory LandingState.initial(
@@ -144,12 +160,19 @@ class LandingState extends Equatable {
   /// What the advisor is allowed to reason from. Platform capability is read
   /// here rather than injected: it cannot change while the app runs, and
   /// threading a constant through DI would buy a seam nothing needs.
+  ///
+  /// [preferSharedNetwork] is folded in by withholding the hotspot
+  /// capabilities rather than by touching [LinkConditions.hasWifi] — the
+  /// advisor's ladder falls through to Wi-Fi on its own once bridging looks
+  /// unavailable, which is exactly the outcome "we're already together"
+  /// should have, without adding a second way for the same answer to arrive.
   LinkConditions get conditions => LinkConditions(
     hasWifi: hasWifiAddress,
     // Only Android can raise a local-only access point.
-    canHostHotspot: Platform.isAndroid,
+    canHostHotspot: !preferSharedNetwork && Platform.isAndroid,
     // Both phone platforms can be told to associate with a scanned network.
-    canJoinHotspot: Platform.isAndroid || Platform.isIOS,
+    canJoinHotspot:
+        !preferSharedNetwork && (Platform.isAndroid || Platform.isIOS),
     // Android runs Classic RFCOMM + BLE, iOS runs BLE; desktop and web have
     // no Bluetooth transport at all (see BluetoothConnectPage).
     bluetoothSupported: Platform.isAndroid || Platform.isIOS,
@@ -164,12 +187,14 @@ class LandingState extends Equatable {
     String? myName,
     bool? isLoading,
     TransferMode? transferMode,
+    bool? preferSharedNetwork,
   }) => LandingState(
     localIp: localIp ?? this.localIp,
     myName: myName ?? this.myName,
     isLoading: isLoading ?? this.isLoading,
     transferMode: transferMode ?? this.transferMode,
     pinnedMode: pinnedMode,
+    preferSharedNetwork: preferSharedNetwork ?? this.preferSharedNetwork,
   );
 
   /// Separate from [copyWith] because null is a meaningful value here —
@@ -180,6 +205,7 @@ class LandingState extends Equatable {
     isLoading: isLoading,
     transferMode: transferMode,
     pinnedMode: pin,
+    preferSharedNetwork: preferSharedNetwork,
   );
 
   @override
@@ -189,5 +215,6 @@ class LandingState extends Equatable {
     isLoading,
     transferMode,
     pinnedMode,
+    preferSharedNetwork,
   ];
 }

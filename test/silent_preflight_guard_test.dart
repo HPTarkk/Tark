@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tark/core/l10n/app_localizations.dart';
 import 'package:tark/core/recovery/recovery_check.dart';
-import 'package:tark/feature/preflight/presentation/page/preflight_sheet.dart';
+import 'package:tark/feature/preflight/presentation/page/preflight_page.dart';
 import 'package:tark/feature/preflight/presentation/widget/silent_preflight_guard.dart';
 import 'package:tark/feature/preflight/service/preflight_result.dart';
 import 'package:tark/feature/preflight/service/preflight_service.dart';

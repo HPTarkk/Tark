@@ -7,7 +7,7 @@ import 'package:tark/feature/audio/domain/entity/audio_frame.dart';
 import 'package:tark/feature/audio/domain/entity/audio_route.dart';
 import 'package:tark/feature/audio/domain/service/audio_engine.dart';
 import 'package:tark/feature/preflight/data/mic_probe.dart';
-import 'package:tark/feature/preflight/presentation/page/preflight_sheet.dart';
+import 'package:tark/feature/preflight/presentation/page/preflight_page.dart';
 import 'package:tark/feature/preflight/service/preflight_result.dart';
 import 'package:tark/feature/preflight/service/preflight_service.dart';
 import 'package:tark/feature/transfer/domain/entity/channel_intent.dart';
@@ -103,7 +103,7 @@ void main() {
             builder: (context) => Scaffold(
               body: Center(
                 child: ElevatedButton(
-                  onPressed: () => showPreflightSheet(
+                  onPressed: () => showPreflightPage(
                     context,
                     plan: _plan,
                     startSession: starter,
@@ -135,6 +135,67 @@ void main() {
       }
 
       expect(startCount, 3, reason: 'one fresh session per open, not reused');
+    },
+  );
+
+  testWidgets(
+    'resuming from the background rechecks background readiness — the '
+    'battery-exemption/Autostart hand-off only takes effect once the user '
+    'is back from Settings, not the instant the screen opens',
+    (tester) async {
+      var recheckCount = 0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('en'),
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: ElevatedButton(
+                  onPressed: () => showPreflightPage(
+                    context,
+                    plan: _plan,
+                    startSession: ({required s, required plan}) =>
+                        PreflightSession.debugStream(
+                          initial: const PreflightResult(),
+                          results: const Stream.empty(),
+                          recheckBackground: () async {
+                            recheckCount++;
+                          },
+                        ),
+                  ),
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('open'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 700));
+      expect(recheckCount, 0, reason: 'no resume has happened yet');
+
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      tester.binding.handleAppLifecycleStateChanged(
+        AppLifecycleState.resumed,
+      );
+      await tester.pump();
+
+      expect(recheckCount, 1);
+
+      // Not just a one-shot subscription — every return from Settings should
+      // pick up whatever changed while the user was away.
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      tester.binding.handleAppLifecycleStateChanged(
+        AppLifecycleState.resumed,
+      );
+      await tester.pump();
+
+      expect(recheckCount, 2);
     },
   );
 }
