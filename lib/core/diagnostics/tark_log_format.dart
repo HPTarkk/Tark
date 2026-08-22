@@ -3,6 +3,8 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:fixnum/fixnum.dart';
+
 /// The `.tarklog` container: how an exported diagnostic log is packed so it
 /// survives a trip through a chat app and can still be read back by us.
 ///
@@ -47,7 +49,10 @@ abstract final class TarkLogFormat {
 
   /// Keystream seed constant. Shared verbatim with the decoder script; see the
   /// class doc for why this being public knowledge is fine.
-  static const _secret = 0x5441524B4C4F4731; // "TARKLOG1"
+  ///
+  /// `Int64`, not a literal: the value doesn't fit in the 53 bits a JS double
+  /// (what `int` compiles to on dart2js) can represent exactly.
+  static final _secret = Int64.parseHex('5441524B4C4F4731'); // "TARKLOG1"
 
   /// Packs [text] with [header] into the container above.
   ///
@@ -117,27 +122,37 @@ abstract final class TarkLogFormat {
 /// output byte. Deliberately trivial: it has to be reimplementable in a few
 /// lines of Python without pulling in a crypto library, because the decoder is
 /// a script someone runs once on a phone log, not a product.
+///
+/// Runs on `Int64` rather than native `int`: this needs true 64-bit wraparound
+/// multiplication and unsigned shifts, which dart2js can't give a plain `int`
+/// (it's a JS double under the hood — 53 bits of exact precision, not 64).
+/// `Int64` emulates the wraparound portably, so this produces the same bytes
+/// on VM, dart2js and wasm alike — see the golden vector in
+/// test/tark_log_format_test.dart.
 class _Keystream {
-  _Keystream(int secret, List<int> nonce) {
+  _Keystream(Int64 secret, List<int> nonce) {
     var seed = secret;
     for (final byte in nonce) {
-      seed = (seed ^ byte) * 0x100000001B3;
+      seed = (seed ^ Int64(byte)) * _mixConstant;
     }
     // A zero state is a fixed point of xorshift — impossible in practice here,
     // but the guard costs one comparison and removes the "produces all zeros,
     // i.e. no obfuscation at all" failure mode entirely.
-    _state = seed == 0 ? 0x2545F4914F6CDD1D : seed;
+    _state = seed == Int64.ZERO ? _fallbackSeed : seed;
   }
 
-  late int _state;
+  static final _mixConstant = Int64.parseHex('100000001B3');
+  static final _fallbackSeed = Int64.parseHex('2545F4914F6CDD1D');
+
+  late Int64 _state;
 
   int _next() {
     var x = _state;
-    x ^= x >>> 12;
+    x ^= x.shiftRightUnsigned(12);
     x ^= x << 25;
-    x ^= x >>> 27;
+    x ^= x.shiftRightUnsigned(27);
     _state = x;
-    return (x * 0x2545F4914F6CDD1D) >>> 24;
+    return (x * _fallbackSeed).shiftRightUnsigned(24).toInt();
   }
 
   Uint8List apply(List<int> bytes) {

@@ -68,6 +68,12 @@ dependencies:
   qr_flutter: ^4.1.0
   mobile_scanner: ^7.2.0
   archive: ^4.0.9
+  # Direct, for the true 64-bit wraparound arithmetic in
+  # core/diagnostics/tark_log_format.dart's keystream — native `int` on
+  # dart2js is a JS double (53-bit precision), so 64-bit literals and
+  # multiplication can't be represented, only Int64 can. Already in the tree
+  # transitively; listed here because we use it.
+  fixnum: ^1.1.1
   audioplayers: ^6.1.0
   home_widget: ^0.9.3
   adtrace_sdk_flutter: ^1.5.0
