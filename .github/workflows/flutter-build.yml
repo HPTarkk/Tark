@@ -1,60 +1,78 @@
-# name: Build Flutter Release APK
+name: Tark beta quality gate
 
-# on:
-#   push:
-#     branches:
-#       - main
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
 
-# jobs:
-#   build:
-#     runs-on: ubuntu-latest
+permissions:
+  contents: read
 
-#     steps:
-#       - name: Checkout repository
-#         uses: actions/checkout@v4
+concurrency:
+  group: tark-beta-gate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
-#       - name: Setup Java
-#         uses: actions/setup-java@v4
-#         with:
-#           distribution: temurin
-#           java-version: "17"
+jobs:
+  quality:
+    name: format-analyze-test-protocol
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
 
-#       - name: Setup Flutter
-#         uses: subosito/flutter-action@v2
-#         with:
-#           flutter-version: "3.41.9"
-#           channel: stable
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-#       - name: Decode keystore
-#         run: |
-#           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/upload-keystore.jks
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
 
-#       - name: Create key.properties
-#         run: |
-#           cat > android/key.properties <<EOF
-#           storePassword=${{ secrets.KEYSTORE_PASSWORD }}
-#           keyPassword=${{ secrets.KEY_PASSWORD }}
-#           keyAlias=${{ secrets.KEY_ALIAS }}
-#           storeFile=../upload-keystore.jks
-#           EOF
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.41.9"
+          channel: stable
+          cache: true
 
-#       - name: Get dependencies
-#         run: flutter pub get
+      - name: Get dependencies
+        run: flutter pub get
 
-#       - name: Build release APK with obfuscation
-#         run: |
-#           flutter build apk --release \
-#             --obfuscate \
-#             --split-debug-info=build/debug-info
+      - name: Verify generated localizations
+        run: flutter gen-l10n
 
-#       - name: Upload APK
-#         uses: actions/upload-artifact@v4
-#         with:
-#           name: release-apk
-#           path: build/app/outputs/flutter-apk/app-release.apk
+      - name: Check Dart formatting
+        run: dart format --output=none --set-exit-if-changed lib test packages
 
-#       - name: Upload debug symbols
-#         uses: actions/upload-artifact@v4
-#         with:
-#           name: debug-info
-#           path: build/debug-info
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Run Flutter tests
+        run: flutter test
+
+      - name: Run Tark log analyzer tests
+        run: python3 scripts/test_decode_tark_log.py
+
+      - name: Verify website localization output
+        run: node scripts/build-website-i18n.mjs --check
+
+      - name: Protocol compatibility tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t protocol_tests < <(find test -type f \( -iname '*packet*test.dart' -o -iname '*protocol*test.dart' -o -iname '*codec*compat*test.dart' -o -iname '*mixed*version*test.dart' \) | sort)
+          if [ "${#protocol_tests[@]}" -eq 0 ]; then
+            echo "No protocol compatibility tests were found."
+            exit 1
+          fi
+          printf 'Protocol gate files:\n%s\n' "${protocol_tests[*]}"
+          flutter test "${protocol_tests[@]}"
+
+      - name: Android debug compile check
+        run: flutter build apk --debug --dart-define=BUILD_CHANNEL=ci --dart-define=GIT_COMMIT=${{ github.sha }}
+
+      - name: Git diff check
+        run: git diff --check
