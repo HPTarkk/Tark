@@ -178,6 +178,24 @@ class SettingsRepositoryImpl implements SettingsRepository {
       _prefs.setBool(SettingsKeys.smartMusicDuckingEnabled, value);
 
   @override
+  Future<bool> getHdVoiceEnabled() async =>
+      _prefs.getBool(SettingsKeys.hdVoiceEnabled) ??
+      AppSettings.defaults().hdVoiceEnabled;
+
+  @override
+  Future<void> setHdVoiceEnabled(bool value) =>
+      _prefs.setBool(SettingsKeys.hdVoiceEnabled, value);
+
+  @override
+  Future<bool> getHdMusicEnabled() async =>
+      _prefs.getBool(SettingsKeys.hdMusicEnabled) ??
+      AppSettings.defaults().hdMusicEnabled;
+
+  @override
+  Future<void> setHdMusicEnabled(bool value) =>
+      _prefs.setBool(SettingsKeys.hdMusicEnabled, value);
+
+  @override
   Future<String?> getLastBluetoothPeerId() async =>
       _prefs.getString(SettingsKeys.btLastPeerId);
 

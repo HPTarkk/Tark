@@ -38,6 +38,15 @@ class AppSettings extends Equatable {
   /// completely unchanged, per the issue's "must be fully optional" rule.
   final bool smartMusicDuckingEnabled;
 
+  /// Settings > Advanced > HD Voice. Whether this build may negotiate up to
+  /// the 24kHz HD voice profile at all; see `AudioFormatProfile.hdVoiceEnabled`
+  /// for the in-memory flag this mirrors into the negotiator.
+  final bool hdVoiceEnabled;
+
+  /// Settings > Advanced > HD Shared Music. [hdVoiceEnabled]'s twin for the
+  /// 48kHz stereo media profile.
+  final bool hdMusicEnabled;
+
   const AppSettings({
     required this.myName,
     required this.voxMargin,
@@ -52,6 +61,8 @@ class AppSettings extends Equatable {
     required this.analyticsEnabled,
     required this.logMaxBytes,
     required this.smartMusicDuckingEnabled,
+    required this.hdVoiceEnabled,
+    required this.hdMusicEnabled,
   });
 
   /// Canonical defaults, including the hands-free-friendly voice combo: VOX
@@ -103,6 +114,12 @@ class AppSettings extends Equatable {
     // small, reversible gain dip while someone is talking, not a change to
     // anything the user chose (their own musicGain stays the base).
     smartMusicDuckingEnabled: true,
+    // On by default, matching #28 checkpoint 4's build-wide default from
+    // before this became a user switch — negotiation still falls back to
+    // legacy16k automatically for any peer that doesn't support HD, so this
+    // is never a regression for someone who never opens Advanced settings.
+    hdVoiceEnabled: true,
+    hdMusicEnabled: true,
   );
 
   AppSettings copyWith({
@@ -119,6 +136,8 @@ class AppSettings extends Equatable {
     bool? analyticsEnabled,
     int? logMaxBytes,
     bool? smartMusicDuckingEnabled,
+    bool? hdVoiceEnabled,
+    bool? hdMusicEnabled,
   }) => AppSettings(
     myName: myName ?? this.myName,
     voxMargin: voxMargin ?? this.voxMargin,
@@ -134,6 +153,8 @@ class AppSettings extends Equatable {
     logMaxBytes: logMaxBytes ?? this.logMaxBytes,
     smartMusicDuckingEnabled:
         smartMusicDuckingEnabled ?? this.smartMusicDuckingEnabled,
+    hdVoiceEnabled: hdVoiceEnabled ?? this.hdVoiceEnabled,
+    hdMusicEnabled: hdMusicEnabled ?? this.hdMusicEnabled,
   );
 
   @override
@@ -151,5 +172,7 @@ class AppSettings extends Equatable {
     analyticsEnabled,
     logMaxBytes,
     smartMusicDuckingEnabled,
+    hdVoiceEnabled,
+    hdMusicEnabled,
   ];
 }

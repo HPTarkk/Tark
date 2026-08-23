@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../../core/audio/audio_format_profile.dart';
 import '../../../core/diagnostics/diagnostic_log.dart';
 import '../../../core/l10n/app_localizations.dart';
 import '../../../core/utils/latest_only.dart';
@@ -124,7 +125,10 @@ abstract final class PreflightService {
     final controller = StreamController<PreflightResult>();
     var current = PreflightResult(
       connection: transportReadinessCheck(s: s, plan: plan),
-      hdVoice: profileReadinessCheck(s: s),
+      hdVoice: profileReadinessCheck(
+        s: s,
+        hdVoiceEnabled: AudioFormatProfile.hdVoiceEnabled,
+      ),
       diagnostics: diagnosticsReadinessCheck(
         s: s,
         isEnabled: DiagnosticLog.isEnabled,

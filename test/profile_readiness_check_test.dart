@@ -10,16 +10,28 @@ void main() {
 
   group('pre-connect (no live session yet)', () {
     test('reports local HD capability as ok, never a failure', () {
-      final check = profileReadinessCheck(s: s);
+      final check = profileReadinessCheck(s: s, hdVoiceEnabled: true);
       expect(check.status, RecoveryStatus.ok);
       expect(check.code, PreflightCheckCode.hdVoiceReady);
     });
+
+    test(
+      'HD Voice turned off reports standard voice, not "ready" — this '
+      "build's own supported list won't offer HD, so claiming ready would "
+      'be stale',
+      () {
+        final check = profileReadinessCheck(s: s, hdVoiceEnabled: false);
+        expect(check.status, RecoveryStatus.ok);
+        expect(check.code, PreflightCheckCode.hdVoiceStandard);
+      },
+    );
   });
 
   group('post-connect (a live negotiated format is known)', () {
     test('hd24k negotiated with the peer is ok', () {
       final check = profileReadinessCheck(
         s: s,
+        hdVoiceEnabled: true,
         liveNegotiatedFormat: AudioFormatProfile.hd24k,
       );
       expect(check.status, RecoveryStatus.ok);
@@ -32,6 +44,7 @@ void main() {
       () {
         final check = profileReadinessCheck(
           s: s,
+          hdVoiceEnabled: true,
           liveNegotiatedFormat: AudioFormatProfile.legacy16k,
         );
         expect(check.status, RecoveryStatus.ok);

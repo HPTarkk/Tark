@@ -1670,6 +1670,36 @@ abstract class AppLocalizations {
   /// **'صدای روون‌تر'**
   String get settings_delay_high_hint;
 
+  /// No description provided for @settings_section_hd_audio.
+  ///
+  /// In fa, this message translates to:
+  /// **'کیفیت صدای HD'**
+  String get settings_section_hd_audio;
+
+  /// No description provided for @hd_voice_label.
+  ///
+  /// In fa, this message translates to:
+  /// **'صدای باکیفیت'**
+  String get hd_voice_label;
+
+  /// No description provided for @hd_voice_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'صدای واضح‌تر و بهتر، وقتی همه توی کانال ازش پشتیبانی کنن. یه‌کم دیتای بیشتری مصرف می‌کنه و اگه طرف مقابل پشتیبانی نکنه، خودش برمی‌گرده به حالت معمولی.'**
+  String get hd_voice_desc;
+
+  /// No description provided for @hd_music_label.
+  ///
+  /// In fa, this message translates to:
+  /// **'آهنگ مشترک باکیفیت'**
+  String get hd_music_label;
+
+  /// No description provided for @hd_music_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'صدای استریوی باکیفیت‌تر وقتی آهنگ رو با کانال به اشتراک می‌ذاری.'**
+  String get hd_music_desc;
+
   /// No description provided for @settings_riding_section.
   ///
   /// In fa, this message translates to:

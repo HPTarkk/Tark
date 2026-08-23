@@ -86,6 +86,24 @@ class AudioFormatProfile extends Equatable {
     label: '24k-HD',
   );
 
+  /// Settings > Advanced > HD Voice, in memory. Defaults on, matching #28
+  /// checkpoint 4's build-wide default from before this toggle existed.
+  ///
+  /// Mutable and read live by [supported] (and, through it, by every
+  /// `AudioCapabilityNegotiator` instance and `localBitmask`) rather than
+  /// captured once — flipping this mid-call is exactly the same shape of
+  /// event as a peer's own support changing mid-call, which negotiation
+  /// already has to tolerate, so there is no separate "next session only"
+  /// path to maintain. [AppSettings.hdVoiceEnabled] is the persisted source
+  /// of truth; whoever loads settings (`main.dart` at cold start,
+  /// `SettingsCubit` on toggle) is responsible for writing it here.
+  static bool hdVoiceEnabled = true;
+
+  /// Settings > Advanced > HD Shared Music, in memory — [hdVoiceEnabled]'s
+  /// twin for [mediaSupported]. [AppSettings.hdMusicEnabled] is the
+  /// persisted source of truth.
+  static bool hdMusicEnabled = true;
+
   /// Every voice profile this build can negotiate to, highest-preference-first.
   ///
   /// The single source of truth [AudioCapabilityNegotiator] keys off for
@@ -95,7 +113,7 @@ class AudioFormatProfile extends Equatable {
   ///
   /// [hd24k] was gated to debug builds ([kDebugMode]) through #28's first
   /// three checkpoints, pending the owner/field validation a coding session
-  /// can't produce on its own. Checkpoint 4 (2026-08-21) widens it to every
+  /// can't produce on its own. Checkpoint 4 (2026-08-21) widened it to every
   /// build: two real Android devices ran a live channel end to end,
   /// negotiated `16k -> 24k-HD` within seconds, and held it with zero
   /// jitter-buffer resyncs/drops and zero recovery-ladder events across
@@ -103,7 +121,14 @@ class AudioFormatProfile extends Equatable {
   /// decoded `.tarklog` reports attached to #28. Negotiation still falls
   /// back to [legacy16k] automatically for any peer that doesn't advertise
   /// [hd24k] support, so this is additive, not a break for older builds.
-  static const supported = [hd24k, legacy16k];
+  ///
+  /// Gated on [hdVoiceEnabled] on top of that: a user who turns HD Voice off
+  /// gets a list of one, so neither this build's own negotiator (which never
+  /// picks a profile outside this list) nor its advertised [localBitmask]
+  /// (which only sets bits for profiles in this list — see
+  /// `AudioCapabilityNegotiator.localBitmask`) can end up offering hd24k.
+  static List<AudioFormatProfile> get supported =>
+      hdVoiceEnabled ? const [hd24k, legacy16k] : const [legacy16k];
 
   /// #29's HD Shared Music target: 48 kHz, genuinely stereo when the capture
   /// path provides real stereo. Never used to manufacture stereo from a mono
@@ -130,11 +155,11 @@ class AudioFormatProfile extends Equatable {
 
   /// Every media profile this build can negotiate to, highest-preference-
   /// first. Kept separate from [supported] on purpose — see that field's
-  /// doc. Negotiator/presence-bitmask wiring for media capability is a later
-  /// checkpoint; this list exists now so the codec/bitrate primitives it
-  /// feeds (`OpusAudioCodec`, `MediaOpusTuner`) have a fixed id space to
-  /// build and test against.
-  static const mediaSupported = [media48kStereo, media48kMono];
+  /// doc. Gated on [hdMusicEnabled] the same way [supported] is gated on
+  /// [hdVoiceEnabled]: off yields an empty list, so a media negotiator never
+  /// picks (or advertises) either media profile.
+  static List<AudioFormatProfile> get mediaSupported =>
+      hdMusicEnabled ? const [media48kStereo, media48kMono] : const [];
 
   @override
   List<Object?> get props => [

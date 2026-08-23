@@ -96,6 +96,22 @@ class _PreflightPageState extends State<_PreflightPage>
   Timer? _autoLaunchTimer;
   bool _launching = false;
 
+  /// Backstop for the background row while it isn't [RecoveryStatus.ok]: on
+  /// at least one real device/ROM, returning from the battery-restriction
+  /// screen never delivered a clean `AppLifecycleState.resumed` transition
+  /// at all (unlike the quick "Allow" dialog, the full battery-settings page
+  /// is apparently shown in a way that doesn't reliably pause/resume this
+  /// activity on every OEM), leaving [didChangeAppLifecycleState]'s recheck
+  /// with nothing to fire on. Polling is what [didChangeAppLifecycleState]
+  /// was trying to avoid (see [PreflightSession.recheckBackground]'s doc on
+  /// reading mid-transition state) — but a cheap, no-hardware background
+  /// read every couple of seconds is a fair trade for actually catching up
+  /// with reality instead of leaving the row stuck. Only the background row
+  /// gets this — the mic row's recheck opens real mic hardware, which is not
+  /// something to do on a timer.
+  Timer? _backgroundPollTimer;
+  static const _backgroundPollInterval = Duration(milliseconds: 1500);
+
   late final AnimationController _entrance;
 
   /// Drives the launch flourish — see [_scheduleAutoLaunch]. Idle (and
@@ -154,6 +170,7 @@ class _PreflightPageState extends State<_PreflightPage>
       _session = session;
       _result = session.initial;
       _scheduleAutoLaunch(session.initial);
+      _updateBackgroundPolling(session.initial);
       // A single subscription, not a second one alongside a StreamBuilder:
       // [PreflightSession.results] is single-subscription, and this is the
       // one place both the row rendering and the auto-launch watch need to
@@ -162,8 +179,26 @@ class _PreflightPageState extends State<_PreflightPage>
         if (!mounted) return;
         setState(() => _result = result);
         _scheduleAutoLaunch(result);
+        _updateBackgroundPolling(result);
       });
     }
+  }
+
+  /// Arms (or disarms) [_backgroundPollTimer] — see its doc for why this
+  /// exists alongside the resume-triggered recheck rather than instead of
+  /// it. Idempotent: safe to call on every result, whether or not polling
+  /// was already running.
+  void _updateBackgroundPolling(PreflightResult result) {
+    final resolved = result.background?.isHealthy ?? false;
+    if (resolved) {
+      _backgroundPollTimer?.cancel();
+      _backgroundPollTimer = null;
+      return;
+    }
+    _backgroundPollTimer ??= Timer.periodic(
+      _backgroundPollInterval,
+      (_) => _session?.recheckBackground(),
+    );
   }
 
   /// Arms (or disarms) the walk-away timer for a fully-clear result.
@@ -207,6 +242,7 @@ class _PreflightPageState extends State<_PreflightPage>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _autoLaunchTimer?.cancel();
+    _backgroundPollTimer?.cancel();
     // The session must not outlive this page: a cancelled Preflight leaving
     // its controller (and any in-flight retry closing over it) alive behind
     // the real channel is exactly the leak the issue's lifecycle section

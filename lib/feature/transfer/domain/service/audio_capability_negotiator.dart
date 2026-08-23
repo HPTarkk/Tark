@@ -63,22 +63,46 @@ import '../../../../core/audio/audio_format_profile.dart';
 /// flapping" for free, since presence ticks every couple of seconds rather
 /// than at audio rate.
 class AudioCapabilityNegotiator {
-  /// [supported] defaults to the real, shipped [AudioFormatProfile.supported]
-  /// (voice). Two legitimate reasons to override it: [media] below
-  /// (production), and a test exercising the bit-matching logic against a
-  /// profile independently of when a shipped list actually grows to include
-  /// it.
+  /// [supported] defaults to a live read of the real, shipped
+  /// [AudioFormatProfile.supported] (voice). Passing it explicitly is for a
+  /// test exercising the bit-matching logic against a fixed profile list,
+  /// independently of both when a shipped list actually grows to include one
+  /// and of the user's own HD Voice/HD Shared Music switches (Settings >
+  /// Advanced) — see [_supported].
   AudioCapabilityNegotiator({List<AudioFormatProfile>? supported})
-    : _supported = supported ?? AudioFormatProfile.supported;
+    : _override = supported,
+      _kind = AudioProfileKind.voice;
+
+  AudioCapabilityNegotiator._media(List<AudioFormatProfile>? supported)
+    : _override = supported,
+      _kind = AudioProfileKind.media;
 
   /// A media-kind negotiator, ranked by [AudioFormatProfile.mediaSupported]
   /// instead of the voice list. Reads peer bitmasks exactly like a voice
   /// instance (same wire byte, different bits) — see the class doc — but
   /// must be resolved with [resolveOptional], never [resolve].
   factory AudioCapabilityNegotiator.media() =>
-      AudioCapabilityNegotiator(supported: AudioFormatProfile.mediaSupported);
+      AudioCapabilityNegotiator._media(null);
 
-  final List<AudioFormatProfile> _supported;
+  final List<AudioFormatProfile>? _override;
+  final AudioProfileKind _kind;
+
+  /// Live, not a constructor-time snapshot: with no [_override], this reads
+  /// straight through to [AudioFormatProfile.supported] or
+  /// [AudioFormatProfile.mediaSupported] on every call, so toggling HD
+  /// Voice/HD Shared Music (Settings > Advanced) takes effect on the very
+  /// next presence tick — the same tick [localBitmask] would already move
+  /// on, since that is a live read too. The two have to move together: if
+  /// this stayed a fixed snapshot while [localBitmask] kept reading live,
+  /// disabling HD mid-call would make a build stop *advertising* hd24k while
+  /// its own negotiator could still *resolve* to it from an already-cached
+  /// peer bitmask — exactly the asymmetry the "no acknowledgement round
+  /// trip" invariant in the class doc depends on not existing.
+  List<AudioFormatProfile> get _supported =>
+      _override ??
+      (_kind == AudioProfileKind.voice
+          ? AudioFormatProfile.supported
+          : AudioFormatProfile.mediaSupported);
 
   final Map<String, int> _bitmaskByPeer = {};
 

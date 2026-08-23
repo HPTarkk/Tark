@@ -553,9 +553,58 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     String senderName,
     bool isTalking, {
     bool isLeaving = false,
+  }) {
+    // Synchronous fast path when the socket and broadcast targets are
+    // already fresh — true for virtually the whole life of a live session,
+    // including the moment a leaving packet goes out in close().
+    //
+    // `await` yields to the microtask queue at least once even when the
+    // awaited Future is already complete — that is Dart/JS semantics, not
+    // an implementation detail of [_ensureSendSocket] — so the old
+    // unconditional `await _ensureSendSocket()` here meant a fire-and-forget
+    // caller (WalkieTalkieCubit.close() never awaits this send — see its
+    // comment on why it can't) could never rely on the packet having
+    // actually reached the socket by the time its call returned. In
+    // practice it usually reached the socket AFTER close()'s very next
+    // line, `_transferRepository.stopConnection()`, had already nulled it
+    // out — the leaving packet was silently dropped, and peers fell back
+    // to the full staleness timeout as if this feature did not exist.
+    // Zero `await` expressions evaluated on this path is what makes the
+    // send happen inside this call rather than on a later microtask.
+    if (_sendSocket != null &&
+        _broadcastTargets.isNotEmpty &&
+        DateTime.now().difference(_targetsResolvedAt) <= _targetsMaxAge) {
+      return Future.value(
+        _sendPresenceNow(senderName, isTalking, isLeaving: isLeaving),
+      );
+    }
+    return _sendPresenceAfterEnsuringSocket(
+      senderName,
+      isTalking,
+      isLeaving: isLeaving,
+    );
+  }
+
+  Future<Either<Failure, void>> _sendPresenceAfterEnsuringSocket(
+    String senderName,
+    bool isTalking, {
+    required bool isLeaving,
   }) async {
     try {
       await _ensureSendSocket();
+      return _sendPresenceNow(senderName, isTalking, isLeaving: isLeaving);
+    } catch (error) {
+      Logger.log(error);
+      return const Left(DataTransferFailure());
+    }
+  }
+
+  Either<Failure, void> _sendPresenceNow(
+    String senderName,
+    bool isTalking, {
+    required bool isLeaving,
+  }) {
+    try {
       final packet = _codec.encodePresence(
         senderName,
         isTalking,

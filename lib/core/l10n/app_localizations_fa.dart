@@ -876,6 +876,23 @@ class AppLocalizationsFa extends AppLocalizations {
   String get settings_delay_high_hint => 'صدای روون‌تر';
 
   @override
+  String get settings_section_hd_audio => 'کیفیت صدای HD';
+
+  @override
+  String get hd_voice_label => 'صدای باکیفیت';
+
+  @override
+  String get hd_voice_desc =>
+      'صدای واضح‌تر و بهتر، وقتی همه توی کانال ازش پشتیبانی کنن. یه‌کم دیتای بیشتری مصرف می‌کنه و اگه طرف مقابل پشتیبانی نکنه، خودش برمی‌گرده به حالت معمولی.';
+
+  @override
+  String get hd_music_label => 'آهنگ مشترک باکیفیت';
+
+  @override
+  String get hd_music_desc =>
+      'صدای استریوی باکیفیت‌تر وقتی آهنگ رو با کانال به اشتراک می‌ذاری.';
+
+  @override
   String get settings_riding_section => 'حالت موتورسواری';
 
   @override

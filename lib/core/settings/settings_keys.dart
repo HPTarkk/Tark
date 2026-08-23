@@ -30,6 +30,15 @@ abstract final class SettingsKeys {
   /// talking. See [AppSettings.smartMusicDuckingEnabled].
   static const smartMusicDuckingEnabled = 'smart_music_ducking_enabled';
 
+  /// Whether this build may negotiate up to the HD Voice (24kHz) profile.
+  /// See [AppSettings.hdVoiceEnabled] and `AudioFormatProfile.hdVoiceEnabled`.
+  static const hdVoiceEnabled = 'hd_voice_enabled';
+
+  /// Whether this build may negotiate up to an HD Shared Music (48kHz)
+  /// profile. See [AppSettings.hdMusicEnabled] and
+  /// `AudioFormatProfile.hdMusicEnabled`.
+  static const hdMusicEnabled = 'hd_music_enabled';
+
   // Owned by their existing dedicated services/widgets — kept here too so
   // every persisted key in the app has exactly one string literal, even
   // where SettingsRepository isn't the reader/writer.

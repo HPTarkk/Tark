@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tark/core/l10n/app_localizations.dart';
@@ -205,6 +207,83 @@ void main() {
 
       expect(backgroundRecheckCount, 2);
       expect(micRecheckCount, 2);
+
+      // Close the page — the background poll timer armed below is a
+      // periodic Timer, and flutter_test fails a test that leaves one
+      // pending, so every test that opens this page must pop it before
+      // finishing.
+      await tester.tap(find.byIcon(Icons.arrow_back_rounded));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+    },
+  );
+
+  testWidgets(
+    'the background row is polled on a timer while unresolved, catching up '
+    'even with no resume at all — the backstop for a Settings hand-off that, '
+    'on at least one real device, never delivered a clean '
+    'AppLifecycleState.resumed transition for the full battery-restriction '
+    'screen the way it reliably does for the quick "Allow" dialog. Stops '
+    'once the row is healthy.',
+    (tester) async {
+      var pollCount = 0;
+      final resultsController = StreamController<PreflightResult>();
+      addTearDown(resultsController.close);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('en'),
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: ElevatedButton(
+                  onPressed: () => showPreflightPage(
+                    context,
+                    plan: _plan,
+                    startSession: ({required s, required plan}) =>
+                        PreflightSession.debugStream(
+                          initial: const PreflightResult(),
+                          results: resultsController.stream,
+                          recheckBackground: () async {
+                            pollCount++;
+                          },
+                        ),
+                  ),
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('open'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 700));
+      expect(pollCount, 0, reason: 'before the first poll interval elapses');
+
+      // t=1500: first interval elapses — no lifecycle event involved at all.
+      await tester.pump(const Duration(milliseconds: 800));
+      expect(pollCount, 1);
+
+      // t=3000: a second interval, proving it repeats rather than firing once.
+      await tester.pump(const Duration(milliseconds: 1500));
+      expect(pollCount, 2);
+
+      // The row resolves healthy — polling must stop, not keep re-checking
+      // an already-settled row forever.
+      resultsController.add(
+        const PreflightResult().copyWith(background: _row(RecoveryStatus.ok)),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1500));
+      expect(pollCount, 2, reason: 'no further polling once healthy');
+
+      await tester.tap(find.byIcon(Icons.arrow_back_rounded));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
     },
   );
 }

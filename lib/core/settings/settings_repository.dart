@@ -81,6 +81,16 @@ abstract interface class SettingsRepository {
   Future<bool> getSmartMusicDuckingEnabled();
   Future<void> setSmartMusicDuckingEnabled(bool value);
 
+  /// Settings > Advanced > HD Voice. See `AudioFormatProfile.hdVoiceEnabled`
+  /// for the in-memory flag a caller must also update alongside the write —
+  /// this repository only persists the choice.
+  Future<bool> getHdVoiceEnabled();
+  Future<void> setHdVoiceEnabled(bool value);
+
+  /// Settings > Advanced > HD Shared Music. [getHdVoiceEnabled]'s twin.
+  Future<bool> getHdMusicEnabled();
+  Future<void> setHdMusicEnabled(bool value);
+
   // Not part of AppSettings/loadAll() — each of these already has its own
   // narrow, purpose-built owner (BluetoothConnectCubit's "reconnect to last
   // session" shortcut, the background-permission banner's dismissal flag);

@@ -880,6 +880,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_delay_high_hint => 'SMOOTHER SOUND';
 
   @override
+  String get settings_section_hd_audio => 'HD AUDIO QUALITY';
+
+  @override
+  String get hd_voice_label => 'HD Voice';
+
+  @override
+  String get hd_voice_desc =>
+      'Clearer, richer voice when everyone on the channel supports it. Uses a bit more data, and falls back automatically for anyone who doesn\'t.';
+
+  @override
+  String get hd_music_label => 'HD Shared Music';
+
+  @override
+  String get hd_music_desc =>
+      'Higher-quality stereo sound when you share music with the channel.';
+
+  @override
   String get settings_riding_section => 'RIDING MODE';
 
   @override

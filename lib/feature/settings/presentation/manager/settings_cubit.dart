@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/analytics/analytics.dart';
 import '../../../../core/analytics/analytics_event.dart';
+import '../../../../core/audio/audio_format_profile.dart';
 import '../../../../core/diagnostics/diagnostic_log.dart';
 import '../../../../core/diagnostics/log_budget.dart';
 import '../../../../core/settings/audio_profile.dart';
@@ -104,6 +105,8 @@ class SettingsCubit extends Cubit<SettingsState> {
               analyticsEnabled: all.analyticsEnabled,
               logMaxBytes: all.logMaxBytes,
               smartMusicDuckingEnabled: all.smartMusicDuckingEnabled,
+              hdVoiceEnabled: all.hdVoiceEnabled,
+              hdMusicEnabled: all.hdMusicEnabled,
             )
           : state.copyWith(
               myName: all.myName,
@@ -117,6 +120,8 @@ class SettingsCubit extends Cubit<SettingsState> {
               analyticsEnabled: all.analyticsEnabled,
               logMaxBytes: all.logMaxBytes,
               smartMusicDuckingEnabled: all.smartMusicDuckingEnabled,
+              hdVoiceEnabled: all.hdVoiceEnabled,
+              hdMusicEnabled: all.hdMusicEnabled,
             ),
     );
   }
@@ -262,6 +267,25 @@ class SettingsCubit extends Cubit<SettingsState> {
     }
   }
 
+  /// Applies immediately, live session or not — unlike the VOX/noise knobs
+  /// above, HD Voice has no per-cubit live path to push through:
+  /// `AudioFormatProfile.hdVoiceEnabled` is the in-memory flag every
+  /// transport's negotiator already reads live (see its doc), so setting it
+  /// here is enough to take effect on the current channel's very next
+  /// presence tick, exactly as if a peer's own support had just changed.
+  Future<void> setHdVoiceEnabled(bool enabled) async {
+    emit(state.copyWith(hdVoiceEnabled: enabled));
+    AudioFormatProfile.hdVoiceEnabled = enabled;
+    await _repository.setHdVoiceEnabled(enabled);
+  }
+
+  /// [setHdVoiceEnabled]'s twin for HD Shared Music.
+  Future<void> setHdMusicEnabled(bool enabled) async {
+    emit(state.copyWith(hdMusicEnabled: enabled));
+    AudioFormatProfile.hdMusicEnabled = enabled;
+    await _repository.setHdMusicEnabled(enabled);
+  }
+
   /// For the rows that are a single deliberate tap rather than a session-long
   /// mode — pinning the home-screen widget, replaying the intro. No
   /// once-per-session guard like the channel screen's: these are navigations
@@ -315,6 +339,8 @@ class SettingsState extends Equatable {
   final bool analyticsEnabled;
   final int logMaxBytes;
   final bool smartMusicDuckingEnabled;
+  final bool hdVoiceEnabled;
+  final bool hdMusicEnabled;
 
   const SettingsState({
     required this.isLive,
@@ -329,6 +355,8 @@ class SettingsState extends Equatable {
     required this.analyticsEnabled,
     required this.logMaxBytes,
     required this.smartMusicDuckingEnabled,
+    required this.hdVoiceEnabled,
+    required this.hdMusicEnabled,
   });
 
   factory SettingsState.initial({required bool isLive}) => SettingsState(
@@ -344,6 +372,8 @@ class SettingsState extends Equatable {
     analyticsEnabled: true,
     logMaxBytes: LogBudget.defaultBytes,
     smartMusicDuckingEnabled: true,
+    hdVoiceEnabled: true,
+    hdMusicEnabled: true,
   );
 
   SettingsState copyWith({
@@ -358,6 +388,8 @@ class SettingsState extends Equatable {
     bool? analyticsEnabled,
     int? logMaxBytes,
     bool? smartMusicDuckingEnabled,
+    bool? hdVoiceEnabled,
+    bool? hdMusicEnabled,
   }) => SettingsState(
     isLive: isLive,
     myName: myName ?? this.myName,
@@ -373,6 +405,8 @@ class SettingsState extends Equatable {
     logMaxBytes: logMaxBytes ?? this.logMaxBytes,
     smartMusicDuckingEnabled:
         smartMusicDuckingEnabled ?? this.smartMusicDuckingEnabled,
+    hdVoiceEnabled: hdVoiceEnabled ?? this.hdVoiceEnabled,
+    hdMusicEnabled: hdMusicEnabled ?? this.hdMusicEnabled,
   );
 
   @override
@@ -389,5 +423,7 @@ class SettingsState extends Equatable {
     analyticsEnabled,
     logMaxBytes,
     smartMusicDuckingEnabled,
+    hdVoiceEnabled,
+    hdMusicEnabled,
   ];
 }

@@ -146,7 +146,7 @@ transport ─▶ Opus decode (per-sender, FEC recovery) ─▶ jitter buffer (ad
 - **Full duplex** — TX and RX run independently, like a phone call.
 - **Realtime-safe** — mic/speaker samples cross the native↔Dart boundary through a lock-free ring buffer; the realtime audio callback never locks or allocates.
 
-**Negotiated 24 kHz HD voice.** Two capable phones automatically negotiate up to 24 kHz instead of the older fixed 16 kHz, falling back to 16 kHz for any peer that doesn't support it — no setting, no version mismatch, ever. Validated on two real Android devices end to end (negotiation, jitter buffer, and reliability all held across screen-off stretches) before becoming the default for everyone.
+**Negotiated 24 kHz HD voice.** Two capable phones automatically negotiate up to 24 kHz instead of the older fixed 16 kHz, falling back to 16 kHz for any peer that doesn't support it — on by default, no version mismatch, ever. Validated on two real Android devices end to end (negotiation, jitter buffer, and reliability all held across screen-off stretches) before becoming the default for everyone. Toggleable per phone in Settings > Advanced (HD Voice), alongside the same on-by-default negotiation for HD Shared Music (48 kHz stereo).
 
 ---
 

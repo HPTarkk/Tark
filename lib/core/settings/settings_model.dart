@@ -23,6 +23,8 @@ class SettingsModel extends AppSettings {
     required super.analyticsEnabled,
     required super.logMaxBytes,
     required super.smartMusicDuckingEnabled,
+    required super.hdVoiceEnabled,
+    required super.hdMusicEnabled,
   });
 
   factory SettingsModel.fromAppSettings(AppSettings s) => SettingsModel(
@@ -39,6 +41,8 @@ class SettingsModel extends AppSettings {
     analyticsEnabled: s.analyticsEnabled,
     logMaxBytes: s.logMaxBytes,
     smartMusicDuckingEnabled: s.smartMusicDuckingEnabled,
+    hdVoiceEnabled: s.hdVoiceEnabled,
+    hdMusicEnabled: s.hdMusicEnabled,
   );
 
   factory SettingsModel.fromJson(Map<String, dynamic> json) {
@@ -79,6 +83,8 @@ class SettingsModel extends AppSettings {
       smartMusicDuckingEnabled:
           json['smartMusicDuckingEnabled'] as bool? ??
           d.smartMusicDuckingEnabled,
+      hdVoiceEnabled: json['hdVoiceEnabled'] as bool? ?? d.hdVoiceEnabled,
+      hdMusicEnabled: json['hdMusicEnabled'] as bool? ?? d.hdMusicEnabled,
     );
   }
 
@@ -96,6 +102,8 @@ class SettingsModel extends AppSettings {
     'analyticsEnabled': analyticsEnabled,
     'logMaxBytes': logMaxBytes,
     'smartMusicDuckingEnabled': smartMusicDuckingEnabled,
+    'hdVoiceEnabled': hdVoiceEnabled,
+    'hdMusicEnabled': hdMusicEnabled,
   };
 
   /// Reads the VOX margin, translating the absolute-threshold key that builds
@@ -154,6 +162,10 @@ class SettingsModel extends AppSettings {
       smartMusicDuckingEnabled:
           prefs.getBool(SettingsKeys.smartMusicDuckingEnabled) ??
           d.smartMusicDuckingEnabled,
+      hdVoiceEnabled:
+          prefs.getBool(SettingsKeys.hdVoiceEnabled) ?? d.hdVoiceEnabled,
+      hdMusicEnabled:
+          prefs.getBool(SettingsKeys.hdMusicEnabled) ?? d.hdMusicEnabled,
     );
   }
 }

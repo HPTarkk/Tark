@@ -9,6 +9,7 @@ import 'app/my_app.dart';
 import 'app/router/app_router.dart';
 import 'app/router/quick_access.dart';
 import 'core/analytics/analytics.dart';
+import 'core/audio/audio_format_profile.dart';
 import 'core/config/onboarding_config.dart';
 import 'core/diagnostics/diagnostic_log.dart';
 import 'core/diagnostics/lifecycle_log.dart';
@@ -66,6 +67,16 @@ void main() async {
       prefs.getInt(SettingsKeys.logMaxBytes) ?? LogBudget.defaultBytes,
     ),
   );
+  // Same reasoning: every TransferRepository is a DI singleton that reads
+  // AudioFormatProfile.hdVoiceEnabled/hdMusicEnabled live (see their doc)
+  // rather than caching a value at construction, but the in-memory default
+  // is always on — a user who turned either off needs it applied here,
+  // before the first presence packet of the process ever goes out, or the
+  // very first channel would negotiate as if they hadn't.
+  AudioFormatProfile.hdVoiceEnabled =
+      prefs.getBool(SettingsKeys.hdVoiceEnabled) ?? true;
+  AudioFormatProfile.hdMusicEnabled =
+      prefs.getBool(SettingsKeys.hdMusicEnabled) ?? true;
   LocaleService.initialize(prefs);
   ThemeService.initialize(prefs);
   await Sfx.initialize(prefs);

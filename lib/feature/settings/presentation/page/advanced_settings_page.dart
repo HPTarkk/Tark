@@ -17,6 +17,7 @@ import '../../../walkie/api/walkie_api.dart';
 import '../manager/settings_cubit.dart';
 import '../widget/diagnostics_card.dart';
 import '../widget/settings_category_card.dart';
+import '../widget/settings_row.dart';
 import '../widget/transport_mode_picker.dart';
 
 /// Advanced/technical settings, split off the main Settings page so casual
@@ -49,11 +50,11 @@ class AdvancedSettingsPage extends StatefulWidget {
 class _AdvancedSettingsPageState extends State<AdvancedSettingsPage>
     with TickerProviderStateMixin {
   // Staggered entrance, same pattern as the main Settings page:
-  // [transport, voice, noise cleaner, delay, diagnostics]
+  // [transport, voice, HD audio, noise cleaner, delay, diagnostics]
   late AnimationController _entranceController;
   late List<Animation<double>> _sections;
 
-  static const _sectionCount = 5;
+  static const _sectionCount = 6;
 
   @override
   void initState() {
@@ -132,11 +133,13 @@ class _AdvancedSettingsPageState extends State<AdvancedSettingsPage>
                 const SizedBox(height: 16),
                 _entrance(1, _VoiceCard()),
                 const SizedBox(height: 16),
-                _entrance(2, _NoiseCleanerCard()),
+                _entrance(2, const _HdAudioCard()),
                 const SizedBox(height: 16),
-                _entrance(3, _DelayCard()),
+                _entrance(3, _NoiseCleanerCard()),
                 const SizedBox(height: 16),
-                _entrance(4, const DiagnosticsCard()),
+                _entrance(4, _DelayCard()),
+                const SizedBox(height: 16),
+                _entrance(5, const DiagnosticsCard()),
               ],
             ),
           ),
@@ -396,6 +399,70 @@ class _RestoreDefaultsButton extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── HD audio quality (HD Voice + HD Shared Music) ───────────────────────────
+
+/// Two independent switches over the wire-format negotiation
+/// (`AudioCapabilityNegotiator`/`AudioFormatProfile`): HD Voice ranks the
+/// 24kHz voice profile above the legacy 16kHz floor, HD Shared Music ranks
+/// the 48kHz stereo media profile above "no HD media." Both default on and
+/// both only ever raise the ceiling — a peer that doesn't support HD (or a
+/// switch turned off) always falls back automatically, never a failure.
+///
+/// Applies live rather than next-session: flipping either mid-call is the
+/// same shape of event as a peer's own support changing mid-call, which
+/// negotiation already tolerates — see `SettingsCubit.setHdVoiceEnabled`.
+class _HdAudioCard extends StatelessWidget {
+  const _HdAudioCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    return SettingsCategoryCard(
+      icon: Icons.high_quality_rounded,
+      title: s.settings_section_hd_audio,
+      child: BlocBuilder<SettingsCubit, SettingsState>(
+        buildWhen: (p, c) =>
+            p.hdVoiceEnabled != c.hdVoiceEnabled ||
+            p.hdMusicEnabled != c.hdMusicEnabled,
+        builder: (context, state) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Column(
+            children: [
+              SettingsRow(
+                icon: Icons.graphic_eq_rounded,
+                label: s.hd_voice_label,
+                subtitle: s.hd_voice_desc,
+                trailing: Switch(
+                  value: state.hdVoiceEnabled,
+                  activeThumbColor: AppColors.amber,
+                  onChanged: (v) {
+                    HapticFeedback.selectionClick();
+                    context.read<SettingsCubit>().setHdVoiceEnabled(v);
+                  },
+                ),
+              ),
+              Divider(color: AppColors.border, height: 1),
+              SettingsRow(
+                icon: Icons.music_note_rounded,
+                label: s.hd_music_label,
+                subtitle: s.hd_music_desc,
+                trailing: Switch(
+                  value: state.hdMusicEnabled,
+                  activeThumbColor: AppColors.amber,
+                  onChanged: (v) {
+                    HapticFeedback.selectionClick();
+                    context.read<SettingsCubit>().setHdMusicEnabled(v);
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
