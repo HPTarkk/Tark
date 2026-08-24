@@ -68,7 +68,7 @@ dependencies:
   # the tree via opus_dart and packages/rnnoise; listed here because we use it.
   ffi: ^2.1.0
   bluetooth_low_energy: ^6.2.1
-  flutter_webrtc: ^1.5.2
+  flutter_webrtc: ^1.6.0
   qr_flutter: ^4.1.0
   mobile_scanner: ^7.2.0
   archive: ^4.0.9
