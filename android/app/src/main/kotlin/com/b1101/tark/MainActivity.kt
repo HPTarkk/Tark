@@ -10,6 +10,7 @@ import com.b1101.tark.diagnostics.DiagnosticsHandler
 import com.b1101.tark.hotspot.HotspotHandler
 import com.b1101.tark.hotspot.WifiJoinHandler
 import com.b1101.tark.keepalive.KeepAliveHandler
+import com.b1101.tark.network.NetworkBindingHandler
 import com.b1101.tark.widget.WidgetControlBridge
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -23,6 +24,7 @@ class MainActivity : FlutterActivity() {
     private var keepAliveHandler: KeepAliveHandler? = null
     private var audioSessionHandler: AudioSessionHandler? = null
     private var billingHandler: BillingHandler? = null
+    private var networkBindingHandler: NetworkBindingHandler? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -77,6 +79,16 @@ class MainActivity : FlutterActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             "tark/wifi_join",
         ).setMethodCallHandler(wifiJoin)
+
+        val networkBinding = NetworkBindingHandler(
+            applicationContext,
+            flutterEngine.dartExecutor.binaryMessenger,
+        )
+        networkBindingHandler = networkBinding
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            NetworkBindingHandler.METHOD_CHANNEL,
+        ).setMethodCallHandler(networkBinding)
 
         val keepAlive = KeepAliveHandler(
             applicationContext,
@@ -147,6 +159,7 @@ class MainActivity : FlutterActivity() {
         bluetoothServerHandler?.stopHosting()
         hotspotHandler?.stop()
         wifiJoinHandler?.leave()
+        networkBindingHandler?.dispose()
         keepAliveHandler?.stop()
         audioSessionHandler?.dispose()
         // Unbinds from the Myket service; leaking it holds a ServiceConnection
