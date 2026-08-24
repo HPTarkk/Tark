@@ -90,7 +90,9 @@ void main() {
   });
 
   test('explicit leave is terminal and idempotent', () {
-    final attaching = openSession().startAttachment(kind: TransportKind.hotspot);
+    final attaching = openSession().startAttachment(
+      kind: TransportKind.hotspot,
+    );
     final live = attaching.attachmentReady(
       generation: attaching.attachment.generation,
     );
