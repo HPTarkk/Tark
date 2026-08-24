@@ -52,7 +52,9 @@ class AndroidNetworkSelection {
 
 abstract final class AndroidNetworkBinding {
   static const MethodChannel _methods = MethodChannel('tark/network_binding');
-  static const EventChannel _events = EventChannel('tark/network_binding/events');
+  static const EventChannel _events = EventChannel(
+    'tark/network_binding/events',
+  );
 
   static Future<AndroidNetworkSelection?> current() async {
     if (!Platform.isAndroid) return null;
@@ -67,7 +69,8 @@ abstract final class AndroidNetworkBinding {
   static Stream<AndroidNetworkSelection> get changes {
     if (!Platform.isAndroid) return const Stream.empty();
     return _events.receiveBroadcastStream().whereType<Map>().map(
-      (event) => AndroidNetworkSelection.fromMap(event.cast<Object?, Object?>()),
+      (event) =>
+          AndroidNetworkSelection.fromMap(event.cast<Object?, Object?>()),
     );
   }
 }
