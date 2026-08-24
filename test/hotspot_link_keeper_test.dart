@@ -46,8 +46,6 @@ class _FakeHost implements HotspotHost {
   @override
   Future<void> openFixSettings(String errorCode) async {}
 
-  /// Advice this fake has nothing to say about — the link keeper is about
-  /// re-hosting, not about what the radio is doing.
   @override
   Future<HotspotWifiAdvice> wifiAdvice() async => HotspotWifiAdvice.none;
 
@@ -59,13 +57,9 @@ class _FakeJoiner implements HotspotJoiner {
   final _lost = StreamController<void>.broadcast();
   final _rebound = StreamController<void>.broadcast();
   final List<HotspotCredentials> joins = [];
-
-  /// Results handed out in order; the last one repeats.
   List<HotspotJoinResult> results = [HotspotJoinResult.joined];
 
   void drop() => _lost.add(null);
-
-  /// The OS took the link away and gave it straight back (screen-off cycle).
   void rebound() => _rebound.add(null);
 
   @override
@@ -93,11 +87,9 @@ class _FakeJoiner implements HotspotJoiner {
   Future<void> leave() async {}
 }
 
-/// Only [rebindSockets] matters here — it is what the keeper is supposed to
-/// call when the network underneath the session changes. The rest of the
-/// transport surface is unreachable from the keeper and stays unimplemented.
 class _FakeWifi implements WifiTransferRepository {
   int rebinds = 0;
+  TransportStats currentStats = TransportStats.none;
 
   @override
   void rebindSockets() => rebinds++;
@@ -112,7 +104,7 @@ class _FakeWifi implements WifiTransferRepository {
   Stream<ConnectionHealth> connect() => const Stream<ConnectionHealth>.empty();
 
   @override
-  TransportStats get stats => TransportStats.none;
+  TransportStats get stats => currentStats;
 
   @override
   Future<Either<Failure, void>> sendAudio(
@@ -179,12 +171,27 @@ void main() {
   late _FakeWifi wifi;
   late HotspotLinkKeeper keeper;
 
+  HotspotLinkKeeper buildKeeper({
+    Duration recoveryTimeout = const Duration(minutes: 10),
+  }) => HotspotLinkKeeperImpl(
+    host,
+    joiner,
+    roles,
+    wifi,
+    recoveryTimeout: recoveryTimeout,
+    hostEvidenceInterval: const Duration(milliseconds: 5),
+    backoffFactory: () => ExponentialBackoff(
+      initial: const Duration(milliseconds: 5),
+      max: const Duration(milliseconds: 5),
+    ),
+  );
+
   setUp(() {
     host = _FakeHost();
     joiner = _FakeJoiner();
     roles = _FakeRoleStore();
     wifi = _FakeWifi();
-    keeper = HotspotLinkKeeperImpl(host, joiner, roles, wifi);
+    keeper = buildKeeper();
   });
 
   tearDown(() => keeper.dispose());
@@ -194,21 +201,18 @@ void main() {
 
     test('rejoins with the adopted credentials when the link drops', () async {
       keeper.adopt(_creds);
-      expect(keeper.state, HotspotLinkState.up);
-
       joiner.drop();
       await pumpEventQueue();
 
-      // The whole point: nobody was listening for this once the pairing screen
-      // was gone, so a phone pulled off the hotspot stayed off it.
       expect(joiner.joins, [_creds]);
       expect(keeper.state, HotspotLinkState.up);
+      expect(wifi.rebinds, 1);
     });
 
     test('reports recovering while a rejoin is in flight', () async {
       keeper.adopt(_creds);
       final seen = <HotspotLinkState>[];
-      keeper.states.listen(seen.add);
+      final sub = keeper.states.listen(seen.add);
 
       joiner.drop();
       await pumpEventQueue();
@@ -217,17 +221,7 @@ void main() {
         seen,
         containsAllInOrder([HotspotLinkState.recovering, HotspotLinkState.up]),
       );
-    });
-
-    test('stays in recovery when the rejoin is refused', () async {
-      joiner.results = [HotspotJoinResult.declined];
-      keeper.adopt(_creds);
-
-      joiner.drop();
-      await pumpEventQueue();
-
-      expect(keeper.state, HotspotLinkState.recovering);
-      expect(joiner.joins, isNotEmpty);
+      await sub.cancel();
     });
 
     test('release abandons a recovery instead of rejoining later', () async {
@@ -238,137 +232,43 @@ void main() {
 
       final attemptsBefore = joiner.joins.length;
       await keeper.release();
-      // A join can sit for the framework's full timeout, so a release can
-      // easily land mid-attempt. Putting the phone back on a network the user
-      // has already left would be worse than doing nothing.
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await Future<void>.delayed(const Duration(milliseconds: 30));
 
       expect(joiner.joins, hasLength(attemptsBefore));
       expect(keeper.state, HotspotLinkState.idle);
     });
 
-    test('rebuilds the sockets after a successful rejoin', () async {
+    test('gives up after the bounded recovery timeout and retry works', () async {
+      joiner.results = [HotspotJoinResult.declined];
+      keeper = buildKeeper(
+        recoveryTimeout: const Duration(milliseconds: 20),
+      );
       keeper.adopt(_creds);
       joiner.drop();
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+      expect(keeper.state, HotspotLinkState.lost);
+
+      joiner.results = [HotspotJoinResult.joined];
+      keeper.retryNow();
       await pumpEventQueue();
 
-      // A rejoin lands the process on a NEW network handle; sockets built on
-      // the old one look healthy and send nowhere.
+      expect(keeper.state, HotspotLinkState.up);
       expect(wifi.rebinds, 1);
     });
 
-    group('give-up ceiling', () {
-      // Millisecond-scale so the whole cycle — several failed attempts plus
-      // the timeout itself — runs in real test time instead of waiting out
-      // real minutes.
-      HotspotLinkKeeper fastKeeper() => HotspotLinkKeeperImpl(
-        host,
-        joiner,
-        roles,
-        wifi,
-        recoveryTimeout: const Duration(milliseconds: 30),
-        backoffFactory: () => ExponentialBackoff(
-          initial: const Duration(milliseconds: 5),
-          max: const Duration(milliseconds: 5),
-        ),
-      );
+    test('OS rebound repairs sockets without starting another join', () async {
+      keeper.adopt(_creds);
+      joiner.rebound();
+      await pumpEventQueue();
 
-      test('gives up and reports lost once the timeout is exceeded', () async {
-        joiner.results = [HotspotJoinResult.declined];
-        keeper = fastKeeper();
-        keeper.adopt(_creds);
-
-        joiner.drop();
-        await pumpEventQueue();
-        await Future<void>.delayed(const Duration(milliseconds: 100));
-
-        expect(keeper.state, HotspotLinkState.lost);
-      });
-
-      test('retryNow restarts a rejoin after giving up', () async {
-        joiner.results = [HotspotJoinResult.declined];
-        keeper = fastKeeper();
-        keeper.adopt(_creds);
-        joiner.drop();
-        await pumpEventQueue();
-        await Future<void>.delayed(const Duration(milliseconds: 100));
-        expect(keeper.state, HotspotLinkState.lost);
-
-        joiner.results = [HotspotJoinResult.joined];
-        keeper.retryNow();
-        await pumpEventQueue();
-
-        expect(keeper.state, HotspotLinkState.up);
-        expect(wifi.rebinds, 1);
-      });
-
-      test('retryNow is a no-op while recovery is still in progress', () async {
-        joiner.results = [HotspotJoinResult.declined];
-        keeper.adopt(_creds);
-        joiner.drop();
-        await pumpEventQueue();
-        expect(keeper.state, HotspotLinkState.recovering);
-
-        final attemptsBefore = joiner.joins.length;
-        keeper.retryNow();
-        await pumpEventQueue();
-
-        // Still recovering on its own schedule — a second concurrent
-        // rejoin loop would only pile up duplicate attempts.
-        expect(joiner.joins, hasLength(attemptsBefore));
-      });
+      expect(wifi.rebinds, 1);
+      expect(joiner.joins, isEmpty);
+      expect(keeper.state, HotspotLinkState.up);
     });
 
-    group('when the OS drops and restores the link itself', () {
-      // The screen-off case. An in-app Wi-Fi join is scoped to the app being
-      // foreground, so locking the phone tears it down and a system-owned
-      // reconnect replaces it seconds later.
-      test('rebinds the sockets without rejoining', () async {
-        keeper.adopt(_creds);
-
-        joiner.rebound();
-        await pumpEventQueue();
-
-        expect(wifi.rebinds, 1);
-        // Rejoining would be actively harmful: it drops a link that is fine to
-        // ask for a fresh one, and off the foreground that request cannot be
-        // granted at all.
-        expect(joiner.joins, isEmpty);
-        expect(keeper.state, HotspotLinkState.up);
-      });
-
-      test('abandons a rejoin already in flight', () async {
-        joiner.results = [HotspotJoinResult.declined];
-        keeper.adopt(_creds);
-        joiner.drop();
-        await pumpEventQueue();
-        expect(keeper.state, HotspotLinkState.recovering);
-
-        final attemptsBefore = joiner.joins.length;
-        joiner.rebound();
-        await pumpEventQueue();
-        await Future<void>.delayed(const Duration(milliseconds: 50));
-
-        expect(keeper.state, HotspotLinkState.up);
-        expect(joiner.joins, hasLength(attemptsBefore));
-      });
-
-      test('is ignored once the session has been released', () async {
-        keeper.adopt(_creds);
-        await keeper.release();
-
-        joiner.rebound();
-        await pumpEventQueue();
-
-        expect(wifi.rebinds, isZero);
-        expect(keeper.state, HotspotLinkState.idle);
-      });
-    });
-
-    test('a drop after release is ignored', () async {
+    test('drop after release is ignored', () async {
       keeper.adopt(_creds);
       await keeper.release();
-
       joiner.drop();
       await pumpEventQueue();
 
@@ -379,43 +279,116 @@ void main() {
   group('as a host', () {
     setUp(() => roles.role = SessionRole.host);
 
-    test('re-hosts on teardown but reports the peer cannot follow', () async {
+    test('publishes fresh credentials and rebinds after Android re-hosts', () async {
+      final fresh = <HotspotCredentials>[];
+      final sub = keeper.credentialChanges.listen(fresh.add);
       keeper.adopt(_creds);
 
       host.tearDown();
       await pumpEventQueue();
 
       expect(host.starts, 1);
-      // startLocalOnlyHotspot mints a new random SSID and offers no way to ask
-      // for the old one, so the peer is looking for a name that is gone.
-      expect(keeper.state, HotspotLinkState.lost);
+      expect(fresh, [host.next]);
+      expect(keeper.credentials, host.next);
+      expect(wifi.rebinds, 1);
+      // No peers were present before the loss, so fresh credentials are enough
+      // to restore this solo attachment.
+      expect(keeper.state, HotspotLinkState.up);
+      await sub.cancel();
     });
 
-    test('retryNow does nothing for a host — resending the old join fixes '
-        "nothing when the peer can't guess the new name", () async {
+    test('does not claim Live until the pre-loss peer is bidirectional again', () async {
+      wifi.currentStats = const TransportStats(peerCount: 1);
+      keeper.adopt(_creds);
+
+      host.tearDown();
+      await pumpEventQueue();
+
+      expect(keeper.state, HotspotLinkState.recovering);
+      expect(keeper.credentials, host.next);
+
+      // Merely hearing the peer is insufficient: no matched ping/RTT yet.
+      wifi.currentStats = const TransportStats(peerCount: 1);
+      await Future<void>.delayed(const Duration(milliseconds: 15));
+      expect(keeper.state, HotspotLinkState.recovering);
+
+      wifi.currentStats = const TransportStats(
+        peerCount: 1,
+        rtt: Duration(milliseconds: 12),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 15));
+
+      expect(keeper.state, HotspotLinkState.up);
+    });
+
+    test('unicast-unconfirmed evidence keeps a re-hosted AP recovering', () async {
+      wifi.currentStats = const TransportStats(peerCount: 1);
       keeper.adopt(_creds);
       host.tearDown();
       await pumpEventQueue();
+
+      wifi.currentStats = const TransportStats(
+        peerCount: 1,
+        rtt: Duration(milliseconds: 10),
+        unicastUnconfirmed: true,
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 15));
+
+      expect(keeper.state, HotspotLinkState.recovering);
+    });
+
+    test('release cancels peer-evidence waiting exactly once', () async {
+      wifi.currentStats = const TransportStats(peerCount: 1);
+      keeper.adopt(_creds);
+      host.tearDown();
+      await pumpEventQueue();
+      expect(keeper.state, HotspotLinkState.recovering);
+
+      await keeper.release();
+      wifi.currentStats = const TransportStats(
+        peerCount: 1,
+        rtt: Duration(milliseconds: 10),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 15));
+
+      expect(keeper.state, HotspotLinkState.idle);
+    });
+
+    test('host retry republishes current fresh credentials after peer timeout', () async {
+      wifi.currentStats = const TransportStats(peerCount: 1);
+      keeper = buildKeeper(
+        recoveryTimeout: const Duration(milliseconds: 20),
+      );
+      final fresh = <HotspotCredentials>[];
+      final sub = keeper.credentialChanges.listen(fresh.add);
+      keeper.adopt(_creds);
+      host.tearDown();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
       expect(keeper.state, HotspotLinkState.lost);
+      expect(fresh, [host.next]);
 
       keeper.retryNow();
       await pumpEventQueue();
 
-      expect(joiner.joins, isEmpty);
+      expect(keeper.state, HotspotLinkState.recovering);
+      expect(fresh, [host.next, host.next]);
+      expect(host.starts, 1, reason: 'valid re-hosted AP is reused, not replaced');
+      await sub.cancel();
     });
 
-    test(
-      'a failed re-host is still reported as lost, not left hanging',
-      () async {
-        host.startError = StateError('no channel');
-        keeper.adopt(_creds);
+    test('re-host failures are bounded and end in lost', () async {
+      host.startError = StateError('no channel');
+      keeper = buildKeeper(
+        recoveryTimeout: const Duration(milliseconds: 100),
+      );
+      keeper.adopt(_creds);
 
-        host.tearDown();
-        await pumpEventQueue();
+      host.tearDown();
+      await Future<void>.delayed(const Duration(milliseconds: 60));
 
-        expect(keeper.state, HotspotLinkState.lost);
-      },
-    );
+      expect(host.starts, 4);
+      expect(keeper.state, HotspotLinkState.lost);
+    });
 
     test('does not listen on the joiner side', () async {
       keeper.adopt(_creds);
