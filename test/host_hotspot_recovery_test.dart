@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tark/feature/room/domain/service/host_hotspot_recovery.dart';
+import 'package:tark/feature/transfer/domain/service/host_hotspot_recovery.dart';
 
 void main() {
   test('changed credentials are published before waiting for members', () {
