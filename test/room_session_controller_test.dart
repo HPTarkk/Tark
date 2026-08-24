@@ -12,7 +12,7 @@ void main() {
     ),
   );
 
-  test('publishes typed transport lifecycle without changing room identity', () {
+  test('publishes typed transport lifecycle without changing room identity', () async {
     final subject = controller();
     final seen = <RoomSession>[];
     final subscription = subject.changes.listen(seen.add);
@@ -36,8 +36,8 @@ void main() {
     ]);
     expect(seen.every((state) => state.roomId == 'room-1'), isTrue);
 
-    subscription.cancel();
-    subject.close();
+    await subscription.cancel();
+    await subject.close();
   });
 
   test('stale callbacks produce no duplicate presentation state', () async {
