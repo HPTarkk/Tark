@@ -38,11 +38,10 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
-// These two read/write the android extension through the concrete DSL
-// interfaces rather than CommonExtension: CommonExtension lost both its type
-// parameters and its compileSdk property in AGP 9, so no single spelling of it
-// compiles against 8.x and 9.x. ApplicationExtension/LibraryExtension are
-// stable across both.
+// Read/write Android SDK floors through the concrete DSL interfaces rather
+// than CommonExtension. CommonExtension changed shape in AGP 9, while these two
+// public extension types are stable across the AGP versions used by Tark's
+// plugins.
 fun Project.androidCompileSdk(): Int? =
     when (val ext = extensions.findByName("android")) {
         is com.android.build.api.dsl.ApplicationExtension -> ext.compileSdk
@@ -58,26 +57,61 @@ fun Project.setAndroidCompileSdk(value: Int) {
     }
 }
 
-fun Project.raiseCompileSdkToApp() {
-    val appCompileSdk = project(":app").androidCompileSdk() ?: return
-    val ownCompileSdk = androidCompileSdk() ?: return
-    if (ownCompileSdk < appCompileSdk) {
-        logger.lifecycle("Raising :$name compileSdk $ownCompileSdk -> $appCompileSdk (AGP 9 AAR metadata check)")
-        setAndroidCompileSdk(appCompileSdk)
+fun Project.androidMinSdk(): Int? =
+    when (val ext = extensions.findByName("android")) {
+        is com.android.build.api.dsl.ApplicationExtension -> ext.defaultConfig.minSdk
+        is com.android.build.api.dsl.LibraryExtension -> ext.defaultConfig.minSdk
+        else -> null
+    }
+
+fun Project.setAndroidMinSdk(value: Int) {
+    when (val ext = extensions.findByName("android")) {
+        is com.android.build.api.dsl.ApplicationExtension -> ext.defaultConfig.minSdk = value
+        is com.android.build.api.dsl.LibraryExtension -> ext.defaultConfig.minSdk = value
+        else -> Unit
     }
 }
 
-// AGP 9 turned the AAR-metadata compileSdk check into a hard error, so a plugin
-// pinning an old compileSdk now fails the whole build instead of warning:
-// adtrace_sdk_flutter pins 33, while androidx.fragment 1.7.1 (pulled in
-// transitively) declares minCompileSdk 34. Raise any Android subproject sitting
-// below the app's compileSdk up to it — compileSdk only widens the API surface a
-// module compiles against, and minSdk/targetSdk are untouched, so this cannot
-// change what the plugin runs on.
+fun Project.alignAndroidSdkFloorsWithApp() {
+    val app = project(":app")
+    val appCompileSdk = app.androidCompileSdk()
+    val ownCompileSdk = androidCompileSdk()
+    if (appCompileSdk != null && ownCompileSdk != null && ownCompileSdk < appCompileSdk) {
+        logger.lifecycle(
+            "Raising :$name compileSdk $ownCompileSdk -> $appCompileSdk (Tark app floor)",
+        )
+        setAndroidCompileSdk(appCompileSdk)
+    }
+
+    // NDK 27 rejects native modules below API 21. More importantly, a plugin
+    // embedded in Tark cannot actually support an Android version below the
+    // application that owns it. Align stale plugin minSdk declarations with
+    // Tark's real application floor instead of suppressing the NDK safety
+    // check; targetSdk remains untouched.
+    val appMinSdk = app.androidMinSdk()
+    val ownMinSdk = androidMinSdk()
+    if (appMinSdk != null && ownMinSdk != null && ownMinSdk < appMinSdk) {
+        logger.lifecycle(
+            "Raising :$name minSdk $ownMinSdk -> $appMinSdk (Tark app floor)",
+        )
+        setAndroidMinSdk(appMinSdk)
+    }
+}
+
+// AGP 9 turned several SDK compatibility warnings into hard configuration
+// errors. Some Flutter plugins pin older compile/min SDK values even though they
+// are consumed only inside Tark, whose application floor is already higher.
+// Align those module declarations with the app. This widens compile visibility
+// and raises only an impossible-to-reach plugin-local minSdk; it never changes
+// Tark's own supported Android range or any targetSdk behavior.
 subprojects {
-    // The evaluationDependsOn(":app") above evaluates :app eagerly, so by the
-    // time this loop reaches it afterEvaluate is no longer accepted.
-    if (state.executed) raiseCompileSdkToApp() else afterEvaluate { raiseCompileSdkToApp() }
+    // evaluationDependsOn(":app") above evaluates :app eagerly, so by the time
+    // this loop reaches it afterEvaluate is no longer accepted.
+    if (state.executed) {
+        alignAndroidSdkFloorsWithApp()
+    } else {
+        afterEvaluate { alignAndroidSdkFloorsWithApp() }
+    }
 }
 
 tasks.register<Delete>("clean") {
