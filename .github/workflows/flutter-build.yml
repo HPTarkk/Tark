@@ -26,10 +26,10 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -40,6 +40,36 @@ jobs:
 
       - name: Get dependencies
         run: flutter pub get
+
+      # flutter_blue_classic 0.1.1 migrated its Android module to AGP built-in
+      # Kotlin while Tark deliberately keeps android.builtInKotlin=false for
+      # the app's KGP 2.4 incremental-cache workaround. Gradle therefore sees
+      # the dependency's top-level `kotlin { compilerOptions ... }` block
+      # without the built-in Kotlin extension and fails during script parsing.
+      # The block only repeats JVM 17 already stated by that library's Java
+      # compileOptions, so removing exactly that known block is a deterministic
+      # CI compatibility shim, not a dependency mutation. Delete this step as
+      # soon as the upstream package publishes a compatible build.
+      - name: Apply flutter_blue_classic 0.1.1 Gradle compatibility shim
+        shell: bash
+        run: |
+          set -euo pipefail
+          plugin_gradle="$(find "$PUB_CACHE/hosted" -path '*/flutter_blue_classic-0.1.1/android/build.gradle.kts' -print -quit)"
+          if [ -z "$plugin_gradle" ]; then
+            echo "flutter_blue_classic 0.1.1 Gradle file not found"
+            exit 1
+          fi
+          python3 - "$plugin_gradle" <<'PY'
+          from pathlib import Path
+          import sys
+
+          path = Path(sys.argv[1])
+          text = path.read_text()
+          block = '''kotlin {\n    compilerOptions {\n        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17\n    }\n}\n'''
+          if block not in text:
+              raise SystemExit('expected flutter_blue_classic Kotlin block not found; review upstream before changing CI')
+          path.write_text(text.replace(block, '', 1))
+          PY
 
       - name: Verify generated localizations
         run: flutter gen-l10n
