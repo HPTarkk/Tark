@@ -5,157 +5,199 @@ List<double> _tone(int n, {double level = 0.5}) =>
     List<double>.filled(n, level);
 
 void main() {
-  // sampleRate=1000 -> 1 sample/ms, so target/max line up with small,
-  // easy-to-read sample counts.
   MediaReceiveBuffer build({
     int targetBufferMs = 10,
     int maxQueueMs = 100,
+    int maxConcealMs = 2,
   }) => MediaReceiveBuffer(
     sampleRate: 1000,
     targetBufferMs: targetBufferMs,
     maxQueueMs: maxQueueMs,
+    maxConcealMs: maxConcealMs,
   );
 
   group('filling', () {
-    test('pullFrame returns null before the cushion has filled', () {
+    test('waits for the target cushion before playback', () {
       final buffer = build();
       addTearDown(buffer.dispose);
 
-      buffer.feed(_tone(5), 0, 'peer'); // below the 10-sample target
+      buffer.feed(_tone(5), 0, 'peer');
       expect(buffer.pullFrame(5), isNull);
       expect(buffer.isFilling, isTrue);
-    });
 
-    test('pullFrame returns frames once the cushion has filled', () {
-      final buffer = build();
-      addTearDown(buffer.dispose);
-
-      buffer.feed(_tone(10), 0, 'peer'); // exactly the target
-      final out = buffer.pullFrame(5);
-      expect(out, isNotNull);
-      expect(out, hasLength(5));
+      buffer.feed(_tone(5), 1, 'peer');
+      expect(buffer.pullFrame(5), hasLength(5));
       expect(buffer.isFilling, isFalse);
     });
   });
 
-  group('sequence handling', () {
-    // A large target relative to the content fed keeps every one of these
-    // tests below the trim threshold, so only feed-side state — not the
-    // trim/prime interaction pullFrame introduces — is under test here.
-    const bigTarget = 1000;
-
-    test('conceals an ordinary gap with silence', () {
-      final buffer = build(targetBufferMs: bigTarget);
+  group('sequence semantics', () {
+    test('conceals only a tiny gap', () {
+      final buffer = build(targetBufferMs: 1000, maxConcealMs: 5);
       addTearDown(buffer.dispose);
 
-      buffer.feed(_tone(5, level: 1.0), 0, 'peer');
-      buffer.feed(_tone(5, level: 1.0), 2, 'peer'); // one chunk missing
-      expect(buffer.concealedSamples, 5); // one missing chunk of length 5
-      expect(buffer.queuedSamples, 15); // 5 real + 5 silence + 5 real
+      buffer.feed(_tone(5, level: 1), 0, 'peer');
+      buffer.feed(_tone(5, level: 1), 2, 'peer');
+
+      expect(buffer.concealedSamples, 5);
+      expect(buffer.queuedSamples, 15);
+      expect(buffer.resyncs, 0);
     });
 
-    test('a stale/late packet is dropped, not spliced in', () {
-      final buffer = build(targetBufferMs: bigTarget);
+    test('a large forward gap drops stale backlog and resyncs to live edge', () {
+      final buffer = build(targetBufferMs: 1000, maxConcealMs: 5);
+      addTearDown(buffer.dispose);
+
+      buffer.feed(_tone(5, level: 0.1), 0, 'peer');
+      buffer.feed(_tone(5, level: 0.2), 1, 'peer');
+      buffer.feed(_tone(5, level: 0.9), 20, 'peer');
+
+      expect(buffer.resyncs, 1);
+      expect(buffer.concealedSamples, 0);
+      expect(buffer.queuedSamples, 5);
+    });
+
+    test('a duplicate is rejected and counted', () {
+      final buffer = build(targetBufferMs: 1000);
+      addTearDown(buffer.dispose);
+
+      buffer.feed(_tone(5), 0, 'peer');
+      buffer.feed(_tone(5), 0, 'peer');
+
+      expect(buffer.duplicateDrops, 1);
+      expect(buffer.staleDrops, 0);
+      expect(buffer.queuedSamples, 5);
+    });
+
+    test('ordinary reorder is stale and cannot re-enter playback', () {
+      final buffer = build(targetBufferMs: 1000);
       addTearDown(buffer.dispose);
 
       buffer.feed(_tone(5), 0, 'peer');
       buffer.feed(_tone(5), 1, 'peer');
-      buffer.feed(_tone(5), 0, 'peer'); // stale — already past seq 0
-      expect(buffer.queuedSamples, 10);
+      buffer.feed(_tone(5), 3, 'peer');
+      buffer.feed(_tone(5), 2, 'peer');
+
+      expect(buffer.staleDrops, 1);
+      expect(buffer.queuedSamples, 5);
+      expect(buffer.resyncs, 1);
     });
 
-    test('a gap too large to conceal resyncs without filling silence', () {
-      final buffer = build(targetBufferMs: bigTarget);
-      addTearDown(buffer.dispose);
-
-      buffer.feed(_tone(5), 0, 'peer');
-      buffer.feed(_tone(5), 1000, 'peer'); // far beyond the concealment cap
-      // Only the two real chunks queued — no silence manufactured for the gap.
-      expect(buffer.queuedSamples, 10);
-      expect(buffer.concealedSamples, 0);
-    });
-
-    test('a far-behind jump resyncs immediately (no multi-packet confirm)', () {
-      // Unlike AudioPlaybackBuffer, one far-behind packet is enough to adopt
-      // a new baseline — see the class doc for why that's a deliberate
-      // simplification here.
-      final buffer = build(targetBufferMs: bigTarget);
+    test('a far-behind packet cannot impersonate a sender restart', () {
+      final buffer = build(targetBufferMs: 1000);
       addTearDown(buffer.dispose);
 
       buffer.feed(_tone(5), 500, 'peer');
-      buffer.feed(_tone(5), 0, 'peer'); // far behind 501 -> adopted at once
-      buffer.feed(_tone(5), 1, 'peer'); // continues the new baseline
-      expect(buffer.queuedSamples, 15);
-    });
+      buffer.feed(_tone(5), 0, 'peer');
+      buffer.feed(_tone(5), 501, 'peer');
 
-    test('independent sequence tracking per sender', () {
-      final buffer = build(targetBufferMs: bigTarget);
-      addTearDown(buffer.dispose);
-
-      buffer.feed(_tone(5), 0, 'a');
-      buffer.feed(_tone(5), 0, 'b'); // a fresh sender, not stale
+      expect(buffer.staleDrops, 1);
       expect(buffer.queuedSamples, 10);
     });
-  });
 
-  group('drift and overflow', () {
-    test('trims a backlog above twice the target', () {
-      final buffer = build(targetBufferMs: 10); // target = 10 samples
+    test('explicit reset permits a real sender restart', () {
+      final buffer = build(targetBufferMs: 1000);
       addTearDown(buffer.dispose);
 
-      buffer.feed(_tone(30), 0, 'peer'); // 30 > 2x target (20)
-      buffer.pullFrame(5);
+      buffer.feed(_tone(5), 500, 'peer');
+      buffer.reset();
+      buffer.feed(_tone(5), 0, 'peer');
+
+      expect(buffer.staleDrops, 0);
+      expect(buffer.queuedSamples, 5);
+    });
+
+    test('senders keep independent sequence state', () {
+      final buffer = build(targetBufferMs: 1000);
+      addTearDown(buffer.dispose);
+
+      buffer.feed(_tone(5), 8, 'a');
+      buffer.feed(_tone(5), 0, 'b');
+      buffer.feed(_tone(5), 9, 'a');
+      buffer.feed(_tone(5), 1, 'b');
+
+      expect(buffer.queuedSamples, 20);
+      expect(buffer.staleDrops, 0);
+    });
+  });
+
+  group('bounded latency and drift', () {
+    test('hard cap always keeps queue inside maxQueueMs', () {
+      final buffer = build(targetBufferMs: 10, maxQueueMs: 40);
+      addTearDown(buffer.dispose);
+
+      buffer.feed(_tone(200), 0, 'peer');
+
+      expect(buffer.queuedMs, 40);
+      expect(buffer.overflowDrops, 1);
+    });
+
+    test('mild queue growth is corrected gradually', () {
+      final buffer = build(targetBufferMs: 20, maxQueueMs: 100);
+      addTearDown(buffer.dispose);
+
+      buffer.feed(_tone(40), 0, 'peer');
+      final before = buffer.queuedSamples;
+      expect(buffer.pullFrame(5), hasLength(5));
 
       expect(buffer.trims, 1);
-      // 30 - 10 (trim step) - 5 (pulled) = 15.
-      expect(buffer.queuedSamples, 15);
+      expect(buffer.queuedSamples, lessThan(before - 5));
+      expect(buffer.queuedSamples, greaterThanOrEqualTo(buffer.targetSamples));
     });
 
-    test('drops the oldest samples over the queue cap', () {
-      final buffer = build(targetBufferMs: 10, maxQueueMs: 20); // cap = 20
+    test('severe burst after backgrounding is collapsed in one pull', () {
+      final buffer = build(targetBufferMs: 20, maxQueueMs: 100);
       addTearDown(buffer.dispose);
 
-      buffer.feed(_tone(30), 0, 'peer');
-      expect(buffer.overflowDrops, 1);
-      expect(buffer.queuedSamples, 20);
-    });
-  });
+      buffer.feed(_tone(90), 0, 'peer');
+      expect(buffer.pullFrame(5), hasLength(5));
 
-  group('starvation', () {
-    test('a starved pull re-primes and counts one underrun', () {
-      // Realistic shape: target well above one pull's count, same as
-      // production (a ~150ms cushion pulled in ~10ms slices) — the case
-      // where a single pull could exceed the whole cushion isn't one this
-      // buffer is meant to handle any more than AudioPlaybackBuffer's
-      // equivalent drain-vs-target ratio is.
+      expect(buffer.trims, 1);
+      expect(buffer.queuedSamples, lessThanOrEqualTo(buffer.targetSamples));
+    });
+
+    test('starvation re-primes instead of repeatedly manufacturing output', () {
       final buffer = build(targetBufferMs: 20);
       addTearDown(buffer.dispose);
 
-      buffer.feed(_tone(20), 0, 'peer'); // fills to target
-      expect(buffer.pullFrame(5), hasLength(5)); // drains to 15 left
-      expect(buffer.pullFrame(20), isNull); // not enough for a 20-sample pull
+      buffer.feed(_tone(20), 0, 'peer');
+      expect(buffer.pullFrame(5), hasLength(5));
+      expect(buffer.pullFrame(20), isNull);
       expect(buffer.underruns, 1);
       expect(buffer.isFilling, isTrue);
-
-      // Still nothing new fed — the same starvation, filling absorbs it.
       expect(buffer.pullFrame(20), isNull);
       expect(buffer.underruns, 1);
     });
   });
 
+  group('health', () {
+    test('snapshot exposes bounded privacy-safe receiver evidence', () {
+      final buffer = build(targetBufferMs: 10, maxQueueMs: 20);
+      addTearDown(buffer.dispose);
+
+      buffer.feed(_tone(30), 0, 'peer');
+      buffer.feed(_tone(5), 0, 'peer');
+      final health = buffer.health;
+
+      expect(health.queuedMs, lessThanOrEqualTo(20));
+      expect(health.overflowDrops, 1);
+      expect(health.duplicateDrops, 1);
+      expect(health.isDistressed, isTrue);
+    });
+  });
+
   group('reset', () {
-    test('clears the queue and per-sender sequence state', () {
+    test('clears queue and sequence baseline but keeps session counters', () {
       final buffer = build(targetBufferMs: 0);
       addTearDown(buffer.dispose);
 
       buffer.feed(_tone(5), 5, 'peer');
+      buffer.feed(_tone(5), 5, 'peer');
       buffer.reset();
-
-      expect(buffer.queuedSamples, 0);
-      expect(buffer.isFilling, isTrue);
-      // Sequence state cleared: seq 0 is no longer "stale" for this sender.
       buffer.feed(_tone(5), 0, 'peer');
+
       expect(buffer.queuedSamples, 5);
+      expect(buffer.duplicateDrops, 1);
     });
   });
 }
