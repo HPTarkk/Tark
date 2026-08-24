@@ -34,12 +34,14 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.41.9"
+          flutter-version: "3.44.0"
           channel: stable
           cache: true
 
-      # CI must validate the dependency graph committed by development rather
-      # than silently resolving a different set of transitive packages.
+      # CI validates the dependency graph committed by development. The
+      # lockfile currently requires Flutter >=3.44.0, so using the older
+      # 3.41.x SDK silently re-resolved 26 packages and produced a different
+      # Android plugin graph from the one developers actually committed.
       - name: Get locked dependencies
         run: flutter pub get --enforce-lockfile
 
