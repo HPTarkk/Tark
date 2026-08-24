@@ -99,7 +99,11 @@ jobs:
             exit 0
           fi
           printf 'Format gate files:\n%s\n' "${dart_files[*]}"
-          dart format --output=none --set-exit-if-changed "${dart_files[@]}"
+          dart format "${dart_files[@]}"
+          if ! git diff --exit-code -- "${dart_files[@]}"; then
+            echo "Dart formatting changed committed files. Commit the formatter output."
+            exit 1
+          fi
 
       - name: Analyze
         run: flutter analyze
