@@ -19,11 +19,7 @@ class RoomSessionController {
   RoomSession get state => _state;
   Stream<RoomSession> get changes => _changes.stream;
 
-  void attach({
-    required TransportKind kind,
-    String? role,
-    String? reason,
-  }) {
+  void attach({required TransportKind kind, String? role, String? reason}) {
     _emit(_state.startAttachment(kind: kind, role: role, reason: reason));
   }
 
@@ -36,7 +32,9 @@ class RoomSessionController {
   }
 
   void recover({required int generation, String? reason}) {
-    _emit(_state.beginTransportRecovery(generation: generation, reason: reason));
+    _emit(
+      _state.beginTransportRecovery(generation: generation, reason: reason),
+    );
   }
 
   void replaceTransport({
