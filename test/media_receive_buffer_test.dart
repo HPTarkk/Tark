@@ -5,21 +5,16 @@ List<double> _tone(int n, {double level = 0.5}) =>
     List<double>.filled(n, level);
 
 void main() {
-  // Sequence-only tests intentionally use a 1s target so playback never starts
-  // while they inspect queued ordering. Keep the helper ceiling above that
-  // synthetic target; bounded-latency tests pass their real small caps below.
   MediaReceiveBuffer build({
     int targetBufferMs = 10,
     int maxQueueMs = 2000,
     int maxConcealMs = 2,
-  }) {
-    return MediaReceiveBuffer(
-      sampleRate: 1000,
-      targetBufferMs: targetBufferMs,
-      maxQueueMs: maxQueueMs,
-      maxConcealMs: maxConcealMs,
-    );
-  }
+  }) => MediaReceiveBuffer(
+    sampleRate: 1000,
+    targetBufferMs: targetBufferMs,
+    maxQueueMs: maxQueueMs,
+    maxConcealMs: maxConcealMs,
+  );
 
   group('filling', () {
     test('waits for the target cushion before playback', () {
@@ -49,21 +44,18 @@ void main() {
       expect(buffer.resyncs, 0);
     });
 
-    test(
-      'a large forward gap drops stale backlog and resyncs to live edge',
-      () {
-        final buffer = build(targetBufferMs: 1000, maxConcealMs: 5);
-        addTearDown(buffer.dispose);
+    test('a large forward gap drops stale backlog and resyncs to live edge', () {
+      final buffer = build(targetBufferMs: 1000, maxConcealMs: 5);
+      addTearDown(buffer.dispose);
 
-        buffer.feed(_tone(5, level: 0.1), 0, 'peer');
-        buffer.feed(_tone(5, level: 0.2), 1, 'peer');
-        buffer.feed(_tone(5, level: 0.9), 20, 'peer');
+      buffer.feed(_tone(5, level: 0.1), 0, 'peer');
+      buffer.feed(_tone(5, level: 0.2), 1, 'peer');
+      buffer.feed(_tone(5, level: 0.9), 20, 'peer');
 
-        expect(buffer.resyncs, 1);
-        expect(buffer.concealedSamples, 0);
-        expect(buffer.queuedSamples, 5);
-      },
-    );
+      expect(buffer.resyncs, 1);
+      expect(buffer.concealedSamples, 0);
+      expect(buffer.queuedSamples, 5);
+    });
 
     test('a duplicate is rejected and counted', () {
       final buffer = build(targetBufferMs: 1000);
