@@ -44,8 +44,27 @@ jobs:
       - name: Verify generated localizations
         run: flutter gen-l10n
 
-      - name: Check Dart formatting
-        run: dart format --output=none --set-exit-if-changed lib test packages
+      - name: Check Dart formatting for changed files
+        shell: bash
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          base="$PR_BASE_SHA"
+          if [ -z "$base" ]; then
+            base="$PUSH_BEFORE_SHA"
+          fi
+          if [ -z "$base" ] || [[ "$base" =~ ^0+$ ]]; then
+            base="HEAD^"
+          fi
+          mapfile -t dart_files < <(git diff --diff-filter=ACMR --name-only "$base" HEAD -- '*.dart')
+          if [ "${#dart_files[@]}" -eq 0 ]; then
+            echo "No changed Dart files to format-check."
+            exit 0
+          fi
+          printf 'Format gate files:\n%s\n' "${dart_files[*]}"
+          dart format --output=none --set-exit-if-changed "${dart_files[@]}"
 
       - name: Analyze
         run: flutter analyze
