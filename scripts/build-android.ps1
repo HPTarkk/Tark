@@ -622,12 +622,12 @@ if ($cleanFirst) {
     flutter pub get
     if ($LASTEXITCODE -ne 0) { throw 'flutter pub get failed' }
 
-    # Injectable/l10n output lives under lib/, not build/, so clean does not
-    # remove it — but a clean is exactly when it is worth confirming the
-    # generated graph matches the source that will be compiled.
-    Write-Host "> dart run build_runner build" -ForegroundColor Cyan
-    dart run build_runner build
-    if ($LASTEXITCODE -ne 0) { throw 'build_runner failed' }
+    # # Injectable/l10n output lives under lib/, not build/, so clean does not
+    # # remove it — but a clean is exactly when it is worth confirming the
+    # # generated graph matches the source that will be compiled.
+    # Write-Host "> dart run build_runner build" -ForegroundColor Cyan
+    # dart run build_runner build
+    # if ($LASTEXITCODE -ne 0) { throw 'build_runner failed' }
 }
 
 $target = if ($artifact -eq 'appbundle') { 'appbundle' } else { 'apk' }
