@@ -164,9 +164,11 @@ void main() {
       expect(buffer.pullFrame(5), hasLength(5));
       expect(buffer.pullFrame(20), isNull);
       expect(buffer.underruns, 1);
+      expect(buffer.outputStarvations, 1);
       expect(buffer.isFilling, isTrue);
       expect(buffer.pullFrame(20), isNull);
       expect(buffer.underruns, 1);
+      expect(buffer.outputStarvations, 1);
     });
   });
 
@@ -183,6 +185,35 @@ void main() {
       expect(health.overflowDrops, 1);
       expect(health.duplicateDrops, 1);
       expect(health.isDistressed, isTrue);
+    });
+
+    test('takeHealthWindow resets events but not queue or stream state', () {
+      final buffer = build(targetBufferMs: 10, maxQueueMs: 20);
+      addTearDown(buffer.dispose);
+
+      buffer.feed(_tone(30), 0, 'peer');
+      buffer.feed(_tone(5), 0, 'peer');
+      final first = buffer.takeHealthWindow();
+      final queueAfterFirstWindow = buffer.queuedMs;
+      final second = buffer.takeHealthWindow();
+
+      expect(first.overflowDrops, 1);
+      expect(first.duplicateDrops, 1);
+      expect(second.overflowDrops, 0);
+      expect(second.duplicateDrops, 0);
+      expect(second.queuedMs, queueAfterFirstWindow);
+    });
+
+    test('starvation is reported in exactly one diagnostics window', () {
+      final buffer = build(targetBufferMs: 5, maxQueueMs: 20);
+      addTearDown(buffer.dispose);
+
+      buffer.feed(_tone(5), 0, 'peer');
+      expect(buffer.pullFrame(5), hasLength(5));
+      expect(buffer.pullFrame(5), isNull);
+
+      expect(buffer.takeHealthWindow().outputStarvations, 1);
+      expect(buffer.takeHealthWindow().outputStarvations, 0);
     });
   });
 
