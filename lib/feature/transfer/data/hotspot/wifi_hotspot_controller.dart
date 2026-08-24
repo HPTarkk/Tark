@@ -25,10 +25,15 @@ class WifiHotspotController implements HotspotHost {
   /// own [stop]. Lets a host recover instead of silently going dead. Never
   /// emits for an app-initiated teardown (see HotspotHandler.expectingStop).
   @override
-  Stream<void> get onStopped => _events
-      .receiveBroadcastStream()
-      .where((e) => e is Map && e['event'] == 'stopped')
-      .map<void>((_) {});
+  Stream<void> get onStopped => _events.receiveBroadcastStream().where((event) {
+    if (event is! Map || event['event'] != 'stopped') return false;
+    final generation = event['generation'] ?? 'unknown';
+    final reason = event['reason'] ?? 'os_callback';
+    Logger.diagnostic(
+      'hotspot: stopped reason=$reason generation=$generation',
+    );
+    return true;
+  }).map<void>((_) {});
 
   /// Starts a local-only Wi-Fi hotspot and returns its credentials. Throws a
   /// [PlatformException] (code `tethering_on`, `location_off`,
@@ -39,30 +44,44 @@ class WifiHotspotController implements HotspotHost {
     if (!isSupported) {
       throw UnsupportedError('Hotspot hosting requires Android.');
     }
-    final result =
-        await _channel.invokeMapMethod<String, dynamic>('start') ?? const {};
-    final ssid = (result['ssid'] as String?) ?? '';
-    final passphrase = (result['passphrase'] as String?) ?? '';
-    final security = (result['security'] as String?) ?? 'WPA';
-    if (ssid.isEmpty) {
-      throw PlatformException(
-        code: 'no_credentials',
-        message: 'Hotspot started without an SSID',
+    Logger.diagnostic('hotspot: start requested');
+    try {
+      final result =
+          await _channel.invokeMapMethod<String, dynamic>('start') ?? const {};
+      final ssid = (result['ssid'] as String?) ?? '';
+      final passphrase = (result['passphrase'] as String?) ?? '';
+      final security = (result['security'] as String?) ?? 'WPA';
+      if (ssid.isEmpty) {
+        Logger.diagnostic('hotspot: start failed reason=no_credentials');
+        throw PlatformException(
+          code: 'no_credentials',
+          message: 'Hotspot started without an SSID',
+        );
+      }
+      // Never log SSID/passphrase: they are current transport credentials,
+      // not diagnostic identity. The security class is safe and sufficient
+      // to correlate this transition with the native callback timeline.
+      Logger.diagnostic('hotspot: started security=$security');
+      return HotspotCredentials(
+        ssid: ssid,
+        passphrase: passphrase,
+        security: security,
       );
+    } on PlatformException catch (e) {
+      Logger.diagnostic('hotspot: start failed reason=${e.code}');
+      rethrow;
     }
-    return HotspotCredentials(
-      ssid: ssid,
-      passphrase: passphrase,
-      security: security,
-    );
   }
 
   @override
   Future<void> stop() async {
     if (!isSupported) return;
+    Logger.diagnostic('hotspot: stop requested');
     try {
       await _channel.invokeMethod<void>('stop');
-    } on PlatformException {
+      Logger.diagnostic('hotspot: stop completed');
+    } on PlatformException catch (e) {
+      Logger.diagnostic('hotspot: stop failed reason=${e.code}');
       // Best-effort teardown — the reservation also closes with the activity.
     }
   }
@@ -208,15 +227,26 @@ class AndroidWifiJoiner implements HotspotJoiner {
       .asBroadcastStream();
 
   @override
-  Stream<void> get onLost =>
-      _stream.where((e) => e['event'] == 'lost').map<void>((_) {});
+  Stream<void> get onLost => _stream.where((event) {
+    if (event['event'] != 'lost') return false;
+    Logger.diagnostic(
+      'network: selected wifi lost generation=${event['generation'] ?? 'unknown'}',
+    );
+    return true;
+  }).map<void>((_) {});
 
   @override
-  Stream<void> get onRebound =>
-      _stream.where((e) => e['event'] == 'rebound').map<void>((_) {});
+  Stream<void> get onRebound => _stream.where((event) {
+    if (event['event'] != 'rebound') return false;
+    Logger.diagnostic(
+      'network: selected wifi rebound generation=${event['generation'] ?? 'unknown'}',
+    );
+    return true;
+  }).map<void>((_) {});
 
   @override
   Future<HotspotJoinResult> join(HotspotCredentials credentials) async {
+    Logger.diagnostic('network: hotspot join requested');
     try {
       final ok = await _channel.invokeMethod<bool>('join', {
         'ssid': credentials.ssid,
@@ -224,7 +254,10 @@ class AndroidWifiJoiner implements HotspotJoiner {
         'security': credentials.security,
       });
       if (ok != true) {
+        Logger.diagnostic('network: hotspot join declined');
         Logger.log('Wi-Fi join declined by the framework (see TarkWifiJoin)');
+      } else {
+        Logger.diagnostic('network: hotspot join accepted');
       }
       return ok == true
           ? HotspotJoinResult.joined
@@ -233,6 +266,7 @@ class AndroidWifiJoiner implements HotspotJoiner {
       // `wifi_off`, `foreground_required`, `no_ssid`, `failed`. Only the first
       // has a fix the user can act on from here; the rest land on the manual
       // card, and the log line is what tells them apart afterwards.
+      Logger.diagnostic('network: hotspot join failed reason=${e.code}');
       Logger.log('Wi-Fi join failed: ${e.code} ${e.message}');
       return switch (e.code) {
         'wifi_off' => HotspotJoinResult.wifiOff,
@@ -240,6 +274,7 @@ class AndroidWifiJoiner implements HotspotJoiner {
         _ => HotspotJoinResult.declined,
       };
     } on MissingPluginException {
+      Logger.diagnostic('network: hotspot join failed reason=missing_plugin');
       Logger.log('Wi-Fi join unavailable: tark/wifi_join not registered');
       return HotspotJoinResult.declined;
     }
@@ -270,22 +305,35 @@ class AndroidWifiJoiner implements HotspotJoiner {
 
   @override
   Future<bool> bindToCurrentWifi() async {
+    Logger.diagnostic('network: bind current wifi requested');
     try {
-      return await _channel.invokeMethod<bool>('bindCurrent') ?? false;
-    } on PlatformException {
+      final bound = await _channel.invokeMethod<bool>('bindCurrent') ?? false;
+      Logger.diagnostic(
+        bound
+            ? 'network: bind current wifi accepted'
+            : 'network: bind current wifi unavailable',
+      );
+      return bound;
+    } on PlatformException catch (e) {
+      Logger.diagnostic('network: bind current wifi failed reason=${e.code}');
       return false;
     } on MissingPluginException {
+      Logger.diagnostic('network: bind current wifi failed reason=missing_plugin');
       return false;
     }
   }
 
   @override
   Future<void> leave() async {
+    Logger.diagnostic('network: selected wifi release requested');
     try {
       await _channel.invokeMethod<void>('leave');
-    } on PlatformException {
+      Logger.diagnostic('network: selected wifi released');
+    } on PlatformException catch (e) {
+      Logger.diagnostic('network: selected wifi release failed reason=${e.code}');
       // Best-effort — the request is also released when the activity dies.
     } on MissingPluginException {
+      Logger.diagnostic('network: selected wifi release failed reason=missing_plugin');
       // Not Android.
     }
   }
