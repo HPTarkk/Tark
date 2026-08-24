@@ -11,6 +11,7 @@ import 'app/router/quick_access.dart';
 import 'core/analytics/analytics.dart';
 import 'core/audio/audio_format_profile.dart';
 import 'core/config/onboarding_config.dart';
+import 'core/diagnostics/build_provenance.dart';
 import 'core/diagnostics/diagnostic_log.dart';
 import 'core/diagnostics/lifecycle_log.dart';
 import 'core/diagnostics/log_budget.dart';
@@ -23,8 +24,8 @@ import 'core/router/routes.dart';
 import 'core/settings/settings_keys.dart';
 import 'core/settings/settings_repository.dart';
 import 'core/sfx/sfx_service.dart';
-import 'core/utils/logger.dart';
 import 'core/theme/theme_service.dart';
+import 'core/utils/logger.dart';
 import 'feature/transfer/api/transfer_api.dart';
 
 void main() async {
@@ -35,6 +36,17 @@ void main() async {
   // may sit in front of the first frame, and lines emitted before the
   // directory resolves are held in memory and flushed once it does.
   unawaited(DiagnosticLog.initialize());
+  // Resolve build identity independently of DiagnosticLog's storage setup.
+  // DiagnosticLog installs Logger.sink synchronously before its first await,
+  // so this line lands in the same session even when package-info resolution
+  // completes later. Never infer a commit from the semantic version: an
+  // `unknown` commit is intentionally visible when build tooling failed to
+  // inject provenance.
+  unawaited(
+    BuildProvenance.resolve().then(
+      (build) => Logger.diagnostic(build.diagnosticLine),
+    ),
+  );
   // Screen-off/on is the single most useful thing to correlate socket and
   // audio events against — most of what goes wrong mid-session goes wrong
   // because the phone locked.
