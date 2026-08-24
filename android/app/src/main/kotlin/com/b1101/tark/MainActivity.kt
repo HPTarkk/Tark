@@ -4,7 +4,6 @@ import android.content.Intent
 import com.b1101.tark.audio.AudioSessionHandler
 import com.b1101.tark.audio.MediaControlHandler
 import com.b1101.tark.audio.SystemAudioHandler
-import com.b1101.tark.billing.BillingHandler
 import com.b1101.tark.bluetooth.BluetoothServerHandler
 import com.b1101.tark.diagnostics.DiagnosticsHandler
 import com.b1101.tark.hotspot.HotspotHandler
@@ -22,7 +21,6 @@ class MainActivity : FlutterActivity() {
     private var wifiJoinHandler: WifiJoinHandler? = null
     private var keepAliveHandler: KeepAliveHandler? = null
     private var audioSessionHandler: AudioSessionHandler? = null
-    private var billingHandler: BillingHandler? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -105,18 +103,6 @@ class MainActivity : FlutterActivity() {
             DiagnosticsHandler(applicationContext, activityProvider = { this }),
         )
 
-        // Needs the Activity, not just the context: Myket's purchase flow is
-        // started with startActivityForResult under the hood.
-        val billing = BillingHandler(
-            applicationContext,
-            activityProvider = { this },
-        )
-        billingHandler = billing
-        MethodChannel(
-            flutterEngine.dartExecutor.binaryMessenger,
-            BillingHandler.CHANNEL,
-        ).setMethodCallHandler(billing)
-
         // Outbound only: the home-screen widget's mute/end buttons call INTO
         // Dart through this, from TarkWidgetControlReceiver. Registering the
         // channel here is what makes those buttons work without opening the
@@ -149,9 +135,6 @@ class MainActivity : FlutterActivity() {
         wifiJoinHandler?.leave()
         keepAliveHandler?.stop()
         audioSessionHandler?.dispose()
-        // Unbinds from the Myket service; leaking it holds a ServiceConnection
-        // against a dead Activity.
-        billingHandler?.dispose()
         super.onDestroy()
     }
 }

@@ -10,15 +10,11 @@ enum EntitlementSource {
   trial,
 
   /// A verified Bazaar (Poolakey) purchase.
-  bazaar,
-
-  /// A verified Myket purchase.
-  myket;
+  bazaar;
 
   static EntitlementSource fromKey(String? key) => switch (key) {
     'trial' => EntitlementSource.trial,
     'bazaar' => EntitlementSource.bazaar,
-    'myket' => EntitlementSource.myket,
     _ => EntitlementSource.none,
   };
 

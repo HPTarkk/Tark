@@ -38,34 +38,31 @@ class LicenseGateImpl implements LicenseGate {
   /// donations instead of selling tiers, so this defaults off and every
   /// `allows(...)` below answers yes.
   ///
-  /// Nothing is deleted: the store, the paywall, the Myket channel and the
-  /// native billing handler all stay wired and compiled. Flipping this back on
-  /// is the whole of un-parking it:
+  /// Nothing is deleted: the store and the paywall stay wired and compiled.
+  /// Flipping this back on is the whole of un-parking it — once a store
+  /// channel (Bazaar) exists behind [BillingService]:
   ///
-  ///   flutter build apk --release \
-  ///     --dart-define-from-file=billing.json \
-  ///     --dart-define=TARK_MONETIZED=true
+  ///   flutter build apk --release --dart-define=TARK_MONETIZED=true
   static const bool _monetizationEnabled = bool.fromEnvironment(
     'TARK_MONETIZED',
   );
 
-  /// Bazaar and Myket are Android-only, so Android is the only platform with
-  /// a purchase path. Gating anywhere else would be a locked door with no
-  /// key — desktop and web builds run fully unlocked by decision, not by
-  /// oversight. Revisit only if a store ever ships for those platforms.
+  /// Bazaar is Android-only, so Android is the only platform with a purchase
+  /// path. Gating anywhere else would be a locked door with no key — desktop
+  /// and web builds run fully unlocked by decision, not by oversight. Revisit
+  /// only if a store ever ships for those platforms.
   ///
   /// [_forceLocked] implies monetization, so the paywall stays exercisable on
   /// a device with that one flag while the feature is parked.
   static final bool _monetized =
       (_monetizationEnabled || _forceLocked) && !kIsWeb && Platform.isAndroid;
 
-  /// Build-time override that forces every gate shut, so the paywall and the
-  /// real purchase flow can be exercised on a device without waiting out a
-  /// 90-day trial:
+  /// Build-time override that forces every gate shut, so the paywall can be
+  /// exercised on a device without waiting out a 90-day trial. No store
+  /// channel is wired up yet, so this only exercises the gate and paywall
+  /// UI, not a real purchase:
   ///
-  ///   flutter build apk --release \
-  ///     --dart-define-from-file=billing.json \
-  ///     --dart-define=TARK_LOCK_PREMIUM=true
+  ///   flutter build apk --release --dart-define=TARK_LOCK_PREMIUM=true
   ///
   /// Defaults to false, so a normal build can never ship locked by accident.
   static const bool _forceLocked = bool.fromEnvironment('TARK_LOCK_PREMIUM');

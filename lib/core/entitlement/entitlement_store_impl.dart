@@ -63,8 +63,7 @@ class EntitlementStoreImpl implements EntitlementStore {
       _prefs.getString(SettingsKeys.entitlementSource),
     );
 
-    if (source == EntitlementSource.bazaar ||
-        source == EntitlementSource.myket) {
+    if (source == EntitlementSource.bazaar) {
       final expiryMs = _prefs.getInt(SettingsKeys.entitlementExpiresAt);
       _current = Entitlement(
         source: source,

@@ -1,15 +1,14 @@
-# Builds the Tark Android app for Bazaar/Myket, interactively — and optionally
-# cuts the GitHub release for it in the same run.
+# Builds the Tark Android app for Bazaar, interactively — and optionally cuts
+# the GitHub release for it in the same run.
 #
 #   .\scripts\build-android.ps1
 #
 # Asks for everything it needs at run time; every prompt has a sensible
 # default (just press Enter). Mirrors build-web-release.ps1 in style.
 #
-# The one thing this script exists to prevent: shipping a build with no
-# billing key. billing.json is gitignored, so a fresh clone silently produces
-# an app where every purchase path reports "unavailable" and nothing looks
-# broken until a user tries to pay. That case is a hard stop below.
+# No store billing channel is wired up yet (monetization is parked — see
+# license_gate.dart), so this always builds an unlocked app. There is no
+# billing key to configure.
 #
 # ── Build artifacts ─────────────────────────────────────────────────────────
 # Every non-publishing build asks what to produce:
@@ -211,29 +210,6 @@ Write-Host '  TARK — Android release build' -ForegroundColor Yellow
 Write-Host '  ----------------------------' -ForegroundColor DarkYellow
 Write-Host ''
 
-# ── Billing key (hard requirement) ──────────────────────────────────────────
-
-# The RSA public key is a compile-time constant (String.fromEnvironment), so
-# a missing or empty value cannot be detected at run time by anything except
-# billing failing. Catch it here instead.
-$billingFile = Join-Path $repoRoot 'billing.json'
-if (-not (Test-Path $billingFile)) {
-    Write-Host '  billing.json not found.' -ForegroundColor Red
-    Write-Host ''
-    Write-Host '  It is gitignored on purpose (per-store keys), so a fresh clone'
-    Write-Host '  will not have it. Create it at the repo root:'
-    Write-Host ''
-    Write-Host '    { "MYKET_RSA_KEY": "<key from the Myket developer panel>" }'
-    Write-Host ''
-    throw 'billing.json missing'
-}
-
-$billingKeys = Get-Content $billingFile -Raw | ConvertFrom-Json
-if ([string]::IsNullOrWhiteSpace($billingKeys.MYKET_RSA_KEY)) {
-    throw 'billing.json has no MYKET_RSA_KEY — billing would be dead in this build'
-}
-Write-Host '  billing.json  OK' -ForegroundColor DarkGray
-
 # ── Version (names the tag and the release branch) ──────────────────────────
 
 $v = Get-PubspecVersion
@@ -260,10 +236,11 @@ $mode = if ($isRelease) { 'release' } else { 'debug' }
 $locked = $false
 if ($isRelease) {
     Write-Host ''
-    Write-Host '  A locked build forces every premium gate SHUT and runs BillingProbe'
-    Write-Host '  at startup, so the paywall and a real purchase can be tested without'
-    Write-Host '  waiting out the trial. Never upload one as a public release.' -ForegroundColor DarkYellow
-    $locked = AskYesNo 'Locked billing-test build?' $false
+    Write-Host '  A locked build forces every premium gate SHUT, so the paywall can be'
+    Write-Host '  exercised without waiting out the trial. No store billing channel is'
+    Write-Host '  wired up yet, so this only tests the gate and paywall UI, not a real'
+    Write-Host '  purchase. Never upload one as a public release.' -ForegroundColor DarkYellow
+    $locked = AskYesNo 'Locked paywall-test build?' $false
 }
 
 # Publishing a debug or locked build would put a knowingly broken artifact
@@ -634,7 +611,6 @@ $target = if ($artifact -eq 'appbundle') { 'appbundle' } else { 'apk' }
 
 $buildArgs = @('build', $target, "--$mode")
 if ($artifact -eq 'split-apk') { $buildArgs += '--split-per-abi' }
-$buildArgs += "--dart-define-from-file=billing.json"
 $buildArgs += "--dart-define=GUEST_APP_URL=$guestUrl"
 if ($locked) { $buildArgs += '--dart-define=TARK_LOCK_PREMIUM=true' }
 
@@ -758,22 +734,17 @@ if ($locked) {
     Write-Host '  THIS IS A LOCKED TEST BUILD — do not publish it.' -ForegroundColor Red
     Write-Host '  Every premium feature is gated regardless of trial or purchase.'
     Write-Host ''
-    Write-Host '  To test billing:' -ForegroundColor DarkYellow
-    Write-Host '   1. Upload to Myket as a draft/test release.'
-    Write-Host '   2. Install FROM Myket on a real device — billing only binds when'
-    Write-Host '      the installer and signature match; a sideloaded APK will not.'
-    Write-Host '   3. Watch the probe and the native handler:'
-    Write-Host '        adb logcat -s flutter TarkBilling'
-    Write-Host '   4. Open the paywall from Settings > transport, mute, or SHARE MUSIC.'
+    Write-Host '  No store billing channel is wired up yet (Bazaar is planned, not' -ForegroundColor DarkYellow
+    Write-Host '  built), so BillingService always reports unavailable and the paywall'
+    Write-Host '  shows no prices. This only exercises the gate and paywall UI:'
+    Write-Host '   * Open the paywall from Settings > transport, mute, or SHARE MUSIC.'
 } else {
     Write-Host '  Reminders:' -ForegroundColor DarkYellow
     Write-Host "   * Guest URL baked in: $guestUrl — the web guest app must be live there."
     Write-Host '     (scripts\build-web-release.ps1 builds and bundles that side.)'
-    Write-Host '   * Billing cannot be tested from a sideloaded APK. Install from the'
-    Write-Host '     store, or re-run this script and answer Yes to the locked build.'
     if ($publish) {
-        Write-Host "   * The GitHub asset is unsigned-for-store use only — Bazaar and Myket"
-        Write-Host '     still need their own upload through each console.'
+        Write-Host "   * The GitHub asset is unsigned-for-store use only — Bazaar still needs"
+        Write-Host '     its own upload through its console, once billing lands.'
         Write-Host "   * Next bugfix: commit on $releaseBranch, re-run this script and accept"
         Write-Host '     the version bump. Merge the fix back to main too.'
     }

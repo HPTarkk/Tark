@@ -14,7 +14,6 @@ import 'core/config/onboarding_config.dart';
 import 'core/diagnostics/diagnostic_log.dart';
 import 'core/diagnostics/lifecycle_log.dart';
 import 'core/diagnostics/log_budget.dart';
-import 'core/entitlement/billing_probe.dart';
 import 'core/entitlement/entitlement_store.dart';
 import 'core/home_widget/home_widget_service.dart';
 import 'core/home_widget/home_widget_snapshot.dart';
@@ -92,9 +91,6 @@ void main() async {
   // the persisted transport is still paid for, and on a genuinely first
   // launch this call is what starts the trial clock.
   await GetIt.instance<EntitlementStore>().initialize();
-  // No-op unless TARK_LOCK_PREMIUM is set, and never on the critical path to
-  // the first frame — it binds to the Myket service, which can be slow.
-  unawaited(BillingProbe.run());
   // Must complete before the first page builds: the DI factory that picks
   // the active TransferRepository reads the persisted mode synchronously.
   final modeStore = GetIt.instance<TransferModeStore>();

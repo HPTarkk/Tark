@@ -67,11 +67,11 @@ class BillingPlanOffer {
   final String price;
 }
 
-/// Store-agnostic billing port. Bazaar (Poolakey) and Myket each get their
-/// own implementation behind this; nothing above this line knows which store
+/// Store-agnostic billing port. Bazaar (Poolakey) gets its own
+/// implementation behind this; nothing above this line knows which store
 /// the running build talks to.
 ///
-/// Both stores hand back a purchase payload signed with a per-developer RSA
+/// The store hands back a purchase payload signed with a per-developer RSA
 /// key, verified locally against a public key compiled into the app — which
 /// is the whole reason monetization is compatible with an offline product.
 /// Implementations must verify that signature *before* returning
@@ -94,7 +94,7 @@ abstract interface class BillingService {
 }
 
 /// Stand-in for every build without a store SDK: desktop, web, and Android
-/// until the Bazaar/Myket channels land.
+/// until the Bazaar channel lands.
 ///
 /// Reports unavailable rather than throwing, so callers exercise the same
 /// "no purchase path" branch they will hit on desktop for real.
