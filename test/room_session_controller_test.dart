@@ -12,33 +12,36 @@ void main() {
     ),
   );
 
-  test('publishes typed transport lifecycle without changing room identity', () async {
-    final subject = controller();
-    final seen = <RoomSession>[];
-    final subscription = subject.changes.listen(seen.add);
+  test(
+    'publishes typed transport lifecycle without changing room identity',
+    () async {
+      final subject = controller();
+      final seen = <RoomSession>[];
+      final subscription = subject.changes.listen(seen.add);
 
-    subject.attach(kind: TransportKind.hotspot, role: 'host');
-    final generation = subject.state.attachment.generation;
-    subject.attachmentReady(generation: generation);
-    subject.attachmentDegraded(
-      generation: generation,
-      reason: 'peer_unconfirmed',
-    );
-    subject.recover(generation: generation, reason: 'network_lost');
-    subject.replaceTransport(kind: TransportKind.wifi, role: 'peer');
+      subject.attach(kind: TransportKind.hotspot, role: 'host');
+      final generation = subject.state.attachment.generation;
+      subject.attachmentReady(generation: generation);
+      subject.attachmentDegraded(
+        generation: generation,
+        reason: 'peer_unconfirmed',
+      );
+      subject.recover(generation: generation, reason: 'network_lost');
+      subject.replaceTransport(kind: TransportKind.wifi, role: 'peer');
 
-    expect(seen.map((state) => state.phase), [
-      RoomSessionPhase.recoveringTransport,
-      RoomSessionPhase.live,
-      RoomSessionPhase.degraded,
-      RoomSessionPhase.recoveringTransport,
-      RoomSessionPhase.recoveringTransport,
-    ]);
-    expect(seen.every((state) => state.roomId == 'room-1'), isTrue);
+      expect(seen.map((state) => state.phase), [
+        RoomSessionPhase.recoveringTransport,
+        RoomSessionPhase.live,
+        RoomSessionPhase.degraded,
+        RoomSessionPhase.recoveringTransport,
+        RoomSessionPhase.recoveringTransport,
+      ]);
+      expect(seen.every((state) => state.roomId == 'room-1'), isTrue);
 
-    await subscription.cancel();
-    await subject.close();
-  });
+      await subscription.cancel();
+      await subject.close();
+    },
+  );
 
   test('stale callbacks produce no duplicate presentation state', () async {
     final subject = controller();
