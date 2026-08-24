@@ -5,20 +5,21 @@ List<double> _tone(int n, {double level = 0.5}) =>
     List<double>.filled(n, level);
 
 void main() {
+  // Sequence-only tests intentionally use a 1s target so playback never starts
+  // while they inspect queued ordering. Keep the helper ceiling above that
+  // synthetic target; bounded-latency tests pass their real small caps below.
   MediaReceiveBuffer build({
     int targetBufferMs = 10,
-    // Sequence-only tests intentionally use a 1s target so playback never
-    // starts while they inspect queued ordering. Keep the helper ceiling above
-    // that synthetic target; bounded-latency tests pass their real small caps
-    // explicitly below.
     int maxQueueMs = 2000,
     int maxConcealMs = 2,
-  }) => MediaReceiveBuffer(
-    sampleRate: 1000,
-    targetBufferMs: targetBufferMs,
-    maxQueueMs: maxQueueMs,
-    maxConcealMs: maxConcealMs,
-  );
+  }) {
+    return MediaReceiveBuffer(
+      sampleRate: 1000,
+      targetBufferMs: targetBufferMs,
+      maxQueueMs: maxQueueMs,
+      maxConcealMs: maxConcealMs,
+    );
+  }
 
   group('filling', () {
     test('waits for the target cushion before playback', () {
