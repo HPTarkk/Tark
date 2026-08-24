@@ -38,8 +38,10 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Get dependencies
-        run: flutter pub get
+      # CI must validate the dependency graph committed by development rather
+      # than silently resolving a different set of transitive packages.
+      - name: Get locked dependencies
+        run: flutter pub get --enforce-lockfile
 
       # flutter_blue_classic 0.1.1 migrated its Android module to AGP built-in
       # Kotlin while Tark deliberately keeps android.builtInKotlin=false for
