@@ -19,8 +19,14 @@ void main() {
       options.map((option) => option.kind),
       isNot(contains(InRoomInviteKind.hotspotWifi)),
     );
-    expect(options.map((option) => option.kind), contains(InRoomInviteKind.roomQr));
-    expect(options.map((option) => option.kind), contains(InRoomInviteKind.roomCode));
+    expect(
+      options.map((option) => option.kind),
+      contains(InRoomInviteKind.roomQr),
+    );
+    expect(
+      options.map((option) => option.kind),
+      contains(InRoomInviteKind.roomCode),
+    );
   });
 
   test('host receives hotspot Wi-Fi invite when fresh credentials exist', () {
@@ -41,46 +47,52 @@ void main() {
     expect(hotspot.reason, isNull);
   });
 
-  test('hotspot recovery disables stale network QR but keeps room invite live', () {
-    final options = policy.options(
-      const InRoomInviteContext(
-        isTransportHost: true,
-        hasRoomQr: true,
-        hasRoomCode: true,
-        hasHotspotCredentials: true,
-        hasGuestLink: false,
-        isRecovering: true,
-      ),
-    );
+  test(
+    'hotspot recovery disables stale network QR but keeps room invite live',
+    () {
+      final options = policy.options(
+        const InRoomInviteContext(
+          isTransportHost: true,
+          hasRoomQr: true,
+          hasRoomCode: true,
+          hasHotspotCredentials: true,
+          hasGuestLink: false,
+          isRecovering: true,
+        ),
+      );
 
-    final hotspot = options.singleWhere(
-      (option) => option.kind == InRoomInviteKind.hotspotWifi,
-    );
-    final roomQr = options.singleWhere(
-      (option) => option.kind == InRoomInviteKind.roomQr,
-    );
+      final hotspot = options.singleWhere(
+        (option) => option.kind == InRoomInviteKind.hotspotWifi,
+      );
+      final roomQr = options.singleWhere(
+        (option) => option.kind == InRoomInviteKind.roomQr,
+      );
 
-    expect(hotspot.enabled, isFalse);
-    expect(hotspot.reason, 'hotspot_recovering');
-    expect(roomQr.enabled, isTrue);
-  });
+      expect(hotspot.enabled, isFalse);
+      expect(hotspot.reason, 'hotspot_recovering');
+      expect(roomQr.enabled, isTrue);
+    },
+  );
 
-  test('guest-capable room exposes guest link and share without hotspot data', () {
-    final options = policy.options(
-      const InRoomInviteContext(
-        isTransportHost: false,
-        hasRoomQr: false,
-        hasRoomCode: false,
-        hasHotspotCredentials: false,
-        hasGuestLink: true,
-      ),
-    );
+  test(
+    'guest-capable room exposes guest link and share without hotspot data',
+    () {
+      final options = policy.options(
+        const InRoomInviteContext(
+          isTransportHost: false,
+          hasRoomQr: false,
+          hasRoomCode: false,
+          hasHotspotCredentials: false,
+          hasGuestLink: true,
+        ),
+      );
 
-    expect(options.map((option) => option.kind), [
-      InRoomInviteKind.share,
-      InRoomInviteKind.guestLink,
-    ]);
-  });
+      expect(options.map((option) => option.kind), [
+        InRoomInviteKind.share,
+        InRoomInviteKind.guestLink,
+      ]);
+    },
+  );
 
   test('Bluetooth-only room with no canonical invite data exposes nothing', () {
     final options = policy.options(
