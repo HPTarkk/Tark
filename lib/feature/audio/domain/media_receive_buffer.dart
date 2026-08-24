@@ -68,8 +68,6 @@ class MediaReceiveBuffer {
   /// at most two missing packets; anything larger becomes an explicit resync.
   static const int kDefaultMaxConcealMs = 40;
 
-  static const int _maxReorderChunks = 50;
-
   final int _sampleRate;
   final int _targetSamples;
   final int _maxQueueSamples;
