@@ -73,7 +73,7 @@ jobs:
         run: flutter test
 
       - name: Run Tark log analyzer tests
-        run: python3 scripts/test_decode_tark_log.py
+        run: python3 -m unittest discover -s scripts -p 'test_*.py'
 
       - name: Verify website localization output
         run: node scripts/build-website-i18n.mjs --check
@@ -91,7 +91,15 @@ jobs:
           flutter test "${protocol_tests[@]}"
 
       - name: Android debug compile check
-        run: flutter build apk --debug --dart-define=BUILD_CHANNEL=ci --dart-define=GIT_COMMIT=${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          built_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          flutter build apk --debug \
+            --dart-define=BUILD_CHANNEL=ci \
+            --dart-define=GIT_COMMIT=${{ github.sha }} \
+            --dart-define=GIT_DIRTY=false \
+            --dart-define=BUILD_TIMESTAMP="$built_at"
 
       - name: Git diff check
         run: git diff --check
