@@ -107,6 +107,9 @@ class MainActivity : FlutterActivity() {
             MediaControlHandler(applicationContext, activityProvider = { this }),
         )
 
+        // Where the on-device diagnostic log lives, and the share sheet that
+        // gets it off the phone. Registered early on purpose: Dart asks for the
+        // directory in main(), before the first frame.
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             "tark/diagnostics",
@@ -114,6 +117,8 @@ class MainActivity : FlutterActivity() {
             DiagnosticsHandler(applicationContext, activityProvider = { this }),
         )
 
+        // Needs the Activity, not just the context: Myket's purchase flow is
+        // started with startActivityForResult under the hood.
         val billing = BillingHandler(
             applicationContext,
             activityProvider = { this },
@@ -124,6 +129,11 @@ class MainActivity : FlutterActivity() {
             BillingHandler.CHANNEL,
         ).setMethodCallHandler(billing)
 
+        // Outbound only: the home-screen widget's mute/end buttons call INTO
+        // Dart through this, from TarkWidgetControlReceiver. Registering the
+        // channel here is what makes those buttons work without opening the
+        // app — while a session is live the process is held up by the
+        // keep-alive service, so this engine is still around to receive them.
         WidgetControlBridge.attach(
             MethodChannel(
                 flutterEngine.dartExecutor.binaryMessenger,
@@ -143,6 +153,8 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
+        // Leaves the widget's control taps with nothing to dispatch to, which
+        // is what tells TarkWidgetControlReceiver the session is gone.
         WidgetControlBridge.detach()
         bluetoothServerHandler?.stopHosting()
         hotspotHandler?.stop()
@@ -150,6 +162,8 @@ class MainActivity : FlutterActivity() {
         networkBindingHandler?.dispose()
         keepAliveHandler?.stop()
         audioSessionHandler?.dispose()
+        // Unbinds from the Myket service; leaking it holds a ServiceConnection
+        // against a dead Activity.
         billingHandler?.dispose()
         super.onDestroy()
     }
