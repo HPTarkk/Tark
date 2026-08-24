@@ -9,6 +9,7 @@ class MediaReceiveHealth {
   const MediaReceiveHealth({
     required this.queuedMs,
     required this.underruns,
+    required this.outputStarvations,
     required this.trims,
     required this.overflowDrops,
     required this.staleDrops,
@@ -19,6 +20,7 @@ class MediaReceiveHealth {
 
   final int queuedMs;
   final int underruns;
+  final int outputStarvations;
   final int trims;
   final int overflowDrops;
   final int staleDrops;
@@ -27,7 +29,11 @@ class MediaReceiveHealth {
   final int concealedMs;
 
   bool get isDistressed =>
-      overflowDrops > 0 || staleDrops > 0 || resyncs > 0 || underruns > 0;
+      overflowDrops > 0 ||
+      staleDrops > 0 ||
+      resyncs > 0 ||
+      underruns > 0 ||
+      outputStarvations > 0;
 }
 
 /// Independent receive-side jitter buffer for Shared Music.
@@ -81,6 +87,7 @@ class MediaReceiveBuffer {
   final Map<String, int> _lastChunkLenBySender = {};
 
   int _underruns = 0;
+  int _outputStarvations = 0;
   int _trims = 0;
   int _overflowDrops = 0;
   int _staleDrops = 0;
@@ -92,6 +99,7 @@ class MediaReceiveBuffer {
   int get queuedMs => _queue.length * 1000 ~/ _sampleRate;
   int get targetSamples => _targetSamples;
   int get underruns => _underruns;
+  int get outputStarvations => _outputStarvations;
   int get trims => _trims;
   int get overflowDrops => _overflowDrops;
   int get staleDrops => _staleDrops;
@@ -101,9 +109,28 @@ class MediaReceiveBuffer {
   int get concealedMs => _concealedSamples * 1000 ~/ _sampleRate;
   bool get isFilling => _filling;
 
-  MediaReceiveHealth get health => MediaReceiveHealth(
+  MediaReceiveHealth get health => _snapshot();
+
+  /// Returns receiver evidence for the current diagnostics/adaptation window
+  /// and clears only the event counters. Queue depth remains an instantaneous
+  /// gauge and sequence/playback state is untouched.
+  MediaReceiveHealth takeHealthWindow() {
+    final snapshot = _snapshot();
+    _underruns = 0;
+    _outputStarvations = 0;
+    _trims = 0;
+    _overflowDrops = 0;
+    _staleDrops = 0;
+    _duplicateDrops = 0;
+    _resyncs = 0;
+    _concealedSamples = 0;
+    return snapshot;
+  }
+
+  MediaReceiveHealth _snapshot() => MediaReceiveHealth(
     queuedMs: queuedMs,
     underruns: _underruns,
+    outputStarvations: _outputStarvations,
     trims: _trims,
     overflowDrops: _overflowDrops,
     staleDrops: _staleDrops,
@@ -207,6 +234,7 @@ class MediaReceiveBuffer {
 
     if (_queue.length < count) {
       _underruns++;
+      _outputStarvations++;
       _filling = true;
       return null;
     }
