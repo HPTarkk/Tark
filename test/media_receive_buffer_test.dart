@@ -7,7 +7,11 @@ List<double> _tone(int n, {double level = 0.5}) =>
 void main() {
   MediaReceiveBuffer build({
     int targetBufferMs = 10,
-    int maxQueueMs = 100,
+    // Sequence-only tests intentionally use a 1s target so playback never
+    // starts while they inspect queued ordering. Keep the helper ceiling above
+    // that synthetic target; bounded-latency tests pass their real small caps
+    // explicitly below.
+    int maxQueueMs = 2000,
     int maxConcealMs = 2,
   }) => MediaReceiveBuffer(
     sampleRate: 1000,
