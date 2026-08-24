@@ -71,7 +71,10 @@ void main() {
     expect(restored.sessionId, firstLive.sessionId);
     expect(restored.attachment.kind, TransportKind.wifi);
     expect(restored.attachment.role, 'peer');
-    expect(restored.attachment.generation, greaterThan(firstLive.attachment.generation));
+    expect(
+      restored.attachment.generation,
+      greaterThan(firstLive.attachment.generation),
+    );
   });
 
   test('stale callback from an older attachment generation is ignored', () {
@@ -79,7 +82,9 @@ void main() {
     final firstGeneration = first.attachment.generation;
     final replacement = first.replaceTransport(kind: TransportKind.bluetooth);
 
-    final staleReady = replacement.attachmentReady(generation: firstGeneration);
+    final staleReady = replacement.attachmentReady(
+      generation: firstGeneration,
+    );
 
     expect(staleReady, replacement);
     expect(staleReady.attachment.kind, TransportKind.bluetooth);
@@ -114,7 +119,10 @@ void main() {
     );
     final replacement = firstLive.replaceTransport(kind: TransportKind.wifi);
 
-    expect(replacement.memberIds, containsAll(['me', 'rider-a', 'rider-b', 'late-rider']));
+    expect(
+      replacement.memberIds,
+      containsAll(['me', 'rider-a', 'rider-b', 'late-rider']),
+    );
     expect(replacement.isMuted, isFalse);
   });
 }
