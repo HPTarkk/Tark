@@ -49,18 +49,21 @@ void main() {
       expect(buffer.resyncs, 0);
     });
 
-    test('a large forward gap drops stale backlog and resyncs to live edge', () {
-      final buffer = build(targetBufferMs: 1000, maxConcealMs: 5);
-      addTearDown(buffer.dispose);
+    test(
+      'a large forward gap drops stale backlog and resyncs to live edge',
+      () {
+        final buffer = build(targetBufferMs: 1000, maxConcealMs: 5);
+        addTearDown(buffer.dispose);
 
-      buffer.feed(_tone(5, level: 0.1), 0, 'peer');
-      buffer.feed(_tone(5, level: 0.2), 1, 'peer');
-      buffer.feed(_tone(5, level: 0.9), 20, 'peer');
+        buffer.feed(_tone(5, level: 0.1), 0, 'peer');
+        buffer.feed(_tone(5, level: 0.2), 1, 'peer');
+        buffer.feed(_tone(5, level: 0.9), 20, 'peer');
 
-      expect(buffer.resyncs, 1);
-      expect(buffer.concealedSamples, 0);
-      expect(buffer.queuedSamples, 5);
-    });
+        expect(buffer.resyncs, 1);
+        expect(buffer.concealedSamples, 0);
+        expect(buffer.queuedSamples, 5);
+      },
+    );
 
     test('a duplicate is rejected and counted', () {
       final buffer = build(targetBufferMs: 1000);
