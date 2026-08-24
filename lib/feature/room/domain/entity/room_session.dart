@@ -1,12 +1,6 @@
 import 'transport_attachment.dart';
 
-enum RoomSessionPhase {
-  open,
-  live,
-  degraded,
-  recoveringTransport,
-  left,
-}
+enum RoomSessionPhase { open, live, degraded, recoveringTransport, left }
 
 /// Transport-independent identity and user-visible state for one live use of a
 /// room.
@@ -77,10 +71,7 @@ class RoomSession {
     );
   }
 
-  RoomSession attachmentReady({
-    required int generation,
-    String? role,
-  }) {
+  RoomSession attachmentReady({required int generation, String? role}) {
     _ensurePresent();
     if (!_isCurrentGeneration(generation)) return this;
     final kind = attachment.kind;
@@ -96,10 +87,7 @@ class RoomSession {
     );
   }
 
-  RoomSession attachmentDegraded({
-    required int generation,
-    String? reason,
-  }) {
+  RoomSession attachmentDegraded({required int generation, String? reason}) {
     _ensurePresent();
     if (!_isCurrentGeneration(generation)) return this;
     return _copy(
@@ -140,10 +128,7 @@ class RoomSession {
     return startAttachment(kind: kind, role: role, reason: reason);
   }
 
-  RoomSession attachmentFailed({
-    required int generation,
-    String? reason,
-  }) {
+  RoomSession attachmentFailed({required int generation, String? reason}) {
     _ensurePresent();
     if (!_isCurrentGeneration(generation)) return this;
     return _copy(
