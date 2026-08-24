@@ -1,58 +1,79 @@
 import 'float64_fifo.dart';
 
-/// Independent receive-side jitter buffer for Shared Music — the media
-/// analog of `AudioPlaybackBuffer`, deliberately smaller. See #30.
+/// Windowed receiver-health snapshot for Shared Music.
 ///
-/// Pull-based ([pullFrame]), unlike `AudioPlaybackBuffer`: it owns no timer
-/// of its own. `AudioPlaybackBuffer`'s fixed-cadence drain timer is the one
-/// proven-safe writer to the native output ring (see that class's own "do
-/// not change the drain cadence" doc) — a second independent timer writing
-/// to the same sink would not *mix* with voice's output, it would
-/// concatenate two unrelated PCM streams into one ring buffer, which is
-/// audibly wrong regardless of cadence. So the caller (`AudioEngineImpl`)
-/// pulls a same-length frame from this buffer and numerically sums it onto
-/// whatever voice is writing, at voice's own write points, plus its own
-/// small coordinator tick for stretches where voice has nothing queued at
-/// all — see that class's own doc for the mixing shape.
+/// Values are deliberately transport-agnostic and contain no sender identity,
+/// address, room data, or audio. They are safe to surface in diagnostics and
+/// feed into #41's media-quality policy.
+class MediaReceiveHealth {
+  const MediaReceiveHealth({
+    required this.queuedMs,
+    required this.underruns,
+    required this.trims,
+    required this.overflowDrops,
+    required this.staleDrops,
+    required this.duplicateDrops,
+    required this.resyncs,
+    required this.concealedMs,
+  });
+
+  final int queuedMs;
+  final int underruns;
+  final int trims;
+  final int overflowDrops;
+  final int staleDrops;
+  final int duplicateDrops;
+  final int resyncs;
+  final int concealedMs;
+
+  bool get isDistressed =>
+      overflowDrops > 0 || staleDrops > 0 || resyncs > 0 || underruns > 0;
+}
+
+/// Independent receive-side jitter buffer for Shared Music.
 ///
-/// Deliberately simpler than `AudioPlaybackBuffer` in one specific way:
-/// a sender whose sequence counter jumps far backward is resynced
-/// immediately rather than going through that class's multi-packet
-/// restart-vs-duplicate-route confirmation. That confirmation defends
-/// against a WiFi peer being heard on two routes at once — already excluded
-/// upstream of this buffer by the same route-pinning gate voice benefits
-/// from (`_acceptRoute`, run once per packet before either stream sees it) —
-/// so reproducing that machinery here would be defending against a case the
-/// transport layer already prevents. Everything else (per-sender sequence
-/// tracking, gap concealment, late/stale drop, bounded queue) is the same
-/// shape as voice's, independently — no shared expected-sequence map or
-/// buffer target, so one stream's loss/reorder can never affect the other's.
+/// Music has different failure semantics from speech. A very short hole can be
+/// concealed, but manufacturing hundreds of milliseconds of silence or
+/// replaying a stale queue is worse than making one clean discontinuity and
+/// returning to live audio. This buffer therefore has an explicit playable
+/// latency ceiling and treats a large sequence jump as a resync boundary.
+///
+/// It is pull-based and owns no timer. `AudioEngineImpl` remains the only owner
+/// of output cadence, mixing media into the existing voice output path.
 class MediaReceiveBuffer {
   MediaReceiveBuffer({
     int sampleRate = 48000,
     int targetBufferMs = kDefaultTargetBufferMs,
     int maxQueueMs = kDefaultMaxQueueMs,
-  }) : _sampleRate = sampleRate,
+    int maxConcealMs = kDefaultMaxConcealMs,
+  }) : assert(sampleRate > 0),
+       assert(targetBufferMs >= 0),
+       assert(maxQueueMs >= targetBufferMs),
+       assert(maxConcealMs >= 0),
+       _sampleRate = sampleRate,
        _targetSamples = sampleRate * targetBufferMs ~/ 1000,
-       _maxQueueSamples = sampleRate * maxQueueMs ~/ 1000;
+       _maxQueueSamples = sampleRate * maxQueueMs ~/ 1000,
+       _maxConcealSamples = sampleRate * maxConcealMs ~/ 1000;
 
-  /// Deliberately looser than `AudioPlaybackBuffer`'s 100 ms default — music
-  /// is enjoyment-critical, not safety-critical, so a little extra cushion
-  /// against jitter costs nothing conversation would notice. Still bounded —
-  /// see [kDefaultMaxQueueMs].
-  static const int kDefaultTargetBufferMs = 150;
+  /// Enough cushion for ordinary mobile jitter without making a late music
+  /// stream feel detached from what the sender is actually playing.
+  static const int kDefaultTargetBufferMs = 120;
 
-  /// Bounded, same reasoning as `AudioPlaybackBuffer.kMaxQueueMs`: only a
-  /// memory backstop, [_trimStep] (see [pullFrame]) keeps latency well below
-  /// this in practice.
-  static const int kDefaultMaxQueueMs = 1500;
+  /// Hard playable-latency ceiling. The previous 1500 ms cap allowed an old
+  /// stream to stay audible more than a second after a disruption. For shared
+  /// music, a controlled discontinuity is preferable to that much stale audio.
+  static const int kDefaultMaxQueueMs = 400;
 
-  static const int _maxConcealedGapChunks = 50;
+  /// Only tiny holes are concealed. At the 20 ms media packet cadence this is
+  /// at most two missing packets; anything larger becomes an explicit resync.
+  static const int kDefaultMaxConcealMs = 40;
+
   static const int _maxReorderChunks = 50;
 
   final int _sampleRate;
   final int _targetSamples;
   final int _maxQueueSamples;
+  final int _maxConcealSamples;
   late final int _trimStepSamples = _sampleRate * 10 ~/ 1000;
 
   final Float64Fifo _queue = Float64Fifo(4096);
@@ -64,47 +85,78 @@ class MediaReceiveBuffer {
   int _underruns = 0;
   int _trims = 0;
   int _overflowDrops = 0;
+  int _staleDrops = 0;
+  int _duplicateDrops = 0;
+  int _resyncs = 0;
   int _concealedSamples = 0;
 
   int get queuedSamples => _queue.length;
+  int get queuedMs => _queue.length * 1000 ~/ _sampleRate;
   int get targetSamples => _targetSamples;
   int get underruns => _underruns;
   int get trims => _trims;
   int get overflowDrops => _overflowDrops;
+  int get staleDrops => _staleDrops;
+  int get duplicateDrops => _duplicateDrops;
+  int get resyncs => _resyncs;
   int get concealedSamples => _concealedSamples;
+  int get concealedMs => _concealedSamples * 1000 ~/ _sampleRate;
   bool get isFilling => _filling;
 
-  /// Feed one decoded media frame. Same contract as
-  /// `AudioPlaybackBuffer.feed`: [seq] is [senderId]'s own monotonically
-  /// increasing counter, scoped independently of voice's.
+  MediaReceiveHealth get health => MediaReceiveHealth(
+    queuedMs: queuedMs,
+    underruns: _underruns,
+    trims: _trims,
+    overflowDrops: _overflowDrops,
+    staleDrops: _staleDrops,
+    duplicateDrops: _duplicateDrops,
+    resyncs: _resyncs,
+    concealedMs: concealedMs,
+  );
+
+  /// Feed one decoded media frame. [seq] is scoped to [senderId] and remains
+  /// independent of voice sequence numbers.
   void feed(List<double> samples, int seq, String senderId) {
+    if (samples.isEmpty) return;
+
     final expectedSeq = _expectedSeqBySender[senderId];
     final lastChunkLen = _lastChunkLenBySender[senderId] ?? samples.length;
 
     if (expectedSeq == null) {
-      // First packet from this sender — nothing to compare against yet.
+      // First packet from this sender: establish the baseline below.
     } else if (seq < expectedSeq) {
       final behind = expectedSeq - seq;
-      if (behind <= _maxReorderChunks) {
-        return; // Ordinary reordering, too old to splice back in.
+      if (behind == 1) {
+        _duplicateDrops++;
+      } else {
+        _staleDrops++;
       }
-      // Far behind: resynced immediately (unlike voice — see the class doc
-      // for why that confirmation isn't reproduced here) by simply falling
-      // through and adopting this sequence as the new baseline below.
+
+      // A true sender/session restart is already known to higher layers via
+      // session epoch/reconnect and calls reset(). Guessing a restart from one
+      // far-behind packet lets delayed audio overwrite the live baseline, so
+      // every behind packet is rejected here regardless of distance.
+      return;
     } else if (seq > expectedSeq) {
       final missing = seq - expectedSeq;
-      if (missing <= _maxConcealedGapChunks) {
-        final gap = missing * lastChunkLen;
-        _concealedSamples += gap;
-        _enqueueSilence(gap);
+      final gapSamples = missing * lastChunkLen;
+      if (gapSamples <= _maxConcealSamples) {
+        _concealedSamples += gapSamples;
+        _enqueueSilence(gapSamples);
+      } else {
+        _resyncToLiveEdge();
       }
-      // A larger gap resyncs without filling silence — a jump is preferable
-      // to seconds of manufactured silence for what music playback is for.
     }
 
     _expectedSeqBySender[senderId] = seq + 1;
     _lastChunkLenBySender[senderId] = samples.length;
     _enqueue(samples);
+  }
+
+  void _resyncToLiveEdge() {
+    _resyncs++;
+    _queue.clear();
+    _filling = true;
   }
 
   void _enqueue(List<double> samples) {
@@ -113,41 +165,46 @@ class MediaReceiveBuffer {
   }
 
   void _enqueueSilence(int count) {
+    if (count <= 0) return;
     _queue.addZeros(count);
     _dropOverflow();
   }
 
-  /// Checked after adding, not before: a single incoming batch can — unlike
-  /// voice's small, fixed-size mic chunks — occasionally be large relative
-  /// to the cap (e.g. a big concealed gap), so the cap has to bound the
-  /// queue's actual resulting size rather than only guard against many small
-  /// additions accumulating past it.
+  /// The cap is strict after every write. Overflow discards oldest media so the
+  /// receiver always converges toward the live edge instead of preserving a
+  /// stale head and dropping the newest audio.
   void _dropOverflow() {
     if (_queue.length <= _maxQueueSamples) return;
     _overflowDrops++;
     _queue.discardFirst(_queue.length - _maxQueueSamples);
   }
 
-  /// Returns exactly [count] samples once the cushion has filled and enough
-  /// is queued, trimming any backlog toward [targetSamples] first. Null
-  /// while filling or genuinely starved — unlike `AudioPlaybackBuffer`,
-  /// nothing requires this buffer to always emit something: the caller mixes
-  /// whatever comes back onto voice's own frame, and null just means "no
-  /// music contribution this tick," which is silence by omission rather
-  /// than a decision to synthesize one.
+  /// Pulls one output frame once the initial cushion is ready.
+  ///
+  /// Mild clock drift is corrected in 10 ms steps whenever queue growth gets
+  /// materially above target. A sudden large backlog is handled more strongly:
+  /// all excess beyond target is dropped in one operation, because slowly
+  /// walking a 300-400 ms stale queue down would make latency audible for many
+  /// seconds.
   List<double>? pullFrame(int count) {
+    if (count <= 0) return const [];
+
     if (_filling) {
       if (_queue.length < _targetSamples) return null;
       _filling = false;
     }
 
-    final trimThreshold = _targetSamples * 2;
-    if (_queue.length > trimThreshold) {
+    final highWater = _targetSamples + (_targetSamples ~/ 2);
+    if (_queue.length > highWater) {
       final excess = _queue.length - _targetSamples;
-      _queue.discardFirst(
-        excess < _trimStepSamples ? excess : _trimStepSamples,
-      );
-      _trims++;
+      final severeBacklog = _queue.length >= _maxQueueSamples * 3 ~/ 4;
+      final trim = severeBacklog
+          ? excess
+          : (excess < _trimStepSamples ? excess : _trimStepSamples);
+      if (trim > 0) {
+        _queue.discardFirst(trim);
+        _trims++;
+      }
     }
 
     if (_queue.length < count) {
@@ -158,8 +215,10 @@ class MediaReceiveBuffer {
     return _queue.takeFirst(count);
   }
 
-  /// Reset on a detected reconnect — clears queued audio and all per-sender
-  /// sequence state, independent of `AudioPlaybackBuffer.reset()`.
+  /// Explicit stream boundary (reconnect, sender epoch renewal, profile
+  /// restart). This is the only way a far-behind sequence is allowed to become
+  /// a fresh baseline, which prevents delayed packets from impersonating a
+  /// restart.
   void reset() {
     _queue.clear();
     _filling = true;
@@ -167,10 +226,10 @@ class MediaReceiveBuffer {
     _lastChunkLenBySender.clear();
   }
 
-  /// No timer to cancel (see the class doc) — provided for symmetry with
-  /// `AudioPlaybackBuffer.dispose()` and so a caller can treat both streams
-  /// uniformly at teardown.
+  /// No timer is owned here; disposal only releases buffered audio/state.
   void dispose() {
     _queue.clear();
+    _expectedSeqBySender.clear();
+    _lastChunkLenBySender.clear();
   }
 }
