@@ -35,9 +35,20 @@ void main() {
       final owner = RoomSessionResourceOwner();
       final disposed = <String>[];
       owner.ownRoomResource('audio-engine', () => disposed.add('audio'));
-      owner.ownRoomResource('room-subscription', () => disposed.add('room-sub'));
-      owner.ownAttachmentResource(1, 'socket', () => disposed.add('attachment-1'));
-      owner.ownAttachmentResource(2, 'timer', () => disposed.add('attachment-2'));
+      owner.ownRoomResource(
+        'room-subscription',
+        () => disposed.add('room-sub'),
+      );
+      owner.ownAttachmentResource(
+        1,
+        'socket',
+        () => disposed.add('attachment-1'),
+      );
+      owner.ownAttachmentResource(
+        2,
+        'timer',
+        () => disposed.add('attachment-2'),
+      );
       await owner.disposeAll();
       await owner.disposeAll();
       expect(disposed, ['attachment-2', 'attachment-1', 'room-sub', 'audio']);
