@@ -14,8 +14,6 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # In iOS, build-name is used as CFBundleShortVersionString while build-number is used as CFBundleVersion.
 # Read more about iOS versioning at
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
-# In Windows, build-name is used as the major, minor, and patch parts
-# of the product and file versions while build-number is used as the build suffix.
 version: 1.0.18+19
 
 environment:
@@ -55,7 +53,11 @@ dependencies:
   permission_handler: ^12.0.1
   shared_preferences: ^2.3.0
   package_info_plus: ^9.0.1
-  flutter_blue_classic: ^0.1.1
+  # 0.1.1 migrated the plugin to AGP built-in Kotlin. Tark's current Flutter
+  # 3.41.9 / legacy-KGP Android baseline cannot compile that plugin class.
+  # Keep the API-compatible 0.1.0 until the app toolchain is deliberately
+  # migrated to Flutter's built-in-Kotlin support.
+  flutter_blue_classic: 0.1.0
   opus_dart: ^3.0.1
   opus_flutter: ^3.0.3
   # Direct, for the opus_encoder_ctl binding in
