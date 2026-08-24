@@ -7,6 +7,7 @@ import '../../../../core/utils/logger.dart';
 import '../../domain/entity/hotspot_credentials.dart';
 import '../../domain/entity/session_role.dart';
 import '../../domain/repository/wifi_transfer_repository.dart';
+import '../../domain/service/host_hotspot_recovery.dart';
 import '../../domain/service/hotspot_control.dart';
 import '../../domain/service/hotspot_link_keeper.dart';
 import '../../domain/service/session_role_store.dart';
@@ -24,40 +25,44 @@ class HotspotLinkKeeperImpl implements HotspotLinkKeeper {
     this._roleStore,
     this._wifi, {
     this.recoveryTimeout = const Duration(minutes: 10),
+    this.hostEvidenceInterval = const Duration(milliseconds: 500),
     this.backoffFactory = ExponentialBackoff.new,
   });
 
-  /// How long a joiner keeps rejoining before giving up and reporting
-  /// [HotspotLinkState.lost].
-  ///
-  /// A permanent separation — a rider peeling off for the day, not a truck
-  /// passing overhead — looks identical to this loop for the first several
-  /// attempts: every result is the same "didn't join". Ten minutes is long
-  /// enough that a real gap (a tunnel, a phone left locked in a bag) has
-  /// almost always closed by then, and short enough that a genuine goodbye
-  /// stops draining the radio and silently retrying forever.
+  /// How long either side keeps automatic recovery alive before surfacing a
+  /// user-visible lost state. It bounds both retry work and host peer waiting.
   final Duration recoveryTimeout;
 
-  /// Builds the backoff schedule for one recovery cycle. A factory rather
-  /// than a shared instance because each `_recoverJoin` run needs its own,
-  /// starting fresh from [ExponentialBackoff.initial] — and injectable so
-  /// tests can run the whole timeout on a millisecond schedule instead of
-  /// waiting out real minutes.
+  /// Poll cadence while a newly re-hosted AP waits for bidirectional peer
+  /// evidence. TransportStats is session-cumulative and cheap to sample.
+  final Duration hostEvidenceInterval;
+
+  /// Each recovery cycle gets a fresh bounded exponential backoff.
   final ExponentialBackoff Function() backoffFactory;
 
   HotspotCredentials? _credentials;
+  int _credentialRevision = 0;
+  int _expectedHostPeers = 0;
+  bool _hostApAvailable = false;
+  HostHotspotRecoveryMachine _hostRecovery = HostHotspotRecoveryMachine();
 
-  /// When the current (or most recent) `_recoverJoin` run started, so the
-  /// loop can measure how long it has been trying against [recoveryTimeout].
+  @override
+  HotspotCredentials? get credentials => _credentials;
+
+  final _credentialChanges = StreamController<HotspotCredentials>.broadcast();
+
+  @override
+  Stream<HotspotCredentials> get credentialChanges => _credentialChanges.stream;
+
+  /// When the current recovery run started, shared by the bounded join and host
+  /// evidence loops.
   DateTime? _recoveryStartedAt;
   StreamSubscription<void>? _lostSub;
   StreamSubscription<void>? _stoppedSub;
   StreamSubscription<void>? _reboundSub;
+  Timer? _hostEvidenceTimer;
 
-  /// Guards against a second recovery starting while one is in flight, and is
-  /// the flag [release] flips to make an in-flight one give up — a join
-  /// attempt can sit for the framework's full timeout, long enough for the
-  /// user to have left the channel meanwhile.
+  /// Guards against duplicate native callbacks starting concurrent recovery.
   bool _recovering = false;
 
   final _states = StreamController<HotspotLinkState>.broadcast();
@@ -72,16 +77,18 @@ class HotspotLinkKeeperImpl implements HotspotLinkKeeper {
   @override
   void adopt(HotspotCredentials credentials) {
     _credentials = credentials;
+    _credentialRevision++;
+    _hostRecovery = HostHotspotRecoveryMachine();
+    _hostApAvailable = _roleStore.role == SessionRole.host;
     _watch();
     _emit(HotspotLinkState.up);
     Logger.diagnostic(
-      'link: keeping ${credentials.ssid} as ${_roleStore.role?.name ?? "peer"}',
+      'link: adopted hotspot attachment as '
+      '${_roleStore.role?.name ?? "peer"} credentialRevision=$_credentialRevision',
     );
   }
 
-  /// Watches the side this device is actually playing. A host never gets an
-  /// `onLost` (it is not on anyone's network) and a joiner never gets an
-  /// `onStopped` (it owns no AP), so listening to the wrong one is silence.
+  /// Watches only the temporary network role this device currently owns.
   void _watch() {
     _lostSub?.cancel();
     _lostSub = null;
@@ -105,32 +112,20 @@ class HotspotLinkKeeperImpl implements HotspotLinkKeeper {
           onError: (Object e) => Logger.log('Link keeper stop-listen: $e'),
         );
       case SessionRole.peer || SessionRole.unknown || null:
-        // Nobody is holding a link up, so there is nothing to keep.
         break;
     }
   }
 
-  /// The OS took the link away and gave it back before we had to do anything —
-  /// a screen-off cycle, where an app-scoped connection is released and a
-  /// system-owned one replaces it (see WifiJoinHandler).
-  ///
-  /// Nothing needs rejoining, and any rejoin already in flight must stop: it
-  /// would drop a link that is now fine and ask the framework for a fresh one,
-  /// which off the foreground it cannot grant. What DOES need doing is the
-  /// sockets — the process is pinned to a new network handle, and the ones
-  /// built on the old handle are sending into a route that is gone.
+  /// The OS moved a joiner back onto the same AP. Rebuild transport sockets
+  /// underneath the still-live logical session; do not leave/rejoin the Room.
   void _onRebound() {
     if (_credentials == null) return;
     _recovering = false;
-    Logger.diagnostic('link: OS moved us back onto the AP — rebinding sockets');
+    Logger.diagnostic('link: OS rebound hotspot attachment; rebinding sockets');
     _wifi.rebindSockets();
     _emit(HotspotLinkState.up);
   }
 
-  /// Climbs back onto the host's AP. The credentials have not changed — the
-  /// AP is still up, this phone was simply moved off it — so the same join
-  /// that worked the first time works again, and the OS remembers the user
-  /// already approved this network so it goes through without a prompt.
   Future<void> _recoverJoin() async {
     if (_recovering) return;
     final creds = _credentials;
@@ -139,85 +134,184 @@ class HotspotLinkKeeperImpl implements HotspotLinkKeeper {
     _recovering = true;
     _recoveryStartedAt = DateTime.now();
     _emit(HotspotLinkState.recovering);
-    Logger.diagnostic('link: dropped off ${creds.ssid} — rejoining');
+    Logger.diagnostic('link: joiner attachment lost; bounded rejoin started');
 
     final backoff = backoffFactory();
     while (_recovering) {
       final result = await _joiner.join(creds);
-      // release() while the join was in flight: the session is over and this
-      // must not put the phone back on a network nobody is using.
       if (!_recovering) return;
       if (result == HotspotJoinResult.joined) {
         _recovering = false;
-        Logger.diagnostic('link: back on ${creds.ssid}');
-        // We are on a new network handle, so both sockets have to be rebuilt.
-        // Note what this is NOT: stopConnection() would look right and be
-        // badly wrong — it advances the repository's generation, which ends
-        // the listening stream the live session is subscribed to, permanently.
-        // rebindSockets() rebuilds underneath that same stream.
+        Logger.diagnostic('link: joiner attachment restored; rebinding sockets');
         _wifi.rebindSockets();
         _emit(HotspotLinkState.up);
         return;
       }
-      // Every attempt so far has looked identical to a truck passing
-      // overhead. Past the timeout it no longer does — the same "didn't
-      // join" result, this many times, is what a permanent separation
-      // looks like from here — so the diagnosis changes rather than the
-      // wording: give up and ask the human, same as a re-host under a name
-      // the peer cannot guess (see [_recoverHost]).
       final startedAt = _recoveryStartedAt;
       if (startedAt != null &&
           DateTime.now().difference(startedAt) > recoveryTimeout) {
         _recovering = false;
-        Logger.diagnostic(
-          'link: gave up rejoining ${creds.ssid} after '
-          '${recoveryTimeout.inMinutes}m — peer likely out of range',
-        );
+        Logger.diagnostic('link: join recovery timeout; user action required');
         _emit(HotspotLinkState.lost);
         return;
       }
       final delay = backoff.next();
       Logger.diagnostic(
-        'link: rejoin failed (${result.name}) — retrying in ${delay.inSeconds}s',
+        'link: rejoin failed reason=${result.name}; '
+        'retryInMs=${delay.inMilliseconds}',
       );
       await Future<void>.delayed(delay);
     }
   }
 
-  /// Brings the AP back after the OS tore it down.
-  ///
-  /// Only half a recovery, and deliberately so: `startLocalOnlyHotspot` hands
-  /// out a fresh random SSID every time and gives no way to ask for the old
-  /// one, so the peer is left looking for a network name that no longer
-  /// exists. Re-hosting at least puts this phone back in a state where a
-  /// rescan can succeed; [HotspotLinkState.lost] says the peer's end needs a
-  /// human.
+  /// Re-creates a LocalOnlyHotspot without pretending that re-host success is
+  /// equivalent to a restored group. Android mints fresh credentials, which
+  /// are published atomically through [credentialChanges] for #39's in-room
+  /// invite/rejoin surface. The state remains recovering until every peer that
+  /// was present before loss is again both heard and ping-confirmed.
   Future<void> _recoverHost() async {
     if (_recovering) return;
+
+    _hostEvidenceTimer?.cancel();
+    _hostEvidenceTimer = null;
+    _hostApAvailable = false;
+    _expectedHostPeers = _wifi.stats.peerCount;
     _recovering = true;
+    _recoveryStartedAt = DateTime.now();
+    _hostRecovery = HostHotspotRecoveryMachine();
+    _hostRecovery.hotspotLost(
+      generation: 0,
+      membersExpected: _expectedHostPeers,
+    );
     _emit(HotspotLinkState.recovering);
-    Logger.diagnostic('link: AP torn down mid-session — re-hosting');
-    try {
-      final fresh = await _hotspot.start();
-      _credentials = fresh;
-      _recovering = false;
-      // Up for us, but under a new name the peer cannot guess.
-      _emit(HotspotLinkState.lost);
-      Logger.diagnostic(
-        'link: re-hosted as ${fresh.ssid} — peer must rescan to find it',
-      );
-    } catch (e) {
-      _recovering = false;
-      _emit(HotspotLinkState.lost);
-      Logger.diagnostic('link: re-host failed: $e');
+    Logger.diagnostic(
+      'link: host hotspot lost; expectedPeers=$_expectedHostPeers bounded rehost started',
+    );
+
+    final backoff = backoffFactory();
+    while (_recovering) {
+      final rehosting = _hostRecovery.beginRehost();
+      if (rehosting.phase == HostHotspotRecoveryPhase.failed) {
+        _recovering = false;
+        _emit(HotspotLinkState.lost);
+        return;
+      }
+
+      try {
+        final fresh = await _hotspot.start();
+        if (!_recovering) return;
+
+        _credentialRevision++;
+        final changed = _hostRecovery.rehosted(
+          generation: rehosting.generation,
+          credentialRevision: _credentialRevision,
+        );
+        if (changed.phase == HostHotspotRecoveryPhase.failed) {
+          _recovering = false;
+          _emit(HotspotLinkState.lost);
+          return;
+        }
+
+        _credentials = fresh;
+        _hostApAvailable = true;
+        if (!_credentialChanges.isClosed) _credentialChanges.add(fresh);
+        Logger.diagnostic(
+          'link: host rehosted generation=${rehosting.generation} '
+          'credentialRevision=$_credentialRevision; publishing fresh invite attachment',
+        );
+
+        // Both directions were built on the old Android Network. Rebuild them
+        // while preserving the repository/listening session generation.
+        _wifi.rebindSockets();
+
+        final published = _hostRecovery.credentialsPublished(
+          generation: rehosting.generation,
+        );
+        if (published.isLive) {
+          _recovering = false;
+          _emit(HotspotLinkState.up);
+          return;
+        }
+
+        _startHostEvidenceWatch(rehosting.generation);
+        return;
+      } catch (error) {
+        final failed = _hostRecovery.rehostFailed(
+          generation: rehosting.generation,
+          reason: 'rehost_failed',
+        );
+        Logger.diagnostic(
+          'link: host rehost attempt=${rehosting.attempt} failed '
+          'reason=${error.runtimeType}',
+        );
+        if (failed.phase == HostHotspotRecoveryPhase.failed) {
+          _recovering = false;
+          _emit(HotspotLinkState.lost);
+          return;
+        }
+        final delay = backoff.next();
+        await Future<void>.delayed(delay);
+      }
     }
+  }
+
+  void _startHostEvidenceWatch(int generation) {
+    _hostEvidenceTimer?.cancel();
+    _hostEvidenceTimer = Timer.periodic(hostEvidenceInterval, (_) {
+      if (!_recovering || _roleStore.role != SessionRole.host) {
+        _hostEvidenceTimer?.cancel();
+        _hostEvidenceTimer = null;
+        return;
+      }
+
+      final startedAt = _recoveryStartedAt;
+      if (startedAt != null &&
+          DateTime.now().difference(startedAt) > recoveryTimeout) {
+        _hostEvidenceTimer?.cancel();
+        _hostEvidenceTimer = null;
+        _recovering = false;
+        Logger.diagnostic(
+          'link: host peers did not restore before timeout; user action required',
+        );
+        _emit(HotspotLinkState.lost);
+        return;
+      }
+
+      final stats = _wifi.stats;
+      final bidirectional =
+          stats.peerCount >= _expectedHostPeers &&
+          !stats.sendFailing &&
+          !stats.unicastUnconfirmed &&
+          (_expectedHostPeers == 0 || stats.rtt != null);
+      if (!bidirectional) return;
+
+      final restored = _hostRecovery.peerEvidence(
+        generation: generation,
+        bidirectionallyReachable: _expectedHostPeers,
+      );
+      if (!restored.isLive) return;
+
+      _hostEvidenceTimer?.cancel();
+      _hostEvidenceTimer = null;
+      _recovering = false;
+      Logger.diagnostic(
+        'link: host recovery restored by bidirectional peer evidence '
+        'generation=$generation peers=$_expectedHostPeers',
+      );
+      _emit(HotspotLinkState.up);
+    });
   }
 
   @override
   Future<void> release() async {
     _recovering = false;
+    _hostEvidenceTimer?.cancel();
+    _hostEvidenceTimer = null;
+    _hostRecovery.cancel();
     _credentials = null;
     _recoveryStartedAt = null;
+    _expectedHostPeers = 0;
+    _hostApAvailable = false;
     await _lostSub?.cancel();
     _lostSub = null;
     await _stoppedSub?.cancel();
@@ -229,14 +323,28 @@ class HotspotLinkKeeperImpl implements HotspotLinkKeeper {
 
   @override
   void retryNow() {
-    // A host's "lost" means the AP came back under a name the peer cannot
-    // guess — see [_recoverHost]. Resending the same join there would fix
-    // nothing, so only the joiner side, and only once recovery has actually
-    // given up, restarts anything.
-    if (_state != HotspotLinkState.lost) return;
-    if (_roleStore.role != SessionRole.joiner) return;
-    if (_credentials == null) return;
-    unawaited(_recoverJoin());
+    if (_state != HotspotLinkState.lost || _credentials == null) return;
+
+    switch (_roleStore.role) {
+      case SessionRole.joiner:
+        unawaited(_recoverJoin());
+      case SessionRole.host:
+        if (_hostApAvailable) {
+          _recovering = true;
+          _recoveryStartedAt = DateTime.now();
+          _emit(HotspotLinkState.recovering);
+          final creds = _credentials;
+          if (creds != null && !_credentialChanges.isClosed) {
+            _credentialChanges.add(creds);
+          }
+          _wifi.rebindSockets();
+          _startHostEvidenceWatch(_hostRecovery.state.generation);
+        } else {
+          unawaited(_recoverHost());
+        }
+      case SessionRole.peer || SessionRole.unknown || null:
+        break;
+    }
   }
 
   void _emit(HotspotLinkState next) {
@@ -247,9 +355,12 @@ class HotspotLinkKeeperImpl implements HotspotLinkKeeper {
   @disposeMethod
   @override
   void dispose() {
+    _recovering = false;
+    _hostEvidenceTimer?.cancel();
     _lostSub?.cancel();
     _stoppedSub?.cancel();
     _reboundSub?.cancel();
     _states.close();
+    _credentialChanges.close();
   }
 }
