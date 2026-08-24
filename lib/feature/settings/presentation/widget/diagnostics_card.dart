@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/diagnostics/build_provenance.dart';
 import '../../../../core/diagnostics/diagnostic_log.dart';
 import '../../../../core/diagnostics/diagnostics_bridge.dart';
 import '../../../../core/diagnostics/log_budget.dart';
@@ -42,6 +43,7 @@ class DiagnosticsCard extends StatefulWidget {
 
 class _DiagnosticsCardState extends State<DiagnosticsCard> {
   int _sizeBytes = 0;
+  BuildProvenance? _build;
 
   /// Blocks a second tap while an export is being written and packed. On a
   /// long session this is a compress of a few hundred KB — quick, but not
@@ -52,12 +54,19 @@ class _DiagnosticsCardState extends State<DiagnosticsCard> {
   void initState() {
     super.initState();
     _refreshSize();
+    _refreshBuild();
   }
 
   Future<void> _refreshSize() async {
     final size = await DiagnosticLog.sizeOnDisk();
     if (!mounted) return;
     setState(() => _sizeBytes = size);
+  }
+
+  Future<void> _refreshBuild() async {
+    final build = await BuildProvenance.resolve();
+    if (!mounted) return;
+    setState(() => _build = build);
   }
 
   /// Persists the new ceiling, then re-reads the size — lowering it prunes,
@@ -169,6 +178,7 @@ class _DiagnosticsCardState extends State<DiagnosticsCard> {
   Widget build(BuildContext context) {
     if (!DiagnosticsBridge.isSupported) return const SizedBox.shrink();
     final s = context.getString;
+    final build = _build;
     return SettingsCategoryCard(
       icon: Icons.bug_report_rounded,
       title: s.settings_section_diagnostics,
@@ -180,6 +190,41 @@ class _DiagnosticsCardState extends State<DiagnosticsCard> {
               usedBytes: _sizeBytes,
               maxBytes: state.logMaxBytes,
               onChanged: _applyMaxBytes,
+            ),
+          ),
+          Divider(color: AppColors.border, height: 1),
+          Semantics(
+            label: build == null
+                ? 'Build provenance loading'
+                : 'Build ${build.version}, commit ${build.shortCommit}, '
+                      '${build.channel}, ${build.dirtyLabel}',
+            button: build != null,
+            child: SettingsRow(
+              icon: Icons.fingerprint_rounded,
+              label: 'BUILD',
+              subtitle: build == null
+                  ? '…'
+                  : '${build.version} • ${build.shortCommit} • ${build.channel}',
+              trailing: build == null
+                  ? null
+                  : Text(
+                      build.dirtyLabel.toUpperCase(),
+                      style: TextStyle(
+                        color: build.hasExactCommit
+                            ? AppColors.textSecondary
+                            : AppColors.amber,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+              onTap: build == null
+                  ? null
+                  : () {
+                      HapticFeedback.selectionClick();
+                      Clipboard.setData(ClipboardData(text: build.diagnosticLine));
+                      _say(build.shortCommit);
+                    },
             ),
           ),
           Divider(color: AppColors.border, height: 1),

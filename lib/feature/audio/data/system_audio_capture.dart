@@ -50,21 +50,48 @@ abstract final class SystemAudioCapture {
   /// Shows the system consent dialog and starts capturing on approval.
   /// Returns false when the user declines or capture is unavailable.
   static Future<bool> start() async {
+    Logger.diagnostic('mediaProjection: consent requested');
     try {
-      return await _methods.invokeMethod<bool>('start') ?? false;
+      final started = await _methods.invokeMethod<bool>('start') ?? false;
+      Logger.diagnostic(
+        started
+            ? 'mediaProjection: capture start accepted'
+            : 'mediaProjection: consent declined-or-unavailable',
+      );
+      return started;
     } catch (e) {
+      Logger.diagnostic(
+        'mediaProjection: capture start failed '
+        'reason=${_safeErrorCode(e)}',
+      );
       Logger.log('System audio start failed: $e');
       return false;
     }
   }
 
   static Future<void> stop() async {
+    Logger.diagnostic('mediaProjection: capture stop requested');
     try {
       await _methods.invokeMethod<void>('stop');
+      Logger.diagnostic('mediaProjection: capture stopped');
     } catch (e) {
+      Logger.diagnostic(
+        'mediaProjection: capture stop failed '
+        'reason=${_safeErrorCode(e)}',
+      );
       Logger.log('System audio stop failed: $e');
     }
   }
+
+  /// Diagnostic errors are intentionally reduced to stable codes. Platform
+  /// exception messages can include OEM/vendor detail we do not need in the
+  /// report, and arbitrary exception `toString()` output is not a privacy
+  /// boundary.
+  static String _safeErrorCode(Object error) => switch (error) {
+    PlatformException(:final code) => code,
+    MissingPluginException() => 'missing_plugin',
+    _ => error.runtimeType.toString(),
+  };
 
   /// Nudges this device's own STREAM_MUSIC volume to match [gain] (0-1), so
   /// the broadcaster's own speaker follows the in-app mix slider instead of

@@ -3,9 +3,8 @@ import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:package_info_plus/package_info_plus.dart';
-
 import '../utils/logger.dart';
+import 'build_provenance.dart';
 import 'diagnostics_bridge.dart';
 import 'log_budget.dart';
 import 'tark_log_format.dart';
@@ -83,6 +82,7 @@ abstract final class DiagnosticLog {
   static Timer? _flushTimer;
   static bool _enabled = false;
   static String _appVersion = 'unknown';
+  static BuildProvenance? _buildProvenance;
   static int _maxBytes = LogBudget.defaultBytes;
 
   /// Serializes everything that touches the segment files.
@@ -129,14 +129,20 @@ abstract final class DiagnosticLog {
     _append('--- session $sessionId opened ${DateTime.now().toIso8601String()}');
 
     try {
-      final info = await PackageInfo.fromPlatform();
-      _appVersion = '${info.version}+${info.buildNumber}';
+      final build = await BuildProvenance.resolve();
+      _buildProvenance = build;
+      _appVersion = build.version;
     } catch (_) {
       // A missing package_info is not worth a failed log.
     }
     _append(
       'app: tark $_appVersion on ${_platformName()} '
       '(${Platform.operatingSystemVersion})',
+    );
+    _append(
+      _buildProvenance?.diagnosticLine ??
+          'build: version=$_appVersion commit=unknown dirty=unknown '
+              'channel=unknown builtAt=unknown',
     );
 
     final path = await DiagnosticsBridge.logsDirectory();
@@ -453,12 +459,17 @@ abstract final class DiagnosticLog {
         '${dir.path}${Platform.pathSeparator}'
         'tark-log-$stamp.${TarkLogFormat.extension}',
       );
+      final build = _buildProvenance;
       await file.writeAsBytes(
         TarkLogFormat.encode(
           text: text,
           header: {
             'app': 'tark',
             'version': _appVersion,
+            'commit': build?.commit ?? 'unknown',
+            'dirty': build?.dirtyLabel ?? 'unknown',
+            'channel': build?.channel ?? 'unknown',
+            'builtAt': build?.buildTimestamp ?? 'unknown',
             'platform': _platformName(),
             'os': Platform.operatingSystemVersion,
             'session': sessionId,
@@ -586,6 +597,8 @@ abstract final class DiagnosticLog {
       _segments.clear();
       _pending.clear();
       _ring.clear();
+      _buildProvenance = null;
+      _appVersion = 'unknown';
       _maxBytes = LogBudget.defaultBytes;
     });
   }

@@ -23,8 +23,8 @@ import 'core/router/routes.dart';
 import 'core/settings/settings_keys.dart';
 import 'core/settings/settings_repository.dart';
 import 'core/sfx/sfx_service.dart';
-import 'core/utils/logger.dart';
 import 'core/theme/theme_service.dart';
+import 'core/utils/logger.dart';
 import 'feature/transfer/api/transfer_api.dart';
 
 void main() async {

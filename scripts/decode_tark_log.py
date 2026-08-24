@@ -32,6 +32,8 @@ import sys
 import zlib
 from datetime import date, datetime, time, timedelta
 
+from diagnostic_timeline import correlated_transitions, parse_build_provenance
+
 MAGIC = b"TARKLOG"
 SUPPORTED_VERSIONS = (1,)
 SECRET = 0x5441524B4C4F4731  # "TARKLOG1"
@@ -258,6 +260,8 @@ def analyze_session(block: SessionBlock) -> dict:
         "session_id": block.session_id,
         "opened_at": block.opened_at.isoformat(),
         "duration": str(block.duration) if block.duration else None,
+        "build": parse_build_provenance(lines),
+        "correlated_transitions": correlated_transitions(block.timestamped_lines),
     }
 
     # Negotiated capture/playback rates — first line wins, a mid-session route
@@ -509,7 +513,25 @@ def analyze_session(block: SessionBlock) -> dict:
     return metrics
 
 
+def _report_build(header: dict, metrics: dict) -> dict:
+    """Prefer the selected session's own build marker over export metadata.
+
+    A ring export can contain several app launches/builds. The outer JSON
+    header identifies the exporter, while the in-session `build:` line
+    identifies the exact binary that generated the selected session. Old logs
+    have no such line, so additive header fields remain the fallback.
+    """
+    return metrics.get("build") or {
+        "version": header.get("version"),
+        "commit": header.get("commit"),
+        "dirty": header.get("dirty"),
+        "channel": header.get("channel"),
+        "built_at": header.get("builtAt"),
+    }
+
+
 def format_report(header: dict, metrics: dict) -> str:
+    build = _report_build(header, metrics)
     lines = [
         "# tark field-test report",
         f"# app      : {header.get('app')} {header.get('version')}",
@@ -518,6 +540,23 @@ def format_report(header: dict, metrics: dict) -> str:
         f"session   : {metrics['session_id']}",
         f"opened at : {metrics['opened_at']}",
         f"duration  : {metrics['duration']}",
+        "",
+        "-- build provenance --",
+        f"version={build.get('version')} commit={build.get('commit')} "
+        f"dirty={build.get('dirty')} channel={build.get('channel')} "
+        f"builtAt={build.get('built_at')}",
+        "",
+        "-- correlated transitions --",
+    ]
+    transitions = metrics.get("correlated_transitions") or []
+    if transitions:
+        lines.extend(
+            f"{event.get('at') or '?'} {event['event']}" for event in transitions
+        )
+    else:
+        lines.append("none")
+    lines.extend(
+        [
         "",
         "-- audio format --",
         f"capture={metrics.get('capture_hz')}Hz playback={metrics.get('playback_hz')}Hz",
@@ -567,7 +606,8 @@ def format_report(header: dict, metrics: dict) -> str:
         "",
         "-- terminal failures --",
         f"{metrics.get('terminal_failures')}",
-    ]
+        ]
+    )
     return "\n".join(lines) + "\n"
 
 
@@ -647,6 +687,8 @@ def main() -> int:
     banner = [
         "# tark diagnostic log",
         f"# app      : {header.get('app')} {header.get('version')}",
+        f"# build    : {header.get('commit')} channel={header.get('channel')} "
+        f"dirty={header.get('dirty')} builtAt={header.get('builtAt')}",
         f"# platform : {header.get('platform')} ({header.get('os')})",
         f"# session  : {header.get('session')}",
         f"# exported : {header.get('exportedAt')}",
