@@ -1,10 +1,4 @@
-enum InRoomInviteKind {
-  roomQr,
-  roomCode,
-  hotspotWifi,
-  share,
-  guestLink,
-}
+enum InRoomInviteKind { roomQr, roomCode, hotspotWifi, share, guestLink }
 
 class InRoomInviteContext {
   const InRoomInviteContext({
@@ -50,10 +44,7 @@ class InRoomInvitePolicy {
 
     if (context.hasRoomQr) {
       result.add(
-        const InRoomInviteOption(
-          kind: InRoomInviteKind.roomQr,
-          enabled: true,
-        ),
+        const InRoomInviteOption(kind: InRoomInviteKind.roomQr, enabled: true),
       );
     }
     if (context.hasRoomCode) {
@@ -80,10 +71,7 @@ class InRoomInvitePolicy {
 
     if (context.hasRoomQr || context.hasRoomCode || context.hasGuestLink) {
       result.add(
-        const InRoomInviteOption(
-          kind: InRoomInviteKind.share,
-          enabled: true,
-        ),
+        const InRoomInviteOption(kind: InRoomInviteKind.share, enabled: true),
       );
     }
     if (context.hasGuestLink) {
