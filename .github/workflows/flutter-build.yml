@@ -1,60 +1,139 @@
-# name: Build Flutter Release APK
+name: Tark beta quality gate
 
-# on:
-#   push:
-#     branches:
-#       - main
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
 
-# jobs:
-#   build:
-#     runs-on: ubuntu-latest
+permissions:
+  contents: read
 
-#     steps:
-#       - name: Checkout repository
-#         uses: actions/checkout@v4
+concurrency:
+  group: tark-beta-gate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
-#       - name: Setup Java
-#         uses: actions/setup-java@v4
-#         with:
-#           distribution: temurin
-#           java-version: "17"
+jobs:
+  quality:
+    name: format-analyze-test-protocol
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
 
-#       - name: Setup Flutter
-#         uses: subosito/flutter-action@v2
-#         with:
-#           flutter-version: "3.41.9"
-#           channel: stable
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-#       - name: Decode keystore
-#         run: |
-#           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/upload-keystore.jks
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
 
-#       - name: Create key.properties
-#         run: |
-#           cat > android/key.properties <<EOF
-#           storePassword=${{ secrets.KEYSTORE_PASSWORD }}
-#           keyPassword=${{ secrets.KEY_PASSWORD }}
-#           keyAlias=${{ secrets.KEY_ALIAS }}
-#           storeFile=../upload-keystore.jks
-#           EOF
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.0"
+          channel: stable
+          cache: true
 
-#       - name: Get dependencies
-#         run: flutter pub get
+      # CI validates the dependency graph committed by development. The
+      # lockfile currently requires Flutter >=3.44.0, so using the older
+      # 3.41.x SDK silently re-resolved 26 packages and produced a different
+      # Android plugin graph from the one developers actually committed.
+      - name: Get locked dependencies
+        run: flutter pub get --enforce-lockfile
 
-#       - name: Build release APK with obfuscation
-#         run: |
-#           flutter build apk --release \
-#             --obfuscate \
-#             --split-debug-info=build/debug-info
+      # flutter_blue_classic 0.1.1 migrated its Android module to AGP built-in
+      # Kotlin while Tark deliberately keeps android.builtInKotlin=false for
+      # the app's KGP 2.4 incremental-cache workaround. Gradle therefore sees
+      # the dependency's top-level `kotlin { compilerOptions ... }` block
+      # without the built-in Kotlin extension and fails during script parsing.
+      # The block only repeats JVM 17 already stated by that library's Java
+      # compileOptions, so removing exactly that known block is a deterministic
+      # CI compatibility shim, not a dependency mutation. Delete this step as
+      # soon as the upstream package publishes a compatible build.
+      - name: Apply flutter_blue_classic 0.1.1 Gradle compatibility shim
+        shell: bash
+        run: |
+          set -euo pipefail
+          plugin_gradle="$(find "$PUB_CACHE/hosted" -path '*/flutter_blue_classic-0.1.1/android/build.gradle.kts' -print -quit)"
+          if [ -z "$plugin_gradle" ]; then
+            echo "flutter_blue_classic 0.1.1 Gradle file not found"
+            exit 1
+          fi
+          python3 - "$plugin_gradle" <<'PY'
+          from pathlib import Path
+          import sys
 
-#       - name: Upload APK
-#         uses: actions/upload-artifact@v4
-#         with:
-#           name: release-apk
-#           path: build/app/outputs/flutter-apk/app-release.apk
+          path = Path(sys.argv[1])
+          text = path.read_text()
+          block = '''kotlin {\n    compilerOptions {\n        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17\n    }\n}\n'''
+          if block not in text:
+              raise SystemExit('expected flutter_blue_classic Kotlin block not found; review upstream before changing CI')
+          path.write_text(text.replace(block, '', 1))
+          PY
 
-#       - name: Upload debug symbols
-#         uses: actions/upload-artifact@v4
-#         with:
-#           name: debug-info
-#           path: build/debug-info
+      - name: Verify generated localizations
+        run: flutter gen-l10n
+
+      - name: Check Dart formatting for changed files
+        shell: bash
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          base="$PR_BASE_SHA"
+          if [ -z "$base" ]; then
+            base="$PUSH_BEFORE_SHA"
+          fi
+          if [ -z "$base" ] || [[ "$base" =~ ^0+$ ]]; then
+            base="HEAD^"
+          fi
+          mapfile -t dart_files < <(git diff --diff-filter=ACMR --name-only "$base" HEAD -- '*.dart')
+          if [ "${#dart_files[@]}" -eq 0 ]; then
+            echo "No changed Dart files to format-check."
+            exit 0
+          fi
+          printf 'Format gate files:\n%s\n' "${dart_files[*]}"
+          dart format --output=none --set-exit-if-changed "${dart_files[@]}"
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Run Flutter tests
+        run: flutter test
+
+      - name: Run Tark log analyzer tests
+        run: python3 -m unittest discover -s scripts -p 'test_*.py'
+
+      - name: Verify website localization output
+        run: node scripts/build-website-i18n.mjs --check
+
+      - name: Protocol compatibility tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t protocol_tests < <(find test -type f \( -iname '*packet*test.dart' -o -iname '*protocol*test.dart' -o -iname '*codec*compat*test.dart' -o -iname '*mixed*version*test.dart' \) | sort)
+          if [ "${#protocol_tests[@]}" -eq 0 ]; then
+            echo "No protocol compatibility tests were found."
+            exit 1
+          fi
+          printf 'Protocol gate files:\n%s\n' "${protocol_tests[*]}"
+          flutter test "${protocol_tests[@]}"
+
+      - name: Android debug compile check
+        shell: bash
+        run: |
+          set -euo pipefail
+          built_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          flutter build apk --debug \
+            --dart-define=BUILD_CHANNEL=ci \
+            --dart-define=GIT_COMMIT=${{ github.sha }} \
+            --dart-define=GIT_DIRTY=false \
+            --dart-define=BUILD_TIMESTAMP="$built_at"
+
+      - name: Git diff check
+        run: git diff --check
