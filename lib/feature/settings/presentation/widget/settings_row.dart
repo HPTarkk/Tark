@@ -9,7 +9,7 @@ class SettingsRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final String? subtitle;
-  final Widget trailing;
+  final Widget? trailing;
   final VoidCallback? onTap;
 
   const SettingsRow({
@@ -66,8 +66,10 @@ class SettingsRow extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 10),
-            trailing,
+            if (trailing != null) ...[
+              const SizedBox(width: 10),
+              trailing!,
+            ],
           ],
         ),
       ),
