@@ -65,10 +65,7 @@ void main() {
     );
     controller.observe(receivers: [receiver()], elapsedMs: 1000);
 
-    final held = controller.observe(
-      receivers: [receiver()],
-      elapsedMs: 1000,
-    );
+    final held = controller.observe(receivers: [receiver()], elapsedMs: 1000);
     expect(held.tier, MediaAdaptationTier.conservative);
 
     final balanced = controller.observe(
@@ -78,10 +75,7 @@ void main() {
     expect(balanced.tier, MediaAdaptationTier.balanced);
 
     controller.observe(receivers: [receiver()], elapsedMs: 1000);
-    final high = controller.observe(
-      receivers: [receiver()],
-      elapsedMs: 1000,
-    );
+    final high = controller.observe(receivers: [receiver()], elapsedMs: 1000);
     expect(high.tier, MediaAdaptationTier.high);
     expect(high.targetBitrateKbps, 96);
     expect(high.targetChannels, 2);
@@ -160,18 +154,13 @@ void main() {
   });
 
   test('suspended media probes conservatively after clean recovery dwell', () {
-    final controller = MediaAdaptationController(
-      suspensionProbeDwellMs: 2000,
-    );
+    final controller = MediaAdaptationController(suspensionProbeDwellMs: 2000);
     controller.observe(
       receivers: [receiver(value: health(resyncs: 1))],
       elapsedMs: 1000,
     );
 
-    final held = controller.observe(
-      receivers: [receiver()],
-      elapsedMs: 1000,
-    );
+    final held = controller.observe(receivers: [receiver()], elapsedMs: 1000);
     expect(held.tier, MediaAdaptationTier.suspended);
 
     final recovered = controller.observe(
