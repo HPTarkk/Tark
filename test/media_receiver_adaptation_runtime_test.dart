@@ -29,9 +29,7 @@ void main() {
     resyncs: 1,
     concealedMs: 80,
   );
-// dart format on
 
-// dart format off
   test('missing feedback stays unconfirmed', () {
     final runtime = MediaReceiverAdaptationRuntime.standard();
     final now = DateTime.utc(2026, 8, 25, 20);
@@ -76,7 +74,6 @@ void main() {
     expect(decision.reason, MediaAdaptationReason.severeReceiverDistress);
     expect(decision.shouldTransmit, isFalse);
   });
-// dart format on
 
   test('stale feedback becomes unconfirmed', () {
     final runtime = MediaReceiverAdaptationRuntime(
@@ -131,6 +128,7 @@ void main() {
     expect(restored.tier, MediaAdaptationTier.conservative);
     expect(afterReset.tier, MediaAdaptationTier.unconfirmed);
   });
+// dart format on
 
   test('voice impairment suspends media', () {
     final runtime = MediaReceiverAdaptationRuntime.standard();
