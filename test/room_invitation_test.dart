@@ -14,13 +14,14 @@ void main() {
     RoomInvitationKind kind = RoomInvitationKind.trustedMembership,
     Duration ttl = const Duration(hours: 24),
     RoomTransportBootstrap? transport,
+    int seed = 42,
   }) => generateRoomInvitation(
     roomId: roomId,
     kind: kind,
     now: now,
     ttl: ttl,
     transportBootstrap: transport,
-    random: Random(42),
+    random: Random(seed),
   );
 
   test('round trips a versioned high-entropy capability', () {
@@ -34,6 +35,14 @@ void main() {
     expect(parsed.secret, isNot(parsed.displayCode));
     expect(parsed.kind, RoomInvitationKind.trustedMembership);
     expect(parsed.singleUse, isFalse);
+  });
+
+  test('independent capabilities use independent authorization material', () {
+    final first = invite(seed: 1);
+    final second = invite(seed: 2);
+
+    expect(first.invitationId, isNot(second.invitationId));
+    expect(first.secret, isNot(second.secret));
   });
 
   test('single-ride guest invite is single-use and replay is rejected', () {
@@ -72,12 +81,14 @@ void main() {
 
   test('transport bootstrap rotates independently from room identity', () {
     final first = invite(
+      seed: 10,
       transport: const RoomTransportBootstrap(
         kind: 'hotspot',
         payload: {'ssid': 'temporary-a'},
       ),
     );
     final second = invite(
+      seed: 11,
       transport: const RoomTransportBootstrap(
         kind: 'hotspot',
         payload: {'ssid': 'temporary-b'},
@@ -85,6 +96,7 @@ void main() {
     );
 
     expect(first.roomId, second.roomId);
+    expect(first.invitationId, isNot(second.invitationId));
     expect(
       first.transportBootstrap!.payload,
       isNot(second.transportBootstrap!.payload),
@@ -130,8 +142,8 @@ void main() {
   );
 
   test('ledger state survives persistence without storing bearer secrets', () {
-    final guest = invite(kind: RoomInvitationKind.singleRideGuest);
-    final membership = invite();
+    final guest = invite(kind: RoomInvitationKind.singleRideGuest, seed: 41);
+    final membership = invite(seed: 43);
     final ledger = RoomInvitationLedger()
       ..redeem(guest, now.add(const Duration(minutes: 1)))
       ..revoke(membership);
