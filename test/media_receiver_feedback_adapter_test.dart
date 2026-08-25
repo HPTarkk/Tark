@@ -60,7 +60,11 @@ void main() {
   });
 
   test('one missing peer keeps a mixed-version room conservative', () {
-    final windows = MediaReceiverFeedbackAdapter.toWindows([clean, null, clean]);
+    final windows = MediaReceiverFeedbackAdapter.toWindows([
+      clean,
+      null,
+      clean,
+    ]);
     final controller = MediaAdaptationController(
       cleanWindowsToUpgrade: 1,
       minimumUpgradeDwellMs: 0,
@@ -73,43 +77,54 @@ void main() {
     }
   });
 
-  test('one distressed receiver protects two healthy receivers from max media', () {
-    const distressed = MediaReceiverFeedback(
-      queuedMs: 390,
-      underruns: 0,
-      outputStarvations: 0,
-      trims: 0,
-      overflowDrops: 1,
-      staleDrops: 0,
-      duplicateDrops: 0,
-      resyncs: 0,
-      concealedMs: 0,
-    );
-    final controller = MediaAdaptationController(
-      cleanWindowsToUpgrade: 1,
-      minimumUpgradeDwellMs: 0,
-    );
+  test(
+    'one distressed receiver protects two healthy receivers from max media',
+    () {
+      const distressed = MediaReceiverFeedback(
+        queuedMs: 390,
+        underruns: 0,
+        outputStarvations: 0,
+        trims: 0,
+        overflowDrops: 1,
+        staleDrops: 0,
+        duplicateDrops: 0,
+        resyncs: 0,
+        concealedMs: 0,
+      );
+      final controller = MediaAdaptationController(
+        cleanWindowsToUpgrade: 1,
+        minimumUpgradeDwellMs: 0,
+      );
 
-    controller.observe(
-      receivers: MediaReceiverFeedbackAdapter.toWindows([clean, clean, clean]),
-      elapsedMs: 1000,
-    );
-    controller.observe(
-      receivers: MediaReceiverFeedbackAdapter.toWindows([clean, clean, clean]),
-      elapsedMs: 1000,
-    );
+      controller.observe(
+        receivers: MediaReceiverFeedbackAdapter.toWindows([
+          clean,
+          clean,
+          clean,
+        ]),
+        elapsedMs: 1000,
+      );
+      controller.observe(
+        receivers: MediaReceiverFeedbackAdapter.toWindows([
+          clean,
+          clean,
+          clean,
+        ]),
+        elapsedMs: 1000,
+      );
 
-    final decision = controller.observe(
-      receivers: MediaReceiverFeedbackAdapter.toWindows([
-        clean,
-        distressed,
-        clean,
-      ]),
-      elapsedMs: 1000,
-    );
+      final decision = controller.observe(
+        receivers: MediaReceiverFeedbackAdapter.toWindows([
+          clean,
+          distressed,
+          clean,
+        ]),
+        elapsedMs: 1000,
+      );
 
-    expect(decision.tier, MediaAdaptationTier.suspended);
-    expect(decision.reason, MediaAdaptationReason.severeReceiverDistress);
-    expect(decision.shouldTransmit, isFalse);
-  });
+      expect(decision.tier, MediaAdaptationTier.suspended);
+      expect(decision.reason, MediaAdaptationReason.severeReceiverDistress);
+      expect(decision.shouldTransmit, isFalse);
+    },
+  );
 }
