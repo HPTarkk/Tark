@@ -11,9 +11,11 @@ enum RoomInvitationDecision { accepted, expired, revoked, replayed }
 /// it cannot pretend to provide instantaneous global revocation while every
 /// device is offline.
 final class RoomInvitationLedger {
-  RoomInvitationLedger({Iterable<String> revoked = const [], Iterable<String> redeemed = const []})
-    : _revoked = {...revoked},
-      _redeemed = {...redeemed};
+  RoomInvitationLedger({
+    Iterable<String> revoked = const [],
+    Iterable<String> redeemed = const [],
+  }) : _revoked = {...revoked},
+       _redeemed = {...redeemed};
 
   final Set<String> _revoked;
   final Set<String> _redeemed;
@@ -67,6 +69,7 @@ final class RoomInvitationLedger {
         }
         return value;
       }
+
       return RoomInvitationLedger(
         revoked: revoked.map(validate),
         redeemed: redeemed.map(validate),
