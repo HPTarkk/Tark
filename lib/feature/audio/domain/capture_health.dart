@@ -76,31 +76,39 @@ class CaptureHealthClassifier {
         reasonCode: 'capture_user_stopped',
       );
     }
-    if (!evidence.captureStarted || evidence.elapsedMs < firstFrameGraceMs) {
+    if (!evidence.captureStarted) {
       return const CaptureHealthSnapshot(
         state: CaptureHealthState.starting,
         reasonCode: 'capture_starting',
       );
     }
 
-    // Frame age has priority over the last measured RMS. Once callbacks stop,
-    // a previously audible frame is stale evidence and must not keep the cast
-    // marked healthy forever.
+    final rms = evidence.lastFrameRms;
+    final hasAudibleFrame = rms != null && rms >= audibleRmsFloor;
+    if (hasAudibleFrame) {
+      // Real audible evidence is stronger than the startup grace. The grace
+      // exists only to avoid falsely classifying early silence as blocked.
+      return CaptureHealthSnapshot(
+        state: CaptureHealthState.audible,
+        reasonCode: 'capture_audible',
+        timeToFirstAudibleFrameMs: firstAudibleFrameAtMs,
+      );
+    }
+
+    if (evidence.elapsedMs < firstFrameGraceMs) {
+      return const CaptureHealthSnapshot(
+        state: CaptureHealthState.starting,
+        reasonCode: 'capture_starting',
+      );
+    }
+
+    // Frame age has priority over old RMS once startup grace is over. A stale
+    // callback cannot keep a cast healthy forever.
     final silenceAge = evidence.msSinceLastFrame;
     if (silenceAge != null && silenceAge >= stallAfterMs) {
       return const CaptureHealthSnapshot(
         state: CaptureHealthState.stalled,
         reasonCode: 'capture_frame_stalled',
-      );
-    }
-
-    final rms = evidence.lastFrameRms;
-    final hasAudibleFrame = rms != null && rms >= audibleRmsFloor;
-    if (hasAudibleFrame) {
-      return CaptureHealthSnapshot(
-        state: CaptureHealthState.audible,
-        reasonCode: 'capture_audible',
-        timeToFirstAudibleFrameMs: firstAudibleFrameAtMs,
       );
     }
 
