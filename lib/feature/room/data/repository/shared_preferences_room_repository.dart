@@ -4,7 +4,9 @@ import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../domain/entity/room.dart';
+import '../../domain/entity/room_invitation.dart';
 import '../../domain/repository/room_repository.dart';
+import '../../domain/service/room_invitation_ledger.dart';
 
 /// Offline-first room storage.
 ///
@@ -102,6 +104,54 @@ class SharedPreferencesRoomRepository implements RoomRepository {
         archived: archived,
         updatedAt: DateTime.now().toUtc(),
       ),
+    );
+    await _save(next);
+    return next;
+  }
+
+  @override
+  Future<SavedRoom> acceptVerifiedInvite(
+    VerifiedRoomInvitation verified, {
+    required String displayName,
+    required DateTime acceptedAt,
+  }) async {
+    final invite = verified.invitation;
+    final current = await _require(invite.roomId);
+    final cleanDisplayName = _requiredText(displayName, 'display name');
+    final now = acceptedAt.toUtc();
+
+    // Invitation ids are issuer-generated 128-bit values. Deriving the durable
+    // member id from the non-secret invitation id makes retries idempotent while
+    // keeping transport/IP/hotspot data completely outside Room persistence.
+    final memberId = RoomMemberId(invite.invitationId.substring(0, 24));
+    final memberKind = invite.kind == RoomInvitationKind.singleRideGuest
+        ? RoomMemberKind.guest
+        : RoomMemberKind.member;
+
+    final members = current.room.members.toList(growable: true);
+    final existingIndex = members.indexWhere((member) => member.id == memberId);
+    if (existingIndex >= 0) {
+      final existing = members[existingIndex];
+      // Reusing the same verified capability is idempotent: never create a
+      // duplicate row or silently reactivate a removed member.
+      if (existing.isActive && existing.displayName != cleanDisplayName) {
+        members[existingIndex] = existing.copyWith(
+          displayName: cleanDisplayName,
+        );
+      }
+    } else {
+      members.add(
+        RoomMember(
+          id: memberId,
+          displayName: cleanDisplayName,
+          joinedAt: now,
+          kind: memberKind,
+        ),
+      );
+    }
+
+    final next = current.copyWith(
+      room: current.room.copyWith(members: members, updatedAt: now),
     );
     await _save(next);
     return next;

@@ -16,6 +16,18 @@ enum RoomInvitationDecision {
   invalidCapability,
 }
 
+/// Capability object produced only after issuer-side verification succeeds.
+///
+/// The private constructor prevents presentation/repository callers from
+/// manufacturing an authorization result from RoomId, display code, or a raw
+/// decoded QR. Durable membership mutation accepts this type instead of an
+/// unverified [RoomInvitation].
+final class VerifiedRoomInvitation {
+  const VerifiedRoomInvitation._(this.invitation);
+
+  final RoomInvitation invitation;
+}
+
 /// Issuer/local-peer revocation, verification and replay ledger for offline
 /// Room invites.
 ///
@@ -77,6 +89,16 @@ final class RoomInvitationLedger {
       _redeemed.add(invite.invitationId);
     }
     return decision;
+  }
+
+  /// Verifies and consumes the invitation when required, returning the only
+  /// capability type accepted by durable membership mutation.
+  ///
+  /// Guest invites are marked redeemed before the capability escapes this
+  /// method, so a second acceptance attempt fails closed as replayed.
+  VerifiedRoomInvitation? verifyAndRedeem(RoomInvitation invite, DateTime now) {
+    if (redeem(invite, now) != RoomInvitationDecision.accepted) return null;
+    return VerifiedRoomInvitation._(invite);
   }
 
   /// State v2 adds issuer-side capability verifiers. v1 remains decodable but
