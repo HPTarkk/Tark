@@ -7,6 +7,8 @@ library;
 export '../data/media_control.dart' show MediaControl;
 export '../data/session_keep_alive.dart' show SessionKeepAlive;
 export '../data/system_audio_capture.dart' show SystemAudioCapture;
+export '../domain/capture_health.dart'
+    show CaptureHealthSnapshot, CaptureHealthState;
 export '../domain/entity/audio_engine_status.dart';
 export '../domain/entity/audio_frame.dart';
 export '../domain/media_frame_scheduler.dart';
