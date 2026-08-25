@@ -13,16 +13,31 @@ void main() {
     repository = SharedPreferencesRoomRepository();
   });
 
-  test('creates multiple generic rooms and keeps duplicate names independent', () async {
-    final first = await repository.create(name: 'Weekend Ride', localDisplayName: 'A');
-    final second = await repository.create(name: 'Weekend Ride', localDisplayName: 'A');
+  test(
+    'creates multiple generic rooms and keeps duplicate names independent',
+    () async {
+      final first = await repository.create(
+        name: 'Weekend Ride',
+        localDisplayName: 'A',
+      );
+      final second = await repository.create(
+        name: 'Weekend Ride',
+        localDisplayName: 'A',
+      );
 
-    expect(first.room.id, isNot(second.room.id));
-    expect((await repository.list()).map((item) => item.room.id), containsAll([first.room.id, second.room.id]));
-  });
+      expect(first.room.id, isNot(second.room.id));
+      expect(
+        (await repository.list()).map((item) => item.room.id),
+        containsAll([first.room.id, second.room.id]),
+      );
+    },
+  );
 
   test('room survives repository recreation and explicit selection', () async {
-    final created = await repository.create(name: 'North', localDisplayName: 'Rider');
+    final created = await repository.create(
+      name: 'North',
+      localDisplayName: 'Rider',
+    );
     await repository.select(created.room.id);
 
     final reopened = SharedPreferencesRoomRepository();
@@ -32,7 +47,10 @@ void main() {
   });
 
   test('archive hides by default without deleting membership', () async {
-    final created = await repository.create(name: 'Old Ride', localDisplayName: 'A');
+    final created = await repository.create(
+      name: 'Old Ride',
+      localDisplayName: 'A',
+    );
     await repository.setArchived(created.room.id, true);
 
     expect(await repository.list(), isEmpty);
@@ -41,22 +59,31 @@ void main() {
     expect(withArchived.single.membership.active, isTrue);
   });
 
-  test('leave deactivates durable membership and clears current selection', () async {
-    final created = await repository.create(name: 'Crew', localDisplayName: 'A');
-    await repository.select(created.room.id);
+  test(
+    'leave deactivates durable membership and clears current selection',
+    () async {
+      final created = await repository.create(
+        name: 'Crew',
+        localDisplayName: 'A',
+      );
+      await repository.select(created.room.id);
 
-    final left = await repository.leave(created.room.id);
+      final left = await repository.leave(created.room.id);
 
-    expect(left.membership.active, isFalse);
-    expect(left.room.members.single.isActive, isFalse);
-    expect(await repository.selectedRoomId(), isNull);
-  });
+      expect(left.membership.active, isFalse);
+      expect(left.room.members.single.isActive, isFalse);
+      expect(await repository.selectedRoomId(), isNull);
+    },
+  );
 
   test('one corrupt room is skipped without losing unrelated rooms', () async {
     final good = await repository.create(name: 'Good', localDisplayName: 'A');
     final corrupt = await repository.create(name: 'Bad', localDisplayName: 'A');
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('rooms.v1.room.${corrupt.room.id.value}', '{not json');
+    await prefs.setString(
+      'rooms.v1.room.${corrupt.room.id.value}',
+      '{not json',
+    );
 
     final rooms = await repository.list(includeArchived: true);
 
@@ -64,16 +91,29 @@ void main() {
     expect(await repository.get(corrupt.room.id), isNull);
   });
 
-  test('unsupported room schema fails closed while other schemas survive', () async {
-    final good = await repository.create(name: 'Good', localDisplayName: 'A');
-    final old = await repository.create(name: 'Old', localDisplayName: 'A');
-    final prefs = await SharedPreferences.getInstance();
-    final raw = jsonDecode(prefs.getString('rooms.v1.room.${old.room.id.value}')!) as Map<String, dynamic>;
-    raw['schemaVersion'] = 999;
-    await prefs.setString('rooms.v1.room.${old.room.id.value}', jsonEncode(raw));
+  test(
+    'unsupported room schema fails closed while other schemas survive',
+    () async {
+      final good = await repository.create(name: 'Good', localDisplayName: 'A');
+      final old = await repository.create(name: 'Old', localDisplayName: 'A');
+      final prefs = await SharedPreferences.getInstance();
+      final raw =
+          jsonDecode(prefs.getString('rooms.v1.room.${old.room.id.value}')!)
+              as Map<String, dynamic>;
+      raw['schemaVersion'] = 999;
+      await prefs.setString(
+        'rooms.v1.room.${old.room.id.value}',
+        jsonEncode(raw),
+      );
 
-    expect((await repository.list(includeArchived: true)).map((item) => item.room.id), [good.room.id]);
-  });
+      expect(
+        (await repository.list(
+          includeArchived: true,
+        )).map((item) => item.room.id),
+        [good.room.id],
+      );
+    },
+  );
 
   test('generic domain has no two-person limit', () {
     Room roomWith(int count) {
