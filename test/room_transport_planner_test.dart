@@ -122,18 +122,21 @@ void main() {
     expect(plan.reason, RoomTransportPlanReason.bluetoothFallback);
   });
 
-  test('no eligible capability fails honestly instead of inventing transport', () {
-    final plan = RoomTransportPlanner.plan(
-      RoomTransportEnvironment(
-        sharedLanUsable: false,
-        epoch: 2,
-        candidates: [candidate('a', hotspot: false, bluetooth: false)],
-      ),
-    );
+  test(
+    'no eligible capability fails honestly instead of inventing transport',
+    () {
+      final plan = RoomTransportPlanner.plan(
+        RoomTransportEnvironment(
+          sharedLanUsable: false,
+          epoch: 2,
+          candidates: [candidate('a', hotspot: false, bluetooth: false)],
+        ),
+      );
 
-    expect(plan.isUsable, isFalse);
-    expect(plan.reason, RoomTransportPlanReason.noEligibleTransport);
-  });
+      expect(plan.isUsable, isFalse);
+      expect(plan.reason, RoomTransportPlanReason.noEligibleTransport);
+    },
+  );
 
   test('explicit guest selection does not participate in hotspot election', () {
     final plan = RoomTransportPlanner.plan(
