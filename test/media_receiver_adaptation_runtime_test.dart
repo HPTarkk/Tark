@@ -78,24 +78,21 @@ void main() {
   });
 
   test('stale feedback falls back to unconfirmed', () {
-    final runtime = MediaReceiverAdaptationRuntime(
+    final runtime = MediaReceiverAdaptationRuntime.withDependencies(
       store: MediaReceiverFeedbackStore(
         staleAfter: const Duration(seconds: 8),
       ),
+      controller: MediaAdaptationController(),
     );
     final now = DateTime.utc(2026, 8, 25, 20);
     runtime.observePeer('peer-a', clean, now);
 
-    expect(
-      runtime
-          .evaluate(
-            peerIds: const ['peer-a'],
-            now: now,
-            elapsedMs: 1000,
-          )
-          .tier,
-      MediaAdaptationTier.conservative,
+    final current = runtime.evaluate(
+      peerIds: const ['peer-a'],
+      now: now,
+      elapsedMs: 1000,
     );
+    expect(current.tier, MediaAdaptationTier.conservative);
 
     final stale = runtime.evaluate(
       peerIds: const ['peer-a'],
@@ -112,40 +109,28 @@ void main() {
     runtime.observePeer('peer-a', clean, now);
 
     runtime.removePeer('peer-a');
-    expect(
-      runtime
-          .evaluate(
-            peerIds: const ['peer-a'],
-            now: now,
-            elapsedMs: 1000,
-          )
-          .tier,
-      MediaAdaptationTier.unconfirmed,
+    final afterRemoval = runtime.evaluate(
+      peerIds: const ['peer-a'],
+      now: now,
+      elapsedMs: 1000,
     );
+    expect(afterRemoval.tier, MediaAdaptationTier.unconfirmed);
 
     runtime.observePeer('peer-a', clean, now);
-    expect(
-      runtime
-          .evaluate(
-            peerIds: const ['peer-a'],
-            now: now,
-            elapsedMs: 1000,
-          )
-          .tier,
-      MediaAdaptationTier.conservative,
+    final restored = runtime.evaluate(
+      peerIds: const ['peer-a'],
+      now: now,
+      elapsedMs: 1000,
     );
+    expect(restored.tier, MediaAdaptationTier.conservative);
 
     runtime.reset();
-    expect(
-      runtime
-          .evaluate(
-            peerIds: const ['peer-a'],
-            now: now,
-            elapsedMs: 1000,
-          )
-          .tier,
-      MediaAdaptationTier.unconfirmed,
+    final afterReset = runtime.evaluate(
+      peerIds: const ['peer-a'],
+      now: now,
+      elapsedMs: 1000,
     );
+    expect(afterReset.tier, MediaAdaptationTier.unconfirmed);
   });
 
   test(
