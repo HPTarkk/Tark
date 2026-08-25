@@ -14,11 +14,14 @@ import 'media_receiver_feedback_store.dart';
 /// Callers provide the current peer ids and elapsed window; [reset] is invoked
 /// when the transport/session generation changes.
 class MediaReceiverAdaptationRuntime {
-  MediaReceiverAdaptationRuntime({
-    MediaReceiverFeedbackStore? store,
-    MediaAdaptationController? controller,
-  }) : store = store ?? MediaReceiverFeedbackStore(),
-       controller = controller ?? MediaAdaptationController();
+  MediaReceiverAdaptationRuntime()
+    : store = MediaReceiverFeedbackStore(),
+      controller = MediaAdaptationController();
+
+  MediaReceiverAdaptationRuntime.withDependencies({
+    required this.store,
+    required this.controller,
+  });
 
   final MediaReceiverFeedbackStore store;
   final MediaAdaptationController controller;
