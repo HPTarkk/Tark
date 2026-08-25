@@ -2,6 +2,7 @@ import '../../../../core/audio/audio_format_profile.dart';
 import '../../../../core/settings/noise_suppression_engine.dart';
 import '../entity/audio_engine_status.dart';
 import '../entity/audio_frame.dart';
+import '../media_receive_buffer.dart';
 
 /// Duplex audio engine: mic capture → DSP → fixed-format frames out, and
 /// received network audio → jitter buffer → speaker.
@@ -128,6 +129,12 @@ abstract interface class AudioEngine {
     int seq,
     String senderId,
   );
+
+  /// Returns receiver evidence accumulated since the previous call and clears
+  /// only those window counters. Queue depth remains an instantaneous gauge.
+  /// This is intentionally pull-based so the existing session timer can report
+  /// health without adding another timer at audio rate.
+  MediaReceiveHealth takeMediaReceiveHealthWindow();
 
   /// Clears jitter-buffer playback state (queued audio, sequence tracking)
   /// for both voice and media. Call after a detected reconnect so stale
