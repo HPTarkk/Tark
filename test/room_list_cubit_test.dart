@@ -137,7 +137,10 @@ class _FakeRoomRepository implements RoomRepository {
     final index = _rooms.indexWhere((saved) => saved.room.id == id);
     final current = _rooms[index];
     final renamed = current.copyWith(
-      room: current.room.copyWith(name: name, updatedAt: DateTime.utc(2026, 8, 26)),
+      room: current.room.copyWith(
+        name: name,
+        updatedAt: DateTime.utc(2026, 8, 26),
+      ),
     );
     _rooms[index] = renamed;
     return renamed;
