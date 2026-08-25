@@ -29,10 +29,9 @@ void main() {
     concealedMs: 80,
   );
 
-  test('missing peer feedback keeps runtime unconfirmed', () {
-    final runtime = MediaReceiverAdaptationRuntime();
+  test('missing feedback stays unconfirmed', () {
+    final runtime = MediaReceiverAdaptationRuntime.standard();
     final now = DateTime.utc(2026, 8, 25, 20);
-
     final decision = runtime.evaluate(
       peerIds: const ['peer-a'],
       now: now,
@@ -44,11 +43,10 @@ void main() {
     expect(decision.targetChannels, 1);
   });
 
-  test('confirmed clean feedback enters conservative tier first', () {
-    final runtime = MediaReceiverAdaptationRuntime();
+  test('clean feedback starts conservative', () {
+    final runtime = MediaReceiverAdaptationRuntime.standard();
     final now = DateTime.utc(2026, 8, 25, 20);
     runtime.observePeer('peer-a', clean, now);
-
     final decision = runtime.evaluate(
       peerIds: const ['peer-a'],
       now: now,
@@ -60,12 +58,11 @@ void main() {
     expect(decision.targetBitrateKbps, 48);
   });
 
-  test('one severe receiver suspends media before voice', () {
-    final runtime = MediaReceiverAdaptationRuntime();
+  test('severe receiver suspends media', () {
+    final runtime = MediaReceiverAdaptationRuntime.standard();
     final now = DateTime.utc(2026, 8, 25, 20);
     runtime.observePeer('peer-a', clean, now);
     runtime.observePeer('peer-b', severe, now);
-
     final decision = runtime.evaluate(
       peerIds: const ['peer-a', 'peer-b'],
       now: now,
@@ -77,8 +74,8 @@ void main() {
     expect(decision.shouldTransmit, isFalse);
   });
 
-  test('stale feedback falls back to unconfirmed', () {
-    final runtime = MediaReceiverAdaptationRuntime.withDependencies(
+  test('stale feedback becomes unconfirmed', () {
+    final runtime = MediaReceiverAdaptationRuntime(
       store: MediaReceiverFeedbackStore(
         staleAfter: const Duration(seconds: 8),
       ),
@@ -86,35 +83,32 @@ void main() {
     );
     final now = DateTime.utc(2026, 8, 25, 20);
     runtime.observePeer('peer-a', clean, now);
-
     final current = runtime.evaluate(
       peerIds: const ['peer-a'],
       now: now,
       elapsedMs: 1000,
     );
-    expect(current.tier, MediaAdaptationTier.conservative);
-
     final stale = runtime.evaluate(
       peerIds: const ['peer-a'],
       now: now.add(const Duration(seconds: 9)),
       elapsedMs: 9000,
     );
+
+    expect(current.tier, MediaAdaptationTier.conservative);
     expect(stale.tier, MediaAdaptationTier.unconfirmed);
     expect(stale.reason, MediaAdaptationReason.feedbackUnconfirmed);
   });
 
-  test('peer removal and reset cannot retain old receiver health', () {
-    final runtime = MediaReceiverAdaptationRuntime();
+  test('remove and reset discard old health', () {
+    final runtime = MediaReceiverAdaptationRuntime.standard();
     final now = DateTime.utc(2026, 8, 25, 20);
     runtime.observePeer('peer-a', clean, now);
-
     runtime.removePeer('peer-a');
     final afterRemoval = runtime.evaluate(
       peerIds: const ['peer-a'],
       now: now,
       elapsedMs: 1000,
     );
-    expect(afterRemoval.tier, MediaAdaptationTier.unconfirmed);
 
     runtime.observePeer('peer-a', clean, now);
     final restored = runtime.evaluate(
@@ -122,32 +116,29 @@ void main() {
       now: now,
       elapsedMs: 1000,
     );
-    expect(restored.tier, MediaAdaptationTier.conservative);
-
     runtime.reset();
     final afterReset = runtime.evaluate(
       peerIds: const ['peer-a'],
       now: now,
       elapsedMs: 1000,
     );
+
+    expect(afterRemoval.tier, MediaAdaptationTier.unconfirmed);
+    expect(restored.tier, MediaAdaptationTier.conservative);
     expect(afterReset.tier, MediaAdaptationTier.unconfirmed);
   });
 
-  test(
-    'voice impairment immediately suspends media even without feedback',
-    () {
-      final runtime = MediaReceiverAdaptationRuntime();
-      final now = DateTime.utc(2026, 8, 25, 20);
+  test('voice impairment suspends media', () {
+    final runtime = MediaReceiverAdaptationRuntime.standard();
+    final now = DateTime.utc(2026, 8, 25, 20);
+    final decision = runtime.evaluate(
+      peerIds: const ['peer-a'],
+      now: now,
+      elapsedMs: 1000,
+      voiceImpaired: true,
+    );
 
-      final decision = runtime.evaluate(
-        peerIds: const ['peer-a'],
-        now: now,
-        elapsedMs: 1000,
-        voiceImpaired: true,
-      );
-
-      expect(decision.tier, MediaAdaptationTier.suspended);
-      expect(decision.reason, MediaAdaptationReason.voiceProtection);
-    },
-  );
+    expect(decision.tier, MediaAdaptationTier.suspended);
+    expect(decision.reason, MediaAdaptationReason.voiceProtection);
+  });
 }
