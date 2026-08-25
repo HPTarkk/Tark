@@ -1,3 +1,4 @@
+// dart format off
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tark/feature/audio/domain/media_adaptation_controller.dart';
 import 'package:tark/feature/transfer/domain/entity/media_receiver_feedback.dart';
@@ -142,3 +143,4 @@ void main() {
     expect(decision.reason, MediaAdaptationReason.voiceProtection);
   });
 }
+// dart format on
