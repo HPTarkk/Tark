@@ -49,32 +49,32 @@ void main() {
     await cubit.close();
   });
 
-  test('selected durable room opens logical runtime without transport', () async {
-    final repository = _FakeRoomRepository();
-    final saved = repository.seed('Canonical room');
-    await repository.select(saved.room.id);
-    final cubit = RoomListCubit(repository);
-    await cubit.load();
+  test(
+    'selected durable room opens logical runtime without transport',
+    () async {
+      final repository = _FakeRoomRepository();
+      final saved = repository.seed('Canonical room');
+      await repository.select(saved.room.id);
+      final cubit = RoomListCubit(repository);
+      await cubit.load();
 
-    final runtime = cubit.openSelectedSession(
-      sessionId: 'live-session-1',
-      initiallyMuted: true,
-    );
+      final runtime = cubit.openSelectedSession(
+        sessionId: 'live-session-1',
+        initiallyMuted: true,
+      );
 
-    expect(runtime, isNotNull);
-    expect(runtime!.state.roomId, saved.room.id.value);
-    expect(runtime.state.sessionId, 'live-session-1');
-    expect(
-      runtime.state.localMemberId,
-      saved.membership.localMemberId.value,
-    );
-    expect(runtime.state.memberIds, {saved.membership.localMemberId.value});
-    expect(runtime.state.isMuted, isTrue);
-    expect(runtime.state.attachment.phase, TransportAttachmentPhase.detached);
-    expect(repository.transportStarts, 0);
-    await runtime.leave();
-    await cubit.close();
-  });
+      expect(runtime, isNotNull);
+      expect(runtime!.state.roomId, saved.room.id.value);
+      expect(runtime.state.sessionId, 'live-session-1');
+      expect(runtime.state.localMemberId, saved.membership.localMemberId.value);
+      expect(runtime.state.memberIds, {saved.membership.localMemberId.value});
+      expect(runtime.state.isMuted, isTrue);
+      expect(runtime.state.attachment.phase, TransportAttachmentPhase.detached);
+      expect(repository.transportStarts, 0);
+      await runtime.leave();
+      await cubit.close();
+    },
+  );
 
   test('archive selected room clears selection and list entry', () async {
     final repository = _FakeRoomRepository();
