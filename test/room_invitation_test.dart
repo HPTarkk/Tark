@@ -60,27 +60,30 @@ void main() {
     );
   });
 
-  test('tampered bearer secret is rejected even with a known invitation id', () {
-    final original = invite(seed: 78);
-    final ledger = issued(original);
-    final tampered = RoomInvitation(
-      version: original.version,
-      roomId: original.roomId,
-      invitationId: original.invitationId,
-      secret: 'f' * 64,
-      kind: original.kind,
-      issuedAt: original.issuedAt,
-      expiresAt: original.expiresAt,
-      singleUse: original.singleUse,
-      displayCode: original.displayCode,
-      transportBootstrap: original.transportBootstrap,
-    );
+  test(
+    'tampered bearer secret is rejected even with a known invitation id',
+    () {
+      final original = invite(seed: 78);
+      final ledger = issued(original);
+      final tampered = RoomInvitation(
+        version: original.version,
+        roomId: original.roomId,
+        invitationId: original.invitationId,
+        secret: 'f' * 64,
+        kind: original.kind,
+        issuedAt: original.issuedAt,
+        expiresAt: original.expiresAt,
+        singleUse: original.singleUse,
+        displayCode: original.displayCode,
+        transportBootstrap: original.transportBootstrap,
+      );
 
-    expect(
-      ledger.evaluate(tampered, now.add(const Duration(minutes: 1))),
-      RoomInvitationDecision.invalidCapability,
-    );
-  });
+      expect(
+        ledger.evaluate(tampered, now.add(const Duration(minutes: 1))),
+        RoomInvitationDecision.invalidCapability,
+      );
+    },
+  );
 
   test('single-ride guest invite is single-use and replay is rejected', () {
     final guest = invite(kind: RoomInvitationKind.singleRideGuest);
