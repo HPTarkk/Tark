@@ -96,10 +96,7 @@ final class RoomInvitationLedger {
   ///
   /// Guest invites are marked redeemed before the capability escapes this
   /// method, so a second acceptance attempt fails closed as replayed.
-  VerifiedRoomInvitation? verifyAndRedeem(
-    RoomInvitation invite,
-    DateTime now,
-  ) {
+  VerifiedRoomInvitation? verifyAndRedeem(RoomInvitation invite, DateTime now) {
     if (redeem(invite, now) != RoomInvitationDecision.accepted) return null;
     return VerifiedRoomInvitation._(invite);
   }
