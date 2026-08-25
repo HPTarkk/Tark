@@ -83,6 +83,19 @@ class CaptureHealthClassifier {
       );
     }
 
+    // Once startup grace has elapsed, frame age outranks the last measured RMS.
+    // A previously audible callback is stale evidence after callbacks stop and
+    // must never keep Shared Music marked healthy forever.
+    final silenceAge = evidence.msSinceLastFrame;
+    if (evidence.elapsedMs >= firstFrameGraceMs &&
+        silenceAge != null &&
+        silenceAge >= stallAfterMs) {
+      return const CaptureHealthSnapshot(
+        state: CaptureHealthState.stalled,
+        reasonCode: 'capture_frame_stalled',
+      );
+    }
+
     final rms = evidence.lastFrameRms;
     final hasAudibleFrame = rms != null && rms >= audibleRmsFloor;
     if (hasAudibleFrame) {
@@ -99,16 +112,6 @@ class CaptureHealthClassifier {
       return const CaptureHealthSnapshot(
         state: CaptureHealthState.starting,
         reasonCode: 'capture_starting',
-      );
-    }
-
-    // Frame age has priority over old RMS once startup grace is over. A stale
-    // callback cannot keep a cast healthy forever.
-    final silenceAge = evidence.msSinceLastFrame;
-    if (silenceAge != null && silenceAge >= stallAfterMs) {
-      return const CaptureHealthSnapshot(
-        state: CaptureHealthState.stalled,
-        reasonCode: 'capture_frame_stalled',
       );
     }
 
