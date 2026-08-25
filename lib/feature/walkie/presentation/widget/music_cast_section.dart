@@ -280,7 +280,7 @@ class _CaptureHealthHint extends StatelessWidget {
         return s.music_cast_starting;
       case CaptureHealthState.silentIdle:
         return s.music_cast_silent;
-      case CaptureHealthState.blocked:
+      case CaptureHealthState.blockedWhileMediaPlaying:
         return s.music_cast_blocked;
       case CaptureHealthState.stalled:
         return s.music_cast_stalled;
@@ -291,7 +291,7 @@ class _CaptureHealthHint extends StatelessWidget {
   }
 
   bool get _isFailure =>
-      health.state == CaptureHealthState.blocked ||
+      health.state == CaptureHealthState.blockedWhileMediaPlaying ||
       health.state == CaptureHealthState.stalled;
 
   @override
