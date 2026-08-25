@@ -11,6 +11,7 @@ export '../domain/entity/audio_profile.dart';
 export '../domain/entity/connection_health.dart';
 export '../domain/entity/guest_link_state.dart';
 export '../domain/entity/channel_intent.dart';
+export '../domain/entity/media_receiver_feedback.dart';
 export '../domain/entity/session_role.dart';
 export '../domain/entity/transfer_mode.dart';
 export '../domain/entity/transfer_mode_analytics.dart';
@@ -19,6 +20,7 @@ export '../domain/entity/waki_packet.dart';
 export '../domain/entity/wifi_hotspot_segment.dart';
 export '../domain/repository/guest_link_controller.dart';
 export '../domain/repository/transfer_repository.dart';
+export '../domain/repository/wifi_transfer_repository.dart';
 // Exported for its recovery actions, not for joining: the channel screen's
 // troubleshooting surface offers "turn Wi-Fi on" when a session has no local
 // address, and this is where that native panel call already lives.
