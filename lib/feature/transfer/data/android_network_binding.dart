@@ -66,6 +66,30 @@ abstract final class AndroidNetworkBinding {
     }
   }
 
+  /// Pins the process only when [selection] is still Android's current selected
+  /// local Wi-Fi generation. Native rejects stale handles/generations.
+  static Future<bool> bind(AndroidNetworkSelection selection) async {
+    if (!Platform.isAndroid || selection.networkHandle == null) return false;
+    try {
+      return await _methods.invokeMethod<bool>('bindSelected', {
+            'networkHandle': selection.networkHandle,
+            'generation': selection.generation,
+          }) ??
+          false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
+  static Future<void> clear() async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _methods.invokeMethod<void>('clearBinding');
+    } on PlatformException {
+      // Android process teardown/races are safe to ignore here.
+    }
+  }
+
   static Stream<AndroidNetworkSelection> get changes {
     if (!Platform.isAndroid) return const Stream.empty();
     return _events
