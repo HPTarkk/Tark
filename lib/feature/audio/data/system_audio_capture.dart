@@ -155,7 +155,9 @@ abstract final class SystemAudioCapture {
     _healthTickRunning = true;
     try {
       final hasAccess = await MediaControl.hasAccess();
-      final playing = hasAccess ? await MediaControl.isOtherMediaPlaying() : false;
+      final playing = hasAccess
+          ? await MediaControl.isOtherMediaPlaying()
+          : false;
       _mediaPlayingKnown = hasAccess;
       _externalMediaPlaying = playing;
       _publishHealth(
