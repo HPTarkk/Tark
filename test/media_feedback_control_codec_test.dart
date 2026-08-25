@@ -31,6 +31,19 @@ void main() {
     concealedMs: 90,
   );
 
+  void expectFeedback(MediaReceiverFeedback? actual) {
+    expect(actual, isNotNull);
+    expect(actual!.queuedMs, feedback.queuedMs);
+    expect(actual.underruns, feedback.underruns);
+    expect(actual.outputStarvations, feedback.outputStarvations);
+    expect(actual.trims, feedback.trims);
+    expect(actual.overflowDrops, feedback.overflowDrops);
+    expect(actual.staleDrops, feedback.staleDrops);
+    expect(actual.duplicateDrops, feedback.duplicateDrops);
+    expect(actual.resyncs, feedback.resyncs);
+    expect(actual.concealedMs, feedback.concealedMs);
+  }
+
   test(
     'legacy control packet remains byte-for-byte unchanged without feedback',
     () {
@@ -68,7 +81,7 @@ void main() {
     expect(decoded.lastTxSeq, 101);
     expect(decoded.lastRxSeq, 99);
     expect(decoded.audioRxPackets, 95);
-    expect(decoded.mediaReceiverFeedback, feedback);
+    expectFeedback(decoded.mediaReceiverFeedback);
   });
 
   test('pong carries receiver feedback as an additive trailer', () {
@@ -82,7 +95,7 @@ void main() {
 
     final decoded = codec.decodeControl(encoded, 'fallback') as PongPacket;
     expect(decoded.token, 88);
-    expect(decoded.mediaReceiverFeedback, feedback);
+    expectFeedback(decoded.mediaReceiverFeedback);
   });
 
   test('truncated receiver trailer fails closed to unconfirmed', () {
