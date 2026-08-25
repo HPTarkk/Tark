@@ -43,10 +43,9 @@ void main() {
     store.observe('peer-a', clean, now);
     store.observe('peer-a', distressed, now.add(const Duration(seconds: 1)));
 
-    expect(
-      store.snapshot(['peer-a'], now.add(const Duration(seconds: 1))),
-      [distressed],
-    );
+    expect(store.snapshot(['peer-a'], now.add(const Duration(seconds: 1))), [
+      distressed,
+    ]);
   });
 
   test('stale feedback becomes unconfirmed instead of staying clean', () {
@@ -59,10 +58,9 @@ void main() {
     expect(store.snapshot(['peer-a'], now.add(const Duration(seconds: 8))), [
       clean,
     ]);
-    expect(
-      store.snapshot(['peer-a'], now.add(const Duration(seconds: 9))),
-      [null],
-    );
+    expect(store.snapshot(['peer-a'], now.add(const Duration(seconds: 9))), [
+      null,
+    ]);
   });
 
   test('remove and reset discard old session evidence deterministically', () {
