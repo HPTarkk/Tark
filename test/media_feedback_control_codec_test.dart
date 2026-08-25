@@ -13,10 +13,7 @@ void main() {
   late MediaFeedbackControlCodec codec;
 
   setUp(() {
-    base = WakiPacketCodec(
-      'abc123abc123',
-      SessionEpoch.startingAt(9),
-    );
+    base = WakiPacketCodec('abc123abc123', SessionEpoch.startingAt(9));
     codec = MediaFeedbackControlCodec(base);
   });
 
@@ -34,25 +31,28 @@ void main() {
     concealedMs: 90,
   );
 
-  test('legacy control packet remains byte-for-byte unchanged without feedback', () {
-    final legacy = base.encodePing(
-      token: 12,
-      lastTxSeq: 30,
-      lastRxSeq: 20,
-      audioRxPackets: 18,
-    );
-    final adapted = codec.encodePing(
-      token: 12,
-      lastTxSeq: 30,
-      lastRxSeq: 20,
-      audioRxPackets: 18,
-    );
+  test(
+    'legacy control packet remains byte-for-byte unchanged without feedback',
+    () {
+      final legacy = base.encodePing(
+        token: 12,
+        lastTxSeq: 30,
+        lastRxSeq: 20,
+        audioRxPackets: 18,
+      );
+      final adapted = codec.encodePing(
+        token: 12,
+        lastTxSeq: 30,
+        lastRxSeq: 20,
+        audioRxPackets: 18,
+      );
 
-    expect(adapted, legacy);
-    final decoded = codec.decodeControl(adapted, 'fallback');
-    expect(decoded, isA<PingPacket>());
-    expect(decoded!.mediaReceiverFeedback, isNull);
-  });
+      expect(adapted, legacy);
+      final decoded = codec.decodeControl(adapted, 'fallback');
+      expect(decoded, isA<PingPacket>());
+      expect(decoded!.mediaReceiverFeedback, isNull);
+    },
+  );
 
   test('ping carries receiver feedback as an additive trailer', () {
     final encoded = codec.encodePing(
@@ -108,7 +108,8 @@ void main() {
       audioRxPackets: 4,
       mediaReceiverFeedback: feedback,
     );
-    final legacyLength = encoded.length - MediaReceiverFeedbackWire.encodedLength;
+    final legacyLength =
+        encoded.length - MediaReceiverFeedbackWire.encodedLength;
     encoded[legacyLength] = MediaReceiverFeedbackWire.version + 1;
 
     final decoded = codec.decodeControl(encoded, 'fallback');
