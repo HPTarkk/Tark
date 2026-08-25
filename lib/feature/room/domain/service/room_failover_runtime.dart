@@ -169,11 +169,12 @@ class RoomFailoverRuntime {
     return elected == session.state.localMemberId ? 'host' : 'joiner';
   }
 
-  static TransportKind? _transportKind(RoomTransportKind? kind) => switch (kind) {
-    RoomTransportKind.sharedLan => TransportKind.wifi,
-    RoomTransportKind.hotspot => TransportKind.hotspot,
-    RoomTransportKind.bluetooth => TransportKind.bluetooth,
-    RoomTransportKind.guest => TransportKind.webrtc,
-    null => null,
-  };
+  static TransportKind? _transportKind(RoomTransportKind? kind) =>
+      switch (kind) {
+        RoomTransportKind.sharedLan => TransportKind.wifi,
+        RoomTransportKind.hotspot => TransportKind.hotspot,
+        RoomTransportKind.bluetooth => TransportKind.bluetooth,
+        RoomTransportKind.guest => TransportKind.webrtc,
+        null => null,
+      };
 }
