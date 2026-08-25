@@ -28,14 +28,17 @@ void main() {
     supported: supported,
   );
 
-  test('notification access missing keeps silence idle/unknown, not blocked', () {
-    final result = classifier.classify(
-      evidence(mediaKnown: false, mediaPlaying: false),
-    );
+  test(
+    'notification access missing keeps silence idle/unknown, not blocked',
+    () {
+      final result = classifier.classify(
+        evidence(mediaKnown: false, mediaPlaying: false),
+      );
 
-    expect(result.state, CaptureHealthState.silentIdle);
-    expect(result.mayTransmitMedia, isFalse);
-  });
+      expect(result.state, CaptureHealthState.silentIdle);
+      expect(result.mayTransmitMedia, isFalse);
+    },
+  );
 
   test('confirmed external media plus silence is classified as blocked', () {
     final result = classifier.classify(evidence(mediaPlaying: true));
