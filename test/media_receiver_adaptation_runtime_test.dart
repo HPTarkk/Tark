@@ -29,6 +29,7 @@ void main() {
     resyncs: 1,
     concealedMs: 80,
   );
+// dart format on
 
   test('missing feedback stays unconfirmed', () {
     final runtime = MediaReceiverAdaptationRuntime.standard();
@@ -143,4 +144,3 @@ void main() {
     expect(decision.reason, MediaAdaptationReason.voiceProtection);
   });
 }
-// dart format on
