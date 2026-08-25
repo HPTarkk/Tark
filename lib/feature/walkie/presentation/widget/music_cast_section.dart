@@ -16,8 +16,9 @@ import '../../../../core/widget/ticker_text.dart';
 import '../../../audio/api/audio_api.dart';
 import '../manager/walkie_talkie_cubit.dart';
 
-/// System-audio (music) casting card. Android 10+ only — hidden entirely
-/// where playback capture doesn't exist.
+/// System-audio (music) casting card. Android 10+ only. Devices where
+/// playback capture is unavailable still get an honest disabled state instead
+/// of having the feature disappear while voice remains usable.
 ///
 /// Three faces:
 ///  * OFF      — pitch line + a big START CASTING call-to-action;
@@ -28,72 +29,123 @@ import '../manager/walkie_talkie_cubit.dart';
 ///               guidance is driven by [SystemAudioCapture.health] rather than
 ///               guessing from the current RMS level.
 class MusicCastSection extends StatelessWidget {
-  const MusicCastSection({super.key});
+  const MusicCastSection({super.key, Future<bool>? supportedForTest})
+    : _supportOverride = supportedForTest;
 
   static final Future<bool> _supported = SystemAudioCapture.isSupported;
+  final Future<bool>? _supportOverride;
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<bool>(
-      future: _supported,
+      future: _supportOverride ?? _supported,
       builder: (context, snapshot) {
-        if (snapshot.data != true) return const SizedBox.shrink();
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const SizedBox.shrink();
+        }
         final s = context.getString;
+        final supported = snapshot.data == true;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 20),
             SectionHeader(label: s.music_cast),
             const SizedBox(height: 12),
-            BlocBuilder<WalkieTalkieCubit, WalkieTalkieState>(
-              buildWhen: (p, c) =>
-                  p.isSharingSystemAudio != c.isSharingSystemAudio ||
-                  p.isStartingSystemAudio != c.isStartingSystemAudio ||
-                  p.musicGain != c.musicGain,
-              builder: (context, state) {
-                final live = state.isSharingSystemAudio;
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 350),
-                  curve: Curves.easeOutCubic,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: live
-                        ? Color.alphaBlend(
-                            AppColors.amber.withAlpha(14),
-                            AppColors.card,
-                          )
-                        : AppColors.card,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: live
-                          ? AppColors.amber.withAlpha(150)
-                          : AppColors.border,
-                      width: live ? 1.5 : 1,
-                    ),
-                    boxShadow: live
-                        ? [
-                            BoxShadow(
-                              color: AppColors.amber.withAlpha(26),
-                              blurRadius: 20,
-                              spreadRadius: 1,
-                            ),
-                          ]
-                        : null,
-                  ),
-                  child: AnimatedSize(
+            if (!supported)
+              const _UnsupportedBody()
+            else
+              BlocBuilder<WalkieTalkieCubit, WalkieTalkieState>(
+                buildWhen: (p, c) =>
+                    p.isSharingSystemAudio != c.isSharingSystemAudio ||
+                    p.isStartingSystemAudio != c.isStartingSystemAudio ||
+                    p.musicGain != c.musicGain,
+                builder: (context, state) {
+                  final live = state.isSharingSystemAudio;
+                  return AnimatedContainer(
                     duration: const Duration(milliseconds: 350),
                     curve: Curves.easeOutCubic,
-                    alignment: Alignment.topCenter,
-                    child: live
-                        ? const _LiveBody()
-                        : _IdleBody(starting: state.isStartingSystemAudio),
-                  ),
-                );
-              },
-            ),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: live
+                          ? Color.alphaBlend(
+                              AppColors.amber.withAlpha(14),
+                              AppColors.card,
+                            )
+                          : AppColors.card,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: live
+                            ? AppColors.amber.withAlpha(150)
+                            : AppColors.border,
+                        width: live ? 1.5 : 1,
+                      ),
+                      boxShadow: live
+                          ? [
+                              BoxShadow(
+                                color: AppColors.amber.withAlpha(26),
+                                blurRadius: 20,
+                                spreadRadius: 1,
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: AnimatedSize(
+                      duration: const Duration(milliseconds: 350),
+                      curve: Curves.easeOutCubic,
+                      alignment: Alignment.topCenter,
+                      child: live
+                          ? const _LiveBody()
+                          : _IdleBody(starting: state.isStartingSystemAudio),
+                    ),
+                  );
+                },
+              ),
           ],
         );
       },
+    );
+  }
+}
+
+class _UnsupportedBody extends StatelessWidget {
+  const _UnsupportedBody();
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    return Semantics(
+      container: true,
+      label: s.preflight_shared_music_unavailable,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.music_off_rounded,
+              color: AppColors.textSecondary,
+              size: 22,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                s.preflight_shared_music_unavailable,
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                  height: 1.5,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -285,8 +337,9 @@ class _CaptureHealthHint extends StatelessWidget {
       case CaptureHealthState.stalled:
         return s.music_cast_stalled;
       case CaptureHealthState.stopped:
-      case CaptureHealthState.unsupported:
         return s.music_cast_hint;
+      case CaptureHealthState.unsupported:
+        return s.preflight_shared_music_unavailable;
     }
   }
 
