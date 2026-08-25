@@ -250,8 +250,9 @@ class _LiveBody extends StatelessWidget {
         StreamBuilder<CaptureHealthSnapshot>(
           stream: SystemAudioCapture.health,
           initialData: SystemAudioCapture.healthSnapshot,
-          builder: (context, snapshot) =>
-              _CaptureHealthHint(snapshot.data ?? SystemAudioCapture.healthSnapshot),
+          builder: (context, snapshot) => _CaptureHealthHint(
+            snapshot.data ?? SystemAudioCapture.healthSnapshot,
+          ),
         ),
         const SizedBox(height: 14),
         Divider(color: AppColors.border, height: 1),
@@ -277,7 +278,11 @@ class _CaptureHealthHint extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = context.getString;
     final (String? text, IconData icon, Color color) = switch (health.state) {
-      CaptureHealthState.audible => (null, Icons.check_circle_rounded, AppColors.green),
+      CaptureHealthState.audible => (
+          null,
+          Icons.check_circle_rounded,
+          AppColors.green,
+        ),
       CaptureHealthState.starting => (
           s.music_cast_starting,
           Icons.hourglass_top_rounded,
@@ -311,7 +316,8 @@ class _CaptureHealthHint extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: Semantics(
-        liveRegion: health.state == CaptureHealthState.blocked ||
+        liveRegion:
+            health.state == CaptureHealthState.blocked ||
             health.state == CaptureHealthState.stalled,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -468,15 +474,13 @@ class _OnAirTag extends StatefulWidget {
 
   @override
   State<_OnAirTag> createState() => _OnAirTagState();
-
-  static const _duration = Duration(milliseconds: 1100);
 }
 
 class _OnAirTagState extends State<_OnAirTag>
     with SingleTickerProviderStateMixin {
   late final AnimationController _pulse = AnimationController(
     vsync: this,
-    duration: _OnAirTag._duration,
+    duration: const Duration(milliseconds: 1100),
   )..repeat(reverse: true);
 
   @override
