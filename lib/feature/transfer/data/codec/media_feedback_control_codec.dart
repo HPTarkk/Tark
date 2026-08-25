@@ -77,10 +77,7 @@ final class MediaFeedbackControlCodec {
     };
   }
 
-  static Uint8List _append(
-    Uint8List packet,
-    MediaReceiverFeedback? feedback,
-  ) {
+  static Uint8List _append(Uint8List packet, MediaReceiverFeedback? feedback) {
     if (feedback == null) return packet;
     final trailer = MediaReceiverFeedbackWire.encode(feedback);
     final result = Uint8List(packet.length + trailer.length);
