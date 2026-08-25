@@ -90,7 +90,7 @@ void main() {
       version: value.invite.version,
       roomId: value.invite.roomId,
       invitationId: value.invite.invitationId,
-      secret: 'f' * 64,
+      secret: List.filled(64, 'f').join(),
       kind: value.invite.kind,
       issuedAt: value.invite.issuedAt,
       expiresAt: value.invite.expiresAt,
