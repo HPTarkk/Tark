@@ -72,9 +72,7 @@ class MusicDuckingEnvelope {
       _hangoverRemainingMs = max(0, _hangoverRemainingMs - frameDurationMs);
     }
 
-    final target = (qualified || _hangoverRemainingMs > 0)
-        ? duckTarget
-        : 1.0;
+    final target = (qualified || _hangoverRemainingMs > 0) ? duckTarget : 1.0;
 
     if (_gain == target) return _gain;
 
