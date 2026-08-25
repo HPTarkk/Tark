@@ -14,6 +14,7 @@ import '../../../../core/utils/extensions.dart';
 import '../../../../core/widget/section_header.dart';
 import '../../../../core/widget/ticker_text.dart';
 import '../../../audio/api/audio_api.dart';
+import '../../../audio/domain/capture_health.dart';
 import '../manager/walkie_talkie_cubit.dart';
 
 /// System-audio (music) casting card. Android 10+ only — hidden entirely
@@ -24,9 +25,9 @@ import '../manager/walkie_talkie_cubit.dart';
 ///  * STARTING — the CTA turns into a spinner while the system consent
 ///               dialog is up;
 ///  * ON AIR   — glowing card with a live equalizer fed by the actual
-///               captured audio, a mix-level slider, and a STOP chip. When
-///               the equalizer flatlines (nothing playing, or the player
-///               app blocks capture) a hint says why nobody hears music.
+///               captured audio, a mix-level slider, and a STOP chip. Capture
+///               guidance is driven by [SystemAudioCapture.health] rather than
+///               guessing from the current RMS level.
 class MusicCastSection extends StatelessWidget {
   const MusicCastSection({super.key});
 
@@ -243,46 +244,14 @@ class _LiveBody extends StatelessWidget {
         StreamBuilder<double>(
           stream: cubit.musicLevels,
           initialData: 0,
-          builder: (context, snapshot) {
-            final level = snapshot.data ?? 0;
-            return Column(
-              children: [
-                _EqualizerBars(level: level),
-                // Flatline explainer: capture is running but nothing comes
-                // through — music paused, or the player blocks capture.
-                AnimatedSize(
-                  duration: const Duration(milliseconds: 300),
-                  child: level < 0.004
-                      ? Padding(
-                          padding: const EdgeInsets.only(top: 12),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.info_outline_rounded,
-                                color: AppColors.textSecondary.withAlpha(160),
-                                size: 13,
-                              ),
-                              const SizedBox(width: 6),
-                              Flexible(
-                                child: Text(
-                                  s.music_cast_silent,
-                                  style: TextStyle(
-                                    color: AppColors.textSecondary.withAlpha(
-                                      180,
-                                    ),
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      : const SizedBox(width: double.infinity),
-                ),
-              ],
-            );
-          },
+          builder: (context, snapshot) =>
+              _EqualizerBars(level: snapshot.data ?? 0),
+        ),
+        StreamBuilder<CaptureHealthSnapshot>(
+          stream: SystemAudioCapture.health,
+          initialData: SystemAudioCapture.healthSnapshot,
+          builder: (context, snapshot) =>
+              _CaptureHealthHint(snapshot.data ?? SystemAudioCapture.healthSnapshot),
         ),
         const SizedBox(height: 14),
         Divider(color: AppColors.border, height: 1),
@@ -294,10 +263,77 @@ class _LiveBody extends StatelessWidget {
   }
 }
 
-/// One-time nudge to grant Notification access, so hitting STOP also pauses
-/// the source music app (see MediaControl / MediaControlHandler.kt) instead
-/// of only tearing down capture. Hidden once access is granted or dismissed;
-/// re-checks on resume so it disappears the moment the user grants it.
+/// Actionable capture status driven by the same classifier that gates media
+/// transmission. This is intentionally not inferred from the level meter:
+/// notification access may be unknown, a paused player is normal silent-idle,
+/// and a policy-blocked/stalled capture must never be labelled "nothing is
+/// playing" just because the samples are zero.
+class _CaptureHealthHint extends StatelessWidget {
+  const _CaptureHealthHint(this.health);
+
+  final CaptureHealthSnapshot health;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    final (String? text, IconData icon, Color color) = switch (health.state) {
+      CaptureHealthState.audible => (null, Icons.check_circle_rounded, AppColors.green),
+      CaptureHealthState.starting => (
+          s.music_cast_starting,
+          Icons.hourglass_top_rounded,
+          AppColors.textSecondary,
+        ),
+      CaptureHealthState.silentIdle => (
+          s.music_cast_silent,
+          Icons.info_outline_rounded,
+          AppColors.textSecondary,
+        ),
+      CaptureHealthState.blocked => (
+          s.music_cast_blocked,
+          Icons.warning_amber_rounded,
+          AppColors.red,
+        ),
+      CaptureHealthState.stalled => (
+          s.music_cast_stalled,
+          Icons.warning_amber_rounded,
+          AppColors.red,
+        ),
+      // These are defensive while the live body is still mounted during a
+      // stop/unsupported transition. The outer state normally removes it on
+      // the next cubit emit, so do not invent a separate success/failure claim.
+      CaptureHealthState.stopped || CaptureHealthState.unsupported => (
+          s.music_cast_hint,
+          Icons.info_outline_rounded,
+          AppColors.textSecondary,
+        ),
+    };
+    if (text == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Semantics(
+        liveRegion: health.state == CaptureHealthState.blocked ||
+            health.state == CaptureHealthState.stalled,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: color.withAlpha(190), size: 14),
+            const SizedBox(width: 7),
+            Expanded(
+              child: Text(
+                text,
+                style: TextStyle(color: color.withAlpha(210), fontSize: 11),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One-time nudge to grant Notification access, so media-session evidence can
+/// confirm a player is active. Missing notification access remains unknown and
+/// is never interpreted as "nothing is playing" by [SystemAudioCapture].
 class _NotificationAccessHint extends StatefulWidget {
   const _NotificationAccessHint();
 
@@ -432,13 +468,15 @@ class _OnAirTag extends StatefulWidget {
 
   @override
   State<_OnAirTag> createState() => _OnAirTagState();
+
+  static const _duration = Duration(milliseconds: 1100);
 }
 
 class _OnAirTagState extends State<_OnAirTag>
     with SingleTickerProviderStateMixin {
   late final AnimationController _pulse = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1100),
+    duration: _OnAirTag._duration,
   )..repeat(reverse: true);
 
   @override
