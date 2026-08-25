@@ -53,6 +53,15 @@ void main() {
     expect(result.timeToFirstAudibleFrameMs, 640);
   });
 
+  test('audible evidence is accepted during startup grace', () {
+    final result = classifier.classify(
+      evidence(elapsedMs: 200, rms: 0.2, mediaPlaying: true),
+      firstAudibleFrameAtMs: 200,
+    );
+    expect(result.state, CaptureHealthState.audible);
+    expect(result.mayTransmitMedia, isTrue);
+  });
+
   test('stale last audible frame becomes stalled', () {
     final result = classifier.classify(
       evidence(sinceFrame: 1500, rms: 0.2, mediaPlaying: false),
@@ -107,19 +116,22 @@ void main() {
       expect(result.timeToFirstAudibleFrameMs, 120);
     });
 
-    test('confirmed playing plus silent frames is blocked and not transmittable', () {
-      final health = monitor()..start(t0, supported: true);
+    test(
+      'confirmed playing plus silent frames is blocked and not transmittable',
+      () {
+        final health = monitor()..start(t0, supported: true);
 
-      final result = health.observeFrame(
-        const [0.0, 0.0, 0.0],
-        t0.add(const Duration(milliseconds: 120)),
-        mediaPlayingKnown: true,
-        externalMediaPlaying: true,
-      );
+        final result = health.observeFrame(
+          const [0.0, 0.0, 0.0],
+          t0.add(const Duration(milliseconds: 120)),
+          mediaPlayingKnown: true,
+          externalMediaPlaying: true,
+        );
 
-      expect(result.state, CaptureHealthState.blockedWhileMediaPlaying);
-      expect(result.mayTransmitMedia, isFalse);
-    });
+        expect(result.state, CaptureHealthState.blockedWhileMediaPlaying);
+        expect(result.mayTransmitMedia, isFalse);
+      },
+    );
 
     test('lack of notification access never invents blocked state', () {
       final health = monitor()..start(t0, supported: true);
