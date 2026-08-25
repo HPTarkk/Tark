@@ -23,11 +23,7 @@ void main() {
         archived: archived,
         members: [
           if (includeLocalMember)
-            RoomMember(
-              id: localId,
-              displayName: 'Me',
-              joinedAt: now,
-            ),
+            RoomMember(id: localId, displayName: 'Me', joinedAt: now),
           RoomMember(
             id: peerId,
             displayName: 'Peer',
