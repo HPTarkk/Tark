@@ -1,4 +1,3 @@
-import '../entity/room.dart';
 import 'room_transport_planner.dart';
 
 enum RoomFailoverReason { hostLost, manualRetry, transportFailed }
