@@ -9,7 +9,15 @@ export '../data/session_keep_alive.dart' show SessionKeepAlive;
 export '../data/system_audio_capture.dart' show SystemAudioCapture;
 export '../domain/entity/audio_engine_status.dart';
 export '../domain/entity/audio_frame.dart';
+export '../domain/media_adaptation_controller.dart'
+    show
+        MediaAdaptationController,
+        MediaAdaptationDecision,
+        MediaAdaptationReason,
+        MediaAdaptationTier,
+        MediaReceiverWindow;
 export '../domain/media_frame_scheduler.dart';
+export '../domain/media_receive_buffer.dart' show MediaReceiveHealth;
 export '../domain/music_mixer.dart';
 export '../domain/noise_floor_tracker.dart';
 export '../domain/service/audio_engine.dart';
