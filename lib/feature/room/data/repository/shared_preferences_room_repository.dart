@@ -135,7 +135,9 @@ class SharedPreferencesRoomRepository implements RoomRepository {
       // Reusing the same verified capability is idempotent: never create a
       // duplicate row or silently reactivate a removed member.
       if (existing.isActive && existing.displayName != cleanDisplayName) {
-        members[existingIndex] = existing.copyWith(displayName: cleanDisplayName);
+        members[existingIndex] = existing.copyWith(
+          displayName: cleanDisplayName,
+        );
       }
     } else {
       members.add(
