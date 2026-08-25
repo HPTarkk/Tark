@@ -2,10 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tark/feature/audio/domain/speech_activity_evidence_gate.dart';
 
 void main() {
-  SpeechActivityEvidenceGate build() => SpeechActivityEvidenceGate(
-    activeEvidenceMs: 60,
-    inactiveEvidenceMs: 240,
-  );
+  SpeechActivityEvidenceGate build() =>
+      SpeechActivityEvidenceGate(activeEvidenceMs: 60, inactiveEvidenceMs: 240);
 
   test('short wind-like spikes never activate ducking', () {
     final gate = build();
@@ -52,14 +50,17 @@ void main() {
     expect(gate.advance(voiceEvidence: false, elapsedMs: 1), isFalse);
   });
 
-  test('engine-like alternating low evidence cannot accumulate across quiet', () {
-    final gate = build();
+  test(
+    'engine-like alternating low evidence cannot accumulate across quiet',
+    () {
+      final gate = build();
 
-    for (var i = 0; i < 20; i++) {
-      expect(gate.advance(voiceEvidence: true, elapsedMs: 20), isFalse);
-      expect(gate.advance(voiceEvidence: false, elapsedMs: 20), isFalse);
-    }
-  });
+      for (var i = 0; i < 20; i++) {
+        expect(gate.advance(voiceEvidence: true, elapsedMs: 20), isFalse);
+        expect(gate.advance(voiceEvidence: false, elapsedMs: 20), isFalse);
+      }
+    },
+  );
 
   test('reset clears active and banked evidence for reconnect', () {
     final gate = build();
