@@ -109,8 +109,6 @@ class _IdleBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
-    // Only the start path is gated — stopping stays free, and the live card
-    // (_LiveBody) is never reachable without entitlement in the first place.
     final locked = !GetIt.instance<LicenseGate>().allows(
       PremiumFeature.musicPlayback,
     );
@@ -274,51 +272,43 @@ class _CaptureHealthHint extends StatelessWidget {
 
   final CaptureHealthSnapshot health;
 
+  String? _message(BuildContext context) {
+    final s = context.getString;
+    switch (health.state) {
+      case CaptureHealthState.audible:
+        return null;
+      case CaptureHealthState.starting:
+        return s.music_cast_starting;
+      case CaptureHealthState.silentIdle:
+        return s.music_cast_silent;
+      case CaptureHealthState.blocked:
+        return s.music_cast_blocked;
+      case CaptureHealthState.stalled:
+        return s.music_cast_stalled;
+      case CaptureHealthState.stopped:
+      case CaptureHealthState.unsupported:
+        return s.music_cast_hint;
+    }
+  }
+
+  bool get _isFailure =>
+      health.state == CaptureHealthState.blocked ||
+      health.state == CaptureHealthState.stalled;
+
   @override
   Widget build(BuildContext context) {
-    final s = context.getString;
-    final (String? text, IconData icon, Color color) = switch (health.state) {
-      CaptureHealthState.audible => (
-          null,
-          Icons.check_circle_rounded,
-          AppColors.green,
-        ),
-      CaptureHealthState.starting => (
-          s.music_cast_starting,
-          Icons.hourglass_top_rounded,
-          AppColors.textSecondary,
-        ),
-      CaptureHealthState.silentIdle => (
-          s.music_cast_silent,
-          Icons.info_outline_rounded,
-          AppColors.textSecondary,
-        ),
-      CaptureHealthState.blocked => (
-          s.music_cast_blocked,
-          Icons.warning_amber_rounded,
-          AppColors.red,
-        ),
-      CaptureHealthState.stalled => (
-          s.music_cast_stalled,
-          Icons.warning_amber_rounded,
-          AppColors.red,
-        ),
-      // These are defensive while the live body is still mounted during a
-      // stop/unsupported transition. The outer state normally removes it on
-      // the next cubit emit, so do not invent a separate success/failure claim.
-      CaptureHealthState.stopped || CaptureHealthState.unsupported => (
-          s.music_cast_hint,
-          Icons.info_outline_rounded,
-          AppColors.textSecondary,
-        ),
-    };
+    final text = _message(context);
     if (text == null) return const SizedBox.shrink();
+    final color = _isFailure ? AppColors.red : AppColors.textSecondary;
+    final icon = _isFailure
+        ? Icons.warning_amber_rounded
+        : health.state == CaptureHealthState.starting
+        ? Icons.hourglass_top_rounded
+        : Icons.info_outline_rounded;
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: Semantics(
-        liveRegion:
-            health.state == CaptureHealthState.blocked ||
-            health.state == CaptureHealthState.stalled,
+        liveRegion: _isFailure,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -541,8 +531,6 @@ class _EqualizerBars extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Music RMS rarely exceeds ~0.3; stretch it so normal listening levels
-    // light up most of the meter.
     final drive = (level * 4.5).clamp(0.0, 1.0);
     return SizedBox(
       height: _maxBarHeight,
@@ -559,8 +547,6 @@ class _EqualizerBars extends StatelessWidget {
   }
 
   Widget _bar(int index, double drive) {
-    // Center-weighted envelope with deterministic per-bar jitter, so the
-    // silhouette looks like a spectrum instead of a flat wall.
     final envelope = sin(pi * index / (_barCount - 1));
     final jitter = 0.55 + 0.45 * (((index * 7919) % 100) / 100);
     final height = (3.0 + drive * envelope * jitter * (_maxBarHeight - 3.0))
