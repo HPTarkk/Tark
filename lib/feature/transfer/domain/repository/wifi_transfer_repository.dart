@@ -1,3 +1,4 @@
+import '../entity/media_receiver_feedback.dart';
 import 'transfer_repository.dart';
 
 /// The Wi-Fi/UDP transport specifically — as opposed to [TransferRepository],
@@ -18,4 +19,9 @@ abstract interface class WifiTransferRepository implements TransferRepository {
   /// and so ends the listening stream the live session is subscribed to,
   /// permanently. This rebinds underneath the same stream.
   void rebindSockets();
+
+  /// Supplies the latest local Shared Music receive window for the next
+  /// heartbeat response. The transport carries only the bounded counters; it
+  /// never receives audio samples or owns the receive buffer itself.
+  void reportMediaReceiverFeedback(MediaReceiverFeedback feedback);
 }
