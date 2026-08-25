@@ -26,7 +26,10 @@ final class RoomTransportBootstrap {
     if (kind is! String || kind.isEmpty || payload is! Map<String, dynamic>) {
       throw const FormatException('transport bootstrap fields');
     }
-    return RoomTransportBootstrap(kind: kind, payload: Map.unmodifiable(payload));
+    return RoomTransportBootstrap(
+      kind: kind,
+      payload: Map.unmodifiable(payload),
+    );
   }
 }
 
@@ -74,8 +77,7 @@ final class RoomInvitation {
       'expiresAt': expiresAt.toUtc().toIso8601String(),
       'singleUse': singleUse,
       'displayCode': displayCode,
-      if (transportBootstrap != null)
-        'transport': transportBootstrap!.toJson(),
+      if (transportBootstrap != null) 'transport': transportBootstrap!.toJson(),
     });
     return base64Url.encode(utf8.encode(json)).replaceAll('=', '');
   }
@@ -111,7 +113,9 @@ final class RoomInvitation {
           !RegExp(r'^\d{6}$').hasMatch(displayCode)) {
         throw const FormatException('invite fields');
       }
-      final kind = RoomInvitationKind.values.where((item) => item.name == kindRaw);
+      final kind = RoomInvitationKind.values.where(
+        (item) => item.name == kindRaw,
+      );
       if (kind.length != 1) throw const FormatException('invite kind');
       final issuedAt = DateTime.parse(issuedRaw).toUtc();
       final expiresAt = DateTime.parse(expiresRaw).toUtc();
