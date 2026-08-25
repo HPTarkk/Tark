@@ -1,4 +1,3 @@
-// dart format off
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tark/feature/audio/domain/media_adaptation_controller.dart';
 import 'package:tark/feature/transfer/domain/entity/media_receiver_feedback.dart';
@@ -77,9 +76,7 @@ void main() {
 
   test('stale feedback becomes unconfirmed', () {
     final runtime = MediaReceiverAdaptationRuntime(
-      store: MediaReceiverFeedbackStore(
-        staleAfter: const Duration(seconds: 8),
-      ),
+      store: MediaReceiverFeedbackStore(staleAfter: const Duration(seconds: 8)),
       controller: MediaAdaptationController(),
     );
     final now = DateTime.utc(2026, 8, 25, 20);
@@ -128,7 +125,6 @@ void main() {
     expect(restored.tier, MediaAdaptationTier.conservative);
     expect(afterReset.tier, MediaAdaptationTier.unconfirmed);
   });
-// dart format on
 
   test('voice impairment suspends media', () {
     final runtime = MediaReceiverAdaptationRuntime.standard();
