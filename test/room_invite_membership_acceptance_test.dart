@@ -77,7 +77,8 @@ void main() {
     expect(second.room.members, hasLength(2));
     expect(
       second.room.members.where(
-        (member) => member.id.value == value.invite.invitationId.substring(0, 24),
+        (member) =>
+            member.id.value == value.invite.invitationId.substring(0, 24),
       ),
       hasLength(1),
     );
@@ -99,7 +100,10 @@ void main() {
     );
 
     expect(ledger.verifyAndRedeem(forged, value.now), isNull);
-    expect((await repository.get(value.room.room.id))?.room.members, hasLength(1));
+    expect(
+      (await repository.get(value.room.room.id))?.room.members,
+      hasLength(1),
+    );
   });
 
   test('revoked and expired invites cannot obtain verified capability', () async {
