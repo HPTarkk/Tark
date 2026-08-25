@@ -24,6 +24,9 @@ void main() {
     random: Random(seed),
   );
 
+  RoomInvitationLedger issued(RoomInvitation value) =>
+      RoomInvitationLedger()..registerIssued(value);
+
   test('round trips a versioned high-entropy capability', () {
     final original = invite();
     final parsed = RoomInvitation.decode(original.encode());
@@ -45,9 +48,43 @@ void main() {
     expect(first.secret, isNot(second.secret));
   });
 
+  test('well-formed but unissued capability cannot authorize membership', () {
+    final forged = invite(seed: 77);
+
+    expect(
+      RoomInvitationLedger().evaluate(
+        forged,
+        now.add(const Duration(minutes: 1)),
+      ),
+      RoomInvitationDecision.invalidCapability,
+    );
+  });
+
+  test('tampered bearer secret is rejected even with a known invitation id', () {
+    final original = invite(seed: 78);
+    final ledger = issued(original);
+    final tampered = RoomInvitation(
+      version: original.version,
+      roomId: original.roomId,
+      invitationId: original.invitationId,
+      secret: 'f' * 64,
+      kind: original.kind,
+      issuedAt: original.issuedAt,
+      expiresAt: original.expiresAt,
+      singleUse: original.singleUse,
+      displayCode: original.displayCode,
+      transportBootstrap: original.transportBootstrap,
+    );
+
+    expect(
+      ledger.evaluate(tampered, now.add(const Duration(minutes: 1))),
+      RoomInvitationDecision.invalidCapability,
+    );
+  });
+
   test('single-ride guest invite is single-use and replay is rejected', () {
     final guest = invite(kind: RoomInvitationKind.singleRideGuest);
-    final ledger = RoomInvitationLedger();
+    final ledger = issued(guest);
 
     expect(
       ledger.redeem(guest, now.add(const Duration(minutes: 5))),
@@ -61,7 +98,7 @@ void main() {
 
   test('revocation rejects a reusable membership invite', () {
     final membership = invite();
-    final ledger = RoomInvitationLedger()..revoke(membership);
+    final ledger = issued(membership)..revoke(membership);
 
     expect(
       ledger.evaluate(membership, now.add(const Duration(minutes: 1))),
@@ -71,7 +108,7 @@ void main() {
 
   test('expired invite fails closed', () {
     final expiring = invite(ttl: const Duration(minutes: 10));
-    final ledger = RoomInvitationLedger();
+    final ledger = issued(expiring);
 
     expect(
       ledger.evaluate(expiring, now.add(const Duration(minutes: 10))),
@@ -145,6 +182,8 @@ void main() {
     final guest = invite(kind: RoomInvitationKind.singleRideGuest, seed: 41);
     final membership = invite(seed: 43);
     final ledger = RoomInvitationLedger()
+      ..registerIssued(guest)
+      ..registerIssued(membership)
       ..redeem(guest, now.add(const Duration(minutes: 1)))
       ..revoke(membership);
 
@@ -160,6 +199,22 @@ void main() {
     expect(
       restored.evaluate(membership, now.add(const Duration(minutes: 2))),
       RoomInvitationDecision.revoked,
+    );
+  });
+
+  test('legacy v1 ledger decodes but cannot authorize unknown old secrets', () {
+    final old = invite(seed: 55);
+    final legacy = jsonEncode({
+      'v': 1,
+      'revoked': <String>[],
+      'redeemed': <String>[],
+    });
+
+    final restored = RoomInvitationLedger.decodeState(legacy);
+
+    expect(
+      restored.evaluate(old, now.add(const Duration(minutes: 1))),
+      RoomInvitationDecision.invalidCapability,
     );
   });
 }
