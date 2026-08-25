@@ -87,7 +87,9 @@ abstract final class RoomTransportPlanner {
     }
 
     final hotspotCandidates = environment.candidates
-        .where((candidate) => candidate.canHostHotspot && candidate.backgroundReady)
+        .where(
+          (candidate) => candidate.canHostHotspot && candidate.backgroundReady,
+        )
         .toList(growable: false);
     if (hotspotCandidates.isNotEmpty) {
       final elected = _electHotspotHost(hotspotCandidates);
@@ -101,7 +103,9 @@ abstract final class RoomTransportPlanner {
       );
     }
 
-    if (environment.candidates.any((candidate) => candidate.bluetoothSupported)) {
+    if (environment.candidates.any(
+      (candidate) => candidate.bluetoothSupported,
+    )) {
       return RoomTransportPlan(
         epoch: environment.epoch,
         kind: RoomTransportKind.bluetooth,
