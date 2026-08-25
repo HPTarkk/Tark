@@ -148,18 +148,21 @@ void main() {
     );
   });
 
-  test('voice impairment immediately suspends media even without feedback', () {
-    final runtime = MediaReceiverAdaptationRuntime();
-    final now = DateTime.utc(2026, 8, 25, 20);
+  test(
+    'voice impairment immediately suspends media even without feedback',
+    () {
+      final runtime = MediaReceiverAdaptationRuntime();
+      final now = DateTime.utc(2026, 8, 25, 20);
 
-    final decision = runtime.evaluate(
-      peerIds: const ['peer-a'],
-      now: now,
-      elapsedMs: 1000,
-      voiceImpaired: true,
-    );
+      final decision = runtime.evaluate(
+        peerIds: const ['peer-a'],
+        now: now,
+        elapsedMs: 1000,
+        voiceImpaired: true,
+      );
 
-    expect(decision.tier, MediaAdaptationTier.suspended);
-    expect(decision.reason, MediaAdaptationReason.voiceProtection);
-  });
+      expect(decision.tier, MediaAdaptationTier.suspended);
+      expect(decision.reason, MediaAdaptationReason.voiceProtection);
+    },
+  );
 }
