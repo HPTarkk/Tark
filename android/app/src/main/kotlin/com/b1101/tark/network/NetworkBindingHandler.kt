@@ -49,6 +49,15 @@ class NetworkBindingHandler(
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "current" -> result.success(snapshot(selectedNetwork()))
+            "bindSelected" -> {
+                val handle = call.argument<Number>("networkHandle")?.toLong()
+                val expectedGeneration = call.argument<Number>("generation")?.toLong()
+                result.success(bindSelected(handle, expectedGeneration))
+            }
+            "clearBinding" -> {
+                connectivity.bindProcessToNetwork(null)
+                result.success(null)
+            }
             else -> result.notImplemented()
         }
     }
@@ -86,6 +95,22 @@ class NetworkBindingHandler(
     private fun emitChanged() {
         generation.incrementAndGet()
         sink?.success(snapshot(selectedNetwork()))
+    }
+
+    /**
+     * Pins only the exact network Dart observed. A callback can arrive between
+     * `current` and this method; generation + handle checks prevent that stale
+     * selection from pulling the process back onto an old route.
+     */
+    private fun bindSelected(handle: Long?, expectedGeneration: Long?): Boolean {
+        if (handle == null || expectedGeneration == null) return false
+        if (expectedGeneration != generation.get()) return false
+        val selected = selectedNetwork() ?: return false
+        if (selected.networkHandle != handle) return false
+        val caps = connectivity.getNetworkCapabilities(selected) ?: return false
+        if (!caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) return false
+        if (caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) return false
+        return connectivity.bindProcessToNetwork(selected)
     }
 
     /** Prefer a non-VPN Wi-Fi network over Android's default (which may be VPN). */
