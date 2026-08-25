@@ -14,7 +14,6 @@ import '../../../../core/utils/extensions.dart';
 import '../../../../core/widget/section_header.dart';
 import '../../../../core/widget/ticker_text.dart';
 import '../../../audio/api/audio_api.dart';
-import '../../../audio/domain/capture_health.dart';
 import '../manager/walkie_talkie_cubit.dart';
 
 /// System-audio (music) casting card. Android 10+ only — hidden entirely
