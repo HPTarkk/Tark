@@ -17,22 +17,30 @@ void main() {
     expect(tracker.get(alice)!.hasBidirectionalEvidence, isFalse);
   });
 
-  test('bidirectional evidence promotes one stable member row to connected', () {
-    final tracker = RoomPresenceTracker();
-    tracker.markJoining(alice, attachmentGeneration: 1);
-    tracker.observeInbound(alice, at: t0, attachmentGeneration: 1);
-    tracker.observeOutboundConfirmation(
-      alice,
-      at: t0.add(const Duration(milliseconds: 50)),
-      attachmentGeneration: 1,
-    );
+  test(
+    'bidirectional evidence promotes one stable member row to connected',
+    () {
+      final tracker = RoomPresenceTracker();
+      tracker.markJoining(alice, attachmentGeneration: 1);
+      tracker.observeInbound(alice, at: t0, attachmentGeneration: 1);
+      tracker.observeOutboundConfirmation(
+        alice,
+        at: t0.add(const Duration(milliseconds: 50)),
+        attachmentGeneration: 1,
+      );
 
-    expect(tracker.get(alice)!.state, RoomParticipantState.connected);
-    expect(tracker.participants.where((item) => item.memberId == alice), hasLength(1));
-  });
+      expect(tracker.get(alice)!.state, RoomParticipantState.connected);
+      expect(
+        tracker.participants.where((item) => item.memberId == alice),
+        hasLength(1),
+      );
+    },
+  );
 
   test('brief unexpected loss shows reconnecting before unreachable', () {
-    final tracker = RoomPresenceTracker(reconnectGrace: const Duration(seconds: 10));
+    final tracker = RoomPresenceTracker(
+      reconnectGrace: const Duration(seconds: 10),
+    );
     tracker.markJoining(alice, attachmentGeneration: 1);
     tracker.observeInbound(alice, at: t0, attachmentGeneration: 1);
     tracker.observeOutboundConfirmation(alice, at: t0, attachmentGeneration: 1);
@@ -49,63 +57,82 @@ void main() {
     expect(tracker.get(alice)!.state, RoomParticipantState.unreachable);
   });
 
-  test('restored peer reuses stable identity and clears reconnect tombstone', () {
-    final tracker = RoomPresenceTracker();
-    tracker.markJoining(alice, attachmentGeneration: 1);
-    tracker.observeInbound(alice, at: t0, attachmentGeneration: 1);
-    tracker.observeOutboundConfirmation(alice, at: t0, attachmentGeneration: 1);
-    tracker.unexpectedLoss(
-      alice,
-      at: t0.add(const Duration(seconds: 1)),
-      attachmentGeneration: 1,
-    );
+  test(
+    'restored peer reuses stable identity and clears reconnect tombstone',
+    () {
+      final tracker = RoomPresenceTracker();
+      tracker.markJoining(alice, attachmentGeneration: 1);
+      tracker.observeInbound(alice, at: t0, attachmentGeneration: 1);
+      tracker.observeOutboundConfirmation(
+        alice,
+        at: t0,
+        attachmentGeneration: 1,
+      );
+      tracker.unexpectedLoss(
+        alice,
+        at: t0.add(const Duration(seconds: 1)),
+        attachmentGeneration: 1,
+      );
 
-    final restoredAt = t0.add(const Duration(seconds: 2));
-    tracker.observeInbound(alice, at: restoredAt, attachmentGeneration: 1);
-    tracker.observeOutboundConfirmation(
-      alice,
-      at: restoredAt,
-      attachmentGeneration: 1,
-    );
+      final restoredAt = t0.add(const Duration(seconds: 2));
+      tracker.observeInbound(alice, at: restoredAt, attachmentGeneration: 1);
+      tracker.observeOutboundConfirmation(
+        alice,
+        at: restoredAt,
+        attachmentGeneration: 1,
+      );
 
-    expect(tracker.get(alice)!.state, RoomParticipantState.connected);
-    expect(tracker.get(alice)!.reconnectDeadline, isNull);
-    expect(tracker.participants.where((item) => item.memberId == alice), hasLength(1));
-  });
+      expect(tracker.get(alice)!.state, RoomParticipantState.connected);
+      expect(tracker.get(alice)!.reconnectDeadline, isNull);
+      expect(
+        tracker.participants.where((item) => item.memberId == alice),
+        hasLength(1),
+      );
+    },
+  );
 
-  test('explicit leave is immediate and stale evidence cannot resurrect it', () {
-    final tracker = RoomPresenceTracker();
-    tracker.markJoining(alice, attachmentGeneration: 3);
-    tracker.explicitLeave(alice, attachmentGeneration: 3);
-    tracker.observeInbound(
-      alice,
-      at: t0.add(const Duration(seconds: 1)),
-      attachmentGeneration: 3,
-    );
+  test(
+    'explicit leave is immediate and stale evidence cannot resurrect it',
+    () {
+      final tracker = RoomPresenceTracker();
+      tracker.markJoining(alice, attachmentGeneration: 3);
+      tracker.explicitLeave(alice, attachmentGeneration: 3);
+      tracker.observeInbound(
+        alice,
+        at: t0.add(const Duration(seconds: 1)),
+        attachmentGeneration: 3,
+      );
 
-    expect(tracker.get(alice)!.state, RoomParticipantState.left);
-  });
+      expect(tracker.get(alice)!.state, RoomParticipantState.left);
+    },
+  );
 
-  test('transport replacement preserves roster and moves live members to reconnecting', () {
-    final tracker = RoomPresenceTracker();
-    for (final id in [alice, bob, carol]) {
-      tracker.markJoining(id, attachmentGeneration: 1);
-      tracker.observeInbound(id, at: t0, attachmentGeneration: 1);
-      tracker.observeOutboundConfirmation(id, at: t0, attachmentGeneration: 1);
-    }
+  test(
+    'transport replacement preserves roster and moves live members to reconnecting',
+    () {
+      final tracker = RoomPresenceTracker();
+      for (final id in [alice, bob, carol]) {
+        tracker.markJoining(id, attachmentGeneration: 1);
+        tracker.observeInbound(id, at: t0, attachmentGeneration: 1);
+        tracker.observeOutboundConfirmation(
+          id,
+          at: t0,
+          attachmentGeneration: 1,
+        );
+      }
 
-    tracker.replaceAttachment(2);
+      tracker.replaceAttachment(2);
 
-    expect(tracker.participants, hasLength(3));
-    expect(
-      tracker.participants.map((item) => item.state).toSet(),
-      {RoomParticipantState.reconnecting},
-    );
-    expect(
-      tracker.participants.map((item) => item.attachmentGeneration).toSet(),
-      {2},
-    );
-  });
+      expect(tracker.participants, hasLength(3));
+      expect(tracker.participants.map((item) => item.state).toSet(), {
+        RoomParticipantState.reconnecting,
+      });
+      expect(
+        tracker.participants.map((item) => item.attachmentGeneration).toSet(),
+        {2},
+      );
+    },
+  );
 
   test('stale old-attachment evidence cannot overwrite a newer generation', () {
     final tracker = RoomPresenceTracker();
@@ -133,7 +160,11 @@ void main() {
     final refreshed = t0.add(const Duration(seconds: 4));
     for (final id in [bob, carol]) {
       tracker.observeInbound(id, at: refreshed, attachmentGeneration: 1);
-      tracker.observeOutboundConfirmation(id, at: refreshed, attachmentGeneration: 1);
+      tracker.observeOutboundConfirmation(
+        id,
+        at: refreshed,
+        attachmentGeneration: 1,
+      );
     }
     tracker.advance(t0.add(const Duration(seconds: 6)));
 
