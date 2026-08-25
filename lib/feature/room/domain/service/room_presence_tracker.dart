@@ -85,7 +85,8 @@ final class RoomPresenceTracker {
   void markJoining(RoomMemberId id, {required int attachmentGeneration}) {
     _ensureOpen();
     final current = _participants[id];
-    if (current != null && attachmentGeneration < current.attachmentGeneration) {
+    if (current != null &&
+        attachmentGeneration < current.attachmentGeneration) {
       return;
     }
     _participants[id] = RoomParticipantPresence(
@@ -131,10 +132,12 @@ final class RoomPresenceTracker {
   }) {
     _ensureOpen();
     final current = _participants[id];
-    if (current != null && attachmentGeneration < current.attachmentGeneration) {
+    if (current != null &&
+        attachmentGeneration < current.attachmentGeneration) {
       return;
     }
-    final base = current ??
+    final base =
+        current ??
         RoomParticipantPresence(
           memberId: id,
           state: RoomParticipantState.joining,
@@ -171,10 +174,7 @@ final class RoomPresenceTracker {
     );
   }
 
-  void explicitLeave(
-    RoomMemberId id, {
-    required int attachmentGeneration,
-  }) {
+  void explicitLeave(RoomMemberId id, {required int attachmentGeneration}) {
     _ensureOpen();
     final current = _participants[id];
     if (current == null) return;
