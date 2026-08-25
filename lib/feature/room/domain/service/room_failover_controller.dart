@@ -1,11 +1,7 @@
 import '../entity/room.dart';
 import 'room_transport_planner.dart';
 
-enum RoomFailoverReason {
-  hostLost,
-  manualRetry,
-  transportFailed,
-}
+enum RoomFailoverReason { hostLost, manualRetry, transportFailed }
 
 class RoomFailoverDecision {
   const RoomFailoverDecision({
@@ -34,8 +30,8 @@ class RoomFailoverDecision {
 /// callbacks from the previous attachment can be rejected by the caller.
 class RoomFailoverController {
   RoomFailoverController({int initialEpoch = 0})
-      : assert(initialEpoch >= 0),
-        _epoch = initialEpoch;
+    : assert(initialEpoch >= 0),
+      _epoch = initialEpoch;
 
   int _epoch;
   bool _cancelled = false;
@@ -73,7 +69,8 @@ class RoomFailoverController {
 
   /// Application-level stale callback guard. Native/socket generation guards
   /// still apply underneath this one; both must agree before state is adopted.
-  bool acceptsEpoch(int callbackEpoch) => !_cancelled && callbackEpoch == _epoch;
+  bool acceptsEpoch(int callbackEpoch) =>
+      !_cancelled && callbackEpoch == _epoch;
 
   /// A simultaneous election result may arrive after another result for the
   /// same/newer epoch. Only strictly newer decisions can replace current state.
