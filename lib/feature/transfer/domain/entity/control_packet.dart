@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import 'media_receiver_feedback.dart';
+
 /// Transport-level messages that never reach the session.
 ///
 /// Deliberately a separate hierarchy from [WakiPacket] rather than two more
@@ -16,6 +18,7 @@ sealed class ControlPacket extends Equatable {
     required this.lastTxSeq,
     required this.lastRxSeq,
     required this.audioRxPackets,
+    this.mediaReceiverFeedback,
   });
 
   final String senderId;
@@ -43,6 +46,11 @@ sealed class ControlPacket extends Equatable {
   /// How many audio packets the sender has received from that peer.
   final int audioRxPackets;
 
+  /// Optional Shared Music receive-window counters. Null means this peer is an
+  /// older build or has not reported receiver evidence yet; that state must be
+  /// treated conservatively rather than as a clean receiver.
+  final MediaReceiverFeedback? mediaReceiverFeedback;
+
   @override
   List<Object?> get props => [
     senderId,
@@ -51,6 +59,7 @@ sealed class ControlPacket extends Equatable {
     lastTxSeq,
     lastRxSeq,
     audioRxPackets,
+    mediaReceiverFeedback,
   ];
 }
 
@@ -63,6 +72,7 @@ final class PingPacket extends ControlPacket {
     super.lastTxSeq = 0,
     super.lastRxSeq = 0,
     super.audioRxPackets = 0,
+    super.mediaReceiverFeedback,
   });
 }
 
@@ -75,5 +85,6 @@ final class PongPacket extends ControlPacket {
     super.lastTxSeq = 0,
     super.lastRxSeq = 0,
     super.audioRxPackets = 0,
+    super.mediaReceiverFeedback,
   });
 }
