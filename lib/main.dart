@@ -25,6 +25,8 @@ import 'core/sfx/sfx_service.dart';
 import 'core/theme/theme_service.dart';
 import 'core/utils/logger.dart';
 import 'feature/transfer/api/transfer_api.dart';
+import 'feature/transfer/data/android_network_rebind_coordinator.dart';
+import 'feature/transfer/domain/repository/wifi_transfer_repository.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -95,6 +97,17 @@ void main() async {
   // the active TransferRepository reads the persisted mode synchronously.
   final modeStore = GetIt.instance<TransferModeStore>();
   await modeStore.initialize();
+
+  // Process/network binding is an Android transport concern, not room state.
+  // Keep it aligned with the selected local Wi-Fi generation for the lifetime
+  // of the process; rebindSockets rebuilds both UDP sockets underneath the same
+  // listening stream and therefore never leaves/recreates the logical room.
+  final networkRebindCoordinator = AndroidNetworkRebindCoordinator(
+    GetIt.instance<WifiTransferRepository>().rebindSockets,
+    modeStore,
+  );
+  await networkRebindCoordinator.start();
+
   // Same reasoning: AppRouter.router is memoized on first read (inside
   // MyApp's build below), so this must also complete before runApp().
   final skipSplash = await GetIt.instance<SettingsRepository>().getSkipSplash();
