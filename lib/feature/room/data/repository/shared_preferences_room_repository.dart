@@ -74,7 +74,10 @@ class SharedPreferencesRoomRepository implements RoomRepository {
     await _writeRoom(prefs, saved);
     final ids = _readIndex(prefs).toList();
     if (!ids.contains(id)) ids.add(id);
-    await prefs.setStringList(_indexKey, ids.map((item) => item.value).toList());
+    await prefs.setStringList(
+      _indexKey,
+      ids.map((item) => item.value).toList(),
+    );
     return saved;
   }
 
@@ -135,7 +138,10 @@ class SharedPreferencesRoomRepository implements RoomRepository {
     final prefs = await _prefs();
     await prefs.remove('$_roomPrefix${id.value}');
     final ids = _readIndex(prefs).where((item) => item != id).toList();
-    await prefs.setStringList(_indexKey, ids.map((item) => item.value).toList());
+    await prefs.setStringList(
+      _indexKey,
+      ids.map((item) => item.value).toList(),
+    );
     if (await selectedRoomId() == id) await select(null);
   }
 
@@ -237,13 +243,17 @@ class SharedPreferencesRoomRepository implements RoomRepository {
       id: RoomMemberId(id),
       displayName: name.trim(),
       joinedAt: DateTime.parse(raw['joinedAt'] as String).toUtc(),
-      kind: raw['kind'] == 'guest' ? RoomMemberKind.guest : RoomMemberKind.member,
+      kind: raw['kind'] == 'guest'
+          ? RoomMemberKind.guest
+          : RoomMemberKind.member,
       removedAt: removed is String ? DateTime.parse(removed).toUtc() : null,
     );
   }
 
-  Future<void> _writeRoom(SharedPreferences prefs, SavedRoom saved) =>
-      prefs.setString('$_roomPrefix${saved.room.id.value}', jsonEncode({
+  Future<void> _writeRoom(SharedPreferences prefs, SavedRoom saved) async {
+    await prefs.setString(
+      '$_roomPrefix${saved.room.id.value}',
+      jsonEncode({
         'schemaVersion': saved.room.schemaVersion,
         'id': saved.room.id.value,
         'name': saved.room.name,
@@ -267,11 +277,15 @@ class SharedPreferencesRoomRepository implements RoomRepository {
           'canManageInvites': saved.membership.canManageInvites,
           'active': saved.membership.active,
         },
-      }));
+      }),
+    );
+  }
 
   String _requiredText(String value, String field) {
     final clean = value.trim();
-    if (clean.isEmpty) throw ArgumentError.value(value, field, 'must not be empty');
+    if (clean.isEmpty) {
+      throw ArgumentError.value(value, field, 'must not be empty');
+    }
     return clean;
   }
 }
