@@ -1,3 +1,5 @@
+import 'dart:math';
+
 enum CaptureHealthState {
   starting,
   audible,
@@ -74,16 +76,31 @@ class CaptureHealthClassifier {
         reasonCode: 'capture_user_stopped',
       );
     }
-    if (!evidence.captureStarted || evidence.elapsedMs < firstFrameGraceMs) {
+    if (!evidence.captureStarted) {
       return const CaptureHealthSnapshot(
         state: CaptureHealthState.starting,
         reasonCode: 'capture_starting',
       );
     }
 
+    // Once startup grace has elapsed, frame age outranks the last measured RMS.
+    // A previously audible callback is stale evidence after callbacks stop and
+    // must never keep Shared Music marked healthy forever.
+    final silenceAge = evidence.msSinceLastFrame;
+    if (evidence.elapsedMs >= firstFrameGraceMs &&
+        silenceAge != null &&
+        silenceAge >= stallAfterMs) {
+      return const CaptureHealthSnapshot(
+        state: CaptureHealthState.stalled,
+        reasonCode: 'capture_frame_stalled',
+      );
+    }
+
     final rms = evidence.lastFrameRms;
     final hasAudibleFrame = rms != null && rms >= audibleRmsFloor;
     if (hasAudibleFrame) {
+      // Real audible evidence is stronger than the startup grace. The grace
+      // exists only to avoid falsely classifying early silence as blocked.
       return CaptureHealthSnapshot(
         state: CaptureHealthState.audible,
         reasonCode: 'capture_audible',
@@ -91,11 +108,10 @@ class CaptureHealthClassifier {
       );
     }
 
-    final silenceAge = evidence.msSinceLastFrame;
-    if (silenceAge != null && silenceAge >= stallAfterMs) {
+    if (evidence.elapsedMs < firstFrameGraceMs) {
       return const CaptureHealthSnapshot(
-        state: CaptureHealthState.stalled,
-        reasonCode: 'capture_frame_stalled',
+        state: CaptureHealthState.starting,
+        reasonCode: 'capture_starting',
       );
     }
 
@@ -110,5 +126,103 @@ class CaptureHealthClassifier {
       state: CaptureHealthState.silentIdle,
       reasonCode: 'capture_silent_idle',
     );
+  }
+}
+
+/// Stateful evidence collector used by the real playback-capture stream.
+///
+/// It deliberately owns no timer/platform API. Callers provide clock and media
+/// session evidence, which keeps behavior deterministic and unit-testable.
+class CaptureHealthMonitor {
+  CaptureHealthMonitor({this.classifier = const CaptureHealthClassifier()});
+
+  final CaptureHealthClassifier classifier;
+
+  DateTime? _startedAt;
+  DateTime? _lastFrameAt;
+  double? _lastFrameRms;
+  int? _firstAudibleFrameAtMs;
+  bool _supported = true;
+  bool _stopped = true;
+
+  void start(DateTime now, {required bool supported}) {
+    _startedAt = now;
+    _lastFrameAt = null;
+    _lastFrameRms = null;
+    _firstAudibleFrameAtMs = null;
+    _supported = supported;
+    _stopped = false;
+  }
+
+  void stop() {
+    _stopped = true;
+  }
+
+  CaptureHealthSnapshot observeFrame(
+    List<double> samples,
+    DateTime now, {
+    required bool mediaPlayingKnown,
+    required bool externalMediaPlaying,
+  }) {
+    _lastFrameAt = now;
+    _lastFrameRms = _rms(samples);
+    final startedAt = _startedAt;
+    if (_firstAudibleFrameAtMs == null &&
+        startedAt != null &&
+        _lastFrameRms! >= classifier.audibleRmsFloor) {
+      _firstAudibleFrameAtMs = max(0, now.difference(startedAt).inMilliseconds);
+    }
+    return snapshot(
+      now,
+      mediaPlayingKnown: mediaPlayingKnown,
+      externalMediaPlaying: externalMediaPlaying,
+    );
+  }
+
+  CaptureHealthSnapshot snapshot(
+    DateTime now, {
+    required bool mediaPlayingKnown,
+    required bool externalMediaPlaying,
+  }) {
+    final startedAt = _startedAt;
+    final elapsedMs = startedAt == null
+        ? 0
+        : max(0, now.difference(startedAt).inMilliseconds);
+    final lastFrameAt = _lastFrameAt;
+    final sinceFrame = lastFrameAt == null
+        ? null
+        : max(0, now.difference(lastFrameAt).inMilliseconds);
+
+    return classifier.classify(
+      CaptureHealthEvidence(
+        captureStarted: startedAt != null && !_stopped,
+        elapsedMs: elapsedMs,
+        msSinceLastFrame: sinceFrame,
+        lastFrameRms: _lastFrameRms,
+        externalMediaPlaying: externalMediaPlaying,
+        mediaPlayingKnown: mediaPlayingKnown,
+        explicitlyStopped: _stopped,
+        supported: _supported,
+      ),
+      firstAudibleFrameAtMs: _firstAudibleFrameAtMs,
+    );
+  }
+
+  void reset() {
+    _startedAt = null;
+    _lastFrameAt = null;
+    _lastFrameRms = null;
+    _firstAudibleFrameAtMs = null;
+    _supported = true;
+    _stopped = true;
+  }
+
+  static double _rms(List<double> samples) {
+    if (samples.isEmpty) return 0;
+    var sumSquares = 0.0;
+    for (final sample in samples) {
+      sumSquares += sample * sample;
+    }
+    return sqrt(sumSquares / samples.length);
   }
 }
