@@ -45,82 +45,91 @@ void main() {
     await port.dispose();
   });
 
-  test('VPN selection is ignored and cannot rebuild local UDP sockets', () async {
-    final modes = _FakeModeStore(TransferMode.wifi);
-    final port = _FakeBindingPort(wifi(1));
-    var rebinds = 0;
-    final coordinator = AndroidNetworkRebindCoordinator(
-      () => rebinds++,
-      modes,
-      port: port,
-    );
+  test(
+    'VPN selection is ignored and cannot rebuild local UDP sockets',
+    () async {
+      final modes = _FakeModeStore(TransferMode.wifi);
+      final port = _FakeBindingPort(wifi(1));
+      var rebinds = 0;
+      final coordinator = AndroidNetworkRebindCoordinator(
+        () => rebinds++,
+        modes,
+        port: port,
+      );
 
-    await coordinator.start();
-    port.emit(wifi(2, vpn: true));
-    await pumpEventQueue();
+      await coordinator.start();
+      port.emit(wifi(2, vpn: true));
+      await pumpEventQueue();
 
-    expect(port.boundGenerations, [1]);
-    expect(rebinds, 0);
+      expect(port.boundGenerations, [1]);
+      expect(rebinds, 0);
 
-    await coordinator.dispose();
-    await modes.dispose();
-    await port.dispose();
-  });
+      await coordinator.dispose();
+      await modes.dispose();
+      await port.dispose();
+    },
+  );
 
-  test('leaving local Wi-Fi mode clears binding and ignores later callbacks', () async {
-    final modes = _FakeModeStore(TransferMode.hotspot);
-    final port = _FakeBindingPort(wifi(4));
-    var rebinds = 0;
-    final coordinator = AndroidNetworkRebindCoordinator(
-      () => rebinds++,
-      modes,
-      port: port,
-    );
+  test(
+    'leaving local Wi-Fi mode clears binding and ignores later callbacks',
+    () async {
+      final modes = _FakeModeStore(TransferMode.hotspot);
+      final port = _FakeBindingPort(wifi(4));
+      var rebinds = 0;
+      final coordinator = AndroidNetworkRebindCoordinator(
+        () => rebinds++,
+        modes,
+        port: port,
+      );
 
-    await coordinator.start();
-    await modes.setMode(TransferMode.bluetooth);
-    await pumpEventQueue();
-    final clearsAfterModeChange = port.clearCount;
+      await coordinator.start();
+      await modes.setMode(TransferMode.bluetooth);
+      await pumpEventQueue();
+      final clearsAfterModeChange = port.clearCount;
 
-    port.emit(wifi(5));
-    await pumpEventQueue();
+      port.emit(wifi(5));
+      await pumpEventQueue();
 
-    expect(clearsAfterModeChange, 1);
-    expect(rebinds, 0);
+      expect(clearsAfterModeChange, 1);
+      expect(rebinds, 0);
 
-    await coordinator.dispose();
-    expect(port.clearCount, 2);
-    await modes.dispose();
-    await port.dispose();
-  });
+      await coordinator.dispose();
+      expect(port.clearCount, 2);
+      await modes.dispose();
+      await port.dispose();
+    },
+  );
 
-  test('stale asynchronous bind cannot overwrite a newer transport mode', () async {
-    final modes = _FakeModeStore(TransferMode.wifi);
-    final port = _FakeBindingPort(wifi(1));
-    var rebinds = 0;
-    final coordinator = AndroidNetworkRebindCoordinator(
-      () => rebinds++,
-      modes,
-      port: port,
-    );
+  test(
+    'stale asynchronous bind cannot overwrite a newer transport mode',
+    () async {
+      final modes = _FakeModeStore(TransferMode.wifi);
+      final port = _FakeBindingPort(wifi(1));
+      var rebinds = 0;
+      final coordinator = AndroidNetworkRebindCoordinator(
+        () => rebinds++,
+        modes,
+        port: port,
+      );
 
-    await coordinator.start();
-    port.holdBinds = true;
-    port.emit(wifi(2));
-    await pumpEventQueue();
-    await modes.setMode(TransferMode.guest);
-    await pumpEventQueue();
+      await coordinator.start();
+      port.holdBinds = true;
+      port.emit(wifi(2));
+      await pumpEventQueue();
+      await modes.setMode(TransferMode.guest);
+      await pumpEventQueue();
 
-    port.releaseHeldBind(true);
-    await pumpEventQueue();
+      port.releaseHeldBind(true);
+      await pumpEventQueue();
 
-    expect(rebinds, 0);
-    expect(port.clearCount, 1);
+      expect(rebinds, 0);
+      expect(port.clearCount, 1);
 
-    await coordinator.dispose();
-    await modes.dispose();
-    await port.dispose();
-  });
+      await coordinator.dispose();
+      await modes.dispose();
+      await port.dispose();
+    },
+  );
 }
 
 final class _FakeBindingPort implements AndroidNetworkBindingPort {
