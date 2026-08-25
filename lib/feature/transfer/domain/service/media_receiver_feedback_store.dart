@@ -7,9 +7,8 @@ import '../entity/media_receiver_feedback.dart';
 /// the sender adaptation policy remains conservative instead of accidentally
 /// treating an old clean sample as current health.
 class MediaReceiverFeedbackStore {
-  MediaReceiverFeedbackStore({
-    this.staleAfter = const Duration(seconds: 8),
-  }) : assert(!staleAfter.isNegative);
+  MediaReceiverFeedbackStore({this.staleAfter = const Duration(seconds: 8)})
+    : assert(!staleAfter.isNegative);
 
   final Duration staleAfter;
   final Map<String, _PeerFeedback> _byPeer = {};
@@ -17,11 +16,7 @@ class MediaReceiverFeedbackStore {
   /// Records one decoded feedback window for [peerId]. Empty ids are ignored;
   /// transport addresses/identifiers remain session-local and are never
   /// persisted by this store.
-  void observe(
-    String peerId,
-    MediaReceiverFeedback feedback,
-    DateTime now,
-  ) {
+  void observe(String peerId, MediaReceiverFeedback feedback, DateTime now) {
     if (peerId.isEmpty) return;
     _byPeer[peerId] = _PeerFeedback(feedback: feedback, observedAt: now);
   }
@@ -36,12 +31,14 @@ class MediaReceiverFeedbackStore {
     Iterable<String> peerIds,
     DateTime now,
   ) {
-    return peerIds.map((peerId) {
-      final entry = _byPeer[peerId];
-      if (entry == null) return null;
-      if (now.difference(entry.observedAt) > staleAfter) return null;
-      return entry.feedback;
-    }).toList(growable: false);
+    return peerIds
+        .map((peerId) {
+          final entry = _byPeer[peerId];
+          if (entry == null) return null;
+          if (now.difference(entry.observedAt) > staleAfter) return null;
+          return entry.feedback;
+        })
+        .toList(growable: false);
   }
 
   void removePeer(String peerId) {
