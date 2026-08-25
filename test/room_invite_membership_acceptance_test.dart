@@ -58,31 +58,34 @@ void main() {
     expect(persisted?.room.members, hasLength(2));
   });
 
-  test('reusing same verified capability is idempotent, not duplicate', () async {
-    final value = await fixture();
-    final ledger = RoomInvitationLedger()..registerIssued(value.invite);
-    final verified = ledger.verifyAndRedeem(value.invite, value.now)!;
+  test(
+    'reusing same verified capability is idempotent, not duplicate',
+    () async {
+      final value = await fixture();
+      final ledger = RoomInvitationLedger()..registerIssued(value.invite);
+      final verified = ledger.verifyAndRedeem(value.invite, value.now)!;
 
-    await repository.acceptVerifiedInvite(
-      verified,
-      displayName: 'Rider',
-      acceptedAt: value.now,
-    );
-    final second = await repository.acceptVerifiedInvite(
-      verified,
-      displayName: 'Rider renamed',
-      acceptedAt: value.now.add(const Duration(minutes: 2)),
-    );
+      await repository.acceptVerifiedInvite(
+        verified,
+        displayName: 'Rider',
+        acceptedAt: value.now,
+      );
+      final second = await repository.acceptVerifiedInvite(
+        verified,
+        displayName: 'Rider renamed',
+        acceptedAt: value.now.add(const Duration(minutes: 2)),
+      );
 
-    expect(second.room.members, hasLength(2));
-    expect(
-      second.room.members.where(
-        (member) =>
-            member.id.value == value.invite.invitationId.substring(0, 24),
-      ),
-      hasLength(1),
-    );
-  });
+      expect(second.room.members, hasLength(2));
+      expect(
+        second.room.members.where(
+          (member) =>
+              member.id.value == value.invite.invitationId.substring(0, 24),
+        ),
+        hasLength(1),
+      );
+    },
+  );
 
   test('forged capability fails closed before repository mutation', () async {
     final value = await fixture();
@@ -106,18 +109,23 @@ void main() {
     );
   });
 
-  test('revoked and expired invites cannot obtain verified capability', () async {
-    final value = await fixture();
-    final revokedLedger = RoomInvitationLedger()..registerIssued(value.invite);
-    revokedLedger.revoke(value.invite);
-    expect(revokedLedger.verifyAndRedeem(value.invite, value.now), isNull);
+  test(
+    'revoked and expired invites cannot obtain verified capability',
+    () async {
+      final value = await fixture();
+      final revokedLedger = RoomInvitationLedger()
+        ..registerIssued(value.invite);
+      revokedLedger.revoke(value.invite);
+      expect(revokedLedger.verifyAndRedeem(value.invite, value.now), isNull);
 
-    final expiredLedger = RoomInvitationLedger()..registerIssued(value.invite);
-    expect(
-      expiredLedger.verifyAndRedeem(value.invite, value.invite.expiresAt),
-      isNull,
-    );
-  });
+      final expiredLedger = RoomInvitationLedger()
+        ..registerIssued(value.invite);
+      expect(
+        expiredLedger.verifyAndRedeem(value.invite, value.invite.expiresAt),
+        isNull,
+      );
+    },
+  );
 
   test('single-use guest is replay protected and stored as guest', () async {
     final value = await fixture(kind: RoomInvitationKind.singleRideGuest);
