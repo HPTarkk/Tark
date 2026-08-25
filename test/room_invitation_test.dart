@@ -40,22 +40,34 @@ void main() {
     final guest = invite(kind: RoomInvitationKind.singleRideGuest);
     final ledger = RoomInvitationLedger();
 
-    expect(ledger.redeem(guest, now.add(const Duration(minutes: 5))), RoomInvitationDecision.accepted);
-    expect(ledger.redeem(guest, now.add(const Duration(minutes: 6))), RoomInvitationDecision.replayed);
+    expect(
+      ledger.redeem(guest, now.add(const Duration(minutes: 5))),
+      RoomInvitationDecision.accepted,
+    );
+    expect(
+      ledger.redeem(guest, now.add(const Duration(minutes: 6))),
+      RoomInvitationDecision.replayed,
+    );
   });
 
   test('revocation rejects a reusable membership invite', () {
     final membership = invite();
     final ledger = RoomInvitationLedger()..revoke(membership);
 
-    expect(ledger.evaluate(membership, now.add(const Duration(minutes: 1))), RoomInvitationDecision.revoked);
+    expect(
+      ledger.evaluate(membership, now.add(const Duration(minutes: 1))),
+      RoomInvitationDecision.revoked,
+    );
   });
 
   test('expired invite fails closed', () {
     final expiring = invite(ttl: const Duration(minutes: 10));
     final ledger = RoomInvitationLedger();
 
-    expect(ledger.evaluate(expiring, now.add(const Duration(minutes: 10))), RoomInvitationDecision.expired);
+    expect(
+      ledger.evaluate(expiring, now.add(const Duration(minutes: 10))),
+      RoomInvitationDecision.expired,
+    );
   });
 
   test('transport bootstrap rotates independently from room identity', () {
@@ -73,31 +85,49 @@ void main() {
     );
 
     expect(first.roomId, second.roomId);
-    expect(first.transportBootstrap!.payload, isNot(second.transportBootstrap!.payload));
+    expect(
+      first.transportBootstrap!.payload,
+      isNot(second.transportBootstrap!.payload),
+    );
   });
 
   test('unsupported version and malformed capability fail closed', () {
     final original = invite();
-    final decoded = jsonDecode(
-      utf8.decode(base64Url.decode(base64Url.normalize(original.encode()))),
-    ) as Map<String, dynamic>;
+    final decoded =
+        jsonDecode(
+              utf8.decode(
+                base64Url.decode(base64Url.normalize(original.encode())),
+              ),
+            )
+            as Map<String, dynamic>;
     decoded['v'] = 99;
-    final bad = base64Url.encode(utf8.encode(jsonEncode(decoded))).replaceAll('=', '');
+    final bad = base64Url
+        .encode(utf8.encode(jsonEncode(decoded)))
+        .replaceAll('=', '');
 
     expect(() => RoomInvitation.decode(bad), throwsFormatException);
     expect(() => RoomInvitation.decode('not-an-invite'), throwsFormatException);
   });
 
-  test('tampered display code fails parsing and cannot authorize membership', () {
-    final original = invite();
-    final decoded = jsonDecode(
-      utf8.decode(base64Url.decode(base64Url.normalize(original.encode()))),
-    ) as Map<String, dynamic>;
-    decoded['displayCode'] = '000000';
-    final bad = base64Url.encode(utf8.encode(jsonEncode(decoded))).replaceAll('=', '');
+  test(
+    'tampered display code fails parsing and cannot authorize membership',
+    () {
+      final original = invite();
+      final decoded =
+          jsonDecode(
+                utf8.decode(
+                  base64Url.decode(base64Url.normalize(original.encode())),
+                ),
+              )
+              as Map<String, dynamic>;
+      decoded['displayCode'] = '000000';
+      final bad = base64Url
+          .encode(utf8.encode(jsonEncode(decoded)))
+          .replaceAll('=', '');
 
-    expect(() => RoomInvitation.decode(bad), throwsFormatException);
-  });
+      expect(() => RoomInvitation.decode(bad), throwsFormatException);
+    },
+  );
 
   test('ledger state survives persistence without storing bearer secrets', () {
     final guest = invite(kind: RoomInvitationKind.singleRideGuest);
@@ -111,7 +141,13 @@ void main() {
     expect(state, isNot(contains(membership.secret)));
 
     final restored = RoomInvitationLedger.decodeState(state);
-    expect(restored.evaluate(guest, now.add(const Duration(minutes: 2))), RoomInvitationDecision.replayed);
-    expect(restored.evaluate(membership, now.add(const Duration(minutes: 2))), RoomInvitationDecision.revoked);
+    expect(
+      restored.evaluate(guest, now.add(const Duration(minutes: 2))),
+      RoomInvitationDecision.replayed,
+    );
+    expect(
+      restored.evaluate(membership, now.add(const Duration(minutes: 2))),
+      RoomInvitationDecision.revoked,
+    );
   });
 }
