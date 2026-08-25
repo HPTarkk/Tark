@@ -4,6 +4,8 @@ import 'package:injectable/injectable.dart';
 
 import '../../domain/entity/room.dart';
 import '../../domain/repository/room_repository.dart';
+import '../../domain/service/room_session_factory.dart';
+import '../../domain/service/room_session_runtime.dart';
 
 final class RoomListState extends Equatable {
   const RoomListState({
@@ -106,6 +108,26 @@ class RoomListCubit extends Cubit<RoomListState> {
     if (!exists) return;
     await _repository.select(roomId);
     emit(state.copyWith(selectedRoomId: roomId, clearError: true));
+  }
+
+  /// Explicitly opens the currently selected durable Room as the logical
+  /// source-of-truth for a live session. This creates no network attachment;
+  /// transport orchestration attaches to the returned runtime afterwards.
+  ///
+  /// The identity comes from canonical [SavedRoom] state, never ChannelId or a
+  /// current transport address/role. Invalid, archived or inactive membership
+  /// fails closed through [RoomSessionFactory].
+  RoomSessionRuntime? openSelectedSession({
+    required String sessionId,
+    bool initiallyMuted = false,
+  }) {
+    final selected = state.selectedRoom;
+    if (selected == null) return null;
+    return RoomSessionFactory.open(
+      selected,
+      sessionId: sessionId,
+      initiallyMuted: initiallyMuted,
+    );
   }
 
   Future<void> rename(RoomId roomId, String name) async {
