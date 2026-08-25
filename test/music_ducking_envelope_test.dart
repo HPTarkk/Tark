@@ -171,10 +171,7 @@ void main() {
       for (var i = 0; i < 5; i++) {
         env.advance(voiceActive: true, frameDurationMs: 20);
       }
-      final midRelease = env.advance(
-        voiceActive: false,
-        frameDurationMs: 20,
-      );
+      final midRelease = env.advance(voiceActive: false, frameDurationMs: 20);
       final retrigger = env.advance(voiceActive: true, frameDurationMs: 20);
       expect(retrigger, lessThan(midRelease));
     });
