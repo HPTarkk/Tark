@@ -188,8 +188,8 @@ class MediaAdaptationController {
       switch (current) {
         MediaAdaptationTier.high => MediaAdaptationTier.balanced,
         MediaAdaptationTier.balanced => MediaAdaptationTier.conservative,
-        MediaAdaptationTier.conservative || MediaAdaptationTier.unconfirmed =>
-          MediaAdaptationTier.conservative,
+        MediaAdaptationTier.conservative ||
+        MediaAdaptationTier.unconfirmed => MediaAdaptationTier.conservative,
         MediaAdaptationTier.suspended => MediaAdaptationTier.suspended,
       };
 
