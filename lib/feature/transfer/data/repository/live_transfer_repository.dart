@@ -1,0 +1,223 @@
+import 'dart:async';
+
+import 'package:dartz/dartz.dart';
+
+import '../../../../core/audio/audio_format_profile.dart';
+import '../../../../core/error/failure.dart';
+import '../../domain/entity/audio_profile.dart';
+import '../../domain/entity/connection_health.dart';
+import '../../domain/entity/session_role.dart';
+import '../../domain/entity/transfer_mode.dart';
+import '../../domain/entity/transport_stats.dart';
+import '../../domain/entity/waki_packet.dart';
+import '../../domain/repository/transfer_repository.dart';
+import '../../domain/service/transfer_mode_store.dart';
+
+/// Session-scoped transport attachment that follows the effective transfer mode.
+///
+/// Historically `TransferRepository` was selected once when `WalkieTalkieCubit`
+/// was constructed. Updating [TransferModeStore.mode] during a live Room could
+/// therefore leave the Cubit sending on the old repository even though Room
+/// failover had selected a replacement transport. This adapter keeps the Cubit
+/// instance stable while replacing only its temporary transport attachment.
+///
+/// Wi-Fi and hotspot deliberately resolve to the same repository: hotspot is a
+/// setup role for the same live Wi-Fi transport, so switching between those two
+/// modes must not tear down a healthy socket set. A real repository change
+/// stops the previous connection and rebinds any already-consumed packet and
+/// health streams to the replacement. Generation guards make delayed stream
+/// cancellation from an older switch unable to attach a stale repository.
+///
+/// The concrete repositories are application singletons and are not owned by
+/// this wrapper. [stopConnection] is the live-session ownership boundary used by
+/// `WalkieTalkieCubit.close`; it stops the active attachment and releases this
+/// wrapper's mode/packet/health subscriptions without disposing those shared
+/// repositories.
+final class LiveTransferRepository implements TransferRepository {
+  LiveTransferRepository({
+    required TransferModeStore modeStore,
+    required TransferRepository wifi,
+    required TransferRepository bluetooth,
+    required TransferRepository guest,
+  }) : _modeStore = modeStore,
+       _wifi = wifi,
+       _bluetooth = bluetooth,
+       _guest = guest,
+       _active = _select(modeStore.mode, wifi, bluetooth, guest) {
+    _modeSubscription = _modeStore.modeChanges.listen(_onModeChanged);
+  }
+
+  final TransferModeStore _modeStore;
+  final TransferRepository _wifi;
+  final TransferRepository _bluetooth;
+  final TransferRepository _guest;
+
+  late TransferRepository _active;
+  late final StreamSubscription<TransferMode> _modeSubscription;
+
+  final _packetController = StreamController<WakiPacket>.broadcast();
+  final _healthController = StreamController<ConnectionHealth>.broadcast();
+  StreamSubscription<WakiPacket>? _packetSubscription;
+  StreamSubscription<ConnectionHealth>? _healthSubscription;
+  bool _packetsRequested = false;
+  bool _healthRequested = false;
+  bool _disposed = false;
+  int _attachmentGeneration = 0;
+
+  static TransferRepository _select(
+    TransferMode mode,
+    TransferRepository wifi,
+    TransferRepository bluetooth,
+    TransferRepository guest,
+  ) => switch (mode) {
+    TransferMode.bluetooth => bluetooth,
+    TransferMode.guest => guest,
+    TransferMode.hotspot || TransferMode.wifi => wifi,
+  };
+
+  TransferRepository get _current =>
+      _select(_modeStore.mode, _wifi, _bluetooth, _guest);
+
+  void _onModeChanged(TransferMode mode) {
+    if (_disposed) return;
+    final next = _select(mode, _wifi, _bluetooth, _guest);
+    if (identical(next, _active)) return;
+
+    final previous = _active;
+    _active = next;
+    final generation = ++_attachmentGeneration;
+
+    // The old attachment must stop before its replacement owns the live
+    // session. This does not dispose the singleton repository, so a later
+    // explicit mode selection can use it again.
+    previous.stopConnection();
+
+    if (_packetsRequested) {
+      unawaited(_rebindPackets(next, generation));
+    }
+    if (_healthRequested) {
+      unawaited(_rebindHealth(next, generation));
+    }
+  }
+
+  Future<void> _rebindPackets(
+    TransferRepository repository,
+    int generation,
+  ) async {
+    final previous = _packetSubscription;
+    _packetSubscription = null;
+    await previous?.cancel();
+    if (_disposed || generation != _attachmentGeneration) return;
+    _packetSubscription = repository.startListening().listen(
+      _packetController.add,
+      onError: _packetController.addError,
+    );
+  }
+
+  Future<void> _rebindHealth(
+    TransferRepository repository,
+    int generation,
+  ) async {
+    final previous = _healthSubscription;
+    _healthSubscription = null;
+    await previous?.cancel();
+    if (_disposed || generation != _attachmentGeneration) return;
+    _healthSubscription = repository.connect().listen(
+      _healthController.add,
+      onError: _healthController.addError,
+    );
+  }
+
+  @override
+  Stream<WakiPacket> startListening() {
+    if (_disposed) return const Stream<WakiPacket>.empty();
+    _packetsRequested = true;
+    _packetSubscription ??= _current.startListening().listen(
+      _packetController.add,
+      onError: _packetController.addError,
+    );
+    _active = _current;
+    return _packetController.stream;
+  }
+
+  @override
+  Stream<ConnectionHealth> connect() {
+    if (_disposed) return const Stream<ConnectionHealth>.empty();
+    _healthRequested = true;
+    _healthSubscription ??= _current.connect().listen(
+      _healthController.add,
+      onError: _healthController.addError,
+    );
+    _active = _current;
+    return _healthController.stream;
+  }
+
+  @override
+  AudioFormatProfile get negotiatedFormat => _current.negotiatedFormat;
+
+  @override
+  AudioFormatProfile? get negotiatedMediaFormat =>
+      _current.negotiatedMediaFormat;
+
+  @override
+  SessionRole get sessionRole => _current.sessionRole;
+
+  @override
+  TransportStats get stats => _current.stats;
+
+  @override
+  Future<Either<Failure, void>> sendAudio(
+    List<double> samples,
+    String senderName,
+  ) => _current.sendAudio(samples, senderName);
+
+  @override
+  Future<Either<Failure, void>> sendMedia(
+    List<double> samples,
+    String senderName,
+  ) => _current.sendMedia(samples, senderName);
+
+  @override
+  Future<Either<Failure, void>> sendPresence(
+    String senderName,
+    bool isTalking, {
+    bool isLeaving = false,
+  }) => _current.sendPresence(senderName, isTalking, isLeaving: isLeaving);
+
+  @override
+  void setAudioProfile(AudioProfile profile) =>
+      _current.setAudioProfile(profile);
+
+  @override
+  void setAutoReconnectEnabled(bool enabled) =>
+      _current.setAutoReconnectEnabled(enabled);
+
+  @override
+  void retryNow() => _current.retryNow();
+
+  @override
+  void resetCodecState() => _current.resetCodecState();
+
+  @override
+  void repairSendPath() => _current.repairSendPath();
+
+  @override
+  void stopConnection() {
+    if (_disposed) return;
+    _active.stopConnection();
+    _disposed = true;
+    ++_attachmentGeneration;
+    unawaited(_disposeAsync());
+  }
+
+  @override
+  void dispose() => stopConnection();
+
+  Future<void> _disposeAsync() async {
+    await _modeSubscription.cancel();
+    await _packetSubscription?.cancel();
+    await _healthSubscription?.cancel();
+    await _packetController.close();
+    await _healthController.close();
+  }
+}
