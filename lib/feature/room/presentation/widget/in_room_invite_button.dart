@@ -58,7 +58,9 @@ class _InRoomInviteButtonState extends State<InRoomInviteButton> {
     final copy = _InviteCopy.of(context);
     try {
       final selectedId = await _repository.selectedRoomId();
-      final saved = selectedId == null ? null : await _repository.get(selectedId);
+      final saved = selectedId == null
+          ? null
+          : await _repository.get(selectedId);
       if (!mounted) return;
       if (!_canInvite(saved)) {
         _showMessage(copy.unavailable);
@@ -74,11 +76,8 @@ class _InRoomInviteButtonState extends State<InRoomInviteButton> {
       if (!mounted) return;
       await showDialog<void>(
         context: context,
-        builder: (dialogContext) => _RoomInviteDialog(
-          room: saved,
-          invite: invite,
-          copy: copy,
-        ),
+        builder: (dialogContext) =>
+            _RoomInviteDialog(room: saved, invite: invite, copy: copy),
       );
     } catch (_) {
       if (mounted) _showMessage(copy.error);
@@ -211,5 +210,6 @@ final class _InviteCopy {
   String get error => fa
       ? 'ساخت دعوت ممکن نشد. دوباره تلاش کنید.'
       : 'Could not create the invite. Try again.';
-  String get qrSemantics => fa ? 'کیوآر دعوت امن اتاق' : 'Secure Room invite QR';
+  String get qrSemantics =>
+      fa ? 'کیوآر دعوت امن اتاق' : 'Secure Room invite QR';
 }
