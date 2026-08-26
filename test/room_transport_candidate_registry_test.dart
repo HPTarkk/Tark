@@ -17,31 +17,13 @@ void main() {
 
   test('snapshot is stable and includes only the requested generation', () {
     final registry = RoomTransportCandidateRegistry();
-    registry.observe(
-      candidate('b' * 24),
-      at: now,
-      attachmentGeneration: 2,
-    );
-    registry.observe(
-      candidate('a' * 24),
-      at: now,
-      attachmentGeneration: 2,
-    );
-    registry.observe(
-      candidate('c' * 24),
-      at: now,
-      attachmentGeneration: 1,
-    );
+    registry.observe(candidate('b' * 24), at: now, attachmentGeneration: 2);
+    registry.observe(candidate('a' * 24), at: now, attachmentGeneration: 2);
+    registry.observe(candidate('c' * 24), at: now, attachmentGeneration: 1);
 
-    final snapshot = registry.snapshot(
-      now: now,
-      attachmentGeneration: 2,
-    );
+    final snapshot = registry.snapshot(now: now, attachmentGeneration: 2);
 
-    expect(snapshot.map((item) => item.memberId.value), [
-      'a' * 24,
-      'b' * 24,
-    ]);
+    expect(snapshot.map((item) => item.memberId.value), ['a' * 24, 'b' * 24]);
   });
 
   test('older attachment observation cannot overwrite newer evidence', () {
@@ -91,16 +73,8 @@ void main() {
 
   test('replacement drops previous attachment capability evidence', () {
     final registry = RoomTransportCandidateRegistry();
-    registry.observe(
-      candidate('a' * 24),
-      at: now,
-      attachmentGeneration: 1,
-    );
-    registry.observe(
-      candidate('b' * 24),
-      at: now,
-      attachmentGeneration: 2,
-    );
+    registry.observe(candidate('a' * 24), at: now, attachmentGeneration: 1);
+    registry.observe(candidate('b' * 24), at: now, attachmentGeneration: 2);
 
     registry.replaceAttachment(2);
 
@@ -117,11 +91,7 @@ void main() {
 
   test('registry remains bounded and evicts the oldest observation', () {
     final registry = RoomTransportCandidateRegistry(maxCandidates: 2);
-    registry.observe(
-      candidate('a' * 24),
-      at: now,
-      attachmentGeneration: 1,
-    );
+    registry.observe(candidate('a' * 24), at: now, attachmentGeneration: 1);
     registry.observe(
       candidate('b' * 24),
       at: now.add(const Duration(seconds: 1)),
@@ -139,10 +109,7 @@ void main() {
     );
 
     expect(registry.length, 2);
-    expect(snapshot.map((item) => item.memberId.value), [
-      'b' * 24,
-      'c' * 24,
-    ]);
+    expect(snapshot.map((item) => item.memberId.value), ['b' * 24, 'c' * 24]);
   });
 
   test('removed peers and reset cannot retain candidate evidence', () {
@@ -150,21 +117,11 @@ void main() {
     final first = RoomMemberId('a' * 24);
     registry.observe(candidate(first.value), at: now, attachmentGeneration: 1);
     registry.remove(first);
-    expect(
-      registry.snapshot(now: now, attachmentGeneration: 1),
-      isEmpty,
-    );
+    expect(registry.snapshot(now: now, attachmentGeneration: 1), isEmpty);
 
-    registry.observe(
-      candidate('b' * 24),
-      at: now,
-      attachmentGeneration: 1,
-    );
+    registry.observe(candidate('b' * 24), at: now, attachmentGeneration: 1);
     registry.reset();
-    expect(
-      registry.snapshot(now: now, attachmentGeneration: 1),
-      isEmpty,
-    );
+    expect(registry.snapshot(now: now, attachmentGeneration: 1), isEmpty);
   });
 
   test('disposed registry rejects later mutations and reads', () {
