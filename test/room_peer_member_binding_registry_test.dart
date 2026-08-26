@@ -61,9 +61,7 @@ void main() {
   });
 
   test('one member cannot retain two peer bindings in same/new generation', () {
-    final registry = RoomPeerMemberBindingRegistry(
-      members: [member('peer-a')],
-    );
+    final registry = RoomPeerMemberBindingRegistry(members: [member('peer-a')]);
 
     registry.bind(
       peerKey: 'old-route',
@@ -88,9 +86,7 @@ void main() {
   });
 
   test('attachment replacement invalidates stale transport identity', () {
-    final registry = RoomPeerMemberBindingRegistry(
-      members: [member('peer-a')],
-    );
+    final registry = RoomPeerMemberBindingRegistry(members: [member('peer-a')]);
     registry.bind(
       peerKey: 'route-a',
       memberId: member('peer-a'),
@@ -144,9 +140,7 @@ void main() {
   });
 
   test('dispose clears state and rejects later use', () {
-    final registry = RoomPeerMemberBindingRegistry(
-      members: [member('peer-a')],
-    );
+    final registry = RoomPeerMemberBindingRegistry(members: [member('peer-a')]);
     registry.bind(
       peerKey: 'route-a',
       memberId: member('peer-a'),
