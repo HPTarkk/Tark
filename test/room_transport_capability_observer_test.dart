@@ -16,9 +16,7 @@ void main() {
   );
 
   test('unknown transport peer cannot inject planner capability', () {
-    final bindings = RoomPeerMemberBindingRegistry(
-      members: [member('peer-a')],
-    );
+    final bindings = RoomPeerMemberBindingRegistry(members: [member('peer-a')]);
     final candidates = RoomTransportCandidateRegistry();
     final subject = observer(bindings: bindings, candidates: candidates);
     final now = DateTime.utc(2026, 8, 26, 12);
@@ -35,16 +33,11 @@ void main() {
       ),
       isFalse,
     );
-    expect(
-      candidates.snapshot(now: now, attachmentGeneration: 3),
-      isEmpty,
-    );
+    expect(candidates.snapshot(now: now, attachmentGeneration: 3), isEmpty);
   });
 
   test('bound peer capability is attributed to durable member', () {
-    final bindings = RoomPeerMemberBindingRegistry(
-      members: [member('peer-a')],
-    );
+    final bindings = RoomPeerMemberBindingRegistry(members: [member('peer-a')]);
     final candidates = RoomTransportCandidateRegistry();
     final subject = observer(bindings: bindings, candidates: candidates);
     final now = DateTime.utc(2026, 8, 26, 12);
@@ -68,10 +61,7 @@ void main() {
       isTrue,
     );
 
-    final snapshot = candidates.snapshot(
-      now: now,
-      attachmentGeneration: 4,
-    );
+    final snapshot = candidates.snapshot(now: now, attachmentGeneration: 4);
     expect(snapshot, hasLength(1));
     expect(snapshot.single.memberId, member('peer-a'));
     expect(snapshot.single.canHostHotspot, isTrue);
@@ -82,9 +72,7 @@ void main() {
   });
 
   test('stale generation cannot reuse a newer peer binding', () {
-    final bindings = RoomPeerMemberBindingRegistry(
-      members: [member('peer-a')],
-    );
+    final bindings = RoomPeerMemberBindingRegistry(members: [member('peer-a')]);
     final candidates = RoomTransportCandidateRegistry();
     final subject = observer(bindings: bindings, candidates: candidates);
     final now = DateTime.utc(2026, 8, 26, 12);
@@ -106,41 +94,23 @@ void main() {
       ),
       isFalse,
     );
-    expect(
-      candidates.snapshot(now: now, attachmentGeneration: 7),
-      isEmpty,
-    );
+    expect(candidates.snapshot(now: now, attachmentGeneration: 7), isEmpty);
   });
 
-  test('attachment replacement clears old identity and capability evidence', () {
-    final bindings = RoomPeerMemberBindingRegistry(
-      members: [member('peer-a')],
-    );
-    final candidates = RoomTransportCandidateRegistry();
-    final subject = observer(bindings: bindings, candidates: candidates);
-    final now = DateTime.utc(2026, 8, 26, 12);
-    bindings.bind(
-      peerKey: 'route-a',
-      memberId: member('peer-a'),
-      attachmentGeneration: 2,
-    );
-    subject.observePeer(
-      peerKey: 'route-a',
-      canHostHotspot: true,
-      bluetoothSupported: true,
-      backgroundReady: true,
-      batteryPercent: 60,
-      at: now,
-      attachmentGeneration: 2,
-    );
-
-    subject.replaceAttachment(3);
-
-    expect(
-      candidates.snapshot(now: now, attachmentGeneration: 3),
-      isEmpty,
-    );
-    expect(
+  test(
+    'attachment replacement clears old identity and capability evidence',
+    () {
+      final bindings = RoomPeerMemberBindingRegistry(
+        members: [member('peer-a')],
+      );
+      final candidates = RoomTransportCandidateRegistry();
+      final subject = observer(bindings: bindings, candidates: candidates);
+      final now = DateTime.utc(2026, 8, 26, 12);
+      bindings.bind(
+        peerKey: 'route-a',
+        memberId: member('peer-a'),
+        attachmentGeneration: 2,
+      );
       subject.observePeer(
         peerKey: 'route-a',
         canHostHotspot: true,
@@ -148,16 +118,29 @@ void main() {
         backgroundReady: true,
         batteryPercent: 60,
         at: now,
-        attachmentGeneration: 3,
-      ),
-      isFalse,
-    );
-  });
+        attachmentGeneration: 2,
+      );
+
+      subject.replaceAttachment(3);
+
+      expect(candidates.snapshot(now: now, attachmentGeneration: 3), isEmpty);
+      expect(
+        subject.observePeer(
+          peerKey: 'route-a',
+          canHostHotspot: true,
+          bluetoothSupported: true,
+          backgroundReady: true,
+          batteryPercent: 60,
+          at: now,
+          attachmentGeneration: 3,
+        ),
+        isFalse,
+      );
+    },
+  );
 
   test('peer removal also removes its planner candidate', () {
-    final bindings = RoomPeerMemberBindingRegistry(
-      members: [member('peer-a')],
-    );
+    final bindings = RoomPeerMemberBindingRegistry(members: [member('peer-a')]);
     final candidates = RoomTransportCandidateRegistry();
     final subject = observer(bindings: bindings, candidates: candidates);
     final now = DateTime.utc(2026, 8, 26, 12);
@@ -178,16 +161,11 @@ void main() {
 
     subject.removePeer('route-a', attachmentGeneration: 1);
 
-    expect(
-      candidates.snapshot(now: now, attachmentGeneration: 1),
-      isEmpty,
-    );
+    expect(candidates.snapshot(now: now, attachmentGeneration: 1), isEmpty);
   });
 
   test('invalid battery evidence fails closed without assertion', () {
-    final bindings = RoomPeerMemberBindingRegistry(
-      members: [member('peer-a')],
-    );
+    final bindings = RoomPeerMemberBindingRegistry(members: [member('peer-a')]);
     final candidates = RoomTransportCandidateRegistry();
     final subject = observer(bindings: bindings, candidates: candidates);
     final now = DateTime.utc(2026, 8, 26, 12);
@@ -209,9 +187,6 @@ void main() {
       ),
       isFalse,
     );
-    expect(
-      candidates.snapshot(now: now, attachmentGeneration: 1),
-      isEmpty,
-    );
+    expect(candidates.snapshot(now: now, attachmentGeneration: 1), isEmpty);
   });
 }
