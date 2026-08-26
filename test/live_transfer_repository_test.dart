@@ -39,18 +39,21 @@ void main() {
     modes.dispose();
   });
 
-  test('live sends follow a mode change without rebuilding the Cubit', () async {
-    await subject.sendAudio(const [0.1], 'Rider');
-    expect(wifi.audioSends, 1);
-    expect(bluetooth.audioSends, 0);
+  test(
+    'live sends follow a mode change without rebuilding the Cubit',
+    () async {
+      await subject.sendAudio(const [0.1], 'Rider');
+      expect(wifi.audioSends, 1);
+      expect(bluetooth.audioSends, 0);
 
-    await modes.setMode(TransferMode.bluetooth);
-    await subject.sendAudio(const [0.2], 'Rider');
+      await modes.setMode(TransferMode.bluetooth);
+      await subject.sendAudio(const [0.2], 'Rider');
 
-    expect(wifi.stopCalls, 1);
-    expect(wifi.audioSends, 1);
-    expect(bluetooth.audioSends, 1);
-  });
+      expect(wifi.stopCalls, 1);
+      expect(wifi.audioSends, 1);
+      expect(bluetooth.audioSends, 1);
+    },
+  );
 
   test('wifi to hotspot keeps the same live transport attachment', () async {
     subject.startListening();
