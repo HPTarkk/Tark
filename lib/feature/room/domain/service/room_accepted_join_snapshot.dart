@@ -19,7 +19,11 @@ final class RoomAcceptedJoinSnapshot {
       throw ArgumentError.value(roomName, 'roomName', 'invalid room name');
     }
     if (this.members.isEmpty || this.members.length > maxMembers) {
-      throw ArgumentError.value(this.members.length, 'members', 'invalid roster size');
+      throw ArgumentError.value(
+        this.members.length,
+        'members',
+        'invalid roster size',
+      );
     }
     final ids = this.members.map((member) => member.memberId.value).toSet();
     if (ids.length != this.members.length) {
@@ -52,7 +56,9 @@ final class RoomAcceptedJoinSnapshot {
       'v': currentVersion,
       'roomId': roomId.value,
       'roomName': roomName.trim(),
-      'members': members.map((member) => member.toJson()).toList(growable: false),
+      'members': members
+          .map((member) => member.toJson())
+          .toList(growable: false),
     });
     final encoded = base64Url.encode(utf8.encode(payload)).replaceAll('=', '');
     if (encoded.length > maxEncodedLength) {
@@ -140,11 +146,14 @@ final class RoomAcceptedJoinMember {
         !RegExp(r'^[0-9a-f]{24}$').hasMatch(id) ||
         displayName is! String ||
         displayName.trim().isEmpty ||
-        displayName.trim().length > RoomAcceptedJoinSnapshot.maxDisplayNameLength ||
+        displayName.trim().length >
+            RoomAcceptedJoinSnapshot.maxDisplayNameLength ||
         kind is! String) {
       throw const FormatException('accepted room member fields');
     }
-    final memberKind = RoomMemberKind.values.where((value) => value.name == kind);
+    final memberKind = RoomMemberKind.values.where(
+      (value) => value.name == kind,
+    );
     if (memberKind.length != 1) {
       throw const FormatException('accepted room member kind');
     }
