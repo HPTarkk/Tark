@@ -1,24 +1,34 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../transfer/api/transfer_api.dart';
 import '../../domain/entity/room.dart';
 import '../../domain/entity/room_invitation.dart';
 import '../../domain/repository/room_repository.dart';
 
 /// Always-reachable Add Rider entry point for a live Room.
 ///
-/// This intentionally issues only a durable Room invitation. Wi-Fi/hotspot
-/// bootstrap credentials are a separate, ephemeral transport concern and are
-/// never inferred from ChannelId, IP address or the current transport role.
+/// The durable Room invite and temporary hotspot bootstrap stay deliberately
+/// separate. A Room invite remains usable throughout transport recovery; only
+/// the current transport host may reveal the current Wi-Fi credentials.
 class InRoomInviteButton extends StatefulWidget {
-  const InRoomInviteButton({super.key, this.repository});
+  const InRoomInviteButton({
+    super.key,
+    this.repository,
+    this.hotspotLinkKeeper,
+    this.transferRepository,
+  });
 
-  /// Optional seam for deterministic widget tests. Production resolves the
-  /// canonical repository registered by the Room feature.
+  /// Optional seams for deterministic widget tests. Production resolves the
+  /// canonical registrations owned by the Room and transfer features.
   final RoomRepository? repository;
+  final HotspotLinkKeeper? hotspotLinkKeeper;
+  final TransferRepository? transferRepository;
 
   @override
   State<InRoomInviteButton> createState() => _InRoomInviteButtonState();
@@ -29,6 +39,18 @@ class _InRoomInviteButtonState extends State<InRoomInviteButton> {
 
   RoomRepository get _repository =>
       widget.repository ?? GetIt.instance<RoomRepository>();
+
+  HotspotLinkKeeper? get _hotspotLinkKeeper =>
+      widget.hotspotLinkKeeper ??
+      (GetIt.instance.isRegistered<HotspotLinkKeeper>()
+          ? GetIt.instance<HotspotLinkKeeper>()
+          : null);
+
+  TransferRepository? get _transferRepository =>
+      widget.transferRepository ??
+      (GetIt.instance.isRegistered<TransferRepository>()
+          ? GetIt.instance<TransferRepository>()
+          : null);
 
   @override
   Widget build(BuildContext context) {
@@ -71,15 +93,16 @@ class _InRoomInviteButtonState extends State<InRoomInviteButton> {
       );
       if (!mounted) return;
 
-      // Busy protects only the asynchronous invite issuance. Keeping it true
-      // while the dialog is open leaves an indeterminate progress indicator
-      // animating behind the modal forever, which both wastes frames and makes
-      // deterministic widget settling impossible.
       setState(() => _busy = false);
       await showDialog<void>(
         context: context,
-        builder: (dialogContext) =>
-            _RoomInviteDialog(room: saved, invite: invite, copy: copy),
+        builder: (dialogContext) => _RoomInviteDialog(
+          room: saved,
+          invite: invite,
+          copy: copy,
+          hotspotLinkKeeper: _hotspotLinkKeeper,
+          transferRepository: _transferRepository,
+        ),
       );
     } catch (_) {
       if (mounted) _showMessage(copy.error);
@@ -101,24 +124,79 @@ class _InRoomInviteButtonState extends State<InRoomInviteButton> {
   }
 }
 
-class _RoomInviteDialog extends StatelessWidget {
+class _RoomInviteDialog extends StatefulWidget {
   const _RoomInviteDialog({
     required this.room,
     required this.invite,
     required this.copy,
+    required this.hotspotLinkKeeper,
+    required this.transferRepository,
   });
 
   final SavedRoom room;
   final RoomInvitation invite;
   final _InviteCopy copy;
+  final HotspotLinkKeeper? hotspotLinkKeeper;
+  final TransferRepository? transferRepository;
+
+  @override
+  State<_RoomInviteDialog> createState() => _RoomInviteDialogState();
+}
+
+class _RoomInviteDialogState extends State<_RoomInviteDialog> {
+  StreamSubscription<HotspotLinkState>? _stateSub;
+  StreamSubscription<HotspotCredentials>? _credentialSub;
+  HotspotLinkState _linkState = HotspotLinkState.idle;
+  HotspotCredentials? _credentials;
+
+  bool get _isTransportHost =>
+      widget.transferRepository?.sessionRole == SessionRole.host;
+
+  bool get _showWifiQr =>
+      _isTransportHost &&
+      _linkState == HotspotLinkState.up &&
+      _credentials != null;
+
+  bool get _showRecovery =>
+      _isTransportHost && _linkState == HotspotLinkState.recovering;
+
+  @override
+  void initState() {
+    super.initState();
+    final keeper = widget.hotspotLinkKeeper;
+    if (keeper == null) return;
+    _linkState = keeper.state;
+    _credentials = keeper.credentials;
+    _stateSub = keeper.states.listen((state) {
+      if (!mounted) return;
+      setState(() {
+        _linkState = state;
+        if (state == HotspotLinkState.up) {
+          _credentials = keeper.credentials;
+        }
+      });
+    });
+    _credentialSub = keeper.credentialChanges.listen((credentials) {
+      if (!mounted) return;
+      setState(() => _credentials = credentials);
+    });
+  }
+
+  @override
+  void dispose() {
+    unawaited(_stateSub?.cancel());
+    unawaited(_credentialSub?.cancel());
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final encoded = invite.encode();
+    final encoded = widget.invite.encode();
+    final copy = widget.copy;
     return Dialog(
       key: const Key('room-invite-dialog'),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 340, maxHeight: 560),
+        constraints: const BoxConstraints(maxWidth: 340, maxHeight: 600),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
           child: Column(
@@ -136,28 +214,16 @@ class _RoomInviteDialog extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        room.room.name,
+                        widget.room.room.name,
                         key: const Key('room-invite-room-name'),
                         textAlign: TextAlign.center,
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
                       const SizedBox(height: 12),
-                      Container(
+                      _InviteQr(
                         key: const Key('room-invite-qr'),
-                        width: 216,
-                        height: 216,
-                        padding: const EdgeInsets.all(10),
-                        color: Colors.white,
-                        child: QrImageView(
-                          data: encoded,
-                          size: 196,
-                          backgroundColor: Colors.white,
-                          eyeStyle: const QrEyeStyle(color: Colors.black),
-                          dataModuleStyle: const QrDataModuleStyle(
-                            color: Colors.black,
-                          ),
-                          semanticsLabel: copy.qrSemantics,
-                        ),
+                        data: encoded,
+                        semanticsLabel: copy.qrSemantics,
                       ),
                       const SizedBox(height: 12),
                       Text(
@@ -165,7 +231,7 @@ class _RoomInviteDialog extends StatelessWidget {
                         style: const TextStyle(fontSize: 12),
                       ),
                       SelectableText(
-                        invite.displayCode,
+                        widget.invite.displayCode,
                         key: const Key('room-invite-display-code'),
                         textAlign: TextAlign.center,
                         style: TextStyle(
@@ -184,6 +250,16 @@ class _RoomInviteDialog extends StatelessWidget {
                           fontSize: 12,
                         ),
                       ),
+                      if (_showWifiQr) ...[
+                        const SizedBox(height: 20),
+                        _WifiInviteSection(
+                          credentials: _credentials!,
+                          copy: copy,
+                        ),
+                      ] else if (_showRecovery) ...[
+                        const SizedBox(height: 20),
+                        _WifiRecoverySection(copy: copy),
+                      ],
                     ],
                   ),
                 ),
@@ -220,6 +296,103 @@ class _RoomInviteDialog extends StatelessWidget {
   }
 }
 
+class _InviteQr extends StatelessWidget {
+  const _InviteQr({
+    super.key,
+    required this.data,
+    required this.semanticsLabel,
+  });
+
+  final String data;
+  final String semanticsLabel;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 216,
+    height: 216,
+    padding: const EdgeInsets.all(10),
+    color: Colors.white,
+    child: QrImageView(
+      data: data,
+      size: 196,
+      backgroundColor: Colors.white,
+      eyeStyle: const QrEyeStyle(color: Colors.black),
+      dataModuleStyle: const QrDataModuleStyle(color: Colors.black),
+      semanticsLabel: semanticsLabel,
+    ),
+  );
+}
+
+class _WifiInviteSection extends StatelessWidget {
+  const _WifiInviteSection({required this.credentials, required this.copy});
+
+  final HotspotCredentials credentials;
+  final _InviteCopy copy;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const Key('room-invite-wifi-section'),
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      border: Border.all(color: AppColors.border),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Column(
+      children: [
+        Text(
+          copy.wifiTitle,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 8),
+        _InviteQr(
+          key: const Key('room-invite-wifi-qr'),
+          data: credentials.wifiQrPayload,
+          semanticsLabel: copy.wifiQrSemantics,
+        ),
+        const SizedBox(height: 8),
+        Text('${copy.ssidLabel}: ${credentials.ssid}'),
+        SelectableText(
+          '${copy.passwordLabel}: ${credentials.passphrase}',
+          key: const Key('room-invite-wifi-password'),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 6),
+        Text(
+          copy.wifiEphemeral,
+          textAlign: TextAlign.center,
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
+        ),
+      ],
+    ),
+  );
+}
+
+class _WifiRecoverySection extends StatelessWidget {
+  const _WifiRecoverySection({required this.copy});
+
+  final _InviteCopy copy;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const Key('room-invite-wifi-recovering'),
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      border: Border.all(color: AppColors.amber.withAlpha(100)),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Row(
+      children: [
+        const SizedBox.square(
+          dimension: 18,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+        const SizedBox(width: 10),
+        Expanded(child: Text(copy.wifiRecovering)),
+      ],
+    ),
+  );
+}
+
 final class _InviteCopy {
   const _InviteCopy({required this.fa});
 
@@ -246,4 +419,15 @@ final class _InviteCopy {
       : 'Could not create the invite. Try again.';
   String get qrSemantics =>
       fa ? 'کیوآر دعوت امن اتاق' : 'Secure Room invite QR';
+  String get wifiTitle => fa ? 'اتصال وای‌فای میزبان' : 'Host Wi-Fi connection';
+  String get ssidLabel => fa ? 'نام شبکه' : 'Network';
+  String get passwordLabel => fa ? 'رمز عبور' : 'Password';
+  String get wifiEphemeral => fa
+      ? 'این اطلاعات فقط مربوط به اتصال فعلی است و شناسه اتاق نیست.'
+      : 'These credentials belong only to the current connection, not the Room.';
+  String get wifiRecovering => fa
+      ? 'هات‌اسپات در حال بازیابی است. کیوآر قدیمی غیرفعال شده و بعد از آماده‌شدن شبکه جدید تازه می‌شود.'
+      : 'Hotspot is recovering. The stale Wi-Fi QR is disabled and will refresh when the new network is ready.';
+  String get wifiQrSemantics =>
+      fa ? 'کیوآر اتصال وای‌فای میزبان' : 'Host Wi-Fi connection QR';
 }
