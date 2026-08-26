@@ -21,7 +21,10 @@ final class RoomInviteJoinExchange {
 
   final RoomInviteAcceptanceCoordinator _acceptance;
 
-  Future<String> handleEncodedRequest(String encoded, {required DateTime now}) async {
+  Future<String> handleEncodedRequest(
+    String encoded, {
+    required DateTime now,
+  }) async {
     RoomInviteJoinRequest request;
     try {
       request = RoomInviteJoinRequest.decode(encoded);
@@ -91,7 +94,8 @@ final class RoomInviteJoinRequest {
 
   static RoomInviteJoinRequest decode(String encoded) {
     final raw = encoded.trim();
-    if (raw.isEmpty || raw.length > RoomInviteJoinExchange.maxEncodedRequestLength) {
+    if (raw.isEmpty ||
+        raw.length > RoomInviteJoinExchange.maxEncodedRequestLength) {
       throw const FormatException('room join request size');
     }
     try {
@@ -167,7 +171,8 @@ final class RoomInviteJoinResponse {
   final RoomMemberId? memberId;
 
   String encode() {
-    if (requestId.isNotEmpty && !RoomInviteJoinRequest._validRequestId(requestId)) {
+    if (requestId.isNotEmpty &&
+        !RoomInviteJoinRequest._validRequestId(requestId)) {
       throw const FormatException('invalid room join response request id');
     }
     if (status == RoomInviteJoinResponseStatus.accepted &&
@@ -190,7 +195,8 @@ final class RoomInviteJoinResponse {
 
   static RoomInviteJoinResponse decode(String encoded) {
     final raw = encoded.trim();
-    if (raw.isEmpty || raw.length > RoomInviteJoinExchange.maxEncodedResponseLength) {
+    if (raw.isEmpty ||
+        raw.length > RoomInviteJoinExchange.maxEncodedResponseLength) {
       throw const FormatException('room join response size');
     }
     try {
@@ -204,7 +210,8 @@ final class RoomInviteJoinResponse {
       final requestId = value['requestId'];
       final statusRaw = value['status'];
       if (requestId is! String ||
-          (requestId.isNotEmpty && !RoomInviteJoinRequest._validRequestId(requestId)) ||
+          (requestId.isNotEmpty &&
+              !RoomInviteJoinRequest._validRequestId(requestId)) ||
           statusRaw is! String) {
         throw const FormatException('room join response fields');
       }
