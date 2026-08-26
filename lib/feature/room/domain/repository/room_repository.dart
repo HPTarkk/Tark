@@ -1,4 +1,5 @@
 import '../entity/room.dart';
+import '../entity/room_accepted_join_snapshot.dart';
 import '../entity/room_invitation.dart';
 import '../service/room_invitation_ledger.dart';
 
@@ -51,6 +52,17 @@ abstract interface class RoomRepository {
     VerifiedRoomInvitation verified, {
     required String displayName,
     required DateTime acceptedAt,
+  });
+
+  /// Persists issuer-provided durable Room state after the joiner has already
+  /// correlated and verified an accepted invite response.
+  ///
+  /// The local member must already be present exactly once in [snapshot]. This
+  /// operation never accepts a raw invite, short code, transport bootstrap or
+  /// bearer secret, and never grants invite-management authority to the joiner.
+  Future<SavedRoom> importAcceptedJoin(
+    RoomAcceptedJoinSnapshot snapshot, {
+    required RoomMemberId localMemberId,
   });
 
   /// Leaves durable membership without deleting the saved room record.
