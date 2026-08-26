@@ -73,6 +73,30 @@ void main() {
     },
   );
 
+  test('close cancels a stale async open before it can own health', () async {
+    final selected = Completer<RoomId?>();
+    final transfer = _TransferRepository();
+    final binding = SelectedRoomLiveSessionBinding(
+      rooms: _RoomRepository(
+        selectedFuture: selected.future,
+        saved: savedRoom(),
+      ),
+      transfer: transfer,
+      modeStore: _ModeStore(TransferMode.wifi),
+    );
+
+    final opening = binding.open(sessionId: 'live-stale');
+    await Future<void>.delayed(Duration.zero);
+    await binding.close();
+    selected.complete(roomId);
+
+    expect(await opening, isNull);
+    expect(binding.runtime, isNull);
+    expect(transfer.connectCalls, 0);
+    expect(transfer.health.hasListener, isFalse);
+    await transfer.health.close();
+  });
+
   test('transport mode maps without changing room identity semantics', () {
     expect(
       SelectedRoomLiveSessionBinding.transportKindFor(TransferMode.wifi),
@@ -94,16 +118,19 @@ void main() {
 }
 
 class _RoomRepository implements RoomRepository {
-  _RoomRepository({this.selected, this.saved});
+  _RoomRepository({this.selected, this.selectedFuture, this.saved});
 
   final RoomId? selected;
+  final Future<RoomId?>? selectedFuture;
   final SavedRoom? saved;
 
   @override
-  Future<RoomId?> selectedRoomId() async => selected;
+  Future<RoomId?> selectedRoomId() async =>
+      selectedFuture == null ? selected : await selectedFuture;
 
   @override
-  Future<SavedRoom?> get(RoomId id) async => id == selected ? saved : null;
+  Future<SavedRoom?> get(RoomId id) async =>
+      id == (selected ?? id) ? saved : null;
 
   @override
   dynamic noSuchMethod(Invocation invocation) =>
