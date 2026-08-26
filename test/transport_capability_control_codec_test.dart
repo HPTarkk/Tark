@@ -107,6 +107,39 @@ void main() {
     expect(decoded.capability, capability);
   });
 
+  test('non-empty control sender name keeps capability offset correct', () {
+    final baseCodec = base();
+    final raw = baseCodec.encodePing(
+      token: 35,
+      lastTxSeq: 36,
+      lastRxSeq: 37,
+      audioRxPackets: 38,
+    );
+
+    final idLength = raw[1];
+    final nameLengthOffset = 2 + idLength + 4;
+    final bodyOffset = nameLengthOffset + 4;
+    final named = Uint8List(raw.length + 1);
+    named.setRange(0, bodyOffset, raw);
+    ByteData.sublistView(named).setUint32(nameLengthOffset, 1, Endian.little);
+    named[bodyOffset] = 0x78; // 'x'
+    named.setRange(bodyOffset + 1, named.length, raw, bodyOffset);
+
+    final bytes = TransportCapabilityControlCodec.appendCapability(
+      named,
+      capability,
+    );
+    final decoded = TransportCapabilityControlCodec(
+      baseCodec,
+    ).decodeControl(bytes, 'peer')!;
+
+    expect(decoded.packet.token, 35);
+    expect(decoded.packet.lastTxSeq, 36);
+    expect(decoded.packet.lastRxSeq, 37);
+    expect(decoded.packet.audioRxPackets, 38);
+    expect(decoded.capability, capability);
+  });
+
   test('truncated capability fails closed without damaging control packet', () {
     final baseCodec = base();
     final raw = baseCodec.encodePing(
