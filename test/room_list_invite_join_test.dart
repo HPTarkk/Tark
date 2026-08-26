@@ -1,0 +1,214 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:tark/feature/room/domain/entity/room.dart';
+import 'package:tark/feature/room/domain/entity/room_accepted_join_snapshot.dart';
+import 'package:tark/feature/room/domain/entity/room_invitation.dart';
+import 'package:tark/feature/room/domain/repository/room_repository.dart';
+import 'package:tark/feature/room/domain/service/room_invitation_ledger.dart';
+import 'package:tark/feature/room/domain/service/room_invite_join_exchange.dart';
+import 'package:tark/feature/room/domain/service/room_invite_join_orchestrator.dart';
+import 'package:tark/feature/room/presentation/manager/room_list_cubit.dart';
+
+void main() {
+  test(
+    'verified carrier grant is persisted and selected by RoomListCubit',
+    () async {
+      final repository = _JoinRepository();
+      final cubit = RoomListCubit(repository);
+      final now = DateTime.utc(2026, 8, 26, 18);
+      final invitation = generateRoomInvitation(
+        roomId: const RoomId('11111111111111111111111111111111'),
+        kind: RoomInvitationKind.trustedMembership,
+        now: now,
+        ttl: const Duration(hours: 1),
+      );
+
+      final status = await cubit.joinByInvite(
+        invitation: invitation,
+        displayName: 'Joined rider',
+        carrier: _Carrier((encodedRequest) async {
+          final request = RoomInviteJoinRequest.decode(encodedRequest);
+          final memberId = RoomMemberId(
+            request.invitation.invitationId.substring(0, 24),
+          );
+          return RoomInviteJoinResponse.accepted(
+            requestId: request.requestId,
+            roomId: request.invitation.roomId,
+            memberId: memberId,
+            snapshot: RoomAcceptedJoinSnapshot(
+              roomId: request.invitation.roomId,
+              roomName: 'Night riders',
+              roomCreatedAt: now.subtract(const Duration(days: 1)),
+              roomUpdatedAt: now,
+              members: [
+                RoomAcceptedJoinMember(
+                  memberId: const RoomMemberId('aaaaaaaaaaaaaaaaaaaaaaaa'),
+                  displayName: 'Owner',
+                  joinedAt: now.subtract(const Duration(days: 1)),
+                  kind: RoomMemberKind.member,
+                ),
+                RoomAcceptedJoinMember(
+                  memberId: memberId,
+                  displayName: request.displayName,
+                  joinedAt: now,
+                  kind: RoomMemberKind.member,
+                ),
+              ],
+            ),
+          ).encode();
+        }),
+      );
+
+      expect(status, RoomInviteJoinAttemptStatus.accepted);
+      expect(repository.imports, 1);
+      expect(repository.selected, invitation.roomId);
+      expect(cubit.state.selectedRoomId, invitation.roomId);
+      expect(cubit.state.rooms.single.room.name, 'Night riders');
+      await cubit.close();
+    },
+  );
+
+  test(
+    'invalid carrier response leaves durable Room state untouched',
+    () async {
+      final repository = _JoinRepository();
+      final cubit = RoomListCubit(repository);
+      final now = DateTime.utc(2026, 8, 26, 18);
+      final invitation = generateRoomInvitation(
+        roomId: const RoomId('22222222222222222222222222222222'),
+        kind: RoomInvitationKind.trustedMembership,
+        now: now,
+        ttl: const Duration(hours: 1),
+      );
+
+      final status = await cubit.joinByInvite(
+        invitation: invitation,
+        displayName: 'Joined rider',
+        carrier: const _Carrier.invalid(),
+      );
+
+      expect(status, RoomInviteJoinAttemptStatus.invalidResponse);
+      expect(repository.imports, 0);
+      expect(repository.selected, isNull);
+      expect(cubit.state.rooms, isEmpty);
+      await cubit.close();
+    },
+  );
+}
+
+final class _Carrier implements RoomInviteJoinCarrier {
+  const _Carrier(this._exchange);
+  const _Carrier.invalid() : _exchange = _invalid;
+
+  final Future<String> Function(String encodedRequest) _exchange;
+
+  static Future<String> _invalid(String _) async => '{not-valid-json';
+
+  @override
+  Future<String> exchange(String encodedRequest) => _exchange(encodedRequest);
+}
+
+final class _JoinRepository implements RoomRepository {
+  final List<SavedRoom> _rooms = [];
+  RoomId? selected;
+  int imports = 0;
+
+  @override
+  Future<List<SavedRoom>> list({bool includeArchived = false}) async =>
+      List.unmodifiable(_rooms);
+
+  @override
+  Future<SavedRoom?> get(RoomId id) async {
+    for (final room in _rooms) {
+      if (room.room.id == id) return room;
+    }
+    return null;
+  }
+
+  @override
+  Future<SavedRoom> importAcceptedJoin(
+    RoomAcceptedJoinSnapshot snapshot, {
+    required RoomMemberId localMemberId,
+  }) async {
+    imports += 1;
+    final saved = SavedRoom(
+      room: Room(
+        id: snapshot.roomId,
+        name: snapshot.roomName,
+        createdAt: snapshot.roomCreatedAt,
+        updatedAt: snapshot.roomUpdatedAt,
+        members: snapshot.members
+            .map(
+              (member) => RoomMember(
+                id: member.memberId,
+                displayName: member.displayName,
+                joinedAt: member.joinedAt,
+                kind: member.kind,
+              ),
+            )
+            .toList(growable: false),
+      ),
+      membership: RoomMembership(
+        localMemberId: localMemberId,
+        canManageInvites: false,
+      ),
+    );
+    _rooms
+      ..removeWhere((room) => room.room.id == snapshot.roomId)
+      ..add(saved);
+    return saved;
+  }
+
+  @override
+  Future<RoomId?> selectedRoomId() async => selected;
+
+  @override
+  Future<void> select(RoomId? id) async {
+    selected = id;
+  }
+
+  @override
+  Future<SavedRoom> create({
+    required String name,
+    required String localDisplayName,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<SavedRoom> rename(RoomId id, String name) =>
+      throw UnimplementedError();
+
+  @override
+  Future<SavedRoom> setArchived(RoomId id, bool archived) =>
+      throw UnimplementedError();
+
+  @override
+  Future<RoomInvitation> issueInvite(
+    RoomId id, {
+    required RoomInvitationKind kind,
+    required DateTime now,
+    required Duration ttl,
+    RoomTransportBootstrap? transportBootstrap,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<VerifiedRoomInvitation?> verifyAndRedeemInvite(
+    RoomInvitation invite, {
+    required DateTime now,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<void> revokeInvite(RoomInvitation invite) =>
+      throw UnimplementedError();
+
+  @override
+  Future<SavedRoom> acceptVerifiedInvite(
+    VerifiedRoomInvitation verified, {
+    required String displayName,
+    required DateTime acceptedAt,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<SavedRoom> leave(RoomId id) => throw UnimplementedError();
+
+  @override
+  Future<void> delete(RoomId id) => throw UnimplementedError();
+}

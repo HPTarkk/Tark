@@ -41,7 +41,17 @@ final class RoomInviteJoinImporter {
       encodedResponse: encodedResponse,
     );
     if (grant == null) return null;
+    return importGrant(grant);
+  }
 
+  /// Persists a grant that has already passed [RoomInviteJoinClient]
+  /// verification in a higher-level orchestration boundary.
+  ///
+  /// This keeps the secure carrier orchestration and durable repository write
+  /// composable without re-decoding a response or weakening the trust boundary:
+  /// callers must possess the typed [RoomInviteJoinGrant], which is produced
+  /// only after request/Room/member/snapshot correlation succeeds.
+  Future<SavedRoom> importGrant(RoomInviteJoinGrant grant) async {
     // A delayed duplicate response must never roll a Room back after this
     // device has already observed or made a newer durable mutation. Keep the
     // newer local snapshot and merely restore selection when the membership is

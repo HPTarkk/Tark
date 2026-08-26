@@ -3,7 +3,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../domain/entity/room.dart';
+import '../../domain/entity/room_invitation.dart';
 import '../../domain/repository/room_repository.dart';
+import '../../domain/service/room_invite_join_importer.dart';
+import '../../domain/service/room_invite_join_orchestrator.dart';
 import '../../domain/service/room_session_factory.dart';
 import '../../domain/service/room_session_runtime.dart';
 
@@ -51,15 +54,21 @@ final class RoomListState extends Equatable {
 
 /// Presentation orchestration for durable saved Rooms.
 ///
-/// Transport start/join is intentionally absent. Selecting or opening a Room
-/// changes only durable user intent; Wi-Fi/hotspot/Bluetooth attachment is a
-/// later live-session action and must never be created as a side effect of
-/// merely viewing this list.
+/// Viewing/selecting a Room never starts Wi-Fi, hotspot, Bluetooth or guest
+/// transport. A secure invite join is different: it is an explicit user action
+/// and may use an injected carrier, but durable state changes only after the
+/// issuer response has passed the canonical correlation checks and produced a
+/// typed verified grant.
 @injectable
 class RoomListCubit extends Cubit<RoomListState> {
-  RoomListCubit(this._repository) : super(const RoomListState());
+  RoomListCubit(this._repository)
+    : _joinOrchestrator = RoomInviteJoinOrchestrator(),
+      _joinImporter = RoomInviteJoinImporter(repository: _repository),
+      super(const RoomListState());
 
   final RoomRepository _repository;
+  final RoomInviteJoinOrchestrator _joinOrchestrator;
+  final RoomInviteJoinImporter _joinImporter;
 
   Future<void> load() async {
     if (state.loading) return;
@@ -101,6 +110,45 @@ class RoomListCubit extends Cubit<RoomListState> {
       emit(state.copyWith(loading: false, error: error));
       return null;
     }
+  }
+
+  /// Runs one explicit secure invite join attempt through the supplied carrier.
+  ///
+  /// Rejected, malformed, stale, cancelled or failed carrier exchanges leave
+  /// durable Room state untouched. Only a verified grant is imported and then
+  /// selected, after which this Cubit reloads from the canonical repository.
+  Future<RoomInviteJoinAttemptStatus> joinByInvite({
+    required RoomInvitation invitation,
+    required String displayName,
+    required RoomInviteJoinCarrier carrier,
+  }) async {
+    if (state.loading) return RoomInviteJoinAttemptStatus.cancelled;
+    emit(state.copyWith(loading: true, clearError: true));
+    try {
+      final result = await _joinOrchestrator.join(
+        invitation: invitation,
+        displayName: displayName,
+        carrier: carrier,
+      );
+      final grant = result.grant;
+      if (result.status != RoomInviteJoinAttemptStatus.accepted ||
+          grant == null) {
+        emit(state.copyWith(loading: false, clearError: true));
+        return result.status;
+      }
+
+      final saved = await _joinImporter.importGrant(grant);
+      final rooms = await _repository.list();
+      emit(RoomListState(rooms: rooms, selectedRoomId: saved.room.id));
+      return RoomInviteJoinAttemptStatus.accepted;
+    } catch (error) {
+      emit(state.copyWith(loading: false, error: error));
+      return RoomInviteJoinAttemptStatus.invalidResponse;
+    }
+  }
+
+  void cancelInviteJoin() {
+    _joinOrchestrator.cancel();
   }
 
   Future<void> select(RoomId roomId) async {
