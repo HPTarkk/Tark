@@ -4,7 +4,10 @@ import 'package:tark/feature/transfer/domain/service/media_opus_tuner.dart';
 import 'package:tark/feature/transfer/domain/service/opus_tuner.dart';
 
 void main() {
-  const tuner = MediaOpusTuner();
+  // Keep these legacy ladder tests focused on sender-side RTT/loss behavior.
+  // #41's live/default receiver ceiling is covered by the production-wiring
+  // tests; an explicit 96 kbps ceiling leaves this ladder fully observable.
+  const tuner = MediaOpusTuner(receiverBitrateCapKbpsOverride: 96);
 
   group('MediaOpusTuner', () {
     test('a clean link gets the top bitrate and budgets no redundancy', () {
@@ -74,16 +77,19 @@ void main() {
 
     // The floor exists so a caller can tell "still HD" from "degraded" —
     // required by #29's acceptance criteria that low tiers never claim HD.
-    test('every reachable bitrate at or above light loss meets the HD floor', () {
-      for (final loss in [0.0, 0.01, 0.05, 0.07]) {
-        final tuning = tuner.tune(AudioLinkConditions(lossFraction: loss));
-        expect(
-          tuning.bitrate,
-          greaterThanOrEqualTo(MediaOpusTuner.hdFloorBitrate),
-          reason: 'loss=$loss',
-        );
-      }
-    });
+    test(
+      'every reachable bitrate at or above light loss meets the HD floor',
+      () {
+        for (final loss in [0.0, 0.01, 0.05, 0.07]) {
+          final tuning = tuner.tune(AudioLinkConditions(lossFraction: loss));
+          expect(
+            tuning.bitrate,
+            greaterThanOrEqualTo(MediaOpusTuner.hdFloorBitrate),
+            reason: 'loss=$loss',
+          );
+        }
+      },
+    );
 
     test('heavy loss falls below the HD floor rather than pretending', () {
       final tuning = tuner.tune(const AudioLinkConditions(lossFraction: 0.3));

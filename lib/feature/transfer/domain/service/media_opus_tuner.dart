@@ -2,6 +2,7 @@ import 'opus_tuner.dart';
 
 import '../../../../core/audio/audio_format_profile.dart';
 import '../entity/opus_tuning.dart';
+import 'media_receiver_feedback_session.dart';
 
 /// Turns measured link conditions into encoder settings for a #29 HD Shared
 /// Music stream — [OpusTuner]'s sibling, not a branch inside it.
@@ -21,8 +22,14 @@ import '../entity/opus_tuning.dart';
 /// The bitrates below are starting engineering targets, exactly like
 /// [OpusTuner.hd] was for #28 — not a final, listening-validated ladder. See
 /// #29's physical A/B requirement before treating these as settled.
+///
+/// #41 keeps that sender-side ladder pure, then applies the current
+/// receiver-driven room floor as a ceiling. [receiverBitrateCapKbpsOverride]
+/// is only a deterministic test seam; live callers leave it null.
 class MediaOpusTuner {
-  const MediaOpusTuner();
+  const MediaOpusTuner({this.receiverBitrateCapKbpsOverride});
+
+  final int? receiverBitrateCapKbpsOverride;
 
   /// [profile]'s tuner. Every #29 media profile shares one ladder today —
   /// this factory exists so a future profile-specific ladder (e.g. a
@@ -71,12 +78,22 @@ class MediaOpusTuner {
     final rtt = conditions.rtt;
     final congested = rtt != null && rtt > congestedRtt;
 
-    final (bitrate, complexity) = switch (lossPerc) {
+    final (senderBitrate, complexity) = switch (lossPerc) {
       < 2 when !congested => (96000, 8),
       < 8 => (64000, 7),
       < 15 => (48000, 6),
       _ => (32000, 5),
     };
+
+    final receiverCap =
+        (receiverBitrateCapKbpsOverride ??
+            MediaReceiverFeedbackSession.shared.decision.targetBitrateKbps) *
+        1000;
+    // `suspended` is enforced by MediaQualityController.shouldSend. Keep a
+    // valid Opus bitrate configured underneath it so resume never requires a
+    // zero-bitrate encoder transition.
+    final effectiveCap = receiverCap <= 0 ? 32000 : receiverCap;
+    final bitrate = senderBitrate < effectiveCap ? senderBitrate : effectiveCap;
 
     return OpusTuning(
       bitrate: bitrate,

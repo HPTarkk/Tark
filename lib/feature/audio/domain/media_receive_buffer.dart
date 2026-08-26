@@ -59,7 +59,24 @@ class MediaReceiveBuffer {
        _sampleRate = sampleRate,
        _targetSamples = sampleRate * targetBufferMs ~/ 1000,
        _maxQueueSamples = sampleRate * maxQueueMs ~/ 1000,
-       _maxConcealSamples = sampleRate * maxConcealMs ~/ 1000;
+       _maxConcealSamples = sampleRate * maxConcealMs ~/ 1000 {
+    // AudioEngine owns one active media receive buffer at a time. Publishing
+    // that owner here lets the existing transport heartbeat sample receiver
+    // health without adding another AudioEngine/transport dependency or timer.
+    // A new engine/buffer supersedes an old one; dispose clears only itself.
+    _active = this;
+  }
+
+  static MediaReceiveBuffer? _active;
+
+  /// Returns and clears the active receiver's event window only after at least
+  /// one real media packet established a sender sequence. Before that there is
+  /// no receiver evidence to advertise and callers must stay unconfirmed.
+  static MediaReceiveHealth? takeActiveHealthWindow() {
+    final active = _active;
+    if (active == null || active._expectedSeqBySender.isEmpty) return null;
+    return active.takeHealthWindow();
+  }
 
   /// Enough cushion for ordinary mobile jitter without making a late music
   /// stream feel detached from what the sender is actually playing.
@@ -254,6 +271,7 @@ class MediaReceiveBuffer {
 
   /// No timer is owned here; disposal only releases buffered audio/state.
   void dispose() {
+    if (identical(_active, this)) _active = null;
     _queue.clear();
     _expectedSeqBySender.clear();
     _lastChunkLenBySender.clear();

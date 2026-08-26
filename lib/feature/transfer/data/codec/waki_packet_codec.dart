@@ -5,12 +5,17 @@ import '../../../../core/audio/audio_format_profile.dart';
 import '../../../../core/identity/channel_id.dart';
 import '../../../../core/identity/channel_membership.dart';
 import '../../../../core/identity/session_epoch.dart';
+import '../../../audio/domain/media_receive_buffer.dart';
+import '../../../audio/domain/media_receiver_feedback_adapter.dart';
 import '../../domain/entity/control_packet.dart';
+import '../../domain/entity/media_receiver_feedback.dart';
 import '../../domain/entity/opus_tuning.dart';
 import '../../domain/entity/session_role.dart';
 import '../../domain/entity/waki_packet.dart';
 import '../../domain/service/audio_capability_negotiator.dart';
+import '../../domain/service/media_receiver_feedback_session.dart';
 import '../../domain/service/opus_tuner.dart';
+import 'media_receiver_feedback_wire.dart';
 import 'opus_audio_codec.dart';
 
 const kPresenceByte = 0x01;
@@ -174,6 +179,14 @@ class WakiPacketCodec {
   /// rungs"). Its own per-sender decoder maps and FEC gap tracker mean a
   /// corrupt or lost media packet can never disturb voice's.
   final OpusAudioCodec _mediaOpus;
+
+  /// One bounded receiver-health snapshot is reused across all ping/pong
+  /// packets in the same heartbeat window. Without this cache the first peer
+  /// would drain the window counters and later peers would incorrectly receive
+  /// a clean snapshot from the same second.
+  MediaReceiverFeedback? _cachedLocalReceiverFeedback;
+  DateTime? _cachedLocalReceiverFeedbackAt;
+  static const _receiverFeedbackSnapshotFor = Duration(milliseconds: 900);
 
   Uint8List encodeAudio(List<double> samples, String senderName, int seq) {
     final opusPacket = _opus.encode(samples);
@@ -365,6 +378,11 @@ class WakiPacketCodec {
   /// nowhere, because the roster it would need to enter is gated upstream. Two
   /// more type bytes to say something the peer map already says would be worse
   /// than the pong.
+  ///
+  /// #41 appends an optional bounded receiver-health trailer *after* these
+  /// original 16 body bytes. Older builds stop at fields they know; newer
+  /// builds decode the complete v1 trailer or treat it as unconfirmed. The
+  /// control type/header and first 16 bytes therefore stay byte-compatible.
   Uint8List _buildControl(
     int type,
     int token,
@@ -379,7 +397,34 @@ class WakiPacketCodec {
       ..setUint32(8, lastRxSeq, Endian.little)
       ..setUint32(12, audioRxPackets, Endian.little);
     builder.add(body.buffer.asUint8List());
+    final feedback = _localReceiverFeedback();
+    if (feedback != null) {
+      builder.add(MediaReceiverFeedbackWire.encode(feedback));
+    }
     return builder.toBytes();
+  }
+
+  /// Samples the active receive buffer at most once per heartbeat window, so
+  /// every peer receives the same counters. A receiver that has not seen a
+  /// real media packet returns null — absence remains explicitly unconfirmed.
+  MediaReceiverFeedback? _localReceiverFeedback() {
+    final now = DateTime.now();
+    final sampledAt = _cachedLocalReceiverFeedbackAt;
+    if (sampledAt != null &&
+        now.difference(sampledAt) < _receiverFeedbackSnapshotFor) {
+      return _cachedLocalReceiverFeedback;
+    }
+    final health = MediaReceiveBuffer.takeActiveHealthWindow();
+    _cachedLocalReceiverFeedback = health == null
+        ? null
+        : MediaReceiverFeedbackAdapter.fromHealth(health);
+    _cachedLocalReceiverFeedbackAt = now;
+    return _cachedLocalReceiverFeedback;
+  }
+
+  void _clearLocalReceiverFeedbackSnapshot() {
+    _cachedLocalReceiverFeedback = null;
+    _cachedLocalReceiverFeedbackAt = null;
   }
 
   /// Decodes a ping or pong. Null for anything else, including a well-formed
@@ -395,23 +440,36 @@ class WakiPacketCodec {
     final lastTxSeq = bd.getUint32(bodyStart + 4, Endian.little);
     final lastRxSeq = bd.getUint32(bodyStart + 8, Endian.little);
     final audioRx = bd.getUint32(bodyStart + 12, Endian.little);
-    return bytes[0] == kPingByte
-        ? PingPacket(
-            senderId: header.senderId,
-            sessionEpoch: header.epoch,
-            token: token,
-            lastTxSeq: lastTxSeq,
-            lastRxSeq: lastRxSeq,
-            audioRxPackets: audioRx,
-          )
-        : PongPacket(
-            senderId: header.senderId,
-            sessionEpoch: header.epoch,
-            token: token,
-            lastTxSeq: lastTxSeq,
-            lastRxSeq: lastRxSeq,
-            audioRxPackets: audioRx,
-          );
+    final feedback = MediaReceiverFeedbackWire.decode(bytes, bodyStart + 16);
+    if (bytes[0] == kPingByte) {
+      return PingPacket(
+        senderId: header.senderId,
+        sessionEpoch: header.epoch,
+        token: token,
+        lastTxSeq: lastTxSeq,
+        lastRxSeq: lastRxSeq,
+        audioRxPackets: audioRx,
+        mediaReceiverFeedback: feedback,
+      );
+    }
+    // Decoding is not enough to trust receiver evidence. Stage it against the
+    // source address/token and let PeerPingTracker admit it only if that token
+    // matches a ping we actually sent.
+    MediaReceiverFeedbackSession.shared.stagePong(
+      address: fallbackSenderId,
+      peerId: header.senderId,
+      token: token,
+      feedback: feedback,
+    );
+    return PongPacket(
+      senderId: header.senderId,
+      sessionEpoch: header.epoch,
+      token: token,
+      lastTxSeq: lastTxSeq,
+      lastRxSeq: lastRxSeq,
+      audioRxPackets: audioRx,
+      mediaReceiverFeedback: feedback,
+    );
   }
 
   /// Header every message shares: type, device id, session epoch, then — on v4
@@ -704,6 +762,7 @@ class WakiPacketCodec {
   /// Frees native Opus state for both streams (call when the owning
   /// transport shuts down).
   void release() {
+    _clearLocalReceiverFeedbackSnapshot();
     _opus.release();
     _mediaOpus.release();
   }
@@ -716,7 +775,10 @@ class WakiPacketCodec {
   /// Media's counterpart to [resetDecoders] — independent so a media-only
   /// event (e.g. a music cast stopping and restarting) never resets voice's
   /// decoder state, and vice versa.
-  void resetMediaDecoders() => _mediaOpus.resetDecoders();
+  void resetMediaDecoders() {
+    _clearLocalReceiverFeedbackSnapshot();
+    _mediaOpus.resetDecoders();
+  }
 
   /// Switches the wire format the encoder/decoders run at, once negotiation
   /// (see [AudioCapabilityNegotiator]) has settled on a new mutual profile.
