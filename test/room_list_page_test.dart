@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
+import 'package:tark/feature/room/domain/entity/room_accepted_join_snapshot.dart';
 import 'package:tark/feature/room/domain/entity/room_invitation.dart';
 import 'package:tark/feature/room/domain/repository/room_repository.dart';
 import 'package:tark/feature/room/domain/service/room_invitation_ledger.dart';
@@ -176,6 +177,14 @@ class _FakeRoomRepository implements RoomRepository {
     VerifiedRoomInvitation verified, {
     required String displayName,
     required DateTime acceptedAt,
+  }) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<SavedRoom> importAcceptedJoin(
+    RoomAcceptedJoinSnapshot snapshot, {
+    required RoomMemberId localMemberId,
   }) async {
     throw UnimplementedError();
   }
