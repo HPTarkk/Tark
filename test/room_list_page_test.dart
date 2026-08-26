@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
+import 'package:tark/feature/room/domain/entity/room_invitation.dart';
 import 'package:tark/feature/room/domain/repository/room_repository.dart';
 import 'package:tark/feature/room/domain/service/room_invitation_ledger.dart';
 import 'package:tark/feature/room/presentation/manager/room_list_cubit.dart';
@@ -143,6 +144,30 @@ class _FakeRoomRepository implements RoomRepository {
 
   @override
   Future<SavedRoom> setArchived(RoomId id, bool archived) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<RoomInvitation> issueInvite(
+    RoomId id, {
+    required RoomInvitationKind kind,
+    required DateTime now,
+    required Duration ttl,
+    RoomTransportBootstrap? transportBootstrap,
+  }) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<VerifiedRoomInvitation?> verifyAndRedeemInvite(
+    RoomInvitation invite, {
+    required DateTime now,
+  }) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> revokeInvite(RoomInvitation invite) async {
     throw UnimplementedError();
   }
 
