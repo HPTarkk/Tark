@@ -229,7 +229,7 @@ void main() {
       name: 'Existing local room',
       localDisplayName: 'Local owner',
     );
-    final now = DateTime.utc(2026, 8, 26, 15);
+    final now = existing.room.createdAt.add(const Duration(seconds: 1));
     const otherLocalId = RoomMemberId('222222222222222222222222');
     final snapshot = RoomAcceptedJoinSnapshot(
       roomId: existing.room.id,
