@@ -114,11 +114,11 @@ void main() {
     final value = request();
 
     expect(
-      () => client.verifyAcceptedResponse(
+      client.verifyAcceptedResponse(
         request: value,
         encodedResponse: 'not-a-response',
       ),
-      throwsFormatException,
+      isNull,
     );
   });
 }
