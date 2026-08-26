@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
 import 'package:tark/feature/room/domain/entity/room_invitation.dart';
+import 'package:tark/feature/room/domain/service/room_accepted_join_snapshot.dart';
 import 'package:tark/feature/room/domain/service/room_invite_join_client.dart';
 import 'package:tark/feature/room/domain/service/room_invite_join_exchange.dart';
 
@@ -29,12 +30,29 @@ void main() {
   RoomMemberId expectedMember(RoomInviteJoinRequest value) =>
       RoomMemberId(value.invitation.invitationId.substring(0, 24));
 
-  test('accepts only the correlated issuer grant for this invite', () {
+  RoomAcceptedJoinSnapshot snapshot(
+    RoomInviteJoinRequest value, {
+    RoomId? forRoom,
+    RoomMemberId? member,
+  }) => RoomAcceptedJoinSnapshot(
+    roomId: forRoom ?? value.invitation.roomId,
+    roomName: 'Night ride',
+    members: [
+      RoomAcceptedJoinMember(
+        memberId: member ?? expectedMember(value),
+        displayName: 'Rider three',
+        kind: RoomMemberKind.member,
+      ),
+    ],
+  );
+
+  test('accepts only the correlated issuer grant and durable snapshot', () {
     final value = request();
     final response = RoomInviteJoinResponse.accepted(
       requestId: value.requestId,
       roomId: value.invitation.roomId,
       memberId: expectedMember(value),
+      snapshot: snapshot(value),
     );
     final grant = client.verifyAcceptedResponse(
       request: value,
@@ -44,6 +62,24 @@ void main() {
     expect(grant!.roomId, roomId);
     expect(grant.memberId, expectedMember(value));
     expect(grant.displayName, 'Rider three');
+    expect(grant.snapshot.roomName, 'Night ride');
+  });
+
+  test('legacy accepted response without snapshot is not importable', () {
+    final value = request();
+    final response = RoomInviteJoinResponse.accepted(
+      requestId: value.requestId,
+      roomId: value.invitation.roomId,
+      memberId: expectedMember(value),
+    );
+
+    expect(
+      client.verifyAcceptedResponse(
+        request: value,
+        encodedResponse: response.encode(),
+      ),
+      isNull,
+    );
   });
 
   test('rejects accepted response for another outstanding request', () {
@@ -52,6 +88,7 @@ void main() {
       requestId: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
       roomId: value.invitation.roomId,
       memberId: expectedMember(value),
+      snapshot: snapshot(value),
     );
     expect(
       client.verifyAcceptedResponse(
@@ -69,11 +106,14 @@ void main() {
       requestId: value.requestId,
       roomId: otherRoom,
       memberId: expectedMember(value),
+      snapshot: snapshot(value, forRoom: otherRoom),
     );
+    const forged = RoomMemberId('ffffffffffffffffffffffff');
     final forgedMember = RoomInviteJoinResponse.accepted(
       requestId: value.requestId,
       roomId: value.invitation.roomId,
-      memberId: const RoomMemberId('ffffffffffffffffffffffff'),
+      memberId: forged,
+      snapshot: snapshot(value, member: forged),
     );
     expect(
       client.verifyAcceptedResponse(
@@ -86,6 +126,27 @@ void main() {
       client.verifyAcceptedResponse(
         request: value,
         encodedResponse: forgedMember.encode(),
+      ),
+      isNull,
+    );
+  });
+
+  test('accepted identity without matching snapshot member fails closed', () {
+    final value = request();
+    final response = RoomInviteJoinResponse.accepted(
+      requestId: value.requestId,
+      roomId: value.invitation.roomId,
+      memberId: expectedMember(value),
+      snapshot: snapshot(
+        value,
+        member: const RoomMemberId('eeeeeeeeeeeeeeeeeeeeeeee'),
+      ),
+    );
+
+    expect(
+      client.verifyAcceptedResponse(
+        request: value,
+        encodedResponse: response.encode(),
       ),
       isNull,
     );
