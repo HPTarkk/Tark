@@ -54,7 +54,10 @@ void main() {
       memberId: expectedMember(value),
     );
     expect(
-      client.verifyAcceptedResponse(request: value, encodedResponse: response.encode()),
+      client.verifyAcceptedResponse(
+        request: value,
+        encodedResponse: response.encode(),
+      ),
       isNull,
     );
   });
@@ -73,11 +76,17 @@ void main() {
       memberId: const RoomMemberId('ffffffffffffffffffffffff'),
     );
     expect(
-      client.verifyAcceptedResponse(request: value, encodedResponse: crossRoom.encode()),
+      client.verifyAcceptedResponse(
+        request: value,
+        encodedResponse: crossRoom.encode(),
+      ),
       isNull,
     );
     expect(
-      client.verifyAcceptedResponse(request: value, encodedResponse: forgedMember.encode()),
+      client.verifyAcceptedResponse(
+        request: value,
+        encodedResponse: forgedMember.encode(),
+      ),
       isNull,
     );
   });
@@ -88,7 +97,10 @@ void main() {
       requestId: value.requestId,
     );
     expect(
-      client.verifyAcceptedResponse(request: value, encodedResponse: response.encode()),
+      client.verifyAcceptedResponse(
+        request: value,
+        encodedResponse: response.encode(),
+      ),
       isNull,
     );
   });
@@ -96,7 +108,10 @@ void main() {
   test('malformed response fails closed', () {
     final value = request();
     expect(
-      client.verifyAcceptedResponse(request: value, encodedResponse: 'not-a-response'),
+      client.verifyAcceptedResponse(
+        request: value,
+        encodedResponse: 'not-a-response',
+      ),
       isNull,
     );
   });
