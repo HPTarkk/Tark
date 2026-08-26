@@ -42,6 +42,19 @@ final class RoomInviteJoinImporter {
     );
     if (grant == null) return null;
 
+    // A delayed duplicate response must never roll a Room back after this
+    // device has already observed or made a newer durable mutation. Keep the
+    // newer local snapshot and merely restore selection when the membership is
+    // the same. Conflicting local membership remains the repository's fail-
+    // closed invariant rather than being silently accepted here.
+    final existing = await _repository.get(grant.roomId);
+    if (existing != null &&
+        existing.membership.localMemberId == grant.memberId &&
+        existing.room.updatedAt.isAfter(grant.snapshot.roomUpdatedAt)) {
+      await _repository.select(existing.room.id);
+      return existing;
+    }
+
     final saved = await _repository.importAcceptedJoin(
       grant.snapshot,
       localMemberId: grant.memberId,
