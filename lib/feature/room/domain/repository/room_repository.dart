@@ -1,4 +1,5 @@
 import '../entity/room.dart';
+import '../entity/room_invitation.dart';
 import '../service/room_invitation_ledger.dart';
 
 abstract interface class RoomRepository {
@@ -14,6 +15,32 @@ abstract interface class RoomRepository {
   Future<SavedRoom> rename(RoomId id, String name);
 
   Future<SavedRoom> setArchived(RoomId id, bool archived);
+
+  /// Creates a bearer capability for an existing Room and durably records only
+  /// its verifier. Raw invite secrets are returned to the caller for QR/link
+  /// presentation but are never persisted by the repository.
+  ///
+  /// Only an active local membership with invite-management permission may
+  /// issue capabilities. Transport bootstrap is optional/ephemeral and remains
+  /// separate from Room identity and durable membership.
+  Future<RoomInvitation> issueInvite(
+    RoomId id, {
+    required RoomInvitationKind kind,
+    required DateTime now,
+    required Duration ttl,
+    RoomTransportBootstrap? transportBootstrap,
+  });
+
+  /// Issuer-side verification/replay consumption for a presented capability.
+  /// The resulting [VerifiedRoomInvitation] is the only authorization object
+  /// accepted by [acceptVerifiedInvite].
+  Future<VerifiedRoomInvitation?> verifyAndRedeemInvite(
+    RoomInvitation invite, {
+    required DateTime now,
+  });
+
+  /// Revokes a previously issued capability on this offline Room issuer.
+  Future<void> revokeInvite(RoomInvitation invite);
 
   /// Canonical durable membership mutation for a verified Room invitation.
   ///
