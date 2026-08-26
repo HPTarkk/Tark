@@ -63,6 +63,9 @@ final class TransportCapabilityControlCodec {
     if (packet == null) return null;
 
     final legacyEnd = _legacyControlLength(bytes);
+    if (legacyEnd == null) {
+      return DecodedTransportCapabilityControl(packet: packet, capability: null);
+    }
     var capabilityOffset = legacyEnd;
     if (MediaReceiverFeedbackWire.decode(bytes, legacyEnd) != null) {
       capabilityOffset += MediaReceiverFeedbackWire.encodedLength;
@@ -93,11 +96,32 @@ final class TransportCapabilityControlCodec {
     return result;
   }
 
-  /// Current ping/pong uses a v3 header with an empty sender name:
-  /// type + idLength + id + epoch + nameLength + 16-byte control body.
-  static int _legacyControlLength(Uint8List bytes) {
-    if (bytes.length < 2) return bytes.length;
-    return 1 + 1 + bytes[1] + 4 + 4 + 16;
+  /// Returns the byte immediately after the original 16-byte control body.
+  ///
+  /// Production encoders currently use an empty sender name, but the shared v3
+  /// header decoder intentionally accepts a non-empty one. Capability parsing
+  /// must therefore honor the encoded name length instead of assuming the body
+  /// always starts four bytes after the epoch. Otherwise a valid control packet
+  /// from a compatible peer can make arbitrary name bytes look like a trailer.
+  /// Malformed/truncated headers fail closed to no capability evidence.
+  static int? _legacyControlLength(Uint8List bytes) {
+    if (bytes.length < 2) return null;
+    final idLength = bytes[1];
+    var offset = 2 + idLength;
+
+    // Control always carries a uint32 epoch, then a uint32 sender-name length.
+    if (bytes.length < offset + 8) return null;
+    offset += 4;
+    final nameLength = ByteData.sublistView(
+      bytes,
+    ).getUint32(offset, Endian.little);
+    offset += 4;
+    if (nameLength > bytes.length - offset) return null;
+    offset += nameLength;
+
+    const controlBodyLength = 16;
+    if (bytes.length < offset + controlBodyLength) return null;
+    return offset + controlBodyLength;
   }
 }
 
