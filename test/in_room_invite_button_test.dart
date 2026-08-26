@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tark/feature/room/data/repository/shared_preferences_room_repository.dart';
 import 'package:tark/feature/room/presentation/widget/in_room_invite_button.dart';
+import 'package:tark/feature/transfer/api/hotspot_invite_api.dart';
 import 'package:tark/feature/transfer/api/transfer_api.dart';
 
 void main() {
