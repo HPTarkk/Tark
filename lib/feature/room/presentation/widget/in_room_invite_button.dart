@@ -115,75 +115,104 @@ class _RoomInviteDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final encoded = invite.encode();
-    return AlertDialog(
+    return Dialog(
       key: const Key('room-invite-dialog'),
-      title: Text(copy.title),
-      content: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 340),
-        child: SingleChildScrollView(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 340, maxHeight: 560),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                room.room.name,
-                key: const Key('room-invite-room-name'),
+                copy.title,
+                style: Theme.of(context).textTheme.titleLarge,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 12),
-              Container(
-                key: const Key('room-invite-qr'),
-                padding: const EdgeInsets.all(10),
-                color: Colors.white,
-                child: QrImageView(
-                  data: encoded,
-                  size: 196,
-                  backgroundColor: Colors.white,
-                  eyeStyle: const QrEyeStyle(color: Colors.black),
-                  dataModuleStyle: const QrDataModuleStyle(color: Colors.black),
-                  semanticsLabel: copy.qrSemantics,
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        room.room.name,
+                        key: const Key('room-invite-room-name'),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        key: const Key('room-invite-qr'),
+                        width: 216,
+                        height: 216,
+                        padding: const EdgeInsets.all(10),
+                        color: Colors.white,
+                        child: QrImageView(
+                          data: encoded,
+                          size: 196,
+                          backgroundColor: Colors.white,
+                          eyeStyle: const QrEyeStyle(color: Colors.black),
+                          dataModuleStyle: const QrDataModuleStyle(
+                            color: Colors.black,
+                          ),
+                          semanticsLabel: copy.qrSemantics,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(copy.codeLabel, style: const TextStyle(fontSize: 12)),
+                      SelectableText(
+                        invite.displayCode,
+                        key: const Key('room-invite-display-code'),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: AppColors.amber,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 4,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        copy.codeWarning,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
-              Text(copy.codeLabel, style: const TextStyle(fontSize: 12)),
-              SelectableText(
-                invite.displayCode,
-                key: const Key('room-invite-display-code'),
-                style: TextStyle(
-                  color: AppColors.amber,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 4,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                copy.codeWarning,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+              Wrap(
+                alignment: WrapAlignment.end,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  TextButton.icon(
+                    key: const Key('room-invite-copy'),
+                    onPressed: () async {
+                      await Clipboard.setData(ClipboardData(text: encoded));
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context)
+                        ..hideCurrentSnackBar()
+                        ..showSnackBar(SnackBar(content: Text(copy.copied)));
+                    },
+                    icon: const Icon(Icons.copy_rounded),
+                    label: Text(copy.copyInvite),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(copy.done),
+                  ),
+                ],
               ),
             ],
           ),
         ),
       ),
-      actions: [
-        TextButton.icon(
-          key: const Key('room-invite-copy'),
-          onPressed: () async {
-            await Clipboard.setData(ClipboardData(text: encoded));
-            if (!context.mounted) return;
-            ScaffoldMessenger.of(context)
-              ..hideCurrentSnackBar()
-              ..showSnackBar(SnackBar(content: Text(copy.copied)));
-          },
-          icon: const Icon(Icons.copy_rounded),
-          label: Text(copy.copyInvite),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(copy.done),
-        ),
-      ],
     );
   }
 }
