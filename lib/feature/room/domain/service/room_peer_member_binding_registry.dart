@@ -10,7 +10,7 @@ import '../entity/room.dart';
 /// peer key to that admitted member for the current attachment generation.
 final class RoomPeerMemberBindingRegistry {
   RoomPeerMemberBindingRegistry({required Iterable<RoomMemberId> members})
-      : _members = members.toSet();
+    : _members = members.toSet();
 
   final Set<RoomMemberId> _members;
   final Map<String, _PeerMemberBinding> _byPeer = {};
@@ -78,10 +78,7 @@ final class RoomPeerMemberBindingRegistry {
     return true;
   }
 
-  RoomMemberId? resolve(
-    String peerKey, {
-    required int attachmentGeneration,
-  }) {
+  RoomMemberId? resolve(String peerKey, {required int attachmentGeneration}) {
     _ensureOpen();
     final binding = _byPeer[peerKey];
     if (binding == null ||
@@ -112,8 +109,7 @@ final class RoomPeerMemberBindingRegistry {
     if (attachmentGeneration < 0) return;
     final stalePeers = _byPeer.entries
         .where(
-          (entry) =>
-              entry.value.attachmentGeneration < attachmentGeneration,
+          (entry) => entry.value.attachmentGeneration < attachmentGeneration,
         )
         .map((entry) => entry.key)
         .toList(growable: false);
