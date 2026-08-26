@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../entity/room.dart';
 import '../entity/room_invitation.dart';
+import 'room_accepted_join_snapshot.dart';
 import 'room_invite_acceptance_coordinator.dart';
 
 /// Transport-independent request/response contract for secure Room invite join.
@@ -17,7 +18,7 @@ final class RoomInviteJoinExchange {
   static const currentVersion = 1;
   static const maxDisplayNameLength = 80;
   static const maxEncodedRequestLength = 2048;
-  static const maxEncodedResponseLength = 1024;
+  static const maxEncodedResponseLength = 8192;
 
   final RoomInviteAcceptanceCoordinator _acceptance;
 
@@ -44,10 +45,15 @@ final class RoomInviteJoinExchange {
         final memberId = RoomMemberId(
           request.invitation.invitationId.substring(0, 24),
         );
+        final snapshot = RoomAcceptedJoinSnapshot.fromSavedRoom(
+          room,
+          acceptedMemberId: memberId,
+        );
         return RoomInviteJoinResponse.accepted(
           requestId: request.requestId,
           roomId: room.room.id,
           memberId: memberId,
+          snapshot: snapshot,
         ).encode();
       case RoomInviteAcceptanceStatus.rejected:
         return RoomInviteJoinResponse.rejected(
@@ -148,27 +154,32 @@ final class RoomInviteJoinResponse {
     required this.requestId,
     required this.roomId,
     required this.memberId,
+    this.snapshot,
   }) : status = RoomInviteJoinResponseStatus.accepted;
 
   const RoomInviteJoinResponse.rejected({required this.requestId})
     : status = RoomInviteJoinResponseStatus.rejected,
       roomId = null,
-      memberId = null;
+      memberId = null,
+      snapshot = null;
 
   const RoomInviteJoinResponse.roomUnavailable({required this.requestId})
     : status = RoomInviteJoinResponseStatus.roomUnavailable,
       roomId = null,
-      memberId = null;
+      memberId = null,
+      snapshot = null;
 
   const RoomInviteJoinResponse.malformed({required this.requestId})
     : status = RoomInviteJoinResponseStatus.malformed,
       roomId = null,
-      memberId = null;
+      memberId = null,
+      snapshot = null;
 
   final String requestId;
   final RoomInviteJoinResponseStatus status;
   final RoomId? roomId;
   final RoomMemberId? memberId;
+  final RoomAcceptedJoinSnapshot? snapshot;
 
   String encode() {
     if (requestId.isNotEmpty &&
@@ -179,12 +190,16 @@ final class RoomInviteJoinResponse {
         (roomId == null || memberId == null)) {
       throw const FormatException('accepted room join response fields');
     }
+    if (snapshot != null && snapshot!.roomId != roomId) {
+      throw const FormatException('accepted room join snapshot identity');
+    }
     final payload = jsonEncode({
       'v': RoomInviteJoinExchange.currentVersion,
       'requestId': requestId,
       'status': status.name,
       if (roomId != null) 'roomId': roomId!.value,
       if (memberId != null) 'memberId': memberId!.value,
+      if (snapshot != null) 'snapshot': snapshot!.encode(),
     });
     final encoded = base64Url.encode(utf8.encode(payload)).replaceAll('=', '');
     if (encoded.length > RoomInviteJoinExchange.maxEncodedResponseLength) {
@@ -225,18 +240,29 @@ final class RoomInviteJoinResponse {
       if (status == RoomInviteJoinResponseStatus.accepted) {
         final roomId = RoomId.parse(value['roomId'] as String? ?? '');
         final memberIdRaw = value['memberId'];
+        final snapshotRaw = value['snapshot'];
         if (roomId == null ||
             memberIdRaw is! String ||
-            !RegExp(r'^[0-9a-f]{24}$').hasMatch(memberIdRaw)) {
+            !RegExp(r'^[0-9a-f]{24}$').hasMatch(memberIdRaw) ||
+            (snapshotRaw != null && snapshotRaw is! String)) {
           throw const FormatException('accepted room join response identity');
+        }
+        final snapshot = snapshotRaw is String
+            ? RoomAcceptedJoinSnapshot.decode(snapshotRaw)
+            : null;
+        if (snapshot != null && snapshot.roomId != roomId) {
+          throw const FormatException('accepted room join snapshot identity');
         }
         return RoomInviteJoinResponse.accepted(
           requestId: requestId,
           roomId: roomId,
           memberId: RoomMemberId(memberIdRaw),
+          snapshot: snapshot,
         );
       }
-      if (value.containsKey('roomId') || value.containsKey('memberId')) {
+      if (value.containsKey('roomId') ||
+          value.containsKey('memberId') ||
+          value.containsKey('snapshot')) {
         throw const FormatException('unexpected room join response identity');
       }
       return switch (status) {
