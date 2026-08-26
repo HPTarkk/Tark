@@ -33,24 +33,27 @@ void main() {
     expect(decoded.invitation.transportBootstrap, isNull);
   });
 
-  test('join request rejects malformed identity and oversized display name', () {
-    expect(
-      () => RoomInviteJoinRequest(
-        requestId: 'not-a-request-id',
-        invitation: invite(),
-        displayName: 'Rider',
-      ).encode(),
-      throwsFormatException,
-    );
-    expect(
-      () => RoomInviteJoinRequest(
-        requestId: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
-        invitation: invite(),
-        displayName: 'x' * 81,
-      ).encode(),
-      throwsFormatException,
-    );
-  });
+  test(
+    'join request rejects malformed identity and oversized display name',
+    () {
+      expect(
+        () => RoomInviteJoinRequest(
+          requestId: 'not-a-request-id',
+          invitation: invite(),
+          displayName: 'Rider',
+        ).encode(),
+        throwsFormatException,
+      );
+      expect(
+        () => RoomInviteJoinRequest(
+          requestId: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+          invitation: invite(),
+          displayName: 'x' * 81,
+        ).encode(),
+        throwsFormatException,
+      );
+    },
+  );
 
   test('accepted response round-trips only durable room/member identity', () {
     const memberId = RoomMemberId('1234567890abcdef12345678');
