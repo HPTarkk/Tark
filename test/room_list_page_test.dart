@@ -108,9 +108,8 @@ SavedRoom _savedRoom(String id, String name, {required int memberCount}) {
 }
 
 class _FakeRoomRepository implements RoomRepository {
-  _FakeRoomRepository({required List<SavedRoom> rooms, RoomId? selected})
-    : _rooms = List.of(rooms),
-      selected = selected;
+  _FakeRoomRepository({required List<SavedRoom> rooms, this.selected})
+    : _rooms = List.of(rooms);
 
   final List<SavedRoom> _rooms;
   RoomId? selected;
