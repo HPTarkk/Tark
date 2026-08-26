@@ -41,15 +41,28 @@ final class RoomAcceptedJoinSnapshot {
   final String roomName;
   final List<RoomAcceptedJoinMember> members;
 
-  factory RoomAcceptedJoinSnapshot.fromSavedRoom(SavedRoom saved) =>
-      RoomAcceptedJoinSnapshot(
-        roomId: saved.room.id,
-        roomName: saved.room.name.trim(),
-        members: saved.room.members
-            .where((member) => member.isActive)
-            .take(maxMembers)
-            .map(RoomAcceptedJoinMember.fromRoomMember),
-      );
+  factory RoomAcceptedJoinSnapshot.fromSavedRoom(
+    SavedRoom saved, {
+    required RoomMemberId acceptedMemberId,
+  }) {
+    final active = saved.room.members
+        .where((member) => member.isActive)
+        .toList(growable: false);
+    final accepted = active.where((member) => member.id == acceptedMemberId);
+    if (accepted.length != 1) {
+      throw StateError('accepted Room member is not active in issuer roster');
+    }
+    final selected = <RoomMember>[
+      for (final member in active)
+        if (member.id != acceptedMemberId) member,
+    ].take(maxMembers - 1).toList(growable: true)
+      ..add(accepted.single);
+    return RoomAcceptedJoinSnapshot(
+      roomId: saved.room.id,
+      roomName: saved.room.name.trim(),
+      members: selected.map(RoomAcceptedJoinMember.fromRoomMember),
+    );
+  }
 
   String encode() {
     final payload = jsonEncode({
