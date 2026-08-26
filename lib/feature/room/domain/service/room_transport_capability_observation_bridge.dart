@@ -22,7 +22,7 @@ final class RoomTransportCapabilityObservationBridge {
       _observe,
       // Capability evidence is optional. A transport observation stream error
       // must not tear down the logical Room or manufacture fallback evidence.
-      onError: (_) {},
+      onError: (Object _) {},
     );
   }
 
