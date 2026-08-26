@@ -62,8 +62,7 @@ final class RoomAcceptedJoinSnapshot {
     final selected = <RoomMember>[
       for (final member in active)
         if (member.id != acceptedMemberId) member,
-    ].take(maxMembers - 1).toList(growable: true)
-      ..add(accepted.single);
+    ].take(maxMembers - 1).toList(growable: true)..add(accepted.single);
     return RoomAcceptedJoinSnapshot(
       roomId: saved.room.id,
       roomName: saved.room.name.trim(),
