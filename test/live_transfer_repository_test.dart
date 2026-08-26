@@ -95,6 +95,24 @@ void main() {
     expect(bluetooth.listenStarts, 1);
     expect(bluetooth.connectStarts, 1);
   });
+
+  test('session stop releases wrapper ownership, not concrete singleton', () async {
+    subject.startListening();
+    subject.connect();
+
+    subject.stopConnection();
+    await _flush();
+
+    expect(wifi.stopCalls, 1);
+    expect(wifi.disposeCalls, 0);
+
+    await modes.setMode(TransferMode.bluetooth);
+    await _flush();
+
+    expect(bluetooth.listenStarts, 0);
+    expect(bluetooth.connectStarts, 0);
+    expect(wifi.stopCalls, 1);
+  });
 }
 
 Future<void> _flush() async {
