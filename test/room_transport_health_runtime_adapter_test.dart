@@ -78,7 +78,7 @@ void main() {
       expect(runtime.state.attachment.generation, secondGeneration);
       expect(
         runtime.state.attachment.phase,
-        TransportAttachmentPhase.connecting,
+        TransportAttachmentPhase.attaching,
       );
 
       second.add(const ConnectionHealth.healthy());
