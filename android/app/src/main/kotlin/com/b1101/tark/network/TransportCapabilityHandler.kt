@@ -1,5 +1,6 @@
 package com.b1101.tark.network
 
+import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -41,12 +42,25 @@ class TransportCapabilityHandler(
                     pm.hasSystemFeature(PackageManager.FEATURE_WIFI)
                 ),
             "bluetoothSupported" to pm.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH),
-            // During a live Room this is the concrete evidence that the session
-            // foreground service actually reached its running state. Merely
-            // being on Android is not treated as background readiness.
-            "backgroundReady" to SessionKeepAliveService.isActive,
+            // During a live Room this is concrete evidence that the foreground
+            // keep-alive service actually exists. Merely being on Android is
+            // not treated as background readiness.
+            "backgroundReady" to isKeepAliveRunning(),
             "batteryPercent" to battery,
         )
+    }
+
+    @Suppress("DEPRECATION")
+    private fun isKeepAliveRunning(): Boolean {
+        val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+            ?: return false
+        // On Android O+ getRunningServices is restricted to this app's own
+        // services, which is exactly the evidence needed here.
+        return runCatching {
+            manager.getRunningServices(Int.MAX_VALUE).any {
+                it.service.className == SessionKeepAliveService::class.java.name
+            }
+        }.getOrDefault(false)
     }
 
     private fun batteryPercent(): Int? {
