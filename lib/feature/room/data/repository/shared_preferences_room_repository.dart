@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../domain/entity/room.dart';
+import '../../domain/entity/room_accepted_join_snapshot.dart';
 import '../../domain/entity/room_invitation.dart';
 import '../../domain/repository/room_repository.dart';
 import '../../domain/service/room_invitation_ledger.dart';
@@ -144,9 +145,6 @@ class SharedPreferencesRoomRepository implements RoomRepository {
     final prefs = await _prefs();
     final ledger = _readInviteLedger(prefs, invite.roomId);
     final verified = ledger.verifyAndRedeem(invite, now.toUtc());
-    // Persist after every verification attempt. For reusable invitations this
-    // is unchanged state; for a single-use guest it atomically records replay
-    // consumption before the verified capability escapes this repository.
     await _writeInviteLedger(prefs, invite.roomId, ledger);
     return verified;
   }
@@ -157,9 +155,6 @@ class SharedPreferencesRoomRepository implements RoomRepository {
     _requireInviteManager(room);
     final prefs = await _prefs();
     final ledger = _readInviteLedger(prefs, invite.roomId);
-    // Unknown/forged invitation ids are intentionally harmless. Registering is
-    // done only by issueInvite; revocation must never turn an arbitrary decoded
-    // payload into an issued capability.
     ledger.revoke(invite);
     await _writeInviteLedger(prefs, invite.roomId, ledger);
   }
@@ -205,6 +200,56 @@ class SharedPreferencesRoomRepository implements RoomRepository {
     );
     await _save(next);
     return next;
+  }
+
+  @override
+  Future<SavedRoom> importAcceptedJoin(
+    RoomAcceptedJoinSnapshot snapshot, {
+    required RoomMemberId localMemberId,
+  }) async {
+    final localMatches = snapshot.members.where(
+      (member) => member.memberId == localMemberId,
+    );
+    if (localMatches.length != 1) {
+      throw StateError('Accepted Room snapshot does not contain local member');
+    }
+
+    final saved = SavedRoom(
+      room: Room(
+        id: snapshot.roomId,
+        name: _requiredText(snapshot.roomName, 'room name'),
+        createdAt: snapshot.roomCreatedAt.toUtc(),
+        updatedAt: snapshot.roomUpdatedAt.toUtc(),
+        members: snapshot.members
+            .map(
+              (member) => RoomMember(
+                id: member.memberId,
+                displayName: _requiredText(member.displayName, 'display name'),
+                joinedAt: member.joinedAt.toUtc(),
+                kind: member.kind,
+              ),
+            )
+            .toList(growable: false),
+      ),
+      membership: RoomMembership(
+        localMemberId: localMemberId,
+        canManageInvites: false,
+      ),
+    );
+
+    final prefs = await _prefs();
+    final existing = _readRoom(prefs, snapshot.roomId);
+    if (existing != null && existing.membership.localMemberId != localMemberId) {
+      throw StateError('Room already belongs to another local membership');
+    }
+    await _writeRoom(prefs, saved);
+    final ids = _readIndex(prefs).toList();
+    if (!ids.contains(snapshot.roomId)) ids.add(snapshot.roomId);
+    await prefs.setStringList(
+      _indexKey,
+      ids.map((item) => item.value).toList(),
+    );
+    return saved;
   }
 
   @override
@@ -290,8 +335,6 @@ class SharedPreferencesRoomRepository implements RoomRepository {
     try {
       return RoomInvitationLedger.decodeState(raw);
     } on FormatException {
-      // Security state fails closed: a corrupt ledger is not silently replaced
-      // with an empty one that would forget revocations/replay consumption.
       throw StateError('Room invitation ledger is corrupt');
     }
   }
