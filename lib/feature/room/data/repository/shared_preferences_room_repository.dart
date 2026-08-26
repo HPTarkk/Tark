@@ -145,6 +145,9 @@ class SharedPreferencesRoomRepository implements RoomRepository {
     final prefs = await _prefs();
     final ledger = _readInviteLedger(prefs, invite.roomId);
     final verified = ledger.verifyAndRedeem(invite, now.toUtc());
+    // Persist after every verification attempt. For reusable invitations this
+    // is unchanged state; for a single-use guest it atomically records replay
+    // consumption before the verified capability escapes this repository.
     await _writeInviteLedger(prefs, invite.roomId, ledger);
     return verified;
   }
@@ -155,6 +158,9 @@ class SharedPreferencesRoomRepository implements RoomRepository {
     _requireInviteManager(room);
     final prefs = await _prefs();
     final ledger = _readInviteLedger(prefs, invite.roomId);
+    // Unknown/forged invitation ids are intentionally harmless. Registering is
+    // done only by issueInvite; revocation must never turn an arbitrary decoded
+    // payload into an issued capability.
     ledger.revoke(invite);
     await _writeInviteLedger(prefs, invite.roomId, ledger);
   }
@@ -336,6 +342,8 @@ class SharedPreferencesRoomRepository implements RoomRepository {
     try {
       return RoomInvitationLedger.decodeState(raw);
     } on FormatException {
+      // Security state fails closed: a corrupt ledger is not silently replaced
+      // with an empty one that would forget revocations/replay consumption.
       throw StateError('Room invitation ledger is corrupt');
     }
   }
