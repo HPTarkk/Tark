@@ -19,6 +19,7 @@ class SharedPreferencesRoomRepository implements RoomRepository {
   static const _indexKey = 'rooms.v1.index';
   static const _selectedKey = 'rooms.v1.selected';
   static const _roomPrefix = 'rooms.v1.room.';
+  static const _inviteLedgerPrefix = 'rooms.v1.invites.';
 
   Future<SharedPreferences> _prefs() => SharedPreferences.getInstance();
 
@@ -110,6 +111,60 @@ class SharedPreferencesRoomRepository implements RoomRepository {
   }
 
   @override
+  Future<RoomInvitation> issueInvite(
+    RoomId id, {
+    required RoomInvitationKind kind,
+    required DateTime now,
+    required Duration ttl,
+    RoomTransportBootstrap? transportBootstrap,
+  }) async {
+    final room = await _require(id);
+    _requireInviteManager(room);
+    final invite = generateRoomInvitation(
+      roomId: id,
+      kind: kind,
+      now: now,
+      ttl: ttl,
+      transportBootstrap: transportBootstrap,
+    );
+    final prefs = await _prefs();
+    final ledger = _readInviteLedger(prefs, id);
+    ledger.registerIssued(invite);
+    await _writeInviteLedger(prefs, id, ledger);
+    return invite;
+  }
+
+  @override
+  Future<VerifiedRoomInvitation?> verifyAndRedeemInvite(
+    RoomInvitation invite, {
+    required DateTime now,
+  }) async {
+    final room = await _require(invite.roomId);
+    _requireInviteManager(room);
+    final prefs = await _prefs();
+    final ledger = _readInviteLedger(prefs, invite.roomId);
+    final verified = ledger.verifyAndRedeem(invite, now.toUtc());
+    // Persist after every verification attempt. For reusable invitations this
+    // is unchanged state; for a single-use guest it atomically records replay
+    // consumption before the verified capability escapes this repository.
+    await _writeInviteLedger(prefs, invite.roomId, ledger);
+    return verified;
+  }
+
+  @override
+  Future<void> revokeInvite(RoomInvitation invite) async {
+    final room = await _require(invite.roomId);
+    _requireInviteManager(room);
+    final prefs = await _prefs();
+    final ledger = _readInviteLedger(prefs, invite.roomId);
+    // Unknown/forged invitation ids are intentionally harmless. Registering is
+    // done only by issueInvite; revocation must never turn an arbitrary decoded
+    // payload into an issued capability.
+    ledger.revoke(invite);
+    await _writeInviteLedger(prefs, invite.roomId, ledger);
+  }
+
+  @override
   Future<SavedRoom> acceptVerifiedInvite(
     VerifiedRoomInvitation verified, {
     required String displayName,
@@ -120,9 +175,6 @@ class SharedPreferencesRoomRepository implements RoomRepository {
     final cleanDisplayName = _requiredText(displayName, 'display name');
     final now = acceptedAt.toUtc();
 
-    // Invitation ids are issuer-generated 128-bit values. Deriving the durable
-    // member id from the non-secret invitation id makes retries idempotent while
-    // keeping transport/IP/hotspot data completely outside Room persistence.
     final memberId = RoomMemberId(invite.invitationId.substring(0, 24));
     final memberKind = invite.kind == RoomInvitationKind.singleRideGuest
         ? RoomMemberKind.guest
@@ -132,8 +184,6 @@ class SharedPreferencesRoomRepository implements RoomRepository {
     final existingIndex = members.indexWhere((member) => member.id == memberId);
     if (existingIndex >= 0) {
       final existing = members[existingIndex];
-      // Reusing the same verified capability is idempotent: never create a
-      // duplicate row or silently reactivate a removed member.
       if (existing.isActive && existing.displayName != cleanDisplayName) {
         members[existingIndex] = existing.copyWith(
           displayName: cleanDisplayName,
@@ -187,6 +237,7 @@ class SharedPreferencesRoomRepository implements RoomRepository {
   Future<void> delete(RoomId id) async {
     final prefs = await _prefs();
     await prefs.remove('$_roomPrefix${id.value}');
+    await prefs.remove('$_inviteLedgerPrefix${id.value}');
     final ids = _readIndex(prefs).where((item) => item != id).toList();
     await prefs.setStringList(
       _indexKey,
@@ -226,6 +277,33 @@ class SharedPreferencesRoomRepository implements RoomRepository {
     if (value == null) throw StateError('Room not found');
     return value;
   }
+
+  void _requireInviteManager(SavedRoom room) {
+    if (!room.membership.active || !room.membership.canManageInvites) {
+      throw StateError('Local membership cannot manage room invitations');
+    }
+  }
+
+  RoomInvitationLedger _readInviteLedger(
+    SharedPreferences prefs,
+    RoomId id,
+  ) {
+    final raw = prefs.getString('$_inviteLedgerPrefix${id.value}');
+    if (raw == null) return RoomInvitationLedger();
+    try {
+      return RoomInvitationLedger.decodeState(raw);
+    } on FormatException {
+      // Security state fails closed: a corrupt ledger is not silently replaced
+      // with an empty one that would forget revocations/replay consumption.
+      throw StateError('Room invitation ledger is corrupt');
+    }
+  }
+
+  Future<void> _writeInviteLedger(
+    SharedPreferences prefs,
+    RoomId id,
+    RoomInvitationLedger ledger,
+  ) => prefs.setString('$_inviteLedgerPrefix${id.value}', ledger.encodeState());
 
   Future<void> _save(SavedRoom room) async {
     final prefs = await _prefs();
@@ -276,7 +354,6 @@ class SharedPreferencesRoomRepository implements RoomRepository {
         ),
       );
     } catch (_) {
-      // Fail one record closed without destroying any other saved room.
       return null;
     }
   }
