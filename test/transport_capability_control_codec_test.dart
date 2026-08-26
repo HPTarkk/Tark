@@ -92,8 +92,18 @@ void main() {
     final decoded = TransportCapabilityControlCodec(
       baseCodec,
     ).decodeControl(bytes, 'peer')!;
+    final decodedFeedback = decoded.packet.mediaReceiverFeedback;
 
-    expect(decoded.packet.mediaReceiverFeedback, feedback);
+    expect(decodedFeedback, isNotNull);
+    expect(decodedFeedback!.queuedMs, feedback.queuedMs);
+    expect(decodedFeedback.underruns, feedback.underruns);
+    expect(decodedFeedback.outputStarvations, feedback.outputStarvations);
+    expect(decodedFeedback.trims, feedback.trims);
+    expect(decodedFeedback.overflowDrops, feedback.overflowDrops);
+    expect(decodedFeedback.staleDrops, feedback.staleDrops);
+    expect(decodedFeedback.duplicateDrops, feedback.duplicateDrops);
+    expect(decodedFeedback.resyncs, feedback.resyncs);
+    expect(decodedFeedback.concealedMs, feedback.concealedMs);
     expect(decoded.capability, capability);
   });
 
