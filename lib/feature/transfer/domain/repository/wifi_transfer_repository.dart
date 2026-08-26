@@ -1,3 +1,5 @@
+import '../entity/transport_capability_advertisement.dart';
+import '../entity/transport_capability_observation.dart';
 import 'transfer_repository.dart';
 
 /// The Wi-Fi/UDP transport specifically — as opposed to [TransferRepository],
@@ -6,6 +8,15 @@ import 'transfer_repository.dart';
 /// hotspot bridge waiting for the first packet from the joined peer) depend
 /// on this instead of the concrete implementation.
 abstract interface class WifiTransferRepository implements TransferRepository {
+  /// Latest locally-proven transport capability snapshot, or null when the
+  /// platform evidence is unavailable/unknown. Never fabricate eligibility.
+  TransportCapabilityAdvertisement? get localTransportCapability;
+
+  /// Privacy-safe capability evidence decoded from live peer heartbeats.
+  /// Consumers must bind [TransportCapabilityObservation.peerKey] to an
+  /// already-admitted durable RoomMemberId before using it for Room planning.
+  Stream<TransportCapabilityObservation> get transportCapabilityObservations;
+
   /// Rebuilds both UDP sockets on the network this device is on NOW, without
   /// ending the session.
   ///
