@@ -75,17 +75,6 @@ jobs:
             exit 1
           fi
 
-      - name: Upload formatter diagnostic
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: formatter-diagnostic
-          path: |
-            lib/feature/room/presentation/widget/in_room_invite_button.dart
-            lib/feature/transfer/api/transfer_api.dart
-            test/in_room_invite_button_test.dart
-          if-no-files-found: error
-
       - name: Analyze
         run: flutter analyze
 
