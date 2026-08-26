@@ -16,6 +16,7 @@ import 'room_invite_join_exchange.dart';
 /// credentials, addresses and temporary host roles never become durable Room
 /// identity or membership state. Selection happens only after persistence has
 /// succeeded, so a rejected or failed import cannot leave a phantom selection.
+/// Unverified responses are therefore a no-op, not a partially-created Room.
 final class RoomInviteJoinImporter {
   const RoomInviteJoinImporter({
     required RoomRepository repository,
