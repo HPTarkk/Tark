@@ -41,7 +41,9 @@ class WalkieHeader extends StatelessWidget {
             const Spacer(),
             // RepaintBoundary isolates the 60 fps pulse dot from the header.
             const RepaintBoundary(child: SignalIndicator()),
-            const SizedBox(width: 14),
+            const SizedBox(width: 8),
+            const _RoomsButton(),
+            const SizedBox(width: 4),
             const _SettingsButton(),
           ],
         ),
@@ -50,7 +52,30 @@ class WalkieHeader extends StatelessWidget {
   }
 }
 
-// ── Settings entry point ──────────────────────────────────────────────────────
+// ── Room / settings entry points ─────────────────────────────────────────────
+
+/// Opens durable saved Rooms without touching the current transport. This is
+/// deliberately available from inside a live session so Room management is no
+/// longer hidden behind leaving/recreating the channel.
+class _RoomsButton extends StatelessWidget {
+  const _RoomsButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final fa = Localizations.localeOf(context).languageCode == 'fa';
+    final label = fa ? 'اتاق‌های ذخیره‌شده' : 'Saved rooms';
+    return Semantics(
+      button: true,
+      label: label,
+      child: IconButton(
+        key: const Key('walkie-saved-rooms'),
+        tooltip: label,
+        onPressed: () => context.pushNamed(AppRoutes.roomsName),
+        icon: Icon(Icons.groups_2_outlined, color: AppColors.textSecondary),
+      ),
+    );
+  }
+}
 
 /// Opens Settings with the running [WalkieTalkieCubit] threaded through
 /// go_router's `extra`, so changes (VOX threshold, noise suppression, name)
@@ -200,9 +225,9 @@ class _SignalIndicatorState extends State<SignalIndicator>
 /// A four-bar signal meter.
 ///
 /// Public so its mapping from grade to lit bars can be tested directly; the
-/// header is the only thing that builds one. The tallest lit bar carries the pulse, so the
-/// header keeps the "this session is alive" heartbeat the single dot used to
-/// provide while also saying how good the link is.
+/// header is the only thing that builds one. The tallest lit bar carries the
+/// pulse, so the header keeps the "this session is alive" heartbeat the single
+/// dot used to provide while also saying how good the link is.
 ///
 /// Built from plain sized boxes on purpose — no shader, no clip, no blur, and
 /// only the one animated child rebuilds per frame. This sits in the header of

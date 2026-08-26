@@ -13,6 +13,9 @@ abstract final class AppRoutes {
   static const onboardingName = 'OnboardingPage';
   static const onboardingPath = '/onboarding';
 
+  static const roomsName = 'RoomListPage';
+  static const roomsPath = '/rooms';
+
   static const walkieName = 'WalkieTalkiePage';
   static const walkiePath = '/walkie';
 
