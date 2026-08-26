@@ -425,8 +425,7 @@ final class _InviteCopy {
       : 'Could not create the invite. Try again.';
   String get qrSemantics =>
       fa ? 'کیوآر دعوت امن اتاق' : 'Secure Room invite QR';
-  String get wifiTitle =>
-      fa ? 'اتصال وای‌فای میزبان' : 'Host Wi-Fi connection';
+  String get wifiTitle => fa ? 'اتصال وای‌فای میزبان' : 'Host Wi-Fi connection';
   String get ssidLabel => fa ? 'نام شبکه' : 'Network';
   String get passwordLabel => fa ? 'رمز عبور' : 'Password';
   String get wifiEphemeral => fa
