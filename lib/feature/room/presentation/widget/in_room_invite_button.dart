@@ -33,22 +33,18 @@ class _InRoomInviteButtonState extends State<InRoomInviteButton> {
   @override
   Widget build(BuildContext context) {
     final copy = _InviteCopy.of(context);
-    return Semantics(
-      button: true,
-      label: copy.addRider,
-      child: IconButton(
-        key: const Key('in-room-add-rider'),
-        tooltip: copy.addRider,
-        visualDensity: VisualDensity.compact,
-        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-        onPressed: _busy ? null : _openInvite,
-        icon: _busy
-            ? const SizedBox.square(
-                dimension: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : Icon(Icons.person_add_alt_1_rounded, color: AppColors.amber),
-      ),
+    return IconButton(
+      key: const Key('in-room-add-rider'),
+      tooltip: copy.addRider,
+      visualDensity: VisualDensity.compact,
+      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+      onPressed: _busy ? null : _openInvite,
+      icon: _busy
+          ? const SizedBox.square(
+              dimension: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Icon(Icons.person_add_alt_1_rounded, color: AppColors.amber),
     );
   }
 
