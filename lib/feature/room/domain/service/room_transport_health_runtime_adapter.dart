@@ -46,21 +46,14 @@ class RoomTransportHealthRuntimeAdapter {
     return generation;
   }
 
-  Future<void> _bind(
-    int generation,
-    Stream<ConnectionHealth> health,
-  ) async {
+  Future<void> _bind(int generation, Stream<ConnectionHealth> health) async {
     late final StreamSubscription<ConnectionHealth> subscription;
     subscription = health.listen(
       (value) => _onHealth(generation, value),
-      onError: (Object _) => _failIfCurrent(
-        generation,
-        reason: 'transport_health_stream_error',
-      ),
-      onDone: () => _failIfCurrent(
-        generation,
-        reason: 'transport_health_stream_closed',
-      ),
+      onError: (Object _) =>
+          _failIfCurrent(generation, reason: 'transport_health_stream_error'),
+      onDone: () =>
+          _failIfCurrent(generation, reason: 'transport_health_stream_closed'),
     );
 
     final owned = runtime.ownCurrentAttachmentResource(
@@ -77,10 +70,7 @@ class RoomTransportHealthRuntimeAdapter {
       case ConnectionHealthStatus.healthy:
         runtime.ready(generation: generation);
       case ConnectionHealthStatus.degraded:
-        runtime.degraded(
-          generation: generation,
-          reason: 'transport_degraded',
-        );
+        runtime.degraded(generation: generation, reason: 'transport_degraded');
       case ConnectionHealthStatus.reconnecting:
         runtime.recover(
           generation: generation,
