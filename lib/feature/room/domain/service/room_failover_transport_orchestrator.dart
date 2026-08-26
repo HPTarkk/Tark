@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'room_failover_controller.dart';
 import 'room_failover_runtime.dart';
+import 'room_transport_candidate_registry.dart';
 import 'room_transport_planner.dart';
 
 /// Concrete lifecycle bridge between Room failover decisions and whichever
@@ -34,6 +35,31 @@ class RoomFailoverTransportOrchestrator {
     if (attempt == null) return null;
     await _start(attempt);
     return attempt;
+  }
+
+  /// Begins failover only from the verified, generation-scoped candidate
+  /// registry used by Room transport planning.
+  ///
+  /// This is the production-safe entry for #48/#51 once live capability
+  /// observations are available. Callers provide the active attachment
+  /// generation explicitly; stale/expired observations are filtered by the
+  /// registry before the planner sees them. Unknown or mixed-version peers
+  /// therefore remain absent instead of being fabricated as eligible hosts.
+  Future<RoomFailoverAttempt?> beginFromRegistry({
+    required bool sharedLanUsable,
+    required RoomTransportCandidateRegistry candidates,
+    required int attachmentGeneration,
+    required DateTime now,
+    required RoomFailoverReason reason,
+  }) {
+    return begin(
+      sharedLanUsable: sharedLanUsable,
+      candidates: candidates.snapshot(
+        now: now,
+        attachmentGeneration: attachmentGeneration,
+      ),
+      reason: reason,
+    );
   }
 
   Future<RoomFailoverAttempt?> adopt(RoomFailoverDecision decision) async {
