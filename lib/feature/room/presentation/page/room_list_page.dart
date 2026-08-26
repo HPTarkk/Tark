@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/routes.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entity/room.dart';
@@ -10,8 +12,9 @@ import '../manager/room_list_cubit.dart';
 /// Offline-first manager for durable Rooms.
 ///
 /// This page intentionally does not start Wi-Fi, a hotspot, Bluetooth or a
-/// guest link. Selecting a Room changes only durable user intent; transport
-/// orchestration begins later from an explicit live-session action.
+/// guest link merely by viewing/selecting a Room. Transport orchestration begins
+/// only when the user presses the explicit Start Ride action for the selected
+/// durable Room.
 class RoomListPage extends StatelessWidget {
   const RoomListPage._();
 
@@ -65,13 +68,17 @@ class RoomListPage extends StatelessWidget {
                 separatorBuilder: (_, _) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final saved = state.rooms[index];
+                  final selected = state.selectedRoomId == saved.room.id;
                   return _RoomCard(
                     saved: saved,
-                    selected: state.selectedRoomId == saved.room.id,
+                    selected: selected,
                     busy: state.loading,
                     copy: copy,
                     onSelect: () =>
                         context.read<RoomListCubit>().select(saved.room.id),
+                    onStart: selected
+                        ? () => context.go(AppRoutes.walkiePath)
+                        : null,
                     onRename: () => _renameRoom(context, saved),
                     onArchive: () => _archiveRoom(context, saved),
                     onLeave: () => _leaveRoom(context, saved),
@@ -238,6 +245,7 @@ class _RoomCard extends StatelessWidget {
     required this.busy,
     required this.copy,
     required this.onSelect,
+    required this.onStart,
     required this.onRename,
     required this.onArchive,
     required this.onLeave,
@@ -248,6 +256,7 @@ class _RoomCard extends StatelessWidget {
   final bool busy;
   final _RoomCopy copy;
   final VoidCallback onSelect;
+  final VoidCallback? onStart;
   final VoidCallback onRename;
   final VoidCallback onArchive;
   final VoidCallback onLeave;
@@ -357,7 +366,15 @@ class _RoomCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                if (!selected && !archived) ...[
+                if (selected && !archived) ...[
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    key: Key('room-start-${saved.room.id.value}'),
+                    onPressed: busy ? null : onStart,
+                    icon: const Icon(Icons.play_arrow_rounded),
+                    label: Text(copy.startRide),
+                  ),
+                ] else if (!archived) ...[
                   const SizedBox(height: 8),
                   Align(
                     alignment: AlignmentDirectional.centerStart,
@@ -505,6 +522,7 @@ final class _RoomCopy {
   String get cancel => fa ? 'انصراف' : 'Cancel';
   String get select => fa ? 'انتخاب این اتاق' : 'Select this room';
   String get selected => fa ? 'انتخاب‌شده' : 'Selected';
+  String get startRide => fa ? 'شروع ارتباط' : 'Start ride';
   String get manage => fa ? 'مدیریت اتاق' : 'Manage room';
   String get retry => fa ? 'تلاش دوباره' : 'Retry';
   String get roomNameHint => fa ? 'نام اتاق' : 'Room name';
