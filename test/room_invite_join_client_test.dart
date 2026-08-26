@@ -37,10 +37,13 @@ void main() {
   }) => RoomAcceptedJoinSnapshot(
     roomId: forRoom ?? value.invitation.roomId,
     roomName: 'Night ride',
+    roomCreatedAt: now.subtract(const Duration(days: 1)),
+    roomUpdatedAt: now,
     members: [
       RoomAcceptedJoinMember(
         memberId: member ?? expectedMember(value),
         displayName: 'Rider three',
+        joinedAt: now,
         kind: RoomMemberKind.member,
       ),
     ],
