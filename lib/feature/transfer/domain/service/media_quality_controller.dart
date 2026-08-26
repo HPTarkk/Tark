@@ -1,5 +1,6 @@
 import 'adaptive_tier_gate.dart';
 import 'media_opus_tuner.dart';
+import 'media_receiver_feedback_session.dart';
 import 'opus_tuner.dart';
 
 /// Whether a #29 media stream should keep transmitting right now.
@@ -38,6 +39,7 @@ class MediaQualityController {
     int downgradeEvidenceMs = 8000,
     int upgradeCleanMs = 20000,
     int minDwellMs = 8000,
+    MediaReceiverFeedbackSession? receiverFeedback,
   }) : _gate = AdaptiveTierGate<MediaSendTier>(
          tiers: const [MediaSendTier.suspended, MediaSendTier.active],
          downgradeEvidenceMs: downgradeEvidenceMs,
@@ -48,16 +50,22 @@ class MediaQualityController {
          // until conditions prove otherwise, not "earn the right to start"
          // the way voice earns HD.
          initialIndex: 1,
-       );
+       ),
+       _receiverFeedback =
+           receiverFeedback ?? MediaReceiverFeedbackSession.shared;
 
   final AdaptiveTierGate<MediaSendTier> _gate;
+  final MediaReceiverFeedbackSession _receiverFeedback;
 
-  /// The tier this controller currently allows.
+  /// The tier this sender-side controller currently allows.
   MediaSendTier get tier => _gate.tier;
 
-  /// Convenience for callers that only care about the binary send/don't-send
-  /// decision, not the tier value itself.
-  bool get shouldSend => tier == MediaSendTier.active;
+  /// Media must pass both the legacy sender-side congestion gate and #41's
+  /// receiver-driven room-floor decision. Receiver distress wins immediately
+  /// so voice/control is protected even while the slower sender-side gate is
+  /// still accumulating evidence.
+  bool get shouldSend =>
+      tier == MediaSendTier.active && _receiverFeedback.decision.shouldTransmit;
 
   /// Same ceiling [MediaOpusTuner.maxLossPerc] uses — past this,
   /// [MediaOpusTuner]'s own ladder is already at its worst tier with nothing
@@ -81,6 +89,8 @@ class MediaQualityController {
     required AudioLinkConditions conditions,
     required int elapsedMs,
   }) {
+    _receiverFeedback.evaluate(DateTime.now(), elapsedMs);
+
     final lossPerc = (conditions.lossFraction * 100).ceil();
     final rtt = conditions.rtt;
     final congested = rtt != null && rtt > _congestedRtt;
@@ -91,20 +101,17 @@ class MediaQualityController {
       // under congestion without needing to stop transmitting, and voice's
       // own congestion sensitivity already protects voice independently — see
       // VoiceQualityController.advance. A clean resume, however, does require
-      // an uncongested link: resuming into a queue that is about to become
-      // loss would just be a suspend waiting to happen again.
+      // an uncongested link: resuming only to suspend again is worse UX.
       conditionsSupportNextTier: lossPerc < _resumeLossPerc && !congested,
-      // This controller has no external capability ceiling to enforce — it
-      // never sits above the top tier, so the gate's ceiling mechanism is
-      // simply left open.
       ceilingIndex: MediaSendTier.values.length - 1,
       elapsedMs: elapsedMs,
     );
   }
 
-  /// Resets to [MediaSendTier.active] with no transition event — call when a
-  /// media stream (re)starts, the same way a fresh session gives it a clean
-  /// slate rather than inheriting a suspension that described a stream that
-  /// no longer exists.
-  void reset() => _gate.reset(1);
+  /// Resets both sender-side and receiver-side session evidence. A new media
+  /// stream/session must not inherit distress or confirmation from an old one.
+  void reset() {
+    _gate.reset(1);
+    _receiverFeedback.reset();
+  }
 }
