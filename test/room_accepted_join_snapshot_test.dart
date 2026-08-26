@@ -11,13 +11,13 @@ void main() {
     room: Room(
       id: roomId,
       name: ' Night riders ',
-      createdAt: now,
+      createdAt: now.subtract(const Duration(days: 2)),
       updatedAt: now,
       members: [
         RoomMember(
           id: const RoomMemberId('111111111111111111111111'),
           displayName: 'Owner',
-          joinedAt: now,
+          joinedAt: now.subtract(const Duration(days: 2)),
         ),
         RoomMember(
           id: acceptedId,
@@ -27,7 +27,7 @@ void main() {
         RoomMember(
           id: const RoomMemberId('333333333333333333333333'),
           displayName: 'Old rider',
-          joinedAt: now,
+          joinedAt: now.subtract(const Duration(days: 1)),
           removedAt: now,
         ),
       ],
@@ -38,7 +38,7 @@ void main() {
     ),
   );
 
-  test('round trips only durable active Room state', () {
+  test('round trips only durable active Room state and timestamps', () {
     final snapshot = RoomAcceptedJoinSnapshot.fromSavedRoom(
       savedRoom(),
       acceptedMemberId: acceptedId,
@@ -47,9 +47,13 @@ void main() {
 
     expect(decoded.roomId, roomId);
     expect(decoded.roomName, 'Night riders');
+    expect(decoded.roomCreatedAt, now.subtract(const Duration(days: 2)));
+    expect(decoded.roomUpdatedAt, now);
     expect(decoded.members, hasLength(2));
     expect(decoded.members.first.memberId.value, '111111111111111111111111');
+    expect(decoded.members.first.joinedAt, now.subtract(const Duration(days: 2)));
     expect(decoded.members.last.displayName, 'Rider three');
+    expect(decoded.members.last.joinedAt, now);
   });
 
   test('accepted member survives bounded large roster', () {
@@ -121,15 +125,19 @@ void main() {
       () => RoomAcceptedJoinSnapshot(
         roomId: roomId,
         roomName: 'Room',
-        members: const [
+        roomCreatedAt: now,
+        roomUpdatedAt: now,
+        members: [
           RoomAcceptedJoinMember(
-            memberId: RoomMemberId('aaaaaaaaaaaaaaaaaaaaaaaa'),
+            memberId: const RoomMemberId('aaaaaaaaaaaaaaaaaaaaaaaa'),
             displayName: 'A',
+            joinedAt: now,
             kind: RoomMemberKind.member,
           ),
           RoomAcceptedJoinMember(
-            memberId: RoomMemberId('aaaaaaaaaaaaaaaaaaaaaaaa'),
+            memberId: const RoomMemberId('aaaaaaaaaaaaaaaaaaaaaaaa'),
             displayName: 'B',
+            joinedAt: now,
             kind: RoomMemberKind.member,
           ),
         ],
