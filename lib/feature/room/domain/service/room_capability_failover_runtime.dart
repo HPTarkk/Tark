@@ -129,10 +129,8 @@ final class RoomCapabilityFailoverRuntime {
     return attempt;
   }
 
-  void removePeer(String peerKey) => observer.removePeer(
-    peerKey,
-    attachmentGeneration: attachmentGeneration,
-  );
+  void removePeer(String peerKey) =>
+      observer.removePeer(peerKey, attachmentGeneration: attachmentGeneration);
 
   void removeMember(RoomMemberId memberId) {
     observer.removeMember(memberId);
