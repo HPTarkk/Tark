@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tark/core/identity/session_epoch.dart';
 import 'package:tark/feature/transfer/data/codec/media_feedback_control_codec.dart';
