@@ -1,3 +1,5 @@
+import 'media_receiver_feedback_session.dart';
+
 /// Tracks whether each peer answers on the **unicast** path, and how fast.
 ///
 /// ## Why this exists
@@ -26,7 +28,11 @@
 /// Pure bookkeeping — the caller owns the clock and the socket — so this is
 /// testable without either.
 class PeerPingTracker {
-  PeerPingTracker({this.grace = const Duration(seconds: 6)});
+  PeerPingTracker({
+    this.grace = const Duration(seconds: 6),
+    MediaReceiverFeedbackSession? receiverFeedback,
+  }) : _receiverFeedback =
+           receiverFeedback ?? MediaReceiverFeedbackSession.shared;
 
   /// How long a peer may go without answering before its unicast path is
   /// treated as broken.
@@ -36,6 +42,7 @@ class PeerPingTracker {
   /// this path stopped working, or did we just lose a couple of datagrams",
   /// and a single dropped ping must never be enough to reroute a session.
   final Duration grace;
+  final MediaReceiverFeedbackSession _receiverFeedback;
 
   final Map<String, DateTime> _firstPingAt = {};
   final Map<String, DateTime> _lastPongAt = {};
@@ -52,6 +59,7 @@ class PeerPingTracker {
   /// Records a ping going out to [address].
   void sent(String address, int token, DateTime at) {
     _firstPingAt.putIfAbsent(address, () => at);
+    _receiverFeedback.notePing(address, at);
     final pending = _pending.putIfAbsent(address, () => {});
     if (pending.length >= _maxPending) {
       // Oldest first: if it has not been answered by now it never will be.
@@ -65,11 +73,14 @@ class PeerPingTracker {
   ///
   /// An unmatched token still counts as confirmation — the peer plainly
   /// answered *something* — but yields no RTT, because timing it against the
-  /// wrong ping is worse than not timing it at all.
+  /// wrong ping is worse than not timing it at all. Receiver-media evidence is
+  /// stricter: it is admitted only after a real token match, because #41 must
+  /// not treat an unsolicited/stale Pong as bidirectional confirmation.
   Duration? pong(String address, int token, DateTime at) {
     _lastPongAt[address] = at;
     final sentAt = _pending[address]?.remove(token);
     if (sentAt == null) return null;
+    _receiverFeedback.confirmMatchedPong(address, token, at);
     final rtt = at.difference(sentAt);
     _rtt[address] = rtt;
     return rtt;
@@ -107,6 +118,7 @@ class PeerPingTracker {
     _lastPongAt.remove(address);
     _rtt.remove(address);
     _pending.remove(address);
+    _receiverFeedback.forget(address);
   }
 
   void clear() {
@@ -114,5 +126,6 @@ class PeerPingTracker {
     _lastPongAt.clear();
     _rtt.clear();
     _pending.clear();
+    _receiverFeedback.reset();
   }
 }
