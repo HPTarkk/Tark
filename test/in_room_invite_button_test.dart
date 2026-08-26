@@ -28,26 +28,28 @@ void main() {
     required Locale locale,
     HotspotLinkKeeper? hotspotLinkKeeper,
     TransferRepository? transferRepository,
-  }) => MediaQuery(
-    data: const MediaQueryData(size: Size(320, 640)),
-    child: MaterialApp(
-      locale: locale,
-      supportedLocales: const [Locale('en'), Locale('fa')],
-      localizationsDelegates: GlobalMaterialLocalizations.delegates,
-      home: Scaffold(
-        body: SafeArea(
-          child: Align(
-            alignment: Alignment.topRight,
-            child: InRoomInviteButton(
-              repository: repository,
-              hotspotLinkKeeper: hotspotLinkKeeper,
-              transferRepository: transferRepository,
+  }) {
+    return MediaQuery(
+      data: const MediaQueryData(size: Size(320, 640)),
+      child: MaterialApp(
+        locale: locale,
+        supportedLocales: const [Locale('en'), Locale('fa')],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        home: Scaffold(
+          body: SafeArea(
+            child: Align(
+              alignment: Alignment.topRight,
+              child: InRoomInviteButton(
+                repository: repository,
+                hotspotLinkKeeper: hotspotLinkKeeper,
+                transferRepository: transferRepository,
+              ),
             ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 
   testWidgets('issues canonical Room invite and fits 320px', (tester) async {
     final repository = await repositoryWithSelectedRoom();
@@ -190,7 +192,10 @@ void main() {
     keeper.setState(HotspotLinkState.recovering);
     await tester.pump();
     expect(find.byKey(const Key('room-invite-wifi-section')), findsNothing);
-    expect(find.byKey(const Key('room-invite-wifi-recovering')), findsOneWidget);
+    expect(
+      find.byKey(const Key('room-invite-wifi-recovering')),
+      findsOneWidget,
+    );
     expect(find.textContaining('old-secret'), findsNothing);
     expect(find.byKey(const Key('room-invite-qr')), findsOneWidget);
 
@@ -231,8 +236,9 @@ class _FakeHotspotLinkKeeper implements HotspotLinkKeeper {
        _credentials = credentials;
 
   final _states = StreamController<HotspotLinkState>.broadcast(sync: true);
-  final _credentialsChanges =
-      StreamController<HotspotCredentials>.broadcast(sync: true);
+  final _credentialsChanges = StreamController<HotspotCredentials>.broadcast(
+    sync: true,
+  );
   HotspotLinkState _state;
   HotspotCredentials? _credentials;
 
@@ -246,7 +252,8 @@ class _FakeHotspotLinkKeeper implements HotspotLinkKeeper {
   HotspotCredentials? get credentials => _credentials;
 
   @override
-  Stream<HotspotCredentials> get credentialChanges => _credentialsChanges.stream;
+  Stream<HotspotCredentials> get credentialChanges =>
+      _credentialsChanges.stream;
 
   void setState(HotspotLinkState value) {
     _state = value;
