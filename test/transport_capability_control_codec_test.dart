@@ -18,10 +18,8 @@ void main() {
     prefersHotspotHost: true,
   );
 
-  WakiPacketCodec base() => WakiPacketCodec(
-    'abcdef123456',
-    SessionEpoch.startingAt(7),
-  );
+  WakiPacketCodec base() =>
+      WakiPacketCodec('abcdef123456', SessionEpoch.startingAt(7));
 
   test('legacy decoder ignores capability-only control tail', () {
     final codec = TransportCapabilityControlCodec(base());
