@@ -26,9 +26,8 @@ void main() {
     );
   }
 
-  RoomMemberId expectedMember(RoomInviteJoinRequest value) => RoomMemberId(
-    value.invitation.invitationId.substring(0, 24),
-  );
+  RoomMemberId expectedMember(RoomInviteJoinRequest value) =>
+      RoomMemberId(value.invitation.invitationId.substring(0, 24));
 
   test('accepts only the correlated issuer grant for this invite', () {
     final value = request();
@@ -37,12 +36,10 @@ void main() {
       roomId: value.invitation.roomId,
       memberId: expectedMember(value),
     );
-
     final grant = client.verifyAcceptedResponse(
       request: value,
       encodedResponse: response.encode(),
     );
-
     expect(grant, isNotNull);
     expect(grant!.roomId, roomId);
     expect(grant.memberId, expectedMember(value));
@@ -56,12 +53,8 @@ void main() {
       roomId: value.invitation.roomId,
       memberId: expectedMember(value),
     );
-
     expect(
-      client.verifyAcceptedResponse(
-        request: value,
-        encodedResponse: response.encode(),
-      ),
+      client.verifyAcceptedResponse(request: value, encodedResponse: response.encode()),
       isNull,
     );
   });
@@ -69,7 +62,6 @@ void main() {
   test('rejects cross-room or forged member identity', () {
     final value = request();
     final otherRoom = RoomId.parse('fedcba9876543210fedcba9876543210')!;
-
     final crossRoom = RoomInviteJoinResponse.accepted(
       requestId: value.requestId,
       roomId: otherRoom,
@@ -80,44 +72,31 @@ void main() {
       roomId: value.invitation.roomId,
       memberId: const RoomMemberId('ffffffffffffffffffffffff'),
     );
-
     expect(
-      client.verifyAcceptedResponse(
-        request: value,
-        encodedResponse: crossRoom.encode(),
-      ),
+      client.verifyAcceptedResponse(request: value, encodedResponse: crossRoom.encode()),
       isNull,
     );
     expect(
-      client.verifyAcceptedResponse(
-        request: value,
-        encodedResponse: forgedMember.encode(),
-      ),
+      client.verifyAcceptedResponse(request: value, encodedResponse: forgedMember.encode()),
       isNull,
     );
   });
 
   test('rejection response never becomes a local join grant', () {
     final value = request();
-    final response = RoomInviteJoinResponse.rejected(requestId: value.requestId);
-
+    final response = RoomInviteJoinResponse.rejected(
+      requestId: value.requestId,
+    );
     expect(
-      client.verifyAcceptedResponse(
-        request: value,
-        encodedResponse: response.encode(),
-      ),
+      client.verifyAcceptedResponse(request: value, encodedResponse: response.encode()),
       isNull,
     );
   });
 
   test('malformed response fails closed', () {
     final value = request();
-
     expect(
-      client.verifyAcceptedResponse(
-        request: value,
-        encodedResponse: 'not-a-response',
-      ),
+      client.verifyAcceptedResponse(request: value, encodedResponse: 'not-a-response'),
       isNull,
     );
   });
