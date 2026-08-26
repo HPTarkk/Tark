@@ -10,6 +10,7 @@ import com.b1101.tark.hotspot.HotspotHandler
 import com.b1101.tark.hotspot.WifiJoinHandler
 import com.b1101.tark.keepalive.KeepAliveHandler
 import com.b1101.tark.network.NetworkBindingHandler
+import com.b1101.tark.network.TransportCapabilityHandler
 import com.b1101.tark.widget.WidgetControlBridge
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -87,6 +88,11 @@ class MainActivity : FlutterActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             NetworkBindingHandler.METHOD_CHANNEL,
         ).setMethodCallHandler(networkBinding)
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            TransportCapabilityHandler.METHOD_CHANNEL,
+        ).setMethodCallHandler(TransportCapabilityHandler(applicationContext))
 
         val keepAlive = KeepAliveHandler(
             applicationContext,
