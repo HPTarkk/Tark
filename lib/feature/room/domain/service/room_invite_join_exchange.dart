@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import '../entity/room.dart';
+import '../entity/room_accepted_join_snapshot.dart';
 import '../entity/room_invitation.dart';
-import 'room_accepted_join_snapshot.dart';
 import 'room_invite_acceptance_coordinator.dart';
 
 /// Transport-independent request/response contract for secure Room invite join.
