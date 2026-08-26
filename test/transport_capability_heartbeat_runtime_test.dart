@@ -6,6 +6,7 @@ import 'package:tark/feature/transfer/data/codec/transport_capability_control_co
 import 'package:tark/feature/transfer/data/codec/transport_capability_heartbeat_runtime.dart';
 import 'package:tark/feature/transfer/data/codec/waki_packet_codec.dart';
 import 'package:tark/feature/transfer/domain/entity/transport_capability_advertisement.dart';
+import 'package:tark/feature/transfer/domain/entity/transport_capability_observation.dart';
 
 void main() {
   const capability = TransportCapabilityAdvertisement(
@@ -65,7 +66,7 @@ void main() {
       readLocalCapability: () async => null,
     );
     addTearDown(runtime.dispose);
-    final observations = <Object>[];
+    final observations = <TransportCapabilityObservation>[];
     final subscription = runtime.transportCapabilityObservations.listen(
       observations.add,
     );
@@ -93,7 +94,7 @@ void main() {
     await Future<void>.delayed(Duration.zero);
 
     expect(observations, hasLength(1));
-    final observation = observations.single as dynamic;
+    final observation = observations.single;
     expect(observation.peerKey, '10.0.0.8');
     expect(observation.capability, capability);
     expect(observation.observedAt, DateTime.utc(2026, 8, 27, 1));
@@ -105,7 +106,7 @@ void main() {
       readLocalCapability: () async => null,
     );
     addTearDown(runtime.dispose);
-    final observations = <Object>[];
+    final observations = <TransportCapabilityObservation>[];
     final subscription = runtime.transportCapabilityObservations.listen(
       observations.add,
     );
