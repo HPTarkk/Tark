@@ -102,44 +102,47 @@ void main() {
     );
   });
 
-  test('replacement attachment rejects delayed old-route observation', () async {
-    final subject = runtime();
-    final source = _Source();
-    final bridge = RoomTransportCapabilityObservationBridge(
-      runtime: subject,
-      source: source,
-    );
-    addTearDown(() async {
-      await bridge.dispose();
-      await source.dispose();
-      subject.dispose();
-    });
-    expect(
-      subject.bindPeer(
-        peerKey: 'route-a',
-        memberId: const RoomMemberId('peer-a'),
-      ),
-      isTrue,
-    );
-    final now = DateTime.utc(2026, 8, 27, 1);
-    final attempt = await subject.beginFailover(
-      sharedLanUsable: false,
-      reason: RoomFailoverReason.hostLost,
-      now: now,
-    );
-    expect(attempt, isNotNull);
-    expect(subject.attachmentGeneration, 1);
+  test(
+    'replacement attachment rejects delayed old-route observation',
+    () async {
+      final subject = runtime();
+      final source = _Source();
+      final bridge = RoomTransportCapabilityObservationBridge(
+        runtime: subject,
+        source: source,
+      );
+      addTearDown(() async {
+        await bridge.dispose();
+        await source.dispose();
+        subject.dispose();
+      });
+      expect(
+        subject.bindPeer(
+          peerKey: 'route-a',
+          memberId: const RoomMemberId('peer-a'),
+        ),
+        isTrue,
+      );
+      final now = DateTime.utc(2026, 8, 27, 1);
+      final attempt = await subject.beginFailover(
+        sharedLanUsable: false,
+        reason: RoomFailoverReason.hostLost,
+        now: now,
+      );
+      expect(attempt, isNotNull);
+      expect(subject.attachmentGeneration, 1);
 
-    source.add(observation('route-a', now.add(const Duration(seconds: 1))));
+      source.add(observation('route-a', now.add(const Duration(seconds: 1))));
 
-    expect(
-      subject.candidates.snapshot(
-        now: now.add(const Duration(seconds: 1)),
-        attachmentGeneration: subject.attachmentGeneration,
-      ),
-      isEmpty,
-    );
-  });
+      expect(
+        subject.candidates.snapshot(
+          now: now.add(const Duration(seconds: 1)),
+          attachmentGeneration: subject.attachmentGeneration,
+        ),
+        isEmpty,
+      );
+    },
+  );
 
   test('disposed bridge ignores later observations', () async {
     final subject = runtime();
