@@ -102,7 +102,7 @@ void main() {
       now: now,
       elapsedMs: 1000,
     );
-    expect(decision.tier, MediaAdaptationTier.conservative);
+    expect(decision.tier, MediaAdaptationTier.suspended);
   });
 
   test('mixed-version pong remains unconfirmed', () {
