@@ -14,7 +14,8 @@ import 'room_invite_join_exchange.dart';
 ///
 /// Transport bootstrap data is deliberately absent from this boundary. Wi-Fi
 /// credentials, addresses and temporary host roles never become durable Room
-/// identity or membership state.
+/// identity or membership state. Selection happens only after persistence has
+/// succeeded, so a rejected or failed import cannot leave a phantom selection.
 final class RoomInviteJoinImporter {
   const RoomInviteJoinImporter({
     required RoomRepository repository,
