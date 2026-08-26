@@ -25,16 +25,18 @@ final class SelectedRoomLiveSessionBinding {
   final TransferModeStore modeStore;
 
   RoomSessionRuntime? _runtime;
+  int _generation = 0;
 
   RoomSessionRuntime? get runtime => _runtime;
 
   Future<RoomSessionRuntime?> open({required String sessionId}) async {
-    await close();
+    final generation = ++_generation;
+    await _closeCurrent();
 
     final selectedId = await rooms.selectedRoomId();
-    if (selectedId == null) return null;
+    if (generation != _generation || selectedId == null) return null;
     final saved = await rooms.get(selectedId);
-    if (saved == null) return null;
+    if (generation != _generation || saved == null) return null;
 
     final runtime = RoomSessionFactory.open(saved, sessionId: sessionId);
     if (runtime == null) return null;
@@ -48,11 +50,20 @@ final class SelectedRoomLiveSessionBinding {
           : transfer.sessionRole.name,
       reason: 'live_entry',
     );
+    if (generation != _generation) {
+      await runtime.leave();
+      return null;
+    }
     _runtime = runtime;
     return runtime;
   }
 
   Future<void> close() async {
+    _generation++;
+    await _closeCurrent();
+  }
+
+  Future<void> _closeCurrent() async {
     final current = _runtime;
     _runtime = null;
     if (current != null && !current.hasLeft) await current.leave();
