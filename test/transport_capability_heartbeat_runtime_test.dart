@@ -20,25 +20,28 @@ void main() {
     WakiPacketCodec('abcdef123456', SessionEpoch.startingAt(9)),
   );
 
-  test('truthful local capability is appended on the existing heartbeat', () async {
-    final runtime = TransportCapabilityHeartbeatRuntime(
-      codec: codec(),
-      readLocalCapability: () async => capability,
-    );
-    addTearDown(runtime.dispose);
+  test(
+    'truthful local capability is appended on the existing heartbeat',
+    () async {
+      final runtime = TransportCapabilityHeartbeatRuntime(
+        codec: codec(),
+        readLocalCapability: () async => capability,
+      );
+      addTearDown(runtime.dispose);
 
-    final bytes = await runtime.encodePing(
-      token: 1,
-      lastTxSeq: 2,
-      lastRxSeq: 3,
-      audioRxPackets: 4,
-    );
-    final decoded = runtime.decodeControl(bytes, 'peer');
+      final bytes = await runtime.encodePing(
+        token: 1,
+        lastTxSeq: 2,
+        lastRxSeq: 3,
+        audioRxPackets: 4,
+      );
+      final decoded = runtime.decodeControl(bytes, 'peer');
 
-    expect(decoded, isNotNull);
-    expect(decoded!.packet.token, 1);
-    expect(decoded.capability, capability);
-  });
+      expect(decoded, isNotNull);
+      expect(decoded!.packet.token, 1);
+      expect(decoded.capability, capability);
+    },
+  );
 
   test('capability read failure preserves a valid legacy heartbeat', () async {
     final runtime = TransportCapabilityHeartbeatRuntime(
@@ -60,45 +63,49 @@ void main() {
     expect(decoded.capability, isNull);
   });
 
-  test('decoded capability is not emitted until matched pong is admitted', () async {
-    final runtime = TransportCapabilityHeartbeatRuntime(
-      codec: codec(),
-      readLocalCapability: () async => null,
-    );
-    addTearDown(runtime.dispose);
-    final observations = <TransportCapabilityObservation>[];
-    final subscription = runtime.transportCapabilityObservations.listen(
-      observations.add,
-    );
-    addTearDown(subscription.cancel);
+  test(
+    'decoded capability is not emitted until matched pong is admitted',
+    () async {
+      final runtime = TransportCapabilityHeartbeatRuntime(
+        codec: codec(),
+        readLocalCapability: () async => null,
+      );
+      addTearDown(runtime.dispose);
+      final observations = <TransportCapabilityObservation>[];
+      final subscription = runtime.transportCapabilityObservations.listen(
+        observations.add,
+      );
+      addTearDown(subscription.cancel);
 
-    final remote = TransportCapabilityControlCodec(
-      WakiPacketCodec('fedcba654321', SessionEpoch.startingAt(9)),
-    ).encodePong(
-      token: 11,
-      lastTxSeq: 12,
-      lastRxSeq: 13,
-      audioRxPackets: 14,
-      capability: capability,
-    );
-    final decoded = runtime.decodeControl(remote, '10.0.0.8')!;
+      final remote =
+          TransportCapabilityControlCodec(
+            WakiPacketCodec('fedcba654321', SessionEpoch.startingAt(9)),
+          ).encodePong(
+            token: 11,
+            lastTxSeq: 12,
+            lastRxSeq: 13,
+            audioRxPackets: 14,
+            capability: capability,
+          );
+      final decoded = runtime.decodeControl(remote, '10.0.0.8')!;
 
-    await Future<void>.delayed(Duration.zero);
-    expect(observations, isEmpty);
+      await Future<void>.delayed(Duration.zero);
+      expect(observations, isEmpty);
 
-    runtime.observeMatchedPong(
-      decoded: decoded,
-      peerKey: '10.0.0.8',
-      observedAt: DateTime.utc(2026, 8, 27, 1),
-    );
-    await Future<void>.delayed(Duration.zero);
+      runtime.observeMatchedPong(
+        decoded: decoded,
+        peerKey: '10.0.0.8',
+        observedAt: DateTime.utc(2026, 8, 27, 1),
+      );
+      await Future<void>.delayed(Duration.zero);
 
-    expect(observations, hasLength(1));
-    final observation = observations.single;
-    expect(observation.peerKey, '10.0.0.8');
-    expect(observation.capability, capability);
-    expect(observation.observedAt, DateTime.utc(2026, 8, 27, 1));
-  });
+      expect(observations, hasLength(1));
+      final observation = observations.single;
+      expect(observation.peerKey, '10.0.0.8');
+      expect(observation.capability, capability);
+      expect(observation.observedAt, DateTime.utc(2026, 8, 27, 1));
+    },
+  );
 
   test('missing capability and empty peer key fail closed', () async {
     final runtime = TransportCapabilityHeartbeatRuntime(
@@ -127,15 +134,16 @@ void main() {
       observedAt: DateTime.utc(2026),
     );
 
-    final withCapability = TransportCapabilityControlCodec(
-      WakiPacketCodec('fedcba654321', SessionEpoch.startingAt(9)),
-    ).encodePong(
-      token: 25,
-      lastTxSeq: 26,
-      lastRxSeq: 27,
-      audioRxPackets: 28,
-      capability: capability,
-    );
+    final withCapability =
+        TransportCapabilityControlCodec(
+          WakiPacketCodec('fedcba654321', SessionEpoch.startingAt(9)),
+        ).encodePong(
+          token: 25,
+          lastTxSeq: 26,
+          lastRxSeq: 27,
+          audioRxPackets: 28,
+          capability: capability,
+        );
     runtime.observeMatchedPong(
       decoded: runtime.decodeControl(withCapability, 'peer')!,
       peerKey: '',
