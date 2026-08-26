@@ -62,9 +62,7 @@ void main() {
     );
     getIt.registerFactory<RoomListCubit>(() => RoomListCubit(repository));
 
-    await tester.pumpWidget(
-      _app(const Locale('fa'), RoomListPage.buildPage()),
-    );
+    await tester.pumpWidget(_app(const Locale('fa'), RoomListPage.buildPage()));
     await tester.pumpAndSettle();
 
     expect(find.text('اتاق‌های ذخیره‌شده'), findsOneWidget);
