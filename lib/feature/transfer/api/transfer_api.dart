@@ -14,6 +14,7 @@ export '../domain/entity/channel_intent.dart';
 export '../domain/entity/session_role.dart';
 export '../domain/entity/transfer_mode.dart';
 export '../domain/entity/transfer_mode_analytics.dart';
+export '../domain/entity/transport_capability_advertisement.dart';
 export '../domain/entity/transport_stats.dart';
 export '../domain/entity/waki_packet.dart';
 export '../domain/entity/wifi_hotspot_segment.dart';
