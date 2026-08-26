@@ -176,11 +176,7 @@ final class LiveTransferRepository implements TransferRepository {
     String senderName,
     bool isTalking, {
     bool isLeaving = false,
-  }) => _current.sendPresence(
-    senderName,
-    isTalking,
-    isLeaving: isLeaving,
-  );
+  }) => _current.sendPresence(senderName, isTalking, isLeaving: isLeaving);
 
   @override
   void setAudioProfile(AudioProfile profile) =>
