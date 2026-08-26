@@ -284,10 +284,7 @@ class SharedPreferencesRoomRepository implements RoomRepository {
     }
   }
 
-  RoomInvitationLedger _readInviteLedger(
-    SharedPreferences prefs,
-    RoomId id,
-  ) {
+  RoomInvitationLedger _readInviteLedger(SharedPreferences prefs, RoomId id) {
     final raw = prefs.getString('$_inviteLedgerPrefix${id.value}');
     if (raw == null) return RoomInvitationLedger();
     try {
