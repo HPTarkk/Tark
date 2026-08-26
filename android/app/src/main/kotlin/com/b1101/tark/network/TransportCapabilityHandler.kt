@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.os.BatteryManager
 import android.os.Build
 import com.b1101.tark.keepalive.SessionKeepAliveService
 import io.flutter.plugin.common.MethodCall
@@ -67,8 +68,8 @@ class TransportCapabilityHandler(
         val intent = runCatching {
             context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         }.getOrNull() ?: return null
-        val level = intent.getIntExtra("level", -1)
-        val scale = intent.getIntExtra("scale", -1)
+        val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+        val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
         if (level < 0 || scale <= 0) return null
         return ((level * 100.0) / scale).toInt().coerceIn(0, 100)
     }
