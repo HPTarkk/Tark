@@ -15,38 +15,41 @@ void main() {
     await getIt.reset();
   });
 
-  testWidgets('saved rooms stay usable at 320px and selection is durable only', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(320, 640);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets(
+    'saved rooms stay usable at 320px and selection is durable only',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-    final first = _savedRoom('1' * 32, 'Weekend crew', memberCount: 3);
-    final second = _savedRoom('2' * 32, 'Mountain ride', memberCount: 2);
-    final repository = _FakeRoomRepository(
-      rooms: [first, second],
-      selected: second.room.id,
-    );
-    getIt.registerFactory<RoomListCubit>(() => RoomListCubit(repository));
+      final first = _savedRoom('1' * 32, 'Weekend crew', memberCount: 3);
+      final second = _savedRoom('2' * 32, 'Mountain ride', memberCount: 2);
+      final repository = _FakeRoomRepository(
+        rooms: [first, second],
+        selected: second.room.id,
+      );
+      getIt.registerFactory<RoomListCubit>(() => RoomListCubit(repository));
 
-    await tester.pumpWidget(_app(const Locale('en'), RoomListPage.buildPage()));
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        _app(const Locale('en'), RoomListPage.buildPage()),
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('rooms-list')), findsOneWidget);
-    expect(find.text('Weekend crew'), findsOneWidget);
-    expect(find.text('Mountain ride'), findsOneWidget);
-    expect(find.text('Selected'), findsOneWidget);
-    expect(tester.takeException(), isNull);
+      expect(find.byKey(const Key('rooms-list')), findsOneWidget);
+      expect(find.text('Weekend crew'), findsOneWidget);
+      expect(find.text('Mountain ride'), findsOneWidget);
+      expect(find.text('Selected'), findsOneWidget);
+      expect(tester.takeException(), isNull);
 
-    await tester.tap(find.text('Select this room'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Select this room'));
+      await tester.pumpAndSettle();
 
-    expect(repository.selected, first.room.id);
-    expect(repository.transportStarts, 0);
-    expect(tester.takeException(), isNull);
-  });
+      expect(repository.selected, first.room.id);
+      expect(repository.transportStarts, 0);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('Persian saved rooms page is RTL at 320px', (tester) async {
     tester.view.physicalSize = const Size(320, 640);
@@ -59,7 +62,9 @@ void main() {
     );
     getIt.registerFactory<RoomListCubit>(() => RoomListCubit(repository));
 
-    await tester.pumpWidget(_app(const Locale('fa'), RoomListPage.buildPage()));
+    await tester.pumpWidget(
+      _app(const Locale('fa'), RoomListPage.buildPage()),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('اتاق‌های ذخیره‌شده'), findsOneWidget);
@@ -82,7 +87,9 @@ SavedRoom _savedRoom(String id, String name, {required int memberCount}) {
   final members = List.generate(
     memberCount,
     (index) => RoomMember(
-      id: RoomMemberId('${id.substring(0, 20)}${index.toString().padLeft(4, '0')}'),
+      id: RoomMemberId(
+        '${id.substring(0, 20)}${index.toString().padLeft(4, '0')}',
+      ),
       displayName: 'Rider ${index + 1}',
       joinedAt: now,
     ),
