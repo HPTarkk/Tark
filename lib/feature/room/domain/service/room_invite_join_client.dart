@@ -9,7 +9,7 @@ import 'room_invite_join_exchange.dart';
 /// deterministically implied by that request's invitation. This prevents a
 /// delayed, cross-room or forged accepted response from being imported into the
 /// wrong local Room state. Malformed payloads fail closed as an ordinary
-/// rejected grant rather than escaping into presentation code.
+/// rejected grant rather than escaping into presentation code or persistence.
 final class RoomInviteJoinClient {
   const RoomInviteJoinClient();
 
