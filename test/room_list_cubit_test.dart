@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
+import 'package:tark/feature/room/domain/entity/room_invitation.dart';
 import 'package:tark/feature/room/domain/entity/transport_attachment.dart';
 import 'package:tark/feature/room/domain/repository/room_repository.dart';
 import 'package:tark/feature/room/domain/service/room_invitation_ledger.dart';
@@ -187,6 +188,24 @@ class _FakeRoomRepository implements RoomRepository {
     _rooms[index] = updated;
     return updated;
   }
+
+  @override
+  Future<RoomInvitation> issueInvite(
+    RoomId id, {
+    required RoomInvitationKind kind,
+    required DateTime now,
+    required Duration ttl,
+    RoomTransportBootstrap? transportBootstrap,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<VerifiedRoomInvitation?> verifyAndRedeemInvite(
+    RoomInvitation invite, {
+    required DateTime now,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<void> revokeInvite(RoomInvitation invite) => throw UnimplementedError();
 
   @override
   Future<SavedRoom> acceptVerifiedInvite(
