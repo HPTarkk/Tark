@@ -6,8 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/entitlement/billing_service.dart';
 
 import '../../feature/transfer/data/repository/bluetooth_transfer_repository.dart';
+import '../../feature/transfer/data/repository/live_transfer_repository.dart';
 import '../../feature/transfer/data/repository/webrtc_transfer_repository.dart';
-import '../../feature/transfer/domain/entity/transfer_mode.dart';
 import '../../feature/transfer/domain/repository/bluetooth_transport.dart';
 import '../../feature/transfer/domain/repository/guest_link_controller.dart';
 import '../../feature/transfer/domain/repository/transfer_repository.dart';
@@ -49,22 +49,23 @@ abstract class TransferModule {
   GuestLinkController guestLinkController(WebRtcTransferRepository impl) =>
       impl;
 
-  /// Selector, not a fixed binding: WalkieTalkieCubit (a factory) resolves
-  /// TransferRepository fresh each time it's built, so this picks whichever
-  /// transport singleton is active per [TransferModeStore.mode] — for
-  /// Bluetooth/Guest that's the already-connected instance from the
-  /// connect screen, not a new connection attempt.
+  /// Session-scoped selector used by the live Walkie Cubit.
+  ///
+  /// The old provider picked a concrete repository once when the Cubit was
+  /// created. A Room failover could then update [TransferModeStore.mode] while
+  /// the already-running Cubit kept sending on that stale repository. Keep the
+  /// Cubit stable instead and let [LiveTransferRepository] replace only the
+  /// temporary transport attachment. Wi-Fi/hotspot still share the same live
+  /// repository; Bluetooth and Guest reuse their already-connected singletons.
   TransferRepository transferRepository(
     TransferModeStore store,
     WifiTransferRepository wifi,
     BluetoothTransferRepository bluetooth,
     WebRtcTransferRepository webrtc,
-  ) => switch (store.mode) {
-    TransferMode.bluetooth => bluetooth,
-    TransferMode.guest => webrtc,
-    // Hotspot mode is only a Wi-Fi *setup* step (Android hosts a local AP
-    // the iPhone joins); the audio session itself is plain Wi-Fi.
-    TransferMode.hotspot => wifi,
-    TransferMode.wifi => wifi,
-  };
+  ) => LiveTransferRepository(
+    modeStore: store,
+    wifi: wifi,
+    bluetooth: bluetooth,
+    guest: webrtc,
+  );
 }
