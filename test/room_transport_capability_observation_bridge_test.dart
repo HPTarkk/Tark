@@ -102,6 +102,38 @@ void main() {
     );
   });
 
+  test('optional capability stream failure is non-terminal', () async {
+    final subject = runtime();
+    final source = _Source();
+    final bridge = RoomTransportCapabilityObservationBridge(
+      runtime: subject,
+      source: source,
+    );
+    addTearDown(() async {
+      await bridge.dispose();
+      await source.dispose();
+      subject.dispose();
+    });
+    expect(
+      subject.bindPeer(
+        peerKey: 'route-a',
+        memberId: const RoomMemberId('peer-a'),
+      ),
+      isTrue,
+    );
+    final now = DateTime.utc(2026, 8, 27, 1);
+
+    source.addError(StateError('capability unavailable'));
+    source.add(observation('route-a', now));
+
+    final candidates = subject.candidates.snapshot(
+      now: now,
+      attachmentGeneration: subject.attachmentGeneration,
+    );
+    expect(candidates, hasLength(1));
+    expect(candidates.single.memberId, const RoomMemberId('peer-a'));
+  });
+
   test(
     'replacement attachment rejects delayed old-route observation',
     () async {
@@ -185,6 +217,10 @@ final class _Source implements TransportCapabilityObservationSource {
 
   void add(TransportCapabilityObservation observation) {
     _controller.add(observation);
+  }
+
+  void addError(Object error) {
+    _controller.addError(error);
   }
 
   Future<void> dispose() => _controller.close();
