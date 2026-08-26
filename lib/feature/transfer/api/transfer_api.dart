@@ -11,6 +11,7 @@ export '../domain/entity/audio_profile.dart';
 export '../domain/entity/connection_health.dart';
 export '../domain/entity/guest_link_state.dart';
 export '../domain/entity/channel_intent.dart';
+export '../domain/entity/hotspot_credentials.dart' show HotspotCredentials;
 export '../domain/entity/session_role.dart';
 export '../domain/entity/transfer_mode.dart';
 export '../domain/entity/transfer_mode_analytics.dart';
@@ -23,6 +24,11 @@ export '../domain/repository/transfer_repository.dart';
 // troubleshooting surface offers "turn Wi-Fi on" when a session has no local
 // address, and this is where that native panel call already lives.
 export '../domain/service/hotspot_control.dart' show HotspotJoiner;
+// The in-room invite surface observes this narrow attachment contract so a
+// temporary host may show the current Wi-Fi QR while keeping Room identity and
+// membership independent from hotspot credentials.
+export '../domain/service/hotspot_link_keeper.dart'
+    show HotspotLinkKeeper, HotspotLinkState;
 // The channel screen grades its own link: the two inputs the transport cannot
 // know about (whether peers confirm they hear us, and whether the roster is
 // empty) live in the cubit, so the grading happens there rather than here.
