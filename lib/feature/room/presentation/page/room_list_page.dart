@@ -425,11 +425,7 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.groups_2_outlined,
-              size: 56,
-              color: AppColors.amber,
-            ),
+            Icon(Icons.groups_2_outlined, size: 56, color: AppColors.amber),
             const SizedBox(height: 18),
             Text(
               copy.emptyTitle,
@@ -444,10 +440,7 @@ class _EmptyState extends StatelessWidget {
             Text(
               copy.emptyBody,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppColors.textSecondary,
-                height: 1.5,
-              ),
+              style: TextStyle(color: AppColors.textSecondary, height: 1.5),
             ),
             const SizedBox(height: 20),
             FilledButton.icon(
@@ -475,11 +468,7 @@ class _ErrorState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.error_outline_rounded,
-            size: 48,
-            color: AppColors.amber,
-          ),
+          Icon(Icons.error_outline_rounded, size: 48, color: AppColors.amber),
           const SizedBox(height: 12),
           Text(copy.loadError, textAlign: TextAlign.center),
           const SizedBox(height: 16),
