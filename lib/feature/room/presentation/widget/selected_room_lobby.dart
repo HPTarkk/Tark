@@ -18,7 +18,8 @@ class SelectedRoomLobby extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fa = Localizations.localeOf(context).languageCode.toLowerCase() == 'fa';
+    final fa =
+        Localizations.localeOf(context).languageCode.toLowerCase() == 'fa';
     final members = room.room.members
         .where((member) => member.isActive)
         .toList(growable: false);
@@ -31,9 +32,9 @@ class SelectedRoomLobby extends StatelessWidget {
           children: [
             Text(
               fa ? 'آماده شروع ارتباط' : 'Ready to start',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
             Text(
@@ -45,10 +46,12 @@ class SelectedRoomLobby extends StatelessWidget {
             Semantics(
               header: true,
               child: Text(
-                fa ? 'اعضای اتاق (${members.length})' : 'Room members (${members.length})',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+                fa
+                    ? 'اعضای اتاق (${members.length})'
+                    : 'Room members (${members.length})',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
               ),
             ),
             const SizedBox(height: 8),
