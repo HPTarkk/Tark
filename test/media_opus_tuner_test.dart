@@ -4,7 +4,10 @@ import 'package:tark/feature/transfer/domain/service/media_opus_tuner.dart';
 import 'package:tark/feature/transfer/domain/service/opus_tuner.dart';
 
 void main() {
-  const tuner = MediaOpusTuner();
+  // Keep these legacy ladder tests focused on sender-side RTT/loss behavior.
+  // #41's live/default receiver ceiling is covered by the production-wiring
+  // tests; an explicit 96 kbps ceiling leaves this ladder fully observable.
+  const tuner = MediaOpusTuner(receiverBitrateCapKbpsOverride: 96);
 
   group('MediaOpusTuner', () {
     test('a clean link gets the top bitrate and budgets no redundancy', () {
