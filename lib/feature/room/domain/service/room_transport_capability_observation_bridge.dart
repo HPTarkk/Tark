@@ -13,6 +13,9 @@ import 'room_capability_failover_runtime.dart';
 /// active, canonical RoomMemberId for the current attachment generation.
 /// Replacement attachments clear those bindings, so a delayed observation from
 /// an old route fails closed instead of becoming election evidence.
+///
+/// This bridge owns only its stream subscription. The caller continues to own
+/// both the transport source and the Room capability/failover runtime.
 final class RoomTransportCapabilityObservationBridge {
   RoomTransportCapabilityObservationBridge({
     required this.runtime,
