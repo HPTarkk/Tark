@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tark/feature/room/data/repository/shared_preferences_room_repository.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
+import 'package:tark/feature/room/domain/entity/room_accepted_join_snapshot.dart';
 
 void main() {
   late SharedPreferencesRoomRepository repository;
@@ -114,6 +115,146 @@ void main() {
       );
     },
   );
+
+  test('verified accepted join imports truthful durable Room state', () async {
+    final createdAt = DateTime.utc(2026, 8, 20, 8);
+    final updatedAt = DateTime.utc(2026, 8, 26, 15);
+    const roomId = RoomId('0123456789abcdef0123456789abcdef');
+    const ownerId = RoomMemberId('111111111111111111111111');
+    const localId = RoomMemberId('222222222222222222222222');
+    final snapshot = RoomAcceptedJoinSnapshot(
+      roomId: roomId,
+      roomName: 'Night riders',
+      roomCreatedAt: createdAt,
+      roomUpdatedAt: updatedAt,
+      members: [
+        RoomAcceptedJoinMember(
+          memberId: ownerId,
+          displayName: 'Owner',
+          joinedAt: createdAt,
+          kind: RoomMemberKind.member,
+        ),
+        RoomAcceptedJoinMember(
+          memberId: localId,
+          displayName: 'Joined rider',
+          joinedAt: updatedAt,
+          kind: RoomMemberKind.member,
+        ),
+      ],
+    );
+
+    final imported = await repository.importAcceptedJoin(
+      snapshot,
+      localMemberId: localId,
+    );
+    await repository.select(roomId);
+    final reopened = SharedPreferencesRoomRepository();
+    final persisted = await reopened.get(roomId);
+
+    expect(imported.room.id, roomId);
+    expect(imported.room.name, 'Night riders');
+    expect(imported.room.createdAt, createdAt);
+    expect(imported.room.updatedAt, updatedAt);
+    expect(imported.room.members, hasLength(2));
+    expect(imported.room.members.first.joinedAt, createdAt);
+    expect(imported.room.members.last.joinedAt, updatedAt);
+    expect(imported.membership.localMemberId, localId);
+    expect(imported.membership.active, isTrue);
+    expect(imported.membership.canManageInvites, isFalse);
+    expect(persisted?.room.name, 'Night riders');
+    expect(persisted?.membership.localMemberId, localId);
+    expect(await reopened.selectedRoomId(), roomId);
+  });
+
+  test('accepted join import is idempotent for the same local member', () async {
+    final now = DateTime.utc(2026, 8, 26, 15);
+    const roomId = RoomId('0123456789abcdef0123456789abcdef');
+    const localId = RoomMemberId('222222222222222222222222');
+    final snapshot = RoomAcceptedJoinSnapshot(
+      roomId: roomId,
+      roomName: 'Night riders',
+      roomCreatedAt: now,
+      roomUpdatedAt: now,
+      members: [
+        RoomAcceptedJoinMember(
+          memberId: localId,
+          displayName: 'Joined rider',
+          joinedAt: now,
+          kind: RoomMemberKind.member,
+        ),
+      ],
+    );
+
+    await repository.importAcceptedJoin(snapshot, localMemberId: localId);
+    await repository.importAcceptedJoin(snapshot, localMemberId: localId);
+
+    final rooms = await repository.list(includeArchived: true);
+    expect(rooms, hasLength(1));
+    expect(rooms.single.room.members, hasLength(1));
+    expect(rooms.single.membership.localMemberId, localId);
+  });
+
+  test('accepted join import fails when local member is absent', () async {
+    final now = DateTime.utc(2026, 8, 26, 15);
+    final snapshot = RoomAcceptedJoinSnapshot(
+      roomId: const RoomId('0123456789abcdef0123456789abcdef'),
+      roomName: 'Night riders',
+      roomCreatedAt: now,
+      roomUpdatedAt: now,
+      members: [
+        RoomAcceptedJoinMember(
+          memberId: const RoomMemberId('111111111111111111111111'),
+          displayName: 'Owner',
+          joinedAt: now,
+          kind: RoomMemberKind.member,
+        ),
+      ],
+    );
+
+    await expectLater(
+      repository.importAcceptedJoin(
+        snapshot,
+        localMemberId: const RoomMemberId('222222222222222222222222'),
+      ),
+      throwsStateError,
+    );
+    expect(await repository.list(includeArchived: true), isEmpty);
+  });
+
+  test('accepted join cannot overwrite another local membership', () async {
+    final existing = await repository.create(
+      name: 'Existing local room',
+      localDisplayName: 'Local owner',
+    );
+    final now = DateTime.utc(2026, 8, 26, 15);
+    const otherLocalId = RoomMemberId('222222222222222222222222');
+    final snapshot = RoomAcceptedJoinSnapshot(
+      roomId: existing.room.id,
+      roomName: 'Remote replacement',
+      roomCreatedAt: existing.room.createdAt,
+      roomUpdatedAt: now,
+      members: [
+        RoomAcceptedJoinMember(
+          memberId: otherLocalId,
+          displayName: 'Other local',
+          joinedAt: now,
+          kind: RoomMemberKind.member,
+        ),
+      ],
+    );
+
+    await expectLater(
+      repository.importAcceptedJoin(snapshot, localMemberId: otherLocalId),
+      throwsStateError,
+    );
+
+    final persisted = await repository.get(existing.room.id);
+    expect(persisted?.room.name, 'Existing local room');
+    expect(
+      persisted?.membership.localMemberId,
+      existing.membership.localMemberId,
+    );
+  });
 
   test('generic domain has no two-person limit', () {
     Room roomWith(int count) {
