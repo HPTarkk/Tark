@@ -21,7 +21,7 @@ final class MediaReceiverFeedbackSession {
   final MediaReceiverAdaptationRuntime _adaptation =
       MediaReceiverAdaptationRuntime.standard();
   final Map<String, DateTime> _lastPingAt = {};
-  final Map<_PendingKey, _PendingFeedback> _pending = {};
+  final Map<_PendingKey, MediaReceiverFeedback> _pending = {};
 
   MediaAdaptationDecision _decision = const MediaAdaptationDecision(
     tier: MediaAdaptationTier.unconfirmed,
@@ -41,25 +41,20 @@ final class MediaReceiverFeedbackSession {
   /// therefore cannot promote/degrade media.
   void stagePong({
     required String address,
-    required String peerId,
     required int token,
     required MediaReceiverFeedback? feedback,
   }) {
     if (feedback == null) return;
-    _pending[_PendingKey(address, token)] = _PendingFeedback(peerId, feedback);
+    _pending[_PendingKey(address, token)] = feedback;
     if (_pending.length > 64) {
       _pending.remove(_pending.keys.first);
     }
   }
 
   void confirmMatchedPong(String address, int token, DateTime at) {
-    final pending = _pending.remove(_PendingKey(address, token));
-    if (pending == null) return;
-    // Address is the liveness key because PeerPingTracker owns exactly that
-    // route. The stable device id is deliberately retained only as metadata
-    // inside the pending value so a future diagnostics surface can correlate
-    // without ever persisting the address.
-    _adaptation.observePeer(address, pending.feedback, at);
+    final feedback = _pending.remove(_PendingKey(address, token));
+    if (feedback == null) return;
+    _adaptation.observePeer(address, feedback, at);
   }
 
   MediaAdaptationDecision evaluate(DateTime now, int elapsedMs) {
@@ -111,11 +106,4 @@ final class _PendingKey {
 
   @override
   int get hashCode => Object.hash(address, token);
-}
-
-final class _PendingFeedback {
-  const _PendingFeedback(this.peerId, this.feedback);
-
-  final String peerId;
-  final MediaReceiverFeedback feedback;
 }
