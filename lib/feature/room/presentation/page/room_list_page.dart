@@ -51,7 +51,10 @@ class RoomListPage extends StatelessWidget {
               );
             }
             if (state.rooms.isEmpty) {
-              return _EmptyState(copy: copy, onCreate: () => _createRoom(context));
+              return _EmptyState(
+                copy: copy,
+                onCreate: () => _createRoom(context),
+              );
             }
             return RefreshIndicator(
               onRefresh: context.read<RoomListCubit>().load,
@@ -67,7 +70,8 @@ class RoomListPage extends StatelessWidget {
                     selected: state.selectedRoomId == saved.room.id,
                     busy: state.loading,
                     copy: copy,
-                    onSelect: () => context.read<RoomListCubit>().select(saved.room.id),
+                    onSelect: () =>
+                        context.read<RoomListCubit>().select(saved.room.id),
                     onRename: () => _renameRoom(context, saved),
                     onArchive: () => _archiveRoom(context, saved),
                     onLeave: () => _leaveRoom(context, saved),
@@ -213,7 +217,9 @@ class RoomListPage extends StatelessWidget {
               ),
               FilledButton(
                 style: destructive
-                    ? FilledButton.styleFrom(backgroundColor: Colors.red.shade700)
+                    ? FilledButton.styleFrom(
+                        backgroundColor: Colors.red.shade700,
+                      )
                     : null,
                 onPressed: () => Navigator.pop(dialogContext, true),
                 child: Text(action),
@@ -248,7 +254,9 @@ class _RoomCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final activeMembers = saved.room.members.where((member) => member.isActive).length;
+    final activeMembers = saved.room.members
+        .where((member) => member.isActive)
+        .length;
     final archived = saved.room.archived;
     return Semantics(
       selected: selected,
@@ -287,20 +295,33 @@ class _RoomCard extends StatelessWidget {
                       ),
                     ),
                     if (selected)
-                      _StatusChip(label: copy.selected, icon: Icons.check_rounded)
+                      _StatusChip(
+                        label: copy.selected,
+                        icon: Icons.check_rounded,
+                      )
                     else if (archived)
-                      _StatusChip(label: copy.archived, icon: Icons.archive_rounded),
+                      _StatusChip(
+                        label: copy.archived,
+                        icon: Icons.archive_rounded,
+                      ),
                   ],
                 ),
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    Icon(Icons.group_outlined, size: 18, color: AppColors.textSecondary),
+                    Icon(
+                      Icons.group_outlined,
+                      size: 18,
+                      color: AppColors.textSecondary,
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         copy.memberCount(activeMembers),
-                        style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                     PopupMenuButton<_RoomAction>(
@@ -308,16 +329,30 @@ class _RoomCard extends StatelessWidget {
                       enabled: !busy,
                       tooltip: copy.manage,
                       iconColor: AppColors.textSecondary,
-                      onSelected: (action) => switch (action) {
-                        _RoomAction.rename => onRename(),
-                        _RoomAction.archive => onArchive(),
-                        _RoomAction.leave => onLeave(),
+                      onSelected: (action) {
+                        switch (action) {
+                          case _RoomAction.rename:
+                            onRename();
+                          case _RoomAction.archive:
+                            onArchive();
+                          case _RoomAction.leave:
+                            onLeave();
+                        }
                       },
                       itemBuilder: (_) => [
-                        PopupMenuItem(value: _RoomAction.rename, child: Text(copy.rename)),
+                        PopupMenuItem(
+                          value: _RoomAction.rename,
+                          child: Text(copy.rename),
+                        ),
                         if (!archived)
-                          PopupMenuItem(value: _RoomAction.archive, child: Text(copy.archive)),
-                        PopupMenuItem(value: _RoomAction.leave, child: Text(copy.leave)),
+                          PopupMenuItem(
+                            value: _RoomAction.archive,
+                            child: Text(copy.archive),
+                          ),
+                        PopupMenuItem(
+                          value: _RoomAction.leave,
+                          child: Text(copy.leave),
+                        ),
                       ],
                     ),
                   ],
@@ -390,7 +425,11 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.groups_2_outlined, size: 56, color: AppColors.amber),
+            Icon(
+              Icons.groups_2_outlined,
+              size: 56,
+              color: AppColors.amber,
+            ),
             const SizedBox(height: 18),
             Text(
               copy.emptyTitle,
@@ -405,7 +444,10 @@ class _EmptyState extends StatelessWidget {
             Text(
               copy.emptyBody,
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary, height: 1.5),
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                height: 1.5,
+              ),
             ),
             const SizedBox(height: 20),
             FilledButton.icon(
@@ -433,7 +475,11 @@ class _ErrorState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.error_outline_rounded, size: 48, color: AppColors.amber),
+          Icon(
+            Icons.error_outline_rounded,
+            size: 48,
+            color: AppColors.amber,
+          ),
           const SizedBox(height: 12),
           Text(copy.loadError, textAlign: TextAlign.center),
           const SizedBox(height: 16),
