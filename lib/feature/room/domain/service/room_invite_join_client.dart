@@ -1,5 +1,5 @@
 import '../entity/room.dart';
-import 'room_accepted_join_snapshot.dart';
+import '../entity/room_accepted_join_snapshot.dart';
 import 'room_invite_join_exchange.dart';
 
 /// Joiner-side verifier for an issuer response to a previously created Room
