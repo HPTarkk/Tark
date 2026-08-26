@@ -166,33 +166,36 @@ void main() {
     expect(await reopened.selectedRoomId(), roomId);
   });
 
-  test('accepted join import is idempotent for the same local member', () async {
-    final now = DateTime.utc(2026, 8, 26, 15);
-    const roomId = RoomId('0123456789abcdef0123456789abcdef');
-    const localId = RoomMemberId('222222222222222222222222');
-    final snapshot = RoomAcceptedJoinSnapshot(
-      roomId: roomId,
-      roomName: 'Night riders',
-      roomCreatedAt: now,
-      roomUpdatedAt: now,
-      members: [
-        RoomAcceptedJoinMember(
-          memberId: localId,
-          displayName: 'Joined rider',
-          joinedAt: now,
-          kind: RoomMemberKind.member,
-        ),
-      ],
-    );
+  test(
+    'accepted join import is idempotent for the same local member',
+    () async {
+      final now = DateTime.utc(2026, 8, 26, 15);
+      const roomId = RoomId('0123456789abcdef0123456789abcdef');
+      const localId = RoomMemberId('222222222222222222222222');
+      final snapshot = RoomAcceptedJoinSnapshot(
+        roomId: roomId,
+        roomName: 'Night riders',
+        roomCreatedAt: now,
+        roomUpdatedAt: now,
+        members: [
+          RoomAcceptedJoinMember(
+            memberId: localId,
+            displayName: 'Joined rider',
+            joinedAt: now,
+            kind: RoomMemberKind.member,
+          ),
+        ],
+      );
 
-    await repository.importAcceptedJoin(snapshot, localMemberId: localId);
-    await repository.importAcceptedJoin(snapshot, localMemberId: localId);
+      await repository.importAcceptedJoin(snapshot, localMemberId: localId);
+      await repository.importAcceptedJoin(snapshot, localMemberId: localId);
 
-    final rooms = await repository.list(includeArchived: true);
-    expect(rooms, hasLength(1));
-    expect(rooms.single.room.members, hasLength(1));
-    expect(rooms.single.membership.localMemberId, localId);
-  });
+      final rooms = await repository.list(includeArchived: true);
+      expect(rooms, hasLength(1));
+      expect(rooms.single.room.members, hasLength(1));
+      expect(rooms.single.membership.localMemberId, localId);
+    },
+  );
 
   test('accepted join import fails when local member is absent', () async {
     final now = DateTime.utc(2026, 8, 26, 15);
