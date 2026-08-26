@@ -3,15 +3,12 @@ import 'package:tark/feature/transfer/data/capability/transport_capability_reade
 
 void main() {
   test('decodes complete proven capability snapshot', () {
-    final value = TransportCapabilityReader.decodeSnapshot(
-      <Object?, Object?>{
-        'canHostHotspot': true,
-        'bluetoothSupported': true,
-        'backgroundReady': true,
-        'batteryPercent': 73,
-      },
-      prefersHotspotHost: true,
-    );
+    final value = TransportCapabilityReader.decodeSnapshot(<Object?, Object?>{
+      'canHostHotspot': true,
+      'bluetoothSupported': true,
+      'backgroundReady': true,
+      'batteryPercent': 73,
+    }, prefersHotspotHost: true);
 
     expect(value, isNotNull);
     expect(value!.canHostHotspot, isTrue);
