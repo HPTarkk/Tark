@@ -157,6 +157,15 @@ void main() {
         isTrue,
       );
       final now = DateTime.utc(2026, 8, 27, 1);
+      source.add(observation('route-a', now));
+      expect(
+        subject.candidates.snapshot(
+          now: now,
+          attachmentGeneration: subject.attachmentGeneration,
+        ),
+        hasLength(1),
+      );
+
       final attempt = await subject.beginFailover(
         sharedLanUsable: false,
         reason: RoomFailoverReason.hostLost,
