@@ -76,7 +76,20 @@ jobs:
           fi
 
       - name: Analyze
-        run: flutter analyze
+        shell: bash
+        run: |
+          set +e
+          flutter analyze 2>&1 | tee analyze.log
+          status=${PIPESTATUS[0]}
+          exit "$status"
+
+      - name: Upload analyzer diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: analyzer-diagnostic
+          path: analyze.log
+          if-no-files-found: error
 
       - name: Run Flutter tests
         run: flutter test
