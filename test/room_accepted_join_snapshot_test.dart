@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
-import 'package:tark/feature/room/domain/service/room_accepted_join_snapshot.dart';
+import 'package:tark/feature/room/domain/entity/room_accepted_join_snapshot.dart';
 
 void main() {
   final roomId = RoomId.parse('0123456789abcdef0123456789abcdef')!;
@@ -86,7 +86,10 @@ void main() {
     );
 
     expect(snapshot.members, hasLength(RoomAcceptedJoinSnapshot.maxMembers));
-    expect(snapshot.members.map((member) => member.memberId), contains(acceptedId));
+    expect(
+      snapshot.members.map((member) => member.memberId),
+      contains(acceptedId),
+    );
   });
 
   test('missing accepted member fails closed', () {
