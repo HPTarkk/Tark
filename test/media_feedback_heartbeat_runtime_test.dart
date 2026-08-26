@@ -147,22 +147,18 @@ void main() {
     runtime.observeMatchedPong(pong, now);
     runtime.removePeer('peer-b');
     expect(
-      runtime.evaluate(
-        peerIds: const ['peer-b'],
-        now: now,
-        elapsedMs: 1000,
-      ).tier,
+      runtime
+          .evaluate(peerIds: const ['peer-b'], now: now, elapsedMs: 1000)
+          .tier,
       MediaAdaptationTier.unconfirmed,
     );
 
     runtime.observeMatchedPong(pong, now);
     runtime.reset();
     expect(
-      runtime.evaluate(
-        peerIds: const ['peer-b'],
-        now: now,
-        elapsedMs: 1000,
-      ).tier,
+      runtime
+          .evaluate(peerIds: const ['peer-b'], now: now, elapsedMs: 1000)
+          .tier,
       MediaAdaptationTier.unconfirmed,
     );
   });
