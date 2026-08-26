@@ -58,9 +58,7 @@ class MediaOpusTuner {
     // valid Opus bitrate configured underneath it so resume never requires a
     // zero-bitrate encoder transition.
     final effectiveCap = receiverCap <= 0 ? 32000 : receiverCap;
-    final bitrate = senderBitrate < effectiveCap
-        ? senderBitrate
-        : effectiveCap;
+    final bitrate = senderBitrate < effectiveCap ? senderBitrate : effectiveCap;
 
     return OpusTuning(
       bitrate: bitrate,
