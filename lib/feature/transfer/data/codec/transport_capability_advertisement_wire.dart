@@ -2,12 +2,18 @@ import 'dart:typed_data';
 
 import '../../domain/entity/transport_capability_advertisement.dart';
 
-/// Fixed, bounded trailer for optional Room transport capability evidence.
+/// Fixed, bounded record for optional Room transport capability evidence.
 ///
-/// The trailer is intended to be appended after the existing Presence body.
-/// Older decoders stop before it. New decoders fail closed to `null` when the
-/// marker/version is unknown, the record is truncated, or the bounded battery
-/// value is invalid. This deliberately does not introduce a packet-v2 rewrite.
+/// This codec intentionally does not choose its wire carrier. In particular,
+/// do not append this record directly to the legacy Presence body: older
+/// Presence decoders interpret byte 4 as the heard-id count and may reject the
+/// whole packet when additional bytes follow. Carrier wiring is a separate
+/// compatibility-sensitive step and must prove mixed-version behavior before
+/// emission is enabled.
+///
+/// Once a compatible carrier supplies this record, unknown marker/version,
+/// truncation, unknown flags, or an invalid bounded battery value all fail
+/// closed to `null`. This does not introduce a packet-v2 rewrite.
 abstract final class TransportCapabilityAdvertisementWire {
   static const marker = 0x54; // 'T' for transport capability.
   static const version = 1;
@@ -32,11 +38,11 @@ abstract final class TransportCapabilityAdvertisementWire {
     return Uint8List.fromList([marker, version, flags, value.batteryPercent]);
   }
 
-  /// Decodes exactly one optional trailer beginning at [offset].
+  /// Decodes exactly one optional record beginning at [offset].
   ///
-  /// Extra bytes after the known record are ignored so a later additive
-  /// extension can remain compatible with this reader. Unknown flag bits are
-  /// rejected rather than silently interpreted as eligibility evidence.
+  /// Extra bytes after the known record are ignored so a compatible carrier
+  /// may grow additively. Unknown flag bits are rejected rather than silently
+  /// interpreted as eligibility evidence.
   static TransportCapabilityAdvertisement? decode(Uint8List bytes, int offset) {
     if (offset < 0 || bytes.length - offset < encodedLength) return null;
     if (bytes[offset] != marker || bytes[offset + 1] != version) return null;
