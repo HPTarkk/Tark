@@ -70,7 +70,12 @@ void main() {
           .textDirection,
       TextDirection.rtl,
     );
-    expect(find.bySemanticsLabel('افزودن همراه'), findsOneWidget);
+    expect(
+      tester
+          .widget<IconButton>(find.byKey(const Key('in-room-add-rider')))
+          .tooltip,
+      'افزودن همراه',
+    );
 
     await tester.tap(find.byKey(const Key('in-room-add-rider')));
     await tester.pumpAndSettle();
