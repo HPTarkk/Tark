@@ -2,6 +2,7 @@ import 'opus_tuner.dart';
 
 import '../../../../core/audio/audio_format_profile.dart';
 import '../entity/opus_tuning.dart';
+import 'media_receiver_feedback_session.dart';
 
 /// Turns measured link conditions into encoder settings for a #29 HD Shared
 /// Music stream — [OpusTuner]'s sibling, not a branch inside it.
@@ -36,30 +37,17 @@ class MediaOpusTuner {
     return const MediaOpusTuner();
   }
 
-  /// What a link with no measurements gets. Media only ever starts once a
-  /// channel already exists (voice has already measured the link by then),
-  /// so this is deliberately conservative rather than optimistic — an
-  /// unmeasured link should not open at the top tier.
+  /// What a link with no measurements gets. #41 additionally caps this by the
+  /// current receiver-driven decision, so an unconfirmed room never jumps to
+  /// the 96 kbps maximum merely because sender-side RTT/loss looks clean.
   static const initial = OpusTuning(
     bitrate: 64000,
     packetLossPerc: 0,
     complexity: 6,
   );
 
-  /// Same ceiling [OpusTuner.maxLossPerc] uses, for the same reason: past a
-  /// quarter of the link lost, redundancy stops helping and it's the recovery
-  /// ladder's problem, not the codec's.
   static const maxLossPerc = OpusTuner.maxLossPerc;
-
-  /// Same congestion threshold as [OpusTuner.congestedRtt] — one link, so one
-  /// definition of "congested" for whatever is sharing it.
   static const congestedRtt = OpusTuner.congestedRtt;
-
-  /// Bitrate below which the product should prefer to degrade or pause media
-  /// rather than keep calling the result "HD" — required by #29's acceptance
-  /// criteria ("never call 12-20 kbps HD"). Callers building a Preflight- or
-  /// UI-facing "is this still HD" signal should compare against this rather
-  /// than re-deriving it.
   static const hdFloorBitrate = 48000;
 
   OpusTuning tune(AudioLinkConditions conditions) {
@@ -71,12 +59,22 @@ class MediaOpusTuner {
     final rtt = conditions.rtt;
     final congested = rtt != null && rtt > congestedRtt;
 
-    final (bitrate, complexity) = switch (lossPerc) {
+    final (senderBitrate, complexity) = switch (lossPerc) {
       < 2 when !congested => (96000, 8),
       < 8 => (64000, 7),
       < 15 => (48000, 6),
       _ => (32000, 5),
     };
+
+    final receiverCap =
+        MediaReceiverFeedbackSession.shared.decision.targetBitrateKbps * 1000;
+    // `suspended` is enforced by MediaQualityController.shouldSend. Keep a
+    // valid Opus bitrate configured underneath it so resume never requires a
+    // zero-bitrate encoder transition.
+    final effectiveCap = receiverCap <= 0 ? 32000 : receiverCap;
+    final bitrate = senderBitrate < effectiveCap
+        ? senderBitrate
+        : effectiveCap;
 
     return OpusTuning(
       bitrate: bitrate,
