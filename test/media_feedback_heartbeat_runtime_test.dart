@@ -22,7 +22,7 @@ void main() {
   );
 
   WakiPacketCodec codec(String id) =>
-      WakiPacketCodec(id, SessionEpoch(initialValue: 17));
+      WakiPacketCodec(id, SessionEpoch.startingAt(17));
 
   test('ping advertises the current local receiver window additively', () {
     final runtime = MediaFeedbackHeartbeatRuntime(
