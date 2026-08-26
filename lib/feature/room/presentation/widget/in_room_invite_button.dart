@@ -6,6 +6,7 @@ import 'package:get_it/get_it.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../transfer/api/hotspot_invite_api.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../../domain/entity/room.dart';
 import '../../domain/entity/room_invitation.dart';
