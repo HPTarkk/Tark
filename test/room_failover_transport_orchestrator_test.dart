@@ -8,6 +8,7 @@ import 'package:tark/feature/room/domain/service/room_failover_controller.dart';
 import 'package:tark/feature/room/domain/service/room_failover_runtime.dart';
 import 'package:tark/feature/room/domain/service/room_failover_transport_orchestrator.dart';
 import 'package:tark/feature/room/domain/service/room_session_runtime.dart';
+import 'package:tark/feature/room/domain/service/room_transport_candidate_registry.dart';
 import 'package:tark/feature/room/domain/service/room_transport_planner.dart';
 
 void main() {
@@ -64,6 +65,90 @@ void main() {
       expect(context.callbacks.ready(role: 'host'), isTrue);
       expect(room.state.phase, RoomSessionPhase.live);
       expect(disposed, 0);
+    },
+  );
+
+  test(
+    'registry-backed failover uses only current fresh verified candidates',
+    () async {
+      final room = session();
+      final runtime = RoomFailoverRuntime(session: room);
+      final registry = RoomTransportCandidateRegistry(
+        freshFor: const Duration(seconds: 10),
+      );
+      final now = DateTime.utc(2026, 8, 26, 14);
+      registry.observe(
+        candidate('stale-high', battery: 100),
+        at: now,
+        attachmentGeneration: 1,
+      );
+      registry.observe(
+        candidate('peer-a', battery: 60),
+        at: now,
+        attachmentGeneration: 2,
+      );
+      registry.observe(
+        candidate('me', battery: 90),
+        at: now,
+        attachmentGeneration: 2,
+      );
+      final orchestrator = RoomFailoverTransportOrchestrator(
+        runtime: runtime,
+        startTransport: (_) async => RoomFailoverTransportHandle(() async {}),
+      );
+
+      final attempt = await orchestrator.beginFromRegistry(
+        sharedLanUsable: false,
+        candidates: registry,
+        attachmentGeneration: 2,
+        now: now.add(const Duration(seconds: 1)),
+        reason: RoomFailoverReason.hostLost,
+      );
+
+      expect(attempt, isNotNull);
+      expect(attempt!.decision.plan.kind, RoomTransportKind.hotspot);
+      expect(attempt.decision.plan.hotspotHost, const RoomMemberId('me'));
+      expect(room.state.attachment.role, 'host');
+      registry.dispose();
+    },
+  );
+
+  test(
+    'registry-backed failover fails closed when all capability evidence expired',
+    () async {
+      final room = session();
+      final runtime = RoomFailoverRuntime(session: room);
+      final registry = RoomTransportCandidateRegistry(
+        freshFor: const Duration(seconds: 5),
+      );
+      final observedAt = DateTime.utc(2026, 8, 26, 14);
+      registry.observe(
+        candidate('me', battery: 100),
+        at: observedAt,
+        attachmentGeneration: 4,
+      );
+      var starts = 0;
+      final orchestrator = RoomFailoverTransportOrchestrator(
+        runtime: runtime,
+        startTransport: (_) async {
+          starts++;
+          return RoomFailoverTransportHandle(() async {});
+        },
+      );
+
+      final attempt = await orchestrator.beginFromRegistry(
+        sharedLanUsable: false,
+        candidates: registry,
+        attachmentGeneration: 4,
+        now: observedAt.add(const Duration(seconds: 6)),
+        reason: RoomFailoverReason.hostLost,
+      );
+
+      expect(attempt, isNotNull);
+      expect(attempt!.attachmentGeneration, isNull);
+      expect(starts, 0);
+      expect(room.state.isLogicallyPresent, isTrue);
+      registry.dispose();
     },
   );
 
