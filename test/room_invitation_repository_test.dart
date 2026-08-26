@@ -155,17 +155,17 @@ void main() {
     );
     final prefs = await SharedPreferences.getInstance();
     expect(
-      prefs
-          .getKeys()
-          .any((key) => key.contains('invites.${room.room.id.value}')),
+      prefs.getKeys().any(
+        (key) => key.contains('invites.${room.room.id.value}'),
+      ),
       isTrue,
     );
 
     await repository.delete(room.room.id);
     expect(
-      prefs
-          .getKeys()
-          .any((key) => key.contains('invites.${room.room.id.value}')),
+      prefs.getKeys().any(
+        (key) => key.contains('invites.${room.room.id.value}'),
+      ),
       isFalse,
     );
     final persisted = prefs
