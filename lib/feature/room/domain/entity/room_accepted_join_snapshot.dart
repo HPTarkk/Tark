@@ -7,16 +7,21 @@ import 'room.dart';
 ///
 /// This is deliberately transport-free: no invite secret, Wi-Fi credentials,
 /// IP address, transport role or live reachability is serialized. It contains
-/// only the durable Room identity/name and the active roster needed by the
-/// accepted member to persist an honest local Room instead of inventing one.
+/// only durable Room data needed by the accepted member to persist an honest
+/// local Room instead of inventing names, roster entries or timestamps.
 final class RoomAcceptedJoinSnapshot {
   RoomAcceptedJoinSnapshot({
     required this.roomId,
     required this.roomName,
+    required this.roomCreatedAt,
+    required this.roomUpdatedAt,
     required Iterable<RoomAcceptedJoinMember> members,
   }) : members = List.unmodifiable(members) {
     if (roomName.trim().isEmpty || roomName.trim().length > maxRoomNameLength) {
       throw ArgumentError.value(roomName, 'roomName', 'invalid room name');
+    }
+    if (roomUpdatedAt.toUtc().isBefore(roomCreatedAt.toUtc())) {
+      throw ArgumentError('Room updatedAt precedes createdAt');
     }
     if (this.members.isEmpty || this.members.length > maxMembers) {
       throw ArgumentError.value(
@@ -35,10 +40,12 @@ final class RoomAcceptedJoinSnapshot {
   static const maxMembers = 12;
   static const maxRoomNameLength = 120;
   static const maxDisplayNameLength = 80;
-  static const maxEncodedLength = 4096;
+  static const maxEncodedLength = 6144;
 
   final RoomId roomId;
   final String roomName;
+  final DateTime roomCreatedAt;
+  final DateTime roomUpdatedAt;
   final List<RoomAcceptedJoinMember> members;
 
   factory RoomAcceptedJoinSnapshot.fromSavedRoom(
@@ -60,6 +67,8 @@ final class RoomAcceptedJoinSnapshot {
     return RoomAcceptedJoinSnapshot(
       roomId: saved.room.id,
       roomName: saved.room.name.trim(),
+      roomCreatedAt: saved.room.createdAt.toUtc(),
+      roomUpdatedAt: saved.room.updatedAt.toUtc(),
       members: selected.map(RoomAcceptedJoinMember.fromRoomMember),
     );
   }
@@ -69,6 +78,8 @@ final class RoomAcceptedJoinSnapshot {
       'v': currentVersion,
       'roomId': roomId.value,
       'roomName': roomName.trim(),
+      'createdAt': roomCreatedAt.toUtc().toIso8601String(),
+      'updatedAt': roomUpdatedAt.toUtc().toIso8601String(),
       'members': members
           .map((member) => member.toJson())
           .toList(growable: false),
@@ -95,14 +106,23 @@ final class RoomAcceptedJoinSnapshot {
       final roomId = RoomId.parse(value['roomId'] as String? ?? '');
       final roomName = value['roomName'];
       final membersRaw = value['members'];
+      final createdRaw = value['createdAt'];
+      final updatedRaw = value['updatedAt'];
       if (roomId == null ||
           roomName is! String ||
           roomName.trim().isEmpty ||
           roomName.trim().length > maxRoomNameLength ||
+          createdRaw is! String ||
+          updatedRaw is! String ||
           membersRaw is! List ||
           membersRaw.isEmpty ||
           membersRaw.length > maxMembers) {
         throw const FormatException('accepted room snapshot fields');
+      }
+      final createdAt = DateTime.parse(createdRaw).toUtc();
+      final updatedAt = DateTime.parse(updatedRaw).toUtc();
+      if (updatedAt.isBefore(createdAt)) {
+        throw const FormatException('accepted room snapshot timestamps');
       }
       final members = membersRaw
           .map(RoomAcceptedJoinMember.fromJson)
@@ -114,6 +134,8 @@ final class RoomAcceptedJoinSnapshot {
       return RoomAcceptedJoinSnapshot(
         roomId: roomId,
         roomName: roomName.trim(),
+        roomCreatedAt: createdAt,
+        roomUpdatedAt: updatedAt,
         members: members,
       );
     } on FormatException {
@@ -128,23 +150,27 @@ final class RoomAcceptedJoinMember {
   const RoomAcceptedJoinMember({
     required this.memberId,
     required this.displayName,
+    required this.joinedAt,
     required this.kind,
   });
 
   final RoomMemberId memberId;
   final String displayName;
+  final DateTime joinedAt;
   final RoomMemberKind kind;
 
   factory RoomAcceptedJoinMember.fromRoomMember(RoomMember member) =>
       RoomAcceptedJoinMember(
         memberId: member.id,
         displayName: member.displayName.trim(),
+        joinedAt: member.joinedAt.toUtc(),
         kind: member.kind,
       );
 
   Map<String, Object> toJson() => {
     'id': memberId.value,
     'displayName': displayName,
+    'joinedAt': joinedAt.toUtc().toIso8601String(),
     'kind': kind.name,
   };
 
@@ -154,6 +180,7 @@ final class RoomAcceptedJoinMember {
     }
     final id = raw['id'];
     final displayName = raw['displayName'];
+    final joinedAt = raw['joinedAt'];
     final kind = raw['kind'];
     if (id is! String ||
         !RegExp(r'^[0-9a-f]{24}$').hasMatch(id) ||
@@ -161,6 +188,7 @@ final class RoomAcceptedJoinMember {
         displayName.trim().isEmpty ||
         displayName.trim().length >
             RoomAcceptedJoinSnapshot.maxDisplayNameLength ||
+        joinedAt is! String ||
         kind is! String) {
       throw const FormatException('accepted room member fields');
     }
@@ -173,6 +201,7 @@ final class RoomAcceptedJoinMember {
     return RoomAcceptedJoinMember(
       memberId: RoomMemberId(id),
       displayName: displayName.trim(),
+      joinedAt: DateTime.parse(joinedAt).toUtc(),
       kind: memberKind.single,
     );
   }
