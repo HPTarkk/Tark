@@ -121,9 +121,7 @@ void main() {
     final bodyOffset = nameLengthOffset + 4;
     final named = Uint8List(raw.length + 1);
     named.setRange(0, bodyOffset, raw);
-    ByteData.sublistView(
-      named,
-    ).setUint32(nameLengthOffset, 1, Endian.little);
+    ByteData.sublistView(named).setUint32(nameLengthOffset, 1, Endian.little);
     named[bodyOffset] = 0x78; // 'x'
     named.setRange(bodyOffset + 1, named.length, raw, bodyOffset);
 
