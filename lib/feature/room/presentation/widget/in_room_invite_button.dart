@@ -160,7 +160,10 @@ class _RoomInviteDialog extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Text(copy.codeLabel, style: const TextStyle(fontSize: 12)),
+                      Text(
+                        copy.codeLabel,
+                        style: const TextStyle(fontSize: 12),
+                      ),
                       SelectableText(
                         invite.displayCode,
                         key: const Key('room-invite-display-code'),
