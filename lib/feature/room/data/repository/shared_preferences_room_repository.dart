@@ -278,6 +278,7 @@ class SharedPreferencesRoomRepository implements RoomRepository {
     if (await selectedRoomId() == id) await select(null);
     return next;
   }
+
   @override
   Future<void> delete(RoomId id) async {
     final prefs = await _prefs();
