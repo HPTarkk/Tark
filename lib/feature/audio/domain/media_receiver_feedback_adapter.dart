@@ -9,6 +9,27 @@ import 'media_receive_buffer.dart';
 /// receiver rather than a clean receiver. This keeps mixed-version rooms and
 /// peers that have not yet returned health evidence on the conservative tier.
 abstract final class MediaReceiverFeedbackAdapter {
+  /// Converts the local receiver-health window into the bounded, privacy-safe
+  /// transport payload used by control packets.
+  ///
+  /// Keep this mapping canonical rather than duplicating it in Wi-Fi/Bluetooth
+  /// runtimes: every field is a counter/gauge already produced by
+  /// [MediaReceiveBuffer], and no audio samples, room identity, peer address or
+  /// transport credentials can enter the wire payload here.
+  static MediaReceiverFeedback fromHealth(MediaReceiveHealth health) {
+    return MediaReceiverFeedback(
+      queuedMs: health.queuedMs,
+      underruns: health.underruns,
+      outputStarvations: health.outputStarvations,
+      trims: health.trims,
+      overflowDrops: health.overflowDrops,
+      staleDrops: health.staleDrops,
+      duplicateDrops: health.duplicateDrops,
+      resyncs: health.resyncs,
+      concealedMs: health.concealedMs,
+    );
+  }
+
   static MediaReceiverWindow toWindow(MediaReceiverFeedback? feedback) {
     if (feedback == null) {
       return const MediaReceiverWindow(
