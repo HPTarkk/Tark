@@ -19,14 +19,9 @@ void main() {
       name: 'Riders',
       createdAt: now,
       updatedAt: now,
-      members: [
-        RoomMember(id: memberId, displayName: 'Me', joinedAt: now),
-      ],
+      members: [RoomMember(id: memberId, displayName: 'Me', joinedAt: now)],
     ),
-    membership: RoomMembership(
-      localMemberId: memberId,
-      canManageInvites: true,
-    ),
+    membership: RoomMembership(localMemberId: memberId, canManageInvites: true),
   );
 
   test('selected durable room follows live transport health', () async {
@@ -62,18 +57,21 @@ void main() {
     await transfer.health.close();
   });
 
-  test('no selected room preserves legacy entry without touching transport', () async {
-    final transfer = _TransferRepository();
-    final binding = SelectedRoomLiveSessionBinding(
-      rooms: _RoomRepository(),
-      transfer: transfer,
-      modeStore: _ModeStore(TransferMode.wifi),
-    );
+  test(
+    'no selected room preserves legacy entry without touching transport',
+    () async {
+      final transfer = _TransferRepository();
+      final binding = SelectedRoomLiveSessionBinding(
+        rooms: _RoomRepository(),
+        transfer: transfer,
+        modeStore: _ModeStore(TransferMode.wifi),
+      );
 
-    expect(await binding.open(sessionId: 'live-2'), isNull);
-    expect(transfer.connectCalls, 0);
-    await transfer.health.close();
-  });
+      expect(await binding.open(sessionId: 'live-2'), isNull);
+      expect(transfer.connectCalls, 0);
+      await transfer.health.close();
+    },
+  );
 
   test('transport mode maps without changing room identity semantics', () {
     expect(
