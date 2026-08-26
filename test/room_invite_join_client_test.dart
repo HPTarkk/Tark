@@ -2,8 +2,8 @@ import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
+import 'package:tark/feature/room/domain/entity/room_accepted_join_snapshot.dart';
 import 'package:tark/feature/room/domain/entity/room_invitation.dart';
-import 'package:tark/feature/room/domain/service/room_accepted_join_snapshot.dart';
 import 'package:tark/feature/room/domain/service/room_invite_join_client.dart';
 import 'package:tark/feature/room/domain/service/room_invite_join_exchange.dart';
 
