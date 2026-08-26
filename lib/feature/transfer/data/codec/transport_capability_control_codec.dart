@@ -64,7 +64,10 @@ final class TransportCapabilityControlCodec {
 
     final legacyEnd = _legacyControlLength(bytes);
     if (legacyEnd == null) {
-      return DecodedTransportCapabilityControl(packet: packet, capability: null);
+      return DecodedTransportCapabilityControl(
+        packet: packet,
+        capability: null,
+      );
     }
     var capabilityOffset = legacyEnd;
     if (MediaReceiverFeedbackWire.decode(bytes, legacyEnd) != null) {
