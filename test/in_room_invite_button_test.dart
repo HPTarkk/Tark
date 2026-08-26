@@ -42,7 +42,9 @@ void main() {
 
   testWidgets('issues canonical Room invite and fits 320px', (tester) async {
     final repository = await repositoryWithSelectedRoom();
-    await tester.pumpWidget(app(repository: repository, locale: const Locale('en')));
+    await tester.pumpWidget(
+      app(repository: repository, locale: const Locale('en')),
+    );
 
     await tester.tap(find.byKey(const Key('in-room-add-rider')));
     await tester.pumpAndSettle();
@@ -58,10 +60,14 @@ void main() {
     tester,
   ) async {
     final repository = await repositoryWithSelectedRoom();
-    await tester.pumpWidget(app(repository: repository, locale: const Locale('fa')));
+    await tester.pumpWidget(
+      app(repository: repository, locale: const Locale('fa')),
+    );
 
     expect(
-      tester.widget<Directionality>(find.byType(Directionality).first).textDirection,
+      tester
+          .widget<Directionality>(find.byType(Directionality).first)
+          .textDirection,
       TextDirection.rtl,
     );
     expect(find.bySemanticsLabel('افزودن همراه'), findsOneWidget);
@@ -81,7 +87,9 @@ void main() {
     tester,
   ) async {
     final repository = SharedPreferencesRoomRepository();
-    await tester.pumpWidget(app(repository: repository, locale: const Locale('en')));
+    await tester.pumpWidget(
+      app(repository: repository, locale: const Locale('en')),
+    );
 
     await tester.tap(find.byKey(const Key('in-room-add-rider')));
     await tester.pumpAndSettle();
