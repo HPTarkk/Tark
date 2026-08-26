@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import '../../../transfer/domain/entity/connection_health.dart';
+import '../../../transfer/api/transfer_api.dart';
 import '../entity/transport_attachment.dart';
 import 'room_session_runtime.dart';
 
