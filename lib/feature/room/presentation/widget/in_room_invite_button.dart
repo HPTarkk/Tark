@@ -70,6 +70,12 @@ class _InRoomInviteButtonState extends State<InRoomInviteButton> {
         ttl: const Duration(hours: 12),
       );
       if (!mounted) return;
+
+      // Busy protects only the asynchronous invite issuance. Keeping it true
+      // while the dialog is open leaves an indeterminate progress indicator
+      // animating behind the modal forever, which both wastes frames and makes
+      // deterministic widget settling impossible.
+      setState(() => _busy = false);
       await showDialog<void>(
         context: context,
         builder: (dialogContext) =>
@@ -78,7 +84,7 @@ class _InRoomInviteButtonState extends State<InRoomInviteButton> {
     } catch (_) {
       if (mounted) _showMessage(copy.error);
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted && _busy) setState(() => _busy = false);
     }
   }
 
