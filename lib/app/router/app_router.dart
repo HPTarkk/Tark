@@ -6,6 +6,7 @@ import '../../core/home_widget/home_widget_launch.dart';
 import '../../core/router/routes.dart';
 import '../../feature/landing/api/landing_api.dart';
 import '../../feature/onboarding/api/onboarding_api.dart';
+import '../../feature/room/api/room_api.dart';
 import '../../feature/settings/api/settings_api.dart';
 import '../../feature/splash/api/splash_api.dart';
 import '../../feature/transfer/api/transfer_api.dart';
@@ -74,6 +75,11 @@ class AppRouter {
         builder: (context, state) => OnboardingPage.buildPage(
           replay: state.uri.queryParameters['replay'] == 'true',
         ),
+      ),
+      GoRoute(
+        path: AppRoutes.roomsPath,
+        name: AppRoutes.roomsName,
+        builder: (context, state) => RoomListPage.buildPage(),
       ),
       GoRoute(
         path: AppRoutes.walkiePath,
