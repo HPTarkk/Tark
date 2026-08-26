@@ -172,7 +172,11 @@ void main() {
     registry.dispose();
 
     expect(
-      () => registry.observe(candidate('a' * 24), at: now, attachmentGeneration: 1),
+      () => registry.observe(
+        candidate('a' * 24),
+        at: now,
+        attachmentGeneration: 1,
+      ),
       throwsStateError,
     );
     expect(
