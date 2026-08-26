@@ -257,11 +257,7 @@ class LinkQualityBars extends StatelessWidget {
                 ),
               )
             else
-              _bar(
-                _heights[i],
-                color,
-                alpha: i < filled ? 255 : 46,
-              ),
+              _bar(_heights[i], color, alpha: i < filled ? 255 : 46),
           ],
         ],
       ),
