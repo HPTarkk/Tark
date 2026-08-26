@@ -138,7 +138,8 @@ class _InvalidRoomSelection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fa = Localizations.localeOf(context).languageCode.toLowerCase() == 'fa';
+    final fa =
+        Localizations.localeOf(context).languageCode.toLowerCase() == 'fa';
     return Scaffold(
       body: SafeArea(
         child: Center(
