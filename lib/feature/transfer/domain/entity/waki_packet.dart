@@ -2,7 +2,6 @@ import 'package:equatable/equatable.dart';
 
 import '../../../../core/identity/channel_id.dart';
 import 'session_role.dart';
-import 'transport_capability_advertisement.dart';
 
 /// Epoch carried by a packet from a build that predates the field (wire v1 and
 /// v2). Not a session anyone can reason about — it means "the sender expressed
@@ -93,14 +92,6 @@ final class PresencePacket extends WakiPacket {
   /// correct — that build has no way to send this at all.
   final bool isLeaving;
 
-  /// Optional non-secret evidence used by Room transport planning.
-  ///
-  /// Null means the peer did not advertise this field, the trailing extension
-  /// was truncated/unknown, or the transport cannot provide honest readiness
-  /// evidence. It is never membership authorization: Room orchestration must
-  /// first bind [senderId]/route evidence to an already-admitted RoomMemberId.
-  final TransportCapabilityAdvertisement? transportCapabilities;
-
   const PresencePacket({
     required super.senderId,
     required super.senderName,
@@ -111,7 +102,6 @@ final class PresencePacket extends WakiPacket {
     this.heardIds,
     this.capabilityBitmask = 0,
     this.isLeaving = false,
-    this.transportCapabilities,
   });
 
   @override
@@ -122,7 +112,6 @@ final class PresencePacket extends WakiPacket {
     heardIds,
     capabilityBitmask,
     isLeaving,
-    transportCapabilities,
   ];
 }
 
