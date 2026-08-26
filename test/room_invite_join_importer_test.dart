@@ -83,6 +83,30 @@ void main() {
     );
   });
 
+  test('stale duplicate response cannot roll back newer local Room state', () async {
+    final value = acceptedExchange();
+    await importer.importAcceptedResponse(
+      request: value.request,
+      encodedResponse: value.response,
+    );
+    final renamed = await repository.rename(
+      value.request.invitation.roomId,
+      'Locally newer name',
+    );
+    await repository.select(null);
+
+    final replayed = await importer.importAcceptedResponse(
+      request: value.request,
+      encodedResponse: value.response,
+    );
+    final persisted = await repository.get(value.request.invitation.roomId);
+
+    expect(replayed?.room.name, 'Locally newer name');
+    expect(replayed?.room.updatedAt, renamed.room.updatedAt);
+    expect(persisted?.room.name, 'Locally newer name');
+    expect(await repository.selectedRoomId(), value.request.invitation.roomId);
+  });
+
   test('forged accepted member cannot mutate or select local state', () async {
     final value = acceptedExchange();
     final decoded = RoomInviteJoinResponse.decode(value.response);
