@@ -10,8 +10,8 @@ import '../../feature/room/api/room_api.dart';
 import '../../feature/settings/api/settings_api.dart';
 import '../../feature/splash/api/splash_api.dart';
 import '../../feature/transfer/api/transfer_api.dart';
-import '../../feature/walkie/api/walkie_api.dart';
 import 'quick_access.dart';
+import 'room_bound_walkie_entry.dart';
 
 /// App composition root for navigation: the only place where pages from
 /// different features are wired together. Features themselves navigate by
@@ -84,7 +84,7 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.walkiePath,
         name: AppRoutes.walkieName,
-        builder: (context, state) => WalkieTalkiePage.buildPage(),
+        builder: (context, state) => RoomBoundWalkieEntry.buildPage(),
       ),
       GoRoute(
         path: AppRoutes.bluetoothConnectPath,
