@@ -49,9 +49,8 @@ final class RoomInviteAcceptanceCoordinator {
 }
 
 final class RoomInviteAcceptanceResult {
-  const RoomInviteAcceptanceResult.accepted(SavedRoom room)
-    : status = RoomInviteAcceptanceStatus.accepted,
-      room = room;
+  const RoomInviteAcceptanceResult.accepted(this.room)
+    : status = RoomInviteAcceptanceStatus.accepted;
 
   const RoomInviteAcceptanceResult.rejected()
     : status = RoomInviteAcceptanceStatus.rejected,
