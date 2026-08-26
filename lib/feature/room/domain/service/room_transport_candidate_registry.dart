@@ -89,11 +89,14 @@ final class RoomTransportCandidateRegistry {
     _observations.removeWhere(
       (_, value) => now.difference(value.observedAt) > freshFor,
     );
-    final candidates = _observations.values
-        .where((value) => value.attachmentGeneration == attachmentGeneration)
-        .map((value) => value.candidate)
-        .toList(growable: false)
-      ..sort((a, b) => a.memberId.value.compareTo(b.memberId.value));
+    final candidates =
+        _observations.values
+            .where(
+              (value) => value.attachmentGeneration == attachmentGeneration,
+            )
+            .map((value) => value.candidate)
+            .toList(growable: false)
+          ..sort((a, b) => a.memberId.value.compareTo(b.memberId.value));
     return List.unmodifiable(candidates);
   }
 
