@@ -32,20 +32,23 @@ void main() {
     return (room: room, invite: invite, now: now);
   }
 
-  test('issued capability verifies before durable membership mutation', () async {
-    final value = await issued();
+  test(
+    'issued capability verifies before durable membership mutation',
+    () async {
+      final value = await issued();
 
-    final result = await coordinator.accept(
-      invitation: value.invite,
-      displayName: 'Rider three',
-      now: value.now.add(const Duration(minutes: 1)),
-    );
+      final result = await coordinator.accept(
+        invitation: value.invite,
+        displayName: 'Rider three',
+        now: value.now.add(const Duration(minutes: 1)),
+      );
 
-    expect(result.status, RoomInviteAcceptanceStatus.accepted);
-    expect(result.room?.room.id, value.room.room.id);
-    expect(result.room?.room.members, hasLength(2));
-    expect(result.room?.room.members.last.displayName, 'Rider three');
-  });
+      expect(result.status, RoomInviteAcceptanceStatus.accepted);
+      expect(result.room?.room.id, value.room.room.id);
+      expect(result.room?.room.members, hasLength(2));
+      expect(result.room?.room.members.last.displayName, 'Rider three');
+    },
+  );
 
   test('forged bearer secret cannot mutate membership', () async {
     final value = await issued();
@@ -69,7 +72,10 @@ void main() {
     );
 
     expect(result.status, RoomInviteAcceptanceStatus.rejected);
-    expect((await repository.get(value.room.room.id))?.room.members, hasLength(1));
+    expect(
+      (await repository.get(value.room.room.id))?.room.members,
+      hasLength(1),
+    );
   });
 
   test('unknown RoomId fails closed without creating a room', () async {
