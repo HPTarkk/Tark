@@ -1,4 +1,3 @@
-import '../entity/transport_capability_observation.dart';
 import 'transfer_repository.dart';
 
 /// The Wi-Fi/UDP transport specifically — as opposed to [TransferRepository],
@@ -19,13 +18,4 @@ abstract interface class WifiTransferRepository implements TransferRepository {
   /// and so ends the listening stream the live session is subscribed to,
   /// permanently. This rebinds underneath the same stream.
   void rebindSockets();
-
-  /// Verified, low-frequency capability evidence received from live peers.
-  ///
-  /// The stream is transport evidence only: [TransportCapabilityObservation.peerKey]
-  /// must be bound to an already-admitted durable RoomMemberId before Room
-  /// planning/failover consumes it. Implementations must not emit arbitrary
-  /// inbound advertisements as verified observations; Wi-Fi admits evidence
-  /// only after the heartbeat route/token is correlated bidirectionally.
-  Stream<TransportCapabilityObservation> get transportCapabilityObservations;
 }
