@@ -29,12 +29,7 @@ abstract final class TransportCapabilityAdvertisementWire {
     if (value.bluetoothSupported) flags |= _bluetoothSupported;
     if (value.backgroundReady) flags |= _backgroundReady;
     if (value.prefersHotspotHost) flags |= _prefersHotspotHost;
-    return Uint8List.fromList([
-      marker,
-      version,
-      flags,
-      value.batteryPercent,
-    ]);
+    return Uint8List.fromList([marker, version, flags, value.batteryPercent]);
   }
 
   /// Decodes exactly one optional trailer beginning at [offset].
@@ -42,10 +37,7 @@ abstract final class TransportCapabilityAdvertisementWire {
   /// Extra bytes after the known record are ignored so a later additive
   /// extension can remain compatible with this reader. Unknown flag bits are
   /// rejected rather than silently interpreted as eligibility evidence.
-  static TransportCapabilityAdvertisement? decode(
-    Uint8List bytes,
-    int offset,
-  ) {
+  static TransportCapabilityAdvertisement? decode(Uint8List bytes, int offset) {
     if (offset < 0 || bytes.length - offset < encodedLength) return null;
     if (bytes[offset] != marker || bytes[offset + 1] != version) return null;
 
