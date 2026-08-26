@@ -239,7 +239,8 @@ class SharedPreferencesRoomRepository implements RoomRepository {
 
     final prefs = await _prefs();
     final existing = _readRoom(prefs, snapshot.roomId);
-    if (existing != null && existing.membership.localMemberId != localMemberId) {
+    if (existing != null &&
+        existing.membership.localMemberId != localMemberId) {
       throw StateError('Room already belongs to another local membership');
     }
     await _writeRoom(prefs, saved);
@@ -277,7 +278,6 @@ class SharedPreferencesRoomRepository implements RoomRepository {
     if (await selectedRoomId() == id) await select(null);
     return next;
   }
-
   @override
   Future<void> delete(RoomId id) async {
     final prefs = await _prefs();
