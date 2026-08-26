@@ -28,7 +28,10 @@ void main() {
     );
 
     final prefs = await SharedPreferences.getInstance();
-    final persisted = prefs.getKeys().map((key) => prefs.get(key).toString()).join();
+    final persisted = prefs
+        .getKeys()
+        .map((key) => prefs.get(key).toString())
+        .join();
     expect(persisted, isNot(contains(invite.secret)));
     expect(persisted, isNot(contains('ephemeral-network')));
     expect(persisted, isNot(contains('temporary-secret')));
@@ -40,33 +43,36 @@ void main() {
     expect(verified, isNotNull);
   });
 
-  test('single-use redemption survives repository recreation and rejects replay', () async {
-    var repository = SharedPreferencesRoomRepository();
-    final room = await repository.create(
-      name: 'Guest ride',
-      localDisplayName: 'Rider A',
-    );
-    final now = DateTime.utc(2026, 8, 26, 2);
-    final invite = await repository.issueInvite(
-      room.room.id,
-      kind: RoomInvitationKind.singleRideGuest,
-      now: now,
-      ttl: const Duration(hours: 2),
-    );
+  test(
+    'single-use redemption survives repository recreation and rejects replay',
+    () async {
+      var repository = SharedPreferencesRoomRepository();
+      final room = await repository.create(
+        name: 'Guest ride',
+        localDisplayName: 'Rider A',
+      );
+      final now = DateTime.utc(2026, 8, 26, 2);
+      final invite = await repository.issueInvite(
+        room.room.id,
+        kind: RoomInvitationKind.singleRideGuest,
+        now: now,
+        ttl: const Duration(hours: 2),
+      );
 
-    final first = await repository.verifyAndRedeemInvite(
-      invite,
-      now: now.add(const Duration(minutes: 1)),
-    );
-    expect(first, isNotNull);
+      final first = await repository.verifyAndRedeemInvite(
+        invite,
+        now: now.add(const Duration(minutes: 1)),
+      );
+      expect(first, isNotNull);
 
-    repository = SharedPreferencesRoomRepository();
-    final replay = await repository.verifyAndRedeemInvite(
-      invite,
-      now: now.add(const Duration(minutes: 2)),
-    );
-    expect(replay, isNull);
-  });
+      repository = SharedPreferencesRoomRepository();
+      final replay = await repository.verifyAndRedeemInvite(
+        invite,
+        now: now.add(const Duration(minutes: 2)),
+      );
+      expect(replay, isNull);
+    },
+  );
 
   test('revocation survives repository recreation and fails closed', () async {
     var repository = SharedPreferencesRoomRepository();
@@ -118,7 +124,7 @@ void main() {
       version: invite.version,
       roomId: invite.roomId,
       invitationId: invite.invitationId,
-      secret: '0' * 64,
+      secret: List.filled(64, '0').join(),
       kind: invite.kind,
       issuedAt: invite.issuedAt,
       expiresAt: invite.expiresAt,
@@ -149,15 +155,23 @@ void main() {
     );
     final prefs = await SharedPreferences.getInstance();
     expect(
-      prefs.getKeys().any((key) => key.contains('invites.${room.room.id.value}')),
+      prefs
+          .getKeys()
+          .any((key) => key.contains('invites.${room.room.id.value}')),
       isTrue,
     );
 
     await repository.delete(room.room.id);
     expect(
-      prefs.getKeys().any((key) => key.contains('invites.${room.room.id.value}')),
+      prefs
+          .getKeys()
+          .any((key) => key.contains('invites.${room.room.id.value}')),
       isFalse,
     );
-    expect(prefs.getKeys().map((key) => prefs.get(key).toString()).join(), isNot(contains(invite.secret)));
+    final persisted = prefs
+        .getKeys()
+        .map((key) => prefs.get(key).toString())
+        .join();
+    expect(persisted, isNot(contains(invite.secret)));
   });
 }
