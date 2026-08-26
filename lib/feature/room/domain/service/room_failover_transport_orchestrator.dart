@@ -69,10 +69,7 @@ class RoomFailoverTransportOrchestrator {
     RoomFailoverTransportHandle handle;
     try {
       handle = await startTransport(
-        RoomFailoverTransportContext(
-          attempt: attempt,
-          callbacks: callbacks,
-        ),
+        RoomFailoverTransportContext(attempt: attempt, callbacks: callbacks),
       );
     } catch (_) {
       runtime.failed(
