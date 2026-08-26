@@ -66,90 +66,96 @@ void main() {
     runtime.dispose();
   });
 
-  test('bound admitted peer can participate in deterministic election', () async {
-    final runtime = subject();
-    final now = DateTime.utc(2026, 8, 26, 15);
-    local(runtime, now, battery: 40);
-    expect(
-      runtime.bindPeer(
-        peerKey: 'route-a',
-        memberId: const RoomMemberId('peer-a'),
-      ),
-      isTrue,
-    );
-    expect(
-      runtime.observePeer(
-        peerKey: 'route-a',
-        canHostHotspot: true,
-        bluetoothSupported: true,
-        backgroundReady: true,
-        batteryPercent: 90,
-        at: now,
-      ),
-      isTrue,
-    );
+  test(
+    'bound admitted peer can participate in deterministic election',
+    () async {
+      final runtime = subject();
+      final now = DateTime.utc(2026, 8, 26, 15);
+      local(runtime, now, battery: 40);
+      expect(
+        runtime.bindPeer(
+          peerKey: 'route-a',
+          memberId: const RoomMemberId('peer-a'),
+        ),
+        isTrue,
+      );
+      expect(
+        runtime.observePeer(
+          peerKey: 'route-a',
+          canHostHotspot: true,
+          bluetoothSupported: true,
+          backgroundReady: true,
+          batteryPercent: 90,
+          at: now,
+        ),
+        isTrue,
+      );
 
-    final attempt = await runtime.beginFailover(
-      sharedLanUsable: false,
-      reason: RoomFailoverReason.hostLost,
-      now: now,
-    );
+      final attempt = await runtime.beginFailover(
+        sharedLanUsable: false,
+        reason: RoomFailoverReason.hostLost,
+        now: now,
+      );
 
-    expect(attempt, isNotNull);
-    expect(attempt!.decision.plan.hotspotHost, const RoomMemberId('peer-a'));
-    runtime.dispose();
-  });
+      expect(attempt, isNotNull);
+      expect(attempt!.decision.plan.hotspotHost, const RoomMemberId('peer-a'));
+      runtime.dispose();
+    },
+  );
 
-  test('replacement attachment invalidates old binding and capability', () async {
-    final runtime = subject();
-    final now = DateTime.utc(2026, 8, 26, 15);
-    expect(
-      runtime.bindPeer(
-        peerKey: 'route-a',
-        memberId: const RoomMemberId('peer-a'),
-      ),
-      isTrue,
-    );
-    expect(
-      runtime.observePeer(
-        peerKey: 'route-a',
-        canHostHotspot: true,
-        bluetoothSupported: true,
-        backgroundReady: true,
-        batteryPercent: 80,
-        at: now,
-      ),
-      isTrue,
-    );
+  test(
+    'replacement attachment invalidates old binding and capability',
+    () async {
+      final runtime = subject();
+      final now = DateTime.utc(2026, 8, 26, 15);
+      expect(
+        runtime.bindPeer(
+          peerKey: 'route-a',
+          memberId: const RoomMemberId('peer-a'),
+        ),
+        isTrue,
+      );
+      expect(
+        runtime.observePeer(
+          peerKey: 'route-a',
+          canHostHotspot: true,
+          bluetoothSupported: true,
+          backgroundReady: true,
+          batteryPercent: 80,
+          at: now,
+        ),
+        isTrue,
+      );
 
-    final attempt = await runtime.beginFailover(
-      sharedLanUsable: false,
-      reason: RoomFailoverReason.hostLost,
-      now: now,
-    );
-    expect(attempt!.attachmentGeneration, 1);
-    expect(runtime.attachmentGeneration, 1);
+      final attempt = await runtime.beginFailover(
+        sharedLanUsable: false,
+        reason: RoomFailoverReason.hostLost,
+        now: now,
+      );
+      expect(attempt!.attachmentGeneration, 1);
+      expect(runtime.attachmentGeneration, 1);
 
-    expect(
-      runtime.observePeer(
-        peerKey: 'route-a',
-        canHostHotspot: true,
-        bluetoothSupported: true,
-        backgroundReady: true,
-        batteryPercent: 80,
-        at: now.add(const Duration(seconds: 1)),
-      ),
-      isFalse,
-    );
-    expect(
-      runtime.candidates.snapshot(
-        now: now.add(const Duration(seconds: 1)),
-        attachmentGeneration: 1,
-      ),
-      isEmpty,
-    );
-    runtime.dispose();
-  });
+      expect(
+        runtime.observePeer(
+          peerKey: 'route-a',
+          canHostHotspot: true,
+          bluetoothSupported: true,
+          backgroundReady: true,
+          batteryPercent: 80,
+          at: now.add(const Duration(seconds: 1)),
+        ),
+        isFalse,
+      );
+      expect(
+        runtime.candidates.snapshot(
+          now: now.add(const Duration(seconds: 1)),
+          attachmentGeneration: 1,
+        ),
+        isEmpty,
+      );
+      runtime.dispose();
+    },
+  );
 
   test('membership removal invalidates binding and candidate immediately', () {
     final runtime = subject();
