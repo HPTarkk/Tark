@@ -205,7 +205,8 @@ class _FakeRoomRepository implements RoomRepository {
   }) => throw UnimplementedError();
 
   @override
-  Future<void> revokeInvite(RoomInvitation invite) => throw UnimplementedError();
+  Future<void> revokeInvite(RoomInvitation invite) =>
+      throw UnimplementedError();
 
   @override
   Future<SavedRoom> acceptVerifiedInvite(
