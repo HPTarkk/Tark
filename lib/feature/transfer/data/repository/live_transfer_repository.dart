@@ -27,6 +27,12 @@ import '../../domain/service/transfer_mode_store.dart';
 /// stops the previous connection and rebinds any already-consumed packet and
 /// health streams to the replacement. Generation guards make delayed stream
 /// cancellation from an older switch unable to attach a stale repository.
+///
+/// The concrete repositories are application singletons and are not owned by
+/// this wrapper. [stopConnection] is the live-session ownership boundary used by
+/// `WalkieTalkieCubit.close`; it stops the active attachment and releases this
+/// wrapper's mode/packet/health subscriptions without disposing those shared
+/// repositories.
 final class LiveTransferRepository implements TransferRepository {
   LiveTransferRepository({
     required TransferModeStore modeStore,
@@ -196,20 +202,21 @@ final class LiveTransferRepository implements TransferRepository {
   void repairSendPath() => _current.repairSendPath();
 
   @override
-  void stopConnection() => _current.stopConnection();
-
-  @override
-  void dispose() {
+  void stopConnection() {
     if (_disposed) return;
+    _active.stopConnection();
     _disposed = true;
+    ++_attachmentGeneration;
     unawaited(_disposeAsync());
   }
+
+  @override
+  void dispose() => stopConnection();
 
   Future<void> _disposeAsync() async {
     await _modeSubscription.cancel();
     await _packetSubscription?.cancel();
     await _healthSubscription?.cancel();
-    _active.dispose();
     await _packetController.close();
     await _healthController.close();
   }
