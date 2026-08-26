@@ -28,9 +28,8 @@ final class TransportCapabilityHeartbeatRuntime
 
   final TransportCapabilityControlCodec codec;
   final TransportCapabilitySnapshotReader _readLocalCapability;
-  final _observations = StreamController<TransportCapabilityObservation>.broadcast(
-    sync: true,
-  );
+  final _observations =
+      StreamController<TransportCapabilityObservation>.broadcast(sync: true);
   bool _disposed = false;
 
   @override
