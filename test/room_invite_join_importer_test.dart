@@ -62,50 +62,59 @@ void main() {
     return (request: request, response: response, memberId: memberId);
   }
 
-  test('verified accepted response persists and selects durable Room', () async {
-    final value = acceptedExchange();
+  test(
+    'verified accepted response persists and selects durable Room',
+    () async {
+      final value = acceptedExchange();
 
-    final saved = await importer.importAcceptedResponse(
-      request: value.request,
-      encodedResponse: value.response,
-    );
-    final reopened = SharedPreferencesRoomRepository();
+      final saved = await importer.importAcceptedResponse(
+        request: value.request,
+        encodedResponse: value.response,
+      );
+      final reopened = SharedPreferencesRoomRepository();
 
-    expect(saved?.room.name, 'Night riders');
-    expect(saved?.membership.localMemberId, value.memberId);
-    expect(saved?.room.members, hasLength(2));
-    expect(await reopened.selectedRoomId(), value.request.invitation.roomId);
-    expect(
-      (await reopened.get(value.request.invitation.roomId))
-          ?.membership
-          .localMemberId,
-      value.memberId,
-    );
-  });
+      expect(saved?.room.name, 'Night riders');
+      expect(saved?.membership.localMemberId, value.memberId);
+      expect(saved?.room.members, hasLength(2));
+      expect(await reopened.selectedRoomId(), value.request.invitation.roomId);
+      expect(
+        (await reopened.get(
+          value.request.invitation.roomId,
+        ))?.membership.localMemberId,
+        value.memberId,
+      );
+    },
+  );
 
-  test('stale duplicate response cannot roll back newer local Room state', () async {
-    final value = acceptedExchange();
-    await importer.importAcceptedResponse(
-      request: value.request,
-      encodedResponse: value.response,
-    );
-    final renamed = await repository.rename(
-      value.request.invitation.roomId,
-      'Locally newer name',
-    );
-    await repository.select(null);
+  test(
+    'stale duplicate response cannot roll back newer local Room state',
+    () async {
+      final value = acceptedExchange();
+      await importer.importAcceptedResponse(
+        request: value.request,
+        encodedResponse: value.response,
+      );
+      final renamed = await repository.rename(
+        value.request.invitation.roomId,
+        'Locally newer name',
+      );
+      await repository.select(null);
 
-    final replayed = await importer.importAcceptedResponse(
-      request: value.request,
-      encodedResponse: value.response,
-    );
-    final persisted = await repository.get(value.request.invitation.roomId);
+      final replayed = await importer.importAcceptedResponse(
+        request: value.request,
+        encodedResponse: value.response,
+      );
+      final persisted = await repository.get(value.request.invitation.roomId);
 
-    expect(replayed?.room.name, 'Locally newer name');
-    expect(replayed?.room.updatedAt, renamed.room.updatedAt);
-    expect(persisted?.room.name, 'Locally newer name');
-    expect(await repository.selectedRoomId(), value.request.invitation.roomId);
-  });
+      expect(replayed?.room.name, 'Locally newer name');
+      expect(replayed?.room.updatedAt, renamed.room.updatedAt);
+      expect(persisted?.room.name, 'Locally newer name');
+      expect(
+        await repository.selectedRoomId(),
+        value.request.invitation.roomId,
+      );
+    },
+  );
 
   test('forged accepted member cannot mutate or select local state', () async {
     final value = acceptedExchange();
