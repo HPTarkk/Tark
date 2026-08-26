@@ -42,9 +42,20 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   }
 
   Future<_EntryState> _resolveInitialEntry() async {
-    final selected = await SelectedRoomLobbyResolver(_rooms).resolve();
-    if (selected != null) return _EntryState.lobby(selected);
-    await _binding.open(sessionId: _newSessionId());
+    try {
+      final selected = await SelectedRoomLobbyResolver(_rooms).resolve();
+      if (selected != null) return _EntryState.lobby(selected);
+    } catch (_) {
+      // Storage/readiness lookup must not strand legacy quick access. This is
+      // the same fail-open-to-existing-live-surface behavior this composition
+      // root had before the lobby existed; it does not fabricate Room state.
+    }
+    try {
+      await _binding.open(sessionId: _newSessionId());
+    } catch (_) {
+      // Binding errors likewise preserve the established troubleshooting/live
+      // path. Invalid Room state already fails closed inside the binding.
+    }
     return const _EntryState.live();
   }
 
@@ -52,11 +63,20 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     // Re-resolve immediately before going live. The user may have archived or
     // left this Room from another surface while the lobby was open; stale
     // readiness must never start a session for an invalid durable membership.
-    final current = await SelectedRoomLobbyResolver(_rooms).resolve();
-    if (current == null || current.room.id != room.room.id) {
+    try {
+      final current = await SelectedRoomLobbyResolver(_rooms).resolve();
+      if (current == null || current.room.id != room.room.id) {
+        return const _EntryState.invalidSelection();
+      }
+    } catch (_) {
       return const _EntryState.invalidSelection();
     }
-    await _binding.open(sessionId: _newSessionId());
+    try {
+      await _binding.open(sessionId: _newSessionId());
+    } catch (_) {
+      // Do not strand the user because the architectural Room binding failed;
+      // preserve the pre-existing live troubleshooting surface for this run.
+    }
     return const _EntryState.live();
   }
 
