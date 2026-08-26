@@ -9,20 +9,10 @@ import 'room_transport_capability_observer.dart';
 /// Session-scoped composition for verified transport capability evidence and
 /// controlled Room failover.
 ///
-/// This keeps the security/lifecycle rules for #48/#51 in one place without
-/// teaching the Room domain about Wi-Fi addresses, device ids, platform
-/// channels, or packet formats:
-///
-/// * a remote transport peer must first be bound to an already-admitted durable
-///   RoomMemberId;
-/// * only capability evidence from the active attachment generation is kept;
-/// * stale/expired/unknown evidence fails closed before host election;
-/// * a replacement attachment invalidates every old peer binding/candidate;
-/// * Room identity and durable membership never come from transport evidence.
-///
-/// A transport adapter remains responsible for proving which live peer key maps
-/// to which admitted member and for supplying the non-secret capability fields.
-/// This runtime then owns the safe path from that proof to election/failover.
+/// Remote transport evidence never creates Room identity or membership. A peer
+/// must first be bound to an already-admitted durable RoomMemberId, evidence is
+/// scoped to the active attachment generation, and replacement invalidates old
+/// bindings/candidates before another election can use them.
 final class RoomCapabilityFailoverRuntime {
   RoomCapabilityFailoverRuntime({
     required this.orchestrator,
@@ -37,6 +27,9 @@ final class RoomCapabilityFailoverRuntime {
          freshFor: candidateFreshFor,
          maxCandidates: maxCandidates,
        ) {
+    _members = orchestrator.runtime.session.state.memberIds
+        .map(RoomMemberId.new)
+        .toSet();
     observer = RoomTransportCapabilityObserver(
       bindings: bindings,
       candidates: candidates,
@@ -47,6 +40,7 @@ final class RoomCapabilityFailoverRuntime {
   final RoomPeerMemberBindingRegistry bindings;
   final RoomTransportCandidateRegistry candidates;
   late final RoomTransportCapabilityObserver observer;
+  late Set<RoomMemberId> _members;
 
   int get attachmentGeneration =>
       orchestrator.runtime.session.attachmentGeneration;
@@ -54,24 +48,18 @@ final class RoomCapabilityFailoverRuntime {
   RoomMemberId get localMemberId =>
       RoomMemberId(orchestrator.runtime.session.state.localMemberId);
 
-  /// Refreshes the durable membership allow-list after a canonical membership
-  /// mutation. Removed members lose their peer binding immediately.
+  /// Refreshes the canonical membership allow-list. Removed members lose both
+  /// their transport binding and candidate evidence immediately.
   void replaceMembers(Iterable<RoomMemberId> members) {
-    bindings.replaceMembers(members);
-    final allowed = members.toSet();
-    final snapshot = candidates.snapshot(
-      now: DateTime.now().toUtc(),
-      attachmentGeneration: attachmentGeneration,
-    );
-    for (final candidate in snapshot) {
-      if (!allowed.contains(candidate.memberId)) {
-        candidates.remove(candidate.memberId);
-      }
+    final next = members.toSet();
+    for (final removed in _members.difference(next)) {
+      observer.removeMember(removed);
     }
+    bindings.replaceMembers(next);
+    _members = next;
   }
 
-  /// Binds an opaque live transport peer to a member that has already passed
-  /// canonical Room membership authorization.
+  /// Binds an opaque live transport peer only to an already-admitted member.
   bool bindPeer({required String peerKey, required RoomMemberId memberId}) =>
       bindings.bind(
         peerKey: peerKey,
@@ -118,10 +106,9 @@ final class RoomCapabilityFailoverRuntime {
     );
   }
 
-  /// Starts controlled failover from only the fresh verified evidence of the
-  /// attachment that is failing. Once a replacement generation is created, all
-  /// old peer bindings/candidates are invalidated immediately; the new
-  /// attachment must establish its own evidence before a later election.
+  /// Starts failover from the fresh verified evidence of the attachment that is
+  /// failing, then invalidates old evidence as soon as a replacement generation
+  /// is created.
   Future<RoomFailoverAttempt?> beginFailover({
     required bool sharedLanUsable,
     required RoomFailoverReason reason,
@@ -147,10 +134,14 @@ final class RoomCapabilityFailoverRuntime {
     attachmentGeneration: attachmentGeneration,
   );
 
-  void removeMember(RoomMemberId memberId) => observer.removeMember(memberId);
+  void removeMember(RoomMemberId memberId) {
+    observer.removeMember(memberId);
+    _members.remove(memberId);
+  }
 
   void dispose() {
     candidates.dispose();
     bindings.dispose();
+    _members.clear();
   }
 }
