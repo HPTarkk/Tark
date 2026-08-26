@@ -38,13 +38,16 @@ final class MediaReceiverFeedbackSession {
 
   /// Holds decoded feedback until [confirmMatchedPong] proves it corresponds
   /// to one of our own outstanding pings. Unsolicited or stale Pong evidence
-  /// therefore cannot promote/degrade media.
+  /// therefore cannot promote/degrade media. [peerId] is validated here so a
+  /// malformed control header is never admitted even though the route address
+  /// remains the in-memory liveness key used by PeerPingTracker.
   void stagePong({
     required String address,
+    required String peerId,
     required int token,
     required MediaReceiverFeedback? feedback,
   }) {
-    if (feedback == null) return;
+    if (feedback == null || peerId.isEmpty) return;
     _pending[_PendingKey(address, token)] = feedback;
     if (_pending.length > 64) {
       _pending.remove(_pending.keys.first);
