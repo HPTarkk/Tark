@@ -307,20 +307,22 @@ class _InviteQr extends StatelessWidget {
   final String semanticsLabel;
 
   @override
-  Widget build(BuildContext context) => Container(
-    width: 216,
-    height: 216,
-    padding: const EdgeInsets.all(10),
-    color: Colors.white,
-    child: QrImageView(
-      data: data,
-      size: 196,
-      backgroundColor: Colors.white,
-      eyeStyle: const QrEyeStyle(color: Colors.black),
-      dataModuleStyle: const QrDataModuleStyle(color: Colors.black),
-      semanticsLabel: semanticsLabel,
-    ),
-  );
+  Widget build(BuildContext context) {
+    return Container(
+      width: 216,
+      height: 216,
+      padding: const EdgeInsets.all(10),
+      color: Colors.white,
+      child: QrImageView(
+        data: data,
+        size: 196,
+        backgroundColor: Colors.white,
+        eyeStyle: const QrEyeStyle(color: Colors.black),
+        dataModuleStyle: const QrDataModuleStyle(color: Colors.black),
+        semanticsLabel: semanticsLabel,
+      ),
+    );
+  }
 }
 
 class _WifiInviteSection extends StatelessWidget {
@@ -330,41 +332,43 @@ class _WifiInviteSection extends StatelessWidget {
   final _InviteCopy copy;
 
   @override
-  Widget build(BuildContext context) => Container(
-    key: const Key('room-invite-wifi-section'),
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      border: Border.all(color: AppColors.border),
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: Column(
-      children: [
-        Text(
-          copy.wifiTitle,
-          style: const TextStyle(fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 8),
-        _InviteQr(
-          key: const Key('room-invite-wifi-qr'),
-          data: credentials.wifiQrPayload,
-          semanticsLabel: copy.wifiQrSemantics,
-        ),
-        const SizedBox(height: 8),
-        Text('${copy.ssidLabel}: ${credentials.ssid}'),
-        SelectableText(
-          '${copy.passwordLabel}: ${credentials.passphrase}',
-          key: const Key('room-invite-wifi-password'),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 6),
-        Text(
-          copy.wifiEphemeral,
-          textAlign: TextAlign.center,
-          style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
-        ),
-      ],
-    ),
-  );
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('room-invite-wifi-section'),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Text(
+            copy.wifiTitle,
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          _InviteQr(
+            key: const Key('room-invite-wifi-qr'),
+            data: credentials.wifiQrPayload,
+            semanticsLabel: copy.wifiQrSemantics,
+          ),
+          const SizedBox(height: 8),
+          Text('${copy.ssidLabel}: ${credentials.ssid}'),
+          SelectableText(
+            '${copy.passwordLabel}: ${credentials.passphrase}',
+            key: const Key('room-invite-wifi-password'),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            copy.wifiEphemeral,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _WifiRecoverySection extends StatelessWidget {
@@ -373,24 +377,26 @@ class _WifiRecoverySection extends StatelessWidget {
   final _InviteCopy copy;
 
   @override
-  Widget build(BuildContext context) => Container(
-    key: const Key('room-invite-wifi-recovering'),
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      border: Border.all(color: AppColors.amber.withAlpha(100)),
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: Row(
-      children: [
-        const SizedBox.square(
-          dimension: 18,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-        const SizedBox(width: 10),
-        Expanded(child: Text(copy.wifiRecovering)),
-      ],
-    ),
-  );
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('room-invite-wifi-recovering'),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.amber.withAlpha(100)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          const SizedBox.square(
+            dimension: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          const SizedBox(width: 10),
+          Expanded(child: Text(copy.wifiRecovering)),
+        ],
+      ),
+    );
+  }
 }
 
 final class _InviteCopy {
@@ -419,7 +425,8 @@ final class _InviteCopy {
       : 'Could not create the invite. Try again.';
   String get qrSemantics =>
       fa ? 'کیوآر دعوت امن اتاق' : 'Secure Room invite QR';
-  String get wifiTitle => fa ? 'اتصال وای‌فای میزبان' : 'Host Wi-Fi connection';
+  String get wifiTitle =>
+      fa ? 'اتصال وای‌فای میزبان' : 'Host Wi-Fi connection';
   String get ssidLabel => fa ? 'نام شبکه' : 'Network';
   String get passwordLabel => fa ? 'رمز عبور' : 'Password';
   String get wifiEphemeral => fa
