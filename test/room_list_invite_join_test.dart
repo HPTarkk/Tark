@@ -9,84 +9,90 @@ import 'package:tark/feature/room/domain/service/room_invite_join_orchestrator.d
 import 'package:tark/feature/room/presentation/manager/room_list_cubit.dart';
 
 void main() {
-  test('verified carrier grant is persisted and selected by RoomListCubit', () async {
-    final repository = _JoinRepository();
-    final cubit = RoomListCubit(repository);
-    final now = DateTime.utc(2026, 8, 26, 18);
-    final invitation = generateRoomInvitation(
-      roomId: const RoomId('11111111111111111111111111111111'),
-      kind: RoomInvitationKind.trustedMembership,
-      now: now,
-      ttl: const Duration(hours: 1),
-    );
+  test(
+    'verified carrier grant is persisted and selected by RoomListCubit',
+    () async {
+      final repository = _JoinRepository();
+      final cubit = RoomListCubit(repository);
+      final now = DateTime.utc(2026, 8, 26, 18);
+      final invitation = generateRoomInvitation(
+        roomId: const RoomId('11111111111111111111111111111111'),
+        kind: RoomInvitationKind.trustedMembership,
+        now: now,
+        ttl: const Duration(hours: 1),
+      );
 
-    final status = await cubit.joinByInvite(
-      invitation: invitation,
-      displayName: 'Joined rider',
-      carrier: _Carrier((encodedRequest) async {
-        final request = RoomInviteJoinRequest.decode(encodedRequest);
-        final memberId = RoomMemberId(
-          request.invitation.invitationId.substring(0, 24),
-        );
-        return RoomInviteJoinResponse.accepted(
-          requestId: request.requestId,
-          roomId: request.invitation.roomId,
-          memberId: memberId,
-          snapshot: RoomAcceptedJoinSnapshot(
+      final status = await cubit.joinByInvite(
+        invitation: invitation,
+        displayName: 'Joined rider',
+        carrier: _Carrier((encodedRequest) async {
+          final request = RoomInviteJoinRequest.decode(encodedRequest);
+          final memberId = RoomMemberId(
+            request.invitation.invitationId.substring(0, 24),
+          );
+          return RoomInviteJoinResponse.accepted(
+            requestId: request.requestId,
             roomId: request.invitation.roomId,
-            roomName: 'Night riders',
-            roomCreatedAt: now.subtract(const Duration(days: 1)),
-            roomUpdatedAt: now,
-            members: [
-              RoomAcceptedJoinMember(
-                memberId: const RoomMemberId('aaaaaaaaaaaaaaaaaaaaaaaa'),
-                displayName: 'Owner',
-                joinedAt: now.subtract(const Duration(days: 1)),
-                kind: RoomMemberKind.member,
-              ),
-              RoomAcceptedJoinMember(
-                memberId: memberId,
-                displayName: request.displayName,
-                joinedAt: now,
-                kind: RoomMemberKind.member,
-              ),
-            ],
-          ),
-        ).encode();
-      }),
-    );
+            memberId: memberId,
+            snapshot: RoomAcceptedJoinSnapshot(
+              roomId: request.invitation.roomId,
+              roomName: 'Night riders',
+              roomCreatedAt: now.subtract(const Duration(days: 1)),
+              roomUpdatedAt: now,
+              members: [
+                RoomAcceptedJoinMember(
+                  memberId: const RoomMemberId('aaaaaaaaaaaaaaaaaaaaaaaa'),
+                  displayName: 'Owner',
+                  joinedAt: now.subtract(const Duration(days: 1)),
+                  kind: RoomMemberKind.member,
+                ),
+                RoomAcceptedJoinMember(
+                  memberId: memberId,
+                  displayName: request.displayName,
+                  joinedAt: now,
+                  kind: RoomMemberKind.member,
+                ),
+              ],
+            ),
+          ).encode();
+        }),
+      );
 
-    expect(status, RoomInviteJoinAttemptStatus.accepted);
-    expect(repository.imports, 1);
-    expect(repository.selected, invitation.roomId);
-    expect(cubit.state.selectedRoomId, invitation.roomId);
-    expect(cubit.state.rooms.single.room.name, 'Night riders');
-    await cubit.close();
-  });
+      expect(status, RoomInviteJoinAttemptStatus.accepted);
+      expect(repository.imports, 1);
+      expect(repository.selected, invitation.roomId);
+      expect(cubit.state.selectedRoomId, invitation.roomId);
+      expect(cubit.state.rooms.single.room.name, 'Night riders');
+      await cubit.close();
+    },
+  );
 
-  test('invalid carrier response leaves durable Room state untouched', () async {
-    final repository = _JoinRepository();
-    final cubit = RoomListCubit(repository);
-    final now = DateTime.utc(2026, 8, 26, 18);
-    final invitation = generateRoomInvitation(
-      roomId: const RoomId('22222222222222222222222222222222'),
-      kind: RoomInvitationKind.trustedMembership,
-      now: now,
-      ttl: const Duration(hours: 1),
-    );
+  test(
+    'invalid carrier response leaves durable Room state untouched',
+    () async {
+      final repository = _JoinRepository();
+      final cubit = RoomListCubit(repository);
+      final now = DateTime.utc(2026, 8, 26, 18);
+      final invitation = generateRoomInvitation(
+        roomId: const RoomId('22222222222222222222222222222222'),
+        kind: RoomInvitationKind.trustedMembership,
+        now: now,
+        ttl: const Duration(hours: 1),
+      );
 
-    final status = await cubit.joinByInvite(
-      invitation: invitation,
-      displayName: 'Joined rider',
-      carrier: const _Carrier.invalid(),
-    );
+      final status = await cubit.joinByInvite(
+        invitation: invitation,
+        displayName: 'Joined rider',
+        carrier: const _Carrier.invalid(),
+      );
 
-    expect(status, RoomInviteJoinAttemptStatus.invalidResponse);
-    expect(repository.imports, 0);
-    expect(repository.selected, isNull);
-    expect(cubit.state.rooms, isEmpty);
-    await cubit.close();
-  });
+      expect(status, RoomInviteJoinAttemptStatus.invalidResponse);
+      expect(repository.imports, 0);
+      expect(repository.selected, isNull);
+      expect(cubit.state.rooms, isEmpty);
+      await cubit.close();
+    },
+  );
 }
 
 final class _Carrier implements RoomInviteJoinCarrier {
@@ -167,7 +173,8 @@ final class _JoinRepository implements RoomRepository {
   }) => throw UnimplementedError();
 
   @override
-  Future<SavedRoom> rename(RoomId id, String name) => throw UnimplementedError();
+  Future<SavedRoom> rename(RoomId id, String name) =>
+      throw UnimplementedError();
 
   @override
   Future<SavedRoom> setArchived(RoomId id, bool archived) =>
@@ -189,7 +196,8 @@ final class _JoinRepository implements RoomRepository {
   }) => throw UnimplementedError();
 
   @override
-  Future<void> revokeInvite(RoomInvitation invite) => throw UnimplementedError();
+  Future<void> revokeInvite(RoomInvitation invite) =>
+      throw UnimplementedError();
 
   @override
   Future<SavedRoom> acceptVerifiedInvite(
