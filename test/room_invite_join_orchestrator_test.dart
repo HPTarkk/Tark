@@ -66,10 +66,7 @@ void main() {
 
     expect(result.status, RoomInviteJoinAttemptStatus.accepted);
     expect(result.grant?.roomId, invite.roomId);
-    expect(
-      result.grant?.memberId.value,
-      invite.invitationId.substring(0, 24),
-    );
+    expect(result.grant?.memberId.value, invite.invitationId.substring(0, 24));
   });
 
   test('cross-request response fails closed', () async {
