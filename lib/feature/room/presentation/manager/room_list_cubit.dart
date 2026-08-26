@@ -131,7 +131,8 @@ class RoomListCubit extends Cubit<RoomListState> {
         carrier: carrier,
       );
       final grant = result.grant;
-      if (result.status != RoomInviteJoinAttemptStatus.accepted || grant == null) {
+      if (result.status != RoomInviteJoinAttemptStatus.accepted ||
+          grant == null) {
         emit(state.copyWith(loading: false, clearError: true));
         return result.status;
       }
