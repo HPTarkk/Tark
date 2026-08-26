@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
 import 'package:tark/feature/room/domain/entity/room_session.dart';
 import 'package:tark/feature/room/domain/service/room_capability_failover_runtime.dart';
+import 'package:tark/feature/room/domain/service/room_failover_controller.dart';
 import 'package:tark/feature/room/domain/service/room_failover_runtime.dart';
 import 'package:tark/feature/room/domain/service/room_failover_transport_orchestrator.dart';
 import 'package:tark/feature/room/domain/service/room_session_runtime.dart';
@@ -190,9 +191,9 @@ void main() {
       ),
       isTrue,
     );
-    await bridge.dispose();
     final now = DateTime.utc(2026, 8, 27, 1);
 
+    await bridge.dispose();
     source.add(observation('route-a', now));
 
     expect(
@@ -215,13 +216,9 @@ final class _Source implements TransportCapabilityObservationSource {
   Stream<TransportCapabilityObservation> get transportCapabilityObservations =>
       _controller.stream;
 
-  void add(TransportCapabilityObservation observation) {
-    _controller.add(observation);
-  }
+  void add(TransportCapabilityObservation value) => _controller.add(value);
 
-  void addError(Object error) {
-    _controller.addError(error);
-  }
+  void addError(Object error) => _controller.addError(error);
 
   Future<void> dispose() => _controller.close();
 }
