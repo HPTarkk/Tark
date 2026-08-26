@@ -16,7 +16,12 @@ final class RoomInviteJoinClient {
     required RoomInviteJoinRequest request,
     required String encodedResponse,
   }) {
-    final response = RoomInviteJoinResponse.decode(encodedResponse);
+    final RoomInviteJoinResponse response;
+    try {
+      response = RoomInviteJoinResponse.decode(encodedResponse);
+    } on FormatException {
+      return null;
+    }
     if (response.status != RoomInviteJoinResponseStatus.accepted) return null;
     if (response.requestId != request.requestId) return null;
     if (response.roomId != request.invitation.roomId) return null;
