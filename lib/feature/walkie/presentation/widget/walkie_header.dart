@@ -14,9 +14,11 @@ import '../../../../core/theme/theme_service.dart';
 import '../../../../core/widget/settings_icon_button.dart';
 import '../../../../core/widget/tark_mark.dart';
 import '../../../../core/widget/ticker_text.dart';
+import '../../../room/domain/repository/room_repository.dart';
 import '../../../room/presentation/widget/in_room_invite_button.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../manager/walkie_talkie_cubit.dart';
+import '../model/ride_room_identity.dart';
 
 /// Width policy for the pinned Ride Mode header.
 ///
@@ -50,37 +52,141 @@ class WalkieHeader extends StatelessWidget {
                 bottom: BorderSide(color: AppColors.border, width: 1),
               ),
             ),
-            child: Row(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const _BrandBadge(),
-                if (showTitle) ...[
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      context.getString.app_name,
-                      maxLines: 1,
-                      overflow: TextOverflow.fade,
-                      softWrap: false,
-                      style: TextStyle(
-                        color: AppColors.amber,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 3,
+                Row(
+                  children: [
+                    const _BrandBadge(),
+                    if (showTitle) ...[
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          context.getString.app_name,
+                          maxLines: 1,
+                          overflow: TextOverflow.fade,
+                          softWrap: false,
+                          style: TextStyle(
+                            color: AppColors.amber,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 3,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                ],
-                const Spacer(),
-                const RepaintBoundary(child: SignalIndicator()),
-                const SizedBox(width: 4),
-                const _QuickMicButton(),
-                const InRoomInviteButton(),
-                const _RoomsButton(),
-                const _SettingsButton(),
+                    ],
+                    const Spacer(),
+                    const RepaintBoundary(child: SignalIndicator()),
+                    const SizedBox(width: 4),
+                    const _QuickMicButton(),
+                    const InRoomInviteButton(),
+                    const _RoomsButton(),
+                    const _SettingsButton(),
+                  ],
+                ),
+                const _SelectedRoomIdentityLine(),
               ],
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+/// Loads the durable selected Room exactly once for this live Ride surface.
+///
+/// A user may browse/select another saved Room while the current call is still
+/// running; that must not silently relabel the already-running session. A new
+/// WalkieTalkiePage gets a fresh header and resolves the then-selected Room.
+class _SelectedRoomIdentityLine extends StatefulWidget {
+  const _SelectedRoomIdentityLine();
+
+  @override
+  State<_SelectedRoomIdentityLine> createState() =>
+      _SelectedRoomIdentityLineState();
+}
+
+class _SelectedRoomIdentityLineState extends State<_SelectedRoomIdentityLine> {
+  late final Future<RideRoomIdentity?> _identity;
+
+  @override
+  void initState() {
+    super.initState();
+    _identity = RideRoomIdentityResolver(
+      GetIt.instance<RoomRepository>(),
+    ).load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<RideRoomIdentity?>(
+      future: _identity,
+      builder: (context, snapshot) {
+        final identity = snapshot.data;
+        if (identity == null) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: RideRoomIdentityBadge(identity: identity),
+        );
+      },
+    );
+  }
+}
+
+/// Compact durable Room identity for the primary Ride hierarchy.
+///
+/// The code is a stable display-only prefix of RoomId. It is never used as an
+/// authorization or transport identity and remains visually LTR in Persian.
+class RideRoomIdentityBadge extends StatelessWidget {
+  const RideRoomIdentityBadge({super.key, required this.identity});
+
+  final RideRoomIdentity identity;
+
+  @override
+  Widget build(BuildContext context) {
+    final fa = Localizations.localeOf(context).languageCode == 'fa';
+    final semantics = fa
+        ? 'اتاق ${identity.name}، کد ${identity.code}'
+        : 'Room ${identity.name}, code ${identity.code}';
+
+    return Semantics(
+      container: true,
+      label: semantics,
+      excludeSemantics: true,
+      child: Row(
+        key: const Key('ride-room-identity'),
+        children: [
+          Icon(Icons.meeting_room_outlined, size: 16, color: AppColors.amber),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              identity.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Directionality(
+            textDirection: TextDirection.ltr,
+            child: Text(
+              '#${identity.code}',
+              maxLines: 1,
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: .5,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
