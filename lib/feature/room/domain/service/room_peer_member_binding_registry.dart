@@ -15,6 +15,7 @@ final class RoomPeerMemberBindingRegistry {
   final Set<RoomMemberId> _members;
   final Map<String, _PeerMemberBinding> _byPeer = {};
   final Map<RoomMemberId, String> _peerByMember = {};
+  int _minimumAttachmentGeneration = 0;
   bool _disposed = false;
 
   int get length => _byPeer.length;
@@ -40,14 +41,19 @@ final class RoomPeerMemberBindingRegistry {
   ///
   /// A peer and member are both one-to-one within an attachment. A newer
   /// generation may replace an older binding; an older generation can never
-  /// overwrite current evidence.
+  /// overwrite current evidence. Once [replaceAttachment] advances the
+  /// generation floor, delayed callbacks from earlier attachments are rejected
+  /// even when they arrive after all old bindings have already been removed.
   bool bind({
     required String peerKey,
     required RoomMemberId memberId,
     required int attachmentGeneration,
   }) {
     _ensureOpen();
-    if (peerKey.isEmpty || attachmentGeneration < 0) return false;
+    if (peerKey.isEmpty ||
+        attachmentGeneration < _minimumAttachmentGeneration) {
+      return false;
+    }
     if (!_members.contains(memberId)) return false;
 
     final currentForPeer = _byPeer[peerKey];
@@ -80,6 +86,7 @@ final class RoomPeerMemberBindingRegistry {
 
   RoomMemberId? resolve(String peerKey, {required int attachmentGeneration}) {
     _ensureOpen();
+    if (attachmentGeneration < _minimumAttachmentGeneration) return null;
     final binding = _byPeer[peerKey];
     if (binding == null ||
         binding.attachmentGeneration != attachmentGeneration ||
@@ -104,9 +111,12 @@ final class RoomPeerMemberBindingRegistry {
   /// Drops every binding from earlier attachments. The durable member allow-list
   /// remains intact, but the replacement transport must establish peer identity
   /// again before capability/presence evidence can be attributed to a member.
+  /// The generation floor is monotonic so a delayed old callback cannot create
+  /// a fresh stale binding after replacement cleanup has already completed.
   void replaceAttachment(int attachmentGeneration) {
     _ensureOpen();
-    if (attachmentGeneration < 0) return;
+    if (attachmentGeneration < _minimumAttachmentGeneration) return;
+    _minimumAttachmentGeneration = attachmentGeneration;
     final stalePeers = _byPeer.entries
         .where(
           (entry) => entry.value.attachmentGeneration < attachmentGeneration,
