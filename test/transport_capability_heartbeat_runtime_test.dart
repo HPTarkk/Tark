@@ -40,6 +40,7 @@ void main() {
       expect(decoded, isNotNull);
       expect(decoded!.packet.token, 1);
       expect(decoded.capability, capability);
+      expect(decoded.carrierPeerKey, 'peer');
     },
   );
 
@@ -64,7 +65,7 @@ void main() {
   });
 
   test(
-    'decoded capability is not emitted until matched pong is admitted',
+    'matched capability is attributed to carrier route, not caller identity',
     () async {
       final runtime = TransportCapabilityHeartbeatRuntime(
         codec: codec(),
@@ -92,9 +93,12 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       expect(observations, isEmpty);
 
+      // The Wi-Fi repository's matched-Pong gate currently supplies the
+      // packet sender id as this compatibility witness. It must never replace
+      // the route captured locally by decodeControl for Room attribution.
       runtime.observeMatchedPong(
         decoded: decoded,
-        peerKey: '10.0.0.8',
+        peerKey: 'payload-controlled-sender-id',
         observedAt: DateTime.utc(2026, 8, 27, 1),
       );
       await Future<void>.delayed(Duration.zero);
