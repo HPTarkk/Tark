@@ -108,9 +108,7 @@ final class TransportCapabilityHeartbeatRuntime
     // unlock a durable RoomMemberId binding. Require the caller's matched-Pong
     // witness to be the exact carrier-observed route before exposing it.
     final routeProof = decoded.routeProof;
-    if (routeProof != null &&
-        challengeEpoch != null &&
-        routeMatchesCarrier) {
+    if (routeProof != null && challengeEpoch != null && routeMatchesCarrier) {
       _routeProofObservations.add(
         TransportRouteProofObservation(
           peerKey: decoded.carrierPeerKey,
