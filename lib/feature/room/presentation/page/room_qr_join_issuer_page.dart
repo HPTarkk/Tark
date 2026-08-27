@@ -15,9 +15,8 @@ import '../../domain/service/room_invite_join_exchange.dart';
 class RoomQrJoinIssuerPage extends StatefulWidget {
   const RoomQrJoinIssuerPage({required this.repository, super.key});
 
-  static Widget buildPage() => RoomQrJoinIssuerPage(
-    repository: GetIt.instance<RoomRepository>(),
-  );
+  static Widget buildPage() =>
+      RoomQrJoinIssuerPage(repository: GetIt.instance<RoomRepository>());
 
   final RoomRepository repository;
 
