@@ -13,6 +13,22 @@ import '../../domain/entity/channel_user.dart';
 import '../manager/walkie_talkie_cubit.dart';
 import 'role_badge.dart';
 
+/// Ride Mode's displayed member total.
+///
+/// [WalkieTalkieState.activeUsers] is intentionally the remote-peer roster;
+/// the local rider is rendered separately in the identity card. The visible
+/// Room/channel count must nevertheless include that local participant exactly
+/// once, so presentation code uses this policy instead of relabeling the peer
+/// roster or injecting a fake self peer into transport state.
+abstract final class RideMemberCount {
+  static int total(int remotePeerCount) {
+    if (remotePeerCount < 0) {
+      throw ArgumentError.value(remotePeerCount, 'remotePeerCount');
+    }
+    return remotePeerCount + 1;
+  }
+}
+
 // ── User list ─────────────────────────────────────────────────────────────────
 
 /// Shows the list of active channel members or an empty-state card.
@@ -31,7 +47,7 @@ class UserList extends StatelessWidget {
           children: [
             SectionHeader(
               label: s.channel_members,
-              badge: users.isEmpty ? null : users.length.localized(context),
+              badge: RideMemberCount.total(users.length).localized(context),
             ),
             const SizedBox(height: 10),
             AnimatedSize(
