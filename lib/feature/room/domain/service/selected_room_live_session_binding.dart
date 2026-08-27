@@ -164,9 +164,10 @@ final class _LiveFailoverSession {
   }) async {
     final source = transfer;
     if (source is TransportCapabilityObservationSource) {
+      final capabilitySource = source as TransportCapabilityObservationSource;
       _bridge = RoomTransportCapabilityObservationBridge(
         runtime: capabilities,
-        source: source,
+        source: capabilitySource,
       );
     }
     _healthSubscription = health.listen(
