@@ -2,6 +2,8 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../data/security/room_transport_identity_lifecycle.dart';
+import '../../data/security/room_transport_identity_secure_store.dart';
 import '../../domain/entity/room.dart';
 import '../../domain/entity/room_invitation.dart';
 import '../../domain/repository/room_repository.dart';
@@ -53,22 +55,24 @@ final class RoomListState extends Equatable {
 }
 
 /// Presentation orchestration for durable saved Rooms.
-///
-/// Viewing/selecting a Room never starts Wi-Fi, hotspot, Bluetooth or guest
-/// transport. A secure invite join is different: it is an explicit user action
-/// and may use an injected carrier, but durable state changes only after the
-/// issuer response has passed the canonical correlation checks and produced a
-/// typed verified grant.
 @injectable
 class RoomListCubit extends Cubit<RoomListState> {
   RoomListCubit(this._repository)
-    : _joinOrchestrator = RoomInviteJoinOrchestrator(),
-      _joinImporter = RoomInviteJoinImporter(repository: _repository),
-      super(const RoomListState());
+    : _identityLifecycle = RoomTransportIdentityLifecycle(
+        store: PlatformRoomTransportIdentitySecureStore(),
+      ),
+      _joinOrchestrator = RoomInviteJoinOrchestrator(),
+      super(const RoomListState()) {
+    _joinImporter = RoomInviteJoinImporter(
+      repository: _repository,
+      persistTransportIdentity: _identityLifecycle.persistJoinedIdentity,
+    );
+  }
 
   final RoomRepository _repository;
+  final RoomTransportIdentityLifecycle _identityLifecycle;
   final RoomInviteJoinOrchestrator _joinOrchestrator;
-  final RoomInviteJoinImporter _joinImporter;
+  late final RoomInviteJoinImporter _joinImporter;
 
   Future<void> load() async {
     if (state.loading) return;
@@ -97,11 +101,18 @@ class RoomListCubit extends Cubit<RoomListState> {
     required String localDisplayName,
   }) async {
     emit(state.copyWith(loading: true, clearError: true));
+    SavedRoom? created;
     try {
-      final created = await _repository.create(
+      created = await _repository.create(
         name: name,
         localDisplayName: localDisplayName,
       );
+      try {
+        await _identityLifecycle.ensureLocalIdentity(created);
+      } catch (_) {
+        await _repository.delete(created.room.id);
+        rethrow;
+      }
       await _repository.select(created.room.id);
       final rooms = await _repository.list();
       emit(RoomListState(rooms: rooms, selectedRoomId: created.room.id));
@@ -112,11 +123,6 @@ class RoomListCubit extends Cubit<RoomListState> {
     }
   }
 
-  /// Runs one explicit secure invite join attempt through the supplied carrier.
-  ///
-  /// Rejected, malformed, stale, cancelled or failed carrier exchanges leave
-  /// durable Room state untouched. Only a verified grant is imported and then
-  /// selected, after which this Cubit reloads from the canonical repository.
   Future<RoomInviteJoinAttemptStatus> joinByInvite({
     required RoomInvitation invitation,
     required String displayName,
@@ -131,13 +137,18 @@ class RoomListCubit extends Cubit<RoomListState> {
         carrier: carrier,
       );
       final grant = result.grant;
+      final memberKeyPair = result.memberKeyPair;
       if (result.status != RoomInviteJoinAttemptStatus.accepted ||
-          grant == null) {
+          grant == null ||
+          memberKeyPair == null) {
         emit(state.copyWith(loading: false, clearError: true));
         return result.status;
       }
 
-      final saved = await _joinImporter.importGrant(grant);
+      final saved = await _joinImporter.importGrant(
+        grant,
+        memberKeyPair: memberKeyPair,
+      );
       final rooms = await _repository.list();
       emit(RoomListState(rooms: rooms, selectedRoomId: saved.room.id));
       return RoomInviteJoinAttemptStatus.accepted;
@@ -158,13 +169,6 @@ class RoomListCubit extends Cubit<RoomListState> {
     emit(state.copyWith(selectedRoomId: roomId, clearError: true));
   }
 
-  /// Explicitly opens the currently selected durable Room as the logical
-  /// source-of-truth for a live session. This creates no network attachment;
-  /// transport orchestration attaches to the returned runtime afterwards.
-  ///
-  /// The identity comes from canonical [SavedRoom] state, never ChannelId or a
-  /// current transport address/role. Invalid, archived or inactive membership
-  /// fails closed through [RoomSessionFactory].
   RoomSessionRuntime? openSelectedSession({
     required String sessionId,
     bool initiallyMuted = false,
@@ -204,7 +208,11 @@ class RoomListCubit extends Cubit<RoomListState> {
   Future<void> leave(RoomId roomId) async {
     emit(state.copyWith(loading: true, clearError: true));
     try {
+      final saved = await _repository.get(roomId);
       await _repository.leave(roomId);
+      if (saved != null) {
+        await _identityLifecycle.deleteLocalIdentity(saved);
+      }
       if (state.selectedRoomId == roomId) await _repository.select(null);
       await _reloadKeepingSelection(
         clearSelection: state.selectedRoomId == roomId,
