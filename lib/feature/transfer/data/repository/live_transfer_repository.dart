@@ -91,7 +91,7 @@ final class LiveTransferRepository
   };
 
   static TransportCapabilityObservationSource? _capabilitySource(
-    TransferRepository repository,
+    Object repository,
   ) => repository is TransportCapabilityObservationSource ? repository : null;
 
   TransferRepository get _current =>
