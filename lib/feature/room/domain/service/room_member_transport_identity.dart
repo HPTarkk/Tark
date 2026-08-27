@@ -66,7 +66,9 @@ final class RoomMemberTransportCertificate {
     });
     final encoded = _encodeBytes(utf8.encode(raw));
     if (encoded.length > maxEncodedLength) {
-      throw const FormatException('Room member transport certificate too large');
+      throw const FormatException(
+        'Room member transport certificate too large',
+      );
     }
     return encoded;
   }
@@ -78,14 +80,18 @@ final class RoomMemberTransportCertificate {
     try {
       final value = jsonDecode(utf8.decode(_decode(encoded)));
       if (value is! Map<String, dynamic> || value['v'] != currentVersion) {
-        throw const FormatException('Room member transport certificate version');
+        throw const FormatException(
+          'Room member transport certificate version',
+        );
       }
       final roomId = RoomId.parse(value['roomId'] as String? ?? '');
       final memberIdRaw = value['memberId'];
       if (roomId == null ||
           memberIdRaw is! String ||
           !RegExp(r'^[0-9a-f]{24}$').hasMatch(memberIdRaw)) {
-        throw const FormatException('Room member transport certificate identity');
+        throw const FormatException(
+          'Room member transport certificate identity',
+        );
       }
       return RoomMemberTransportCertificate(
         roomId: roomId,
@@ -97,13 +103,19 @@ final class RoomMemberTransportCertificate {
           _decodeSized(value['issuerKey'] as String? ?? '', 32, 'issuer key'),
         ),
         issuerSignature: List.unmodifiable(
-          _decodeSized(value['signature'] as String? ?? '', 64, 'issuer signature'),
+          _decodeSized(
+            value['signature'] as String? ?? '',
+            64,
+            'issuer signature',
+          ),
         ),
       );
     } on FormatException {
       rethrow;
     } catch (_) {
-      throw const FormatException('Malformed Room member transport certificate');
+      throw const FormatException(
+        'Malformed Room member transport certificate',
+      );
     }
   }
 }
@@ -167,7 +179,11 @@ final class RoomMemberTransportProof {
         token: token,
         sessionEpoch: epoch,
         memberSignature: List.unmodifiable(
-          _decodeSized(value['signature'] as String? ?? '', 64, 'member signature'),
+          _decodeSized(
+            value['signature'] as String? ?? '',
+            64,
+            'member signature',
+          ),
         ),
       );
     } on FormatException {
