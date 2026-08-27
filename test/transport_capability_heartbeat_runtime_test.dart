@@ -65,7 +65,7 @@ void main() {
   });
 
   test(
-    'matched capability is attributed to carrier route, not caller identity',
+    'matched capability is attributed only to the carrier-observed route',
     () async {
       final runtime = TransportCapabilityHeartbeatRuntime(
         codec: codec(),
@@ -93,12 +93,12 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       expect(observations, isEmpty);
 
-      // The Wi-Fi repository's matched-Pong gate currently supplies the
-      // packet sender id as this compatibility witness. It must never replace
-      // the route captured locally by decodeControl for Room attribution.
+      // The matched-Pong witness must be the exact route captured locally by
+      // decodeControl. Payload-controlled sender identity can never substitute
+      // for carrier-observed route identity.
       runtime.observeMatchedPong(
         decoded: decoded,
-        peerKey: 'payload-controlled-sender-id',
+        peerKey: '10.0.0.8',
         observedAt: DateTime.utc(2026, 8, 27, 1),
       );
       await Future<void>.delayed(Duration.zero);

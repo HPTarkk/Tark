@@ -1,25 +1,23 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import '../../domain/entity/transport_capability_advertisement.dart';
 import '../../domain/entity/transport_capability_observation.dart';
+import '../../domain/entity/transport_route_proof_observation.dart';
 import '../../domain/repository/transport_capability_observation_source.dart';
+import '../../domain/repository/transport_route_proof_exchange.dart';
 import '../capability/transport_capability_reader.dart';
 import 'transport_capability_control_codec.dart';
+import 'transport_route_proof_wire.dart';
 
 typedef TransportCapabilitySnapshotReader =
     Future<TransportCapabilityAdvertisement?> Function();
 
-/// Session-scoped bridge between truthful local capability evidence and the
-/// existing mixed-version-safe control heartbeat.
-///
-/// It owns no timer: callers sample it only on their existing heartbeat cadence.
-/// Remote capability is exposed only through [observeMatchedPong], which is
-/// deliberately separate from decode so an arbitrary inbound ping/forged tail
-/// cannot become Room planning evidence. The Wi-Fi caller invokes that method
-/// only after its existing ping tracker has matched the pong token/route.
 final class TransportCapabilityHeartbeatRuntime
-    implements TransportCapabilityObservationSource {
+    implements
+        TransportCapabilityObservationSource,
+        TransportRouteProofExchange {
   TransportCapabilityHeartbeatRuntime({
     required this.codec,
     TransportCapabilitySnapshotReader? readLocalCapability,
@@ -30,11 +28,24 @@ final class TransportCapabilityHeartbeatRuntime
   final TransportCapabilitySnapshotReader _readLocalCapability;
   final _observations =
       StreamController<TransportCapabilityObservation>.broadcast(sync: true);
+  final _routeProofObservations =
+      StreamController<TransportRouteProofObservation>.broadcast(sync: true);
+  TransportRouteProofProvider? _routeProofProvider;
   bool _disposed = false;
 
   @override
   Stream<TransportCapabilityObservation> get transportCapabilityObservations =>
       _observations.stream;
+
+  @override
+  Stream<TransportRouteProofObservation> get routeProofObservations =>
+      _routeProofObservations.stream;
+
+  @override
+  void setRouteProofProvider(TransportRouteProofProvider? provider) {
+    if (_disposed) return;
+    _routeProofProvider = provider;
+  }
 
   Future<Uint8List> encodePing({
     required int token,
@@ -54,12 +65,14 @@ final class TransportCapabilityHeartbeatRuntime
     required int lastTxSeq,
     required int lastRxSeq,
     required int audioRxPackets,
+    int? challengeEpoch,
   }) async => codec.encodePong(
     token: token,
     lastTxSeq: lastTxSeq,
     lastRxSeq: lastRxSeq,
     audioRxPackets: audioRxPackets,
     capability: await _safeReadLocalCapability(),
+    routeProof: await _safeReadRouteProof(token, challengeEpoch),
   );
 
   DecodedTransportCapabilityControl? decodeControl(
@@ -67,30 +80,42 @@ final class TransportCapabilityHeartbeatRuntime
     String fallbackSenderId,
   ) => codec.decodeControl(bytes, fallbackSenderId);
 
-  /// Admits capability evidence only after the caller has independently proven
-  /// that this decoded packet is the expected pong for [peerKey].
-  ///
-  /// [peerKey] remains the caller's matched-pong witness for compatibility with
-  /// the existing transport boundary, but it is deliberately NOT used for
-  /// attribution. The durable Room pipeline must keep the route observed by the
-  /// local carrier, because the packet's sender id is payload-controlled. The
-  /// codec captures that route in [DecodedTransportCapabilityControl.carrierPeerKey]
-  /// at receive time, and only that key is emitted downstream for proof binding.
   void observeMatchedPong({
     required DecodedTransportCapabilityControl decoded,
     required String peerKey,
     required DateTime observedAt,
+    int? challengeEpoch,
   }) {
-    if (_disposed || peerKey.isEmpty || decoded.carrierPeerKey.isEmpty) return;
+    if (_disposed ||
+        peerKey.isEmpty ||
+        decoded.carrierPeerKey.isEmpty ||
+        decoded.carrierPeerKey != peerKey) {
+      return;
+    }
+    final at = observedAt.toUtc();
     final capability = decoded.capability;
-    if (capability == null) return;
-    _observations.add(
-      TransportCapabilityObservation(
-        peerKey: decoded.carrierPeerKey,
-        capability: capability,
-        observedAt: observedAt.toUtc(),
-      ),
-    );
+    if (capability != null) {
+      _observations.add(
+        TransportCapabilityObservation(
+          peerKey: decoded.carrierPeerKey,
+          capability: capability,
+          observedAt: at,
+        ),
+      );
+    }
+
+    final routeProof = decoded.routeProof;
+    if (routeProof != null && challengeEpoch != null) {
+      _routeProofObservations.add(
+        TransportRouteProofObservation(
+          peerKey: decoded.carrierPeerKey,
+          token: decoded.packet.token,
+          challengeEpoch: challengeEpoch,
+          encodedProof: routeProof,
+          observedAt: at,
+        ),
+      );
+    }
   }
 
   Future<TransportCapabilityAdvertisement?> _safeReadLocalCapability() async {
@@ -98,8 +123,26 @@ final class TransportCapabilityHeartbeatRuntime
     try {
       return await _readLocalCapability();
     } catch (_) {
-      // Capability evidence is optional. A platform/read failure remains
-      // unknown instead of blocking the heartbeat or fabricating defaults.
+      return null;
+    }
+  }
+
+  Future<String?> _safeReadRouteProof(int token, int? challengeEpoch) async {
+    final provider = _routeProofProvider;
+    if (_disposed || provider == null || challengeEpoch == null) return null;
+    try {
+      final proof = await provider(
+        token: token,
+        challengeEpoch: challengeEpoch,
+      );
+      if (proof == null) return null;
+      final encodedLength = utf8.encode(proof).length;
+      if (encodedLength == 0 ||
+          encodedLength > TransportRouteProofWire.maxProofBytes) {
+        return null;
+      }
+      return proof;
+    } catch (_) {
       return null;
     }
   }
@@ -107,6 +150,8 @@ final class TransportCapabilityHeartbeatRuntime
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
+    _routeProofProvider = null;
     await _observations.close();
+    await _routeProofObservations.close();
   }
 }
