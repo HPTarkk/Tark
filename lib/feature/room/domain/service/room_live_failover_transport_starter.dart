@@ -71,7 +71,8 @@ final class RoomLiveFailoverTransportStarter {
     }
 
     final role = switch (plan.kind) {
-      RoomTransportKind.hotspot when plan.hotspotHost == localMemberId => 'host',
+      RoomTransportKind.hotspot when plan.hotspotHost == localMemberId =>
+        'host',
       RoomTransportKind.hotspot => 'joiner',
       _ => 'peer',
     };
