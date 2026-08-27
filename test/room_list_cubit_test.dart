@@ -9,10 +9,8 @@ import 'package:tark/feature/room/domain/service/room_invitation_ledger.dart';
 import 'package:tark/feature/room/presentation/manager/room_list_cubit.dart';
 
 void main() {
-  RoomListCubit cubitFor(_FakeRoomRepository repository) => RoomListCubit(
-    repository,
-    identityStore: _MemoryIdentityStore(),
-  );
+  RoomListCubit cubitFor(_FakeRoomRepository repository) =>
+      RoomListCubit(repository, identityStore: _MemoryIdentityStore());
 
   test('load preserves a selected durable room that still exists', () async {
     final repository = _FakeRoomRepository();
