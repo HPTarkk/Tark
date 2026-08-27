@@ -57,12 +57,14 @@ final class RoomListState extends Equatable {
 /// Presentation orchestration for durable saved Rooms.
 @injectable
 class RoomListCubit extends Cubit<RoomListState> {
-  RoomListCubit(this._repository)
-    : _identityLifecycle = RoomTransportIdentityLifecycle(
-        store: PlatformRoomTransportIdentitySecureStore(),
-      ),
-      _joinOrchestrator = RoomInviteJoinOrchestrator(),
-      super(const RoomListState()) {
+  RoomListCubit(
+    this._repository, {
+    RoomTransportIdentitySecureStore? identityStore,
+  }) : _identityLifecycle = RoomTransportIdentityLifecycle(
+         store: identityStore ?? PlatformRoomTransportIdentitySecureStore(),
+       ),
+       _joinOrchestrator = RoomInviteJoinOrchestrator(),
+       super(const RoomListState()) {
     _joinImporter = RoomInviteJoinImporter(
       repository: _repository,
       persistTransportIdentity: _identityLifecycle.persistJoinedIdentity,
