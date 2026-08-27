@@ -23,7 +23,10 @@ final class RoomTransportIdentityLifecycle {
     SavedRoom saved,
   ) async {
     final memberId = saved.membership.localMemberId;
-    final existing = await _store.read(roomId: saved.room.id, memberId: memberId);
+    final existing = await _store.read(
+      roomId: saved.room.id,
+      memberId: memberId,
+    );
     if (existing != null) return existing;
     if (!saved.membership.active || !saved.membership.canManageInvites) {
       throw StateError('Room transport identity is unavailable');
@@ -93,7 +96,9 @@ final class RoomTransportIdentityLifecycle {
       expectedIssuerPublicKey: certificate.issuerPublicKey,
     );
     if (!verified) {
-      throw const FormatException('joined Room transport certificate signature');
+      throw const FormatException(
+        'joined Room transport certificate signature',
+      );
     }
     await _store.write(
       roomId: roomId,
