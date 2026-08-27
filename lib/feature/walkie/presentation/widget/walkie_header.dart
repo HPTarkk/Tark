@@ -134,37 +134,15 @@ class _BrandBadge extends StatelessWidget {
 
 // ── Signal indicator ──────────────────────────────────────────────────────────
 
-/// Pulsing LIVE / OFFLINE indicator in the header, carrying link quality.
-class SignalIndicator extends StatefulWidget {
+/// State-driven LIVE / OFFLINE indicator in the header, carrying link quality.
+///
+/// Ride Mode deliberately avoids a continuously repeating decorative pulse.
+/// The connection state already changes from transport evidence, so repainting
+/// at animation-frame cadence adds distraction and long-session work without
+/// conveying new information. Actual state transitions still rebuild through
+/// the surrounding BlocBuilder and the text keeps its bounded transition.
+class SignalIndicator extends StatelessWidget {
   const SignalIndicator({super.key});
-
-  @override
-  State<SignalIndicator> createState() => _SignalIndicatorState();
-}
-
-class _SignalIndicatorState extends State<SignalIndicator>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true);
-    _pulseAnimation = CurvedAnimation(
-      parent: _pulseController,
-      curve: Curves.easeInOut,
-    );
-  }
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -189,7 +167,6 @@ class _SignalIndicatorState extends State<SignalIndicator>
             LinkQualityBars(
               filled: isActive ? LinkQualityBars.barsFor(quality) : 0,
               color: accent,
-              pulse: _pulseAnimation,
             ),
             const SizedBox(width: 5),
             TickerText(
@@ -214,18 +191,13 @@ class _SignalIndicatorState extends State<SignalIndicator>
   };
 }
 
-/// A four-bar signal meter.
+/// A four-bar signal meter. Bars are static between real transport-state
+/// changes so the header does not schedule continuous ride-session frames.
 class LinkQualityBars extends StatelessWidget {
-  const LinkQualityBars({
-    super.key,
-    required this.filled,
-    required this.color,
-    required this.pulse,
-  });
+  const LinkQualityBars({super.key, required this.filled, required this.color});
 
   final int filled;
   final Color color;
-  final Animation<double> pulse;
 
   static int barsFor(LinkQuality q) => switch (q) {
     LinkQuality.excellent => 4,
@@ -247,17 +219,7 @@ class LinkQualityBars extends StatelessWidget {
         children: [
           for (var i = 0; i < _count; i++) ...[
             if (i > 0) const SizedBox(width: 2),
-            if (i == filled - 1)
-              AnimatedBuilder(
-                animation: pulse,
-                builder: (_, _) => _bar(
-                  _heights[i],
-                  color,
-                  alpha: 255 - (pulse.value * 110).round(),
-                ),
-              )
-            else
-              _bar(_heights[i], color, alpha: i < filled ? 255 : 46),
+            _bar(_heights[i], color, alpha: i < filled ? 255 : 46),
           ],
         ],
       ),
