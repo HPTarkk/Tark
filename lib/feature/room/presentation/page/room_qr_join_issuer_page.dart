@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -13,6 +14,10 @@ import '../../domain/service/room_invite_join_exchange.dart';
 /// the canonical issuer ledger before an accepted response can be produced.
 class RoomQrJoinIssuerPage extends StatefulWidget {
   const RoomQrJoinIssuerPage({required this.repository, super.key});
+
+  static Widget buildPage() => RoomQrJoinIssuerPage(
+    repository: GetIt.instance<RoomRepository>(),
+  );
 
   final RoomRepository repository;
 
