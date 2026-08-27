@@ -8,24 +8,29 @@ import 'package:tark/feature/transfer/domain/repository/transport_capability_obs
 import 'package:tark/feature/transfer/domain/service/session_role_store.dart';
 
 void main() {
-  test('wifi exposes capability source without fabricating peer evidence', () async {
-    final repository = WifiTransferRepositoryImpl(
-      const DeviceIdentity.withId('0123456789ab'),
-      SessionEpoch.startingAt(7),
-      _RoleStore(),
-      ChannelMembership(),
-    );
+  test(
+    'wifi exposes capability source without fabricating peer evidence',
+    () async {
+      final repository = WifiTransferRepositoryImpl(
+        const DeviceIdentity.withId('0123456789ab'),
+        SessionEpoch.startingAt(7),
+        _RoleStore(),
+        ChannelMembership(),
+      );
 
-    expect(repository, isA<TransportCapabilityObservationSource>());
-    var observed = false;
-    final subscription = repository.transportCapabilityObservations.listen((_) {
-      observed = true;
-    });
-    await Future<void>.delayed(Duration.zero);
-    expect(observed, isFalse);
-    await subscription.cancel();
-    repository.dispose();
-  });
+      expect(repository, isA<TransportCapabilityObservationSource>());
+      var observed = false;
+      final subscription = repository.transportCapabilityObservations.listen((
+        _,
+      ) {
+        observed = true;
+      });
+      await Future<void>.delayed(Duration.zero);
+      expect(observed, isFalse);
+      await subscription.cancel();
+      repository.dispose();
+    },
+  );
 }
 
 final class _RoleStore implements SessionRoleStore {

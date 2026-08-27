@@ -274,9 +274,10 @@ class WifiTransferRepositoryImpl
 
   late final _codec = WakiPacketCodec(_identity.id, _epoch, _membership);
 
-  late final _transportCapabilityHeartbeat = TransportCapabilityHeartbeatRuntime(
-    codec: TransportCapabilityControlCodec(_codec),
-  );
+  late final _transportCapabilityHeartbeat =
+      TransportCapabilityHeartbeatRuntime(
+        codec: TransportCapabilityControlCodec(_codec),
+      );
 
   @override
   Stream<TransportCapabilityObservation> get transportCapabilityObservations =>
