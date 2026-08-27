@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/entitlement/license_gate.dart';
+import '../../../../core/entitlement/paywall_sheet.dart';
+import '../../../../core/entitlement/premium_feature.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -13,6 +18,18 @@ import '../../../room/presentation/widget/in_room_invite_button.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../manager/walkie_talkie_cubit.dart';
 
+/// Width policy for the pinned Ride Mode header.
+///
+/// At narrow phone widths the decorative app title gives way before any live
+/// control does. This keeps the always-visible mic action, connection state,
+/// Add rider, Rooms and Settings inside the safe viewport without relying on a
+/// horizontal scroll or shrinking tap targets below 40 logical pixels.
+abstract final class WalkieHeaderLayout {
+  static const compactBreakpoint = 390.0;
+
+  static bool showAppTitle(double maxWidth) => maxWidth >= compactBreakpoint;
+}
+
 class WalkieHeader extends StatelessWidget {
   const WalkieHeader({super.key});
 
@@ -20,39 +37,102 @@ class WalkieHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<WalkieTalkieCubit, WalkieTalkieState>(
       buildWhen: (p, c) => p.isReady != c.isReady || p.localId != c.localId,
-      builder: (context, state) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          border: Border(bottom: BorderSide(color: AppColors.border, width: 1)),
-        ),
-        child: Row(
-          children: [
-            const _BrandBadge(),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                context.getString.app_name,
-                maxLines: 1,
-                overflow: TextOverflow.fade,
-                softWrap: false,
-                style: TextStyle(
-                  color: AppColors.amber,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 3,
-                ),
+      builder: (context, state) => LayoutBuilder(
+        builder: (context, constraints) {
+          final showTitle = WalkieHeaderLayout.showAppTitle(
+            constraints.maxWidth,
+          );
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              border: Border(
+                bottom: BorderSide(color: AppColors.border, width: 1),
               ),
             ),
-            const Spacer(),
-            const RepaintBoundary(child: SignalIndicator()),
-            const SizedBox(width: 4),
-            const InRoomInviteButton(),
-            const _RoomsButton(),
-            const _SettingsButton(),
-          ],
-        ),
+            child: Row(
+              children: [
+                const _BrandBadge(),
+                if (showTitle) ...[
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      context.getString.app_name,
+                      maxLines: 1,
+                      overflow: TextOverflow.fade,
+                      softWrap: false,
+                      style: TextStyle(
+                        color: AppColors.amber,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 3,
+                      ),
+                    ),
+                  ),
+                ],
+                const Spacer(),
+                const RepaintBoundary(child: SignalIndicator()),
+                const SizedBox(width: 4),
+                const _QuickMicButton(),
+                const InRoomInviteButton(),
+                const _RoomsButton(),
+                const _SettingsButton(),
+              ],
+            ),
+          );
+        },
       ),
+    );
+  }
+}
+
+// ── Primary ride action ──────────────────────────────────────────────────────
+
+/// Compact always-visible mirror of the full MicControl card.
+///
+/// The detailed card remains in the scrollable body for explanation and state
+/// copy, but Ride Mode must never require scrolling to mute/unmute. The Cubit
+/// remains the single source of truth and keeps the same entitlement rule as
+/// the full control: entering mute may be premium-gated, while unmuting is
+/// always available so nobody can be stranded silent.
+class _QuickMicButton extends StatelessWidget {
+  const _QuickMicButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<WalkieTalkieCubit, WalkieTalkieState>(
+      buildWhen: (p, c) => p.isSelfMuted != c.isSelfMuted,
+      builder: (context, state) {
+        final muted = state.isSelfMuted;
+        final s = context.getString;
+        final label = muted ? s.mic_action_unmute : s.mic_action_mute;
+        final accent = muted ? AppColors.red : AppColors.green;
+        return Semantics(
+          button: true,
+          label: label,
+          child: IconButton(
+            key: const Key('walkie-primary-mic-toggle'),
+            tooltip: label,
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+            onPressed: () {
+              if (!muted &&
+                  !GetIt.instance<LicenseGate>().allows(
+                    PremiumFeature.selfMute,
+                  )) {
+                showPaywallSheet(context, PremiumFeature.selfMute);
+                return;
+              }
+              HapticFeedback.selectionClick();
+              context.read<WalkieTalkieCubit>().toggleSelfMute();
+            },
+            icon: Icon(
+              muted ? Icons.mic_off_rounded : Icons.mic_rounded,
+              color: accent,
+            ),
+          ),
+        );
+      },
     );
   }
 }
