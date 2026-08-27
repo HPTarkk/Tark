@@ -154,7 +154,11 @@ SavedRoom _savedRoom({bool archived = false, bool active = true}) {
         ),
       ],
     ),
-    membership: RoomMembership(localMemberId: memberId, active: active),
+    membership: RoomMembership(
+      localMemberId: memberId,
+      canManageInvites: true,
+      active: active,
+    ),
   );
 }
 
