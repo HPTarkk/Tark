@@ -131,7 +131,10 @@ final class TransportCapabilityHeartbeatRuntime
     final provider = _routeProofProvider;
     if (_disposed || provider == null || challengeEpoch == null) return null;
     try {
-      final proof = await provider(token: token, challengeEpoch: challengeEpoch);
+      final proof = await provider(
+        token: token,
+        challengeEpoch: challengeEpoch,
+      );
       if (proof == null) return null;
       final encodedLength = utf8.encode(proof).length;
       if (encodedLength == 0 ||
