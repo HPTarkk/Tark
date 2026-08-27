@@ -87,10 +87,7 @@ abstract interface class RoomTransportIdentitySecureStore {
     required RoomMemberId memberId,
   });
 
-  Future<void> delete({
-    required RoomId roomId,
-    required RoomMemberId memberId,
-  });
+  Future<void> delete({required RoomId roomId, required RoomMemberId memberId});
 }
 
 /// Android production secure storage.
@@ -117,7 +114,9 @@ final class PlatformRoomTransportIdentitySecureStore
   }) async {
     if (material.certificate.roomId != roomId ||
         material.certificate.memberId != memberId) {
-      throw ArgumentError('Room identity material does not match storage scope');
+      throw ArgumentError(
+        'Room identity material does not match storage scope',
+      );
     }
     if (!_sameBytes(
       material.memberKeyPair.publicKey,
