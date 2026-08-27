@@ -29,6 +29,8 @@ final class RoomJoinPeerBindingAuthority {
   final int maxPending;
 
   final Map<String, _PendingJoinPeer> _pending = {};
+  final Map<String, _ConsumedJoinRequest> _consumed = {};
+  int _minimumAttachmentGeneration = 0;
   bool _disposed = false;
 
   int get pendingCount => _pending.length;
@@ -36,8 +38,14 @@ final class RoomJoinPeerBindingAuthority {
   /// Records transport evidence for a request received on the current
   /// attachment. The first observed route for a request is sticky within an
   /// attachment generation: replaying the same bearer request from another
-  /// route cannot steal the later accepted binding. A genuinely newer
-  /// attachment generation may establish fresh route evidence.
+  /// route cannot steal the later accepted binding. Accepted request ids retain
+  /// a short bounded replay tombstone so a second route cannot resurrect the
+  /// request after its pending entry has been consumed.
+  ///
+  /// A genuinely newer attachment generation may establish fresh route
+  /// evidence. Once transport replacement advances the generation floor,
+  /// delayed older callbacks fail closed even if they arrive as apparently-new
+  /// requests.
   bool observeRequest({
     required String requestId,
     required String peerKey,
@@ -47,11 +55,18 @@ final class RoomJoinPeerBindingAuthority {
     _ensureOpen();
     if (!_validRequestId(requestId) ||
         peerKey.isEmpty ||
-        attachmentGeneration < 0) {
+        attachmentGeneration < _minimumAttachmentGeneration) {
       return false;
     }
 
-    _expire(at.toUtc());
+    final now = at.toUtc();
+    _expire(now);
+    final consumed = _consumed[requestId];
+    if (consumed != null &&
+        consumed.attachmentGeneration == attachmentGeneration) {
+      return false;
+    }
+
     final current = _pending[requestId];
     if (current != null) {
       if (attachmentGeneration < current.attachmentGeneration) return false;
@@ -64,7 +79,7 @@ final class RoomJoinPeerBindingAuthority {
     _pending[requestId] = _PendingJoinPeer(
       peerKey: peerKey,
       attachmentGeneration: attachmentGeneration,
-      observedAt: at.toUtc(),
+      observedAt: now,
     );
     _trimOldest();
     return true;
@@ -81,9 +96,11 @@ final class RoomJoinPeerBindingAuthority {
     _ensureOpen();
     final now = at.toUtc();
     _expire(now);
-    if (response.status != RoomInviteJoinResponseStatus.accepted ||
+    if (attachmentGeneration < _minimumAttachmentGeneration ||
+        response.status != RoomInviteJoinResponseStatus.accepted ||
         response.roomId != roomId ||
-        response.memberId == null) {
+        response.memberId == null ||
+        _consumed.containsKey(response.requestId)) {
       return false;
     }
 
@@ -98,15 +115,28 @@ final class RoomJoinPeerBindingAuthority {
       memberId: response.memberId!,
       attachmentGeneration: attachmentGeneration,
     );
-    if (bound) _pending.remove(response.requestId);
+    if (bound) {
+      _pending.remove(response.requestId);
+      _consumed[response.requestId] = _ConsumedJoinRequest(
+        attachmentGeneration: attachmentGeneration,
+        consumedAt: now,
+      );
+      _trimConsumedOldest();
+    }
     return bound;
   }
 
-  /// A transport replacement invalidates every earlier observed route.
+  /// A transport replacement invalidates every earlier observed route and its
+  /// replay tombstones. The same request may therefore be correlated again only
+  /// when it is genuinely observed on the replacement attachment.
   void replaceAttachment(int attachmentGeneration) {
     _ensureOpen();
-    if (attachmentGeneration < 0) return;
+    if (attachmentGeneration < _minimumAttachmentGeneration) return;
+    _minimumAttachmentGeneration = attachmentGeneration;
     _pending.removeWhere(
+      (_, value) => value.attachmentGeneration < attachmentGeneration,
+    );
+    _consumed.removeWhere(
       (_, value) => value.attachmentGeneration < attachmentGeneration,
     );
     bindings.replaceAttachment(attachmentGeneration);
@@ -115,6 +145,7 @@ final class RoomJoinPeerBindingAuthority {
   void reset() {
     _ensureOpen();
     _pending.clear();
+    _consumed.clear();
     bindings.reset();
   }
 
@@ -122,11 +153,15 @@ final class RoomJoinPeerBindingAuthority {
     if (_disposed) return;
     _disposed = true;
     _pending.clear();
+    _consumed.clear();
   }
 
   void _expire(DateTime now) {
     _pending.removeWhere(
       (_, value) => now.difference(value.observedAt) > pendingFor,
+    );
+    _consumed.removeWhere(
+      (_, value) => now.difference(value.consumedAt) > pendingFor,
     );
   }
 
@@ -142,6 +177,21 @@ final class RoomJoinPeerBindingAuthority {
       }
       if (oldestKey == null) return;
       _pending.remove(oldestKey);
+    }
+  }
+
+  void _trimConsumedOldest() {
+    while (_consumed.length > maxPending) {
+      String? oldestKey;
+      DateTime? oldestAt;
+      for (final entry in _consumed.entries) {
+        if (oldestAt == null || entry.value.consumedAt.isBefore(oldestAt)) {
+          oldestKey = entry.key;
+          oldestAt = entry.value.consumedAt;
+        }
+      }
+      if (oldestKey == null) return;
+      _consumed.remove(oldestKey);
     }
   }
 
@@ -163,4 +213,14 @@ final class _PendingJoinPeer {
   final String peerKey;
   final int attachmentGeneration;
   final DateTime observedAt;
+}
+
+final class _ConsumedJoinRequest {
+  const _ConsumedJoinRequest({
+    required this.attachmentGeneration,
+    required this.consumedAt,
+  });
+
+  final int attachmentGeneration;
+  final DateTime consumedAt;
 }
