@@ -26,10 +26,10 @@ final class RoomTransportIdentityMaterial {
     'memberPrivateKey': memberKeyPair.encodedPrivateKey,
     'memberPublicKey': memberKeyPair.encodedPublicKey,
     'certificate': certificate.encode(),
-    if (issuerKeyPair case final issuer?)
-      'issuerPrivateKey': issuer.encodedPrivateKey,
-    if (issuerKeyPair case final issuer?)
-      'issuerPublicKey': issuer.encodedPublicKey,
+    if (issuerKeyPair != null)
+      'issuerPrivateKey': issuerKeyPair!.encodedPrivateKey,
+    if (issuerKeyPair != null)
+      'issuerPublicKey': issuerKeyPair!.encodedPublicKey,
   };
 
   static RoomTransportIdentityMaterial fromMap(
