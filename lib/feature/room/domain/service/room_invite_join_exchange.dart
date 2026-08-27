@@ -306,8 +306,11 @@ final class RoomInviteJoinResponse {
             ? RoomMemberTransportCertificate.decode(certificateRaw)
             : null;
         if (certificate != null &&
-            (certificate.roomId != roomId || certificate.memberId != memberId)) {
-          throw const FormatException('accepted room join certificate identity');
+            (certificate.roomId != roomId ||
+                certificate.memberId != memberId)) {
+          throw const FormatException(
+            'accepted room join certificate identity',
+          );
         }
         return RoomInviteJoinResponse.accepted(
           requestId: requestId,
