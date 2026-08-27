@@ -119,10 +119,7 @@ void main() {
       ),
       isFalse,
     );
-    expect(
-      registry.resolve('late-old-route', attachmentGeneration: 8),
-      isNull,
-    );
+    expect(registry.resolve('late-old-route', attachmentGeneration: 8), isNull);
     expect(registry.length, 0);
   });
 
