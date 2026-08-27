@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tark/core/l10n/app_localizations.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
 import 'package:tark/feature/room/domain/repository/room_repository.dart';
 import 'package:tark/feature/walkie/presentation/model/ride_room_identity.dart';
@@ -60,43 +61,53 @@ void main() {
     testWidgets('fits 320px with large English text in light and dark themes', (
       tester,
     ) async {
-      for (final theme in [ThemeData.light(), ThemeData.dark()]) {
-        await _pumpBadge(
-          tester,
-          locale: const Locale('en'),
-          theme: theme,
-          textScale: 2,
-        );
-        expect(tester.takeException(), isNull);
-        expect(
-          find.bySemanticsLabel('Room Night Riders, code ABCD-EF01'),
-          findsOneWidget,
-        );
+      final semantics = tester.ensureSemantics();
+      try {
+        for (final theme in [ThemeData.light(), ThemeData.dark()]) {
+          await _pumpBadge(
+            tester,
+            locale: const Locale('en'),
+            theme: theme,
+            textScale: 2,
+          );
+          expect(tester.takeException(), isNull);
+          expect(
+            find.bySemanticsLabel('Room Night Riders, code ABCD-EF01'),
+            findsOneWidget,
+          );
+        }
+      } finally {
+        semantics.dispose();
       }
     });
 
     testWidgets('is RTL-accessible in Persian while code stays LTR', (
       tester,
     ) async {
-      await _pumpBadge(
-        tester,
-        locale: const Locale('fa'),
-        theme: ThemeData.dark(),
-        textScale: 1.6,
-      );
+      final semantics = tester.ensureSemantics();
+      try {
+        await _pumpBadge(
+          tester,
+          locale: const Locale('fa'),
+          theme: ThemeData.dark(),
+          textScale: 1.6,
+        );
 
-      expect(tester.takeException(), isNull);
-      expect(
-        find.bySemanticsLabel('اتاق Night Riders، کد ABCD-EF01'),
-        findsOneWidget,
-      );
+        expect(tester.takeException(), isNull);
+        expect(
+          find.bySemanticsLabel('اتاق Night Riders، کد ABCD-EF01'),
+          findsOneWidget,
+        );
 
-      final code = find.text('#ABCD-EF01');
-      expect(code, findsOneWidget);
-      final directionality = tester.widget<Directionality>(
-        find.ancestor(of: code, matching: find.byType(Directionality)).first,
-      );
-      expect(directionality.textDirection, TextDirection.ltr);
+        final code = find.text('#ABCD-EF01');
+        expect(code, findsOneWidget);
+        final directionality = tester.widget<Directionality>(
+          find.ancestor(of: code, matching: find.byType(Directionality)).first,
+        );
+        expect(directionality.textDirection, TextDirection.ltr);
+      } finally {
+        semantics.dispose();
+      }
     });
   });
 }
@@ -107,13 +118,11 @@ Future<void> _pumpBadge(
   required ThemeData theme,
   required double textScale,
 }) async {
-  final semantics = tester.ensureSemantics();
-  addTearDown(semantics.dispose);
-
   await tester.pumpWidget(
     MaterialApp(
       locale: locale,
-      supportedLocales: const [Locale('en'), Locale('fa')],
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       theme: theme,
       home: Scaffold(
         body: Center(
