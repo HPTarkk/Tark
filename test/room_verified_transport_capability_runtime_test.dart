@@ -45,7 +45,9 @@ void main() {
       runtime: failover,
       startTransport: (_) async => RoomFailoverTransportHandle(() async {}),
     );
-    final capability = RoomCapabilityFailoverRuntime(orchestrator: orchestrator);
+    final capability = RoomCapabilityFailoverRuntime(
+      orchestrator: orchestrator,
+    );
     return (
       runtime: RoomVerifiedTransportCapabilityRuntime(
         capability: capability,
