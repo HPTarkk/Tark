@@ -76,11 +76,8 @@ void main() {
     final value = await material();
 
     expect(
-      () => store.write(
-        roomId: roomId,
-        memberId: otherMemberId,
-        material: value,
-      ),
+      () =>
+          store.write(roomId: roomId, memberId: otherMemberId, material: value),
       throwsArgumentError,
     );
   });
@@ -126,13 +123,16 @@ void main() {
     expect(await store.read(roomId: roomId, memberId: memberId), isNull);
   });
 
-  test('unsupported platform does not fall back to plaintext storage', () async {
-    final store = PlatformRoomTransportIdentitySecureStore(channel: channel);
-    final value = await material();
+  test(
+    'unsupported platform does not fall back to plaintext storage',
+    () async {
+      final store = PlatformRoomTransportIdentitySecureStore(channel: channel);
+      final value = await material();
 
-    expect(
-      () => store.write(roomId: roomId, memberId: memberId, material: value),
-      throwsA(isA<MissingPluginException>()),
-    );
-  });
+      expect(
+        () => store.write(roomId: roomId, memberId: memberId, material: value),
+        throwsA(isA<MissingPluginException>()),
+      );
+    },
+  );
 }
