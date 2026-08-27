@@ -20,9 +20,6 @@ final class RoomPeerMemberBindingRegistry {
 
   int get length => _byPeer.length;
 
-  /// Replaces the durable membership allow-list. Bindings for removed members
-  /// are deleted immediately so stale transport evidence cannot keep them
-  /// eligible for presence/election after a membership mutation.
   void replaceMembers(Iterable<RoomMemberId> members) {
     _ensureOpen();
     _members
@@ -39,11 +36,11 @@ final class RoomPeerMemberBindingRegistry {
 
   /// Binds a transport peer only when [memberId] belongs to the current Room.
   ///
-  /// A peer and member are both one-to-one within an attachment. A newer
-  /// generation may replace an older binding; an older generation can never
-  /// overwrite current evidence. Once [replaceAttachment] advances the
-  /// generation floor, delayed callbacks from earlier attachments are rejected
-  /// even when they arrive after all old bindings have already been removed.
+  /// A peer and member are one-to-one within an attachment. A different route
+  /// for an already-bound member may take over only in a strictly newer
+  /// attachment generation; same-generation route changes fail closed. This
+  /// makes transport replacement explicit and prevents replayed join evidence
+  /// from stealing identity inside a live attachment.
   bool bind({
     required String peerKey,
     required RoomMemberId memberId,
@@ -66,7 +63,7 @@ final class RoomPeerMemberBindingRegistry {
     if (currentPeerForMember != null && currentPeerForMember != peerKey) {
       final currentForMember = _byPeer[currentPeerForMember];
       if (currentForMember != null &&
-          attachmentGeneration < currentForMember.attachmentGeneration) {
+          attachmentGeneration <= currentForMember.attachmentGeneration) {
         return false;
       }
       _removePeer(currentPeerForMember);
@@ -108,11 +105,6 @@ final class RoomPeerMemberBindingRegistry {
     if (peerKey != null) _byPeer.remove(peerKey);
   }
 
-  /// Drops every binding from earlier attachments. The durable member allow-list
-  /// remains intact, but the replacement transport must establish peer identity
-  /// again before capability/presence evidence can be attributed to a member.
-  /// The generation floor is monotonic so a delayed old callback cannot create
-  /// a fresh stale binding after replacement cleanup has already completed.
   void replaceAttachment(int attachmentGeneration) {
     _ensureOpen();
     if (attachmentGeneration < _minimumAttachmentGeneration) return;
