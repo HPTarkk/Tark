@@ -27,74 +27,79 @@ void main() {
       expect(identity?.code, 'ABCD-EF01');
     });
 
-    test('resolver fails closed for missing, archived or inactive Room', () async {
-      expect(
-        await RideRoomIdentityResolver(
-          _FakeRoomRepository(selected: null, saved: null),
-        ).load(),
-        isNull,
-      );
+    test(
+      'resolver fails closed for missing, archived or inactive Room',
+      () async {
+        expect(
+          await RideRoomIdentityResolver(
+            _FakeRoomRepository(selected: null, saved: null),
+          ).load(),
+          isNull,
+        );
 
-      final archived = _savedRoom(archived: true);
-      expect(
-        await RideRoomIdentityResolver(
-          _FakeRoomRepository(selected: archived.room.id, saved: archived),
-        ).load(),
-        isNull,
-      );
+        final archived = _savedRoom(archived: true);
+        expect(
+          await RideRoomIdentityResolver(
+            _FakeRoomRepository(selected: archived.room.id, saved: archived),
+          ).load(),
+          isNull,
+        );
 
-      final inactive = _savedRoom(active: false);
-      expect(
-        await RideRoomIdentityResolver(
-          _FakeRoomRepository(selected: inactive.room.id, saved: inactive),
-        ).load(),
-        isNull,
-      );
-    });
+        final inactive = _savedRoom(active: false);
+        expect(
+          await RideRoomIdentityResolver(
+            _FakeRoomRepository(selected: inactive.room.id, saved: inactive),
+          ).load(),
+          isNull,
+        );
+      },
+    );
   });
 
   group('RideRoomIdentityBadge', () {
-    testWidgets('fits 320px with large English text in light and dark themes', (
-      tester,
-    ) async {
-      for (final theme in [ThemeData.light(), ThemeData.dark()]) {
+    testWidgets(
+      'fits 320px with large English text in light and dark themes',
+      (tester) async {
+        for (final theme in [ThemeData.light(), ThemeData.dark()]) {
+          await _pumpBadge(
+            tester,
+            locale: const Locale('en'),
+            theme: theme,
+            textScale: 2,
+          );
+          expect(tester.takeException(), isNull);
+          expect(
+            find.bySemanticsLabel('Room Night Riders, code ABCD-EF01'),
+            findsOneWidget,
+          );
+        }
+      },
+    );
+
+    testWidgets(
+      'is RTL-accessible in Persian while code stays LTR',
+      (tester) async {
         await _pumpBadge(
           tester,
-          locale: const Locale('en'),
-          theme: theme,
-          textScale: 2,
+          locale: const Locale('fa'),
+          theme: ThemeData.dark(),
+          textScale: 1.6,
         );
+
         expect(tester.takeException(), isNull);
         expect(
-          find.bySemanticsLabel('Room Night Riders, code ABCD-EF01'),
+          find.bySemanticsLabel('اتاق Night Riders، کد ABCD-EF01'),
           findsOneWidget,
         );
-      }
-    });
 
-    testWidgets('is RTL-accessible in Persian while code stays LTR', (
-      tester,
-    ) async {
-      await _pumpBadge(
-        tester,
-        locale: const Locale('fa'),
-        theme: ThemeData.dark(),
-        textScale: 1.6,
-      );
-
-      expect(tester.takeException(), isNull);
-      expect(
-        find.bySemanticsLabel('اتاق Night Riders، کد ABCD-EF01'),
-        findsOneWidget,
-      );
-
-      final code = find.text('#ABCD-EF01');
-      expect(code, findsOneWidget);
-      final directionality = tester.widget<Directionality>(
-        find.ancestor(of: code, matching: find.byType(Directionality)).first,
-      );
-      expect(directionality.textDirection, TextDirection.ltr);
-    });
+        final code = find.text('#ABCD-EF01');
+        expect(code, findsOneWidget);
+        final directionality = tester.widget<Directionality>(
+          find.ancestor(of: code, matching: find.byType(Directionality)).first,
+        );
+        expect(directionality.textDirection, TextDirection.ltr);
+      },
+    );
   });
 }
 
@@ -168,6 +173,7 @@ final class _FakeRoomRepository implements RoomRepository {
   Future<SavedRoom?> get(RoomId id) async => saved?.room.id == id ? saved : null;
 
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnsupportedError('Unused RoomRepository member: ${invocation.memberName}');
+  dynamic noSuchMethod(Invocation invocation) => throw UnsupportedError(
+    'Unused RoomRepository member: ${invocation.memberName}',
+  );
 }
