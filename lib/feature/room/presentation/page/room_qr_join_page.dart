@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -23,6 +25,16 @@ class RoomQrJoinPage extends StatefulWidget {
     required this.settings,
     super.key,
   });
+
+  static Widget buildPage() => BlocProvider<RoomListCubit>(
+    create: (_) => GetIt.instance<RoomListCubit>()..load(),
+    child: Builder(
+      builder: (context) => RoomQrJoinPage(
+        cubit: context.read<RoomListCubit>(),
+        settings: GetIt.instance<SettingsRepository>(),
+      ),
+    ),
+  );
 
   final RoomListCubit cubit;
   final SettingsRepository settings;
@@ -86,9 +98,15 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
         _stage = _JoinStage.result;
       });
     } on FormatException {
-      if (mounted) _showInvalid(_fa ? 'دعوت نامعتبر است.' : 'Invalid Room invite.');
+      if (mounted) {
+        _showInvalid(_fa ? 'دعوت نامعتبر است.' : 'Invalid Room invite.');
+      }
     } catch (_) {
-      if (mounted) _showInvalid(_fa ? 'خواندن دعوت ممکن نشد.' : 'Could not read the Room invite.');
+      if (mounted) {
+        _showInvalid(
+          _fa ? 'خواندن دعوت ممکن نشد.' : 'Could not read the Room invite.',
+        );
+      }
     } finally {
       _handlingScan = false;
     }
@@ -198,7 +216,9 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
   Widget _resultView() {
     final success = _result == RoomInviteJoinAttemptStatus.accepted;
     final text = success
-        ? (_fa ? 'عضویت تأیید و اتاق ذخیره شد.' : 'Membership verified and Room saved.')
+        ? (_fa
+              ? 'عضویت تأیید و اتاق ذخیره شد.'
+              : 'Membership verified and Room saved.')
         : (_fa
               ? 'عضویت تأیید نشد. هیچ اتاقی از این تلاش ذخیره نشد.'
               : 'Join was not verified. No Room was saved from this attempt.');
