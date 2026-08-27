@@ -37,6 +37,8 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       rooms: _rooms,
       transfer: GetIt.instance<TransferRepository>(),
       modeStore: GetIt.instance<TransferModeStore>(),
+      hotspotHost: GetIt.instance<HotspotHost>(),
+      hotspotLinkKeeper: GetIt.instance<HotspotLinkKeeper>(),
     );
     _entry = _resolveInitialEntry();
   }

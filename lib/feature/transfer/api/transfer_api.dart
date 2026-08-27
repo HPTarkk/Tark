@@ -23,10 +23,11 @@ export '../domain/entity/wifi_hotspot_segment.dart';
 export '../domain/repository/guest_link_controller.dart';
 export '../domain/repository/transfer_repository.dart';
 export '../domain/repository/transport_capability_observation_source.dart';
-// Exported for its recovery actions, not for joining: the channel screen's
-// troubleshooting surface offers "turn Wi-Fi on" when a session has no local
-// address, and this is where that native panel call already lives.
-export '../domain/service/hotspot_control.dart' show HotspotJoiner;
+// Exported for Room failover composition and channel recovery actions. These
+// interfaces expose temporary transport control only; Room identity must never
+// be derived from hotspot credentials or network metadata.
+export '../domain/service/hotspot_control.dart' show HotspotHost, HotspotJoiner;
+export '../domain/service/hotspot_link_keeper.dart' show HotspotLinkKeeper;
 // The channel screen grades its own link: the two inputs the transport cannot
 // know about (whether peers confirm they hear us, and whether the roster is
 // empty) live in the cubit, so the grading happens there rather than here.
