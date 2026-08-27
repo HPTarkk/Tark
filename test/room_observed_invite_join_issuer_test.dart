@@ -161,9 +161,12 @@ void main() {
         attachmentGeneration: 1,
         now: now.add(const Duration(minutes: 2)),
       );
+      // A reusable invite may be accepted idempotently by the membership layer;
+      // replay safety here is about transport identity attribution, not changing
+      // the canonical invitation policy.
       expect(
         RoomInviteJoinResponse.decode(second).status,
-        isNot(RoomInviteJoinResponseStatus.accepted),
+        RoomInviteJoinResponseStatus.accepted,
       );
       expect(
         value.bindings.resolve('first-route', attachmentGeneration: 1),
