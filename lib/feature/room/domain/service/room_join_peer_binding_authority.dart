@@ -34,8 +34,10 @@ final class RoomJoinPeerBindingAuthority {
   int get pendingCount => _pending.length;
 
   /// Records transport evidence for a request received on the current
-  /// attachment. Re-observing the same request replaces only same/newer
-  /// generation evidence; stale attachment callbacks fail closed.
+  /// attachment. The first observed route for a request is sticky within an
+  /// attachment generation: replaying the same bearer request from another
+  /// route cannot steal the later accepted binding. A genuinely newer
+  /// attachment generation may establish fresh route evidence.
   bool observeRequest({
     required String requestId,
     required String peerKey,
@@ -51,9 +53,12 @@ final class RoomJoinPeerBindingAuthority {
 
     _expire(at.toUtc());
     final current = _pending[requestId];
-    if (current != null &&
-        attachmentGeneration < current.attachmentGeneration) {
-      return false;
+    if (current != null) {
+      if (attachmentGeneration < current.attachmentGeneration) return false;
+      if (attachmentGeneration == current.attachmentGeneration &&
+          peerKey != current.peerKey) {
+        return false;
+      }
     }
 
     _pending[requestId] = _PendingJoinPeer(
