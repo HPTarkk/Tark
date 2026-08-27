@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import '../../domain/entity/transport_capability_advertisement.dart';
@@ -8,6 +9,7 @@ import '../../domain/repository/transport_capability_observation_source.dart';
 import '../../domain/repository/transport_route_proof_exchange.dart';
 import '../capability/transport_capability_reader.dart';
 import 'transport_capability_control_codec.dart';
+import 'transport_route_proof_wire.dart';
 
 typedef TransportCapabilitySnapshotReader =
     Future<TransportCapabilityAdvertisement?> Function();
@@ -84,7 +86,12 @@ final class TransportCapabilityHeartbeatRuntime
     required DateTime observedAt,
     int? challengeEpoch,
   }) {
-    if (_disposed || peerKey.isEmpty || decoded.carrierPeerKey.isEmpty) return;
+    if (_disposed ||
+        peerKey.isEmpty ||
+        decoded.carrierPeerKey.isEmpty ||
+        decoded.carrierPeerKey != peerKey) {
+      return;
+    }
     final at = observedAt.toUtc();
     final capability = decoded.capability;
     if (capability != null) {
@@ -124,7 +131,14 @@ final class TransportCapabilityHeartbeatRuntime
     final provider = _routeProofProvider;
     if (_disposed || provider == null || challengeEpoch == null) return null;
     try {
-      return await provider(token: token, challengeEpoch: challengeEpoch);
+      final proof = await provider(token: token, challengeEpoch: challengeEpoch);
+      if (proof == null) return null;
+      final encodedLength = utf8.encode(proof).length;
+      if (encodedLength == 0 ||
+          encodedLength > TransportRouteProofWire.maxProofBytes) {
+        return null;
+      }
+      return proof;
     } catch (_) {
       return null;
     }
