@@ -77,10 +77,7 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: Center(
-              child: LinkQualityBars(
-                filled: 0,
-                color: const Color(0xFF9E9E9E),
-              ),
+              child: LinkQualityBars(filled: 0, color: const Color(0xFF9E9E9E)),
             ),
           ),
         ),
