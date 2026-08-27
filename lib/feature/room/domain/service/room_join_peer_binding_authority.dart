@@ -29,6 +29,7 @@ final class RoomJoinPeerBindingAuthority {
   final int maxPending;
 
   final Map<String, _PendingJoinPeer> _pending = {};
+  int _minimumAttachmentGeneration = 0;
   bool _disposed = false;
 
   int get pendingCount => _pending.length;
@@ -37,7 +38,9 @@ final class RoomJoinPeerBindingAuthority {
   /// attachment. The first observed route for a request is sticky within an
   /// attachment generation: replaying the same bearer request from another
   /// route cannot steal the later accepted binding. A genuinely newer
-  /// attachment generation may establish fresh route evidence.
+  /// attachment generation may establish fresh route evidence. Once transport
+  /// replacement advances the generation floor, delayed older callbacks fail
+  /// closed even if they arrive as apparently-new requests.
   bool observeRequest({
     required String requestId,
     required String peerKey,
@@ -47,7 +50,7 @@ final class RoomJoinPeerBindingAuthority {
     _ensureOpen();
     if (!_validRequestId(requestId) ||
         peerKey.isEmpty ||
-        attachmentGeneration < 0) {
+        attachmentGeneration < _minimumAttachmentGeneration) {
       return false;
     }
 
@@ -81,7 +84,8 @@ final class RoomJoinPeerBindingAuthority {
     _ensureOpen();
     final now = at.toUtc();
     _expire(now);
-    if (response.status != RoomInviteJoinResponseStatus.accepted ||
+    if (attachmentGeneration < _minimumAttachmentGeneration ||
+        response.status != RoomInviteJoinResponseStatus.accepted ||
         response.roomId != roomId ||
         response.memberId == null) {
       return false;
@@ -105,7 +109,8 @@ final class RoomJoinPeerBindingAuthority {
   /// A transport replacement invalidates every earlier observed route.
   void replaceAttachment(int attachmentGeneration) {
     _ensureOpen();
-    if (attachmentGeneration < 0) return;
+    if (attachmentGeneration < _minimumAttachmentGeneration) return;
+    _minimumAttachmentGeneration = attachmentGeneration;
     _pending.removeWhere(
       (_, value) => value.attachmentGeneration < attachmentGeneration,
     );
