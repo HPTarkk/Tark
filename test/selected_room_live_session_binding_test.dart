@@ -58,6 +58,48 @@ void main() {
   });
 
   test(
+    'live failover reuses health stream and refreshes local evidence on down',
+    () async {
+      final transfer = _TransferRepository(role: SessionRole.host);
+      var capabilityReads = 0;
+      final binding = SelectedRoomLiveSessionBinding(
+        rooms: _RoomRepository(selected: roomId, saved: savedRoom()),
+        transfer: transfer,
+        modeStore: _ModeStore(TransferMode.hotspot),
+        hotspotHost: _HotspotHost(),
+        hotspotLinkKeeper: _HotspotLinkKeeper(),
+        localCapabilityReader: () async {
+          capabilityReads += 1;
+          return null;
+        },
+      );
+
+      final runtime = await binding.open(sessionId: 'live-failover');
+
+      expect(runtime, isNotNull);
+      expect(transfer.connectCalls, 1);
+      expect(capabilityReads, 1);
+
+      transfer.health.add(const ConnectionHealth.down());
+      await _flush();
+
+      expect(capabilityReads, 2);
+      expect(transfer.connectCalls, 1);
+      expect(runtime!.state.roomId, roomId.value);
+      expect(runtime.state.localMemberId, memberId.value);
+
+      await binding.close();
+      final readsAfterClose = capabilityReads;
+      transfer.health.add(const ConnectionHealth.down());
+      await _flush();
+
+      expect(capabilityReads, readsAfterClose);
+      expect(transfer.health.hasListener, isFalse);
+      await transfer.health.close();
+    },
+  );
+
+  test(
     'no selected room preserves legacy entry without touching transport',
     () async {
       final transfer = _TransferRepository();
@@ -117,6 +159,11 @@ void main() {
   });
 }
 
+Future<void> _flush() async {
+  await Future<void>.delayed(Duration.zero);
+  await Future<void>.delayed(Duration.zero);
+}
+
 class _RoomRepository implements RoomRepository {
   _RoomRepository({this.selected, this.selectedFuture, this.saved});
 
@@ -167,6 +214,18 @@ class _ModeStore implements TransferModeStore {
   @override
   TransferMode get mode => current;
 
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(invocation.memberName.toString());
+}
+
+class _HotspotHost implements HotspotHost {
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(invocation.memberName.toString());
+}
+
+class _HotspotLinkKeeper implements HotspotLinkKeeper {
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnimplementedError(invocation.memberName.toString());
