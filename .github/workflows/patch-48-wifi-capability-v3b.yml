@@ -1,0 +1,213 @@
+name: Apply #48 Wi-Fi capability patch retry
+
+on:
+  push:
+    branches:
+      - fix/48-wifi-capability-heartbeat-production-v3
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/48-wifi-capability-heartbeat-production-v3
+      - name: Apply exact patch
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path('lib/feature/transfer/data/repository/wifi_transfer_repository_impl.dart')
+          s = p.read_text()
+
+          def once(old, new, label):
+              global s
+              n = s.count(old)
+              if n != 1:
+                  raise SystemExit(f'{label}: expected 1 match, found {n}')
+              s = s.replace(old, new, 1)
+
+          once("import '../../domain/entity/session_role.dart';\nimport '../../domain/entity/transport_stats.dart';",
+               "import '../../domain/entity/session_role.dart';\nimport '../../domain/entity/transport_capability_observation.dart';\nimport '../../domain/entity/transport_stats.dart';", 'entity import')
+          once("import '../../domain/repository/wifi_transfer_repository.dart';",
+               "import '../../domain/repository/transport_capability_observation_source.dart';\nimport '../../domain/repository/wifi_transfer_repository.dart';", 'source import')
+          once("import '../codec/opus_audio_codec.dart';\nimport '../codec/waki_packet_codec.dart';",
+               "import '../codec/opus_audio_codec.dart';\nimport '../codec/transport_capability_control_codec.dart';\nimport '../codec/transport_capability_heartbeat_runtime.dart';\nimport '../codec/waki_packet_codec.dart';", 'codec imports')
+          once('class WifiTransferRepositoryImpl implements WifiTransferRepository {',
+               'class WifiTransferRepositoryImpl\n    implements WifiTransferRepository, TransportCapabilityObservationSource {', 'interface')
+          once("  late final _codec = WakiPacketCodec(_identity.id, _epoch, _membership);\n",
+               "  late final _codec = WakiPacketCodec(_identity.id, _epoch, _membership);\n\n  late final _transportCapabilityHeartbeat = TransportCapabilityHeartbeatRuntime(\n    codec: TransportCapabilityControlCodec(_codec),\n  );\n\n  @override\n  Stream<TransportCapabilityObservation> get transportCapabilityObservations =>\n      _transportCapabilityHeartbeat.transportCapabilityObservations;\n", 'runtime field')
+          once("    _connectionController.close();\n    _codec.release();",
+               "    _connectionController.close();\n    unawaited(_transportCapabilityHeartbeat.dispose());\n    _codec.release();", 'dispose')
+          once("              if (WakiPacketCodec.isControl(dg.data[0])) {\n                final control = _codec.decodeControl(\n                  dg.data,\n                  dg.address.address,\n                );\n                if (control != null) {\n                  _rememberPeer(dg.address.address);\n                  _handleControl(control, dg.address.address);\n                }\n                continue;\n              }",
+               "              if (WakiPacketCodec.isControl(dg.data[0])) {\n                final control = _transportCapabilityHeartbeat.decodeControl(\n                  dg.data,\n                  dg.address.address,\n                );\n                if (control != null) {\n                  _rememberPeer(dg.address.address);\n                  await _handleControl(control, dg.address.address, myGen);\n                }\n                continue;\n              }", 'receive control')
+          once("  Timer? _pingTimer;\n  int _pingToken = 0;",
+               "  Timer? _pingTimer;\n  int _pingToken = 0;\n  bool _pingInFlight = false;", 'ping state')
+          once("      _pingPeers();", "      if (!_pingInFlight) unawaited(_pingPeers(myGen));", 'timer call')
+
+          ping_pattern = re.compile(r"  void _pingPeers\(\) \{.*?\n  \}\n\n  /// Answers a ping", re.S)
+          ping_replacement = '''  Future<void> _pingPeers(int myGen) async {
+    if (_pingInFlight) return;
+    _pingInFlight = true;
+    try {
+      final targets = _peers.keys.toList(growable: false);
+      for (final address in targets) {
+        if (_generation != myGen) return;
+        final senderId = _senderAtAddress[address];
+        final rx = senderId == null ? null : _rxBySender[senderId];
+        final token = ++_pingToken;
+        final packet = await _transportCapabilityHeartbeat.encodePing(
+          token: token,
+          lastTxSeq: _audioSeq,
+          lastRxSeq: rx?.lastSeq ?? 0,
+          audioRxPackets: rx?.count ?? 0,
+        );
+        if (_generation != myGen) return;
+        final sentAt = DateTime.now();
+        if (_trySend(packet, InternetAddress(address))) {
+          _pings.sent(address, token, sentAt);
+        }
+      }
+
+      if (_generation != myGen) return;
+      final now = DateTime.now();
+      _loss.retain(_currentlyHeardSenders());
+      _capabilities.retain(_currentlyHeardSenders());
+      _syncFormatProfile();
+      _mediaCapabilities.retain(_currentlyHeardSenders());
+      _syncMediaFormatProfile();
+      _syncMediaQuality();
+      _codec.applyTuning(
+        OpusTuner.forProfile(_negotiatedFormat).tune(
+          AudioLinkConditions(
+            lossFraction: _loss.worstLossFraction,
+            rtt: _lastRtt,
+          ),
+        ),
+      );
+      _updateMediaTuning();
+
+      final unconfirmed = _pings.unconfirmedAmong(targets, now);
+      final wasUnconfirmed = _unicastUnconfirmed;
+      _unicastUnconfirmed = unconfirmed.isNotEmpty;
+      if (_unicastUnconfirmed != wasUnconfirmed) {
+        Logger.diagnostic(
+          _unicastUnconfirmed
+              ? 'wifi: $unconfirmed heard but not answering unicast pings — '
+                    'audio is going back on the broadcast leg for them'
+              : 'wifi: every heard peer is answering unicast again — '
+                    'audio back to unicast only',
+        );
+      }
+    } finally {
+      _pingInFlight = false;
+    }
+  }
+
+  /// Answers a ping'''
+          s, n = ping_pattern.subn(ping_replacement, s, count=1)
+          if n != 1:
+              raise SystemExit(f'ping method: expected 1 match, found {n}')
+
+          control_pattern = re.compile(r"  /// Answers a ping on the same unicast path it arrived by, and records a pong\.\n  void _handleControl\(ControlPacket packet, String fromAddress\) \{.*?\n  \}\n\n  /// How much", re.S)
+          control_replacement = '''  /// Answers a ping on the same unicast path it arrived by, and records a pong.
+  /// Capability evidence becomes observable only after the exact Pong token and
+  /// route match an outstanding ping; decoding a trailer alone grants nothing.
+  Future<void> _handleControl(
+    DecodedTransportCapabilityControl decoded,
+    String fromAddress,
+    int myGen,
+  ) async {
+    final packet = decoded.packet;
+    switch (packet) {
+      case PingPacket():
+        final rx = _rxBySender[packet.senderId];
+        final response = await _transportCapabilityHeartbeat.encodePong(
+          token: packet.token,
+          lastTxSeq: _audioSeq,
+          lastRxSeq: rx?.lastSeq ?? 0,
+          audioRxPackets: rx?.count ?? 0,
+        );
+        if (_generation != myGen) return;
+        _trySend(response, InternetAddress(fromAddress));
+      case PongPacket():
+        final observedAt = DateTime.now();
+        final rtt = _pings.pong(fromAddress, packet.token, observedAt);
+        if (rtt != null) {
+          _lastRtt = rtt;
+          _transportCapabilityHeartbeat.observeMatchedPong(
+            decoded: decoded,
+            peerKey: packet.senderId,
+            observedAt: observedAt,
+          );
+        }
+        _loss.sample(
+          packet.senderId,
+          ourSentCount: _audioSeq,
+          theirReceivedCount: packet.audioRxPackets,
+        );
+    }
+  }
+
+  /// How much'''
+          s, n = control_pattern.subn(control_replacement, s, count=1)
+          if n != 1:
+              raise SystemExit(f'control method: expected 1 match, found {n}')
+
+          p.write_text(s)
+          Path('test/wifi_transport_capability_observation_wiring_test.dart').write_text('''import 'package:flutter_test/flutter_test.dart';
+import 'package:tark/core/identity/channel_membership.dart';
+import 'package:tark/core/identity/device_identity.dart';
+import 'package:tark/core/identity/session_epoch.dart';
+import 'package:tark/feature/transfer/data/repository/wifi_transfer_repository_impl.dart';
+import 'package:tark/feature/transfer/domain/entity/session_role.dart';
+import 'package:tark/feature/transfer/domain/repository/transport_capability_observation_source.dart';
+import 'package:tark/feature/transfer/domain/service/session_role_store.dart';
+
+void main() {
+  test('wifi exposes capability source without fabricating peer evidence', () async {
+    final repository = WifiTransferRepositoryImpl(
+      const DeviceIdentity.withId('0123456789ab'),
+      SessionEpoch.startingAt(7),
+      _RoleStore(),
+      ChannelMembership(),
+    );
+
+    expect(repository, isA<TransportCapabilityObservationSource>());
+    var observed = false;
+    final subscription = repository.transportCapabilityObservations.listen((_) {
+      observed = true;
+    });
+    await Future<void>.delayed(Duration.zero);
+    expect(observed, isFalse);
+    await subscription.cancel();
+    repository.dispose();
+  });
+}
+
+final class _RoleStore implements SessionRoleStore {
+  SessionRole? _role;
+  @override
+  SessionRole? get role => _role;
+  @override
+  void setRole(SessionRole role) => _role = role;
+  @override
+  void clear() => _role = null;
+}
+''')
+          PY
+          git diff --check
+      - name: Commit source patch and remove helper workflows
+        shell: bash
+        run: |
+          rm -f .github/workflows/patch-48-wifi-capability-v3.yml .github/workflows/patch-48-wifi-capability-v3b.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "transfer: wire verified capability heartbeat into live wifi (#48)"
+          git push origin HEAD:fix/48-wifi-capability-heartbeat-production-v3
