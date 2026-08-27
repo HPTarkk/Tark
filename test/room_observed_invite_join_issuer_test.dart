@@ -19,12 +19,15 @@ void main() {
     repository = SharedPreferencesRoomRepository();
   });
 
-  Future<({
-    RoomInvitation invite,
-    RoomPeerMemberBindingRegistry bindings,
-    RoomJoinPeerBindingAuthority authority,
-    RoomObservedInviteJoinIssuer issuer,
-  })> setup() async {
+  Future<
+    ({
+      RoomInvitation invite,
+      RoomPeerMemberBindingRegistry bindings,
+      RoomJoinPeerBindingAuthority authority,
+      RoomObservedInviteJoinIssuer issuer,
+    })
+  >
+  setup() async {
     final room = await repository.create(
       name: 'Morning ride',
       localDisplayName: 'Owner',
@@ -65,25 +68,28 @@ void main() {
     displayName: 'Rider two',
   );
 
-  test('verified join binds carrier-observed route to admitted member', () async {
-    final value = await setup();
+  test(
+    'verified join binds carrier-observed route to admitted member',
+    () async {
+      final value = await setup();
 
-    final encoded = await value.issuer.handle(
-      encodedRequest: request(value.invite).encode(),
-      peerKey: 'device-route-a',
-      attachmentGeneration: 3,
-      now: now.add(const Duration(minutes: 1)),
-    );
-    final response = RoomInviteJoinResponse.decode(encoded);
+      final encoded = await value.issuer.handle(
+        encodedRequest: request(value.invite).encode(),
+        peerKey: 'device-route-a',
+        attachmentGeneration: 3,
+        now: now.add(const Duration(minutes: 1)),
+      );
+      final response = RoomInviteJoinResponse.decode(encoded);
 
-    expect(response.status, RoomInviteJoinResponseStatus.accepted);
-    expect(response.memberId, isNotNull);
-    expect(
-      value.bindings.resolve('device-route-a', attachmentGeneration: 3),
-      response.memberId,
-    );
-    expect(value.authority.pendingCount, 0);
-  });
+      expect(response.status, RoomInviteJoinResponseStatus.accepted);
+      expect(response.memberId, isNotNull);
+      expect(
+        value.bindings.resolve('device-route-a', attachmentGeneration: 3),
+        response.memberId,
+      );
+      expect(value.authority.pendingCount, 0);
+    },
+  );
 
   test('forged invite cannot authorize observed route', () async {
     final value = await setup();
@@ -134,33 +140,39 @@ void main() {
     );
   });
 
-  test('same request replay from another route cannot steal first route', () async {
-    final value = await setup();
-    final encodedRequest = request(value.invite).encode();
+  test(
+    'same request replay from another route cannot steal first route',
+    () async {
+      final value = await setup();
+      final encodedRequest = request(value.invite).encode();
 
-    final first = await value.issuer.handle(
-      encodedRequest: encodedRequest,
-      peerKey: 'first-route',
-      attachmentGeneration: 1,
-      now: now.add(const Duration(minutes: 1)),
-    );
-    final firstResponse = RoomInviteJoinResponse.decode(first);
-    expect(firstResponse.status, RoomInviteJoinResponseStatus.accepted);
+      final first = await value.issuer.handle(
+        encodedRequest: encodedRequest,
+        peerKey: 'first-route',
+        attachmentGeneration: 1,
+        now: now.add(const Duration(minutes: 1)),
+      );
+      final firstResponse = RoomInviteJoinResponse.decode(first);
+      expect(firstResponse.status, RoomInviteJoinResponseStatus.accepted);
 
-    final second = await value.issuer.handle(
-      encodedRequest: encodedRequest,
-      peerKey: 'replay-route',
-      attachmentGeneration: 1,
-      now: now.add(const Duration(minutes: 2)),
-    );
-    expect(RoomInviteJoinResponse.decode(second).status, isNot(RoomInviteJoinResponseStatus.accepted));
-    expect(
-      value.bindings.resolve('first-route', attachmentGeneration: 1),
-      firstResponse.memberId,
-    );
-    expect(
-      value.bindings.resolve('replay-route', attachmentGeneration: 1),
-      isNull,
-    );
-  });
+      final second = await value.issuer.handle(
+        encodedRequest: encodedRequest,
+        peerKey: 'replay-route',
+        attachmentGeneration: 1,
+        now: now.add(const Duration(minutes: 2)),
+      );
+      expect(
+        RoomInviteJoinResponse.decode(second).status,
+        isNot(RoomInviteJoinResponseStatus.accepted),
+      );
+      expect(
+        value.bindings.resolve('first-route', attachmentGeneration: 1),
+        firstResponse.memberId,
+      );
+      expect(
+        value.bindings.resolve('replay-route', attachmentGeneration: 1),
+        isNull,
+      );
+    },
+  );
 }
