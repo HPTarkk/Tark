@@ -9,9 +9,12 @@ import 'package:tark/feature/transfer/domain/entity/audio_profile.dart';
 import 'package:tark/feature/transfer/domain/entity/connection_health.dart';
 import 'package:tark/feature/transfer/domain/entity/session_role.dart';
 import 'package:tark/feature/transfer/domain/entity/transfer_mode.dart';
+import 'package:tark/feature/transfer/domain/entity/transport_capability_advertisement.dart';
+import 'package:tark/feature/transfer/domain/entity/transport_capability_observation.dart';
 import 'package:tark/feature/transfer/domain/entity/transport_stats.dart';
 import 'package:tark/feature/transfer/domain/entity/waki_packet.dart';
 import 'package:tark/feature/transfer/domain/repository/transfer_repository.dart';
+import 'package:tark/feature/transfer/domain/repository/transport_capability_observation_source.dart';
 import 'package:tark/feature/transfer/domain/service/transfer_mode_store.dart';
 
 void main() {
@@ -37,6 +40,9 @@ void main() {
   tearDown(() {
     subject.dispose();
     modes.dispose();
+    wifi.disposeControllers();
+    bluetooth.disposeControllers();
+    guest.disposeControllers();
   });
 
   test(
@@ -81,19 +87,68 @@ void main() {
     expect(guest.connectStarts, 1);
   });
 
+  test('verified capability observations follow active transport', () async {
+    final observed = <TransportCapabilityObservation>[];
+    final subscription = subject.transportCapabilityObservations.listen(
+      observed.add,
+    );
+
+    wifi.emitCapability(_observation('wifi-route'));
+    await _flush();
+    expect(observed.map((value) => value.peerKey), ['wifi-route']);
+
+    await modes.setMode(TransferMode.guest);
+    await _flush();
+
+    wifi.emitCapability(_observation('stale-wifi-route'));
+    guest.emitCapability(_observation('guest-route'));
+    await _flush();
+
+    expect(
+      observed.map((value) => value.peerKey),
+      ['wifi-route', 'guest-route'],
+    );
+    await subscription.cancel();
+  });
+
+  test('wifi to hotspot keeps capability evidence on same source', () async {
+    final observed = <TransportCapabilityObservation>[];
+    final subscription = subject.transportCapabilityObservations.listen(
+      observed.add,
+    );
+
+    await modes.setMode(TransferMode.hotspot);
+    wifi.emitCapability(_observation('same-wifi-route'));
+    await _flush();
+
+    expect(wifi.stopCalls, 0);
+    expect(observed.single.peerKey, 'same-wifi-route');
+    await subscription.cancel();
+  });
+
   test('rapid replacements cannot attach an older repository last', () async {
     subject.startListening();
     subject.connect();
+    final observed = <TransportCapabilityObservation>[];
+    final subscription = subject.transportCapabilityObservations.listen(
+      observed.add,
+    );
 
     await modes.setMode(TransferMode.guest);
     await modes.setMode(TransferMode.bluetooth);
     await _flush();
 
     await subject.sendAudio(const [0.3], 'Rider');
+    guest.emitCapability(_observation('stale-guest-route'));
+    bluetooth.emitCapability(_observation('bluetooth-route'));
+    await _flush();
+
     expect(bluetooth.audioSends, 1);
     expect(guest.audioSends, 0);
     expect(bluetooth.listenStarts, 1);
     expect(bluetooth.connectStarts, 1);
+    expect(observed.map((value) => value.peerKey), ['bluetooth-route']);
+    await subscription.cancel();
   });
 
   test(
@@ -101,6 +156,7 @@ void main() {
     () async {
       subject.startListening();
       subject.connect();
+      subject.transportCapabilityObservations.listen((_) {});
 
       subject.stopConnection();
       await _flush();
@@ -117,6 +173,18 @@ void main() {
     },
   );
 }
+
+TransportCapabilityObservation _observation(String peerKey) =>
+    TransportCapabilityObservation(
+      peerKey: peerKey,
+      capability: const TransportCapabilityAdvertisement(
+        canHostHotspot: true,
+        bluetoothSupported: true,
+        backgroundReady: true,
+        batteryPercent: 80,
+      ),
+      observedAt: DateTime.utc(2026, 8, 27),
+    );
 
 Future<void> _flush() async {
   await Future<void>.delayed(Duration.zero);
@@ -165,7 +233,8 @@ final class _ModeStore implements TransferModeStore {
   }
 }
 
-final class _FakeTransfer implements TransferRepository {
+final class _FakeTransfer
+    implements TransferRepository, TransportCapabilityObservationSource {
   int audioSends = 0;
   int stopCalls = 0;
   int listenStarts = 0;
@@ -174,6 +243,16 @@ final class _FakeTransfer implements TransferRepository {
 
   final _packets = StreamController<WakiPacket>.broadcast();
   final _health = StreamController<ConnectionHealth>.broadcast();
+  final _capabilities =
+      StreamController<TransportCapabilityObservation>.broadcast();
+
+  void emitCapability(TransportCapabilityObservation observation) {
+    _capabilities.add(observation);
+  }
+
+  @override
+  Stream<TransportCapabilityObservation> get transportCapabilityObservations =>
+      _capabilities.stream;
 
   @override
   Stream<WakiPacket> startListening() {
@@ -244,5 +323,11 @@ final class _FakeTransfer implements TransferRepository {
   @override
   void dispose() {
     disposeCalls += 1;
+  }
+
+  void disposeControllers() {
+    unawaited(_packets.close());
+    unawaited(_health.close());
+    unawaited(_capabilities.close());
   }
 }
