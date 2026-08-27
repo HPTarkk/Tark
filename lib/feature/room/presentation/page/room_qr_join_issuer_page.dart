@@ -3,22 +3,25 @@ import 'package:get_it/get_it.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../../data/security/room_transport_identity_lifecycle.dart';
+import '../../data/security/room_transport_identity_secure_store.dart';
 import '../../domain/repository/room_repository.dart';
 import '../../domain/service/room_invite_acceptance_coordinator.dart';
 import '../../domain/service/room_invite_join_exchange.dart';
 
 /// Issuer-side half of the offline QR join handshake.
-///
-/// A scanned request is never trusted by the UI. It is passed to
-/// [RoomInviteJoinExchange], which verifies/redeems the embedded invitation via
-/// the canonical issuer ledger before an accepted response can be produced.
 class RoomQrJoinIssuerPage extends StatefulWidget {
-  const RoomQrJoinIssuerPage({required this.repository, super.key});
+  const RoomQrJoinIssuerPage({
+    required this.repository,
+    this.identityLifecycle,
+    super.key,
+  });
 
   static Widget buildPage() =>
       RoomQrJoinIssuerPage(repository: GetIt.instance<RoomRepository>());
 
   final RoomRepository repository;
+  final RoomTransportIdentityLifecycle? identityLifecycle;
 
   @override
   State<RoomQrJoinIssuerPage> createState() => _RoomQrJoinIssuerPageState();
@@ -28,6 +31,7 @@ enum _IssuerStage { scanRequest, processing, response }
 
 class _RoomQrJoinIssuerPageState extends State<RoomQrJoinIssuerPage> {
   late final RoomInviteJoinExchange _exchange;
+  late final RoomTransportIdentityLifecycle _identityLifecycle;
   _IssuerStage _stage = _IssuerStage.scanRequest;
   String? _response;
   bool _handling = false;
@@ -38,8 +42,23 @@ class _RoomQrJoinIssuerPageState extends State<RoomQrJoinIssuerPage> {
   @override
   void initState() {
     super.initState();
+    _identityLifecycle =
+        widget.identityLifecycle ??
+        RoomTransportIdentityLifecycle(
+          store: PlatformRoomTransportIdentitySecureStore(),
+        );
     _exchange = RoomInviteJoinExchange(
       acceptance: RoomInviteAcceptanceCoordinator(widget.repository),
+      issueCertificate:
+          ({
+            required acceptedRoom,
+            required memberId,
+            required memberPublicKey,
+          }) => _identityLifecycle.issueMemberCertificate(
+            issuerRoom: acceptedRoom,
+            memberId: memberId,
+            memberPublicKey: memberPublicKey,
+          ),
     );
   }
 
