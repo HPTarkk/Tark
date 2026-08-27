@@ -60,6 +60,44 @@ void main() {
     expect(authority.pendingCount, 0);
   });
 
+  test('same-generation replay from another route cannot steal binding', () {
+    expect(
+      authority.observeRequest(
+        requestId: requestId,
+        peerKey: 'route-original',
+        attachmentGeneration: 4,
+        at: at,
+      ),
+      isTrue,
+    );
+    expect(
+      authority.observeRequest(
+        requestId: requestId,
+        peerKey: 'route-replay',
+        attachmentGeneration: 4,
+        at: at.add(const Duration(milliseconds: 100)),
+      ),
+      isFalse,
+    );
+
+    expect(
+      authority.bindAcceptedResponse(
+        response: accepted(),
+        attachmentGeneration: 4,
+        at: at.add(const Duration(seconds: 1)),
+      ),
+      isTrue,
+    );
+    expect(
+      bindings.resolve('route-original', attachmentGeneration: 4),
+      memberId,
+    );
+    expect(
+      bindings.resolve('route-replay', attachmentGeneration: 4),
+      isNull,
+    );
+  });
+
   test('self-claimed or unrelated accepted response cannot steal route', () {
     expect(
       authority.observeRequest(
