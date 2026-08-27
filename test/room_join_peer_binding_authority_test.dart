@@ -92,10 +92,7 @@ void main() {
       bindings.resolve('route-original', attachmentGeneration: 4),
       memberId,
     );
-    expect(
-      bindings.resolve('route-replay', attachmentGeneration: 4),
-      isNull,
-    );
+    expect(bindings.resolve('route-replay', attachmentGeneration: 4), isNull);
   });
 
   test('self-claimed or unrelated accepted response cannot steal route', () {
