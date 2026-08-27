@@ -48,7 +48,9 @@ void main() {
     );
     addTearDown(runtime.dispose);
     final observations = <TransportRouteProofObservation>[];
-    final subscription = runtime.routeProofObservations.listen(observations.add);
+    final subscription = runtime.routeProofObservations.listen(
+      observations.add,
+    );
     addTearDown(subscription.cancel);
 
     final remote = codec().encodePong(
@@ -83,10 +85,10 @@ void main() {
       readLocalCapability: () async => null,
     );
     addTearDown(runtime.dispose);
-    runtime.setRouteProofProvider(({
-      required int token,
-      required int challengeEpoch,
-    }) async => throw StateError('secure identity unavailable'));
+    runtime.setRouteProofProvider(
+      ({required int token, required int challengeEpoch}) async =>
+          throw StateError('secure identity unavailable'),
+    );
 
     final bytes = await runtime.encodePong(
       token: 61,
@@ -97,10 +99,9 @@ void main() {
     );
     expect(runtime.decodeControl(bytes, 'peer')!.routeProof, isNull);
 
-    runtime.setRouteProofProvider(({
-      required int token,
-      required int challengeEpoch,
-    }) async => 'proof');
+    runtime.setRouteProofProvider(
+      ({required int token, required int challengeEpoch}) async => 'proof',
+    );
     final noEpoch = await runtime.encodePong(
       token: 62,
       lastTxSeq: 1,
