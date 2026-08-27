@@ -27,10 +27,7 @@ void main() {
       requiresUserRescan: plan.kind == RoomTransportKind.hotspot,
     );
     return RoomFailoverTransportContext(
-      attempt: RoomFailoverAttempt(
-        decision: decision,
-        attachmentGeneration: 2,
-      ),
+      attempt: RoomFailoverAttempt(decision: decision, attachmentGeneration: 2),
       callbacks: RoomFailoverTransportCallbacks(
         ready: ({String? role}) => true,
         degraded: ({String? reason}) => true,
@@ -75,151 +72,160 @@ void main() {
     modes.dispose();
   });
 
-  test('remote hotspot winner never starts a competing local hotspot', () async {
-    final modes = _ModeStore();
-    final transfer = _Transfer();
-    final host = _HotspotHost();
-    final keeper = _HotspotKeeper();
-    String? degradedReason;
-    final starter = RoomLiveFailoverTransportStarter(
-      localMemberId: local,
-      modeStore: modes,
-      transfer: transfer,
-      hotspotHost: host,
-      hotspotLinkKeeper: keeper,
-    );
-    final decision = RoomFailoverDecision(
-      epoch: 4,
-      plan: const RoomTransportPlan(
+  test(
+    'remote hotspot winner never starts a competing local hotspot',
+    () async {
+      final modes = _ModeStore();
+      final transfer = _Transfer();
+      final host = _HotspotHost();
+      final keeper = _HotspotKeeper();
+      String? degradedReason;
+      final starter = RoomLiveFailoverTransportStarter(
+        localMemberId: local,
+        modeStore: modes,
+        transfer: transfer,
+        hotspotHost: host,
+        hotspotLinkKeeper: keeper,
+      );
+      final decision = RoomFailoverDecision(
         epoch: 4,
-        kind: RoomTransportKind.hotspot,
-        reason: RoomTransportPlanReason.deterministicHotspotHost,
-        hotspotHost: remote,
-      ),
-      reason: RoomFailoverReason.hostLost,
-      requiresUserRescan: true,
-    );
-    final context = RoomFailoverTransportContext(
-      attempt: RoomFailoverAttempt(
-        decision: decision,
-        attachmentGeneration: 3,
-      ),
-      callbacks: RoomFailoverTransportCallbacks(
-        ready: ({String? role}) => true,
-        degraded: ({String? reason}) {
-          degradedReason = reason;
-          return true;
-        },
-        failed: ({String? reason}) => true,
-      ),
-    );
+        plan: const RoomTransportPlan(
+          epoch: 4,
+          kind: RoomTransportKind.hotspot,
+          reason: RoomTransportPlanReason.deterministicHotspotHost,
+          hotspotHost: remote,
+        ),
+        reason: RoomFailoverReason.hostLost,
+        requiresUserRescan: true,
+      );
+      final context = RoomFailoverTransportContext(
+        attempt: RoomFailoverAttempt(
+          decision: decision,
+          attachmentGeneration: 3,
+        ),
+        callbacks: RoomFailoverTransportCallbacks(
+          ready: ({String? role}) => true,
+          degraded: ({String? reason}) {
+            degradedReason = reason;
+            return true;
+          },
+          failed: ({String? reason}) => true,
+        ),
+      );
 
-    final handle = await starter.call(context);
+      final handle = await starter.call(context);
 
-    expect(host.startCalls, 0);
-    expect(keeper.adopted, isNull);
-    expect(modes.mode, TransferMode.hotspot);
-    expect(degradedReason, 'failover_waiting_for_remote_hotspot_rejoin');
+      expect(host.startCalls, 0);
+      expect(keeper.adopted, isNull);
+      expect(modes.mode, TransferMode.hotspot);
+      expect(degradedReason, 'failover_waiting_for_remote_hotspot_rejoin');
 
-    await handle.dispose();
-    expect(host.stopCalls, 0);
-    expect(keeper.releaseCalls, 0);
-    await transfer.disposeController();
-    modes.dispose();
-  });
+      await handle.dispose();
+      expect(host.stopCalls, 0);
+      expect(keeper.releaseCalls, 0);
+      await transfer.disposeController();
+      modes.dispose();
+    },
+  );
 
-  test('replacement health is translated to generation-gated callbacks', () async {
-    final modes = _ModeStore();
-    final transfer = _Transfer();
-    final host = _HotspotHost();
-    final keeper = _HotspotKeeper();
-    String? readyRole;
-    final degraded = <String?>[];
-    final failed = <String?>[];
-    final starter = RoomLiveFailoverTransportStarter(
-      localMemberId: local,
-      modeStore: modes,
-      transfer: transfer,
-      hotspotHost: host,
-      hotspotLinkKeeper: keeper,
-    );
-    final decision = RoomFailoverDecision(
-      epoch: 5,
-      plan: const RoomTransportPlan(
+  test(
+    'replacement health is translated to generation-gated callbacks',
+    () async {
+      final modes = _ModeStore();
+      final transfer = _Transfer();
+      final host = _HotspotHost();
+      final keeper = _HotspotKeeper();
+      String? readyRole;
+      final degraded = <String?>[];
+      final failed = <String?>[];
+      final starter = RoomLiveFailoverTransportStarter(
+        localMemberId: local,
+        modeStore: modes,
+        transfer: transfer,
+        hotspotHost: host,
+        hotspotLinkKeeper: keeper,
+      );
+      final decision = RoomFailoverDecision(
         epoch: 5,
-        kind: RoomTransportKind.sharedLan,
-        reason: RoomTransportPlanReason.usableSharedLan,
-      ),
-      reason: RoomFailoverReason.transportFailed,
-      requiresUserRescan: false,
-    );
-    final context = RoomFailoverTransportContext(
-      attempt: RoomFailoverAttempt(
-        decision: decision,
-        attachmentGeneration: 4,
-      ),
-      callbacks: RoomFailoverTransportCallbacks(
-        ready: ({String? role}) {
-          readyRole = role;
-          return true;
-        },
-        degraded: ({String? reason}) {
-          degraded.add(reason);
-          return true;
-        },
-        failed: ({String? reason}) {
-          failed.add(reason);
-          return true;
-        },
-      ),
-    );
+        plan: const RoomTransportPlan(
+          epoch: 5,
+          kind: RoomTransportKind.sharedLan,
+          reason: RoomTransportPlanReason.usableSharedLan,
+        ),
+        reason: RoomFailoverReason.transportFailed,
+        requiresUserRescan: false,
+      );
+      final context = RoomFailoverTransportContext(
+        attempt: RoomFailoverAttempt(
+          decision: decision,
+          attachmentGeneration: 4,
+        ),
+        callbacks: RoomFailoverTransportCallbacks(
+          ready: ({String? role}) {
+            readyRole = role;
+            return true;
+          },
+          degraded: ({String? reason}) {
+            degraded.add(reason);
+            return true;
+          },
+          failed: ({String? reason}) {
+            failed.add(reason);
+            return true;
+          },
+        ),
+      );
 
-    final handle = await starter.call(context);
-    transfer.health.add(const ConnectionHealth.reconnecting());
-    transfer.health.add(const ConnectionHealth.healthy());
-    transfer.health.add(const ConnectionHealth.down());
+      final handle = await starter.call(context);
+      transfer.health.add(const ConnectionHealth.reconnecting());
+      transfer.health.add(const ConnectionHealth.healthy());
+      transfer.health.add(const ConnectionHealth.down());
 
-    expect(modes.mode, TransferMode.wifi);
-    expect(degraded, [ConnectionHealthStatus.reconnecting.name]);
-    expect(readyRole, 'peer');
-    expect(failed, ['replacement_transport_down']);
+      expect(modes.mode, TransferMode.wifi);
+      expect(degraded, [ConnectionHealthStatus.reconnecting.name]);
+      expect(readyRole, 'peer');
+      expect(failed, ['replacement_transport_down']);
 
-    await handle.dispose();
-    await transfer.disposeController();
-    modes.dispose();
-  });
+      await handle.dispose();
+      await transfer.disposeController();
+      modes.dispose();
+    },
+  );
 
-  test('hotspot start failure does not claim ownership or change mode', () async {
-    final modes = _ModeStore(initial: TransferMode.wifi);
-    final transfer = _Transfer();
-    final host = _HotspotHost(failStart: true);
-    final keeper = _HotspotKeeper();
-    final starter = RoomLiveFailoverTransportStarter(
-      localMemberId: local,
-      modeStore: modes,
-      transfer: transfer,
-      hotspotHost: host,
-      hotspotLinkKeeper: keeper,
-    );
-    final context = contextFor(
-      plan: const RoomTransportPlan(
-        epoch: 6,
-        kind: RoomTransportKind.hotspot,
-        reason: RoomTransportPlanReason.deterministicHotspotHost,
-        hotspotHost: local,
-      ),
-    );
+  test(
+    'hotspot start failure does not claim ownership or change mode',
+    () async {
+      final modes = _ModeStore(initial: TransferMode.wifi);
+      final transfer = _Transfer();
+      final host = _HotspotHost(failStart: true);
+      final keeper = _HotspotKeeper();
+      final starter = RoomLiveFailoverTransportStarter(
+        localMemberId: local,
+        modeStore: modes,
+        transfer: transfer,
+        hotspotHost: host,
+        hotspotLinkKeeper: keeper,
+      );
+      final context = contextFor(
+        plan: const RoomTransportPlan(
+          epoch: 6,
+          kind: RoomTransportKind.hotspot,
+          reason: RoomTransportPlanReason.deterministicHotspotHost,
+          hotspotHost: local,
+        ),
+      );
 
-    await expectLater(starter.call(context), throwsStateError);
+      await expectLater(starter.call(context), throwsStateError);
 
-    expect(host.startCalls, 1);
-    expect(host.stopCalls, 0);
-    expect(keeper.adopted, isNull);
-    expect(modes.mode, TransferMode.wifi);
-    expect(transfer.connectCalls, 0);
-    await transfer.disposeController();
-    modes.dispose();
-  });
+      expect(host.startCalls, 1);
+      expect(host.stopCalls, 0);
+      expect(keeper.adopted, isNull);
+      expect(modes.mode, TransferMode.wifi);
+      expect(transfer.connectCalls, 0);
+      await transfer.disposeController();
+      modes.dispose();
+    },
+  );
 }
 
 final class _ModeStore implements TransferModeStore {
