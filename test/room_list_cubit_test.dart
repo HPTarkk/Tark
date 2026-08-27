@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tark/feature/room/data/security/room_transport_identity_secure_store.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
 import 'package:tark/feature/room/domain/entity/room_accepted_join_snapshot.dart';
 import 'package:tark/feature/room/domain/entity/room_invitation.dart';
@@ -8,12 +9,17 @@ import 'package:tark/feature/room/domain/service/room_invitation_ledger.dart';
 import 'package:tark/feature/room/presentation/manager/room_list_cubit.dart';
 
 void main() {
+  RoomListCubit cubitFor(_FakeRoomRepository repository) => RoomListCubit(
+    repository,
+    identityStore: _MemoryIdentityStore(),
+  );
+
   test('load preserves a selected durable room that still exists', () async {
     final repository = _FakeRoomRepository();
     final first = repository.seed('Morning ride');
     repository.seed('Weekend');
     await repository.select(first.room.id);
-    final cubit = RoomListCubit(repository);
+    final cubit = cubitFor(repository);
 
     await cubit.load();
 
@@ -26,7 +32,7 @@ void main() {
   test('load clears stale selected room rather than inventing one', () async {
     final repository = _FakeRoomRepository();
     repository.selected = const RoomId('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
-    final cubit = RoomListCubit(repository);
+    final cubit = cubitFor(repository);
 
     await cubit.load();
 
@@ -37,7 +43,7 @@ void main() {
 
   test('create selects room but does not start any transport', () async {
     final repository = _FakeRoomRepository();
-    final cubit = RoomListCubit(repository);
+    final cubit = cubitFor(repository);
 
     final created = await cubit.createRoom(
       name: 'Night riders',
@@ -57,7 +63,7 @@ void main() {
       final repository = _FakeRoomRepository();
       final saved = repository.seed('Canonical room');
       await repository.select(saved.room.id);
-      final cubit = RoomListCubit(repository);
+      final cubit = cubitFor(repository);
       await cubit.load();
 
       final runtime = cubit.openSelectedSession(
@@ -82,7 +88,7 @@ void main() {
     final repository = _FakeRoomRepository();
     final saved = repository.seed('Old ride');
     await repository.select(saved.room.id);
-    final cubit = RoomListCubit(repository);
+    final cubit = cubitFor(repository);
     await cubit.load();
 
     await cubit.archive(saved.room.id);
@@ -97,7 +103,7 @@ void main() {
     final repository = _FakeRoomRepository();
     final saved = repository.seed('Friends');
     await repository.select(saved.room.id);
-    final cubit = RoomListCubit(repository);
+    final cubit = cubitFor(repository);
     await cubit.load();
 
     await cubit.leave(saved.room.id);
@@ -108,6 +114,36 @@ void main() {
     expect(repository.selected, isNull);
     await cubit.close();
   });
+}
+
+final class _MemoryIdentityStore implements RoomTransportIdentitySecureStore {
+  final Map<String, RoomTransportIdentityMaterial> _values = {};
+
+  String _key(RoomId roomId, RoomMemberId memberId) =>
+      '${roomId.value}:${memberId.value}';
+
+  @override
+  Future<void> delete({
+    required RoomId roomId,
+    required RoomMemberId memberId,
+  }) async {
+    _values.remove(_key(roomId, memberId));
+  }
+
+  @override
+  Future<RoomTransportIdentityMaterial?> read({
+    required RoomId roomId,
+    required RoomMemberId memberId,
+  }) async => _values[_key(roomId, memberId)];
+
+  @override
+  Future<void> write({
+    required RoomId roomId,
+    required RoomMemberId memberId,
+    required RoomTransportIdentityMaterial material,
+  }) async {
+    _values[_key(roomId, memberId)] = material;
+  }
 }
 
 class _FakeRoomRepository implements RoomRepository {
