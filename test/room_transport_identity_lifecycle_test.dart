@@ -19,9 +19,7 @@ void main() {
       name: 'Ride',
       createdAt: now,
       updatedAt: now,
-      members: [
-        RoomMember(id: memberId, displayName: 'Rider', joinedAt: now),
-      ],
+      members: [RoomMember(id: memberId, displayName: 'Rider', joinedAt: now)],
     ),
     membership: RoomMembership(
       localMemberId: memberId,
@@ -77,31 +75,34 @@ void main() {
     );
   });
 
-  test('joined identity rejects a certificate for another public key', () async {
-    final store = _MemoryStore();
-    final lifecycle = RoomTransportIdentityLifecycle(store: store);
-    final crypto = RoomMemberTransportIdentityCrypto();
-    final issuer = await crypto.generateKeyPair();
-    final member = await crypto.generateKeyPair();
-    final attacker = await crypto.generateKeyPair();
-    final joined = saved(memberId: riderId, canManageInvites: false);
-    final wrongCertificate = await crypto.issueCertificate(
-      roomId: roomId,
-      memberId: riderId,
-      memberPublicKey: attacker.publicKey,
-      issuer: issuer,
-    );
+  test(
+    'joined identity rejects a certificate for another public key',
+    () async {
+      final store = _MemoryStore();
+      final lifecycle = RoomTransportIdentityLifecycle(store: store);
+      final crypto = RoomMemberTransportIdentityCrypto();
+      final issuer = await crypto.generateKeyPair();
+      final member = await crypto.generateKeyPair();
+      final attacker = await crypto.generateKeyPair();
+      final joined = saved(memberId: riderId, canManageInvites: false);
+      final wrongCertificate = await crypto.issueCertificate(
+        roomId: roomId,
+        memberId: riderId,
+        memberPublicKey: attacker.publicKey,
+        issuer: issuer,
+      );
 
-    await expectLater(
-      lifecycle.persistJoinedIdentity(
-        saved: joined,
-        memberKeyPair: member,
-        certificate: wrongCertificate,
-      ),
-      throwsFormatException,
-    );
-    expect(store.writeCount, 0);
-  });
+      await expectLater(
+        lifecycle.persistJoinedIdentity(
+          saved: joined,
+          memberKeyPair: member,
+          certificate: wrongCertificate,
+        ),
+        throwsFormatException,
+      );
+      expect(store.writeCount, 0);
+    },
+  );
 
   test('delete removes only the local Room member identity scope', () async {
     final store = _MemoryStore();
@@ -125,7 +126,10 @@ final class _MemoryStore implements RoomTransportIdentitySecureStore {
       '${roomId.value}:${memberId.value}';
 
   @override
-  Future<void> delete({required RoomId roomId, required RoomMemberId memberId}) async {
+  Future<void> delete({
+    required RoomId roomId,
+    required RoomMemberId memberId,
+  }) async {
     _values.remove(_key(roomId, memberId));
     deletedScopes.add((roomId.value, memberId.value));
   }
