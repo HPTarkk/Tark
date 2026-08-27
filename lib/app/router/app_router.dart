@@ -79,7 +79,7 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.roomsPath,
         name: AppRoutes.roomsName,
-        builder: (context, state) => RoomListPage.buildPage(),
+        builder: (context, state) => RoomManagerEntry.buildPage(),
       ),
       GoRoute(
         path: AppRoutes.roomQrJoinPath,
