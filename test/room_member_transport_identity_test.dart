@@ -6,7 +6,7 @@ void main() {
   final crypto = RoomMemberTransportIdentityCrypto();
   final roomId = RoomId('a' * 32);
   final otherRoomId = RoomId('b' * 32);
-  const memberId = RoomMemberId('c' * 24);
+  const memberId = RoomMemberId('cccccccccccccccccccccccc');
 
   Future<
     ({
@@ -140,7 +140,7 @@ void main() {
     );
     final tamperedCertificate = RoomMemberTransportCertificate(
       roomId: value.certificate.roomId,
-      memberId: const RoomMemberId('d' * 24),
+      memberId: const RoomMemberId('dddddddddddddddddddddddd'),
       memberPublicKey: value.certificate.memberPublicKey,
       issuerPublicKey: value.certificate.issuerPublicKey,
       issuerSignature: value.certificate.issuerSignature,
