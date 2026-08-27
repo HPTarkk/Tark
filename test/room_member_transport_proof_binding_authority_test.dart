@@ -30,7 +30,7 @@ void main() {
     return (issuer: issuer, member: member, certificate: certificate);
   }
 
-  test('valid route-bound challenge verifies and binds admitted member', () async {
+  test('valid proof binds admitted member', () async {
     final value = await identity();
     final bindings = RoomPeerMemberBindingRegistry(members: const [memberId]);
     final authority = RoomMemberTransportProofBindingAuthority(
@@ -65,15 +65,12 @@ void main() {
       isTrue,
     );
     expect(
-      bindings.resolve(
-        'udp:10.0.0.2:41111',
-        attachmentGeneration: 3,
-      ),
+      bindings.resolve('udp:10.0.0.2:41111', attachmentGeneration: 3),
       memberId,
     );
   });
 
-  test('proof from a different observed route cannot steal challenge', () async {
+  test('other route cannot steal challenge', () async {
     final value = await identity();
     final bindings = RoomPeerMemberBindingRegistry(members: const [memberId]);
     final authority = RoomMemberTransportProofBindingAuthority(
@@ -191,7 +188,7 @@ void main() {
     expect(bindings.length, 0);
   });
 
-  test('valid certificate cannot bind member outside durable allow-list', () async {
+  test('certificate cannot bind non-member', () async {
     final value = await identity();
     final bindings = RoomPeerMemberBindingRegistry(
       members: const [otherMemberId],
