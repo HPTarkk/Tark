@@ -189,8 +189,9 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
 
   Widget _requestView() {
     final request = _requestQr;
-    if (request == null)
+    if (request == null) {
       return const Center(child: CircularProgressIndicator());
+    }
     return ListView(
       key: const Key('room-join-request-qr'),
       padding: const EdgeInsets.all(20),
