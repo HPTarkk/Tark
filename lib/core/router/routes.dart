@@ -16,6 +16,12 @@ abstract final class AppRoutes {
   static const roomsName = 'RoomListPage';
   static const roomsPath = '/rooms';
 
+  static const roomQrJoinName = 'RoomQrJoinPage';
+  static const roomQrJoinPath = '/rooms/join';
+
+  static const roomQrJoinIssuerName = 'RoomQrJoinIssuerPage';
+  static const roomQrJoinIssuerPath = '/rooms/join/verify';
+
   static const walkieName = 'WalkieTalkiePage';
   static const walkiePath = '/walkie';
 
