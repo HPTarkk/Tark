@@ -19,6 +19,8 @@ void main() {
       );
 
       expect(repository, isA<TransportCapabilityObservationSource>());
+      // Merely constructing/listening to the production source must never
+      // manufacture a planning candidate; only matched-Pong evidence may emit.
       var observed = false;
       final subscription = repository.transportCapabilityObservations.listen((
         _,
