@@ -16,8 +16,6 @@ void main() {
     return containers.where((c) {
       final decoration = c.decoration;
       if (decoration is! BoxDecoration) return false;
-      // The leading bar pulses, so its alpha is animated below 255. Anything
-      // clearly brighter than the unlit track (46) counts as lit.
       return (decoration.color?.a ?? 0) > 0.5;
     }).length;
   }
@@ -30,7 +28,6 @@ void main() {
             child: LinkQualityBars(
               filled: LinkQualityBars.barsFor(quality),
               color: const Color(0xFF4CAF50),
-              pulse: const AlwaysStoppedAnimation<double>(0),
             ),
           ),
         ),
@@ -83,7 +80,6 @@ void main() {
               child: LinkQualityBars(
                 filled: 0,
                 color: const Color(0xFF9E9E9E),
-                pulse: const AlwaysStoppedAnimation<double>(0),
               ),
             ),
           ),
