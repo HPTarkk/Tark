@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tark/core/identity/session_epoch.dart';
 import 'package:tark/feature/transfer/data/codec/transport_capability_control_codec.dart';
 import 'package:tark/feature/transfer/data/codec/transport_capability_heartbeat_runtime.dart';
+import 'package:tark/feature/transfer/data/codec/transport_route_proof_wire.dart';
 import 'package:tark/feature/transfer/data/codec/waki_packet_codec.dart';
 import 'package:tark/feature/transfer/domain/entity/transport_route_proof_observation.dart';
 
@@ -41,7 +42,7 @@ void main() {
     expect(decoded!.routeProof, 'proof-41-7');
   });
 
-  test('decode alone grants no route proof observation', () async {
+  test('decode and mismatched route grant no proof observation', () async {
     final runtime = TransportCapabilityHeartbeatRuntime(
       codec: codec(),
       readLocalCapability: () async => null,
@@ -71,6 +72,15 @@ void main() {
       challengeEpoch: 12,
     );
     await Future<void>.delayed(Duration.zero);
+    expect(observations, isEmpty);
+
+    runtime.observeMatchedPong(
+      decoded: decoded,
+      peerKey: '10.0.0.9',
+      observedAt: DateTime.utc(2026, 8, 27, 19),
+      challengeEpoch: 12,
+    );
+    await Future<void>.delayed(Duration.zero);
 
     expect(observations, hasLength(1));
     expect(observations.single.peerKey, '10.0.0.9');
@@ -79,7 +89,7 @@ void main() {
     expect(observations.single.encodedProof, 'signed-proof');
   });
 
-  test('provider failure and missing challenge epoch emit no proof', () async {
+  test('provider failure, oversize and missing epoch emit no proof', () async {
     final runtime = TransportCapabilityHeartbeatRuntime(
       codec: codec(),
       readLocalCapability: () async => null,
@@ -90,20 +100,33 @@ void main() {
           throw StateError('secure identity unavailable'),
     );
 
-    final bytes = await runtime.encodePong(
+    final failed = await runtime.encodePong(
       token: 61,
       lastTxSeq: 1,
       lastRxSeq: 2,
       audioRxPackets: 3,
       challengeEpoch: 4,
     );
-    expect(runtime.decodeControl(bytes, 'peer')!.routeProof, isNull);
+    expect(runtime.decodeControl(failed, 'peer')!.routeProof, isNull);
+
+    runtime.setRouteProofProvider(
+      ({required int token, required int challengeEpoch}) async =>
+          'x' * (TransportRouteProofWire.maxProofBytes + 1),
+    );
+    final oversized = await runtime.encodePong(
+      token: 62,
+      lastTxSeq: 1,
+      lastRxSeq: 2,
+      audioRxPackets: 3,
+      challengeEpoch: 4,
+    );
+    expect(runtime.decodeControl(oversized, 'peer')!.routeProof, isNull);
 
     runtime.setRouteProofProvider(
       ({required int token, required int challengeEpoch}) async => 'proof',
     );
     final noEpoch = await runtime.encodePong(
-      token: 62,
+      token: 63,
       lastTxSeq: 1,
       lastRxSeq: 2,
       audioRxPackets: 3,
