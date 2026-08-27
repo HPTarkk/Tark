@@ -86,12 +86,12 @@ final class TransportCapabilityHeartbeatRuntime
     required DateTime observedAt,
     int? challengeEpoch,
   }) {
-    if (_disposed ||
-        peerKey.isEmpty ||
-        decoded.carrierPeerKey.isEmpty ||
-        decoded.carrierPeerKey != peerKey) {
-      return;
-    }
+    // [peerKey] is the caller's witness that it matched/admitted this Pong.
+    // Capability attribution itself is non-authoritative and stays anchored to
+    // the locally captured carrier route on [decoded]. This preserves older
+    // callers that passed a payload sender id without ever trusting that id.
+    if (_disposed || peerKey.isEmpty || decoded.carrierPeerKey.isEmpty) return;
+    final routeMatchesCarrier = decoded.carrierPeerKey == peerKey;
     final at = observedAt.toUtc();
     final capability = decoded.capability;
     if (capability != null) {
@@ -104,8 +104,11 @@ final class TransportCapabilityHeartbeatRuntime
       );
     }
 
+    // Route proof is authority-bearing: unlike raw capability evidence it may
+    // unlock a durable RoomMemberId binding. Require the caller's matched-Pong
+    // witness to be the exact carrier-observed route before exposing it.
     final routeProof = decoded.routeProof;
-    if (routeProof != null && challengeEpoch != null) {
+    if (routeProof != null && challengeEpoch != null && routeMatchesCarrier) {
       _routeProofObservations.add(
         TransportRouteProofObservation(
           peerKey: decoded.carrierPeerKey,

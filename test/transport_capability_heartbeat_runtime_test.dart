@@ -93,12 +93,12 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       expect(observations, isEmpty);
 
-      // The matched-Pong witness must be the exact route captured locally by
-      // decodeControl. Payload-controlled sender identity can never substitute
-      // for carrier-observed route identity.
+      // Production Wi-Fi historically passed the packet sender id as the
+      // matched-Pong witness. That payload value must never override or suppress
+      // the route captured locally by decodeControl.
       runtime.observeMatchedPong(
         decoded: decoded,
-        peerKey: '10.0.0.8',
+        peerKey: 'payload-controlled-sender-id',
         observedAt: DateTime.utc(2026, 8, 27, 1),
       );
       await Future<void>.delayed(Duration.zero);
