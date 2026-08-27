@@ -181,9 +181,7 @@ final class RoomMemberTransportProofBindingAuthority {
 
   void _ensureOpen() {
     if (_disposed) {
-      throw StateError(
-        'RoomMemberTransportProofBindingAuthority is disposed',
-      );
+      throw StateError('RoomMemberTransportProofBindingAuthority is disposed');
     }
   }
 }
