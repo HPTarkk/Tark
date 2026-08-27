@@ -104,10 +104,10 @@ void main() {
     guest.emitCapability(_observation('guest-route'));
     await _flush();
 
-    expect(
-      observed.map((value) => value.peerKey),
-      ['wifi-route', 'guest-route'],
-    );
+    expect(observed.map((value) => value.peerKey), [
+      'wifi-route',
+      'guest-route',
+    ]);
     await subscription.cancel();
   });
 
