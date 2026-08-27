@@ -9,7 +9,7 @@ import 'package:tark/feature/room/domain/service/room_observed_invite_join_issue
 import 'package:tark/feature/room/domain/service/room_peer_member_binding_registry.dart';
 
 void main() {
-  final now = DateTime.utc(2026, 8, 27, 6);
+  final now = DateTime.utc(2030, 1, 1);
   const requestId = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 
   late SharedPreferencesRoomRepository repository;
