@@ -52,7 +52,8 @@ final class RoomInviteJoinImporter {
 
     final persistIdentity = _persistTransportIdentity;
     final certificate = grant.transportCertificate;
-    if (persistIdentity != null && (memberKeyPair == null || certificate == null)) {
+    if (persistIdentity != null &&
+        (memberKeyPair == null || certificate == null)) {
       throw const FormatException('secure Room join identity is incomplete');
     }
 
