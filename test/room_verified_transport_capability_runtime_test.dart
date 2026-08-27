@@ -37,7 +37,7 @@ void main() {
         roomId: roomId.value,
         sessionId: 'session-a',
         localMemberId: localMemberId.value,
-        memberIds: const [peerMemberId.value],
+        memberIds: [peerMemberId.value],
       ),
     );
     final failover = RoomFailoverRuntime(session: session);
