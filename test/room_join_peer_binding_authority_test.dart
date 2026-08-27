@@ -15,7 +15,10 @@ void main() {
 
   setUp(() {
     bindings = RoomPeerMemberBindingRegistry(members: const [memberId]);
-    authority = RoomJoinPeerBindingAuthority(roomId: roomId, bindings: bindings);
+    authority = RoomJoinPeerBindingAuthority(
+      roomId: roomId,
+      bindings: bindings,
+    );
   });
 
   tearDown(() {
