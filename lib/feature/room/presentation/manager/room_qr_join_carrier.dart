@@ -10,8 +10,9 @@ import '../../domain/service/room_invite_join_orchestrator.dart';
 /// the only consumer of the response and performs request/Room/member
 /// correlation before a grant can be imported.
 final class RoomQrJoinCarrier implements RoomInviteJoinCarrier {
-  final StreamController<String> _requests =
-      StreamController<String>.broadcast(sync: true);
+  final StreamController<String> _requests = StreamController<String>.broadcast(
+    sync: true,
+  );
 
   Completer<String>? _response;
   bool _disposed = false;
