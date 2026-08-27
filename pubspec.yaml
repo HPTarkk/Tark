@@ -81,6 +81,9 @@ dependencies:
   audioplayers: ^6.1.0
   home_widget: ^0.9.3
   adtrace_sdk_flutter: ^1.5.0
+  # Ed25519 identities bind durable Room members to matched live transport
+  # challenges without trusting an IP, display name, SSID or self-claimed id.
+  cryptography: ^2.9.0
 
 
 dev_dependencies:
