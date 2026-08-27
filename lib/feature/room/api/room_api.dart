@@ -11,4 +11,7 @@ export '../domain/service/selected_room_live_session_binding.dart'
 export '../domain/service/selected_room_lobby_resolver.dart'
     show SelectedRoomLobbyResolver;
 export '../presentation/page/room_list_page.dart' show RoomListPage;
+export '../presentation/page/room_qr_join_issuer_page.dart'
+    show RoomQrJoinIssuerPage;
+export '../presentation/page/room_qr_join_page.dart' show RoomQrJoinPage;
 export '../presentation/widget/selected_room_lobby.dart' show SelectedRoomLobby;
