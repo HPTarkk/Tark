@@ -86,12 +86,11 @@ final class TransportCapabilityHeartbeatRuntime
     required DateTime observedAt,
     int? challengeEpoch,
   }) {
-    if (_disposed ||
-        peerKey.isEmpty ||
-        decoded.carrierPeerKey.isEmpty ||
-        decoded.carrierPeerKey != peerKey) {
-      return;
-    }
+    // [peerKey] is only the caller's witness that it matched/admitted this Pong.
+    // Attribution must remain the locally captured carrier route on [decoded].
+    // Requiring those two strings to be equal makes a payload sender id passed
+    // by an older caller silently suppress otherwise valid capability evidence.
+    if (_disposed || peerKey.isEmpty || decoded.carrierPeerKey.isEmpty) return;
     final at = observedAt.toUtc();
     final capability = decoded.capability;
     if (capability != null) {
