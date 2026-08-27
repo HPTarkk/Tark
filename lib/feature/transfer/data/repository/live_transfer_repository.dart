@@ -8,9 +8,11 @@ import '../../domain/entity/audio_profile.dart';
 import '../../domain/entity/connection_health.dart';
 import '../../domain/entity/session_role.dart';
 import '../../domain/entity/transfer_mode.dart';
+import '../../domain/entity/transport_capability_observation.dart';
 import '../../domain/entity/transport_stats.dart';
 import '../../domain/entity/waki_packet.dart';
 import '../../domain/repository/transfer_repository.dart';
+import '../../domain/repository/transport_capability_observation_source.dart';
 import '../../domain/service/transfer_mode_store.dart';
 
 /// Session-scoped transport attachment that follows the effective transfer mode.
@@ -24,16 +26,25 @@ import '../../domain/service/transfer_mode_store.dart';
 /// Wi-Fi and hotspot deliberately resolve to the same repository: hotspot is a
 /// setup role for the same live Wi-Fi transport, so switching between those two
 /// modes must not tear down a healthy socket set. A real repository change
-/// stops the previous connection and rebinds any already-consumed packet and
-/// health streams to the replacement. Generation guards make delayed stream
-/// cancellation from an older switch unable to attach a stale repository.
+/// stops the previous connection and rebinds any already-consumed packet,
+/// health, and verified capability-observation streams to the replacement.
+/// Generation guards make delayed stream cancellation from an older switch
+/// unable to attach a stale repository.
+///
+/// Capability observations remain optional and fail closed. If the active
+/// concrete transport does not implement [TransportCapabilityObservationSource],
+/// this wrapper emits no capability evidence rather than fabricating it. This
+/// lets Room failover consume the same session-stable transfer object without
+/// accidentally keeping evidence from a transport that has already been
+/// replaced.
 ///
 /// The concrete repositories are application singletons and are not owned by
 /// this wrapper. [stopConnection] is the live-session ownership boundary used by
 /// `WalkieTalkieCubit.close`; it stops the active attachment and releases this
-/// wrapper's mode/packet/health subscriptions without disposing those shared
-/// repositories.
-final class LiveTransferRepository implements TransferRepository {
+/// wrapper's mode/packet/health/capability subscriptions without disposing those
+/// shared repositories.
+final class LiveTransferRepository
+    implements TransferRepository, TransportCapabilityObservationSource {
   LiveTransferRepository({
     required TransferModeStore modeStore,
     required TransferRepository wifi,
@@ -57,10 +68,14 @@ final class LiveTransferRepository implements TransferRepository {
 
   final _packetController = StreamController<WakiPacket>.broadcast();
   final _healthController = StreamController<ConnectionHealth>.broadcast();
+  final _capabilityController =
+      StreamController<TransportCapabilityObservation>.broadcast();
   StreamSubscription<WakiPacket>? _packetSubscription;
   StreamSubscription<ConnectionHealth>? _healthSubscription;
+  StreamSubscription<TransportCapabilityObservation>? _capabilitySubscription;
   bool _packetsRequested = false;
   bool _healthRequested = false;
+  bool _capabilitiesRequested = false;
   bool _disposed = false;
   int _attachmentGeneration = 0;
 
@@ -74,6 +89,10 @@ final class LiveTransferRepository implements TransferRepository {
     TransferMode.guest => guest,
     TransferMode.hotspot || TransferMode.wifi => wifi,
   };
+
+  static TransportCapabilityObservationSource? _capabilitySource(
+    Object repository,
+  ) => repository is TransportCapabilityObservationSource ? repository : null;
 
   TransferRepository get _current =>
       _select(_modeStore.mode, _wifi, _bluetooth, _guest);
@@ -97,6 +116,9 @@ final class LiveTransferRepository implements TransferRepository {
     }
     if (_healthRequested) {
       unawaited(_rebindHealth(next, generation));
+    }
+    if (_capabilitiesRequested) {
+      unawaited(_rebindCapabilities(next, generation));
     }
   }
 
@@ -128,6 +150,22 @@ final class LiveTransferRepository implements TransferRepository {
     );
   }
 
+  Future<void> _rebindCapabilities(
+    TransferRepository repository,
+    int generation,
+  ) async {
+    final previous = _capabilitySubscription;
+    _capabilitySubscription = null;
+    await previous?.cancel();
+    if (_disposed || generation != _attachmentGeneration) return;
+    final source = _capabilitySource(repository);
+    if (source == null) return;
+    _capabilitySubscription = source.transportCapabilityObservations.listen(
+      _capabilityController.add,
+      onError: _capabilityController.addError,
+    );
+  }
+
   @override
   Stream<WakiPacket> startListening() {
     if (_disposed) return const Stream<WakiPacket>.empty();
@@ -150,6 +188,22 @@ final class LiveTransferRepository implements TransferRepository {
     );
     _active = _current;
     return _healthController.stream;
+  }
+
+  @override
+  Stream<TransportCapabilityObservation> get transportCapabilityObservations {
+    if (_disposed) return const Stream<TransportCapabilityObservation>.empty();
+    _capabilitiesRequested = true;
+    final current = _current;
+    final source = _capabilitySource(current);
+    if (_capabilitySubscription == null && source != null) {
+      _capabilitySubscription = source.transportCapabilityObservations.listen(
+        _capabilityController.add,
+        onError: _capabilityController.addError,
+      );
+    }
+    _active = current;
+    return _capabilityController.stream;
   }
 
   @override
@@ -217,7 +271,9 @@ final class LiveTransferRepository implements TransferRepository {
     await _modeSubscription.cancel();
     await _packetSubscription?.cancel();
     await _healthSubscription?.cancel();
+    await _capabilitySubscription?.cancel();
     await _packetController.close();
     await _healthController.close();
+    await _capabilityController.close();
   }
 }
