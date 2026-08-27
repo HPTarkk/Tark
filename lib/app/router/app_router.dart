@@ -82,6 +82,16 @@ class AppRouter {
         builder: (context, state) => RoomListPage.buildPage(),
       ),
       GoRoute(
+        path: AppRoutes.roomQrJoinPath,
+        name: AppRoutes.roomQrJoinName,
+        builder: (context, state) => RoomQrJoinPage.buildPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.roomQrJoinIssuerPath,
+        name: AppRoutes.roomQrJoinIssuerName,
+        builder: (context, state) => RoomQrJoinIssuerPage.buildPage(),
+      ),
+      GoRoute(
         path: AppRoutes.walkiePath,
         name: AppRoutes.walkieName,
         builder: (context, state) => RoomBoundWalkieEntry.buildPage(),
