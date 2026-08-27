@@ -67,6 +67,7 @@ final class TransportCapabilityControlCodec {
       return DecodedTransportCapabilityControl(
         packet: packet,
         capability: null,
+        carrierPeerKey: fallbackSenderId,
       );
     }
     var capabilityOffset = legacyEnd;
@@ -80,6 +81,7 @@ final class TransportCapabilityControlCodec {
         bytes,
         capabilityOffset,
       ),
+      carrierPeerKey: fallbackSenderId,
     );
   }
 
@@ -132,8 +134,16 @@ final class DecodedTransportCapabilityControl {
   const DecodedTransportCapabilityControl({
     required this.packet,
     required this.capability,
+    required this.carrierPeerKey,
   });
 
   final ControlPacket packet;
   final TransportCapabilityAdvertisement? capability;
+
+  /// Route identity observed by the local carrier while receiving this packet.
+  ///
+  /// This is intentionally distinct from [ControlPacket.senderId], which is
+  /// payload-controlled. Room capability/failover attribution must preserve the
+  /// carrier-observed route until cryptographic proof binds it to a member.
+  final String carrierPeerKey;
 }

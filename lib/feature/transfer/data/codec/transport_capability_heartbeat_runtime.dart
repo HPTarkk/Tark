@@ -69,17 +69,24 @@ final class TransportCapabilityHeartbeatRuntime
 
   /// Admits capability evidence only after the caller has independently proven
   /// that this decoded packet is the expected pong for [peerKey].
+  ///
+  /// [peerKey] remains the caller's matched-pong witness for compatibility with
+  /// the existing transport boundary, but it is deliberately NOT used for
+  /// attribution. The durable Room pipeline must keep the route observed by the
+  /// local carrier, because the packet's sender id is payload-controlled. The
+  /// codec captures that route in [DecodedTransportCapabilityControl.carrierPeerKey]
+  /// at receive time, and only that key is emitted downstream for proof binding.
   void observeMatchedPong({
     required DecodedTransportCapabilityControl decoded,
     required String peerKey,
     required DateTime observedAt,
   }) {
-    if (_disposed || peerKey.isEmpty) return;
+    if (_disposed || peerKey.isEmpty || decoded.carrierPeerKey.isEmpty) return;
     final capability = decoded.capability;
     if (capability == null) return;
     _observations.add(
       TransportCapabilityObservation(
-        peerKey: peerKey,
+        peerKey: decoded.carrierPeerKey,
         capability: capability,
         observedAt: observedAt.toUtc(),
       ),
