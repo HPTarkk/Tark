@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tark/feature/room/data/security/room_transport_identity_secure_store.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
 import 'package:tark/feature/room/domain/entity/room_accepted_join_snapshot.dart';
 import 'package:tark/feature/room/domain/entity/room_invitation.dart';
@@ -6,6 +7,7 @@ import 'package:tark/feature/room/domain/repository/room_repository.dart';
 import 'package:tark/feature/room/domain/service/room_invitation_ledger.dart';
 import 'package:tark/feature/room/domain/service/room_invite_join_exchange.dart';
 import 'package:tark/feature/room/domain/service/room_invite_join_orchestrator.dart';
+import 'package:tark/feature/room/domain/service/room_member_transport_identity.dart';
 import 'package:tark/feature/room/presentation/manager/room_list_cubit.dart';
 
 void main() {
@@ -13,7 +15,10 @@ void main() {
     'verified carrier grant is persisted and selected by RoomListCubit',
     () async {
       final repository = _JoinRepository();
-      final cubit = RoomListCubit(repository);
+      final identityStore = _MemoryIdentityStore();
+      final cubit = RoomListCubit(repository, identityStore: identityStore);
+      final crypto = RoomMemberTransportIdentityCrypto();
+      final issuer = await crypto.generateKeyPair();
       final now = DateTime.utc(2026, 8, 26, 18);
       final invitation = generateRoomInvitation(
         roomId: const RoomId('11111111111111111111111111111111'),
@@ -29,6 +34,13 @@ void main() {
           final request = RoomInviteJoinRequest.decode(encodedRequest);
           final memberId = RoomMemberId(
             request.invitation.invitationId.substring(0, 24),
+          );
+          final memberPublicKey = request.memberTransportPublicKey!;
+          final certificate = await crypto.issueCertificate(
+            roomId: request.invitation.roomId,
+            memberId: memberId,
+            memberPublicKey: memberPublicKey,
+            issuer: issuer,
           );
           return RoomInviteJoinResponse.accepted(
             requestId: request.requestId,
@@ -54,6 +66,7 @@ void main() {
                 ),
               ],
             ),
+            transportCertificate: certificate,
           ).encode();
         }),
       );
@@ -63,6 +76,7 @@ void main() {
       expect(repository.selected, invitation.roomId);
       expect(cubit.state.selectedRoomId, invitation.roomId);
       expect(cubit.state.rooms.single.room.name, 'Night riders');
+      expect(identityStore.writeCount, 1);
       await cubit.close();
     },
   );
@@ -71,7 +85,10 @@ void main() {
     'invalid carrier response leaves durable Room state untouched',
     () async {
       final repository = _JoinRepository();
-      final cubit = RoomListCubit(repository);
+      final cubit = RoomListCubit(
+        repository,
+        identityStore: _MemoryIdentityStore(),
+      );
       final now = DateTime.utc(2026, 8, 26, 18);
       final invitation = generateRoomInvitation(
         roomId: const RoomId('22222222222222222222222222222222'),
@@ -93,6 +110,38 @@ void main() {
       await cubit.close();
     },
   );
+}
+
+final class _MemoryIdentityStore implements RoomTransportIdentitySecureStore {
+  final Map<String, RoomTransportIdentityMaterial> _values = {};
+  var writeCount = 0;
+
+  String _key(RoomId roomId, RoomMemberId memberId) =>
+      '${roomId.value}:${memberId.value}';
+
+  @override
+  Future<void> delete({
+    required RoomId roomId,
+    required RoomMemberId memberId,
+  }) async {
+    _values.remove(_key(roomId, memberId));
+  }
+
+  @override
+  Future<RoomTransportIdentityMaterial?> read({
+    required RoomId roomId,
+    required RoomMemberId memberId,
+  }) async => _values[_key(roomId, memberId)];
+
+  @override
+  Future<void> write({
+    required RoomId roomId,
+    required RoomMemberId memberId,
+    required RoomTransportIdentityMaterial material,
+  }) async {
+    writeCount += 1;
+    _values[_key(roomId, memberId)] = material;
+  }
 }
 
 final class _Carrier implements RoomInviteJoinCarrier {

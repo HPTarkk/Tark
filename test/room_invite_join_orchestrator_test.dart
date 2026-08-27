@@ -7,9 +7,11 @@ import 'package:tark/feature/room/domain/entity/room_accepted_join_snapshot.dart
 import 'package:tark/feature/room/domain/entity/room_invitation.dart';
 import 'package:tark/feature/room/domain/service/room_invite_join_exchange.dart';
 import 'package:tark/feature/room/domain/service/room_invite_join_orchestrator.dart';
+import 'package:tark/feature/room/domain/service/room_member_transport_identity.dart';
 
 void main() {
   final now = DateTime.utc(2026, 8, 26, 18);
+  final crypto = RoomMemberTransportIdentityCrypto();
 
   RoomInvitation invitation() => generateRoomInvitation(
     roomId: const RoomId('11111111111111111111111111111111'),
@@ -19,7 +21,7 @@ void main() {
     random: Random(7),
   );
 
-  RoomInviteJoinResponse accepted(RoomInviteJoinRequest request) {
+  Future<RoomInviteJoinResponse> accepted(RoomInviteJoinRequest request) async {
     final memberId = RoomMemberId(
       request.invitation.invitationId.substring(0, 24),
     );
@@ -43,11 +45,22 @@ void main() {
         ),
       ],
     );
+    final publicKey = request.memberTransportPublicKey;
+    RoomMemberTransportCertificate? certificate;
+    if (publicKey != null) {
+      certificate = await crypto.issueCertificate(
+        roomId: request.invitation.roomId,
+        memberId: memberId,
+        memberPublicKey: publicKey,
+        issuer: await crypto.generateKeyPair(),
+      );
+    }
     return RoomInviteJoinResponse.accepted(
       requestId: request.requestId,
       roomId: request.invitation.roomId,
       memberId: memberId,
       snapshot: snapshot,
+      transportCertificate: certificate,
     );
   }
 
@@ -60,13 +73,15 @@ void main() {
       requestId: '0123456789abcdef0123456789abcdef',
       carrier: _Carrier((encoded) async {
         final request = RoomInviteJoinRequest.decode(encoded);
-        return accepted(request).encode();
+        return (await accepted(request)).encode();
       }),
     );
 
     expect(result.status, RoomInviteJoinAttemptStatus.accepted);
     expect(result.grant?.roomId, invite.roomId);
     expect(result.grant?.memberId.value, invite.invitationId.substring(0, 24));
+    expect(result.memberKeyPair, isNotNull);
+    expect(result.grant?.transportCertificate, isNotNull);
   });
 
   test('cross-request response fails closed', () async {
@@ -77,12 +92,13 @@ void main() {
       requestId: '0123456789abcdef0123456789abcdef',
       carrier: _Carrier((encoded) async {
         final request = RoomInviteJoinRequest.decode(encoded);
-        final response = accepted(request);
+        final response = await accepted(request);
         return RoomInviteJoinResponse.accepted(
           requestId: 'ffffffffffffffffffffffffffffffff',
           roomId: response.roomId!,
           memberId: response.memberId!,
           snapshot: response.snapshot,
+          transportCertificate: response.transportCertificate,
         ).encode();
       }),
     );
@@ -124,7 +140,7 @@ void main() {
       invitation: invitation(),
       displayName: 'Rider three',
     );
-    pending.complete(accepted(request).encode());
+    pending.complete((await accepted(request)).encode());
 
     final result = await future;
     expect(result.status, RoomInviteJoinAttemptStatus.cancelled);
@@ -159,7 +175,7 @@ void main() {
       requestId: '22222222222222222222222222222222',
       carrier: _Carrier((encoded) async {
         final request = RoomInviteJoinRequest.decode(encoded);
-        return accepted(request).encode();
+        return (await accepted(request)).encode();
       }),
     );
     expect(second.status, RoomInviteJoinAttemptStatus.accepted);
@@ -169,7 +185,7 @@ void main() {
       invitation: invitation(),
       displayName: 'First',
     );
-    firstPending.complete(accepted(oldRequest).encode());
+    firstPending.complete((await accepted(oldRequest)).encode());
     final stale = await first;
     expect(stale.status, RoomInviteJoinAttemptStatus.cancelled);
   });

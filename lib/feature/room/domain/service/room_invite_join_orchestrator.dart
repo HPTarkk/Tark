@@ -3,12 +3,9 @@ import 'dart:math';
 import '../entity/room_invitation.dart';
 import 'room_invite_join_client.dart';
 import 'room_invite_join_exchange.dart';
+import 'room_member_transport_identity.dart';
 
 /// Minimal transport boundary for one secure Room invite request/response.
-///
-/// Implementations may use an existing local peer channel, QR-assisted local
-/// handoff, or another already-supported carrier. The carrier is deliberately
-/// ignorant of Room membership semantics: it only moves bounded encoded data.
 abstract interface class RoomInviteJoinCarrier {
   Future<String> exchange(String encodedRequest);
 }
@@ -23,10 +20,20 @@ enum RoomInviteJoinAttemptStatus {
 }
 
 final class RoomInviteJoinAttemptResult {
-  const RoomInviteJoinAttemptResult._({required this.status, this.grant});
+  const RoomInviteJoinAttemptResult._({
+    required this.status,
+    this.grant,
+    this.memberKeyPair,
+  });
 
-  const RoomInviteJoinAttemptResult.accepted(RoomInviteJoinGrant grant)
-    : this._(status: RoomInviteJoinAttemptStatus.accepted, grant: grant);
+  const RoomInviteJoinAttemptResult.accepted(
+    RoomInviteJoinGrant grant, {
+    RoomMemberTransportKeyPair? memberKeyPair,
+  }) : this._(
+         status: RoomInviteJoinAttemptStatus.accepted,
+         grant: grant,
+         memberKeyPair: memberKeyPair,
+       );
 
   const RoomInviteJoinAttemptResult.rejected()
     : this._(status: RoomInviteJoinAttemptStatus.rejected);
@@ -45,28 +52,25 @@ final class RoomInviteJoinAttemptResult {
 
   final RoomInviteJoinAttemptStatus status;
   final RoomInviteJoinGrant? grant;
+
+  /// Ephemeral pending key material. It is never encoded by the carrier and is
+  /// handed directly to secure local persistence after the issuer response is
+  /// verified.
+  final RoomMemberTransportKeyPair? memberKeyPair;
 }
 
-/// Joiner-side orchestration for the first real carrier hop of secure Room join.
-///
-/// Parsing a QR/link never authorizes membership. This service turns that bearer
-/// capability into a correlated request, sends it through an injected carrier,
-/// rejects cross-attempt/cross-request replies, and delegates accepted-response
-/// verification to [RoomInviteJoinClient]. Only the returned verified grant may
-/// proceed to [RoomInviteJoinImporter] for durable local persistence.
-///
-/// At most one attempt generation is current. Starting another attempt or
-/// calling [cancel] makes any delayed response from the previous carrier a
-/// harmless cancelled result, preventing an old join from mutating later UI or
-/// persistence state.
+/// Joiner-side orchestration for the secure Room join carrier hop.
 final class RoomInviteJoinOrchestrator {
   RoomInviteJoinOrchestrator({
     RoomInviteJoinClient client = const RoomInviteJoinClient(),
+    RoomMemberTransportIdentityCrypto? identityCrypto,
     Random? random,
   }) : _client = client,
+       _identityCrypto = identityCrypto ?? RoomMemberTransportIdentityCrypto(),
        _random = random ?? Random.secure();
 
   final RoomInviteJoinClient _client;
+  final RoomMemberTransportIdentityCrypto _identityCrypto;
   final Random _random;
   int _generation = 0;
 
@@ -81,10 +85,15 @@ final class RoomInviteJoinOrchestrator {
     String? requestId,
   }) async {
     final generation = ++_generation;
+    final memberKeyPair = await _identityCrypto.generateKeyPair();
+    if (generation != _generation) {
+      return const RoomInviteJoinAttemptResult.cancelled();
+    }
     final request = RoomInviteJoinRequest(
       requestId: requestId ?? _newRequestId(),
       invitation: invitation,
       displayName: displayName,
+      memberTransportPublicKey: memberKeyPair.publicKey,
     );
 
     final String encodedResponse;
@@ -116,9 +125,13 @@ final class RoomInviteJoinOrchestrator {
           request: request,
           encodedResponse: encodedResponse,
         );
-        return grant == null
-            ? const RoomInviteJoinAttemptResult.invalidResponse()
-            : RoomInviteJoinAttemptResult.accepted(grant);
+        if (grant == null || grant.transportCertificate == null) {
+          return const RoomInviteJoinAttemptResult.invalidResponse();
+        }
+        return RoomInviteJoinAttemptResult.accepted(
+          grant,
+          memberKeyPair: memberKeyPair,
+        );
       case RoomInviteJoinResponseStatus.rejected:
         return const RoomInviteJoinAttemptResult.rejected();
       case RoomInviteJoinResponseStatus.roomUnavailable:
