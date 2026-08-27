@@ -107,6 +107,25 @@ void main() {
     );
   });
 
+  test('delayed old callback cannot create a new stale binding', () {
+    final registry = RoomPeerMemberBindingRegistry(members: [member('peer-a')]);
+    registry.replaceAttachment(9);
+
+    expect(
+      registry.bind(
+        peerKey: 'late-old-route',
+        memberId: member('peer-a'),
+        attachmentGeneration: 8,
+      ),
+      isFalse,
+    );
+    expect(
+      registry.resolve('late-old-route', attachmentGeneration: 8),
+      isNull,
+    );
+    expect(registry.length, 0);
+  });
+
   test('membership removal immediately invalidates peer binding', () {
     final registry = RoomPeerMemberBindingRegistry(
       members: [member('peer-a'), member('peer-b')],
