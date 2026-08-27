@@ -18,8 +18,10 @@ import '../../domain/entity/connection_health.dart';
 import '../../domain/entity/control_packet.dart';
 import '../../domain/entity/opus_tuning.dart';
 import '../../domain/entity/session_role.dart';
+import '../../domain/entity/transport_capability_observation.dart';
 import '../../domain/entity/transport_stats.dart';
 import '../../domain/entity/waki_packet.dart';
+import '../../domain/repository/transport_capability_observation_source.dart';
 import '../../domain/repository/wifi_transfer_repository.dart';
 import '../../domain/service/audio_capability_negotiator.dart';
 import '../../domain/service/host_subnet_filter.dart';
@@ -36,6 +38,8 @@ import '../../domain/service/session_role_store.dart';
 import '../../domain/service/transport_drop_counters.dart';
 import '../../domain/service/voice_quality_controller.dart';
 import '../codec/opus_audio_codec.dart';
+import '../codec/transport_capability_control_codec.dart';
+import '../codec/transport_capability_heartbeat_runtime.dart';
 import '../codec/waki_packet_codec.dart';
 import '../hotspot/wifi_client_address.dart';
 import 'broadcast_policy.dart';
@@ -44,7 +48,8 @@ import 'discovery_sweep.dart';
 const kBroadcastPort = 4000;
 
 @LazySingleton(as: WifiTransferRepository)
-class WifiTransferRepositoryImpl implements WifiTransferRepository {
+class WifiTransferRepositoryImpl
+    implements WifiTransferRepository, TransportCapabilityObservationSource {
   RawDatagramSocket? _sendSocket;
   RawDatagramSocket? _receiveSocket;
   final _connectionController = StreamController<ConnectionHealth>.broadcast();
@@ -268,6 +273,14 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   );
 
   late final _codec = WakiPacketCodec(_identity.id, _epoch, _membership);
+
+  late final _transportCapabilityHeartbeat = TransportCapabilityHeartbeatRuntime(
+    codec: TransportCapabilityControlCodec(_codec),
+  );
+
+  @override
+  Stream<TransportCapabilityObservation> get transportCapabilityObservations =>
+      _transportCapabilityHeartbeat.transportCapabilityObservations;
 
   /// Drops packets from a peer's previous join that arrive after its new one
   /// has started. See [SessionEpochGate].
@@ -501,6 +514,7 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
     _receiveSocket?.close();
     _receiveSocket = null;
     _connectionController.close();
+    unawaited(_transportCapabilityHeartbeat.dispose());
     _codec.release();
   }
 
@@ -728,13 +742,13 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
               // has no opinion about it. Gated on the raw type byte so the
               // audio path — fifty times more traffic — pays one comparison.
               if (WakiPacketCodec.isControl(dg.data[0])) {
-                final control = _codec.decodeControl(
+                final control = _transportCapabilityHeartbeat.decodeControl(
                   dg.data,
                   dg.address.address,
                 );
                 if (control != null) {
                   _rememberPeer(dg.address.address);
-                  _handleControl(control, dg.address.address);
+                  await _handleControl(control, dg.address.address, myGen);
                 }
                 continue;
               }
@@ -1723,6 +1737,7 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
 
   Timer? _pingTimer;
   int _pingToken = 0;
+  bool _pingInFlight = false;
 
   /// One ping per second, which is the review's figure and a reasonable one:
   /// fast enough that [PeerPingTracker.grace] is six lost pings rather than
@@ -1748,7 +1763,7 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
         _pingTimer?.cancel();
         return;
       }
-      _pingPeers();
+      if (!_pingInFlight) unawaited(_pingPeers(myGen));
     });
   }
 
@@ -1758,90 +1773,95 @@ class WifiTransferRepositoryImpl implements WifiTransferRepository {
   /// anything that is not audio, and a ping answered over broadcast would
   /// confirm the one path we are not trying to test. This is the whole point
   /// of the mechanism — it has to travel exactly where audio travels.
-  void _pingPeers() {
-    final now = DateTime.now();
-    final targets = _peers.keys.toList(growable: false);
-    for (final address in targets) {
-      final senderId = _senderAtAddress[address];
-      final rx = senderId == null ? null : _rxBySender[senderId];
-      final token = ++_pingToken;
-      final packet = _codec.encodePing(
-        token: token,
-        lastTxSeq: _audioSeq,
-        lastRxSeq: rx?.lastSeq ?? 0,
-        audioRxPackets: rx?.count ?? 0,
-      );
-      if (_trySend(packet, InternetAddress(address))) {
-        _pings.sent(address, token, now);
+  Future<void> _pingPeers(int myGen) async {
+    if (_pingInFlight) return;
+    _pingInFlight = true;
+    try {
+      final targets = _peers.keys.toList(growable: false);
+      for (final address in targets) {
+        if (_generation != myGen) return;
+        final senderId = _senderAtAddress[address];
+        final rx = senderId == null ? null : _rxBySender[senderId];
+        final token = ++_pingToken;
+        final packet = await _transportCapabilityHeartbeat.encodePing(
+          token: token,
+          lastTxSeq: _audioSeq,
+          lastRxSeq: rx?.lastSeq ?? 0,
+          audioRxPackets: rx?.count ?? 0,
+        );
+        if (_generation != myGen) return;
+        final sentAt = DateTime.now();
+        if (_trySend(packet, InternetAddress(address))) {
+          _pings.sent(address, token, sentAt);
+        }
       }
-    }
 
-    // Expire the loss estimates of peers who have gone. Before reading the
-    // worst below, because the worst is exactly what a departed peer would
-    // otherwise go on being: a rider who drops off the back of the group at
-    // 40 % loss would hold the encoder at its lowest bitrate for everyone still
-    // talking, for the rest of the session.
-    _loss.retain(_currentlyHeardSenders());
-    // Same reasoning for capability: a peer who dropped off must not go on
-    // holding (or, once a higher profile is reachable, blocking) the mutual
-    // format for everyone still here.
-    _capabilities.retain(_currentlyHeardSenders());
-    _syncFormatProfile();
-    _mediaCapabilities.retain(_currentlyHeardSenders());
-    _syncMediaFormatProfile();
-    _syncMediaQuality();
-
-    // Retune the encoder for the link we just measured. On this tick rather
-    // than per frame because that is the cadence a new measurement arrives at,
-    // and the codec ignores an unchanged tuning anyway. The ladder itself
-    // follows the negotiated profile — HD's is re-derived, not the legacy
-    // tiers scaled up, see [OpusTuner.hd].
-    _codec.applyTuning(
-      OpusTuner.forProfile(_negotiatedFormat).tune(
-        AudioLinkConditions(
-          lossFraction: _loss.worstLossFraction,
-          rtt: _lastRtt,
+      if (_generation != myGen) return;
+      final now = DateTime.now();
+      _loss.retain(_currentlyHeardSenders());
+      _capabilities.retain(_currentlyHeardSenders());
+      _syncFormatProfile();
+      _mediaCapabilities.retain(_currentlyHeardSenders());
+      _syncMediaFormatProfile();
+      _syncMediaQuality();
+      _codec.applyTuning(
+        OpusTuner.forProfile(_negotiatedFormat).tune(
+          AudioLinkConditions(
+            lossFraction: _loss.worstLossFraction,
+            rtt: _lastRtt,
+          ),
         ),
-      ),
-    );
-    _updateMediaTuning();
-
-    // Peers that have gone silent on unicast while still being heard. Recorded
-    // as a flag the send path can read for free.
-    final unconfirmed = _pings.unconfirmedAmong(targets, now);
-    final wasUnconfirmed = _unicastUnconfirmed;
-    _unicastUnconfirmed = unconfirmed.isNotEmpty;
-    if (_unicastUnconfirmed != wasUnconfirmed) {
-      Logger.diagnostic(
-        _unicastUnconfirmed
-            ? 'wifi: $unconfirmed heard but not answering unicast pings — '
-                  'audio is going back on the broadcast leg for them'
-            : 'wifi: every heard peer is answering unicast again — '
-                  'audio back to unicast only',
       );
+      _updateMediaTuning();
+
+      final unconfirmed = _pings.unconfirmedAmong(targets, now);
+      final wasUnconfirmed = _unicastUnconfirmed;
+      _unicastUnconfirmed = unconfirmed.isNotEmpty;
+      if (_unicastUnconfirmed != wasUnconfirmed) {
+        Logger.diagnostic(
+          _unicastUnconfirmed
+              ? 'wifi: $unconfirmed heard but not answering unicast pings — '
+                    'audio is going back on the broadcast leg for them'
+              : 'wifi: every heard peer is answering unicast again — '
+                    'audio back to unicast only',
+        );
+      }
+    } finally {
+      _pingInFlight = false;
     }
   }
 
   /// Answers a ping on the same unicast path it arrived by, and records a pong.
-  void _handleControl(ControlPacket packet, String fromAddress) {
+  /// Capability evidence becomes observable only after the exact Pong token and
+  /// route match an outstanding ping; decoding a trailer alone grants nothing.
+  Future<void> _handleControl(
+    DecodedTransportCapabilityControl decoded,
+    String fromAddress,
+    int myGen,
+  ) async {
+    final packet = decoded.packet;
     switch (packet) {
       case PingPacket():
         final rx = _rxBySender[packet.senderId];
-        _trySend(
-          _codec.encodePong(
-            token: packet.token,
-            lastTxSeq: _audioSeq,
-            lastRxSeq: rx?.lastSeq ?? 0,
-            audioRxPackets: rx?.count ?? 0,
-          ),
-          InternetAddress(fromAddress),
+        final response = await _transportCapabilityHeartbeat.encodePong(
+          token: packet.token,
+          lastTxSeq: _audioSeq,
+          lastRxSeq: rx?.lastSeq ?? 0,
+          audioRxPackets: rx?.count ?? 0,
         );
+        if (_generation != myGen) return;
+        _trySend(response, InternetAddress(fromAddress));
       case PongPacket():
-        final rtt = _pings.pong(fromAddress, packet.token, DateTime.now());
-        if (rtt != null) _lastRtt = rtt;
-        // The counters this pong carries are the only measurement of loss in
-        // the direction our voice travels — see [PeerLossTracker]. They were
-        // already on the wire from P0; this is what finally reads them.
+        final observedAt = DateTime.now();
+        final rtt = _pings.pong(fromAddress, packet.token, observedAt);
+        if (rtt != null) {
+          _lastRtt = rtt;
+          _transportCapabilityHeartbeat.observeMatchedPong(
+            decoded: decoded,
+            peerKey: packet.senderId,
+            observedAt: observedAt,
+          );
+        }
         _loss.sample(
           packet.senderId,
           ourSentCount: _audioSeq,
