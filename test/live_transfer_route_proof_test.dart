@@ -66,48 +66,54 @@ void main() {
     await subscription.cancel();
   });
 
-  test('route proof provider moves to replacement and leaves stale transport', () async {
-    Future<String?> provider({
-      required int token,
-      required int challengeEpoch,
-    }) async => 'proof-$token-$challengeEpoch';
+  test(
+    'route proof provider moves to replacement and leaves stale transport',
+    () async {
+      Future<String?> provider({
+        required int token,
+        required int challengeEpoch,
+      }) async => 'proof-$token-$challengeEpoch';
 
-    subject.routeProofObservations.listen((_) {});
-    subject.setRouteProofProvider(provider);
-    expect(wifi.routeProofProvider, same(provider));
+      subject.routeProofObservations.listen((_) {});
+      subject.setRouteProofProvider(provider);
+      expect(wifi.routeProofProvider, same(provider));
 
-    await modes.setMode(TransferMode.bluetooth);
-    await _flush();
+      await modes.setMode(TransferMode.bluetooth);
+      await _flush();
 
-    expect(wifi.routeProofProvider, isNull);
-    expect(bluetooth.routeProofProvider, same(provider));
-    expect(guest.routeProofProvider, isNull);
-  });
+      expect(wifi.routeProofProvider, isNull);
+      expect(bluetooth.routeProofProvider, same(provider));
+      expect(guest.routeProofProvider, isNull);
+    },
+  );
 
-  test('rapid replacements cannot restore proof provider on stale transport', () async {
-    Future<String?> provider({
-      required int token,
-      required int challengeEpoch,
-    }) async => 'proof';
+  test(
+    'rapid replacements cannot restore proof provider on stale transport',
+    () async {
+      Future<String?> provider({
+        required int token,
+        required int challengeEpoch,
+      }) async => 'proof';
 
-    final observed = <TransportRouteProofObservation>[];
-    subject.routeProofObservations.listen(observed.add);
-    subject.setRouteProofProvider(provider);
+      final observed = <TransportRouteProofObservation>[];
+      subject.routeProofObservations.listen(observed.add);
+      subject.setRouteProofProvider(provider);
 
-    await modes.setMode(TransferMode.guest);
-    await modes.setMode(TransferMode.bluetooth);
-    await _flush();
+      await modes.setMode(TransferMode.guest);
+      await modes.setMode(TransferMode.bluetooth);
+      await _flush();
 
-    expect(wifi.routeProofProvider, isNull);
-    expect(guest.routeProofProvider, isNull);
-    expect(bluetooth.routeProofProvider, same(provider));
+      expect(wifi.routeProofProvider, isNull);
+      expect(guest.routeProofProvider, isNull);
+      expect(bluetooth.routeProofProvider, same(provider));
 
-    guest.emitProof(_proof('stale-guest-route', 4));
-    bluetooth.emitProof(_proof('bluetooth-route', 5));
-    await _flush();
+      guest.emitProof(_proof('stale-guest-route', 4));
+      bluetooth.emitProof(_proof('bluetooth-route', 5));
+      await _flush();
 
-    expect(observed.map((value) => value.peerKey), ['bluetooth-route']);
-  });
+      expect(observed.map((value) => value.peerKey), ['bluetooth-route']);
+    },
+  );
 
   test('session stop removes proof provider from active transport', () async {
     Future<String?> provider({
@@ -182,7 +188,8 @@ final class _ModeStore implements TransferModeStore {
   }
 }
 
-final class _ProofTransfer implements TransferRepository, TransportRouteProofExchange {
+final class _ProofTransfer
+    implements TransferRepository, TransportRouteProofExchange {
   int stopCalls = 0;
   TransportRouteProofProvider? routeProofProvider;
 
