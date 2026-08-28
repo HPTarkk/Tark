@@ -21,7 +21,8 @@ void main() {
     expect(
       source,
       contains('if (want == null)'),
-      reason: 'A redacted SSID must not make keeper callbacks automatically trusted.',
+      reason:
+          'A redacted SSID must not make keeper callbacks automatically trusted.',
     );
     expect(
       source,
