@@ -288,8 +288,10 @@ class WifiJoinHandler(
         normalizedSsid(runCatching { wifiManager.connectionInfo?.ssid }.getOrNull())
 
     @Suppress("DEPRECATION")
-    private fun capabilityWifiSsid(caps: NetworkCapabilities): String? =
-        normalizedSsid((caps.transportInfo as? WifiInfo)?.ssid)
+    private fun capabilityWifiSsid(caps: NetworkCapabilities): String? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+        return normalizedSsid((caps.transportInfo as? WifiInfo)?.ssid)
+    }
 
     private fun findExpectedWifiNetwork(expectedSsid: String): Network? {
         val candidates = eligibleWifiNetworks()
