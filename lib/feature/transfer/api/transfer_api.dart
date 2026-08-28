@@ -24,6 +24,7 @@ export '../domain/entity/wifi_hotspot_segment.dart';
 export '../domain/repository/guest_link_controller.dart';
 export '../domain/repository/transfer_repository.dart';
 export '../domain/repository/transport_capability_observation_source.dart';
+// This exposes carrier-observed proof exchange only; Room remains the authority.
 export '../domain/repository/transport_route_proof_exchange.dart';
 // Exported for Room failover composition and channel recovery actions. These
 // interfaces expose temporary transport control only; Room identity must never
