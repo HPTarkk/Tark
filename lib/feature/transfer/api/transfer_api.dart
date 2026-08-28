@@ -17,12 +17,14 @@ export '../domain/entity/transfer_mode.dart';
 export '../domain/entity/transfer_mode_analytics.dart';
 export '../domain/entity/transport_capability_advertisement.dart';
 export '../domain/entity/transport_capability_observation.dart';
+export '../domain/entity/transport_route_proof_observation.dart';
 export '../domain/entity/transport_stats.dart';
 export '../domain/entity/waki_packet.dart';
 export '../domain/entity/wifi_hotspot_segment.dart';
 export '../domain/repository/guest_link_controller.dart';
 export '../domain/repository/transfer_repository.dart';
 export '../domain/repository/transport_capability_observation_source.dart';
+export '../domain/repository/transport_route_proof_exchange.dart';
 // Exported for Room failover composition and channel recovery actions. These
 // interfaces expose temporary transport control only; Room identity must never
 // be derived from hotspot credentials or network metadata.
