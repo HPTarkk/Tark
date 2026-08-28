@@ -1,0 +1,40 @@
+name: Format live proof branch
+
+on:
+  push:
+    branches: [fix/49-live-proof-production-wiring]
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/49-live-proof-production-wiring
+          fetch-depth: 0
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          channel: stable
+          cache: true
+      - name: Format and commit
+        shell: bash
+        run: |
+          dart format \
+            lib/feature/room/domain/service/room_verified_transport_evidence_bridge.dart \
+            lib/feature/room/domain/service/selected_room_live_session_binding.dart \
+            lib/feature/transfer/api/transfer_api.dart \
+            lib/feature/transfer/data/repository/wifi_transfer_repository_impl.dart \
+            test/room_verified_transport_evidence_bridge_test.dart \
+            test/selected_room_live_session_binding_test.dart
+          git rm .github/workflows/branch-format.yml
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'style: format live proof wiring (#49)'
+          git push origin HEAD:fix/49-live-proof-production-wiring
