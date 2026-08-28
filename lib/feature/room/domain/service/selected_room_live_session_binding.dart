@@ -107,7 +107,8 @@ final class SelectedRoomLiveSessionBinding {
         return null;
       }
 
-      if (identity != null) {
+      final identityMaterial = identity;
+      if (identityMaterial != null) {
         final failoverRuntime = RoomFailoverRuntime(session: runtime);
         final starter = RoomLiveFailoverTransportStarter(
           localMemberId: saved.membership.localMemberId,
@@ -125,7 +126,8 @@ final class SelectedRoomLiveSessionBinding {
         );
         final verified = RoomVerifiedTransportCapabilityRuntime(
           capability: capabilities,
-          expectedIssuerPublicKey: identity.certificate.issuerPublicKey,
+          expectedIssuerPublicKey:
+              identityMaterial.certificate.issuerPublicKey,
         );
         failover = _LiveFailoverSession(
           verified: verified,
@@ -135,8 +137,8 @@ final class SelectedRoomLiveSessionBinding {
           localProofProvider:
               ({required int token, required int challengeEpoch}) async {
                 final proof = await _identityCrypto.signProof(
-                  certificate: identity!.certificate,
-                  member: identity.memberKeyPair,
+                  certificate: identityMaterial.certificate,
+                  member: identityMaterial.memberKeyPair,
                   token: token,
                   sessionEpoch: challengeEpoch,
                 );
@@ -208,13 +210,17 @@ final class _LiveFailoverSession {
     required Stream<ConnectionHealth> health,
     required TransferRepository transfer,
   }) async {
-    final source = transfer;
-    if (source is TransportCapabilityObservationSource &&
-        source is TransportRouteProofExchange) {
+    final capabilitySource = transfer is TransportCapabilityObservationSource
+        ? transfer
+        : null;
+    final proofExchange = transfer is TransportRouteProofExchange
+        ? transfer
+        : null;
+    if (capabilitySource != null && proofExchange != null) {
       _evidenceBridge = RoomVerifiedTransportEvidenceBridge(
         runtime: verified,
-        capabilitySource: source,
-        proofExchange: source,
+        capabilitySource: capabilitySource,
+        proofExchange: proofExchange,
         localProofProvider: localProofProvider,
       );
     }
