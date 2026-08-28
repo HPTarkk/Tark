@@ -126,8 +126,7 @@ final class SelectedRoomLiveSessionBinding {
         );
         final verified = RoomVerifiedTransportCapabilityRuntime(
           capability: capabilities,
-          expectedIssuerPublicKey:
-              identityMaterial.certificate.issuerPublicKey,
+          expectedIssuerPublicKey: identityMaterial.certificate.issuerPublicKey,
         );
         failover = _LiveFailoverSession(
           verified: verified,
