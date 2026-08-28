@@ -19,9 +19,11 @@ import '../../domain/entity/control_packet.dart';
 import '../../domain/entity/opus_tuning.dart';
 import '../../domain/entity/session_role.dart';
 import '../../domain/entity/transport_capability_observation.dart';
+import '../../domain/entity/transport_route_proof_observation.dart';
 import '../../domain/entity/transport_stats.dart';
 import '../../domain/entity/waki_packet.dart';
 import '../../domain/repository/transport_capability_observation_source.dart';
+import '../../domain/repository/transport_route_proof_exchange.dart';
 import '../../domain/repository/wifi_transfer_repository.dart';
 import '../../domain/service/audio_capability_negotiator.dart';
 import '../../domain/service/host_subnet_filter.dart';
@@ -49,7 +51,10 @@ const kBroadcastPort = 4000;
 
 @LazySingleton(as: WifiTransferRepository)
 class WifiTransferRepositoryImpl
-    implements WifiTransferRepository, TransportCapabilityObservationSource {
+    implements
+        WifiTransferRepository,
+        TransportCapabilityObservationSource,
+        TransportRouteProofExchange {
   RawDatagramSocket? _sendSocket;
   RawDatagramSocket? _receiveSocket;
   final _connectionController = StreamController<ConnectionHealth>.broadcast();
@@ -282,6 +287,15 @@ class WifiTransferRepositoryImpl
   @override
   Stream<TransportCapabilityObservation> get transportCapabilityObservations =>
       _transportCapabilityHeartbeat.transportCapabilityObservations;
+
+  @override
+  Stream<TransportRouteProofObservation> get routeProofObservations =>
+      _transportCapabilityHeartbeat.routeProofObservations;
+
+  @override
+  void setRouteProofProvider(TransportRouteProofProvider? provider) {
+    _transportCapabilityHeartbeat.setRouteProofProvider(provider);
+  }
 
   /// Drops packets from a peer's previous join that arrive after its new one
   /// has started. See [SessionEpochGate].
@@ -1849,6 +1863,9 @@ class WifiTransferRepositoryImpl
           lastTxSeq: _audioSeq,
           lastRxSeq: rx?.lastSeq ?? 0,
           audioRxPackets: rx?.count ?? 0,
+          // The responder signs the challenger's join epoch echoed by Ping.
+          // This is authority-bearing proof scope, not transport identity.
+          challengeEpoch: packet.sessionEpoch,
         );
         if (_generation != myGen) return;
         _trySend(response, InternetAddress(fromAddress));
@@ -1859,8 +1876,11 @@ class WifiTransferRepositoryImpl
           _lastRtt = rtt;
           _transportCapabilityHeartbeat.observeMatchedPong(
             decoded: decoded,
-            peerKey: packet.senderId,
+            // PeerPingTracker matched this token against the exact unicast
+            // source route. Never substitute payload-controlled senderId here.
+            peerKey: fromAddress,
             observedAt: observedAt,
+            challengeEpoch: _epoch.value,
           );
         }
         _loss.sample(
