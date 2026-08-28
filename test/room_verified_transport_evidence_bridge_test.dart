@@ -93,10 +93,9 @@ void main() {
         runtime: value.runtime,
         capabilitySource: source,
         proofExchange: source,
-        localProofProvider: ({
-          required int token,
-          required int challengeEpoch,
-        }) async => 'local-$token-$challengeEpoch',
+        localProofProvider:
+            ({required int token, required int challengeEpoch}) async =>
+                'local-$token-$challengeEpoch',
       );
       value.runtime.observeLocal(
         canHostHotspot: true,
@@ -146,10 +145,8 @@ void main() {
       runtime: value.runtime,
       capabilitySource: source,
       proofExchange: source,
-      localProofProvider: ({
-        required int token,
-        required int challengeEpoch,
-      }) async => null,
+      localProofProvider:
+          ({required int token, required int challengeEpoch}) async => null,
     );
     value.runtime.observeLocal(
       canHostHotspot: true,
@@ -205,10 +202,8 @@ void main() {
       runtime: value.runtime,
       capabilitySource: source,
       proofExchange: source,
-      localProofProvider: ({
-        required int token,
-        required int challengeEpoch,
-      }) async => null,
+      localProofProvider:
+          ({required int token, required int challengeEpoch}) async => null,
     );
     value.runtime.observeLocal(
       canHostHotspot: true,
@@ -254,10 +249,9 @@ void main() {
       runtime: value.runtime,
       capabilitySource: source,
       proofExchange: source,
-      localProofProvider: ({
-        required int token,
-        required int challengeEpoch,
-      }) async => '$token:$challengeEpoch',
+      localProofProvider:
+          ({required int token, required int challengeEpoch}) async =>
+              '$token:$challengeEpoch',
     );
 
     expect(source.provider, isNotNull);
