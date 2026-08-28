@@ -9,10 +9,12 @@ import '../../domain/entity/connection_health.dart';
 import '../../domain/entity/session_role.dart';
 import '../../domain/entity/transfer_mode.dart';
 import '../../domain/entity/transport_capability_observation.dart';
+import '../../domain/entity/transport_route_proof_observation.dart';
 import '../../domain/entity/transport_stats.dart';
 import '../../domain/entity/waki_packet.dart';
 import '../../domain/repository/transfer_repository.dart';
 import '../../domain/repository/transport_capability_observation_source.dart';
+import '../../domain/repository/transport_route_proof_exchange.dart';
 import '../../domain/service/transfer_mode_store.dart';
 
 /// Session-scoped transport attachment that follows the effective transfer mode.
@@ -27,24 +29,27 @@ import '../../domain/service/transfer_mode_store.dart';
 /// setup role for the same live Wi-Fi transport, so switching between those two
 /// modes must not tear down a healthy socket set. A real repository change
 /// stops the previous connection and rebinds any already-consumed packet,
-/// health, and verified capability-observation streams to the replacement.
+/// health, capability-observation, and route-proof streams to the replacement.
 /// Generation guards make delayed stream cancellation from an older switch
 /// unable to attach a stale repository.
 ///
-/// Capability observations remain optional and fail closed. If the active
-/// concrete transport does not implement [TransportCapabilityObservationSource],
-/// this wrapper emits no capability evidence rather than fabricating it. This
-/// lets Room failover consume the same session-stable transfer object without
-/// accidentally keeping evidence from a transport that has already been
-/// replaced.
+/// Capability observations and route proofs remain optional and fail closed.
+/// If the active concrete transport does not expose the relevant interface,
+/// this wrapper emits no evidence rather than fabricating it. The route-proof
+/// provider is explicitly detached from the old transport before mode
+/// replacement so local member credentials cannot remain active on a stale
+/// attachment.
 ///
 /// The concrete repositories are application singletons and are not owned by
 /// this wrapper. [stopConnection] is the live-session ownership boundary used by
 /// `WalkieTalkieCubit.close`; it stops the active attachment and releases this
-/// wrapper's mode/packet/health/capability subscriptions without disposing those
-/// shared repositories.
+/// wrapper's mode/packet/health/capability/proof subscriptions without disposing
+/// those shared repositories.
 final class LiveTransferRepository
-    implements TransferRepository, TransportCapabilityObservationSource {
+    implements
+        TransferRepository,
+        TransportCapabilityObservationSource,
+        TransportRouteProofExchange {
   LiveTransferRepository({
     required TransferModeStore modeStore,
     required TransferRepository wifi,
@@ -70,12 +75,17 @@ final class LiveTransferRepository
   final _healthController = StreamController<ConnectionHealth>.broadcast();
   final _capabilityController =
       StreamController<TransportCapabilityObservation>.broadcast();
+  final _routeProofController =
+      StreamController<TransportRouteProofObservation>.broadcast();
   StreamSubscription<WakiPacket>? _packetSubscription;
   StreamSubscription<ConnectionHealth>? _healthSubscription;
   StreamSubscription<TransportCapabilityObservation>? _capabilitySubscription;
+  StreamSubscription<TransportRouteProofObservation>? _routeProofSubscription;
+  TransportRouteProofProvider? _routeProofProvider;
   bool _packetsRequested = false;
   bool _healthRequested = false;
   bool _capabilitiesRequested = false;
+  bool _routeProofsRequested = false;
   bool _disposed = false;
   int _attachmentGeneration = 0;
 
@@ -94,6 +104,9 @@ final class LiveTransferRepository
     Object repository,
   ) => repository is TransportCapabilityObservationSource ? repository : null;
 
+  static TransportRouteProofExchange? _routeProofExchange(Object repository) =>
+      repository is TransportRouteProofExchange ? repository : null;
+
   TransferRepository get _current =>
       _select(_modeStore.mode, _wifi, _bluetooth, _guest);
 
@@ -103,6 +116,8 @@ final class LiveTransferRepository
     if (identical(next, _active)) return;
 
     final previous = _active;
+    final previousProofExchange = _routeProofExchange(previous);
+    previousProofExchange?.setRouteProofProvider(null);
     _active = next;
     final generation = ++_attachmentGeneration;
 
@@ -110,6 +125,8 @@ final class LiveTransferRepository
     // session. This does not dispose the singleton repository, so a later
     // explicit mode selection can use it again.
     previous.stopConnection();
+
+    _routeProofExchange(next)?.setRouteProofProvider(_routeProofProvider);
 
     if (_packetsRequested) {
       unawaited(_rebindPackets(next, generation));
@@ -119,6 +136,9 @@ final class LiveTransferRepository
     }
     if (_capabilitiesRequested) {
       unawaited(_rebindCapabilities(next, generation));
+    }
+    if (_routeProofsRequested) {
+      unawaited(_rebindRouteProofs(next, generation));
     }
   }
 
@@ -166,6 +186,22 @@ final class LiveTransferRepository
     );
   }
 
+  Future<void> _rebindRouteProofs(
+    TransferRepository repository,
+    int generation,
+  ) async {
+    final previous = _routeProofSubscription;
+    _routeProofSubscription = null;
+    await previous?.cancel();
+    if (_disposed || generation != _attachmentGeneration) return;
+    final exchange = _routeProofExchange(repository);
+    if (exchange == null) return;
+    _routeProofSubscription = exchange.routeProofObservations.listen(
+      _routeProofController.add,
+      onError: _routeProofController.addError,
+    );
+  }
+
   @override
   Stream<WakiPacket> startListening() {
     if (_disposed) return const Stream<WakiPacket>.empty();
@@ -204,6 +240,30 @@ final class LiveTransferRepository
     }
     _active = current;
     return _capabilityController.stream;
+  }
+
+  @override
+  Stream<TransportRouteProofObservation> get routeProofObservations {
+    if (_disposed) return const Stream<TransportRouteProofObservation>.empty();
+    _routeProofsRequested = true;
+    final current = _current;
+    final exchange = _routeProofExchange(current);
+    if (_routeProofSubscription == null && exchange != null) {
+      _routeProofSubscription = exchange.routeProofObservations.listen(
+        _routeProofController.add,
+        onError: _routeProofController.addError,
+      );
+    }
+    exchange?.setRouteProofProvider(_routeProofProvider);
+    _active = current;
+    return _routeProofController.stream;
+  }
+
+  @override
+  void setRouteProofProvider(TransportRouteProofProvider? provider) {
+    if (_disposed) return;
+    _routeProofProvider = provider;
+    _routeProofExchange(_current)?.setRouteProofProvider(provider);
   }
 
   @override
@@ -258,6 +318,8 @@ final class LiveTransferRepository
   @override
   void stopConnection() {
     if (_disposed) return;
+    _routeProofExchange(_active)?.setRouteProofProvider(null);
+    _routeProofProvider = null;
     _active.stopConnection();
     _disposed = true;
     ++_attachmentGeneration;
@@ -272,8 +334,10 @@ final class LiveTransferRepository
     await _packetSubscription?.cancel();
     await _healthSubscription?.cancel();
     await _capabilitySubscription?.cancel();
+    await _routeProofSubscription?.cancel();
     await _packetController.close();
     await _healthController.close();
     await _capabilityController.close();
+    await _routeProofController.close();
   }
 }
