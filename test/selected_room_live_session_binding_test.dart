@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tark/feature/room/data/security/room_transport_identity_secure_store.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
 import 'package:tark/feature/room/domain/entity/room_session.dart';
 import 'package:tark/feature/room/domain/entity/transport_attachment.dart';
@@ -68,6 +69,7 @@ void main() {
         modeStore: _ModeStore(TransferMode.hotspot),
         hotspotHost: _HotspotHost(),
         hotspotLinkKeeper: _HotspotLinkKeeper(),
+        identityStore: _IdentityStore(),
         localCapabilityReader: () async {
           capabilityReads += 1;
           return null;
@@ -229,4 +231,31 @@ class _HotspotLinkKeeper implements HotspotLinkKeeper {
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnimplementedError(invocation.memberName.toString());
+}
+
+class _IdentityStore implements RoomTransportIdentitySecureStore {
+  RoomTransportIdentityMaterial? value;
+
+  @override
+  Future<RoomTransportIdentityMaterial?> read({
+    required RoomId roomId,
+    required RoomMemberId memberId,
+  }) async => value;
+
+  @override
+  Future<void> write({
+    required RoomId roomId,
+    required RoomMemberId memberId,
+    required RoomTransportIdentityMaterial material,
+  }) async {
+    value = material;
+  }
+
+  @override
+  Future<void> delete({
+    required RoomId roomId,
+    required RoomMemberId memberId,
+  }) async {
+    value = null;
+  }
 }
