@@ -311,7 +311,12 @@ class WifiJoinHandler(
     }
 
     private fun networkMatchesJoinedAp(network: Network): Boolean {
-        val want = joinedSsid ?: return true
+        val candidates = eligibleWifiNetworks()
+        val want = joinedSsid
+        if (want == null) {
+            return candidates.size == 1 && candidates.single().first == network
+        }
+
         val caps = connectivity.getNetworkCapabilities(network) ?: return false
         if (
             !caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
@@ -321,7 +326,6 @@ class WifiJoinHandler(
         }
 
         capabilityWifiSsid(caps)?.let { return it == want }
-        val candidates = eligibleWifiNetworks()
         return currentWifiSsid() == want &&
             candidates.size == 1 &&
             candidates.single().first == network
