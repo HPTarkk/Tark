@@ -37,8 +37,7 @@ final class SelectedRoomLiveSessionBinding {
     RoomMemberTransportIdentityCrypto? identityCrypto,
   }) : _identityStore =
            identityStore ?? PlatformRoomTransportIdentitySecureStore(),
-       _identityCrypto =
-           identityCrypto ?? RoomMemberTransportIdentityCrypto();
+       _identityCrypto = identityCrypto ?? RoomMemberTransportIdentityCrypto();
 
   final RoomRepository rooms;
   final TransferRepository transfer;

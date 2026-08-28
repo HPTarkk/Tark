@@ -64,13 +64,12 @@ void main() {
     required RoomMemberTransportKeyPair peer,
     required int token,
     required int epoch,
-  }) async =>
-      (await crypto.signProof(
-        certificate: certificate,
-        member: peer,
-        token: token,
-        sessionEpoch: epoch,
-      )).encode();
+  }) async => (await crypto.signProof(
+    certificate: certificate,
+    member: peer,
+    token: token,
+    sessionEpoch: epoch,
+  )).encode();
 
   TransportCapabilityObservation peerCapability(String route) =>
       TransportCapabilityObservation(
@@ -85,57 +84,60 @@ void main() {
         observedAt: now,
       );
 
-  test('capability is non-authoritative until matching signed proof binds route',
-      () async {
-    final value = await subject();
-    final source = _EvidenceSource();
-    final bridge = RoomVerifiedTransportEvidenceBridge(
-      runtime: value.runtime,
-      capabilitySource: source,
-      proofExchange: source,
-      localProofProvider:
-          ({required int token, required int challengeEpoch}) async =>
-              'local-$token-$challengeEpoch',
-    );
-    value.runtime.observeLocal(
-      canHostHotspot: true,
-      bluetoothSupported: true,
-      backgroundReady: true,
-      batteryPercent: 30,
-      at: now,
-    );
+  test(
+    'capability is non-authoritative until matching signed proof binds route',
+    () async {
+      final value = await subject();
+      final source = _EvidenceSource();
+      final bridge = RoomVerifiedTransportEvidenceBridge(
+        runtime: value.runtime,
+        capabilitySource: source,
+        proofExchange: source,
+        localProofProvider: ({
+          required int token,
+          required int challengeEpoch,
+        }) async => 'local-$token-$challengeEpoch',
+      );
+      value.runtime.observeLocal(
+        canHostHotspot: true,
+        bluetoothSupported: true,
+        backgroundReady: true,
+        batteryPercent: 30,
+        at: now,
+      );
 
-    source.capabilities.add(peerCapability('route-a'));
-    expect(bridge.pendingCapabilityCount, 1);
+      source.capabilities.add(peerCapability('route-a'));
+      expect(bridge.pendingCapabilityCount, 1);
 
-    source.proofs.add(
-      TransportRouteProofObservation(
-        peerKey: 'route-a',
-        token: 41,
-        challengeEpoch: 7,
-        encodedProof: await proof(
-          certificate: value.certificate,
-          peer: value.peer,
+      source.proofs.add(
+        TransportRouteProofObservation(
+          peerKey: 'route-a',
           token: 41,
-          epoch: 7,
+          challengeEpoch: 7,
+          encodedProof: await proof(
+            certificate: value.certificate,
+            peer: value.peer,
+            token: 41,
+            epoch: 7,
+          ),
+          observedAt: now,
         ),
-        observedAt: now,
-      ),
-    );
-    await _flush();
+      );
+      await _flush();
 
-    expect(bridge.pendingCapabilityCount, 0);
-    final attempt = await value.runtime.beginFailover(
-      sharedLanUsable: false,
-      reason: RoomFailoverReason.hostLost,
-      now: now,
-    );
-    expect(attempt!.decision.plan.hotspotHost, peerMemberId);
+      expect(bridge.pendingCapabilityCount, 0);
+      final attempt = await value.runtime.beginFailover(
+        sharedLanUsable: false,
+        reason: RoomFailoverReason.hostLost,
+        now: now,
+      );
+      expect(attempt!.decision.plan.hotspotHost, peerMemberId);
 
-    await bridge.dispose();
-    value.runtime.dispose();
-    await source.close();
-  });
+      await bridge.dispose();
+      value.runtime.dispose();
+      await source.close();
+    },
+  );
 
   test('forged proof never unlocks pending capability', () async {
     final value = await subject();
@@ -144,8 +146,10 @@ void main() {
       runtime: value.runtime,
       capabilitySource: source,
       proofExchange: source,
-      localProofProvider:
-          ({required int token, required int challengeEpoch}) async => null,
+      localProofProvider: ({
+        required int token,
+        required int challengeEpoch,
+      }) async => null,
     );
     value.runtime.observeLocal(
       canHostHotspot: true,
@@ -201,8 +205,10 @@ void main() {
       runtime: value.runtime,
       capabilitySource: source,
       proofExchange: source,
-      localProofProvider:
-          ({required int token, required int challengeEpoch}) async => null,
+      localProofProvider: ({
+        required int token,
+        required int challengeEpoch,
+      }) async => null,
     );
     value.runtime.observeLocal(
       canHostHotspot: true,
@@ -248,16 +254,14 @@ void main() {
       runtime: value.runtime,
       capabilitySource: source,
       proofExchange: source,
-      localProofProvider:
-          ({required int token, required int challengeEpoch}) async =>
-              '$token:$challengeEpoch',
+      localProofProvider: ({
+        required int token,
+        required int challengeEpoch,
+      }) async => '$token:$challengeEpoch',
     );
 
     expect(source.provider, isNotNull);
-    expect(
-      await source.provider!(token: 4, challengeEpoch: 6),
-      '4:6',
-    );
+    expect(await source.provider!(token: 4, challengeEpoch: 6), '4:6');
 
     await bridge.dispose();
     expect(source.provider, isNull);
@@ -273,7 +277,9 @@ Future<void> _flush() async {
 }
 
 final class _EvidenceSource
-    implements TransportCapabilityObservationSource, TransportRouteProofExchange {
+    implements
+        TransportCapabilityObservationSource,
+        TransportRouteProofExchange {
   final capabilities =
       StreamController<TransportCapabilityObservation>.broadcast(sync: true);
   final proofs = StreamController<TransportRouteProofObservation>.broadcast(
