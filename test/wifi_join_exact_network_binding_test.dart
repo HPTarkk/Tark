@@ -11,9 +11,18 @@ void main() {
     expect(source, contains('import android.net.wifi.WifiInfo'));
     expect(source, contains('private fun findExpectedWifiNetwork'));
     expect(source, contains('(caps.transportInfo as? WifiInfo)?.ssid'));
+    expect(
+      source,
+      contains('if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null'),
+    );
     expect(source, contains('exact.size > 1'));
     expect(source, contains('candidates.size != 1'));
     expect(source, contains('networkMatchesJoinedAp(network)'));
+    expect(
+      source,
+      contains('if (want == null)'),
+      reason: 'A redacted SSID must not make keeper callbacks automatically trusted.',
+    );
     expect(
       source,
       isNot(contains('connectivity.allNetworks.firstOrNull')),
