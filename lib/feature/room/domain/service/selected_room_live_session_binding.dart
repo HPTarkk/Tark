@@ -209,11 +209,13 @@ final class _LiveFailoverSession {
     required Stream<ConnectionHealth> health,
     required TransferRepository transfer,
   }) async {
-    final capabilitySource = transfer is TransportCapabilityObservationSource
-        ? transfer
+    final TransportCapabilityObservationSource? capabilitySource =
+        transfer is TransportCapabilityObservationSource
+        ? transfer as TransportCapabilityObservationSource
         : null;
-    final proofExchange = transfer is TransportRouteProofExchange
-        ? transfer
+    final TransportRouteProofExchange? proofExchange =
+        transfer is TransportRouteProofExchange
+        ? transfer as TransportRouteProofExchange
         : null;
     if (capabilitySource != null && proofExchange != null) {
       _evidenceBridge = RoomVerifiedTransportEvidenceBridge(
