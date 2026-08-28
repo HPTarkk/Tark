@@ -9,6 +9,7 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.net.wifi.WifiConfiguration
+import android.net.wifi.WifiInfo
 import android.net.wifi.WifiManager
 import android.net.wifi.WifiNetworkSpecifier
 import android.net.wifi.WifiNetworkSuggestion
@@ -248,7 +249,6 @@ class WifiJoinHandler(
         associationProbe = null
     }
 
-    @Suppress("DEPRECATION")
     private fun tryAdoptExpectedCurrentWifi(
         pending: PendingJoin,
         expectedSsid: String,
@@ -256,17 +256,9 @@ class WifiJoinHandler(
         security: String,
     ): Boolean {
         if (pendingJoin !== pending || !pending.isPending) return false
-        val currentSsid = runCatching { wifiManager.connectionInfo?.ssid?.trim('"') }.getOrNull()
-        if (currentSsid.isNullOrEmpty() || currentSsid == UNKNOWN_SSID || currentSsid != expectedSsid) {
-            return false
-        }
-        val network = connectivity.allNetworks.firstOrNull { candidate ->
-            val caps = connectivity.getNetworkCapabilities(candidate) ?: return@firstOrNull false
-            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) &&
-                !caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)
-        } ?: return false
+        val network = findExpectedWifiNetwork(expectedSsid) ?: return false
 
-        Log.i(TAG, "join completed by matching current-Wi-Fi evidence")
+        Log.i(TAG, "join completed by exact current-Wi-Fi evidence")
         bind(network)
         joinedSsid = expectedSsid
         installSuggestion(expectedSsid, passphrase, security)
@@ -274,6 +266,63 @@ class WifiJoinHandler(
         cancelAssociationProbe()
         pending.reply(true)
         return true
+    }
+
+    private fun eligibleWifiNetworks(): List<Pair<Network, NetworkCapabilities>> =
+        connectivity.allNetworks.mapNotNull { network ->
+            val caps = connectivity.getNetworkCapabilities(network) ?: return@mapNotNull null
+            if (
+                !caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+                caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)
+            ) {
+                return@mapNotNull null
+            }
+            network to caps
+        }
+
+    private fun normalizedSsid(raw: String?): String? =
+        raw?.trim('"')?.takeIf { it.isNotEmpty() && it != UNKNOWN_SSID }
+
+    @Suppress("DEPRECATION")
+    private fun currentWifiSsid(): String? =
+        normalizedSsid(runCatching { wifiManager.connectionInfo?.ssid }.getOrNull())
+
+    @Suppress("DEPRECATION")
+    private fun capabilityWifiSsid(caps: NetworkCapabilities): String? =
+        normalizedSsid((caps.transportInfo as? WifiInfo)?.ssid)
+
+    private fun findExpectedWifiNetwork(expectedSsid: String): Network? {
+        val candidates = eligibleWifiNetworks()
+        val exact = candidates.filter { (_, caps) -> capabilityWifiSsid(caps) == expectedSsid }
+        if (exact.size == 1) return exact.single().first
+        if (exact.size > 1) {
+            Log.w(TAG, "expected Wi-Fi is exposed by multiple Network handles; refusing ambiguous bind")
+            return null
+        }
+
+        if (currentWifiSsid() != expectedSsid) return null
+        if (candidates.size != 1) {
+            Log.w(TAG, "matching current Wi-Fi has ${candidates.size} eligible handles; refusing ambiguous bind")
+            return null
+        }
+        return candidates.single().first
+    }
+
+    private fun networkMatchesJoinedAp(network: Network): Boolean {
+        val want = joinedSsid ?: return true
+        val caps = connectivity.getNetworkCapabilities(network) ?: return false
+        if (
+            !caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)
+        ) {
+            return false
+        }
+
+        capabilityWifiSsid(caps)?.let { return it == want }
+        val candidates = eligibleWifiNetworks()
+        return currentWifiSsid() == want &&
+            candidates.size == 1 &&
+            candidates.single().first == network
     }
 
     private fun startKeeper() {
@@ -286,11 +335,11 @@ class WifiJoinHandler(
             override fun onAvailable(network: Network) {
                 cancelLostAnnouncement()
                 if (network == boundNetwork) return
-                if (!looksLikeOurAp()) {
-                    Log.w(TAG, "keeper: Wi-Fi came up, but not the joined AP — not binding")
+                if (!networkMatchesJoinedAp(network)) {
+                    Log.w(TAG, "keeper: callback Network is not the joined AP — not binding")
                     return
                 }
-                Log.i(TAG, "keeper: back on joined AP — re-pinning the process")
+                Log.i(TAG, "keeper: joined AP returned — re-pinning the process")
                 bind(network)
                 mainHandler.post { eventSink?.success(mapOf("event" to "rebound")) }
             }
@@ -313,14 +362,6 @@ class WifiJoinHandler(
     private fun stopKeeper() {
         keeperCallback?.let { cb -> runCatching { connectivity.unregisterNetworkCallback(cb) } }
         keeperCallback = null
-    }
-
-    private fun looksLikeOurAp(): Boolean {
-        val want = joinedSsid ?: return true
-        @Suppress("DEPRECATION")
-        val current = runCatching { wifiManager.connectionInfo?.ssid?.trim('"') }.getOrNull()
-        if (current.isNullOrEmpty() || current == UNKNOWN_SSID) return true
-        return current == want
     }
 
     private fun installSuggestion(ssid: String, passphrase: String, security: String) {
@@ -495,21 +536,25 @@ class WifiJoinHandler(
     }
 
     private fun bindCurrent(): Boolean {
-        val network = connectivity.allNetworks.firstOrNull { candidate ->
-            val caps = connectivity.getNetworkCapabilities(candidate) ?: return@firstOrNull false
-            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) &&
-                !caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)
-        }
-        if (network == null) {
+        val candidates = eligibleWifiNetworks()
+        if (candidates.isEmpty()) {
             Log.w(TAG, "bindCurrent: no Wi-Fi network to pin to")
             return false
         }
-        Log.i(TAG, "bindCurrent: pinning process to current Wi-Fi")
+        val currentSsid = currentWifiSsid()
+        val network = if (currentSsid != null) {
+            findExpectedWifiNetwork(currentSsid)
+        } else {
+            candidates.singleOrNull()?.first
+        }
+        if (network == null) {
+            Log.w(TAG, "bindCurrent: current Wi-Fi Network handle is ambiguous")
+            return false
+        }
+
+        Log.i(TAG, "bindCurrent: pinning process to verified current Wi-Fi")
         bind(network)
-        @Suppress("DEPRECATION")
-        joinedSsid = runCatching { wifiManager.connectionInfo?.ssid?.trim('"') }
-            .getOrNull()
-            ?.takeIf { it.isNotEmpty() && it != UNKNOWN_SSID }
+        joinedSsid = currentSsid
         startKeeper()
         return true
     }
