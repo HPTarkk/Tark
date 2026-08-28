@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import '../../../transfer/api/transfer_api.dart';
+import '../../data/security/room_transport_identity_lifecycle.dart';
+import '../../data/security/room_transport_identity_secure_store.dart';
 import '../entity/transport_attachment.dart';
 import '../repository/room_repository.dart';
 import 'room_capability_failover_runtime.dart';
@@ -8,10 +10,12 @@ import 'room_failover_controller.dart';
 import 'room_failover_runtime.dart';
 import 'room_failover_transport_orchestrator.dart';
 import 'room_live_failover_transport_starter.dart';
+import 'room_member_transport_identity.dart';
 import 'room_session_factory.dart';
 import 'room_session_runtime.dart';
-import 'room_transport_capability_observation_bridge.dart';
 import 'room_transport_health_runtime_adapter.dart';
+import 'room_verified_transport_capability_runtime.dart';
+import 'room_verified_transport_evidence_bridge.dart';
 
 /// Application-facing binding used only when the user actually enters a live
 /// channel. Merely viewing/selecting a saved Room never calls this class and
@@ -29,7 +33,11 @@ final class SelectedRoomLiveSessionBinding {
     this.hotspotHost,
     this.hotspotLinkKeeper,
     this.localCapabilityReader,
-  });
+    RoomTransportIdentitySecureStore? identityStore,
+    RoomMemberTransportIdentityCrypto? identityCrypto,
+  }) : _identityStore =
+           identityStore ?? PlatformRoomTransportIdentitySecureStore(),
+       _identityCrypto = identityCrypto ?? RoomMemberTransportIdentityCrypto();
 
   final RoomRepository rooms;
   final TransferRepository transfer;
@@ -41,6 +49,8 @@ final class SelectedRoomLiveSessionBinding {
   final HotspotLinkKeeper? hotspotLinkKeeper;
   final Future<TransportCapabilityAdvertisement?> Function()?
   localCapabilityReader;
+  final RoomTransportIdentitySecureStore _identityStore;
+  final RoomMemberTransportIdentityCrypto _identityCrypto;
 
   RoomSessionRuntime? _runtime;
   _LiveFailoverSession? _failover;
@@ -78,28 +88,64 @@ final class SelectedRoomLiveSessionBinding {
     final keeper = hotspotLinkKeeper;
     _LiveFailoverSession? failover;
     if (host != null && keeper != null) {
-      final failoverRuntime = RoomFailoverRuntime(session: runtime);
-      final starter = RoomLiveFailoverTransportStarter(
-        localMemberId: saved.membership.localMemberId,
-        modeStore: modeStore,
-        transfer: transfer,
-        hotspotHost: host,
-        hotspotLinkKeeper: keeper,
-      );
-      final orchestrator = RoomFailoverTransportOrchestrator(
-        runtime: failoverRuntime,
-        startTransport: starter.call,
-      );
-      final capabilities = RoomCapabilityFailoverRuntime(
-        orchestrator: orchestrator,
-      );
-      failover = _LiveFailoverSession(
-        capabilities: capabilities,
-        orchestrator: orchestrator,
-        readLocalCapability:
-            localCapabilityReader ?? TransportCapabilityReader.current,
-      );
-      await failover.start(health: health, transfer: transfer);
+      // Existing owner Rooms are provisioned lazily; joined members must
+      // already have persisted material from accepted secure join. If an
+      // ordinary member's secure material is unavailable, failover stays off
+      // rather than falling back to network metadata as identity.
+      RoomTransportIdentityMaterial? identity;
+      try {
+        identity = await RoomTransportIdentityLifecycle(
+          store: _identityStore,
+          crypto: _identityCrypto,
+        ).ensureLocalIdentity(saved);
+      } on Object {
+        identity = null;
+      }
+
+      if (generation != _generation) {
+        await runtime.leave();
+        return null;
+      }
+
+      final identityMaterial = identity;
+      if (identityMaterial != null) {
+        final failoverRuntime = RoomFailoverRuntime(session: runtime);
+        final starter = RoomLiveFailoverTransportStarter(
+          localMemberId: saved.membership.localMemberId,
+          modeStore: modeStore,
+          transfer: transfer,
+          hotspotHost: host,
+          hotspotLinkKeeper: keeper,
+        );
+        final orchestrator = RoomFailoverTransportOrchestrator(
+          runtime: failoverRuntime,
+          startTransport: starter.call,
+        );
+        final capabilities = RoomCapabilityFailoverRuntime(
+          orchestrator: orchestrator,
+        );
+        final verified = RoomVerifiedTransportCapabilityRuntime(
+          capability: capabilities,
+          expectedIssuerPublicKey: identityMaterial.certificate.issuerPublicKey,
+        );
+        failover = _LiveFailoverSession(
+          verified: verified,
+          orchestrator: orchestrator,
+          readLocalCapability:
+              localCapabilityReader ?? TransportCapabilityReader.current,
+          localProofProvider:
+              ({required int token, required int challengeEpoch}) async {
+                final proof = await _identityCrypto.signProof(
+                  certificate: identityMaterial.certificate,
+                  member: identityMaterial.memberKeyPair,
+                  token: token,
+                  sessionEpoch: challengeEpoch,
+                );
+                return proof.encode();
+              },
+        );
+        await failover.start(health: health, transfer: transfer);
+      }
     }
 
     if (generation != _generation) {
@@ -137,23 +183,24 @@ final class SelectedRoomLiveSessionBinding {
 /// Owns only the failover lifetime underneath one logical Room session.
 ///
 /// Remote capability observations remain unusable until a cryptographically
-/// verified peer-to-member binding exists in [RoomCapabilityFailoverRuntime].
-/// This composition never derives RoomMemberId from IP, senderId, SSID or a
-/// device/display name. Local evidence comes only from the platform capability
-/// reader; missing evidence means no fabricated election candidate.
+/// verified live route proof binds the carrier-observed peer key to an active
+/// RoomMemberId. No IP, senderId, SSID, channel id or device/display name is
+/// treated as Room identity.
 final class _LiveFailoverSession {
   _LiveFailoverSession({
-    required this.capabilities,
+    required this.verified,
     required this.orchestrator,
     required this.readLocalCapability,
+    required this.localProofProvider,
   });
 
-  final RoomCapabilityFailoverRuntime capabilities;
+  final RoomVerifiedTransportCapabilityRuntime verified;
   final RoomFailoverTransportOrchestrator orchestrator;
   final Future<TransportCapabilityAdvertisement?> Function()
   readLocalCapability;
+  final TransportRouteProofProvider localProofProvider;
 
-  RoomTransportCapabilityObservationBridge? _bridge;
+  RoomVerifiedTransportEvidenceBridge? _evidenceBridge;
   StreamSubscription<ConnectionHealth>? _healthSubscription;
   int? _handledDownGeneration;
   bool _disposed = false;
@@ -162,12 +209,20 @@ final class _LiveFailoverSession {
     required Stream<ConnectionHealth> health,
     required TransferRepository transfer,
   }) async {
-    final source = transfer;
-    if (source is TransportCapabilityObservationSource) {
-      final capabilitySource = source as TransportCapabilityObservationSource;
-      _bridge = RoomTransportCapabilityObservationBridge(
-        runtime: capabilities,
-        source: capabilitySource,
+    final TransportCapabilityObservationSource? capabilitySource =
+        transfer is TransportCapabilityObservationSource
+        ? transfer as TransportCapabilityObservationSource
+        : null;
+    final TransportRouteProofExchange? proofExchange =
+        transfer is TransportRouteProofExchange
+        ? transfer as TransportRouteProofExchange
+        : null;
+    if (capabilitySource != null && proofExchange != null) {
+      _evidenceBridge = RoomVerifiedTransportEvidenceBridge(
+        runtime: verified,
+        capabilitySource: capabilitySource,
+        proofExchange: proofExchange,
+        localProofProvider: localProofProvider,
       );
     }
     _healthSubscription = health.listen(
@@ -189,28 +244,31 @@ final class _LiveFailoverSession {
 
   Future<void> _beginFailoverIfCurrent() async {
     if (_disposed) return;
-    final generation = capabilities.attachmentGeneration;
+    final generation = verified.attachmentGeneration;
     if (_handledDownGeneration == generation) return;
     _handledDownGeneration = generation;
 
     await _refreshLocalEvidence(expectedGeneration: generation);
-    if (_disposed || capabilities.attachmentGeneration != generation) return;
+    if (_disposed || verified.attachmentGeneration != generation) return;
 
-    await capabilities.beginFailover(
+    await verified.beginFailover(
       sharedLanUsable: false,
       reason: RoomFailoverReason.transportFailed,
       now: DateTime.now(),
     );
+    if (verified.attachmentGeneration != generation) {
+      _evidenceBridge?.clearPending();
+    }
   }
 
   Future<void> _refreshLocalEvidence({int? expectedGeneration}) async {
     final capability = await readLocalCapability();
     if (_disposed || capability == null) return;
     if (expectedGeneration != null &&
-        capabilities.attachmentGeneration != expectedGeneration) {
+        verified.attachmentGeneration != expectedGeneration) {
       return;
     }
-    capabilities.observeLocal(
+    verified.observeLocal(
       canHostHotspot: capability.canHostHotspot,
       bluetoothSupported: capability.bluetoothSupported,
       backgroundReady: capability.backgroundReady,
@@ -224,8 +282,8 @@ final class _LiveFailoverSession {
     if (_disposed) return;
     _disposed = true;
     await _healthSubscription?.cancel();
-    await _bridge?.dispose();
+    await _evidenceBridge?.dispose();
     await orchestrator.cancel();
-    capabilities.dispose();
+    verified.dispose();
   }
 }
