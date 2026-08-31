@@ -5,8 +5,10 @@ import 'package:injectable/injectable.dart';
 import '../../data/security/room_transport_identity_lifecycle.dart';
 import '../../data/security/room_transport_identity_secure_store.dart';
 import '../../domain/entity/room.dart';
+import '../../domain/entity/room_direct_join_bundle.dart';
 import '../../domain/entity/room_invitation.dart';
 import '../../domain/repository/room_repository.dart';
+import '../../domain/service/room_invite_join_client.dart';
 import '../../domain/service/room_invite_join_importer.dart';
 import '../../domain/service/room_invite_join_orchestrator.dart';
 import '../../domain/service/room_session_factory.dart';
@@ -157,6 +159,33 @@ class RoomListCubit extends Cubit<RoomListState> {
     } catch (error) {
       emit(state.copyWith(loading: false, error: error));
       return RoomInviteJoinAttemptStatus.invalidResponse;
+    }
+  }
+
+  /// Imports a pre-authorised one-scan invite and selects its Room.
+  Future<bool> joinDirect(RoomDirectJoinBundle bundle) async {
+    if (state.loading || bundle.isExpired) return false;
+    emit(state.copyWith(loading: true, clearError: true));
+    try {
+      final grant = RoomInviteJoinGrant(
+        roomId: bundle.snapshot.roomId,
+        memberId: bundle.memberId,
+        displayName: bundle.snapshot.members
+            .singleWhere((member) => member.memberId == bundle.memberId)
+            .displayName,
+        snapshot: bundle.snapshot,
+        transportCertificate: bundle.certificate,
+      );
+      final saved = await _joinImporter.importGrant(
+        grant,
+        memberKeyPair: bundle.memberKeyPair,
+      );
+      final rooms = await _repository.list();
+      emit(RoomListState(rooms: rooms, selectedRoomId: saved.room.id));
+      return true;
+    } catch (error) {
+      emit(state.copyWith(loading: false, error: error));
+      return false;
     }
   }
 

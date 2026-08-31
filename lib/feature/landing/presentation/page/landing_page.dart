@@ -4,9 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/entitlement/license_gate.dart';
-import '../../../../core/entitlement/paywall_sheet.dart';
-import '../../../../core/entitlement/premium_feature.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
@@ -14,12 +11,10 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/mesh_background.dart';
 import '../../../../core/widget/settings_icon_button.dart';
 import '../../../../core/widget/version_badge.dart';
-import '../../../preflight/presentation/page/preflight_page.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../manager/landing_cubit.dart';
 import '../widget/landing_identity_card.dart';
 import '../widget/landing_logo.dart';
-import '../widget/channel_actions.dart';
 
 class LandingPage extends StatefulWidget {
   const LandingPage._();
@@ -39,22 +34,9 @@ class _LandingPageState extends State<LandingPage>
   late AnimationController _entranceController;
   late List<Animation<double>> _sections;
 
-  // pulse animation used by the primary channel action only
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
-
   @override
   void initState() {
     super.initState();
-
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2000),
-    )..repeat(reverse: true);
-    _pulseAnimation = CurvedAnimation(
-      parent: _pulseController,
-      curve: Curves.easeInOut,
-    );
 
     _entranceController = AnimationController(
       vsync: this,
@@ -82,7 +64,6 @@ class _LandingPageState extends State<LandingPage>
 
   @override
   void dispose() {
-    _pulseController.dispose();
     _entranceController.dispose();
     super.dispose();
   }
@@ -136,7 +117,7 @@ class _LandingPageState extends State<LandingPage>
                             ),
                           ),
                           const SizedBox(height: 20),
-                          _entrance(2, _buildChannelActions(context, state)),
+                          _entrance(2, _RoomEntryActions()),
                           const Spacer(flex: 1),
                           _entrance(
                             3,
@@ -164,101 +145,31 @@ class _LandingPageState extends State<LandingPage>
       ),
     );
   }
+}
 
-  // ── Channel actions ────────────────────────────────────────────────────────────
-
-  Widget _buildChannelActions(BuildContext context, LandingState state) {
-    return AnimatedBuilder(
-      animation: _pulseAnimation,
-      builder: (_, _) => ChannelActions(
-        createPlan: state.planFor(ChannelIntent.create),
-        joinPlan: state.planFor(ChannelIntent.join),
-        pulse: _pulseAnimation.value,
-        // The local address is still being read. Every plan turns on it, so
-        // acting now would commit to a transport chosen from a fact we have
-        // not finished establishing.
-        enabled: !state.isLoading,
-        onTap: (plan) => _enterChannel(context, plan),
-        onDifferentNetwork: () => _openHotspotBridge(context),
-        onSameWifi: () => context.read<LandingCubit>().preferSharedNetwork(),
-        hasWifi: state.hasWifiAddress,
-      ),
-    );
-  }
-
-  /// Commits to the plan's transport and walks it.
-  ///
-  /// The entitlement check comes first and opens the paywall rather than
-  /// silently routing somewhere cheaper. Under automatic the advisor would
-  /// happily hand back Bluetooth for a user whose Wi-Fi entitlement has
-  /// lapsed, and that reads as the app quietly getting worse; a lock the user
-  /// can act on does not. (Monetization is parked, so today the gate always
-  /// allows and this is a no-op — it is here so that un-parking it does not
-  /// have to find this call site.)
-  Future<void> _enterChannel(BuildContext context, ChannelPlan plan) async {
-    if (plan.mode.requiresPremium &&
-        !GetIt.instance<LicenseGate>().allows(PremiumFeature.wifiTransport)) {
-      showPaywallSheet(context, PremiumFeature.wifiTransport);
-      return;
-    }
-    // Preflight (#33): the actual "before the phone goes in a pocket" moment
-    // for every returning user — onboarding's own launch only ever fires
-    // once, on a fresh install. Runs before anything below is committed, so
-    // cancelling leaves Landing exactly as it was.
-    final proceed = await showPreflightPage(context, plan: plan);
-    if (!proceed || !context.mounted) return;
-
-    final cubit = context.read<LandingCubit>();
-    // Before the transport is committed and before we navigate: the channel
-    // has to be settled by the time anything can put a packet on the wire.
-    cubit.takeChannel(plan.intent);
-    await cubit.markLaunched();
-    // Written before navigating, not after: the page we are about to open
-    // resolves its repository from the stored mode.
-    await cubit.commit(plan.mode);
-    if (!context.mounted) return;
-    switch (plan.mode) {
-      case TransferMode.wifi:
-        // Nothing to set up — both phones are already on one network, so the
-        // channel is the destination rather than a step past a setup screen.
-        context.goNamed(AppRoutes.walkieName);
-      case TransferMode.hotspot:
-        context.pushNamed(
-          AppRoutes.wifiHotspotName,
-          queryParameters: {
-            'mode': 'hotspot',
-            // Carries the side the user already chose, so the bridge does not
-            // re-ask "are you the host?" one screen after they answered it.
-            'intent': plan.intent.key,
-          },
-        );
-      case TransferMode.bluetooth:
-        context.pushNamed(
-          AppRoutes.bluetoothConnectName,
-          queryParameters: {'intent': plan.intent.key},
-        );
-      case TransferMode.guest:
-        context.pushNamed(AppRoutes.guestLinkName);
-    }
-  }
-
-  /// "Not on the same network?" — the hotspot bridge with no side chosen.
-  ///
-  /// Deliberately lands on the host/join picker rather than assuming: the user
-  /// is telling us our reading of the situation was wrong, which is the worst
-  /// possible moment to guess again.
-  Future<void> _openHotspotBridge(BuildContext context) async {
-    if (!GetIt.instance<LicenseGate>().allows(PremiumFeature.wifiTransport)) {
-      showPaywallSheet(context, PremiumFeature.wifiTransport);
-      return;
-    }
-    final cubit = context.read<LandingCubit>();
-    await cubit.markLaunched();
-    await cubit.commit(TransferMode.hotspot);
-    if (!context.mounted) return;
-    context.pushNamed(
-      AppRoutes.wifiHotspotName,
-      queryParameters: const {'mode': 'hotspot'},
+/// The Room is created before a transport is selected.  A Room therefore has
+/// a single, obvious home-screen entry instead of being hidden behind Channel.
+class _RoomEntryActions extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final fa = Localizations.localeOf(context).languageCode == 'fa';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        FilledButton.icon(
+          key: const Key('landing-create-room'),
+          onPressed: () => context.push('${AppRoutes.roomsPath}?create=true'),
+          icon: const Icon(Icons.add_home_work_outlined),
+          label: Text(fa ? 'ساخت اتاق' : 'Create room'),
+        ),
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
+          key: const Key('landing-join-room'),
+          onPressed: () => context.push(AppRoutes.roomQrJoinPath),
+          icon: const Icon(Icons.qr_code_scanner_rounded),
+          label: Text(fa ? 'پیوستن با QR' : 'Join with QR'),
+        ),
+      ],
     );
   }
 }
