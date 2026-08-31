@@ -15,13 +15,34 @@ import '../manager/room_list_cubit.dart';
 /// guest link merely by viewing/selecting a Room. Transport orchestration begins
 /// only when the user presses the explicit Start Ride action for the selected
 /// durable Room.
-class RoomListPage extends StatelessWidget {
-  const RoomListPage._();
+class RoomListPage extends StatefulWidget {
 
-  static Widget buildPage() => BlocProvider<RoomListCubit>(
+  static Widget buildPage({bool createOnOpen = false}) => BlocProvider<RoomListCubit>(
     create: (_) => GetIt.instance<RoomListCubit>()..load(),
-    child: const RoomListPage._(),
+    child: RoomListPage._(createOnOpen: createOnOpen),
   );
+
+  final bool createOnOpen;
+
+  const RoomListPage._({this.createOnOpen = false});
+
+  @override
+  State<RoomListPage> createState() => _RoomListPageState();
+}
+
+class _RoomListPageState extends State<RoomListPage> {
+  bool _autoCreateStarted = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (widget.createOnOpen && !_autoCreateStarted) {
+      _autoCreateStarted = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _createRoom(context);
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,14 +54,8 @@ class RoomListPage extends StatelessWidget {
         foregroundColor: AppColors.textPrimary,
         title: Text(copy.title),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        key: const Key('rooms-create'),
-        onPressed: () => _createRoom(context),
-        backgroundColor: AppColors.amber,
-        foregroundColor: Colors.black,
-        icon: const Icon(Icons.add_rounded),
-        label: Text(copy.create),
-      ),
+      // Creation deliberately lives on Landing. It is the first action in the
+      // product flow, not a duplicate control mixed into saved-room management.
       body: SafeArea(
         child: BlocBuilder<RoomListCubit, RoomListState>(
           builder: (context, state) {
@@ -111,12 +126,15 @@ class RoomListPage extends StatelessWidget {
       // never identity or authorization.
     }
     if (!context.mounted) return;
-    await context.read<RoomListCubit>().createRoom(
+    final created = await context.read<RoomListCubit>().createRoom(
       name: name,
       localDisplayName: localDisplayName.trim().isEmpty
           ? copy.fallbackMemberName
           : localDisplayName.trim(),
     );
+    if (created != null && context.mounted) {
+      context.go(AppRoutes.walkiePath);
+    }
   }
 
   Future<void> _renameRoom(BuildContext context, SavedRoom saved) async {

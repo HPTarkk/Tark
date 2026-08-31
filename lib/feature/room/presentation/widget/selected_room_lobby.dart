@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../domain/entity/room.dart';
+import 'in_room_invite_button.dart';
 
 /// Read-only durable Room lobby shown before a live transport is started.
 ///
-/// This widget has no transport dependency by design. Its only action is the
-/// explicit [onStartRide] handoff owned by the app composition root.
+/// Inviting members remains available before transport starts, keeping logical
+/// Room membership separate from Wi-Fi/hotspot setup.
 class SelectedRoomLobby extends StatelessWidget {
   const SelectedRoomLobby({
     required this.room,
@@ -24,7 +25,10 @@ class SelectedRoomLobby extends StatelessWidget {
         .where((member) => member.isActive)
         .toList(growable: false);
     return Scaffold(
-      appBar: AppBar(title: Text(room.room.name)),
+      appBar: AppBar(
+        title: Text(room.room.name),
+        actions: const [InRoomInviteButton()],
+      ),
       body: SafeArea(
         child: ListView(
           key: const Key('selected-room-lobby'),

@@ -8,7 +8,11 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../transfer/api/hotspot_invite_api.dart';
 import '../../../transfer/api/transfer_api.dart';
+import '../../data/security/room_transport_identity_lifecycle.dart';
+import '../../data/security/room_transport_identity_secure_store.dart';
 import '../../domain/entity/room.dart';
+import '../../domain/entity/room_accepted_join_snapshot.dart';
+import '../../domain/entity/room_direct_join_bundle.dart';
 import '../../domain/entity/room_invitation.dart';
 import '../../domain/repository/room_repository.dart';
 
@@ -21,6 +25,7 @@ class InRoomInviteButton extends StatefulWidget {
   const InRoomInviteButton({
     super.key,
     this.repository,
+    this.identityLifecycle,
     this.hotspotLinkKeeper,
     this.transferRepository,
   });
@@ -28,6 +33,7 @@ class InRoomInviteButton extends StatefulWidget {
   /// Optional seams for deterministic widget tests. Production resolves the
   /// canonical registrations owned by the Room and transfer features.
   final RoomRepository? repository;
+  final RoomTransportIdentityLifecycle? identityLifecycle;
   final HotspotLinkKeeper? hotspotLinkKeeper;
   final TransferRepository? transferRepository;
 
@@ -92,6 +98,40 @@ class _InRoomInviteButtonState extends State<InRoomInviteButton> {
         now: DateTime.now().toUtc(),
         ttl: const Duration(hours: 12),
       );
+      // Pre-authorise one fresh member while the issuer and its signing key are
+      // available. The resulting QR is a complete one-scan handoff; the new
+      // phone never has to display a reply QR back to this phone.
+      final verified = await _repository.verifyAndRedeemInvite(
+        invite,
+        now: DateTime.now().toUtc(),
+      );
+      if (verified == null) throw StateError('Room invite verification failed');
+      final accepted = await _repository.acceptVerifiedInvite(
+        verified,
+        displayName: copy.newMember,
+        acceptedAt: DateTime.now().toUtc(),
+      );
+      final memberId = RoomMemberId(invite.invitationId.substring(0, 24));
+      final identity = widget.identityLifecycle ??
+          RoomTransportIdentityLifecycle(
+            store: PlatformRoomTransportIdentitySecureStore(),
+          );
+      final memberKeyPair = await identity.createPendingMemberKeyPair();
+      final certificate = await identity.issueMemberCertificate(
+        issuerRoom: accepted,
+        memberId: memberId,
+        memberPublicKey: memberKeyPair.publicKey,
+      );
+      final bundle = RoomDirectJoinBundle(
+        memberId: memberId,
+        snapshot: RoomAcceptedJoinSnapshot.fromSavedRoom(
+          accepted,
+          acceptedMemberId: memberId,
+        ),
+        memberKeyPair: memberKeyPair,
+        certificate: certificate,
+        expiresAt: invite.expiresAt,
+      );
       if (!mounted) return;
 
       setState(() => _busy = false);
@@ -100,6 +140,7 @@ class _InRoomInviteButtonState extends State<InRoomInviteButton> {
         builder: (dialogContext) => _RoomInviteDialog(
           room: saved,
           invite: invite,
+          encodedInvite: bundle.encode(),
           copy: copy,
           hotspotLinkKeeper: _hotspotLinkKeeper,
           transferRepository: _transferRepository,
@@ -129,6 +170,7 @@ class _RoomInviteDialog extends StatefulWidget {
   const _RoomInviteDialog({
     required this.room,
     required this.invite,
+    required this.encodedInvite,
     required this.copy,
     required this.hotspotLinkKeeper,
     required this.transferRepository,
@@ -136,6 +178,7 @@ class _RoomInviteDialog extends StatefulWidget {
 
   final SavedRoom room;
   final RoomInvitation invite;
+  final String encodedInvite;
   final _InviteCopy copy;
   final HotspotLinkKeeper? hotspotLinkKeeper;
   final TransferRepository? transferRepository;
@@ -192,7 +235,7 @@ class _RoomInviteDialogState extends State<_RoomInviteDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final encoded = widget.invite.encode();
+    final encoded = widget.encodedInvite;
     final copy = widget.copy;
     return Dialog(
       key: const Key('room-invite-dialog'),
@@ -411,6 +454,7 @@ final class _InviteCopy {
 
   String get addRider => fa ? 'افزودن همراه' : 'Add rider';
   String get title => fa ? 'دعوت به اتاق' : 'Room invite';
+  String get newMember => fa ? 'همراه جدید' : 'New rider';
   String get codeLabel => fa ? 'کد بررسی اتاق' : 'Room check code';
   String get codeWarning => fa
       ? 'این کد فقط برای بررسی است و به‌تنهایی اجازه ورود نمی‌دهد.'

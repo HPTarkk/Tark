@@ -5,6 +5,10 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tark/feature/room/data/repository/shared_preferences_room_repository.dart';
+import 'package:tark/feature/room/data/security/room_transport_identity_lifecycle.dart';
+import 'package:tark/feature/room/data/security/room_transport_identity_secure_store.dart';
+import 'package:tark/feature/room/domain/entity/room.dart';
+import 'package:tark/feature/room/domain/service/room_member_transport_identity.dart';
 import 'package:tark/feature/room/presentation/widget/in_room_invite_button.dart';
 import 'package:tark/feature/transfer/api/hotspot_invite_api.dart';
 import 'package:tark/feature/transfer/api/transfer_api.dart';
@@ -42,6 +46,9 @@ void main() {
               alignment: Alignment.topRight,
               child: InRoomInviteButton(
                 repository: repository,
+                identityLifecycle: RoomTransportIdentityLifecycle(
+                  store: _MemoryIdentityStore(),
+                ),
                 hotspotLinkKeeper: hotspotLinkKeeper,
                 transferRepository: transferRepository,
               ),
@@ -215,6 +222,33 @@ void main() {
     expect(tester.takeException(), isNull);
     await keeper.dispose();
   });
+}
+
+final class _MemoryIdentityStore implements RoomTransportIdentitySecureStore {
+  final Map<String, RoomTransportIdentityMaterial> _values = {};
+
+  String _key(RoomId roomId, RoomMemberId memberId) =>
+      '${roomId.value}:${memberId.value}';
+
+  @override
+  Future<void> delete({required RoomId roomId, required RoomMemberId memberId}) async {
+    _values.remove(_key(roomId, memberId));
+  }
+
+  @override
+  Future<RoomTransportIdentityMaterial?> read({
+    required RoomId roomId,
+    required RoomMemberId memberId,
+  }) async => _values[_key(roomId, memberId)];
+
+  @override
+  Future<void> write({
+    required RoomId roomId,
+    required RoomMemberId memberId,
+    required RoomTransportIdentityMaterial material,
+  }) async {
+    _values[_key(roomId, memberId)] = material;
+  }
 }
 
 class _FakeTransferRepository implements TransferRepository {
