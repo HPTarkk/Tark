@@ -145,7 +145,6 @@ class _LandingPageState extends State<LandingPage>
       ),
     );
   }
-
 }
 
 /// The Room is created before a transport is selected.  A Room therefore has
@@ -154,21 +153,24 @@ class _RoomEntryActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fa = Localizations.localeOf(context).languageCode == 'fa';
-    return Row(children: [
-      Expanded(child: FilledButton.icon(
-        key: const Key('landing-create-room'),
-        onPressed: () => context.push('${AppRoutes.roomsPath}?create=true'),
-        icon: const Icon(Icons.add_home_work_outlined),
-        label: Text(fa ? 'ساخت اتاق' : 'Create room'),
-      )),
-      const SizedBox(width: 12),
-      Expanded(child: OutlinedButton.icon(
-        key: const Key('landing-join-room'),
-        onPressed: () => context.push(AppRoutes.roomQrJoinPath),
-        icon: const Icon(Icons.qr_code_scanner_rounded),
-        label: Text(fa ? 'پیوستن با QR' : 'Join with QR'),
-      )),
-    ]);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        FilledButton.icon(
+          key: const Key('landing-create-room'),
+          onPressed: () => context.push('${AppRoutes.roomsPath}?create=true'),
+          icon: const Icon(Icons.add_home_work_outlined),
+          label: Text(fa ? 'ساخت اتاق' : 'Create room'),
+        ),
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
+          key: const Key('landing-join-room'),
+          onPressed: () => context.push(AppRoutes.roomQrJoinPath),
+          icon: const Icon(Icons.qr_code_scanner_rounded),
+          label: Text(fa ? 'پیوستن با QR' : 'Join with QR'),
+        ),
+      ],
+    );
   }
 }
 

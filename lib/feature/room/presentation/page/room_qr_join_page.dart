@@ -15,7 +15,8 @@ class RoomQrJoinPage extends StatefulWidget {
   static Widget buildPage() => BlocProvider<RoomListCubit>(
     create: (_) => GetIt.instance<RoomListCubit>()..load(),
     child: Builder(
-      builder: (context) => RoomQrJoinPage(cubit: context.read<RoomListCubit>()),
+      builder: (context) =>
+          RoomQrJoinPage(cubit: context.read<RoomListCubit>()),
     ),
   );
 
@@ -96,7 +97,9 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
                       _error!,
                       key: const Key('room-join-error'),
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Theme.of(context).colorScheme.error),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
                     ),
                   ),
                 Expanded(

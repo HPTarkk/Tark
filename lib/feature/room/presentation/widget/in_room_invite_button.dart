@@ -112,7 +112,8 @@ class _InRoomInviteButtonState extends State<InRoomInviteButton> {
         acceptedAt: DateTime.now().toUtc(),
       );
       final memberId = RoomMemberId(invite.invitationId.substring(0, 24));
-      final identity = widget.identityLifecycle ??
+      final identity =
+          widget.identityLifecycle ??
           RoomTransportIdentityLifecycle(
             store: PlatformRoomTransportIdentitySecureStore(),
           );

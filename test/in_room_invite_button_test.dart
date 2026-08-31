@@ -231,7 +231,10 @@ final class _MemoryIdentityStore implements RoomTransportIdentitySecureStore {
       '${roomId.value}:${memberId.value}';
 
   @override
-  Future<void> delete({required RoomId roomId, required RoomMemberId memberId}) async {
+  Future<void> delete({
+    required RoomId roomId,
+    required RoomMemberId memberId,
+  }) async {
     _values.remove(_key(roomId, memberId));
   }
 

@@ -16,11 +16,11 @@ import '../manager/room_list_cubit.dart';
 /// only when the user presses the explicit Start Ride action for the selected
 /// durable Room.
 class RoomListPage extends StatefulWidget {
-
-  static Widget buildPage({bool createOnOpen = false}) => BlocProvider<RoomListCubit>(
-    create: (_) => GetIt.instance<RoomListCubit>()..load(),
-    child: RoomListPage._(createOnOpen: createOnOpen),
-  );
+  static Widget buildPage({bool createOnOpen = false}) =>
+      BlocProvider<RoomListCubit>(
+        create: (_) => GetIt.instance<RoomListCubit>()..load(),
+        child: RoomListPage._(createOnOpen: createOnOpen),
+      );
 
   final bool createOnOpen;
 
