@@ -55,7 +55,7 @@ void main() {
         certificate: certificate,
         expiresAt: now.add(const Duration(hours: 12)),
       ).encode();
-  
+
       final joinerRepository = _JoinRepository();
       final identityStore = _MemoryIdentityStore();
       final joinerPhone = RoomListCubit(
@@ -65,7 +65,7 @@ void main() {
       final joined = await joinerPhone.joinDirect(
         RoomDirectJoinBundle.decode(qr),
       );
-  
+
       expect(joined, isTrue);
       expect(joinerPhone.state.selectedRoomId, ownerRoomId);
       expect(joinerPhone.state.selectedRoom!.room.name, 'Morning ride');
