@@ -8,7 +8,6 @@ import 'package:tark/feature/room/data/repository/shared_preferences_room_reposi
 import 'package:tark/feature/room/data/security/room_transport_identity_lifecycle.dart';
 import 'package:tark/feature/room/data/security/room_transport_identity_secure_store.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
-import 'package:tark/feature/room/domain/service/room_member_transport_identity.dart';
 import 'package:tark/feature/room/presentation/widget/in_room_invite_button.dart';
 import 'package:tark/feature/transfer/api/hotspot_invite_api.dart';
 import 'package:tark/feature/transfer/api/transfer_api.dart';

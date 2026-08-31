@@ -8,6 +8,7 @@ import '../../domain/entity/room.dart';
 import '../../domain/entity/room_direct_join_bundle.dart';
 import '../../domain/entity/room_invitation.dart';
 import '../../domain/repository/room_repository.dart';
+import '../../domain/service/room_invite_join_client.dart';
 import '../../domain/service/room_invite_join_importer.dart';
 import '../../domain/service/room_invite_join_orchestrator.dart';
 import '../../domain/service/room_session_factory.dart';
