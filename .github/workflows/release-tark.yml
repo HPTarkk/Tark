@@ -164,7 +164,7 @@ jobs:
           set -euo pipefail
           flutter build web --release -t lib/main_guest.dart
           mkdir -p dist
-          zip -qr "dist/tark-guest-pwa-v${{ steps.version.outputs.version }}.zip" build/web
+          (cd build/web && zip -qr "../../dist/tark-guest-pwa-v${{ steps.version.outputs.version }}.zip" .)
 
       - name: Collect release assets and checksums
         run: |
