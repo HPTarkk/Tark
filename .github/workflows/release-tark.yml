@@ -191,7 +191,7 @@ jobs:
       - name: Create GitHub Release
         run: |
           set -euo pipefail
-          args=( "${{ steps.version.outputs.tag }}" dist/* --target "${{ github.sha }}" --title "Tark v${{ steps.version.outputs.version }}" --notes "${RELEASE_NOTES:-Tark release}" )
+          args=( "${{ steps.version.outputs.tag }}" dist/* --target "$(git rev-parse HEAD)" --title "Tark v${{ steps.version.outputs.version }}" --notes "${RELEASE_NOTES:-Tark release}" )
           if [ "${RELEASE_CHANNEL}" = "beta" ]; then
             args+=( --prerelease )
           fi
