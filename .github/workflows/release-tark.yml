@@ -1,0 +1,206 @@
+name: Release Tark
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: Version change
+        required: true
+        default: promote
+        type: choice
+        options: [promote, patch, minor, major]
+      channel:
+        description: Release channel
+        required: true
+        default: beta
+        type: choice
+        options: [beta, stable]
+      release_notes:
+        description: Short release notes
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tark-release-main
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish Tark
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    timeout-minutes: 50
+    env:
+      RELEASE_TYPE: ${{ inputs.release_type }}
+      RELEASE_CHANNEL: ${{ inputs.channel }}
+      RELEASE_NOTES: ${{ inputs.release_notes }}
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.41.9"
+          channel: stable
+          cache: true
+
+      - name: Validate signing secrets
+        env:
+          KEYSTORE_BASE64: ${{ secrets.TARK_ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.TARK_ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.TARK_ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.TARK_ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing required repository secret: TARK_ANDROID_${name#KEYSTORE_}"
+              exit 1
+            fi
+          done
+          mkdir -p android
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > android/upload-keystore.jks
+          test -s android/upload-keystore.jks
+          {
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyPassword=$KEY_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "storeFile=../upload-keystore.jks"
+          } > android/key.properties
+
+      - name: Calculate next version
+        id: version
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import os, re
+          from pathlib import Path
+
+          pubspec = Path("pubspec.yaml")
+          text = pubspec.read_text()
+          match = re.search(r"^version:\s*([0-9]+)\.([0-9]+)\.([0-9]+)(?:-beta\.([0-9]+))?\+([0-9]+)\s*$", text, re.M)
+          if not match:
+              raise SystemExit("pubspec.yaml version must be X.Y.Z+N or X.Y.Z-beta.N+N")
+
+          major, minor, patch, beta, build = match.groups()
+          major, minor, patch, build = map(int, (major, minor, patch, build))
+          release_type = os.environ["RELEASE_TYPE"]
+          channel = os.environ["RELEASE_CHANNEL"]
+
+          def bump(kind):
+              global major, minor, patch
+              if kind == "major":
+                  major, minor, patch = major + 1, 0, 0
+              elif kind == "minor":
+                  minor, patch = minor + 1, 0
+              else:
+                  patch += 1
+
+          if channel == "stable":
+              if release_type == "promote" and beta is not None:
+                  suffix = ""
+              else:
+                  bump("patch" if release_type == "promote" else release_type)
+                  suffix = ""
+          else:
+              if release_type == "promote" and beta is not None:
+                  suffix = f"-beta.{int(beta) + 1}"
+              else:
+                  bump("patch" if release_type == "promote" else release_type)
+                  suffix = "-beta.1"
+
+          version = f"{major}.{minor}.{patch}{suffix}"
+          version_with_build = f"{version}+{build + 1}"
+          updated = re.sub(r"^version:.*$", f"version: {version_with_build}", text, count=1, flags=re.M)
+          pubspec.write_text(updated)
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"version={version}\n")
+              output.write(f"version_with_build={version_with_build}\n")
+              output.write(f"build_number={build + 1}\n")
+              output.write(f"tag=tark-v{version}\n")
+          PY
+
+      - name: Reject an existing release tag
+        run: |
+          set -euo pipefail
+          if gh release view "${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
+            echo "::error::Release tag already exists: ${{ steps.version.outputs.tag }}"
+            exit 1
+          fi
+
+      - name: Install dependencies and run checks
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test
+
+      - name: Build signed Android APK and App Bundle
+        run: |
+          set -euo pipefail
+          flutter build apk --release --split-per-abi \
+            --build-name="${{ steps.version.outputs.version }}" \
+            --build-number="${{ steps.version.outputs.build_number }}"
+          flutter build appbundle --release \
+            --build-name="${{ steps.version.outputs.version }}" \
+            --build-number="${{ steps.version.outputs.build_number }}"
+
+      - name: Build guest PWA archive
+        run: |
+          set -euo pipefail
+          flutter build web --release -t lib/main_guest.dart
+          mkdir -p dist
+          zip -qr "dist/tark-guest-pwa-v${{ steps.version.outputs.version }}.zip" build/web
+
+      - name: Collect release assets and checksums
+        run: |
+          set -euo pipefail
+          version="${{ steps.version.outputs.version }}"
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "dist/tark-v$version-arm64-v8a.apk"
+          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk "dist/tark-v$version-armeabi-v7a.apk"
+          cp build/app/outputs/flutter-apk/app-x86_64-release.apk "dist/tark-v$version-x86_64.apk"
+          cp build/app/outputs/bundle/release/app-release.aab "dist/tark-v$version.aab"
+          (
+            cd dist
+            sha256sum *.apk *.aab *.zip > SHA256SUMS.txt
+          )
+
+      - name: Commit the version bump to main
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pubspec.yaml
+          git commit -m "chore(release): Tark v${{ steps.version.outputs.version }}"
+          git push origin HEAD:main
+
+      - name: Create GitHub Release
+        run: |
+          set -euo pipefail
+          args=( "${{ steps.version.outputs.tag }}" dist/* --target "${{ github.sha }}" --title "Tark v${{ steps.version.outputs.version }}" --notes "${RELEASE_NOTES:-Tark release}" )
+          if [ "${RELEASE_CHANNEL}" = "beta" ]; then
+            args+=( --prerelease )
+          fi
+          gh release create "${args[@]}"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tark-v${{ steps.version.outputs.version }}-release-assets
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
