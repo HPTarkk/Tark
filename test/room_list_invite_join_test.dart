@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tark/feature/room/data/security/room_transport_identity_secure_store.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
 import 'package:tark/feature/room/domain/entity/room_accepted_join_snapshot.dart';
+import 'package:tark/feature/room/domain/entity/room_direct_join_bundle.dart';
 import 'package:tark/feature/room/domain/entity/room_invitation.dart';
 import 'package:tark/feature/room/domain/repository/room_repository.dart';
 import 'package:tark/feature/room/domain/service/room_invitation_ledger.dart';
@@ -11,6 +12,73 @@ import 'package:tark/feature/room/domain/service/room_member_transport_identity.
 import 'package:tark/feature/room/presentation/manager/room_list_cubit.dart';
 
 void main() {
+  test(
+    'two-phone smoke: one QR scan persists and selects the same Room',
+    () async {
+      final ownerRoomId = const RoomId('abababababababababababababababab');
+      final ownerId = const RoomMemberId('111111111111111111111111');
+      final joinerId = const RoomMemberId('222222222222222222222222');
+      final now = DateTime.now().toUtc();
+      final crypto = RoomMemberTransportIdentityCrypto();
+      final issuer = await crypto.generateKeyPair();
+      final joinerKeys = await crypto.generateKeyPair();
+      final certificate = await crypto.issueCertificate(
+        roomId: ownerRoomId,
+        memberId: joinerId,
+        memberPublicKey: joinerKeys.publicKey,
+        issuer: issuer,
+      );
+      final snapshot = RoomAcceptedJoinSnapshot(
+        roomId: ownerRoomId,
+        roomName: 'Morning ride',
+        roomCreatedAt: now,
+        roomUpdatedAt: now,
+        members: [
+          RoomAcceptedJoinMember(
+            memberId: ownerId,
+            displayName: 'Owner phone',
+            joinedAt: now,
+            kind: RoomMemberKind.member,
+          ),
+          RoomAcceptedJoinMember(
+            memberId: joinerId,
+            displayName: 'Joiner phone',
+            joinedAt: now,
+            kind: RoomMemberKind.member,
+          ),
+        ],
+      );
+      final qr = RoomDirectJoinBundle(
+        memberId: joinerId,
+        snapshot: snapshot,
+        memberKeyPair: joinerKeys,
+        certificate: certificate,
+        expiresAt: now.add(const Duration(hours: 12)),
+      ).encode();
+
+      final joinerRepository = _JoinRepository();
+      final identityStore = _MemoryIdentityStore();
+      final joinerPhone = RoomListCubit(
+        joinerRepository,
+        identityStore: identityStore,
+      );
+      final joined = await joinerPhone.joinDirect(
+        RoomDirectJoinBundle.decode(qr),
+      );
+
+      expect(joined, isTrue);
+      expect(joinerPhone.state.selectedRoomId, ownerRoomId);
+      expect(joinerPhone.state.selectedRoom!.room.name, 'Morning ride');
+      expect(
+        joinerPhone.state.selectedRoom!.membership.localMemberId,
+        joinerId,
+      );
+      expect(identityStore.writeCount, 1);
+      expect(qr, startsWith('tark-room:'));
+      await joinerPhone.close();
+    },
+  );
+
   test(
     'verified carrier grant is persisted and selected by RoomListCubit',
     () async {

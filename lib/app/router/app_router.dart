@@ -79,7 +79,9 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.roomsPath,
         name: AppRoutes.roomsName,
-        builder: (context, state) => RoomManagerEntry.buildPage(),
+        builder: (context, state) => RoomManagerEntry.buildPage(
+          createOnOpen: state.uri.queryParameters['create'] == 'true',
+        ),
       ),
       GoRoute(
         path: AppRoutes.roomQrJoinPath,
