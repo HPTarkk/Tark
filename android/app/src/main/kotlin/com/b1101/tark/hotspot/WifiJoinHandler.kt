@@ -293,6 +293,86 @@ class WifiJoinHandler(
         return normalizedSsid((caps.transportInfo as? WifiInfo)?.ssid)
     }
 
+    /**
+     * Whether this Android can tell one Wi-Fi Network from another at all.
+     *
+     * Every discriminator #71 introduced rests on
+     * `NetworkCapabilities.transportInfo`, which is API 29+. Below that the
+     * framework will not say which SSID a given Network carries, and
+     * `getConnectionInfo().getSSID()` is redacted to "<unknown ssid>" without
+     * location permission — so "refuse unless proven" is not caution there, it
+     * is a permanent refusal. Android 9 keeps the pre-#71 behaviour: prefer the
+     * station address wherever it answers, and otherwise bind what is in front
+     * of us, exactly as the deleted `looksLikeOurAp()` did.
+     *
+     * The cost of being wrong runs one way. On Q+ a mis-bind is a live risk
+     * worth failing closed over. On pre-Q, refusing leaves the process pinned
+     * to nothing with no route back onto the AP — a joiner that reports itself
+     * connected and cannot hear a thing.
+     */
+    private val canIdentifyNetworks: Boolean
+        get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+
+    /**
+     * The first eligible handle — what `bindCurrent` did before #71, and null
+     * on any Android able to do better.
+     */
+    private fun fallbackWifiNetwork(
+        candidates: List<Pair<Network, NetworkCapabilities>>,
+    ): Network? {
+        if (canIdentifyNetworks) return null
+        Log.w(TAG, "no SSID or station evidence below API 29 — taking the first Wi-Fi handle")
+        return candidates.firstOrNull()?.first
+    }
+
+    /**
+     * The IPv4 address the *station* side of the radio currently holds.
+     *
+     * The one piece of network identity that survives every API level: unlike
+     * the SSID it is not location-gated, and it can only ever describe a
+     * network this phone joined — never one it is hosting, because a
+     * LocalOnlyHotspot is not a station connection. Below API 29 it is the
+     * only evidence there is: [capabilityWifiSsid] returns null for every
+     * candidate, and `getConnectionInfo().getSSID()` is redacted to
+     * "<unknown ssid>" without location permission.
+     */
+    @Suppress("DEPRECATION")
+    private fun stationIpv4(): String? {
+        val raw = runCatching { wifiManager.connectionInfo?.ipAddress }.getOrNull() ?: return null
+        if (raw == 0) return null
+        // WifiInfo.getIpAddress() is little-endian.
+        return "${raw and 0xFF}.${(raw shr 8) and 0xFF}." +
+            "${(raw shr 16) and 0xFF}.${(raw shr 24) and 0xFF}"
+    }
+
+    /**
+     * Which candidate carries the station address, if exactly one does.
+     *
+     * Sharper than "the only Wi-Fi handle", and sharper in the case that
+     * matters: a phone joined to an AP while its own is still up has two
+     * handles, and this picks the joined one out of them rather than
+     * refusing to choose. Still fails closed when nothing (or more than one
+     * thing) matches.
+     */
+    private fun stationWifiNetwork(
+        candidates: List<Pair<Network, NetworkCapabilities>>,
+    ): Network? {
+        val ipv4 = stationIpv4() ?: return null
+        return candidates
+            .filter { (network, _) ->
+                connectivity.getLinkProperties(network)
+                    ?.linkAddresses
+                    ?.any { it.address.hostAddress == ipv4 } == true
+            }
+            .singleOrNull()
+            ?.first
+    }
+
+    private fun isTheOnlyWifiNetwork(
+        network: Network,
+        candidates: List<Pair<Network, NetworkCapabilities>>,
+    ): Boolean = candidates.size == 1 && candidates.single().first == network
+
     private fun findExpectedWifiNetwork(expectedSsid: String): Network? {
         val candidates = eligibleWifiNetworks()
         val exact = candidates.filter { (_, caps) -> capabilityWifiSsid(caps) == expectedSsid }
@@ -303,18 +383,34 @@ class WifiJoinHandler(
         }
 
         if (currentWifiSsid() != expectedSsid) return null
-        if (candidates.size != 1) {
+        if (candidates.size == 1) return candidates.single().first
+
+        // Two handles is the ordinary shape of "joined an AP while our own was
+        // still up", not proof of ambiguity — and refusing it is what silently
+        // killed the join on every pre-Q phone, where the checks above can
+        // never match. The SSID already said we are on the network we wanted;
+        // the station address says which of the handles carries it.
+        val station = stationWifiNetwork(candidates)
+        if (station != null) return station
+        val fallback = fallbackWifiNetwork(candidates)
+        if (fallback == null) {
             Log.w(TAG, "matching current Wi-Fi has ${candidates.size} eligible handles; refusing ambiguous bind")
-            return null
         }
-        return candidates.single().first
+        return fallback
     }
 
     private fun networkMatchesJoinedAp(network: Network): Boolean {
         val candidates = eligibleWifiNetworks()
         val want = joinedSsid
         if (want == null) {
-            return candidates.size == 1 && candidates.single().first == network
+            // Reached whenever `bindCurrent` could not read an SSID to record —
+            // the manual "I've joined" path on Android 9. `looksLikeOurAp()`
+            // answered `true` for a null name on every API level; only Q+ has
+            // the means to do better.
+            if (isTheOnlyWifiNetwork(network, candidates)) return true
+            val station = stationWifiNetwork(candidates)
+            if (station != null) return station == network
+            return !canIdentifyNetworks
         }
 
         val caps = connectivity.getNetworkCapabilities(network) ?: return false
@@ -326,9 +422,24 @@ class WifiJoinHandler(
         }
 
         capabilityWifiSsid(caps)?.let { return it == want }
-        return currentWifiSsid() == want &&
-            candidates.size == 1 &&
-            candidates.single().first == network
+        val current = currentWifiSsid()
+        if (current != null) {
+            return current == want &&
+                (isTheOnlyWifiNetwork(network, candidates) ||
+                    stationWifiNetwork(candidates) == network)
+        }
+
+        // No readable SSID on either side of the comparison — the pre-Q norm,
+        // and an association that is perfectly real.
+        val station = stationWifiNetwork(candidates)
+        if (station != null) return station == network
+        // Below API 29, nothing further can be learned. This callback usually
+        // arrives *before* DHCP has finished, so there is no station address to
+        // match yet and there never will be a per-Network SSID — and this is
+        // the one path back onto the AP after `onLost` unpinned the process.
+        // Refusing here is what left an Android 9 joiner bound to nothing while
+        // the same phone worked perfectly as a host, which never runs a keeper.
+        return !canIdentifyNetworks
     }
 
     private fun startKeeper() {
@@ -342,7 +453,12 @@ class WifiJoinHandler(
                 cancelLostAnnouncement()
                 if (network == boundNetwork) return
                 if (!networkMatchesJoinedAp(network)) {
-                    Log.w(TAG, "keeper: callback Network is not the joined AP — not binding")
+                    Log.w(
+                        TAG,
+                        "keeper: callback Network is not the joined AP — not binding " +
+                            "(sdk=${Build.VERSION.SDK_INT} joinedSsid=${joinedSsid != null} " +
+                            "station=${stationIpv4() != null})",
+                    )
                     return
                 }
                 Log.i(TAG, "keeper: joined AP returned — re-pinning the process")
@@ -455,9 +571,10 @@ class WifiJoinHandler(
                 preSharedKey = "\"$passphrase\""
             }
         }
+        val netId: Int
         try {
             if (!wifiManager.isWifiEnabled) wifiManager.isWifiEnabled = true
-            val netId = wifiManager.addNetwork(config)
+            netId = wifiManager.addNetwork(config)
             if (netId == -1) {
                 result.success(false)
                 return
@@ -469,18 +586,40 @@ class WifiJoinHandler(
             result.error("failed", e.message, null)
             return
         }
-        awaitLegacyAssociation(ssid, result, attempt = 0)
+        awaitLegacyAssociation(ssid, netId, result, attempt = 0)
     }
 
+    /**
+     * Whether the radio has settled on the network [joinLegacy] asked for.
+     *
+     * The SSID is the obvious test and the one that fails: from Android 8 it
+     * reads back as "<unknown ssid>" without location permission, so a
+     * perfectly good association polls for the full 25s and then reports
+     * itself declined — leaving the user at a "did you join?" card for a
+     * network they are already on. The network id is the same fact without the
+     * redaction, and it is a handle this class created moments ago, so
+     * matching it cannot mean some other network.
+     */
     @Suppress("DEPRECATION")
+    private fun isAssociatedWith(ssid: String, netId: Int): Boolean {
+        val info = runCatching { wifiManager.connectionInfo }.getOrNull() ?: return false
+        if (normalizedSsid(info.ssid) == ssid) return true
+        return netId != -1 && info.networkId == netId
+    }
+
     private fun awaitLegacyAssociation(
         ssid: String,
+        netId: Int,
         result: MethodChannel.Result,
         attempt: Int,
     ) {
-        val current = runCatching { wifiManager.connectionInfo?.ssid?.trim('"') }.getOrNull()
-        if (current == ssid) {
-            result.success(bindCurrent())
+        if (isAssociatedWith(ssid, netId)) {
+            val bound = bindCurrent()
+            // bindCurrent can only record the SSID where the framework will
+            // read it back. This path knows it either way, and the keeper
+            // needs the name to recognise the AP after a drop.
+            if (bound) joinedSsid = ssid
+            result.success(bound)
             return
         }
         if (attempt >= LEGACY_POLL_ATTEMPTS) {
@@ -488,7 +627,7 @@ class WifiJoinHandler(
             return
         }
         mainHandler.postDelayed(
-            { awaitLegacyAssociation(ssid, result, attempt + 1) },
+            { awaitLegacyAssociation(ssid, netId, result, attempt + 1) },
             LEGACY_POLL_INTERVAL_MS,
         )
     }
@@ -548,10 +687,19 @@ class WifiJoinHandler(
             return false
         }
         val currentSsid = currentWifiSsid()
+        // There is no expectation to verify here: bindCurrent means "pin to
+        // whatever Wi-Fi this phone is on", either because the user joined it
+        // from Settings or because the legacy join loop just associated with
+        // it. Where the SSID is readable it still goes through the matched
+        // path; where it is not — every phone below API 29 without location
+        // permission — the station address is the evidence, and demanding more
+        // than that would mean never binding at all.
         val network = if (currentSsid != null) {
             findExpectedWifiNetwork(currentSsid)
         } else {
-            candidates.singleOrNull()?.first
+            stationWifiNetwork(candidates)
+                ?: candidates.singleOrNull()?.first
+                ?: fallbackWifiNetwork(candidates)
         }
         if (network == null) {
             Log.w(TAG, "bindCurrent: current Wi-Fi Network handle is ambiguous")

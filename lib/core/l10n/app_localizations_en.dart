@@ -772,6 +772,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hotspot_manual_joined => 'I\'VE JOINED';
 
   @override
+  String get hotspot_manual_not_pinned =>
+      'This phone isn\'t on the host\'s network yet. Pick it in Settings › Wi-Fi, then tap again.';
+
+  @override
   String get hotspot_invalid_qr =>
       'That\'s not a Wi-Fi code. Scan the one showing on the host phone.';
 

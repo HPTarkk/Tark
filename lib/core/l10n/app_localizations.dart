@@ -1478,6 +1478,12 @@ abstract class AppLocalizations {
   /// **'وصل شدم!'**
   String get hotspot_manual_joined;
 
+  /// No description provided for @hotspot_manual_not_pinned.
+  ///
+  /// In fa, this message translates to:
+  /// **'هنوز روی شبکه میزبان نیستی. تو تنظیمات › وای‌فای همون شبکه رو انتخاب کن، بعد دوباره بزن.'**
+  String get hotspot_manual_not_pinned;
+
   /// No description provided for @hotspot_invalid_qr.
   ///
   /// In fa, this message translates to:

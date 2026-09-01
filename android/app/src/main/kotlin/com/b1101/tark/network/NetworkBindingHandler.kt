@@ -5,6 +5,8 @@ import android.net.ConnectivityManager
 import android.net.LinkProperties
 import android.net.Network
 import android.net.NetworkCapabilities
+import android.os.Handler
+import android.os.Looper
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
@@ -25,6 +27,7 @@ class NetworkBindingHandler(
     private val connectivity =
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     private val events = EventChannel(messenger, EVENTS_CHANNEL)
+    private val mainHandler = Handler(Looper.getMainLooper())
     private val generation = AtomicLong(0L)
     private var sink: EventChannel.EventSink? = null
     private var callbackRegistered = false
@@ -92,9 +95,18 @@ class NetworkBindingHandler(
         callbackRegistered = false
     }
 
+    /**
+     * Network callbacks land on ConnectivityThread, but [EventChannel.EventSink]
+     * is `@UiThread` — emitting straight from the callback takes the process down
+     * with "Methods marked with @UiThread must be executed on the main thread".
+     * The generation is still bumped inline: a `bindSelected` racing in from Dart
+     * has to be invalidated the moment the route moves, not whenever the main
+     * thread next drains. Hopping threads also keeps every [sink] read on the
+     * main thread, so the field no longer has to be published across threads.
+     */
     private fun emitChanged() {
         generation.incrementAndGet()
-        sink?.success(snapshot(selectedNetwork()))
+        mainHandler.post { sink?.success(snapshot(selectedNetwork())) }
     }
 
     /**

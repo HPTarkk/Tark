@@ -24,9 +24,17 @@ class HotspotLinkKeeperImpl implements HotspotLinkKeeper {
     this._joiner,
     this._roleStore,
     this._wifi, {
-    this.recoveryTimeout = const Duration(minutes: 10),
-    this.hostEvidenceInterval = const Duration(milliseconds: 500),
-    this.backoffFactory = ExponentialBackoff.new,
+    // All three are test seams with production defaults, and every one of them
+    // has to say so: injectable injects any named parameter whose type it can
+    // name, so an un-ignored `Duration` becomes `gh<Duration>()` — a lookup
+    // nothing registers — and a bare function type it cannot name at all makes
+    // it abandon the file, taking this class's registration with it. That
+    // second failure is how a stale di_config.config.dart shipped with
+    // RoomRepository missing from it: the build errored, and an errored build
+    // leaves the generated config exactly as it was.
+    @ignoreParam this.recoveryTimeout = const Duration(minutes: 10),
+    @ignoreParam this.hostEvidenceInterval = const Duration(milliseconds: 500),
+    @ignoreParam this.backoffFactory = ExponentialBackoff.new,
   });
 
   /// How long either side keeps automatic recovery alive before surfacing a

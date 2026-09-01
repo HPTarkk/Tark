@@ -39,6 +39,12 @@ import 'package:tark/feature/landing/presentation/manager/landing_cubit.dart'
     as _i205;
 import 'package:tark/feature/onboarding/presentation/manager/onboarding_cubit.dart'
     as _i766;
+import 'package:tark/feature/room/data/repository/shared_preferences_room_repository.dart'
+    as _i429;
+import 'package:tark/feature/room/domain/repository/room_repository.dart'
+    as _i175;
+import 'package:tark/feature/room/presentation/manager/room_list_cubit.dart'
+    as _i598;
 import 'package:tark/feature/transfer/api/transfer_api.dart' as _i431;
 import 'package:tark/feature/transfer/data/hotspot/wifi_hotspot_controller.dart'
     as _i462;
@@ -106,10 +112,16 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i970.WidgetControlChannelImpl(),
       dispose: (i) => i.dispose(),
     );
+    gh.lazySingleton<_i175.RoomRepository>(
+      () => _i429.SharedPreferencesRoomRepository(),
+    );
     gh.lazySingleton<_i690.SfxPlayer>(() => const _i690.SfxServicePlayer());
     gh.lazySingleton<_i794.HotspotHost>(() => _i462.WifiHotspotController());
     gh.lazySingleton<_i430.SessionWakeLock>(
       () => const _i278.SessionKeepAliveWakeLock(),
+    );
+    gh.factory<_i598.RoomListCubit>(
+      () => _i598.RoomListCubit(gh<_i175.RoomRepository>()),
     );
     gh.lazySingleton<_i293.SessionRoleStore>(
       () => _i1042.SessionRoleStoreImpl(),

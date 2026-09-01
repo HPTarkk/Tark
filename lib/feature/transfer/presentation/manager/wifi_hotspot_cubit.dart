@@ -230,6 +230,17 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   StreamSubscription<void>? _stoppedSub;
   StreamSubscription<void>? _lostSub;
 
+  /// Whether our own AP has already been dropped for the join now in progress.
+  /// See [_dropOwnApBeforeJoining]; reset wherever an AP can come back up.
+  bool _ownApDropped = false;
+
+  /// How long the teardown of our own AP may hold up a join.
+  ///
+  /// `stop()` is a platform call that on some devices never answers, and the
+  /// join is worth more than a clean teardown — proceeding multi-homed is the
+  /// state the transport already detects and copes with.
+  static const _ownApTeardownTimeout = Duration(seconds: 3);
+
   /// Native error code for a start we cancelled ourselves (HotspotHandler
   /// .CANCELLED) — not a failure to report.
   static const _cancelledCode = 'cancelled';
@@ -282,8 +293,9 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   /// codes originate.
   static PairFailure _hostFailure(String code) => switch (code) {
     'permission_denied' => PairFailure.permissionDenied,
-    'location_off' || 'tethering_on' || 'unsupported' =>
-      PairFailure.frameworkRefused,
+    'location_off' ||
+    'tethering_on' ||
+    'unsupported' => PairFailure.frameworkRefused,
     _ => PairFailure.apNeverUp,
   };
 
@@ -301,9 +313,7 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   }
 
   Future<void> chooseRole(HotspotRole role) async {
-    _pairing.start(
-      role == HotspotRole.host ? PairRole.host : PairRole.joiner,
-    );
+    _pairing.start(role == HotspotRole.host ? PairRole.host : PairRole.joiner);
     // Hosting means there is a channel to be in, and its code has to exist
     // before the QR is drawn. `createIfNone` rather than `create` because the
     // landing page's "start a channel" has usually made one already, and
@@ -312,11 +322,7 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
       emit(state.copyWith(channelId: _membership.createIfNone()));
     }
     emit(
-      state.copyWith(
-        role: role,
-        joinPhase: JoinPhase.idle,
-        errorCode: null,
-      ),
+      state.copyWith(role: role, joinPhase: JoinPhase.idle, errorCode: null),
     );
     // The session that follows runs over plain UDP, which carries no trace of
     // who brought the network up — this is the only moment that knows.
@@ -337,6 +343,7 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   /// that emits synchronously, which is exactly the shape of the bug.
   Future<void> backToRoleChoice() async {
     final wasHost = state.role == HotspotRole.host;
+    _ownApDropped = false;
     // Before anything else: a retry cycle still counting down would otherwise
     // bring an AP up behind a screen the user has just left.
     _hostRetry.cancel();
@@ -437,6 +444,30 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
     }
   }
 
+  /// Drops our own AP *before* the process is pinned to the host's, rather
+  /// than after.
+  ///
+  /// Two live Wi-Fi networks is exactly the ambiguity the native bind refuses
+  /// to guess between (see `WifiJoinHandler.findExpectedWifiNetwork`), and the
+  /// bind is what makes a join real. Doing this from [_onJoined] meant the one
+  /// moment it mattered — while `bindCurrent` was choosing — was the one
+  /// moment it had not run yet: caught on a Galaxy S8+, where the bind was
+  /// refused 3ms before the AP came down.
+  ///
+  /// This also puts the teardown safely ahead of [_onJoined]'s
+  /// `_keepAlive.start()` rather than racing it, which is the ordering the
+  /// unawaited call in [_dropOtherSide]'s comment was there to protect.
+  Future<void> _dropOwnApBeforeJoining() async {
+    if (_ownApDropped) return;
+    _ownApDropped = true;
+    await _dropOtherSide(nowHosting: false).timeout(
+      _ownApTeardownTimeout,
+      onTimeout: () => Logger.diagnostic(
+        'link: our own AP did not answer a stop in time — joining anyway',
+      ),
+    );
+  }
+
   // ---------------------------------------------------------------- hosting
 
   /// Host flow: request the Wi-Fi/location permissions LocalOnlyHotspot needs,
@@ -508,11 +539,15 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
     // failures it swallows are exactly the ones that would make the AP look
     // far less reliable than it is.
     _pairing.failed(PairStage.apSetup, _hostFailure(code ?? 'failed'));
-    emit(state.copyWith(phase: HotspotPhase.error, errorCode: code ?? 'failed'));
+    emit(
+      state.copyWith(phase: HotspotPhase.error, errorCode: code ?? 'failed'),
+    );
     _sfx.play(SfxEvent.error);
   }
 
   void _onHostReady(HotspotCredentials creds) {
+    // There is an AP of ours to drop again, so a later join has to.
+    _ownApDropped = false;
     emit(state.copyWith(phase: HotspotPhase.ready, credentials: creds));
     _sfx.play(SfxEvent.linkRestored);
     _linkKeeper.adopt(creds);
@@ -640,6 +675,9 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
         errorCode: null,
       ),
     );
+    // Ours goes down before theirs comes up — see [_dropOwnApBeforeJoining].
+    await _dropOwnApBeforeJoining();
+    if (isClosed) return;
     final result = await _joiner.join(creds);
     if (isClosed) return;
     if (result != HotspotJoinResult.joined) {
@@ -678,20 +716,40 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
 
   /// The manual fallback's "I've joined" — the association already exists, so
   /// all that's left is pinning this process to it.
+  ///
+  /// The pin is the whole of it, so its result is the whole answer. Calling
+  /// [_onJoined] regardless is the worst outcome available: sockets bind to an
+  /// address that looks right while the process still routes through the
+  /// default network, so the channel is silent in both directions, the screen
+  /// says "joined", and nothing anywhere says why.
   Future<void> confirmManualJoin() async {
-    await _joiner.bindToCurrentWifi();
+    await _dropOwnApBeforeJoining();
     if (isClosed) return;
+    final pinned = await _joiner.bindToCurrentWifi();
+    if (isClosed) return;
+    if (!pinned) {
+      Logger.log('Manual join could not pin the process to the current Wi-Fi');
+      // Back to the same card, now saying what went wrong. The AP is already
+      // down, so the retry this invites is the one with the best odds of
+      // working — one Wi-Fi network for the bind to find.
+      emit(state.copyWith(joinPhase: JoinPhase.manual, errorCode: _notPinned));
+      _sfx.play(SfxEvent.error);
+      return;
+    }
     _onJoined();
   }
+
+  /// The manual join found no network it could pin the process to.
+  static const _notPinned = 'not_pinned';
 
   void _onJoined() {
     emit(state.copyWith(joinPhase: JoinPhase.joined));
     _sfx.play(SfxEvent.linkRestored);
     // We are on someone else's AP now, so ours has no reason to exist — and
-    // every reason not to. See [_dropOtherSide]. Not awaited: the join has
-    // already succeeded and the link handoff below must not wait on a platform
-    // teardown that can take its time (or, on some devices, never answer).
-    unawaited(_dropOtherSide(nowHosting: false));
+    // every reason not to. Ordinarily already done before the join (see
+    // [_dropOwnApBeforeJoining]); kept here, idempotent and unawaited, for any
+    // path that reaches this without passing through one of the two funnels.
+    unawaited(_dropOwnApBeforeJoining());
     // Hand the link to something that outlives this screen. From here the
     // session runs for as long as the user talks, and this cubit is disposed
     // the moment the channel opens — see [HotspotLinkKeeper].

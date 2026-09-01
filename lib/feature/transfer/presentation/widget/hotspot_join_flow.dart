@@ -214,6 +214,17 @@ class HotspotJoinFlow extends StatelessWidget {
             credentials: creds,
           ),
           JoinPhase.manual when creds != null => [
+            // Only after an "I've joined" that could not pin the process. The
+            // card below already says what to do; this says why the tap did
+            // not take, which is the part the user cannot otherwise see.
+            if (state.errorCode == 'not_pinned') ...[
+              HotspotInlineNote(
+                icon: Icons.wifi_find_rounded,
+                text: s.hotspot_manual_not_pinned,
+                color: AppColors.red,
+              ),
+              const SizedBox(height: 18),
+            ],
             _ManualJoinCard(credentials: creds),
             const SizedBox(height: 18),
             HotspotPrimaryButton(

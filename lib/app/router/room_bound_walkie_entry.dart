@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
+import '../../core/utils/logger.dart';
 import '../../feature/room/api/room_api.dart';
 import '../../feature/transfer/api/transfer_api.dart';
 import '../../feature/walkie/api/walkie_api.dart';
@@ -25,27 +26,57 @@ class RoomBoundWalkieEntry extends StatefulWidget {
 }
 
 class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
-  late final RoomRepository _rooms;
-  late final SelectedRoomLiveSessionBinding _binding;
+  /// Null when this bridge could not be composed at all. Nothing about Room
+  /// state is inferred from that — it means only that the live surface below
+  /// has to be reached without it.
+  RoomRepository? _rooms;
+  SelectedRoomLiveSessionBinding? _binding;
   late Future<_EntryState> _entry;
 
   @override
   void initState() {
     super.initState();
-    _rooms = GetIt.instance<RoomRepository>();
-    _binding = SelectedRoomLiveSessionBinding(
-      rooms: _rooms,
-      transfer: GetIt.instance<TransferRepository>(),
-      modeStore: GetIt.instance<TransferModeStore>(),
-      hotspotHost: GetIt.instance<HotspotHost>(),
-      hotspotLinkKeeper: GetIt.instance<HotspotLinkKeeper>(),
-    );
+    // Deliberately not resolved in initState: a throw there takes the whole
+    // route down to a blank screen, on every transport, with nothing in the
+    // log to say why — which is exactly what a stale generated DI config did
+    // when `RoomRepository` was missing from it. The channel is the product;
+    // this bridge is scaffolding around it and must never be able to stand in
+    // front of it.
     _entry = _resolveInitialEntry();
   }
 
-  Future<_EntryState> _resolveInitialEntry() async {
+  /// Composes the Room bridge, or gives up on it.
+  ///
+  /// Returns false when the surrounding wiring cannot supply what the bridge
+  /// needs. The caller then goes straight to the live channel, which is the
+  /// behavior this route had before the lobby existed.
+  bool _compose() {
+    if (_binding != null) return true;
     try {
-      final selected = await SelectedRoomLobbyResolver(_rooms).resolve();
+      final rooms = GetIt.instance<RoomRepository>();
+      _binding = SelectedRoomLiveSessionBinding(
+        rooms: rooms,
+        transfer: GetIt.instance<TransferRepository>(),
+        modeStore: GetIt.instance<TransferModeStore>(),
+        hotspotHost: GetIt.instance<HotspotHost>(),
+        hotspotLinkKeeper: GetIt.instance<HotspotLinkKeeper>(),
+      );
+      _rooms = rooms;
+      return true;
+    } catch (e) {
+      // Loud, because the alternative is a user watching the channel not open
+      // and a log with nothing in it.
+      Logger.diagnostic('room: live binding unavailable — entering directly');
+      Logger.log('Room-bound walkie entry could not compose: $e');
+      return false;
+    }
+  }
+
+  Future<_EntryState> _resolveInitialEntry() async {
+    if (!_compose()) return const _EntryState.live();
+    final rooms = _rooms;
+    try {
+      final selected = await SelectedRoomLobbyResolver(rooms!).resolve();
       if (selected != null) return _EntryState.lobby(selected);
     } catch (_) {
       // Storage/readiness lookup must not strand legacy quick access. This is
@@ -53,7 +84,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       // root had before the lobby existed; it does not fabricate Room state.
     }
     try {
-      await _binding.open(sessionId: _newSessionId());
+      await _binding?.open(sessionId: _newSessionId());
     } catch (_) {
       // Binding errors likewise preserve the established troubleshooting/live
       // path. Invalid Room state already fails closed inside the binding.
@@ -65,8 +96,10 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     // Re-resolve immediately before going live. The user may have archived or
     // left this Room from another surface while the lobby was open; stale
     // readiness must never start a session for an invalid durable membership.
+    final rooms = _rooms;
+    if (rooms == null) return const _EntryState.live();
     try {
-      final current = await SelectedRoomLobbyResolver(_rooms).resolve();
+      final current = await SelectedRoomLobbyResolver(rooms).resolve();
       if (current == null || current.room.id != room.room.id) {
         return const _EntryState.invalidSelection();
       }
@@ -74,7 +107,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       return const _EntryState.invalidSelection();
     }
     try {
-      await _binding.open(sessionId: _newSessionId());
+      await _binding?.open(sessionId: _newSessionId());
     } catch (_) {
       // Do not strand the user because the architectural Room binding failed;
       // preserve the pre-existing live troubleshooting surface for this run.
@@ -93,7 +126,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
 
   @override
   void dispose() {
-    unawaited(_binding.close());
+    unawaited(_binding?.close() ?? Future<void>.value());
     super.dispose();
   }
 
@@ -103,6 +136,14 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     builder: (context, snapshot) {
       if (snapshot.connectionState != ConnectionState.done) {
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      }
+      if (snapshot.hasError) {
+        // Nothing above is supposed to throw past its own catch, so this is
+        // the unknown case — and the live channel is the right answer to it.
+        // "This room is no longer available" would be a claim about Room state
+        // that a failure here does not support.
+        Logger.log('Room-bound walkie entry failed: ${snapshot.error}');
+        return WalkieTalkiePage.buildPage();
       }
       final state = snapshot.data ?? const _EntryState.invalidSelection();
       if (state.live) return WalkieTalkiePage.buildPage();

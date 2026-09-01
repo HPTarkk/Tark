@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tark/feature/transfer/data/android_network_binding.dart';
 import 'package:tark/feature/transfer/data/android_network_rebind_coordinator.dart';
+import 'package:tark/feature/transfer/domain/entity/session_role.dart';
 import 'package:tark/feature/transfer/domain/entity/transfer_mode.dart';
+import 'package:tark/feature/transfer/domain/service/session_role_store.dart';
 import 'package:tark/feature/transfer/domain/service/transfer_mode_store.dart';
 
 void main() {
@@ -19,11 +21,13 @@ void main() {
 
   test('new selected Wi-Fi generation rebinds sockets exactly once', () async {
     final modes = _FakeModeStore(TransferMode.wifi);
+    final roles = _FakeRoleStore();
     final port = _FakeBindingPort(wifi(1));
     var rebinds = 0;
     final coordinator = AndroidNetworkRebindCoordinator(
       () => rebinds++,
       modes,
+      roles,
       port: port,
     );
 
@@ -49,11 +53,13 @@ void main() {
     'VPN selection is ignored and cannot rebuild local UDP sockets',
     () async {
       final modes = _FakeModeStore(TransferMode.wifi);
+      final roles = _FakeRoleStore();
       final port = _FakeBindingPort(wifi(1));
       var rebinds = 0;
       final coordinator = AndroidNetworkRebindCoordinator(
         () => rebinds++,
         modes,
+        roles,
         port: port,
       );
 
@@ -74,11 +80,13 @@ void main() {
     'leaving local Wi-Fi mode clears binding and ignores later callbacks',
     () async {
       final modes = _FakeModeStore(TransferMode.hotspot);
+      final roles = _FakeRoleStore();
       final port = _FakeBindingPort(wifi(4));
       var rebinds = 0;
       final coordinator = AndroidNetworkRebindCoordinator(
         () => rebinds++,
         modes,
+        roles,
         port: port,
       );
 
@@ -104,11 +112,13 @@ void main() {
     'stale asynchronous bind cannot overwrite a newer transport mode',
     () async {
       final modes = _FakeModeStore(TransferMode.wifi);
+      final roles = _FakeRoleStore();
       final port = _FakeBindingPort(wifi(1));
       var rebinds = 0;
       final coordinator = AndroidNetworkRebindCoordinator(
         () => rebinds++,
         modes,
+        roles,
         port: port,
       );
 
@@ -130,6 +140,87 @@ void main() {
       await port.dispose();
     },
   );
+
+  test(
+    'a host is never pinned to the local Wi-Fi it is only a client of',
+    () async {
+      // The AP a host's peers are on is not a Network Android selects, so the
+      // selection reaching this coordinator is the router — following it
+      // routes every packet off the AP subnet while both sockets still look
+      // healthy.
+      final modes = _FakeModeStore(TransferMode.hotspot);
+      final roles = _FakeRoleStore()..setRole(SessionRole.host);
+      final port = _FakeBindingPort(wifi(1));
+      var rebinds = 0;
+      final coordinator = AndroidNetworkRebindCoordinator(
+        () => rebinds++,
+        modes,
+        roles,
+        port: port,
+      );
+
+      await coordinator.start();
+      port.emit(wifi(2));
+      await pumpEventQueue();
+
+      expect(port.boundGenerations, isEmpty);
+      expect(rebinds, 0);
+
+      // Handing the host side back must not leave the next change looking
+      // like one we already handled.
+      roles.setRole(SessionRole.joiner);
+      port.emit(wifi(3));
+      await pumpEventQueue();
+
+      expect(port.boundGenerations, [3]);
+      expect(rebinds, 1);
+
+      await coordinator.dispose();
+      await modes.dispose();
+      await port.dispose();
+    },
+  );
+
+  test('taking the host side mid-bind undoes the pin', () async {
+    final modes = _FakeModeStore(TransferMode.hotspot);
+    final roles = _FakeRoleStore()..setRole(SessionRole.joiner);
+    final port = _FakeBindingPort(wifi(1));
+    var rebinds = 0;
+    final coordinator = AndroidNetworkRebindCoordinator(
+      () => rebinds++,
+      modes,
+      roles,
+      port: port,
+    );
+
+    await coordinator.start();
+    port.holdBinds = true;
+    port.emit(wifi(2));
+    await pumpEventQueue();
+    roles.setRole(SessionRole.host);
+    port.releaseHeldBind(true);
+    await pumpEventQueue();
+
+    expect(rebinds, 0);
+    expect(port.clearCount, 1);
+
+    await coordinator.dispose();
+    await modes.dispose();
+    await port.dispose();
+  });
+}
+
+final class _FakeRoleStore implements SessionRoleStore {
+  SessionRole? _role;
+
+  @override
+  SessionRole? get role => _role;
+
+  @override
+  void setRole(SessionRole value) => _role = value;
+
+  @override
+  void clear() => _role = null;
 }
 
 final class _FakeBindingPort implements AndroidNetworkBindingPort {

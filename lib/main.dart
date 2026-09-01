@@ -27,6 +27,7 @@ import 'core/utils/logger.dart';
 import 'feature/transfer/api/transfer_api.dart';
 import 'feature/transfer/data/android_network_rebind_coordinator.dart';
 import 'feature/transfer/domain/repository/wifi_transfer_repository.dart';
+import 'feature/transfer/domain/service/session_role_store.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -102,9 +103,12 @@ void main() async {
   // Keep it aligned with the selected local Wi-Fi generation for the lifetime
   // of the process; rebindSockets rebuilds both UDP sockets underneath the same
   // listening stream and therefore never leaves/recreates the logical room.
+  // The session role is what keeps it off a host, whose peers are on an AP the
+  // framework never selects — see AndroidNetworkRebindCoordinator.
   final networkRebindCoordinator = AndroidNetworkRebindCoordinator(
     GetIt.instance<WifiTransferRepository>().rebindSockets,
     modeStore,
+    GetIt.instance<SessionRoleStore>(),
   );
   await networkRebindCoordinator.start();
 

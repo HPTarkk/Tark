@@ -229,6 +229,7 @@
     "hotspot_manual_join_title": "Join this network yourself",
     "hotspot_manual_join_hint": "Open Settings › Wi-Fi, pick this network, then come back and tap the button below.",
     "hotspot_manual_joined": "I'VE JOINED",
+    "hotspot_manual_not_pinned": "This phone isn't on the host's network yet. Pick it in Settings › Wi-Fi, then tap again.",
     "hotspot_invalid_qr": "That's not a Wi-Fi code. Scan the one showing on the host phone.",
     "hotspot_wifi_off": "Wi-Fi is off on this phone, so it can't join the hotspot. Switch it on and try again.",
     "hotspot_enable_wifi": "TURN WI-FI ON",

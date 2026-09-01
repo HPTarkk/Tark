@@ -768,6 +768,10 @@ class AppLocalizationsFa extends AppLocalizations {
   String get hotspot_manual_joined => 'وصل شدم!';
 
   @override
+  String get hotspot_manual_not_pinned =>
+      'هنوز روی شبکه میزبان نیستی. تو تنظیمات › وای‌فای همون شبکه رو انتخاب کن، بعد دوباره بزن.';
+
+  @override
   String get hotspot_invalid_qr =>
       'این کد وای‌فای نیست. همونی که رو گوشی میزبانه رو اسکن کن.';
 

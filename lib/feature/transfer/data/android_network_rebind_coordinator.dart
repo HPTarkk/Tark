@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import '../../../core/utils/logger.dart';
+import '../domain/entity/session_role.dart';
 import '../domain/entity/transfer_mode.dart';
+import '../domain/service/session_role_store.dart';
 import '../domain/service/transfer_mode_store.dart';
 import 'android_network_binding.dart';
 
@@ -37,15 +39,25 @@ final class PlatformAndroidNetworkBindingPort
 /// the exact observed generation, then rebuilds both Wi-Fi UDP sockets under
 /// the same logical session. Bluetooth/Guest clear process binding so an old
 /// local Wi-Fi decision cannot hijack their traffic.
+///
+/// Hosting is the case this must keep its hands off. A LocalOnlyHotspot is not
+/// a Network Android will ever "select": on a host that is also a client of an
+/// ordinary router — the common case, since hosting does not cost you your
+/// internet — the selected local Wi-Fi is the *router*, and pinning the process
+/// to it routes every packet away from the AP subnet the peers are actually on.
+/// The host's own binding is cleared by `HotspotJoiner.leave()` when it takes
+/// that side; all this has to do is not put one back.
 final class AndroidNetworkRebindCoordinator {
   AndroidNetworkRebindCoordinator(
     this._rebindWifiSockets,
-    this._modes, {
+    this._modes,
+    this._roles, {
     AndroidNetworkBindingPort port = const PlatformAndroidNetworkBindingPort(),
   }) : _port = port;
 
   final void Function() _rebindWifiSockets;
   final TransferModeStore _modes;
+  final SessionRoleStore _roles;
   final AndroidNetworkBindingPort _port;
 
   StreamSubscription<AndroidNetworkSelection>? _networkSub;
@@ -54,6 +66,7 @@ final class AndroidNetworkRebindCoordinator {
   int? _boundNetworkGeneration;
   bool _active = false;
   bool _disposed = false;
+  bool _loggedHostSkip = false;
 
   Future<void> start() async {
     if (_disposed || _networkSub != null) return;
@@ -77,6 +90,7 @@ final class AndroidNetworkRebindCoordinator {
       await _port.clear();
       return;
     }
+    if (_hosting) return;
 
     final selection = await _port.current();
     if (_disposed || generation != _modeGeneration || !_active) return;
@@ -93,17 +107,42 @@ final class AndroidNetworkRebindCoordinator {
 
   void _onNetworkChanged(AndroidNetworkSelection selection) {
     if (_disposed || !_active || !_eligible(selection)) return;
+    if (_hosting) {
+      // Nothing to adopt and nothing to remember: our peers are on an AP the
+      // framework never selects, and holding the generation would make the
+      // first change after we stop hosting look like one we had handled.
+      _boundNetworkGeneration = null;
+      if (!_loggedHostSkip) {
+        _loggedHostSkip = true;
+        Logger.diagnostic(
+          'network: hosting — leaving the process unpinned rather than '
+          'following the selected local Wi-Fi off our own AP',
+        );
+      }
+      return;
+    }
+    _loggedHostSkip = false;
     if (_boundNetworkGeneration == selection.generation) return;
     final modeGeneration = _modeGeneration;
     unawaited(_adoptNetwork(selection, modeGeneration));
   }
 
+  bool get _hosting => _roles.role == SessionRole.host;
+
   Future<void> _adoptNetwork(
     AndroidNetworkSelection selection,
     int modeGeneration,
   ) async {
+    if (_hosting) return;
     final bound = await _port.bind(selection);
     if (_disposed || !_active || modeGeneration != _modeGeneration) return;
+    // The user can take the host side while the bind is in flight. Undo it
+    // rather than leave the host pinned to a router its peers are not on.
+    if (_hosting) {
+      _boundNetworkGeneration = null;
+      if (bound) await _port.clear();
+      return;
+    }
     if (!bound) {
       Logger.diagnostic(
         'network: rejected stale/unavailable local Wi-Fi generation=${selection.generation}',

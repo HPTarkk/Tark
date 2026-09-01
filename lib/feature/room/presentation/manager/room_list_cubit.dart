@@ -59,7 +59,10 @@ final class RoomListState extends Equatable {
 class RoomListCubit extends Cubit<RoomListState> {
   RoomListCubit(
     this._repository, {
-    RoomTransportIdentitySecureStore? identityStore,
+    // A test seam, not a dependency: the platform store below is the only one
+    // production ever uses. Left injectable, the generated config asks GetIt
+    // for a type nothing registers and the saved-Rooms page dies on open.
+    @ignoreParam RoomTransportIdentitySecureStore? identityStore,
   }) : _identityLifecycle = RoomTransportIdentityLifecycle(
          store: identityStore ?? PlatformRoomTransportIdentitySecureStore(),
        ),
