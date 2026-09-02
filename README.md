@@ -29,6 +29,7 @@ Copyright (c) 2026 Tarkk — dual-licensed.
 - **"Turn Wi-Fi off" — before the drop, not after.** Some Android chipsets can't run a hotspot and a Wi-Fi client at once; if a remembered network comes back in range mid-ride, Android can silently kill the hotspot. The host screen says so *while the QR is still up*, with a one-tap system panel — the app can't flip the toggle itself (no API since Android 10), so it just asks well.
 - **Riding mode** — one switch for "phone in a jacket pocket, behind a helmet." Arms the VOX floor, runs the neural cleaner at a moderate strength, deepens the jitter buffer, and lifts playback through a limiter that can't clip. It overrides your other settings without touching them — turn it off and everything reverts exactly as you left it.
 - **Music / device-audio cast** (Android) — share whatever's playing on your phone into the channel as live audio, with its own volume slider and a one-tap "pause the source app" on stop.
+- **Rides out of Wi-Fi range without dropping** — set a room up on the house Wi-Fi and leave, and the connection used to die at the end of the street: the network the group was borrowing simply stopped existing, and by then there was no path left to agree on a replacement. The app now moves off a borrowed network *before* you go. A few seconds after everyone's in, one phone quietly becomes the hub and hands its details to the others over the link that still works — while you're stationary, in range, with time in hand. Nobody scans anything, nobody is asked about networking, and the only thing said out loud is on the hub phone: it's off the internet until the room closes. A network the group owns (a hotspot, or Bluetooth) is left alone; so is a borrowed one when nobody present can host, because a network that works beats no network at all. Every handover is signed by a room member, so nothing on the café Wi-Fi can steer your group onto its own access point.
 - **Auto-reconnect** — a dropped link heals itself (exponential backoff, socket liveness watchdog, cross-launch Bluetooth role resumption) with a unified health banner and manual "Retry now." No leave-and-rejoin needed for a hiccup.
 - **Nothing fails silently** — a refused mic permission, a mic that's "started" but delivering nothing, a dead send path — all three used to look like a working session. Now they say so, with the fix attached, and a **"Something wrong?"** sheet is always one tap away showing every dependency's live state.
 - **Pre-ride Preflight** — before you're on air, a quick check answers "ready to ride?": real mic frames actually arriving (not just permission granted), which route you'll be heard through (helmet vs. phone speaker), local network/transport health, and background-execution posture (battery optimization, notification permission) — each with a one-tap fix, never a dead end. Warnings never block; only a genuine hard failure (denied mic, no usable network) does.
@@ -66,7 +67,7 @@ Minimum OS: **Android 8.0+** (hotspot host needs 8.0, music cast needs 10.0) / *
 
 **You don't have to pick.** The main screen asks one thing — starting a channel, or joining one? — and resolves the rest from what your phone can see. Each button names the route before it takes it. Pin one by hand in Settings → Advanced settings if you'd rather skip the ladder.
 
-- **Same Wi-Fi already?** → **Wi-Fi.**
+- **Same Wi-Fi already?** → **Wi-Fi** — and if you then ride away from it, the app moves the group onto a hotspot of its own before the Wi-Fi disappears, without asking you anything.
 - **Two Androids, no network?** → **Bluetooth** (best range/quality) or the **Hotspot Bridge**.
 - **iPhone + Android, no network?** → **Hotspot Bridge** (most reliable). Bluetooth LE also works but can be flaky cross-OS.
 - **Someone with no app, anywhere?** → **Guest** — send the QR or link. Works over the real internet via STUN; a few strict corporate networks may block it.
@@ -191,7 +192,8 @@ lib/
     ├── transfer/   — transports + wire protocol: Wi-Fi UDP, Bluetooth
     │                 (Classic + BLE), combined WiFi/Hotspot page, WebRTC guest
     ├── walkie/     — WalkieTalkieCubit + main push-to-talk console
-    ├── landing/    — lobby: identity, transport-mode chip, Join
+    ├── landing/    — lobby: identity, transport-mode chip, and the way in
+    │                 (resume · join · new room · all rooms)
     ├── onboarding/ — first-run journey (one-time, replayable from Settings)
     ├── settings/   — categorized Settings + Permissions pages
     └── splash/     — branded cold-start splash (skippable)
