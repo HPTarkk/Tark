@@ -48,11 +48,36 @@ abstract interface class RoomRepository {
   /// Callers cannot authorize this operation with RoomId, display code, or a
   /// decoded raw invite. [VerifiedRoomInvitation] is created only by the
   /// issuer-side ledger after expiry/revocation/replay checks succeed.
+  ///
+  /// [pending] marks the new row as a seat held open by an invite that nobody
+  /// has walked through yet — the normal case for one-scan entry, where the
+  /// host has to authorise a member before the QR can exist. It stays out of
+  /// the member count until someone actually arrives.
   Future<SavedRoom> acceptVerifiedInvite(
     VerifiedRoomInvitation verified, {
     required String displayName,
     required DateTime acceptedAt,
+    bool pending,
   });
+
+  /// Edits durable display metadata for one member of a Room.
+  ///
+  /// Display metadata only: this can never change authorization, membership
+  /// validity or transport identity. Used to put a joiner's own name on their
+  /// row instead of the placeholder the host had to invent, and to mark an
+  /// invite seat confirmed once its owner turns up.
+  Future<SavedRoom> updateMember(
+    RoomId id,
+    RoomMemberId memberId, {
+    String? displayName,
+    bool? pending,
+  });
+
+  /// Withdraws a member from the roster, including an unused invite seat.
+  ///
+  /// Never applies to the local membership — leaving is [leave], which also
+  /// tears down the local relationship rather than only the roster row.
+  Future<SavedRoom> removeMember(RoomId id, RoomMemberId memberId);
 
   /// Persists issuer-provided durable Room state after the joiner has already
   /// correlated and verified an accepted invite response.

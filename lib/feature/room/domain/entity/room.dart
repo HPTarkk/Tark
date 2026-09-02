@@ -66,6 +66,7 @@ final class RoomMember {
     required this.joinedAt,
     this.kind = RoomMemberKind.member,
     this.removedAt,
+    this.pending = false,
   });
 
   final RoomMemberId id;
@@ -74,14 +75,33 @@ final class RoomMember {
   final RoomMemberKind kind;
   final DateTime? removedAt;
 
+  /// A seat held open by an invite that nobody has walked through yet.
+  ///
+  /// One-scan entry forces the host to authorise a member *before* the QR is
+  /// shown, because the joining phone never talks back — so the roster has a
+  /// row for someone who may never arrive. Without this flag those rows are
+  /// indistinguishable from real members, which is exactly how a host ends up
+  /// looking at four people in a room containing two. A pending member is
+  /// still durable and still authorised; it simply has not been seen yet, and
+  /// [Room.confirmedMembers] is what the UI counts.
+  ///
+  /// Serialised as an optional key, so rooms written before this existed load
+  /// as confirmed rather than being wiped by a schema bump.
+  final bool pending;
+
   bool get isActive => removedAt == null;
 
-  RoomMember copyWith({String? displayName, DateTime? removedAt}) => RoomMember(
+  RoomMember copyWith({
+    String? displayName,
+    DateTime? removedAt,
+    bool? pending,
+  }) => RoomMember(
     id: id,
     displayName: displayName ?? this.displayName,
     joinedAt: joinedAt,
     kind: kind,
     removedAt: removedAt ?? this.removedAt,
+    pending: pending ?? this.pending,
   );
 }
 
@@ -125,6 +145,29 @@ final class Room {
   final DateTime updatedAt;
   final List<RoomMember> members;
   final bool archived;
+
+  /// Everyone who is still in the room.
+  List<RoomMember> get activeMembers => [
+    for (final member in members)
+      if (member.isActive) member,
+  ];
+
+  /// Everyone who has actually turned up — the number the UI must show.
+  ///
+  /// Counting held-open invite seats here is what made one phone claim four
+  /// people and the other two, so the distinction is load-bearing rather than
+  /// cosmetic. Anything reporting "N members" wants this; anything managing
+  /// invites wants [pendingMembers] alongside it.
+  List<RoomMember> get confirmedMembers => [
+    for (final member in members)
+      if (member.isActive && !member.pending) member,
+  ];
+
+  /// Seats held open by an invite nobody has used yet.
+  List<RoomMember> get pendingMembers => [
+    for (final member in members)
+      if (member.isActive && member.pending) member,
+  ];
 
   Room copyWith({
     String? name,
