@@ -16,6 +16,7 @@ final class RoomAcceptedJoinSnapshot {
     required this.roomCreatedAt,
     required this.roomUpdatedAt,
     required Iterable<RoomAcceptedJoinMember> members,
+    this.grantsInviteManagement = false,
   }) : members = List.unmodifiable(members) {
     if (roomName.trim().isEmpty || roomName.trim().length > maxRoomNameLength) {
       throw ArgumentError.value(roomName, 'roomName', 'invalid room name');
@@ -48,9 +49,19 @@ final class RoomAcceptedJoinSnapshot {
   final DateTime roomUpdatedAt;
   final List<RoomAcceptedJoinMember> members;
 
+  /// Whether the accepted member may go on to invite people themselves.
+  ///
+  /// Off by default: an invite is a bearer capability, so handing one out has
+  /// to be a decision the host takes per person rather than something every
+  /// joiner inherits. It travels in the snapshot because the joining phone
+  /// never replies — whatever authority it ends up with has to have been
+  /// written into the code it scanned.
+  final bool grantsInviteManagement;
+
   factory RoomAcceptedJoinSnapshot.fromSavedRoom(
     SavedRoom saved, {
     required RoomMemberId acceptedMemberId,
+    bool grantsInviteManagement = false,
   }) {
     final active = saved.room.members
         .where((member) => member.isActive)
@@ -69,6 +80,7 @@ final class RoomAcceptedJoinSnapshot {
       roomCreatedAt: saved.room.createdAt.toUtc(),
       roomUpdatedAt: saved.room.updatedAt.toUtc(),
       members: selected.map(RoomAcceptedJoinMember.fromRoomMember),
+      grantsInviteManagement: grantsInviteManagement,
     );
   }
 
@@ -82,6 +94,10 @@ final class RoomAcceptedJoinSnapshot {
       'members': members
           .map((member) => member.toJson())
           .toList(growable: false),
+      // Written only when granted, so an ungranted code is byte-identical to
+      // one minted before this field existed and stays as small as it was —
+      // every byte here costs QR modules the camera has to resolve.
+      if (grantsInviteManagement) 'invites': true,
     });
     final encoded = base64Url.encode(utf8.encode(payload)).replaceAll('=', '');
     if (encoded.length > maxEncodedLength) {
@@ -136,6 +152,9 @@ final class RoomAcceptedJoinSnapshot {
         roomCreatedAt: createdAt,
         roomUpdatedAt: updatedAt,
         members: members,
+        // Anything other than an explicit true is no grant, so a malformed or
+        // absent field can only ever fail closed.
+        grantsInviteManagement: value['invites'] == true,
       );
     } on FormatException {
       rethrow;

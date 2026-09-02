@@ -3,6 +3,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../gen/assets.gen.dart';
 import '../theme/app_colors.dart';
+import '../utils/extensions.dart';
 
 /// QR code presented like a transmission artifact: white tile with an amber
 /// glow, radar-style corner brackets, and a slow scanline sweeping over it.
@@ -286,7 +287,7 @@ class StepRow extends StatelessWidget {
             border: Border.all(color: AppColors.amber.withAlpha(130)),
           ),
           child: Text(
-            '$index',
+            index.localized(context),
             style: TextStyle(
               color: AppColors.amber,
               fontSize: 11,
