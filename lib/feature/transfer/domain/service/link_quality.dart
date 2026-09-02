@@ -5,7 +5,25 @@ import '../entity/connection_health.dart';
 /// Ordered best to worst; [LinkQuality.recovering] is the floor rather than a
 /// separate axis, because from the user's seat "the app is fixing it" and "the
 /// link is bad" are the same instruction: wait, or stop and sort it out.
-enum LinkQuality { excellent, good, weak, recovering }
+enum LinkQuality {
+  excellent,
+  good,
+  weak,
+  recovering,
+
+  /// The channel is up and there is nobody else on it.
+  ///
+  /// Its own rung rather than a grade, because it is not a measurement of a
+  /// link — there is no link to measure. It used to be graded `good`, on the
+  /// reasoning that an empty channel is not *broken*; the effect was that two
+  /// phones which had failed to find each other both sat there showing LIVE
+  /// and three green bars, each transmitting into nothing, with the interface
+  /// agreeing that everything was fine. That is the single most expensive
+  /// thing this indicator can get wrong: it is the state people check
+  /// precisely to find out whether the silence they are hearing is them or the
+  /// network, and answering "good" sends them looking at their headset.
+  alone,
+}
 
 /// The evidence a grade is made from. All of it is already measured somewhere
 /// in the transport or the session — this is the shape it arrives in.
@@ -119,9 +137,11 @@ class LinkQualityGrader {
       return LinkQuality.weak;
     }
 
-    // Nobody to grade against. Not excellent — that would be a claim about a
-    // link that has never carried anything — and not weak either.
-    if (!s.hasPeers) return LinkQuality.good;
+    // Nobody to grade against, so nothing is graded. Reported as its own
+    // state rather than folded into a grade: "alone" is a fact the user can
+    // act on — go and check the other phone — and every grade on this scale
+    // is a claim about a connection that does not exist.
+    if (!s.hasPeers) return LinkQuality.alone;
 
     if (s.blockedSends > _blockedTolerance) return LinkQuality.weak;
 

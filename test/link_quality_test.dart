@@ -126,12 +126,13 @@ void main() {
       });
     });
 
-    // An empty channel is not a bad link; it is an empty channel. Grading it
-    // excellent would be a claim about something that has never carried a
-    // packet, and grading it weak would put a warning on a session that has
-    // nothing wrong with it.
-    test('a solo channel is good, neither excellent nor weak', () {
-      expect(grade(hasPeers: false), LinkQuality.good);
+    // An empty channel is not a bad link; it is an empty channel. It gets its
+    // own rung rather than a grade: excellent would be a claim about something
+    // that has never carried a packet, weak would warn about a session with
+    // nothing wrong with it — and `good`, which this used to return, told two
+    // phones that had failed to find each other that they were connected.
+    test('a solo channel reports alone, not a grade', () {
+      expect(grade(hasPeers: false), LinkQuality.alone);
     });
 
     test('a solo channel still reports a broken send path', () {
