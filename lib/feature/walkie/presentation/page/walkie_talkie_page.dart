@@ -16,6 +16,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/app_avatar.dart';
 import '../../../../core/widget/ticker_text.dart';
 import '../../../../core/widget/version_badge.dart';
+import '../../../room/presentation/widget/carrier_handover_note.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../manager/walkie_talkie_cubit.dart';
 import '../widget/background_permission_banner.dart';
@@ -168,7 +169,10 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
       body: SafeArea(
         child: Column(
           children: [
-            _entrance(0, const WalkieHeader()),
+            _entrance(
+              0,
+              WalkieHeader(onLeave: () => _confirmLeave(context)),
+            ),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
@@ -180,6 +184,10 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
                     _entrance(2, const VisualizerSection()),
                     const SizedBox(height: 16),
                     const BackgroundPermissionBanner(),
+                    // Above the link banner and the mic control: when this
+                    // fires it is about to change what the channel is running
+                    // over, which is context for everything below it.
+                    const CarrierHandoverNote(),
                     _buildLinkBanner(),
                     // Above the mic card on purpose: every issue it can show
                     // is a reason the control below is lying about being
