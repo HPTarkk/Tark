@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import '../../domain/entity/control_packet.dart';
 import '../../domain/entity/transport_capability_advertisement.dart';
+import 'carrier_handover_wire.dart';
 import 'media_receiver_feedback_wire.dart';
 import 'transport_capability_advertisement_wire.dart';
 import 'transport_route_proof_wire.dart';
@@ -12,9 +13,13 @@ import 'waki_packet_codec.dart';
 ///
 /// The legacy v3 header and first 16 control-body bytes stay untouched. Existing
 /// #41 receiver feedback remains first, then the fixed capability record when
-/// present, then the self-framed route proof. Older builds already ignore bytes
-/// after the control fields. Newer builds fail closed on absent, truncated,
-/// unknown-version or malformed trailers.
+/// present, then the self-framed carrier handover, then the self-framed route
+/// proof. Older builds already ignore bytes after the control fields. Newer
+/// builds fail closed on absent, truncated, unknown-version or malformed
+/// trailers.
+///
+/// The route proof stays last because its decoder asserts it reaches the end of
+/// the datagram; every trailer added from here on goes *before* it.
 ///
 /// This codec never interprets the proof as Room identity. Attribution remains
 /// behind the cryptographic Room proof boundary.
@@ -29,14 +34,18 @@ final class TransportCapabilityControlCodec {
     required int lastRxSeq,
     required int audioRxPackets,
     TransportCapabilityAdvertisement? capability,
-  }) => appendCapability(
-    base.encodePing(
-      token: token,
-      lastTxSeq: lastTxSeq,
-      lastRxSeq: lastRxSeq,
-      audioRxPackets: audioRxPackets,
+    String? carrierHandover,
+  }) => appendCarrierHandover(
+    appendCapability(
+      base.encodePing(
+        token: token,
+        lastTxSeq: lastTxSeq,
+        lastRxSeq: lastRxSeq,
+        audioRxPackets: audioRxPackets,
+      ),
+      capability,
     ),
-    capability,
+    carrierHandover,
   );
 
   Uint8List encodePong({
@@ -46,6 +55,7 @@ final class TransportCapabilityControlCodec {
     required int audioRxPackets,
     TransportCapabilityAdvertisement? capability,
     String? routeProof,
+    String? carrierHandover,
   }) {
     final withCapability = appendCapability(
       base.encodePong(
@@ -56,7 +66,13 @@ final class TransportCapabilityControlCodec {
       ),
       capability,
     );
-    return appendRouteProof(withCapability, routeProof);
+    // Handover before the route proof, never after: the proof's decoder
+    // asserts it runs to the end of the datagram, so anything appended past it
+    // makes a perfectly good proof unreadable.
+    return appendRouteProof(
+      appendCarrierHandover(withCapability, carrierHandover),
+      routeProof,
+    );
   }
 
   DecodedTransportCapabilityControl? decodeControl(
@@ -72,6 +88,7 @@ final class TransportCapabilityControlCodec {
         packet: packet,
         capability: null,
         routeProof: null,
+        carrierHandover: null,
         carrierPeerKey: fallbackSenderId,
       );
     }
@@ -88,10 +105,14 @@ final class TransportCapabilityControlCodec {
       trailerOffset += TransportCapabilityAdvertisementWire.encodedLength;
     }
 
+    final carrierHandover = CarrierHandoverWire.decode(bytes, trailerOffset);
+    trailerOffset += CarrierHandoverWire.encodedLengthAt(bytes, trailerOffset);
+
     return DecodedTransportCapabilityControl(
       packet: packet,
       capability: capability,
       routeProof: TransportRouteProofWire.decode(bytes, trailerOffset),
+      carrierHandover: carrierHandover,
       carrierPeerKey: fallbackSenderId,
     );
   }
@@ -102,6 +123,18 @@ final class TransportCapabilityControlCodec {
   ) {
     if (capability == null) return packet;
     final trailer = TransportCapabilityAdvertisementWire.encode(capability);
+    final result = Uint8List(packet.length + trailer.length);
+    result.setRange(0, packet.length, packet);
+    result.setRange(packet.length, result.length, trailer);
+    return result;
+  }
+
+  static Uint8List appendCarrierHandover(
+    Uint8List packet,
+    String? carrierHandover,
+  ) {
+    if (carrierHandover == null) return packet;
+    final trailer = CarrierHandoverWire.encode(carrierHandover);
     final result = Uint8List(packet.length + trailer.length);
     result.setRange(0, packet.length, packet);
     result.setRange(packet.length, result.length, trailer);
@@ -140,11 +173,18 @@ final class DecodedTransportCapabilityControl {
     required this.packet,
     required this.capability,
     required this.routeProof,
+    required this.carrierHandover,
     required this.carrierPeerKey,
   });
 
   final ControlPacket packet;
   final TransportCapabilityAdvertisement? capability;
   final String? routeProof;
+
+  /// A signed instruction to move the Room onto a new network, still encoded.
+  /// Verification belongs to the Room layer, which is the only place that
+  /// holds the issuer key it has to chain to.
+  final String? carrierHandover;
+
   final String carrierPeerKey;
 }

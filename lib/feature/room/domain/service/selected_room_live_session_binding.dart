@@ -6,11 +6,13 @@ import '../../data/security/room_transport_identity_secure_store.dart';
 import '../entity/transport_attachment.dart';
 import '../repository/room_repository.dart';
 import 'room_capability_failover_runtime.dart';
+import 'room_carrier_promotion_controller.dart';
 import 'room_failover_controller.dart';
 import 'room_failover_runtime.dart';
 import 'room_failover_transport_orchestrator.dart';
 import 'room_live_failover_transport_starter.dart';
 import 'room_member_transport_identity.dart';
+import 'room_pending_seat_confirmer.dart';
 import 'room_session_factory.dart';
 import 'room_session_runtime.dart';
 import 'room_transport_health_runtime_adapter.dart';
@@ -54,9 +56,17 @@ final class SelectedRoomLiveSessionBinding {
 
   RoomSessionRuntime? _runtime;
   _LiveFailoverSession? _failover;
+  RoomCarrierPromotionController? _carrierPromotion;
   int _generation = 0;
 
   RoomSessionRuntime? get runtime => _runtime;
+
+  /// Live view of which network this Room is on and whether it is being moved.
+  ///
+  /// Null until a session is open, and on any composition that cannot support
+  /// a handover — Bluetooth, the guest link, a device with no signing
+  /// material. A null here means "no promotion machinery", never "settled".
+  RoomCarrierPromotionController? get carrierPromotion => _carrierPromotion;
 
   Future<RoomSessionRuntime?> open({required String sessionId}) async {
     final generation = ++_generation;
@@ -87,6 +97,7 @@ final class SelectedRoomLiveSessionBinding {
     final host = hotspotHost;
     final keeper = hotspotLinkKeeper;
     _LiveFailoverSession? failover;
+    RoomCarrierPromotionController? carrierPromotion;
     if (host != null && keeper != null) {
       // Existing owner Rooms are provisioned lazily; joined members must
       // already have persisted material from accepted secure join. If an
@@ -110,12 +121,16 @@ final class SelectedRoomLiveSessionBinding {
       final identityMaterial = identity;
       if (identityMaterial != null) {
         final failoverRuntime = RoomFailoverRuntime(session: runtime);
+        // Built before the promotion controller exists, so the callback
+        // resolves it lazily through the local rather than capturing a null.
         final starter = RoomLiveFailoverTransportStarter(
           localMemberId: saved.membership.localMemberId,
           modeStore: modeStore,
           transfer: transfer,
           hotspotHost: host,
           hotspotLinkKeeper: keeper,
+          onHotspotRaised: (credentials) async =>
+              carrierPromotion?.announceRaisedCarrier(credentials),
         );
         final orchestrator = RoomFailoverTransportOrchestrator(
           runtime: failoverRuntime,
@@ -131,6 +146,13 @@ final class SelectedRoomLiveSessionBinding {
         failover = _LiveFailoverSession(
           verified: verified,
           orchestrator: orchestrator,
+          // The roster's other half. An invite seat has to be opened before
+          // anyone can scan it, so it starts as a placeholder nobody has
+          // claimed; R7 clears it when the joiner opens the Room screen and
+          // writes their name. A rider who joins and simply rides never does
+          // that, so the seat stays "open" for someone the host is talking to.
+          // A verified route proof settles it without anyone tapping anything.
+          seats: RoomPendingSeatConfirmer(rooms: rooms, roomId: saved.room.id),
           readLocalCapability:
               localCapabilityReader ?? TransportCapabilityReader.current,
           localProofProvider:
@@ -145,16 +167,50 @@ final class SelectedRoomLiveSessionBinding {
               },
         );
         await failover.start(health: health, transfer: transfer);
+
+        // The pre-emptive half. Failover above reacts to a carrier that has
+        // already died; this moves the Room off a borrowed one while it is
+        // still alive, which is the only moment a handover can actually be
+        // delivered to the peers who have to follow it.
+        final handoverExchange = transfer is CarrierHandoverExchange
+            ? transfer as CarrierHandoverExchange
+            : null;
+        if (handoverExchange != null) {
+          final promotion = RoomCarrierPromotionController(
+            localMemberId: saved.membership.localMemberId,
+            roomId: saved.room.id,
+            issuerPublicKey: identityMaterial.certificate.issuerPublicKey,
+            modeStore: modeStore,
+            hotspotHost: host,
+            hotspotLinkKeeper: keeper,
+            handoverExchange: handoverExchange,
+            identity: identityMaterial,
+            crypto: _identityCrypto,
+            // Only peers whose capability evidence has been cryptographically
+            // bound to a durable member reach the election. An unverified
+            // observation could otherwise nominate a stranger to run the whole
+            // Room's network.
+            candidates: () => capabilities.candidates.snapshot(
+              now: DateTime.now(),
+              attachmentGeneration: capabilities.attachmentGeneration,
+            ),
+          );
+          failover.carrierPromotion = promotion;
+          promotion.start();
+          carrierPromotion = promotion;
+        }
       }
     }
 
     if (generation != _generation) {
+      await carrierPromotion?.dispose();
       await failover?.dispose();
       await runtime.leave();
       return null;
     }
     _runtime = runtime;
     _failover = failover;
+    _carrierPromotion = carrierPromotion;
     return runtime;
   }
 
@@ -165,9 +221,15 @@ final class SelectedRoomLiveSessionBinding {
 
   Future<void> _closeCurrent() async {
     final failover = _failover;
+    final promotion = _carrierPromotion;
     final current = _runtime;
     _failover = null;
+    _carrierPromotion = null;
     _runtime = null;
+    // Before the failover session: disposing this clears the announcement
+    // provider, and a Room that has stopped must not still be telling peers to
+    // move onto a network it is about to take down.
+    await promotion?.dispose();
     await failover?.dispose();
     if (current != null && !current.hasLeft) await current.leave();
   }
@@ -190,12 +252,14 @@ final class _LiveFailoverSession {
   _LiveFailoverSession({
     required this.verified,
     required this.orchestrator,
+    required this.seats,
     required this.readLocalCapability,
     required this.localProofProvider,
   });
 
   final RoomVerifiedTransportCapabilityRuntime verified;
   final RoomFailoverTransportOrchestrator orchestrator;
+  final RoomPendingSeatConfirmer seats;
   final Future<TransportCapabilityAdvertisement?> Function()
   readLocalCapability;
   final TransportRouteProofProvider localProofProvider;
@@ -204,6 +268,12 @@ final class _LiveFailoverSession {
   StreamSubscription<ConnectionHealth>? _healthSubscription;
   int? _handledDownGeneration;
   bool _disposed = false;
+
+  /// Set once the promotion controller exists, so refreshed local evidence can
+  /// poke it. A second phone appearing is exactly the event that turns "a Room
+  /// of one, nothing to do" into "time to move", and waiting up to a full tick
+  /// for it would be waiting for no reason.
+  RoomCarrierPromotionController? carrierPromotion;
 
   Future<void> start({
     required Stream<ConnectionHealth> health,
@@ -223,6 +293,11 @@ final class _LiveFailoverSession {
         capabilitySource: capabilitySource,
         proofExchange: proofExchange,
         localProofProvider: localProofProvider,
+        // Fire-and-forget on purpose: settling a roster row is bookkeeping,
+        // and the proof path it hangs off is on the way to admitting live
+        // capability evidence. A storage write must not be able to delay that,
+        // and the confirmer already swallows its own failures.
+        onMemberProven: (memberId) => unawaited(seats.confirm(memberId)),
       );
     }
     _healthSubscription = health.listen(
@@ -268,6 +343,7 @@ final class _LiveFailoverSession {
         verified.attachmentGeneration != expectedGeneration) {
       return;
     }
+    carrierPromotion?.evaluate();
     verified.observeLocal(
       canHostHotspot: capability.canHostHotspot,
       bluetoothSupported: capability.bluetoothSupported,
@@ -281,6 +357,7 @@ final class _LiveFailoverSession {
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
+    seats.dispose();
     await _healthSubscription?.cancel();
     await _evidenceBridge?.dispose();
     await orchestrator.cancel();

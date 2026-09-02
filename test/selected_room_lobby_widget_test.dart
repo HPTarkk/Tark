@@ -34,18 +34,28 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     var starts = 0;
+    var backs = 0;
     await tester.pumpWidget(
       MaterialApp(
         locale: const Locale('fa'),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
-        home: SelectedRoomLobby(room: room(), onStartRide: () => starts++),
+        home: SelectedRoomLobby(
+          room: room(),
+          onStartRide: () => starts++,
+          onBack: () => backs++,
+        ),
       ),
     );
-    await tester.pumpAndSettle();
+    // Bounded rather than pumpAndSettle: the Start ride action carries a
+    // repeating pulse, and a settle waits for an animation that never ends.
+    await tester.pump(const Duration(seconds: 1));
 
     expect(find.byKey(const Key('selected-room-lobby')), findsOneWidget);
-    expect(find.text('اعضای اتاق (2)'), findsOneWidget);
+    // Persian numerals, not a Latin "2". A quantity rendered in ASCII digits
+    // inside an otherwise Persian sentence is the most visible way this screen
+    // can look half-translated.
+    expect(find.text('اعضای اتاق (۲)'), findsOneWidget);
     expect(
       Directionality.of(
         tester.element(find.byKey(const Key('selected-room-lobby'))),
@@ -59,21 +69,35 @@ void main() {
     );
     await tester.tap(find.byKey(const Key('selected-room-start-ride')));
     expect(starts, 1);
+
+    // Creating a room replaces the route stack, so this screen is routinely
+    // the only thing on it: without a control of its own there is no system
+    // back to inherit and the gesture closed the app.
+    await tester.tap(find.byKey(const Key('selected-room-lobby-back')));
+    expect(backs, 1);
+    expect(find.byTooltip('بازگشت'), findsOneWidget);
   });
 
   testWidgets('English lobby exposes member names and explicit Start ride', (
     tester,
   ) async {
     var starts = 0;
+    var backs = 0;
     await tester.pumpWidget(
       MaterialApp(
         locale: const Locale('en'),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
-        home: SelectedRoomLobby(room: room(), onStartRide: () => starts++),
+        home: SelectedRoomLobby(
+          room: room(),
+          onStartRide: () => starts++,
+          onBack: () => backs++,
+        ),
       ),
     );
-    await tester.pumpAndSettle();
+    // Bounded rather than pumpAndSettle: the Start ride action carries a
+    // repeating pulse, and a settle waits for an animation that never ends.
+    await tester.pump(const Duration(seconds: 1));
 
     expect(find.text('Room members (2)'), findsOneWidget);
     expect(find.text('Rider one'), findsOneWidget);
@@ -83,5 +107,9 @@ void main() {
     );
     await tester.tap(find.byKey(const Key('selected-room-start-ride')));
     expect(starts, 1);
+
+    await tester.tap(find.byKey(const Key('selected-room-lobby-back')));
+    expect(backs, 1);
+    expect(find.byTooltip('Back'), findsOneWidget);
   });
 }

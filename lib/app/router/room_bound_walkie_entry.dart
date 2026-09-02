@@ -2,9 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../core/motion/app_motion.dart';
+import '../../core/router/routes.dart';
 import '../../core/utils/logger.dart';
 import '../../feature/room/api/room_api.dart';
+import '../../feature/room/presentation/widget/carrier_status_scope.dart';
 import '../../feature/transfer/api/transfer_api.dart';
 import '../../feature/walkie/api/walkie_api.dart';
 
@@ -131,11 +135,26 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   }
 
   @override
-  Widget build(BuildContext context) => FutureBuilder<_EntryState>(
+  Widget build(BuildContext context) => AnimatedSwitcher(
+    // Whatever this resolves to — lobby, live channel, or the invalid-selection
+    // notice — arrives over the wait rather than replacing it in one frame.
+    // This is the seam a blank screen appeared in once; a crossfade makes the
+    // handover visible instead of instantaneous, which is worth more here than
+    // anywhere else in the app.
+    duration: AppMotion.card,
+    switchInCurve: AppMotion.easeOut,
+    switchOutCurve: AppMotion.easeOut,
+    child: _resolved(context),
+  );
+
+  Widget _resolved(BuildContext context) => FutureBuilder<_EntryState>(
     future: _entry,
     builder: (context, snapshot) {
       if (snapshot.connectionState != ConnectionState.done) {
-        return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        return const Scaffold(
+          key: ValueKey('walkie-entry-waiting'),
+          body: Center(child: _DelayedSpinner()),
+        );
       }
       if (snapshot.hasError) {
         // Nothing above is supposed to throw past its own catch, so this is
@@ -143,21 +162,126 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         // "This room is no longer available" would be a claim about Room state
         // that a failure here does not support.
         Logger.log('Room-bound walkie entry failed: ${snapshot.error}');
-        return WalkieTalkiePage.buildPage();
-      }
-      final state = snapshot.data ?? const _EntryState.invalidSelection();
-      if (state.live) return WalkieTalkiePage.buildPage();
-      final room = state.room;
-      if (room != null) {
-        return SelectedRoomLobby(
-          room: room,
-          onStartRide: () => _startRide(room),
+        return CarrierStatusScope(
+          controller: _binding?.carrierPromotion,
+          child: WalkieTalkiePage.buildPage(),
         );
       }
-      return _InvalidRoomSelection(
-        onBack: () => Navigator.of(context).maybePop(),
+      final state = snapshot.data ?? const _EntryState.invalidSelection();
+      if (state.live) {
+        // The channel is several layers below the thing that owns the carrier
+        // controller, so the status is published from here rather than
+        // threaded through every constructor in between.
+        return CarrierStatusScope(
+          controller: _binding?.carrierPromotion,
+          child: WalkieTalkiePage.buildPage(),
+        );
+      }
+      final room = state.room;
+      if (room != null) {
+        return _BackToRooms(
+          onBack: () => leaveRoomEntry(context),
+          child: SelectedRoomLobby(
+            room: room,
+            onStartRide: () => _startRide(room),
+            onBack: () => leaveRoomEntry(context),
+          ),
+        );
+      }
+      return _BackToRooms(
+        onBack: () => leaveRoomEntry(context),
+        child: _InvalidRoomSelection(onBack: () => leaveRoomEntry(context)),
       );
     },
+  );
+}
+
+/// Leaves a pre-live Room surface — the lobby, or the invalid-selection notice.
+///
+/// Neither has started anything, so neither asks a question on the way out;
+/// that is the whole difference between this and the live channel's leave
+/// control, which wears the same chevron over a confirmation.
+///
+/// `maybePop` on its own was the dead end. The room list, room creation and
+/// the join scanner all arrive here with `go`, which *replaces* the stack — so
+/// there is routinely nothing to pop, the control did nothing, and Android's
+/// back gesture closed the app instead. Falling through to the room list is an
+/// "up" rather than a "back": it is the surface this room was chosen on, and
+/// the one place all of those paths came through.
+void leaveRoomEntry(BuildContext context) {
+  if (context.canPop()) {
+    context.pop();
+  } else {
+    context.go(AppRoutes.roomsPath);
+  }
+}
+
+/// Gives the system back gesture somewhere to go.
+///
+/// The on-screen control is only half the fix: the gesture is how most people
+/// actually leave a screen, and with nothing under this route on the stack an
+/// unhandled back closed the app. `canPop: false` routes both through the same
+/// answer, so the gesture and the chevron cannot disagree about where "out"
+/// is.
+///
+/// No confirmation, unlike the live channel's: nothing has been started here
+/// that leaving could tear down.
+class _BackToRooms extends StatelessWidget {
+  const _BackToRooms({required this.onBack, required this.child});
+
+  final VoidCallback onBack;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => PopScope(
+    canPop: false,
+    onPopInvokedWithResult: (didPop, _) {
+      if (!didPop) onBack();
+    },
+    child: child,
+  );
+}
+
+/// A spinner that only appears if the wait is long enough to notice.
+///
+/// Room resolution is a couple of storage reads and usually finishes inside a
+/// frame or two. A spinner shown for 80ms and then removed is a flash, and a
+/// flash reads as a fault — the user sees *something went wrong and recovered*
+/// rather than *that was instant*. So nothing is drawn at all until the delay
+/// passes, and then it fades up.
+class _DelayedSpinner extends StatefulWidget {
+  const _DelayedSpinner();
+
+  @override
+  State<_DelayedSpinner> createState() => _DelayedSpinnerState();
+}
+
+class _DelayedSpinnerState extends State<_DelayedSpinner> {
+  static const _delay = Duration(milliseconds: 220);
+  Timer? _timer;
+  bool _visible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer(_delay, () {
+      if (mounted) setState(() => _visible = true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedSwitcher(
+    duration: AppMotion.card,
+    switchInCurve: AppMotion.easeOut,
+    child: _visible
+        ? const CircularProgressIndicator()
+        : const SizedBox.shrink(),
   );
 }
 

@@ -129,7 +129,7 @@ void main() {
         encodedProof: encoded,
         at: now,
       ),
-      isFalse,
+      isNull,
     );
     expect(
       await value.runtime.verifyAndBind(
@@ -137,7 +137,7 @@ void main() {
         encodedProof: encoded,
         at: now,
       ),
-      isTrue,
+      peerMemberId,
     );
     expect(
       value.runtime.observePeer(
@@ -182,7 +182,7 @@ void main() {
         encodedProof: forged.encode(),
         at: now,
       ),
-      isFalse,
+      isNull,
     );
     expect(
       value.runtime.observePeer(
@@ -225,7 +225,7 @@ void main() {
         encodedProof: encoded,
         at: now,
       ),
-      isTrue,
+      peerMemberId,
     );
 
     final attempt = await value.runtime.beginFailover(
@@ -240,7 +240,7 @@ void main() {
         encodedProof: encoded,
         at: now.add(const Duration(seconds: 1)),
       ),
-      isFalse,
+      isNull,
     );
     value.runtime.dispose();
   });
@@ -267,7 +267,7 @@ void main() {
         encodedProof: encoded,
         at: now,
       ),
-      isFalse,
+      isNull,
     );
     value.runtime.dispose();
   });

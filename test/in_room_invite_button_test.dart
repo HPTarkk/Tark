@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tark/core/motion/app_motion.dart';
 import 'package:tark/feature/room/data/repository/shared_preferences_room_repository.dart';
 import 'package:tark/feature/room/data/security/room_transport_identity_lifecycle.dart';
 import 'package:tark/feature/room/data/security/room_transport_identity_secure_store.dart';
@@ -58,29 +60,108 @@ void main() {
     );
   }
 
-  testWidgets('issues canonical Room invite and fits 320px', (tester) async {
+  /// The invite QR carries a scanline that repeats for as long as it is on
+  /// screen, so `pumpAndSettle` can never return once it is mounted. Every
+  /// assertion past that point runs on bounded pumps instead.
+  Future<void> settleInvite(WidgetTester tester) async {
+    for (var i = 0; i < 12; i++) {
+      await tester.pump(const Duration(milliseconds: 60));
+    }
+  }
+
+  Future<void> openSheet(WidgetTester tester) async {
+    await tester.tap(find.byKey(const Key('in-room-add-rider')));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('opening the roster issues nothing and adds nobody', (
+    tester,
+  ) async {
+    // The regression this whole screen was rebuilt around: the old dialog
+    // minted a durable member every time it was *opened*, so a host who
+    // glanced at it three times ended up with three phantom riders and a
+    // member count nobody else agreed with.
     final repository = await repositoryWithSelectedRoom();
     await tester.pumpWidget(
       app(repository: repository, locale: const Locale('en')),
     );
-
-    await tester.tap(find.byKey(const Key('in-room-add-rider')));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('room-invite-dialog')), findsOneWidget);
-    expect(find.byKey(const Key('room-invite-qr')), findsOneWidget);
-    expect(find.text('Night ride'), findsOneWidget);
-    expect(find.byKey(const Key('room-invite-display-code')), findsOneWidget);
-    expect(tester.takeException(), isNull);
+    final before = (await repository.list()).single.room;
+    expect(before.confirmedMembers, hasLength(1));
+
+    for (var i = 0; i < 3; i++) {
+      await openSheet(tester);
+      expect(find.byKey(const Key('room-invite-qr')), findsNothing);
+      Navigator.of(tester.element(find.byType(Scaffold).first)).pop();
+      await tester.pumpAndSettle();
+    }
+
+    final after = (await repository.list()).single.room;
+    expect(after.confirmedMembers, hasLength(1));
+    expect(after.pendingMembers, isEmpty);
+    expect(after.members.where((m) => m.isActive), hasLength(1));
   });
 
-  testWidgets('Persian invite entry and sheet preserve RTL at 320px', (
+  testWidgets('issuing an invite opens exactly one pending seat', (
     tester,
   ) async {
     final repository = await repositoryWithSelectedRoom();
     await tester.pumpWidget(
+      app(repository: repository, locale: const Locale('en')),
+    );
+    await tester.pumpAndSettle();
+    await openSheet(tester);
+
+    expect(find.text('Night ride'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('room-people-invite')));
+    await settleInvite(tester);
+
+    expect(find.byKey(const Key('room-invite-qr')), findsOneWidget);
+    expect(find.byKey(const Key('room-invite-display-code')), findsOneWidget);
+
+    final room = (await repository.list()).single.room;
+    // The seat exists and is authorised, but nobody has walked through it —
+    // so it must not inflate the head count.
+    expect(room.pendingMembers, hasLength(1));
+    expect(room.confirmedMembers, hasLength(1));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a held seat can be taken back', (tester) async {
+    final repository = await repositoryWithSelectedRoom();
+    await tester.pumpWidget(
+      app(repository: repository, locale: const Locale('en')),
+    );
+    await tester.pumpAndSettle();
+    await openSheet(tester);
+    await tester.tap(find.byKey(const Key('room-people-invite')));
+    await settleInvite(tester);
+    expect((await repository.list()).single.room.pendingMembers, hasLength(1));
+
+    // Close and reopen rather than tapping Done: the invite panel is taller
+    // than the test surface, so Done sits below the fold. Reopening is also
+    // the truer check — it proves the held seat is durable and shows up on the
+    // roster of a freshly built sheet.
+    Navigator.of(tester.element(find.byType(Scaffold).first)).pop();
+    await tester.pumpAndSettle();
+    await openSheet(tester);
+
+    expect(find.text('OPEN SEATS (1)'), findsOneWidget);
+    await tester.tap(find.byTooltip('Take the invite back'));
+    await tester.pumpAndSettle();
+
+    final room = (await repository.list()).single.room;
+    expect(room.pendingMembers, isEmpty);
+    expect(room.confirmedMembers, hasLength(1));
+  });
+
+  testWidgets('Persian entry and sheet preserve RTL at 320px', (tester) async {
+    final repository = await repositoryWithSelectedRoom();
+    await tester.pumpWidget(
       app(repository: repository, locale: const Locale('fa')),
     );
+    await tester.pumpAndSettle();
 
     expect(
       tester
@@ -88,21 +169,76 @@ void main() {
           .textDirection,
       TextDirection.rtl,
     );
-    expect(
-      tester
-          .widget<IconButton>(find.byKey(const Key('in-room-add-rider')))
-          .tooltip,
-      'افزودن همراه',
-    );
+    expect(find.byTooltip('فرد'), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('in-room-add-rider')));
-    await tester.pumpAndSettle();
+    await openSheet(tester);
+    expect(find.text('افراد اتاق'), findsOneWidget);
 
-    expect(find.text('دعوت به اتاق'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('room-people-invite')));
+    await settleInvite(tester);
+
     expect(
       find.text('این کد فقط برای بررسی است و به‌تنهایی اجازه ورود نمی‌دهد.'),
       findsOneWidget,
     );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('copying an invite answers on the button, not under the sheet', (
+    tester,
+  ) async {
+    // The sheet is a modal, so it is drawn *over* the ScaffoldMessenger. The
+    // SnackBar this used to raise landed underneath it and, from the user's
+    // side, pressing Copy did nothing at all.
+    final copied = <String>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          copied.add((call.arguments as Map)['text'] as String);
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+
+    final repository = await repositoryWithSelectedRoom();
+    await tester.pumpWidget(
+      app(repository: repository, locale: const Locale('en')),
+    );
+    await tester.pumpAndSettle();
+    await openSheet(tester);
+    await tester.tap(find.byKey(const Key('room-people-invite')));
+    await settleInvite(tester);
+
+    final copy = find.byKey(const Key('room-invite-copy'));
+    await tester.ensureVisible(copy);
+    await settleInvite(tester);
+    expect(find.text('Copy invite'), findsOneWidget);
+
+    await tester.tap(copy);
+    await settleInvite(tester);
+
+    expect(copied, hasLength(1));
+    expect(copied.single, startsWith('tark-room:'));
+
+    // The answer is on the control that was pressed.
+    expect(find.text('Copied'), findsOneWidget);
+    expect(find.text('Copy invite'), findsNothing);
+    expect(find.byIcon(Icons.check_rounded), findsWidgets);
+    // And nowhere else — a snack here would be invisible under the sheet.
+    expect(find.byType(SnackBar), findsNothing);
+
+    // It hands the action back rather than staying done forever.
+    await tester.pump(AppMotion.confirmHold);
+    await settleInvite(tester);
+    expect(find.text('Copy invite'), findsOneWidget);
+    expect(find.text('Copied'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -113,15 +249,11 @@ void main() {
     await tester.pumpWidget(
       app(repository: repository, locale: const Locale('en')),
     );
-
-    await tester.tap(find.byKey(const Key('in-room-add-rider')));
     await tester.pumpAndSettle();
+    await openSheet(tester);
 
-    expect(find.byKey(const Key('room-invite-dialog')), findsNothing);
-    expect(
-      find.text('Select an active Room where you can manage invites first.'),
-      findsOneWidget,
-    );
+    expect(find.byKey(const Key('room-people-invite')), findsNothing);
+    expect(find.text('No Room is selected.'), findsOneWidget);
   });
 
   testWidgets('only current transport host sees Wi-Fi credentials', (
@@ -144,14 +276,18 @@ void main() {
         transferRepository: _FakeTransferRepository(SessionRole.joiner),
       ),
     );
-    await tester.tap(find.byKey(const Key('in-room-add-rider')));
     await tester.pumpAndSettle();
+    await openSheet(tester);
+    await tester.tap(find.byKey(const Key('room-people-invite')));
+    await settleInvite(tester);
 
     expect(find.byKey(const Key('room-invite-qr')), findsOneWidget);
     expect(find.byKey(const Key('room-invite-wifi-section')), findsNothing);
     expect(find.textContaining('host-secret'), findsNothing);
 
-    await tester.tap(find.text('Done'));
+    // Take the QR down before swapping the tree: its scanline repeats, so a
+    // pumpAndSettle with one still mounted can never return.
+    Navigator.of(tester.element(find.byType(Scaffold).first)).pop();
     await tester.pumpAndSettle();
     await tester.pumpWidget(
       app(
@@ -161,8 +297,10 @@ void main() {
         transferRepository: _FakeTransferRepository(SessionRole.host),
       ),
     );
-    await tester.tap(find.byKey(const Key('in-room-add-rider')));
     await tester.pumpAndSettle();
+    await openSheet(tester);
+    await tester.tap(find.byKey(const Key('room-people-invite')));
+    await settleInvite(tester);
 
     expect(find.byKey(const Key('room-invite-wifi-section')), findsOneWidget);
     expect(find.byKey(const Key('room-invite-wifi-qr')), findsOneWidget);
@@ -192,28 +330,26 @@ void main() {
         transferRepository: _FakeTransferRepository(SessionRole.host),
       ),
     );
-    await tester.tap(find.byKey(const Key('in-room-add-rider')));
     await tester.pumpAndSettle();
+    await openSheet(tester);
+    await tester.tap(find.byKey(const Key('room-people-invite')));
+    await settleInvite(tester);
     expect(find.text('Network: Old-SSID'), findsOneWidget);
 
     keeper.setState(HotspotLinkState.recovering);
-    await tester.pump();
+    await settleInvite(tester);
     expect(find.byKey(const Key('room-invite-wifi-section')), findsNothing);
-    expect(
-      find.byKey(const Key('room-invite-wifi-recovering')),
-      findsOneWidget,
-    );
     expect(find.textContaining('old-secret'), findsNothing);
     expect(find.byKey(const Key('room-invite-qr')), findsOneWidget);
 
     keeper.setCredentials(
       const HotspotCredentials(ssid: 'New-SSID', passphrase: 'new-secret'),
     );
-    await tester.pump();
+    await settleInvite(tester);
     expect(find.byKey(const Key('room-invite-wifi-section')), findsNothing);
 
     keeper.setState(HotspotLinkState.up);
-    await tester.pump();
+    await settleInvite(tester);
     expect(find.byKey(const Key('room-invite-wifi-section')), findsOneWidget);
     expect(find.text('Network: New-SSID'), findsOneWidget);
     expect(find.text('Password: new-secret'), findsOneWidget);

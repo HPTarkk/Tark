@@ -89,6 +89,7 @@ void main() {
     () async {
       final value = await subject();
       final source = _EvidenceSource();
+      final proven = <RoomMemberId>[];
       final bridge = RoomVerifiedTransportEvidenceBridge(
         runtime: value.runtime,
         capabilitySource: source,
@@ -96,6 +97,7 @@ void main() {
         localProofProvider:
             ({required int token, required int challengeEpoch}) async =>
                 'local-$token-$challengeEpoch',
+        onMemberProven: proven.add,
       );
       value.runtime.observeLocal(
         canHostHotspot: true,
@@ -125,6 +127,9 @@ void main() {
       await _flush();
 
       expect(bridge.pendingCapabilityCount, 0);
+      // Who, not only whether: a bound route names the durable member behind
+      // it, which is what lets a pending invite seat settle itself.
+      expect(proven, [peerMemberId]);
       final attempt = await value.runtime.beginFailover(
         sharedLanUsable: false,
         reason: RoomFailoverReason.hostLost,
@@ -141,12 +146,14 @@ void main() {
   test('forged proof never unlocks pending capability', () async {
     final value = await subject();
     final source = _EvidenceSource();
+    final proven = <RoomMemberId>[];
     final bridge = RoomVerifiedTransportEvidenceBridge(
       runtime: value.runtime,
       capabilitySource: source,
       proofExchange: source,
       localProofProvider:
           ({required int token, required int challengeEpoch}) async => null,
+      onMemberProven: proven.add,
     );
     value.runtime.observeLocal(
       canHostHotspot: true,
@@ -183,6 +190,9 @@ void main() {
     await _flush();
 
     expect(bridge.pendingCapabilityCount, 1);
+    // And nobody is reported present, so a forged proof cannot confirm a seat
+    // any more than it can nominate a hotspot host.
+    expect(proven, isEmpty);
     final attempt = await value.runtime.beginFailover(
       sharedLanUsable: false,
       reason: RoomFailoverReason.hostLost,
@@ -198,12 +208,14 @@ void main() {
   test('proof for another carrier route cannot unlock capability', () async {
     final value = await subject();
     final source = _EvidenceSource();
+    final proven = <RoomMemberId>[];
     final bridge = RoomVerifiedTransportEvidenceBridge(
       runtime: value.runtime,
       capabilitySource: source,
       proofExchange: source,
       localProofProvider:
           ({required int token, required int challengeEpoch}) async => null,
+      onMemberProven: proven.add,
     );
     value.runtime.observeLocal(
       canHostHotspot: true,
@@ -230,6 +242,12 @@ void main() {
     await _flush();
 
     expect(bridge.pendingCapabilityCount, 1);
+    // Presence and capability are answering different questions, and this is
+    // the case that separates them. The proof is genuine and challenge-matched,
+    // so the member really is on the air and their seat can settle — but it
+    // arrived on route-b, and the capability claim was made on route-a, so that
+    // claim stays unattributed and cannot nominate anyone to host.
+    expect(proven, [peerMemberId]);
     final attempt = await value.runtime.beginFailover(
       sharedLanUsable: false,
       reason: RoomFailoverReason.hostLost,
@@ -252,6 +270,7 @@ void main() {
       localProofProvider:
           ({required int token, required int challengeEpoch}) async =>
               '$token:$challengeEpoch',
+      onMemberProven: (_) {},
     );
 
     expect(source.provider, isNotNull);

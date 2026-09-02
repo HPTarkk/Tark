@@ -41,6 +41,9 @@ void main() {
       expect(LinkQualityBars.barsFor(LinkQuality.good), 3);
       expect(LinkQualityBars.barsFor(LinkQuality.weak), 2);
       expect(LinkQualityBars.barsFor(LinkQuality.recovering), 1);
+      // Nobody on the channel lights nothing. The meter is a measurement of a
+      // link, and there is no link to measure.
+      expect(LinkQualityBars.barsFor(LinkQuality.alone), 0);
     });
 
     testWidgets('each grade lights its own number of bars', (tester) async {

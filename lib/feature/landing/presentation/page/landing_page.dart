@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -8,13 +10,17 @@ import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/extensions.dart';
 import '../../../../core/widget/mesh_background.dart';
 import '../../../../core/widget/settings_icon_button.dart';
 import '../../../../core/widget/version_badge.dart';
+import '../../../room/domain/entity/room.dart';
+import '../../../room/domain/repository/room_repository.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../manager/landing_cubit.dart';
 import '../widget/landing_identity_card.dart';
 import '../widget/landing_logo.dart';
+import '../widget/room_entry_actions.dart';
 
 class LandingPage extends StatefulWidget {
   const LandingPage._();
@@ -147,29 +153,146 @@ class _LandingPageState extends State<LandingPage>
   }
 }
 
-/// The Room is created before a transport is selected.  A Room therefore has
-/// a single, obvious home-screen entry instead of being hidden behind Channel.
-class _RoomEntryActions extends StatelessWidget {
+/// The Room is created before a transport is selected. A Room therefore has a
+/// single, obvious home-screen entry instead of being hidden behind Channel.
+///
+/// What that entry *says* depends on whether this phone has a Room already.
+/// With one saved, the lead action resumes it and the list is one tap away;
+/// without one, creating leads. Previously the only route to the saved list
+/// ran through the create action, so returning to yesterday's Room meant
+/// opening the create dialog and dismissing it.
+class _RoomEntryActions extends StatefulWidget {
+  @override
+  State<_RoomEntryActions> createState() => _RoomEntryActionsState();
+}
+
+class _RoomEntryActionsState extends State<_RoomEntryActions> {
+  List<SavedRoom> _rooms = const [];
+  SavedRoom? _selected;
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_load());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Landing stays on the stack under the room list, so coming back has to
+    // re-read: a Room created or left over there changes which action leads.
+    if (_loaded) unawaited(_load());
+  }
+
+  Future<void> _load() async {
+    if (!GetIt.instance.isRegistered<RoomRepository>()) {
+      if (mounted) setState(() => _loaded = true);
+      return;
+    }
+    try {
+      final repository = GetIt.instance<RoomRepository>();
+      final rooms = await repository.list();
+      final selectedId = await repository.selectedRoomId();
+      if (!mounted) return;
+      SavedRoom? selected;
+      for (final saved in rooms) {
+        if (saved.room.id == selectedId) {
+          selected = saved;
+          break;
+        }
+      }
+      setState(() {
+        _rooms = rooms;
+        _selected = selected;
+        _loaded = true;
+      });
+    } catch (_) {
+      // Landing must open with or without Room storage. Falling through to
+      // the first-run shape is honest: it offers create and join, both of
+      // which work, rather than claiming a Room we could not read.
+      if (mounted) setState(() => _loaded = true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final fa = Localizations.localeOf(context).languageCode == 'fa';
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        FilledButton.icon(
+    final resume = _selected ?? (_rooms.isEmpty ? null : _rooms.first);
+
+    // First run has genuinely two options and no list to browse, so it keeps
+    // the full-width pair of rows: a screen with two things on it is not a
+    // list, and narrowing them into halves would only make them harder to hit
+    // for no gain. Every later run has three, which is where the tiers matter.
+    if (resume == null) {
+      return RoomEntryActions(
+        hero: RoomEntryAction(
           key: const Key('landing-create-room'),
-          onPressed: () => context.push('${AppRoutes.roomsPath}?create=true'),
-          icon: const Icon(Icons.add_home_work_outlined),
-          label: Text(fa ? 'ساخت اتاق' : 'Create room'),
+          icon: Icons.add_home_work_outlined,
+          label: fa ? 'ساخت اتاق' : 'CREATE ROOM',
+          hint: fa
+              ? 'یک اتاق بساز و بقیه را دعوت کن'
+              : 'Start one and invite the others',
+          variant: RoomEntryVariant.hero,
+          onTap: () => context.push('${AppRoutes.roomsPath}?create=true'),
         ),
-        const SizedBox(height: 12),
-        OutlinedButton.icon(
+        alternatives: [
+          RoomEntryAction(
+            key: const Key('landing-join-room'),
+            icon: Icons.qr_code_scanner_rounded,
+            label: fa ? 'پیوستن با QR' : 'JOIN WITH QR',
+            hint: fa
+                ? 'کد روی گوشی میزبان را اسکن کن'
+                : "Scan the code on the host's phone",
+            variant: RoomEntryVariant.wide,
+            onTap: () => context.push(AppRoutes.roomQrJoinPath),
+          ),
+        ],
+      );
+    }
+
+    return RoomEntryActions(
+      // The room's own mark rather than a door glyph: this is the card the
+      // user picked it on, one screen earlier.
+      hero: RoomEntryAction(
+        key: const Key('landing-resume-room'),
+        icon: Icons.meeting_room_rounded,
+        monogram: resume.room.name,
+        label: resume.room.name,
+        hint: fa ? 'ادامه در این اتاق' : 'Pick up where you left off',
+        variant: RoomEntryVariant.hero,
+        onTap: () => context.push(AppRoutes.walkiePath),
+      ),
+      // Side by side because they are alternatives to *each other* — both are
+      // "begin something new". Saying that is what finally gets create out of
+      // MY ROOMS' hint text, and it costs no height to say.
+      alternatives: [
+        RoomEntryAction(
           key: const Key('landing-join-room'),
-          onPressed: () => context.push(AppRoutes.roomQrJoinPath),
-          icon: const Icon(Icons.qr_code_scanner_rounded),
-          label: Text(fa ? 'پیوستن با QR' : 'Join with QR'),
+          icon: Icons.qr_code_scanner_rounded,
+          label: fa ? 'پیوستن' : 'JOIN',
+          hint: fa ? 'کد میزبان را اسکن کن' : "Scan a host's code",
+          variant: RoomEntryVariant.compact,
+          onTap: () => context.push(AppRoutes.roomQrJoinPath),
+        ),
+        RoomEntryAction(
+          key: const Key('landing-create-room'),
+          // Not a bare `add_rounded`: a thin cross beside the QR glyph's dense
+        // frame makes one half of the pair look lighter than the other, which
+        // is the one thing this row must not say.
+        icon: Icons.add_circle_outline_rounded,
+          label: fa ? 'اتاق تازه' : 'NEW ROOM',
+          hint: fa ? 'خودت یکی بساز' : 'Start your own',
+          variant: RoomEntryVariant.compact,
+          onTap: () => context.push('${AppRoutes.roomsPath}?create=true'),
         ),
       ],
+      browse: RoomBrowseLink(
+        key: const Key('landing-all-rooms'),
+        label: fa ? 'اتاق‌های من' : 'MY ROOMS',
+        count: _rooms.length.localized(context),
+        onTap: () => context.push(AppRoutes.roomsPath),
+      ),
     );
   }
 }

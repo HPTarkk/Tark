@@ -12,6 +12,7 @@ import '../../feature/splash/api/splash_api.dart';
 import '../../feature/transfer/api/transfer_api.dart';
 import 'quick_access.dart';
 import 'room_bound_walkie_entry.dart';
+import 'room_page_transition.dart';
 
 /// App composition root for navigation: the only place where pages from
 /// different features are wired together. Features themselves navigate by
@@ -79,24 +80,30 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.roomsPath,
         name: AppRoutes.roomsName,
-        builder: (context, state) => RoomManagerEntry.buildPage(
-          createOnOpen: state.uri.queryParameters['create'] == 'true',
+        pageBuilder: (context, state) => roomPage(
+          state,
+          RoomManagerEntry.buildPage(
+            createOnOpen: state.uri.queryParameters['create'] == 'true',
+          ),
         ),
       ),
       GoRoute(
         path: AppRoutes.roomQrJoinPath,
         name: AppRoutes.roomQrJoinName,
-        builder: (context, state) => RoomQrJoinPage.buildPage(),
+        pageBuilder: (context, state) =>
+            roomPage(state, RoomQrJoinPage.buildPage()),
       ),
       GoRoute(
         path: AppRoutes.roomQrJoinIssuerPath,
         name: AppRoutes.roomQrJoinIssuerName,
-        builder: (context, state) => RoomQrJoinIssuerPage.buildPage(),
+        pageBuilder: (context, state) =>
+            roomPage(state, RoomQrJoinIssuerPage.buildPage()),
       ),
       GoRoute(
         path: AppRoutes.walkiePath,
         name: AppRoutes.walkieName,
-        builder: (context, state) => RoomBoundWalkieEntry.buildPage(),
+        pageBuilder: (context, state) =>
+            roomPage(state, RoomBoundWalkieEntry.buildPage()),
       ),
       GoRoute(
         path: AppRoutes.bluetoothConnectPath,

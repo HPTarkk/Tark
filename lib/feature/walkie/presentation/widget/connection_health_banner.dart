@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/extensions.dart';
 import '../../../transfer/api/transfer_api.dart';
 
 /// Telegram-desktop-style dynamic connection bar for [ConnectionHealth].
@@ -266,11 +267,14 @@ class _ConnectionHealthBannerState extends State<ConnectionHealthBanner>
   }
 
   String _message(AppLocalizations s) {
+    // The countdown ticks once a second in front of the user; Latin digits
+    // inside an otherwise Persian sentence are the most visible place this
+    // could be missed.
     final isBluetooth = widget.transferMode == TransferMode.bluetooth;
     switch (_display) {
       case _Display.countdown:
         final seconds = (_remaining.inMilliseconds / 1000).ceil();
-        return s.link_reconnecting_in(seconds);
+        return s.link_reconnecting_in(seconds.localized(context));
       case _Display.attempting:
         return isBluetooth ? s.bt_link_reconnecting : s.link_reconnecting;
       case _Display.down:

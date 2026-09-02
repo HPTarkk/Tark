@@ -321,7 +321,20 @@ final class _JoinRepository implements RoomRepository {
     VerifiedRoomInvitation verified, {
     required String displayName,
     required DateTime acceptedAt,
+    bool pending = false,
   }) => throw UnimplementedError();
+
+  @override
+  Future<SavedRoom> updateMember(
+    RoomId id,
+    RoomMemberId memberId, {
+    String? displayName,
+    bool? pending,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<SavedRoom> removeMember(RoomId id, RoomMemberId memberId) =>
+      throw UnimplementedError();
 
   @override
   Future<SavedRoom> leave(RoomId id) => throw UnimplementedError();

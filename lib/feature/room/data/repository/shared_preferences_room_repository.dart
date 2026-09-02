@@ -170,6 +170,7 @@ class SharedPreferencesRoomRepository implements RoomRepository {
     VerifiedRoomInvitation verified, {
     required String displayName,
     required DateTime acceptedAt,
+    bool pending = false,
   }) async {
     final invite = verified.invitation;
     final current = await _require(invite.roomId);
@@ -197,10 +198,63 @@ class SharedPreferencesRoomRepository implements RoomRepository {
           displayName: cleanDisplayName,
           joinedAt: now,
           kind: memberKind,
+          pending: pending,
         ),
       );
     }
 
+    final next = current.copyWith(
+      room: current.room.copyWith(members: members, updatedAt: now),
+    );
+    await _save(next);
+    return next;
+  }
+
+  @override
+  Future<SavedRoom> updateMember(
+    RoomId id,
+    RoomMemberId memberId, {
+    String? displayName,
+    bool? pending,
+  }) async {
+    final current = await _require(id);
+    final members = current.room.members.toList(growable: true);
+    final index = members.indexWhere((member) => member.id == memberId);
+    if (index < 0) return current;
+    final existing = members[index];
+    final cleanName = displayName == null
+        ? null
+        : _requiredText(displayName, 'display name');
+    if ((cleanName == null || cleanName == existing.displayName) &&
+        (pending == null || pending == existing.pending)) {
+      return current;
+    }
+    members[index] = existing.copyWith(
+      displayName: cleanName,
+      pending: pending,
+    );
+    final next = current.copyWith(
+      room: current.room.copyWith(
+        members: members,
+        updatedAt: DateTime.now().toUtc(),
+      ),
+    );
+    await _save(next);
+    return next;
+  }
+
+  @override
+  Future<SavedRoom> removeMember(RoomId id, RoomMemberId memberId) async {
+    final current = await _require(id);
+    // The local membership is left through `leave`, which also tears down the
+    // local relationship. Removing yourself from your own roster here would
+    // leave a room you are still selected into with no seat in it.
+    if (current.membership.localMemberId == memberId) return current;
+    final members = current.room.members.toList(growable: true);
+    final index = members.indexWhere((member) => member.id == memberId);
+    if (index < 0 || !members[index].isActive) return current;
+    final now = DateTime.now().toUtc();
+    members[index] = members[index].copyWith(removedAt: now);
     final next = current.copyWith(
       room: current.room.copyWith(members: members, updatedAt: now),
     );
@@ -239,7 +293,9 @@ class SharedPreferencesRoomRepository implements RoomRepository {
       ),
       membership: RoomMembership(
         localMemberId: localMemberId,
-        canManageInvites: false,
+        // Still never inferred from the act of joining — only from a grant the
+        // host wrote into the code this phone scanned.
+        canManageInvites: snapshot.grantsInviteManagement,
       ),
     );
 
@@ -423,6 +479,10 @@ class SharedPreferencesRoomRepository implements RoomRepository {
           ? RoomMemberKind.guest
           : RoomMemberKind.member,
       removedAt: removed is String ? DateTime.parse(removed).toUtc() : null,
+      // Absent on every room written before invite seats were distinguishable,
+      // and those members are all real. Defaulting to false keeps them so,
+      // without touching schemaVersion — a bump here discards the record.
+      pending: raw['pending'] == true,
     );
   }
 
@@ -445,6 +505,7 @@ class SharedPreferencesRoomRepository implements RoomRepository {
                 'kind': member.kind.name,
                 if (member.removedAt != null)
                   'removedAt': member.removedAt!.toIso8601String(),
+                if (member.pending) 'pending': true,
               },
             )
             .toList(growable: false),

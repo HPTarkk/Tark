@@ -62,7 +62,7 @@ void main() {
         attachmentGeneration: 3,
         at: at,
       ),
-      isTrue,
+      memberId,
     );
     expect(
       bindings.resolve('udp:10.0.0.2:41111', attachmentGeneration: 3),
@@ -99,7 +99,7 @@ void main() {
         attachmentGeneration: 1,
         at: at,
       ),
-      isFalse,
+      isNull,
     );
     expect(bindings.length, 0);
   });
@@ -132,7 +132,7 @@ void main() {
         attachmentGeneration: 1,
         at: at,
       ),
-      isFalse,
+      isNull,
     );
 
     final correct = await crypto.signProof(
@@ -148,7 +148,7 @@ void main() {
         attachmentGeneration: 1,
         at: at,
       ),
-      isFalse,
+      isNull,
     );
     expect(bindings.length, 0);
   });
@@ -183,7 +183,7 @@ void main() {
         attachmentGeneration: 2,
         at: at,
       ),
-      isFalse,
+      isNull,
     );
     expect(bindings.length, 0);
   });
@@ -219,7 +219,7 @@ void main() {
         attachmentGeneration: 1,
         at: at,
       ),
-      isFalse,
+      isNull,
     );
     expect(bindings.length, 0);
   });
@@ -268,7 +268,7 @@ void main() {
         attachmentGeneration: 1,
         at: at.add(const Duration(seconds: 6)),
       ),
-      isFalse,
+      isNull,
     );
     expect(bindings.length, 0);
   });

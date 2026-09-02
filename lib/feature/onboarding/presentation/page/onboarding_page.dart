@@ -18,6 +18,7 @@ import '../manager/onboarding_cubit.dart';
 import '../widget/callsign_step.dart';
 import '../widget/horizon_scene.dart';
 import '../widget/hud.dart';
+import '../widget/onboarding_launch_actions.dart';
 import '../widget/onboarding_palette.dart';
 import '../widget/ready_step.dart';
 import '../widget/transport_step.dart';
@@ -258,8 +259,12 @@ class _OnboardingPageState extends State<OnboardingPage>
     }
   }
 
-  /// Secondary path on the launch beat: same persistence, but lands on the
-  /// lobby to look around instead of joining right away.
+  /// Secondary path on the launch beat, offered only when a transport is
+  /// pinned: same persistence, but lands on the lobby to look around instead
+  /// of walking into that transport's setup flow.
+  ///
+  /// Deliberately not offered on AUTOMATIC — there is no flow to skip there,
+  /// so it would be a second button to the same screen.
   Future<void> _explore(OnboardingCubit cubit) async {
     if (_finishing) return;
     _finishing = true;
@@ -481,10 +486,18 @@ class _OnboardingPageState extends State<OnboardingPage>
     final s = context.getString;
     final isLast = state.step == OnboardingCubit.launchStep;
     final enabled = state.canContinue && !_finishing;
+    // "JOIN CHANNEL" is only honest when there is a channel to join — see
+    // [OnboardingLaunchActions], which is also what decides whether the quiet
+    // link below this key is worth showing. The two answers have to agree.
+    final joins = OnboardingLaunchActions.joinsAChannel(
+      replay: widget.replay,
+      mode: state.mode,
+    );
     final label = switch (state.step) {
       OnboardingCubit.tuneStep => s.onboarding_begin,
-      OnboardingCubit.launchStep =>
-        widget.replay ? s.onboarding_finish : s.join_channel,
+      OnboardingCubit.launchStep => joins
+          ? s.join_channel
+          : s.onboarding_finish,
       _ => s.onboarding_continue,
     };
     // Pulse only on the bookend beats — mid-journey the key stays calm so the
@@ -540,13 +553,26 @@ class _OnboardingPageState extends State<OnboardingPage>
   // ── Quiet exit: look around the lobby instead of joining right away ────────
 
   /// Fixed-height slot under the key so it never shifts; the link itself only
-  /// exists on the launch beat of a real first run.
+  /// exists where it leads somewhere the primary key does not.
+  ///
+  /// That last condition is the whole point, and it used to be missing. On
+  /// AUTOMATIC — the transport beat's pre-selection, so the state almost every
+  /// first run ends in — `_launch` has no flow to walk and simply lands on
+  /// Landing, which is exactly what `_explore` does. Two differently-worded
+  /// buttons, one breathing and one whispering, that took you to the identical
+  /// screen. So it now appears only when a transport really is pinned, where
+  /// it means something specific: skip the setup flow and go look around
+  /// first.
   Widget _buildExplore(
     BuildContext context,
     OnboardingCubit cubit,
     OnboardingState state,
   ) {
-    final visible = state.step == OnboardingCubit.launchStep && !widget.replay;
+    final visible = OnboardingLaunchActions.showExplore(
+      step: state.step,
+      replay: widget.replay,
+      mode: state.mode,
+    );
     return SizedBox(
       height: 38,
       child: Center(

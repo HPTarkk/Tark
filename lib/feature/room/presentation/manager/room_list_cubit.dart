@@ -17,12 +17,22 @@ import '../../domain/service/room_session_runtime.dart';
 final class RoomListState extends Equatable {
   const RoomListState({
     this.rooms = const [],
+    this.archived = const [],
     this.selectedRoomId,
     this.loading = false,
     this.error,
   });
 
+  /// Rooms that are live on this phone. Never includes archived ones — every
+  /// caller that reasons about "my rooms" means this list.
   final List<SavedRoom> rooms;
+
+  /// Rooms put away, kept separate rather than filtered at each call site.
+  ///
+  /// They used to be dropped by the repository and never read back, which made
+  /// archive a delete that reclaimed nothing and could not be undone.
+  final List<SavedRoom> archived;
+
   final RoomId? selectedRoomId;
   final bool loading;
   final Object? error;
@@ -38,6 +48,7 @@ final class RoomListState extends Equatable {
 
   RoomListState copyWith({
     List<SavedRoom>? rooms,
+    List<SavedRoom>? archived,
     RoomId? selectedRoomId,
     bool clearSelection = false,
     bool? loading,
@@ -45,6 +56,7 @@ final class RoomListState extends Equatable {
     bool clearError = false,
   }) => RoomListState(
     rooms: rooms ?? this.rooms,
+    archived: archived ?? this.archived,
     selectedRoomId: clearSelection
         ? null
         : selectedRoomId ?? this.selectedRoomId,
@@ -53,7 +65,7 @@ final class RoomListState extends Equatable {
   );
 
   @override
-  List<Object?> get props => [rooms, selectedRoomId, loading, error];
+  List<Object?> get props => [rooms, archived, selectedRoomId, loading, error];
 }
 
 /// Presentation orchestration for durable saved Rooms.
@@ -85,7 +97,7 @@ class RoomListCubit extends Cubit<RoomListState> {
     if (state.loading) return;
     emit(state.copyWith(loading: true, clearError: true));
     try {
-      final rooms = await _repository.list();
+      final (rooms, archived) = await _partitioned();
       final selected = await _repository.selectedRoomId();
       final selectionStillExists =
           selected != null && rooms.any((saved) => saved.room.id == selected);
@@ -95,6 +107,7 @@ class RoomListCubit extends Cubit<RoomListState> {
       emit(
         RoomListState(
           rooms: rooms,
+          archived: archived,
           selectedRoomId: selectionStillExists ? selected : null,
         ),
       );
@@ -166,7 +179,18 @@ class RoomListCubit extends Cubit<RoomListState> {
   }
 
   /// Imports a pre-authorised one-scan invite and selects its Room.
-  Future<bool> joinDirect(RoomDirectJoinBundle bundle) async {
+  /// Enters a Room straight from a scanned invite.
+  ///
+  /// [localDisplayName] is this phone's own name for itself. The host had to
+  /// name the seat before anyone could scan it — it could not know who would —
+  /// so without this the joiner shows up on both rosters as the placeholder
+  /// the host invented. Applying it here is the first moment the real name
+  /// exists on this side, and it also clears the seat's pending mark: someone
+  /// has now demonstrably walked through it.
+  Future<bool> joinDirect(
+    RoomDirectJoinBundle bundle, {
+    String? localDisplayName,
+  }) async {
     if (state.loading || bundle.isExpired) return false;
     emit(state.copyWith(loading: true, clearError: true));
     try {
@@ -179,10 +203,21 @@ class RoomListCubit extends Cubit<RoomListState> {
         snapshot: bundle.snapshot,
         transportCertificate: bundle.certificate,
       );
-      final saved = await _joinImporter.importGrant(
+      var saved = await _joinImporter.importGrant(
         grant,
         memberKeyPair: bundle.memberKeyPair,
       );
+      final ownName = localDisplayName?.trim() ?? '';
+      if (ownName.isNotEmpty) {
+        // Display metadata only — this cannot and must not affect the
+        // authorization the scanned certificate already established.
+        saved = await _repository.updateMember(
+          saved.room.id,
+          bundle.memberId,
+          displayName: ownName,
+          pending: false,
+        );
+      }
       final rooms = await _repository.list();
       emit(RoomListState(rooms: rooms, selectedRoomId: saved.room.id));
       return true;
@@ -239,6 +274,47 @@ class RoomListCubit extends Cubit<RoomListState> {
     }
   }
 
+  /// Brings an archived Room back into the list.
+  ///
+  /// Deliberately does not re-select it: coming back from the archive is a
+  /// filing decision, and quietly repointing the Start action at a Room the
+  /// user has not looked at in weeks is not what they asked for.
+  Future<void> unarchive(RoomId roomId) async {
+    emit(state.copyWith(loading: true, clearError: true));
+    try {
+      await _repository.setArchived(roomId, false);
+      await _reloadKeepingSelection();
+    } catch (error) {
+      emit(state.copyWith(loading: false, error: error));
+    }
+  }
+
+  /// Removes a Room from this phone for good.
+  ///
+  /// The record and its invite ledger go first, then the transport key that
+  /// belonged to it — same order as [leave], and the order matters: a key
+  /// deleted before the record would leave a Room on screen that can no longer
+  /// authenticate, which is a worse state than either end of the operation.
+  ///
+  /// This is local only. Nothing is told to the other phones, because there is
+  /// nobody to tell — a Room is durable state each phone holds for itself, and
+  /// deleting your copy is the same shape of act as deleting a saved contact.
+  Future<void> deleteRoom(RoomId roomId) async {
+    emit(state.copyWith(loading: true, clearError: true));
+    try {
+      final saved = await _repository.get(roomId);
+      await _repository.delete(roomId);
+      if (saved != null) {
+        await _identityLifecycle.deleteLocalIdentity(saved);
+      }
+      await _reloadKeepingSelection(
+        clearSelection: state.selectedRoomId == roomId,
+      );
+    } catch (error) {
+      emit(state.copyWith(loading: false, error: error));
+    }
+  }
+
   Future<void> leave(RoomId roomId) async {
     emit(state.copyWith(loading: true, clearError: true));
     try {
@@ -257,8 +333,29 @@ class RoomListCubit extends Cubit<RoomListState> {
   }
 
   Future<void> _reloadKeepingSelection({bool clearSelection = false}) async {
-    final rooms = await _repository.list();
+    final (rooms, archived) = await _partitioned();
     final selected = clearSelection ? null : await _repository.selectedRoomId();
-    emit(RoomListState(rooms: rooms, selectedRoomId: selected));
+    emit(
+      RoomListState(rooms: rooms, archived: archived, selectedRoomId: selected),
+    );
+  }
+
+  /// One read, split into live and put-away.
+  ///
+  /// Asking the repository twice would be two passes over storage for an
+  /// answer it already has, and — worse — two reads that a write landing
+  /// between them could disagree about.
+  Future<(List<SavedRoom>, List<SavedRoom>)> _partitioned() async {
+    final all = await _repository.list(includeArchived: true);
+    return (
+      [
+        for (final saved in all)
+          if (!saved.room.archived) saved,
+      ],
+      [
+        for (final saved in all)
+          if (saved.room.archived) saved,
+      ],
+    );
   }
 }

@@ -3,11 +3,16 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/motion/app_motion.dart';
+import '../../../../core/utils/extensions.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widget/monogram_mark.dart';
+import '../../../../core/widget/confirm_sheet.dart';
 import '../../domain/entity/room.dart';
 import '../manager/room_list_cubit.dart';
+import '../widget/room_archive_sheet.dart';
 
 /// Offline-first manager for durable Rooms.
 ///
@@ -53,55 +58,132 @@ class _RoomListPageState extends State<RoomListPage> {
         backgroundColor: AppColors.surface,
         foregroundColor: AppColors.textPrimary,
         title: Text(copy.title),
+        actions: [
+          // Absent until there is something in it. A permanent control for an
+          // empty archive is a promise of content the user does not have.
+          BlocBuilder<RoomListCubit, RoomListState>(
+            buildWhen: (p, c) => p.archived.length != c.archived.length,
+            builder: (context, state) => AnimatedSwitcher(
+              duration: AppMotion.chip,
+              child: state.archived.isEmpty
+                  ? const SizedBox(key: ValueKey('rooms-archive-none'))
+                  : _ArchiveAction(
+                      key: const Key('rooms-archive-action'),
+                      count: state.archived.length,
+                      label: copy.archivedRooms,
+                      countLabel: copy.archivedCount(state.archived.length),
+                      onTap: () => showRoomArchiveSheet(context),
+                    ),
+            ),
+          ),
+          const SizedBox(width: 4),
+        ],
       ),
-      // Creation deliberately lives on Landing. It is the first action in the
-      // product flow, not a duplicate control mixed into saved-room management.
+      // Creation now lives here as well as on Landing. Keeping it only on
+      // Landing meant the one screen listing your Rooms was the one screen
+      // that could not make another — so adding a second Room meant backing
+      // out to the home screen to find the button.
+      floatingActionButton: BlocBuilder<RoomListCubit, RoomListState>(
+        buildWhen: (p, c) => p.rooms.isEmpty != c.rooms.isEmpty,
+        builder: (context, state) => state.rooms.isEmpty
+            // The empty state already offers creation as its subject; a second
+            // floating copy of it would be the only two controls on screen
+            // both saying the same thing.
+            ? const SizedBox.shrink()
+            : FloatingActionButton.extended(
+                key: const Key('rooms-create-fab'),
+                onPressed: () => _createRoom(context),
+                backgroundColor: AppColors.amber,
+                foregroundColor: AppColors.background,
+                icon: const Icon(Icons.add_rounded),
+                label: Text(
+                  copy.newRoom,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+      ),
       body: SafeArea(
         child: BlocBuilder<RoomListCubit, RoomListState>(
           builder: (context, state) {
-            if (state.loading && state.rooms.isEmpty) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (state.error != null && state.rooms.isEmpty) {
-              return _ErrorState(
-                copy: copy,
-                onRetry: context.read<RoomListCubit>().load,
-              );
-            }
-            if (state.rooms.isEmpty) {
-              return _EmptyState(
-                copy: copy,
-                onCreate: () => _createRoom(context),
-              );
-            }
-            return RefreshIndicator(
-              onRefresh: context.read<RoomListCubit>().load,
-              child: ListView.separated(
-                key: const Key('rooms-list'),
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 104),
-                itemCount: state.rooms.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final saved = state.rooms[index];
-                  final selected = state.selectedRoomId == saved.room.id;
-                  return _RoomCard(
-                    saved: saved,
-                    selected: selected,
-                    busy: state.loading,
-                    copy: copy,
-                    onSelect: () =>
-                        context.read<RoomListCubit>().select(saved.room.id),
-                    onStart: selected
-                        ? () => context.go(AppRoutes.walkiePath)
-                        : null,
-                    onRename: () => _renameRoom(context, saved),
-                    onArchive: () => _archiveRoom(context, saved),
-                    onLeave: () => _leaveRoom(context, saved),
-                  );
-                },
+            // These four are the same region of the screen showing different
+            // answers, so they dissolve into one another instead of cutting.
+            // A spinner that vanishes and a list that appears in the same frame
+            // reads as two screens; a 220ms crossfade reads as one screen
+            // finishing its sentence.
+            return AnimatedSwitcher(
+              duration: AppMotion.card,
+              switchInCurve: AppMotion.easeOut,
+              switchOutCurve: AppMotion.easeOut,
+              // The outgoing state is not laid out under the incoming one —
+              // otherwise an empty state and a full list fight over the height
+              // for the length of the fade.
+              layoutBuilder: (current, previous) => Stack(
+                alignment: Alignment.topCenter,
+                children: [
+                  ...previous.map(
+                    (child) =>
+                        Positioned.fill(child: IgnorePointer(child: child)),
+                  ),
+                  ?current,
+                ],
               ),
+              child: _body(context, state, copy),
             );
           },
+        ),
+      ),
+    );
+  }
+
+  Widget _body(BuildContext context, RoomListState state, _RoomCopy copy) {
+    if (state.loading && state.rooms.isEmpty) {
+      return const Center(
+        key: ValueKey('rooms-loading'),
+        child: CircularProgressIndicator(),
+      );
+    }
+    if (state.error != null && state.rooms.isEmpty) {
+      return _ErrorState(
+        key: const ValueKey('rooms-error'),
+        copy: copy,
+        onRetry: context.read<RoomListCubit>().load,
+      );
+    }
+    if (state.rooms.isEmpty) {
+      return _EmptyState(
+        key: const ValueKey('rooms-empty'),
+        copy: copy,
+        onCreate: () => _createRoom(context),
+      );
+    }
+    return RefreshIndicator(
+      key: const ValueKey('rooms-list-view'),
+      onRefresh: context.read<RoomListCubit>().load,
+      child: StaggeredEntrance(
+        children: [
+          for (final saved in state.rooms)
+            _RoomCard(
+              saved: saved,
+              selected: state.selectedRoomId == saved.room.id,
+              busy: state.loading,
+              copy: copy,
+              onSelect: () =>
+                  context.read<RoomListCubit>().select(saved.room.id),
+              onStart: state.selectedRoomId == saved.room.id
+                  ? () => context.go(AppRoutes.walkiePath)
+                  : null,
+              onRename: () => _renameRoom(context, saved),
+              onArchive: () => _archiveRoom(context, saved),
+              onLeave: () => _leaveRoom(context, saved),
+              onDelete: () => confirmAndDeleteRoom(context, saved),
+            ),
+        ],
+        builder: (context, children) => ListView.separated(
+          key: const Key('rooms-list'),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 104),
+          itemCount: children.length,
+          separatorBuilder: (_, _) => const SizedBox(height: 12),
+          itemBuilder: (context, index) => children[index],
         ),
       ),
     );
@@ -152,11 +234,12 @@ class _RoomListPageState extends State<RoomListPage> {
 
   Future<void> _archiveRoom(BuildContext context, SavedRoom saved) async {
     final copy = _RoomCopy.of(context);
-    final confirmed = await _confirm(
+    final confirmed = await showConfirmSheet(
       context,
       title: copy.archive,
       body: copy.archiveConfirm(saved.room.name),
       action: copy.archive,
+      icon: Icons.inventory_2_outlined,
     );
     if (confirmed && context.mounted) {
       await context.read<RoomListCubit>().archive(saved.room.id);
@@ -165,11 +248,12 @@ class _RoomListPageState extends State<RoomListPage> {
 
   Future<void> _leaveRoom(BuildContext context, SavedRoom saved) async {
     final copy = _RoomCopy.of(context);
-    final confirmed = await _confirm(
+    final confirmed = await showConfirmSheet(
       context,
       title: copy.leave,
       body: copy.leaveConfirm(saved.room.name),
       action: copy.leave,
+      icon: Icons.logout_rounded,
       destructive: true,
     );
     if (confirmed && context.mounted) {
@@ -221,41 +305,19 @@ class _RoomListPageState extends State<RoomListPage> {
     controller.dispose();
     return result;
   }
-
-  static Future<bool> _confirm(
-    BuildContext context, {
-    required String title,
-    required String body,
-    required String action,
-    bool destructive = false,
-  }) async {
-    final copy = _RoomCopy.of(context);
-    return await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: Text(title),
-            content: Text(body),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: Text(copy.cancel),
-              ),
-              FilledButton(
-                style: destructive
-                    ? FilledButton.styleFrom(
-                        backgroundColor: Colors.red.shade700,
-                      )
-                    : null,
-                onPressed: () => Navigator.pop(dialogContext, true),
-                child: Text(action),
-              ),
-            ],
-          ),
-        ) ??
-        false;
-  }
 }
 
+/// One saved Room.
+///
+/// The old card put the room's name on one line, a member count and an
+/// overflow menu on the next, and then *either* a Start button or a "Select
+/// this room" text button — so the primary action moved vertically depending
+/// on state, and an unselected card's only call to action restated what
+/// tapping the card already did.
+///
+/// Now there is one hierarchy that never moves: a mark, the name, one line of
+/// metadata, and the menu. Selection adds the Start action underneath rather
+/// than replacing anything, so nothing the user was already looking at jumps.
 class _RoomCard extends StatelessWidget {
   const _RoomCard({
     required this.saved,
@@ -267,6 +329,7 @@ class _RoomCard extends StatelessWidget {
     required this.onRename,
     required this.onArchive,
     required this.onLeave,
+    required this.onDelete,
   });
 
   final SavedRoom saved;
@@ -278,131 +341,179 @@ class _RoomCard extends StatelessWidget {
   final VoidCallback onRename;
   final VoidCallback onArchive;
   final VoidCallback onLeave;
+  final VoidCallback onDelete;
+
+  static final _radius = BorderRadius.circular(20);
 
   @override
   Widget build(BuildContext context) {
-    final activeMembers = saved.room.members
-        .where((member) => member.isActive)
-        .length;
+    // Confirmed, not active: an unused invite holds a durable seat and must
+    // not be counted as a person who is in the room.
+    final members = saved.room.confirmedMembers.length;
+    final pending = saved.room.pendingMembers.length;
     final archived = saved.room.archived;
+    final accent = archived
+        ? AppColors.textSecondary
+        : selected
+        ? AppColors.amber
+        : AppColors.textSecondary;
+
     return Semantics(
       selected: selected,
-      button: !selected && !archived,
-      label: copy.roomSemantics(saved.room.name, activeMembers, selected),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: selected ? AppColors.amber : AppColors.border,
-            width: selected ? 2 : 1,
+      button: !archived,
+      label: copy.roomSemantics(saved.room.name, members, selected),
+      excludeSemantics: true,
+      child: PressableScale(
+        key: Key('room-${saved.room.id.value}'),
+        // Tapping an already-selected card starts it. The card is the control;
+        // needing a second, differently-shaped button to do the obvious thing
+        // is what made the old row feel like a form rather than a list.
+        onTap: busy || archived
+            ? null
+            : selected
+            ? onStart
+            : onSelect,
+        borderRadius: _radius,
+        child: AnimatedContainer(
+          // Border colour, border width and the glow all travel together on one
+          // curve. Snapping between a 1px grey outline and a 2px amber one is
+          // the difference between a list that responds and a list that
+          // redraws.
+          duration: AppMotion.card,
+          curve: AppMotion.easeOut,
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: _radius,
+            border: Border.all(
+              color: selected ? AppColors.amber : AppColors.border,
+              width: selected ? 2 : 1,
+            ),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: AppColors.amber.withValues(alpha: 0.16),
+                      blurRadius: 26,
+                      spreadRadius: 1,
+                    ),
+                  ]
+                : null,
           ),
-        ),
-        child: InkWell(
-          key: Key('room-${saved.room.id.value}'),
-          borderRadius: BorderRadius.circular(16),
-          onTap: busy || selected || archived ? null : onSelect,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+          child: ClipRRect(
+            borderRadius: _radius,
+            child: Stack(
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        saved.room.name,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    if (selected)
-                      _StatusChip(
-                        label: copy.selected,
-                        icon: Icons.check_rounded,
-                      )
-                    else if (archived)
-                      _StatusChip(
-                        label: copy.archived,
-                        icon: Icons.archive_rounded,
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.group_outlined,
-                      size: 18,
-                      color: AppColors.textSecondary,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        copy.memberCount(activeMembers),
-                        style: TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                    PopupMenuButton<_RoomAction>(
-                      key: Key('room-menu-${saved.room.id.value}'),
-                      enabled: !busy,
-                      tooltip: copy.manage,
-                      iconColor: AppColors.textSecondary,
-                      onSelected: (action) {
-                        switch (action) {
-                          case _RoomAction.rename:
-                            onRename();
-                          case _RoomAction.archive:
-                            onArchive();
-                          case _RoomAction.leave:
-                            onLeave();
-                        }
-                      },
-                      itemBuilder: (_) => [
-                        PopupMenuItem(
-                          value: _RoomAction.rename,
-                          child: Text(copy.rename),
-                        ),
-                        if (!archived)
-                          PopupMenuItem(
-                            value: _RoomAction.archive,
-                            child: Text(copy.archive),
+                // A soft wash from the leading edge, so a selected card reads
+                // as lit from the side rather than merely outlined. Painted
+                // under the content and clipped by the card, which costs one
+                // gradient and no extra layer.
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: AnimatedOpacity(
+                      duration: AppMotion.card,
+                      curve: AppMotion.easeOut,
+                      opacity: selected ? 1 : 0,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: AlignmentDirectional.centerStart,
+                            end: AlignmentDirectional.centerEnd,
+                            colors: [
+                              AppColors.amber.withValues(alpha: 0.10),
+                              AppColors.amber.withValues(alpha: 0),
+                            ],
                           ),
-                        PopupMenuItem(
-                          value: _RoomAction.leave,
-                          child: Text(copy.leave),
                         ),
-                      ],
+                      ),
                     ),
-                  ],
+                  ),
                 ),
-                if (selected && !archived) ...[
-                  const SizedBox(height: 12),
-                  FilledButton.icon(
-                    key: Key('room-start-${saved.room.id.value}'),
-                    onPressed: busy ? null : onStart,
-                    icon: const Icon(Icons.play_arrow_rounded),
-                    label: Text(copy.startRide),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 14, 8, 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _RoomMark(
+                            name: saved.room.name,
+                            selected: selected,
+                            archived: archived,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        saved.room.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: archived
+                                              ? AppColors.textSecondary
+                                              : AppColors.textPrimary,
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ),
+                                    if (selected && !archived) ...[
+                                      const SizedBox(width: 8),
+                                      _Dot(color: AppColors.amber),
+                                    ],
+                                  ],
+                                ),
+                                const SizedBox(height: 5),
+                                _MetaLine(
+                                  members: members,
+                                  pending: pending,
+                                  archived: archived,
+                                  canInvite: saved.membership.canManageInvites,
+                                  accent: accent,
+                                  copy: copy,
+                                ),
+                              ],
+                            ),
+                          ),
+                          _RoomMenu(
+                            saved: saved,
+                            busy: busy,
+                            archived: archived,
+                            copy: copy,
+                            onRename: onRename,
+                            onArchive: onArchive,
+                            onLeave: onLeave,
+                            onDelete: onDelete,
+                          ),
+                        ],
+                      ),
+                      // Grows in under the identity rather than swapping with
+                      // it, so selecting a card never reflows the line the
+                      // user just read.
+                      AnimatedSize(
+                        duration: AppMotion.card,
+                        curve: AppMotion.easeOut,
+                        alignment: Alignment.topCenter,
+                        child: selected && !archived
+                            ? Padding(
+                                padding: const EdgeInsets.fromLTRB(0, 14, 6, 0),
+                                child: _StartRow(
+                                  key: Key('room-start-${saved.room.id.value}'),
+                                  label: copy.startRide,
+                                  busy: busy,
+                                  onTap: onStart,
+                                ),
+                              )
+                            : const SizedBox(width: double.infinity),
+                      ),
+                    ],
                   ),
-                ] else if (!archived) ...[
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: TextButton.icon(
-                      onPressed: busy ? null : onSelect,
-                      icon: const Icon(Icons.radio_button_checked_rounded),
-                      label: Text(copy.select),
-                    ),
-                  ),
-                ],
+                ),
               ],
             ),
           ),
@@ -412,41 +523,319 @@ class _RoomCard extends StatelessWidget {
   }
 }
 
-enum _RoomAction { rename, archive, leave }
+/// The room's monogram, which is the fastest thing on the card to recognise
+/// at a glance in a list of five.
+class _RoomMark extends StatelessWidget {
+  const _RoomMark({
+    required this.name,
+    required this.selected,
+    required this.archived,
+  });
 
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.label, required this.icon});
+  final String name;
+  final bool selected;
+  final bool archived;
 
-  final String label;
-  final IconData icon;
+  @override
+  Widget build(BuildContext context) {
+    final accent = archived
+        ? AppColors.textSecondary
+        : selected
+        ? AppColors.amber
+        : AppColors.textSecondary;
+    // Shared with Landing's resume action, so the card you pick a room from and
+    // the button that resumes it are the same object rather than two drawings
+    // of one.
+    return MonogramMark(
+      name: name,
+      accent: accent,
+      strong: selected,
+      child: archived
+          ? Icon(Icons.archive_rounded, size: 19, color: accent)
+          : null,
+    );
+  }
+}
+
+/// Members, held seats and role, on one line that never wraps into the title.
+class _MetaLine extends StatelessWidget {
+  const _MetaLine({
+    required this.members,
+    required this.pending,
+    required this.archived,
+    required this.canInvite,
+    required this.accent,
+    required this.copy,
+  });
+
+  final int members;
+  final int pending;
+  final bool archived;
+  final bool canInvite;
+  final Color accent;
+  final _RoomCopy copy;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => DefaultTextStyle.merge(
+      style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+      child: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 8,
+        runSpacing: 4,
+        children: [
+          _item(
+            constraints.maxWidth,
+            Icons.person_rounded,
+            copy.memberCount(members),
+            accent,
+          ),
+          if (pending > 0)
+            _item(
+              constraints.maxWidth,
+              Icons.hourglass_top_rounded,
+              copy.pendingSeats(pending),
+              AppColors.textSecondary,
+            ),
+          if (archived)
+            Text(
+              copy.archived,
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            )
+          else if (canInvite)
+            _item(
+              constraints.maxWidth,
+              Icons.shield_moon_rounded,
+              copy.canInvite,
+              accent,
+            ),
+        ],
+      ),
+    ),
+  );
+
+  /// One icon-and-label pair, capped at the line's own width.
+  ///
+  /// A `Wrap` hands its children unbounded width, so a `Row` inside one sizes
+  /// to its content and overflows rather than wrapping — which is what a long
+  /// Persian label did to this line at 320px. The cap gives the label
+  /// something finite to ellipsise against.
+  Widget _item(double maxWidth, IconData icon, String label, Color tint) =>
+      ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxWidth),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13, color: tint),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+          ],
+        ),
+      );
+}
+
+class _Dot extends StatelessWidget {
+  const _Dot({required this.color});
+
+  final Color color;
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+    width: 7,
+    height: 7,
     decoration: BoxDecoration(
-      color: AppColors.amber.withAlpha(24),
-      borderRadius: BorderRadius.circular(999),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: AppColors.amber),
-        const SizedBox(width: 4),
-        Text(
-          label,
-          style: TextStyle(
-            color: AppColors.amber,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
+      shape: BoxShape.circle,
+      color: color,
+      boxShadow: [
+        BoxShadow(color: color.withValues(alpha: 0.6), blurRadius: 7),
       ],
     ),
   );
 }
 
+class _StartRow extends StatelessWidget {
+  const _StartRow({
+    required this.label,
+    required this.busy,
+    required this.onTap,
+    super.key,
+  });
+
+  final String label;
+  final bool busy;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: label,
+    child: PressableScale(
+      onTap: busy ? null : onTap,
+      borderRadius: BorderRadius.circular(13),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.amber.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(color: AppColors.amber, width: 1.5),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.play_arrow_rounded, color: AppColors.amber, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: AppColors.amber,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.3,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class _RoomMenu extends StatelessWidget {
+  const _RoomMenu({
+    required this.saved,
+    required this.busy,
+    required this.archived,
+    required this.copy,
+    required this.onRename,
+    required this.onArchive,
+    required this.onLeave,
+    required this.onDelete,
+  });
+
+  final SavedRoom saved;
+  final bool busy;
+  final bool archived;
+  final _RoomCopy copy;
+  final VoidCallback onRename;
+  final VoidCallback onArchive;
+  final VoidCallback onLeave;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) => PopupMenuButton<_RoomAction>(
+    key: Key('room-menu-${saved.room.id.value}'),
+    enabled: !busy,
+    tooltip: copy.manage,
+    iconColor: AppColors.textSecondary,
+    iconSize: 20,
+    position: PopupMenuPosition.under,
+    onSelected: (action) {
+      switch (action) {
+        case _RoomAction.rename:
+          onRename();
+        case _RoomAction.archive:
+          onArchive();
+        case _RoomAction.leave:
+          onLeave();
+        case _RoomAction.delete:
+          onDelete();
+      }
+    },
+    itemBuilder: (_) => [
+      PopupMenuItem(value: _RoomAction.rename, child: Text(copy.rename)),
+      if (!archived)
+        PopupMenuItem(value: _RoomAction.archive, child: Text(copy.archive)),
+      PopupMenuItem(value: _RoomAction.leave, child: Text(copy.leave)),
+      // Last, and the only coloured item: archive and leave are both
+      // recoverable, and this one is not.
+      PopupMenuItem(
+        value: _RoomAction.delete,
+        child: Text(
+          copy.delete,
+          style: TextStyle(color: AppColors.red, fontWeight: FontWeight.w700),
+        ),
+      ),
+    ],
+  );
+}
+
+enum _RoomAction { rename, archive, leave, delete }
+
+/// Way into the archive, carrying how much is in it.
+///
+/// A count rather than a bare icon: the whole failure this replaces was
+/// archived Rooms being invisible, and an unlabelled icon would only have made
+/// them one tap less invisible.
+class _ArchiveAction extends StatelessWidget {
+  const _ArchiveAction({
+    required this.count,
+    required this.label,
+    required this.countLabel,
+    required this.onTap,
+    super.key,
+  });
+
+  final int count;
+  final String label;
+  final String countLabel;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: '$label, $countLabel',
+    excludeSemantics: true,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: PressableScale(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(11),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: AppColors.textSecondary.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(11),
+            border: Border.all(
+              color: AppColors.textSecondary.withValues(alpha: 0.4),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.inventory_2_outlined,
+                  size: 16,
+                  color: AppColors.textSecondary,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  countLabel,
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.copy, required this.onCreate});
+  const _EmptyState({required this.copy, required this.onCreate, super.key});
 
   final _RoomCopy copy;
   final VoidCallback onCreate;
@@ -491,7 +880,7 @@ class _EmptyState extends StatelessWidget {
 }
 
 class _ErrorState extends StatelessWidget {
-  const _ErrorState({required this.copy, required this.onRetry});
+  const _ErrorState({required this.copy, required this.onRetry, super.key});
 
   final _RoomCopy copy;
   final Future<void> Function() onRetry;
@@ -553,14 +942,32 @@ final class _RoomCopy {
       ? 'اتاق‌های ذخیره‌شده خوانده نشدند. چیزی حذف نشده است.'
       : 'Saved rooms could not be loaded. Nothing was deleted.';
 
-  String memberCount(int count) => fa ? '$count عضو' : '$count members';
+  String get canInvite => fa ? 'می‌توانید دعوت کنید' : 'You can invite';
+  String get delete => fa ? 'حذف اتاق' : 'Delete room';
+  String get archivedRooms => fa ? 'اتاق‌های بایگانی‌شده' : 'Archived rooms';
+  String get newRoom => fa ? 'اتاق تازه' : 'New room';
+
+  /// Digits the user reads as a quantity, in their own numerals.
+  ///
+  /// Only quantities. Identifiers — a Room code, an invite check value, a Wi-Fi
+  /// passphrase — deliberately stay in Latin digits: two phones in different
+  /// locales have to render those identically to be compared or typed, and a
+  /// Persian ۵ cannot be entered into Android's Wi-Fi dialog.
+  String _n(int value) => localizeDigits('$value', farsi: fa);
+
+  String memberCount(int count) =>
+      fa ? '${_n(count)} عضو' : '${_n(count)} members';
+  String pendingSeats(int count) => fa
+      ? '${_n(count)} جای بازشده'
+      : '${_n(count)} open seat${count == 1 ? '' : 's'}';
+  String archivedCount(int count) => _n(count);
   String archiveConfirm(String name) => fa
-      ? '«$name» بایگانی شود؟ عضویت حذف نمی‌شود.'
-      : 'Archive “$name”? Membership is not deleted.';
+      ? '«$name» از فهرست کنار می‌رود و عضویتش دست‌نخورده می‌ماند. هر وقت خواستید از بایگانی برش گردانید.'
+      : 'Moves “$name” out of the list with its membership intact. Bring it back from the archive whenever you want.';
   String leaveConfirm(String name) => fa
       ? 'عضویت شما در «$name» حذف شود؟ این کار با پایان دادن یک جلسه زنده فرق دارد.'
       : 'Leave “$name”? This removes your membership and is different from ending a live session.';
   String roomSemantics(String name, int count, bool selected) => fa
-      ? '$name، $count عضو${selected ? '، انتخاب‌شده' : ''}'
-      : '$name, $count members${selected ? ', selected' : ''}';
+      ? '$name، ${_n(count)} عضو${selected ? '، انتخاب‌شده' : ''}'
+      : '$name, ${_n(count)} members${selected ? ', selected' : ''}';
 }

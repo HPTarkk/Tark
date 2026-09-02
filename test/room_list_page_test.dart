@@ -41,10 +41,24 @@ void main() {
       expect(find.byKey(const Key('rooms-list')), findsOneWidget);
       expect(find.text('Weekend crew'), findsOneWidget);
       expect(find.text('Mountain ride'), findsOneWidget);
-      expect(find.text('Selected'), findsOneWidget);
+      // Selection is now carried by the card itself — the amber frame, the
+      // lit wash and the Start action that grows in under it — rather than by
+      // a chip beside the name. What proves it is that only the selected card
+      // offers Start.
+      expect(
+        find.byKey(Key('room-start-${second.room.id.value}')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(Key('room-start-${first.room.id.value}')),
+        findsNothing,
+      );
       expect(tester.takeException(), isNull);
 
-      await tester.tap(find.text('Select this room'));
+      // Tapping an unselected card selects it. There is no separate "Select
+      // this room" button any more: the card was always the control, and the
+      // button only restated it.
+      await tester.tap(find.byKey(Key('room-${first.room.id.value}')));
       await tester.pumpAndSettle();
 
       expect(repository.selected, first.room.id);
@@ -177,9 +191,22 @@ class _FakeRoomRepository implements RoomRepository {
     VerifiedRoomInvitation verified, {
     required String displayName,
     required DateTime acceptedAt,
+    bool pending = false,
   }) async {
     throw UnimplementedError();
   }
+
+  @override
+  Future<SavedRoom> updateMember(
+    RoomId id,
+    RoomMemberId memberId, {
+    String? displayName,
+    bool? pending,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<SavedRoom> removeMember(RoomId id, RoomMemberId memberId) =>
+      throw UnimplementedError();
 
   @override
   Future<SavedRoom> importAcceptedJoin(
