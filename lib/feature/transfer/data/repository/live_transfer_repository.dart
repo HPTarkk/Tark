@@ -8,11 +8,13 @@ import '../../domain/entity/audio_profile.dart';
 import '../../domain/entity/connection_health.dart';
 import '../../domain/entity/session_role.dart';
 import '../../domain/entity/transfer_mode.dart';
+import '../../domain/entity/carrier_handover_observation.dart';
 import '../../domain/entity/transport_capability_observation.dart';
 import '../../domain/entity/transport_route_proof_observation.dart';
 import '../../domain/entity/transport_stats.dart';
 import '../../domain/entity/waki_packet.dart';
 import '../../domain/repository/transfer_repository.dart';
+import '../../domain/repository/carrier_handover_exchange.dart';
 import '../../domain/repository/transport_capability_observation_source.dart';
 import '../../domain/repository/transport_route_proof_exchange.dart';
 import '../../domain/service/transfer_mode_store.dart';
@@ -49,7 +51,8 @@ final class LiveTransferRepository
     implements
         TransferRepository,
         TransportCapabilityObservationSource,
-        TransportRouteProofExchange {
+        TransportRouteProofExchange,
+        CarrierHandoverExchange {
   LiveTransferRepository({
     required TransferModeStore modeStore,
     required TransferRepository wifi,
@@ -82,10 +85,15 @@ final class LiveTransferRepository
   StreamSubscription<TransportCapabilityObservation>? _capabilitySubscription;
   StreamSubscription<TransportRouteProofObservation>? _routeProofSubscription;
   TransportRouteProofProvider? _routeProofProvider;
+  final _carrierHandoverController =
+      StreamController<CarrierHandoverObservation>.broadcast();
+  StreamSubscription<CarrierHandoverObservation>? _carrierHandoverSubscription;
+  CarrierHandoverProvider? _carrierHandoverProvider;
   bool _packetsRequested = false;
   bool _healthRequested = false;
   bool _capabilitiesRequested = false;
   bool _routeProofsRequested = false;
+  bool _carrierHandoversRequested = false;
   bool _disposed = false;
   int _attachmentGeneration = 0;
 
@@ -107,6 +115,9 @@ final class LiveTransferRepository
   static TransportRouteProofExchange? _routeProofExchange(Object repository) =>
       repository is TransportRouteProofExchange ? repository : null;
 
+  static CarrierHandoverExchange? _carrierHandoverExchange(Object repository) =>
+      repository is CarrierHandoverExchange ? repository : null;
+
   TransferRepository get _current =>
       _select(_modeStore.mode, _wifi, _bluetooth, _guest);
 
@@ -118,6 +129,11 @@ final class LiveTransferRepository
     final previous = _active;
     final previousProofExchange = _routeProofExchange(previous);
     previousProofExchange?.setRouteProofProvider(null);
+    // Cleared before the swap for the same reason the proof provider is: the
+    // outgoing transport must stop announcing a carrier the moment it stops
+    // being the one the Room is on, or it keeps telling peers to move onto a
+    // network it is no longer bringing them to.
+    _carrierHandoverExchange(previous)?.setCarrierHandoverProvider(null);
     _active = next;
     final generation = ++_attachmentGeneration;
 
@@ -127,6 +143,9 @@ final class LiveTransferRepository
     previous.stopConnection();
 
     _routeProofExchange(next)?.setRouteProofProvider(_routeProofProvider);
+    _carrierHandoverExchange(
+      next,
+    )?.setCarrierHandoverProvider(_carrierHandoverProvider);
 
     if (_packetsRequested) {
       unawaited(_rebindPackets(next, generation));
@@ -136,6 +155,9 @@ final class LiveTransferRepository
     }
     if (_capabilitiesRequested) {
       unawaited(_rebindCapabilities(next, generation));
+    }
+    if (_carrierHandoversRequested) {
+      unawaited(_rebindCarrierHandovers(next, generation));
     }
     if (_routeProofsRequested) {
       unawaited(_rebindRouteProofs(next, generation));
@@ -267,6 +289,47 @@ final class LiveTransferRepository
   }
 
   @override
+  Stream<CarrierHandoverObservation> get carrierHandoverObservations {
+    if (_disposed) return const Stream<CarrierHandoverObservation>.empty();
+    _carrierHandoversRequested = true;
+    final current = _current;
+    final exchange = _carrierHandoverExchange(current);
+    if (_carrierHandoverSubscription == null && exchange != null) {
+      _carrierHandoverSubscription = exchange.carrierHandoverObservations
+          .listen(
+            _carrierHandoverController.add,
+            onError: _carrierHandoverController.addError,
+          );
+    }
+    exchange?.setCarrierHandoverProvider(_carrierHandoverProvider);
+    _active = current;
+    return _carrierHandoverController.stream;
+  }
+
+  @override
+  void setCarrierHandoverProvider(CarrierHandoverProvider? provider) {
+    if (_disposed) return;
+    _carrierHandoverProvider = provider;
+    _carrierHandoverExchange(_current)?.setCarrierHandoverProvider(provider);
+  }
+
+  Future<void> _rebindCarrierHandovers(
+    TransferRepository repository,
+    int generation,
+  ) async {
+    final previous = _carrierHandoverSubscription;
+    _carrierHandoverSubscription = null;
+    await previous?.cancel();
+    if (_disposed || generation != _attachmentGeneration) return;
+    final exchange = _carrierHandoverExchange(repository);
+    if (exchange == null) return;
+    _carrierHandoverSubscription = exchange.carrierHandoverObservations.listen(
+      _carrierHandoverController.add,
+      onError: _carrierHandoverController.addError,
+    );
+  }
+
+  @override
   AudioFormatProfile get negotiatedFormat => _current.negotiatedFormat;
 
   @override
@@ -319,6 +382,7 @@ final class LiveTransferRepository
   void stopConnection() {
     if (_disposed) return;
     _routeProofExchange(_active)?.setRouteProofProvider(null);
+    _carrierHandoverExchange(_active)?.setCarrierHandoverProvider(null);
     _routeProofProvider = null;
     _active.stopConnection();
     _disposed = true;
@@ -335,9 +399,11 @@ final class LiveTransferRepository
     await _healthSubscription?.cancel();
     await _capabilitySubscription?.cancel();
     await _routeProofSubscription?.cancel();
+    await _carrierHandoverSubscription?.cancel();
     await _packetController.close();
     await _healthController.close();
     await _capabilityController.close();
     await _routeProofController.close();
+    await _carrierHandoverController.close();
   }
 }

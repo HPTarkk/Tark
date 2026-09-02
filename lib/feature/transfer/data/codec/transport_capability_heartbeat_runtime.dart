@@ -2,12 +2,15 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import '../../domain/entity/carrier_handover_observation.dart';
 import '../../domain/entity/transport_capability_advertisement.dart';
 import '../../domain/entity/transport_capability_observation.dart';
 import '../../domain/entity/transport_route_proof_observation.dart';
+import '../../domain/repository/carrier_handover_exchange.dart';
 import '../../domain/repository/transport_capability_observation_source.dart';
 import '../../domain/repository/transport_route_proof_exchange.dart';
 import '../capability/transport_capability_reader.dart';
+import 'carrier_handover_wire.dart';
 import 'transport_capability_control_codec.dart';
 import 'transport_route_proof_wire.dart';
 
@@ -17,7 +20,8 @@ typedef TransportCapabilitySnapshotReader =
 final class TransportCapabilityHeartbeatRuntime
     implements
         TransportCapabilityObservationSource,
-        TransportRouteProofExchange {
+        TransportRouteProofExchange,
+        CarrierHandoverExchange {
   TransportCapabilityHeartbeatRuntime({
     required this.codec,
     TransportCapabilitySnapshotReader? readLocalCapability,
@@ -30,7 +34,10 @@ final class TransportCapabilityHeartbeatRuntime
       StreamController<TransportCapabilityObservation>.broadcast(sync: true);
   final _routeProofObservations =
       StreamController<TransportRouteProofObservation>.broadcast(sync: true);
+  final _carrierHandovers =
+      StreamController<CarrierHandoverObservation>.broadcast(sync: true);
   TransportRouteProofProvider? _routeProofProvider;
+  CarrierHandoverProvider? _carrierHandoverProvider;
   bool _disposed = false;
 
   @override
@@ -47,6 +54,16 @@ final class TransportCapabilityHeartbeatRuntime
     _routeProofProvider = provider;
   }
 
+  @override
+  Stream<CarrierHandoverObservation> get carrierHandoverObservations =>
+      _carrierHandovers.stream;
+
+  @override
+  void setCarrierHandoverProvider(CarrierHandoverProvider? provider) {
+    if (_disposed) return;
+    _carrierHandoverProvider = provider;
+  }
+
   Future<Uint8List> encodePing({
     required int token,
     required int lastTxSeq,
@@ -58,6 +75,7 @@ final class TransportCapabilityHeartbeatRuntime
     lastRxSeq: lastRxSeq,
     audioRxPackets: audioRxPackets,
     capability: await _safeReadLocalCapability(),
+    carrierHandover: _safeReadCarrierHandover(),
   );
 
   Future<Uint8List> encodePong({
@@ -73,6 +91,7 @@ final class TransportCapabilityHeartbeatRuntime
     audioRxPackets: audioRxPackets,
     capability: await _safeReadLocalCapability(),
     routeProof: await _safeReadRouteProof(token, challengeEpoch),
+    carrierHandover: _safeReadCarrierHandover(),
   );
 
   DecodedTransportCapabilityControl? decodeControl(
@@ -121,6 +140,45 @@ final class TransportCapabilityHeartbeatRuntime
     }
   }
 
+  /// Surfaces an announcement seen on any control packet, ping or pong.
+  ///
+  /// Deliberately *not* gated on the matched-Pong witness that route proofs
+  /// need. A route proof borrows its authority from the route it arrived on,
+  /// so the route has to be proven first; a handover carries its own authority
+  /// in a signature the Room layer checks against the issuer key, so gating it
+  /// on the ping/pong handshake would only delay a message that is about to be
+  /// verified far more strictly than the handshake ever could.
+  void observeCarrierHandover({
+    required DecodedTransportCapabilityControl decoded,
+    required String peerKey,
+    required DateTime observedAt,
+  }) {
+    final handover = decoded.carrierHandover;
+    if (_disposed || handover == null || peerKey.isEmpty) return;
+    _carrierHandovers.add(
+      CarrierHandoverObservation(
+        peerKey: peerKey,
+        encodedHandover: handover,
+        observedAt: observedAt.toUtc(),
+      ),
+    );
+  }
+
+  String? _safeReadCarrierHandover() {
+    final provider = _carrierHandoverProvider;
+    if (_disposed || provider == null) return null;
+    try {
+      final encoded = provider();
+      if (encoded == null || encoded.isEmpty) return null;
+      if (utf8.encode(encoded).length > CarrierHandoverWire.maxPayloadBytes) {
+        return null;
+      }
+      return encoded;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<TransportCapabilityAdvertisement?> _safeReadLocalCapability() async {
     if (_disposed) return null;
     try {
@@ -154,7 +212,9 @@ final class TransportCapabilityHeartbeatRuntime
     if (_disposed) return;
     _disposed = true;
     _routeProofProvider = null;
+    _carrierHandoverProvider = null;
     await _observations.close();
     await _routeProofObservations.close();
+    await _carrierHandovers.close();
   }
 }

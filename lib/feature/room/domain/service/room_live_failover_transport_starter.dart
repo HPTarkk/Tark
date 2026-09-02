@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import '../../../transfer/domain/entity/connection_health.dart';
+import '../../../transfer/domain/entity/hotspot_credentials.dart';
 import '../../../transfer/domain/entity/transfer_mode.dart';
 import '../../../transfer/domain/repository/transfer_repository.dart';
 import '../../../transfer/domain/service/hotspot_control.dart';
@@ -32,6 +33,7 @@ final class RoomLiveFailoverTransportStarter {
     required this.transfer,
     required this.hotspotHost,
     required this.hotspotLinkKeeper,
+    this.onHotspotRaised,
   });
 
   final RoomMemberId localMemberId;
@@ -39,6 +41,13 @@ final class RoomLiveFailoverTransportStarter {
   final TransferRepository transfer;
   final HotspotHost hotspotHost;
   final HotspotLinkKeeper hotspotLinkKeeper;
+
+  /// Called when this device has just raised the replacement access point.
+  ///
+  /// Lets the carrier layer publish the new credentials to peers. Without it a
+  /// remote winner is the only one who knows the passphrase, and every other
+  /// phone sits degraded with no way to ask.
+  final Future<void> Function(HotspotCredentials credentials)? onHotspotRaised;
 
   Future<RoomFailoverTransportHandle> call(
     RoomFailoverTransportContext context,
@@ -55,6 +64,7 @@ final class RoomLiveFailoverTransportStarter {
           final credentials = await hotspotHost.start();
           ownsHotspot = true;
           hotspotLinkKeeper.adopt(credentials);
+          await onHotspotRaised?.call(credentials);
         }
         await modeStore.setMode(TransferMode.hotspot);
         if (!localIsHost) {

@@ -281,6 +281,79 @@ final class RoomMemberTransportIdentityCrypto {
     );
   }
 
+  /// Signs an instruction to move the Room onto a new carrier.
+  ///
+  /// Takes the fields rather than the assembled announcement so that the
+  /// message this covers is defined exactly once, here, alongside the other
+  /// two — which is what keeps a signature made for one purpose from ever
+  /// verifying as another.
+  Future<List<int>> signCarrierHandover({
+    required RoomMemberTransportCertificate certificate,
+    required RoomMemberTransportKeyPair member,
+    required int generation,
+    required String ssid,
+    required String passphrase,
+    required DateTime issuedAt,
+  }) async {
+    _requireUint32(generation, 'generation');
+    if (!_sameBytes(member.publicKey, certificate.memberPublicKey)) {
+      throw ArgumentError('member key does not match certificate');
+    }
+    final signature = await _algorithm.sign(
+      _carrierHandoverMessage(
+        certificate,
+        generation,
+        ssid,
+        passphrase,
+        issuedAt,
+      ),
+      keyPair: _keyPair(member),
+    );
+    return List.unmodifiable(signature.bytes);
+  }
+
+  /// Whether an announced carrier really came from a member of this Room.
+  ///
+  /// Fails closed on every path. The attack this exists to stop is somebody
+  /// within earshot of the current network telling the group to move onto an
+  /// access point they control, and a "probably fine" here would hand them the
+  /// whole Room.
+  Future<bool> verifyCarrierHandover({
+    required RoomMemberTransportCertificate certificate,
+    required List<int> signature,
+    required RoomId expectedRoomId,
+    required List<int> expectedIssuerPublicKey,
+    required int generation,
+    required String ssid,
+    required String passphrase,
+    required DateTime issuedAt,
+  }) async {
+    if (certificate.roomId != expectedRoomId) return false;
+    if (!await verifyCertificate(
+      certificate: certificate,
+      expectedIssuerPublicKey: expectedIssuerPublicKey,
+    )) {
+      return false;
+    }
+    try {
+      return await _algorithm.verify(
+        _carrierHandoverMessage(
+          certificate,
+          generation,
+          ssid,
+          passphrase,
+          issuedAt,
+        ),
+        signature: Signature(
+          signature,
+          publicKey: _publicKey(certificate.memberPublicKey),
+        ),
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<bool> verifyProof({
     required RoomMemberTransportProof proof,
     required RoomId expectedRoomId,
@@ -329,6 +402,22 @@ final class RoomMemberTransportIdentityCrypto {
   ) => utf8.encode(
     'tark-room-member-certificate-v1\n'
     '${roomId.value}\n${memberId.value}\n${_encodeBytes(memberPublicKey)}',
+  );
+
+  /// Every field a receiver acts on, in a fixed order with unambiguous
+  /// separators. Signing a subset would let an attacker keep a genuine
+  /// signature and swap what was left out — the SSID being the obvious one.
+  List<int> _carrierHandoverMessage(
+    RoomMemberTransportCertificate certificate,
+    int generation,
+    String ssid,
+    String passphrase,
+    DateTime issuedAt,
+  ) => utf8.encode(
+    'tark-room-carrier-handover-v1\n'
+    '${certificate.roomId.value}\n${certificate.memberId.value}\n'
+    '$generation\n$ssid\n$passphrase\n'
+    '${issuedAt.toUtc().toIso8601String()}',
   );
 
   List<int> _proofMessage(

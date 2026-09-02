@@ -18,10 +18,12 @@ import '../../domain/entity/connection_health.dart';
 import '../../domain/entity/control_packet.dart';
 import '../../domain/entity/opus_tuning.dart';
 import '../../domain/entity/session_role.dart';
+import '../../domain/entity/carrier_handover_observation.dart';
 import '../../domain/entity/transport_capability_observation.dart';
 import '../../domain/entity/transport_route_proof_observation.dart';
 import '../../domain/entity/transport_stats.dart';
 import '../../domain/entity/waki_packet.dart';
+import '../../domain/repository/carrier_handover_exchange.dart';
 import '../../domain/repository/transport_capability_observation_source.dart';
 import '../../domain/repository/transport_route_proof_exchange.dart';
 import '../../domain/repository/wifi_transfer_repository.dart';
@@ -54,7 +56,8 @@ class WifiTransferRepositoryImpl
     implements
         WifiTransferRepository,
         TransportCapabilityObservationSource,
-        TransportRouteProofExchange {
+        TransportRouteProofExchange,
+        CarrierHandoverExchange {
   RawDatagramSocket? _sendSocket;
   RawDatagramSocket? _receiveSocket;
   final _connectionController = StreamController<ConnectionHealth>.broadcast();
@@ -291,6 +294,15 @@ class WifiTransferRepositoryImpl
   @override
   Stream<TransportRouteProofObservation> get routeProofObservations =>
       _transportCapabilityHeartbeat.routeProofObservations;
+
+  @override
+  void setCarrierHandoverProvider(CarrierHandoverProvider? provider) {
+    _transportCapabilityHeartbeat.setCarrierHandoverProvider(provider);
+  }
+
+  @override
+  Stream<CarrierHandoverObservation> get carrierHandoverObservations =>
+      _transportCapabilityHeartbeat.carrierHandoverObservations;
 
   @override
   void setRouteProofProvider(TransportRouteProofProvider? provider) {
@@ -1855,6 +1867,15 @@ class WifiTransferRepositoryImpl
     int myGen,
   ) async {
     final packet = decoded.packet;
+    // Before the switch, because a handover is equally valid on either kind of
+    // control packet and its authority does not come from the ping/pong
+    // handshake. The host attaches it to both so it reaches a peer on whichever
+    // leg happens to move first.
+    _transportCapabilityHeartbeat.observeCarrierHandover(
+      decoded: decoded,
+      peerKey: fromAddress,
+      observedAt: DateTime.now(),
+    );
     switch (packet) {
       case PingPacket():
         final rx = _rxBySender[packet.senderId];
