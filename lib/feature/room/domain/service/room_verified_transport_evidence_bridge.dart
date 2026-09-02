@@ -4,6 +4,7 @@ import '../../../transfer/domain/entity/transport_capability_observation.dart';
 import '../../../transfer/domain/entity/transport_route_proof_observation.dart';
 import '../../../transfer/domain/repository/transport_capability_observation_source.dart';
 import '../../../transfer/domain/repository/transport_route_proof_exchange.dart';
+import '../entity/room.dart';
 import 'room_verified_transport_capability_runtime.dart';
 
 /// Session-scoped bridge that turns matched live route proof into Room-authorized
@@ -26,6 +27,7 @@ final class RoomVerifiedTransportEvidenceBridge {
     required TransportCapabilityObservationSource capabilitySource,
     required TransportRouteProofExchange proofExchange,
     required TransportRouteProofProvider localProofProvider,
+    required this.onMemberProven,
     this.maxPendingCapabilities = 32,
   }) : _proofExchange = proofExchange,
        assert(maxPendingCapabilities > 0) {
@@ -39,6 +41,17 @@ final class RoomVerifiedTransportEvidenceBridge {
   }
 
   final RoomVerifiedTransportCapabilityRuntime runtime;
+
+  /// Called with every member a verified proof binds to a live route.
+  ///
+  /// Required rather than optional on purpose. This is the app's only
+  /// cryptographically-certain statement that a particular durable member is on
+  /// the air, and the last time an engine here published something a caller
+  /// could forget to wire, the missing listener cost three rounds of debugging
+  /// to find. Composition has to say what it does with this, even if the answer
+  /// is nothing.
+  final void Function(RoomMemberId memberId) onMemberProven;
+
   final TransportRouteProofExchange _proofExchange;
   final int maxPendingCapabilities;
 
@@ -99,12 +112,17 @@ final class RoomVerifiedTransportEvidenceBridge {
     );
     if (!challenged) return;
 
-    final bound = await runtime.verifyAndBind(
+    final member = await runtime.verifyAndBind(
       peerKey: observation.peerKey,
       encodedProof: observation.encodedProof,
       at: observation.observedAt,
     );
-    if (_disposed || !bound) return;
+    if (_disposed || member == null) return;
+
+    // Who, not just whether. A route that binds is a member demonstrably on
+    // the air, which is enough to settle a roster seat that is still marked as
+    // merely invited.
+    onMemberProven(member);
 
     final pending = _pendingCapabilities.remove(observation.peerKey);
     if (pending != null) _admitCapability(pending);

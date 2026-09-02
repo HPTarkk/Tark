@@ -76,11 +76,18 @@ final class RoomMemberTransportProofBindingAuthority {
   /// Verifies and consumes the exact challenge for [peerKey], then binds the
   /// observed route to the certified member for this attachment.
   ///
+  /// Returns the member the route was bound to, or null when nothing was
+  /// bound. The identity is returned rather than a bare success flag because a
+  /// verified proof is the strongest statement this app can make about who is
+  /// actually on the air — strong enough for a caller to settle durable roster
+  /// state on, which is what confirms an invite seat whose owner never
+  /// announced themselves any other way.
+  ///
   /// The pending challenge is consumed after any proof attempt that reaches
   /// cryptographic verification. This makes a captured invalid/valid pair
   /// unable to race retries on the same bearer token; the transport must issue
   /// a fresh challenge for another attempt.
-  Future<bool> verifyAndBind({
+  Future<RoomMemberId?> verifyAndBind({
     required String peerKey,
     required String encodedProof,
     required int attachmentGeneration,
@@ -91,13 +98,13 @@ final class RoomMemberTransportProofBindingAuthority {
     _expire(now);
     if (peerKey.isEmpty ||
         attachmentGeneration < _minimumAttachmentGeneration) {
-      return false;
+      return null;
     }
 
     final pending = _pending[peerKey];
     if (pending == null ||
         pending.attachmentGeneration != attachmentGeneration) {
-      return false;
+      return null;
     }
 
     RoomMemberTransportProof proof;
@@ -105,7 +112,7 @@ final class RoomMemberTransportProofBindingAuthority {
       proof = RoomMemberTransportProof.decode(encodedProof);
     } on FormatException {
       _pending.remove(peerKey);
-      return false;
+      return null;
     }
 
     _pending.remove(peerKey);
@@ -116,13 +123,15 @@ final class RoomMemberTransportProofBindingAuthority {
       expectedToken: pending.token,
       expectedSessionEpoch: pending.sessionEpoch,
     );
-    if (!verified) return false;
+    if (!verified) return null;
 
-    return bindings.bind(
+    final memberId = proof.certificate.memberId;
+    final bound = bindings.bind(
       peerKey: peerKey,
-      memberId: proof.certificate.memberId,
+      memberId: memberId,
       attachmentGeneration: attachmentGeneration,
     );
+    return bound ? memberId : null;
   }
 
   /// Advances the attachment floor and drops every challenge observed on an old
