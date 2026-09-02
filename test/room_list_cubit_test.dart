@@ -94,8 +94,53 @@ void main() {
     expect(cubit.state.rooms, isEmpty);
     expect(cubit.state.selectedRoomId, isNull);
     expect(repository.selected, isNull);
+    // Out of the live list, but not out of existence — archive stopped being a
+    // one-way door the moment the archive sheet could read this.
+    expect(cubit.state.archived.single.room.id, saved.room.id);
     await cubit.close();
   });
+
+  test('unarchive returns the room without re-selecting it', () async {
+    final repository = _FakeRoomRepository();
+    final saved = repository.seed('Old ride');
+    final other = repository.seed('Current ride');
+    await repository.select(other.room.id);
+    final cubit = cubitFor(repository);
+    await cubit.load();
+    await cubit.archive(saved.room.id);
+
+    await cubit.unarchive(saved.room.id);
+
+    expect(cubit.state.archived, isEmpty);
+    expect(
+      cubit.state.rooms.map((room) => room.room.id),
+      containsAll([saved.room.id, other.room.id]),
+    );
+    // Coming back from the archive is a filing decision, not a choice of which
+    // room Start points at.
+    expect(cubit.state.selectedRoomId, other.room.id);
+    await cubit.close();
+  });
+
+  test(
+    'deleting the selected room drops the record and the selection',
+    () async {
+      final repository = _FakeRoomRepository();
+      final saved = repository.seed('Old ride');
+      await repository.select(saved.room.id);
+      final cubit = cubitFor(repository);
+      await cubit.load();
+
+      await cubit.deleteRoom(saved.room.id);
+
+      expect(cubit.state.rooms, isEmpty);
+      expect(cubit.state.archived, isEmpty);
+      expect(cubit.state.selectedRoomId, isNull);
+      // Unlike archive, nothing is left behind to come back to.
+      expect(await repository.list(includeArchived: true), isEmpty);
+      await cubit.close();
+    },
+  );
 
   test('leave selected room clears selection but keeps saved record', () async {
     final repository = _FakeRoomRepository();
@@ -248,7 +293,20 @@ class _FakeRoomRepository implements RoomRepository {
     VerifiedRoomInvitation verified, {
     required String displayName,
     required DateTime acceptedAt,
+    bool pending = false,
   }) => throw UnimplementedError();
+
+  @override
+  Future<SavedRoom> updateMember(
+    RoomId id,
+    RoomMemberId memberId, {
+    String? displayName,
+    bool? pending,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<SavedRoom> removeMember(RoomId id, RoomMemberId memberId) =>
+      throw UnimplementedError();
 
   @override
   Future<SavedRoom> importAcceptedJoin(
