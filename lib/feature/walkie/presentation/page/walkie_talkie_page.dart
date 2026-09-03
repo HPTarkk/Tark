@@ -169,10 +169,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
       body: SafeArea(
         child: Column(
           children: [
-            _entrance(
-              0,
-              WalkieHeader(onLeave: () => _confirmLeave(context)),
-            ),
+            _entrance(0, WalkieHeader(onLeave: () => _confirmLeave(context))),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),

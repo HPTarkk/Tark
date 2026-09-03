@@ -109,7 +109,8 @@ final class _JoinCopy {
   String get hint => fa
       ? 'کد دعوت روی گوشی میزبان را بگیر جلوی دوربین. بعد از اسکن مستقیم وارد اتاق می‌شوی.'
       : "Point the camera at the invite on the host's phone. You go straight in.";
-  String get searching => fa ? 'دنبال کد دعوت می‌گردم' : 'LOOKING FOR AN INVITE';
+  String get searching =>
+      fa ? 'دنبال کد دعوت می‌گردم' : 'LOOKING FOR AN INVITE';
   String get locked => fa ? 'کد پیدا شد' : 'INVITE FOUND';
   String get joining => fa ? 'در حال ورود به اتاق' : 'JOINING THE ROOM';
   String get notJoined => fa

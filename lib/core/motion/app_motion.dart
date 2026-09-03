@@ -398,7 +398,11 @@ class TapConfirmation extends StatefulWidget {
     super.key,
   });
 
-  final Widget Function(BuildContext context, bool confirmed, VoidCallback confirm)
+  final Widget Function(
+    BuildContext context,
+    bool confirmed,
+    VoidCallback confirm,
+  )
   builder;
 
   /// How long the confirmed state is held before the control returns.

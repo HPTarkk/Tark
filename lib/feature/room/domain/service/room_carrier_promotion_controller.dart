@@ -99,8 +99,7 @@ abstract interface class RoomCarrierStatusSource {
 /// a borrowed network that works beats moving to no network at all. And it
 /// makes exactly one attempt per generation: a controller that retried on
 /// every capability heartbeat would restart the handover continuously.
-final class RoomCarrierPromotionController
-    implements RoomCarrierStatusSource {
+final class RoomCarrierPromotionController implements RoomCarrierStatusSource {
   RoomCarrierPromotionController({
     required this.localMemberId,
     required this.roomId,

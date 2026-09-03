@@ -18,18 +18,19 @@ void main() {
     joins = creates = resumes = browses = 0;
   });
 
-  Widget host(Widget child, {Locale locale = const Locale('en')}) => MaterialApp(
-    locale: locale,
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-    home: Scaffold(
-      backgroundColor: AppColors.background,
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Center(child: child),
-      ),
-    ),
-  );
+  Widget host(Widget child, {Locale locale = const Locale('en')}) =>
+      MaterialApp(
+        locale: locale,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          backgroundColor: AppColors.background,
+          body: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Center(child: child),
+          ),
+        ),
+      );
 
   RoomEntryActions returning({required bool fa}) => RoomEntryActions(
     hero: RoomEntryAction(
@@ -122,7 +123,10 @@ void main() {
     BoxDecoration shellOf(Key key) {
       final box = tester.widget<DecoratedBox>(
         find
-            .descendant(of: find.byKey(key), matching: find.byType(DecoratedBox))
+            .descendant(
+              of: find.byKey(key),
+              matching: find.byType(DecoratedBox),
+            )
             .first,
       );
       return box.decoration as BoxDecoration;
