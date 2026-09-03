@@ -1,0 +1,49 @@
+name: One-shot Tark signing readiness probe
+
+on:
+  push:
+    branches:
+      - ci/probe-tark-signing-20260903
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      KEYSTORE_BASE64: ${{ secrets.TARK_ANDROID_KEYSTORE_BASE64 }}
+      KEYSTORE_PASSWORD: ${{ secrets.TARK_ANDROID_KEYSTORE_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.TARK_ANDROID_KEY_ALIAS }}
+      KEY_PASSWORD: ${{ secrets.TARK_ANDROID_KEY_PASSWORD }}
+    steps:
+      - name: Checkout probe branch
+        uses: actions/checkout@v4
+        with:
+          ref: ci/probe-tark-signing-20260903
+
+      - name: Report only secret presence
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            if [ -n "${!name}" ]; then
+              echo "$name=present"
+            else
+              echo "$name=missing"
+              missing=$((missing + 1))
+            fi
+          done
+          echo "missing_count=$missing"
+
+      - name: Remove one-shot probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/signing-probe-once.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'ci: remove one-shot signing probe'
+          git push origin HEAD:ci/probe-tark-signing-20260903
