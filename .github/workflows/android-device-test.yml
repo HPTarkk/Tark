@@ -93,6 +93,30 @@ jobs:
           echo "short_sha=$short_sha" >> "$GITHUB_OUTPUT"
           echo "commit_sha=$sha" >> "$GITHUB_OUTPUT"
 
+      - name: Verify APK package and test signer
+        id: identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk="dist/tark-device-test-${{ steps.package.outputs.short_sha }}.apk"
+          build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          aapt="$build_tools/aapt"
+          apksigner="$build_tools/apksigner"
+
+          test -x "$aapt"
+          test -x "$apksigner"
+
+          package_name="$("$aapt" dump badging "$apk" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -n 1)"
+          if [[ "$package_name" != "com.b1101.tark.dev" ]]; then
+            echo "Refusing to publish APK: expected com.b1101.tark.dev, got '$package_name'" >&2
+            exit 1
+          fi
+
+          "$apksigner" verify --verbose --print-certs "$apk" | tee dist/APK-SIGNER.txt
+          grep -q "Verified using v" dist/APK-SIGNER.txt
+
+          echo "package_name=$package_name" >> "$GITHUB_OUTPUT"
+
       - name: Upload phone-downloadable APK artifact
         uses: actions/upload-artifact@v4
         with:
@@ -104,10 +128,14 @@ jobs:
       - name: Summary
         shell: bash
         run: |
-          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
           ## Android device-test build ready
+
+          - Commit: `${{ steps.package.outputs.commit_sha }}`
+          - Package: `${{ steps.identity.outputs.package_name }}`
+          - Signing: test/debug signing identity; signer details are included in `APK-SIGNER.txt` inside the artifact.
 
           Download the `tark-device-test-*` artifact from this run, unzip it on Android, and install the APK.
 
-          This build uses application id `com.b1101.tark.dev`, so it installs beside the production Tark app and does not require the production release signing key.
+          Because the package is `com.b1101.tark.dev`, it installs beside the production Tark app and never replaces the production package.
           EOF
