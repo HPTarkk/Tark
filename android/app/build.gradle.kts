@@ -22,6 +22,7 @@ val releaseKeystorePassword = keystoreProperties.getProperty("storePassword") ?:
 val releaseKeyPassword = keystoreProperties.getProperty("keyPassword") ?: System.getenv("KEY_PASSWORD")
 val releaseKeyAlias = keystoreProperties.getProperty("keyAlias") ?: System.getenv("KEY_ALIAS")
 val releaseStoreFile = keystoreProperties.getProperty("storeFile") ?: "../upload-keystore.jks"
+val isDeviceTestBuild = providers.gradleProperty("tarkDeviceTest").orNull == "true"
 
 
 android {
@@ -58,6 +59,15 @@ android {
     }
 
     buildTypes {
+        getByName("debug") {
+            // Device-test APKs are intentionally a separate app so they can be
+            // installed from GitHub Actions without the production signing key
+            // and without replacing/deleting the user's installed Tark build.
+            if (isDeviceTestBuild) {
+                applicationIdSuffix = ".dev"
+                versionNameSuffix = "-device-test"
+            }
+        }
         release {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
