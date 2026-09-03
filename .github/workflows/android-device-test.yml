@@ -2,6 +2,12 @@ name: Build Tark Android Device-Test APK
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "android/app/build.gradle.kts"
+      - ".github/workflows/android-device-test.yml"
+      - "docs/android-device-test-from-phone.md"
   workflow_run:
     workflows: ["Tark beta quality gate"]
     types: [completed]
@@ -10,24 +16,32 @@ permissions:
   contents: read
 
 concurrency:
-  group: tark-android-device-test
+  group: tark-android-device-test-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
     if: >-
       github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'pull_request' ||
       (github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     timeout-minutes: 35
 
     steps:
-      - name: Checkout verified main
+      - name: Checkout verified main from quality gate
+        if: github.event_name == 'workflow_run'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.event.workflow_run.head_sha || 'main' }}
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Checkout requested ref
+        if: github.event_name != 'workflow_run'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Java
         uses: actions/setup-java@v5
