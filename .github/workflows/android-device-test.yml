@@ -1,0 +1,99 @@
+name: Build Tark Android Device-Test APK
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Tark beta quality gate"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tark-android-device-test
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout verified main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha || 'main' }}
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.1"
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: |
+          flutter pub get
+          flutter gen-l10n
+
+      - name: Verify manual builds before packaging
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          flutter analyze
+          flutter test
+
+      - name: Build side-by-side device-test APK
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha="$(git rev-parse HEAD)"
+          short_sha="${sha:0:12}"
+          built_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+          ORG_GRADLE_PROJECT_tarkDeviceTest=true flutter build apk --debug \
+            --dart-define=BUILD_CHANNEL=device-test \
+            --dart-define=GIT_COMMIT="$sha" \
+            --dart-define=GIT_DIRTY=false \
+            --dart-define=BUILD_TIMESTAMP="$built_at"
+
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-debug.apk \
+            "dist/tark-device-test-$short_sha.apk"
+          (
+            cd dist
+            sha256sum *.apk > SHA256SUMS.txt
+          )
+
+          echo "short_sha=$short_sha" >> "$GITHUB_OUTPUT"
+          echo "commit_sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Upload phone-downloadable APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tark-device-test-${{ steps.package.outputs.short_sha }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Summary
+        shell: bash
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ## Android device-test build ready
+
+          Download the `tark-device-test-*` artifact from this run, unzip it on Android, and install the APK.
+
+          This build uses application id `com.b1101.tark.dev`, so it installs beside the production Tark app and does not require the production release signing key.
+          EOF
