@@ -1,0 +1,66 @@
+name: One-shot Dart format repair
+
+on:
+  push:
+    branches:
+      - fix/format-main-20260903
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: fix/format-main-20260903
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Flutter used by beta gate
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          channel: stable
+          cache: true
+
+      - name: Reproduce beta-gate dependency context
+        run: |
+          flutter pub get
+          flutter gen-l10n
+
+      - name: Format PR Dart files in beta-gate context
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='1d8234e72768020e560e045dbafbbf99ab065d63'
+          mapfile -t dart_files < <(git diff --diff-filter=ACMR --name-only "$base" HEAD -- '*.dart')
+          if [ "${#dart_files[@]}" -eq 0 ]; then
+            echo 'No Dart files to format.'
+          else
+            printf 'Formatting %s PR Dart files\n' "${#dart_files[@]}"
+            dart format "${dart_files[@]}"
+          fi
+
+      - name: Remove one-shot workflow and commit formatter output
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/format-repair-once.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'Nothing changed after exact CI reproduction.'
+            exit 0
+          fi
+          git commit -m 'style: reproduce beta-gate formatter context'
+          git push origin HEAD:fix/format-main-20260903
