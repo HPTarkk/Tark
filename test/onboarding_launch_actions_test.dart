@@ -20,16 +20,19 @@ void main() {
       }
     });
 
-    test('automatic does not — it finishes setup and lands on the room screen', () {
-      // The transport beat pre-selects AUTOMATIC, so this is the state almost
-      // every first run ends in. The advisor needs an intent to resolve a
-      // transport, and the only thing that supplies one is the user tapping
-      // START or JOIN on the room screen.
-      expect(
-        OnboardingLaunchActions.joinsAChannel(replay: false, mode: null),
-        isFalse,
-      );
-    });
+    test(
+      'automatic does not — it finishes setup and lands on the room screen',
+      () {
+        // The transport beat pre-selects AUTOMATIC, so this is the state almost
+        // every first run ends in. The advisor needs an intent to resolve a
+        // transport, and the only thing that supplies one is the user tapping
+        // START or JOIN on the room screen.
+        expect(
+          OnboardingLaunchActions.joinsAChannel(replay: false, mode: null),
+          isFalse,
+        );
+      },
+    );
 
     test('a replay from Settings never claims to join anything', () {
       // It pops back to Settings; there is no channel at the end of it.

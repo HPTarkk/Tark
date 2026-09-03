@@ -128,67 +128,73 @@ void main() {
       expect(decoded.generation, 1);
     });
 
-    test('a phone that cannot sign stays put rather than moving blind', () async {
-      final modeStore = _FakeModeStore(TransferMode.wifi);
-      final host = _FakeHotspotHost();
-      final exchange = _FakeHandoverExchange();
-      var now = DateTime.utc(2026, 9, 1, 20, 0);
+    test(
+      'a phone that cannot sign stays put rather than moving blind',
+      () async {
+        final modeStore = _FakeModeStore(TransferMode.wifi);
+        final host = _FakeHotspotHost();
+        final exchange = _FakeHandoverExchange();
+        var now = DateTime.utc(2026, 9, 1, 20, 0);
 
-      final controller = build(
-        localMemberId: hostMember,
-        identity: null,
-        modeStore: modeStore,
-        hotspotHost: host,
-        keeper: _FakeLinkKeeper(),
-        exchange: exchange,
-        candidates: () => [
-          candidate(hostMember, batteryPercent: 95),
-          candidate(followerMember, batteryPercent: 30),
-        ],
-        clock: () => now,
-      );
-      addTearDown(controller.dispose);
+        final controller = build(
+          localMemberId: hostMember,
+          identity: null,
+          modeStore: modeStore,
+          hotspotHost: host,
+          keeper: _FakeLinkKeeper(),
+          exchange: exchange,
+          candidates: () => [
+            candidate(hostMember, batteryPercent: 95),
+            candidate(followerMember, batteryPercent: 30),
+          ],
+          clock: () => now,
+        );
+        addTearDown(controller.dispose);
 
-      controller.start();
-      now = now.add(const Duration(seconds: 30));
-      controller.evaluate();
-      await pumpEventQueue();
+        controller.start();
+        now = now.add(const Duration(seconds: 30));
+        controller.evaluate();
+        await pumpEventQueue();
 
-      // Better to keep a working borrowed network than to move a group onto
-      // something they have no way to verify.
-      expect(host.starts, 0);
-      expect(modeStore.mode, TransferMode.wifi);
-      expect(exchange.provider?.call(), isNull);
-    });
+        // Better to keep a working borrowed network than to move a group onto
+        // something they have no way to verify.
+        expect(host.starts, 0);
+        expect(modeStore.mode, TransferMode.wifi);
+        expect(exchange.provider?.call(), isNull);
+      },
+    );
 
-    test('a hotspot that will not start leaves the Room where it was', () async {
-      final modeStore = _FakeModeStore(TransferMode.wifi);
-      final host = _FakeHotspotHost(failing: true);
-      var now = DateTime.utc(2026, 9, 1, 20, 0);
+    test(
+      'a hotspot that will not start leaves the Room where it was',
+      () async {
+        final modeStore = _FakeModeStore(TransferMode.wifi);
+        final host = _FakeHotspotHost(failing: true);
+        var now = DateTime.utc(2026, 9, 1, 20, 0);
 
-      final controller = build(
-        localMemberId: hostMember,
-        identity: hostIdentity,
-        modeStore: modeStore,
-        hotspotHost: host,
-        keeper: _FakeLinkKeeper(),
-        exchange: _FakeHandoverExchange(),
-        candidates: () => [
-          candidate(hostMember, batteryPercent: 95),
-          candidate(followerMember, batteryPercent: 30),
-        ],
-        clock: () => now,
-      );
-      addTearDown(controller.dispose);
+        final controller = build(
+          localMemberId: hostMember,
+          identity: hostIdentity,
+          modeStore: modeStore,
+          hotspotHost: host,
+          keeper: _FakeLinkKeeper(),
+          exchange: _FakeHandoverExchange(),
+          candidates: () => [
+            candidate(hostMember, batteryPercent: 95),
+            candidate(followerMember, batteryPercent: 30),
+          ],
+          clock: () => now,
+        );
+        addTearDown(controller.dispose);
 
-      controller.start();
-      now = now.add(const Duration(seconds: 30));
-      controller.evaluate();
-      await pumpEventQueue();
+        controller.start();
+        now = now.add(const Duration(seconds: 30));
+        controller.evaluate();
+        await pumpEventQueue();
 
-      expect(modeStore.mode, TransferMode.wifi);
-      expect(controller.status.stage, RoomCarrierStage.settled);
-    });
+        expect(modeStore.mode, TransferMode.wifi);
+        expect(controller.status.stage, RoomCarrierStage.settled);
+      },
+    );
 
     test('an owned carrier is never promoted away from', () async {
       final modeStore = _FakeModeStore(TransferMode.hotspot);
@@ -336,15 +342,18 @@ void main() {
       expect(modeStore.mode, TransferMode.wifi);
     });
 
-    test('refuses a stale one naming a network that no longer exists', () async {
-      final old = await announcement(
-        issuedAt: now.subtract(
-          RoomCarrierHandover.freshness + const Duration(minutes: 1),
-        ),
-      );
-      expect(await controller.applyAnnouncement(old), isFalse);
-      expect(modeStore.mode, TransferMode.wifi);
-    });
+    test(
+      'refuses a stale one naming a network that no longer exists',
+      () async {
+        final old = await announcement(
+          issuedAt: now.subtract(
+            RoomCarrierHandover.freshness + const Duration(minutes: 1),
+          ),
+        );
+        expect(await controller.applyAnnouncement(old), isFalse);
+        expect(modeStore.mode, TransferMode.wifi);
+      },
+    );
 
     test('refuses one for a Room this phone is not in', () async {
       final otherRoom = RoomId('f' * 32);
@@ -439,34 +448,37 @@ void main() {
     expect(controller.status.localIsHost, isTrue);
   });
 
-  test('a follower keeps waiting until the announcement actually lands', () async {
-    // The mirror case: while the carrier is still borrowed, a tick must NOT
-    // collapse "waiting for the host" back to settled.
-    var now = DateTime.utc(2026, 9, 1, 20, 0);
-    final controller = build(
-      localMemberId: followerMember,
-      identity: followerIdentity,
-      modeStore: _FakeModeStore(TransferMode.wifi),
-      hotspotHost: _FakeHotspotHost(),
-      keeper: _FakeLinkKeeper(),
-      exchange: _FakeHandoverExchange(),
-      candidates: () => [
-        candidate(hostMember, batteryPercent: 95),
-        candidate(followerMember, canHostHotspot: false),
-      ],
-      clock: () => now,
-    );
-    addTearDown(controller.dispose);
+  test(
+    'a follower keeps waiting until the announcement actually lands',
+    () async {
+      // The mirror case: while the carrier is still borrowed, a tick must NOT
+      // collapse "waiting for the host" back to settled.
+      var now = DateTime.utc(2026, 9, 1, 20, 0);
+      final controller = build(
+        localMemberId: followerMember,
+        identity: followerIdentity,
+        modeStore: _FakeModeStore(TransferMode.wifi),
+        hotspotHost: _FakeHotspotHost(),
+        keeper: _FakeLinkKeeper(),
+        exchange: _FakeHandoverExchange(),
+        candidates: () => [
+          candidate(hostMember, batteryPercent: 95),
+          candidate(followerMember, canHostHotspot: false),
+        ],
+        clock: () => now,
+      );
+      addTearDown(controller.dispose);
 
-    controller.start();
-    now = now.add(const Duration(seconds: 30));
-    controller.evaluate();
-    expect(controller.status.stage, RoomCarrierStage.awaitingHost);
+      controller.start();
+      now = now.add(const Duration(seconds: 30));
+      controller.evaluate();
+      expect(controller.status.stage, RoomCarrierStage.awaitingHost);
 
-    now = now.add(const Duration(seconds: 30));
-    controller.evaluate();
-    expect(controller.status.stage, RoomCarrierStage.awaitingHost);
-  });
+      now = now.add(const Duration(seconds: 30));
+      controller.evaluate();
+      expect(controller.status.stage, RoomCarrierStage.awaitingHost);
+    },
+  );
 
   test('a carrier raised by failover is still announced to peers', () async {
     // The dead end the field logs ended in: the reactive ladder raised an
@@ -518,22 +530,25 @@ void main() {
     expect(exchange.provider?.call(), isNull);
   });
 
-  test('disposing stops announcing so a stale carrier is not advertised', () async {
-    final exchange = _FakeHandoverExchange();
-    final controller = build(
-      localMemberId: hostMember,
-      identity: hostIdentity,
-      modeStore: _FakeModeStore(TransferMode.wifi),
-      hotspotHost: _FakeHotspotHost(),
-      keeper: _FakeLinkKeeper(),
-      exchange: exchange,
-      candidates: () => [candidate(hostMember), candidate(followerMember)],
-    );
-    controller.start();
-    expect(exchange.provider, isNotNull);
-    await controller.dispose();
-    expect(exchange.provider, isNull);
-  });
+  test(
+    'disposing stops announcing so a stale carrier is not advertised',
+    () async {
+      final exchange = _FakeHandoverExchange();
+      final controller = build(
+        localMemberId: hostMember,
+        identity: hostIdentity,
+        modeStore: _FakeModeStore(TransferMode.wifi),
+        hotspotHost: _FakeHotspotHost(),
+        keeper: _FakeLinkKeeper(),
+        exchange: exchange,
+        candidates: () => [candidate(hostMember), candidate(followerMember)],
+      );
+      controller.start();
+      expect(exchange.provider, isNotNull);
+      await controller.dispose();
+      expect(exchange.provider, isNull);
+    },
+  );
 }
 
 Future<RoomTransportIdentityMaterial> material(
@@ -611,8 +626,7 @@ class _FakeHotspotHost implements HotspotHost {
   Future<void> openFixSettings(String errorCode) async {}
 
   @override
-  Future<HotspotWifiAdvice> wifiAdvice() async =>
-      throw UnimplementedError();
+  Future<HotspotWifiAdvice> wifiAdvice() async => throw UnimplementedError();
 
   @override
   Future<bool> openWifiPanel() async => false;
@@ -648,8 +662,9 @@ class _FakeLinkKeeper implements HotspotLinkKeeper {
 }
 
 class _FakeHandoverExchange implements CarrierHandoverExchange {
-  final _observations =
-      StreamController<CarrierHandoverObservation>.broadcast(sync: true);
+  final _observations = StreamController<CarrierHandoverObservation>.broadcast(
+    sync: true,
+  );
   CarrierHandoverProvider? provider;
 
   void emit(CarrierHandoverObservation observation) =>

@@ -495,9 +495,8 @@ class _OnboardingPageState extends State<OnboardingPage>
     );
     final label = switch (state.step) {
       OnboardingCubit.tuneStep => s.onboarding_begin,
-      OnboardingCubit.launchStep => joins
-          ? s.join_channel
-          : s.onboarding_finish,
+      OnboardingCubit.launchStep =>
+        joins ? s.join_channel : s.onboarding_finish,
       _ => s.onboarding_continue,
     };
     // Pulse only on the bookend beats — mid-journey the key stays calm so the

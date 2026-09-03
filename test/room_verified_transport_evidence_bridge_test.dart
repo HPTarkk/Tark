@@ -94,9 +94,10 @@ void main() {
         runtime: value.runtime,
         capabilitySource: source,
         proofExchange: source,
-        localProofProvider:
-            ({required int token, required int challengeEpoch}) async =>
-                'local-$token-$challengeEpoch',
+        localProofProvider: ({
+          required int token,
+          required int challengeEpoch,
+        }) async => 'local-$token-$challengeEpoch',
         onMemberProven: proven.add,
       );
       value.runtime.observeLocal(
@@ -151,8 +152,10 @@ void main() {
       runtime: value.runtime,
       capabilitySource: source,
       proofExchange: source,
-      localProofProvider:
-          ({required int token, required int challengeEpoch}) async => null,
+      localProofProvider: ({
+        required int token,
+        required int challengeEpoch,
+      }) async => null,
       onMemberProven: proven.add,
     );
     value.runtime.observeLocal(
@@ -213,8 +216,10 @@ void main() {
       runtime: value.runtime,
       capabilitySource: source,
       proofExchange: source,
-      localProofProvider:
-          ({required int token, required int challengeEpoch}) async => null,
+      localProofProvider: ({
+        required int token,
+        required int challengeEpoch,
+      }) async => null,
       onMemberProven: proven.add,
     );
     value.runtime.observeLocal(
@@ -267,9 +272,10 @@ void main() {
       runtime: value.runtime,
       capabilitySource: source,
       proofExchange: source,
-      localProofProvider:
-          ({required int token, required int challengeEpoch}) async =>
-              '$token:$challengeEpoch',
+      localProofProvider: ({
+        required int token,
+        required int challengeEpoch,
+      }) async => '$token:$challengeEpoch',
       onMemberProven: (_) {},
     );
 

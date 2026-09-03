@@ -15,8 +15,8 @@ class HotspotQrScannerPage extends StatelessWidget {
   const HotspotQrScannerPage({super.key});
 
   /// Opens the scanner and returns what was read (null when dismissed).
-  static Future<String?> open(BuildContext context) =>
-      Navigator.of(context).push<String>(
+  static Future<String?> open(BuildContext context) => Navigator.of(context)
+      .push<String>(
         MaterialPageRoute(builder: (_) => const HotspotQrScannerPage()),
       );
 

@@ -278,9 +278,9 @@ class _RoomEntryActionsState extends State<_RoomEntryActions> {
         RoomEntryAction(
           key: const Key('landing-create-room'),
           // Not a bare `add_rounded`: a thin cross beside the QR glyph's dense
-        // frame makes one half of the pair look lighter than the other, which
-        // is the one thing this row must not say.
-        icon: Icons.add_circle_outline_rounded,
+          // frame makes one half of the pair look lighter than the other, which
+          // is the one thing this row must not say.
+          icon: Icons.add_circle_outline_rounded,
           label: fa ? 'اتاق تازه' : 'NEW ROOM',
           hint: fa ? 'خودت یکی بساز' : 'Start your own',
           variant: RoomEntryVariant.compact,

@@ -325,9 +325,7 @@ class _Viewfinder extends StatelessWidget {
                 window: window,
                 // A full sine off a non-reversing controller, so the breath
                 // never pauses at the turn the way a reversing one does.
-                glow:
-                    0.5 -
-                    0.5 * math.cos(pulse.value * 2 * math.pi),
+                glow: 0.5 - 0.5 * math.cos(pulse.value * 2 * math.pi),
                 orbit: orbit.value,
                 lock: lock.value,
                 fail: fail.value,
@@ -407,17 +405,12 @@ class _Viewfinder extends StatelessWidget {
           child: AnimatedBuilder(
             animation: Listenable.merge([pulse, lock, fail]),
             builder: (context, _) {
-              final breath =
-                  0.5 - 0.5 * math.cos(pulse.value * 2 * math.pi);
+              final breath = 0.5 - 0.5 * math.cos(pulse.value * 2 * math.pi);
               final hit = Curves.easeOutCubic.transform(lock.value);
               final miss = Curves.easeOutCubic.transform(fail.value);
               return CustomPaint(
                 painter: CornerBracketsPainter(
-                  color: Color.lerp(
-                    Color.lerp(amber, green, hit)!,
-                    red,
-                    miss,
-                  )!,
+                  color: Color.lerp(Color.lerp(amber, green, hit)!, red, miss)!,
                   length: 30 + breath * 6 + hit * 16,
                   stroke: 3.5 + hit,
                   radius: 20,

@@ -17,8 +17,10 @@ abstract final class OnboardingLaunchActions {
   /// walk: the advisor needs an intent, and the only thing that supplies one
   /// is the user tapping START or JOIN on the room screen. So the key finishes
   /// setup and lands there, and has to say so.
-  static bool joinsAChannel({required bool replay, required TransferMode? mode}) =>
-      !replay && mode != null;
+  static bool joinsAChannel({
+    required bool replay,
+    required TransferMode? mode,
+  }) => !replay && mode != null;
 
   /// Whether the quiet "look around first" link is worth showing.
   ///

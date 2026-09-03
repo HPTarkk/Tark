@@ -5,8 +5,7 @@ import 'package:tark/feature/room/domain/service/room_carrier_promotion_planner.
 import 'package:tark/feature/room/domain/service/room_transport_planner.dart';
 
 void main() {
-  RoomMemberId member(String suffix) =>
-      RoomMemberId(suffix.padLeft(24, '0'));
+  RoomMemberId member(String suffix) => RoomMemberId(suffix.padLeft(24, '0'));
 
   RoomTransportCandidate candidate(
     String id, {
@@ -107,9 +106,8 @@ void main() {
         isFalse,
       );
       expect(
-        decide(
-          carrierUpFor: RoomCarrierPromotionPlanner.settleWindow,
-        ).shouldPromote,
+        decide(carrierUpFor: RoomCarrierPromotionPlanner.settleWindow)
+            .shouldPromote,
         isTrue,
       );
     });

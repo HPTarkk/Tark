@@ -143,9 +143,8 @@ final class LiveTransferRepository
     previous.stopConnection();
 
     _routeProofExchange(next)?.setRouteProofProvider(_routeProofProvider);
-    _carrierHandoverExchange(
-      next,
-    )?.setCarrierHandoverProvider(_carrierHandoverProvider);
+    _carrierHandoverExchange(next)
+        ?.setCarrierHandoverProvider(_carrierHandoverProvider);
 
     if (_packetsRequested) {
       unawaited(_rebindPackets(next, generation));

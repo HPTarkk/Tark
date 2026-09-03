@@ -80,9 +80,8 @@ class SelectedRoomLobby extends StatelessWidget {
           children: [
             Text(
               fa ? 'آماده شروع ارتباط' : 'Ready to start',
-              style: Theme.of(
-                context,
-              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+              style: Theme.of(context).textTheme.headlineSmall
+                  ?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
             Text(
@@ -97,9 +96,8 @@ class SelectedRoomLobby extends StatelessWidget {
                 fa
                     ? 'اعضای اتاق (${members.length.localized(context)})'
                     : 'Room members (${members.length.localized(context)})',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w700),
               ),
             ),
             const SizedBox(height: 8),

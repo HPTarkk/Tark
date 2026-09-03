@@ -351,9 +351,8 @@ class _PulseGlowState extends State<PulseGlow>
             borderRadius: widget.borderRadius,
             boxShadow: [
               BoxShadow(
-                color: Theme.of(context).colorScheme.primary.withValues(
-                  alpha: 0.06 + 0.16 * _pulse.value,
-                ),
+                color: Theme.of(context).colorScheme.primary
+                    .withValues(alpha: 0.06 + 0.16 * _pulse.value),
                 blurRadius: 28,
                 spreadRadius: 2,
               ),
@@ -398,7 +397,11 @@ class TapConfirmation extends StatefulWidget {
     super.key,
   });
 
-  final Widget Function(BuildContext context, bool confirmed, VoidCallback confirm)
+  final Widget Function(
+    BuildContext context,
+    bool confirmed,
+    VoidCallback confirm,
+  )
   builder;
 
   /// How long the confirmed state is held before the control returns.

@@ -107,9 +107,7 @@ class _InRoomInviteButtonState extends State<InRoomInviteButton> {
           child: Container(
             key: const Key('in-room-add-rider'),
             height: 34,
-            padding: EdgeInsets.symmetric(
-              horizontal: widget.compact ? 9 : 11,
-            ),
+            padding: EdgeInsets.symmetric(horizontal: widget.compact ? 9 : 11),
             decoration: BoxDecoration(
               color: AppColors.amber.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(999),
@@ -120,11 +118,7 @@ class _InRoomInviteButtonState extends State<InRoomInviteButton> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.group_add_rounded,
-                  size: 16,
-                  color: AppColors.amber,
-                ),
+                Icon(Icons.group_add_rounded, size: 16, color: AppColors.amber),
                 if (count != null) ...[
                   const SizedBox(width: 6),
                   Text(

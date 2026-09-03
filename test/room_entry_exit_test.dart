@@ -10,16 +10,14 @@ import 'package:tark/core/router/routes.dart';
 /// case: the room list, room creation and the join scanner all reach the entry
 /// with `go`, which replaces the stack rather than pushing onto it.
 void main() {
-  Widget stub(String label) =>
-      Scaffold(body: Center(child: Text(label, key: Key(label))));
+  Widget stub(String label) => Scaffold(
+    body: Center(child: Text(label, key: Key(label))),
+  );
 
   GoRouter buildRouter() => GoRouter(
     initialLocation: AppRoutes.landingPath,
     routes: [
-      GoRoute(
-        path: AppRoutes.landingPath,
-        builder: (_, _) => stub('landing'),
-      ),
+      GoRoute(path: AppRoutes.landingPath, builder: (_, _) => stub('landing')),
       GoRoute(path: AppRoutes.roomsPath, builder: (_, _) => stub('rooms')),
       GoRoute(
         path: AppRoutes.walkiePath,
