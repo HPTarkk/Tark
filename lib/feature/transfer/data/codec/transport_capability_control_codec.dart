@@ -156,8 +156,9 @@ final class TransportCapabilityControlCodec {
     var offset = 2 + idLength;
     if (bytes.length < offset + 8) return null;
     offset += 4;
-    final nameLength = ByteData.sublistView(bytes)
-        .getUint32(offset, Endian.little);
+    final nameLength = ByteData.sublistView(
+      bytes,
+    ).getUint32(offset, Endian.little);
     offset += 4;
     if (nameLength > bytes.length - offset) return null;
     offset += nameLength;

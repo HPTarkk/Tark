@@ -62,8 +62,9 @@ abstract final class CarrierHandoverWire {
   static int? _payloadLength(Uint8List bytes, int offset) {
     if (offset < 0 || bytes.length - offset < headerLength) return null;
     if (bytes[offset] != marker || bytes[offset + 1] != version) return null;
-    final length = ByteData.sublistView(bytes)
-        .getUint16(offset + 2, Endian.little);
+    final length = ByteData.sublistView(
+      bytes,
+    ).getUint16(offset + 2, Endian.little);
     if (length == 0 || length > maxPayloadBytes) return null;
     return length;
   }

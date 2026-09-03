@@ -230,8 +230,9 @@ class _SelectedRoomIdentityLineState extends State<_SelectedRoomIdentityLine> {
   @override
   void initState() {
     super.initState();
-    _identity = RideRoomIdentityResolver(GetIt.instance<RoomRepository>())
-        .load();
+    _identity = RideRoomIdentityResolver(
+      GetIt.instance<RoomRepository>(),
+    ).load();
   }
 
   @override

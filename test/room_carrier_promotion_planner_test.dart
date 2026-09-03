@@ -106,8 +106,9 @@ void main() {
         isFalse,
       );
       expect(
-        decide(carrierUpFor: RoomCarrierPromotionPlanner.settleWindow)
-            .shouldPromote,
+        decide(
+          carrierUpFor: RoomCarrierPromotionPlanner.settleWindow,
+        ).shouldPromote,
         isTrue,
       );
     });
