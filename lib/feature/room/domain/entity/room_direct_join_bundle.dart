@@ -147,6 +147,15 @@ final class RoomDirectJoinBundle {
     return '$_scheme$encoded';
   }
 
+  /// Whether [raw] is even *claiming* to be a Room invite.
+  ///
+  /// Every failure inside [decode] is one `FormatException`, which is right
+  /// for a decoder and wrong for a message: "that invite is invalid or
+  /// expired" is accurate for a code that really is one of ours and a lie for
+  /// a payload that never was. This is the cheap half of telling those apart,
+  /// and it is the same check [decode] opens with.
+  static bool looksLikeInvite(String raw) => raw.trim().startsWith(_scheme);
+
   static RoomDirectJoinBundle decode(String raw) {
     final trimmed = raw.trim();
     if (!trimmed.startsWith(_scheme)) {

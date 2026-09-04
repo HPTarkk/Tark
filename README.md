@@ -76,6 +76,8 @@ Minimum OS: **Android 8.0+** (hotspot host needs 8.0, music cast needs 10.0) / *
 
 > **Scanning a host's code drops you into "join this Wi-Fi yourself"?** Usually **Wi-Fi is off** on your phone (the join screen now offers the toggle inline) or **Location is off** (needed for Wi-Fi scanning through Android 12).
 
+> **Scanned the wrong code?** There are two, and they look alike: the bridge shows the host's *Wi-Fi* code, the People sheet shows a *room invite*. Point the room scanner at a Wi-Fi code and it no longer calls it an expired invite — it follows it, taking you to the join side of the bridge with the code already read, so you don't scan twice. The host's Wi-Fi code carries the channel too, so you land in their conversation and not just on their network.
+
 ---
 
 ## Setup & build

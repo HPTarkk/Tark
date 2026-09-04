@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/widget/qr_scanner_surface.dart';
+import '../../../transfer/api/hotspot_invite_api.dart';
+import '../../../transfer/api/transfer_api.dart';
 import '../../domain/entity/room_direct_join_bundle.dart';
 import '../manager/room_list_cubit.dart';
 
@@ -67,9 +69,48 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
       return false;
     } on FormatException {
       if (!mounted) return false;
-      setState(() => _error = copy.invalid);
-      return false;
+      return _notAnInvite(raw, copy);
     }
+  }
+
+  /// What to do with a code that decoded as anything but a Room invite.
+  ///
+  /// **There are two QR codes in this app.** The bridge shows the host's Wi-Fi
+  /// credentials; the People sheet shows a Room invite. They are deliberately
+  /// the same instrument at both ends — this page's own doc says it "wears the
+  /// same viewfinder as the hotspot scanner and the same amber brackets as the
+  /// invite QR", so the handoff reads as one thing — and that is precisely
+  /// what makes them confusable. Nothing on either screen said which of the
+  /// two it eats, so a rider standing in front of a perfectly good hotspot
+  /// code was told their invite had expired.
+  ///
+  /// So the wrong pairing stops being an error and becomes a route. The code
+  /// carries a network and, since the unified payload, the host's channel with
+  /// it — and voice is filtered on the channel rather than on Room membership,
+  /// so following it puts this phone on the host's network *and* in the host's
+  /// conversation. Not a Room member, which is a different and durable thing;
+  /// but heard, which is what somebody holding a camera up to a code is
+  /// asking for.
+  ///
+  /// The payload rides in `extra` rather than in the query string on purpose:
+  /// it contains the network's passphrase.
+  bool _notAnInvite(String raw, _JoinCopy copy) {
+    final network = ScannedCode.parse(raw);
+    if (network != null) {
+      context.push(ConnectRoute.forScannedNetwork(), extra: raw);
+      // Leaving, so the frame stays locked rather than re-arming a camera
+      // behind a page that is on its way out.
+      return true;
+    }
+    // Nothing left to do but say so — and say the right one. "Invalid or
+    // expired" is honest about a code that really is one of ours and a lie
+    // about a bus ticket.
+    setState(
+      () => _error = RoomDirectJoinBundle.looksLikeInvite(raw)
+          ? copy.invalid
+          : copy.notOurCode,
+    );
+    return false;
   }
 
   @override
@@ -119,6 +160,9 @@ final class _JoinCopy {
   String get invalid => fa
       ? 'این کد دعوت معتبر نیست یا منقضی شده.'
       : 'That invite is invalid or expired.';
+  String get notOurCode => fa
+      ? 'این کد مال «ترک» نیست. کد دعوت یا کد وای‌فای روی گوشی میزبان را اسکن کن.'
+      : "That code isn't a Tarkk one. Scan the invite, or the Wi-Fi code, from the host's phone.";
   String get cameraDenied => fa
       ? '«ترک» برای خواندن کد دعوت دوربین می‌خواهد.'
       : "Tarkk needs the camera to read the host's invite.";

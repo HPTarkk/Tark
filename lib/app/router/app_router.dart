@@ -127,11 +127,17 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.wifiHotspotPath,
         name: AppRoutes.wifiHotspotName,
+        // `extra` carries a QR payload another scanner already read — the
+        // Room join page, pointed at the host's Wi-Fi code instead of at an
+        // invite. Deliberately not a query parameter: the payload contains
+        // the network's passphrase, and a URL is the one place it must never
+        // be written.
         builder: (context, state) => WifiHotspotPage.buildPage(
           initialSegment: state.uri.queryParameters['mode'] == 'hotspot'
               ? WifiHotspotSegment.hotspot
               : WifiHotspotSegment.wifi,
           intent: ChannelIntent.fromKey(state.uri.queryParameters['intent']),
+          handedCode: state.extra is String ? state.extra! as String : null,
         ),
       ),
       GoRoute(

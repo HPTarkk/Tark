@@ -35,6 +35,20 @@ abstract final class ConnectRoute {
       '${AppRoutes.wifiHotspotPath}?mode=hotspot&intent=${plan.intent.key}',
   };
 
+  /// For a **network code read somewhere that cannot act on it** — the Room's
+  /// one-scan join scanner, pointed at the host's hotspot QR.
+  ///
+  /// There are two QR codes in this app and they are not interchangeable: the
+  /// bridge shows Wi-Fi credentials, the People sheet shows a Room invite, and
+  /// the two scanners are deliberately identical instruments. So the wrong
+  /// pairing is an ordinary mistake rather than a rare one, and the right
+  /// answer to it is not a better error message — it is to do what the code
+  /// says. This is always the joining side: whoever is holding a camera up to
+  /// somebody else's screen is not the one who made the network.
+  static String forScannedNetwork() =>
+      '${AppRoutes.wifiHotspotPath}?mode=hotspot'
+      '&intent=${ChannelIntent.join.key}';
+
   /// For a device that **has a link and still cannot reach anybody** — the
   /// two phones are each on something, just not on the same thing.
   ///

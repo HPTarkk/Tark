@@ -35,9 +35,19 @@ import '../widget/hotspot_wifi_only_flow.dart';
 ///    network. Either way, once a peer is heard (or the user taps through)
 ///    it enters the ordinary Wi-Fi channel.
 class WifiHotspotPage extends StatefulWidget {
-  const WifiHotspotPage._({required this.initialSegment});
+  const WifiHotspotPage._({required this.initialSegment, this.handedCode});
 
   final WifiHotspotSegment initialSegment;
+
+  /// A payload somebody else's scanner already read, handed over instead of
+  /// asking for it again.
+  ///
+  /// Set only by the Room's one-scan join page, when the code it was pointed
+  /// at turned out to carry a network rather than a Room invite (see
+  /// `ConnectRoute.forScannedNetwork`). The camera has already been held up to
+  /// that code once; opening it a second time on arrival would be the app
+  /// asking for something it is holding.
+  final String? handedCode;
 
   /// [intent] carries a side the user has already chosen on the landing page,
   /// so the bridge does not open by asking "are you the host?" one screen
@@ -53,6 +63,7 @@ class WifiHotspotPage extends StatefulWidget {
   static Widget buildPage({
     WifiHotspotSegment? initialSegment,
     ChannelIntent? intent,
+    String? handedCode,
   }) => BlocProvider<WifiHotspotCubit>(
     create: (_) {
       final cubit = GetIt.instance<WifiHotspotCubit>();
@@ -69,6 +80,7 @@ class WifiHotspotPage extends StatefulWidget {
     },
     child: WifiHotspotPage._(
       initialSegment: initialSegment ?? WifiHotspotSegment.wifi,
+      handedCode: handedCode,
     ),
   );
 
@@ -103,6 +115,15 @@ class _WifiHotspotPageState extends State<WifiHotspotPage>
     // push a route, and no route exists to push onto before the first frame.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      final handed = widget.handedCode;
+      if (handed != null) {
+        // Spend the one-shot here rather than on the camera: this arrival
+        // already has the code, and a submission that comes back invalid must
+        // no more re-open the scanner unasked than a bad manual scan does.
+        _autoScanTriggered = true;
+        unawaited(context.read<WifiHotspotCubit>().submitScannedCode(handed));
+        return;
+      }
       _maybeAutoScan(context, context.read<WifiHotspotCubit>().state);
     });
   }
