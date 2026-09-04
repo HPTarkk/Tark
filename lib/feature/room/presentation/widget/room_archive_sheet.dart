@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
@@ -37,7 +38,6 @@ class _Sheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final copy = _ArchiveCopy.of(context);
     return BlocConsumer<RoomListCubit, RoomListState>(
       // Emptying the archive closes it. Leaving an empty panel open would make
       // the user dismiss a sheet whose whole subject they just cleared.
@@ -53,15 +53,15 @@ class _Sheet extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               SheetTitle(
-                title: copy.eyebrow,
-                subtitle: copy.title,
+                title: context.getString.archive_eyebrow,
+                subtitle: context.getString.archive_title,
                 // Cool, not amber: the archive is the one Room surface that is
                 // deliberately not the live path.
                 accent: AppColors.textSecondary,
               ),
               const SizedBox(height: 6),
               Text(
-                copy.blurb,
+                context.getString.archive_blurb,
                 style: TextStyle(
                   color: AppColors.textSecondary,
                   fontSize: 12.5,
@@ -87,7 +87,6 @@ class _Sheet extends StatelessWidget {
                         key: Key('archived-${saved.room.id.value}'),
                         saved: saved,
                         busy: state.loading,
-                        copy: copy,
                       ),
                       const SizedBox(height: 10),
                     ],
@@ -108,16 +107,10 @@ class _Sheet extends StatelessWidget {
 /// rail down the leading edge, no amber anywhere except the control that
 /// brings it back. The colour returning *is* the affordance.
 class _ArchivedRoomCard extends StatelessWidget {
-  const _ArchivedRoomCard({
-    required this.saved,
-    required this.busy,
-    required this.copy,
-    super.key,
-  });
+  const _ArchivedRoomCard({required this.saved, required this.busy, super.key});
 
   final SavedRoom saved;
   final bool busy;
-  final _ArchiveCopy copy;
 
   static final _radius = BorderRadius.circular(16);
 
@@ -125,7 +118,10 @@ class _ArchivedRoomCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final members = saved.room.confirmedMembers.length;
     return Semantics(
-      label: copy.cardSemantics(saved.room.name, members),
+      label: context.getString.archive_card_semantics(
+        saved.room.name,
+        members.localized(context),
+      ),
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: AppColors.card,
@@ -182,7 +178,9 @@ class _ArchivedRoomCard extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            copy.memberCount(members),
+                            context.getString.archive_member_count(
+                              members.localized(context),
+                            ),
                             style: TextStyle(
                               color: AppColors.textSecondary,
                               fontSize: 12,
@@ -196,7 +194,7 @@ class _ArchivedRoomCard extends StatelessWidget {
                           Expanded(
                             child: _RowAction(
                               key: Key('restore-${saved.room.id.value}'),
-                              label: copy.restore,
+                              label: context.getString.archive_restore,
                               icon: Icons.unarchive_rounded,
                               accent: AppColors.amber,
                               onTap: busy
@@ -207,7 +205,7 @@ class _ArchivedRoomCard extends StatelessWidget {
                           const SizedBox(width: 8),
                           _RowAction(
                             key: Key('delete-${saved.room.id.value}'),
-                            label: copy.delete,
+                            label: context.getString.archive_delete,
                             icon: Icons.delete_outline_rounded,
                             accent: AppColors.red,
                             compact: true,
@@ -237,12 +235,11 @@ class _ArchivedRoomCard extends StatelessWidget {
 /// Asks, then deletes — shared with the saved-Rooms list so the question is
 /// worded identically wherever the Room is deleted from.
 Future<void> confirmAndDeleteRoom(BuildContext context, SavedRoom saved) async {
-  final copy = _ArchiveCopy.of(context);
   final confirmed = await showConfirmSheet(
     context,
-    title: copy.deleteTitle,
-    body: copy.deleteConfirm(saved.room.name),
-    action: copy.deleteAction,
+    title: context.getString.archive_delete_title,
+    body: context.getString.archive_delete_confirm(saved.room.name),
+    action: context.getString.archive_delete_action,
     icon: Icons.delete_outline_rounded,
     destructive: true,
   );
@@ -319,39 +316,4 @@ class _RowAction extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Bilingual copy kept local to this surface until the next generated-l10n
-/// sweep, matching the saved-Rooms page it opens from.
-final class _ArchiveCopy {
-  const _ArchiveCopy({required this.fa});
-
-  factory _ArchiveCopy.of(BuildContext context) => _ArchiveCopy(
-    fa: Localizations.localeOf(context).languageCode.toLowerCase() == 'fa',
-  );
-
-  final bool fa;
-
-  String get eyebrow => fa ? 'بایگانی' : 'ARCHIVE';
-  String get title => fa ? 'اتاق‌های بایگانی‌شده' : 'Archived rooms';
-  String get blurb => fa
-      ? 'این اتاق‌ها روی همین گوشی می‌مانند و عضویت‌شان دست‌نخورده است. هر وقت خواستید برشان گردانید.'
-      : 'These stay on this phone with their membership intact. Bring one back whenever you want it.';
-  String get restore => fa ? 'بازگرداندن' : 'Restore';
-  String get delete => fa ? 'حذف' : 'Delete';
-  String get deleteTitle => fa ? 'حذف اتاق' : 'Delete room';
-  String get deleteAction => fa ? 'حذف کن' : 'Delete';
-
-  String _n(int value) => localizeDigits('$value', farsi: fa);
-
-  String memberCount(int count) =>
-      fa ? '${_n(count)} عضو' : '${_n(count)} members';
-
-  String deleteConfirm(String name) => fa
-      ? '«$name» از این گوشی پاک می‌شود و برنمی‌گردد. اگر فقط می‌خواهید از فهرست کنار برود، بایگانی‌اش کنید.'
-      : 'Deletes “$name” from this phone for good. If you only want it out of the list, archive it instead.';
-
-  String cardSemantics(String name, int count) => fa
-      ? '$name، بایگانی‌شده، ${_n(count)} عضو'
-      : '$name, archived, ${_n(count)} members';
 }

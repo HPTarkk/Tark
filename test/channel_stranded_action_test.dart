@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tark/core/l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tark/core/router/routes.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
@@ -69,7 +70,15 @@ void main() {
     );
     addTearDown(router.dispose);
     await tester.pumpWidget(
-      MaterialApp.router(locale: const Locale('en'), routerConfig: router),
+      MaterialApp.router(
+        locale: const Locale('en'),
+        // The card reads its copy from [AppLocalizations] now rather than
+        // switching on the locale itself, so a harness without the app's own
+        // delegate has no strings at all.
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        routerConfig: router,
+      ),
     );
     // Bounded: the primary control carries a repeating pulse, so a settle
     // would wait on an animation that never ends.

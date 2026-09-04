@@ -251,10 +251,10 @@ class RideRoomIdentityBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fa = Localizations.localeOf(context).languageCode == 'fa';
-    final semantics = fa
-        ? 'اتاق ${identity.name}، کد ${identity.code}'
-        : 'Room ${identity.name}, code ${identity.code}';
+    final semantics = context.getString.header_room_semantics(
+      identity.name,
+      identity.code,
+    );
     final codeStyle = TextStyle(
       color: AppColors.textSecondary,
       fontSize: 11,
@@ -431,12 +431,11 @@ class SignalIndicator extends StatelessWidget {
         final accent = !isActive
             ? AppColors.textSecondary
             : _qualityColor(quality);
-        final fa = Localizations.localeOf(context).languageCode == 'fa';
         final s = context.getString;
         return Semantics(
           liveRegion: true,
           label: alone
-              ? (fa ? 'تنها در اتاق' : 'Alone in the room')
+              ? context.getString.header_alone_in_room
               : (isActive ? s.live : s.offline),
           excludeSemantics: true,
           child: Row(
@@ -449,7 +448,7 @@ class SignalIndicator extends StatelessWidget {
               const SizedBox(width: 5),
               TickerText(
                 text: alone
-                    ? (fa ? 'تنها' : 'ALONE')
+                    ? context.getString.header_alone
                     : isActive
                     ? s.live
                     : s.offline,

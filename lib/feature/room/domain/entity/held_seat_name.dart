@@ -16,6 +16,15 @@
 /// the phone reading it may not be in that locale.
 library;
 
+/// Deliberately literal, and the one string in the app that stays out of the
+/// ARB files.
+///
+/// It is a **durable stored value**, not display copy: the host writes it into
+/// the seat record, and `roomMemberDisplayName` has to recognise it later on a
+/// phone that may be running the other language. `AppLocalizations` only ever
+/// knows what the *reader* is set to, so resolving it there would leave a seat
+/// opened in Persian unrecognisable to an English reader — and the row would
+/// go on claiming to be free after somebody sat in it.
 String heldSeatNameFor({required bool fa}) => fa ? 'جای خالی' : 'Open seat';
 
 /// Whether [name] is a placeholder this app wrote rather than a chosen name.

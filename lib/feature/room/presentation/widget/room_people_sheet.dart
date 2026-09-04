@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 
+import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
@@ -194,7 +195,7 @@ class _RoomPeopleSheetState extends State<RoomPeopleSheet> {
   Future<void> _issueInvite() async {
     final saved = _room;
     if (_issuing || !_canInvite(saved)) return;
-    final copy = _PeopleCopy.of(context);
+    final fa = Localizations.localeOf(context).languageCode == 'fa';
     setState(() {
       _issuing = true;
       _error = null;
@@ -216,7 +217,7 @@ class _RoomPeopleSheetState extends State<RoomPeopleSheet> {
       if (verified == null) throw StateError('Room invite verification failed');
       final accepted = await _repository.acceptVerifiedInvite(
         verified,
-        displayName: copy.heldSeatName,
+        displayName: heldSeatNameFor(fa: fa),
         acceptedAt: DateTime.now().toUtc(),
         pending: true,
         // The seat is the code's shadow, so it dies when the code does. Past
@@ -263,7 +264,7 @@ class _RoomPeopleSheetState extends State<RoomPeopleSheet> {
       if (!mounted) return;
       setState(() {
         _issuing = false;
-        _error = copy.issueError;
+        _error = context.getString.people_issue_error;
       });
     }
   }
@@ -283,7 +284,6 @@ class _RoomPeopleSheetState extends State<RoomPeopleSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final copy = _PeopleCopy.of(context);
     return SheetShell(
       child: AnimatedSize(
         duration: AppMotion.sheet,
@@ -293,13 +293,13 @@ class _RoomPeopleSheetState extends State<RoomPeopleSheet> {
           duration: AppMotion.card,
           switchInCurve: AppMotion.easeOut,
           switchOutCurve: AppMotion.leaving,
-          child: _body(context, copy),
+          child: _body(context),
         ),
       ),
     );
   }
 
-  Widget _body(BuildContext context, _PeopleCopy copy) {
+  Widget _body(BuildContext context) {
     if (_loading) {
       return const Padding(
         key: ValueKey('people-loading'),
@@ -312,7 +312,7 @@ class _RoomPeopleSheetState extends State<RoomPeopleSheet> {
       return _Message(
         key: const ValueKey('people-none'),
         icon: Icons.meeting_room_outlined,
-        text: copy.noRoom,
+        text: context.getString.people_no_room,
       );
     }
     final invite = _invite;
@@ -321,7 +321,6 @@ class _RoomPeopleSheetState extends State<RoomPeopleSheet> {
         key: const ValueKey('people-invite'),
         room: saved,
         invite: invite,
-        copy: copy,
         grantsInvites: _grantInvites,
         wifi: _showWifiQr ? _credentials : null,
         recovering: _showRecovery,
@@ -331,7 +330,6 @@ class _RoomPeopleSheetState extends State<RoomPeopleSheet> {
     return _Roster(
       key: const ValueKey('people-roster'),
       room: saved,
-      copy: copy,
       canInvite: _canInvite(saved),
       issuing: _issuing,
       error: _error,
@@ -363,7 +361,6 @@ class _IssuedInvite {
 class _Roster extends StatelessWidget {
   const _Roster({
     required this.room,
-    required this.copy,
     required this.canInvite,
     required this.issuing,
     required this.error,
@@ -375,7 +372,6 @@ class _Roster extends StatelessWidget {
   });
 
   final SavedRoom room;
-  final _PeopleCopy copy;
   final bool canInvite;
   final bool issuing;
   final String? error;
@@ -397,10 +393,15 @@ class _Roster extends StatelessWidget {
           children: children,
         ),
         children: [
-          SheetTitle(title: copy.title, subtitle: room.room.name),
+          SheetTitle(
+            title: context.getString.people_title,
+            subtitle: room.room.name,
+          ),
           const SizedBox(height: 18),
           _SectionLabel(
-            text: copy.inRoom(confirmed.length),
+            text: context.getString.people_in_room(
+              confirmed.length.localized(context),
+            ),
             icon: Icons.groups_2_rounded,
           ),
           const SizedBox(height: 8),
@@ -408,13 +409,14 @@ class _Roster extends StatelessWidget {
             _MemberRow(
               member: member,
               isYou: member.id == room.membership.localMemberId,
-              copy: copy,
               onRevoke: null,
             ),
           if (pending.isNotEmpty) ...[
             const SizedBox(height: 18),
             _SectionLabel(
-              text: copy.heldSeats(pending.length),
+              text: context.getString.people_held_seats(
+                pending.length.localized(context),
+              ),
               icon: Icons.hourglass_top_rounded,
               muted: true,
             ),
@@ -422,7 +424,7 @@ class _Roster extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Text(
-                copy.heldSeatsHint,
+                context.getString.people_held_seats_hint,
                 style: TextStyle(
                   color: AppColors.textSecondary,
                   fontSize: 11.5,
@@ -434,27 +436,22 @@ class _Roster extends StatelessWidget {
               _MemberRow(
                 member: member,
                 isYou: false,
-                copy: copy,
                 onRevoke: () => onRevoke(member),
               ),
           ],
           const SizedBox(height: 20),
           if (canInvite) ...[
-            _GrantToggle(
-              value: grantInvites,
-              copy: copy,
-              onChanged: onToggleGrant,
-            ),
+            _GrantToggle(value: grantInvites, onChanged: onToggleGrant),
             const SizedBox(height: 12),
             _PrimaryAction(
               key: const Key('room-people-invite'),
               icon: Icons.qr_code_2_rounded,
-              label: copy.createInvite,
+              label: context.getString.people_create_invite,
               busy: issuing,
               onTap: onInvite,
             ),
           ] else
-            _Note(text: copy.cannotInvite),
+            _Note(text: context.getString.people_cannot_invite),
           if (error != null) ...[
             const SizedBox(height: 12),
             _Note(text: error!, danger: true),
@@ -469,13 +466,11 @@ class _MemberRow extends StatelessWidget {
   const _MemberRow({
     required this.member,
     required this.isYou,
-    required this.copy,
     required this.onRevoke,
   });
 
   final RoomMember member;
   final bool isYou;
-  final _PeopleCopy copy;
   final VoidCallback? onRevoke;
 
   @override
@@ -485,8 +480,12 @@ class _MemberRow extends StatelessWidget {
     // is the same misrepresentation R7 renamed it to prevent.
     final name = roomMemberDisplayName(
       member,
-      fa: copy.fa,
-      unnamed: copy.unnamed,
+      // The locale itself, not a translated string. A held seat's placeholder
+      // is written into storage in whichever language the host was using, and
+      // [roomMemberDisplayName] checks both — so it cannot come from the ARB,
+      // which only ever knows what the *reader* is using.
+      fa: Localizations.localeOf(context).languageCode == 'fa',
+      unnamed: context.getString.people_unnamed,
     );
     final pending = member.pending;
     final accent = pending ? AppColors.textSecondary : AppColors.amber;
@@ -543,7 +542,9 @@ class _MemberRow extends StatelessWidget {
                 if (isYou || pending) ...[
                   const SizedBox(height: 2),
                   Text(
-                    isYou ? copy.you : copy.waiting,
+                    isYou
+                        ? context.getString.people_you
+                        : context.getString.people_waiting,
                     style: TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 11,
@@ -555,7 +556,7 @@ class _MemberRow extends StatelessWidget {
           ),
           if (onRevoke != null)
             IconButton(
-              tooltip: copy.revoke,
+              tooltip: context.getString.people_revoke,
               onPressed: onRevoke,
               visualDensity: VisualDensity.compact,
               icon: Icon(
@@ -571,14 +572,9 @@ class _MemberRow extends StatelessWidget {
 }
 
 class _GrantToggle extends StatelessWidget {
-  const _GrantToggle({
-    required this.value,
-    required this.copy,
-    required this.onChanged,
-  });
+  const _GrantToggle({required this.value, required this.onChanged});
 
   final bool value;
-  final _PeopleCopy copy;
   final ValueChanged<bool> onChanged;
 
   @override
@@ -616,7 +612,7 @@ class _GrantToggle extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    copy.grantTitle,
+                    context.getString.people_grant_title,
                     style: TextStyle(
                       color: value ? AppColors.amber : AppColors.textPrimary,
                       fontSize: 13,
@@ -625,7 +621,7 @@ class _GrantToggle extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    copy.grantHint,
+                    context.getString.people_grant_hint,
                     style: TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 11,
@@ -653,7 +649,6 @@ class _InvitePanel extends StatelessWidget {
   const _InvitePanel({
     required this.room,
     required this.invite,
-    required this.copy,
     required this.grantsInvites,
     required this.wifi,
     required this.recovering,
@@ -663,7 +658,6 @@ class _InvitePanel extends StatelessWidget {
 
   final SavedRoom room;
   final _IssuedInvite invite;
-  final _PeopleCopy copy;
   final bool grantsInvites;
   final HotspotCredentials? wifi;
   final bool recovering;
@@ -681,7 +675,10 @@ class _InvitePanel extends StatelessWidget {
           children: children,
         ),
         children: [
-          SheetTitle(title: copy.inviteTitle, subtitle: room.room.name),
+          SheetTitle(
+            title: context.getString.people_invite_title,
+            subtitle: room.room.name,
+          ),
           const SizedBox(height: 16),
           Center(
             child: GlowingQrCard(
@@ -702,7 +699,7 @@ class _InvitePanel extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            copy.inviteHint,
+            context.getString.people_invite_hint,
             textAlign: TextAlign.center,
             style: TextStyle(
               color: AppColors.textSecondary,
@@ -711,17 +708,17 @@ class _InvitePanel extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          _CheckCode(code: invite.displayCode, copy: copy),
+          _CheckCode(code: invite.displayCode),
           if (grantsInvites) ...[
             const SizedBox(height: 12),
-            _Note(text: copy.grantedNote, accent: true),
+            _Note(text: context.getString.people_granted_note, accent: true),
           ],
           if (credentials != null) ...[
             const SizedBox(height: 16),
-            _WifiSection(credentials: credentials, copy: copy),
+            _WifiSection(credentials: credentials),
           ] else if (recovering) ...[
             const SizedBox(height: 16),
-            _Note(text: copy.wifiRecovering),
+            _Note(text: context.getString.people_wifi_recovering),
           ],
           const SizedBox(height: 18),
           Row(
@@ -735,7 +732,9 @@ class _InvitePanel extends StatelessWidget {
                     key: const Key('room-invite-copy'),
                     confirmed: copied,
                     icon: copied ? Icons.check_rounded : Icons.copy_rounded,
-                    label: copied ? copy.copied : copy.copyInvite,
+                    label: copied
+                        ? context.getString.people_copied
+                        : context.getString.people_copy_invite,
                     onTap: () async {
                       await Clipboard.setData(
                         ClipboardData(text: invite.encoded),
@@ -749,7 +748,7 @@ class _InvitePanel extends StatelessWidget {
               Expanded(
                 child: _PrimaryAction(
                   icon: Icons.check_rounded,
-                  label: copy.done,
+                  label: context.getString.people_done,
                   onTap: onDone,
                 ),
               ),
@@ -762,10 +761,9 @@ class _InvitePanel extends StatelessWidget {
 }
 
 class _CheckCode extends StatelessWidget {
-  const _CheckCode({required this.code, required this.copy});
+  const _CheckCode({required this.code});
 
   final String code;
-  final _PeopleCopy copy;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -778,7 +776,7 @@ class _CheckCode extends StatelessWidget {
     child: Column(
       children: [
         Text(
-          copy.codeLabel,
+          context.getString.people_code_label,
           style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
         ),
         const SizedBox(height: 4),
@@ -800,7 +798,7 @@ class _CheckCode extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          copy.codeWarning,
+          context.getString.people_code_warning,
           textAlign: TextAlign.center,
           style: TextStyle(
             color: AppColors.textSecondary,
@@ -814,10 +812,9 @@ class _CheckCode extends StatelessWidget {
 }
 
 class _WifiSection extends StatelessWidget {
-  const _WifiSection({required this.credentials, required this.copy});
+  const _WifiSection({required this.credentials});
 
   final HotspotCredentials credentials;
-  final _PeopleCopy copy;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -831,7 +828,7 @@ class _WifiSection extends StatelessWidget {
     child: Column(
       children: [
         Text(
-          copy.wifiTitle,
+          context.getString.people_wifi_title,
           style: TextStyle(
             color: AppColors.textPrimary,
             fontWeight: FontWeight.w800,
@@ -847,18 +844,18 @@ class _WifiSection extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          '${copy.ssidLabel}: ${credentials.ssid}',
+          '${context.getString.people_ssid_label}: ${credentials.ssid}',
           style: TextStyle(color: AppColors.textPrimary, fontSize: 12.5),
         ),
         SelectableText(
-          '${copy.passwordLabel}: ${credentials.passphrase}',
+          '${context.getString.people_password_label}: ${credentials.passphrase}',
           key: const Key('room-invite-wifi-password'),
           textAlign: TextAlign.center,
           style: TextStyle(color: AppColors.textPrimary, fontSize: 12.5),
         ),
         const SizedBox(height: 6),
         Text(
-          copy.wifiEphemeral,
+          context.getString.people_wifi_ephemeral,
           textAlign: TextAlign.center,
           style: TextStyle(
             color: AppColors.textSecondary,
@@ -1146,86 +1143,3 @@ class _Message extends StatelessWidget {
 }
 
 // ── Copy ─────────────────────────────────────────────────────────────────────
-
-final class _PeopleCopy {
-  const _PeopleCopy({required this.fa});
-
-  factory _PeopleCopy.of(BuildContext context) => _PeopleCopy(
-    fa: Localizations.localeOf(context).languageCode.toLowerCase() == 'fa',
-  );
-
-  final bool fa;
-
-  String get title => fa ? 'افراد اتاق' : 'ROOM PEOPLE';
-  String get inviteTitle => fa ? 'دعوت تازه' : 'NEW INVITE';
-  String get you => fa ? 'شما' : 'You';
-  String get waiting => fa ? 'هنوز نیامده' : 'Has not arrived yet';
-  String get unnamed => fa ? 'بدون نام' : 'Unnamed';
-  String get revoke => fa ? 'پس گرفتن دعوت' : 'Take the invite back';
-
-  /// What a seat is called before anyone has claimed it.
-  ///
-  /// Deliberately not a person's name. The old placeholder read like a real
-  /// member called "New rider", which is exactly why an empty seat was
-  /// indistinguishable from someone who had actually joined.
-  ///
-  /// Shared with the roster's renderer, which has to recognise it: this string
-  /// is stored durably on the seat, so it outlives the seat being empty.
-  String get heldSeatName => heldSeatNameFor(fa: fa);
-
-  String get createInvite => fa ? 'ساخت دعوت' : 'CREATE AN INVITE';
-  String get done => fa ? 'تمام' : 'DONE';
-  String get copyInvite => fa ? 'کپی دعوت' : 'Copy invite';
-  // Deliberately shorter than [copyInvite]: it replaces that label in place
-  // on a half-width control, so a longer word would ellipsize the answer.
-  String get copied => fa ? 'کپی شد' : 'Copied';
-
-  String get inviteHint => fa
-      ? 'بگذار طرف مقابل این کد را با «پیوستن با QR» اسکن کند. مستقیم وارد اتاق می‌شود.'
-      : 'Have them scan this with Join with QR. They come straight in.';
-  String get heldSeatsHint => fa
-      ? 'این جاها با دعوت باز شده‌اند ولی هنوز کسی از آن‌ها استفاده نکرده. در شمار اعضا حساب نمی‌شوند.'
-      : 'These seats were opened by an invite nobody has used yet. They are not counted as members.';
-
-  String get codeLabel => fa ? 'کد بررسی اتاق' : 'Room check code';
-  String get codeWarning => fa
-      ? 'این کد فقط برای بررسی است و به‌تنهایی اجازه ورود نمی‌دهد.'
-      : 'This code is only a check value and cannot authorize joining by itself.';
-
-  String get grantTitle => fa ? 'اجازه دعوت دیگران' : 'Let them invite people';
-  String get grantHint => fa
-      ? 'با این اجازه، این نفر هم می‌تواند دیگران را به اتاق بیاورد.'
-      : 'With this on, they can bring others into the Room too.';
-  String get grantedNote => fa
-      ? 'این دعوت اجازه دعوت‌کردن دیگران را هم می‌دهد.'
-      : 'This invite also grants the right to invite others.';
-
-  String get cannotInvite => fa
-      ? 'شما اجازه دعوت در این اتاق را ندارید. از میزبان بخواهید هنگام دعوت، «اجازه دعوت دیگران» را روشن کند.'
-      : 'You cannot invite people to this Room. Ask the host to turn on “Let them invite people” when they invite you.';
-  String get issueError => fa
-      ? 'ساخت دعوت ممکن نشد. دوباره تلاش کنید.'
-      : 'Could not create the invite. Try again.';
-  String get noRoom =>
-      fa ? 'هیچ اتاقی انتخاب نشده است.' : 'No Room is selected.';
-
-  String get wifiTitle => fa ? 'اتصال وای‌فای میزبان' : 'Host Wi-Fi connection';
-  String get ssidLabel => fa ? 'نام شبکه' : 'Network';
-  String get passwordLabel => fa ? 'رمز عبور' : 'Password';
-  String get wifiEphemeral => fa
-      ? 'این اطلاعات فقط مربوط به اتصال فعلی است و شناسه اتاق نیست.'
-      : 'These credentials belong only to the current connection, not the Room.';
-  String get wifiRecovering => fa
-      ? 'هات‌اسپات در حال بازیابی است. کیوآر وای‌فای بعد از آماده‌شدن شبکه تازه می‌شود.'
-      : 'Hotspot is recovering. The Wi-Fi QR refreshes when the new network is ready.';
-
-  /// Quantities in the reader's own numerals. The check code below is
-  /// deliberately excluded — it is compared against another phone that may be
-  /// running a different locale, so both ends have to render it identically.
-  String _n(int value) => localizeDigits('$value', farsi: fa);
-
-  String inRoom(int count) =>
-      fa ? 'در اتاق (${_n(count)})' : 'IN THE ROOM (${_n(count)})';
-  String heldSeats(int count) =>
-      fa ? 'جای بازشده (${_n(count)})' : 'OPEN SEATS (${_n(count)})';
-}

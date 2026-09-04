@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tark/core/l10n/app_localizations.dart';
 import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tark/feature/room/data/repository/shared_preferences_room_repository.dart';
@@ -50,8 +50,11 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         locale: const Locale('en'),
-        supportedLocales: const [Locale('en'), Locale('fa')],
-        localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        // The app's own delegate, not just the Material ones: these screens
+        // read their copy from [AppLocalizations] now rather than switching
+        // on the locale themselves, so a harness without it has no strings.
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
         home: RoomListPage.buildPage(),
       ),
     );

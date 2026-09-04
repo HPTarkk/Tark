@@ -1544,4 +1544,522 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get preflight_enter_channel => 'ENTER CHANNEL';
+
+  @override
+  String get lobby_back => 'Back';
+
+  @override
+  String get lobby_heading => 'Ready to start';
+
+  @override
+  String get lobby_alone_heading => 'Your room is ready';
+
+  @override
+  String get lobby_nothing_started =>
+      'No hotspot, microphone, or live transport starts until you press Start ride.';
+
+  @override
+  String get lobby_alone_title => 'You\'re the only one here';
+
+  @override
+  String lobby_alone_body(Object room) {
+    return 'Nobody else is in “$room” yet. Show them the invite code — one scan puts them in this room, with no internet.';
+  }
+
+  @override
+  String get lobby_alone_no_right =>
+      'Nobody else is here yet. Adding people is up to whoever runs this room.';
+
+  @override
+  String get lobby_invite_someone => 'INVITE SOMEONE';
+
+  @override
+  String get lobby_invite_more => 'INVITE SOMEONE ELSE';
+
+  @override
+  String get lobby_start_ride => 'Start ride';
+
+  @override
+  String get lobby_unlinked_heading => 'Not connected yet';
+
+  @override
+  String get lobby_unlinked_lead =>
+      'This phone has to be on something before the channel can open.';
+
+  @override
+  String get lobby_unlinked_title => 'No link yet';
+
+  @override
+  String get lobby_unlinked_body =>
+      'Tark runs over Wi-Fi, a hotspot one of you turns on, or Bluetooth — no internet, no SIM. Right now this phone is on none of them.';
+
+  @override
+  String get lobby_unlinked_no_way_out =>
+      'This phone is not on any network right now. Turn Wi-Fi on, or bring a hotspot up from the connect screen.';
+
+  @override
+  String get lobby_connect => 'GET CONNECTED';
+
+  @override
+  String get lobby_assumed_heading => 'One thing first';
+
+  @override
+  String get lobby_assumed_lead =>
+      'Being on Wi-Fi is not the same as being on their Wi-Fi.';
+
+  @override
+  String get lobby_assumed_title => 'Are they on this network?';
+
+  @override
+  String get lobby_assumed_body =>
+      'This phone is on a network that was already here, and there is no way from this side to tell whether the others are on it too — nor whether it will still be under you in ten minutes. A hotspot one of you turns on works wherever you end up: you show a code, they scan it.';
+
+  @override
+  String get lobby_assumed_no_way_out =>
+      'This phone is on a network that was already here. Until someone is heard, there is no telling whether the others are on it.';
+
+  @override
+  String get lobby_get_on_one_network => 'GET ON ONE NETWORK';
+
+  @override
+  String get lobby_already_together =>
+      'We\'re already on the same network — start';
+
+  @override
+  String get lobby_link_connected => 'CONNECTED';
+
+  @override
+  String get lobby_different_network => 'Not on the same network?';
+
+  @override
+  String get lobby_caveat_wifi =>
+      'The others have to be on this same network. Until someone is heard, there is no way to tell from here whether they are.';
+
+  @override
+  String get lobby_caveat_hotspot =>
+      'Your hotspot is up, but nobody is on it until they scan your code.';
+
+  @override
+  String get lobby_link_wifi => 'On Wi-Fi';
+
+  @override
+  String get lobby_link_hotspot => 'Your hotspot is up';
+
+  @override
+  String get lobby_link_bluetooth => 'Bluetooth link';
+
+  @override
+  String get lobby_link_none => 'No link';
+
+  @override
+  String get lobby_start_alone_hint =>
+      'Or start now and invite once you are on the air.';
+
+  @override
+  String get lobby_you => 'You';
+
+  @override
+  String get lobby_unnamed => 'Room member';
+
+  @override
+  String get lobby_held_seats_hint =>
+      'They have a code but have not scanned it yet.';
+
+  @override
+  String lobby_members(Object count) {
+    return 'Room members ($count)';
+  }
+
+  @override
+  String lobby_held_seats(Object count) {
+    return 'Waiting to join ($count)';
+  }
+
+  @override
+  String get rooms_title => 'Saved rooms';
+
+  @override
+  String get rooms_back => 'Back';
+
+  @override
+  String get rooms_create => 'Create room';
+
+  @override
+  String get rooms_rename => 'Rename';
+
+  @override
+  String get rooms_save => 'Save';
+
+  @override
+  String get rooms_archive => 'Archive';
+
+  @override
+  String get rooms_archived => 'Archived';
+
+  @override
+  String get rooms_leave => 'Leave room';
+
+  @override
+  String get rooms_cancel => 'Cancel';
+
+  @override
+  String get rooms_select => 'Select this room';
+
+  @override
+  String get rooms_selected => 'Selected';
+
+  @override
+  String get rooms_start_ride => 'Start ride';
+
+  @override
+  String get rooms_manage => 'Manage room';
+
+  @override
+  String get rooms_retry => 'Retry';
+
+  @override
+  String get rooms_name_hint => 'Room name';
+
+  @override
+  String get rooms_fallback_member_name => 'Rider';
+
+  @override
+  String get rooms_empty_title => 'No saved rooms yet';
+
+  @override
+  String get rooms_empty_body =>
+      'Rooms stay on this phone offline. Creating or selecting one never starts a hotspot or microphone by itself.';
+
+  @override
+  String get rooms_load_error =>
+      'Saved rooms could not be loaded. Nothing was deleted.';
+
+  @override
+  String get rooms_can_invite => 'You can invite';
+
+  @override
+  String get rooms_delete => 'Delete room';
+
+  @override
+  String get rooms_archived_rooms => 'Archived rooms';
+
+  @override
+  String get rooms_new_room => 'New room';
+
+  @override
+  String rooms_member_count(Object count) {
+    return '$count members';
+  }
+
+  @override
+  String rooms_pending_seat_one(Object count) {
+    return '$count open seat';
+  }
+
+  @override
+  String rooms_pending_seats_other(Object count) {
+    return '$count open seats';
+  }
+
+  @override
+  String rooms_archive_confirm(Object name) {
+    return 'Moves “$name” out of the list with its membership intact. Bring it back from the archive whenever you want.';
+  }
+
+  @override
+  String rooms_leave_confirm(Object name) {
+    return 'Leave “$name”? This removes your membership and is different from ending a live session.';
+  }
+
+  @override
+  String rooms_room_semantics(String name, String count) {
+    return '$name, $count members';
+  }
+
+  @override
+  String rooms_room_semantics_selected(String name, String count) {
+    return '$name, $count members, selected';
+  }
+
+  @override
+  String get people_title => 'ROOM PEOPLE';
+
+  @override
+  String get people_invite_title => 'NEW INVITE';
+
+  @override
+  String get people_you => 'You';
+
+  @override
+  String get people_waiting => 'Has not arrived yet';
+
+  @override
+  String get people_unnamed => 'Unnamed';
+
+  @override
+  String get people_revoke => 'Take the invite back';
+
+  @override
+  String get people_create_invite => 'CREATE AN INVITE';
+
+  @override
+  String get people_done => 'DONE';
+
+  @override
+  String get people_copy_invite => 'Copy invite';
+
+  @override
+  String get people_copied => 'Copied';
+
+  @override
+  String get people_invite_hint =>
+      'Have them scan this with Join with QR. They come straight in.';
+
+  @override
+  String get people_held_seats_hint =>
+      'These seats were opened by an invite nobody has used yet. They are not counted as members.';
+
+  @override
+  String get people_code_label => 'Room check code';
+
+  @override
+  String get people_code_warning =>
+      'This code is only a check value and cannot authorize joining by itself.';
+
+  @override
+  String get people_grant_title => 'Let them invite people';
+
+  @override
+  String get people_grant_hint =>
+      'With this on, they can bring others into the Room too.';
+
+  @override
+  String get people_granted_note =>
+      'This invite also grants the right to invite others.';
+
+  @override
+  String get people_cannot_invite =>
+      'You cannot invite people to this Room. Ask the host to turn on “Let them invite people” when they invite you.';
+
+  @override
+  String get people_issue_error => 'Could not create the invite. Try again.';
+
+  @override
+  String get people_no_room => 'No Room is selected.';
+
+  @override
+  String get people_wifi_title => 'Host Wi-Fi connection';
+
+  @override
+  String get people_ssid_label => 'Network';
+
+  @override
+  String get people_password_label => 'Password';
+
+  @override
+  String get people_wifi_ephemeral =>
+      'These credentials belong only to the current connection, not the Room.';
+
+  @override
+  String get people_wifi_recovering =>
+      'Hotspot is recovering. The Wi-Fi QR refreshes when the new network is ready.';
+
+  @override
+  String people_in_room(Object count) {
+    return 'IN THE ROOM ($count)';
+  }
+
+  @override
+  String people_held_seats(Object count) {
+    return 'OPEN SEATS ($count)';
+  }
+
+  @override
+  String get roomjoin_title => 'JOIN A ROOM';
+
+  @override
+  String get roomjoin_hint =>
+      'Point the camera at the invite on the host\'s phone. You go straight in.';
+
+  @override
+  String get roomjoin_searching => 'LOOKING FOR AN INVITE';
+
+  @override
+  String get roomjoin_locked => 'INVITE FOUND';
+
+  @override
+  String get roomjoin_joining => 'JOINING THE ROOM';
+
+  @override
+  String get roomjoin_not_joined =>
+      'Could not join. Ask the host for a fresh invite.';
+
+  @override
+  String get roomjoin_invalid => 'That invite is invalid or expired.';
+
+  @override
+  String get roomjoin_not_our_code =>
+      'That code isn\'t a Tarkk one. Scan the invite, or the Wi-Fi code, from the host\'s phone.';
+
+  @override
+  String get roomjoin_camera_denied =>
+      'Tarkk needs the camera to read the host\'s invite.';
+
+  @override
+  String get roomjoin_camera_failed =>
+      'The camera wouldn\'t start. Close whatever else is using it and try again.';
+
+  @override
+  String get roomjoin_open_settings => 'OPEN SETTINGS';
+
+  @override
+  String get archive_eyebrow => 'ARCHIVE';
+
+  @override
+  String get archive_title => 'Archived rooms';
+
+  @override
+  String get archive_blurb =>
+      'These stay on this phone with their membership intact. Bring one back whenever you want it.';
+
+  @override
+  String get archive_restore => 'Restore';
+
+  @override
+  String get archive_delete => 'Delete';
+
+  @override
+  String get archive_delete_title => 'Delete room';
+
+  @override
+  String get archive_delete_action => 'Delete';
+
+  @override
+  String archive_member_count(Object count) {
+    return '$count members';
+  }
+
+  @override
+  String archive_delete_confirm(Object name) {
+    return 'Deletes “$name” from this phone for good. If you only want it out of the list, archive it instead.';
+  }
+
+  @override
+  String archive_card_semantics(String name, String count) {
+    return '$name, archived, $count members';
+  }
+
+  @override
+  String get inroom_alone_body =>
+      'Show someone the room code and one scan puts them in here.';
+
+  @override
+  String get inroom_invite_someone => 'INVITE SOMEONE';
+
+  @override
+  String get inroom_add_someone => 'ADD SOMEONE';
+
+  @override
+  String get inroom_stranded_body =>
+      'The others are in this room but nothing is reaching them — which means these phones are not on the same network.';
+
+  @override
+  String get inroom_get_on_one_network => 'GET ON ONE NETWORK';
+
+  @override
+  String get invite_people => 'People';
+
+  @override
+  String invite_people_count(Object count) {
+    return 'Room people, $count in the room';
+  }
+
+  @override
+  String get carrier_raising_host =>
+      'Getting you set up to stay connected once you set off. This phone becomes the hub.';
+
+  @override
+  String get carrier_raising =>
+      'Getting you set up to stay connected once you set off.';
+
+  @override
+  String get carrier_awaiting_host =>
+      'One moment — getting the room ready for the road.';
+
+  @override
+  String get carrier_settled_host =>
+      'This phone is the hub for the room. It stays off the internet until the room closes.';
+
+  @override
+  String get entry_create_room => 'CREATE ROOM';
+
+  @override
+  String get entry_create_room_hint => 'Start one and invite the others';
+
+  @override
+  String get entry_join_qr => 'JOIN WITH QR';
+
+  @override
+  String get entry_join_qr_hint => 'Scan the code on the host\'s phone';
+
+  @override
+  String get entry_resume_hint => 'Pick up where you left off';
+
+  @override
+  String get entry_join => 'JOIN';
+
+  @override
+  String get entry_join_hint => 'Scan a host\'s code';
+
+  @override
+  String get entry_new_room => 'NEW ROOM';
+
+  @override
+  String get entry_new_room_hint => 'Start your own';
+
+  @override
+  String get entry_my_rooms => 'MY ROOMS';
+
+  @override
+  String get issuer_title => 'Verify rider request';
+
+  @override
+  String get issuer_scan_hint =>
+      'Scan the membership-request QR on the rider phone. Only a valid, unredeemed invite can be accepted.';
+
+  @override
+  String get issuer_verify_failed =>
+      'Could not verify the request. Scan again.';
+
+  @override
+  String get issuer_accepted =>
+      'Request verified. The rider must scan this response QR before membership is saved on their phone.';
+
+  @override
+  String get issuer_rejected =>
+      'Request was not verified. This response only carries the rejection result.';
+
+  @override
+  String get issuer_done => 'Done';
+
+  @override
+  String header_room_semantics(String name, String code) {
+    return 'Room $name, code $code';
+  }
+
+  @override
+  String get header_alone_in_room => 'Alone in the room';
+
+  @override
+  String get header_alone => 'ALONE';
+
+  @override
+  String get entry_room_unavailable =>
+      'This room is no longer available to start.';
+
+  @override
+  String get entry_back => 'Back';
+
+  @override
+  String get confirm_cancel => 'Cancel';
 }

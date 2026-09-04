@@ -2875,6 +2875,894 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'ورود به کانال'**
   String get preflight_enter_channel;
+
+  /// No description provided for @lobby_back.
+  ///
+  /// In fa, this message translates to:
+  /// **'بازگشت'**
+  String get lobby_back;
+
+  /// No description provided for @lobby_heading.
+  ///
+  /// In fa, this message translates to:
+  /// **'آماده شروع ارتباط'**
+  String get lobby_heading;
+
+  /// No description provided for @lobby_alone_heading.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتاق ساخته شد'**
+  String get lobby_alone_heading;
+
+  /// No description provided for @lobby_nothing_started.
+  ///
+  /// In fa, this message translates to:
+  /// **'تا وقتی «شروع ارتباط» را نزنید، هیچ هات‌اسپات، میکروفن یا اتصال زنده‌ای شروع نمی‌شود.'**
+  String get lobby_nothing_started;
+
+  /// No description provided for @lobby_alone_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'هنوز تنها هستید'**
+  String get lobby_alone_title;
+
+  /// No description provided for @lobby_alone_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'هنوز کسی جز شما در «{room}» نیست. کد دعوت را نشانشان بدهید — با یک اسکن وارد همین اتاق می‌شوند، بدون اینترنت.'**
+  String lobby_alone_body(Object room);
+
+  /// No description provided for @lobby_alone_no_right.
+  ///
+  /// In fa, this message translates to:
+  /// **'هنوز کسی جز شما اینجا نیست. دعوت کردن دست میزبان این اتاق است.'**
+  String get lobby_alone_no_right;
+
+  /// No description provided for @lobby_invite_someone.
+  ///
+  /// In fa, this message translates to:
+  /// **'دعوت کردن'**
+  String get lobby_invite_someone;
+
+  /// No description provided for @lobby_invite_more.
+  ///
+  /// In fa, this message translates to:
+  /// **'دعوت کسی دیگر'**
+  String get lobby_invite_more;
+
+  /// No description provided for @lobby_start_ride.
+  ///
+  /// In fa, this message translates to:
+  /// **'شروع ارتباط'**
+  String get lobby_start_ride;
+
+  /// No description provided for @lobby_unlinked_heading.
+  ///
+  /// In fa, this message translates to:
+  /// **'هنوز وصل نیستید'**
+  String get lobby_unlinked_heading;
+
+  /// No description provided for @lobby_unlinked_lead.
+  ///
+  /// In fa, this message translates to:
+  /// **'برای شروع ارتباط، این گوشی باید روی یک شبکه باشد.'**
+  String get lobby_unlinked_lead;
+
+  /// No description provided for @lobby_unlinked_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'هیچ اتصالی برقرار نیست'**
+  String get lobby_unlinked_title;
+
+  /// No description provided for @lobby_unlinked_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'تارک روی وای‌فای، هات‌اسپاتی که یکی‌تان روشن می‌کند، یا بلوتوث کار می‌کند — بدون اینترنت و بدون سیم‌کارت. الان این گوشی روی هیچ‌کدام نیست.'**
+  String get lobby_unlinked_body;
+
+  /// No description provided for @lobby_unlinked_no_way_out.
+  ///
+  /// In fa, this message translates to:
+  /// **'الان این گوشی روی هیچ شبکه‌ای نیست. وای‌فای را روشن کنید یا از صفحهٔ اتصال، هات‌اسپات را بالا بیاورید.'**
+  String get lobby_unlinked_no_way_out;
+
+  /// No description provided for @lobby_connect.
+  ///
+  /// In fa, this message translates to:
+  /// **'برقراری اتصال'**
+  String get lobby_connect;
+
+  /// No description provided for @lobby_assumed_heading.
+  ///
+  /// In fa, this message translates to:
+  /// **'یک قدم مانده'**
+  String get lobby_assumed_heading;
+
+  /// No description provided for @lobby_assumed_lead.
+  ///
+  /// In fa, this message translates to:
+  /// **'روی وای‌فای بودن، با روی وای‌فایِ آن‌ها بودن یکی نیست.'**
+  String get lobby_assumed_lead;
+
+  /// No description provided for @lobby_assumed_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'همه روی همین شبکه‌اند؟'**
+  String get lobby_assumed_title;
+
+  /// No description provided for @lobby_assumed_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'این گوشی روی شبکه‌ای است که از قبل بوده — و از اینجا هیچ راهی نیست که بفهمیم بقیه هم روی همان هستند. شبکه‌ای هم که چند دقیقهٔ دیگر از آن دور می‌شوید، جای شروع ارتباط نیست. هات‌اسپاتی که یکی‌تان روشن می‌کند هرجا بروید کار می‌کند: شما کد را نشان می‌دهید، آن‌ها اسکن می‌کنند.'**
+  String get lobby_assumed_body;
+
+  /// No description provided for @lobby_assumed_no_way_out.
+  ///
+  /// In fa, this message translates to:
+  /// **'این گوشی روی شبکه‌ای است که از قبل بوده. تا صدایی نرسد، معلوم نیست بقیه هم روی همان باشند.'**
+  String get lobby_assumed_no_way_out;
+
+  /// No description provided for @lobby_get_on_one_network.
+  ///
+  /// In fa, this message translates to:
+  /// **'یک شبکهٔ مشترک بسازید'**
+  String get lobby_get_on_one_network;
+
+  /// No description provided for @lobby_already_together.
+  ///
+  /// In fa, this message translates to:
+  /// **'همین حالا روی یک شبکه‌ایم — شروع کن'**
+  String get lobby_already_together;
+
+  /// No description provided for @lobby_link_connected.
+  ///
+  /// In fa, this message translates to:
+  /// **'وصل'**
+  String get lobby_link_connected;
+
+  /// No description provided for @lobby_different_network.
+  ///
+  /// In fa, this message translates to:
+  /// **'روی یک شبکه نیستید؟'**
+  String get lobby_different_network;
+
+  /// No description provided for @lobby_caveat_wifi.
+  ///
+  /// In fa, this message translates to:
+  /// **'بقیه هم باید روی همین شبکه باشند. تا وقتی صدایی نرسد، از اینجا نمی‌شود فهمید هستند یا نه.'**
+  String get lobby_caveat_wifi;
+
+  /// No description provided for @lobby_caveat_hotspot.
+  ///
+  /// In fa, this message translates to:
+  /// **'هات‌اسپات شما روشن است، ولی تا کدتان را اسکن نکنند کسی روی آن نیست.'**
+  String get lobby_caveat_hotspot;
+
+  /// No description provided for @lobby_link_wifi.
+  ///
+  /// In fa, this message translates to:
+  /// **'روی وای‌فای'**
+  String get lobby_link_wifi;
+
+  /// No description provided for @lobby_link_hotspot.
+  ///
+  /// In fa, this message translates to:
+  /// **'هات‌اسپات شما روشن است'**
+  String get lobby_link_hotspot;
+
+  /// No description provided for @lobby_link_bluetooth.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتصال بلوتوث'**
+  String get lobby_link_bluetooth;
+
+  /// No description provided for @lobby_link_none.
+  ///
+  /// In fa, this message translates to:
+  /// **'بدون اتصال'**
+  String get lobby_link_none;
+
+  /// No description provided for @lobby_start_alone_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'یا همین حالا شروع کنید و بعد از روشن‌شدن ارتباط دعوت کنید.'**
+  String get lobby_start_alone_hint;
+
+  /// No description provided for @lobby_you.
+  ///
+  /// In fa, this message translates to:
+  /// **'شما'**
+  String get lobby_you;
+
+  /// No description provided for @lobby_unnamed.
+  ///
+  /// In fa, this message translates to:
+  /// **'عضو اتاق'**
+  String get lobby_unnamed;
+
+  /// No description provided for @lobby_held_seats_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'کدشان را گرفته‌اند ولی هنوز اسکن نکرده‌اند.'**
+  String get lobby_held_seats_hint;
+
+  /// No description provided for @lobby_members.
+  ///
+  /// In fa, this message translates to:
+  /// **'اعضای اتاق ({count})'**
+  String lobby_members(Object count);
+
+  /// No description provided for @lobby_held_seats.
+  ///
+  /// In fa, this message translates to:
+  /// **'در انتظار پیوستن ({count})'**
+  String lobby_held_seats(Object count);
+
+  /// No description provided for @rooms_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتاق‌های ذخیره‌شده'**
+  String get rooms_title;
+
+  /// No description provided for @rooms_back.
+  ///
+  /// In fa, this message translates to:
+  /// **'بازگشت'**
+  String get rooms_back;
+
+  /// No description provided for @rooms_create.
+  ///
+  /// In fa, this message translates to:
+  /// **'ساخت اتاق'**
+  String get rooms_create;
+
+  /// No description provided for @rooms_rename.
+  ///
+  /// In fa, this message translates to:
+  /// **'تغییر نام'**
+  String get rooms_rename;
+
+  /// No description provided for @rooms_save.
+  ///
+  /// In fa, this message translates to:
+  /// **'ذخیره'**
+  String get rooms_save;
+
+  /// No description provided for @rooms_archive.
+  ///
+  /// In fa, this message translates to:
+  /// **'بایگانی'**
+  String get rooms_archive;
+
+  /// No description provided for @rooms_archived.
+  ///
+  /// In fa, this message translates to:
+  /// **'بایگانی‌شده'**
+  String get rooms_archived;
+
+  /// No description provided for @rooms_leave.
+  ///
+  /// In fa, this message translates to:
+  /// **'ترک اتاق'**
+  String get rooms_leave;
+
+  /// No description provided for @rooms_cancel.
+  ///
+  /// In fa, this message translates to:
+  /// **'انصراف'**
+  String get rooms_cancel;
+
+  /// No description provided for @rooms_select.
+  ///
+  /// In fa, this message translates to:
+  /// **'انتخاب این اتاق'**
+  String get rooms_select;
+
+  /// No description provided for @rooms_selected.
+  ///
+  /// In fa, this message translates to:
+  /// **'انتخاب‌شده'**
+  String get rooms_selected;
+
+  /// No description provided for @rooms_start_ride.
+  ///
+  /// In fa, this message translates to:
+  /// **'شروع ارتباط'**
+  String get rooms_start_ride;
+
+  /// No description provided for @rooms_manage.
+  ///
+  /// In fa, this message translates to:
+  /// **'مدیریت اتاق'**
+  String get rooms_manage;
+
+  /// No description provided for @rooms_retry.
+  ///
+  /// In fa, this message translates to:
+  /// **'تلاش دوباره'**
+  String get rooms_retry;
+
+  /// No description provided for @rooms_name_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'نام اتاق'**
+  String get rooms_name_hint;
+
+  /// No description provided for @rooms_fallback_member_name.
+  ///
+  /// In fa, this message translates to:
+  /// **'راننده'**
+  String get rooms_fallback_member_name;
+
+  /// No description provided for @rooms_empty_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'هنوز اتاقی ندارید'**
+  String get rooms_empty_title;
+
+  /// No description provided for @rooms_empty_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتاق‌ها بدون اینترنت هم روی همین گوشی باقی می‌مانند. ساخت یا انتخاب اتاق به‌تنهایی هات‌اسپات یا میکروفن را روشن نمی‌کند.'**
+  String get rooms_empty_body;
+
+  /// No description provided for @rooms_load_error.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتاق‌های ذخیره‌شده خوانده نشدند. چیزی حذف نشده است.'**
+  String get rooms_load_error;
+
+  /// No description provided for @rooms_can_invite.
+  ///
+  /// In fa, this message translates to:
+  /// **'می‌توانید دعوت کنید'**
+  String get rooms_can_invite;
+
+  /// No description provided for @rooms_delete.
+  ///
+  /// In fa, this message translates to:
+  /// **'حذف اتاق'**
+  String get rooms_delete;
+
+  /// No description provided for @rooms_archived_rooms.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتاق‌های بایگانی‌شده'**
+  String get rooms_archived_rooms;
+
+  /// No description provided for @rooms_new_room.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتاق تازه'**
+  String get rooms_new_room;
+
+  /// No description provided for @rooms_member_count.
+  ///
+  /// In fa, this message translates to:
+  /// **'{count} عضو'**
+  String rooms_member_count(Object count);
+
+  /// No description provided for @rooms_pending_seat_one.
+  ///
+  /// In fa, this message translates to:
+  /// **'{count} جای بازشده'**
+  String rooms_pending_seat_one(Object count);
+
+  /// No description provided for @rooms_pending_seats_other.
+  ///
+  /// In fa, this message translates to:
+  /// **'{count} جای بازشده'**
+  String rooms_pending_seats_other(Object count);
+
+  /// No description provided for @rooms_archive_confirm.
+  ///
+  /// In fa, this message translates to:
+  /// **'«{name}» از فهرست کنار می‌رود و عضویتش دست‌نخورده می‌ماند. هر وقت خواستید از بایگانی برش گردانید.'**
+  String rooms_archive_confirm(Object name);
+
+  /// No description provided for @rooms_leave_confirm.
+  ///
+  /// In fa, this message translates to:
+  /// **'عضویت شما در «{name}» حذف شود؟ این کار با پایان دادن یک جلسه زنده فرق دارد.'**
+  String rooms_leave_confirm(Object name);
+
+  /// No description provided for @rooms_room_semantics.
+  ///
+  /// In fa, this message translates to:
+  /// **'{name}، {count} عضو'**
+  String rooms_room_semantics(String name, String count);
+
+  /// No description provided for @rooms_room_semantics_selected.
+  ///
+  /// In fa, this message translates to:
+  /// **'{name}، {count} عضو، انتخاب‌شده'**
+  String rooms_room_semantics_selected(String name, String count);
+
+  /// No description provided for @people_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'افراد اتاق'**
+  String get people_title;
+
+  /// No description provided for @people_invite_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'دعوت تازه'**
+  String get people_invite_title;
+
+  /// No description provided for @people_you.
+  ///
+  /// In fa, this message translates to:
+  /// **'شما'**
+  String get people_you;
+
+  /// No description provided for @people_waiting.
+  ///
+  /// In fa, this message translates to:
+  /// **'هنوز نیامده'**
+  String get people_waiting;
+
+  /// No description provided for @people_unnamed.
+  ///
+  /// In fa, this message translates to:
+  /// **'بدون نام'**
+  String get people_unnamed;
+
+  /// No description provided for @people_revoke.
+  ///
+  /// In fa, this message translates to:
+  /// **'پس گرفتن دعوت'**
+  String get people_revoke;
+
+  /// No description provided for @people_create_invite.
+  ///
+  /// In fa, this message translates to:
+  /// **'ساخت دعوت'**
+  String get people_create_invite;
+
+  /// No description provided for @people_done.
+  ///
+  /// In fa, this message translates to:
+  /// **'تمام'**
+  String get people_done;
+
+  /// No description provided for @people_copy_invite.
+  ///
+  /// In fa, this message translates to:
+  /// **'کپی دعوت'**
+  String get people_copy_invite;
+
+  /// No description provided for @people_copied.
+  ///
+  /// In fa, this message translates to:
+  /// **'کپی شد'**
+  String get people_copied;
+
+  /// No description provided for @people_invite_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'بگذار طرف مقابل این کد را با «پیوستن با QR» اسکن کند. مستقیم وارد اتاق می‌شود.'**
+  String get people_invite_hint;
+
+  /// No description provided for @people_held_seats_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'این جاها با دعوت باز شده‌اند ولی هنوز کسی از آن‌ها استفاده نکرده. در شمار اعضا حساب نمی‌شوند.'**
+  String get people_held_seats_hint;
+
+  /// No description provided for @people_code_label.
+  ///
+  /// In fa, this message translates to:
+  /// **'کد بررسی اتاق'**
+  String get people_code_label;
+
+  /// No description provided for @people_code_warning.
+  ///
+  /// In fa, this message translates to:
+  /// **'این کد فقط برای بررسی است و به‌تنهایی اجازه ورود نمی‌دهد.'**
+  String get people_code_warning;
+
+  /// No description provided for @people_grant_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'اجازه دعوت دیگران'**
+  String get people_grant_title;
+
+  /// No description provided for @people_grant_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'با این اجازه، این نفر هم می‌تواند دیگران را به اتاق بیاورد.'**
+  String get people_grant_hint;
+
+  /// No description provided for @people_granted_note.
+  ///
+  /// In fa, this message translates to:
+  /// **'این دعوت اجازه دعوت‌کردن دیگران را هم می‌دهد.'**
+  String get people_granted_note;
+
+  /// No description provided for @people_cannot_invite.
+  ///
+  /// In fa, this message translates to:
+  /// **'شما اجازه دعوت در این اتاق را ندارید. از میزبان بخواهید هنگام دعوت، «اجازه دعوت دیگران» را روشن کند.'**
+  String get people_cannot_invite;
+
+  /// No description provided for @people_issue_error.
+  ///
+  /// In fa, this message translates to:
+  /// **'ساخت دعوت ممکن نشد. دوباره تلاش کنید.'**
+  String get people_issue_error;
+
+  /// No description provided for @people_no_room.
+  ///
+  /// In fa, this message translates to:
+  /// **'هیچ اتاقی انتخاب نشده است.'**
+  String get people_no_room;
+
+  /// No description provided for @people_wifi_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتصال وای‌فای میزبان'**
+  String get people_wifi_title;
+
+  /// No description provided for @people_ssid_label.
+  ///
+  /// In fa, this message translates to:
+  /// **'نام شبکه'**
+  String get people_ssid_label;
+
+  /// No description provided for @people_password_label.
+  ///
+  /// In fa, this message translates to:
+  /// **'رمز عبور'**
+  String get people_password_label;
+
+  /// No description provided for @people_wifi_ephemeral.
+  ///
+  /// In fa, this message translates to:
+  /// **'این اطلاعات فقط مربوط به اتصال فعلی است و شناسه اتاق نیست.'**
+  String get people_wifi_ephemeral;
+
+  /// No description provided for @people_wifi_recovering.
+  ///
+  /// In fa, this message translates to:
+  /// **'هات‌اسپات در حال بازیابی است. کیوآر وای‌فای بعد از آماده‌شدن شبکه تازه می‌شود.'**
+  String get people_wifi_recovering;
+
+  /// No description provided for @people_in_room.
+  ///
+  /// In fa, this message translates to:
+  /// **'در اتاق ({count})'**
+  String people_in_room(Object count);
+
+  /// No description provided for @people_held_seats.
+  ///
+  /// In fa, this message translates to:
+  /// **'جای بازشده ({count})'**
+  String people_held_seats(Object count);
+
+  /// No description provided for @roomjoin_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'پیوستن به اتاق'**
+  String get roomjoin_title;
+
+  /// No description provided for @roomjoin_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'کد دعوت روی گوشی میزبان را بگیر جلوی دوربین. بعد از اسکن مستقیم وارد اتاق می‌شوی.'**
+  String get roomjoin_hint;
+
+  /// No description provided for @roomjoin_searching.
+  ///
+  /// In fa, this message translates to:
+  /// **'دنبال کد دعوت می‌گردم'**
+  String get roomjoin_searching;
+
+  /// No description provided for @roomjoin_locked.
+  ///
+  /// In fa, this message translates to:
+  /// **'کد پیدا شد'**
+  String get roomjoin_locked;
+
+  /// No description provided for @roomjoin_joining.
+  ///
+  /// In fa, this message translates to:
+  /// **'در حال ورود به اتاق'**
+  String get roomjoin_joining;
+
+  /// No description provided for @roomjoin_not_joined.
+  ///
+  /// In fa, this message translates to:
+  /// **'پیوستن انجام نشد. یک دعوت تازه از میزبان بگیر.'**
+  String get roomjoin_not_joined;
+
+  /// No description provided for @roomjoin_invalid.
+  ///
+  /// In fa, this message translates to:
+  /// **'این کد دعوت معتبر نیست یا منقضی شده.'**
+  String get roomjoin_invalid;
+
+  /// No description provided for @roomjoin_not_our_code.
+  ///
+  /// In fa, this message translates to:
+  /// **'این کد مال «ترک» نیست. کد دعوت یا کد وای‌فای روی گوشی میزبان را اسکن کن.'**
+  String get roomjoin_not_our_code;
+
+  /// No description provided for @roomjoin_camera_denied.
+  ///
+  /// In fa, this message translates to:
+  /// **'«ترک» برای خواندن کد دعوت دوربین می‌خواهد.'**
+  String get roomjoin_camera_denied;
+
+  /// No description provided for @roomjoin_camera_failed.
+  ///
+  /// In fa, this message translates to:
+  /// **'دوربین باز نشد. هر چیز دیگری که از آن استفاده می‌کند را ببند و دوباره امتحان کن.'**
+  String get roomjoin_camera_failed;
+
+  /// No description provided for @roomjoin_open_settings.
+  ///
+  /// In fa, this message translates to:
+  /// **'باز کردن تنظیمات'**
+  String get roomjoin_open_settings;
+
+  /// No description provided for @archive_eyebrow.
+  ///
+  /// In fa, this message translates to:
+  /// **'بایگانی'**
+  String get archive_eyebrow;
+
+  /// No description provided for @archive_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتاق‌های بایگانی‌شده'**
+  String get archive_title;
+
+  /// No description provided for @archive_blurb.
+  ///
+  /// In fa, this message translates to:
+  /// **'این اتاق‌ها روی همین گوشی می‌مانند و عضویت‌شان دست‌نخورده است. هر وقت خواستید برشان گردانید.'**
+  String get archive_blurb;
+
+  /// No description provided for @archive_restore.
+  ///
+  /// In fa, this message translates to:
+  /// **'بازگرداندن'**
+  String get archive_restore;
+
+  /// No description provided for @archive_delete.
+  ///
+  /// In fa, this message translates to:
+  /// **'حذف'**
+  String get archive_delete;
+
+  /// No description provided for @archive_delete_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'حذف اتاق'**
+  String get archive_delete_title;
+
+  /// No description provided for @archive_delete_action.
+  ///
+  /// In fa, this message translates to:
+  /// **'حذف کن'**
+  String get archive_delete_action;
+
+  /// No description provided for @archive_member_count.
+  ///
+  /// In fa, this message translates to:
+  /// **'{count} عضو'**
+  String archive_member_count(Object count);
+
+  /// No description provided for @archive_delete_confirm.
+  ///
+  /// In fa, this message translates to:
+  /// **'«{name}» از این گوشی پاک می‌شود و برنمی‌گردد. اگر فقط می‌خواهید از فهرست کنار برود، بایگانی‌اش کنید.'**
+  String archive_delete_confirm(Object name);
+
+  /// No description provided for @archive_card_semantics.
+  ///
+  /// In fa, this message translates to:
+  /// **'{name}، بایگانی‌شده، {count} عضو'**
+  String archive_card_semantics(String name, String count);
+
+  /// No description provided for @inroom_alone_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'کدِ اتاق را نشانشان بدهید؛ با یک اسکن وارد می‌شوند.'**
+  String get inroom_alone_body;
+
+  /// No description provided for @inroom_invite_someone.
+  ///
+  /// In fa, this message translates to:
+  /// **'دعوت کنید'**
+  String get inroom_invite_someone;
+
+  /// No description provided for @inroom_add_someone.
+  ///
+  /// In fa, this message translates to:
+  /// **'افزودن نفر'**
+  String get inroom_add_someone;
+
+  /// No description provided for @inroom_stranded_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'بقیه در این اتاق هستند ولی صدایشان نمی‌رسد — یعنی گوشی‌ها روی یک شبکه نیستند.'**
+  String get inroom_stranded_body;
+
+  /// No description provided for @inroom_get_on_one_network.
+  ///
+  /// In fa, this message translates to:
+  /// **'وصل شدن به یک شبکه'**
+  String get inroom_get_on_one_network;
+
+  /// No description provided for @invite_people.
+  ///
+  /// In fa, this message translates to:
+  /// **'فرد'**
+  String get invite_people;
+
+  /// No description provided for @invite_people_count.
+  ///
+  /// In fa, this message translates to:
+  /// **'افراد اتاق، {count} نفر'**
+  String invite_people_count(Object count);
+
+  /// No description provided for @carrier_raising_host.
+  ///
+  /// In fa, this message translates to:
+  /// **'داریم آماده می‌شویم که وقتی راه افتادید ارتباط قطع نشود. این گوشی مرکز ارتباط می‌شود.'**
+  String get carrier_raising_host;
+
+  /// No description provided for @carrier_raising.
+  ///
+  /// In fa, this message translates to:
+  /// **'داریم آماده می‌شویم که وقتی راه افتادید ارتباط قطع نشود.'**
+  String get carrier_raising;
+
+  /// No description provided for @carrier_awaiting_host.
+  ///
+  /// In fa, this message translates to:
+  /// **'یک لحظه — داریم ارتباط را برای بیرون آماده می‌کنیم.'**
+  String get carrier_awaiting_host;
+
+  /// No description provided for @carrier_settled_host.
+  ///
+  /// In fa, this message translates to:
+  /// **'این گوشی مرکز ارتباط اتاق است. تا وقتی اتاق باز باشد، اینترنت این گوشی خاموش می‌ماند.'**
+  String get carrier_settled_host;
+
+  /// No description provided for @entry_create_room.
+  ///
+  /// In fa, this message translates to:
+  /// **'ساخت اتاق'**
+  String get entry_create_room;
+
+  /// No description provided for @entry_create_room_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'یک اتاق بساز و بقیه را دعوت کن'**
+  String get entry_create_room_hint;
+
+  /// No description provided for @entry_join_qr.
+  ///
+  /// In fa, this message translates to:
+  /// **'پیوستن با QR'**
+  String get entry_join_qr;
+
+  /// No description provided for @entry_join_qr_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'کد روی گوشی میزبان را اسکن کن'**
+  String get entry_join_qr_hint;
+
+  /// No description provided for @entry_resume_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'ادامه در این اتاق'**
+  String get entry_resume_hint;
+
+  /// No description provided for @entry_join.
+  ///
+  /// In fa, this message translates to:
+  /// **'پیوستن'**
+  String get entry_join;
+
+  /// No description provided for @entry_join_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'کد میزبان را اسکن کن'**
+  String get entry_join_hint;
+
+  /// No description provided for @entry_new_room.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتاق تازه'**
+  String get entry_new_room;
+
+  /// No description provided for @entry_new_room_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'خودت یکی بساز'**
+  String get entry_new_room_hint;
+
+  /// No description provided for @entry_my_rooms.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتاق‌های من'**
+  String get entry_my_rooms;
+
+  /// No description provided for @issuer_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'تأیید درخواست همراه'**
+  String get issuer_title;
+
+  /// No description provided for @issuer_scan_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'QR درخواست عضویت روی گوشی همراه را اسکن کنید. فقط دعوت معتبر و مصرف‌نشده تأیید می‌شود.'**
+  String get issuer_scan_hint;
+
+  /// No description provided for @issuer_verify_failed.
+  ///
+  /// In fa, this message translates to:
+  /// **'بررسی درخواست ممکن نشد. دوباره اسکن کنید.'**
+  String get issuer_verify_failed;
+
+  /// No description provided for @issuer_accepted.
+  ///
+  /// In fa, this message translates to:
+  /// **'درخواست تأیید شد. همراه باید این QR پاسخ را اسکن کند تا عضویت روی گوشی خودش ذخیره شود.'**
+  String get issuer_accepted;
+
+  /// No description provided for @issuer_rejected.
+  ///
+  /// In fa, this message translates to:
+  /// **'درخواست تأیید نشد. این پاسخ فقط نتیجه رد را منتقل می‌کند.'**
+  String get issuer_rejected;
+
+  /// No description provided for @issuer_done.
+  ///
+  /// In fa, this message translates to:
+  /// **'تمام'**
+  String get issuer_done;
+
+  /// No description provided for @header_room_semantics.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتاق {name}، کد {code}'**
+  String header_room_semantics(String name, String code);
+
+  /// No description provided for @header_alone_in_room.
+  ///
+  /// In fa, this message translates to:
+  /// **'تنها در اتاق'**
+  String get header_alone_in_room;
+
+  /// No description provided for @header_alone.
+  ///
+  /// In fa, this message translates to:
+  /// **'تنها'**
+  String get header_alone;
+
+  /// No description provided for @entry_room_unavailable.
+  ///
+  /// In fa, this message translates to:
+  /// **'این اتاق دیگر برای شروع ارتباط در دسترس نیست.'**
+  String get entry_room_unavailable;
+
+  /// No description provided for @entry_back.
+  ///
+  /// In fa, this message translates to:
+  /// **'بازگشت'**
+  String get entry_back;
+
+  /// No description provided for @confirm_cancel.
+  ///
+  /// In fa, this message translates to:
+  /// **'انصراف'**
+  String get confirm_cancel;
 }
 
 class _AppLocalizationsDelegate

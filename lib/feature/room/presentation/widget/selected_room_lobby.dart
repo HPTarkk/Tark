@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 
+import '../../../../core/l10n/app_localizations.dart';
+import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
@@ -143,7 +145,7 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
 
   @override
   Widget build(BuildContext context) {
-    final copy = _LobbyCopy.of(context);
+    final s = context.getString;
     // Confirmed, not merely active: a seat held open by an unused invite is
     // durable and authorised but nobody is standing in it, and listing it as a
     // member is what made two phones disagree about how many people were in
@@ -184,10 +186,10 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
         // and the channel's, which wears the same chevron over a question.
         leading: Semantics(
           button: true,
-          label: copy.back,
+          label: s.lobby_back,
           child: IconButton(
             key: const Key('selected-room-lobby-back'),
-            tooltip: copy.back,
+            tooltip: s.lobby_back,
             onPressed: () {
               HapticFeedback.selectionClick();
               widget.onBack();
@@ -227,10 +229,10 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
           children: [
             Text(
               unlinked
-                  ? copy.unlinkedHeading
+                  ? s.lobby_unlinked_heading
                   : assumed
-                  ? copy.assumedHeading
-                  : (alone ? copy.aloneHeading : copy.heading),
+                  ? s.lobby_assumed_heading
+                  : (alone ? s.lobby_alone_heading : s.lobby_heading),
               style: Theme.of(
                 context,
               ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
@@ -238,14 +240,14 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
             const SizedBox(height: 8),
             Text(
               unlinked
-                  ? copy.unlinkedLead
+                  ? s.lobby_unlinked_lead
                   : assumed
-                  ? copy.assumedLead
-                  : copy.nothingStarted,
+                  ? s.lobby_assumed_lead
+                  : s.lobby_nothing_started,
             ),
             if (widget.link != null && !unlinked) ...[
               const SizedBox(height: 14),
-              _LinkChip(link: widget.link!, copy: copy),
+              _LinkChip(link: widget.link!),
               // The caveat, and the way out of it. Being on a network is not
               // being on *their* network, and this screen has no way to tell
               // the two apart — so it says so rather than letting the chip
@@ -256,7 +258,7 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
               if (!widget.link!.provesPeer && !assumed) ...[
                 const SizedBox(height: 8),
                 Text(
-                  copy.linkCaveat(widget.link!),
+                  _caveatFor(s, widget.link!),
                   style: TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 11.5,
@@ -267,7 +269,7 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
                   const SizedBox(height: 8),
                   _WayOut(
                     key: const Key('selected-room-different-network'),
-                    label: copy.differentNetwork,
+                    label: s.lobby_different_network,
                     onTap: widget.onConnect!,
                   ),
                 ],
@@ -275,23 +277,23 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
             ],
             const SizedBox(height: 20),
             if (unlinked)
-              ..._unlinkedBody(copy, members, held, canInvite: canInvite)
+              ..._unlinkedBody(s, members, held, canInvite: canInvite)
             // Outranks [alone], and for the same reason [unlinked] does: an
             // invite minted from here carries membership and no network — the
             // People sheet only grows its Wi-Fi section once an access point
             // of ours is up — so it would put somebody into a room they still
             // cannot hear.
             else if (assumed)
-              ..._assumedBody(copy, members, held, canInvite: canInvite)
+              ..._assumedBody(s, members, held, canInvite: canInvite)
             else if (alone)
-              ..._aloneBody(copy, canInvite: canInvite)
+              ..._aloneBody(s, canInvite: canInvite)
             else ...[
-              ..._rosterList(copy, members, held, canInvite: canInvite),
+              ..._rosterList(s, members, held, canInvite: canInvite),
               const SizedBox(height: 20),
               _LobbyAction(
                 key: const Key('selected-room-start-ride'),
                 icon: Icons.play_arrow_rounded,
-                label: copy.startRide,
+                label: s.lobby_start_ride,
                 primary: true,
                 onTap: widget.onStartRide,
               ),
@@ -304,10 +306,9 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
 
   /// The empty saved-rooms state, one level in: say what is true, then offer
   /// the one thing that changes it.
-  List<Widget> _aloneBody(_LobbyCopy copy, {required bool canInvite}) => [
+  List<Widget> _aloneBody(AppLocalizations s, {required bool canInvite}) => [
     _InviteInvitation(
       key: const Key('selected-room-invite-callout'),
-      copy: copy,
       roomName: _room.room.name,
       onInvite: canInvite ? () => _invite(straightToCode: true) : null,
     ),
@@ -319,13 +320,13 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
     _LobbyAction(
       key: const Key('selected-room-start-ride'),
       icon: Icons.play_arrow_rounded,
-      label: copy.startRide,
+      label: s.lobby_start_ride,
       primary: false,
       onTap: widget.onStartRide,
     ),
     const SizedBox(height: 10),
     Text(
-      copy.startAloneHint,
+      s.lobby_start_alone_hint,
       textAlign: TextAlign.center,
       style: TextStyle(
         color: AppColors.textSecondary,
@@ -351,14 +352,13 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
   /// argues for, and it now argues for the one that is still true after
   /// everybody stands up and leaves.
   List<Widget> _assumedBody(
-    _LobbyCopy copy,
+    AppLocalizations s,
     List<RoomMember> members,
     List<RoomMember> held, {
     required bool canInvite,
   }) => [
     _SharedNetworkDoubt(
       key: const Key('selected-room-shared-network-callout'),
-      copy: copy,
       onConnect: widget.onConnect,
     ),
     // With no way out to offer there is nothing to invert *towards*, so the
@@ -369,7 +369,7 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
       _LobbyAction(
         key: const Key('selected-room-start-ride'),
         icon: Icons.play_arrow_rounded,
-        label: copy.startRide,
+        label: s.lobby_start_ride,
         primary: true,
         onTap: widget.onStartRide,
       ),
@@ -379,13 +379,13 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
         child: _WayOut(
           key: const Key('selected-room-start-anyway'),
           icon: Icons.play_arrow_rounded,
-          label: copy.alreadyTogether,
+          label: s.lobby_already_together,
           onTap: widget.onStartRide,
         ),
       ),
     ],
     const SizedBox(height: 24),
-    ..._rosterList(copy, members, held, canInvite: canInvite),
+    ..._rosterList(s, members, held, canInvite: canInvite),
   ];
 
   /// The screen when nothing is carrying the room.
@@ -397,14 +397,13 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
   /// no gate, so the one action here is the one that resolves the situation.
   /// Inviting stays available and stays quiet below.
   List<Widget> _unlinkedBody(
-    _LobbyCopy copy,
+    AppLocalizations s,
     List<RoomMember> members,
     List<RoomMember> held, {
     required bool canInvite,
   }) => [
     _LinkInvitation(
       key: const Key('selected-room-link-callout'),
-      copy: copy,
       onConnect: widget.onConnect,
     ),
     // Without a way out to offer, the callout above has said what is wrong and
@@ -416,97 +415,104 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
       _LobbyAction(
         key: const Key('selected-room-start-ride'),
         icon: Icons.play_arrow_rounded,
-        label: copy.startRide,
+        label: s.lobby_start_ride,
         primary: false,
         onTap: widget.onStartRide,
       ),
     ],
     const SizedBox(height: 24),
-    ..._rosterList(copy, members, held, canInvite: canInvite),
+    ..._rosterList(s, members, held, canInvite: canInvite),
   ];
 
   List<Widget> _rosterList(
-    _LobbyCopy copy,
+    AppLocalizations s,
     List<RoomMember> members,
     List<RoomMember> held, {
     required bool canInvite,
-  }) => [
-    Semantics(
-      header: true,
-      child: Text(
-        copy.members(members.length),
-        style: Theme.of(
-          context,
-        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-      ),
-    ),
-    const SizedBox(height: 8),
-    for (final member in members)
-      ListTile(
-        dense: true,
-        contentPadding: EdgeInsets.zero,
-        leading: const Icon(Icons.person_outline_rounded),
-        // Shared with the People sheet: a seat confirmed from live evidence
-        // still carries the "Open seat" placeholder the host wrote into it,
-        // and this list is only ever confirmed members.
-        title: Text(
-          roomMemberDisplayName(member, fa: copy.fa, unnamed: copy.unnamed),
-        ),
-        subtitle: member.id == _room.membership.localMemberId
-            ? Text(copy.you)
-            : null,
-      ),
-    // An invite that has been made but not walked through. Shown because the
-    // alternative is a host who has just handed out a code watching a roster
-    // that says nothing happened.
-    if (held.isNotEmpty) ...[
-      const SizedBox(height: 14),
+  }) {
+    // Not copy, and the one locale read this screen keeps: a held seat's
+    // placeholder is written into storage in whichever language the host was
+    // using, and [roomMemberDisplayName] checks both — so what it needs is the
+    // locale itself rather than a string this build has translated.
+    final fa = Localizations.localeOf(context).languageCode == 'fa';
+    return [
       Semantics(
         header: true,
         child: Text(
-          copy.heldSeats(held.length),
-          key: const Key('selected-room-held-seats'),
-          style: TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-          ),
+          s.lobby_members(members.length.localized(context)),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
         ),
       ),
-      const SizedBox(height: 2),
-      Text(
-        copy.heldSeatsHint,
-        style: TextStyle(
-          color: AppColors.textSecondary,
-          fontSize: 11.5,
-          height: 1.45,
-        ),
-      ),
-      for (final seat in held)
+      const SizedBox(height: 8),
+      for (final member in members)
         ListTile(
           dense: true,
           contentPadding: EdgeInsets.zero,
-          leading: Icon(
-            Icons.hourglass_top_rounded,
-            color: AppColors.textSecondary,
-          ),
+          leading: const Icon(Icons.person_outline_rounded),
+          // Shared with the People sheet: a seat confirmed from live evidence
+          // still carries the "Open seat" placeholder the host wrote into it,
+          // and this list is only ever confirmed members.
           title: Text(
-            roomMemberDisplayName(seat, fa: copy.fa, unnamed: copy.unnamed),
-            style: TextStyle(color: AppColors.textSecondary),
+            roomMemberDisplayName(member, fa: fa, unnamed: s.lobby_unnamed),
+          ),
+          subtitle: member.id == _room.membership.localMemberId
+              ? Text(s.lobby_you)
+              : null,
+        ),
+      // An invite that has been made but not walked through. Shown because the
+      // alternative is a host who has just handed out a code watching a roster
+      // that says nothing happened.
+      if (held.isNotEmpty) ...[
+        const SizedBox(height: 14),
+        Semantics(
+          header: true,
+          child: Text(
+            s.lobby_held_seats(held.length.localized(context)),
+            key: const Key('selected-room-held-seats'),
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
-    ],
-    if (canInvite) ...[
-      const SizedBox(height: 14),
-      _LobbyAction(
-        key: const Key('selected-room-invite'),
-        icon: Icons.person_add_alt_1_rounded,
-        label: copy.inviteMore,
-        primary: false,
-        onTap: () => _invite(straightToCode: false),
-      ),
-    ],
-  ];
+        const SizedBox(height: 2),
+        Text(
+          s.lobby_held_seats_hint,
+          style: TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 11.5,
+            height: 1.45,
+          ),
+        ),
+        for (final seat in held)
+          ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(
+              Icons.hourglass_top_rounded,
+              color: AppColors.textSecondary,
+            ),
+            title: Text(
+              roomMemberDisplayName(seat, fa: fa, unnamed: s.lobby_unnamed),
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+      ],
+      if (canInvite) ...[
+        const SizedBox(height: 14),
+        _LobbyAction(
+          key: const Key('selected-room-invite'),
+          icon: Icons.person_add_alt_1_rounded,
+          label: s.lobby_invite_more,
+          primary: false,
+          onTap: () => _invite(straightToCode: false),
+        ),
+      ],
+    ];
+  }
 }
 
 /// The one thing a room with nobody in it needs.
@@ -518,56 +524,59 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
 /// that would refuse.
 class _InviteInvitation extends StatelessWidget {
   const _InviteInvitation({
-    required this.copy,
     required this.roomName,
     required this.onInvite,
     super.key,
   });
 
-  final _LobbyCopy copy;
   final String roomName;
   final VoidCallback? onInvite;
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-    decoration: BoxDecoration(
-      color: AppColors.card,
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: AppColors.amber.withValues(alpha: 0.30)),
-    ),
-    child: Column(
-      children: [
-        Icon(Icons.group_add_rounded, size: 46, color: AppColors.amber),
-        const SizedBox(height: 14),
-        Text(
-          copy.aloneTitle,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.amber.withValues(alpha: 0.30)),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.group_add_rounded, size: 46, color: AppColors.amber),
+          const SizedBox(height: 14),
+          Text(
+            s.lobby_alone_title,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          onInvite == null ? copy.aloneNoRight : copy.aloneBody(roomName),
-          textAlign: TextAlign.center,
-          style: TextStyle(color: AppColors.textSecondary, height: 1.5),
-        ),
-        if (onInvite != null) ...[
-          const SizedBox(height: 18),
-          _LobbyAction(
-            key: const Key('selected-room-invite'),
-            icon: Icons.qr_code_2_rounded,
-            label: copy.inviteSomeone,
-            primary: true,
-            onTap: onInvite!,
+          const SizedBox(height: 8),
+          Text(
+            onInvite == null
+                ? s.lobby_alone_no_right
+                : s.lobby_alone_body(roomName),
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.textSecondary, height: 1.5),
           ),
+          if (onInvite != null) ...[
+            const SizedBox(height: 18),
+            _LobbyAction(
+              key: const Key('selected-room-invite'),
+              icon: Icons.qr_code_2_rounded,
+              label: s.lobby_invite_someone,
+              primary: true,
+              onTap: onInvite!,
+            ),
+          ],
         ],
-      ],
-    ),
-  );
+      ),
+    );
+  }
 }
 
 /// What the room is missing when it is missing the only thing it cannot do
@@ -579,55 +588,59 @@ class _InviteInvitation extends StatelessWidget {
 /// red and the action is amber, which is the whole message in two colours:
 /// something is wrong, and here is the thing that fixes it.
 class _LinkInvitation extends StatelessWidget {
-  const _LinkInvitation({
-    required this.copy,
-    required this.onConnect,
-    super.key,
-  });
+  const _LinkInvitation({required this.onConnect, super.key});
 
-  final _LobbyCopy copy;
   final VoidCallback? onConnect;
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-    decoration: BoxDecoration(
-      color: AppColors.card,
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: AppColors.amber.withValues(alpha: 0.30)),
-    ),
-    child: Column(
-      children: [
-        Icon(Icons.wifi_tethering_off_rounded, size: 46, color: AppColors.red),
-        const SizedBox(height: 14),
-        Text(
-          copy.unlinkedTitle,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.amber.withValues(alpha: 0.30)),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.wifi_tethering_off_rounded,
+            size: 46,
+            color: AppColors.red,
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          onConnect == null ? copy.unlinkedNoWayOut : copy.unlinkedBody,
-          textAlign: TextAlign.center,
-          style: TextStyle(color: AppColors.textSecondary, height: 1.5),
-        ),
-        if (onConnect != null) ...[
-          const SizedBox(height: 18),
-          _LobbyAction(
-            key: const Key('selected-room-connect'),
-            icon: Icons.wifi_tethering_rounded,
-            label: copy.connect,
-            primary: true,
-            onTap: onConnect!,
+          const SizedBox(height: 14),
+          Text(
+            s.lobby_unlinked_title,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
           ),
+          const SizedBox(height: 8),
+          Text(
+            onConnect == null
+                ? s.lobby_unlinked_no_way_out
+                : s.lobby_unlinked_body,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.textSecondary, height: 1.5),
+          ),
+          if (onConnect != null) ...[
+            const SizedBox(height: 18),
+            _LobbyAction(
+              key: const Key('selected-room-connect'),
+              icon: Icons.wifi_tethering_rounded,
+              label: s.lobby_connect,
+              primary: true,
+              onTap: onConnect!,
+            ),
+          ],
         ],
-      ],
-    ),
-  );
+      ),
+    );
+  }
 }
 
 /// The doubt a Wi-Fi network deserves, at the size of the doubt.
@@ -642,56 +655,73 @@ class _LinkInvitation extends StatelessWidget {
 /// way to know, and a red glyph would overstate that into a fault. The colour
 /// is the difference between "this cannot work" and "this might not".
 class _SharedNetworkDoubt extends StatelessWidget {
-  const _SharedNetworkDoubt({
-    required this.copy,
-    required this.onConnect,
-    super.key,
-  });
+  const _SharedNetworkDoubt({required this.onConnect, super.key});
 
-  final _LobbyCopy copy;
   final VoidCallback? onConnect;
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-    decoration: BoxDecoration(
-      color: AppColors.card,
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: AppColors.amber.withValues(alpha: 0.30)),
-    ),
-    child: Column(
-      children: [
-        Icon(Icons.help_outline_rounded, size: 46, color: AppColors.amber),
-        const SizedBox(height: 14),
-        Text(
-          copy.assumedTitle,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.amber.withValues(alpha: 0.30)),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.help_outline_rounded, size: 46, color: AppColors.amber),
+          const SizedBox(height: 14),
+          Text(
+            s.lobby_assumed_title,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          onConnect == null ? copy.assumedNoWayOut : copy.assumedBody,
-          textAlign: TextAlign.center,
-          style: TextStyle(color: AppColors.textSecondary, height: 1.5),
-        ),
-        if (onConnect != null) ...[
-          const SizedBox(height: 18),
-          _LobbyAction(
-            key: const Key('selected-room-connect'),
-            icon: Icons.wifi_tethering_rounded,
-            label: copy.getOnOneNetwork,
-            primary: true,
-            onTap: onConnect!,
+          const SizedBox(height: 8),
+          Text(
+            onConnect == null
+                ? s.lobby_assumed_no_way_out
+                : s.lobby_assumed_body,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.textSecondary, height: 1.5),
           ),
+          if (onConnect != null) ...[
+            const SizedBox(height: 18),
+            _LobbyAction(
+              key: const Key('selected-room-connect'),
+              icon: Icons.wifi_tethering_rounded,
+              label: s.lobby_get_on_one_network,
+              primary: true,
+              onTap: onConnect!,
+            ),
+          ],
         ],
-      ],
-    ),
-  );
+      ),
+    );
+  }
 }
+
+/// What the link does *not* tell you. One line per link, because the gap is a
+/// different gap each time: a network says nothing about who else is on it,
+/// while an access point of your own says exactly one thing — nobody has
+/// joined it yet. The two links with nothing to caveat return empty.
+String _caveatFor(AppLocalizations s, LiveLink link) => switch (link) {
+  LiveLink.wifi => s.lobby_caveat_wifi,
+  LiveLink.hotspotHost => s.lobby_caveat_hotspot,
+  LiveLink.bluetooth || LiveLink.none => '',
+};
+
+String _nameFor(AppLocalizations s, LiveLink link) => switch (link) {
+  LiveLink.wifi => s.lobby_link_wifi,
+  LiveLink.hotspotHost => s.lobby_link_hotspot,
+  LiveLink.bluetooth => s.lobby_link_bluetooth,
+  LiveLink.none => s.lobby_link_none,
+};
 
 /// One quiet line saying what this phone is on.
 ///
@@ -706,18 +736,18 @@ class _SharedNetworkDoubt extends StatelessWidget {
 /// word only appear there, and the rest get amber: something is up, and who
 /// is on the far end of it is not known yet.
 class _LinkChip extends StatelessWidget {
-  const _LinkChip({required this.link, required this.copy});
+  const _LinkChip({required this.link});
 
   final LiveLink link;
-  final _LobbyCopy copy;
 
   @override
   Widget build(BuildContext context) {
     final proven = link.provesPeer;
     final accent = proven ? AppColors.green : AppColors.amber;
-    final label = copy.linkName(link);
+    final s = context.getString;
+    final label = _nameFor(s, link);
     return Semantics(
-      label: proven ? '$label — ${copy.linkConnected}' : label,
+      label: proven ? '$label — ${s.lobby_link_connected}' : label,
       excludeSemantics: true,
       child: Container(
         key: const Key('selected-room-link-chip'),
@@ -753,7 +783,7 @@ class _LinkChip extends StatelessWidget {
             // verdict on the room, which is the thing this chip cannot give.
             if (proven)
               Text(
-                copy.linkConnected,
+                s.lobby_link_connected,
                 style: TextStyle(
                   color: accent,
                   fontSize: 10.5,
@@ -911,105 +941,4 @@ class _LobbyAction extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Bilingual copy kept local to this screen, as elsewhere in the Room feature,
-/// until the next generated-l10n sweep.
-final class _LobbyCopy {
-  const _LobbyCopy({required this.fa, required this.context});
-
-  factory _LobbyCopy.of(BuildContext context) => _LobbyCopy(
-    fa: Localizations.localeOf(context).languageCode.toLowerCase() == 'fa',
-    context: context,
-  );
-
-  final bool fa;
-  final BuildContext context;
-
-  String get back => fa ? 'بازگشت' : 'Back';
-  String get heading => fa ? 'آماده شروع ارتباط' : 'Ready to start';
-  String get aloneHeading => fa ? 'اتاق ساخته شد' : 'Your room is ready';
-  String get nothingStarted => fa
-      ? 'تا وقتی «شروع ارتباط» را نزنید، هیچ هات‌اسپات، میکروفن یا اتصال زنده‌ای شروع نمی‌شود.'
-      : 'No hotspot, microphone, or live transport starts until you press Start ride.';
-  String get aloneTitle => fa ? 'هنوز تنها هستید' : "You're the only one here";
-  String aloneBody(String room) => fa
-      ? 'هنوز کسی جز شما در «$room» نیست. کد دعوت را نشانشان بدهید — با یک اسکن وارد همین اتاق می‌شوند، بدون اینترنت.'
-      : 'Nobody else is in “$room” yet. Show them the invite code — one scan puts them in this room, with no internet.';
-  String get aloneNoRight => fa
-      ? 'هنوز کسی جز شما اینجا نیست. دعوت کردن دست میزبان این اتاق است.'
-      : 'Nobody else is here yet. Adding people is up to whoever runs this room.';
-  String get inviteSomeone => fa ? 'دعوت کردن' : 'INVITE SOMEONE';
-  String get inviteMore => fa ? 'دعوت کسی دیگر' : 'INVITE SOMEONE ELSE';
-  String get startRide => fa ? 'شروع ارتباط' : 'Start ride';
-  String get unlinkedHeading => fa ? 'هنوز وصل نیستید' : 'Not connected yet';
-  String get unlinkedLead => fa
-      ? 'برای شروع ارتباط، این گوشی باید روی یک شبکه باشد.'
-      : 'This phone has to be on something before the channel can open.';
-  String get unlinkedTitle => fa ? 'هیچ اتصالی برقرار نیست' : 'No link yet';
-  String get unlinkedBody => fa
-      ? 'تارک روی وای‌فای، هات‌اسپاتی که یکی‌تان روشن می‌کند، یا بلوتوث کار می‌کند — بدون اینترنت و بدون سیم‌کارت. الان این گوشی روی هیچ‌کدام نیست.'
-      : 'Tark runs over Wi-Fi, a hotspot one of you turns on, or Bluetooth — no internet, no SIM. Right now this phone is on none of them.';
-  String get unlinkedNoWayOut => fa
-      ? 'الان این گوشی روی هیچ شبکه‌ای نیست. وای‌فای را روشن کنید یا از صفحهٔ اتصال، هات‌اسپات را بالا بیاورید.'
-      : 'This phone is not on any network right now. Turn Wi-Fi on, or bring a hotspot up from the connect screen.';
-  String get connect => fa ? 'برقراری اتصال' : 'GET CONNECTED';
-  String get assumedHeading => fa ? 'یک قدم مانده' : 'One thing first';
-  String get assumedLead => fa
-      ? 'روی وای‌فای بودن، با روی وای‌فایِ آن‌ها بودن یکی نیست.'
-      : 'Being on Wi-Fi is not the same as being on their Wi-Fi.';
-  String get assumedTitle =>
-      fa ? 'همه روی همین شبکه‌اند؟' : 'Are they on this network?';
-  String get assumedBody => fa
-      ? 'این گوشی روی شبکه‌ای است که از قبل بوده — و از اینجا هیچ راهی نیست که بفهمیم بقیه هم روی همان هستند. شبکه‌ای هم که چند دقیقهٔ دیگر از آن دور می‌شوید، جای شروع ارتباط نیست. هات‌اسپاتی که یکی‌تان روشن می‌کند هرجا بروید کار می‌کند: شما کد را نشان می‌دهید، آن‌ها اسکن می‌کنند.'
-      : 'This phone is on a network that was already here, and there is no way from this side to tell whether the others are on it too — nor whether it will still be under you in ten minutes. A hotspot one of you turns on works wherever you end up: you show a code, they scan it.';
-  String get assumedNoWayOut => fa
-      ? 'این گوشی روی شبکه‌ای است که از قبل بوده. تا صدایی نرسد، معلوم نیست بقیه هم روی همان باشند.'
-      : 'This phone is on a network that was already here. Until someone is heard, there is no telling whether the others are on it.';
-  String get getOnOneNetwork =>
-      fa ? 'یک شبکهٔ مشترک بسازید' : 'GET ON ONE NETWORK';
-  String get alreadyTogether => fa
-      ? 'همین حالا روی یک شبکه‌ایم — شروع کن'
-      : "We're already on the same network — start";
-  String get linkConnected => fa ? 'وصل' : 'CONNECTED';
-  String get differentNetwork =>
-      fa ? 'روی یک شبکه نیستید؟' : 'Not on the same network?';
-
-  /// What the link does *not* tell you. One line per link, because the gap is
-  /// a different gap each time: a network says nothing about who else is on
-  /// it, while an access point of your own says exactly one thing — nobody
-  /// has joined it yet.
-  String linkCaveat(LiveLink link) => switch (link) {
-    LiveLink.wifi =>
-      fa
-          ? 'بقیه هم باید روی همین شبکه باشند. تا وقتی صدایی نرسد، از اینجا نمی‌شود فهمید هستند یا نه.'
-          : 'The others have to be on this same network. Until someone is heard, there is no way to tell from here whether they are.',
-    LiveLink.hotspotHost =>
-      fa
-          ? 'هات‌اسپات شما روشن است، ولی تا کدتان را اسکن نکنند کسی روی آن نیست.'
-          : 'Your hotspot is up, but nobody is on it until they scan your code.',
-    LiveLink.bluetooth || LiveLink.none => '',
-  };
-  String linkName(LiveLink link) => switch (link) {
-    LiveLink.wifi => fa ? 'روی وای‌فای' : 'On Wi-Fi',
-    LiveLink.hotspotHost =>
-      fa ? 'هات‌اسپات شما روشن است' : 'Your hotspot is up',
-    LiveLink.bluetooth => fa ? 'اتصال بلوتوث' : 'Bluetooth link',
-    LiveLink.none => fa ? 'بدون اتصال' : 'No link',
-  };
-  String get startAloneHint => fa
-      ? 'یا همین حالا شروع کنید و بعد از روشن‌شدن ارتباط دعوت کنید.'
-      : 'Or start now and invite once you are on the air.';
-  String get you => fa ? 'شما' : 'You';
-  String get unnamed => fa ? 'عضو اتاق' : 'Room member';
-  String get heldSeatsHint => fa
-      ? 'کدشان را گرفته‌اند ولی هنوز اسکن نکرده‌اند.'
-      : 'They have a code but have not scanned it yet.';
-
-  String members(int count) => fa
-      ? 'اعضای اتاق (${count.localized(context)})'
-      : 'Room members (${count.localized(context)})';
-  String heldSeats(int count) => fa
-      ? 'در انتظار پیوستن (${count.localized(context)})'
-      : 'Waiting to join (${count.localized(context)})';
 }

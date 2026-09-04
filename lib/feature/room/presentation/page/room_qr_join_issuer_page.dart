@@ -3,6 +3,7 @@ import 'package:get_it/get_it.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../../../../core/l10n/extension.dart';
 import '../../data/security/room_transport_identity_lifecycle.dart';
 import '../../data/security/room_transport_identity_secure_store.dart';
 import '../../domain/repository/room_repository.dart';
@@ -35,9 +36,6 @@ class _RoomQrJoinIssuerPageState extends State<RoomQrJoinIssuerPage> {
   _IssuerStage _stage = _IssuerStage.scanRequest;
   String? _response;
   bool _handling = false;
-
-  bool get _fa =>
-      Localizations.localeOf(context).languageCode.toLowerCase() == 'fa';
 
   @override
   void initState() {
@@ -84,13 +82,7 @@ class _RoomQrJoinIssuerPageState extends State<RoomQrJoinIssuerPage> {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
-          SnackBar(
-            content: Text(
-              _fa
-                  ? 'بررسی درخواست ممکن نشد. دوباره اسکن کنید.'
-                  : 'Could not verify the request. Scan again.',
-            ),
-          ),
+          SnackBar(content: Text(context.getString.issuer_verify_failed)),
         );
     } finally {
       _handling = false;
@@ -107,9 +99,7 @@ class _RoomQrJoinIssuerPageState extends State<RoomQrJoinIssuerPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: Text(_fa ? 'تأیید درخواست همراه' : 'Verify rider request'),
-    ),
+    appBar: AppBar(title: Text(context.getString.issuer_title)),
     body: SafeArea(
       child: switch (_stage) {
         _IssuerStage.scanRequest => Column(
@@ -118,9 +108,7 @@ class _RoomQrJoinIssuerPageState extends State<RoomQrJoinIssuerPage> {
             Padding(
               padding: const EdgeInsets.all(20),
               child: Text(
-                _fa
-                    ? 'QR درخواست عضویت روی گوشی همراه را اسکن کنید. فقط دعوت معتبر و مصرف‌نشده تأیید می‌شود.'
-                    : 'Scan the membership-request QR on the rider phone. Only a valid, unredeemed invite can be accepted.',
+                context.getString.issuer_scan_hint,
                 textAlign: TextAlign.center,
               ),
             ),
@@ -145,12 +133,8 @@ class _RoomQrJoinIssuerPageState extends State<RoomQrJoinIssuerPage> {
       children: [
         Text(
           accepted
-              ? (_fa
-                    ? 'درخواست تأیید شد. همراه باید این QR پاسخ را اسکن کند تا عضویت روی گوشی خودش ذخیره شود.'
-                    : 'Request verified. The rider must scan this response QR before membership is saved on their phone.')
-              : (_fa
-                    ? 'درخواست تأیید نشد. این پاسخ فقط نتیجه رد را منتقل می‌کند.'
-                    : 'Request was not verified. This response only carries the rejection result.'),
+              ? context.getString.issuer_accepted
+              : context.getString.issuer_rejected,
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 20),
@@ -173,7 +157,7 @@ class _RoomQrJoinIssuerPageState extends State<RoomQrJoinIssuerPage> {
         FilledButton(
           key: const Key('room-issuer-done'),
           onPressed: () => Navigator.of(context).pop(accepted),
-          child: Text(_fa ? 'تمام' : 'Done'),
+          child: Text(context.getString.issuer_done),
         ),
       ],
     );

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/service/room_carrier_promotion_controller.dart';
@@ -114,45 +115,22 @@ final class _CarrierCopy {
   /// Null when this phone has nothing worth saying — which is most of the
   /// time, on most phones.
   static _CarrierCopy? of(BuildContext context, RoomCarrierStatus status) {
-    final fa =
-        Localizations.localeOf(context).languageCode.toLowerCase() == 'fa';
+    final s = context.getString;
     switch (status.stage) {
       case RoomCarrierStage.raising:
       case RoomCarrierStage.moving:
         if (status.localIsHost) {
-          return _CarrierCopy(
-            working: true,
-            text: fa
-                ? 'داریم آماده می‌شویم که وقتی راه افتادید ارتباط قطع نشود. این گوشی مرکز ارتباط می‌شود.'
-                : 'Getting you set up to stay connected once you set off. '
-                      'This phone becomes the hub.',
-          );
+          return _CarrierCopy(working: true, text: s.carrier_raising_host);
         }
-        return _CarrierCopy(
-          working: true,
-          text: fa
-              ? 'داریم آماده می‌شویم که وقتی راه افتادید ارتباط قطع نشود.'
-              : 'Getting you set up to stay connected once you set off.',
-        );
+        return _CarrierCopy(working: true, text: s.carrier_raising);
       case RoomCarrierStage.awaitingHost:
-        return _CarrierCopy(
-          working: true,
-          text: fa
-              ? 'یک لحظه — داریم ارتباط را برای بیرون آماده می‌کنیم.'
-              : 'One moment — getting the room ready for the road.',
-        );
+        return _CarrierCopy(working: true, text: s.carrier_awaiting_host);
       case RoomCarrierStage.settled:
         // The resting note, and the one fact that genuinely matters: this
         // phone is the hub, so it has no internet until the room closes.
         // Everyone else gets nothing, because for them nothing has changed.
         if (!status.localIsHost) return null;
-        return _CarrierCopy(
-          working: false,
-          text: fa
-              ? 'این گوشی مرکز ارتباط اتاق است. تا وقتی اتاق باز باشد، اینترنت این گوشی خاموش می‌ماند.'
-              : 'This phone is the hub for the room. It stays off the internet '
-                    'until the room closes.',
-        );
+        return _CarrierCopy(working: false, text: s.carrier_settled_host);
     }
   }
 

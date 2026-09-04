@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/l10n/extension.dart';
 import '../../core/motion/app_motion.dart';
 import '../../core/router/route_exit.dart';
 import '../../core/router/routes.dart';
@@ -478,8 +479,6 @@ class _InvalidRoomSelection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fa =
-        Localizations.localeOf(context).languageCode.toLowerCase() == 'fa';
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -491,15 +490,13 @@ class _InvalidRoomSelection extends StatelessWidget {
                 const Icon(Icons.info_outline_rounded, size: 44),
                 const SizedBox(height: 12),
                 Text(
-                  fa
-                      ? 'این اتاق دیگر برای شروع ارتباط در دسترس نیست.'
-                      : 'This room is no longer available to start.',
+                  context.getString.entry_room_unavailable,
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
                 OutlinedButton(
                   onPressed: onBack,
-                  child: Text(fa ? 'بازگشت' : 'Back'),
+                  child: Text(context.getString.entry_back),
                 ),
               ],
             ),

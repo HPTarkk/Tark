@@ -1538,4 +1538,521 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get preflight_enter_channel => 'ورود به کانال';
+
+  @override
+  String get lobby_back => 'بازگشت';
+
+  @override
+  String get lobby_heading => 'آماده شروع ارتباط';
+
+  @override
+  String get lobby_alone_heading => 'اتاق ساخته شد';
+
+  @override
+  String get lobby_nothing_started =>
+      'تا وقتی «شروع ارتباط» را نزنید، هیچ هات‌اسپات، میکروفن یا اتصال زنده‌ای شروع نمی‌شود.';
+
+  @override
+  String get lobby_alone_title => 'هنوز تنها هستید';
+
+  @override
+  String lobby_alone_body(Object room) {
+    return 'هنوز کسی جز شما در «$room» نیست. کد دعوت را نشانشان بدهید — با یک اسکن وارد همین اتاق می‌شوند، بدون اینترنت.';
+  }
+
+  @override
+  String get lobby_alone_no_right =>
+      'هنوز کسی جز شما اینجا نیست. دعوت کردن دست میزبان این اتاق است.';
+
+  @override
+  String get lobby_invite_someone => 'دعوت کردن';
+
+  @override
+  String get lobby_invite_more => 'دعوت کسی دیگر';
+
+  @override
+  String get lobby_start_ride => 'شروع ارتباط';
+
+  @override
+  String get lobby_unlinked_heading => 'هنوز وصل نیستید';
+
+  @override
+  String get lobby_unlinked_lead =>
+      'برای شروع ارتباط، این گوشی باید روی یک شبکه باشد.';
+
+  @override
+  String get lobby_unlinked_title => 'هیچ اتصالی برقرار نیست';
+
+  @override
+  String get lobby_unlinked_body =>
+      'تارک روی وای‌فای، هات‌اسپاتی که یکی‌تان روشن می‌کند، یا بلوتوث کار می‌کند — بدون اینترنت و بدون سیم‌کارت. الان این گوشی روی هیچ‌کدام نیست.';
+
+  @override
+  String get lobby_unlinked_no_way_out =>
+      'الان این گوشی روی هیچ شبکه‌ای نیست. وای‌فای را روشن کنید یا از صفحهٔ اتصال، هات‌اسپات را بالا بیاورید.';
+
+  @override
+  String get lobby_connect => 'برقراری اتصال';
+
+  @override
+  String get lobby_assumed_heading => 'یک قدم مانده';
+
+  @override
+  String get lobby_assumed_lead =>
+      'روی وای‌فای بودن، با روی وای‌فایِ آن‌ها بودن یکی نیست.';
+
+  @override
+  String get lobby_assumed_title => 'همه روی همین شبکه‌اند؟';
+
+  @override
+  String get lobby_assumed_body =>
+      'این گوشی روی شبکه‌ای است که از قبل بوده — و از اینجا هیچ راهی نیست که بفهمیم بقیه هم روی همان هستند. شبکه‌ای هم که چند دقیقهٔ دیگر از آن دور می‌شوید، جای شروع ارتباط نیست. هات‌اسپاتی که یکی‌تان روشن می‌کند هرجا بروید کار می‌کند: شما کد را نشان می‌دهید، آن‌ها اسکن می‌کنند.';
+
+  @override
+  String get lobby_assumed_no_way_out =>
+      'این گوشی روی شبکه‌ای است که از قبل بوده. تا صدایی نرسد، معلوم نیست بقیه هم روی همان باشند.';
+
+  @override
+  String get lobby_get_on_one_network => 'یک شبکهٔ مشترک بسازید';
+
+  @override
+  String get lobby_already_together => 'همین حالا روی یک شبکه‌ایم — شروع کن';
+
+  @override
+  String get lobby_link_connected => 'وصل';
+
+  @override
+  String get lobby_different_network => 'روی یک شبکه نیستید؟';
+
+  @override
+  String get lobby_caveat_wifi =>
+      'بقیه هم باید روی همین شبکه باشند. تا وقتی صدایی نرسد، از اینجا نمی‌شود فهمید هستند یا نه.';
+
+  @override
+  String get lobby_caveat_hotspot =>
+      'هات‌اسپات شما روشن است، ولی تا کدتان را اسکن نکنند کسی روی آن نیست.';
+
+  @override
+  String get lobby_link_wifi => 'روی وای‌فای';
+
+  @override
+  String get lobby_link_hotspot => 'هات‌اسپات شما روشن است';
+
+  @override
+  String get lobby_link_bluetooth => 'اتصال بلوتوث';
+
+  @override
+  String get lobby_link_none => 'بدون اتصال';
+
+  @override
+  String get lobby_start_alone_hint =>
+      'یا همین حالا شروع کنید و بعد از روشن‌شدن ارتباط دعوت کنید.';
+
+  @override
+  String get lobby_you => 'شما';
+
+  @override
+  String get lobby_unnamed => 'عضو اتاق';
+
+  @override
+  String get lobby_held_seats_hint =>
+      'کدشان را گرفته‌اند ولی هنوز اسکن نکرده‌اند.';
+
+  @override
+  String lobby_members(Object count) {
+    return 'اعضای اتاق ($count)';
+  }
+
+  @override
+  String lobby_held_seats(Object count) {
+    return 'در انتظار پیوستن ($count)';
+  }
+
+  @override
+  String get rooms_title => 'اتاق‌های ذخیره‌شده';
+
+  @override
+  String get rooms_back => 'بازگشت';
+
+  @override
+  String get rooms_create => 'ساخت اتاق';
+
+  @override
+  String get rooms_rename => 'تغییر نام';
+
+  @override
+  String get rooms_save => 'ذخیره';
+
+  @override
+  String get rooms_archive => 'بایگانی';
+
+  @override
+  String get rooms_archived => 'بایگانی‌شده';
+
+  @override
+  String get rooms_leave => 'ترک اتاق';
+
+  @override
+  String get rooms_cancel => 'انصراف';
+
+  @override
+  String get rooms_select => 'انتخاب این اتاق';
+
+  @override
+  String get rooms_selected => 'انتخاب‌شده';
+
+  @override
+  String get rooms_start_ride => 'شروع ارتباط';
+
+  @override
+  String get rooms_manage => 'مدیریت اتاق';
+
+  @override
+  String get rooms_retry => 'تلاش دوباره';
+
+  @override
+  String get rooms_name_hint => 'نام اتاق';
+
+  @override
+  String get rooms_fallback_member_name => 'راننده';
+
+  @override
+  String get rooms_empty_title => 'هنوز اتاقی ندارید';
+
+  @override
+  String get rooms_empty_body =>
+      'اتاق‌ها بدون اینترنت هم روی همین گوشی باقی می‌مانند. ساخت یا انتخاب اتاق به‌تنهایی هات‌اسپات یا میکروفن را روشن نمی‌کند.';
+
+  @override
+  String get rooms_load_error =>
+      'اتاق‌های ذخیره‌شده خوانده نشدند. چیزی حذف نشده است.';
+
+  @override
+  String get rooms_can_invite => 'می‌توانید دعوت کنید';
+
+  @override
+  String get rooms_delete => 'حذف اتاق';
+
+  @override
+  String get rooms_archived_rooms => 'اتاق‌های بایگانی‌شده';
+
+  @override
+  String get rooms_new_room => 'اتاق تازه';
+
+  @override
+  String rooms_member_count(Object count) {
+    return '$count عضو';
+  }
+
+  @override
+  String rooms_pending_seat_one(Object count) {
+    return '$count جای بازشده';
+  }
+
+  @override
+  String rooms_pending_seats_other(Object count) {
+    return '$count جای بازشده';
+  }
+
+  @override
+  String rooms_archive_confirm(Object name) {
+    return '«$name» از فهرست کنار می‌رود و عضویتش دست‌نخورده می‌ماند. هر وقت خواستید از بایگانی برش گردانید.';
+  }
+
+  @override
+  String rooms_leave_confirm(Object name) {
+    return 'عضویت شما در «$name» حذف شود؟ این کار با پایان دادن یک جلسه زنده فرق دارد.';
+  }
+
+  @override
+  String rooms_room_semantics(String name, String count) {
+    return '$name، $count عضو';
+  }
+
+  @override
+  String rooms_room_semantics_selected(String name, String count) {
+    return '$name، $count عضو، انتخاب‌شده';
+  }
+
+  @override
+  String get people_title => 'افراد اتاق';
+
+  @override
+  String get people_invite_title => 'دعوت تازه';
+
+  @override
+  String get people_you => 'شما';
+
+  @override
+  String get people_waiting => 'هنوز نیامده';
+
+  @override
+  String get people_unnamed => 'بدون نام';
+
+  @override
+  String get people_revoke => 'پس گرفتن دعوت';
+
+  @override
+  String get people_create_invite => 'ساخت دعوت';
+
+  @override
+  String get people_done => 'تمام';
+
+  @override
+  String get people_copy_invite => 'کپی دعوت';
+
+  @override
+  String get people_copied => 'کپی شد';
+
+  @override
+  String get people_invite_hint =>
+      'بگذار طرف مقابل این کد را با «پیوستن با QR» اسکن کند. مستقیم وارد اتاق می‌شود.';
+
+  @override
+  String get people_held_seats_hint =>
+      'این جاها با دعوت باز شده‌اند ولی هنوز کسی از آن‌ها استفاده نکرده. در شمار اعضا حساب نمی‌شوند.';
+
+  @override
+  String get people_code_label => 'کد بررسی اتاق';
+
+  @override
+  String get people_code_warning =>
+      'این کد فقط برای بررسی است و به‌تنهایی اجازه ورود نمی‌دهد.';
+
+  @override
+  String get people_grant_title => 'اجازه دعوت دیگران';
+
+  @override
+  String get people_grant_hint =>
+      'با این اجازه، این نفر هم می‌تواند دیگران را به اتاق بیاورد.';
+
+  @override
+  String get people_granted_note =>
+      'این دعوت اجازه دعوت‌کردن دیگران را هم می‌دهد.';
+
+  @override
+  String get people_cannot_invite =>
+      'شما اجازه دعوت در این اتاق را ندارید. از میزبان بخواهید هنگام دعوت، «اجازه دعوت دیگران» را روشن کند.';
+
+  @override
+  String get people_issue_error => 'ساخت دعوت ممکن نشد. دوباره تلاش کنید.';
+
+  @override
+  String get people_no_room => 'هیچ اتاقی انتخاب نشده است.';
+
+  @override
+  String get people_wifi_title => 'اتصال وای‌فای میزبان';
+
+  @override
+  String get people_ssid_label => 'نام شبکه';
+
+  @override
+  String get people_password_label => 'رمز عبور';
+
+  @override
+  String get people_wifi_ephemeral =>
+      'این اطلاعات فقط مربوط به اتصال فعلی است و شناسه اتاق نیست.';
+
+  @override
+  String get people_wifi_recovering =>
+      'هات‌اسپات در حال بازیابی است. کیوآر وای‌فای بعد از آماده‌شدن شبکه تازه می‌شود.';
+
+  @override
+  String people_in_room(Object count) {
+    return 'در اتاق ($count)';
+  }
+
+  @override
+  String people_held_seats(Object count) {
+    return 'جای بازشده ($count)';
+  }
+
+  @override
+  String get roomjoin_title => 'پیوستن به اتاق';
+
+  @override
+  String get roomjoin_hint =>
+      'کد دعوت روی گوشی میزبان را بگیر جلوی دوربین. بعد از اسکن مستقیم وارد اتاق می‌شوی.';
+
+  @override
+  String get roomjoin_searching => 'دنبال کد دعوت می‌گردم';
+
+  @override
+  String get roomjoin_locked => 'کد پیدا شد';
+
+  @override
+  String get roomjoin_joining => 'در حال ورود به اتاق';
+
+  @override
+  String get roomjoin_not_joined =>
+      'پیوستن انجام نشد. یک دعوت تازه از میزبان بگیر.';
+
+  @override
+  String get roomjoin_invalid => 'این کد دعوت معتبر نیست یا منقضی شده.';
+
+  @override
+  String get roomjoin_not_our_code =>
+      'این کد مال «ترک» نیست. کد دعوت یا کد وای‌فای روی گوشی میزبان را اسکن کن.';
+
+  @override
+  String get roomjoin_camera_denied =>
+      '«ترک» برای خواندن کد دعوت دوربین می‌خواهد.';
+
+  @override
+  String get roomjoin_camera_failed =>
+      'دوربین باز نشد. هر چیز دیگری که از آن استفاده می‌کند را ببند و دوباره امتحان کن.';
+
+  @override
+  String get roomjoin_open_settings => 'باز کردن تنظیمات';
+
+  @override
+  String get archive_eyebrow => 'بایگانی';
+
+  @override
+  String get archive_title => 'اتاق‌های بایگانی‌شده';
+
+  @override
+  String get archive_blurb =>
+      'این اتاق‌ها روی همین گوشی می‌مانند و عضویت‌شان دست‌نخورده است. هر وقت خواستید برشان گردانید.';
+
+  @override
+  String get archive_restore => 'بازگرداندن';
+
+  @override
+  String get archive_delete => 'حذف';
+
+  @override
+  String get archive_delete_title => 'حذف اتاق';
+
+  @override
+  String get archive_delete_action => 'حذف کن';
+
+  @override
+  String archive_member_count(Object count) {
+    return '$count عضو';
+  }
+
+  @override
+  String archive_delete_confirm(Object name) {
+    return '«$name» از این گوشی پاک می‌شود و برنمی‌گردد. اگر فقط می‌خواهید از فهرست کنار برود، بایگانی‌اش کنید.';
+  }
+
+  @override
+  String archive_card_semantics(String name, String count) {
+    return '$name، بایگانی‌شده، $count عضو';
+  }
+
+  @override
+  String get inroom_alone_body =>
+      'کدِ اتاق را نشانشان بدهید؛ با یک اسکن وارد می‌شوند.';
+
+  @override
+  String get inroom_invite_someone => 'دعوت کنید';
+
+  @override
+  String get inroom_add_someone => 'افزودن نفر';
+
+  @override
+  String get inroom_stranded_body =>
+      'بقیه در این اتاق هستند ولی صدایشان نمی‌رسد — یعنی گوشی‌ها روی یک شبکه نیستند.';
+
+  @override
+  String get inroom_get_on_one_network => 'وصل شدن به یک شبکه';
+
+  @override
+  String get invite_people => 'فرد';
+
+  @override
+  String invite_people_count(Object count) {
+    return 'افراد اتاق، $count نفر';
+  }
+
+  @override
+  String get carrier_raising_host =>
+      'داریم آماده می‌شویم که وقتی راه افتادید ارتباط قطع نشود. این گوشی مرکز ارتباط می‌شود.';
+
+  @override
+  String get carrier_raising =>
+      'داریم آماده می‌شویم که وقتی راه افتادید ارتباط قطع نشود.';
+
+  @override
+  String get carrier_awaiting_host =>
+      'یک لحظه — داریم ارتباط را برای بیرون آماده می‌کنیم.';
+
+  @override
+  String get carrier_settled_host =>
+      'این گوشی مرکز ارتباط اتاق است. تا وقتی اتاق باز باشد، اینترنت این گوشی خاموش می‌ماند.';
+
+  @override
+  String get entry_create_room => 'ساخت اتاق';
+
+  @override
+  String get entry_create_room_hint => 'یک اتاق بساز و بقیه را دعوت کن';
+
+  @override
+  String get entry_join_qr => 'پیوستن با QR';
+
+  @override
+  String get entry_join_qr_hint => 'کد روی گوشی میزبان را اسکن کن';
+
+  @override
+  String get entry_resume_hint => 'ادامه در این اتاق';
+
+  @override
+  String get entry_join => 'پیوستن';
+
+  @override
+  String get entry_join_hint => 'کد میزبان را اسکن کن';
+
+  @override
+  String get entry_new_room => 'اتاق تازه';
+
+  @override
+  String get entry_new_room_hint => 'خودت یکی بساز';
+
+  @override
+  String get entry_my_rooms => 'اتاق‌های من';
+
+  @override
+  String get issuer_title => 'تأیید درخواست همراه';
+
+  @override
+  String get issuer_scan_hint =>
+      'QR درخواست عضویت روی گوشی همراه را اسکن کنید. فقط دعوت معتبر و مصرف‌نشده تأیید می‌شود.';
+
+  @override
+  String get issuer_verify_failed =>
+      'بررسی درخواست ممکن نشد. دوباره اسکن کنید.';
+
+  @override
+  String get issuer_accepted =>
+      'درخواست تأیید شد. همراه باید این QR پاسخ را اسکن کند تا عضویت روی گوشی خودش ذخیره شود.';
+
+  @override
+  String get issuer_rejected =>
+      'درخواست تأیید نشد. این پاسخ فقط نتیجه رد را منتقل می‌کند.';
+
+  @override
+  String get issuer_done => 'تمام';
+
+  @override
+  String header_room_semantics(String name, String code) {
+    return 'اتاق $name، کد $code';
+  }
+
+  @override
+  String get header_alone_in_room => 'تنها در اتاق';
+
+  @override
+  String get header_alone => 'تنها';
+
+  @override
+  String get entry_room_unavailable =>
+      'این اتاق دیگر برای شروع ارتباط در دسترس نیست.';
+
+  @override
+  String get entry_back => 'بازگشت';
+
+  @override
+  String get confirm_cancel => 'انصراف';
 }

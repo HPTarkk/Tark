@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 
+import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
@@ -111,14 +112,15 @@ class _InRoomInviteButtonState extends State<InRoomInviteButton> {
 
   @override
   Widget build(BuildContext context) {
-    final copy = _Copy.of(context);
     final count = _count;
     return Semantics(
       button: true,
-      label: count == null ? copy.people : copy.peopleCount(count),
+      label: count == null
+          ? context.getString.invite_people
+          : context.getString.invite_people_count(count.localized(context)),
       excludeSemantics: true,
       child: Tooltip(
-        message: copy.people,
+        message: context.getString.invite_people,
         child: PressableScale(
           onTap: _open,
           borderRadius: BorderRadius.circular(999),
@@ -150,7 +152,7 @@ class _InRoomInviteButtonState extends State<InRoomInviteButton> {
                 ],
                 const SizedBox(width: 6),
                 Text(
-                  copy.people,
+                  context.getString.invite_people,
                   style: TextStyle(
                     color: AppColors.amber,
                     fontSize: 11,
@@ -164,22 +166,5 @@ class _InRoomInviteButtonState extends State<InRoomInviteButton> {
         ),
       ),
     );
-  }
-}
-
-final class _Copy {
-  const _Copy({required this.fa});
-
-  factory _Copy.of(BuildContext context) => _Copy(
-    fa: Localizations.localeOf(context).languageCode.toLowerCase() == 'fa',
-  );
-
-  final bool fa;
-
-  String get people => fa ? 'فرد' : 'People';
-
-  String peopleCount(int count) {
-    final n = localizeDigits('$count', farsi: fa);
-    return fa ? 'افراد اتاق، $n نفر' : 'Room people, $n in the room';
   }
 }

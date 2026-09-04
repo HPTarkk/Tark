@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../core/router/route_exit.dart';
@@ -54,10 +55,9 @@ class _RoomListPageState extends State<RoomListPage> {
 
   @override
   Widget build(BuildContext context) {
-    final copy = _RoomCopy.of(context);
     return RouteExitScope(
       onExit: () => _leave(context),
-      child: _scaffold(context, copy),
+      child: _scaffold(context),
     );
   }
 
@@ -72,7 +72,7 @@ class _RoomListPageState extends State<RoomListPage> {
   void _leave(BuildContext context) =>
       exitRouteTo(context, AppRoutes.landingPath);
 
-  Widget _scaffold(BuildContext context, _RoomCopy copy) {
+  Widget _scaffold(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -80,10 +80,10 @@ class _RoomListPageState extends State<RoomListPage> {
         foregroundColor: AppColors.textPrimary,
         leading: Semantics(
           button: true,
-          label: copy.back,
+          label: context.getString.rooms_back,
           child: IconButton(
             key: const Key('rooms-back'),
-            tooltip: copy.back,
+            tooltip: context.getString.rooms_back,
             onPressed: () {
               HapticFeedback.selectionClick();
               _leave(context);
@@ -91,7 +91,7 @@ class _RoomListPageState extends State<RoomListPage> {
             icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
           ),
         ),
-        title: Text(copy.title),
+        title: Text(context.getString.rooms_title),
         actions: [
           // Absent until there is something in it. A permanent control for an
           // empty archive is a promise of content the user does not have.
@@ -104,8 +104,8 @@ class _RoomListPageState extends State<RoomListPage> {
                   : _ArchiveAction(
                       key: const Key('rooms-archive-action'),
                       count: state.archived.length,
-                      label: copy.archivedRooms,
-                      countLabel: copy.archivedCount(state.archived.length),
+                      label: context.getString.rooms_archived_rooms,
+                      countLabel: state.archived.length.localized(context),
                       onTap: () => showRoomArchiveSheet(context),
                     ),
             ),
@@ -131,7 +131,7 @@ class _RoomListPageState extends State<RoomListPage> {
                 foregroundColor: AppColors.background,
                 icon: const Icon(Icons.add_rounded),
                 label: Text(
-                  copy.newRoom,
+                  context.getString.rooms_new_room,
                   style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
               ),
@@ -170,7 +170,7 @@ class _RoomListPageState extends State<RoomListPage> {
                   if (current != null) _slot(current, leaving: false),
                 ],
               ),
-              child: _body(context, state, copy),
+              child: _body(context, state),
             );
           },
         ),
@@ -188,7 +188,7 @@ class _RoomListPageState extends State<RoomListPage> {
     child: IgnorePointer(ignoring: leaving, child: child),
   );
 
-  Widget _body(BuildContext context, RoomListState state, _RoomCopy copy) {
+  Widget _body(BuildContext context, RoomListState state) {
     if (state.loading && state.rooms.isEmpty) {
       return const Center(
         key: ValueKey('rooms-loading'),
@@ -198,14 +198,12 @@ class _RoomListPageState extends State<RoomListPage> {
     if (state.error != null && state.rooms.isEmpty) {
       return _ErrorState(
         key: const ValueKey('rooms-error'),
-        copy: copy,
         onRetry: context.read<RoomListCubit>().load,
       );
     }
     if (state.rooms.isEmpty) {
       return _EmptyState(
         key: const ValueKey('rooms-empty'),
-        copy: copy,
         onCreate: () => _createRoom(context),
       );
     }
@@ -219,7 +217,6 @@ class _RoomListPageState extends State<RoomListPage> {
               saved: saved,
               selected: state.selectedRoomId == saved.room.id,
               busy: state.loading,
-              copy: copy,
               onSelect: () =>
                   context.read<RoomListCubit>().select(saved.room.id),
               onStart: state.selectedRoomId == saved.room.id
@@ -243,12 +240,11 @@ class _RoomListPageState extends State<RoomListPage> {
   }
 
   Future<void> _createRoom(BuildContext context) async {
-    final copy = _RoomCopy.of(context);
     final name = await _nameDialog(
       context,
-      title: copy.create,
-      action: copy.create,
-      hint: copy.roomNameHint,
+      title: context.getString.rooms_create,
+      action: context.getString.rooms_create,
+      hint: context.getString.rooms_name_hint,
     );
     if (name == null || !context.mounted) return;
 
@@ -264,7 +260,7 @@ class _RoomListPageState extends State<RoomListPage> {
     final created = await context.read<RoomListCubit>().createRoom(
       name: name,
       localDisplayName: localDisplayName.trim().isEmpty
-          ? copy.fallbackMemberName
+          ? context.getString.rooms_fallback_member_name
           : localDisplayName.trim(),
     );
     if (created != null && context.mounted) {
@@ -273,12 +269,11 @@ class _RoomListPageState extends State<RoomListPage> {
   }
 
   Future<void> _renameRoom(BuildContext context, SavedRoom saved) async {
-    final copy = _RoomCopy.of(context);
     final name = await _nameDialog(
       context,
-      title: copy.rename,
-      action: copy.save,
-      hint: copy.roomNameHint,
+      title: context.getString.rooms_rename,
+      action: context.getString.rooms_save,
+      hint: context.getString.rooms_name_hint,
       initialValue: saved.room.name,
     );
     if (name == null || !context.mounted) return;
@@ -286,12 +281,11 @@ class _RoomListPageState extends State<RoomListPage> {
   }
 
   Future<void> _archiveRoom(BuildContext context, SavedRoom saved) async {
-    final copy = _RoomCopy.of(context);
     final confirmed = await showConfirmSheet(
       context,
-      title: copy.archive,
-      body: copy.archiveConfirm(saved.room.name),
-      action: copy.archive,
+      title: context.getString.rooms_archive,
+      body: context.getString.rooms_archive_confirm(saved.room.name),
+      action: context.getString.rooms_archive,
       icon: Icons.inventory_2_outlined,
     );
     if (confirmed && context.mounted) {
@@ -300,12 +294,11 @@ class _RoomListPageState extends State<RoomListPage> {
   }
 
   Future<void> _leaveRoom(BuildContext context, SavedRoom saved) async {
-    final copy = _RoomCopy.of(context);
     final confirmed = await showConfirmSheet(
       context,
-      title: copy.leave,
-      body: copy.leaveConfirm(saved.room.name),
-      action: copy.leave,
+      title: context.getString.rooms_leave,
+      body: context.getString.rooms_leave_confirm(saved.room.name),
+      action: context.getString.rooms_leave,
       icon: Icons.logout_rounded,
       destructive: true,
     );
@@ -321,7 +314,6 @@ class _RoomListPageState extends State<RoomListPage> {
     required String hint,
     String initialValue = '',
   }) async {
-    final copy = _RoomCopy.of(context);
     final controller = TextEditingController(text: initialValue);
     final result = await showDialog<String>(
       context: context,
@@ -343,7 +335,7 @@ class _RoomListPageState extends State<RoomListPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: Text(copy.cancel),
+            child: Text(context.getString.rooms_cancel),
           ),
           FilledButton(
             key: const Key('room-name-submit'),
@@ -377,7 +369,6 @@ class _RoomCard extends StatelessWidget {
     required this.saved,
     required this.selected,
     required this.busy,
-    required this.copy,
     required this.onSelect,
     required this.onStart,
     required this.onRename,
@@ -389,7 +380,6 @@ class _RoomCard extends StatelessWidget {
   final SavedRoom saved;
   final bool selected;
   final bool busy;
-  final _RoomCopy copy;
   final VoidCallback onSelect;
   final VoidCallback? onStart;
   final VoidCallback onRename;
@@ -415,7 +405,7 @@ class _RoomCard extends StatelessWidget {
     return Semantics(
       selected: selected,
       button: !archived,
-      label: copy.roomSemantics(saved.room.name, members, selected),
+      label: _roomSemantics(context, saved.room.name, members, selected),
       excludeSemantics: true,
       child: PressableScale(
         key: Key('room-${saved.room.id.value}'),
@@ -529,7 +519,6 @@ class _RoomCard extends StatelessWidget {
                                   archived: archived,
                                   canInvite: saved.membership.canManageInvites,
                                   accent: accent,
-                                  copy: copy,
                                 ),
                               ],
                             ),
@@ -538,7 +527,6 @@ class _RoomCard extends StatelessWidget {
                             saved: saved,
                             busy: busy,
                             archived: archived,
-                            copy: copy,
                             onRename: onRename,
                             onArchive: onArchive,
                             onLeave: onLeave,
@@ -558,7 +546,7 @@ class _RoomCard extends StatelessWidget {
                                 padding: const EdgeInsets.fromLTRB(0, 14, 6, 0),
                                 child: _StartRow(
                                   key: Key('room-start-${saved.room.id.value}'),
-                                  label: copy.startRide,
+                                  label: context.getString.rooms_start_ride,
                                   busy: busy,
                                   onTap: onStart,
                                 ),
@@ -619,7 +607,6 @@ class _MetaLine extends StatelessWidget {
     required this.archived,
     required this.canInvite,
     required this.accent,
-    required this.copy,
   });
 
   final int members;
@@ -627,7 +614,6 @@ class _MetaLine extends StatelessWidget {
   final bool archived;
   final bool canInvite;
   final Color accent;
-  final _RoomCopy copy;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -641,19 +627,19 @@ class _MetaLine extends StatelessWidget {
           _item(
             constraints.maxWidth,
             Icons.person_rounded,
-            copy.memberCount(members),
+            context.getString.rooms_member_count(members.localized(context)),
             accent,
           ),
           if (pending > 0)
             _item(
               constraints.maxWidth,
               Icons.hourglass_top_rounded,
-              copy.pendingSeats(pending),
+              _pendingSeats(context, pending),
               AppColors.textSecondary,
             ),
           if (archived)
             Text(
-              copy.archived,
+              context.getString.rooms_archived,
               style: TextStyle(
                 color: AppColors.textSecondary,
                 fontSize: 11,
@@ -664,7 +650,7 @@ class _MetaLine extends StatelessWidget {
             _item(
               constraints.maxWidth,
               Icons.shield_moon_rounded,
-              copy.canInvite,
+              context.getString.rooms_can_invite,
               accent,
             ),
         ],
@@ -767,7 +753,6 @@ class _RoomMenu extends StatelessWidget {
     required this.saved,
     required this.busy,
     required this.archived,
-    required this.copy,
     required this.onRename,
     required this.onArchive,
     required this.onLeave,
@@ -777,7 +762,6 @@ class _RoomMenu extends StatelessWidget {
   final SavedRoom saved;
   final bool busy;
   final bool archived;
-  final _RoomCopy copy;
   final VoidCallback onRename;
   final VoidCallback onArchive;
   final VoidCallback onLeave;
@@ -787,7 +771,7 @@ class _RoomMenu extends StatelessWidget {
   Widget build(BuildContext context) => PopupMenuButton<_RoomAction>(
     key: Key('room-menu-${saved.room.id.value}'),
     enabled: !busy,
-    tooltip: copy.manage,
+    tooltip: context.getString.rooms_manage,
     iconColor: AppColors.textSecondary,
     iconSize: 20,
     position: PopupMenuPosition.under,
@@ -804,16 +788,25 @@ class _RoomMenu extends StatelessWidget {
       }
     },
     itemBuilder: (_) => [
-      PopupMenuItem(value: _RoomAction.rename, child: Text(copy.rename)),
+      PopupMenuItem(
+        value: _RoomAction.rename,
+        child: Text(context.getString.rooms_rename),
+      ),
       if (!archived)
-        PopupMenuItem(value: _RoomAction.archive, child: Text(copy.archive)),
-      PopupMenuItem(value: _RoomAction.leave, child: Text(copy.leave)),
+        PopupMenuItem(
+          value: _RoomAction.archive,
+          child: Text(context.getString.rooms_archive),
+        ),
+      PopupMenuItem(
+        value: _RoomAction.leave,
+        child: Text(context.getString.rooms_leave),
+      ),
       // Last, and the only coloured item: archive and leave are both
       // recoverable, and this one is not.
       PopupMenuItem(
         value: _RoomAction.delete,
         child: Text(
-          copy.delete,
+          context.getString.rooms_delete,
           style: TextStyle(color: AppColors.red, fontWeight: FontWeight.w700),
         ),
       ),
@@ -889,9 +882,7 @@ class _ArchiveAction extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.copy, required this.onCreate, super.key});
-
-  final _RoomCopy copy;
+  const _EmptyState({required this.onCreate, super.key});
   final VoidCallback onCreate;
 
   @override
@@ -906,7 +897,7 @@ class _EmptyState extends StatelessWidget {
             Icon(Icons.groups_2_outlined, size: 56, color: AppColors.amber),
             const SizedBox(height: 18),
             Text(
-              copy.emptyTitle,
+              context.getString.rooms_empty_title,
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: AppColors.textPrimary,
@@ -916,7 +907,7 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              copy.emptyBody,
+              context.getString.rooms_empty_body,
               textAlign: TextAlign.center,
               style: TextStyle(color: AppColors.textSecondary, height: 1.5),
             ),
@@ -924,7 +915,7 @@ class _EmptyState extends StatelessWidget {
             FilledButton.icon(
               onPressed: onCreate,
               icon: const Icon(Icons.add_rounded),
-              label: Text(copy.create),
+              label: Text(context.getString.rooms_create),
             ),
           ],
         ),
@@ -934,9 +925,7 @@ class _EmptyState extends StatelessWidget {
 }
 
 class _ErrorState extends StatelessWidget {
-  const _ErrorState({required this.copy, required this.onRetry, super.key});
-
-  final _RoomCopy copy;
+  const _ErrorState({required this.onRetry, super.key});
   final Future<void> Function() onRetry;
 
   @override
@@ -948,12 +937,12 @@ class _ErrorState extends StatelessWidget {
         children: [
           Icon(Icons.error_outline_rounded, size: 48, color: AppColors.amber),
           const SizedBox(height: 12),
-          Text(copy.loadError, textAlign: TextAlign.center),
+          Text(context.getString.rooms_load_error, textAlign: TextAlign.center),
           const SizedBox(height: 16),
           OutlinedButton.icon(
             onPressed: onRetry,
             icon: const Icon(Icons.refresh_rounded),
-            label: Text(copy.retry),
+            label: Text(context.getString.rooms_retry),
           ),
         ],
       ),
@@ -961,68 +950,26 @@ class _ErrorState extends StatelessWidget {
   );
 }
 
-/// Small bilingual copy surface kept local to this new page until the next
-/// generated-l10n sweep. It provides complete fa/en parity immediately and
-/// follows the app's ambient Directionality, including RTL Persian layouts.
-final class _RoomCopy {
-  const _RoomCopy({required this.fa});
+/// English pluralises an open seat and Persian does not, so this is two
+/// strings rather than one with a suffix glued on. The count is rendered in
+/// the reader's own numerals first — a quantity, unlike a room code.
+String _pendingSeats(BuildContext context, int count) {
+  final n = count.localized(context);
+  return count == 1
+      ? context.getString.rooms_pending_seat_one(n)
+      : context.getString.rooms_pending_seats_other(n);
+}
 
-  factory _RoomCopy.of(BuildContext context) => _RoomCopy(
-    fa: Localizations.localeOf(context).languageCode.toLowerCase() == 'fa',
-  );
-
-  final bool fa;
-
-  String get title => fa ? 'اتاق‌های ذخیره‌شده' : 'Saved rooms';
-  String get back => fa ? 'بازگشت' : 'Back';
-  String get create => fa ? 'ساخت اتاق' : 'Create room';
-  String get rename => fa ? 'تغییر نام' : 'Rename';
-  String get save => fa ? 'ذخیره' : 'Save';
-  String get archive => fa ? 'بایگانی' : 'Archive';
-  String get archived => fa ? 'بایگانی‌شده' : 'Archived';
-  String get leave => fa ? 'ترک اتاق' : 'Leave room';
-  String get cancel => fa ? 'انصراف' : 'Cancel';
-  String get select => fa ? 'انتخاب این اتاق' : 'Select this room';
-  String get selected => fa ? 'انتخاب‌شده' : 'Selected';
-  String get startRide => fa ? 'شروع ارتباط' : 'Start ride';
-  String get manage => fa ? 'مدیریت اتاق' : 'Manage room';
-  String get retry => fa ? 'تلاش دوباره' : 'Retry';
-  String get roomNameHint => fa ? 'نام اتاق' : 'Room name';
-  String get fallbackMemberName => fa ? 'راننده' : 'Rider';
-  String get emptyTitle => fa ? 'هنوز اتاقی ندارید' : 'No saved rooms yet';
-  String get emptyBody => fa
-      ? 'اتاق‌ها بدون اینترنت هم روی همین گوشی باقی می‌مانند. ساخت یا انتخاب اتاق به‌تنهایی هات‌اسپات یا میکروفن را روشن نمی‌کند.'
-      : 'Rooms stay on this phone offline. Creating or selecting one never starts a hotspot or microphone by itself.';
-  String get loadError => fa
-      ? 'اتاق‌های ذخیره‌شده خوانده نشدند. چیزی حذف نشده است.'
-      : 'Saved rooms could not be loaded. Nothing was deleted.';
-
-  String get canInvite => fa ? 'می‌توانید دعوت کنید' : 'You can invite';
-  String get delete => fa ? 'حذف اتاق' : 'Delete room';
-  String get archivedRooms => fa ? 'اتاق‌های بایگانی‌شده' : 'Archived rooms';
-  String get newRoom => fa ? 'اتاق تازه' : 'New room';
-
-  /// Digits the user reads as a quantity, in their own numerals.
-  ///
-  /// Only quantities. Identifiers — a Room code, an invite check value, a Wi-Fi
-  /// passphrase — deliberately stay in Latin digits: two phones in different
-  /// locales have to render those identically to be compared or typed, and a
-  /// Persian ۵ cannot be entered into Android's Wi-Fi dialog.
-  String _n(int value) => localizeDigits('$value', farsi: fa);
-
-  String memberCount(int count) =>
-      fa ? '${_n(count)} عضو' : '${_n(count)} members';
-  String pendingSeats(int count) => fa
-      ? '${_n(count)} جای بازشده'
-      : '${_n(count)} open seat${count == 1 ? '' : 's'}';
-  String archivedCount(int count) => _n(count);
-  String archiveConfirm(String name) => fa
-      ? '«$name» از فهرست کنار می‌رود و عضویتش دست‌نخورده می‌ماند. هر وقت خواستید از بایگانی برش گردانید.'
-      : 'Moves “$name” out of the list with its membership intact. Bring it back from the archive whenever you want.';
-  String leaveConfirm(String name) => fa
-      ? 'عضویت شما در «$name» حذف شود؟ این کار با پایان دادن یک جلسه زنده فرق دارد.'
-      : 'Leave “$name”? This removes your membership and is different from ending a live session.';
-  String roomSemantics(String name, int count, bool selected) => fa
-      ? '$name، ${_n(count)} عضو${selected ? '، انتخاب‌شده' : ''}'
-      : '$name, ${_n(count)} members${selected ? ', selected' : ''}';
+/// Two strings again, because "selected" is a clause a screen reader hears at
+/// the end of a sentence rather than a word to append to one.
+String _roomSemantics(
+  BuildContext context,
+  String name,
+  int count,
+  bool selected,
+) {
+  final n = count.localized(context);
+  return selected
+      ? context.getString.rooms_room_semantics_selected(name, n)
+      : context.getString.rooms_room_semantics(name, n);
 }

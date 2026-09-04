@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../room/domain/entity/room.dart';
@@ -96,7 +97,7 @@ class _RoomEntryOptionsState extends State<RoomEntryOptions> {
 
   @override
   Widget build(BuildContext context) {
-    final fa = Localizations.localeOf(context).languageCode == 'fa';
+    final t = context.getString;
     final resume = _selected ?? (_rooms.isEmpty ? null : _rooms.first);
 
     // First run has genuinely two options and no list to browse, so it keeps
@@ -108,10 +109,8 @@ class _RoomEntryOptionsState extends State<RoomEntryOptions> {
         hero: RoomEntryAction(
           key: const Key('landing-create-room'),
           icon: Icons.add_home_work_outlined,
-          label: fa ? 'ساخت اتاق' : 'CREATE ROOM',
-          hint: fa
-              ? 'یک اتاق بساز و بقیه را دعوت کن'
-              : 'Start one and invite the others',
+          label: t.entry_create_room,
+          hint: t.entry_create_room_hint,
           variant: RoomEntryVariant.hero,
           onTap: () => context.push('${AppRoutes.roomsPath}?create=true'),
         ),
@@ -119,10 +118,8 @@ class _RoomEntryOptionsState extends State<RoomEntryOptions> {
           RoomEntryAction(
             key: const Key('landing-join-room'),
             icon: Icons.qr_code_scanner_rounded,
-            label: fa ? 'پیوستن با QR' : 'JOIN WITH QR',
-            hint: fa
-                ? 'کد روی گوشی میزبان را اسکن کن'
-                : "Scan the code on the host's phone",
+            label: t.entry_join_qr,
+            hint: t.entry_join_qr_hint,
             variant: RoomEntryVariant.wide,
             onTap: () => context.push(AppRoutes.roomQrJoinPath),
           ),
@@ -138,7 +135,7 @@ class _RoomEntryOptionsState extends State<RoomEntryOptions> {
         icon: Icons.meeting_room_rounded,
         monogram: resume.room.name,
         label: resume.room.name,
-        hint: fa ? 'ادامه در این اتاق' : 'Pick up where you left off',
+        hint: t.entry_resume_hint,
         variant: RoomEntryVariant.hero,
         onTap: () => context.push(AppRoutes.walkiePath),
       ),
@@ -149,8 +146,8 @@ class _RoomEntryOptionsState extends State<RoomEntryOptions> {
         RoomEntryAction(
           key: const Key('landing-join-room'),
           icon: Icons.qr_code_scanner_rounded,
-          label: fa ? 'پیوستن' : 'JOIN',
-          hint: fa ? 'کد میزبان را اسکن کن' : "Scan a host's code",
+          label: t.entry_join,
+          hint: t.entry_join_hint,
           variant: RoomEntryVariant.compact,
           onTap: () => context.push(AppRoutes.roomQrJoinPath),
         ),
@@ -160,15 +157,15 @@ class _RoomEntryOptionsState extends State<RoomEntryOptions> {
           // frame makes one half of the pair look lighter than the other,
           // which is the one thing this row must not say.
           icon: Icons.add_circle_outline_rounded,
-          label: fa ? 'اتاق تازه' : 'NEW ROOM',
-          hint: fa ? 'خودت یکی بساز' : 'Start your own',
+          label: t.entry_new_room,
+          hint: t.entry_new_room_hint,
           variant: RoomEntryVariant.compact,
           onTap: () => context.push('${AppRoutes.roomsPath}?create=true'),
         ),
       ],
       browse: RoomBrowseLink(
         key: const Key('landing-all-rooms'),
-        label: fa ? 'اتاق‌های من' : 'MY ROOMS',
+        label: t.entry_my_rooms,
         count: _rooms.length.localized(context),
         onTap: () => context.push(AppRoutes.roomsPath),
       ),

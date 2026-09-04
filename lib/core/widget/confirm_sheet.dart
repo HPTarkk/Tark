@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/extension.dart';
 import '../motion/app_motion.dart';
 import '../theme/app_colors.dart';
 import 'sheet_shell.dart';
@@ -60,8 +61,6 @@ class _ConfirmSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fa =
-        Localizations.localeOf(context).languageCode.toLowerCase() == 'fa';
     final accent = destructive ? AppColors.red : AppColors.amber;
     return SheetShell(
       // Shorter than a browsing sheet: this one is a question, and letting it
@@ -131,7 +130,7 @@ class _ConfirmSheet extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
               child: Text(
-                cancelLabel ?? (fa ? 'انصراف' : 'Cancel'),
+                cancelLabel ?? context.getString.confirm_cancel,
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
             ),

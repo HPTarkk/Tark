@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../transfer/api/transfer_api.dart';
@@ -186,14 +187,13 @@ class _InRoomPeopleActionState extends State<InRoomPeopleAction> {
   @override
   Widget build(BuildContext context) {
     if (!_hasRoom) return const SizedBox.shrink();
-    final copy = _Copy.of(context);
     // Quiet weight is the channel with people on it. Nothing is wrong there,
     // so it stays exactly what it was: one small control under the list.
     if (!widget.primary) {
       return _PeopleAction(
         key: const Key('channel-invite-quiet'),
         icon: Icons.person_add_alt_1_rounded,
-        label: copy.addSomeone,
+        label: context.getString.inroom_add_someone,
         primary: false,
         onTap: _open,
       );
@@ -202,7 +202,9 @@ class _InRoomPeopleActionState extends State<InRoomPeopleAction> {
       children: [
         const SizedBox(height: 6),
         Text(
-          _othersInRoom ? copy.strandedBody : copy.aloneBody,
+          _othersInRoom
+              ? context.getString.inroom_stranded_body
+              : context.getString.inroom_alone_body,
           textAlign: TextAlign.center,
           style: TextStyle(
             color: AppColors.textSecondary,
@@ -215,7 +217,7 @@ class _InRoomPeopleActionState extends State<InRoomPeopleAction> {
           _PeopleAction(
             key: const Key('channel-connect-primary'),
             icon: Icons.wifi_tethering_rounded,
-            label: copy.getOnOneNetwork,
+            label: context.getString.inroom_get_on_one_network,
             primary: true,
             onTap: _connect,
           ),
@@ -226,7 +228,7 @@ class _InRoomPeopleActionState extends State<InRoomPeopleAction> {
           _PeopleAction(
             key: const Key('channel-invite-quiet'),
             icon: Icons.person_add_alt_1_rounded,
-            label: copy.addSomeone,
+            label: context.getString.inroom_add_someone,
             primary: false,
             onTap: _open,
           ),
@@ -234,7 +236,7 @@ class _InRoomPeopleActionState extends State<InRoomPeopleAction> {
           _PeopleAction(
             key: const Key('channel-invite-primary'),
             icon: Icons.qr_code_2_rounded,
-            label: copy.inviteSomeone,
+            label: context.getString.inroom_invite_someone,
             primary: true,
             onTap: _open,
           ),
@@ -316,36 +318,4 @@ class _PeopleAction extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Bilingual copy kept local to this widget, as elsewhere in the Room feature,
-/// until the next generated-l10n sweep.
-final class _Copy {
-  const _Copy({required this.fa});
-
-  factory _Copy.of(BuildContext context) => _Copy(
-    fa: Localizations.localeOf(context).languageCode.toLowerCase() == 'fa',
-  );
-
-  final bool fa;
-
-  /// Why the card is empty, said as something to do about it rather than as a
-  /// second way of saying nobody is here — the heading above already did that.
-  String get aloneBody => fa
-      ? 'کدِ اتاق را نشانشان بدهید؛ با یک اسکن وارد می‌شوند.'
-      : 'Show someone the room code and one scan puts them in here.';
-
-  String get inviteSomeone => fa ? 'دعوت کنید' : 'INVITE SOMEONE';
-
-  String get addSomeone => fa ? 'افزودن نفر' : 'ADD SOMEONE';
-
-  /// The other reason a channel is empty, said as the thing that is actually
-  /// wrong. The room is not short of people; these phones are not on one
-  /// network, and no check before this point could have known that.
-  String get strandedBody => fa
-      ? 'بقیه در این اتاق هستند ولی صدایشان نمی‌رسد — یعنی گوشی‌ها روی یک شبکه نیستند.'
-      : 'The others are in this room but nothing is reaching them — which means these phones are not on the same network.';
-
-  String get getOnOneNetwork =>
-      fa ? 'وصل شدن به یک شبکه' : 'GET ON ONE NETWORK';
 }

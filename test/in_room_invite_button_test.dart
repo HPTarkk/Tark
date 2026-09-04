@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tark/core/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tark/core/motion/app_motion.dart';
 import 'package:tark/feature/room/data/repository/shared_preferences_room_repository.dart';
@@ -39,8 +39,11 @@ void main() {
       data: const MediaQueryData(size: Size(320, 640)),
       child: MaterialApp(
         locale: locale,
-        supportedLocales: const [Locale('en'), Locale('fa')],
-        localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        // The app's own delegate, not just the Material ones: these screens
+        // read their copy from [AppLocalizations] now rather than switching
+        // on the locale themselves, so a harness without it has no strings.
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
         home: Scaffold(
           body: SafeArea(
             child: Align(
