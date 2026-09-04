@@ -109,8 +109,14 @@ void main() {
     expect(row.pending, isFalse);
     expect(row.displayName, 'Rider B');
     // Not "Room member", which is what the placeholder used to unwrite to.
-    expect(roomMemberDisplayName(row, fa: false, unnamed: 'Unnamed'), 'Rider B');
-    expect(roomMemberDisplayName(row, fa: true, unnamed: 'بدون نام'), 'Rider B');
+    expect(
+      roomMemberDisplayName(row, fa: false, unnamed: 'Unnamed'),
+      'Rider B',
+    );
+    expect(
+      roomMemberDisplayName(row, fa: true, unnamed: 'بدون نام'),
+      'Rider B',
+    );
   });
 
   test('a name that arrives after the mark still lands', () async {

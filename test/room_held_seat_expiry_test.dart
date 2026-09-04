@@ -123,9 +123,9 @@ void main() {
 
     // The hold goes with the mark. Left behind, it would have expired a
     // confirmed member's row out from under them twelve hours into a trip.
-    final row = (await rooms.get(created.room.id))!.room.members.firstWhere(
-      (member) => member.id == seat,
-    );
+    final row = (await rooms.get(
+      created.room.id,
+    ))!.room.members.firstWhere((member) => member.id == seat);
     expect(row.pending, isFalse);
     expect(row.heldUntil, isNull);
 
@@ -167,7 +167,10 @@ void main() {
     // Evidence says a member is present, never that they should be. Re-admitting
     // is an authorization change and belongs to the host.
     expect(await confirmer.confirm(seat, displayName: 'Rider B'), isFalse);
-    expect((await rooms.get(created.room.id))!.room.activeMembers, hasLength(1));
+    expect(
+      (await rooms.get(created.room.id))!.room.activeMembers,
+      hasLength(1),
+    );
   });
 
   test('the hold travels to the phone that scans', () async {
@@ -228,7 +231,5 @@ Future<void> _ageSeat(
 }
 
 /// Any durable write, to prove the sweep is not what re-reading depends on.
-Future<void> _touch(
-  SharedPreferencesRoomRepository rooms,
-  SavedRoom saved,
-) => rooms.rename(saved.room.id, 'Night ride, later');
+Future<void> _touch(SharedPreferencesRoomRepository rooms, SavedRoom saved) =>
+    rooms.rename(saved.room.id, 'Night ride, later');

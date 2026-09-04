@@ -481,7 +481,11 @@ class _InviteInvitation extends StatelessWidget {
 /// red and the action is amber, which is the whole message in two colours:
 /// something is wrong, and here is the thing that fixes it.
 class _LinkInvitation extends StatelessWidget {
-  const _LinkInvitation({required this.copy, required this.onConnect, super.key});
+  const _LinkInvitation({
+    required this.copy,
+    required this.onConnect,
+    super.key,
+  });
 
   final _LobbyCopy copy;
   final VoidCallback? onConnect;
@@ -791,12 +795,14 @@ final class _LobbyCopy {
   /// it, while an access point of your own says exactly one thing — nobody
   /// has joined it yet.
   String linkCaveat(LiveLink link) => switch (link) {
-    LiveLink.wifi => fa
-        ? 'بقیه هم باید روی همین شبکه باشند. تا وقتی صدایی نرسد، از اینجا نمی‌شود فهمید هستند یا نه.'
-        : 'The others have to be on this same network. Until someone is heard, there is no way to tell from here whether they are.',
-    LiveLink.hotspotHost => fa
-        ? 'هات‌اسپات شما روشن است، ولی تا کدتان را اسکن نکنند کسی روی آن نیست.'
-        : 'Your hotspot is up, but nobody is on it until they scan your code.',
+    LiveLink.wifi =>
+      fa
+          ? 'بقیه هم باید روی همین شبکه باشند. تا وقتی صدایی نرسد، از اینجا نمی‌شود فهمید هستند یا نه.'
+          : 'The others have to be on this same network. Until someone is heard, there is no way to tell from here whether they are.',
+    LiveLink.hotspotHost =>
+      fa
+          ? 'هات‌اسپات شما روشن است، ولی تا کدتان را اسکن نکنند کسی روی آن نیست.'
+          : 'Your hotspot is up, but nobody is on it until they scan your code.',
     LiveLink.bluetooth || LiveLink.none => '',
   };
   String linkName(LiveLink link) => switch (link) {

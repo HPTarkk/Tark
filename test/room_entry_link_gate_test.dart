@@ -81,10 +81,8 @@ void main() {
         ),
         GoRoute(
           path: AppRoutes.wifiHotspotPath,
-          builder: (_, _) => const Scaffold(
-            key: Key('hotspot-page'),
-            body: SizedBox.shrink(),
-          ),
+          builder: (_, _) =>
+              const Scaffold(key: Key('hotspot-page'), body: SizedBox.shrink()),
         ),
         GoRoute(
           path: AppRoutes.bluetoothConnectPath,
@@ -114,11 +112,7 @@ void main() {
     tester,
   ) async {
     final modeStore = _FakeModeStore(TransferMode.wifi);
-    await pumpEntry(
-      tester,
-      links: LiveLinkSnapshot.none,
-      modeStore: modeStore,
-    );
+    await pumpEntry(tester, links: LiveLinkSnapshot.none, modeStore: modeStore);
 
     expect(find.byKey(const Key('selected-room-link-callout')), findsOneWidget);
     expect(find.byKey(const Key('selected-room-start-ride')), findsNothing);
@@ -233,8 +227,7 @@ class _FakeRoomRepository implements RoomRepository {
   Future<RoomId?> selectedRoomId() async => _room.room.id;
 
   @override
-  Future<SavedRoom?> get(RoomId id) async =>
-      id == _room.room.id ? _room : null;
+  Future<SavedRoom?> get(RoomId id) async => id == _room.room.id ? _room : null;
 
   @override
   Future<List<SavedRoom>> list({bool includeArchived = false}) async => [_room];

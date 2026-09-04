@@ -36,8 +36,11 @@ void main() {
     );
   });
 
-  Future<RoomMemberSignedName?> sign(String name) =>
-      crypto.signMemberName(certificate: certificate, member: member, name: name);
+  Future<RoomMemberSignedName?> sign(String name) => crypto.signMemberName(
+    certificate: certificate,
+    member: member,
+    name: name,
+  );
 
   Future<RoomMemberTransportProof> proofWith(RoomMemberSignedName? name) =>
       crypto.signProof(
@@ -90,15 +93,18 @@ void main() {
     }
   });
 
-  test('an unnamed proof is byte-identical to one minted before R27b', () async {
-    final payload = utf8.decode(
-      base64Url.decode(base64Url.normalize((await proofWith(null)).encode())),
-    );
+  test(
+    'an unnamed proof is byte-identical to one minted before R27b',
+    () async {
+      final payload = utf8.decode(
+        base64Url.decode(base64Url.normalize((await proofWith(null)).encode())),
+      );
 
-    // Read through the base64, or this passes on any string at all.
-    expect(payload.contains('name'), isFalse);
-    expect(payload.contains('nameSig'), isFalse);
-  });
+      // Read through the base64, or this passes on any string at all.
+      expect(payload.contains('name'), isFalse);
+      expect(payload.contains('nameSig'), isFalse);
+    },
+  );
 
   test('a swapped name fails while the proof still stands', () async {
     final signed = await sign('Rider B');
@@ -197,9 +203,11 @@ void main() {
     final named = await proofWith(await sign('Rider B'));
     final raw =
         jsonDecode(
-              utf8.decode(base64Url.decode(base64Url.normalize(named.encode()))),
-            )
-            as Map<String, dynamic>
+                utf8.decode(
+                  base64Url.decode(base64Url.normalize(named.encode())),
+                ),
+              )
+              as Map<String, dynamic>
           ..remove('nameSig');
     final mangled = base64Url
         .encode(utf8.encode(jsonEncode(raw)))
@@ -222,14 +230,13 @@ void main() {
   });
 
   test('the longest name still fits the wire that carries it', () async {
-    final proof = await proofWith(
-      await sign('نام بسیار طولانی ' * 4),
-    );
+    final proof = await proofWith(await sign('نام بسیار طولانی ' * 4));
     final encoded = proof.encode();
 
-    expect(encoded.length, lessThanOrEqualTo(
-      RoomMemberTransportProof.maxEncodedLength,
-    ));
+    expect(
+      encoded.length,
+      lessThanOrEqualTo(RoomMemberTransportProof.maxEncodedLength),
+    );
     // The proof rides one datagram field with its own uint16 length. A name
     // that encodes fine and then cannot be sent is not a working feature.
     expect(

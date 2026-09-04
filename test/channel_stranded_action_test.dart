@@ -92,10 +92,7 @@ void main() {
 
     expect(find.byKey(const Key('channel-connect-primary')), findsOneWidget);
     expect(find.byKey(const Key('channel-invite-primary')), findsNothing);
-    expect(
-      find.textContaining('not on the same network'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('not on the same network'), findsOneWidget);
     // The code is still there, quietly: "nobody can hear me" and "I want one
     // more person" are both true often enough.
     expect(find.byKey(const Key('channel-invite-quiet')), findsOneWidget);
@@ -148,8 +145,7 @@ class _FakeRoomRepository implements RoomRepository {
   Future<RoomId?> selectedRoomId() async => _room.room.id;
 
   @override
-  Future<SavedRoom?> get(RoomId id) async =>
-      id == _room.room.id ? _room : null;
+  Future<SavedRoom?> get(RoomId id) async => id == _room.room.id ? _room : null;
 
   @override
   dynamic noSuchMethod(Invocation invocation) =>

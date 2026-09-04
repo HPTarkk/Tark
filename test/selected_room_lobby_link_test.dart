@@ -94,11 +94,7 @@ void main() {
     tester,
   ) async {
     var starts = 0;
-    await pumpLobby(
-      tester,
-      link: LiveLink.none,
-      onStartRide: () => starts++,
-    );
+    await pumpLobby(tester, link: LiveLink.none, onStartRide: () => starts++);
 
     expect(find.byKey(const Key('selected-room-link-callout')), findsOneWidget);
     expect(find.byKey(const Key('selected-room-connect')), findsNothing);
@@ -135,11 +131,7 @@ void main() {
     tester,
   ) async {
     var connects = 0;
-    await pumpLobby(
-      tester,
-      link: LiveLink.wifi,
-      onConnect: () => connects++,
-    );
+    await pumpLobby(tester, link: LiveLink.wifi, onConnect: () => connects++);
 
     // The chip says what this phone is on. It must not say READY, because
     // "ready" is a claim about the room and nothing here can see the other

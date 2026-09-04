@@ -83,10 +83,7 @@ void main() {
       // A joined hotspot is not distinguishable from a router here, and the
       // mode is the only thing that remembers which end of a bridge this
       // phone is. Re-deriving it would lose that.
-      expect(
-        LiveLink.wifi.modeFor(TransferMode.hotspot),
-        TransferMode.hotspot,
-      );
+      expect(LiveLink.wifi.modeFor(TransferMode.hotspot), TransferMode.hotspot);
       expect(LiveLink.wifi.modeFor(TransferMode.wifi), TransferMode.wifi);
     });
 

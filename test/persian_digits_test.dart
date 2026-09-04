@@ -91,8 +91,12 @@ void main() {
 
   testWidgets('a field with no limit still has no counter', (tester) async {
     await tester.pumpWidget(
-      fa(TextField(controller: TextEditingController(text: 'ali'),
-          buildCounter: localizedCounter())),
+      fa(
+        TextField(
+          controller: TextEditingController(text: 'ali'),
+          buildCounter: localizedCounter(),
+        ),
+      ),
     );
 
     expect(latinDigitsOnScreen(tester), isEmpty);

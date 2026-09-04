@@ -31,8 +31,7 @@ abstract final class ConnectRoute {
     // already on one network, just go", and its hotspot segment is how one
     // gets made. Someone sent here without a network needs the second, so
     // that is the segment it opens on.
-    TransferMode.wifi ||
-    TransferMode.hotspot =>
+    TransferMode.wifi || TransferMode.hotspot =>
       '${AppRoutes.wifiHotspotPath}?mode=hotspot&intent=${plan.intent.key}',
   };
 

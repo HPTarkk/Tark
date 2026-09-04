@@ -169,7 +169,6 @@ class _InRoomPeopleActionState extends State<InRoomPeopleAction> {
     );
   }
 
-
   Future<void> _open() async {
     HapticFeedback.selectionClick();
     await showRoomPeopleSheet(

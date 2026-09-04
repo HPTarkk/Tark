@@ -86,7 +86,8 @@ class _WifiHotspotPageState extends State<WifiHotspotPage>
   bool _autoScanTriggered = false;
 
   @override
-  TransferMode get preflightMode => widget.initialSegment == WifiHotspotSegment.hotspot
+  TransferMode get preflightMode =>
+      widget.initialSegment == WifiHotspotSegment.hotspot
       ? TransferMode.hotspot
       : TransferMode.wifi;
 

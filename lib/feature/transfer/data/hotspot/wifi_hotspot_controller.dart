@@ -40,15 +40,18 @@ class WifiHotspotController implements HotspotHost {
   /// own [stop]. Lets a host recover instead of silently going dead. Never
   /// emits for an app-initiated teardown (see HotspotHandler.expectingStop).
   @override
-  Stream<void> get onStopped => _events.receiveBroadcastStream().where((event) {
-    if (event is! Map || event['event'] != 'stopped') return false;
-    final generation = event['generation'] ?? 'unknown';
-    final reason = event['reason'] ?? 'os_callback';
-    Logger.diagnostic(
-      'hotspot: stopped reason=$reason generation=$generation',
-    );
-    return true;
-  }).map<void>((_) {});
+  Stream<void> get onStopped => _events
+      .receiveBroadcastStream()
+      .where((event) {
+        if (event is! Map || event['event'] != 'stopped') return false;
+        final generation = event['generation'] ?? 'unknown';
+        final reason = event['reason'] ?? 'os_callback';
+        Logger.diagnostic(
+          'hotspot: stopped reason=$reason generation=$generation',
+        );
+        return true;
+      })
+      .map<void>((_) {});
 
   /// Starts a local-only Wi-Fi hotspot and returns its credentials. Throws a
   /// [PlatformException] (code `tethering_on`, `location_off`,
@@ -192,9 +195,7 @@ class NeHotspotJoiner implements HotspotJoiner {
         'ssid': credentials.ssid,
         'passphrase': credentials.passphrase,
       });
-      return ok == true
-          ? HotspotJoinResult.joined
-          : HotspotJoinResult.declined;
+      return ok == true ? HotspotJoinResult.joined : HotspotJoinResult.declined;
     } on PlatformException catch (e) {
       Logger.log('iOS hotspot join failed: ${e.code} ${e.message}');
       return HotspotJoinResult.declined;
@@ -263,22 +264,26 @@ class AndroidWifiJoiner implements HotspotJoiner {
       .asBroadcastStream();
 
   @override
-  Stream<void> get onLost => _stream.where((event) {
-    if (event['event'] != 'lost') return false;
-    Logger.diagnostic(
-      'network: selected wifi lost generation=${event['generation'] ?? 'unknown'}',
-    );
-    return true;
-  }).map<void>((_) {});
+  Stream<void> get onLost => _stream
+      .where((event) {
+        if (event['event'] != 'lost') return false;
+        Logger.diagnostic(
+          'network: selected wifi lost generation=${event['generation'] ?? 'unknown'}',
+        );
+        return true;
+      })
+      .map<void>((_) {});
 
   @override
-  Stream<void> get onRebound => _stream.where((event) {
-    if (event['event'] != 'rebound') return false;
-    Logger.diagnostic(
-      'network: selected wifi rebound generation=${event['generation'] ?? 'unknown'}',
-    );
-    return true;
-  }).map<void>((_) {});
+  Stream<void> get onRebound => _stream
+      .where((event) {
+        if (event['event'] != 'rebound') return false;
+        Logger.diagnostic(
+          'network: selected wifi rebound generation=${event['generation'] ?? 'unknown'}',
+        );
+        return true;
+      })
+      .map<void>((_) {});
 
   @override
   Future<HotspotJoinResult> join(HotspotCredentials credentials) async {
@@ -295,9 +300,7 @@ class AndroidWifiJoiner implements HotspotJoiner {
       } else {
         Logger.diagnostic('network: hotspot join accepted');
       }
-      return ok == true
-          ? HotspotJoinResult.joined
-          : HotspotJoinResult.declined;
+      return ok == true ? HotspotJoinResult.joined : HotspotJoinResult.declined;
     } on PlatformException catch (e) {
       // `wifi_off`, `foreground_required`, `no_ssid`, `failed`. Only the first
       // has a fix the user can act on from here; the rest land on the manual
@@ -354,7 +357,9 @@ class AndroidWifiJoiner implements HotspotJoiner {
       Logger.diagnostic('network: bind current wifi failed reason=${e.code}');
       return false;
     } on MissingPluginException {
-      Logger.diagnostic('network: bind current wifi failed reason=missing_plugin');
+      Logger.diagnostic(
+        'network: bind current wifi failed reason=missing_plugin',
+      );
       return false;
     }
   }
@@ -366,10 +371,14 @@ class AndroidWifiJoiner implements HotspotJoiner {
       await _channel.invokeMethod<void>('leave');
       Logger.diagnostic('network: selected wifi released');
     } on PlatformException catch (e) {
-      Logger.diagnostic('network: selected wifi release failed reason=${e.code}');
+      Logger.diagnostic(
+        'network: selected wifi release failed reason=${e.code}',
+      );
       // Best-effort — the request is also released when the activity dies.
     } on MissingPluginException {
-      Logger.diagnostic('network: selected wifi release failed reason=missing_plugin');
+      Logger.diagnostic(
+        'network: selected wifi release failed reason=missing_plugin',
+      );
       // Not Android.
     }
   }
@@ -399,7 +408,8 @@ class PlatformHotspotJoiner implements HotspotJoiner {
   Future<bool> enableWifi() async => await _delegate?.enableWifi() ?? false;
 
   @override
-  Future<void> openLocationSettings() async => _delegate?.openLocationSettings();
+  Future<void> openLocationSettings() async =>
+      _delegate?.openLocationSettings();
 
   @override
   Future<bool> bindToCurrentWifi() async =>
