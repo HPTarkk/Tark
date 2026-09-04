@@ -27,6 +27,13 @@ import 'package:tark/feature/transfer/domain/service/transfer_mode_store.dart';
 /// up; the half worth pinning down is the refusal.
 void main() {
   final getIt = GetIt.instance;
+  // The route the connect tap actually took. `currentConfiguration.uri`
+  // reports the base location rather than the pushed match, so it answers
+  // '/walkie' either way — which made the same assertion pass for both
+  // branches. The builder is the one place that sees the real URI.
+  final visited = <String>[];
+
+  setUp(visited.clear);
 
   tearDown(() async {
     await getIt.reset();
@@ -81,8 +88,13 @@ void main() {
         ),
         GoRoute(
           path: AppRoutes.wifiHotspotPath,
-          builder: (_, _) =>
-              const Scaffold(key: Key('hotspot-page'), body: SizedBox.shrink()),
+          builder: (_, state) {
+            visited.add(state.uri.toString());
+            return const Scaffold(
+              key: Key('hotspot-page'),
+              body: SizedBox.shrink(),
+            );
+          },
         ),
         GoRoute(
           path: AppRoutes.bluetoothConnectPath,
@@ -125,7 +137,50 @@ void main() {
     // member can hand out invites is the one the others are gathering
     // around, so it arrives on the hosting side.
     expect(find.byKey(const Key('hotspot-page')), findsOneWidget);
+    // And on the segment that can *make* a network. A phone with no link
+    // needs the advisor's whole ladder, and `ConnectRoute.forPlan` lands its
+    // Wi-Fi rung on the hotspot segment precisely because there is no network
+    // to share. Compare the stranded case below, which asks a narrower
+    // question and gets a different answer from the same screen.
+    expect(visited.single, contains('mode=hotspot'));
     // Nothing about the transport was decided by failing the gate.
+    expect(modeStore.writes, isEmpty);
+  });
+
+  testWidgets('a link that reaches nobody asks a different question', (
+    tester,
+  ) async {
+    // On a Wi-Fi network, and the transport says nobody arranged it — so the
+    // lobby leads with the way onto a shared network rather than with Start
+    // ride, and the tap must not be handed to the advisor. The advisor weighs
+    // what this device can do, and on a phone sitting on a cafe Wi-Fi its
+    // honest answer includes using that same Wi-Fi: the thing that just
+    // failed. `forStrandedRoom` asks "get these two onto one network"
+    // instead, and on a host that can raise neither an access point nor a
+    // Bluetooth link that is the shared-network segment, with no `mode`
+    // query on it. This call site ran the ladder for both cases.
+    final modeStore = _FakeModeStore(TransferMode.wifi);
+    await pumpEntry(
+      tester,
+      links: const LiveLinkSnapshot(
+        wifi: true,
+        hostingHotspot: false,
+        bluetooth: false,
+      ),
+      modeStore: modeStore,
+    );
+
+    expect(
+      find.byKey(const Key('selected-room-shared-network-callout')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const Key('selected-room-connect')));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(find.byKey(const Key('hotspot-page')), findsOneWidget);
+    expect(visited.single, isNot(contains('mode=hotspot')));
+    // Offering a way out decides nothing about the transport either.
     expect(modeStore.writes, isEmpty);
   });
 
@@ -147,7 +202,14 @@ void main() {
     );
 
     expect(find.byKey(const Key('selected-room-link-chip')), findsOneWidget);
-    expect(find.byKey(const Key('selected-room-start-ride')), findsOneWidget);
+    // Named, and still rideable — but not led with. This is a Wi-Fi network
+    // nobody arranged (the transport says `bluetooth`, so no bridge put this
+    // phone here), which is the case R38 inverted: the way onto a shared
+    // network is the primary control and starting over this one is the quiet
+    // line under it. The gate would still move the transport onto Wi-Fi; what
+    // changed is which of the two the screen argues for.
+    expect(find.byKey(const Key('selected-room-start-ride')), findsNothing);
+    expect(find.byKey(const Key('selected-room-start-anyway')), findsOneWidget);
   });
 }
 

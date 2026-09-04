@@ -4,13 +4,14 @@ import 'package:tark/core/l10n/app_localizations.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
 import 'package:tark/feature/room/presentation/widget/selected_room_lobby.dart';
 import 'package:tark/feature/transfer/domain/entity/live_link.dart';
+import 'package:tark/feature/transfer/domain/entity/transfer_mode.dart';
 
 /// What the lobby does about the link, which is the half of the gate the user
 /// actually sees. The refusal itself lives in the composition root above; this
 /// screen's job is to make sure the refusal is never the first the user hears
 /// of it — a Start ride that silently does nothing is worse than no gate.
 void main() {
-  SavedRoom room() {
+  SavedRoom room({bool alone = false}) {
     final localId = RoomMemberId('111111111111111111111111');
     final peerId = RoomMemberId('222222222222222222222222');
     final now = DateTime.utc(2026, 9, 3, 9);
@@ -22,7 +23,8 @@ void main() {
         updatedAt: now,
         members: [
           RoomMember(id: localId, displayName: 'Rider one', joinedAt: now),
-          RoomMember(id: peerId, displayName: 'Rider two', joinedAt: now),
+          if (!alone)
+            RoomMember(id: peerId, displayName: 'Rider two', joinedAt: now),
         ],
       ),
       membership: RoomMembership(
@@ -35,9 +37,11 @@ void main() {
   Future<void> pumpLobby(
     WidgetTester tester, {
     required LiveLink? link,
+    TransferMode? mode,
     VoidCallback? onConnect,
     VoidCallback? onStartRide,
     Locale locale = const Locale('en'),
+    bool alone = false,
   }) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -45,8 +49,9 @@ void main() {
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: SelectedRoomLobby(
-          room: room(),
+          room: room(alone: alone),
           link: link,
+          mode: mode,
           onConnect: onConnect,
           onStartRide: onStartRide ?? () {},
           onBack: () {},
@@ -112,6 +117,9 @@ void main() {
     await pumpLobby(
       tester,
       link: LiveLink.wifi,
+      // A joiner that came through the bridge: the same Wi-Fi association a
+      // router would give, and the transport is what remembers it was agreed.
+      mode: TransferMode.hotspot,
       onConnect: () {},
       onStartRide: () => starts++,
     );
@@ -131,7 +139,12 @@ void main() {
     tester,
   ) async {
     var connects = 0;
-    await pumpLobby(tester, link: LiveLink.wifi, onConnect: () => connects++);
+    await pumpLobby(
+      tester,
+      link: LiveLink.wifi,
+      mode: TransferMode.hotspot,
+      onConnect: () => connects++,
+    );
 
     // The chip says what this phone is on. It must not say READY, because
     // "ready" is a claim about the room and nothing here can see the other
@@ -169,7 +182,12 @@ void main() {
   testWidgets('a hotspot with nobody on it says that, not "ready"', (
     tester,
   ) async {
-    await pumpLobby(tester, link: LiveLink.hotspotHost, onConnect: () {});
+    await pumpLobby(
+      tester,
+      link: LiveLink.hotspotHost,
+      mode: TransferMode.hotspot,
+      onConnect: () {},
+    );
 
     expect(
       find.textContaining('nobody is on it until they scan your code'),
@@ -186,6 +204,180 @@ void main() {
   ) async {
     await pumpLobby(tester, link: LiveLink.hotspotHost, onConnect: () {});
     expect(find.text('Your hotspot is up'), findsOneWidget);
+  });
+
+  group('a network nobody arranged is not the way through', () {
+    testWidgets('the bridge leads and Start ride steps down to a line', (
+      tester,
+    ) async {
+      var connects = 0;
+      var starts = 0;
+      await pumpLobby(
+        tester,
+        link: LiveLink.wifi,
+        // The home network, found rather than agreed — the case the whole
+        // inversion exists for.
+        mode: TransferMode.wifi,
+        onConnect: () => connects++,
+        onStartRide: () => starts++,
+      );
+
+      // The two swap places. What used to be the glowing amber control is
+      // gone, and what used to be one line of small underlined text is now
+      // the thing the screen argues for.
+      expect(
+        find.byKey(const Key('selected-room-shared-network-callout')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('selected-room-start-ride')), findsNothing);
+
+      await tester.ensureVisible(
+        find.byKey(const Key('selected-room-connect')),
+      );
+      await tester.tap(find.byKey(const Key('selected-room-connect')));
+      expect(connects, 1);
+      expect(starts, 0);
+    });
+
+    testWidgets('and "we are already together" is still one tap', (
+      tester,
+    ) async {
+      var starts = 0;
+      await pumpLobby(
+        tester,
+        link: LiveLink.wifi,
+        mode: TransferMode.wifi,
+        onConnect: () {},
+        onStartRide: () => starts++,
+      );
+
+      // A pair genuinely sat on one office network gets on the air in exactly
+      // the tap it always took. The inversion changed which of the two the
+      // screen argues for, not whether the other one is reachable.
+      await tester.ensureVisible(
+        find.byKey(const Key('selected-room-start-anyway')),
+      );
+      await tester.tap(find.byKey(const Key('selected-room-start-anyway')));
+      expect(starts, 1);
+    });
+
+    testWidgets('the warning is not also shown small above the callout', (
+      tester,
+    ) async {
+      await pumpLobby(
+        tester,
+        link: LiveLink.wifi,
+        mode: TransferMode.wifi,
+        onConnect: () {},
+      );
+
+      // The chip stays — what this phone is on is worth saying — but one
+      // warning in two sizes would read as two different problems.
+      expect(find.byKey(const Key('selected-room-link-chip')), findsOneWidget);
+      expect(
+        find.byKey(const Key('selected-room-different-network')),
+        findsNothing,
+      );
+      expect(
+        find.textContaining('have to be on this same network'),
+        findsNothing,
+      );
+    });
+
+    testWidgets('a bridge that put this phone here is never demoted', (
+      tester,
+    ) async {
+      var starts = 0;
+      await pumpLobby(
+        tester,
+        link: LiveLink.wifi,
+        mode: TransferMode.hotspot,
+        onConnect: () {},
+        onStartRide: () => starts++,
+      );
+
+      // Same radio state as the test above, opposite verdict, and the mode is
+      // the only thing that tells them apart. Telling a joiner who just
+      // scanned the host's code to go and get on one network would send them
+      // back through the screen they came from.
+      expect(
+        find.byKey(const Key('selected-room-shared-network-callout')),
+        findsNothing,
+      );
+      await tester.ensureVisible(
+        find.byKey(const Key('selected-room-start-ride')),
+      );
+      await tester.tap(find.byKey(const Key('selected-room-start-ride')));
+      expect(starts, 1);
+    });
+
+    testWidgets('with no way out to offer, the original control comes back', (
+      tester,
+    ) async {
+      var starts = 0;
+      await pumpLobby(
+        tester,
+        link: LiveLink.wifi,
+        mode: TransferMode.wifi,
+        onStartRide: () => starts++,
+      );
+
+      // There is nothing to invert towards, and a screen whose only action is
+      // a sentence is worse than the shape this replaced.
+      expect(
+        find.byKey(const Key('selected-room-shared-network-callout')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('selected-room-connect')), findsNothing);
+      await tester.ensureVisible(
+        find.byKey(const Key('selected-room-start-ride')),
+      );
+      await tester.tap(find.byKey(const Key('selected-room-start-ride')));
+      expect(starts, 1);
+    });
+
+    testWidgets('the doubt outranks a room with nobody in it', (tester) async {
+      await pumpLobby(
+        tester,
+        link: LiveLink.wifi,
+        mode: TransferMode.wifi,
+        onConnect: () {},
+        alone: true,
+      );
+
+      // An invite minted here carries membership and no network — the People
+      // sheet only grows its Wi-Fi section once an access point of ours is up
+      // — so it would put somebody into a room they still cannot hear.
+      expect(
+        find.byKey(const Key('selected-room-shared-network-callout')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('selected-room-invite-callout')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('the Persian inversion reads in Persian at 320px', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await pumpLobby(
+        tester,
+        link: LiveLink.wifi,
+        mode: TransferMode.wifi,
+        onConnect: () {},
+        locale: const Locale('fa'),
+      );
+
+      expect(find.text('همه روی همین شبکه‌اند؟'), findsOneWidget);
+      expect(find.text('یک شبکهٔ مشترک بسازید'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
   });
 
   testWidgets('an unanswered probe changes nothing on the screen', (

@@ -76,6 +76,61 @@ void main() {
     });
   });
 
+  group('a network that was already there is not an arrangement', () {
+    test('Bluetooth and an access point of our own always count', () {
+      // Neither can happen by walking into a building, so no transport makes
+      // them accidental.
+      for (final mode in TransferMode.values) {
+        expect(LiveLink.bluetooth.arranged(mode), isTrue, reason: mode.key);
+        expect(LiveLink.hotspotHost.arranged(mode), isTrue, reason: mode.key);
+      }
+    });
+
+    test('plain Wi-Fi is the case this exists for', () {
+      // The home network, found rather than agreed. The pre-ride lobby used to
+      // read this as the network the room is on and lead with Start ride.
+      expect(LiveLink.wifi.arranged(TransferMode.wifi), isFalse);
+    });
+
+    test('a joiner that came through the bridge is not demoted with it', () {
+      // Indistinguishable from a router on the radio; told apart only because
+      // the bridge wrote down what it established.
+      expect(LiveLink.wifi.arranged(TransferMode.hotspot), isTrue);
+      // A browser that has already attached is a peer this device handed a
+      // link to, so the guest transport counts for the same reason.
+      expect(LiveLink.wifi.arranged(TransferMode.guest), isTrue);
+    });
+
+    test('a stale Bluetooth transport does not launder a found network', () {
+      // Set to Bluetooth from last week, standing on a café Wi-Fi with no
+      // peer paired. `resolve` hands back Wi-Fi, and it is still assumed.
+      expect(wifiOnly.resolve(TransferMode.bluetooth), LiveLink.wifi);
+      expect(LiveLink.wifi.arranged(TransferMode.bluetooth), isFalse);
+    });
+
+    test('no link is never an arrangement', () {
+      for (final mode in TransferMode.values) {
+        expect(LiveLink.none.arranged(mode), isFalse, reason: mode.key);
+      }
+    });
+
+    test('proof is stronger than arrangement, never weaker', () {
+      // Anything that proves a peer must also have been arranged — the
+      // inverse does not hold, which is the whole point of having both.
+      for (final link in LiveLink.values) {
+        for (final mode in TransferMode.values) {
+          if (link.provesPeer) {
+            expect(
+              link.arranged(mode),
+              isTrue,
+              reason: '${link.name}/${mode.key}',
+            );
+          }
+        }
+      }
+    });
+  });
+
   group('the transport moves only when it has to', () {
     test('Wi-Fi and hotspot are both carried by an association', () {
       expect(LiveLink.wifi.carries(TransferMode.wifi), isTrue);

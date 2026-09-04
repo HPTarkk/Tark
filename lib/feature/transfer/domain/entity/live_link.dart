@@ -48,6 +48,36 @@ enum LiveLink {
   /// network one tap away on both screens where the question comes up.
   bool get provesPeer => this == LiveLink.bluetooth;
 
+  /// Whether anybody *arranged* this link, as opposed to the app finding a
+  /// network that happened to already be there.
+  ///
+  /// The weaker question underneath [provesPeer], and the more useful one
+  /// before a channel opens. Bluetooth and an access point of our own are both
+  /// deliberate acts a minute old — somebody paired, or somebody raised an AP,
+  /// *for this*. Being associated with a Wi-Fi network is not: the app opens
+  /// at home, on the home Wi-Fi, and the person holding it is as likely to be
+  /// about to walk out the door as to stay. `TransportAdvisor` has reasoned
+  /// this way since it was written — its hotspot rung leads precisely because
+  /// `hasWifi` cannot see the other phone — and the pre-ride lobby was the one
+  /// screen left that read a network it found as a network the room is on.
+  ///
+  /// **The mode is the discriminator, and it is the only one there is.** A
+  /// joiner that came through the bridge is associated with an access point
+  /// and is indistinguishable from a phone on a router from this side; what
+  /// tells them apart is that the bridge *wrote down* what it established (see
+  /// `WifiHotspotCubit._recordCarrier`). So [TransferMode.hotspot] on a Wi-Fi
+  /// link means these two phones agreed on this network, and
+  /// [TransferMode.wifi] means the app found it already up.
+  bool arranged(TransferMode mode) => switch (this) {
+    LiveLink.none => false,
+    // Neither can happen by walking into a building.
+    LiveLink.bluetooth || LiveLink.hotspotHost => true,
+    // Guest counts for the same reason the bridge does: the guest page only
+    // reaches a channel once a browser has attached, so the far end is a peer
+    // this device handed a link to rather than one it is hoping to find.
+    LiveLink.wifi => mode == TransferMode.hotspot || mode == TransferMode.guest,
+  };
+
   /// Whether a session set to [mode] can run over this link.
   ///
   /// The three IP transports — Wi-Fi, the hotspot bridge and the browser guest

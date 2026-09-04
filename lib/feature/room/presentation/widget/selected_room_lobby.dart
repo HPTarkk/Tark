@@ -34,6 +34,7 @@ class SelectedRoomLobby extends StatefulWidget {
     required this.onStartRide,
     required this.onBack,
     this.link,
+    this.mode,
     this.onConnect,
     this.repository,
     super.key,
@@ -56,6 +57,12 @@ class SelectedRoomLobby extends StatefulWidget {
   /// disbelieve the line. [LiveLink.none] is an answer, and it changes what
   /// the screen is for.
   final LiveLink? link;
+
+  /// The transport in effect, which is the only thing that can say whether
+  /// [link] was *arranged* or merely found — see [LiveLink.arranged]. Null
+  /// carries the same meaning as a null [link]: nobody has said yet, so the
+  /// screen claims nothing.
+  final TransferMode? mode;
 
   /// Opens the way to getting a link. Null where the caller cannot offer one,
   /// which leaves this screen saying what is missing without pretending it
@@ -155,6 +162,19 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
     // hotspot's credentials — so inviting somebody from a phone with no link
     // gives them a code that cannot put them anywhere.
     final unlinked = widget.link == LiveLink.none;
+    // A link is up, and nobody arranged it — which in practice means exactly
+    // one thing: this phone is on a Wi-Fi network that was already there when
+    // the app opened. That is a fact about this phone and no evidence at all
+    // about anybody else, and the scenario it fails on is the ordinary one:
+    // you set the ride up at home, on the home Wi-Fi, and then you leave with
+    // it. `TransportAdvisor` has always reasoned this way — its hotspot rung
+    // leads *because* `hasWifi` cannot see the other phone — and this screen
+    // was the last one still reading a network it found as the network the
+    // room is on. See [LiveLink.arranged].
+    final link = widget.link;
+    final mode = widget.mode;
+    final assumed =
+        link != null && mode != null && link.isUp && !link.arranged(mode);
 
     return Scaffold(
       appBar: AppBar(
@@ -183,7 +203,14 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
         // with nothing in it, and in amber beside an amber callout that says
         // the same thing it becomes the second answer to a question the screen
         // has just answered once.
-        actions: alone ? const [] : const [InRoomInviteButton()],
+        actions: alone
+            ? const []
+            : const [
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: InRoomInviteButton(),
+                ),
+              ],
       ),
       body: SafeArea(
         // The lobby is the pause before the ride starts, and the one screen in
@@ -201,13 +228,21 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
             Text(
               unlinked
                   ? copy.unlinkedHeading
+                  : assumed
+                  ? copy.assumedHeading
                   : (alone ? copy.aloneHeading : copy.heading),
               style: Theme.of(
                 context,
               ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
-            Text(unlinked ? copy.unlinkedLead : copy.nothingStarted),
+            Text(
+              unlinked
+                  ? copy.unlinkedLead
+                  : assumed
+                  ? copy.assumedLead
+                  : copy.nothingStarted,
+            ),
             if (widget.link != null && !unlinked) ...[
               const SizedBox(height: 14),
               _LinkChip(link: widget.link!, copy: copy),
@@ -215,7 +250,10 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
               // being on *their* network, and this screen has no way to tell
               // the two apart — so it says so rather than letting the chip
               // above be read as "the room is ready".
-              if (!widget.link!.provesPeer) ...[
+              // Dropped when [assumed] is about to put the same caveat inside
+              // the callout below, at the weight it deserves. One warning in
+              // two sizes reads as two different problems.
+              if (!widget.link!.provesPeer && !assumed) ...[
                 const SizedBox(height: 8),
                 Text(
                   copy.linkCaveat(widget.link!),
@@ -238,6 +276,13 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
             const SizedBox(height: 20),
             if (unlinked)
               ..._unlinkedBody(copy, members, held, canInvite: canInvite)
+            // Outranks [alone], and for the same reason [unlinked] does: an
+            // invite minted from here carries membership and no network — the
+            // People sheet only grows its Wi-Fi section once an access point
+            // of ours is up — so it would put somebody into a room they still
+            // cannot hear.
+            else if (assumed)
+              ..._assumedBody(copy, members, held, canInvite: canInvite)
             else if (alone)
               ..._aloneBody(copy, canInvite: canInvite)
             else ...[
@@ -288,6 +333,59 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
         height: 1.45,
       ),
     ),
+  ];
+
+  /// The screen when the link is real but nobody arranged it.
+  ///
+  /// **This is the inversion, and it is the whole request.** The shape used to
+  /// be: Start ride glowing amber under a chip that said "On Wi-Fi", with the
+  /// escape — *Not on the same network?* — as one line of small underlined
+  /// text below it. That put the app's weight behind the one claim it cannot
+  /// check, and left the reliable route as the thing you notice last. So the
+  /// two swap places: making a network the two phones share is the primary
+  /// action, and "we are already together" is the quiet line under it.
+  ///
+  /// The line is still a real way through, not a warning with no door — a
+  /// pair genuinely sat on one office network gets on the air in one tap, the
+  /// same tap it used to take. What changed is which of the two the screen
+  /// argues for, and it now argues for the one that is still true after
+  /// everybody stands up and leaves.
+  List<Widget> _assumedBody(
+    _LobbyCopy copy,
+    List<RoomMember> members,
+    List<RoomMember> held, {
+    required bool canInvite,
+  }) => [
+    _SharedNetworkDoubt(
+      key: const Key('selected-room-shared-network-callout'),
+      copy: copy,
+      onConnect: widget.onConnect,
+    ),
+    // With no way out to offer there is nothing to invert *towards*, so the
+    // original control comes back at full weight rather than leaving a screen
+    // whose only action is a sentence. Same rule as [_unlinkedBody].
+    if (widget.onConnect == null) ...[
+      const SizedBox(height: 22),
+      _LobbyAction(
+        key: const Key('selected-room-start-ride'),
+        icon: Icons.play_arrow_rounded,
+        label: copy.startRide,
+        primary: true,
+        onTap: widget.onStartRide,
+      ),
+    ] else ...[
+      const SizedBox(height: 12),
+      Center(
+        child: _WayOut(
+          key: const Key('selected-room-start-anyway'),
+          icon: Icons.play_arrow_rounded,
+          label: copy.alreadyTogether,
+          onTap: widget.onStartRide,
+        ),
+      ),
+    ],
+    const SizedBox(height: 24),
+    ..._rosterList(copy, members, held, canInvite: canInvite),
   ];
 
   /// The screen when nothing is carrying the room.
@@ -532,6 +630,69 @@ class _LinkInvitation extends StatelessWidget {
   );
 }
 
+/// The doubt a Wi-Fi network deserves, at the size of the doubt.
+///
+/// Third in the family [_InviteInvitation] and [_LinkInvitation] belong to —
+/// mark, situation, why it matters, one control — and deliberately the same
+/// card, because it is the same kind of moment: something stands between this
+/// room and a working channel, and there is one act that settles it.
+///
+/// **Amber throughout, where [_LinkInvitation] is red.** Nothing is broken
+/// here. A link exists and might well be the right one; what is missing is any
+/// way to know, and a red glyph would overstate that into a fault. The colour
+/// is the difference between "this cannot work" and "this might not".
+class _SharedNetworkDoubt extends StatelessWidget {
+  const _SharedNetworkDoubt({
+    required this.copy,
+    required this.onConnect,
+    super.key,
+  });
+
+  final _LobbyCopy copy;
+  final VoidCallback? onConnect;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+    decoration: BoxDecoration(
+      color: AppColors.card,
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: AppColors.amber.withValues(alpha: 0.30)),
+    ),
+    child: Column(
+      children: [
+        Icon(Icons.help_outline_rounded, size: 46, color: AppColors.amber),
+        const SizedBox(height: 14),
+        Text(
+          copy.assumedTitle,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          onConnect == null ? copy.assumedNoWayOut : copy.assumedBody,
+          textAlign: TextAlign.center,
+          style: TextStyle(color: AppColors.textSecondary, height: 1.5),
+        ),
+        if (onConnect != null) ...[
+          const SizedBox(height: 18),
+          _LobbyAction(
+            key: const Key('selected-room-connect'),
+            icon: Icons.wifi_tethering_rounded,
+            label: copy.getOnOneNetwork,
+            primary: true,
+            onTap: onConnect!,
+          ),
+        ],
+      ],
+    ),
+  );
+}
+
 /// One quiet line saying what this phone is on.
 ///
 /// Deliberately still, with no pulsing dot and no meter. This screen's whole
@@ -620,10 +781,21 @@ class _LinkChip extends StatelessWidget {
 /// reason: an escape from a default the screen cannot verify has to be
 /// visible without competing with the action it is an escape from.
 class _WayOut extends StatelessWidget {
-  const _WayOut({required this.label, required this.onTap, super.key});
+  const _WayOut({
+    required this.label,
+    required this.onTap,
+    this.icon = Icons.wifi_tethering_rounded,
+    super.key,
+  });
 
   final String label;
   final VoidCallback onTap;
+
+  /// Defaulted to the bridge's glyph, because that is what this control was
+  /// built to escape *to*. The inverted lobby passes the play arrow instead:
+  /// there the escape runs the other way, and a tethering mark on a control
+  /// that starts the ride would say the opposite of what it does.
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -640,11 +812,7 @@ class _WayOut extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.wifi_tethering_rounded,
-              size: 15,
-              color: AppColors.amber,
-            ),
+            Icon(icon, size: 15, color: AppColors.amber),
             const SizedBox(width: 7),
             Flexible(
               child: Text(
@@ -786,6 +954,23 @@ final class _LobbyCopy {
       ? 'الان این گوشی روی هیچ شبکه‌ای نیست. وای‌فای را روشن کنید یا از صفحهٔ اتصال، هات‌اسپات را بالا بیاورید.'
       : 'This phone is not on any network right now. Turn Wi-Fi on, or bring a hotspot up from the connect screen.';
   String get connect => fa ? 'برقراری اتصال' : 'GET CONNECTED';
+  String get assumedHeading => fa ? 'یک قدم مانده' : 'One thing first';
+  String get assumedLead => fa
+      ? 'روی وای‌فای بودن، با روی وای‌فایِ آن‌ها بودن یکی نیست.'
+      : 'Being on Wi-Fi is not the same as being on their Wi-Fi.';
+  String get assumedTitle =>
+      fa ? 'همه روی همین شبکه‌اند؟' : 'Are they on this network?';
+  String get assumedBody => fa
+      ? 'این گوشی روی شبکه‌ای است که از قبل بوده — و از اینجا هیچ راهی نیست که بفهمیم بقیه هم روی همان هستند. شبکه‌ای هم که چند دقیقهٔ دیگر از آن دور می‌شوید، جای شروع ارتباط نیست. هات‌اسپاتی که یکی‌تان روشن می‌کند هرجا بروید کار می‌کند: شما کد را نشان می‌دهید، آن‌ها اسکن می‌کنند.'
+      : 'This phone is on a network that was already here, and there is no way from this side to tell whether the others are on it too — nor whether it will still be under you in ten minutes. A hotspot one of you turns on works wherever you end up: you show a code, they scan it.';
+  String get assumedNoWayOut => fa
+      ? 'این گوشی روی شبکه‌ای است که از قبل بوده. تا صدایی نرسد، معلوم نیست بقیه هم روی همان باشند.'
+      : 'This phone is on a network that was already here. Until someone is heard, there is no telling whether the others are on it.';
+  String get getOnOneNetwork =>
+      fa ? 'یک شبکهٔ مشترک بسازید' : 'GET ON ONE NETWORK';
+  String get alreadyTogether => fa
+      ? 'همین حالا روی یک شبکه‌ایم — شروع کن'
+      : "We're already on the same network — start";
   String get linkConnected => fa ? 'وصل' : 'CONNECTED';
   String get differentNetwork =>
       fa ? 'روی یک شبکه نیستید؟' : 'Not on the same network?';

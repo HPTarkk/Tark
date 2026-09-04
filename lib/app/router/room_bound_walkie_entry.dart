@@ -277,6 +277,22 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     final intent = room.membership.canManageInvites
         ? ChannelIntent.create
         : ChannelIntent.join;
+    // Two different questions, and [ConnectRoute] has always had two answers.
+    // A phone with a link that still cannot reach anybody must not be handed
+    // to the advisor: the advisor weighs what this device *can* do, and on a
+    // phone sitting on a café Wi-Fi its honest answer includes using that same
+    // Wi-Fi — which is the thing that just failed. This call site ran the
+    // ladder for both cases, so the way out of "we are on different networks"
+    // could route back to the network it was an escape from.
+    if (links.isUp) {
+      final route = ConnectRoute.forStrandedRoom(
+        intent: intent,
+        pinned: _modeStore?.pinnedMode,
+      );
+      Logger.diagnostic('room: connect stranded intent=${intent.key}');
+      context.push(route);
+      return;
+    }
     final plan = TransportAdvisor.plan(
       intent,
       LinkConditions(
@@ -361,6 +377,11 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
             // anything about the link", which is a different screen from
             // "there is no link".
             link: _resolvedLink,
+            // The half the link cannot answer on its own: whether the
+            // association was arranged between these phones or merely found.
+            // Read from the same store the gate resolves against, so the two
+            // can never disagree about what this device is doing.
+            mode: _modeStore?.mode,
             onStartRide: () => _startRide(room),
             onConnect: () => _connect(context, room),
             onBack: () => leaveRoomEntry(context),
