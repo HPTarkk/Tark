@@ -25,8 +25,10 @@ String localizeDigits(String value, {required bool farsi}) =>
 extension StringExt on String {
   /// Converts ASCII digits to locale-specific digits.
   /// Farsi locale → Arabic-Indic digits (۰–۹); otherwise keeps ASCII digits.
-  String localized(BuildContext context) =>
-      localizeDigits(this, farsi: Localizations.localeOf(context).languageCode == 'fa');
+  String localized(BuildContext context) => localizeDigits(
+    this,
+    farsi: Localizations.localeOf(context).languageCode == 'fa',
+  );
 
   String _toFarsiDigits() => replaceAll('0', '۰')
       .replaceAll('1', '۱')

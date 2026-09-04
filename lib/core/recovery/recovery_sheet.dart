@@ -106,9 +106,7 @@ class _RecoverySheetState extends State<_RecoverySheet>
           borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
           // Uniform on purpose: a rounded box can only be stroked with one
           // colour, and a per-side border here silently fails to paint at all.
-          border: Border.all(
-            color: AppColors.amber.withValues(alpha: 0.22),
-          ),
+          border: Border.all(color: AppColors.amber.withValues(alpha: 0.22)),
         ),
         child: StreamBuilder<List<RecoveryCheck>>(
           stream: widget.checks,

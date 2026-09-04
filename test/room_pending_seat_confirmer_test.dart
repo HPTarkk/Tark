@@ -44,7 +44,8 @@ void main() {
     return (rooms: rooms, saved: saved);
   }
 
-  RoomMemberId heldSeatOf(SavedRoom saved) => saved.room.pendingMembers.single.id;
+  RoomMemberId heldSeatOf(SavedRoom saved) =>
+      saved.room.pendingMembers.single.id;
 
   test('a proven member takes their held seat', () async {
     final subject = await roomWithHeldSeat();
@@ -235,8 +236,14 @@ void main() {
     // member is present, never that they should be.
     expect(await confirmer.confirm(seat), isFalse);
     final room = (await subject.rooms.get(subject.saved.room.id))!.room;
-    expect(room.confirmedMembers.map((member) => member.id), isNot(contains(seat)));
-    expect(room.activeMembers.map((member) => member.id), isNot(contains(seat)));
+    expect(
+      room.confirmedMembers.map((member) => member.id),
+      isNot(contains(seat)),
+    );
+    expect(
+      room.activeMembers.map((member) => member.id),
+      isNot(contains(seat)),
+    );
   });
 
   test('a member who is not on this roster changes nothing', () async {

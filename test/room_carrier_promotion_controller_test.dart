@@ -73,44 +73,47 @@ void main() {
   );
 
   group('a network the Room already owns is never promoted off', () {
-    test('a phone holding the access point up is owned, whatever the mode says', () async {
-      // The reported symptom: a card saying "getting the room ready for the
-      // road" on a pair that were already on one another's hotspot. Durability
-      // was read from the transport mode alone, and nothing in the hotspot
-      // bridge ever wrote that mode — so every phone read `wifi`, which means
-      // borrowed, and the promotion set about moving the group off a network
-      // it had just built.
-      final modeStore = _FakeModeStore(TransferMode.wifi);
-      final host = _FakeHotspotHost()..hosting = true;
-      final keeper = _FakeLinkKeeper();
-      final exchange = _FakeHandoverExchange();
-      var now = DateTime.utc(2026, 9, 3, 20, 0);
+    test(
+      'a phone holding the access point up is owned, whatever the mode says',
+      () async {
+        // The reported symptom: a card saying "getting the room ready for the
+        // road" on a pair that were already on one another's hotspot. Durability
+        // was read from the transport mode alone, and nothing in the hotspot
+        // bridge ever wrote that mode — so every phone read `wifi`, which means
+        // borrowed, and the promotion set about moving the group off a network
+        // it had just built.
+        final modeStore = _FakeModeStore(TransferMode.wifi);
+        final host = _FakeHotspotHost()..hosting = true;
+        final keeper = _FakeLinkKeeper();
+        final exchange = _FakeHandoverExchange();
+        var now = DateTime.utc(2026, 9, 3, 20, 0);
 
-      final controller = build(
-        localMemberId: hostMember,
-        identity: hostIdentity,
-        modeStore: modeStore,
-        hotspotHost: host,
-        keeper: keeper,
-        exchange: exchange,
-        candidates: () => [
-          candidate(hostMember, batteryPercent: 95),
-          candidate(followerMember, batteryPercent: 30),
-        ],
-        clock: () => now,
-      );
-      addTearDown(controller.dispose);
+        final controller = build(
+          localMemberId: hostMember,
+          identity: hostIdentity,
+          modeStore: modeStore,
+          hotspotHost: host,
+          keeper: keeper,
+          exchange: exchange,
+          candidates: () => [
+            candidate(hostMember, batteryPercent: 95),
+            candidate(followerMember, batteryPercent: 30),
+          ],
+          clock: () => now,
+        );
+        addTearDown(controller.dispose);
 
-      controller.start();
-      now = now.add(const Duration(seconds: 30));
-      controller.evaluate();
-      await pumpEventQueue();
+        controller.start();
+        now = now.add(const Duration(seconds: 30));
+        controller.evaluate();
+        await pumpEventQueue();
 
-      // No second access point, no election, and nothing said out loud.
-      expect(host.starts, 0);
-      expect(controller.status.stage, RoomCarrierStage.settled);
-      expect(controller.status.durability, RoomCarrierDurability.owned);
-    });
+        // No second access point, no election, and nothing said out loud.
+        expect(host.starts, 0);
+        expect(controller.status.stage, RoomCarrierStage.settled);
+        expect(controller.status.durability, RoomCarrierDurability.owned);
+      },
+    );
 
     test('a follower on a borrowed network is still promoted', () async {
       // The other half of the same rule: this must not have turned the

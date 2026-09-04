@@ -200,10 +200,7 @@ void main() {
         hostSignature: const [1],
       );
       expect(handover.isFresh(at), isTrue);
-      expect(
-        handover.isFresh(at.add(RoomCarrierHandover.freshness)),
-        isTrue,
-      );
+      expect(handover.isFresh(at.add(RoomCarrierHandover.freshness)), isTrue);
       expect(
         handover.isFresh(
           at.add(RoomCarrierHandover.freshness + const Duration(seconds: 1)),

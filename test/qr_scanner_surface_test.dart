@@ -48,9 +48,8 @@ void main() {
     await tester.pumpWidget(scanner());
     await tester.pump(const Duration(milliseconds: 100));
 
-    double top() => tester
-        .getTopLeft(find.byKey(const Key('qr-scanner-sweep')))
-        .dy;
+    double top() =>
+        tester.getTopLeft(find.byKey(const Key('qr-scanner-sweep'))).dy;
 
     final start = top();
     await tester.pump(const Duration(milliseconds: 400));
