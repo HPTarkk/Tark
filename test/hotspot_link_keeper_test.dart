@@ -20,6 +20,9 @@ import 'package:tark/feature/transfer/domain/service/session_role_store.dart';
 const _creds = HotspotCredentials(ssid: 'AndroidShare_1865', passphrase: 'abc');
 
 class _FakeHost implements HotspotHost {
+
+  @override
+  bool get isHosting => starts > 0;
   final _stopped = StreamController<void>.broadcast();
   int starts = 0;
   HotspotCredentials next = const HotspotCredentials(

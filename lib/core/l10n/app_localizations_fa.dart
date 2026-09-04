@@ -1397,6 +1397,9 @@ class AppLocalizationsFa extends AppLocalizations {
   String get fix_repair_link => 'ترمیم اتصال';
 
   @override
+  String get fix_invite_someone => 'دعوت کردن';
+
+  @override
   String get preflight_check_hd_voice => 'صدای باکیفیت';
 
   @override

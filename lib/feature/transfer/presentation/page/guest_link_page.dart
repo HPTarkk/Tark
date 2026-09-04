@@ -101,7 +101,12 @@ class _GuestLinkPageState extends State<GuestLinkPage>
             if (state.link == GuestLinkState.connected && !_navigating) {
               setState(() => _navigating = true);
               await Future<void>.delayed(LinkEstablished.hold);
-              if (context.mounted) context.goNamed(AppRoutes.walkieName);
+              if (context.mounted) {
+                context.goNamed(
+                  AppRoutes.walkieName,
+                  queryParameters: const {'ride': 'true'},
+                );
+              }
             }
           },
           builder: (context, state) {

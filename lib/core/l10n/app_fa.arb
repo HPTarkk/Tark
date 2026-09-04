@@ -417,6 +417,7 @@
     "issue_unheard_title": "صدایت را نمی‌شنوند",
     "issue_unheard_body": "تو آن‌ها را می‌شنوی، ولی چیزی که می‌گویی به مقصد نمی‌رسد. اتصال دارد خودکار ترمیم می‌شود؛ اگر برنگشت، از کانال بیرون برو و دوباره وارد شو.",
     "fix_repair_link": "ترمیم اتصال",
+    "fix_invite_someone": "دعوت کردن",
     "preflight_check_hd_voice": "صدای باکیفیت",
     "preflight_hd_voice_ready": "صدای باکیفیت آماده‌ست",
     "preflight_hd_voice_negotiated_hd": "صدای باکیفیت — با طرف مقابل هماهنگ شد",

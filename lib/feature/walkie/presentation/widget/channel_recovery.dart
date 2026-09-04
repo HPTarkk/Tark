@@ -12,6 +12,7 @@ import '../../../../core/recovery/recovery_check.dart';
 import '../../../../core/recovery/recovery_sheet.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
+import '../../../room/presentation/widget/room_people_sheet.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../manager/walkie_talkie_cubit.dart';
 
@@ -304,6 +305,7 @@ RecoveryCheck? primaryChannelIssue({
   required AppLocalizations s,
   required WalkieTalkieState state,
   required WalkieTalkieCubit cubit,
+  Future<void> Function()? onInvite,
 }) {
   switch (channelIssueOf(state)) {
     case ChannelIssue.none:
@@ -373,6 +375,19 @@ RecoveryCheck? primaryChannelIssue({
         label: s.issue_alone_title,
         detail: s.issue_alone_body,
         status: RecoveryStatus.warn,
+        // The only card here whose fix is not a retry: "check the other phone
+        // has joined" is advice, and the way to make it true is the invite
+        // code. Without this the one screen that says nobody is here was also
+        // the one screen with nothing to do about it, and the route back to
+        // the code was a pill in the header.
+        actions: [
+          if (onInvite != null)
+            RecoveryAction(
+              label: s.fix_invite_someone,
+              isPrimary: true,
+              run: onInvite,
+            ),
+        ],
       );
   }
 }
@@ -397,6 +412,10 @@ class ChannelIssueBanner extends StatelessWidget {
           s: context.getString,
           state: state,
           cubit: context.read<WalkieTalkieCubit>(),
+          // Straight to the code: the tap on a card that says nobody is here
+          // is already the ask, and the roster it would otherwise open holds
+          // exactly one row, saying "You".
+          onInvite: () => showRoomPeopleSheet(context, autoIssue: true),
         ),
       ),
     );

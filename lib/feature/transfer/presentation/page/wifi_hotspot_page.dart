@@ -163,12 +163,28 @@ class _WifiHotspotPageState extends State<WifiHotspotPage>
     // Flips the body to the flash immediately; the wait below is what gives it
     // time to be seen.
     setState(() => _navigating = true);
+    // The Wi-Fi segment's whole premise is that both phones are already on one
+    // network, which means nobody in the Room owns it. Recorded here rather
+    // than on arrival, because merely looking at this segment establishes
+    // nothing — pressing Enter channel on it does. The hotspot segment writes
+    // itself down the moment its access point is up or joined.
+    if (context.read<WifiHotspotCubit>().state.segment ==
+        WifiHotspotSegment.wifi) {
+      context.read<WifiHotspotCubit>().recordSharedNetwork();
+    }
     await Future<void>.delayed(LinkEstablished.hold);
     if (!context.mounted) return;
     try {
       // Leave the hotspot up — and the joined network bound — if one was set
       // up; the walkie session runs over it.
-      context.goNamed(AppRoutes.walkieName);
+      //
+      // `ride` says this tap was the end of setting a link up, not a way of
+      // reaching a Room: a selected Room would otherwise open its lobby and
+      // ask "start?" one screen after the user pressed Enter channel.
+      context.goNamed(
+        AppRoutes.walkieName,
+        queryParameters: const {'ride': 'true'},
+      );
     } catch (e) {
       // The flash renders for as long as the flag is set, so a jump that never
       // lands would park the user on "you're in!" with only the back arrow.

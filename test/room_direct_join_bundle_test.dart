@@ -6,10 +6,26 @@ import 'package:tark/feature/room/domain/entity/room_accepted_join_snapshot.dart
 import 'package:tark/feature/room/domain/entity/room_direct_join_bundle.dart';
 import 'package:tark/feature/room/domain/service/room_member_transport_identity.dart';
 
-/// Frozen v2 payload for [_fixture]. Pinned as a literal rather than recomputed
+/// Frozen v3 payload for [_fixture]. Pinned as a literal rather than recomputed
 /// so that a change to the field order, the version byte, the flag bit or the
 /// member-kind values fails here instead of in someone's hands, holding a phone
 /// that will not scan a code the other phone minted.
+const _goldenV3 =
+    'tark-room:AwGrq6urq6urq6urq6urq6urIiIiIiIiIiIiIiIiAwoRGB8mLTQ7QklQV15l'
+    'bHN6gYiPlp2kq7K5wMfO1dwLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5B0k'
+    'KzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O_2LzY9REtSWWBnbnV8g4qRmJ-mrbS7'
+    'wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6IDYyqi9dtLx'
+    '5JCGNLKZ95CGNAxNb3JuaW5nIHJpZGUCERERERERERERERERANLx5JCGNBHZh9mF2LHY'
+    'p9mHINin2YjZhCIiIiIiIiIiIiIiIgHS8eSQhjQJT3BlbiBzZWF0';
+
+/// The same fixture as [_goldenV3], minted by the build before held seats
+/// could be written down. Kept so the reader for it stays exercised: this is
+/// what a code sitting on someone's screen from an earlier APK looks like, and
+/// refusing it would mean a scan that used to work stops working.
+///
+/// Byte-for-byte [_goldenV3] with a different leading version, because a
+/// roster with no held seats pays nothing for the field — which is the whole
+/// reason the flags went in the member byte rather than beside it.
 const _goldenV2 =
     'tark-room:AgGrq6urq6urq6urq6urq6urIiIiIiIiIiIiIiIiAwoRGB8mLTQ7QklQV15l'
     'bHN6gYiPlp2kq7K5wMfO1dwLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5B0k'
@@ -52,21 +68,59 @@ void main() {
     },
   );
 
-  test('writes the pinned v2 layout', () {
-    expect(_fixture().encode(), _goldenV2);
+  test('writes the pinned v3 layout', () {
+    expect(_fixture().encode(), _goldenV3);
   });
 
-  test('still reads the v1 envelope, and re-mints it as v2', () {
+  test('still reads the v1 envelope, and re-mints it as v3', () {
     final bundle = _fixture();
     final decoded = RoomDirectJoinBundle.decode(_encodeAsV1(bundle));
 
-    expect(decoded.encode(), _goldenV2);
+    expect(decoded.encode(), _goldenV3);
     expect(decoded.snapshot.roomName, 'Morning ride');
     expect(decoded.snapshot.grantsInviteManagement, isTrue);
     expect(decoded.snapshot.members.last.kind, RoomMemberKind.guest);
   });
 
-  test('v2 is a quarter of the v1 payload it replaces', () {
+  test('still reads a v2 code, and re-mints it as v3', () {
+    final decoded = RoomDirectJoinBundle.decode(_goldenV2);
+
+    expect(decoded.encode(), _goldenV3);
+    expect(decoded.snapshot.roomName, 'Morning ride');
+    expect(decoded.snapshot.members.last.kind, RoomMemberKind.guest);
+    // v2 has nowhere to say a seat is held, so every row it carries arrives
+    // as a member. That is the bug v3 exists to fix, not something this
+    // reader can undo.
+    expect(decoded.snapshot.members.every((m) => !m.pending), isTrue);
+  });
+
+  test('a roster with no held seats costs exactly what v2 did', () {
+    // The flags ride in the byte that already carried the kind, so the common
+    // case pays nothing — which is what keeps the brand-mark budget intact.
+    expect(_fixture().encode().length, _goldenV2.length);
+  });
+
+  test('a held seat and its hold survive the wire', () {
+    final bundle = _fixture(heldSeat: true);
+    final decoded = RoomDirectJoinBundle.decode(bundle.encode());
+    final seat = decoded.snapshot.members.firstWhere((m) => m.pending);
+
+    expect(seat.heldUntil, _heldUntil);
+    expect(
+      decoded.snapshot.members.where((m) => m.pending),
+      hasLength(1),
+      reason: 'the joiner is standing in their own seat, so only the spare',
+    );
+  });
+
+  test('the hold costs only the rosters that have one', () {
+    expect(
+      _fixture(heldSeat: true).encode().length,
+      greaterThan(_fixture().encode().length),
+    );
+  });
+
+  test('v3 is a quarter of the v1 payload it replaces', () {
     final bundle = _fixture();
     final legacy = _encodeAsV1(bundle).length;
     final compact = bundle.encode().length;
@@ -174,12 +228,21 @@ void main() {
 const _roomId = RoomId('abababababababababababababababab');
 const _ownerId = RoomMemberId('111111111111111111111111');
 const _joinerId = RoomMemberId('222222222222222222222222');
+const _spareSeatId = RoomMemberId('444444444444444444444444');
 final _createdAt = DateTime.utc(2026, 9, 2, 12, 30, 15, 250);
 
 List<int> _filled(int length, int seed) =>
     List<int>.generate(length, (i) => (i * 7 + seed) & 0xff, growable: false);
 
-RoomDirectJoinBundle _fixture({int extraMembers = 0, DateTime? expiresAt}) {
+/// When the fixture's spare seat stops being held. Distinct from every other
+/// timestamp here so a reader that grabs the wrong varint cannot pass.
+final _heldUntil = _createdAt.add(const Duration(hours: 12));
+
+RoomDirectJoinBundle _fixture({
+  int extraMembers = 0,
+  DateTime? expiresAt,
+  bool heldSeat = false,
+}) {
   final keyPair = RoomMemberTransportKeyPair(
     privateKey: _filled(32, 3),
     publicKey: _filled(32, 11),
@@ -198,6 +261,15 @@ RoomDirectJoinBundle _fixture({int extraMembers = 0, DateTime? expiresAt}) {
           joinedAt: _createdAt,
           kind: RoomMemberKind.member,
         ),
+        if (heldSeat)
+          RoomAcceptedJoinMember(
+            memberId: _spareSeatId,
+            displayName: 'Open seat',
+            joinedAt: _createdAt,
+            kind: RoomMemberKind.member,
+            pending: true,
+            heldUntil: _heldUntil,
+          ),
         for (var index = 0; index < extraMembers; index += 1)
           RoomAcceptedJoinMember(
             memberId: RoomMemberId(

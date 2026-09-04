@@ -55,6 +55,16 @@ abstract interface class HotspotHost {
 
   Future<void> stop();
 
+  /// Whether an access point raised by this app is on the air right now.
+  ///
+  /// The one link state no network API can be asked about: a local-only
+  /// hotspot is not a network this device is *on*, so `ConnectivityManager`
+  /// reports the phone as having no Wi-Fi at the exact moment it is holding
+  /// the Wi-Fi that everyone else in the room is using. The reservation lives
+  /// and dies with this process, which is what makes an in-process answer the
+  /// accurate one rather than a cached guess.
+  bool get isHosting;
+
   /// Fires when the OS tears the hotspot down on its own (radio conflict,
   /// Doze, an STA reconnect stealing the single radio) — never for an
   /// app-initiated [stop].

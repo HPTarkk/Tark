@@ -56,12 +56,12 @@ void main() {
     );
 
     expect(
-      await authority.verifyAndBind(
+      (await authority.verifyAndBind(
         peerKey: 'udp:10.0.0.2:41111',
         encodedProof: proof.encode(),
         attachmentGeneration: 3,
         at: at,
-      ),
+      ))?.memberId,
       memberId,
     );
     expect(

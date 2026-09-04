@@ -271,6 +271,9 @@ final class _Transfer implements TransferRepository {
 final class _HotspotHost implements HotspotHost {
   _HotspotHost({this.failStart = false});
 
+  @override
+  bool get isHosting => startCalls > stopCalls;
+
   final bool failStart;
   final credentials = const HotspotCredentials(
     ssid: 'Tark-Test',

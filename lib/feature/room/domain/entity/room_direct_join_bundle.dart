@@ -14,9 +14,10 @@ import '../service/room_member_transport_identity.dart';
 ///
 /// ## Wire format
 ///
-/// `tark-room:` followed by unpadded base64url. Version 2 packs a compact
-/// binary record; version 1 packed a JSON envelope, and is still read so a
-/// code minted by an older build keeps working. Only v2 is ever written.
+/// `tark-room:` followed by unpadded base64url. Versions 2 and 3 pack a
+/// compact binary record; version 1 packed a JSON envelope. All three are
+/// still read so a code minted by an older build keeps working. Only v3 is
+/// ever written.
 ///
 /// ### Why v1 was replaced
 ///
@@ -56,6 +57,33 @@ import '../service/room_member_transport_identity.dart';
 /// | varint | member count |
 /// | … | per member: 12-byte id, kind byte, joined-at varint, name |
 ///
+/// ### What v3 adds
+///
+/// v2 dropped two facts the roster needs, and dropping them is R27's bug
+/// arriving on the path R27 was actually about. A held invite seat travels in
+/// the snapshot as an ordinary active member — the JSON codec learned to say
+/// `pending`, but this binary one never did, so a one-scan joiner still
+/// received the host's unclaimed seats as people. And a seat's hold (R27c) has
+/// to travel too: the joining phone has no back-channel, so a seat that
+/// expires on the host and not here is the same divergence one phone over.
+///
+/// Both ride in the byte that already carried the member kind, whose low bits
+/// only ever used two values:
+///
+/// | bits | meaning |
+/// | ---: | :--- |
+/// | 0–3 | kind — 0 member, 1 guest |
+/// | 4 | the seat is held open and nobody has walked through it |
+/// | 5 | a held-until varint follows the joined-at one |
+///
+/// So a roster with no held seats encodes to exactly the byte count v2 did,
+/// and [brandableEncodedLength] still buys the same three seats. A record with
+/// held seats pays a varint each, which is what a seat that can expire costs.
+///
+/// The flags could not simply be added to v2: an older reader would take bit 4
+/// as an unknown kind and, worse, the extra varint would desynchronise every
+/// field after it. A version byte is exactly what this format has for that.
+///
 /// The certificate's own room and member ids are not written: [encode] already
 /// refuses a bundle whose certificate disagrees with the envelope, so a second
 /// copy could only ever be redundant or a contradiction. Same for the
@@ -70,7 +98,13 @@ final class RoomDirectJoinBundle {
   });
 
   /// The layout this build writes.
-  static const currentVersion = 2;
+  static const currentVersion = 3;
+
+  /// The first binary layout. Read, never written: it cannot say that a seat
+  /// is held, so a code minted by that build arrives with the host's open
+  /// seats looking like members. Nothing can recover that here — the bytes do
+  /// not carry it — and the alternative to reading them is refusing a scan.
+  static const binaryVersionWithoutSeats = 2;
 
   /// The JSON envelope earlier builds wrote. Read, never written.
   static const legacyVersion = 1;
@@ -106,7 +140,7 @@ final class RoomDirectJoinBundle {
 
   String encode() {
     _assertConsistent();
-    final encoded = base64Url.encode(_writeV2(this)).replaceAll('=', '');
+    final encoded = base64Url.encode(_writeV3(this)).replaceAll('=', '');
     if (encoded.length > maxEncodedLength) {
       throw const FormatException('direct Room join QR too large');
     }
@@ -124,11 +158,16 @@ final class RoomDirectJoinBundle {
     }
     try {
       final bytes = base64Url.decode(base64Url.normalize(encoded));
-      // v1 is JSON, so its first byte is always `{`. The two layouts can never
-      // be confused for one another by their leading byte.
-      final bundle = bytes.isNotEmpty && bytes.first == currentVersion
-          ? _readV2(Uint8List.fromList(bytes))
-          : _readV1(bytes);
+      // v1 is JSON, so its first byte is always `{`. No binary layout can be
+      // confused for it, or for another, by that leading byte.
+      final bundle = switch (bytes.isEmpty ? -1 : bytes.first) {
+        currentVersion => _readBinary(Uint8List.fromList(bytes), seats: true),
+        binaryVersionWithoutSeats => _readBinary(
+          Uint8List.fromList(bytes),
+          seats: false,
+        ),
+        _ => _readV1(bytes),
+      };
       // Re-run all cross-field checks in one canonical place, whichever
       // layout the bytes arrived in.
       bundle._assertConsistent();
@@ -160,6 +199,13 @@ final class RoomDirectJoinBundle {
 }
 
 const _flagGrantsInviteManagement = 0x01;
+
+/// The member byte: kind in the low nibble, seat facts above it.
+const _memberKindMask = 0x0F;
+const _memberFlagPending = 0x10;
+const _memberFlagHeldUntil = 0x20;
+const _memberByteMask =
+    _memberKindMask | _memberFlagPending | _memberFlagHeldUntil;
 const _roomIdBytes = 16;
 const _memberIdBytes = 12;
 const _keyBytes = 32;
@@ -177,7 +223,7 @@ const _maxVarintValue = 0x1FFFFFFFFFFFF;
 /// every character costs four bytes.
 const _maxTextBytes = 512;
 
-Uint8List _writeV2(RoomDirectJoinBundle bundle) {
+Uint8List _writeV3(RoomDirectJoinBundle bundle) {
   final snapshot = bundle.snapshot;
   final out = _ByteWriter()
     ..u8(RoomDirectJoinBundle.currentVersion)
@@ -194,16 +240,30 @@ Uint8List _writeV2(RoomDirectJoinBundle bundle) {
     ..text(snapshot.roomName)
     ..varint(snapshot.members.length);
   for (final member in snapshot.members) {
+    // A hold means nothing on a seat nobody is holding, so it is written only
+    // under the mark — which also keeps the two flags from ever disagreeing.
+    final held = member.pending ? member.heldUntil : null;
     out
       ..hex(member.memberId.value, _memberIdBytes)
-      ..u8(_wireKind(member.kind))
-      ..timestamp(member.joinedAt)
-      ..text(member.displayName);
+      ..u8(
+        _wireKind(member.kind) |
+            (member.pending ? _memberFlagPending : 0) |
+            (held != null ? _memberFlagHeldUntil : 0),
+      )
+      ..timestamp(member.joinedAt);
+    if (held != null) out.timestamp(held);
+    out.text(member.displayName);
   }
   return out.take();
 }
 
-RoomDirectJoinBundle _readV2(Uint8List bytes) {
+/// Reads either binary layout.
+///
+/// [seats] says whether the member flags exist, which is the only thing v3
+/// added. Sharing the reader rather than copying it keeps the two from
+/// drifting: everything before the roster is byte-identical, and a bug fixed
+/// in one would otherwise have to be remembered in the other.
+RoomDirectJoinBundle _readBinary(Uint8List bytes, {required bool seats}) {
   final input = _ByteReader(bytes);
   input.u8(); // Version, already matched by the caller.
   final flags = input.u8();
@@ -229,13 +289,7 @@ RoomDirectJoinBundle _readV2(Uint8List bytes) {
     throw const FormatException('direct Room join roster size');
   }
   final members = <RoomAcceptedJoinMember>[
-    for (var index = 0; index < count; index += 1)
-      RoomAcceptedJoinMember(
-        memberId: RoomMemberId(input.hex(_memberIdBytes)),
-        kind: _readKind(input.u8()),
-        joinedAt: input.timestamp(),
-        displayName: input.text(),
-      ),
+    for (var index = 0; index < count; index += 1) _readMember(input, seats),
   ];
   // Nothing may follow the roster. A record that decodes cleanly and then
   // leaves bytes on the table is not this format.
@@ -285,6 +339,39 @@ RoomDirectJoinBundle _readV1(List<int> bytes) {
 
 /// Written out rather than taken from `index`, so reordering the enum can
 /// never silently repoint an already-issued invite at the wrong kind.
+/// One roster row, in field order. Written out rather than inlined in the
+/// comprehension because the fields are read in sequence and a collection
+/// literal does not promise that.
+RoomAcceptedJoinMember _readMember(_ByteReader input, bool seats) {
+  final memberId = RoomMemberId(input.hex(_memberIdBytes));
+  final packed = input.u8();
+  // A v2 record has no flag bits, so an unknown byte there is exactly what it
+  // always was: a kind this build does not know, and a record it must refuse.
+  // Checked before another byte is read: an unrecognised flag means the rest
+  // of this row is not laid out the way this reader thinks, and a varint read
+  // off the wrong offset would desynchronise the whole roster rather than
+  // fail here.
+  if (seats && packed & _memberByteMask != packed) {
+    throw const FormatException('direct Room join member flags');
+  }
+  final kind = _readKind(seats ? packed & _memberKindMask : packed);
+  final pending = seats && packed & _memberFlagPending != 0;
+  final joinedAt = input.timestamp();
+  final heldUntil = seats && packed & _memberFlagHeldUntil != 0
+      ? input.timestamp()
+      : null;
+  return RoomAcceptedJoinMember(
+    memberId: memberId,
+    kind: kind,
+    joinedAt: joinedAt,
+    displayName: input.text(),
+    pending: pending,
+    // Never a hold without the mark: the writer refuses to emit one, and a
+    // record that claims otherwise is not this format.
+    heldUntil: pending ? heldUntil : null,
+  );
+}
+
 int _wireKind(RoomMemberKind kind) => switch (kind) {
   RoomMemberKind.member => 0,
   RoomMemberKind.guest => 1,
@@ -296,7 +383,7 @@ RoomMemberKind _readKind(int wire) => switch (wire) {
   _ => throw const FormatException('direct Room join member kind'),
 };
 
-/// Byte sink for the v2 layout.
+/// Byte sink for the binary layouts.
 ///
 /// Every integer is written with `%` and `~/` rather than shifts: on web an
 /// `int` is a double and `<<` truncates to 32 bits, which would quietly

@@ -2,6 +2,21 @@ import '../entity/room.dart';
 import 'room_member_transport_identity.dart';
 import 'room_peer_member_binding_registry.dart';
 
+/// A durable member the live transport has cryptographically demonstrated is
+/// on the air right now.
+///
+/// [displayName] is present only when the peer sent a name *and* that name
+/// verified against the same certificate the route binding rests on. It is
+/// display metadata and nothing else: it can never widen what the member is
+/// allowed to do, and a null here means "this peer did not tell us", never
+/// "this peer is not who it says".
+final class ProvenRoomMember {
+  const ProvenRoomMember({required this.memberId, this.displayName});
+
+  final RoomMemberId memberId;
+  final String? displayName;
+}
+
 /// Attachment-scoped challenge authority for binding an observed live transport
 /// route to an already-admitted durable Room member.
 ///
@@ -76,8 +91,9 @@ final class RoomMemberTransportProofBindingAuthority {
   /// Verifies and consumes the exact challenge for [peerKey], then binds the
   /// observed route to the certified member for this attachment.
   ///
-  /// Returns the member the route was bound to, or null when nothing was
-  /// bound. The identity is returned rather than a bare success flag because a
+  /// Returns the member the route was bound to, and whatever name that member
+  /// proved for itself, or null when nothing was bound. The identity is
+  /// returned rather than a bare success flag because a
   /// verified proof is the strongest statement this app can make about who is
   /// actually on the air — strong enough for a caller to settle durable roster
   /// state on, which is what confirms an invite seat whose owner never
@@ -87,7 +103,7 @@ final class RoomMemberTransportProofBindingAuthority {
   /// cryptographic verification. This makes a captured invalid/valid pair
   /// unable to race retries on the same bearer token; the transport must issue
   /// a fresh challenge for another attempt.
-  Future<RoomMemberId?> verifyAndBind({
+  Future<ProvenRoomMember?> verifyAndBind({
     required String peerKey,
     required String encodedProof,
     required int attachmentGeneration,
@@ -131,7 +147,28 @@ final class RoomMemberTransportProofBindingAuthority {
       memberId: memberId,
       attachmentGeneration: attachmentGeneration,
     );
-    return bound ? memberId : null;
+    if (!bound) return null;
+    return ProvenRoomMember(
+      memberId: memberId,
+      displayName: await _verifiedName(proof),
+    );
+  }
+
+  /// The peer's own name, once its second signature has been checked.
+  ///
+  /// Verified after the route binds rather than as part of it. A name that
+  /// does not verify costs only the name: the proof that put this member on
+  /// the air stands on its own signature, and refusing the binding over a bad
+  /// optional field would make display metadata load-bearing.
+  Future<String?> _verifiedName(RoomMemberTransportProof proof) async {
+    final name = proof.name;
+    if (name == null) return null;
+    final verified = await _crypto.verifyMemberName(
+      certificate: proof.certificate,
+      name: name,
+      expectedRoomId: roomId,
+    );
+    return verified ? name.name : null;
   }
 
   /// Advances the attachment floor and drops every challenge observed on an old

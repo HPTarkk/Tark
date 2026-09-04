@@ -132,11 +132,11 @@ void main() {
       isNull,
     );
     expect(
-      await value.runtime.verifyAndBind(
+      (await value.runtime.verifyAndBind(
         peerKey: 'route-a',
         encodedProof: encoded,
         at: now,
-      ),
+      ))?.memberId,
       peerMemberId,
     );
     expect(
@@ -220,11 +220,11 @@ void main() {
       epoch: 5,
     );
     expect(
-      await value.runtime.verifyAndBind(
+      (await value.runtime.verifyAndBind(
         peerKey: 'route-a',
         encodedProof: encoded,
         at: now,
-      ),
+      ))?.memberId,
       peerMemberId,
     );
 

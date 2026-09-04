@@ -262,4 +262,29 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   });
+
+  group('leaving', () {
+    test('is the exact complement of easeOut, frame for frame', () {
+      // `AnimatedSwitcher` samples `switchOutCurve` with a value that already
+      // runs 1 -> 0, so the departing child's opacity at elapsed fraction `e`
+      // is `leaving.transform(1 - e)`. For a crossfade to read as one dissolve
+      // rather than two beats, that has to be what the arriving child is not.
+      for (var e = 0.0; e <= 1.0001; e += 0.05) {
+        final arriving = AppMotion.easeOut.transform(e.clamp(0, 1));
+        final departing = AppMotion.leaving.transform((1 - e).clamp(0, 1));
+        expect(
+          arriving + departing,
+          closeTo(1, 1e-3),
+          reason: 'the two halves must sum to one at e=$e',
+        );
+      }
+    });
+
+    test('does not hold the departing child at full opacity', () {
+      // The regression: passing easeOut here samples its flat tail, so the
+      // outgoing child is still at 95% when the incoming one has finished.
+      expect(AppMotion.easeOut.transform(0.5), greaterThan(0.9));
+      expect(AppMotion.leaving.transform(0.5), lessThan(0.1));
+    });
+  });
 }

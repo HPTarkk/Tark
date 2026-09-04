@@ -21,12 +21,14 @@ import '../../../../core/utils/permission_queue.dart';
 import '../../../audio/api/audio_api.dart';
 import '../../domain/entity/hotspot_credentials.dart';
 import '../../domain/entity/session_role.dart';
+import '../../domain/entity/transfer_mode.dart';
 import '../../domain/entity/waki_packet.dart';
 import '../../domain/entity/wifi_hotspot_segment.dart';
 import '../../domain/repository/wifi_transfer_repository.dart';
 import '../../domain/service/hotspot_control.dart';
 import '../../domain/service/hotspot_link_keeper.dart';
 import '../../domain/service/session_role_store.dart';
+import '../../domain/service/transfer_mode_store.dart';
 
 /// Which end of the bridge this device is. Android can be either; iOS can only
 /// join (a local-only hotspot can't be hosted from iOS).
@@ -224,6 +226,11 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   final HotspotLinkKeeper _linkKeeper;
   final Analytics _analytics;
   final ChannelMembership _membership;
+
+  /// Written, never read for routing: this page is the only place that knows
+  /// whether the network the phone ends up on is one a member of the Room
+  /// built or one it merely walked into. See [_recordCarrier].
+  final TransferModeStore _modeStore;
   late final PairingAttempt _pairing;
 
   StreamSubscription<WakiPacket>? _peerSub;
@@ -275,6 +282,7 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
     this._linkKeeper,
     this._analytics,
     this._membership,
+    this._modeStore,
   ) : super(HotspotBridgeState.initial(WifiHotspotSegment.wifi)) {
     _pairing = PairingAttempt(
       _analytics,
@@ -331,6 +339,32 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
     );
     if (role == HotspotRole.host) await startHost();
   }
+
+  /// Writes down which kind of network this page just put the phone on.
+  ///
+  /// **Nothing was doing this**, and the consequence was not obvious. The mode
+  /// is what `RoomCarrierPromotionPlanner.durabilityOf` reads to decide whether
+  /// the Room is on a network it *owns* or one it has *borrowed*, and a bridge
+  /// that never recorded itself left every phone reading `wifi` — so a pair
+  /// sitting on one another's hotspot was classified as borrowed, and the
+  /// carrier promotion set about arranging a move off a network the group had
+  /// just built. The only writers were the failover runtime and a landing-page
+  /// commit that has had no callers since the Room entry replaced it.
+  ///
+  /// Both directions are written, and the second matters as much as the first:
+  /// a phone that used the bridge last week and is on a café router today must
+  /// stop calling that router "ours", or the one moment the carrier handover
+  /// exists for — the borrowed network vanishing at the end of the street —
+  /// passes unnoticed.
+  void _recordCarrier(TransferMode mode) {
+    if (_modeStore.mode == mode) return;
+    Logger.diagnostic('hotspot: carrier recorded as ${mode.key}');
+    unawaited(_modeStore.setMode(mode));
+  }
+
+  /// The shared-network exit from this page: both phones were already on one
+  /// network and nobody here owns it.
+  void recordSharedNetwork() => _recordCarrier(TransferMode.wifi);
 
   /// Back to the host/join choice, undoing whatever the abandoned side set up.
   ///
@@ -548,6 +582,7 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   void _onHostReady(HotspotCredentials creds) {
     // There is an AP of ours to drop again, so a later join has to.
     _ownApDropped = false;
+    _recordCarrier(TransferMode.hotspot);
     emit(state.copyWith(phase: HotspotPhase.ready, credentials: creds));
     _sfx.play(SfxEvent.linkRestored);
     _linkKeeper.adopt(creds);
@@ -743,6 +778,7 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   static const _notPinned = 'not_pinned';
 
   void _onJoined() {
+    _recordCarrier(TransferMode.hotspot);
     emit(state.copyWith(joinPhase: JoinPhase.joined));
     _sfx.play(SfxEvent.linkRestored);
     // We are on someone else's AP now, so ours has no reason to exist — and

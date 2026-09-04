@@ -74,12 +74,24 @@ final class RoomAcceptedJoinSnapshot {
       for (final member in active)
         if (member.id != acceptedMemberId) member,
     ].take(maxMembers - 1).toList(growable: true)..add(accepted.single);
+    // The accepted member's own seat is pending on the issuer — one-scan entry
+    // opens it before it can know who will take it — and it stops being
+    // pending the moment this snapshot is handed over, because the person it
+    // is being handed to is the one taking it. Settled here rather than at the
+    // call site so no caller can forget and ship a phone that leaves itself
+    // out of its own head count.
+    final acceptedIndex = selected.length - 1;
     return RoomAcceptedJoinSnapshot(
       roomId: saved.room.id,
       roomName: saved.room.name.trim(),
       roomCreatedAt: saved.room.createdAt.toUtc(),
       roomUpdatedAt: saved.room.updatedAt.toUtc(),
-      members: selected.map(RoomAcceptedJoinMember.fromRoomMember),
+      members: [
+        for (var i = 0; i < selected.length; i++)
+          i == acceptedIndex
+              ? RoomAcceptedJoinMember.fromRoomMember(selected[i]).claimed()
+              : RoomAcceptedJoinMember.fromRoomMember(selected[i]),
+      ],
       grantsInviteManagement: grantsInviteManagement,
     );
   }
@@ -170,6 +182,8 @@ final class RoomAcceptedJoinMember {
     required this.displayName,
     required this.joinedAt,
     required this.kind,
+    this.pending = false,
+    this.heldUntil,
   });
 
   final RoomMemberId memberId;
@@ -177,19 +191,60 @@ final class RoomAcceptedJoinMember {
   final DateTime joinedAt;
   final RoomMemberKind kind;
 
+  /// A seat the issuer has opened that nobody has walked through yet.
+  ///
+  /// Carried because the alternative is the two phones holding different
+  /// rosters for the same Room. The issuer's other open seats are `active`, so
+  /// they travel in this snapshot like everyone else — and arriving without
+  /// the mark they turned into ordinary members on the joining phone, counted
+  /// in its head count and rendered as a nameless person who is not there.
+  ///
+  /// The one seat this is never true for on arrival is the joiner's own: they
+  /// are, by definition, standing in it. [RoomAcceptedJoinSnapshot.fromSavedRoom]
+  /// settles that, so no caller has to remember to.
+  final bool pending;
+
+  /// When the issuer's hold on this seat lapses, for the same reason [pending]
+  /// travels at all.
+  ///
+  /// Without it the two phones expire the same seat on different schedules —
+  /// which is to say the joining phone never does, because it has no
+  /// back-channel to be told. An unclaimed seat that clears itself on the host
+  /// and not on the joiner is R27's roster divergence again, one phone over.
+  final DateTime? heldUntil;
+
   factory RoomAcceptedJoinMember.fromRoomMember(RoomMember member) =>
       RoomAcceptedJoinMember(
         memberId: member.id,
         displayName: member.displayName.trim(),
         joinedAt: member.joinedAt.toUtc(),
         kind: member.kind,
+        pending: member.pending,
+        heldUntil: member.heldUntil?.toUtc(),
       );
+
+  /// The same seat, with its held mark dropped because its owner has arrived.
+  ///
+  /// The hold goes with the mark: what it was counting down to was this.
+  RoomAcceptedJoinMember claimed() => RoomAcceptedJoinMember(
+    memberId: memberId,
+    displayName: displayName,
+    joinedAt: joinedAt,
+    kind: kind,
+  );
 
   Map<String, Object> toJson() => {
     'id': memberId.value,
     'displayName': displayName,
     'joinedAt': joinedAt.toUtc().toIso8601String(),
     'kind': kind.name,
+    // Written only when true, so a roster with no open seats encodes to
+    // exactly the bytes it did before this field existed — every byte here
+    // costs QR modules a camera has to resolve — and a build that predates it
+    // simply ignores the key.
+    if (pending) 'pending': true,
+    if (pending && heldUntil != null)
+      'heldUntil': heldUntil!.toUtc().toIso8601String(),
   };
 
   static RoomAcceptedJoinMember fromJson(Object? raw) {
@@ -221,6 +276,16 @@ final class RoomAcceptedJoinMember {
       displayName: displayName.trim(),
       joinedAt: DateTime.parse(joinedAt).toUtc(),
       kind: memberKind.single,
+      // Anything but an explicit true is a real member, which is what every
+      // roster written before this field existed contains.
+      pending: raw['pending'] == true,
+      // A hold only means something on a seat that is being held. A malformed
+      // or absent one holds indefinitely rather than expiring immediately,
+      // which is the safe direction: the cost is a stale row, not a member
+      // dropped off a roster the moment they arrive.
+      heldUntil: raw['pending'] == true && raw['heldUntil'] is String
+          ? DateTime.tryParse(raw['heldUntil'] as String)?.toUtc()
+          : null,
     );
   }
 }

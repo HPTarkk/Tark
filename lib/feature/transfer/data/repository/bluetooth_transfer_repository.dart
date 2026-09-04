@@ -126,6 +126,11 @@ class BluetoothTransferRepository
   final _packetController = StreamController<WakiPacket>.broadcast();
   final _connectionStateController =
       StreamController<bt.BluetoothConnectionState>.broadcast();
+
+  /// The last value pushed onto [_connectionStateController], kept because a
+  /// broadcast stream keeps nothing.
+  bt.BluetoothConnectionState _connectionState =
+      bt.BluetoothConnectionState.disconnected;
   final _bleAdvertisingController = StreamController<bool>.broadcast();
 
   ClassicBluetoothEngine? _classicEngine;
@@ -229,6 +234,16 @@ class BluetoothTransferRepository
       _connectionStateController.stream;
 
   @override
+  bt.BluetoothConnectionState get currentConnectionState => _connectionState;
+
+  /// Every transition goes through here rather than straight to the
+  /// controller, so the last one published and the stream cannot disagree.
+  void _publishConnectionState(bt.BluetoothConnectionState state) {
+    _connectionState = state;
+    _connectionStateController.add(state);
+  }
+
+  @override
   Stream<bool> get bleAdvertising => _bleAdvertisingController.stream;
 
   // ── BluetoothTransport ──────────────────────────────────────────────────
@@ -251,7 +266,7 @@ class BluetoothTransferRepository
   @override
   Future<void> startHosting() async {
     _sessionRole = 'host';
-    _connectionStateController.add(bt.BluetoothConnectionState.hosting);
+    _publishConnectionState(bt.BluetoothConnectionState.hosting);
 
     // Advertise the user's display name so the joiner sees who they're
     // connecting to, not a generic hostname.
@@ -313,7 +328,7 @@ class BluetoothTransferRepository
 
   @override
   Stream<BluetoothPeer> scanForHosts() {
-    _connectionStateController.add(bt.BluetoothConnectionState.scanning);
+    _publishConnectionState(bt.BluetoothConnectionState.scanning);
 
     _closeScan();
     final controller = StreamController<BluetoothPeer>.broadcast();
@@ -361,7 +376,7 @@ class BluetoothTransferRepository
   Future<void> connectToHost(BluetoothPeer peer) async {
     _sessionRole = 'joiner';
     _sessionPeer = peer;
-    _connectionStateController.add(bt.BluetoothConnectionState.connecting);
+    _publishConnectionState(bt.BluetoothConnectionState.connecting);
     cancelDiscovery();
     if (peer.id.startsWith('ble:')) {
       final ble = _requireBle;
@@ -418,7 +433,7 @@ class BluetoothTransferRepository
     _closeScan();
     unawaited(_classicEngine?.reset());
     unawaited(_bleEngine?.reset());
-    _connectionStateController.add(bt.BluetoothConnectionState.disconnected);
+    _publishConnectionState(bt.BluetoothConnectionState.disconnected);
   }
 
   // ── Engine event plumbing ───────────────────────────────────────────────
@@ -511,7 +526,7 @@ class BluetoothTransferRepository
         _settingsRepository.setLastBluetoothPeer(id: peer.id, name: peer.name),
       );
     }
-    _connectionStateController.add(bt.BluetoothConnectionState.connected);
+    _publishConnectionState(bt.BluetoothConnectionState.connected);
     unawaited(_sendHello());
   }
 
@@ -550,7 +565,7 @@ class BluetoothTransferRepository
     // flip the whole flow into the error screen while Classic is fine.
     // BLE errors are only fatal where BLE is the ONLY engine (iOS).
     if (_classicSupported && engine == 'ble') return;
-    _connectionStateController.add(bt.BluetoothConnectionState.error);
+    _publishConnectionState(bt.BluetoothConnectionState.error);
   }
 
   void _onEngineClosed(String engine) {
@@ -579,7 +594,7 @@ class BluetoothTransferRepository
     if (hadSession && _sessionRole != null && _autoReconnectEnabled) {
       unawaited(_autoReconnect());
     } else {
-      _connectionStateController.add(bt.BluetoothConnectionState.disconnected);
+      _publishConnectionState(bt.BluetoothConnectionState.disconnected);
     }
   }
 
@@ -589,7 +604,7 @@ class BluetoothTransferRepository
   Future<void> _autoReconnect() async {
     final gen = ++_reconnectGen;
     final role = _sessionRole;
-    _connectionStateController.add(bt.BluetoothConnectionState.reconnecting);
+    _publishConnectionState(bt.BluetoothConnectionState.reconnecting);
     Logger.log('Bluetooth session dropped — auto-reconnecting as $role');
     // This loop drives the engines directly rather than through the methods
     // above, so it re-asserts the subscriptions itself. They are live by
@@ -756,7 +771,7 @@ class BluetoothTransferRepository
     _autoReconnectEnabled = enabled;
     if (!enabled && _connectedPeerId == null && _sessionRole != null) {
       _reconnectGen++; // abort any in-flight auto-reconnect loop
-      _connectionStateController.add(bt.BluetoothConnectionState.disconnected);
+      _publishConnectionState(bt.BluetoothConnectionState.disconnected);
     }
   }
 

@@ -99,8 +99,7 @@ abstract interface class RoomCarrierStatusSource {
 /// a borrowed network that works beats moving to no network at all. And it
 /// makes exactly one attempt per generation: a controller that retried on
 /// every capability heartbeat would restart the handover continuously.
-final class RoomCarrierPromotionController
-    implements RoomCarrierStatusSource {
+final class RoomCarrierPromotionController implements RoomCarrierStatusSource {
   RoomCarrierPromotionController({
     required this.localMemberId,
     required this.roomId,
@@ -145,6 +144,23 @@ final class RoomCarrierPromotionController
   StreamSubscription<TransferMode>? _modeSubscription;
   Timer? _tick;
   DateTime? _carrierUpSince;
+
+  /// When the promotion currently on screen was decided.
+  ///
+  /// A handover is the only thing this controller says out loud, and it says
+  /// it with a spinner — so it has to be able to stop saying it. Null whenever
+  /// nothing is in flight.
+  DateTime? _handoverSince;
+
+  /// Whether [_raiseAndAnnounce] is still running.
+  ///
+  /// Its own work is bounded by the radio, not by this controller's clock, and
+  /// `LocalOnlyHotspot` can legitimately take the better part of a minute to
+  /// answer. So the deadline below applies to *waiting*, never to working, and
+  /// this is what tells the two apart. It also stops a second raise being
+  /// started on top of one already in progress.
+  bool _raising = false;
+
   int _generation = 0;
   int? _plannedGeneration;
   String? _announcement;
@@ -168,6 +184,20 @@ final class RoomCarrierPromotionController
   /// time in hand — and a tick that costs a list rebuild has no business
   /// running at animation cadence on the floor device.
   static const _tickInterval = Duration(seconds: 3);
+
+  /// How long a decided handover may go without producing anything.
+  ///
+  /// Generous on purpose. The elected host has to raise an access point, which
+  /// on Android is `LocalOnlyHotspot` and has been observed taking around 40
+  /// seconds to even report that it cannot, and then announce on its next
+  /// ping. Anything tighter would abandon handovers that were about to land.
+  ///
+  /// It exists because there is no other way out of the waiting state. A
+  /// follower is not doing anything — it is holding a spinner open on the word
+  /// of a peer that may have failed, gone out of range, or left the room — and
+  /// `alreadyPlanned` means the next tick will not even re-decide. Without a
+  /// deadline that spinner is the last thing the screen ever says.
+  static const handoverDeadline = Duration(seconds: 45);
 
   void start() {
     if (_disposed) return;
@@ -205,8 +235,17 @@ final class RoomCarrierPromotionController
     evaluate();
   }
 
-  RoomCarrierDurability get _durability =>
-      RoomCarrierPromotionPlanner.durabilityOf(_kindFor(modeStore.mode));
+  /// Whether the Room is on a network one of its members owns.
+  ///
+  /// The transport mode is the *recorded* answer and it can be stale or never
+  /// have been written at all, so the one fact this device can check directly
+  /// is checked first: a phone holding an access point up **is** the carrier,
+  /// whatever the mode says. Promoting from there would elect a host for a
+  /// network that already has one — this phone — and the group would watch a
+  /// spinner while nothing happened.
+  RoomCarrierDurability get _durability => hotspotHost.isHosting
+      ? RoomCarrierDurability.owned
+      : RoomCarrierPromotionPlanner.durabilityOf(_kindFor(modeStore.mode));
 
   static RoomTransportKind? _kindFor(TransferMode mode) => switch (mode) {
     TransferMode.wifi => RoomTransportKind.sharedLan,
@@ -238,6 +277,19 @@ final class RoomCarrierPromotionController
     );
 
     if (!decision.shouldPromote) {
+      // The wait ran out. Nothing arrived, nobody is working on it here, and
+      // the planner will not re-decide while the generation is still marked as
+      // planned — so this is the only place that can end it.
+      if (_waitHasRunOut()) {
+        Logger.diagnostic(
+          'carrier: handover generation $_plannedGeneration produced nothing '
+          'in ${handoverDeadline.inSeconds}s — standing down, staying on the '
+          'borrowed carrier',
+        );
+        _abandonHandover();
+        _publish(_settled(durability));
+        return;
+      }
       // A handover in flight is not reset by a tick that happens to land
       // during it — except once the carrier is actually owned, which is the
       // move having finished. Without that second half the status would stay
@@ -250,7 +302,13 @@ final class RoomCarrierPromotionController
       return;
     }
 
+    // Never two raises at once. Standing down from a stalled wait clears the
+    // plan, and without this a slow radio could be asked to start a second
+    // access point while the first call is still outstanding.
+    if (_raising) return;
+
     _plannedGeneration = decision.generation;
+    _handoverSince = _clock();
     final localIsHost = decision.localIsHost(localMemberId);
     Logger.diagnostic(
       'carrier: borrowed network — promoting to generation '
@@ -270,6 +328,32 @@ final class RoomCarrierPromotionController
     if (localIsHost) unawaited(_raiseAndAnnounce(decision.generation));
   }
 
+  /// Whether a decided handover has been sitting there long enough to give up
+  /// on.
+  ///
+  /// Only ever true for a *wait*. While `_raising`, the outstanding work has
+  /// its own outcome — success publishes, failure is caught and publishes —
+  /// and timing it out here would abandon a handover that is still happening.
+  bool _waitHasRunOut() {
+    if (_raising || !_status.isHandingOver) return false;
+    final since = _handoverSince;
+    return since != null && _clock().difference(since) >= handoverDeadline;
+  }
+
+  /// Gives up on the current attempt without giving up for the session.
+  ///
+  /// The plan is cleared so the planner stops answering `alreadyPlanned`, and
+  /// the settle window restarts so the next attempt is a settle window away
+  /// rather than one tick away. That is the difference between a retry and the
+  /// continuous restart the one-attempt-per-generation rule exists to prevent:
+  /// a group still on a borrowed network is still going to lose it when they
+  /// ride off, so never trying again is not an acceptable resting state.
+  void _abandonHandover() {
+    _plannedGeneration = null;
+    _handoverSince = null;
+    _carrierUpSince = _clock();
+  }
+
   /// The host half: raise the access point, then say so, repeatedly, over the
   /// carrier that still works.
   Future<void> _raiseAndAnnounce(int generation) async {
@@ -277,10 +361,17 @@ final class RoomCarrierPromotionController
     if (material == null) {
       // Elected but unable to sign. Better to stay put than to move the group
       // somewhere they cannot verify.
+      //
+      // The status has to come back down with the plan. Leaving it on
+      // `raising` left this phone holding a spinner for a handover that was
+      // abandoned before it began — and every later tick then read
+      // "handing over, still borrowed" and declined to correct it.
       Logger.log('carrier: elected host has no signing identity; staying put');
-      _plannedGeneration = null;
+      _abandonHandover();
+      if (!_disposed) _publish(_settled(_durability));
       return;
     }
+    _raising = true;
     try {
       final credentials = await hotspotHost.start();
       if (_disposed) return;
@@ -307,6 +398,7 @@ final class RoomCarrierPromotionController
       // take this phone off the very network it needs to speak on.
       _announcement = handover.encode();
       _generation = generation;
+      _handoverSince = null;
       _publish(
         RoomCarrierStatus(
           stage: RoomCarrierStage.moving,
@@ -325,8 +417,10 @@ final class RoomCarrierPromotionController
     } catch (error) {
       Logger.log('carrier: could not raise the access point: $error');
       // Let the next tick try again — the phone may simply have been busy.
-      _plannedGeneration = null;
+      _abandonHandover();
       if (!_disposed) _publish(_settled(_durability));
+    } finally {
+      _raising = false;
     }
   }
 
@@ -433,6 +527,7 @@ final class RoomCarrierPromotionController
     );
     _generation = handover.generation;
     _plannedGeneration = handover.generation;
+    _handoverSince = null;
     _publish(
       RoomCarrierStatus(
         stage: RoomCarrierStage.moving,

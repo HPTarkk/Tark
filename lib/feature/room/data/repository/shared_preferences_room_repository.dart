@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:injectable/injectable.dart';
@@ -21,6 +22,25 @@ class SharedPreferencesRoomRepository implements RoomRepository {
   static const _selectedKey = 'rooms.v1.selected';
   static const _roomPrefix = 'rooms.v1.room.';
   static const _inviteLedgerPrefix = 'rooms.v1.invites.';
+
+  /// Broadcast because there is no single owner of "what the Rooms are" — the
+  /// landing screen, the lobby and the roster badge all draw from it at once,
+  /// and any of them may be listening or not at any moment.
+  final StreamController<void> _changes = StreamController<void>.broadcast();
+
+  @override
+  Stream<void> get changes => _changes.stream;
+
+  /// Every write that can change what a reader would see passes through here.
+  ///
+  /// Placed at the three funnels — the room record, the index, the selection —
+  /// rather than at the end of each public method, so a mutation added later
+  /// cannot both take effect and stay silent. Over-announcing is free: the
+  /// answer to the ping is a re-read, and a re-read that finds nothing new
+  /// emits no new state.
+  void _announce() {
+    if (!_changes.isClosed) _changes.add(null);
+  }
 
   Future<SharedPreferences> _prefs() => SharedPreferences.getInstance();
 
@@ -171,6 +191,7 @@ class SharedPreferencesRoomRepository implements RoomRepository {
     required String displayName,
     required DateTime acceptedAt,
     bool pending = false,
+    DateTime? heldUntil,
   }) async {
     final invite = verified.invitation;
     final current = await _require(invite.roomId);
@@ -199,6 +220,9 @@ class SharedPreferencesRoomRepository implements RoomRepository {
           joinedAt: now,
           kind: memberKind,
           pending: pending,
+          // Only a held seat carries a hold. A member added outright is not
+          // waiting for anyone and must never be able to expire.
+          heldUntil: pending ? heldUntil?.toUtc() : null,
         ),
       );
     }
@@ -232,6 +256,9 @@ class SharedPreferencesRoomRepository implements RoomRepository {
     members[index] = existing.copyWith(
       displayName: cleanName,
       pending: pending,
+      // Somebody is standing in it now, so it is not being held for anyone.
+      // Leaving the hold behind would let a confirmed member's row expire.
+      clearHeldUntil: pending == false,
     );
     final next = current.copyWith(
       room: current.room.copyWith(
@@ -287,6 +314,15 @@ class SharedPreferencesRoomRepository implements RoomRepository {
                 displayName: _requiredText(member.displayName, 'display name'),
                 joinedAt: member.joinedAt.toUtc(),
                 kind: member.kind,
+                // Carried, not dropped. An issuer's other open seats travel in
+                // this snapshot like every other active member, and arriving
+                // unmarked they became ordinary members here — counted in this
+                // phone's head count as people who are not in the room.
+                pending: member.pending,
+                // And with the same hold the issuer put on them, so both
+                // phones stop showing the seat at the same instant. This one
+                // has no back-channel to be told later.
+                heldUntil: member.pending ? member.heldUntil?.toUtc() : null,
               ),
             )
             .toList(growable: false),
@@ -352,6 +388,7 @@ class SharedPreferencesRoomRepository implements RoomRepository {
       ids.map((item) => item.value).toList(),
     );
     if (await selectedRoomId() == id) await select(null);
+    _announce();
   }
 
   @override
@@ -372,12 +409,14 @@ class SharedPreferencesRoomRepository implements RoomRepository {
     final prefs = await _prefs();
     if (id == null) {
       await prefs.remove(_selectedKey);
+      _announce();
       return;
     }
     if (_readRoom(prefs, id) == null) {
       throw StateError('Cannot select an unknown room');
     }
     await prefs.setString(_selectedKey, id.value);
+    _announce();
   }
 
   Future<SavedRoom> _require(RoomId id) async {
@@ -449,7 +488,17 @@ class SharedPreferencesRoomRepository implements RoomRepository {
         updatedAt: DateTime.parse(json['updatedAt'] as String).toUtc(),
         members: members,
         archived: json['archived'] as bool? ?? false,
-      );
+        // Applied on the way out rather than by a sweep somewhere: a hold that
+        // has run out is a fact about the record, and every reader deserves
+        // the same answer at the same instant. The withdrawal is persisted
+        // whenever this Room is next written, which is enough — the rule is
+        // idempotent, so nothing depends on that having happened yet.
+        //
+        // Deliberately not a write-on-read. `get` runs underneath every
+        // mutation in this class and is the ping every listener answers, so a
+        // read that saved would re-enter storage and announce a change nobody
+        // made.
+      ).withExpiredHeldSeatsWithdrawn(DateTime.now().toUtc());
       return SavedRoom(
         room: room,
         membership: RoomMembership(
@@ -471,6 +520,7 @@ class SharedPreferencesRoomRepository implements RoomRepository {
       throw const FormatException('member fields');
     }
     final removed = raw['removedAt'];
+    final held = raw['heldUntil'];
     return RoomMember(
       id: RoomMemberId(id),
       displayName: name.trim(),
@@ -483,6 +533,10 @@ class SharedPreferencesRoomRepository implements RoomRepository {
       // and those members are all real. Defaulting to false keeps them so,
       // without touching schemaVersion — a bump here discards the record.
       pending: raw['pending'] == true,
+      // Absent on seats opened before holds existed. Those keep the old
+      // behaviour — held forever until the host takes them back by hand —
+      // rather than being swept by a rule they were never given.
+      heldUntil: held is String ? DateTime.parse(held).toUtc() : null,
     );
   }
 
@@ -506,6 +560,8 @@ class SharedPreferencesRoomRepository implements RoomRepository {
                 if (member.removedAt != null)
                   'removedAt': member.removedAt!.toIso8601String(),
                 if (member.pending) 'pending': true,
+                if (member.heldUntil != null)
+                  'heldUntil': member.heldUntil!.toIso8601String(),
               },
             )
             .toList(growable: false),
@@ -516,6 +572,7 @@ class SharedPreferencesRoomRepository implements RoomRepository {
         },
       }),
     );
+    _announce();
   }
 
   String _requiredText(String value, String field) {

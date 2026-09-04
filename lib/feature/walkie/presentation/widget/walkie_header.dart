@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/entitlement/license_gate.dart';
-import '../../../../core/entitlement/paywall_sheet.dart';
-import '../../../../core/entitlement/premium_feature.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -15,7 +11,6 @@ import '../../../../core/widget/settings_icon_button.dart';
 import '../../../../core/widget/tark_mark.dart';
 import '../../../../core/widget/ticker_text.dart';
 import '../../../room/domain/repository/room_repository.dart';
-import '../../../room/presentation/widget/in_room_invite_button.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../manager/walkie_talkie_cubit.dart';
 import '../model/ride_room_identity.dart';
@@ -25,18 +20,38 @@ import '../model/ride_room_identity.dart';
 /// The header used to end in four square icon buttons in a row, each carrying
 /// `IconButton`'s own 8px of internal padding on top of the bar's 12 — so the
 /// last glyph floated well inside the edge the brand badge sat flush against,
-/// and none of them said what they were. It is now two rows with one job each:
-/// identity and the way out on top, live controls underneath.
+/// and none of them said what they were.
 ///
-/// Below [compactBreakpoint] the People pill drops its word and keeps its
-/// count, because the count is the information and the word is the label.
+/// It is now **one identity block and one control cluster**, side by side. The
+/// mark leads, and beside it the wordmark sits over the room this phone is in:
+/// two lines that are the same fact at two scopes, which is why they share a
+/// mark rather than each getting a row. Everything that is not identity —
+/// the link, and settings — sits at the trailing edge.
+///
+/// R28 built the same idea out of two stacked rows and indented the second one
+/// by [brandMark] + [brandGap] so it would line up under the wordmark. That is
+/// alignment by arithmetic: it was correct, and it was one constant away from
+/// silently drifting the moment the mark changed size — which R31 then did.
+/// The room line is a sibling of the wordmark inside one column now, so the two
+/// cannot come apart, and the mark is free to grow to carry both.
+///
+/// Three controls were removed in R28, each because the screen already had it
+/// somewhere better. **The back chevron** was added when the only other exit
+/// was a Leave control that scrolled away with the body; that Leave button is
+/// pinned below the scroll view now, and the system back gesture already routes
+/// through the same confirmation, so the chevron was a third door onto a screen
+/// with two. **The mute toggle** mirrored `MicControl`, which sits in the body
+/// above the fold and is the control this screen is built around — two live
+/// mute affordances is one more than a gloved hand can press. **Saved rooms**
+/// was the odd one: you do not change rooms while you are in one.
+///
+/// **The People pill left in R32.** Adding someone to a room you are already
+/// riding in is not an everyday act, and it was holding the trailing edge of
+/// the screen a rider looks at for the whole trip. It has a designed home in
+/// the members card now, where the question it answers is already being asked
+/// — and where it can be the lit control on a channel with nobody else on it,
+/// which a header pill could never be.
 abstract final class WalkieHeaderLayout {
-  static const compactBreakpoint = 390.0;
-
-  static bool showAppTitle(double maxWidth) => maxWidth >= compactBreakpoint;
-
-  static bool compactPeople(double maxWidth) => maxWidth < compactBreakpoint;
-
   /// The single vertical line every visible edge on this screen sits on —
   /// the same 16 the body's cards use, so the header reads as the top of one
   /// column rather than a bar with a margin of its own.
@@ -47,6 +62,18 @@ abstract final class WalkieHeaderLayout {
 
   /// `SettingsIconButton` insets its amber chip by 4 to reach its tap target.
   static const settingsChipInset = 4.0;
+
+  /// The brand mark, and the gap after it.
+  ///
+  /// Grown from the 28 it was when it stood beside a single line. It now has
+  /// to hold a two-line block up, and a mark shorter than the text beside it
+  /// reads as decoration on a title rather than the head of one.
+  static const brandMark = 38.0;
+  static const brandGap = 10.0;
+
+  /// The glyph inside the mark, at the proportion it was drawn at when the
+  /// mark was 28. Derived rather than restated so the two cannot drift.
+  static const brandGlyph = brandMark * 0.5;
 
   /// The bar's own padding for an edge whose control already carries
   /// [controlInset] of internal padding.
@@ -61,161 +88,95 @@ abstract final class WalkieHeaderLayout {
 }
 
 class WalkieHeader extends StatelessWidget {
-  const WalkieHeader({super.key, this.onLeave});
-
-  /// Invoked by the header's back control. Null falls back to the route's own
-  /// pop, which `WalkieTalkiePage`'s `PopScope` turns into the same
-  /// confirmation the on-screen Leave action uses.
-  final VoidCallback? onLeave;
+  const WalkieHeader({super.key});
 
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<WalkieTalkieCubit, WalkieTalkieState>(
       buildWhen: (p, c) => p.isReady != c.isReady || p.localId != c.localId,
-      builder: (context, state) => LayoutBuilder(
-        builder: (context, constraints) {
-          final showTitle = WalkieHeaderLayout.showAppTitle(
-            constraints.maxWidth,
-          );
-          return Container(
-            // Vertical padding only. The rows below set their own horizontal
-            // inset so a bare glyph and a pill can both sit on the same
-            // optical margin instead of one being pushed in by its own
-            // hit-target padding.
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              border: Border(
-                bottom: BorderSide(color: AppColors.border, width: 1),
-              ),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: EdgeInsetsDirectional.only(
-                    // The leave chevron is an IconButton, the settings control
-                    // an inset chip — different padding, so different numbers
-                    // to land both on the same margin.
-                    start: WalkieHeaderLayout.inset(
-                      WalkieHeaderLayout.iconButtonInset,
-                    ),
-                    end: WalkieHeaderLayout.inset(
-                      WalkieHeaderLayout.settingsChipInset,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      _LeaveButton(onLeave: onLeave),
-                      const SizedBox(width: 2),
-                      const _BrandBadge(),
-                      if (showTitle) ...[
-                        const SizedBox(width: 8),
-                        Flexible(
-                          child: Text(
-                            context.getString.app_name,
-                            maxLines: 1,
-                            overflow: TextOverflow.fade,
-                            softWrap: false,
-                            style: TextStyle(
-                              color: AppColors.amber,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 3,
-                            ),
-                          ),
-                        ),
-                      ],
-                      const Spacer(),
-                      const RepaintBoundary(child: SignalIndicator()),
-                      const SizedBox(width: 6),
-                      const _SettingsButton(),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsetsDirectional.only(
-                    // The room identity line starts with a bare icon and owns
-                    // no padding, so it sits on the margin itself.
-                    start: WalkieHeaderLayout.inset(0),
-                    top: 6,
-                    end: WalkieHeaderLayout.inset(
-                      WalkieHeaderLayout.iconButtonInset,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      const Expanded(child: _SelectedRoomIdentityLine()),
-                      const SizedBox(width: 8),
-                      InRoomInviteButton(
-                        compact: WalkieHeaderLayout.compactPeople(
-                          constraints.maxWidth,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      const _RoomsButton(),
-                      const SizedBox(width: 6),
-                      const _QuickMicButton(),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
+      builder: (context, state) => Container(
+        padding: EdgeInsetsDirectional.fromSTEB(
+          // The mark owns no padding of its own, so it sits on the margin
+          // itself; the settings control is an inset chip.
+          WalkieHeaderLayout.inset(0),
+          8,
+          WalkieHeaderLayout.inset(WalkieHeaderLayout.settingsChipInset),
+          8,
+        ),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          border: Border(bottom: BorderSide(color: AppColors.border, width: 1)),
+        ),
+        child: const _Identity(),
       ),
     );
   }
 }
 
-/// The way back out of a live channel.
+/// The mark, and beside it what this session is: the app, then the room.
 ///
-/// Its absence was the single most disorienting thing about this screen: the
-/// channel is often the only route on the stack, so there was no system back
-/// either, and the only exit was a Leave control below the fold. It is drawn
-/// as a plain chevron rather than a destructive-looking control because the
-/// confirmation behind it is what makes leaving deliberate — the affordance
-/// itself only has to be findable.
-class _LeaveButton extends StatelessWidget {
-  const _LeaveButton({required this.onLeave});
-
-  final VoidCallback? onLeave;
+/// A column rather than two indented rows, so the wordmark and the room name
+/// share one left edge structurally instead of by arithmetic. Nothing taller
+/// than the text is allowed inside that column, which buys two things at once:
+/// the mark is centred on the text pair exactly rather than approximately, and
+/// the gap between the two lines is the leading and nothing else.
+///
+/// **That is why both controls sit outside it.** A 40pt settings chip on the
+/// wordmark's line sets that line's height on its own, and every pixel of the
+/// difference between the chip and the text turns into space under the
+/// wordmark — the gap grows by exactly what the chip adds. Keeping the link
+/// indicator in the column and the chip out of it looked right in isolation
+/// and was worse than either: the two controls then sat on different lines,
+/// eleven pixels apart, at the one edge of the screen where the eye expects a
+/// row.
+///
+/// So they are one cluster, centred on the block, and the room line is the
+/// thing that gives way — which [RideRoomIdentityBadge] is built to do in the
+/// right order.
+class _Identity extends StatelessWidget {
+  const _Identity();
 
   @override
   Widget build(BuildContext context) {
-    final fa = Localizations.localeOf(context).languageCode == 'fa';
-    final label = fa ? 'خروج از اتاق' : 'Leave the room';
-    return Semantics(
-      button: true,
-      label: label,
-      child: IconButton(
-        key: const Key('walkie-leave'),
-        tooltip: label,
-        visualDensity: VisualDensity.compact,
-        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-        onPressed: () {
-          HapticFeedback.selectionClick();
-          final leave = onLeave;
-          if (leave != null) {
-            leave();
-          } else {
-            // Routed through the page's PopScope, which is the one place that
-            // knows leaving needs confirming.
-            Navigator.of(context).maybePop();
-          }
-        },
-        icon: Icon(Icons.arrow_back_rounded, color: AppColors.textSecondary),
-      ),
+    return Row(
+      children: [
+        const _BrandBadge(),
+        const SizedBox(width: WalkieHeaderLayout.brandGap),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                context.getString.app_name,
+                maxLines: 1,
+                overflow: TextOverflow.fade,
+                softWrap: false,
+                style: TextStyle(
+                  color: AppColors.amber,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 3,
+                  // Trimmed to the glyphs. At the font's own leading the
+                  // wordmark carries four invisible pixels under it, and the
+                  // room line reads as a separate row rather than the second
+                  // half of one thing.
+                  height: 1,
+                ),
+              ),
+              const _SelectedRoomIdentityLine(),
+            ],
+          ),
+        ),
+        const SizedBox(width: 10),
+        const RepaintBoundary(child: SignalIndicator()),
+        const SizedBox(width: 8),
+        const _SettingsButton(),
+      ],
     );
   }
 }
 
-/// Loads the durable selected Room exactly once for this live Ride surface.
-///
-/// A user may browse/select another saved Room while the current call is still
-/// running; that must not silently relabel the already-running session. A new
-/// WalkieTalkiePage gets a fresh header and resolves the then-selected Room.
 class _SelectedRoomIdentityLine extends StatefulWidget {
   const _SelectedRoomIdentityLine();
 
@@ -243,7 +204,7 @@ class _SelectedRoomIdentityLineState extends State<_SelectedRoomIdentityLine> {
         final identity = snapshot.data;
         if (identity == null) return const SizedBox.shrink();
         return Padding(
-          padding: const EdgeInsets.only(top: 4),
+          padding: const EdgeInsets.only(top: 2),
           child: RideRoomIdentityBadge(identity: identity),
         );
       },
@@ -251,14 +212,42 @@ class _SelectedRoomIdentityLineState extends State<_SelectedRoomIdentityLine> {
   }
 }
 
-/// Compact durable Room identity for the primary Ride hierarchy.
+/// The room this phone is in, written as the wordmark's subtitle.
 ///
 /// The code is a stable display-only prefix of RoomId. It is never used as an
-/// authorization or transport identity and remains visually LTR in Persian.
+/// authorization or transport identity and stays visually LTR in Persian: a
+/// value that gets read out digit by digit, or typed, must not be reordered by
+/// the paragraph direction.
+///
+/// Name and code used to sit at opposite ends of a full-width row, which made
+/// them read as two unrelated facts and left the code hard against a control.
+/// They are one phrase now, joined by a dot — the name is what you recognise
+/// the room by, the code is what you read out to someone joining, and they are
+/// the same answer to the same question.
+///
+/// ## Which half gives way
+///
+/// The code is the half that must survive: mid-ride it is what you say out
+/// loud to get somebody in, and a truncated one is worse than none. So the
+/// name gives way first, and completely if it has to.
+///
+/// A `Flexible` name beside a fixed code says that, and only while there is
+/// room for the code at all — past that the row overflows and paints outside
+/// its box with nothing on screen to say so. `Row` cannot express the rest,
+/// because flex shares are decided before anyone is measured: two flexible
+/// children split the space by ratio whatever they actually need, so any
+/// weighting that saves the code at 320 also starves the name at 430.
+///
+/// Measuring the code is the whole fix. It is one short string in a known
+/// style, the name gets exactly what is left over, and when even the code
+/// cannot fit the name is dropped outright rather than both being squeezed.
 class RideRoomIdentityBadge extends StatelessWidget {
   const RideRoomIdentityBadge({super.key, required this.identity});
 
   final RideRoomIdentity identity;
+
+  /// The dot and the air either side of it.
+  static const _joinWidth = 7.0 + 3.5 + 7.0;
 
   @override
   Widget build(BuildContext context) {
@@ -266,125 +255,101 @@ class RideRoomIdentityBadge extends StatelessWidget {
     final semantics = fa
         ? 'اتاق ${identity.name}، کد ${identity.code}'
         : 'Room ${identity.name}, code ${identity.code}';
+    final codeStyle = TextStyle(
+      color: AppColors.textSecondary,
+      fontSize: 11,
+      fontWeight: FontWeight.w600,
+      letterSpacing: .5,
+    );
 
     return Semantics(
       container: true,
       label: semantics,
       excludeSemantics: true,
-      child: Row(
-        key: const Key('ride-room-identity'),
-        children: [
-          Icon(Icons.meeting_room_outlined, size: 16, color: AppColors.amber),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              identity.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final code = '#${identity.code}';
+          final codeWidth = _measure(context, code, codeStyle);
+          final forName = constraints.maxWidth - _joinWidth - codeWidth;
+          return Row(
+            key: const Key('ride-room-identity'),
+            children: [
+              // Zero when the code has taken everything, which renders the
+              // name away rather than letting the two fight over pixels that
+              // do not exist.
+              if (forName > 0)
+                ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: forName),
+                  child: Text(
+                    identity.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              if (forName > 0) ...[
+                const SizedBox(width: 7),
+                _Separator(),
+                const SizedBox(width: 7),
+              ],
+              // Flexible only for the case the measurement says is already
+              // lost: a code wider than the whole line ellipsizes instead of
+              // painting over the controls beside it.
+              Flexible(
+                child: Directionality(
+                  textDirection: TextDirection.ltr,
+                  child: Text(
+                    code,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    softWrap: false,
+                    style: codeStyle,
+                  ),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Directionality(
-            textDirection: TextDirection.ltr,
-            child: Text(
-              '#${identity.code}',
-              maxLines: 1,
-              style: TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                letterSpacing: .5,
-              ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }
+
+  /// What [text] will actually occupy, at this phone's text scale.
+  static double _measure(BuildContext context, String text, TextStyle style) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: TextDirection.ltr,
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    )..layout();
+    final width = painter.width;
+    painter.dispose();
+    return width;
+  }
 }
 
-// ── Primary ride action ──────────────────────────────────────────────────────
-
-/// Compact always-visible mirror of the full MicControl card.
+/// The dot between the room's name and its code.
 ///
-/// The detailed card remains in the scrollable body for explanation and state
-/// copy, but Ride Mode must never require scrolling to mute/unmute. The Cubit
-/// remains the single source of truth and keeps the same entitlement rule as
-/// the full control: entering mute may be premium-gated, while unmuting is
-/// always available so nobody can be stranded silent.
-class _QuickMicButton extends StatelessWidget {
-  const _QuickMicButton();
-
+/// Small enough to be punctuation rather than a bullet: it says the two halves
+/// belong to one phrase, which a gap alone does not, and a slash or a pipe
+/// would say they are alternatives.
+class _Separator extends StatelessWidget {
   @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<WalkieTalkieCubit, WalkieTalkieState>(
-      buildWhen: (p, c) => p.isSelfMuted != c.isSelfMuted,
-      builder: (context, state) {
-        final muted = state.isSelfMuted;
-        final s = context.getString;
-        final label = muted ? s.mic_action_unmute : s.mic_action_mute;
-        final accent = muted ? AppColors.red : AppColors.green;
-        return Semantics(
-          button: true,
-          label: label,
-          child: IconButton(
-            key: const Key('walkie-primary-mic-toggle'),
-            tooltip: label,
-            visualDensity: VisualDensity.compact,
-            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-            onPressed: () {
-              if (!muted &&
-                  !GetIt.instance<LicenseGate>().allows(
-                    PremiumFeature.selfMute,
-                  )) {
-                showPaywallSheet(context, PremiumFeature.selfMute);
-                return;
-              }
-              HapticFeedback.selectionClick();
-              context.read<WalkieTalkieCubit>().toggleSelfMute();
-            },
-            icon: Icon(
-              muted ? Icons.mic_off_rounded : Icons.mic_rounded,
-              color: accent,
-            ),
-          ),
-        );
-      },
-    );
-  }
+  Widget build(BuildContext context) => Container(
+    width: 3.5,
+    height: 3.5,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      color: AppColors.textSecondary.withValues(alpha: 0.75),
+    ),
+  );
 }
 
 // ── Room / settings entry points ─────────────────────────────────────────────
-
-/// Opens durable saved Rooms without touching the current transport. This is
-/// deliberately available from inside a live session so Room management is no
-/// longer hidden behind leaving/recreating the channel.
-class _RoomsButton extends StatelessWidget {
-  const _RoomsButton();
-
-  @override
-  Widget build(BuildContext context) {
-    final fa = Localizations.localeOf(context).languageCode == 'fa';
-    final label = fa ? 'اتاق‌های ذخیره‌شده' : 'Saved rooms';
-    return Semantics(
-      button: true,
-      label: label,
-      child: IconButton(
-        key: const Key('walkie-saved-rooms'),
-        tooltip: label,
-        visualDensity: VisualDensity.compact,
-        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-        onPressed: () => context.pushNamed(AppRoutes.roomsName),
-        icon: Icon(Icons.groups_2_outlined, color: AppColors.textSecondary),
-      ),
-    );
-  }
-}
 
 /// Opens Settings with the running [WalkieTalkieCubit] threaded through
 /// go_router's `extra`, so changes (VOX threshold, noise suppression, name)
@@ -417,15 +382,15 @@ class _BrandBadge extends StatelessWidget {
     return ValueListenableBuilder<AppThemeMode>(
       valueListenable: ThemeService.mode,
       builder: (_, _, _) => Container(
-        width: 28,
-        height: 28,
+        width: WalkieHeaderLayout.brandMark,
+        height: WalkieHeaderLayout.brandMark,
         decoration: BoxDecoration(
           color: AppColors.amber.withAlpha(30),
           shape: BoxShape.circle,
           border: Border.all(color: AppColors.amber.withAlpha(80), width: 1),
         ),
         child: TarkMark(
-          size: 14,
+          size: WalkieHeaderLayout.brandGlyph,
           color: AppColors.amber,
           colorDim: AppColors.amberDim,
         ),

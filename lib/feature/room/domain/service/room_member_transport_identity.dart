@@ -120,6 +120,34 @@ final class RoomMemberTransportCertificate {
   }
 }
 
+/// A member's own name for itself, signed with the key its certificate binds.
+///
+/// Not challenge-bound, and deliberately so: a name does not change between
+/// heartbeats, so it is signed once when a session opens and rides every proof
+/// after that. Replaying it proves only what it claims — that the holder of
+/// this certified member key calls itself this — which is the entire claim.
+///
+/// It is a *self*-claim, and that is the right strength for it. The host has no
+/// independent source for a joiner's name; one-scan entry opens the seat before
+/// anyone can say who will take it. What the signature buys is that nobody
+/// *else* on the network can name you, and that an unverified string never
+/// enters the roster.
+final class RoomMemberSignedName {
+  const RoomMemberSignedName({required this.name, required this.signature});
+
+  /// Matches [RoomAcceptedJoinSnapshot.maxDisplayNameLength]: the same name
+  /// travels both ways, and a bound one side will not honour is not a bound.
+  static const maxLength = 80;
+
+  final String name;
+  final List<int> signature;
+
+  static bool isWellFormed(String name) {
+    final clean = name.trim();
+    return clean.isNotEmpty && clean.length <= maxLength;
+  }
+}
+
 /// One matched-heartbeat proof. The signature is deliberately challenge-bound:
 /// replaying a certificate alone, or replaying an old proof on a later ping,
 /// cannot establish current transport identity.
@@ -129,6 +157,7 @@ final class RoomMemberTransportProof {
     required this.token,
     required this.sessionEpoch,
     required this.memberSignature,
+    this.name,
   });
 
   static const currentVersion = 1;
@@ -139,15 +168,32 @@ final class RoomMemberTransportProof {
   final int sessionEpoch;
   final List<int> memberSignature;
 
+  /// Display metadata riding beside the proof, or null when the peer sent
+  /// none — which every build older than R27b does.
+  ///
+  /// Carried in its own separately-signed field rather than folded into
+  /// [_proofMessage], so a build that predates this and one that does not
+  /// still verify each other's proofs. The route binding is the load-bearing
+  /// thing here; a name must never be able to cost one.
+  final RoomMemberSignedName? name;
+
   String encode() {
     _requireUint32(token, 'token');
     _requireUint32(sessionEpoch, 'sessionEpoch');
+    final signedName = name;
     final raw = jsonEncode({
       'v': currentVersion,
       'certificate': certificate.encode(),
       'token': token,
       'epoch': sessionEpoch,
       'signature': _encodeBytes(memberSignature),
+      // Written only as a pair and only when there is a name to write, so a
+      // proof from a phone that has not named itself is byte-identical to one
+      // minted before this field existed.
+      if (signedName != null) ...{
+        'name': signedName.name,
+        'nameSig': _encodeBytes(signedName.signature),
+      },
     });
     final encoded = _encodeBytes(utf8.encode(raw));
     if (encoded.length > maxEncodedLength) {
@@ -185,11 +231,39 @@ final class RoomMemberTransportProof {
             'member signature',
           ),
         ),
+        name: _decodeName(value),
       );
     } on FormatException {
       rethrow;
     } catch (_) {
       throw const FormatException('Malformed Room member transport proof');
+    }
+  }
+
+  /// The optional name pair, or null for anything that is not exactly one.
+  ///
+  /// Absent, half-present, oversized or unparseable all answer the same way:
+  /// no name. Rejecting the whole proof over a bad optional field would let a
+  /// corrupted name break route binding, which is the one thing here that
+  /// matters — the name is settled afterwards, by verifying this signature
+  /// against the certificate the proof carries.
+  static RoomMemberSignedName? _decodeName(Map<String, dynamic> value) {
+    final name = value['name'];
+    final signature = value['nameSig'];
+    if (name is! String ||
+        signature is! String ||
+        !RoomMemberSignedName.isWellFormed(name)) {
+      return null;
+    }
+    try {
+      return RoomMemberSignedName(
+        name: name.trim(),
+        signature: List.unmodifiable(
+          _decodeSized(signature, 64, 'member name signature'),
+        ),
+      );
+    } on FormatException {
+      return null;
     }
   }
 }
@@ -263,6 +337,7 @@ final class RoomMemberTransportIdentityCrypto {
     required RoomMemberTransportKeyPair member,
     required int token,
     required int sessionEpoch,
+    RoomMemberSignedName? name,
   }) async {
     _requireUint32(token, 'token');
     _requireUint32(sessionEpoch, 'sessionEpoch');
@@ -278,7 +353,58 @@ final class RoomMemberTransportIdentityCrypto {
       token: token,
       sessionEpoch: sessionEpoch,
       memberSignature: List.unmodifiable(signature.bytes),
+      name: name,
     );
+  }
+
+  /// Signs what this phone calls itself in one Room.
+  ///
+  /// Minted once per session and attached to every proof after that: the name
+  /// is not challenge-bound, because unlike presence it does not need to be
+  /// fresh to be true. Room and member are inside the message, so a name
+  /// signed for one Room cannot be replayed into another.
+  Future<RoomMemberSignedName?> signMemberName({
+    required RoomMemberTransportCertificate certificate,
+    required RoomMemberTransportKeyPair member,
+    required String name,
+  }) async {
+    final clean = name.trim();
+    if (!RoomMemberSignedName.isWellFormed(clean)) return null;
+    if (!_sameBytes(member.publicKey, certificate.memberPublicKey)) {
+      throw ArgumentError('member key does not match certificate');
+    }
+    final signature = await _algorithm.sign(
+      _memberNameMessage(certificate, clean),
+      keyPair: _keyPair(member),
+    );
+    return RoomMemberSignedName(
+      name: clean,
+      signature: List.unmodifiable(signature.bytes),
+    );
+  }
+
+  /// Whether a name really came from the member whose certificate carries it.
+  ///
+  /// [expectedRoomId] is checked here as well as in [verifyProof] so this can
+  /// never be called as a bare name check on a certificate from elsewhere.
+  Future<bool> verifyMemberName({
+    required RoomMemberTransportCertificate certificate,
+    required RoomMemberSignedName name,
+    required RoomId expectedRoomId,
+  }) async {
+    if (certificate.roomId != expectedRoomId) return false;
+    if (!RoomMemberSignedName.isWellFormed(name.name)) return false;
+    try {
+      return await _algorithm.verify(
+        _memberNameMessage(certificate, name.name.trim()),
+        signature: Signature(
+          name.signature,
+          publicKey: _publicKey(certificate.memberPublicKey),
+        ),
+      );
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Signs an instruction to move the Room onto a new carrier.
@@ -428,6 +554,23 @@ final class RoomMemberTransportIdentityCrypto {
     'tark-room-member-proof-v1\n'
     '${certificate.roomId.value}\n${certificate.memberId.value}\n'
     '$token\n$sessionEpoch',
+  );
+
+  /// Its own domain, deliberately not a longer proof message.
+  ///
+  /// Adding the name to [_proofMessage] would have been a stronger binding and
+  /// the wrong trade: a build that signed the old message and one that
+  /// verifies the new one would stop recognising each other, on the single
+  /// path where two phones in a room have to agree. A separate domain costs
+  /// one signature and breaks nothing — and the two can never be confused for
+  /// one another, which is what the prefixes are for.
+  List<int> _memberNameMessage(
+    RoomMemberTransportCertificate certificate,
+    String name,
+  ) => utf8.encode(
+    'tark-room-member-name-v1\n'
+    '${certificate.roomId.value}\n${certificate.memberId.value}\n'
+    '$name',
   );
 }
 

@@ -27,12 +27,21 @@ import '../room_member_display_name.dart';
 /// called "New rider". Nothing here writes to the roster until the host
 /// explicitly asks for an invite, and an invite that was never used shows up
 /// as exactly what it is: an empty seat, with a way to take it back.
+///
+/// [autoIssue] mints the invite as the sheet opens instead of waiting for the
+/// tap on "Create invite". It is for callers whose own control already *was*
+/// that ask — the lobby's "Invite someone", pressed by a host sitting alone in
+/// a room they just made. The rule the roster protects is that no seat exists
+/// without an explicit request from the user; which screen that request was
+/// made on does not change it, and making the host say it twice is what put
+/// the QR two taps further away than it needed to be.
 Future<void> showRoomPeopleSheet(
   BuildContext context, {
   RoomRepository? repository,
   RoomTransportIdentityLifecycle? identityLifecycle,
   HotspotLinkKeeper? hotspotLinkKeeper,
   TransferRepository? transferRepository,
+  bool autoIssue = false,
 }) => showModalBottomSheet<void>(
   context: context,
   backgroundColor: Colors.transparent,
@@ -45,6 +54,7 @@ Future<void> showRoomPeopleSheet(
     identityLifecycle: identityLifecycle,
     hotspotLinkKeeper: hotspotLinkKeeper,
     transferRepository: transferRepository,
+    autoIssue: autoIssue,
   ),
 );
 
@@ -55,6 +65,7 @@ class RoomPeopleSheet extends StatefulWidget {
     this.identityLifecycle,
     this.hotspotLinkKeeper,
     this.transferRepository,
+    this.autoIssue = false,
   });
 
   /// Optional seams for deterministic widget tests. Production resolves the
@@ -63,6 +74,10 @@ class RoomPeopleSheet extends StatefulWidget {
   final RoomTransportIdentityLifecycle? identityLifecycle;
   final HotspotLinkKeeper? hotspotLinkKeeper;
   final TransferRepository? transferRepository;
+
+  /// Issue on open, because the caller's own control already asked. See
+  /// [showRoomPeopleSheet].
+  final bool autoIssue;
 
   @override
   State<RoomPeopleSheet> createState() => _RoomPeopleSheetState();
@@ -155,6 +170,13 @@ class _RoomPeopleSheetState extends State<RoomPeopleSheet> {
       if (!mounted) return;
       setState(() => _loading = false);
     }
+    // After the roster is known, never before: issuing needs a Room to issue
+    // against, and `_issueInvite` refuses without one. A caller that asked for
+    // this gets the QR; one that could not invite falls through to the roster
+    // and its explanation, which is the honest answer to "why not".
+    if (widget.autoIssue && mounted && _invite == null) {
+      await _issueInvite();
+    }
   }
 
   bool _canInvite(SavedRoom? saved) =>
@@ -167,7 +189,8 @@ class _RoomPeopleSheetState extends State<RoomPeopleSheet> {
   ///
   /// This is the *only* path that writes a member, and it runs on an explicit
   /// tap. The seat is created pending, so it never inflates the head count
-  /// while it is still just a code on a screen.
+  /// while it is still just a code on a screen, and held only for as long as
+  /// the code it shadows can be redeemed.
   Future<void> _issueInvite() async {
     final saved = _room;
     if (_issuing || !_canInvite(saved)) return;
@@ -196,6 +219,11 @@ class _RoomPeopleSheetState extends State<RoomPeopleSheet> {
         displayName: copy.heldSeatName,
         acceptedAt: DateTime.now().toUtc(),
         pending: true,
+        // The seat is the code's shadow, so it dies when the code does. Past
+        // this the invite cannot be redeemed by anyone, which makes an
+        // unclaimed seat a row that can never be filled — and a host who taps
+        // twice, or shows a code and dismisses it, used to keep one forever.
+        heldUntil: invite.expiresAt,
       );
       final memberId = RoomMemberId(invite.invitationId.substring(0, 24));
       final identity =
@@ -264,7 +292,7 @@ class _RoomPeopleSheetState extends State<RoomPeopleSheet> {
         child: AnimatedSwitcher(
           duration: AppMotion.card,
           switchInCurve: AppMotion.easeOut,
-          switchOutCurve: AppMotion.easeOut,
+          switchOutCurve: AppMotion.leaving,
           child: _body(context, copy),
         ),
       ),
@@ -1003,7 +1031,7 @@ class _SecondaryAction extends StatelessWidget {
             child: AnimatedSwitcher(
               duration: AppMotion.chip,
               switchInCurve: AppMotion.easeOut,
-              switchOutCurve: AppMotion.easeOut,
+              switchOutCurve: AppMotion.leaving,
               // The check does not slide in from anywhere — it lands where the
               // copy glyph was. A scale from 0.7 reads as arriving; a scale
               // from 0 reads as an element being created, which it is not.

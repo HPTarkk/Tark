@@ -236,6 +236,9 @@ SavedRoom _savedRoom(String id, String name, {bool archived = false}) {
 }
 
 class _FakeRoomRepository implements RoomRepository {
+  @override
+  Stream<void> get changes => const Stream<void>.empty();
+
   _FakeRoomRepository({required List<SavedRoom> rooms, this.selected})
     : rooms = List.of(rooms);
 
@@ -331,6 +334,7 @@ class _FakeRoomRepository implements RoomRepository {
     required String displayName,
     required DateTime acceptedAt,
     bool pending = false,
+    DateTime? heldUntil,
   }) => throw UnimplementedError();
 
   @override

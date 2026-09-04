@@ -7,6 +7,17 @@ import '../entity/bluetooth_peer.dart';
 abstract interface class BluetoothTransport {
   Stream<BluetoothConnectionState> get connectionState;
 
+  /// The last state [connectionState] published, for a caller that arrives
+  /// after it was published.
+  ///
+  /// [connectionState] is a broadcast stream, which discards everything it
+  /// emits while nothing is listening — so a screen that opens *after* the
+  /// link came up learns nothing from subscribing and would conclude there is
+  /// no link at all. That failure has already cost this app three debug
+  /// rounds once (see the classic auto-join history); it is not a shape to
+  /// leave a second caller to rediscover.
+  BluetoothConnectionState get currentConnectionState;
+
   /// Emits whether BLE host advertising is active. `false` means iPhones can't
   /// discover this device over Bluetooth LE (the chipset lacks the peripheral
   /// role), so the UI should steer cross-platform users to the Wi-Fi hotspot

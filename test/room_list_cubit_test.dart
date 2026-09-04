@@ -190,6 +190,9 @@ final class _MemoryIdentityStore implements RoomTransportIdentitySecureStore {
 }
 
 class _FakeRoomRepository implements RoomRepository {
+  @override
+  Stream<void> get changes => const Stream<void>.empty();
+
   final List<SavedRoom> _rooms = [];
   RoomId? selected;
   var transportStarts = 0;
@@ -294,6 +297,7 @@ class _FakeRoomRepository implements RoomRepository {
     required String displayName,
     required DateTime acceptedAt,
     bool pending = false,
+    DateTime? heldUntil,
   }) => throw UnimplementedError();
 
   @override

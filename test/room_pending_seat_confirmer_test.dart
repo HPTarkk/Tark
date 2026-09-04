@@ -88,6 +88,99 @@ void main() {
     );
   });
 
+  test('a proven member brings their own name with them', () async {
+    final subject = await roomWithHeldSeat();
+    final seat = heldSeatOf(subject.saved);
+    final confirmer = RoomPendingSeatConfirmer(
+      rooms: subject.rooms,
+      roomId: subject.saved.room.id,
+    );
+    addTearDown(confirmer.dispose);
+
+    // R27b. The host opened this seat before it could know who would take it,
+    // and the joining phone never replies — so the only way the name reaches
+    // this roster is beside the route proof, signed under the same certified
+    // key that proved the member is on the air.
+    expect(await confirmer.confirm(seat, displayName: 'Rider B'), isTrue);
+
+    final room = (await subject.rooms.get(subject.saved.room.id))!.room;
+    final row = room.members.firstWhere((member) => member.id == seat);
+    expect(row.pending, isFalse);
+    expect(row.displayName, 'Rider B');
+    // Not "Room member", which is what the placeholder used to unwrite to.
+    expect(roomMemberDisplayName(row, fa: false, unnamed: 'Unnamed'), 'Rider B');
+    expect(roomMemberDisplayName(row, fa: true, unnamed: 'بدون نام'), 'Rider B');
+  });
+
+  test('a name that arrives after the mark still lands', () async {
+    final subject = await roomWithHeldSeat();
+    final seat = heldSeatOf(subject.saved);
+    final counting = _CountingRooms(subject.rooms);
+    final confirmer = RoomPendingSeatConfirmer(
+      rooms: counting,
+      roomId: subject.saved.room.id,
+    );
+    addTearDown(confirmer.dispose);
+
+    // A peer on a build older than R27b confirms its seat and sends no name.
+    expect(await confirmer.confirm(seat), isTrue);
+    // Then it updates, and now does. The cache is keyed by what was offered,
+    // not by member alone, so this is not swallowed as "already handled".
+    expect(await confirmer.confirm(seat, displayName: 'Rider B'), isTrue);
+    expect(counting.writes, 2);
+
+    final room = (await subject.rooms.get(subject.saved.room.id))!.room;
+    expect(
+      room.members.firstWhere((member) => member.id == seat).displayName,
+      'Rider B',
+    );
+  });
+
+  test('a real name is never overwritten by a peer', () async {
+    final subject = await roomWithHeldSeat();
+    final seat = heldSeatOf(subject.saved);
+    // The host learned this name some other way — typed it, or an earlier
+    // proof carried it.
+    await subject.rooms.updateMember(
+      subject.saved.room.id,
+      seat,
+      displayName: 'Rider B',
+    );
+    final counting = _CountingRooms(subject.rooms);
+    final confirmer = RoomPendingSeatConfirmer(
+      rooms: counting,
+      roomId: subject.saved.room.id,
+    );
+    addTearDown(confirmer.dispose);
+
+    // The placeholder is the only name display metadata may replace. Renaming
+    // an occupied row is not something a peer gets to do.
+    expect(await confirmer.confirm(seat, displayName: 'Someone else'), isTrue);
+    final room = (await subject.rooms.get(subject.saved.room.id))!.room;
+    final row = room.members.firstWhere((member) => member.id == seat);
+    expect(row.displayName, 'Rider B');
+    expect(row.pending, isFalse, reason: 'the mark still cleared');
+  });
+
+  test('a named peer settles too, and stops reading storage', () async {
+    final subject = await roomWithHeldSeat();
+    final counting = _CountingRooms(subject.rooms);
+    final confirmer = RoomPendingSeatConfirmer(
+      rooms: counting,
+      roomId: subject.saved.room.id,
+    );
+    addTearDown(confirmer.dispose);
+    final seat = heldSeatOf(subject.saved);
+
+    expect(await confirmer.confirm(seat, displayName: 'Rider B'), isTrue);
+    final readsAfterFirst = counting.reads;
+    for (var i = 0; i < 5; i++) {
+      expect(await confirmer.confirm(seat, displayName: 'Rider B'), isFalse);
+    }
+    expect(counting.reads, readsAfterFirst);
+    expect(counting.writes, 1);
+  });
+
   test('a second proof does not go back to storage', () async {
     final subject = await roomWithHeldSeat();
     final counting = _CountingRooms(subject.rooms);
@@ -193,6 +286,9 @@ void main() {
 }
 
 class _CountingRooms implements RoomRepository {
+  @override
+  Stream<void> get changes => const Stream<void>.empty();
+
   _CountingRooms(this._inner);
 
   final RoomRepository _inner;
@@ -226,6 +322,9 @@ class _CountingRooms implements RoomRepository {
 }
 
 class _BrokenRooms implements RoomRepository {
+  @override
+  Stream<void> get changes => const Stream<void>.empty();
+
   _BrokenRooms(this._inner);
 
   final RoomRepository _inner;

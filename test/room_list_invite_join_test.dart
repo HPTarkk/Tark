@@ -225,6 +225,9 @@ final class _Carrier implements RoomInviteJoinCarrier {
 }
 
 final class _JoinRepository implements RoomRepository {
+  @override
+  Stream<void> get changes => const Stream<void>.empty();
+
   final List<SavedRoom> _rooms = [];
   RoomId? selected;
   int imports = 0;
@@ -322,6 +325,7 @@ final class _JoinRepository implements RoomRepository {
     required String displayName,
     required DateTime acceptedAt,
     bool pending = false,
+    DateTime? heldUntil,
   }) => throw UnimplementedError();
 
   @override

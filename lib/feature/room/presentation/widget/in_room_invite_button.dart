@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
@@ -18,8 +20,13 @@ import 'room_people_sheet.dart';
 /// count, so the roster is legible without opening anything and "add someone"
 /// is a place rather than a guess.
 ///
-/// [compact] renders the pill without its label, for the header on narrow
-/// phones where the count still fits but the word does not.
+/// **The lobby is the only place it belongs now.** It rode the channel header
+/// too until R32, where the count it carried was a second answer to a question
+/// the members card below was already answering, for an act nobody performs
+/// mid-ride. There it is [InRoomPeopleAction], which can be the lit control on
+/// an empty channel — something a header pill could never be. Here, on a
+/// screen that exists to be read before the ride starts, a pill with a count
+/// in it is exactly right.
 class InRoomInviteButton extends StatefulWidget {
   const InRoomInviteButton({
     super.key,
@@ -27,7 +34,6 @@ class InRoomInviteButton extends StatefulWidget {
     this.identityLifecycle,
     this.hotspotLinkKeeper,
     this.transferRepository,
-    this.compact = false,
   });
 
   /// Optional seams for deterministic widget tests. Production resolves the
@@ -36,7 +42,6 @@ class InRoomInviteButton extends StatefulWidget {
   final RoomTransportIdentityLifecycle? identityLifecycle;
   final HotspotLinkKeeper? hotspotLinkKeeper;
   final TransferRepository? transferRepository;
-  final bool compact;
 
   @override
   State<InRoomInviteButton> createState() => _InRoomInviteButtonState();
@@ -51,11 +56,24 @@ class _InRoomInviteButtonState extends State<InRoomInviteButton> {
   }
 
   int? _count;
+  StreamSubscription<void>? _changes;
 
   @override
   void initState() {
     super.initState();
     _refresh();
+    // A seat can be confirmed by live evidence while this badge is on screen —
+    // nobody taps anything when a rider's proof lands — so the count follows
+    // storage rather than only the sheet it opens.
+    _changes = _repository?.changes.listen((_) {
+      if (mounted) unawaited(_refresh());
+    });
+  }
+
+  @override
+  void dispose() {
+    unawaited(_changes?.cancel());
+    super.dispose();
   }
 
   /// Reads the confirmed head count.
@@ -107,9 +125,7 @@ class _InRoomInviteButtonState extends State<InRoomInviteButton> {
           child: Container(
             key: const Key('in-room-add-rider'),
             height: 34,
-            padding: EdgeInsets.symmetric(
-              horizontal: widget.compact ? 9 : 11,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 11),
             decoration: BoxDecoration(
               color: AppColors.amber.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(999),
@@ -120,11 +136,7 @@ class _InRoomInviteButtonState extends State<InRoomInviteButton> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.group_add_rounded,
-                  size: 16,
-                  color: AppColors.amber,
-                ),
+                Icon(Icons.group_add_rounded, size: 16, color: AppColors.amber),
                 if (count != null) ...[
                   const SizedBox(width: 6),
                   Text(
@@ -136,18 +148,16 @@ class _InRoomInviteButtonState extends State<InRoomInviteButton> {
                     ),
                   ),
                 ],
-                if (!widget.compact) ...[
-                  const SizedBox(width: 6),
-                  Text(
-                    copy.people,
-                    style: TextStyle(
-                      color: AppColors.amber,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.6,
-                    ),
+                const SizedBox(width: 6),
+                Text(
+                  copy.people,
+                  style: TextStyle(
+                    color: AppColors.amber,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.6,
                   ),
-                ],
+                ),
               ],
             ),
           ),

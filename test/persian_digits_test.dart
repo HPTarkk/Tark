@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tark/core/recovery/recovery_check.dart';
 import 'package:tark/core/recovery/recovery_sheet.dart';
+import 'package:tark/core/widget/localized_counter.dart';
 import 'package:tark/core/widget/qr_widgets.dart';
 import 'package:tark/core/l10n/app_localizations.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
@@ -34,6 +35,68 @@ void main() {
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     home: Scaffold(body: child),
   );
+
+  Widget en(Widget child) => MaterialApp(
+    locale: const Locale('en'),
+    supportedLocales: AppLocalizations.supportedLocales,
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    home: Scaffold(body: child),
+  );
+
+  Widget countedField() => TextField(
+    controller: TextEditingController(text: 'ali'),
+    maxLength: 12,
+    buildCounter: localizedCounter(),
+  );
+
+  // R30. The one number on screen that no sweep over this repository could
+  // ever have found: Flutter builds `'$currentLength/$maxLength'` itself, with
+  // bare interpolation, inside `TextField._getEffectiveDecoration`. The only
+  // way in is `buildCounter`.
+  testWidgets('a field counts its own characters in Persian', (tester) async {
+    await tester.pumpWidget(fa(countedField()));
+
+    expect(latinDigitsOnScreen(tester), isEmpty);
+    expect(find.text('۳/۱۲'), findsOneWidget);
+  });
+
+  testWidgets('and still counts in Latin under English', (tester) async {
+    await tester.pumpWidget(en(countedField()));
+
+    expect(find.text('3/12'), findsOneWidget);
+  });
+
+  testWidgets('the counter reads current-then-limit, not reversed', (
+    tester,
+  ) async {
+    await tester.pumpWidget(fa(countedField()));
+
+    // Persian writes numbers left-to-right inside right-to-left text. Left to
+    // the paragraph's own direction, «۳/۱۲» is free to come out as «۱۲/۳» — a
+    // counter that reads as though the field were already over its limit.
+    final counter = tester.widget<Text>(find.text('۳/۱۲'));
+    expect(counter.textDirection, TextDirection.ltr);
+  });
+
+  testWidgets('a screen reader is still told what is left', (tester) async {
+    await tester.pumpWidget(fa(countedField()));
+
+    // Supplying `buildCounter` makes the framework return before it sets
+    // `semanticCounterText`, so the naive fix silently drops this. The label
+    // is the same MaterialLocalizations sentence it would have used.
+    final counter = tester.widget<Text>(find.text('۳/۱۲'));
+    expect(counter.semanticsLabel, isNotNull);
+    expect(counter.semanticsLabel, isNot(contains('/')));
+  });
+
+  testWidgets('a field with no limit still has no counter', (tester) async {
+    await tester.pumpWidget(
+      fa(TextField(controller: TextEditingController(text: 'ali'),
+          buildCounter: localizedCounter())),
+    );
+
+    expect(latinDigitsOnScreen(tester), isEmpty);
+  });
 
   testWidgets('numbered instruction bullets use Persian numerals', (
     tester,

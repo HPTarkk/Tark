@@ -4,6 +4,21 @@ import '../entity/room_invitation.dart';
 import '../service/room_invitation_ledger.dart';
 
 abstract interface class RoomRepository {
+  /// Fires once after every durable change to the saved Rooms on this phone —
+  /// a create, a rename, an archive, a roster edit, a delete, a selection.
+  ///
+  /// A ping, never a payload. The event carries nothing and a listener answers
+  /// it by re-reading whatever it is showing, so a subscriber that starts late
+  /// or misses an event is still correct the moment the next one lands.
+  ///
+  /// This exists because a widget's lifecycle cannot be trusted to say "you
+  /// are being looked at again". A route sitting *under* a pushed one is never
+  /// rebuilt and gets no dependency change when that route pops, which is how
+  /// the landing screen went on offering a Room the user had just deleted one
+  /// screen up. Storage is the only thing that knows the answer changed, so
+  /// storage is what says so.
+  Stream<void> get changes;
+
   Future<List<SavedRoom>> list({bool includeArchived = false});
 
   Future<SavedRoom?> get(RoomId id);
@@ -53,11 +68,18 @@ abstract interface class RoomRepository {
   /// has walked through yet — the normal case for one-scan entry, where the
   /// host has to authorise a member before the QR can exist. It stays out of
   /// the member count until someone actually arrives.
+  ///
+  /// [heldUntil] is when that hold lapses, and callers opening a seat should
+  /// pass the issuing invite's own expiry: past it the code cannot be
+  /// redeemed, so the seat can never be claimed and stops being a seat.
+  /// Ignored unless [pending]. Omitting it holds the seat indefinitely, which
+  /// is what every seat opened before R27c does.
   Future<SavedRoom> acceptVerifiedInvite(
     VerifiedRoomInvitation verified, {
     required String displayName,
     required DateTime acceptedAt,
     bool pending,
+    DateTime? heldUntil,
   });
 
   /// Edits durable display metadata for one member of a Room.
@@ -66,6 +88,10 @@ abstract interface class RoomRepository {
   /// validity or transport identity. Used to put a joiner's own name on their
   /// row instead of the placeholder the host had to invent, and to mark an
   /// invite seat confirmed once its owner turns up.
+  ///
+  /// Clearing [pending] also releases the seat's hold: a seat somebody is
+  /// standing in is not being kept for anyone, and a hold left behind would
+  /// let a confirmed member's row expire.
   Future<SavedRoom> updateMember(
     RoomId id,
     RoomMemberId memberId, {

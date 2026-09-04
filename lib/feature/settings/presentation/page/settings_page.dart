@@ -14,6 +14,7 @@ import '../../../../core/sfx/sfx_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/app_avatar.dart';
 import '../../../../core/widget/language_toggle.dart';
+import '../../../../core/widget/localized_counter.dart';
 import '../../../../core/widget/theme_toggle.dart';
 import '../../../walkie/api/walkie_api.dart';
 import '../manager/settings_cubit.dart';
@@ -208,11 +209,16 @@ class _ProfileCard extends StatelessWidget {
           controller: controller,
           autofocus: true,
           maxLength: 20,
+          // The counter Flutter builds by default is ASCII whatever the
+          // locale says, so the style that used to sit in `counterStyle`
+          // moves onto the counter this builds instead.
+          buildCounter: localizedCounter(
+            style: TextStyle(color: AppColors.textSecondary.withAlpha(120)),
+          ),
           style: TextStyle(color: AppColors.textPrimary),
           decoration: InputDecoration(
             hintText: s.name_hint,
             hintStyle: TextStyle(color: AppColors.textSecondary.withAlpha(160)),
-            counterStyle: TextStyle(color: AppColors.textSecondary.withAlpha(120)),
             filled: true,
             fillColor: AppColors.surface,
             border: OutlineInputBorder(

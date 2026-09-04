@@ -11,6 +11,7 @@ export '../data/webrtc/sdp_codec.dart';
 export '../domain/entity/audio_profile.dart';
 export '../domain/entity/connection_health.dart';
 export '../domain/entity/guest_link_state.dart';
+export '../domain/entity/live_link.dart';
 export '../domain/entity/channel_intent.dart';
 export '../domain/entity/session_role.dart';
 export '../domain/entity/transfer_mode.dart';
@@ -36,7 +37,13 @@ export '../domain/service/hotspot_link_keeper.dart' show HotspotLinkKeeper;
 // The channel screen grades its own link: the two inputs the transport cannot
 // know about (whether peers confirm they hear us, and whether the roster is
 // empty) live in the cubit, so the grading happens there rather than here.
+// Where a device goes to get onto a link with the people it is trying to
+// reach — asked by the Room entry and by the channel's empty members card.
+export '../domain/service/connect_route.dart';
 export '../domain/service/link_quality.dart';
+// Asked before a channel opens, by whatever is about to open one. Reading it
+// starts nothing: see LiveLinkProbe.
+export '../domain/service/live_link_probe.dart';
 export '../domain/service/transfer_mode_store.dart';
 // The landing page's Create/Join actions resolve their route through this;
 // it is pure and holds no state, so it is exported rather than injected.

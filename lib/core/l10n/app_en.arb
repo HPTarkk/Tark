@@ -417,6 +417,7 @@
     "issue_unheard_title": "They can't hear you",
     "issue_unheard_body": "You're receiving them, but nothing you send is getting through. Repairing the link automatically — if it doesn't come back, leave and rejoin the channel.",
     "fix_repair_link": "Repair link",
+    "fix_invite_someone": "Invite someone",
     "preflight_check_hd_voice": "HD Voice",
     "preflight_hd_voice_ready": "HD Voice ready",
     "preflight_hd_voice_negotiated_hd": "HD Voice — negotiated with your peer",

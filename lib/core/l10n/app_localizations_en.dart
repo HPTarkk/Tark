@@ -1402,6 +1402,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fix_repair_link => 'Repair link';
 
   @override
+  String get fix_invite_someone => 'Invite someone';
+
+  @override
   String get preflight_check_hd_voice => 'HD Voice';
 
   @override

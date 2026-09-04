@@ -25,6 +25,18 @@ abstract final class AppMotion {
   /// 200ms ease-in.
   static const Cubic easeOut = Cubic(0.23, 1, 0.32, 1);
 
+  /// [easeOut], mirrored — the curve for the *departing* half of a crossfade.
+  ///
+  /// `AnimatedSwitcher` hands `switchOutCurve` an animation that already runs
+  /// 1 → 0, so passing [easeOut] there does not reverse it: the curve is
+  /// sampled near its own flat tail for most of the transition, which holds the
+  /// outgoing child at full opacity while the incoming one finishes arriving,
+  /// then drops it in the last few frames. That is two beats where the whole
+  /// point was one. Flipped, the outgoing child is worth exactly
+  /// `1 - easeOut(t)` of the incoming one at every frame, so the pair sums to a
+  /// constant and reads as a single dissolve.
+  static const Curve leaving = FlippedCurve(easeOut);
+
   /// Strong ease-in-out, for something moving between two on-screen places
   /// where both ends are visible and the middle should carry speed.
   static const Cubic easeInOut = Cubic(0.77, 0, 0.175, 1);

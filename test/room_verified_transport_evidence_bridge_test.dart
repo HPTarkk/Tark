@@ -97,7 +97,7 @@ void main() {
         localProofProvider:
             ({required int token, required int challengeEpoch}) async =>
                 'local-$token-$challengeEpoch',
-        onMemberProven: proven.add,
+        onMemberProven: (member) => proven.add(member.memberId),
       );
       value.runtime.observeLocal(
         canHostHotspot: true,
@@ -153,7 +153,7 @@ void main() {
       proofExchange: source,
       localProofProvider:
           ({required int token, required int challengeEpoch}) async => null,
-      onMemberProven: proven.add,
+      onMemberProven: (member) => proven.add(member.memberId),
     );
     value.runtime.observeLocal(
       canHostHotspot: true,
@@ -215,7 +215,7 @@ void main() {
       proofExchange: source,
       localProofProvider:
           ({required int token, required int challengeEpoch}) async => null,
-      onMemberProven: proven.add,
+      onMemberProven: (member) => proven.add(member.memberId),
     );
     value.runtime.observeLocal(
       canHostHotspot: true,

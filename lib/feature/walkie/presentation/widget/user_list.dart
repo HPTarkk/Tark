@@ -8,6 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../core/widget/app_avatar.dart';
 import '../../../../core/widget/section_header.dart';
+import '../../../room/presentation/widget/in_room_people_action.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../../domain/entity/channel_user.dart';
 import '../manager/walkie_talkie_cubit.dart';
@@ -32,6 +33,13 @@ abstract final class RideMemberCount {
 // ── User list ─────────────────────────────────────────────────────────────────
 
 /// Shows the list of active channel members or an empty-state card.
+///
+/// **This card is also where you add someone (R32).** The invite used to be a
+/// pill in the header, on the trailing edge of a screen a rider stares at for
+/// the whole trip, for something they do once a ride at most. Here it sits
+/// under the question it answers — and it can change weight with the answer,
+/// which a header pill could not: on a channel with nobody else on it, the
+/// empty card stops being a dead end and carries the lit control instead.
 class UserList extends StatelessWidget {
   const UserList({super.key});
 
@@ -59,43 +67,65 @@ class UserList extends StatelessWidget {
                 child: users.isEmpty
                     ? Container(
                         key: const ValueKey('empty'),
-                        padding: const EdgeInsets.all(20),
+                        padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
                         decoration: BoxDecoration(
                           color: AppColors.card,
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: AppColors.border),
-                        ),
-                        child: Center(
-                          child: Column(
-                            children: [
-                              Icon(
-                                Icons.wifi_tethering_off_rounded,
-                                color: AppColors.textSecondary.withAlpha(120),
-                                size: 32,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                s.no_users_on_network,
-                                style: TextStyle(
-                                  color: AppColors.textSecondary.withAlpha(160),
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
+                          // Amber rather than the flat border it had. The card
+                          // is no longer reporting a nil result; it is asking
+                          // for something.
+                          border: Border.all(
+                            color: AppColors.amber.withValues(alpha: 0.30),
                           ),
+                        ),
+                        child: Column(
+                          children: [
+                            // A people mark, not the tethering-off glyph that
+                            // used to sit here. Nobody being on the channel is
+                            // a fact about people; whether the *link* is
+                            // healthy is already answered by the banners and
+                            // the signal meter above.
+                            Icon(
+                              Icons.group_add_rounded,
+                              color: AppColors.amber,
+                              size: 40,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              s.no_users_on_network,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            // Renders nothing on a channel with no durable
+                            // Room, which leaves exactly the card this used to
+                            // be: a mark and the situation in one line.
+                            const InRoomPeopleAction(primary: true),
+                          ],
                         ),
                       )
                     : Column(
                         key: const ValueKey('list'),
-                        children: users
-                            .map(
-                              (u) => Padding(
-                                key: ValueKey(u.id),
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: UserTile(user: u),
-                              ),
-                            )
-                            .toList(),
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (final u in users)
+                            Padding(
+                              key: ValueKey(u.id),
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: UserTile(user: u),
+                            ),
+                          // Quiet, and below the list: with somebody already
+                          // here the screen's attention belongs to the mic,
+                          // and this is a thing you go looking for rather than
+                          // one that should catch your eye.
+                          const Padding(
+                            padding: EdgeInsets.only(top: 6),
+                            child: InRoomPeopleAction(primary: false),
+                          ),
+                        ],
                       ),
               ),
             ),

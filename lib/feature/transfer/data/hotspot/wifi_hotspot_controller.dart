@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
@@ -19,6 +20,20 @@ class WifiHotspotController implements HotspotHost {
   static const _events = EventChannel('tark/hotspot/events');
 
   bool get isSupported => Platform.isAndroid;
+
+  bool _hosting = false;
+
+  /// Kept for as long as an access point of ours is up, and only then. The
+  /// alternative — a flag set by [start] and cleared by [stop] — is right up
+  /// until the OS takes the hotspot down on its own, which is the one case
+  /// this app already knows happens (radio conflict, Doze, an STA reconnect
+  /// stealing the single radio) and the one case where a stale `true` sends
+  /// somebody into a channel over an access point that is no longer on the
+  /// air.
+  StreamSubscription<void>? _teardownWatch;
+
+  @override
+  bool get isHosting => _hosting;
 
   /// Fires when the OS tears the hotspot down on its own — a radio conflict, an
   /// STA reconnect stealing the single radio, Doze, etc. — as opposed to our
@@ -62,6 +77,8 @@ class WifiHotspotController implements HotspotHost {
       // not diagnostic identity. The security class is safe and sufficient
       // to correlate this transition with the native callback timeline.
       Logger.diagnostic('hotspot: started security=$security');
+      _hosting = true;
+      _watchTeardown();
       return HotspotCredentials(
         ssid: ssid,
         passphrase: passphrase,
@@ -73,8 +90,27 @@ class WifiHotspotController implements HotspotHost {
     }
   }
 
+  /// Subscribes once, on the way up, rather than in the constructor: the
+  /// event channel's platform side is only asked to start listening when
+  /// something actually listens, and a device that never hosts should not be
+  /// the reason it does.
+  void _watchTeardown() {
+    _teardownWatch ??= onStopped.listen(
+      (_) => _hosting = false,
+      onError: (Object _) => _hosting = false,
+      onDone: () => _hosting = false,
+    );
+  }
+
+  void _stopWatchingTeardown() {
+    unawaited(_teardownWatch?.cancel() ?? Future<void>.value());
+    _teardownWatch = null;
+  }
+
   @override
   Future<void> stop() async {
+    _hosting = false;
+    _stopWatchingTeardown();
     if (!isSupported) return;
     Logger.diagnostic('hotspot: stop requested');
     try {

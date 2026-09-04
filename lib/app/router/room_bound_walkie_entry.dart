@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/motion/app_motion.dart';
+import '../../core/router/route_exit.dart';
 import '../../core/router/routes.dart';
 import '../../core/utils/logger.dart';
 import '../../feature/room/api/room_api.dart';
@@ -20,10 +22,30 @@ import '../../feature/walkie/api/walkie_api.dart';
 /// binding and live Walkie surface begin only after the explicit Start ride
 /// action. With no valid selected Room we deliberately preserve the existing
 /// quick-access behavior instead of inventing or auto-selecting a hidden Room.
+///
+/// **A Room may not go live over nothing.** Everything below the lobby assumes
+/// a link exists: the binding attaches the Room to "the current transport",
+/// the failover runtime waits for that transport to fail, and the channel
+/// opens the microphone. With no Wi-Fi, no access point of our own and no
+/// Bluetooth peer, all three of those are running against a transport that was
+/// never there — and the screen the user is left looking at is a channel with
+/// one person in it, which reads as the app being broken rather than as the
+/// phone not being connected to anything. So the link is checked here, and a
+/// device without one is sent to the screen that can get it one instead.
 class RoomBoundWalkieEntry extends StatefulWidget {
-  const RoomBoundWalkieEntry({super.key});
+  const RoomBoundWalkieEntry({super.key, this.ride = false});
 
-  static Widget buildPage() => const RoomBoundWalkieEntry();
+  /// Set by the pages that exist to establish a link, on their way back here.
+  ///
+  /// Finishing the hotspot bridge or a Bluetooth pairing ends with the user
+  /// tapping "Enter channel" — they have already said what they want, and
+  /// stopping them at the lobby to ask again is the second confirmation of
+  /// one decision. Everywhere else (Landing, the room list, a fresh QR join)
+  /// still opens the lobby, which is the pause it was built to be.
+  final bool ride;
+
+  static Widget buildPage({bool ride = false}) =>
+      RoomBoundWalkieEntry(ride: ride);
 
   @override
   State<RoomBoundWalkieEntry> createState() => _RoomBoundWalkieEntryState();
@@ -36,6 +58,20 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   RoomRepository? _rooms;
   SelectedRoomLiveSessionBinding? _binding;
   late Future<_EntryState> _entry;
+
+  /// Resolved separately from the binding, and tolerated missing on its own.
+  /// A composition without a probe cannot answer "is there a link", and the
+  /// pre-existing behaviour — trust the user and open the channel — is the
+  /// only honest thing left to do with that.
+  LiveLinkProbe? _probe;
+  TransferModeStore? _modeStore;
+
+  /// What the last read said, for the lobby to show. Null until the first
+  /// read lands, which is the difference between "no link" and "not asked
+  /// yet" — one of those is a reason to change what a button says and the
+  /// other is a reason to leave it alone.
+  LiveLinkSnapshot? _links;
+  StreamSubscription<void>? _linkChanges;
 
   @override
   void initState() {
@@ -55,6 +91,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   /// needs. The caller then goes straight to the live channel, which is the
   /// behavior this route had before the lobby existed.
   bool _compose() {
+    _composeLinkProbe();
     if (_binding != null) return true;
     try {
       final rooms = GetIt.instance<RoomRepository>();
@@ -76,12 +113,101 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     }
   }
 
+  /// Resolves the link probe and starts watching it.
+  ///
+  /// Kept out of the binding's try block above on purpose: those two failures
+  /// have different consequences, and folding them together would have a
+  /// missing Room repository silently take the link check down with it.
+  void _composeLinkProbe() {
+    if (_probe != null) return;
+    try {
+      _probe = GetIt.instance<LiveLinkProbe>();
+      _modeStore = GetIt.instance<TransferModeStore>();
+    } catch (e) {
+      Logger.log('Live link probe unavailable: $e');
+      return;
+    }
+    unawaited(_refreshLinks());
+    _linkChanges = _probe?.changes.listen(
+      (_) => unawaited(_refreshLinks()),
+      onError: (Object _) {},
+    );
+  }
+
+  Future<LiveLinkSnapshot> _readLinks() async {
+    final probe = _probe;
+    // No probe is not "no link": a composition that cannot answer the question
+    // must not be allowed to answer it wrongly, and the pre-existing behaviour
+    // — the user knows what they set up, open the channel — is what it falls
+    // back to. `_gateOpen` is what turns this into a decision.
+    if (probe == null) return LiveLinkSnapshot.none;
+    try {
+      return await probe.read();
+    } catch (e) {
+      Logger.log('Live link read failed: $e');
+      return LiveLinkSnapshot.none;
+    }
+  }
+
+  Future<void> _refreshLinks() async {
+    final links = await _readLinks();
+    if (!mounted) return;
+    setState(() => _links = links);
+  }
+
+  /// The last read, resolved against the transport in effect — or null when
+  /// there is nothing to resolve it with, which the lobby reads as "say
+  /// nothing about the link" rather than as "there is none".
+  LiveLink? get _resolvedLink {
+    final links = _links;
+    final modeStore = _modeStore;
+    if (links == null || modeStore == null) return null;
+    return links.resolve(modeStore.mode);
+  }
+
+  /// Whether a Room may go live right now, and on what.
+  ///
+  /// Also the only place the transport is allowed to move: a phone that is on
+  /// Bluetooth while the app is still set to Wi-Fi from last week would
+  /// otherwise open a channel on a repository with no link under it. The mode
+  /// is left exactly alone whenever it already fits — see [LiveLink.modeFor],
+  /// which is the half of this that is testable without a radio.
+  Future<bool> _openLinkGate() async {
+    final probe = _probe;
+    final modeStore = _modeStore;
+    if (probe == null || modeStore == null) return true;
+    final links = await _readLinks();
+    if (mounted) setState(() => _links = links);
+    final link = links.resolve(modeStore.mode);
+    if (!link.isUp) {
+      Logger.diagnostic('room: refused live entry — no link');
+      return false;
+    }
+    final mode = link.modeFor(modeStore.mode);
+    if (mode != modeStore.mode) {
+      Logger.diagnostic(
+        'room: transport ${modeStore.mode.key} -> ${mode.key} for ${link.name}',
+      );
+      await modeStore.setMode(mode);
+    }
+    return true;
+  }
+
   Future<_EntryState> _resolveInitialEntry() async {
     if (!_compose()) return const _EntryState.live();
     final rooms = _rooms;
     try {
       final selected = await SelectedRoomLobbyResolver(rooms!).resolve();
-      if (selected != null) return _EntryState.lobby(selected);
+      if (selected != null) {
+        // The lobby is the default, and stays it. `ride` is the one caller
+        // that has already earned the channel — it only ever comes from a
+        // screen whose entire purpose was establishing the link this then
+        // checks for.
+        if (widget.ride && await _openLinkGate()) {
+          return await _liveFor(selected);
+        }
+        return _EntryState.lobby(selected);
+      }
     } catch (_) {
       // Storage/readiness lookup must not strand legacy quick access. This is
       // the same fail-open-to-existing-live-surface behavior this composition
@@ -110,6 +236,17 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     } catch (_) {
       return const _EntryState.invalidSelection();
     }
+    // The backstop, for the same reason the re-resolve above is one: the lobby
+    // reads the link when it draws, and a radio can go down between drawing a
+    // button and somebody pressing it. The lobby is where the check is
+    // *offered* — it turns Start ride into a way of getting connected — and
+    // this is where it is enforced. Falling back to the lobby rather than to
+    // an error: it re-reads on the way in and will say what is missing.
+    if (!await _openLinkGate()) return _EntryState.lobby(room);
+    return _liveFor(room);
+  }
+
+  Future<_EntryState> _liveFor(SavedRoom room) async {
     try {
       await _binding?.open(sessionId: _newSessionId());
     } catch (_) {
@@ -125,11 +262,47 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     });
   }
 
+  /// Sends a Room with no link to the screen that can get it one.
+  ///
+  /// Pushed rather than replacing, so the bridge's own back arrow comes back
+  /// here — and so the room the user picked is still selected when they
+  /// return. Which screen, and which side of it, is [ConnectRoute]'s
+  /// decision; what this contributes is the intent, and a Room already knows
+  /// that: the phone that hands out the invite code is the phone the others
+  /// are gathering around, so it is the one that should be making the
+  /// network. It only ever *preselects* — every one of those screens can
+  /// still be stepped back to its own role picker.
+  void _connect(BuildContext context, SavedRoom room) {
+    final links = _links ?? LiveLinkSnapshot.none;
+    final intent = room.membership.canManageInvites
+        ? ChannelIntent.create
+        : ChannelIntent.join;
+    final plan = TransportAdvisor.plan(
+      intent,
+      LinkConditions(
+        hasWifi: links.wifi,
+        // The same platform constants LandingState.conditions and
+        // pinnedPlanFor read, for the same reason: they cannot change while
+        // the app runs, so threading them through DI would buy a seam nothing
+        // needs.
+        canHostHotspot: Platform.isAndroid,
+        canJoinHotspot: Platform.isAndroid || Platform.isIOS,
+        bluetoothSupported: Platform.isAndroid || Platform.isIOS,
+        pinned: _modeStore?.pinnedMode,
+      ),
+    );
+    Logger.diagnostic(
+      'room: connect via ${plan.mode.key} intent=${intent.key}',
+    );
+    context.push(ConnectRoute.forPlan(plan));
+  }
+
   String _newSessionId() =>
       'room-live-${DateTime.now().microsecondsSinceEpoch.toRadixString(36)}';
 
   @override
   void dispose() {
+    unawaited(_linkChanges?.cancel() ?? Future<void>.value());
     unawaited(_binding?.close() ?? Future<void>.value());
     super.dispose();
   }
@@ -143,7 +316,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     // anywhere else in the app.
     duration: AppMotion.card,
     switchInCurve: AppMotion.easeOut,
-    switchOutCurve: AppMotion.easeOut,
+    switchOutCurve: AppMotion.leaving,
     child: _resolved(context),
   );
 
@@ -179,17 +352,23 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       }
       final room = state.room;
       if (room != null) {
-        return _BackToRooms(
-          onBack: () => leaveRoomEntry(context),
+        return RouteExitScope(
+          onExit: () => leaveRoomEntry(context),
           child: SelectedRoomLobby(
             room: room,
+            // Null while the first read is still in flight, and while no
+            // probe could be composed at all. Both mean "do not claim
+            // anything about the link", which is a different screen from
+            // "there is no link".
+            link: _resolvedLink,
             onStartRide: () => _startRide(room),
+            onConnect: () => _connect(context, room),
             onBack: () => leaveRoomEntry(context),
           ),
         );
       }
-      return _BackToRooms(
-        onBack: () => leaveRoomEntry(context),
+      return RouteExitScope(
+        onExit: () => leaveRoomEntry(context),
         child: _InvalidRoomSelection(onBack: () => leaveRoomEntry(context)),
       );
     },
@@ -208,39 +387,12 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
 /// back gesture closed the app instead. Falling through to the room list is an
 /// "up" rather than a "back": it is the surface this room was chosen on, and
 /// the one place all of those paths came through.
-void leaveRoomEntry(BuildContext context) {
-  if (context.canPop()) {
-    context.pop();
-  } else {
-    context.go(AppRoutes.roomsPath);
-  }
-}
-
-/// Gives the system back gesture somewhere to go.
 ///
-/// The on-screen control is only half the fix: the gesture is how most people
-/// actually leave a screen, and with nothing under this route on the stack an
-/// unhandled back closed the app. `canPop: false` routes both through the same
-/// answer, so the gesture and the chevron cannot disagree about where "out"
-/// is.
-///
-/// No confirmation, unlike the live channel's: nothing has been started here
-/// that leaving could tear down.
-class _BackToRooms extends StatelessWidget {
-  const _BackToRooms({required this.onBack, required this.child});
-
-  final VoidCallback onBack;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => PopScope(
-    canPop: false,
-    onPopInvokedWithResult: (didPop, _) {
-      if (!didPop) onBack();
-    },
-    child: child,
-  );
-}
+/// The rule itself is [exitRouteTo], because this fix has a sting in its tail:
+/// the `go` below leaves the room list stackless in turn, and that screen then
+/// had no way back of its own. Both ends now use the same primitive.
+void leaveRoomEntry(BuildContext context) =>
+    exitRouteTo(context, AppRoutes.roomsPath);
 
 /// A spinner that only appears if the wait is long enough to notice.
 ///

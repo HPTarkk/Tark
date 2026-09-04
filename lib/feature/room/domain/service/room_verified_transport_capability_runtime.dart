@@ -45,7 +45,7 @@ final class RoomVerifiedTransportCapabilityRuntime {
   );
 
   /// Returns the member the route was bound to, or null when nothing bound.
-  Future<RoomMemberId?> verifyAndBind({
+  Future<ProvenRoomMember?> verifyAndBind({
     required String peerKey,
     required String encodedProof,
     required DateTime at,

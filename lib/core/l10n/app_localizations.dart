@@ -2606,6 +2606,12 @@ abstract class AppLocalizations {
   /// **'ترمیم اتصال'**
   String get fix_repair_link;
 
+  /// No description provided for @fix_invite_someone.
+  ///
+  /// In fa, this message translates to:
+  /// **'دعوت کردن'**
+  String get fix_invite_someone;
+
   /// No description provided for @preflight_check_hd_voice.
   ///
   /// In fa, this message translates to:

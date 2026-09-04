@@ -172,6 +172,9 @@ SavedRoom _savedRoom({bool archived = false, bool active = true}) {
 }
 
 final class _FakeRoomRepository implements RoomRepository {
+  @override
+  Stream<void> get changes => const Stream<void>.empty();
+
   _FakeRoomRepository({required this.selected, required this.saved});
 
   final RoomId? selected;

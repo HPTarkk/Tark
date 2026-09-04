@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/utils/extensions.dart';
+import '../../../../core/router/route_exit.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widget/localized_counter.dart';
 import '../../../../core/widget/monogram_mark.dart';
 import '../../../../core/widget/confirm_sheet.dart';
 import '../../domain/entity/room.dart';
@@ -52,11 +55,42 @@ class _RoomListPageState extends State<RoomListPage> {
   @override
   Widget build(BuildContext context) {
     final copy = _RoomCopy.of(context);
+    return RouteExitScope(
+      onExit: () => _leave(context),
+      child: _scaffold(context, copy),
+    );
+  }
+
+  /// Where "out" is from the saved rooms.
+  ///
+  /// Explicit, and always present. `AppBar` only draws a back button when the
+  /// navigator has something to pop, and this page is routinely reached by a
+  /// `go` — leaving the lobby lands here by replacing the stack — so the
+  /// control silently vanished after a round trip through a room, and the
+  /// system gesture closed the app. Landing is the surface this list belongs
+  /// under, so that is where an empty stack goes.
+  void _leave(BuildContext context) =>
+      exitRouteTo(context, AppRoutes.landingPath);
+
+  Widget _scaffold(BuildContext context, _RoomCopy copy) {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.surface,
         foregroundColor: AppColors.textPrimary,
+        leading: Semantics(
+          button: true,
+          label: copy.back,
+          child: IconButton(
+            key: const Key('rooms-back'),
+            tooltip: copy.back,
+            onPressed: () {
+              HapticFeedback.selectionClick();
+              _leave(context);
+            },
+            icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+          ),
+        ),
         title: Text(copy.title),
         actions: [
           // Absent until there is something in it. A permanent control for an
@@ -113,18 +147,27 @@ class _RoomListPageState extends State<RoomListPage> {
             return AnimatedSwitcher(
               duration: AppMotion.card,
               switchInCurve: AppMotion.easeOut,
-              switchOutCurve: AppMotion.easeOut,
-              // The outgoing state is not laid out under the incoming one —
-              // otherwise an empty state and a full list fight over the height
-              // for the length of the fade.
+              switchOutCurve: AppMotion.leaving,
+              // Every state occupies the same fixed slot, so an empty state and
+              // a full list never fight over the height for the length of the
+              // fade, and only the arriving one can be tapped.
+              //
+              // The slots are keyed off the child, and the *shape* of a slot is
+              // identical whether it is arriving or leaving. That is load
+              // bearing: `AnimatedSwitcher` hands this builder widgets carrying
+              // a stable `KeyedSubtree` key, and wrapping only the outgoing
+              // ones — which is the obvious way to write this — changes the
+              // widget at that slot the instant the swap happens, so the
+              // departing subtree is torn down and rebuilt from nothing. It
+              // then replays its own entrance while the switcher is fading it
+              // out: the list you just emptied fades *in* over 335ms on top of
+              // a 220ms fade out, which is the two-step this used to show
+              // after deleting the last Room.
               layoutBuilder: (current, previous) => Stack(
                 alignment: Alignment.topCenter,
                 children: [
-                  ...previous.map(
-                    (child) =>
-                        Positioned.fill(child: IgnorePointer(child: child)),
-                  ),
-                  ?current,
+                  for (final child in previous) _slot(child, leaving: true),
+                  if (current != null) _slot(current, leaving: false),
                 ],
               ),
               child: _body(context, state, copy),
@@ -134,6 +177,16 @@ class _RoomListPageState extends State<RoomListPage> {
       ),
     );
   }
+
+  /// One state of the body, in the slot every state shares.
+  ///
+  /// [leaving] only ever changes a flag — never the widgets around the child —
+  /// so a state that starts arriving and ends up leaving keeps the element it
+  /// was built with, and with it its scroll offset and its entrance.
+  static Widget _slot(Widget child, {required bool leaving}) => Positioned.fill(
+    key: ValueKey<Object?>(child.key),
+    child: IgnorePointer(ignoring: leaving, child: child),
+  );
 
   Widget _body(BuildContext context, RoomListState state, _RoomCopy copy) {
     if (state.loading && state.rooms.isEmpty) {
@@ -279,6 +332,7 @@ class _RoomListPageState extends State<RoomListPage> {
           controller: controller,
           autofocus: true,
           maxLength: 48,
+          buildCounter: localizedCounter(),
           textInputAction: TextInputAction.done,
           decoration: InputDecoration(hintText: hint),
           onSubmitted: (value) {
@@ -920,6 +974,7 @@ final class _RoomCopy {
   final bool fa;
 
   String get title => fa ? 'اتاق‌های ذخیره‌شده' : 'Saved rooms';
+  String get back => fa ? 'بازگشت' : 'Back';
   String get create => fa ? 'ساخت اتاق' : 'Create room';
   String get rename => fa ? 'تغییر نام' : 'Rename';
   String get save => fa ? 'ذخیره' : 'Save';

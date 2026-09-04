@@ -67,6 +67,7 @@ final class RoomMember {
     this.kind = RoomMemberKind.member,
     this.removedAt,
     this.pending = false,
+    this.heldUntil,
   });
 
   final RoomMemberId id;
@@ -89,12 +90,37 @@ final class RoomMember {
   /// as confirmed rather than being wiped by a schema bump.
   final bool pending;
 
+  /// When a held seat stops being one, or null for a seat with no hold.
+  ///
+  /// A seat is the shadow of the invite that opened it, and that invite dies
+  /// after its TTL: past this instant the code cannot be redeemed, so nobody
+  /// new can ever walk through this seat. Leaving it on the roster is how a
+  /// host who taps "Create invite" twice — a scan that did not take, a code
+  /// shown and dismissed — ends up with a permanent «جای خالی» row (R27c).
+  ///
+  /// Only ever set alongside [pending]: a confirmed member is not held open by
+  /// anything and their row must never be able to expire out from under them.
+  /// [RoomRepository.updateMember] drops it when the mark is cleared.
+  final DateTime? heldUntil;
+
   bool get isActive => removedAt == null;
+
+  /// A seat whose invite can no longer be redeemed, and which nobody arrived
+  /// through while it could be.
+  bool isExpiredHeldSeat(DateTime now) {
+    final until = heldUntil;
+    return isActive &&
+        pending &&
+        until != null &&
+        !now.toUtc().isBefore(until.toUtc());
+  }
 
   RoomMember copyWith({
     String? displayName,
     DateTime? removedAt,
     bool? pending,
+    DateTime? heldUntil,
+    bool clearHeldUntil = false,
   }) => RoomMember(
     id: id,
     displayName: displayName ?? this.displayName,
@@ -102,6 +128,7 @@ final class RoomMember {
     kind: kind,
     removedAt: removedAt ?? this.removedAt,
     pending: pending ?? this.pending,
+    heldUntil: clearHeldUntil ? null : (heldUntil ?? this.heldUntil),
   );
 }
 
@@ -168,6 +195,29 @@ final class Room {
     for (final member in members)
       if (member.isActive && member.pending) member,
   ];
+
+  /// This Room with every expired held seat withdrawn.
+  ///
+  /// Withdrawal rather than deletion, and by the same `removedAt` every other
+  /// departure uses, so nothing downstream needs to learn a second way for a
+  /// member to be gone — counting, the binding registry, the roster and the
+  /// seat confirmer all already read [RoomMember.isActive].
+  ///
+  /// Stamped with the moment the hold ran out rather than [now], which makes
+  /// the operation idempotent: applying it twice, or on two phones reading the
+  /// same record at different times, produces the same record.
+  Room withExpiredHeldSeatsWithdrawn(DateTime now) {
+    if (!members.any((member) => member.isExpiredHeldSeat(now))) return this;
+    return copyWith(
+      members: [
+        for (final member in members)
+          if (member.isExpiredHeldSeat(now))
+            member.copyWith(removedAt: member.heldUntil)
+          else
+            member,
+      ],
+    );
+  }
 
   Room copyWith({
     String? name,

@@ -167,6 +167,9 @@ Future<void> _flush() async {
 }
 
 class _RoomRepository implements RoomRepository {
+  @override
+  Stream<void> get changes => const Stream<void>.empty();
+
   _RoomRepository({this.selected, this.selectedFuture, this.saved});
 
   final RoomId? selected;

@@ -3,6 +3,8 @@ import 'dart:async';
 import '../../../transfer/api/transfer_api.dart';
 import '../../data/security/room_transport_identity_lifecycle.dart';
 import '../../data/security/room_transport_identity_secure_store.dart';
+import '../entity/held_seat_name.dart';
+import '../entity/room.dart';
 import '../entity/transport_attachment.dart';
 import '../repository/room_repository.dart';
 import 'room_capability_failover_runtime.dart';
@@ -120,6 +122,19 @@ final class SelectedRoomLiveSessionBinding {
 
       final identityMaterial = identity;
       if (identityMaterial != null) {
+        // Signed once, here, and carried by every proof the session sends.
+        // The name does not change between heartbeats, so making it
+        // challenge-bound would buy freshness nothing needs and pay for it on
+        // every ping.
+        final signedName = await _identityCrypto.signMemberName(
+          certificate: identityMaterial.certificate,
+          member: identityMaterial.memberKeyPair,
+          name: _localName(saved),
+        );
+        if (generation != _generation) {
+          await runtime.leave();
+          return null;
+        }
         final failoverRuntime = RoomFailoverRuntime(session: runtime);
         // Built before the promotion controller exists, so the callback
         // resolves it lazily through the local rather than capturing a null.
@@ -162,6 +177,7 @@ final class SelectedRoomLiveSessionBinding {
                   member: identityMaterial.memberKeyPair,
                   token: token,
                   sessionEpoch: challengeEpoch,
+                  name: signedName,
                 );
                 return proof.encode();
               },
@@ -234,6 +250,23 @@ final class SelectedRoomLiveSessionBinding {
     if (current != null && !current.hasLeft) await current.leave();
   }
 
+  /// What this phone calls itself in [saved], or empty when it has no name of
+  /// its own to offer.
+  ///
+  /// The placeholder is deliberately not sent. A joiner who never typed a name
+  /// still carries the seat name the *host* invented, and putting that on the
+  /// wire would have every phone in the room signing "Open seat" at each
+  /// other — worse than saying nothing, because the receiver would then treat
+  /// a placeholder as a settled answer and stop looking.
+  static String _localName(SavedRoom saved) {
+    final local = saved.room.members.where(
+      (member) => member.id == saved.membership.localMemberId,
+    );
+    if (local.length != 1) return '';
+    final name = local.single.displayName.trim();
+    return isHeldSeatPlaceholder(name) ? '' : name;
+  }
+
   static TransportKind transportKindFor(TransferMode mode) => switch (mode) {
     TransferMode.wifi => TransportKind.wifi,
     TransferMode.hotspot => TransportKind.hotspot,
@@ -297,7 +330,9 @@ final class _LiveFailoverSession {
         // and the proof path it hangs off is on the way to admitting live
         // capability evidence. A storage write must not be able to delay that,
         // and the confirmer already swallows its own failures.
-        onMemberProven: (memberId) => unawaited(seats.confirm(memberId)),
+        onMemberProven: (member) => unawaited(
+          seats.confirm(member.memberId, displayName: member.displayName),
+        ),
       );
     }
     _healthSubscription = health.listen(

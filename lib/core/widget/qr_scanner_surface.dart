@@ -507,7 +507,7 @@ class _Viewfinder extends StatelessWidget {
                 child: AnimatedSwitcher(
                   duration: AppMotion.card,
                   switchInCurve: AppMotion.easeOut,
-                  switchOutCurve: AppMotion.easeOut,
+                  switchOutCurve: AppMotion.leaving,
                   child: errorText == null
                       ? const SizedBox(width: double.infinity)
                       : Padding(

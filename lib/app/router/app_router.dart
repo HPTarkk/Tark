@@ -102,8 +102,17 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.walkiePath,
         name: AppRoutes.walkieName,
-        pageBuilder: (context, state) =>
-            roomPage(state, RoomBoundWalkieEntry.buildPage()),
+        // `ride` is set only by the screens whose job was establishing a link
+        // — the hotspot bridge, Bluetooth pairing, the guest link — on their
+        // way back here after the user tapped "Enter channel". Without it the
+        // selected Room opens its lobby, which is the deliberate pause every
+        // other route into this one wants.
+        pageBuilder: (context, state) => roomPage(
+          state,
+          RoomBoundWalkieEntry.buildPage(
+            ride: state.uri.queryParameters['ride'] == 'true',
+          ),
+        ),
       ),
       GoRoute(
         path: AppRoutes.bluetoothConnectPath,

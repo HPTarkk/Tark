@@ -202,7 +202,13 @@ class _BluetoothConnectPageState extends State<BluetoothConnectPage>
                 await Future<void>.delayed(LinkEstablished.hold);
                 if (!context.mounted) return;
                 try {
-                  context.goNamed(AppRoutes.walkieName);
+                  // See WifiHotspotPage._enterChannel: the link was just
+                  // established here, so a selected Room goes live rather
+                  // than back to its lobby to be asked again.
+                  context.goNamed(
+                    AppRoutes.walkieName,
+                    queryParameters: const {'ride': 'true'},
+                  );
                 } catch (e) {
                   // The flash keeps rendering for as long as the flag is set,
                   // so a jump that never lands leaves the user parked on
