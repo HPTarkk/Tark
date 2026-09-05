@@ -23,11 +23,9 @@ void main() {
     expect(lobby, contains('bootstrapHost: true'));
 
     final aloneBody = lobby.indexOf(
-      'if (alone)\n              ..._aloneBody(s, canInvite: canInvite)',
+      '..._aloneBody(s, canInvite: canInvite)',
     );
-    final unlinkedBody = lobby.indexOf(
-      'else if (unlinked)\n              ..._unlinkedBody',
-    );
+    final unlinkedBody = lobby.indexOf('..._unlinkedBody(s, members, held');
     expect(aloneBody, greaterThanOrEqualTo(0));
     expect(unlinkedBody, greaterThan(aloneBody));
 
