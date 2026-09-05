@@ -14,15 +14,34 @@ import '../../../../core/utils/logger.dart';
 import '../../../../core/widget/link_established.dart';
 import '../../../preflight/presentation/widget/silent_preflight_guard.dart';
 import '../../domain/entity/channel_intent.dart';
+import '../../domain/entity/hotspot_credentials.dart';
 import '../../domain/entity/transfer_mode.dart';
 import '../../domain/entity/wifi_hotspot_segment.dart';
 import '../manager/wifi_hotspot_cubit.dart';
 import '../widget/hotspot_host_flow.dart';
 import '../widget/hotspot_join_flow.dart';
+import '../widget/hotspot_join_states.dart';
 import '../widget/hotspot_role_picker.dart';
 import '../widget/hotspot_segmented_control.dart';
 import '../widget/hotspot_shared_widgets.dart';
 import '../widget/hotspot_wifi_only_flow.dart';
+
+/// Whether a bridge update is enough to leave transport setup and enter the
+/// channel.
+///
+/// A generic/manual bridge still waits until an actual peer packet is heard.
+/// The Room one-scan handoff is different: its membership was persisted before
+/// this page opened, and [JoinPhase.joined] is emitted only *after* Android has
+/// associated with the exact scanned network and bound the process to it. At
+/// that point waiting for a Waki packet deadlocks the flow because Room live
+/// publishers do not start until the Room route is allowed to open. Entering
+/// then lets the live binding exchange signed capability/presence evidence and
+/// confirm the pending seat without weakening any Room authorization check.
+bool shouldEnterChannelAfterBridgeUpdate({
+  required bool roomHandoff,
+  required HotspotBridgeState state,
+}) =>
+    state.peerConnected || (roomHandoff && state.joinPhase == JoinPhase.joined);
 
 /// Combined WiFi / Hotspot entry point (item 9 merges the two mode-picker
 /// tiles into one page):
@@ -42,11 +61,12 @@ class WifiHotspotPage extends StatefulWidget {
   /// A payload somebody else's scanner already read, handed over instead of
   /// asking for it again.
   ///
-  /// Set only by the Room's one-scan join page, when the code it was pointed
-  /// at turned out to carry a network rather than a Room invite (see
-  /// `ConnectRoute.forScannedNetwork`). The camera has already been held up to
-  /// that code once; opening it a second time on arrival would be the app
-  /// asking for something it is holding.
+  /// The Room one-scan page uses this after it has already persisted durable
+  /// membership and the same QR also carries hotspot credentials. A legacy
+  /// network-only scan can use the seam too; only a payload that actually has
+  /// a `TARKROOM1` extension gets the invisible Room-handoff behaviour below.
+  /// The camera has already been held up to either code once, so opening it a
+  /// second time on arrival would be the app asking for something it holds.
   final String? handedCode;
 
   /// [intent] carries a side the user has already chosen on the landing page,
@@ -96,6 +116,17 @@ class _WifiHotspotPageState extends State<WifiHotspotPage>
   /// instance, so a scan that comes back invalid (or a manual "scan again")
   /// never re-triggers the camera on its own.
   bool _autoScanTriggered = false;
+
+  /// True only for Tark's combined durable-Room + Wi-Fi payload.
+  ///
+  /// Merely having [WifiHotspotPage.handedCode] is not enough: old standalone
+  /// Wi-Fi QR handoffs use that seam as well and retain their original
+  /// peer-heard completion rule.
+  bool get _roomHandoff {
+    final raw = widget.handedCode;
+    if (raw == null) return false;
+    return ScannedCode.parse(raw)?.roomInvite != null;
+  }
 
   @override
   TransferMode get preflightMode =>
@@ -221,6 +252,17 @@ class _WifiHotspotPageState extends State<WifiHotspotPage>
   /// step out of.
   void _back(BuildContext context) {
     final cubit = context.read<WifiHotspotCubit>();
+
+    // A Room one-scan join never exposed or asked for a transport-side choice,
+    // so Back must not suddenly reveal the legacy Host / Join picker. Durable
+    // membership has already been accepted; cancel only the temporary bridge
+    // and return to that Room's lobby.
+    if (_roomHandoff) {
+      unawaited(cubit.leaveBridge());
+      context.goNamed(AppRoutes.walkieName);
+      return;
+    }
+
     if (cubit.state.segment == WifiHotspotSegment.hotspot &&
         cubit.state.role != null &&
         Platform.isAndroid) {
@@ -250,7 +292,81 @@ class _WifiHotspotPageState extends State<WifiHotspotPage>
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _back(context);
       },
-      child: _buildScaffold(context, s),
+      child: _roomHandoff
+          ? _buildRoomHandoffScaffold(context, s)
+          : _buildScaffold(context, s),
+    );
+  }
+
+  /// Normal Room entry deliberately does not expose transfer mechanics.
+  ///
+  /// While the already-scanned QR is being associated, this is a neutral
+  /// connection beat. Only actionable failures fall back to the existing join
+  /// flow (Wi-Fi off, Location off, manual join, lost link) so the rider can
+  /// recover without learning Host / Join roles or seeing a second QR.
+  Widget _buildRoomHandoffScaffold(BuildContext context, AppLocalizations s) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+          onPressed: () => _back(context),
+        ),
+      ),
+      body: SafeArea(
+        child: BlocConsumer<WifiHotspotCubit, HotspotBridgeState>(
+          listener: (context, state) {
+            if (shouldEnterChannelAfterBridgeUpdate(
+                  roomHandoff: true,
+                  state: state,
+                ) &&
+                !_navigating) {
+              unawaited(_enterChannel(context));
+            }
+          },
+          builder: (context, state) {
+            if (_navigating ||
+                state.peerConnected ||
+                state.joinPhase == JoinPhase.joined) {
+              return HotspotConnectedFlash(label: s.bt_connected);
+            }
+
+            if (state.joinPhase == JoinPhase.idle ||
+                state.joinPhase == JoinPhase.joining) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const HotspotReachPulse(),
+                      const SizedBox(height: 22),
+                      Text(
+                        s.hotspot_joining,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 13.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            // An intervention is actually required. Reuse the battle-tested
+            // switch/manual/lost recovery cards, but never show role selection,
+            // transport segments or another primary QR in the normal path.
+            return HotspotJoinFlow(
+              state: state,
+              onEnterChannel: () => unawaited(_enterChannel(context)),
+            );
+          },
+        ),
+      ),
     );
   }
 
@@ -272,7 +388,11 @@ class _WifiHotspotPageState extends State<WifiHotspotPage>
       body: SafeArea(
         child: BlocConsumer<WifiHotspotCubit, HotspotBridgeState>(
           listener: (context, state) {
-            if (state.peerConnected && !_navigating) {
+            if (shouldEnterChannelAfterBridgeUpdate(
+                  roomHandoff: false,
+                  state: state,
+                ) &&
+                !_navigating) {
               unawaited(_enterChannel(context));
             }
             _maybeAutoScan(context, state);
