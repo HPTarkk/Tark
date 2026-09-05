@@ -108,12 +108,14 @@ final class AndroidNetworkRebindCoordinator {
       // A host clear is asynchronous at the platform boundary. The one-scan
       // bootstrap can settle us back to joiner while that clear is still in
       // flight; if the stale clear then lands after the joiner's bind, Android
-      // is left unpinned without emitting another network callback. Reconcile
-      // the newest role once the stale side effect has actually completed.
+      // is left unpinned without emitting another network callback. Forget any
+      // optimistic bind recorded while the clear was pending and reconcile the
+      // newest role once that stale side effect has actually completed.
       if (!_disposed &&
           _active &&
           roleGeneration != _roleGeneration &&
           modeGeneration == _modeGeneration) {
+        _boundNetworkGeneration = null;
         unawaited(_reconcileRole(_roleGeneration));
       }
       return;
