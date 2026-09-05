@@ -19,9 +19,7 @@ void main() {
     expect(arbitraryWifi, greaterThan(active));
     expect(
       source,
-      contains(
-        'if (isLocalWifi(bound)) return bound',
-      ),
+      contains('if (isLocalWifi(bound)) return bound'),
       reason:
           'The exact app-scoped hotspot network selected by WifiJoinHandler '
           'must win over the internet/default Wi-Fi network.',
