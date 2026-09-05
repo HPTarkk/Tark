@@ -12,7 +12,7 @@ import '../../../transfer/api/transfer_api.dart';
 import '../../data/security/room_transport_identity_lifecycle.dart';
 import '../../domain/entity/room.dart';
 import '../../domain/repository/room_repository.dart';
-import 'room_people_sheet.dart';
+import 'one_scan_room_invite_sheet.dart';
 
 /// The way into the Room's people sheet from the channel screen.
 ///
@@ -181,15 +181,16 @@ class _InRoomPeopleActionState extends State<InRoomPeopleAction> {
 
   Future<void> _open() async {
     HapticFeedback.selectionClick();
-    await showRoomPeopleSheet(
+    await showOneScanRoomInviteSheet(
       context,
       repository: widget.repository,
       identityLifecycle: widget.identityLifecycle,
       hotspotLinkKeeper: widget.hotspotLinkKeeper,
       transferRepository: widget.transferRepository,
     );
-    // The sheet can add or revoke a seat, and leaving from it would drop the
-    // room out from under this control.
+    // Issuing the QR holds a pending seat; successful join later confirms it.
+    // Re-read either way so the member card follows durable Room state rather
+    // than whatever it showed before the sheet opened.
     await _refresh();
   }
 

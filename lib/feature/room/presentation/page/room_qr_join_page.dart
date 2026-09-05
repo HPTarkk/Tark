@@ -14,9 +14,11 @@ import '../manager/room_list_cubit.dart';
 
 /// One-scan Room entry. Membership is persisted before transport setup.
 ///
-/// Wears the same viewfinder as the hotspot scanner and the same amber
-/// brackets as the invite QR it is pointed at, so the handoff reads as one
-/// instrument rather than three unrelated screens.
+/// A current host can carry its Wi-Fi bootstrap and the durable Room invite in
+/// the same standard `WIFI:` QR. Tark validates/persists the Room half first,
+/// then hands that exact already-scanned payload to the hotspot bridge. The
+/// camera never opens a second time and transport remains an implementation
+/// detail rather than a user decision.
 class RoomQrJoinPage extends StatefulWidget {
   const RoomQrJoinPage({required this.cubit, super.key});
 
@@ -44,7 +46,13 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
   /// fresh one.
   Future<bool> _onCode(String raw) async {
     try {
-      final bundle = RoomDirectJoinBundle.decode(raw);
+      // A one-scan live invite is still a standards-compliant Wi-Fi QR; its
+      // Room token is an opaque Tark extension. Ordinary Room QR codes have no
+      // network wrapper, so the raw value remains the fallback.
+      final scanned = ScannedCode.parse(raw);
+      final roomRaw = scanned?.roomInvite ?? raw;
+      final bundle = RoomDirectJoinBundle.decode(roomRaw);
+
       // Read before joining so the roster is right the first time it is drawn.
       // A name that appears a beat later reads as the app correcting itself.
       var myName = '';
@@ -62,7 +70,15 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
       );
       if (!mounted) return false;
       if (joined) {
-        context.go(AppRoutes.walkiePath);
+        // Membership is now durable and selected. If this same scan also
+        // carried the active host's Wi-Fi credentials, spend them immediately
+        // instead of asking for another QR. `handedCode` on the bridge submits
+        // the payload after its first frame and never opens the scanner.
+        if (scanned?.credentials != null) {
+          context.go(ConnectRoute.forScannedNetwork(), extra: raw);
+        } else {
+          context.go(AppRoutes.walkiePath);
+        }
         return true;
       }
       setState(() => _error = context.getString.roomjoin_not_joined);
@@ -73,24 +89,12 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
     }
   }
 
-  /// What to do with a code that decoded as anything but a Room invite.
+  /// What to do with a code that has no valid durable Room invite.
   ///
-  /// **There are two QR codes in this app.** The bridge shows the host's Wi-Fi
-  /// credentials; the People sheet shows a Room invite. They are deliberately
-  /// the same instrument at both ends — this page's own doc says it "wears the
-  /// same viewfinder as the hotspot scanner and the same amber brackets as the
-  /// invite QR", so the handoff reads as one thing — and that is precisely
-  /// what makes them confusable. Nothing on either screen said which of the
-  /// two it eats, so a rider standing in front of a perfectly good hotspot
-  /// code was told their invite had expired.
-  ///
-  /// So the wrong pairing stops being an error and becomes a route. The code
-  /// carries a network and, since the unified payload, the host's channel with
-  /// it — and voice is filtered on the channel rather than on Room membership,
-  /// so following it puts this phone on the host's network *and* in the host's
-  /// conversation. Not a Room member, which is a different and durable thing;
-  /// but heard, which is what somebody holding a camera up to a code is
-  /// asking for.
+  /// Legacy/network-only Wi-Fi QR codes remain useful: they can still put the
+  /// rider on the host's link even though they cannot establish durable Room
+  /// membership. Current in-Room invites no longer need this fallback because
+  /// they carry both halves in the one scanned payload.
   ///
   /// The payload rides in `extra` rather than in the query string on purpose:
   /// it contains the network's passphrase.

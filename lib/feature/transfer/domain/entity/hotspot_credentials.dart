@@ -32,25 +32,29 @@ class HotspotCredentials extends Equatable {
   /// would be parsed as a field separator.
   ///
   /// [channel], when named, rides along as a `TARK1:` field **inside the same
-  /// payload** rather than as a second code on screen. This is the whole of
-  /// the "unified QR": the format is a list of `KEY:value;` pairs and every
-  /// scanner in the world skips keys it does not know — which is not an
-  /// assumption but the format's own history, since WPA3 added `K:` and every
-  /// pre-existing scanner had to keep working. So the system camera still
-  /// offers its one-tap "join this network" and ignores the channel, while
-  /// Tarkk's scanner reads both. Making the payload Tarkk-specific instead
-  /// would have bought the channel at the cost of that one-tap path, which is
-  /// the fastest route onto a hotspot the app has.
+  /// payload** rather than as a second code on screen. [roomInvite], when
+  /// supplied, does the same for the durable Room handoff under `TARKROOM1:`.
+  /// This is #186's one-scan late-join path: Tark's scanner persists Room
+  /// membership first and then hands this *same already-scanned payload* to
+  /// the hotspot joiner, so nobody has to scan a second Wi-Fi QR.
   ///
-  /// The version lives in the *key* (`TARK1`) rather than in the value, so a
-  /// future format change is an unknown key to this build — ignored, falling
-  /// back to an open channel — instead of a value it would misparse.
-  String qrPayload({ChannelId channel = ChannelId.open}) {
+  /// Both extensions are ignored by ordinary system Wi-Fi scanners. That is
+  /// deliberate compatibility: the payload stays a normal `WIFI:` code, so a
+  /// non-Tark scanner can still join the network while Tark gets the extra
+  /// local metadata it understands.
+  ///
+  /// The version lives in each key (`TARK1`, `TARKROOM1`) rather than in the
+  /// value, so a future format change is an unknown key to this build —
+  /// ignored instead of misparsed.
+  String qrPayload({ChannelId channel = ChannelId.open, String? roomInvite}) {
     final s = _escape(ssid);
     final p = _escape(passphrase);
     final code = channel.code;
     final tark = code == null ? '' : '$_channelKey:$code;';
-    return 'WIFI:S:$s;T:$security;P:$p;H:false;$tark;';
+    final room = roomInvite == null || roomInvite.trim().isEmpty
+        ? ''
+        : '$_roomKey:${_escape(roomInvite.trim())};';
+    return 'WIFI:S:$s;T:$security;P:$p;H:false;$tark$room;';
   }
 
   /// Kept for the many call sites that only ever wanted the network.
@@ -67,6 +71,7 @@ class HotspotCredentials extends Equatable {
       '$_channelKey:${channel.code ?? ''}';
 
   static const _channelKey = 'TARK1';
+  static const _roomKey = 'TARKROOM1';
 
   static String _escape(String value) =>
       value.replaceAllMapped(RegExp(r'([\\;,:"])'), (m) => '\\${m[1]}');
@@ -81,8 +86,9 @@ class HotspotCredentials extends Equatable {
   /// Splits a `KEY:value;` payload into its fields, upper-casing the keys.
   ///
   /// Unknown keys are kept rather than rejected — that tolerance is what lets
-  /// `TARK1` ride inside a Wi-Fi payload, and it is the same tolerance every
-  /// other scanner has to have for us to ride there in the first place.
+  /// `TARK1`/`TARKROOM1` ride inside a Wi-Fi payload, and it is the same
+  /// tolerance every other scanner has to have for us to ride there in the
+  /// first place.
   static Map<String, String> _fields(String body) {
     final fields = <String, String>{};
     final buffer = StringBuffer();
@@ -90,7 +96,7 @@ class HotspotCredentials extends Equatable {
     for (var i = 0; i < body.length; i++) {
       final ch = body[i];
       if (ch == '\\' && i + 1 < body.length) {
-        buffer.write(body[++i]); // escaped char — keep the next literally
+        buffer.write(body[++i]);
       } else if (ch == ':' && key == null) {
         key = buffer.toString();
         buffer.clear();
@@ -114,30 +120,23 @@ class HotspotCredentials extends Equatable {
 
 /// Everything one scanned code can hand over.
 ///
-/// The two halves are independent on purpose, because all four combinations
-/// genuinely occur:
-///
-///  * **network + channel** — a host on this build, the ordinary case
-///  * **network only** — a host on an older build, or any Wi-Fi QR printed on
-///    a café wall; joins the network and stays on the open channel
-///  * **channel only** — two phones already on one network, where the only
-///    thing worth passing across is which conversation to be in
-///  * **neither** — not our code at all, and [parse] answers null
+/// The network/channel halves remain independent. A Room invite is another
+/// optional extension rather than a replacement transport format: it exists
+/// only when the QR was minted from an active Room hotspot and lets Tark turn
+/// one camera scan into durable membership + transport attachment.
 class ScannedCode {
-  const ScannedCode({required this.credentials, required this.channel});
+  const ScannedCode({
+    required this.credentials,
+    required this.channel,
+    this.roomInvite,
+  });
 
-  /// The network to join, or null when the code carried none.
   final HotspotCredentials? credentials;
-
-  /// The channel to adopt, or [ChannelId.open] when the code named none.
   final ChannelId channel;
 
-  /// Reads either payload shape, or returns null for anything that is neither.
-  ///
-  /// A `TARK1` field whose value is not a valid code is treated as no channel
-  /// rather than as a failure: the network half of the same payload is still
-  /// perfectly usable, and refusing the whole scan over a garbled extension
-  /// would turn a working join into a dead end.
+  /// Opaque durable Room invite carried by a Tark-aware Wi-Fi QR.
+  final String? roomInvite;
+
   static ScannedCode? parse(String raw) {
     final trimmed = raw.trim();
     final upper = trimmed.toUpperCase();
@@ -147,6 +146,7 @@ class ScannedCode {
       final ssid = fields['S'];
       if (ssid == null || ssid.isEmpty) return null;
       final type = fields['T'];
+      final roomInvite = fields[HotspotCredentials._roomKey]?.trim();
       return ScannedCode(
         credentials: HotspotCredentials(
           ssid: ssid,
@@ -154,6 +154,9 @@ class ScannedCode {
           security: (type == null || type.isEmpty) ? 'WPA' : type,
         ),
         channel: _channelFrom(fields),
+        roomInvite: roomInvite == null || roomInvite.isEmpty
+            ? null
+            : roomInvite,
       );
     }
 
