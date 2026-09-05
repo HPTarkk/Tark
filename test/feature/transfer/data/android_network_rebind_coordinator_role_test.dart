@@ -87,6 +87,78 @@ void main() {
     await modes.dispose();
     await port.dispose();
   });
+
+  test('stale host clear cannot win over a newer joiner bind', () async {
+    final modes = _ModeStore(TransferMode.hotspot);
+    final roles = SessionRoleStoreImpl()..setRole(SessionRole.joiner);
+    final clearGate = Completer<void>();
+    final port = _BindingPort(currentSelection: wifi, clearGate: clearGate);
+    var socketRebinds = 0;
+    final coordinator = AndroidNetworkRebindCoordinator(
+      () => socketRebinds++,
+      modes,
+      roles,
+      port: port,
+    );
+
+    await coordinator.start();
+    expect(port.bindGenerations, [33]);
+
+    // Begin the host-side clear but hold it inside the platform boundary.
+    roles.setRole(SessionRole.host);
+    await _settle();
+    expect(port.clearCount, 1);
+
+    // One-scan bootstrap settles back to joiner before the old clear returns.
+    roles.setRole(SessionRole.joiner);
+    await _settle();
+    expect(port.bindGenerations, [33, 33]);
+
+    // The stale clear lands last. The coordinator must notice its role epoch is
+    // obsolete, forget the optimistic binding, and re-pin the current Wi-Fi.
+    clearGate.complete();
+    await _settle();
+    await _settle();
+    expect(port.bindGenerations, [33, 33, 33]);
+    expect(socketRebinds, 2);
+
+    await coordinator.dispose();
+    await modes.dispose();
+    await port.dispose();
+  });
+
+  test('in-flight initial joiner bind cannot pin a newly-hosting device', () async {
+    final modes = _ModeStore(TransferMode.hotspot);
+    final roles = SessionRoleStoreImpl()..setRole(SessionRole.joiner);
+    final bindGate = Completer<void>();
+    final port = _BindingPort(currentSelection: wifi, bindGate: bindGate);
+    final coordinator = AndroidNetworkRebindCoordinator(
+      () {},
+      modes,
+      roles,
+      port: port,
+    );
+
+    final starting = coordinator.start();
+    await _settle();
+    expect(port.bindGenerations, [33]);
+
+    // Role election finishes while Android is still processing the joiner bind.
+    roles.setRole(SessionRole.host);
+    await _settle();
+    expect(port.clearCount, 1);
+
+    bindGate.complete();
+    await starting;
+    await _settle();
+
+    // The late bind cannot be allowed to become the host's final process route.
+    expect(port.clearCount, 2);
+
+    await coordinator.dispose();
+    await modes.dispose();
+    await port.dispose();
+  });
 }
 
 Future<void> _settle() async {
@@ -138,9 +210,11 @@ final class _ModeStore implements TransferModeStore {
 }
 
 final class _BindingPort implements AndroidNetworkBindingPort {
-  _BindingPort({this.currentSelection});
+  _BindingPort({this.currentSelection, this.clearGate, this.bindGate});
 
   AndroidNetworkSelection? currentSelection;
+  final Completer<void>? clearGate;
+  final Completer<void>? bindGate;
   final _changes = StreamController<AndroidNetworkSelection>.broadcast(
     sync: true,
   );
@@ -156,12 +230,14 @@ final class _BindingPort implements AndroidNetworkBindingPort {
   @override
   Future<bool> bind(AndroidNetworkSelection selection) async {
     bindGenerations.add(selection.generation);
+    await bindGate?.future;
     return true;
   }
 
   @override
   Future<void> clear() async {
     clearCount++;
+    await clearGate?.future;
   }
 
   void emit(AndroidNetworkSelection selection) {
