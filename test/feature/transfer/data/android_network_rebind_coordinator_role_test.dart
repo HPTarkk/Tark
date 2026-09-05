@@ -17,41 +17,44 @@ void main() {
     isWifi: true,
   );
 
-  test('late joiner role reconciles an already-selected Wi-Fi network', () async {
-    final modes = _ModeStore(TransferMode.hotspot);
-    final roles = SessionRoleStoreImpl()..setRole(SessionRole.host);
-    final port = _BindingPort(currentSelection: wifi);
-    var socketRebinds = 0;
-    final coordinator = AndroidNetworkRebindCoordinator(
-      () => socketRebinds++,
-      modes,
-      roles,
-      port: port,
-    );
+  test(
+    'late joiner role reconciles an already-selected Wi-Fi network',
+    () async {
+      final modes = _ModeStore(TransferMode.hotspot);
+      final roles = SessionRoleStoreImpl()..setRole(SessionRole.host);
+      final port = _BindingPort(currentSelection: wifi);
+      var socketRebinds = 0;
+      final coordinator = AndroidNetworkRebindCoordinator(
+        () => socketRebinds++,
+        modes,
+        roles,
+        port: port,
+      );
 
-    await coordinator.start();
-    port.emit(wifi);
-    await _settle();
+      await coordinator.start();
+      port.emit(wifi);
+      await _settle();
 
-    expect(port.bindGenerations, isEmpty);
-    expect(socketRebinds, 0);
+      expect(port.bindGenerations, isEmpty);
+      expect(socketRebinds, 0);
 
-    roles.setRole(SessionRole.joiner);
-    await _settle();
+      roles.setRole(SessionRole.joiner);
+      await _settle();
 
-    expect(port.bindGenerations, [33]);
-    expect(socketRebinds, 1);
+      expect(port.bindGenerations, [33]);
+      expect(socketRebinds, 1);
 
-    // Repeating the same role is not a new epoch and must not duplicate work.
-    roles.setRole(SessionRole.joiner);
-    await _settle();
-    expect(port.bindGenerations, [33]);
-    expect(socketRebinds, 1);
+      // Repeating the same role is not a new epoch and must not duplicate work.
+      roles.setRole(SessionRole.joiner);
+      await _settle();
+      expect(port.bindGenerations, [33]);
+      expect(socketRebinds, 1);
 
-    await coordinator.dispose();
-    await modes.dispose();
-    await port.dispose();
-  });
+      await coordinator.dispose();
+      await modes.dispose();
+      await port.dispose();
+    },
+  );
 
   test('role change back to host clears a client process binding', () async {
     final modes = _ModeStore(TransferMode.hotspot);
