@@ -32,6 +32,7 @@ class SelectedRoomLobby extends StatefulWidget {
     this.mode,
     this.onConnect,
     this.repository,
+    this.preLiveBootstrap,
     super.key,
   });
 
@@ -47,6 +48,11 @@ class SelectedRoomLobby extends StatefulWidget {
 
   final RoomRepository? repository;
 
+  /// Test seam around the hidden transfer bridge. Production deliberately
+  /// resolves the real bridge lazily only when an eligible bootstrap host has
+  /// no current link at the moment Start is pressed.
+  final PreLiveHotspotBootstrap? preLiveBootstrap;
+
   @override
   State<SelectedRoomLobby> createState() => _SelectedRoomLobbyState();
 }
@@ -54,6 +60,7 @@ class SelectedRoomLobby extends StatefulWidget {
 class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
   late SavedRoom _room = widget.room;
   StreamSubscription<void>? _changes;
+  bool _starting = false;
 
   RoomRepository? get _repository {
     if (widget.repository != null) return widget.repository;
@@ -131,6 +138,35 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
     await _reload();
   }
 
+  Future<void> _startRide() async {
+    if (_starting) return;
+    setState(() => _starting = true);
+    try {
+      final link = widget.link;
+
+      // Do not guess while the first link probe is still unresolved. If Wi-Fi,
+      // an existing Tark hotspot, or Bluetooth is already up, the router/live
+      // binding gets first use of it and actual peer health decides whether it
+      // is viable. That preserves the LAN-first path without treating a local
+      // Wi-Fi interface as proof of shared reachability.
+      //
+      // Once the probe has positively said "no link", only the deterministic
+      // preferred bootstrap side may raise Tark's fallback hotspot. The same
+      // transfer bridge used by the one-scan invite owns permissions/retries
+      // and hands the established attachment to HotspotLinkKeeper. No Host /
+      // Join choice or network instructions enter the Room UI.
+      if (link != null && !link.isUp && _isPreferredBootstrapHost) {
+        await (widget.preLiveBootstrap ?? PreLiveHotspotBootstrap())
+            .prepareHost();
+      }
+
+      if (!mounted) return;
+      widget.onStartRide();
+    } finally {
+      if (mounted) setState(() => _starting = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
@@ -203,7 +239,8 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
               icon: Icons.play_arrow_rounded,
               label: s.lobby_start_ride,
               primary: !alone || !canInvite,
-              onTap: widget.onStartRide,
+              busy: _starting,
+              onTap: _startRide,
             ),
           ],
         ),
@@ -324,6 +361,7 @@ class _RoomAction extends StatelessWidget {
     required this.label,
     required this.primary,
     required this.onTap,
+    this.busy = false,
     super.key,
   });
 
@@ -331,6 +369,7 @@ class _RoomAction extends StatelessWidget {
   final String label;
   final bool primary;
   final VoidCallback onTap;
+  final bool busy;
 
   @override
   Widget build(BuildContext context) {
@@ -339,10 +378,12 @@ class _RoomAction extends StatelessWidget {
       button: true,
       label: label,
       child: InkWell(
-        onTap: () {
-          HapticFeedback.selectionClick();
-          onTap();
-        },
+        onTap: busy
+            ? null
+            : () {
+                HapticFeedback.selectionClick();
+                onTap();
+              },
         borderRadius: BorderRadius.circular(16),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
@@ -359,7 +400,17 @@ class _RoomAction extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: accent, size: 21),
+              if (busy)
+                SizedBox(
+                  width: 19,
+                  height: 19,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: accent,
+                  ),
+                )
+              else
+                Icon(icon, color: accent, size: 21),
               const SizedBox(width: 10),
               Flexible(
                 child: Text(
