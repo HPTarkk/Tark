@@ -6,7 +6,8 @@ import '../../domain/entity/session_role.dart';
 import '../../domain/service/session_role_store.dart';
 
 @LazySingleton(as: SessionRoleStore)
-class SessionRoleStoreImpl implements SessionRoleStore, SessionRoleChangeSource {
+class SessionRoleStoreImpl
+    implements SessionRoleStore, SessionRoleChangeSource {
   SessionRole? _role;
   final StreamController<SessionRole?> _changes =
       StreamController<SessionRole?>.broadcast(sync: true);
