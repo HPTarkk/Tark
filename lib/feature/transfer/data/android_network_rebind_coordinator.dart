@@ -62,6 +62,7 @@ final class AndroidNetworkRebindCoordinator {
 
   StreamSubscription<AndroidNetworkSelection>? _networkSub;
   StreamSubscription<TransferMode>? _modeSub;
+  StreamSubscription<SessionRole?>? _roleSub;
   int _modeGeneration = 0;
   int? _boundNetworkGeneration;
   bool _active = false;
@@ -72,11 +73,45 @@ final class AndroidNetworkRebindCoordinator {
     if (_disposed || _networkSub != null) return;
     _networkSub = _port.changes.listen(_onNetworkChanged);
     _modeSub = _modes.modeChanges.listen(_onModeChanged);
+    final roles = _roles;
+    if (roles is SessionRoleChangeSource) {
+      _roleSub = roles.roleChanges.listen(_onRoleChanged);
+    }
     await _applyMode(_modes.mode);
   }
 
   void _onModeChanged(TransferMode mode) {
     unawaited(_applyMode(mode));
+  }
+
+  void _onRoleChanged(SessionRole? _) {
+    // Android can report a selected local Wi-Fi Network before the one-scan
+    // bootstrap has committed this device's temporary session role. If that
+    // first callback arrived while we still looked like the host, it was
+    // correctly ignored — but there may be no second platform callback after
+    // the role becomes joiner. Re-read the current selection now so a settled
+    // role cannot strand otherwise-successful Wi-Fi joins on the wrong process
+    // network.
+    unawaited(_reconcileRole());
+  }
+
+  Future<void> _reconcileRole() async {
+    if (_disposed || !_active) return;
+    final generation = _modeGeneration;
+    if (_hosting) {
+      _boundNetworkGeneration = null;
+      _loggedHostSkip = false;
+      await _port.clear();
+      return;
+    }
+
+    final selection = await _port.current();
+    if (_disposed || !_active || generation != _modeGeneration || _hosting) {
+      return;
+    }
+    if (!_eligible(selection)) return;
+    if (_boundNetworkGeneration == selection!.generation) return;
+    await _adoptNetwork(selection, generation);
   }
 
   Future<void> _applyMode(TransferMode mode) async {
@@ -171,8 +206,10 @@ final class AndroidNetworkRebindCoordinator {
     _modeGeneration++;
     await _networkSub?.cancel();
     await _modeSub?.cancel();
+    await _roleSub?.cancel();
     _networkSub = null;
     _modeSub = null;
+    _roleSub = null;
     await _port.clear();
   }
 }
