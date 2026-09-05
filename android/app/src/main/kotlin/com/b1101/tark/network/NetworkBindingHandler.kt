@@ -125,14 +125,39 @@ class NetworkBindingHandler(
         return connectivity.bindProcessToNetwork(selected)
     }
 
-    /** Prefer a non-VPN Wi-Fi network over Android's default (which may be VPN). */
+    private fun isLocalWifi(network: Network?): Boolean {
+        if (network == null) return false
+        val caps = connectivity.getNetworkCapabilities(network) ?: return false
+        return caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) &&
+            !caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)
+    }
+
+    /**
+     * Prefer the process-bound Wi-Fi selected by [WifiJoinHandler] before
+     * looking at Android's default or arbitrary Wi-Fi handles.
+     *
+     * A local-only hotspot requested through WifiNetworkSpecifier is normally
+     * *not* Android's default network because it deliberately has no internet.
+     * `WifiJoinHandler` verifies the expected SSID/station network and pins the
+     * process to that exact handle. Picking `allNetworks.firstOrNull` here can
+     * then choose the user's ordinary router instead and immediately overwrite
+     * the correct pin. The field symptom is asymmetric reachability: the host
+     * hears the joiner while the joiner's outbound UDP follows the router.
+     *
+     * The existing process binding is therefore the strongest evidence we
+     * have. Only when there is no eligible bound Wi-Fi do we fall back to an
+     * eligible default Wi-Fi, and only then to another non-VPN Wi-Fi handle.
+     */
+    @Suppress("DEPRECATION")
     private fun selectedNetwork(): Network? {
-        val wifi = connectivity.allNetworks.firstOrNull { network ->
-            val caps = connectivity.getNetworkCapabilities(network) ?: return@firstOrNull false
-            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) &&
-                !caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)
-        }
-        return wifi ?: connectivity.activeNetwork
+        val bound = runCatching { connectivity.boundNetworkForProcess }.getOrNull()
+        if (isLocalWifi(bound)) return bound
+
+        val active = connectivity.activeNetwork
+        if (isLocalWifi(active)) return active
+
+        val wifi = connectivity.allNetworks.firstOrNull(::isLocalWifi)
+        return wifi ?: active
     }
 
     private fun snapshot(network: Network?): Map<String, Any?> {
