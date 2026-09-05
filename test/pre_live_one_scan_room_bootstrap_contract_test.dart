@@ -22,8 +22,19 @@ void main() {
     );
     expect(lobby, contains('bootstrapHost: true'));
 
+    final aloneBody = lobby.indexOf(
+      'if (alone)\n              ..._aloneBody(s, canInvite: canInvite)',
+    );
+    final unlinkedBody = lobby.indexOf(
+      'else if (unlinked)\n              ..._unlinkedBody',
+    );
+    expect(aloneBody, greaterThanOrEqualTo(0));
+    expect(unlinkedBody, greaterThan(aloneBody));
+
     final bootstrapCall = sheet.indexOf('.prepareHost()');
-    final inviteWrite = sheet.indexOf('final invite = await _repository.issueInvite(');
+    final inviteWrite = sheet.indexOf(
+      'final invite = await _repository.issueInvite(',
+    );
     expect(bootstrapCall, greaterThanOrEqualTo(0));
     expect(inviteWrite, greaterThan(bootstrapCall));
     expect(
