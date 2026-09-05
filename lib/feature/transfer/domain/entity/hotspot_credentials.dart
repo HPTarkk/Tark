@@ -46,10 +46,7 @@ class HotspotCredentials extends Equatable {
   /// The version lives in each key (`TARK1`, `TARKROOM1`) rather than in the
   /// value, so a future format change is an unknown key to this build —
   /// ignored instead of misparsed.
-  String qrPayload({
-    ChannelId channel = ChannelId.open,
-    String? roomInvite,
-  }) {
+  String qrPayload({ChannelId channel = ChannelId.open, String? roomInvite}) {
     final s = _escape(ssid);
     final p = _escape(passphrase);
     final code = channel.code;
@@ -99,7 +96,7 @@ class HotspotCredentials extends Equatable {
     for (var i = 0; i < body.length; i++) {
       final ch = body[i];
       if (ch == '\\' && i + 1 < body.length) {
-        buffer.write(body[++i]); // escaped char — keep the next literally
+        buffer.write(body[++i]);
       } else if (ch == ':' && key == null) {
         key = buffer.toString();
         buffer.clear();
@@ -134,26 +131,12 @@ class ScannedCode {
     this.roomInvite,
   });
 
-  /// The network to join, or null when the code carried none.
   final HotspotCredentials? credentials;
-
-  /// The channel to adopt, or [ChannelId.open] when the code named none.
   final ChannelId channel;
 
   /// Opaque durable Room invite carried by a Tark-aware Wi-Fi QR.
-  ///
-  /// Transfer never decodes this value; the Room feature remains the authority
-  /// over membership/certificates and validates it before transport is acted
-  /// on. Keeping it opaque here avoids coupling transport to Room internals.
   final String? roomInvite;
 
-  /// Reads either payload shape, or returns null for anything that is neither.
-  ///
-  /// A `TARK1` field whose value is not a valid code is treated as no channel
-  /// rather than as a failure: the network half of the same payload is still
-  /// perfectly usable, and refusing the whole scan over a garbled extension
-  /// would turn a working join into a dead end. `TARKROOM1` is kept opaque for
-  /// the same reason; Room decides whether it is a valid invite.
   static ScannedCode? parse(String raw) {
     final trimmed = raw.trim();
     final upper = trimmed.toUpperCase();
@@ -171,7 +154,9 @@ class ScannedCode {
           security: (type == null || type.isEmpty) ? 'WPA' : type,
         ),
         channel: _channelFrom(fields),
-        roomInvite: roomInvite == null || roomInvite.isEmpty ? null : roomInvite,
+        roomInvite: roomInvite == null || roomInvite.isEmpty
+            ? null
+            : roomInvite,
       );
     }
 
