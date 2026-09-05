@@ -21,6 +21,8 @@ void main() {
   var leaveCalls = 0;
 
   setUp(() {
+    joinCalls = 0;
+    leaveCalls = 0;
     joiner = AndroidWifiJoiner();
     nativeJoin = Completer<bool?>();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
