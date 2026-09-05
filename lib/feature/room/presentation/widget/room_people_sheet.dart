@@ -499,9 +499,6 @@ class _MemberRow extends StatelessWidget {
           color: pending
               ? AppColors.border
               : AppColors.amber.withValues(alpha: 0.28),
-          // A dashed border would say "placeholder" better, but it costs a
-          // custom painter per row; a flat one plus the muted palette carries
-          // the same message for a fraction of the raster.
         ),
       ),
       child: Row(
@@ -666,95 +663,101 @@ class _InvitePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final credentials = wifi;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 8, 18, 18),
-      child: StaggeredEntrance(
-        builder: (context, children) => Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: children,
-        ),
-        children: [
-          SheetTitle(
-            title: context.getString.people_invite_title,
-            subtitle: room.room.name,
+    var showNetworkDetails = false;
+    return StatefulBuilder(
+      builder: (context, setLocalState) => Padding(
+        padding: const EdgeInsets.fromLTRB(18, 8, 18, 18),
+        child: StaggeredEntrance(
+          builder: (context, children) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: children,
           ),
-          const SizedBox(height: 16),
-          Center(
-            child: GlowingQrCard(
-              key: const Key('room-invite-qr'),
-              data: invite.encoded,
-              // As large as the sheet will allow: the payload sets the module
-              // count, and the only lever left on whether a camera can resolve
-              // them is how many logical pixels each one gets.
-              size: 250,
-              // Branded while the payload is small enough to afford it. The
-              // mark needs error-correction level Q, which costs modules, so
-              // a large roster drops it rather than shrink them — see
-              // RoomDirectJoinBundle.brandableEncodedLength.
-              branded:
-                  invite.encoded.length <=
-                  RoomDirectJoinBundle.brandableEncodedLength,
+          children: [
+            SheetTitle(
+              title: context.getString.people_invite_title,
+              subtitle: room.room.name,
             ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            context.getString.people_invite_hint,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 12.5,
-              height: 1.5,
+            const SizedBox(height: 16),
+            Center(
+              child: GlowingQrCard(
+                key: const Key('room-invite-qr'),
+                data: invite.encoded,
+                size: 250,
+                branded:
+                    invite.encoded.length <=
+                    RoomDirectJoinBundle.brandableEncodedLength,
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          _CheckCode(code: invite.displayCode),
-          if (grantsInvites) ...[
-            const SizedBox(height: 12),
-            _Note(text: context.getString.people_granted_note, accent: true),
-          ],
-          if (credentials != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              context.getString.people_invite_hint,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12.5,
+                height: 1.5,
+              ),
+            ),
             const SizedBox(height: 16),
-            _WifiSection(credentials: credentials),
-          ] else if (recovering) ...[
-            const SizedBox(height: 16),
-            _Note(text: context.getString.people_wifi_recovering),
-          ],
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                // The confirmation is the control's own state, not a
-                // `SnackBar`: this is a modal sheet, so a snack is drawn
-                // beneath it and nothing at all appears to happen.
-                child: TapConfirmation(
-                  builder: (context, copied, confirm) => _SecondaryAction(
-                    key: const Key('room-invite-copy'),
-                    confirmed: copied,
-                    icon: copied ? Icons.check_rounded : Icons.copy_rounded,
-                    label: copied
-                        ? context.getString.people_copied
-                        : context.getString.people_copy_invite,
-                    onTap: () async {
-                      await Clipboard.setData(
-                        ClipboardData(text: invite.encoded),
-                      );
-                      confirm();
-                    },
+            _CheckCode(code: invite.displayCode),
+            if (grantsInvites) ...[
+              const SizedBox(height: 12),
+              _Note(text: context.getString.people_granted_note, accent: true),
+            ],
+            if (credentials != null || recovering) ...[
+              const SizedBox(height: 16),
+              _SecondaryAction(
+                key: const Key('room-invite-network-help'),
+                icon: Icons.wifi_tethering_rounded,
+                label: showNetworkDetails
+                    ? context.getString.hotspot_hide_credentials
+                    : context.getString.hotspot_show_credentials,
+                onTap: () => setLocalState(
+                  () => showNetworkDetails = !showNetworkDetails,
+                ),
+              ),
+              if (showNetworkDetails) ...[
+                const SizedBox(height: 12),
+                if (credentials != null)
+                  _WifiSection(credentials: credentials)
+                else
+                  _Note(text: context.getString.people_wifi_recovering),
+              ],
+            ],
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: TapConfirmation(
+                    builder: (context, copied, confirm) => _SecondaryAction(
+                      key: const Key('room-invite-copy'),
+                      confirmed: copied,
+                      icon: copied ? Icons.check_rounded : Icons.copy_rounded,
+                      label: copied
+                          ? context.getString.people_copied
+                          : context.getString.people_copy_invite,
+                      onTap: () async {
+                        await Clipboard.setData(
+                          ClipboardData(text: invite.encoded),
+                        );
+                        confirm();
+                      },
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _PrimaryAction(
-                  icon: Icons.check_rounded,
-                  label: context.getString.people_done,
-                  onTap: onDone,
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _PrimaryAction(
+                    icon: Icons.check_rounded,
+                    label: context.getString.people_done,
+                    onTap: onDone,
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -780,8 +783,6 @@ class _CheckCode extends StatelessWidget {
           style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
         ),
         const SizedBox(height: 4),
-        // Codes stay LTR in Persian: a check value read aloud digit by digit
-        // must not be reordered by the paragraph direction.
         Directionality(
           textDirection: TextDirection.ltr,
           child: SelectableText(
@@ -974,15 +975,6 @@ class _PrimaryAction extends StatelessWidget {
   );
 }
 
-/// A quiet action beside the primary one, optionally able to confirm itself.
-///
-/// [confirmed] turns the control green for a beat and swaps its contents
-/// through, which is how this sheet reports a copy: it is a modal, so anything
-/// raised on the `ScaffoldMessenger` behind it is invisible.
-///
-/// The whole label row is swapped as one child rather than the icon alone, so
-/// the glyph, the word and the colour arrive together — three separately
-/// timed changes on one small control read as a glitch rather than an answer.
 class _SecondaryAction extends StatelessWidget {
   const _SecondaryAction({
     required this.icon,
@@ -1005,8 +997,6 @@ class _SecondaryAction extends StatelessWidget {
     return Semantics(
       button: true,
       label: label,
-      // Announced, because the visual answer is the only answer: a rider who
-      // is not looking at the button has nothing else to tell them it worked.
       liveRegion: confirmed,
       child: PressableScale(
         onTap: onTap,
@@ -1029,9 +1019,6 @@ class _SecondaryAction extends StatelessWidget {
               duration: AppMotion.chip,
               switchInCurve: AppMotion.easeOut,
               switchOutCurve: AppMotion.leaving,
-              // The check does not slide in from anywhere — it lands where the
-              // copy glyph was. A scale from 0.7 reads as arriving; a scale
-              // from 0 reads as an element being created, which it is not.
               transitionBuilder: (child, animation) => FadeTransition(
                 opacity: animation,
                 child: ScaleTransition(
