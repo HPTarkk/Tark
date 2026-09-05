@@ -27,12 +27,18 @@ import '../../domain/repository/room_repository.dart';
 /// The scanning phone therefore saves membership first and joins the network
 /// from the same scan. SSID/password and a second Wi-Fi QR stay out of the
 /// primary interaction entirely.
+///
+/// [bootstrapHost] is the pre-live creator path. It raises Tark's temporary
+/// hotspot behind this loading sheet before the QR is minted, so Create Room →
+/// Invite has the same one-scan contract as Add person inside an active call.
 Future<void> showOneScanRoomInviteSheet(
   BuildContext context, {
   RoomRepository? repository,
   RoomTransportIdentityLifecycle? identityLifecycle,
   HotspotLinkKeeper? hotspotLinkKeeper,
   TransferRepository? transferRepository,
+  bool bootstrapHost = false,
+  PreLiveHotspotBootstrap? preLiveBootstrap,
 }) => showModalBottomSheet<void>(
   context: context,
   backgroundColor: Colors.transparent,
@@ -43,6 +49,8 @@ Future<void> showOneScanRoomInviteSheet(
     identityLifecycle: identityLifecycle,
     hotspotLinkKeeper: hotspotLinkKeeper,
     transferRepository: transferRepository,
+    bootstrapHost: bootstrapHost,
+    preLiveBootstrap: preLiveBootstrap,
   ),
 );
 
@@ -53,12 +61,22 @@ class OneScanRoomInviteSheet extends StatefulWidget {
     this.identityLifecycle,
     this.hotspotLinkKeeper,
     this.transferRepository,
+    this.bootstrapHost = false,
+    this.preLiveBootstrap,
   });
 
   final RoomRepository? repository;
   final RoomTransportIdentityLifecycle? identityLifecycle;
   final HotspotLinkKeeper? hotspotLinkKeeper;
   final TransferRepository? transferRepository;
+
+  /// True only when this sheet is opened by the creator before any transport
+  /// exists. The normal in-call path already owns its live attachment and must
+  /// never start another hotspot just because Add person was tapped.
+  final bool bootstrapHost;
+
+  /// Deterministic test seam around the transfer feature's hidden bridge.
+  final PreLiveHotspotBootstrap? preLiveBootstrap;
 
   @override
   State<OneScanRoomInviteSheet> createState() => _OneScanRoomInviteSheetState();
@@ -91,6 +109,12 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
 
   bool get _isTransportHost => _transfer?.sessionRole == SessionRole.host;
 
+  /// A pre-live creator is known to be the bootstrap host before a live
+  /// TransferRepository exists. Once live, the ordinary session role is the
+  /// authority. Keeping those two facts explicit prevents an early keeper
+  /// callback from clearing credentials the hidden bootstrap just produced.
+  bool get _shouldCarryHotspot => widget.bootstrapHost || _isTransportHost;
+
   @override
   void initState() {
     super.initState();
@@ -104,7 +128,7 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
       _credentialsSub = keeper.credentialChanges.listen((credentials) {
         if (!mounted) return;
         setState(() {
-          _credentials = _isTransportHost ? credentials : null;
+          _credentials = _shouldCarryHotspot ? credentials : null;
           _hostRecovering = false;
         });
       });
@@ -113,7 +137,7 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
   }
 
   void _syncKeeper(HotspotLinkKeeper keeper) {
-    final host = _isTransportHost;
+    final host = _shouldCarryHotspot;
     _hostRecovering = host && keeper.state == HotspotLinkState.recovering;
     _credentials = host && keeper.state == HotspotLinkState.up
         ? keeper.credentials
@@ -143,6 +167,21 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
           _error = context.getString.people_cannot_invite;
         });
         return;
+      }
+
+      // The creator's first invite needs a network before it needs a seat: the
+      // one QR must contain both membership and the temporary carrier. This is
+      // hidden behind the sheet rather than sending the user through Host / Join
+      // screens. The transfer feature owns the actual radio state machine.
+      if (widget.bootstrapHost && _credentials == null) {
+        final credentials = await (
+          widget.preLiveBootstrap ?? PreLiveHotspotBootstrap()
+        ).prepareHost();
+        if (credentials == null) {
+          throw StateError('Pre-live hotspot bootstrap failed');
+        }
+        if (!mounted) return;
+        setState(() => _credentials = credentials);
       }
 
       final invite = await _repository.issueInvite(
