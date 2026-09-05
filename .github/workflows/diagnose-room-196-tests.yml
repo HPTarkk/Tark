@@ -1,0 +1,75 @@
+name: Diagnose Room 196 tests once
+
+on:
+  push:
+    branches:
+      - fix/196-room-first-auto-transport
+    paths:
+      - .github/workflows/diagnose-room-196-tests.yml
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: fix/196-room-first-auto-transport
+          fetch-depth: 0
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.1'
+          channel: stable
+          cache: true
+
+      - name: Prepare
+        run: |
+          flutter pub get
+          flutter gen-l10n
+
+      - name: Run tests and extract failures
+        shell: bash
+        run: |
+          set +e
+          flutter test --reporter expanded > /tmp/room196-tests.log 2>&1
+          status=$?
+          python3 - <<'PY'
+          from pathlib import Path
+          log = Path('/tmp/room196-tests.log').read_text(errors='replace').splitlines()
+          needles = (
+              '[E]', 'TestFailure', 'Expected:', 'Actual:', 'Which:',
+              'Some tests failed', 'EXCEPTION CAUGHT', '══╡ EXCEPTION',
+              'Error:', 'FAILED', 'Failure', 'failed'
+          )
+          hits = []
+          for i, line in enumerate(log):
+              if any(n in line for n in needles):
+                  hits.extend(range(max(0, i - 10), min(len(log), i + 18)))
+          if not hits:
+              hits = list(range(max(0, len(log) - 350), len(log)))
+          ordered = []
+          seen = set()
+          for i in hits:
+              if i not in seen:
+                  seen.add(i)
+                  ordered.append(log[i])
+          out = Path('diagnostics/room-196-test-failures.txt')
+          out.parent.mkdir(parents=True, exist_ok=True)
+          out.write_text('\n'.join(ordered[-1200:]) + '\n', encoding='utf-8')
+          PY
+          echo "flutter_test_exit=$status" >> diagnostics/room-196-test-failures.txt
+          exit 0
+
+      - name: Commit diagnostic and remove workflow
+        run: |
+          rm .github/workflows/diagnose-room-196-tests.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore: capture #196 test failure diagnostics"
+          git push origin HEAD:fix/196-room-first-auto-transport
