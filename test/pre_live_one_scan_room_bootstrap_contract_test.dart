@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('empty Room invite uses hidden one-scan hotspot bootstrap', () async {
+  test('Room invite and Start keep hotspot bootstrap hidden', () async {
     final lobby = await File(
       'lib/feature/room/presentation/widget/selected_room_lobby.dart',
     ).readAsString();
@@ -15,17 +15,24 @@ void main() {
     ).readAsString();
 
     expect(lobby, contains("import 'one_scan_room_invite_sheet.dart';"));
+    expect(lobby, contains('showOneScanRoomInviteSheet('));
     expect(
       lobby,
-      contains('showOneScanRoomInviteSheet('),
-      reason: 'The creator must not fall back to the multi-step People sheet.',
+      contains(
+        'bootstrapHost: !_hasReusableRoomHotspot && _isPreferredBootstrapHost',
+      ),
+      reason:
+          'Only the deterministic preferred bootstrap side may raise a new '
+          'hotspot for a one-scan invite.',
     );
-    expect(lobby, contains('bootstrapHost: true'));
-
-    final aloneBody = lobby.indexOf('..._aloneBody(s, canInvite: canInvite)');
-    final unlinkedBody = lobby.indexOf('..._unlinkedBody(s, members, held');
-    expect(aloneBody, greaterThanOrEqualTo(0));
-    expect(unlinkedBody, greaterThan(aloneBody));
+    expect(
+      lobby,
+      contains('(widget.preLiveBootstrap ?? PreLiveHotspotBootstrap())'),
+      reason:
+          'Start must use the same hidden transfer bridge rather than exposing '
+          'Host / Join setup in the Room UI.',
+    );
+    expect(lobby, contains('.prepareHost();'));
 
     final bootstrapCall = sheet.indexOf('.prepareHost()');
     final inviteWrite = sheet.indexOf(
@@ -36,13 +43,15 @@ void main() {
     expect(
       sheet,
       contains('credentials.qrPayload(roomInvite: roomInvite)'),
-      reason: 'The primary QR must carry both membership and the hotspot.',
+      reason: 'The primary QR must carry membership and fallback carrier.',
     );
 
     expect(
       bootstrap,
       contains('if (roleStore.role != SessionRole.host) return null;'),
-      reason: 'Room invite authority must never elect the hotspot host.',
+      reason:
+          'Invite permission alone must never elect a hotspot host; the hidden '
+          'bridge still requires the session-scoped bootstrap host hint.',
     );
     expect(bootstrap, contains('await bridge.chooseRole(HotspotRole.host);'));
     expect(

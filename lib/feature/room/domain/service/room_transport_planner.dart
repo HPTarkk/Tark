@@ -28,6 +28,10 @@ final class RoomTransportCandidate {
   final int batteryPercent;
 
   /// Policy hint only. It never changes Room ownership or durable membership.
+  ///
+  /// The creator may receive this hint so the first hotspot choice is stable
+  /// and unsurprising, but an ineligible creator is skipped like any other
+  /// candidate and verified capability evidence remains authoritative.
   final bool prefersHotspotHost;
 }
 
@@ -39,6 +43,14 @@ final class RoomTransportEnvironment {
     this.guestExplicitlySelected = false,
   }) : assert(epoch >= 0);
 
+  /// True only for a peer-proven shared LAN for the current Room/session.
+  ///
+  /// A Wi-Fi interface being up, two phones reporting Wi-Fi, or even matching
+  /// SSIDs are not enough: guest isolation, VPN routing and captive/mesh
+  /// policies can still make the peers unreachable. The caller must promote
+  /// this bit only from actual bidirectional reachability evidence. That keeps
+  /// the high-quality LAN fast path first without ever sending the user to a
+  /// "put both phones on the same network" setup flow.
   final bool sharedLanUsable;
   final List<RoomTransportCandidate> candidates;
   final int epoch;
@@ -68,6 +80,12 @@ final class RoomTransportPlan {
 ///
 /// Room identity and ownership are deliberately absent from the decision. A
 /// hotspot host is only the temporary member operating today's transport.
+///
+/// Planning is intentionally conservative: a peer-proven shared LAN wins the
+/// initial plan, otherwise the eligible hotspot host is elected
+/// deterministically. This planner is not an opportunistic handover engine — a
+/// healthy attachment stays sticky and replacement is owned by the failover /
+/// controlled-handover state machines with epoch fencing.
 abstract final class RoomTransportPlanner {
   static RoomTransportPlan plan(RoomTransportEnvironment environment) {
     if (environment.guestExplicitlySelected) {
