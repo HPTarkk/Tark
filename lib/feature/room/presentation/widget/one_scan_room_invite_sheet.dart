@@ -13,6 +13,7 @@ import '../../../transfer/api/transfer_api.dart';
 import '../../data/security/room_transport_identity_lifecycle.dart';
 import '../../data/security/room_transport_identity_secure_store.dart';
 import '../../domain/entity/held_seat_name.dart';
+import '../../domain/entity/room.dart';
 import '../../domain/entity/room_accepted_join_snapshot.dart';
 import '../../domain/entity/room_direct_join_bundle.dart';
 import '../../domain/entity/room_invitation.dart';
@@ -158,7 +159,8 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
       if (verified == null) {
         throw StateError('Room invite verification failed');
       }
-      final fa = mounted && Localizations.localeOf(context).languageCode == 'fa';
+      final fa =
+          mounted && Localizations.localeOf(context).languageCode == 'fa';
       final accepted = await _repository.acceptVerifiedInvite(
         verified,
         displayName: heldSeatNameFor(fa: fa),
@@ -259,7 +261,8 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
             key: const Key('one-scan-room-invite-qr'),
             data: payload,
             size: 270,
-            branded: payload.length <= RoomDirectJoinBundle.brandableEncodedLength,
+            branded:
+                payload.length <= RoomDirectJoinBundle.brandableEncodedLength,
           ),
         ),
         const SizedBox(height: 10),
@@ -278,7 +281,8 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
             Expanded(
               child: OutlinedButton.icon(
                 key: const Key('one-scan-room-invite-copy'),
-                onPressed: () => Clipboard.setData(ClipboardData(text: payload)),
+                onPressed: () =>
+                    Clipboard.setData(ClipboardData(text: payload)),
                 icon: const Icon(Icons.copy_rounded),
                 label: Text(context.getString.people_copy_invite),
               ),
