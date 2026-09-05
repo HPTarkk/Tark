@@ -40,9 +40,6 @@ void main() {
       child: MaterialApp(
         locale: locale,
         supportedLocales: AppLocalizations.supportedLocales,
-        // The app's own delegate, not just the Material ones: these screens
-        // read their copy from [AppLocalizations] now rather than switching
-        // on the locale themselves, so a harness without it has no strings.
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         home: Scaffold(
           body: SafeArea(
@@ -80,10 +77,6 @@ void main() {
   testWidgets('opening the roster issues nothing and adds nobody', (
     tester,
   ) async {
-    // The regression this whole screen was rebuilt around: the old dialog
-    // minted a durable member every time it was *opened*, so a host who
-    // glanced at it three times ended up with three phantom riders and a
-    // member count nobody else agreed with.
     final repository = await repositoryWithSelectedRoom();
     await tester.pumpWidget(
       app(repository: repository, locale: const Locale('en')),
@@ -124,8 +117,6 @@ void main() {
     expect(find.byKey(const Key('room-invite-display-code')), findsOneWidget);
 
     final room = (await repository.list()).single.room;
-    // The seat exists and is authorised, but nobody has walked through it —
-    // so it must not inflate the head count.
     expect(room.pendingMembers, hasLength(1));
     expect(room.confirmedMembers, hasLength(1));
     expect(tester.takeException(), isNull);
@@ -142,10 +133,6 @@ void main() {
     await settleInvite(tester);
     expect((await repository.list()).single.room.pendingMembers, hasLength(1));
 
-    // Close and reopen rather than tapping Done: the invite panel is taller
-    // than the test surface, so Done sits below the fold. Reopening is also
-    // the truer check — it proves the held seat is durable and shows up on the
-    // roster of a freshly built sheet.
     Navigator.of(tester.element(find.byType(Scaffold).first)).pop();
     await tester.pumpAndSettle();
     await openSheet(tester);
@@ -190,9 +177,6 @@ void main() {
   testWidgets('copying an invite answers on the button, not under the sheet', (
     tester,
   ) async {
-    // The sheet is a modal, so it is drawn *over* the ScaffoldMessenger. The
-    // SnackBar this used to raise landed underneath it and, from the user's
-    // side, pressing Copy did nothing at all.
     final copied = <String>[];
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
       SystemChannels.platform,
@@ -229,15 +213,11 @@ void main() {
 
     expect(copied, hasLength(1));
     expect(copied.single, startsWith('tark-room:'));
-
-    // The answer is on the control that was pressed.
     expect(find.text('Copied'), findsOneWidget);
     expect(find.text('Copy invite'), findsNothing);
     expect(find.byIcon(Icons.check_rounded), findsWidgets);
-    // And nowhere else — a snack here would be invisible under the sheet.
     expect(find.byType(SnackBar), findsNothing);
 
-    // It hands the action back rather than staying done forever.
     await tester.pump(AppMotion.confirmHold);
     await settleInvite(tester);
     expect(find.text('Copy invite'), findsOneWidget);
@@ -259,7 +239,7 @@ void main() {
     expect(find.text('No Room is selected.'), findsOneWidget);
   });
 
-  testWidgets('only current transport host sees Wi-Fi credentials', (
+  testWidgets('primary invite shows one QR and host network is recovery-only', (
     tester,
   ) async {
     final repository = await repositoryWithSelectedRoom();
@@ -285,11 +265,11 @@ void main() {
     await settleInvite(tester);
 
     expect(find.byKey(const Key('room-invite-qr')), findsOneWidget);
+    expect(find.byKey(const Key('room-invite-network-help')), findsNothing);
     expect(find.byKey(const Key('room-invite-wifi-section')), findsNothing);
+    expect(find.byKey(const Key('room-invite-wifi-qr')), findsNothing);
     expect(find.textContaining('host-secret'), findsNothing);
 
-    // Take the QR down before swapping the tree: its scanline repeats, so a
-    // pumpAndSettle with one still mounted can never return.
     Navigator.of(tester.element(find.byType(Scaffold).first)).pop();
     await tester.pumpAndSettle();
     await tester.pumpWidget(
@@ -305,6 +285,18 @@ void main() {
     await tester.tap(find.byKey(const Key('room-people-invite')));
     await settleInvite(tester);
 
+    expect(find.byKey(const Key('room-invite-qr')), findsOneWidget);
+    expect(find.byKey(const Key('room-invite-network-help')), findsOneWidget);
+    expect(find.byKey(const Key('room-invite-wifi-section')), findsNothing);
+    expect(find.byKey(const Key('room-invite-wifi-qr')), findsNothing);
+    expect(find.textContaining('host-secret'), findsNothing);
+
+    final help = find.byKey(const Key('room-invite-network-help'));
+    await tester.ensureVisible(help);
+    await settleInvite(tester);
+    await tester.tap(help);
+    await settleInvite(tester);
+
     expect(find.byKey(const Key('room-invite-wifi-section')), findsOneWidget);
     expect(find.byKey(const Key('room-invite-wifi-qr')), findsOneWidget);
     expect(find.text('Network: Tark-Ride'), findsOneWidget);
@@ -313,7 +305,7 @@ void main() {
     await keeper.dispose();
   });
 
-  testWidgets('recovery disables stale Wi-Fi QR and refreshes credentials', (
+  testWidgets('recovery never leaks stale Wi-Fi QR on the primary invite', (
     tester,
   ) async {
     final repository = await repositoryWithSelectedRoom();
@@ -337,11 +329,22 @@ void main() {
     await openSheet(tester);
     await tester.tap(find.byKey(const Key('room-people-invite')));
     await settleInvite(tester);
+
+    expect(find.byKey(const Key('room-invite-qr')), findsOneWidget);
+    expect(find.byKey(const Key('room-invite-wifi-qr')), findsNothing);
+    expect(find.textContaining('old-secret'), findsNothing);
+
+    final help = find.byKey(const Key('room-invite-network-help'));
+    await tester.ensureVisible(help);
+    await settleInvite(tester);
+    await tester.tap(help);
+    await settleInvite(tester);
     expect(find.text('Network: Old-SSID'), findsOneWidget);
 
     keeper.setState(HotspotLinkState.recovering);
     await settleInvite(tester);
     expect(find.byKey(const Key('room-invite-wifi-section')), findsNothing);
+    expect(find.byKey(const Key('room-invite-wifi-qr')), findsNothing);
     expect(find.textContaining('old-secret'), findsNothing);
     expect(find.byKey(const Key('room-invite-qr')), findsOneWidget);
 
@@ -350,10 +353,18 @@ void main() {
     );
     await settleInvite(tester);
     expect(find.byKey(const Key('room-invite-wifi-section')), findsNothing);
+    expect(find.textContaining('new-secret'), findsNothing);
 
     keeper.setState(HotspotLinkState.up);
     await settleInvite(tester);
-    expect(find.byKey(const Key('room-invite-wifi-section')), findsOneWidget);
+    expect(find.byKey(const Key('room-invite-wifi-section')), findsNothing);
+    expect(find.textContaining('new-secret'), findsNothing);
+
+    final refreshedHelp = find.byKey(const Key('room-invite-network-help'));
+    await tester.ensureVisible(refreshedHelp);
+    await settleInvite(tester);
+    await tester.tap(refreshedHelp);
+    await settleInvite(tester);
     expect(find.text('Network: New-SSID'), findsOneWidget);
     expect(find.text('Password: new-secret'), findsOneWidget);
     expect(find.textContaining('old-secret'), findsNothing);

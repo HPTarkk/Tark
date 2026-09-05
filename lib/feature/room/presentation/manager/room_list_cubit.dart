@@ -1,7 +1,9 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../../transfer/api/transfer_api.dart';
 import '../../data/security/room_transport_identity_lifecycle.dart';
 import '../../data/security/room_transport_identity_secure_store.dart';
 import '../../domain/entity/room.dart';
@@ -93,6 +95,21 @@ class RoomListCubit extends Cubit<RoomListState> {
   final RoomInviteJoinOrchestrator _joinOrchestrator;
   late final RoomInviteJoinImporter _joinImporter;
 
+  /// Temporary side hint for the *bootstrap* transport only.
+  ///
+  /// The field test behind #186 exposed a subtle but serious coupling: the
+  /// Room lobby used `canManageInvites` to decide which phone should create a
+  /// hotspot. A joiner who was deliberately granted invite rights therefore
+  /// became a second transport host. Create/one-scan join already know which
+  /// end of this hand-off they are, so preserve that fact in the existing
+  /// session-scoped role store instead. It is never persisted and does not
+  /// make the creator an owner; verified live capability/election supersedes
+  /// it once a transport exists.
+  SessionRoleStore? get _bootstrapRoleStore =>
+      GetIt.instance.isRegistered<SessionRoleStore>()
+      ? GetIt.instance<SessionRoleStore>()
+      : null;
+
   Future<void> load() async {
     if (state.loading) return;
     emit(state.copyWith(loading: true, clearError: true));
@@ -134,6 +151,10 @@ class RoomListCubit extends Cubit<RoomListState> {
         rethrow;
       }
       await _repository.select(created.room.id);
+      // The phone that just created the Room is the sender side of this
+      // immediate one-scan bootstrap. This hint lives only for the current app
+      // session; it does not survive a restart or become Room ownership.
+      _bootstrapRoleStore?.setRole(SessionRole.host);
       final rooms = await _repository.list();
       emit(RoomListState(rooms: rooms, selectedRoomId: created.room.id));
       return created;
@@ -169,6 +190,7 @@ class RoomListCubit extends Cubit<RoomListState> {
         grant,
         memberKeyPair: memberKeyPair,
       );
+      _bootstrapRoleStore?.setRole(SessionRole.joiner);
       final rooms = await _repository.list();
       emit(RoomListState(rooms: rooms, selectedRoomId: saved.room.id));
       return RoomInviteJoinAttemptStatus.accepted;
@@ -218,6 +240,10 @@ class RoomListCubit extends Cubit<RoomListState> {
           pending: false,
         );
       }
+      // Scanning is the receiver side of exactly this bootstrap hand-off. Keep
+      // that fact separate from whatever durable invite rights the QR grants;
+      // granting Add Person must never turn this phone into a second hotspot.
+      _bootstrapRoleStore?.setRole(SessionRole.joiner);
       final rooms = await _repository.list();
       emit(RoomListState(rooms: rooms, selectedRoomId: saved.room.id));
       return true;

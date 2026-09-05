@@ -12,7 +12,7 @@ import '../../../transfer/api/transfer_api.dart';
 import '../../data/security/room_transport_identity_lifecycle.dart';
 import '../../domain/entity/room.dart';
 import '../../domain/repository/room_repository.dart';
-import 'room_people_sheet.dart';
+import 'one_scan_room_invite_sheet.dart';
 
 /// The way into the Room's people sheet from the channel screen.
 ///
@@ -80,6 +80,13 @@ class _InRoomPeopleActionState extends State<InRoomPeopleAction> {
         : null;
   }
 
+  TransferRepository? get _transferRepository {
+    if (widget.transferRepository != null) return widget.transferRepository;
+    return GetIt.instance.isRegistered<TransferRepository>()
+        ? GetIt.instance<TransferRepository>()
+        : null;
+  }
+
   bool _hasRoom = false;
 
   /// Whether the durable roster holds anyone besides this phone.
@@ -90,9 +97,6 @@ class _InRoomPeopleActionState extends State<InRoomPeopleAction> {
   /// a code to the bridge instead of showing them the code.
   bool _othersInRoom = false;
 
-  /// Whether this phone may issue invites, which is also how it guesses which
-  /// side of a bridge it should be.
-  bool _canInvite = false;
   StreamSubscription<void>? _changes;
 
   /// Read for the pin only, and tolerated absent. Nothing here starts, stops
@@ -133,7 +137,6 @@ class _InRoomPeopleActionState extends State<InRoomPeopleAction> {
       setState(() {
         _hasRoom = id != null;
         _othersInRoom = saved != null && _others(saved) > 0;
-        _canInvite = saved != null && saved.membership.canManageInvites;
       });
     } catch (_) {
       // Nothing here is worth surfacing an error for. Without an answer the
@@ -158,13 +161,19 @@ class _InRoomPeopleActionState extends State<InRoomPeopleAction> {
   /// about abandoning silence is friction charged for nothing.
   void _connect() {
     HapticFeedback.selectionClick();
+    final role = _transferRepository?.sessionRole;
     context.go(
       ConnectRoute.forStrandedRoom(
-        // The same rule the lobby uses: whoever hands out the invite code is
-        // the phone the others are gathering around, so it is the one that
-        // should be making the network. It only preselects a side the bridge
-        // can still step back out of.
-        intent: _canInvite ? ChannelIntent.create : ChannelIntent.join,
+        // Recovery follows the temporary transport role that actually owns
+        // the current attachment. Room invite authority is a durable
+        // permission and must never decide which phone raises a hotspot: that
+        // coupling let two authorised members independently enter `create`
+        // and split the room across two access points. If no transport role is
+        // known, default to the non-destructive joining side; full automatic
+        // role election remains the transport planner's responsibility.
+        intent: role == SessionRole.host
+            ? ChannelIntent.create
+            : ChannelIntent.join,
         pinned: _modeStore?.pinnedMode,
       ),
     );
@@ -172,15 +181,16 @@ class _InRoomPeopleActionState extends State<InRoomPeopleAction> {
 
   Future<void> _open() async {
     HapticFeedback.selectionClick();
-    await showRoomPeopleSheet(
+    await showOneScanRoomInviteSheet(
       context,
       repository: widget.repository,
       identityLifecycle: widget.identityLifecycle,
       hotspotLinkKeeper: widget.hotspotLinkKeeper,
       transferRepository: widget.transferRepository,
     );
-    // The sheet can add or revoke a seat, and leaving from it would drop the
-    // room out from under this control.
+    // Issuing the QR holds a pending seat; successful join later confirms it.
+    // Re-read either way so the member card follows durable Room state rather
+    // than whatever it showed before the sheet opened.
     await _refresh();
   }
 
