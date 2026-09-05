@@ -253,6 +253,17 @@ class AndroidWifiJoiner implements HotspotJoiner {
   static const _channel = MethodChannel('tark/wifi_join');
   static const _events = EventChannel('tark/wifi_join/events');
 
+  /// Join state is process-wide, because the Android network request is
+  /// process-wide too. The setup page can be rebuilt with a fresh Cubit while
+  /// the request made by the previous page is still alive; without this gate a
+  /// second scan/setup tears down and replaces a network that was already
+  /// accepted and bound. That exact sequence showed up in the 2026-09-05 field
+  /// logs: accepted -> peer traffic -> a new join -> selected network release.
+  static HotspotCredentials? _activeCredentials;
+  static HotspotCredentials? _joiningCredentials;
+  static Future<HotspotJoinResult>? _joiningFuture;
+  static int _joinEpoch = 0;
+
   /// One underlying subscription for both event kinds. `receiveBroadcastStream`
   /// re-arms the native stream handler per listener, and the second listener
   /// replaces the first one's sink — so calling it twice left whichever stream
@@ -267,6 +278,10 @@ class AndroidWifiJoiner implements HotspotJoiner {
   Stream<void> get onLost => _stream
       .where((event) {
         if (event['event'] != 'lost') return false;
+        _activeCredentials = null;
+        _joiningCredentials = null;
+        _joiningFuture = null;
+        _joinEpoch++;
         Logger.diagnostic(
           'network: selected wifi lost generation=${event['generation'] ?? 'unknown'}',
         );
@@ -287,6 +302,44 @@ class AndroidWifiJoiner implements HotspotJoiner {
 
   @override
   Future<HotspotJoinResult> join(HotspotCredentials credentials) async {
+    if (_activeCredentials == credentials) {
+      Logger.diagnostic('network: duplicate hotspot join suppressed state=joined');
+      return HotspotJoinResult.joined;
+    }
+
+    final pending = _joiningFuture;
+    if (pending != null && _joiningCredentials == credentials) {
+      Logger.diagnostic('network: duplicate hotspot join coalesced state=joining');
+      return pending;
+    }
+
+    // A different invite arriving while an older native request is still in
+    // flight must not race it. Android only has one selected process network;
+    // serialize the hand-off, release a completed old selection, then let the
+    // newer credentials own the next epoch.
+    if (pending != null) {
+      await pending;
+      if (_activeCredentials != null) await leave();
+    }
+
+    final epoch = ++_joinEpoch;
+    final future = _performJoin(credentials);
+    _joiningCredentials = credentials;
+    _joiningFuture = future;
+    final result = await future;
+    if (epoch == _joinEpoch) {
+      _joiningCredentials = null;
+      _joiningFuture = null;
+      _activeCredentials = result == HotspotJoinResult.joined
+          ? credentials
+          : null;
+    } else {
+      Logger.diagnostic('network: stale hotspot join completion ignored');
+    }
+    return result;
+  }
+
+  Future<HotspotJoinResult> _performJoin(HotspotCredentials credentials) async {
     Logger.diagnostic('network: hotspot join requested');
     try {
       final ok = await _channel.invokeMethod<bool>('join', {
@@ -366,6 +419,13 @@ class AndroidWifiJoiner implements HotspotJoiner {
 
   @override
   Future<void> leave() async {
+    // Invalidate before asking native code to release: an older in-flight
+    // MethodChannel completion must not repopulate `_activeCredentials` after
+    // this explicit teardown has won ownership of the state machine.
+    _joinEpoch++;
+    _activeCredentials = null;
+    _joiningCredentials = null;
+    _joiningFuture = null;
     Logger.diagnostic('network: selected wifi release requested');
     try {
       await _channel.invokeMethod<void>('leave');
