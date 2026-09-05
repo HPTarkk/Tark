@@ -12,6 +12,8 @@ Tark's primary user model is a durable Room, not a network setup flow. Normal us
 6. Keep a healthy attachment sticky. Do not switch transport merely because another network later becomes visible.
 7. Fail over only after the current attachment is actually considered failed by the failover state machine; stale callbacks from older epochs must not replace a healthy attachment.
 
+When Start is pressed, an already-up link is tried first and the live health path decides whether peers are actually reachable. If the link probe has positively reported no usable link, only the deterministic preferred bootstrap side may raise Tark's fallback hotspot, and it does so behind the Room surface with no Host / Join setup step. An unresolved probe is never treated as proof that a hotspot is needed.
+
 ## UX invariants
 
 - Do not show “same network”, hotspot/client role, SSID, IP address, or Wi-Fi requirements in the normal Room lobby.
