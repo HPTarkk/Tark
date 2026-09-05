@@ -64,6 +64,7 @@ final class AndroidNetworkRebindCoordinator {
   StreamSubscription<TransferMode>? _modeSub;
   StreamSubscription<SessionRole?>? _roleSub;
   int _modeGeneration = 0;
+  int _roleGeneration = 0;
   int? _boundNetworkGeneration;
   bool _active = false;
   bool _disposed = false;
@@ -93,26 +94,42 @@ final class AndroidNetworkRebindCoordinator {
     // the role becomes joiner. Re-read the current selection now so a settled
     // role cannot strand otherwise-successful Wi-Fi joins on the wrong process
     // network.
-    unawaited(_reconcileRole());
+    final roleGeneration = ++_roleGeneration;
+    unawaited(_reconcileRole(roleGeneration));
   }
 
-  Future<void> _reconcileRole() async {
-    if (_disposed || !_active) return;
-    final generation = _modeGeneration;
+  Future<void> _reconcileRole(int roleGeneration) async {
+    if (_disposed || !_active || roleGeneration != _roleGeneration) return;
+    final modeGeneration = _modeGeneration;
     if (_hosting) {
       _boundNetworkGeneration = null;
       _loggedHostSkip = false;
       await _port.clear();
+      // A host clear is asynchronous at the platform boundary. The one-scan
+      // bootstrap can settle us back to joiner while that clear is still in
+      // flight; if the stale clear then lands after the joiner's bind, Android
+      // is left unpinned without emitting another network callback. Reconcile
+      // the newest role once the stale side effect has actually completed.
+      if (!_disposed &&
+          _active &&
+          roleGeneration != _roleGeneration &&
+          modeGeneration == _modeGeneration) {
+        unawaited(_reconcileRole(_roleGeneration));
+      }
       return;
     }
 
     final selection = await _port.current();
-    if (_disposed || !_active || generation != _modeGeneration || _hosting) {
+    if (_disposed ||
+        !_active ||
+        modeGeneration != _modeGeneration ||
+        roleGeneration != _roleGeneration ||
+        _hosting) {
       return;
     }
     if (!_eligible(selection)) return;
     if (_boundNetworkGeneration == selection!.generation) return;
-    await _adoptNetwork(selection, generation);
+    await _adoptNetwork(selection, modeGeneration);
   }
 
   Future<void> _applyMode(TransferMode mode) async {
@@ -205,6 +222,7 @@ final class AndroidNetworkRebindCoordinator {
     if (_disposed) return;
     _disposed = true;
     _modeGeneration++;
+    _roleGeneration++;
     await _networkSub?.cancel();
     await _modeSub?.cancel();
     await _roleSub?.cancel();
