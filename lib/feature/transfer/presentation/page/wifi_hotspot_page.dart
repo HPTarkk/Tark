@@ -20,6 +20,7 @@ import '../../domain/entity/wifi_hotspot_segment.dart';
 import '../manager/wifi_hotspot_cubit.dart';
 import '../widget/hotspot_host_flow.dart';
 import '../widget/hotspot_join_flow.dart';
+import '../widget/hotspot_join_states.dart';
 import '../widget/hotspot_role_picker.dart';
 import '../widget/hotspot_segmented_control.dart';
 import '../widget/hotspot_shared_widgets.dart';
