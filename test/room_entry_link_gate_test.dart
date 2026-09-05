@@ -214,6 +214,13 @@ void main() {
 }
 
 class _FakeTransfer implements TransferRepository {
+  // These link-gate tests predate bootstrap role hints and intentionally model
+  // a cold entry with no in-memory session side. Keep that absence explicit
+  // instead of letting noSuchMethod turn a nullable production hint into a
+  // test-only exception.
+  @override
+  SessionRole? get sessionRole => null;
+
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnimplementedError(invocation.memberName.toString());
