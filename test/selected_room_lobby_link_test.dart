@@ -62,11 +62,7 @@ void main() {
   testWidgets('normal lobby never exposes transport setup mechanics', (
     tester,
   ) async {
-    await pumpLobby(
-      tester,
-      link: LiveLink.none,
-      mode: TransferMode.wifi,
-    );
+    await pumpLobby(tester, link: LiveLink.none, mode: TransferMode.wifi);
 
     expect(find.byKey(const Key('selected-room-start-ride')), findsOneWidget);
     expect(find.byKey(const Key('selected-room-link-callout')), findsNothing);

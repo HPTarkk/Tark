@@ -69,7 +69,10 @@ void main() {
     await show(tester, host(room));
 
     expect(find.text('Room members (1)'), findsOneWidget);
-    expect(find.byKey(const Key('selected-room-invite-callout')), findsOneWidget);
+    expect(
+      find.byKey(const Key('selected-room-invite-callout')),
+      findsOneWidget,
+    );
     expect(find.byKey(const Key('selected-room-start-ride')), findsOneWidget);
     expect(find.byKey(const Key('selected-room-held-seats')), findsNothing);
     expect(tester.takeException(), isNull);
@@ -91,11 +94,16 @@ void main() {
     expect(find.text('Room members (2)'), findsNothing);
     expect(find.text('Open seat'), findsNothing);
     expect(find.byKey(const Key('selected-room-held-seats')), findsNothing);
-    expect(find.byKey(const Key('selected-room-invite-callout')), findsOneWidget);
+    expect(
+      find.byKey(const Key('selected-room-invite-callout')),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('confirmed rider appears as a real second member', (tester) async {
+  testWidgets('confirmed rider appears as a real second member', (
+    tester,
+  ) async {
     final room = await repository.create(
       name: 'Night ride',
       localDisplayName: 'Host',

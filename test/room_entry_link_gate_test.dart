@@ -109,10 +109,7 @@ void main() {
   testWidgets('no-link entry remains Room-first rather than setup-first', (
     tester,
   ) async {
-    final modeStore = await pumpEntry(
-      tester,
-      links: LiveLinkSnapshot.none,
-    );
+    final modeStore = await pumpEntry(tester, links: LiveLinkSnapshot.none);
 
     expectTransportInvisible();
 
