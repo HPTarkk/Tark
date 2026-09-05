@@ -87,6 +87,48 @@ void main() {
     await modes.dispose();
     await port.dispose();
   });
+
+  test('stale host clear cannot win over a newer joiner bind', () async {
+    final modes = _ModeStore(TransferMode.hotspot);
+    final roles = SessionRoleStoreImpl()..setRole(SessionRole.joiner);
+    final clearGate = Completer<void>();
+    final port = _BindingPort(
+      currentSelection: wifi,
+      clearGate: clearGate,
+    );
+    var socketRebinds = 0;
+    final coordinator = AndroidNetworkRebindCoordinator(
+      () => socketRebinds++,
+      modes,
+      roles,
+      port: port,
+    );
+
+    await coordinator.start();
+    expect(port.bindGenerations, [33]);
+
+    // Begin the host-side clear but hold it inside the platform boundary.
+    roles.setRole(SessionRole.host);
+    await _settle();
+    expect(port.clearCount, 1);
+
+    // One-scan bootstrap settles back to joiner before the old clear returns.
+    roles.setRole(SessionRole.joiner);
+    await _settle();
+    expect(port.bindGenerations, [33, 33]);
+
+    // The stale clear lands last. The coordinator must notice its role epoch is
+    // obsolete, forget the optimistic binding, and re-pin the current Wi-Fi.
+    clearGate.complete();
+    await _settle();
+    await _settle();
+    expect(port.bindGenerations, [33, 33, 33]);
+    expect(socketRebinds, 2);
+
+    await coordinator.dispose();
+    await modes.dispose();
+    await port.dispose();
+  });
 }
 
 Future<void> _settle() async {
@@ -138,9 +180,10 @@ final class _ModeStore implements TransferModeStore {
 }
 
 final class _BindingPort implements AndroidNetworkBindingPort {
-  _BindingPort({this.currentSelection});
+  _BindingPort({this.currentSelection, this.clearGate});
 
   AndroidNetworkSelection? currentSelection;
+  final Completer<void>? clearGate;
   final _changes = StreamController<AndroidNetworkSelection>.broadcast(
     sync: true,
   );
@@ -162,6 +205,7 @@ final class _BindingPort implements AndroidNetworkBindingPort {
   @override
   Future<void> clear() async {
     clearCount++;
+    await clearGate?.future;
   }
 
   void emit(AndroidNetworkSelection selection) {
