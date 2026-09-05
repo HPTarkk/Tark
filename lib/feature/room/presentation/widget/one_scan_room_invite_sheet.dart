@@ -174,9 +174,9 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
       // hidden behind the sheet rather than sending the user through Host / Join
       // screens. The transfer feature owns the actual radio state machine.
       if (widget.bootstrapHost && _credentials == null) {
-        final credentials = await (
-          widget.preLiveBootstrap ?? PreLiveHotspotBootstrap()
-        ).prepareHost();
+        final credentials =
+            await (widget.preLiveBootstrap ?? PreLiveHotspotBootstrap())
+                .prepareHost();
         if (credentials == null) {
           throw StateError('Pre-live hotspot bootstrap failed');
         }
