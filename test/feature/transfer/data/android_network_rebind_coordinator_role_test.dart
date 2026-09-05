@@ -92,10 +92,7 @@ void main() {
     final modes = _ModeStore(TransferMode.hotspot);
     final roles = SessionRoleStoreImpl()..setRole(SessionRole.joiner);
     final clearGate = Completer<void>();
-    final port = _BindingPort(
-      currentSelection: wifi,
-      clearGate: clearGate,
-    );
+    final port = _BindingPort(currentSelection: wifi, clearGate: clearGate);
     var socketRebinds = 0;
     final coordinator = AndroidNetworkRebindCoordinator(
       () => socketRebinds++,
