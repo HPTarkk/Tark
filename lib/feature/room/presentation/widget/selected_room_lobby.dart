@@ -14,6 +14,7 @@ import '../../domain/entity/room.dart';
 import '../../domain/repository/room_repository.dart';
 import '../room_member_display_name.dart';
 import 'in_room_invite_button.dart';
+import 'one_scan_room_invite_sheet.dart';
 import 'room_people_sheet.dart';
 
 /// Read-only durable Room lobby shown before a live transport is started.
@@ -135,11 +136,20 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
 
   Future<void> _invite({required bool straightToCode}) async {
     HapticFeedback.selectionClick();
-    await showRoomPeopleSheet(
-      context,
-      repository: widget.repository,
-      autoIssue: straightToCode,
-    );
+    if (straightToCode) {
+      // The empty-room CTA is the Quick Share path: prepare Tark's temporary
+      // hotspot behind the sheet and emit one QR carrying both Room membership
+      // and transport. No Host / Join choice, SSID or second QR is exposed.
+      await showOneScanRoomInviteSheet(
+        context,
+        repository: widget.repository,
+        bootstrapHost: true,
+      );
+    } else {
+      // Once the roster exists this is room management rather than the primary
+      // join moment, so keep the full roster/revoke/grant sheet available.
+      await showRoomPeopleSheet(context, repository: widget.repository);
+    }
     await _reload();
   }
 
