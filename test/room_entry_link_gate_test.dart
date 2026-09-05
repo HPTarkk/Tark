@@ -18,23 +18,8 @@ import 'package:tark/feature/transfer/domain/service/hotspot_link_keeper.dart';
 import 'package:tark/feature/transfer/domain/service/live_link_probe.dart';
 import 'package:tark/feature/transfer/domain/service/transfer_mode_store.dart';
 
-/// The gate itself, at the composition root: a Room with nothing carrying it
-/// does not open a channel, and the tap that used to do that now goes to the
-/// screen that can get a link instead.
-///
-/// The positive case — a link is up, so the channel opens — is deliberately
-/// not here. Reaching it builds the live Walkie surface, which resolves an
-/// audio engine and a cubit from a graph this test has no business standing
-/// up; the half worth pinning down is the refusal.
 void main() {
   final getIt = GetIt.instance;
-  // The route the connect tap actually took. `currentConfiguration.uri`
-  // reports the base location rather than the pushed match, so it answers
-  // '/walkie' either way — which made the same assertion pass for both
-  // branches. The builder is the one place that sees the real URI.
-  final visited = <String>[];
-
-  setUp(visited.clear);
 
   tearDown(() async {
     await getIt.reset();
@@ -43,7 +28,7 @@ void main() {
   SavedRoom room() {
     final localId = RoomMemberId('111111111111111111111111');
     final peerId = RoomMemberId('222222222222222222222222');
-    final now = DateTime.utc(2026, 9, 3, 9);
+    final now = DateTime.utc(2026, 9, 5, 7);
     return SavedRoom(
       room: Room(
         id: const RoomId('0123456789abcdef0123456789abcdef'),
@@ -52,7 +37,11 @@ void main() {
         updatedAt: now,
         members: [
           RoomMember(id: localId, displayName: 'Rider one', joinedAt: now),
-          RoomMember(id: peerId, displayName: 'Rider two', joinedAt: now),
+          RoomMember(
+            id: peerId,
+            displayName: 'Rider two',
+            joinedAt: now.add(const Duration(seconds: 1)),
+          ),
         ],
       ),
       membership: RoomMembership(
@@ -62,19 +51,17 @@ void main() {
     );
   }
 
-  Future<void> pumpEntry(
+  Future<_FakeModeStore> pumpEntry(
     WidgetTester tester, {
     required LiveLinkSnapshot links,
-    required _FakeModeStore modeStore,
+    TransferMode mode = TransferMode.wifi,
   }) async {
+    final modeStore = _FakeModeStore(mode);
     getIt.registerLazySingleton<RoomRepository>(
       () => _FakeRoomRepository(room()),
     );
     getIt.registerLazySingleton<LiveLinkProbe>(() => _FakeProbe(links));
     getIt.registerLazySingleton<TransferModeStore>(() => modeStore);
-    // The binding this entry composes needs all three, and a composition that
-    // cannot be built at all skips the lobby entirely — which would make the
-    // gate untestable by making it unreachable.
     getIt.registerLazySingleton<TransferRepository>(_FakeTransfer.new);
     getIt.registerLazySingleton<HotspotHost>(_FakeHotspotHost.new);
     getIt.registerLazySingleton<HotspotLinkKeeper>(_FakeKeeper.new);
@@ -87,26 +74,10 @@ void main() {
           path: AppRoutes.walkiePath,
           builder: (_, _) => RoomBoundWalkieEntry.buildPage(),
         ),
-        GoRoute(
-          path: AppRoutes.wifiHotspotPath,
-          builder: (_, state) {
-            visited.add(state.uri.toString());
-            return const Scaffold(
-              key: Key('hotspot-page'),
-              body: SizedBox.shrink(),
-            );
-          },
-        ),
-        GoRoute(
-          path: AppRoutes.bluetoothConnectPath,
-          builder: (_, _) => const Scaffold(
-            key: Key('bluetooth-page'),
-            body: SizedBox.shrink(),
-          ),
-        ),
       ],
     );
     addTearDown(router.dispose);
+
     await tester.pumpWidget(
       MaterialApp.router(
         locale: const Locale('en'),
@@ -115,83 +86,51 @@ void main() {
         routerConfig: router,
       ),
     );
-    // Bounded: the lobby's primary action carries a repeating pulse, so a
-    // settle would wait on an animation that never ends.
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
+    return modeStore;
   }
 
-  testWidgets('a room with no link offers connecting instead of riding', (
-    tester,
-  ) async {
-    final modeStore = _FakeModeStore(TransferMode.wifi);
-    await pumpEntry(tester, links: LiveLinkSnapshot.none, modeStore: modeStore);
-
-    expect(find.byKey(const Key('selected-room-link-callout')), findsOneWidget);
-    expect(find.byKey(const Key('selected-room-start-ride')), findsNothing);
-
-    await tester.tap(find.byKey(const Key('selected-room-connect')));
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 1));
-
-    // The bridge, not a refusal and not the channel. A room whose local
-    // member can hand out invites is the one the others are gathering
-    // around, so it arrives on the hosting side.
-    expect(find.byKey(const Key('hotspot-page')), findsOneWidget);
-    // And on the segment that can *make* a network. A phone with no link
-    // needs the advisor's whole ladder, and `ConnectRoute.forPlan` lands its
-    // Wi-Fi rung on the hotspot segment precisely because there is no network
-    // to share. Compare the stranded case below, which asks a narrower
-    // question and gets a different answer from the same screen.
-    expect(visited.single, contains('mode=hotspot'));
-    // Nothing about the transport was decided by failing the gate.
-    expect(modeStore.writes, isEmpty);
-  });
-
-  testWidgets('a link that reaches nobody asks a different question', (
-    tester,
-  ) async {
-    // On a Wi-Fi network, and the transport says nobody arranged it — so the
-    // lobby leads with the way onto a shared network rather than with Start
-    // ride, and the tap must not be handed to the advisor. The advisor weighs
-    // what this device can do, and on a phone sitting on a cafe Wi-Fi its
-    // honest answer includes using that same Wi-Fi: the thing that just
-    // failed. `forStrandedRoom` asks "get these two onto one network"
-    // instead, and on a host that can raise neither an access point nor a
-    // Bluetooth link that is the shared-network segment, with no `mode`
-    // query on it. This call site ran the ladder for both cases.
-    final modeStore = _FakeModeStore(TransferMode.wifi);
-    await pumpEntry(
-      tester,
-      links: const LiveLinkSnapshot(
-        wifi: true,
-        hostingHotspot: false,
-        bluetooth: false,
-      ),
-      modeStore: modeStore,
+  void expectTransportInvisible() {
+    expect(find.byKey(const Key('selected-room-start-ride')), findsOneWidget);
+    expect(find.byKey(const Key('selected-room-link-callout')), findsNothing);
+    expect(find.byKey(const Key('selected-room-link-chip')), findsNothing);
+    expect(find.byKey(const Key('selected-room-connect')), findsNothing);
+    expect(
+      find.byKey(const Key('selected-room-different-network')),
+      findsNothing,
     );
-
     expect(
       find.byKey(const Key('selected-room-shared-network-callout')),
-      findsOneWidget,
+      findsNothing,
     );
-    await tester.tap(find.byKey(const Key('selected-room-connect')));
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 1));
+  }
 
-    expect(find.byKey(const Key('hotspot-page')), findsOneWidget);
-    expect(visited.single, isNot(contains('mode=hotspot')));
-    // Offering a way out decides nothing about the transport either.
+  testWidgets('no-link entry remains Room-first rather than setup-first', (
+    tester,
+  ) async {
+    final modeStore = await pumpEntry(
+      tester,
+      links: LiveLinkSnapshot.none,
+    );
+
+    expectTransportInvisible();
+
+    // This harness intentionally has no hidden bootstrap bridge registered.
+    // Pressing Start therefore exercises the router's safety backstop and
+    // returns to the same Room rather than exposing a technical setup page.
+    await tester.tap(find.byKey(const Key('selected-room-start-ride')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.byKey(const Key('selected-room-lobby')), findsOneWidget);
+    expectTransportInvisible();
     expect(modeStore.writes, isEmpty);
   });
 
-  testWidgets('a stale transport still names the link the room will use', (
+  testWidgets('local Wi-Fi never turns into a same-network instruction', (
     tester,
   ) async {
-    // Set to Bluetooth from a previous ride, standing on Wi-Fi today. The
-    // channel would otherwise open on a repository with no link under it;
-    // what the lobby reports is the link the gate would move it onto.
-    final modeStore = _FakeModeStore(TransferMode.bluetooth);
     await pumpEntry(
       tester,
       links: const LiveLinkSnapshot(
@@ -199,26 +138,32 @@ void main() {
         hostingHotspot: false,
         bluetooth: false,
       ),
-      modeStore: modeStore,
     );
 
-    expect(find.byKey(const Key('selected-room-link-chip')), findsOneWidget);
-    // Named, and still rideable — but not led with. This is a Wi-Fi network
-    // nobody arranged (the transport says `bluetooth`, so no bridge put this
-    // phone here), which is the case R38 inverted: the way onto a shared
-    // network is the primary control and starting over this one is the quiet
-    // line under it. The gate would still move the transport onto Wi-Fi; what
-    // changed is which of the two the screen argues for.
-    expect(find.byKey(const Key('selected-room-start-ride')), findsNothing);
-    expect(find.byKey(const Key('selected-room-start-anyway')), findsOneWidget);
+    expectTransportInvisible();
+    expect(find.textContaining('same network'), findsNothing);
+  });
+
+  testWidgets('stale transport mode is not surfaced in the Room lobby', (
+    tester,
+  ) async {
+    await pumpEntry(
+      tester,
+      links: const LiveLinkSnapshot(
+        wifi: true,
+        hostingHotspot: false,
+        bluetooth: false,
+      ),
+      mode: TransferMode.bluetooth,
+    );
+
+    expectTransportInvisible();
+    expect(find.text('On Wi-Fi'), findsNothing);
+    expect(find.text('CONNECTED'), findsNothing);
   });
 }
 
 class _FakeTransfer implements TransferRepository {
-  // These link-gate tests predate bootstrap role hints and intentionally model
-  // a cold entry with no in-memory session side. Keep that absence explicit
-  // as the domain's `unknown` role instead of letting noSuchMethod turn a
-  // normal cold-start state into a test-only exception.
   @override
   SessionRole get sessionRole => SessionRole.unknown;
 
