@@ -1,0 +1,3 @@
+# Graphify outputs are local context/cache artifacts.
+*
+!.gitignore
