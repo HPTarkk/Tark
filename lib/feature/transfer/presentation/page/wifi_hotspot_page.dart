@@ -40,8 +40,7 @@ bool shouldEnterChannelAfterBridgeUpdate({
   required bool roomHandoff,
   required HotspotBridgeState state,
 }) =>
-    state.peerConnected ||
-    (roomHandoff && state.joinPhase == JoinPhase.joined);
+    state.peerConnected || (roomHandoff && state.joinPhase == JoinPhase.joined);
 
 /// Combined WiFi / Hotspot entry point (item 9 merges the two mode-picker
 /// tiles into one page):
