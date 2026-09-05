@@ -22,9 +22,7 @@ void main() {
     );
     expect(lobby, contains('bootstrapHost: true'));
 
-    final aloneBody = lobby.indexOf(
-      '..._aloneBody(s, canInvite: canInvite)',
-    );
+    final aloneBody = lobby.indexOf('..._aloneBody(s, canInvite: canInvite)');
     final unlinkedBody = lobby.indexOf('..._unlinkedBody(s, members, held');
     expect(aloneBody, greaterThanOrEqualTo(0));
     expect(unlinkedBody, greaterThan(aloneBody));
