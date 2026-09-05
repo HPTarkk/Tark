@@ -27,7 +27,6 @@ import 'core/utils/logger.dart';
 import 'feature/transfer/api/transfer_api.dart';
 import 'feature/transfer/data/android_network_rebind_coordinator.dart';
 import 'feature/transfer/domain/repository/wifi_transfer_repository.dart';
-import 'feature/transfer/domain/service/session_role_store.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

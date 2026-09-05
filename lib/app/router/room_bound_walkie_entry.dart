@@ -57,6 +57,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   /// state is inferred from that — it means only that the live surface below
   /// has to be reached without it.
   RoomRepository? _rooms;
+  TransferRepository? _transfer;
   SelectedRoomLiveSessionBinding? _binding;
   late Future<_EntryState> _entry;
 
@@ -96,14 +97,16 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     if (_binding != null) return true;
     try {
       final rooms = GetIt.instance<RoomRepository>();
+      final transfer = GetIt.instance<TransferRepository>();
       _binding = SelectedRoomLiveSessionBinding(
         rooms: rooms,
-        transfer: GetIt.instance<TransferRepository>(),
+        transfer: transfer,
         modeStore: GetIt.instance<TransferModeStore>(),
         hotspotHost: GetIt.instance<HotspotHost>(),
         hotspotLinkKeeper: GetIt.instance<HotspotLinkKeeper>(),
       );
       _rooms = rooms;
+      _transfer = transfer;
       return true;
     } catch (e) {
       // Loud, because the alternative is a user watching the channel not open
@@ -263,21 +266,43 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     });
   }
 
+  /// Chooses only the temporary bootstrap side for the link setup screen.
+  ///
+  /// The one-scan create/join flow stamps [SessionRole.host] on the creator and
+  /// [SessionRole.joiner] on the scanner. That fact is exactly what a Quick
+  /// Share-style hand-off needs and, unlike Room permissions, cannot turn both
+  /// phones into hotspot hosts when the receiver was granted Add Person.
+  ///
+  /// A cold restart loses that session-scoped hint by design. In that case the
+  /// oldest still-active durable member is only a deterministic bootstrap
+  /// tie-breaker so two copies of the same Room do not both choose `create`.
+  /// It is not persisted as ownership and verified live capability/election
+  /// takes over as soon as peers can exchange evidence.
+  ChannelIntent _bootstrapIntent(SavedRoom room) {
+    final role = _transfer?.sessionRole ?? SessionRole.unknown;
+    if (role == SessionRole.host) return ChannelIntent.create;
+    if (role == SessionRole.joiner) return ChannelIntent.join;
+
+    final members = room.room.activeMembers.toList(growable: false)
+      ..sort((a, b) {
+        final byJoined = a.joinedAt.compareTo(b.joinedAt);
+        return byJoined != 0 ? byJoined : a.id.value.compareTo(b.id.value);
+      });
+    if (members.isEmpty) return ChannelIntent.join;
+    return members.first.id == room.membership.localMemberId
+        ? ChannelIntent.create
+        : ChannelIntent.join;
+  }
+
   /// Sends a Room with no link to the screen that can get it one.
   ///
   /// Pushed rather than replacing, so the bridge's own back arrow comes back
   /// here — and so the room the user picked is still selected when they
-  /// return. Which screen, and which side of it, is [ConnectRoute]'s
-  /// decision; what this contributes is the intent, and a Room already knows
-  /// that: the phone that hands out the invite code is the phone the others
-  /// are gathering around, so it is the one that should be making the
-  /// network. It only ever *preselects* — every one of those screens can
-  /// still be stepped back to its own role picker.
+  /// return. The side is a temporary bootstrap fact chosen above; durable Room
+  /// invite authority is deliberately not consulted.
   void _connect(BuildContext context, SavedRoom room) {
     final links = _links ?? LiveLinkSnapshot.none;
-    final intent = room.membership.canManageInvites
-        ? ChannelIntent.create
-        : ChannelIntent.join;
+    final intent = _bootstrapIntent(room);
     // Two different questions, and [ConnectRoute] has always had two answers.
     // A phone with a link that still cannot reach anybody must not be handed
     // to the advisor: the advisor weighs what this device *can* do, and on a

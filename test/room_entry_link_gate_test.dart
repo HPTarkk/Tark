@@ -9,11 +9,12 @@ import 'package:tark/core/l10n/app_localizations.dart';
 import 'package:tark/core/router/routes.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
 import 'package:tark/feature/room/domain/repository/room_repository.dart';
+import 'package:tark/feature/transfer/domain/entity/live_link.dart';
+import 'package:tark/feature/transfer/domain/entity/session_role.dart';
+import 'package:tark/feature/transfer/domain/entity/transfer_mode.dart';
 import 'package:tark/feature/transfer/domain/repository/transfer_repository.dart';
 import 'package:tark/feature/transfer/domain/service/hotspot_control.dart';
 import 'package:tark/feature/transfer/domain/service/hotspot_link_keeper.dart';
-import 'package:tark/feature/transfer/domain/entity/live_link.dart';
-import 'package:tark/feature/transfer/domain/entity/transfer_mode.dart';
 import 'package:tark/feature/transfer/domain/service/live_link_probe.dart';
 import 'package:tark/feature/transfer/domain/service/transfer_mode_store.dart';
 
@@ -214,6 +215,13 @@ void main() {
 }
 
 class _FakeTransfer implements TransferRepository {
+  // These link-gate tests predate bootstrap role hints and intentionally model
+  // a cold entry with no in-memory session side. Keep that absence explicit
+  // as the domain's `unknown` role instead of letting noSuchMethod turn a
+  // normal cold-start state into a test-only exception.
+  @override
+  SessionRole get sessionRole => SessionRole.unknown;
+
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnimplementedError(invocation.memberName.toString());

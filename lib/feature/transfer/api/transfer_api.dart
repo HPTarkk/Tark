@@ -34,6 +34,11 @@ export '../domain/repository/transport_route_proof_exchange.dart';
 // be derived from hotspot credentials or network metadata.
 export '../domain/service/hotspot_control.dart' show HotspotHost, HotspotJoiner;
 export '../domain/service/hotspot_link_keeper.dart' show HotspotLinkKeeper;
+// Create/one-scan Room entry stamps only a temporary bootstrap-side hint here.
+// It is deliberately session-scoped and is not Room ownership or invite
+// authority; the live deterministic planner/failover machinery remains the
+// authority once peers can exchange verified capability evidence.
+export '../domain/service/session_role_store.dart' show SessionRoleStore;
 // The channel screen grades its own link: the two inputs the transport cannot
 // know about (whether peers confirm they hear us, and whether the roster is
 // empty) live in the cubit, so the grading happens there rather than here.
