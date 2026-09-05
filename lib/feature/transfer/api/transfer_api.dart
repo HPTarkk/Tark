@@ -4,6 +4,7 @@
 /// core/) — never the feature's internal domain/data/presentation files.
 library;
 
+export 'pre_live_hotspot_bootstrap.dart';
 export '../data/capability/transport_capability_reader.dart';
 export '../data/codec/opus_audio_codec.dart' show OpusAudioCodec;
 export '../data/webrtc/ice_config.dart';

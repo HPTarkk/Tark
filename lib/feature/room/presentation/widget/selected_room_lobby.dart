@@ -14,6 +14,7 @@ import '../../domain/entity/room.dart';
 import '../../domain/repository/room_repository.dart';
 import '../room_member_display_name.dart';
 import 'in_room_invite_button.dart';
+import 'one_scan_room_invite_sheet.dart';
 import 'room_people_sheet.dart';
 
 /// Read-only durable Room lobby shown before a live transport is started.
@@ -135,11 +136,20 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
 
   Future<void> _invite({required bool straightToCode}) async {
     HapticFeedback.selectionClick();
-    await showRoomPeopleSheet(
-      context,
-      repository: widget.repository,
-      autoIssue: straightToCode,
-    );
+    if (straightToCode) {
+      // The empty-room CTA is the Quick Share path: prepare Tark's temporary
+      // hotspot behind the sheet and emit one QR carrying both Room membership
+      // and transport. No Host / Join choice, SSID or second QR is exposed.
+      await showOneScanRoomInviteSheet(
+        context,
+        repository: widget.repository,
+        bootstrapHost: true,
+      );
+    } else {
+      // Once the roster exists this is room management rather than the primary
+      // join moment, so keep the full roster/revoke/grant sheet available.
+      await showRoomPeopleSheet(context, repository: widget.repository);
+    }
     await _reload();
   }
 
@@ -158,11 +168,10 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
         _room.membership.canManageInvites;
     // One person and no outstanding code: nothing here has anyone to talk to.
     final alone = members.length <= 1 && held.isEmpty;
-    // Nothing is carrying this room. Outranks [alone] as the thing the screen
-    // is about, and not only because a channel needs a link before it needs a
-    // second person: the invite code is *made of* the link — it hands over the
-    // hotspot's credentials — so inviting somebody from a phone with no link
-    // gives them a code that cannot put them anywhere.
+    // Once the Room is alone, missing transport is no longer a blocker to
+    // inviting: the primary invite now bootstraps Tark's carrier itself. A
+    // missing link only outranks the normal multi-member lobby, where there is
+    // already somebody durable to reconnect to.
     final unlinked = widget.link == LiveLink.none;
     // A link is up, and nobody arranged it — which in practice means exactly
     // one thing: this phone is on a Wi-Fi network that was already there when
@@ -228,18 +237,22 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
           ),
           children: [
             Text(
-              unlinked
+              alone
+                  ? s.lobby_alone_heading
+                  : unlinked
                   ? s.lobby_unlinked_heading
                   : assumed
                   ? s.lobby_assumed_heading
-                  : (alone ? s.lobby_alone_heading : s.lobby_heading),
+                  : s.lobby_heading,
               style: Theme.of(
                 context,
               ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
             Text(
-              unlinked
+              alone
+                  ? s.lobby_nothing_started
+                  : unlinked
                   ? s.lobby_unlinked_lead
                   : assumed
                   ? s.lobby_assumed_lead
@@ -276,17 +289,12 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
               ],
             ],
             const SizedBox(height: 20),
-            if (unlinked)
+            if (alone)
+              ..._aloneBody(s, canInvite: canInvite)
+            else if (unlinked)
               ..._unlinkedBody(s, members, held, canInvite: canInvite)
-            // Outranks [alone], and for the same reason [unlinked] does: an
-            // invite minted from here carries membership and no network — the
-            // People sheet only grows its Wi-Fi section once an access point
-            // of ours is up — so it would put somebody into a room they still
-            // cannot hear.
             else if (assumed)
               ..._assumedBody(s, members, held, canInvite: canInvite)
-            else if (alone)
-              ..._aloneBody(s, canInvite: canInvite)
             else ...[
               ..._rosterList(s, members, held, canInvite: canInvite),
               const SizedBox(height: 20),
