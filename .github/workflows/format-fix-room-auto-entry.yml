@@ -1,0 +1,41 @@
+name: Format room convergence patch
+
+on:
+  push:
+    branches:
+      - fix/room-auto-entry-convergence
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/room-auto-entry-convergence
+          fetch-depth: 0
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.1"
+          channel: stable
+          cache: true
+      - name: Format changed Dart files
+        run: |
+          dart format \
+            lib/feature/transfer/presentation/page/wifi_hotspot_page.dart \
+            test/room_one_scan_bridge_completion_test.dart
+      - name: Commit formatter output
+        run: |
+          if git diff --quiet; then
+            echo "Already formatted."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            lib/feature/transfer/presentation/page/wifi_hotspot_page.dart \
+            test/room_one_scan_bridge_completion_test.dart
+          git commit -m "style: apply Dart formatter"
+          git push origin HEAD:fix/room-auto-entry-convergence
