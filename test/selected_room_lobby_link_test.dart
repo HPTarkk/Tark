@@ -336,7 +336,9 @@ void main() {
       expect(starts, 1);
     });
 
-    testWidgets('the doubt outranks a room with nobody in it', (tester) async {
+    testWidgets('the first invite outranks borrowed-network doubt', (
+      tester,
+    ) async {
       await pumpLobby(
         tester,
         link: LiveLink.wifi,
@@ -345,16 +347,17 @@ void main() {
         alone: true,
       );
 
-      // An invite minted here carries membership and no network — the People
-      // sheet only grows its Wi-Fi section once an access point of ours is up
-      // — so it would put somebody into a room they still cannot hear.
+      // A one-person Room has nobody to reach yet. Its first Tark invite now
+      // bootstraps an app-owned hotspot before minting the single QR, so a
+      // borrowed/home Wi-Fi association must not send the creator back through
+      // transport setup before they have even invited the first rider.
       expect(
         find.byKey(const Key('selected-room-shared-network-callout')),
-        findsOneWidget,
+        findsNothing,
       );
       expect(
         find.byKey(const Key('selected-room-invite-callout')),
-        findsNothing,
+        findsOneWidget,
       );
     });
 
