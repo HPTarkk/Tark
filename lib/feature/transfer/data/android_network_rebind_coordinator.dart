@@ -102,22 +102,10 @@ final class AndroidNetworkRebindCoordinator {
     if (_disposed || !_active || roleGeneration != _roleGeneration) return;
     final modeGeneration = _modeGeneration;
     if (_hosting) {
-      _boundNetworkGeneration = null;
-      _loggedHostSkip = false;
-      await _port.clear();
-      // A host clear is asynchronous at the platform boundary. The one-scan
-      // bootstrap can settle us back to joiner while that clear is still in
-      // flight; if the stale clear then lands after the joiner's bind, Android
-      // is left unpinned without emitting another network callback. Forget any
-      // optimistic bind recorded while the clear was pending and reconcile the
-      // newest role once that stale side effect has actually completed.
-      if (!_disposed &&
-          _active &&
-          roleGeneration != _roleGeneration &&
-          modeGeneration == _modeGeneration) {
-        _boundNetworkGeneration = null;
-        unawaited(_reconcileRole(_roleGeneration));
-      }
+      await _clearForHost(
+        roleGeneration: roleGeneration,
+        modeGeneration: modeGeneration,
+      );
       return;
     }
 
@@ -132,6 +120,29 @@ final class AndroidNetworkRebindCoordinator {
     if (!_eligible(selection)) return;
     if (_boundNetworkGeneration == selection!.generation) return;
     await _adoptNetwork(selection, modeGeneration);
+  }
+
+  /// Clears a client-side process pin while this device is the hotspot host.
+  ///
+  /// `clear()` crosses an asynchronous platform boundary. The role may switch
+  /// back to joiner before it returns; if so, the just-completed old clear can
+  /// have landed *after* a newer joiner bind. Forget the optimistic generation
+  /// and reconcile the latest role so the stale side effect cannot win merely
+  /// because Android emitted no second network callback.
+  Future<void> _clearForHost({
+    required int roleGeneration,
+    required int modeGeneration,
+  }) async {
+    _boundNetworkGeneration = null;
+    _loggedHostSkip = false;
+    await _port.clear();
+    if (!_disposed &&
+        _active &&
+        roleGeneration != _roleGeneration &&
+        modeGeneration == _modeGeneration) {
+      _boundNetworkGeneration = null;
+      unawaited(_reconcileRole(_roleGeneration));
+    }
   }
 
   Future<void> _applyMode(TransferMode mode) async {
@@ -152,6 +163,20 @@ final class AndroidNetworkRebindCoordinator {
     if (!_eligible(selection)) return;
     final bound = await _port.bind(selection!);
     if (_disposed || generation != _modeGeneration || !_active) return;
+    // `start()` can be awaiting the native bind while one-scan bootstrap
+    // settles this device onto the host side. Never let that older joiner bind
+    // complete after the host's role change and pin host traffic to its normal
+    // router. Use the same stale-clear reconciliation as role-driven clears so
+    // a subsequent host -> joiner flip remains safe too.
+    if (_hosting) {
+      if (bound) {
+        await _clearForHost(
+          roleGeneration: _roleGeneration,
+          modeGeneration: generation,
+        );
+      }
+      return;
+    }
     if (bound) {
       _boundNetworkGeneration = selection.generation;
       Logger.diagnostic(
@@ -195,7 +220,12 @@ final class AndroidNetworkRebindCoordinator {
     // rather than leave the host pinned to a router its peers are not on.
     if (_hosting) {
       _boundNetworkGeneration = null;
-      if (bound) await _port.clear();
+      if (bound) {
+        await _clearForHost(
+          roleGeneration: _roleGeneration,
+          modeGeneration: modeGeneration,
+        );
+      }
       return;
     }
     if (!bound) {
