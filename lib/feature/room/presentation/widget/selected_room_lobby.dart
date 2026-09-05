@@ -281,9 +281,7 @@ class _MemberRow extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: AppColors.amber.withValues(alpha: 0.12),
-            border: Border.all(
-              color: AppColors.amber.withValues(alpha: 0.38),
-            ),
+            border: Border.all(color: AppColors.amber.withValues(alpha: 0.38)),
           ),
           child: Icon(Icons.person_rounded, size: 20, color: AppColors.amber),
         ),
