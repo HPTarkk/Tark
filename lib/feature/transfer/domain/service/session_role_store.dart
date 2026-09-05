@@ -17,3 +17,13 @@ abstract interface class SessionRoleStore {
 
   void clear();
 }
+
+/// Optional observation seam for services whose correct state depends on the
+/// session side settling after another platform callback already arrived.
+///
+/// Kept separate from [SessionRoleStore] so existing lightweight test doubles
+/// and transport adapters that only need the synchronous value do not acquire
+/// a stream lifecycle they do not own.
+abstract interface class SessionRoleChangeSource {
+  Stream<SessionRole?> get roleChanges;
+}
