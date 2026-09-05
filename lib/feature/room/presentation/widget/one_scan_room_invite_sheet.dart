@@ -61,8 +61,7 @@ class OneScanRoomInviteSheet extends StatefulWidget {
   final TransferRepository? transferRepository;
 
   @override
-  State<OneScanRoomInviteSheet> createState() =>
-      _OneScanRoomInviteSheetState();
+  State<OneScanRoomInviteSheet> createState() => _OneScanRoomInviteSheetState();
 }
 
 class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
