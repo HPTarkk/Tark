@@ -303,13 +303,17 @@ class AndroidWifiJoiner implements HotspotJoiner {
   @override
   Future<HotspotJoinResult> join(HotspotCredentials credentials) async {
     if (_activeCredentials == credentials) {
-      Logger.diagnostic('network: duplicate hotspot join suppressed state=joined');
+      Logger.diagnostic(
+        'network: duplicate hotspot join suppressed state=joined',
+      );
       return HotspotJoinResult.joined;
     }
 
     final pending = _joiningFuture;
     if (pending != null && _joiningCredentials == credentials) {
-      Logger.diagnostic('network: duplicate hotspot join coalesced state=joining');
+      Logger.diagnostic(
+        'network: duplicate hotspot join coalesced state=joining',
+      );
       return pending;
     }
 
