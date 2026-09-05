@@ -126,6 +126,39 @@ void main() {
     await modes.dispose();
     await port.dispose();
   });
+
+  test('in-flight initial joiner bind cannot pin a newly-hosting device', () async {
+    final modes = _ModeStore(TransferMode.hotspot);
+    final roles = SessionRoleStoreImpl()..setRole(SessionRole.joiner);
+    final bindGate = Completer<void>();
+    final port = _BindingPort(currentSelection: wifi, bindGate: bindGate);
+    final coordinator = AndroidNetworkRebindCoordinator(
+      () {},
+      modes,
+      roles,
+      port: port,
+    );
+
+    final starting = coordinator.start();
+    await _settle();
+    expect(port.bindGenerations, [33]);
+
+    // Role election finishes while Android is still processing the joiner bind.
+    roles.setRole(SessionRole.host);
+    await _settle();
+    expect(port.clearCount, 1);
+
+    bindGate.complete();
+    await starting;
+    await _settle();
+
+    // The late bind cannot be allowed to become the host's final process route.
+    expect(port.clearCount, 2);
+
+    await coordinator.dispose();
+    await modes.dispose();
+    await port.dispose();
+  });
 }
 
 Future<void> _settle() async {
@@ -177,10 +210,11 @@ final class _ModeStore implements TransferModeStore {
 }
 
 final class _BindingPort implements AndroidNetworkBindingPort {
-  _BindingPort({this.currentSelection, this.clearGate});
+  _BindingPort({this.currentSelection, this.clearGate, this.bindGate});
 
   AndroidNetworkSelection? currentSelection;
   final Completer<void>? clearGate;
+  final Completer<void>? bindGate;
   final _changes = StreamController<AndroidNetworkSelection>.broadcast(
     sync: true,
   );
@@ -196,6 +230,7 @@ final class _BindingPort implements AndroidNetworkBindingPort {
   @override
   Future<bool> bind(AndroidNetworkSelection selection) async {
     bindGenerations.add(selection.generation);
+    await bindGate?.future;
     return true;
   }
 
