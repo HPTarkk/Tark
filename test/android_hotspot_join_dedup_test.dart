@@ -63,19 +63,17 @@ void main() {
     expect(joinCalls, 1);
   });
 
-  test('explicit leave invalidates an older native completion', () async {
-    final stale = joiner.join(creds);
-    await Future<void>.delayed(Duration.zero);
+  test('explicit leave lets the same credentials perform a real retry', () async {
+    nativeJoin.complete(true);
+    expect(await joiner.join(creds), HotspotJoinResult.joined);
     expect(joinCalls, 1);
 
     await joiner.leave();
     expect(leaveCalls, 1);
 
-    nativeJoin.complete(true);
-    expect(await stale, HotspotJoinResult.declined);
-
-    // The stale success was not allowed to resurrect the lease. A later real
-    // retry therefore reaches native code instead of being falsely suppressed.
+    // A deliberate teardown/loss boundary clears the stable lease. The same
+    // invite is allowed to reach native code again instead of being suppressed
+    // forever as an already-connected duplicate.
     nativeJoin = Completer<bool?>()..complete(true);
     expect(await joiner.join(creds), HotspotJoinResult.joined);
     expect(joinCalls, 2);
