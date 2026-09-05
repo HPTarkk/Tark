@@ -75,7 +75,8 @@ final class AndroidNetworkRebindCoordinator {
     _modeSub = _modes.modeChanges.listen(_onModeChanged);
     final roles = _roles;
     if (roles is SessionRoleChangeSource) {
-      _roleSub = roles.roleChanges.listen(_onRoleChanged);
+      final changes = (roles as SessionRoleChangeSource).roleChanges;
+      _roleSub = changes.listen(_onRoleChanged);
     }
     await _applyMode(_modes.mode);
   }
