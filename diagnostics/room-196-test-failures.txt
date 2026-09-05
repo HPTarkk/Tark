@@ -1,0 +1,400 @@
+00:11 +109: /home/runner/work/Tark/Tark/test/peer_ping_tracker_test.dart: PeerPingTracker unconfirmed a peer that answered and then went silent is unconfirmed again
+00:11 +110: /home/runner/work/Tark/Tark/test/peer_ping_tracker_test.dart: PeerPingTracker unconfirmed names only the peers that have stopped answering
+00:11 +111: /home/runner/work/Tark/Tark/test/peer_ping_tracker_test.dart: PeerPingTracker a peer that never answers cannot grow unbounded pending state
+00:11 +112: /home/runner/work/Tark/Tark/test/peer_ping_tracker_test.dart: PeerPingTracker forgetting a peer clears everything about it
+00:11 +113: /home/runner/work/Tark/Tark/test/peer_ping_tracker_test.dart: needsBroadcastLeg presence always takes the broadcast leg — that is discovery
+00:11 +114: /home/runner/work/Tark/Tark/test/peer_ping_tracker_test.dart: needsBroadcastLeg audio skips it once peers are known and answering
+00:11 +115: /home/runner/work/Tark/Tark/test/peer_ping_tracker_test.dart: needsBroadcastLeg an unconfirmed unicast path puts audio back on broadcast
+00:11 +116: /home/runner/work/Tark/Tark/test/peer_ping_tracker_test.dart: needsBroadcastLeg the existing two escapes still work
+00:11 +117: /home/runner/work/Tark/Tark/test/bounded_retry_test.dart: a cycle that gets there a body that works first time is called exactly once
+00:11 +118: /home/runner/work/Tark/Tark/test/bounded_retry_test.dart: a cycle that gets there failures before a success are absorbed silently
+test: attempt 1/4 failed
+test: attempt 2/4 failed
+00:11 +119: /home/runner/work/Tark/Tark/test/bounded_retry_test.dart: a cycle that gets there a throwing body is just a failed attempt, not a crash
+test: attempt 1/4 threw: Bad state: radio busy
+test: attempt 1/4 failed
+00:11 +120: /home/runner/work/Tark/Tark/test/bounded_retry_test.dart: a cycle that does not stops at maxAttempts and lands on exhausted
+test: attempt 1/4 failed
+test: attempt 2/4 failed
+test: attempt 3/4 failed
+test: attempt 4/4 failed
+00:11 +121: /home/runner/work/Tark/Tark/test/bounded_retry_test.dart: a cycle that does not softens to stillTrying only after honestAfter attempts
+test: attempt 1/4 failed
+test: attempt 2/4 failed
+test: attempt 3/4 failed
+test: attempt 4/4 failed
+00:11 +122: /home/runner/work/Tark/Tark/test/bounded_retry_test.dart: failures retrying cannot fix RetryAbort ends the cycle immediately, at exhausted
+test: attempt 1/4 hit a failure retrying cannot fix
+00:11 +123: /home/runner/work/Tark/Tark/test/bounded_retry_test.dart: abandoning cancel stops further attempts
+test: attempt 1/5 failed
+00:11 +124: /home/runner/work/Tark/Tark/test/bounded_retry_test.dart: abandoning a second run supersedes the first
+test: attempt 1/5 failed
+00:11 +125: /home/runner/work/Tark/Tark/test/bounded_retry_test.dart: abandoning emits nothing after dispose
+00:11 +126: /home/runner/work/Tark/Tark/test/room_invite_membership_acceptance_test.dart: verified invite durably adds one stable generic member
+00:11 +127: /home/runner/work/Tark/Tark/test/room_invite_membership_acceptance_test.dart: reusing same verified capability is idempotent, not duplicate
+00:11 +128: /home/runner/work/Tark/Tark/test/room_invite_membership_acceptance_test.dart: forged capability fails closed before repository mutation
+00:11 +129: /home/runner/work/Tark/Tark/test/room_invite_membership_acceptance_test.dart: revoked and expired invites cannot obtain verified capability
+00:11 +130: /home/runner/work/Tark/Tark/test/room_invite_membership_acceptance_test.dart: single-use guest is replay protected and stored as guest
+00:12 +131: /home/runner/work/Tark/Tark/test/diagnostic_log_rotation_test.dart: stays under the ceiling however much is written
+00:12 +132: /home/runner/work/Tark/Tark/test/diagnostic_log_rotation_test.dart: drops the oldest lines and keeps the newest
+00:13 +133: /home/runner/work/Tark/Tark/test/diagnostic_log_rotation_test.dart: drops the oldest lines and keeps the newest
+00:13 +134: /home/runner/work/Tark/Tark/test/diagnostic_log_rotation_test.dart: drops the oldest lines and keeps the newest
+00:13 +135: /home/runner/work/Tark/Tark/test/diagnostic_log_rotation_test.dart: drops the oldest lines and keeps the newest
+00:13 +136: /home/runner/work/Tark/Tark/test/diagnostic_log_rotation_test.dart: drops the oldest lines and keeps the newest
+00:13 +137: /home/runner/work/Tark/Tark/test/diagnostic_log_rotation_test.dart: drops the oldest lines and keeps the newest
+00:13 +138: /home/runner/work/Tark/Tark/test/diagnostic_log_rotation_test.dart: keeps the surviving lines in order, oldest first
+00:13 +139: /home/runner/work/Tark/Tark/test/diagnostic_log_rotation_test.dart: spreads the log over segments rather than one file
+00:13 +140: /home/runner/work/Tark/Tark/test/diagnostic_log_rotation_test.dart: lowering the ceiling reclaims the space immediately
+00:13 +141: /home/runner/work/Tark/Tark/test/diagnostic_log_rotation_test.dart: lowering the ceiling keeps the newest lines, not the oldest
+tark-diag network: hosting — leaving the process unpinned rather than following the selected local Wi-Fi off our own AP
+tark-diag network: local Wi-Fi generation=3; rebuilt both UDP sockets
+00:31 +313: /home/runner/work/Tark/Tark/test/android_network_rebind_coordinator_test.dart: taking the host side mid-bind undoes the pin
+tark-diag network: selected local Wi-Fi bound generation=1
+00:32 +314: /home/runner/work/Tark/Tark/test/selected_room_lobby_widget_test.dart: Persian lobby is RTL and fits a 320px viewport
+00:32 +315: /home/runner/work/Tark/Tark/test/selected_room_lobby_widget_test.dart: Persian lobby is RTL and fits a 320px viewport
+00:32 +316: /home/runner/work/Tark/Tark/test/selected_room_lobby_widget_test.dart: Persian lobby is RTL and fits a 320px viewport
+00:32 +317: /home/runner/work/Tark/Tark/test/selected_room_lobby_widget_test.dart: Persian lobby is RTL and fits a 320px viewport
+00:32 +318: /home/runner/work/Tark/Tark/test/selected_room_lobby_widget_test.dart: Persian lobby is RTL and fits a 320px viewport
+00:32 +319: /home/runner/work/Tark/Tark/test/selected_room_lobby_widget_test.dart: Persian lobby is RTL and fits a 320px viewport
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: exactly one matching candidate
+  Actual: _TextWidgetFinder:<Found 0 widgets with text "اعضای اتاق (۲)": []>
+   Which: means none were found but one was expected
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure> (file:///home/runner/work/Tark/Tark/test/selected_room_lobby_widget_test.dart:58:5)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///home/runner/work/Tark/Tark/test/selected_room_lobby_widget_test.dart line 58
+The test description was:
+  Persian lobby is RTL and fits a 320px viewport
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:32 +319 -1: /home/runner/work/Tark/Tark/test/selected_room_lobby_widget_test.dart: Persian lobby is RTL and fits a 320px viewport [E]
+  Test failed. See exception logs above.
+  The test description was: Persian lobby is RTL and fits a 320px viewport
+  
+00:32 +319 -1: /home/runner/work/Tark/Tark/test/selected_room_lobby_widget_test.dart: English lobby exposes member names and explicit Start ride
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: exactly one matching candidate
+  Actual: _TextWidgetFinder:<Found 0 widgets with text "Room members (2)": []>
+   Which: means none were found but one was expected
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure> (file:///home/runner/work/Tark/Tark/test/selected_room_lobby_widget_test.dart:102:5)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///home/runner/work/Tark/Tark/test/selected_room_lobby_widget_test.dart line 102
+The test description was:
+  English lobby exposes member names and explicit Start ride
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:32 +319 -2: /home/runner/work/Tark/Tark/test/selected_room_lobby_widget_test.dart: English lobby exposes member names and explicit Start ride [E]
+  Test failed. See exception logs above.
+  The test description was: English lobby exposes member names and explicit Start ride
+  
+00:33 +319 -2: /home/runner/work/Tark/Tark/test/music_mixer_test.dart: MusicMixer.mix empty queue passes the voice frame through unchanged
+00:33 +320 -2: /home/runner/work/Tark/Tark/test/music_mixer_test.dart: MusicMixer.mix applies a cubic taper to the slider gain
+00:33 +321 -2: /home/runner/work/Tark/Tark/test/music_mixer_test.dart: MusicMixer.mix clamps the mixed sample to ±1
+00:33 +322 -2: /home/runner/work/Tark/Tark/test/music_mixer_test.dart: MusicMixer.mix mixes only as many samples as are queued, rest passthrough
+00:33 +323 -2: /home/runner/work/Tark/Tark/test/music_mixer_test.dart: MusicMixer.mix consumes queued samples across calls
+00:33 +324 -2: /home/runner/work/Tark/Tark/test/music_mixer_test.dart: MusicMixer prefill withholds music until the cushion has filled
+00:33 +325 -2: /home/runner/work/Tark/Tark/test/music_mixer_test.dart: MusicMixer prefill re-primes after running dry, and counts it once
+00:33 +326 -2: /home/runner/work/Tark/Tark/test/music_mixer_test.dart: MusicMixer prefill clear returns the mixer to priming
+00:33 +327 -2: /home/runner/work/Tark/Tark/test/music_mixer_test.dart: MusicMixer ramps ramps music in over the fade at a start
+00:33 +328 -2: /home/runner/work/Tark/Tark/test/music_mixer_test.dart: MusicMixer ramps ramps music out over the tail when the queue runs dry
+00:33 +329 -2: /home/runner/work/Tark/Tark/test/music_mixer_test.dart: MusicMixer drift trims back toward the prefill above the high-water mark
+00:33 +330 -2: /home/runner/work/Tark/Tark/test/music_mixer_test.dart: MusicMixer drift never trims below the prefill
+00:33 +331 -2: /home/runner/work/Tark/Tark/test/music_mixer_test.dart: MusicMixer queue cap drops the oldest samples over maxQueuedSamples
+00:33 +332 -2: /home/runner/work/Tark/Tark/test/music_mixer_test.dart: MusicMixer queue cap clear empties the queue
+00:33 +333 -2: /home/runner/work/Tark/Tark/test/music_mixer_test.dart: MusicMixer backlog a backlog is dropped in one splice, not walked down
+tark-diag carrier: handover generation 1 produced nothing in 45s — standing down, staying on the borrowed carrier
+tark-diag carrier: borrowed network — promoting to generation 1, host is a peer
+00:36 +395 -2: /home/runner/work/Tark/Tark/test/room_carrier_promotion_controller_test.dart: a handover that produces nothing an elected host that cannot sign stops claiming to be working
+tark-diag carrier: borrowed network — promoting to generation 1, host is this phone
+carrier: elected host has no signing identity; staying put
+00:36 +396 -2: /home/runner/work/Tark/Tark/test/room_carrier_promotion_controller_test.dart: a carrier raised by failover is still announced to peers
+tark-diag carrier: announcing recovered generation 1 to peers
+00:36 +397 -2: /home/runner/work/Tark/Tark/test/room_carrier_promotion_controller_test.dart: a phone with no signing material announces nothing
+00:36 +398 -2: /home/runner/work/Tark/Tark/test/room_carrier_promotion_controller_test.dart: disposing stops announcing so a stale carrier is not advertised
+00:37 +399 -2: /home/runner/work/Tark/Tark/test/selected_room_lobby_invite_test.dart: one confirmed member stays a one-person Room
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: exactly one matching candidate
+  Actual: _TextWidgetFinder:<Found 0 widgets with text "Room members (1)": []>
+   Which: means none were found but one was expected
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure> (file:///home/runner/work/Tark/Tark/test/selected_room_lobby_invite_test.dart:71:5)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///home/runner/work/Tark/Tark/test/selected_room_lobby_invite_test.dart line 71
+The test description was:
+  one confirmed member stays a one-person Room
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:38 +399 -3: /home/runner/work/Tark/Tark/test/ticker_text_test.dart: LTR: long to short does not shift horizontally
+00:38 +399 -3: /home/runner/work/Tark/Tark/test/selected_room_lobby_invite_test.dart: one confirmed member stays a one-person Room [E]
+  Test failed. See exception logs above.
+  The test description was: one confirmed member stays a one-person Room
+  
+00:38 +400 -3: /home/runner/work/Tark/Tark/test/selected_room_lobby_invite_test.dart: unused invite seat is invisible to member count and roster
+00:38 +401 -3: /home/runner/work/Tark/Tark/test/selected_room_lobby_invite_test.dart: unused invite seat is invisible to member count and roster
+00:38 +402 -3: /home/runner/work/Tark/Tark/test/selected_room_lobby_invite_test.dart: unused invite seat is invisible to member count and roster
+00:38 +403 -3: /home/runner/work/Tark/Tark/test/selected_room_lobby_invite_test.dart: unused invite seat is invisible to member count and roster
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: exactly one matching candidate
+  Actual: _TextWidgetFinder:<Found 0 widgets with text "Room members (1)": []>
+   Which: means none were found but one was expected
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure> (file:///home/runner/work/Tark/Tark/test/selected_room_lobby_invite_test.dart:93:5)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///home/runner/work/Tark/Tark/test/selected_room_lobby_invite_test.dart line 93
+The test description was:
+  unused invite seat is invisible to member count and roster
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:38 +403 -4: /home/runner/work/Tark/Tark/test/ticker_text_test.dart: outgoing text also holds its left edge
+00:38 +403 -4: /home/runner/work/Tark/Tark/test/selected_room_lobby_invite_test.dart: unused invite seat is invisible to member count and roster [E]
+  Test failed. See exception logs above.
+  The test description was: unused invite seat is invisible to member count and roster
+  
+00:38 +404 -4: /home/runner/work/Tark/Tark/test/selected_room_lobby_invite_test.dart: confirmed rider appears as a real second member
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: exactly one matching candidate
+  Actual: _TextWidgetFinder:<Found 0 widgets with text "Room members (2)": []>
+   Which: means none were found but one was expected
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure> (file:///home/runner/work/Tark/Tark/test/selected_room_lobby_invite_test.dart:115:5)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///home/runner/work/Tark/Tark/test/selected_room_lobby_invite_test.dart line 115
+The test description was:
+  confirmed rider appears as a real second member
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:38 +404 -5: /home/runner/work/Tark/Tark/test/selected_room_lobby_invite_test.dart: confirmed rider appears as a real second member [E]
+  Test failed. See exception logs above.
+  The test description was: confirmed rider appears as a real second member
+  
+00:38 +404 -5: /home/runner/work/Tark/Tark/test/selected_room_lobby_invite_test.dart: member without invite authority has no dead invite action
+00:38 +405 -5: /home/runner/work/Tark/Tark/test/selected_room_lobby_invite_test.dart: Persian confirmed member count remains RTL and localized
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: exactly one matching candidate
+  Actual: _TextWidgetFinder:<Found 0 widgets with text "اعضای اتاق (۲)": []>
+   Which: means none were found but one was expected
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure> (file:///home/runner/work/Tark/Tark/test/selected_room_lobby_invite_test.dart:156:5)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///home/runner/work/Tark/Tark/test/selected_room_lobby_invite_test.dart line 156
+The test description was:
+  Persian confirmed member count remains RTL and localized
+════════════════════════════════════════════════════════════════════════════════════════════════════
+00:38 +405 -6: /home/runner/work/Tark/Tark/test/selected_room_lobby_invite_test.dart: Persian confirmed member count remains RTL and localized [E]
+  Test failed. See exception logs above.
+  The test description was: Persian confirmed member count remains RTL and localized
+  
+00:39 +405 -6: /home/runner/work/Tark/Tark/test/room_join_roster_fidelity_test.dart: an unclaimed seat stays unclaimed on the phone that scans
+00:39 +406 -6: /home/runner/work/Tark/Tark/test/room_join_roster_fidelity_test.dart: the joiner never arrives as a held seat in their own room
+00:39 +407 -6: /home/runner/work/Tark/Tark/test/room_join_roster_fidelity_test.dart: a roster with no held seats encodes to what it always did
+00:39 +408 -6: /home/runner/work/Tark/Tark/test/route_check_test.dart: a Bluetooth headset route is ok
+00:39 +409 -6: /home/runner/work/Tark/Tark/test/route_check_test.dart: a wired headset route is ok
+00:39 +410 -6: /home/runner/work/Tark/Tark/test/route_check_test.dart: the phone speaker warns but does not block — desk/dev use still has to work
+00:39 +411 -6: /home/runner/work/Tark/Tark/test/route_check_test.dart: unknown (no channel to ask, e.g. iOS) never blocks either
+00:40 +412 -6: /home/runner/work/Tark/Tark/test/spectral_noise_suppressor_test.dart: strength 0 is a bit-exact passthrough
+00:40 +413 -6: /home/runner/work/Tark/Tark/test/spectral_noise_suppressor_test.dart: output length always equals input length
+00:40 +414 -6: /home/runner/work/Tark/Tark/test/spectral_noise_suppressor_test.dart: stationary noise is strongly attenuated, speech bursts survive
+00:40 +415 -6: /home/runner/work/Tark/Tark/test/room_invite_join_orchestrator_test.dart: correlated accepted carrier response yields verified grant
+00:40 +416 -6: /home/runner/work/Tark/Tark/test/room_invite_join_orchestrator_test.dart: cross-request response fails closed
+00:40 +417 -6: /home/runner/work/Tark/Tark/test/room_invite_join_orchestrator_test.dart: correlated rejection remains a rejection
+00:40 +418 -6: /home/runner/work/Tark/Tark/test/room_invite_join_orchestrator_test.dart: cancel makes delayed accepted response harmless
+00:40 +419 -6: /home/runner/work/Tark/Tark/test/room_invite_join_orchestrator_test.dart: carrier exception is an explicit transport failure
+00:46 +477 -6: /home/runner/work/Tark/Tark/test/room_session_resource_owner_test.dart: attachment replacement disposes only the replaced generation
+00:46 +478 -6: /home/runner/work/Tark/Tark/test/room_session_resource_owner_test.dart: repeated disposal of one attachment generation is a no-op
+00:46 +479 -6: /home/runner/work/Tark/Tark/test/room_session_resource_owner_test.dart: explicit leave disposes attachments before room resources exactly once
+00:46 +480 -6: /home/runner/work/Tark/Tark/test/room_session_resource_owner_test.dart: a disposed owner rejects new resources
+00:46 +481 -6: /home/runner/work/Tark/Tark/test/room_session_resource_owner_test.dart: duplicate ownership keys fail instead of leaking the previous resource
+00:46 +482 -6: /home/runner/work/Tark/Tark/test/one_scan_room_join_contract_test.dart: Room QR join persists membership before spending network payload
+00:46 +483 -6: /home/runner/work/Tark/Tark/test/one_scan_room_join_contract_test.dart: active Room Add person opens exactly the one-scan invite surface
+00:47 +484 -6: /home/runner/work/Tark/Tark/test/ride_mode_status_indicator_test.dart: ride status indicator owns no repeating ticker state
+00:47 +485 -6: /home/runner/work/Tark/Tark/test/ride_mode_status_indicator_test.dart: link quality bars remain deterministic for every transport tier
+00:47 +486 -6: /home/runner/work/Tark/Tark/test/permission_queue_test.dart: PermissionQueue does not start a request while another is in flight
+00:47 +487 -6: /home/runner/work/Tark/Tark/test/permission_queue_test.dart: PermissionQueue a failed request still releases the queue
+00:47 +488 -6: /home/runner/work/Tark/Tark/test/permission_queue_test.dart: PermissionQueue a request that throws synchronously still releases the queue
+00:47 +489 -6: /home/runner/work/Tark/Tark/test/permission_queue_test.dart: PermissionQueue results are delivered to their own caller, in order
+00:48 +490 -6: /home/runner/work/Tark/Tark/test/di_config_completeness_test.dart: every injectable class reached the generated config
+00:48 +491 -6: /home/runner/work/Tark/Tark/test/di_config_completeness_test.dart: every lookup in the generated config resolves
+00:48 +492 -6: /home/runner/work/Tark/Tark/test/profile_readiness_check_test.dart: pre-connect (no live session yet) reports local HD capability as ok, never a failure
+00:48 +493 -6: /home/runner/work/Tark/Tark/test/profile_readiness_check_test.dart: pre-connect (no live session yet) HD Voice turned off reports standard voice, not "ready" — this build's own supported list won't offer HD, so claiming ready would be stale
+00:48 +494 -6: /home/runner/work/Tark/Tark/test/profile_readiness_check_test.dart: post-connect (a live negotiated format is known) hd24k negotiated with the peer is ok
+00:48 +495 -6: /home/runner/work/Tark/Tark/test/profile_readiness_check_test.dart: post-connect (a live negotiated format is known) a peer without HD support falls back to standard, still ok — unsupported HD is never a failure if standard voice works
+00:49 +496 -6: /home/runner/work/Tark/Tark/test/transport_route_proof_heartbeat_test.dart: proof provider receives exact token and challenge epoch
+Opus encoder profile: music
+00:49 +497 -6: /home/runner/work/Tark/Tark/test/transport_route_proof_heartbeat_test.dart: decode and mismatched route grant no proof observation
+Opus encoder profile: music
+Opus encoder profile: music
+00:49 +498 -6: /home/runner/work/Tark/Tark/test/transport_route_proof_heartbeat_test.dart: provider failure, oversize and missing epoch emit no proof
+Opus encoder profile: music
+00:49 +499 -6: /home/runner/work/Tark/Tark/test/link_quality_bars_test.dart: LinkQualityBars a full meter means nothing at all is wrong
+00:49 +500 -6: /home/runner/work/Tark/Tark/test/link_quality_bars_test.dart: LinkQualityBars each grade lights its own number of bars
+01:02 +710 -6: /home/runner/work/Tark/Tark/test/session_epoch_gate_test.dart: SessionEpochGate adopts whatever epoch a sender is first heard on
+01:02 +711 -6: /home/runner/work/Tark/Tark/test/session_epoch_gate_test.dart: SessionEpochGate accepts everything that keeps arriving on the adopted epoch
+01:02 +712 -6: /home/runner/work/Tark/Tark/test/session_epoch_gate_test.dart: SessionEpochGate drops a packet from the sender previous join
+01:02 +713 -6: /home/runner/work/Tark/Tark/test/session_epoch_gate_test.dart: SessionEpochGate a rejoin takes over immediately, with no grace period
+01:02 +714 -6: /home/runner/work/Tark/Tark/test/session_epoch_gate_test.dart: SessionEpochGate interleaved ghosts are dropped while the new session flows
+01:02 +715 -6: /home/runner/work/Tark/Tark/test/session_epoch_gate_test.dart: SessionEpochGate senders on the same epoch number do not interfere
+01:02 +716 -6: /home/runner/work/Tark/Tark/test/session_epoch_gate_test.dart: SessionEpochGate forgetting a sender lets it be adopted afresh
+01:02 +717 -6: /home/runner/work/Tark/Tark/test/session_epoch_gate_test.dart: SessionEpochGate clear drops every sender
+01:02 +718 -6: /home/runner/work/Tark/Tark/test/session_epoch_gate_test.dart: SessionEpoch never hands out the unknown-epoch sentinel
+01:02 +719 -6: /home/runner/work/Tark/Tark/test/session_epoch_gate_test.dart: SessionEpoch climbs once per join
+01:02 +720 -6: /home/runner/work/Tark/Tark/test/preflight_checks_test.dart: hasBlockingFailure false when every row is ok/warn/unknown
+01:02 +721 -6: /home/runner/work/Tark/Tark/test/preflight_checks_test.dart: hasBlockingFailure true the moment one row is bad
+01:02 +722 -6: /home/runner/work/Tark/Tark/test/preflight_checks_test.dart: hasOnlyWarnings true when the worst row is a warning
+01:02 +723 -6: /home/runner/work/Tark/Tark/test/preflight_checks_test.dart: hasOnlyWarnings false when nothing is wrong
+01:02 +724 -6: /home/runner/work/Tark/Tark/test/preflight_checks_test.dart: hasOnlyWarnings false once something is a hard failure, even alongside a warning
+01:03 +725 -6: /home/runner/work/Tark/Tark/test/room_live_failover_transport_starter_test.dart: local elected hotspot host starts and owns real hotspot
+01:03 +726 -6: /home/runner/work/Tark/Tark/test/room_live_failover_transport_starter_test.dart: remote hotspot winner never starts a competing local hotspot
+01:03 +727 -6: /home/runner/work/Tark/Tark/test/room_live_failover_transport_starter_test.dart: replacement health is translated to generation-gated callbacks
+01:03 +728 -6: /home/runner/work/Tark/Tark/test/room_live_failover_transport_starter_test.dart: hotspot start failure does not claim ownership or change mode
+01:03 +729 -6: /home/runner/work/Tark/Tark/test/peer_loss_tracker_test.dart: PeerLossTracker the first sample only sets a baseline
+01:03 +730 -6: /home/runner/work/Tark/Tark/test/peer_loss_tracker_test.dart: PeerLossTracker a peer receiving everything we sent reports no loss
+01:03 +731 -6: /home/runner/work/Tark/Tark/test/peer_loss_tracker_test.dart: PeerLossTracker a peer missing a tenth of our audio reports a tenth
+01:03 +732 -6: /home/runner/work/Tark/Tark/test/peer_loss_tracker_test.dart: PeerLossTracker a window with too little audio does not produce a figure
+01:03 +733 -6: /home/runner/work/Tark/Tark/test/peer_loss_tracker_test.dart: PeerLossTracker a peer ahead of our own count is not negative loss
+01:03 +734 -6: /home/runner/work/Tark/Tark/test/peer_loss_tracker_test.dart: PeerLossTracker one bad window moves the estimate without committing to it
+01:03 +735 -6: /home/runner/work/Tark/Tark/test/peer_loss_tracker_test.dart: PeerLossTracker a clean window walks the estimate back down
+01:03 +736 -6: /home/runner/work/Tark/Tark/test/peer_loss_tracker_test.dart: PeerLossTracker restarts a peer whose counters restart rebases instead of reporting loss
+01:03 +737 -6: /home/runner/work/Tark/Tark/test/peer_loss_tracker_test.dart: PeerLossTracker worst peer the worst peer decides, not the average
+01:03 +738 -6: /home/runner/work/Tark/Tark/test/peer_loss_tracker_test.dart: PeerLossTracker worst peer a peer that leaves stops counting against the link
+tark-diag link: adopted hotspot attachment as joiner credentialRevision=1
+tark-diag link: joiner attachment lost; bounded rejoin started
+tark-diag link: joiner attachment restored; rebinding sockets
+01:27 +1038 -6: /home/runner/work/Tark/Tark/test/hotspot_link_keeper_test.dart: as a joiner reports recovering while a rejoin is in flight
+tark-diag link: adopted hotspot attachment as joiner credentialRevision=1
+tark-diag link: joiner attachment lost; bounded rejoin started
+tark-diag link: joiner attachment restored; rebinding sockets
+01:27 +1039 -6: /home/runner/work/Tark/Tark/test/hotspot_link_keeper_test.dart: as a joiner release abandons a recovery instead of rejoining later
+tark-diag link: adopted hotspot attachment as joiner credentialRevision=1
+tark-diag link: joiner attachment lost; bounded rejoin started
+tark-diag link: rejoin failed reason=declined; retryInMs=5
+01:27 +1040 -6: /home/runner/work/Tark/Tark/test/hotspot_link_keeper_test.dart: as a joiner gives up after the bounded recovery timeout and retry works
+tark-diag link: adopted hotspot attachment as joiner credentialRevision=1
+tark-diag link: joiner attachment lost; bounded rejoin started
+tark-diag link: rejoin failed reason=declined; retryInMs=5
+tark-diag link: rejoin failed reason=declined; retryInMs=5
+tark-diag link: rejoin failed reason=declined; retryInMs=5
+tark-diag link: rejoin failed reason=declined; retryInMs=5
+tark-diag link: join recovery timeout; user action required
+tark-diag link: joiner attachment lost; bounded rejoin started
+tark-diag link: joiner attachment restored; rebinding sockets
+01:27 +1041 -6: /home/runner/work/Tark/Tark/test/hotspot_link_keeper_test.dart: as a joiner OS rebound repairs sockets without starting another join
+tark-diag link: adopted hotspot attachment as joiner credentialRevision=1
+tark-diag link: OS rebound hotspot attachment; rebinding sockets
+01:27 +1042 -6: /home/runner/work/Tark/Tark/test/hotspot_link_keeper_test.dart: as a joiner drop after release is ignored
+tark-diag link: adopted hotspot attachment as joiner credentialRevision=1
+01:27 +1043 -6: /home/runner/work/Tark/Tark/test/hotspot_link_keeper_test.dart: as a host publishes fresh credentials and rebinds after Android re-hosts
+tark-diag link: adopted hotspot attachment as host credentialRevision=1
+tark-diag link: host hotspot lost; expectedPeers=0 bounded rehost started
+tark-diag link: host rehosted generation=1 credentialRevision=2; publishing fresh invite attachment
+01:27 +1044 -6: /home/runner/work/Tark/Tark/test/hotspot_link_keeper_test.dart: as a host does not claim Live until the pre-loss peer is bidirectional again
+tark-diag link: adopted hotspot attachment as host credentialRevision=1
+tark-diag link: host hotspot lost; expectedPeers=1 bounded rehost started
+tark-diag link: host rehosted generation=1 credentialRevision=2; publishing fresh invite attachment
+tark-diag link: host recovery restored by bidirectional peer evidence generation=1 peers=1
+tark-diag link: host hotspot lost; expectedPeers=1 bounded rehost started
+tark-diag link: host rehosted generation=1 credentialRevision=2; publishing fresh invite attachment
+01:27 +1047 -6: /home/runner/work/Tark/Tark/test/hotspot_link_keeper_test.dart: as a host host retry republishes current fresh credentials after peer timeout
+tark-diag link: adopted hotspot attachment as host credentialRevision=1
+tark-diag link: host hotspot lost; expectedPeers=1 bounded rehost started
+tark-diag link: host rehosted generation=1 credentialRevision=2; publishing fresh invite attachment
+tark-diag link: host peers did not restore before timeout; user action required
+01:27 +1048 -6: /home/runner/work/Tark/Tark/test/hotspot_link_keeper_test.dart: as a host re-host failures are bounded and end in lost
+tark-diag link: adopted hotspot attachment as host credentialRevision=1
+tark-diag link: host hotspot lost; expectedPeers=0 bounded rehost started
+tark-diag link: host rehost attempt=1 failed reason=StateError
+tark-diag link: host rehost attempt=2 failed reason=StateError
+tark-diag link: host rehost attempt=3 failed reason=StateError
+tark-diag link: host rehost attempt=4 failed reason=StateError
+01:27 +1049 -6: /home/runner/work/Tark/Tark/test/hotspot_link_keeper_test.dart: as a host does not listen on the joiner side
+tark-diag link: adopted hotspot attachment as host credentialRevision=1
+01:27 +1050 -6: /home/runner/work/Tark/Tark/test/hotspot_link_keeper_test.dart: with no side claimed plain Wi-Fi adopts nothing to recover
+tark-diag link: adopted hotspot attachment as peer credentialRevision=1
+01:27 +1051 -6: /home/runner/work/Tark/Tark/test/room_session_test.dart: open -> live keeps logical identity and member state
+01:27 +1052 -6: /home/runner/work/Tark/Tark/test/room_session_test.dart: degraded and recovering transport never logically leave the room
+01:27 +1053 -6: /home/runner/work/Tark/Tark/test/room_session_test.dart: transport role and kind can change without changing room identity
+01:27 +1054 -6: /home/runner/work/Tark/Tark/test/room_session_test.dart: stale callback from an older attachment generation is ignored
+01:27 +1055 -6: /home/runner/work/Tark/Tark/test/room_session_test.dart: explicit leave is terminal and idempotent
+01:27 +1056 -6: /home/runner/work/Tark/Tark/test/room_session_test.dart: roster and mute survive attachment replacement
+01:28 +1057 -6: /home/runner/work/Tark/Tark/test/noise_floor_tracker_test.dart: NoiseFloorTracker has no opinion before it has heard anything
+01:28 +1058 -6: /home/runner/work/Tark/Tark/test/noise_floor_tracker_test.dart: NoiseFloorTracker adopts the first frame rather than creeping up from zero
+01:28 +1059 -6: /home/runner/work/Tark/Tark/test/noise_floor_tracker_test.dart: NoiseFloorTracker settles onto a steady background
+01:28 +1060 -6: /home/runner/work/Tark/Tark/test/noise_floor_tracker_test.dart: NoiseFloorTracker follows the background down quickly
+01:28 +1061 -6: /home/runner/work/Tark/Tark/test/noise_floor_tracker_test.dart: NoiseFloorTracker speech a long sentence does not drag the floor up behind it
+01:28 +1062 -6: /home/runner/work/Tark/Tark/test/noise_floor_tracker_test.dart: NoiseFloorTracker speech background noise still moves it, unlike speech
+01:28 +1063 -6: /home/runner/work/Tark/Tark/test/noise_floor_tracker_test.dart: NoiseFloorTracker threshold zero stays zero, however loud the background
+01:55 +1419 -6: /home/runner/work/Tark/Tark/test/room_invite_join_client_test.dart: accepted identity without matching snapshot member fails closed
+01:55 +1420 -6: /home/runner/work/Tark/Tark/test/room_invite_join_client_test.dart: rejection response never becomes a local join grant
+01:55 +1421 -6: /home/runner/work/Tark/Tark/test/room_invite_join_client_test.dart: malformed response fails closed
+01:55 +1422 -6: /home/runner/work/Tark/Tark/test/qr_branding_test.dart: hotspot Wi-Fi code a typical local-only hotspot payload stays comfortably scannable
+01:55 +1423 -6: /home/runner/work/Tark/Tark/test/qr_branding_test.dart: hotspot Wi-Fi code an unusually long SSID still clears the bar
+01:55 +1424 -6: /home/runner/work/Tark/Tark/test/qr_branding_test.dart: Room invite code the common case is branded, and beats v1 with the mark on
+01:55 +1425 -6: /home/runner/work/Tark/Tark/test/qr_branding_test.dart: Room invite code the largest branded payload still clears the bar
+01:55 +1426 -6: /home/runner/work/Tark/Tark/test/qr_branding_test.dart: Room invite code dropping the mark makes the code easier to scan, not harder
+01:55 +1427 -6: /home/runner/work/Tark/Tark/test/qr_branding_test.dart: Room invite code a full roster still encodes unbranded, and stays readable
+01:55 +1428 -6: /home/runner/work/Tark/Tark/test/qr_branding_test.dart: the logo covers far less than level Q can recover
+01:55 +1429 -6: Some tests failed.
+
+Failing tests:
+  /home/runner/work/Tark/Tark/test/selected_room_lobby_invite_test.dart: Persian confirmed member count remains RTL and localized
+  /home/runner/work/Tark/Tark/test/selected_room_lobby_invite_test.dart: confirmed rider appears as a real second member
+  /home/runner/work/Tark/Tark/test/selected_room_lobby_invite_test.dart: one confirmed member stays a one-person Room
+  /home/runner/work/Tark/Tark/test/selected_room_lobby_invite_test.dart: unused invite seat is invisible to member count and roster
+  ... and 2 more
+flutter_test_exit=1
