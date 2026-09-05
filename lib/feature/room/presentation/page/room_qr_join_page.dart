@@ -9,7 +9,7 @@ import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/widget/qr_scanner_surface.dart';
 import '../../../transfer/api/hotspot_invite_api.dart';
 import '../../../transfer/api/transfer_api.dart';
-import '../../domain/entity/room_direct_join_bundle.dart';
+import '../../domain/entity/room_scan_invite.dart';
 import '../manager/room_list_cubit.dart';
 
 /// One-scan Room entry. Membership is persisted before transport setup.
@@ -44,7 +44,8 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
   /// fresh one.
   Future<bool> _onCode(String raw) async {
     try {
-      final bundle = RoomDirectJoinBundle.decode(raw);
+      final invite = RoomScanInvite.decode(raw);
+      final bundle = invite.bundle;
       // Read before joining so the roster is right the first time it is drawn.
       // A name that appears a beat later reads as the app correcting itself.
       var myName = '';
@@ -56,13 +57,25 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
         // join at all is not.
       }
       if (!mounted) return false;
+      // Durable membership is always imported *before* any transport action.
+      // The network bootstrap is intentionally just an ephemeral companion to
+      // this invite; failing to attach must never roll the Room membership
+      // back or make the user scan a second code.
       final joined = await widget.cubit.joinDirect(
         bundle,
         localDisplayName: myName,
       );
       if (!mounted) return false;
       if (joined) {
-        context.go(AppRoutes.walkiePath);
+        final bootstrap = invite.transportBootstrap;
+        if (bootstrap != null && ScannedCode.parse(bootstrap) != null) {
+          // Replace the scanner route. Keeping it underneath the bridge would
+          // leave a live camera waiting to read the same QR again if setup
+          // popped, which was one source of duplicate setup attempts.
+          context.go(ConnectRoute.forScannedNetwork(), extra: bootstrap);
+        } else {
+          context.go(AppRoutes.walkiePath);
+        }
         return true;
       }
       setState(() => _error = context.getString.roomjoin_not_joined);
@@ -75,22 +88,10 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
 
   /// What to do with a code that decoded as anything but a Room invite.
   ///
-  /// **There are two QR codes in this app.** The bridge shows the host's Wi-Fi
-  /// credentials; the People sheet shows a Room invite. They are deliberately
-  /// the same instrument at both ends — this page's own doc says it "wears the
-  /// same viewfinder as the hotspot scanner and the same amber brackets as the
-  /// invite QR", so the handoff reads as one thing — and that is precisely
-  /// what makes them confusable. Nothing on either screen said which of the
-  /// two it eats, so a rider standing in front of a perfectly good hotspot
-  /// code was told their invite had expired.
-  ///
-  /// So the wrong pairing stops being an error and becomes a route. The code
-  /// carries a network and, since the unified payload, the host's channel with
-  /// it — and voice is filtered on the channel rather than on Room membership,
-  /// so following it puts this phone on the host's network *and* in the host's
-  /// conversation. Not a Room member, which is a different and durable thing;
-  /// but heard, which is what somebody holding a camera up to a code is
-  /// asking for.
+  /// The normal Room handoff is one Tark QR. A legacy/manual Wi-Fi QR can
+  /// still be reached from recovery, and pointing this scanner at it remains
+  /// useful rather than becoming an "expired invite" error. This fallback is
+  /// therefore recovery compatibility, not a second primary join method.
   ///
   /// The payload rides in `extra` rather than in the query string on purpose:
   /// it contains the network's passphrase.
@@ -106,7 +107,7 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
     // expired" is honest about a code that really is one of ours and a lie
     // about a bus ticket.
     setState(
-      () => _error = RoomDirectJoinBundle.looksLikeInvite(raw)
+      () => _error = RoomScanInvite.looksLikeInvite(raw)
           ? context.getString.roomjoin_invalid
           : context.getString.roomjoin_not_our_code,
     );
