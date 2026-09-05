@@ -219,7 +219,7 @@ class _FakeTransfer implements TransferRepository {
   // instead of letting noSuchMethod turn a nullable production hint into a
   // test-only exception.
   @override
-  SessionRole? get sessionRole => null;
+  get sessionRole => null;
 
   @override
   dynamic noSuchMethod(Invocation invocation) =>
