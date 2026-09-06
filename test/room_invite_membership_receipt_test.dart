@@ -68,22 +68,28 @@ void main() {
     expect(joined.displayName, 'Rider');
   });
 
-  test('response without a receipt leaves the issuer seat unconfirmed', () async {
-    final member = await crypto.generateKeyPair();
-    final response = await exchange.handleEncodedRequest(
-      RoomInviteJoinRequest(
-        requestId: 'fedcba9876543210fedcba9876543210',
-        invitation: invitation,
-        displayName: 'Rider',
-        memberTransportPublicKey: member.publicKey,
-      ).encode(),
-      now: now,
-    );
+  test(
+    'response without a receipt leaves the issuer seat unconfirmed',
+    () async {
+      final member = await crypto.generateKeyPair();
+      final response = await exchange.handleEncodedRequest(
+        RoomInviteJoinRequest(
+          requestId: 'fedcba9876543210fedcba9876543210',
+          invitation: invitation,
+          displayName: 'Rider',
+          memberTransportPublicKey: member.publicKey,
+        ).encode(),
+        now: now,
+      );
 
-    expect(RoomInviteJoinResponse.decode(response).membershipReceiptRequired, isTrue);
-    final saved = await repository.get(invitation.roomId);
-    expect(saved!.room.members.last.pending, isTrue);
-  });
+      expect(
+        RoomInviteJoinResponse.decode(response).membershipReceiptRequired,
+        isTrue,
+      );
+      final saved = await repository.get(invitation.roomId);
+      expect(saved!.room.members.last.pending, isTrue);
+    },
+  );
 
   test('forged receipt cannot confirm a held seat', () async {
     final member = await crypto.generateKeyPair();
@@ -106,7 +112,10 @@ void main() {
     );
 
     expect(await exchange.handleEncodedReceipt(receipt), isFalse);
-    expect((await repository.get(invitation.roomId))!.room.members.last.pending, isTrue);
+    expect(
+      (await repository.get(invitation.roomId))!.room.members.last.pending,
+      isTrue,
+    );
   });
 }
 
