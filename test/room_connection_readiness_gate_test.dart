@@ -24,7 +24,7 @@ void main() {
     final subject = runtime();
     final proofs = StreamController<RoomPeerProofEvidence>.broadcast(sync: true);
     final generation = await subject.attach(kind: TransportKind.hotspot);
-    var epoch = 1;
+    const epoch = 1;
     final waiting = const RoomConnectionReadinessGate(
       timeout: Duration(milliseconds: 100),
     ).wait(
