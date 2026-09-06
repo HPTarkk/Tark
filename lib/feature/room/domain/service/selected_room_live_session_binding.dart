@@ -9,6 +9,7 @@ import '../entity/transport_attachment.dart';
 import '../repository/room_repository.dart';
 import 'room_capability_failover_runtime.dart';
 import 'room_carrier_promotion_controller.dart';
+import 'room_connection_readiness_gate.dart';
 import 'room_failover_controller.dart';
 import 'room_failover_runtime.dart';
 import 'room_failover_transport_orchestrator.dart';
@@ -60,8 +61,25 @@ final class SelectedRoomLiveSessionBinding {
   _LiveFailoverSession? _failover;
   RoomCarrierPromotionController? _carrierPromotion;
   int _generation = 0;
+  final StreamController<RoomPeerProofEvidence> _verifiedPeerProofs =
+      StreamController<RoomPeerProofEvidence>.broadcast(sync: true);
+  final Map<RoomMemberId, RoomPeerProofEvidence> _verifiedPeerProofByMember = {};
 
   RoomSessionRuntime? get runtime => _runtime;
+
+  /// Verified, Room-authorized remote presence on the active attachment.
+  ///
+  /// This is deliberately downstream of signed route-proof verification. A
+  /// Wi-Fi association, hotspot creation, socket bind, IP address or carrier
+  /// sender id can never publish on this stream.
+  Stream<RoomPeerProofEvidence> get verifiedPeerProofs =>
+      _verifiedPeerProofs.stream;
+
+  /// Snapshot paired with [verifiedPeerProofs] so a proof that lands while the
+  /// binding is finishing [open] cannot be lost between composition and gate
+  /// subscription.
+  Iterable<RoomPeerProofEvidence> get verifiedPeerProofSnapshot =>
+      List.unmodifiable(_verifiedPeerProofByMember.values);
 
   /// Live view of which network this Room is on and whether it is being moved.
   ///
@@ -181,6 +199,15 @@ final class SelectedRoomLiveSessionBinding {
                 );
                 return proof.encode();
               },
+          onMemberProven: (memberId) {
+            if (generation != _generation || runtime.hasLeft) return;
+            final evidence = RoomPeerProofEvidence(
+              memberId: memberId,
+              attachmentGeneration: runtime.attachmentGeneration,
+            );
+            _verifiedPeerProofByMember[memberId] = evidence;
+            _verifiedPeerProofs.add(evidence);
+          },
         );
         await failover.start(health: health, transfer: transfer);
 
@@ -242,6 +269,7 @@ final class SelectedRoomLiveSessionBinding {
     _failover = null;
     _carrierPromotion = null;
     _runtime = null;
+    _verifiedPeerProofByMember.clear();
     // Before the failover session: disposing this clears the announcement
     // provider, and a Room that has stopped must not still be telling peers to
     // move onto a network it is about to take down.
@@ -288,6 +316,7 @@ final class _LiveFailoverSession {
     required this.seats,
     required this.readLocalCapability,
     required this.localProofProvider,
+    required this.onMemberProven,
   });
 
   final RoomVerifiedTransportCapabilityRuntime verified;
@@ -296,6 +325,7 @@ final class _LiveFailoverSession {
   final Future<TransportCapabilityAdvertisement?> Function()
   readLocalCapability;
   final TransportRouteProofProvider localProofProvider;
+  final void Function(RoomMemberId memberId) onMemberProven;
 
   RoomVerifiedTransportEvidenceBridge? _evidenceBridge;
   StreamSubscription<ConnectionHealth>? _healthSubscription;
@@ -326,13 +356,15 @@ final class _LiveFailoverSession {
         capabilitySource: capabilitySource,
         proofExchange: proofExchange,
         localProofProvider: localProofProvider,
-        // Fire-and-forget on purpose: settling a roster row is bookkeeping,
-        // and the proof path it hangs off is on the way to admitting live
-        // capability evidence. A storage write must not be able to delay that,
-        // and the confirmer already swallows its own failures.
-        onMemberProven: (member) => unawaited(
-          seats.confirm(member.memberId, displayName: member.displayName),
-        ),
+        // Settling the roster row stays fire-and-forget, but readiness is
+        // published synchronously from the already-verified proof so storage
+        // latency cannot delay the security gate.
+        onMemberProven: (member) {
+          onMemberProven(member.memberId);
+          unawaited(
+            seats.confirm(member.memberId, displayName: member.displayName),
+          );
+        },
       );
     }
     _healthSubscription = health.listen(
