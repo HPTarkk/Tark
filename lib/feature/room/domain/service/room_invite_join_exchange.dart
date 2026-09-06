@@ -120,8 +120,14 @@ final class RoomInviteJoinExchange {
         certificate == null ||
         receipt.certificate.roomId != response.roomId ||
         receipt.certificate.memberId != response.memberId ||
-        !_sameBytes(receipt.certificate.memberPublicKey, certificate.memberPublicKey) ||
-        !_sameBytes(receipt.certificate.issuerPublicKey, certificate.issuerPublicKey)) {
+        !_sameBytes(
+          receipt.certificate.memberPublicKey,
+          certificate.memberPublicKey,
+        ) ||
+        !_sameBytes(
+          receipt.certificate.issuerPublicKey,
+          certificate.issuerPublicKey,
+        )) {
       return false;
     }
     final valid = await RoomInviteMembershipReceiptCrypto.verify(
