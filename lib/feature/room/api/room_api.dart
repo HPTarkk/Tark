@@ -6,6 +6,16 @@ library;
 
 export '../domain/entity/room.dart' show SavedRoom;
 export '../domain/repository/room_repository.dart' show RoomRepository;
+export '../domain/service/room_connection_coordinator.dart'
+    show RoomConnectionCoordinator, RoomConnectionPhase;
+export '../domain/service/room_connection_readiness_gate.dart'
+    show
+        RoomConnectionReadinessFailureStage,
+        RoomConnectionReadinessGate,
+        RoomConnectionReadinessResult,
+        RoomPeerProofEvidence;
+export '../domain/service/room_transport_planner.dart'
+    show RoomTransportCandidate, RoomTransportKind;
 export '../domain/service/selected_room_live_session_binding.dart'
     show SelectedRoomLiveSessionBinding;
 export '../domain/service/selected_room_lobby_resolver.dart'
