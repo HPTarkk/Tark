@@ -127,6 +127,10 @@ final class RoomInviteJoinExchange {
         !_sameReceiptBytes(
           receipt.certificate.issuerPublicKey,
           certificate.issuerPublicKey,
+        ) ||
+        !_sameReceiptBytes(
+          receipt.certificate.issuerSignature,
+          certificate.issuerSignature,
         )) {
       return false;
     }
