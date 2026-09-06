@@ -127,17 +127,6 @@ abstract final class RoomInviteMembershipReceiptCrypto {
       return false;
     }
     try {
-      final certificateValid = await _algorithm.verify(
-        _certificateMessage(certificate),
-        signature: Signature(
-          certificate.issuerSignature,
-          publicKey: SimplePublicKey(
-            certificate.issuerPublicKey,
-            type: KeyPairType.ed25519,
-          ),
-        ),
-      );
-      if (!certificateValid) return false;
       return await _algorithm.verify(
         _message(receipt.requestId, certificate),
         signature: Signature(
@@ -163,13 +152,6 @@ abstract final class RoomInviteMembershipReceiptCrypto {
     '${_encode(certificate.issuerPublicKey)}',
   );
 
-  static List<int> _certificateMessage(
-    RoomMemberTransportCertificate certificate,
-  ) => utf8.encode(
-    'tark-room-member-certificate-v1\\n'
-    '${certificate.roomId.value}\\n${certificate.memberId.value}\\n'
-    '${_encode(certificate.memberPublicKey)}',
-  );
 }
 
 String _encode(List<int> bytes) => base64Url.encode(bytes).replaceAll('=', '');
