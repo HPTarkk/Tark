@@ -65,8 +65,8 @@ final class RoomConnectionReadinessResult {
 /// hello/ack: it demonstrates bidirectional control traffic and durable Room
 /// identity over the carrier that is actually bound.
 ///
-/// An epoch callback fences the wait against cancel/restart races owned by
-/// [RoomConnectionCoordinator] without making this gate depend on transport
+/// [currentEpoch] fences the wait against cancel/restart races owned by the
+/// Room connection coordinator without making this gate depend on transport
 /// planning policy.
 final class RoomConnectionReadinessGate {
   const RoomConnectionReadinessGate({
@@ -84,21 +84,32 @@ final class RoomConnectionReadinessGate {
     required int Function() currentEpoch,
   }) async {
     final completer = Completer<RoomConnectionReadinessResult>();
-    final proven = <RoomMemberId>{};
+    final proofGenerationByMember = <RoomMemberId, int>{};
     StreamSubscription<RoomSession>? runtimeSubscription;
     StreamSubscription<RoomPeerProofEvidence>? proofSubscription;
     Timer? timer;
 
     bool transportReady = _isTransportReady(runtime.state);
 
-    void refreshInitialProofs() {
-      final generation = runtime.attachmentGeneration;
-      for (final evidence in initialPeerProofs) {
-        if (evidence.attachmentGeneration == generation &&
-            expectedPeers.contains(evidence.memberId)) {
-          proven.add(evidence.memberId);
-        }
+    void remember(RoomPeerProofEvidence evidence) {
+      if (expectedPeers.contains(evidence.memberId)) {
+        proofGenerationByMember[evidence.memberId] =
+            evidence.attachmentGeneration;
       }
+    }
+
+    for (final evidence in initialPeerProofs) {
+      remember(evidence);
+    }
+
+    Set<RoomMemberId> currentProof() {
+      final generation = runtime.attachmentGeneration;
+      return Set.unmodifiable(
+        proofGenerationByMember.entries
+            .where((entry) => entry.value == generation)
+            .map((entry) => entry.key)
+            .toSet(),
+      );
     }
 
     Future<void> finish(RoomConnectionReadinessResult result) async {
@@ -114,7 +125,7 @@ final class RoomConnectionReadinessGate {
         finish(
           RoomConnectionReadinessResult.failed(
             transportReady: transportReady,
-            peerProof: Set.unmodifiable(proven),
+            peerProof: currentProof(),
             failure: RoomConnectionReadinessFailureStage.staleEpoch,
           ),
         ),
@@ -127,17 +138,12 @@ final class RoomConnectionReadinessGate {
         failStale();
         return;
       }
-      if (!transportReady || proven.isEmpty) return;
+      final proof = currentProof();
+      if (!transportReady || proof.isEmpty) return;
       unawaited(
-        finish(
-          RoomConnectionReadinessResult.ready(
-            peerProof: Set.unmodifiable(proven),
-          ),
-        ),
+        finish(RoomConnectionReadinessResult.ready(peerProof: proof)),
       );
     }
-
-    refreshInitialProofs();
 
     runtimeSubscription = runtime.changes.listen(
       (state) {
@@ -146,17 +152,7 @@ final class RoomConnectionReadinessGate {
           failStale();
           return;
         }
-
-        final generation = state.attachment.generation;
-        proven.removeWhere(
-          (memberId) => !initialPeerProofs.any(
-            (evidence) =>
-                evidence.memberId == memberId &&
-                evidence.attachmentGeneration == generation,
-          ),
-        );
         transportReady = _isTransportReady(state);
-        refreshInitialProofs();
         settleIfReady();
       },
       onError: (Object _) {},
@@ -169,11 +165,7 @@ final class RoomConnectionReadinessGate {
           failStale();
           return;
         }
-        if (evidence.attachmentGeneration != runtime.attachmentGeneration ||
-            !expectedPeers.contains(evidence.memberId)) {
-          return;
-        }
-        proven.add(evidence.memberId);
+        remember(evidence);
         settleIfReady();
       },
       onError: (Object _) {},
@@ -185,11 +177,12 @@ final class RoomConnectionReadinessGate {
         failStale();
         return;
       }
+      final proof = currentProof();
       unawaited(
         finish(
           RoomConnectionReadinessResult.failed(
             transportReady: transportReady,
-            peerProof: Set.unmodifiable(proven),
+            peerProof: proof,
             failure: transportReady
                 ? RoomConnectionReadinessFailureStage.peerProofMissing
                 : RoomConnectionReadinessFailureStage.transportBindTimeout,
