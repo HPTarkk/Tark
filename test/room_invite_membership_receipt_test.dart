@@ -3,7 +3,6 @@ import 'dart:math';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tark/feature/room/data/repository/shared_preferences_room_repository.dart';
-import 'package:tark/feature/room/domain/entity/room.dart';
 import 'package:tark/feature/room/domain/entity/room_invitation.dart';
 import 'package:tark/feature/room/domain/service/room_invite_acceptance_coordinator.dart';
 import 'package:tark/feature/room/domain/service/room_invite_join_exchange.dart';
