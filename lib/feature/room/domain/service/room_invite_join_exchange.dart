@@ -120,11 +120,11 @@ final class RoomInviteJoinExchange {
         certificate == null ||
         receipt.certificate.roomId != response.roomId ||
         receipt.certificate.memberId != response.memberId ||
-        !_sameBytes(
+        !_sameReceiptBytes(
           receipt.certificate.memberPublicKey,
           certificate.memberPublicKey,
         ) ||
-        !_sameBytes(
+        !_sameReceiptBytes(
           receipt.certificate.issuerPublicKey,
           certificate.issuerPublicKey,
         )) {
@@ -422,4 +422,13 @@ List<int> _decodeSized(String encoded, int expectedLength) {
   } catch (_) {
     throw const FormatException('Room transport public key encoding');
   }
+}
+
+bool _sameReceiptBytes(List<int> a, List<int> b) {
+  if (a.length != b.length) return false;
+  var difference = 0;
+  for (var index = 0; index < a.length; index += 1) {
+    difference |= a[index] ^ b[index];
+  }
+  return difference == 0;
 }
