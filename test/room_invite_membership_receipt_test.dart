@@ -16,10 +16,11 @@ void main() {
   late RoomInvitation invitation;
   late RoomMemberTransportIdentityCrypto crypto;
   late RoomMemberTransportKeyPair issuer;
-  final now = DateTime.utc(2026, 9, 6, 19);
+  late DateTime now;
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
+    now = DateTime.now().toUtc();
     repository = SharedPreferencesRoomRepository();
     crypto = RoomMemberTransportIdentityCrypto();
     issuer = await crypto.generateKeyPair();
