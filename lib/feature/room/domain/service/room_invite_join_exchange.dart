@@ -4,6 +4,7 @@ import '../entity/room.dart';
 import '../entity/room_accepted_join_snapshot.dart';
 import '../entity/room_invitation.dart';
 import 'room_invite_acceptance_coordinator.dart';
+import 'room_invite_membership_receipt.dart';
 import 'room_member_transport_identity.dart';
 
 typedef RoomJoinCertificateIssuer =
@@ -25,6 +26,7 @@ final class RoomInviteJoinExchange {
   RoomInviteJoinExchange({
     required RoomInviteAcceptanceCoordinator acceptance,
     RoomJoinCertificateIssuer? issueCertificate,
+    this.requireMembershipReceipt = false,
   }) : _acceptance = acceptance,
        _issueCertificate = issueCertificate;
 
@@ -35,6 +37,8 @@ final class RoomInviteJoinExchange {
 
   final RoomInviteAcceptanceCoordinator _acceptance;
   final RoomJoinCertificateIssuer? _issueCertificate;
+  final bool requireMembershipReceipt;
+  final Map<String, RoomInviteJoinResponse> _awaitingReceipts = {};
 
   Future<String> handleEncodedRequest(
     String encoded, {
@@ -51,6 +55,7 @@ final class RoomInviteJoinExchange {
       invitation: request.invitation,
       displayName: request.displayName,
       now: now,
+      pending: requireMembershipReceipt,
     );
 
     switch (result.status) {
@@ -73,13 +78,21 @@ final class RoomInviteJoinExchange {
             memberPublicKey: memberPublicKey,
           );
         }
-        return RoomInviteJoinResponse.accepted(
+        final response = RoomInviteJoinResponse.accepted(
           requestId: request.requestId,
           roomId: room.room.id,
           memberId: memberId,
           snapshot: snapshot,
           transportCertificate: certificate,
-        ).encode();
+          membershipReceiptRequired: requireMembershipReceipt,
+        );
+        if (requireMembershipReceipt && certificate != null) {
+          _awaitingReceipts[request.requestId] = response;
+          while (_awaitingReceipts.length > 32) {
+            _awaitingReceipts.remove(_awaitingReceipts.keys.first);
+          }
+        }
+        return response.encode();
       case RoomInviteAcceptanceStatus.rejected:
         return RoomInviteJoinResponse.rejected(
           requestId: request.requestId,
@@ -89,6 +102,41 @@ final class RoomInviteJoinExchange {
           requestId: request.requestId,
         ).encode();
     }
+  }
+
+  /// Confirms a receipt-required invite on the issuer's existing control
+  /// carrier. A stale, forged or cross-Room receipt cannot settle a seat.
+  Future<bool> handleEncodedReceipt(String encoded) async {
+    if (!requireMembershipReceipt) return false;
+    final RoomInviteMembershipReceipt receipt;
+    try {
+      receipt = RoomInviteMembershipReceipt.decode(encoded);
+    } on FormatException {
+      return false;
+    }
+    final response = _awaitingReceipts[receipt.requestId];
+    final certificate = response?.transportCertificate;
+    if (response == null ||
+        certificate == null ||
+        receipt.certificate.roomId != response.roomId ||
+        receipt.certificate.memberId != response.memberId ||
+        !_sameBytes(receipt.certificate.memberPublicKey, certificate.memberPublicKey) ||
+        !_sameBytes(receipt.certificate.issuerPublicKey, certificate.issuerPublicKey)) {
+      return false;
+    }
+    final valid = await RoomInviteMembershipReceiptCrypto.verify(
+      receipt: receipt,
+      expectedRoomId: response.roomId!,
+      expectedMemberId: response.memberId!,
+      expectedIssuerPublicKey: certificate.issuerPublicKey,
+    );
+    if (!valid) return false;
+    await _acceptance.confirmMember(
+      roomId: response.roomId!,
+      memberId: response.memberId!,
+    );
+    _awaitingReceipts.remove(receipt.requestId);
+    return true;
   }
 }
 
@@ -108,7 +156,7 @@ final class RoomInviteJoinRequest {
   String encode() {
     final cleanName = displayName.trim();
     final publicKey = memberTransportPublicKey;
-    if (!_validRequestId(requestId) ||
+    if (!isValidRequestId(requestId) ||
         cleanName.isEmpty ||
         cleanName.length > RoomInviteJoinExchange.maxDisplayNameLength ||
         (publicKey != null && publicKey.length != 32)) {
@@ -147,7 +195,7 @@ final class RoomInviteJoinRequest {
       final displayName = value['displayName'];
       final memberKeyRaw = value['memberTransportKey'];
       if (requestId is! String ||
-          !_validRequestId(requestId) ||
+          !isValidRequestId(requestId) ||
           invite is! String ||
           displayName is! String ||
           (memberKeyRaw != null && memberKeyRaw is! String)) {
@@ -173,7 +221,7 @@ final class RoomInviteJoinRequest {
     }
   }
 
-  static bool _validRequestId(String value) =>
+  static bool isValidRequestId(String value) =>
       RegExp(r'^[0-9a-f]{32}$').hasMatch(value);
 }
 
@@ -191,6 +239,7 @@ final class RoomInviteJoinResponse {
     required this.memberId,
     this.snapshot,
     this.transportCertificate,
+    this.membershipReceiptRequired = false,
   }) : status = RoomInviteJoinResponseStatus.accepted;
 
   const RoomInviteJoinResponse.rejected({required this.requestId})
@@ -198,21 +247,24 @@ final class RoomInviteJoinResponse {
       roomId = null,
       memberId = null,
       snapshot = null,
-      transportCertificate = null;
+      transportCertificate = null,
+      membershipReceiptRequired = false;
 
   const RoomInviteJoinResponse.roomUnavailable({required this.requestId})
     : status = RoomInviteJoinResponseStatus.roomUnavailable,
       roomId = null,
       memberId = null,
       snapshot = null,
-      transportCertificate = null;
+      transportCertificate = null,
+      membershipReceiptRequired = false;
 
   const RoomInviteJoinResponse.malformed({required this.requestId})
     : status = RoomInviteJoinResponseStatus.malformed,
       roomId = null,
       memberId = null,
       snapshot = null,
-      transportCertificate = null;
+      transportCertificate = null,
+      membershipReceiptRequired = false;
 
   final String requestId;
   final RoomInviteJoinResponseStatus status;
@@ -220,10 +272,11 @@ final class RoomInviteJoinResponse {
   final RoomMemberId? memberId;
   final RoomAcceptedJoinSnapshot? snapshot;
   final RoomMemberTransportCertificate? transportCertificate;
+  final bool membershipReceiptRequired;
 
   String encode() {
     if (requestId.isNotEmpty &&
-        !RoomInviteJoinRequest._validRequestId(requestId)) {
+        !RoomInviteJoinRequest.isValidRequestId(requestId)) {
       throw const FormatException('invalid room join response request id');
     }
     if (status == RoomInviteJoinResponseStatus.accepted &&
@@ -246,6 +299,7 @@ final class RoomInviteJoinResponse {
       if (memberId != null) 'memberId': memberId!.value,
       if (snapshot != null) 'snapshot': snapshot!.encode(),
       if (certificate != null) 'transportCertificate': certificate.encode(),
+      if (membershipReceiptRequired) 'receiptRequired': true,
     });
     final encoded = base64Url.encode(utf8.encode(payload)).replaceAll('=', '');
     if (encoded.length > RoomInviteJoinExchange.maxEncodedResponseLength) {
@@ -272,7 +326,7 @@ final class RoomInviteJoinResponse {
       final statusRaw = value['status'];
       if (requestId is! String ||
           (requestId.isNotEmpty &&
-              !RoomInviteJoinRequest._validRequestId(requestId)) ||
+              !RoomInviteJoinRequest.isValidRequestId(requestId)) ||
           statusRaw is! String) {
         throw const FormatException('room join response fields');
       }
@@ -288,6 +342,7 @@ final class RoomInviteJoinResponse {
         final memberIdRaw = value['memberId'];
         final snapshotRaw = value['snapshot'];
         final certificateRaw = value['transportCertificate'];
+        final receiptRequired = value['receiptRequired'];
         if (roomId == null ||
             memberIdRaw is! String ||
             !RegExp(r'^[0-9a-f]{24}$').hasMatch(memberIdRaw) ||
@@ -318,6 +373,7 @@ final class RoomInviteJoinResponse {
           memberId: memberId,
           snapshot: snapshot,
           transportCertificate: certificate,
+          membershipReceiptRequired: receiptRequired == true,
         );
       }
       if (value.containsKey('roomId') ||
