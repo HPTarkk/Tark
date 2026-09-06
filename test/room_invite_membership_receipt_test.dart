@@ -20,7 +20,9 @@ void main() {
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
-    now = DateTime.now().toUtc();
+    // Repository creation uses the device clock; a far-future test invitation
+    // keeps the accepted timestamp monotonically after either clock source.
+    now = DateTime.utc(2100, 1, 1);
     repository = SharedPreferencesRoomRepository();
     crypto = RoomMemberTransportIdentityCrypto();
     issuer = await crypto.generateKeyPair();
