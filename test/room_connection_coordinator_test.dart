@@ -20,25 +20,28 @@ void main() {
     prefersHotspotHost: preferred,
   );
 
-  test('simultaneous Start taps converge on one epoch and one hotspot host', () {
-    final coordinator = RoomConnectionCoordinator();
-    final first = coordinator.requestStart(
-      requester: owner,
-      sharedLanUsable: false,
-      candidates: [candidate(owner, preferred: true), candidate(joiner)],
-    );
-    final second = coordinator.requestStart(
-      requester: joiner,
-      sharedLanUsable: false,
-      candidates: [candidate(owner, preferred: true), candidate(joiner)],
-    );
+  test(
+    'simultaneous Start taps converge on one epoch and one hotspot host',
+    () {
+      final coordinator = RoomConnectionCoordinator();
+      final first = coordinator.requestStart(
+        requester: owner,
+        sharedLanUsable: false,
+        candidates: [candidate(owner, preferred: true), candidate(joiner)],
+      );
+      final second = coordinator.requestStart(
+        requester: joiner,
+        sharedLanUsable: false,
+        candidates: [candidate(owner, preferred: true), candidate(joiner)],
+      );
 
-    expect(first.epoch, 1);
-    expect(second.epoch, 1);
-    expect(second.plan?.kind, RoomTransportKind.hotspot);
-    expect(second.plan?.hotspotHost, owner);
-    expect(second.startRequestedBy, {owner, joiner});
-  });
+      expect(first.epoch, 1);
+      expect(second.epoch, 1);
+      expect(second.plan?.kind, RoomTransportKind.hotspot);
+      expect(second.plan?.hotspotHost, owner);
+      expect(second.startRequestedBy, {owner, joiner});
+    },
+  );
 
   test('shared LAN becomes connected only after transport and peer proof', () {
     final coordinator = RoomConnectionCoordinator();
