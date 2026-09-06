@@ -151,7 +151,6 @@ abstract final class RoomInviteMembershipReceiptCrypto {
     '${_encode(certificate.memberPublicKey)}\\n'
     '${_encode(certificate.issuerPublicKey)}',
   );
-
 }
 
 String _encode(List<int> bytes) => base64Url.encode(bytes).replaceAll('=', '');
