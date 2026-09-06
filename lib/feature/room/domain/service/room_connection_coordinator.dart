@@ -105,9 +105,7 @@ final class RoomConnectionCoordinator {
           : RoomConnectionPhase.failed,
       startRequestedBy: {requester},
       plan: plan,
-      failure: plan.isUsable
-          ? null
-          : RoomConnectionFailure.noEligibleTransport,
+      failure: plan.isUsable ? null : RoomConnectionFailure.noEligibleTransport,
     );
     return _state;
   }
