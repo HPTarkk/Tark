@@ -24,6 +24,7 @@ final class RoomInviteAcceptanceCoordinator {
     required RoomInvitation invitation,
     required String displayName,
     required DateTime now,
+    bool pending = false,
   }) async {
     // Unknown local RoomIds cannot be authorized by a self-contained token.
     // Fail closed before asking the issuer ledger to verify anything.
@@ -43,9 +44,17 @@ final class RoomInviteAcceptanceCoordinator {
       verified,
       displayName: displayName,
       acceptedAt: now.toUtc(),
+      pending: pending,
     );
     return RoomInviteAcceptanceResult.accepted(saved);
   }
+
+  /// Converts an issuer-held invite seat into a confirmed roster member only
+  /// after the joiner proves it received the accepted response.
+  Future<SavedRoom> confirmMember({
+    required RoomId roomId,
+    required RoomMemberId memberId,
+  }) => repository.updateMember(roomId, memberId, pending: false);
 }
 
 final class RoomInviteAcceptanceResult {

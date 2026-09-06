@@ -3,11 +3,20 @@ import 'dart:math';
 import '../entity/room_invitation.dart';
 import 'room_invite_join_client.dart';
 import 'room_invite_join_exchange.dart';
+import 'room_invite_membership_receipt.dart';
 import 'room_member_transport_identity.dart';
 
 /// Minimal transport boundary for one secure Room invite request/response.
 abstract interface class RoomInviteJoinCarrier {
   Future<String> exchange(String encodedRequest);
+}
+
+/// Optional second leg supported by persistent control carriers such as
+/// Bluetooth. QR remains a compatible recovery carrier and does not advertise
+/// receipt-required responses.
+abstract interface class RoomInviteJoinReceiptCarrier
+    implements RoomInviteJoinCarrier {
+  Future<bool> submitMembershipReceipt(String encodedReceipt);
 }
 
 enum RoomInviteJoinAttemptStatus {
@@ -16,6 +25,7 @@ enum RoomInviteJoinAttemptStatus {
   roomUnavailable,
   invalidResponse,
   transportFailure,
+  receiptNotConfirmed,
   cancelled,
 }
 
@@ -46,6 +56,9 @@ final class RoomInviteJoinAttemptResult {
 
   const RoomInviteJoinAttemptResult.transportFailure()
     : this._(status: RoomInviteJoinAttemptStatus.transportFailure);
+
+  const RoomInviteJoinAttemptResult.receiptNotConfirmed()
+    : this._(status: RoomInviteJoinAttemptStatus.receiptNotConfirmed);
 
   const RoomInviteJoinAttemptResult.cancelled()
     : this._(status: RoomInviteJoinAttemptStatus.cancelled);
@@ -127,6 +140,25 @@ final class RoomInviteJoinOrchestrator {
         );
         if (grant == null || grant.transportCertificate == null) {
           return const RoomInviteJoinAttemptResult.invalidResponse();
+        }
+        if (response.membershipReceiptRequired) {
+          if (carrier is! RoomInviteJoinReceiptCarrier) {
+            return const RoomInviteJoinAttemptResult.receiptNotConfirmed();
+          }
+          final receipt = await RoomInviteMembershipReceiptCrypto.sign(
+            requestId: request.requestId,
+            certificate: grant.transportCertificate!,
+            member: memberKeyPair,
+          );
+          final confirmed = await carrier.submitMembershipReceipt(
+            receipt.encode(),
+          );
+          if (generation != _generation) {
+            return const RoomInviteJoinAttemptResult.cancelled();
+          }
+          if (!confirmed) {
+            return const RoomInviteJoinAttemptResult.receiptNotConfirmed();
+          }
         }
         return RoomInviteJoinAttemptResult.accepted(
           grant,
