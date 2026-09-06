@@ -16,7 +16,7 @@ void main() {
       roomId: 'room-1',
       sessionId: 'session-1',
       localMemberId: local.value,
-      memberIds: const [local.value, peer.value],
+      memberIds: [local.value, peer.value],
     ),
   );
 
