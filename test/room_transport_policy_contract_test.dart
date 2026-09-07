@@ -19,7 +19,9 @@ void main() {
       'lib/feature/room/presentation/widget/selected_room_lobby.dart',
     ).readAsStringSync();
 
-    expect(source, contains('final alone = members.length <= 1;'));
+    expect(source, contains('final confirmedMembers = _room.room.confirmedMembers;'));
+    expect(source, contains('final alone = confirmedMembers.length <= 1;'));
+    expect(source, isNot(contains('final alone = members.length <= 1;')));
     expect(source, isNot(contains('members.length <= 1 && held.isEmpty')));
   });
 
