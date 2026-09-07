@@ -63,7 +63,8 @@ final class SelectedRoomLiveSessionBinding {
   int _generation = 0;
   final StreamController<RoomPeerProofEvidence> _verifiedPeerProofs =
       StreamController<RoomPeerProofEvidence>.broadcast(sync: true);
-  final Map<RoomMemberId, RoomPeerProofEvidence> _verifiedPeerProofByMember = {};
+  final Map<RoomMemberId, RoomPeerProofEvidence> _verifiedPeerProofByMember =
+      {};
 
   RoomSessionRuntime? get runtime => _runtime;
 
