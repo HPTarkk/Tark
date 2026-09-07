@@ -8,26 +8,26 @@ import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../transfer/api/transfer_api.dart';
+import '../../domain/entity/held_seat_name.dart';
 import '../../domain/entity/room.dart';
 import '../../domain/repository/room_repository.dart';
 import '../room_member_display_name.dart';
 import 'one_scan_room_invite_sheet.dart';
+import 'room_connection_status_chip.dart';
+import 'room_connection_status_scope.dart';
 
 /// The durable Room lobby.
 ///
-/// This surface deliberately does not explain transport. A rider joined a
-/// Room, not a Wi-Fi network, and the connection layer is responsible for
-/// preferring a proven shared LAN, raising a Tark hotspot when needed and
-/// recovering/failing over without asking the rider to choose Host / Join.
-///
-/// `link`, `mode` and `onConnect` remain constructor seams while the router is
-/// migrated incrementally, but they do not change the primary Room UI. Manual
-/// transport controls belong to explicit troubleshooting only.
+/// Membership and connection are deliberately separate here. A pending seat is
+/// visible as invited/confirming, a confirmed member is ready to connect, and
+/// pressing Start moves the same roster to connecting. No carrier role,
+/// address, network name or credential appears in the normal Room flow.
 class SelectedRoomLobby extends StatefulWidget {
   const SelectedRoomLobby({
     required this.room,
     required this.onStartRide,
     required this.onBack,
+    this.connectionPhase = RoomConnectionUiPhase.readyToConnect,
     this.link,
     this.mode,
     this.onConnect,
@@ -39,18 +39,14 @@ class SelectedRoomLobby extends StatefulWidget {
   final SavedRoom room;
   final VoidCallback onStartRide;
   final VoidCallback onBack;
+  final RoomConnectionUiPhase connectionPhase;
 
   /// Legacy composition seams. They intentionally do not drive normal lobby
   /// copy or actions; transport is an implementation detail here.
   final LiveLink? link;
   final TransferMode? mode;
   final VoidCallback? onConnect;
-
   final RoomRepository? repository;
-
-  /// Test seam around the hidden transfer bridge. Production deliberately
-  /// resolves the real bridge lazily only when an eligible bootstrap host has
-  /// no current link at the moment Start is pressed.
   final PreLiveHotspotBootstrap? preLiveBootstrap;
 
   @override
@@ -122,14 +118,6 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
 
   Future<void> _invite() async {
     HapticFeedback.selectionClick();
-
-    // A current Tark hotspot is reused. Otherwise only the deterministic
-    // creator/preferred bootstrap side is allowed to raise one behind the
-    // one-scan sheet; Room invite authority is never used to choose a host.
-    //
-    // Proven shared-LAN selection belongs to the Room transport planner. The
-    // pre-live QR cannot treat a local Wi-Fi association as proof that the
-    // other phone is reachable, so it never guesses from SSID/interface state.
     await showOneScanRoomInviteSheet(
       context,
       repository: widget.repository,
@@ -139,27 +127,16 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
   }
 
   Future<void> _startRide() async {
-    if (_starting) return;
+    if (_starting || widget.connectionPhase == RoomConnectionUiPhase.connecting) {
+      return;
+    }
     setState(() => _starting = true);
     try {
       final link = widget.link;
-
-      // Do not guess while the first link probe is still unresolved. If Wi-Fi,
-      // an existing Tark hotspot, or Bluetooth is already up, the router/live
-      // binding gets first use of it and actual peer health decides whether it
-      // is viable. That preserves the LAN-first path without treating a local
-      // Wi-Fi interface as proof of shared reachability.
-      //
-      // Once the probe has positively said "no link", only the deterministic
-      // preferred bootstrap side may raise Tark's fallback hotspot. The same
-      // transfer bridge used by the one-scan invite owns permissions/retries
-      // and hands the established attachment to HotspotLinkKeeper. No Host /
-      // Join choice or network instructions enter the Room UI.
       if (link != null && !link.isUp && _isPreferredBootstrapHost) {
         await (widget.preLiveBootstrap ?? PreLiveHotspotBootstrap())
             .prepareHost();
       }
-
       if (!mounted) return;
       widget.onStartRide();
     } finally {
@@ -170,16 +147,14 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
-    final members = _room.room.confirmedMembers;
+    final members = _room.room.activeMembers;
     final canInvite =
         !_room.room.archived &&
         _room.membership.active &&
         _room.membership.canManageInvites;
-
-    // Pending invite seats are authorization bookkeeping, not people. Opening
-    // or regenerating a QR must never make the Room look less empty or add a
-    // "waiting" person to the primary roster.
     final alone = members.length <= 1;
+    final connecting =
+        _starting || widget.connectionPhase == RoomConnectionUiPhase.connecting;
 
     return Scaffold(
       appBar: AppBar(
@@ -207,7 +182,11 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
           children: [
             Text(
-              alone ? s.lobby_alone_heading : s.lobby_heading,
+              connecting
+                  ? s.connecting
+                  : alone
+                  ? s.lobby_alone_heading
+                  : s.lobby_heading,
               style: Theme.of(
                 context,
               ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
@@ -222,7 +201,13 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
               ),
             ),
             const SizedBox(height: 22),
-            _MembersCard(room: _room, members: members),
+            _MembersCard(
+              room: _room,
+              members: members,
+              connectionPhase: connecting
+                  ? RoomConnectionUiPhase.connecting
+                  : RoomConnectionUiPhase.readyToConnect,
+            ),
             const SizedBox(height: 18),
             if (canInvite) ...[
               _RoomAction(
@@ -230,6 +215,7 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
                 icon: Icons.person_add_alt_1_rounded,
                 label: s.invite_people,
                 primary: alone,
+                busy: connecting,
                 onTap: _invite,
               ),
               const SizedBox(height: 12),
@@ -239,7 +225,7 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
               icon: Icons.play_arrow_rounded,
               label: s.lobby_start_ride,
               primary: !alone || !canInvite,
-              busy: _starting,
+              busy: connecting,
               onTap: _startRide,
             ),
           ],
@@ -250,10 +236,15 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
 }
 
 class _MembersCard extends StatelessWidget {
-  const _MembersCard({required this.room, required this.members});
+  const _MembersCard({
+    required this.room,
+    required this.members,
+    required this.connectionPhase,
+  });
 
   final SavedRoom room;
   final List<RoomMember> members;
+  final RoomConnectionUiPhase connectionPhase;
 
   @override
   Widget build(BuildContext context) {
@@ -287,6 +278,7 @@ class _MembersCard extends StatelessWidget {
             _MemberRow(
               member: members[index],
               isYou: members[index].id == room.membership.localMemberId,
+              phase: _phaseFor(members[index]),
             ),
             if (index != members.length - 1) const SizedBox(height: 8),
           ],
@@ -294,13 +286,27 @@ class _MembersCard extends StatelessWidget {
       ),
     );
   }
+
+  RoomConnectionUiPhase _phaseFor(RoomMember member) {
+    if (member.pending) {
+      return isHeldSeatPlaceholder(member.displayName)
+          ? RoomConnectionUiPhase.invited
+          : RoomConnectionUiPhase.confirming;
+    }
+    return connectionPhase;
+  }
 }
 
 class _MemberRow extends StatelessWidget {
-  const _MemberRow({required this.member, required this.isYou});
+  const _MemberRow({
+    required this.member,
+    required this.isYou,
+    required this.phase,
+  });
 
   final RoomMember member;
   final bool isYou;
+  final RoomConnectionUiPhase phase;
 
   @override
   Widget build(BuildContext context) {
@@ -309,48 +315,54 @@ class _MemberRow extends StatelessWidget {
       fa: Localizations.localeOf(context).languageCode == 'fa',
       unnamed: context.getString.people_unnamed,
     );
-    return Row(
-      children: [
-        Container(
-          width: 38,
-          height: 38,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: AppColors.amber.withValues(alpha: 0.12),
-            border: Border.all(color: AppColors.amber.withValues(alpha: 0.38)),
-          ),
-          child: Icon(Icons.person_rounded, size: 20, color: AppColors.amber),
-        ),
-        const SizedBox(width: 11),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
-                ),
+    return Semantics(
+      container: true,
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.amber.withValues(alpha: 0.12),
+              border: Border.all(
+                color: AppColors.amber.withValues(alpha: 0.38),
               ),
-              if (isYou) ...[
-                const SizedBox(height: 2),
+            ),
+            child: Icon(Icons.person_rounded, size: 20, color: AppColors.amber),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  context.getString.people_you,
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 11,
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
                   ),
                 ),
+                const SizedBox(height: 4),
+                if (isYou)
+                  Text(
+                    context.getString.people_you,
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 11,
+                    ),
+                  )
+                else
+                  RoomConnectionStatusChip(phase: phase),
               ],
-            ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
