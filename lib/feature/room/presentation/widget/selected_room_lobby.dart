@@ -268,14 +268,18 @@ class _MembersCard extends StatelessWidget {
             children: [
               Icon(Icons.groups_2_rounded, size: 19, color: AppColors.amber),
               const SizedBox(width: 8),
-              Text(
-                s.lobby_members(
-                  room.room.confirmedMembers.length.localized(context),
-                ),
-                style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14,
+              Flexible(
+                child: Text(
+                  s.lobby_members(
+                    room.room.confirmedMembers.length.localized(context),
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                  ),
                 ),
               ),
             ],
