@@ -10,13 +10,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../core/widget/app_avatar.dart';
 import '../../../../core/widget/section_header.dart';
-import '../../../room/domain/entity/held_seat_name.dart';
-import '../../../room/domain/entity/room.dart';
-import '../../../room/domain/repository/room_repository.dart';
-import '../../../room/presentation/room_member_display_name.dart';
-import '../../../room/presentation/widget/in_room_people_action.dart';
-import '../../../room/presentation/widget/room_connection_status_chip.dart';
-import '../../../room/presentation/widget/room_connection_status_scope.dart';
+import '../../../room/api/room_api.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../../domain/entity/channel_user.dart';
 import '../manager/walkie_talkie_cubit.dart';
@@ -176,7 +170,8 @@ class _RoomRoster extends StatelessWidget {
     final unambiguousSinglePeer =
         confirmedRemoteCount == 1 && live.activeUsers.length == 1;
 
-    if ((peerPresent || unambiguousSinglePeer) && live.connectionHealth.isLive) {
+    if ((peerPresent || unambiguousSinglePeer) &&
+        live.connectionHealth.isLive) {
       return RoomConnectionUiPhase.connected;
     }
     if (live.startFailed || !live.connectionHealth.isLive) {
@@ -209,7 +204,9 @@ class _RoomMemberTile extends StatelessWidget {
           color: connected ? AppColors.green.withAlpha(15) : AppColors.card,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: connected ? AppColors.green.withAlpha(130) : AppColors.border,
+            color: connected
+                ? AppColors.green.withAlpha(130)
+                : AppColors.border,
             width: 1.5,
           ),
         ),
@@ -454,8 +451,7 @@ class _WaveformBarsState extends State<WaveformBars>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: List.generate(4, (index) {
-            final height =
-                6.0 + sin(_controller.value * pi + index * 1.2) * 6;
+            final height = 6.0 + sin(_controller.value * pi + index * 1.2) * 6;
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 1),
               child: Container(
