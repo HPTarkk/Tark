@@ -127,7 +127,8 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
   }
 
   Future<void> _startRide() async {
-    if (_starting || widget.connectionPhase == RoomConnectionUiPhase.connecting) {
+    if (_starting ||
+        widget.connectionPhase == RoomConnectionUiPhase.connecting) {
       return;
     }
     setState(() => _starting = true);
@@ -148,11 +149,15 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
   Widget build(BuildContext context) {
     final s = context.getString;
     final members = _room.room.activeMembers;
+    final confirmedMembers = _room.room.confirmedMembers;
     final canInvite =
         !_room.room.archived &&
         _room.membership.active &&
         _room.membership.canManageInvites;
-    final alone = members.length <= 1;
+    // Pending invite seats remain visible, but they are not joined people yet.
+    // A QR reservation must never make the Room look as though someone has
+    // already arrived.
+    final alone = confirmedMembers.length <= 1;
     final connecting =
         _starting || widget.connectionPhase == RoomConnectionUiPhase.connecting;
 
