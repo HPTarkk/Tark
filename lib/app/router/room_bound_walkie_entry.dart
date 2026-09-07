@@ -154,7 +154,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       final selected = await SelectedRoomLobbyResolver(rooms!).resolve();
       if (selected != null) {
         if (widget.ride && await _openLinkGate()) {
-          return _startSelectedRoom(selected);
+          return await _startSelectedRoom(selected);
         }
         return _EntryState.lobby(selected);
       }
@@ -184,7 +184,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         (_) {
           if (identical(_activeStart, future)) _activeStart = null;
         },
-        onError: (Object _, StackTrace __) {
+        onError: (Object _, StackTrace _) {
           if (identical(_activeStart, future)) _activeStart = null;
         },
       ),
