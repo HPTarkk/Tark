@@ -143,26 +143,73 @@ jobs:
             exit 1
           fi
 
+      - name: Create local release commit
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pubspec.yaml
+          git commit -m "chore(release): Tark v${{ steps.version.outputs.version }}"
+
+      - name: Resolve exact build provenance
+        id: provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha="$(git rev-parse HEAD)"
+          if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Release provenance is missing an exact commit SHA"
+            exit 1
+          fi
+          if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+            echo "::error::Release source has tracked changes after the release commit"
+            git status --short
+            exit 1
+          fi
+          built_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "commit_sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "built_at=$built_at" >> "$GITHUB_OUTPUT"
+          echo "Release provenance: commit=$sha builtAt=$built_at"
+
       - name: Install dependencies and run checks
         run: |
           flutter pub get
           flutter analyze
           flutter test
+          git diff --exit-code
+          git diff --check
 
       - name: Build signed Android APK and App Bundle
+        shell: bash
         run: |
           set -euo pipefail
+          provenance_args=(
+            "--dart-define=BUILD_CHANNEL=${RELEASE_CHANNEL}"
+            "--dart-define=GIT_COMMIT=${{ steps.provenance.outputs.commit_sha }}"
+            "--dart-define=GIT_DIRTY=false"
+            "--dart-define=BUILD_TIMESTAMP=${{ steps.provenance.outputs.built_at }}"
+          )
           flutter build apk --release --split-per-abi \
             --build-name="${{ steps.version.outputs.version }}" \
-            --build-number="${{ steps.version.outputs.build_number }}"
+            --build-number="${{ steps.version.outputs.build_number }}" \
+            "${provenance_args[@]}"
           flutter build appbundle --release \
             --build-name="${{ steps.version.outputs.version }}" \
-            --build-number="${{ steps.version.outputs.build_number }}"
+            --build-number="${{ steps.version.outputs.build_number }}" \
+            "${provenance_args[@]}"
 
       - name: Build guest PWA archive
+        shell: bash
         run: |
           set -euo pipefail
-          flutter build web --release -t lib/main_guest.dart
+          provenance_args=(
+            "--dart-define=BUILD_CHANNEL=${RELEASE_CHANNEL}"
+            "--dart-define=GIT_COMMIT=${{ steps.provenance.outputs.commit_sha }}"
+            "--dart-define=GIT_DIRTY=false"
+            "--dart-define=BUILD_TIMESTAMP=${{ steps.provenance.outputs.built_at }}"
+          )
+          flutter build web --release -t lib/main_guest.dart \
+            "${provenance_args[@]}"
           mkdir -p dist
           (cd build/web && zip -qr "../../dist/tark-guest-pwa-v${{ steps.version.outputs.version }}.zip" .)
 
@@ -179,13 +226,9 @@ jobs:
             sha256sum *.apk *.aab *.zip > SHA256SUMS.txt
           )
 
-      - name: Commit the version bump to main
+      - name: Push release commit to main
         run: |
           set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add pubspec.yaml
-          git commit -m "chore(release): Tark v${{ steps.version.outputs.version }}"
           git push origin HEAD:main
 
       - name: Create GitHub Release
