@@ -78,7 +78,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('unused invite seat is invisible to member count and roster', (
+  testWidgets('unused invite seat is visible but excluded from member count', (
     tester,
   ) async {
     final room = await repository.create(
@@ -92,7 +92,11 @@ void main() {
 
     expect(find.text('Room members (1)'), findsOneWidget);
     expect(find.text('Room members (2)'), findsNothing);
-    expect(find.text('Open seat'), findsNothing);
+    expect(find.text('Open seat'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('room-status-invited')),
+      findsOneWidget,
+    );
     expect(find.byKey(const Key('selected-room-held-seats')), findsNothing);
     expect(
       find.byKey(const Key('selected-room-invite-callout')),
