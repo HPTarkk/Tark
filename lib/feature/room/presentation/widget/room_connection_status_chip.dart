@@ -19,7 +19,7 @@ class RoomConnectionStatusChip extends StatelessWidget {
     final s = context.getString;
     final label = switch (phase) {
       RoomConnectionUiPhase.invited => s.lobby_held_seats_hint,
-      RoomConnectionUiPhase.confirming => s.connecting,
+      RoomConnectionUiPhase.confirming => s.preflight_peer_unconfirmed,
       RoomConnectionUiPhase.readyToConnect => s.landing_ready,
       RoomConnectionUiPhase.connecting => s.connecting,
       RoomConnectionUiPhase.connected => s.preflight_transport_ready,
