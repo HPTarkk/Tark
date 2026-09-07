@@ -15,11 +15,8 @@ import 'package:tark/feature/walkie/presentation/widget/user_list.dart';
 /// at most, and it was holding the trailing edge of the one screen a rider
 /// looks at for the whole trip.
 ///
-/// The point of moving it into the members card is not that the card had room.
-/// It is that the card knows the answer to "is anybody here", and that answer
-/// is exactly what decides whether inviting is the thing to press — which is
-/// something a header pill could never express. So these test the *weight*,
-/// not the placement.
+/// The selected Room is the membership authority. Live transport peers may
+/// contribute presence, but they never create or remove durable members.
 void main() {
   const primary = Key('channel-invite-primary');
   const quiet = Key('channel-invite-quiet');
@@ -33,9 +30,6 @@ void main() {
 
   tearDown(() async => GetIt.instance.reset());
 
-  /// The card builds its action with no seam, resolving the canonical
-  /// registration — so the composition is what is under test here, not a
-  /// widget handed a repository by hand.
   void register() => GetIt.instance.registerSingleton<RoomRepository>(rooms);
 
   Future<void> selectARoom() async {
@@ -68,9 +62,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
   }
 
-  testWidgets('an empty channel makes inviting the lit control', (
-    tester,
-  ) async {
+  testWidgets('an empty Room makes inviting the lit control', (tester) async {
     register();
     await selectARoom();
     await pump(tester, users: const []);
@@ -78,8 +70,6 @@ void main() {
     expect(find.byKey(primary), findsOneWidget);
     expect(find.byKey(quiet), findsNothing);
 
-    // "Exactly one control glows" is the whole reason the variant exists, so
-    // read the glow rather than trusting the key.
     final glow = tester.widget<PulseGlow>(
       find.descendant(
         of: find.byKey(primary),
@@ -89,27 +79,19 @@ void main() {
     expect(glow.enabled, isTrue);
   });
 
-  testWidgets('somebody else here makes it a quiet control under the list', (
+  testWidgets('transport peer alone does not invent Room membership', (
     tester,
   ) async {
     register();
     await selectARoom();
     await pump(tester, users: [_rider()]);
 
-    expect(find.byKey(quiet), findsOneWidget);
-    expect(find.byKey(primary), findsNothing);
-
-    // The screen's attention belongs to the mic once the channel is real.
-    final glow = tester.widget<PulseGlow>(
-      find.descendant(of: find.byKey(quiet), matching: find.byType(PulseGlow)),
-    );
-    expect(glow.enabled, isFalse);
+    expect(find.byKey(primary), findsOneWidget);
+    expect(find.byKey(quiet), findsNothing);
+    expect(find.text('Rider B'), findsNothing);
   });
 
   testWidgets('no Room means no invite, in either weight', (tester) async {
-    // A plain channel with no durable Room has nothing to invite anyone into,
-    // and a control that opens a sheet only to explain why it cannot help is
-    // worse than no control.
     register();
     await pump(tester, users: const []);
     expect(find.byKey(primary), findsNothing);
@@ -120,8 +102,6 @@ void main() {
   });
 
   testWidgets('the empty card still says what it always said', (tester) async {
-    // Without a Room the callout keeps its heading and simply stops one line
-    // earlier, which is exactly the card this replaced.
     register();
     await pump(tester, users: const []);
 
@@ -136,9 +116,6 @@ void main() {
     await pump(tester, users: const []);
     expect(find.byKey(primary), findsNothing);
 
-    // A room can be selected while this card is already on screen, and a
-    // covered route is never rebuilt — storage is the only thing that knows
-    // the answer changed (R23).
     await selectARoom();
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
