@@ -36,7 +36,7 @@ void main() {
             runtime: subject,
             peerProofs: proofs.stream,
             initialPeerProofs: const [],
-            expectedPeers: const {peer},
+            expectedPeers: {peer},
             epoch: epoch,
             currentEpoch: () => epoch,
           );
@@ -48,7 +48,7 @@ void main() {
 
       final result = await waiting;
       expect(result.isReady, isTrue);
-      expect(result.peerProof, const {peer});
+      expect(result.peerProof, {peer});
       await proofs.close();
       await subject.leave();
     },
@@ -68,7 +68,7 @@ void main() {
           runtime: subject,
           peerProofs: proofs.stream,
           initialPeerProofs: const [],
-          expectedPeers: const {peer},
+          expectedPeers: {peer},
           epoch: epoch,
           currentEpoch: () => epoch,
         );
@@ -103,7 +103,7 @@ void main() {
             runtime: subject,
             peerProofs: const Stream<RoomPeerProofEvidence>.empty(),
             initialPeerProofs: const [],
-            expectedPeers: const {peer},
+            expectedPeers: {peer},
             epoch: epoch,
             currentEpoch: () => epoch,
           );
@@ -132,7 +132,7 @@ void main() {
           runtime: subject,
           peerProofs: proofs.stream,
           initialPeerProofs: const [],
-          expectedPeers: const {peer},
+          expectedPeers: {peer},
           epoch: 1,
           currentEpoch: () => currentEpoch,
         );
@@ -173,7 +173,7 @@ void main() {
               attachmentGeneration: oldGeneration,
             ),
           ],
-          expectedPeers: const {peer},
+          expectedPeers: {peer},
           epoch: epoch,
           currentEpoch: () => epoch,
         );
