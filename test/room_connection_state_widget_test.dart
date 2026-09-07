@@ -46,9 +46,9 @@ void main() {
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       builder: (context, child) => MediaQuery(
-        data: MediaQuery.of(context).copyWith(
-          textScaler: TextScaler.linear(textScale),
-        ),
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.linear(textScale)),
         child: child!,
       ),
       home: SelectedRoomLobby(
@@ -78,10 +78,7 @@ void main() {
         find.byKey(const ValueKey('room-status-readyToConnect')),
         findsOneWidget,
       );
-      expect(
-        find.byKey(const ValueKey('room-status-invited')),
-        findsOneWidget,
-      );
+      expect(find.byKey(const ValueKey('room-status-invited')), findsOneWidget);
       expect(find.textContaining('SSID'), findsNothing);
       expect(find.textContaining('IP'), findsNothing);
       expect(find.textContaining('Host'), findsNothing);
@@ -111,7 +108,10 @@ void main() {
     expect(Directionality.of(tester.element(lobby)), TextDirection.rtl);
     expect(find.text('اعضای اتاق (۲)'), findsOneWidget);
     expect(find.text('جای خالی'), findsOneWidget);
-    expect(find.byKey(const ValueKey('room-status-connecting')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('room-status-connecting')),
+      findsOneWidget,
+    );
     expect(find.byKey(const ValueKey('room-status-invited')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
