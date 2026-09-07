@@ -109,7 +109,8 @@ final class RoomConnectionReadinessGate {
 
     void remember(RoomPeerProofEvidence evidence) {
       if (!expectedPeers.contains(evidence.memberId)) return;
-      proofGenerationByMember[evidence.memberId] = evidence.attachmentGeneration;
+      proofGenerationByMember[evidence.memberId] =
+          evidence.attachmentGeneration;
       if (evidence.attachmentGeneration == runtime.attachmentGeneration) {
         RoomConnectionTrace.stage(
           roomId: roomId,
