@@ -26,8 +26,10 @@ export '../presentation/page/room_manager_entry.dart' show RoomManagerEntry;
 export '../presentation/page/room_qr_join_issuer_page.dart'
     show RoomQrJoinIssuerPage;
 export '../presentation/page/room_qr_join_page.dart' show RoomQrJoinPage;
-export '../presentation/room_member_display_name.dart' show roomMemberDisplayName;
-export '../presentation/widget/in_room_people_action.dart' show InRoomPeopleAction;
+export '../presentation/room_member_display_name.dart'
+    show roomMemberDisplayName;
+export '../presentation/widget/in_room_people_action.dart'
+    show InRoomPeopleAction;
 export '../presentation/widget/room_connection_status_chip.dart'
     show RoomConnectionStatusChip;
 export '../presentation/widget/room_connection_status_scope.dart'
