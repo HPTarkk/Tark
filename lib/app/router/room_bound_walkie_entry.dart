@@ -281,7 +281,9 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         return _EntryState.lobby(room);
       }
 
-      Logger.diagnostic('room: readiness epoch=$readinessEpoch stage=connected');
+      Logger.diagnostic(
+        'room: readiness epoch=$readinessEpoch stage=connected',
+      );
       return const _EntryState.live();
     } catch (e) {
       Logger.diagnostic(
@@ -333,7 +335,8 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       case TransferMode.hotspot:
         if (plan.kind != RoomTransportKind.hotspot) return false;
         final role = _transfer?.sessionRole ?? SessionRole.unknown;
-        final localIsElected = plan.hotspotHost == room.membership.localMemberId;
+        final localIsElected =
+            plan.hotspotHost == room.membership.localMemberId;
         if (role == SessionRole.host && !localIsElected) return false;
         if (role == SessionRole.joiner && localIsElected) return false;
         return true;
