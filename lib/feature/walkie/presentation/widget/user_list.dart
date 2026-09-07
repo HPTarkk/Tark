@@ -121,7 +121,7 @@ class _RoomRoster extends StatelessWidget {
       children: [
         SectionHeader(
           label: s.channel_members,
-          badge: allMembers.length.localized(context),
+          badge: room.room.confirmedMembers.length.localized(context),
         ),
         const SizedBox(height: 10),
         AnimatedSize(
