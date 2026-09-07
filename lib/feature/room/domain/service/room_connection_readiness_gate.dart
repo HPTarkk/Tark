@@ -140,36 +140,28 @@ final class RoomConnectionReadinessGate {
       }
       final proof = currentProof();
       if (!transportReady || proof.isEmpty) return;
-      unawaited(
-        finish(RoomConnectionReadinessResult.ready(peerProof: proof)),
-      );
+      unawaited(finish(RoomConnectionReadinessResult.ready(peerProof: proof)));
     }
 
-    runtimeSubscription = runtime.changes.listen(
-      (state) {
-        if (completer.isCompleted) return;
-        if (currentEpoch() != epoch) {
-          failStale();
-          return;
-        }
-        transportReady = _isTransportReady(state);
-        settleIfReady();
-      },
-      onError: (Object _) {},
-    );
+    runtimeSubscription = runtime.changes.listen((state) {
+      if (completer.isCompleted) return;
+      if (currentEpoch() != epoch) {
+        failStale();
+        return;
+      }
+      transportReady = _isTransportReady(state);
+      settleIfReady();
+    }, onError: (Object _) {});
 
-    proofSubscription = peerProofs.listen(
-      (evidence) {
-        if (completer.isCompleted) return;
-        if (currentEpoch() != epoch) {
-          failStale();
-          return;
-        }
-        remember(evidence);
-        settleIfReady();
-      },
-      onError: (Object _) {},
-    );
+    proofSubscription = peerProofs.listen((evidence) {
+      if (completer.isCompleted) return;
+      if (currentEpoch() != epoch) {
+        failStale();
+        return;
+      }
+      remember(evidence);
+      settleIfReady();
+    }, onError: (Object _) {});
 
     timer = Timer(timeout, () {
       if (completer.isCompleted) return;
