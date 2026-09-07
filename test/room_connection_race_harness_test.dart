@@ -8,23 +8,18 @@ void main() {
   const joiner = RoomMemberId('bbbbbbbbbbbbbbbbbbbbbbbb');
   const third = RoomMemberId('cccccccccccccccccccccccc');
 
-  RoomTransportCandidate candidate(
-    RoomMemberId id, {
-    bool preferred = false,
-  }) => RoomTransportCandidate(
-    memberId: id,
-    canHostHotspot: true,
-    bluetoothSupported: true,
-    backgroundReady: true,
-    batteryPercent: id == owner ? 70 : 80,
-    prefersHotspotHost: preferred,
-  );
+  RoomTransportCandidate candidate(RoomMemberId id, {bool preferred = false}) =>
+      RoomTransportCandidate(
+        memberId: id,
+        canHostHotspot: true,
+        bluetoothSupported: true,
+        backgroundReady: true,
+        batteryPercent: id == owner ? 70 : 80,
+        prefersHotspotHost: preferred,
+      );
 
   List<RoomTransportCandidate> twoMemberCandidates({bool reversed = false}) {
-    final values = [
-      candidate(owner, preferred: true),
-      candidate(joiner),
-    ];
+    final values = [candidate(owner, preferred: true), candidate(joiner)];
     return reversed ? values.reversed.toList() : values;
   }
 
@@ -153,13 +148,11 @@ void main() {
     };
 
     expect(devices.values.map((state) => state.epoch).toSet(), {1});
-    expect(
-      devices.values.map((state) => state.plan?.kind).toSet(),
-      {RoomTransportKind.hotspot},
-    );
-    expect(
-      devices.values.map((state) => state.plan?.hotspotHost).toSet(),
-      {owner},
-    );
+    expect(devices.values.map((state) => state.plan?.kind).toSet(), {
+      RoomTransportKind.hotspot,
+    });
+    expect(devices.values.map((state) => state.plan?.hotspotHost).toSet(), {
+      owner,
+    });
   });
 }
