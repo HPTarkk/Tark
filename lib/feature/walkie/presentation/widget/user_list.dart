@@ -1,14 +1,18 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../core/widget/app_avatar.dart';
 import '../../../../core/widget/section_header.dart';
+import '../../../room/domain/entity/held_seat_name.dart';
 import '../../../room/domain/entity/room.dart';
+import '../../../room/domain/repository/room_repository.dart';
 import '../../../room/presentation/room_member_display_name.dart';
 import '../../../room/presentation/widget/in_room_people_action.dart';
 import '../../../room/presentation/widget/room_connection_status_chip.dart';
@@ -27,35 +31,95 @@ abstract final class RideMemberCount {
   }
 }
 
-/// Shows the people who belong to the current channel.
+/// Shows people, not transport endpoints.
 ///
-/// A selected durable Room uses its Room roster as the authority. The old
-/// transfer peer list remains intact for quick-access channels that have no
-/// Room. This prevents a confirmed Room member from disappearing merely because
-/// their transport is reconnecting, and prevents a transient address/role from
-/// becoming the user's idea of who is in the Room.
-class UserList extends StatelessWidget {
+/// When a durable Room is selected, storage remains the membership authority
+/// while the live Walkie state contributes presence only. A confirmed member
+/// therefore stays visible through reconnects instead of disappearing with a
+/// transient socket, and Host/Join/IP/SSID never leak into the normal Room UI.
+/// Quick-access channels without a selected Room retain the legacy peer roster.
+class UserList extends StatefulWidget {
   const UserList({super.key});
 
   @override
+  State<UserList> createState() => _UserListState();
+}
+
+class _UserListState extends State<UserList> {
+  RoomRepository? _rooms;
+  SavedRoom? _room;
+  StreamSubscription<void>? _roomChanges;
+  int _reloadEpoch = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    if (GetIt.instance.isRegistered<RoomRepository>()) {
+      _rooms = GetIt.instance<RoomRepository>();
+      _roomChanges = _rooms!.changes.listen((_) => unawaited(_reload()));
+      unawaited(_reload());
+    }
+  }
+
+  Future<void> _reload() async {
+    final rooms = _rooms;
+    if (rooms == null) return;
+    final epoch = ++_reloadEpoch;
+    SavedRoom? next;
+    try {
+      final selected = await rooms.selectedRoomId();
+      if (selected != null) {
+        final candidate = await rooms.get(selected);
+        if (candidate != null &&
+            !candidate.room.archived &&
+            candidate.membership.active) {
+          next = candidate;
+        }
+      }
+    } catch (_) {
+      // Keep the last known durable roster through a transient storage read.
+      return;
+    }
+    if (!mounted || epoch != _reloadEpoch) return;
+    setState(() => _room = next);
+  }
+
+  @override
+  void dispose() {
+    _reloadEpoch++;
+    unawaited(_roomChanges?.cancel() ?? Future<void>.value());
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final room = RoomConnectionStatusScope.maybeOf(context);
-    if (room != null) return _RoomRoster(data: room);
+    final room = _room;
+    if (room != null) {
+      return BlocBuilder<WalkieTalkieCubit, WalkieTalkieState>(
+        buildWhen: (previous, current) =>
+            previous.activeUsers != current.activeUsers ||
+            previous.connectionHealth != current.connectionHealth ||
+            previous.isReady != current.isReady ||
+            previous.startFailed != current.startFailed,
+        builder: (context, state) => _RoomRoster(room: room, live: state),
+      );
+    }
     return const _LegacyTransportRoster();
   }
 }
 
 class _RoomRoster extends StatelessWidget {
-  const _RoomRoster({required this.data});
+  const _RoomRoster({required this.room, required this.live});
 
-  final RoomConnectionStatusData data;
+  final SavedRoom room;
+  final WalkieTalkieState live;
 
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
-    final allMembers = data.room.room.activeMembers;
+    final allMembers = room.room.activeMembers;
     final remoteMembers = allMembers
-        .where((member) => member.id != data.room.membership.localMemberId)
+        .where((member) => member.id != room.membership.localMemberId)
         .toList(growable: false);
 
     return Column(
@@ -81,7 +145,7 @@ class _RoomRoster extends StatelessWidget {
                         padding: const EdgeInsets.only(bottom: 8),
                         child: _RoomMemberTile(
                           member: member,
-                          phase: data.phaseFor(member),
+                          phase: _phaseFor(member),
                         ),
                       ),
                     const Padding(
@@ -93,6 +157,32 @@ class _RoomRoster extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  RoomConnectionUiPhase _phaseFor(RoomMember member) {
+    if (member.pending) {
+      return isHeldSeatPlaceholder(member.displayName)
+          ? RoomConnectionUiPhase.invited
+          : RoomConnectionUiPhase.confirming;
+    }
+
+    final confirmedRemoteCount = room.room.confirmedMembers
+        .where((candidate) => candidate.id != room.membership.localMemberId)
+        .length;
+    final normalizedName = member.displayName.trim().toLowerCase();
+    final peerPresent = live.activeUsers.any(
+      (user) => user.name.trim().toLowerCase() == normalizedName,
+    );
+    final unambiguousSinglePeer =
+        confirmedRemoteCount == 1 && live.activeUsers.length == 1;
+
+    if ((peerPresent || unambiguousSinglePeer) && live.connectionHealth.isLive) {
+      return RoomConnectionUiPhase.connected;
+    }
+    if (live.startFailed || !live.connectionHealth.isLive) {
+      return RoomConnectionUiPhase.reconnecting;
+    }
+    return RoomConnectionUiPhase.connecting;
   }
 }
 
@@ -161,7 +251,8 @@ class _LegacyTransportRoster extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = context.getString;
     return BlocBuilder<WalkieTalkieCubit, WalkieTalkieState>(
-      buildWhen: (p, c) => p.activeUsers != c.activeUsers,
+      buildWhen: (previous, current) =>
+          previous.activeUsers != current.activeUsers,
       builder: (context, state) {
         final users = state.activeUsers;
         return Column(
