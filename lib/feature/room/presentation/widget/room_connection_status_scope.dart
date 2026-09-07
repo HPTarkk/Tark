@@ -112,8 +112,8 @@ class RoomConnectionStatusData {
 
   RoomConnectionUiPhase get overallPhase => switch (session.phase) {
     RoomSessionPhase.live => RoomConnectionUiPhase.connected,
-    RoomSessionPhase.degraded || RoomSessionPhase.recoveringTransport =>
-      RoomConnectionUiPhase.reconnecting,
+    RoomSessionPhase.degraded ||
+    RoomSessionPhase.recoveringTransport => RoomConnectionUiPhase.reconnecting,
     RoomSessionPhase.open => RoomConnectionUiPhase.connecting,
     RoomSessionPhase.left => RoomConnectionUiPhase.reconnecting,
   };
