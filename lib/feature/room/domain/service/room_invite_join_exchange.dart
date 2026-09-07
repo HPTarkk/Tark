@@ -39,6 +39,7 @@ final class RoomInviteJoinExchange {
   final RoomJoinCertificateIssuer? _issueCertificate;
   final bool requireMembershipReceipt;
   final Map<String, RoomInviteJoinResponse> _awaitingReceipts = {};
+  final Map<String, RoomInviteJoinResponse> _settledReceipts = {};
 
   Future<String> handleEncodedRequest(
     String encoded, {
@@ -87,6 +88,7 @@ final class RoomInviteJoinExchange {
           membershipReceiptRequired: requireMembershipReceipt,
         );
         if (requireMembershipReceipt && certificate != null) {
+          _settledReceipts.remove(request.requestId);
           _awaitingReceipts[request.requestId] = response;
           while (_awaitingReceipts.length > 32) {
             _awaitingReceipts.remove(_awaitingReceipts.keys.first);
@@ -106,6 +108,10 @@ final class RoomInviteJoinExchange {
 
   /// Confirms a receipt-required invite on the issuer's existing control
   /// carrier. A stale, forged or cross-Room receipt cannot settle a seat.
+  ///
+  /// A valid receipt is remembered briefly after settlement so a retry caused
+  /// by a lost control ACK remains idempotently successful instead of turning
+  /// an already-confirmed member into an apparent join failure.
   Future<bool> handleEncodedReceipt(String encoded) async {
     if (!requireMembershipReceipt) return false;
     final RoomInviteMembershipReceipt receipt;
@@ -114,7 +120,9 @@ final class RoomInviteJoinExchange {
     } on FormatException {
       return false;
     }
-    final response = _awaitingReceipts[receipt.requestId];
+    final response =
+        _awaitingReceipts[receipt.requestId] ??
+        _settledReceipts[receipt.requestId];
     final certificate = response?.transportCertificate;
     if (response == null ||
         certificate == null ||
@@ -141,11 +149,18 @@ final class RoomInviteJoinExchange {
       expectedIssuerPublicKey: certificate.issuerPublicKey,
     );
     if (!valid) return false;
+
+    if (_settledReceipts.containsKey(receipt.requestId)) return true;
+
     await _acceptance.confirmMember(
       roomId: response.roomId!,
       memberId: response.memberId!,
     );
     _awaitingReceipts.remove(receipt.requestId);
+    _settledReceipts[receipt.requestId] = response;
+    while (_settledReceipts.length > 32) {
+      _settledReceipts.remove(_settledReceipts.keys.first);
+    }
     return true;
   }
 }
