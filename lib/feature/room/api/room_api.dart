@@ -1,10 +1,11 @@
 /// Public surface of the Room feature.
 ///
-/// App composition may import this barrel; other features should navigate by
-/// AppRoutes rather than importing Room presentation internals directly.
+/// App composition and cooperating features may import this barrel instead of
+/// reaching into Room domain/presentation internals directly.
 library;
 
-export '../domain/entity/room.dart' show RoomMemberId, SavedRoom;
+export '../domain/entity/held_seat_name.dart' show isHeldSeatPlaceholder;
+export '../domain/entity/room.dart' show RoomMember, RoomMemberId, SavedRoom;
 export '../domain/repository/room_repository.dart' show RoomRepository;
 export '../domain/service/room_connection_coordinator.dart'
     show RoomConnectionCoordinator, RoomConnectionPhase, RoomConnectionState;
@@ -25,4 +26,10 @@ export '../presentation/page/room_manager_entry.dart' show RoomManagerEntry;
 export '../presentation/page/room_qr_join_issuer_page.dart'
     show RoomQrJoinIssuerPage;
 export '../presentation/page/room_qr_join_page.dart' show RoomQrJoinPage;
+export '../presentation/room_member_display_name.dart' show roomMemberDisplayName;
+export '../presentation/widget/in_room_people_action.dart' show InRoomPeopleAction;
+export '../presentation/widget/room_connection_status_chip.dart'
+    show RoomConnectionStatusChip;
+export '../presentation/widget/room_connection_status_scope.dart'
+    show RoomConnectionUiPhase;
 export '../presentation/widget/selected_room_lobby.dart' show SelectedRoomLobby;
