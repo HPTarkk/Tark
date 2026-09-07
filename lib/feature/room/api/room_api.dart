@@ -7,10 +7,7 @@ library;
 export '../domain/entity/room.dart' show RoomMemberId, SavedRoom;
 export '../domain/repository/room_repository.dart' show RoomRepository;
 export '../domain/service/room_connection_coordinator.dart'
-    show
-        RoomConnectionCoordinator,
-        RoomConnectionPhase,
-        RoomConnectionState;
+    show RoomConnectionCoordinator, RoomConnectionPhase, RoomConnectionState;
 export '../domain/service/room_connection_readiness_gate.dart'
     show
         RoomConnectionReadinessFailureStage,
