@@ -126,17 +126,29 @@ void main() {
   });
 
   test('three phones independently converge on the same hotspot host', () {
-    final candidates = [
-      candidate(third),
-      candidate(joiner),
-      candidate(owner, preferred: true),
-    ];
+    final candidateSets = <RoomMemberId, List<RoomTransportCandidate>>{
+      owner: [
+        candidate(third),
+        candidate(joiner),
+        candidate(owner, preferred: true),
+      ],
+      joiner: [
+        candidate(owner, preferred: true),
+        candidate(third),
+        candidate(joiner),
+      ],
+      third: [
+        candidate(joiner),
+        candidate(owner, preferred: true),
+        candidate(third),
+      ],
+    };
     final devices = <RoomMemberId, RoomConnectionState>{
-      for (final member in [owner, joiner, third])
-        member: RoomConnectionCoordinator().requestStart(
-          requester: member,
+      for (final entry in candidateSets.entries)
+        entry.key: RoomConnectionCoordinator().requestStart(
+          requester: entry.key,
           sharedLanUsable: false,
-          candidates: List.of(candidates)..shuffle(_NoShuffleRandom()),
+          candidates: entry.value,
         ),
     };
 
@@ -150,15 +162,4 @@ void main() {
       {owner},
     );
   });
-}
-
-final class _NoShuffleRandom implements Random {
-  @override
-  bool nextBool() => false;
-
-  @override
-  double nextDouble() => 0;
-
-  @override
-  int nextInt(int max) => 0;
 }
