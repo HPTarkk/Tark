@@ -54,7 +54,10 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.41.9"
+          # Keep release builds on the same SDK that proves the committed
+          # lockfile in the beta quality gate. Older 3.41.9 cannot reproduce
+          # the current SDK-pinned transitive lockfile byte-for-byte.
+          flutter-version: "3.47.1"
           channel: stable
           cache: true
 
