@@ -28,7 +28,8 @@ class RoomConnectionStatusChip extends StatelessWidget {
     final icon = switch (phase) {
       RoomConnectionUiPhase.invited => Icons.mail_outline_rounded,
       RoomConnectionUiPhase.confirming => Icons.hourglass_top_rounded,
-      RoomConnectionUiPhase.readyToConnect => Icons.check_circle_outline_rounded,
+      RoomConnectionUiPhase.readyToConnect =>
+        Icons.check_circle_outline_rounded,
       RoomConnectionUiPhase.connecting => Icons.sync_rounded,
       RoomConnectionUiPhase.connected => Icons.check_circle_rounded,
       RoomConnectionUiPhase.reconnecting => Icons.sync_problem_rounded,
