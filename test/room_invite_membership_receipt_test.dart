@@ -70,6 +70,38 @@ void main() {
     expect(joined.displayName, 'Rider');
   });
 
+  test('retrying the same valid receipt is idempotently successful', () async {
+    final member = await crypto.generateKeyPair();
+    const requestId = '11111111111111111111111111111111';
+    final response = RoomInviteJoinResponse.decode(
+      await exchange.handleEncodedRequest(
+        RoomInviteJoinRequest(
+          requestId: requestId,
+          invitation: invitation,
+          displayName: 'Rider',
+          memberTransportPublicKey: member.publicKey,
+        ).encode(),
+        now: now,
+      ),
+    );
+    final receipt = await RoomInviteMembershipReceiptCrypto.sign(
+      requestId: requestId,
+      certificate: response.transportCertificate!,
+      member: member,
+    );
+    final encodedReceipt = receipt.encode();
+
+    expect(await exchange.handleEncodedReceipt(encodedReceipt), isTrue);
+    expect(await exchange.handleEncodedReceipt(encodedReceipt), isTrue);
+
+    final saved = await repository.get(invitation.roomId);
+    final matches = saved!.room.members
+        .where((member) => member.id == response.memberId)
+        .toList(growable: false);
+    expect(matches, hasLength(1));
+    expect(matches.single.pending, isFalse);
+  });
+
   test(
     'response without a receipt leaves the issuer seat unconfirmed',
     () async {
