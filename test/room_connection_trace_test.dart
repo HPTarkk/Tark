@@ -31,51 +31,57 @@ void main() {
     );
   });
 
-  test('readiness diagnostics carry one correlation through key stages', () async {
-    final lines = <String>[];
-    Logger.sink = lines.add;
-    const roomId = '0123456789abcdef0123456789abcdef';
-    final runtime = RoomSessionRuntime(
-      initialState: RoomSession.open(
-        roomId: roomId,
-        sessionId: 'session-1',
-        localMemberId: local.value,
-        memberIds: [local.value, peer.value],
-      ),
-    );
-    final proofs = StreamController<RoomPeerProofEvidence>.broadcast(sync: true);
-    final generation = await runtime.attach(kind: TransportKind.hotspot);
-    const epoch = 3;
+  test(
+    'readiness diagnostics carry one correlation through key stages',
+    () async {
+      final lines = <String>[];
+      Logger.sink = lines.add;
+      const roomId = '0123456789abcdef0123456789abcdef';
+      final runtime = RoomSessionRuntime(
+        initialState: RoomSession.open(
+          roomId: roomId,
+          sessionId: 'session-1',
+          localMemberId: local.value,
+          memberIds: [local.value, peer.value],
+        ),
+      );
+      final proofs = StreamController<RoomPeerProofEvidence>.broadcast(
+        sync: true,
+      );
+      final generation = await runtime.attach(kind: TransportKind.hotspot);
+      const epoch = 3;
 
-    final waiting = const RoomConnectionReadinessGate(
-      timeout: Duration(milliseconds: 100),
-    ).wait(
-      runtime: runtime,
-      peerProofs: proofs.stream,
-      initialPeerProofs: const [],
-      expectedPeers: const {peer},
-      epoch: epoch,
-      currentEpoch: () => epoch,
-    );
+      final waiting =
+          const RoomConnectionReadinessGate(
+            timeout: Duration(milliseconds: 100),
+          ).wait(
+            runtime: runtime,
+            peerProofs: proofs.stream,
+            initialPeerProofs: const [],
+            expectedPeers: const {peer},
+            epoch: epoch,
+            currentEpoch: () => epoch,
+          );
 
-    runtime.ready(generation: generation);
-    proofs.add(
-      RoomPeerProofEvidence(memberId: peer, attachmentGeneration: generation),
-    );
-    expect((await waiting).isReady, isTrue);
+      runtime.ready(generation: generation);
+      proofs.add(
+        RoomPeerProofEvidence(memberId: peer, attachmentGeneration: generation),
+      );
+      expect((await waiting).isReady, isTrue);
 
-    final correlation = RoomConnectionTrace.correlationId(roomId);
-    expect(
-      lines.where((line) => line.contains('corr=$correlation')).length,
-      greaterThanOrEqualTo(4),
-    );
-    expect(lines, contains(contains('stage=wait_started')));
-    expect(lines, contains(contains('stage=transport_ready')));
-    expect(lines, contains(contains('stage=peer_proof_observed')));
-    expect(lines, contains(contains('stage=ready')));
-    expect(lines.every((line) => !line.contains(roomId)), isTrue);
+      final correlation = RoomConnectionTrace.correlationId(roomId);
+      expect(
+        lines.where((line) => line.contains('corr=$correlation')).length,
+        greaterThanOrEqualTo(4),
+      );
+      expect(lines, contains(contains('stage=wait_started')));
+      expect(lines, contains(contains('stage=transport_ready')));
+      expect(lines, contains(contains('stage=peer_proof_observed')));
+      expect(lines, contains(contains('stage=ready')));
+      expect(lines.every((line) => !line.contains(roomId)), isTrue);
 
-    await proofs.close();
-    await runtime.leave();
-  });
+      await proofs.close();
+      await runtime.leave();
+    },
+  );
 }
