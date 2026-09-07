@@ -269,7 +269,9 @@ class _MembersCard extends StatelessWidget {
               Icon(Icons.groups_2_rounded, size: 19, color: AppColors.amber),
               const SizedBox(width: 8),
               Text(
-                s.lobby_members(members.length.localized(context)),
+                s.lobby_members(
+                  room.room.confirmedMembers.length.localized(context),
+                ),
                 style: TextStyle(
                   color: AppColors.textPrimary,
                   fontWeight: FontWeight.w800,
