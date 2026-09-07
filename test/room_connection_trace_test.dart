@@ -58,7 +58,7 @@ void main() {
             runtime: runtime,
             peerProofs: proofs.stream,
             initialPeerProofs: const [],
-            expectedPeers: const {peer},
+            expectedPeers: {peer},
             epoch: epoch,
             currentEpoch: () => epoch,
           );
