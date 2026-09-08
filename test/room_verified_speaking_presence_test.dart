@@ -58,19 +58,17 @@ void main() {
       expect(source, contains('class _RoomMemberPresenceTile'));
       expect(
         source,
-        contains(
-          'BlocSelector<WalkieTalkieCubit, WalkieTalkieState, bool>',
-        ),
+        contains('BlocSelector<WalkieTalkieCubit, WalkieTalkieState, bool>'),
       );
-      expect(source, contains('if (user.id == senderId) return user.isTalking;'));
+      expect(
+        source,
+        contains('if (user.id == senderId) return user.isTalking;'),
+      );
       expect(
         source,
         contains('previous.connectionHealth != current.connectionHealth'),
       );
-      expect(
-        source,
-        isNot(contains('user.name == member.displayName')),
-      );
+      expect(source, isNot(contains('user.name == member.displayName')));
     });
   });
 }
