@@ -101,9 +101,7 @@ class _RoomConnectionStatusScopeState extends State<RoomConnectionStatusScope> {
         room: widget.room,
         session: _session,
         proofGenerationByMember: Map.unmodifiable(_proofGenerationByMember),
-        transportSenderIdByMember: Map.unmodifiable(
-          _transportSenderIdByMember,
-        ),
+        transportSenderIdByMember: Map.unmodifiable(_transportSenderIdByMember),
       ),
       child: widget.child,
     );
