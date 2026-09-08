@@ -78,7 +78,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('unused invite seat is visible but excluded from member count', (
+  testWidgets('unused invite seat is separate from confirmed member count', (
     tester,
   ) async {
     final room = await repository.create(
@@ -92,9 +92,17 @@ void main() {
 
     expect(find.text('Room members (1)'), findsOneWidget);
     expect(find.text('Room members (2)'), findsNothing);
+    expect(find.text('Waiting to join (1)'), findsOneWidget);
+    expect(
+      find.text('This is an invite spot, not someone in the Room yet.'),
+      findsOneWidget,
+    );
     expect(find.text('Open seat'), findsOneWidget);
     expect(find.byKey(const ValueKey('room-status-invited')), findsOneWidget);
-    expect(find.byKey(const Key('selected-room-held-seats')), findsNothing);
+    expect(
+      find.byKey(const Key('selected-room-held-seats')),
+      findsOneWidget,
+    );
     expect(
       find.byKey(const Key('selected-room-invite-callout')),
       findsOneWidget,
@@ -157,6 +165,34 @@ void main() {
     expect(count, findsOneWidget);
     expect(Directionality.of(tester.element(count)), TextDirection.rtl);
     expect(find.byKey(const Key('selected-room-held-seats')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Persian pending invite is separate and remains RTL', (
+    tester,
+  ) async {
+    final room = await repository.create(
+      name: 'شب‌گردی',
+      localDisplayName: 'میزبان',
+    );
+
+    await show(tester, host(room, locale: const Locale('fa')));
+    await seat(room, pending: true, name: 'جای دعوت');
+    await beat(tester);
+
+    final waiting = find.text('در انتظار ورود (۱)');
+    expect(waiting, findsOneWidget);
+    expect(Directionality.of(tester.element(waiting)), TextDirection.rtl);
+    expect(find.text('اعضای اتاق (۱)'), findsOneWidget);
+    expect(find.text('اعضای اتاق (۲)'), findsNothing);
+    expect(
+      find.text('این فقط جای دعوت است؛ هنوز کسی وارد اتاق نشده.'),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('selected-room-held-seats')),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 }
