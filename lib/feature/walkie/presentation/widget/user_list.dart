@@ -25,6 +25,39 @@ abstract final class RideMemberCount {
   }
 }
 
+/// Resolves the state shown for a durable Room member.
+///
+/// A live transport, a matching display name, or a single visible peer is not
+/// membership evidence. Only the Room-scoped signed proof can grant
+/// [RoomConnectionUiPhase.connected]. Keeping this resolver outside the widget
+/// also makes the identity rule directly regression-testable.
+RoomConnectionUiPhase roomRosterMemberPhase({
+  required SavedRoom room,
+  required RoomMember member,
+  required RoomConnectionStatusData? verifiedStatus,
+  required bool transportLive,
+  required bool startFailed,
+}) {
+  if (member.pending) {
+    return isHeldSeatPlaceholder(member.displayName)
+        ? RoomConnectionUiPhase.invited
+        : RoomConnectionUiPhase.confirming;
+  }
+
+  final verified = verifiedStatus;
+  if (verified != null && verified.room.room.id == room.room.id) {
+    return verified.phaseFor(member);
+  }
+
+  // A selected Room without its verified scope must fail closed. Transport
+  // health can explain reconnecting/connecting, but can never identify which
+  // durable member is on the other end.
+  if (startFailed || !transportLive) {
+    return RoomConnectionUiPhase.reconnecting;
+  }
+  return RoomConnectionUiPhase.connecting;
+}
+
 /// Shows people, not transport endpoints.
 ///
 /// When a durable Room is selected, storage remains the membership authority
@@ -115,6 +148,7 @@ class _RoomRoster extends StatelessWidget {
     final remoteMembers = allMembers
         .where((member) => member.id != room.membership.localMemberId)
         .toList(growable: false);
+    final verifiedStatus = RoomConnectionStatusScope.maybeOf(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -139,7 +173,13 @@ class _RoomRoster extends StatelessWidget {
                         padding: const EdgeInsets.only(bottom: 8),
                         child: _RoomMemberTile(
                           member: member,
-                          phase: _phaseFor(member),
+                          phase: roomRosterMemberPhase(
+                            room: room,
+                            member: member,
+                            verifiedStatus: verifiedStatus,
+                            transportLive: live.connectionHealth.isLive,
+                            startFailed: live.startFailed,
+                          ),
                         ),
                       ),
                     const Padding(
@@ -151,33 +191,6 @@ class _RoomRoster extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  RoomConnectionUiPhase _phaseFor(RoomMember member) {
-    if (member.pending) {
-      return isHeldSeatPlaceholder(member.displayName)
-          ? RoomConnectionUiPhase.invited
-          : RoomConnectionUiPhase.confirming;
-    }
-
-    final confirmedRemoteCount = room.room.confirmedMembers
-        .where((candidate) => candidate.id != room.membership.localMemberId)
-        .length;
-    final normalizedName = member.displayName.trim().toLowerCase();
-    final peerPresent = live.activeUsers.any(
-      (user) => user.name.trim().toLowerCase() == normalizedName,
-    );
-    final unambiguousSinglePeer =
-        confirmedRemoteCount == 1 && live.activeUsers.length == 1;
-
-    if ((peerPresent || unambiguousSinglePeer) &&
-        live.connectionHealth.isLive) {
-      return RoomConnectionUiPhase.connected;
-    }
-    if (live.startFailed || !live.connectionHealth.isLive) {
-      return RoomConnectionUiPhase.reconnecting;
-    }
-    return RoomConnectionUiPhase.connecting;
   }
 }
 
