@@ -1,4 +1,9 @@
-// Generates website/fa/index.html from website/index.html.
+// Generates every Persian document under website/fa/ from its English
+// source in website/.
+//
+//   index.html   → fa/index.html     (the landing page)
+//   privacy.html → fa/privacy.html
+//   terms.html   → fa/terms.html
 //
 // The site is bilingual, and for search each language has to be its own URL
 // with its own <title>, description, social tags and structured data —
@@ -17,6 +22,12 @@
 // markup, so they live in FA below — that is the one place to edit Persian
 // metadata.
 //
+// The landing page carries structured data and an FAQ; the legal pages do
+// not, so they take a smaller head-swap list of their own and are held to
+// one extra rule the landing page is not: every translatable node must
+// actually have a data-fa. A half-translated legal document is worse than
+// an obviously English one.
+//
 // This also verifies the *English* FAQ structured data against the English
 // markup. That pair is hand-maintained on both sides and had already drifted
 // once; a rich result that quotes text the page does not contain is worth
@@ -29,6 +40,8 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = join(ROOT, 'website', 'index.html');
 const OUT = join(ROOT, 'website', 'fa', 'index.html');
+const enPath = (file) => join(ROOT, 'website', file);
+const faPath = (file) => join(ROOT, 'website', 'fa', file);
 
 const ORIGIN = 'https://tarkk.ir';
 const EN_URL = `${ORIGIN}/`;
@@ -59,6 +72,34 @@ const FA = {
     'راهنمای ساده که می‌گه کدوم قسمت کار نمی‌کنه',
   ],
 };
+
+// ── The legal documents ──────────────────────────────────────────────
+// Their Persian body text lives in data-fa attributes like everything
+// else; only the head strings need a home here. Adding a third legal page
+// means adding an entry — the swap list below is written against the
+// shape these two share, not against either one's wording.
+const LEGAL = [
+  {
+    file: 'privacy.html',
+    title: 'سیاست حریم خصوصی — تَرک',
+    description:
+      'تَرک چی جمع می‌کنه، چی رو هیچ‌وقت جمع نمی‌کنه، و چرا. نه حساب کاربری، نه سروری که صداتون رو ببره، و یه کلید برای تنها چیزی که اندازه گرفته می‌شه.',
+    twitterDescription:
+      'نه حساب کاربری، نه سروری وسط راه، نه چیزی که ضبط بشه. گزارش کامل چیزی که از گوشیت بیرون می‌ره — و چیزی که هیچ‌وقت بیرون نمی‌ره.',
+  },
+  {
+    file: 'terms.html',
+    title: 'شرایط و ضوابط — تَرک',
+    description:
+      'چیزی که می‌تونی از تَرک انتظار داشته باشی و چیزی که نمی‌تونه قولش رو بده. رایگان، بدون قفل، متن‌باز — و صادق درباره‌ی جایی که یه لینک رادیویی کم میاره.',
+    twitterDescription:
+      'رایگان، بدون قفل و متن‌باز. اینکه این وضعیت چی بهت می‌ده و چی بهت نمی‌ده، با کلماتی که ارزش خوندن دارن.',
+  },
+].map((page) => ({
+  ...page,
+  enUrl: `${ORIGIN}/${page.file}`,
+  faUrl: `${ORIGIN}/fa/${page.file}`,
+}));
 
 const fail = (msg) => {
   console.error(`\n  build-website-i18n: ${msg}\n`);
@@ -328,8 +369,150 @@ function localizeChrome(html, jsonLdBlock) {
   return out.replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/, jsonLdBlock);
 }
 
+/**
+ * The same job as localizeChrome, for a document with no structured data
+ * and no FAQ. Written against the tags rather than against either page's
+ * English wording, so the two share one list and a third legal page needs
+ * nothing here.
+ */
+function localizeLegalChrome(html, page) {
+  const swaps = [
+    ['<html lang="en" dir="ltr">', '<html lang="fa" dir="rtl">'],
+
+    [/<title>[\s\S]*?<\/title>/, `<title>${page.title}</title>`],
+    [
+      /<meta name="description"\s*\n?\s*content="[^"]*">/,
+      `<meta name="description"\n    content="${page.description}">`,
+    ],
+    [
+      /<meta property="og:title" content="[^"]*">/,
+      `<meta property="og:title" content="${page.title}">`,
+    ],
+    [
+      /<meta property="og:description"\s*\n?\s*content="[^"]*">/,
+      `<meta property="og:description"\n    content="${page.description}">`,
+    ],
+    [
+      /<meta name="twitter:title" content="[^"]*">/,
+      `<meta name="twitter:title" content="${page.title}">`,
+    ],
+    [
+      /<meta name="twitter:description"\s*\n?\s*content="[^"]*">/,
+      `<meta name="twitter:description"\n    content="${page.twitterDescription}">`,
+    ],
+    // The social image is shared across the whole site, so its alt text is
+    // the one already translated for the landing page.
+    [
+      /<meta property="og:image:alt" content="[^"]*">/,
+      `<meta property="og:image:alt" content="${FA.imageAlt}">`,
+    ],
+
+    // The source comment is written from the English document's side.
+    [
+      /Same two-document arrangement[\s\S]*?re-run the generator\. -->/,
+      `Same two-document arrangement as the landing page: Persian here,
+       English at /${page.file}, which is the source this document is
+       generated from. Both carry the same hreflang set and a canonical
+       pointing at themselves.
+
+       Do not edit this file — change the data-fa attributes in
+       ../${page.file} and re-run scripts/build-website-i18n.mjs. -->`,
+    ],
+
+    // Canonical points at this document; the hreflang trio is identical on
+    // both pages and so passes through untouched.
+    [
+      `<link rel="canonical" href="${page.enUrl}">`,
+      `<link rel="canonical" href="${page.faUrl}">`,
+    ],
+    [
+      `<meta property="og:url" content="${page.enUrl}">`,
+      `<meta property="og:url" content="${page.faUrl}">`,
+    ],
+    ['<meta property="og:locale" content="en_US">', '<meta property="og:locale" content="fa_IR">'],
+    [
+      '<meta property="og:locale:alternate" content="fa_IR">',
+      '<meta property="og:locale:alternate" content="en_US">',
+    ],
+
+    // One directory down.
+    ['href="styles.css"', 'href="../styles.css"'],
+    ['src="app.js"', 'src="../app.js"'],
+    ['href="favicon.ico"', 'href="../favicon.ico"'],
+    ['href="logo.png"', 'href="../logo.png"'],
+
+    // Links back to the landing page have to follow the reader's language.
+    // The sibling legal document is a relative href and already resolves
+    // inside /fa/; these two are absolute and would drop a Persian reader
+    // onto the English landing page — where the routing script would then
+    // bounce them back, one visible flash later.
+    [/href="\/#/g, 'href="/fa/#'],
+    ['<a class="wordmark" href="/">', '<a class="wordmark" href="/fa/">'],
+
+    // The toggle points back at English, and labels itself in English.
+    [
+      /<a id="langToggle" class="lang-toggle"[\s\S]*?<\/a>/,
+      `<a id="langToggle" class="lang-toggle" href="/${page.file}" hreflang="en" lang="en"\n` +
+        '        aria-label="View in English">English</a>',
+    ],
+  ];
+
+  let out = html;
+  for (const [from, to] of swaps) {
+    const before = out;
+    out = out.replace(from, to);
+    if (out === before) {
+      fail(
+        `nothing matched while localizing ${page.file}:\n    ${String(from).slice(0, 90)}\n` +
+          `  the page changed shape — update the swap list in this script.`
+      );
+    }
+  }
+  return out;
+}
+
 // ── Build ────────────────────────────────────────────────────────────
+
 const check = process.argv.includes('--check');
+
+/** The banner that tells anyone who opens a generated file not to edit it. */
+const bannerFor = (file) =>
+  '<body>\n\n  <!-- Generated from ../' +
+  file +
+  ' by scripts/build-website-i18n.mjs.\n' +
+  `       Do not edit: change the data-fa attributes in ${file} and rebuild. -->`;
+
+/**
+ * The sources are CRLF and the strings this script inserts are not.
+ * Normalise to whatever the source uses so no generated file ends up mixed.
+ */
+const matchEol = (src, out) => {
+  const eol = src.includes('\r\n') ? '\r\n' : '\n';
+  return out.replace(/\r\n/g, '\n').replace(/\n/g, eol);
+};
+
+/** Writes one generated document, or under --check verifies it is current. */
+async function emit(file, out) {
+  const path = faPath(file);
+  if (!check) {
+    await mkdir(dirname(path), { recursive: true });
+    await writeFile(path, out, 'utf8');
+    return;
+  }
+  let current = null;
+  try {
+    current = await readFile(path, 'utf8');
+  } catch (_) {}
+  if (current !== out) {
+    fail(
+      `website/fa/${file} is out of date.\n` +
+        '  Run: node scripts/build-website-i18n.mjs'
+    );
+  }
+  console.log(`website/fa/${file} is up to date`);
+}
+
+// ── The landing page ─────────────────────────────────────────────────
 const src = await readFile(SRC, 'utf8');
 
 const faq = collectFaq(src);
@@ -343,34 +526,40 @@ const faJson = JSON.stringify(persianJsonLd(jsonLd.data, faq), null, 2)
 
 let out = translate(src, collectTranslatable(src));
 out = localizeChrome(out, `${jsonLd.open}${faJson}${jsonLd.close}`);
-out = out.replace(
-  '<body>',
-  '<body>\n\n  <!-- Generated from ../index.html by scripts/build-website-i18n.mjs.\n' +
-    '       Do not edit: change the data-fa attributes in index.html and rebuild. -->'
-);
+out = out.replace('<body>', bannerFor('index.html'));
 
-// index.html is CRLF; the strings inserted above are not. Normalise to
-// whatever the source uses so the generated file does not end up mixed.
-const eol = src.includes('\r\n') ? '\r\n' : '\n';
-out = out.replace(/\r\n/g, '\n').replace(/\n/g, eol);
-
-if (check) {
-  let current = null;
-  try {
-    current = await readFile(OUT, 'utf8');
-  } catch (_) {}
-  if (current !== out) {
-    fail(
-      'website/fa/index.html is out of date.\n' +
-        '  Run: node scripts/build-website-i18n.mjs'
-    );
-  }
-  console.log('website/fa/index.html is up to date');
-} else {
-  await mkdir(dirname(OUT), { recursive: true });
-  await writeFile(OUT, out, 'utf8');
+await emit('index.html', matchEol(src, out));
+if (!check) {
   console.log(
     `wrote website/fa/index.html — ${faq.length} FAQ entries, ` +
       `${collectTranslatable(src).filter((n) => n.fa).length} translated nodes`
   );
+}
+
+// ── The legal documents ──────────────────────────────────────────────
+// Held to a stricter rule than the landing page: a missing data-fa here is
+// a build failure rather than a paragraph that silently stays English.
+// Half a privacy policy in the wrong language is not a cosmetic problem.
+for (const page of LEGAL) {
+  const pageSrc = await readFile(enPath(page.file), 'utf8');
+  const nodes = collectTranslatable(pageSrc);
+
+  if (!nodes.length) fail(`${page.file} has no translatable nodes at all`);
+
+  const missing = nodes.filter((n) => !n.fa);
+  if (missing.length) {
+    fail(
+      `${missing.length} element(s) in ${page.file} have data-en but no data-fa:\n\n    ` +
+        missing.map((n) => `<${n.tag} data-en="${n.en.slice(0, 60)}…">`).join('\n    ')
+    );
+  }
+
+  let pageOut = translate(pageSrc, nodes);
+  pageOut = localizeLegalChrome(pageOut, page);
+  pageOut = pageOut.replace('<body>', bannerFor(page.file));
+
+  await emit(page.file, matchEol(pageSrc, pageOut));
+  if (!check) {
+    console.log(`wrote website/fa/${page.file} — ${nodes.length} translated nodes`);
+  }
 }

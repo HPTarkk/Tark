@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Two documents, one per language. The nav targets inside each are in-page
-     anchors, so they are deliberately not listed as separate URLs.
+<!-- Three documents, each in two languages: the landing page, the privacy
+     policy and the terms. The nav targets inside each are in-page anchors,
+     so they are deliberately not listed as separate URLs — and neither are
+     the numbered sections of the legal pages, for the same reason.
 
      Every entry repeats the full hreflang set, itself included — that is the
      format's rule, and an incomplete set is ignored rather than partially
@@ -29,5 +31,33 @@
     <xhtml:link rel="alternate" hreflang="fa" href="https://tarkk.ir/fa/"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://tarkk.ir/fa/"/>
     <lastmod>2026-08-02</lastmod>
+  </url>
+  <url>
+    <loc>https://tarkk.ir/privacy.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://tarkk.ir/privacy.html"/>
+    <xhtml:link rel="alternate" hreflang="fa" href="https://tarkk.ir/fa/privacy.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://tarkk.ir/fa/privacy.html"/>
+    <lastmod>2026-09-08</lastmod>
+  </url>
+  <url>
+    <loc>https://tarkk.ir/fa/privacy.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://tarkk.ir/privacy.html"/>
+    <xhtml:link rel="alternate" hreflang="fa" href="https://tarkk.ir/fa/privacy.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://tarkk.ir/fa/privacy.html"/>
+    <lastmod>2026-09-08</lastmod>
+  </url>
+  <url>
+    <loc>https://tarkk.ir/terms.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://tarkk.ir/terms.html"/>
+    <xhtml:link rel="alternate" hreflang="fa" href="https://tarkk.ir/fa/terms.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://tarkk.ir/fa/terms.html"/>
+    <lastmod>2026-09-08</lastmod>
+  </url>
+  <url>
+    <loc>https://tarkk.ir/fa/terms.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://tarkk.ir/terms.html"/>
+    <xhtml:link rel="alternate" hreflang="fa" href="https://tarkk.ir/fa/terms.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://tarkk.ir/fa/terms.html"/>
+    <lastmod>2026-09-08</lastmod>
   </url>
 </urlset>

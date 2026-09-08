@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Privacy Policy — Tarkk</title>
+  <meta name="description"
+    content="What Tarkk collects, what it never collects, and why. No accounts, no server carrying your voice, and a switch for the one thing that is measured.">
+  <meta name="theme-color" content="#0B0E11">
+
+  <!-- ── Search ───────────────────────────────────────────────────────
+       Same two-document arrangement as the landing page: English here,
+       Persian at /fa/privacy.html, generated from this file by
+       scripts/build-website-i18n.mjs. Do not hand-edit the Persian copy —
+       change the data-fa attributes below and re-run the generator. -->
+  <link rel="canonical" href="https://tarkk.ir/privacy.html">
+  <link rel="alternate" hreflang="en" href="https://tarkk.ir/privacy.html">
+  <link rel="alternate" hreflang="fa" href="https://tarkk.ir/fa/privacy.html">
+  <link rel="alternate" hreflang="x-default" href="https://tarkk.ir/fa/privacy.html">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="logo.png">
+
+  <!-- ── Link previews ───────────────────────────────────────────────── -->
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Tarkk">
+  <meta property="og:url" content="https://tarkk.ir/privacy.html">
+  <meta property="og:title" content="Privacy Policy — Tarkk">
+  <meta property="og:description"
+    content="What Tarkk collects, what it never collects, and why. No accounts, no server carrying your voice, and a switch for the one thing that is measured.">
+  <meta property="og:image" content="https://tarkk.ir/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Tarkk — talk instantly, no cell towers, no internet needed.">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:locale:alternate" content="fa_IR">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Privacy Policy — Tarkk">
+  <meta name="twitter:description"
+    content="No accounts, no server in the path, nothing recorded. The full account of what leaves your phone — and what never does.">
+  <meta name="twitter:image" content="https://tarkk.ir/og-image.png">
+
+  <!-- ── Inline scripts ───────────────────────────────────────────────
+       Above the stylesheet links for the reason spelled out in index.html:
+       an inline script waits for every sheet requested before it, so
+       putting these after the jsdelivr link hands a third-party CDN the
+       power to stall parsing of the whole document. -->
+
+  <!-- iOS gets a native-style navigation bar (styles.css). Set here rather
+       than in app.js so the bar is never painted in its desktop form for a
+       frame first. -->
+  <script>
+    if (window.CSS && CSS.supports && CSS.supports('-webkit-touch-callout', 'none')) {
+      document.documentElement.classList.add('is-ios');
+    }
+  </script>
+
+  <!-- ── Language routing ─────────────────────────────────────────────
+       The same rule as the landing page, pointed at this document's
+       Persian twin: Persian is the site, and the only way to stay on the
+       English copy is to have asked for English with the toggle, which
+       writes tark_lang. See index.html for the full reasoning, including
+       what this costs in English search presence.
+
+       Only ever runs on the English document — the generated Persian page
+       has lang="fa", so the guard is false there and no loop is possible. -->
+  <script>
+    (function () {
+      if (document.documentElement.lang !== 'en') return;
+      var want = null;
+      try { want = localStorage.getItem('tark_lang'); } catch (_) {}
+      if (want !== 'en') location.replace('/fa/privacy.html');
+    })();
+  </script>
+
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vazirmatn@33.0.3/Vazirmatn-font-face.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+  <!-- ── Nav ─────────────────────────────────────────────────────────
+       The same bar as the landing page, with its links pointed back at it.
+       app.js is shared across the site and skips the blocks whose elements
+       are not on this page. -->
+  <nav id="nav">
+    <div class="nav-inner">
+      <a class="wordmark" href="/">
+        <span class="wordmark-dot"></span>TARKK
+      </a>
+      <div class="nav-links" id="navLinks">
+        <a href="/#features" data-en="Features" data-fa="ویژگی‌ها">Features</a>
+        <a href="/#handshake" data-en="How it works" data-fa="چطور کار میکنه؟">How it works</a>
+        <a href="/#tech" data-en="Details" data-fa="جزئیات بیشتر">Details</a>
+        <a href="/#faq" data-en="FAQ" data-fa="سوالات شما">FAQ</a>
+        <a href="/#download" data-en="Download" data-fa="دریافت">Download</a>
+      </div>
+      <a id="langToggle" class="lang-toggle" href="/fa/privacy.html" hreflang="fa" lang="fa"
+        aria-label="نمایش به فارسی">فارسی</a>
+      <button id="menuToggle" class="menu-toggle" aria-expanded="false" aria-controls="navLinks">
+        <span class="menu-icon" aria-hidden="true"></span>
+        <span class="sr-only" data-en="Menu" data-fa="منو">Menu</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ── Hero ────────────────────────────────────────────────────────── -->
+  <header class="legal-hero">
+    <i class="legal-sweep" aria-hidden="true"></i>
+    <div class="legal-hero-inner">
+      <p class="eyebrow reveal-up" data-en="PRIVACY POLICY" data-fa="سیاست حریم خصوصی">PRIVACY POLICY</p>
+      <h1 class="legal-title reveal-up d1" data-en="A privacy policy for an app with no server."
+        data-fa="سیاست حریم خصوصی برای برنامه‌ای که سرور نداره.">
+        A privacy policy for an app with no server.</h1>
+      <p class="legal-lede reveal-up d2"
+        data-en="Tark connects phones straight to each other. There is no account to make, nothing in the middle carrying your voice, and no copy of a conversation anywhere. This page is the whole account of what does leave your phone — a short list — and what never does."
+        data-fa="تَرک گوشی‌ها رو مستقیم به هم وصل می‌کنه. نه حسابی هست که بسازی، نه چیزی وسط راه که صداتون رو ببره، و نه نسخه‌ای از گفت‌وگو جایی می‌مونه. این صفحه کل حسابِ چیزیه که از گوشیت بیرون می‌ره — که فهرست کوتاهیه — و چیزی که هیچ‌وقت بیرون نمی‌ره.">
+        Tark connects phones straight to each other. There is no account to make, nothing in the middle carrying your
+        voice, and no copy of a conversation anywhere. This page is the whole account of what does leave your phone — a
+        short list — and what never does.</p>
+      <div class="legal-meta reveal-up d3">
+        <span class="legal-stamp">
+          <i aria-hidden="true"></i>
+          <span data-en="In effect since" data-fa="معتبر از">In effect since</span>
+          <b><time datetime="2026-09-08" data-en="8 September 2026" data-fa="۱۷ شهریور ۱۴۰۵">8 September 2026</time></b>
+        </span>
+        <a class="legal-swap" href="terms.html" data-en="Read the Terms &amp; Conditions →"
+          data-fa="شرایط و ضوابط رو بخونید →">Read the Terms &amp; Conditions →</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="legal-shell">
+
+    <!-- data-native-scroll: below 980px this rail scrolls sideways, and the
+         page's eased-wheel handler hands any subtree carrying this
+         attribute straight back to the browser. -->
+    <aside class="legal-toc" data-native-scroll>
+      <p class="legal-toc-title" data-en="CONTENTS" data-fa="فهرست">CONTENTS</p>
+      <ol>
+        <li><a href="#scope" data-en="Who this covers" data-fa="چی رو پوشش می‌ده">Who this covers</a></li>
+        <li><a href="#voice" data-en="Your voice" data-fa="صدای شما">Your voice</a></li>
+        <li><a href="#on-device" data-en="What stays on your phone" data-fa="چیزی که روی گوشی می‌مونه">What stays on
+            your phone</a></li>
+        <li><a href="#stats" data-en="Connection stats" data-fa="آمار اتصال">Connection stats</a></li>
+        <li><a href="#permissions" data-en="Permissions" data-fa="دسترسی‌ها">Permissions</a></li>
+        <li><a href="#browser" data-en="Joining by browser" data-fa="ورود از مرورگر">Joining by browser</a></li>
+        <li><a href="#website" data-en="This website" data-fa="همین وب‌سایت">This website</a></li>
+        <li><a href="#services" data-en="Services we rely on" data-fa="سرویس‌هایی که استفاده می‌کنیم">Services we rely
+            on</a></li>
+        <li><a href="#children" data-en="Children" data-fa="کودکان">Children</a></li>
+        <li><a href="#controls" data-en="Your controls" data-fa="اختیارات شما">Your controls</a></li>
+        <li><a href="#changes" data-en="Changes to this page" data-fa="تغییرات این صفحه">Changes to this page</a></li>
+        <li><a href="#contact" data-en="Contact" data-fa="تماس">Contact</a></li>
+      </ol>
+    </aside>
+
+    <main class="legal-main">
+
+      <!-- ── The short version ────────────────────────────────────────
+           Same ledger as the landing page's "what it asks for / what it
+           never asks for" block, because it is answering the same question
+           one level deeper. -->
+      <section class="legal-summary">
+        <div class="ledger">
+          <div class="ledger-col reveal">
+            <p class="ledger-title" data-en="WHAT LEAVES YOUR PHONE" data-fa="چیزی که از گوشی شما بیرون می‌ره">
+              WHAT LEAVES YOUR PHONE</p>
+            <ul class="ledger-list asks">
+              <li
+                data-en="Anonymous connection stats, unless you switch them off — which transport you used, whether it connected, and where it broke. Seven events, every value from a fixed list."
+                data-fa="آمار بی‌نام اتصال، مگر اینکه خاموشش کنی — از کدوم مسیر وصل شدی، وصل شد یا نه، و کجا خراب شد. هفت رویداد، و هر مقدارش از یه فهرست ثابت میاد.">
+                Anonymous connection stats, unless you switch them off — which transport you used, whether it connected,
+                and where it broke. Seven events, every value from a fixed list.</li>
+              <li
+                data-en="Your IP address, to the services any web page reaches: the font CDN this site loads from, and a public STUN server if you join a channel from a browser."
+                data-fa="نشانی IP شما، به همون سرویس‌هایی که هر صفحه‌ی وبی بهشون وصل می‌شه: سرویس فونتی که این سایت ازش می‌گیره، و یه سرور عمومی STUN اگه از مرورگر وارد کانال بشی.">
+                Your IP address, to the services any web page reaches: the font CDN this site loads from, and a public
+                STUN server if you join a channel from a browser.</li>
+              <li
+                data-en="Whatever you deliberately send us — a diagnostic log attached to a bug report, or an email you write."
+                data-fa="هر چیزی که خودت عمداً برامون می‌فرستی — لاگ عیب‌یابی که به گزارش خطا ضمیمه می‌کنی، یا ایمیلی که می‌نویسی.">
+                Whatever you deliberately send us — a diagnostic log attached to a bug report, or an email you write.
+              </li>
+            </ul>
+          </div>
+          <div class="ledger-col reveal">
+            <p class="ledger-title" data-en="WHAT NEVER DOES" data-fa="چیزی که هیچ‌وقت بیرون نمی‌ره">WHAT NEVER DOES</p>
+            <ul class="ledger-list nevers">
+              <li
+                data-en="Your voice. It is played and gone. Nothing records it, and no server of ours is anywhere in the path."
+                data-fa="صدای شما. پخش می‌شه و تموم. هیچی ضبطش نمی‌کنه و هیچ سروری از ما توی مسیرش نیست.">
+                Your voice. It is played and gone. Nothing records it, and no server of ours is anywhere in the path.
+              </li>
+              <li
+                data-en="Your callsign, the names of people around you, the network you are on, or any address belonging to your phone."
+                data-fa="اسم مستعارت، اسم آدمای دور و برت، شبکه‌ای که روشی، یا هر نشانی‌ای که مال گوشیته.">
+                Your callsign, the names of people around you, the network you are on, or any address belonging to your
+                phone.</li>
+              <li
+                data-en="Your location. Older versions of Android demand the permission before they will scan for radios; Tark never reads a position out of it."
+                data-fa="موقعیت مکانی‌ت. اندرویدهای قدیمی‌تر بدون این دسترسی اجازه‌ی اسکن رادیویی نمی‌دن؛ تَرک هیچ‌وقت موقعیتی ازش نمی‌خونه.">
+                Your location. Older versions of Android demand the permission before they will scan for radios; Tark
+                never reads a position out of it.</li>
+              <li
+                data-en="A profile. There is no account, no phone number and no email, so there is nothing to build one out of."
+                data-fa="پروفایل. نه حساب کاربری هست، نه شماره، نه ایمیل — پس چیزی نیست که باهاش پروفایلی ساخته بشه.">
+                A profile. There is no account, no phone number and no email, so there is nothing to build one out of.
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 1 ───────────────────────────────────────────────────────── -->
+      <section class="legal-sec reveal" id="scope">
+        <h2>
+          <span data-en="Who this covers" data-fa="این صفحه چی رو پوشش می‌ده">Who this covers</span>
+          <a class="legal-anchor" href="#scope"><span class="sr-only" data-en="Link to this section"
+              data-fa="پیوند به این بخش">Link to this section</span></a>
+        </h2>
+        <p
+          data-en="Tark (تَرک) is an independent project, not a company. This policy covers three things: the Android app, the browser guest at app.tarkk.ir, and this website."
+          data-fa="تَرک یه پروژه‌ی مستقله، نه یه شرکت. این سیاست سه چیز رو پوشش می‌ده: اپلیکیشن اندروید، مهمانِ مرورگری روی app.tarkk.ir، و همین وب‌سایت.">
+          Tark (تَرک) is an independent project, not a company. This policy covers three things: the Android app, the
+          browser guest at app.tarkk.ir, and this website.</p>
+        <p
+          data-en="Every claim on this page is checkable. Tark is open source under the AGPL-3.0, so the code that does — or does not — collect something is public, and you are welcome to read it instead of taking our word for any of this."
+          data-fa="هر ادعایی توی این صفحه قابل بررسیه. تَرک متن‌بازه و با پروانه‌ی AGPL-3.0 منتشر شده، پس کدی که چیزی رو جمع می‌کنه — یا نمی‌کنه — عمومیه و می‌تونی به‌جای اعتماد به حرف ما، خودت بخونیش.">
+          Every claim on this page is checkable. Tark is open source under the AGPL-3.0, so the code that does — or does
+          not — collect something is public, and you are welcome to read it instead of taking our word for any of this.
+        </p>
+      </section>
+
+      <!-- ── 2 ───────────────────────────────────────────────────────── -->
+      <section class="legal-sec reveal" id="voice">
+        <h2>
+          <span data-en="Your voice" data-fa="صدای شما">Your voice</span>
+          <a class="legal-anchor" href="#voice"><span class="sr-only" data-en="Link to this section"
+              data-fa="پیوند به این بخش">Link to this section</span></a>
+        </h2>
+        <p
+          data-en="Audio goes from one phone to another over the link you are already on: the Wi-Fi network, a hotspot one of the phones is hosting, or a direct Bluetooth connection. There is no server between them, ours or anyone else’s. Sound is played as it arrives and then discarded — it is never written to storage, never queued for upload, and never buffered anywhere it could be recovered from."
+          data-fa="صدا از یه گوشی به گوشی دیگه می‌ره، از روی همون مسیری که روش هستید: شبکه‌ی وای‌فای، هات‌اسپاتی که یکی از گوشی‌ها بالا آورده، یا اتصال مستقیم بلوتوث. هیچ سروری بینشون نیست، نه مال ما نه مال کس دیگه. صدا همون‌طور که می‌رسه پخش می‌شه و بعد دور ریخته می‌شه — هیچ‌وقت روی حافظه نوشته نمی‌شه، هیچ‌وقت برای آپلود توی صف نمی‌ره، و هیچ‌وقت جایی نگه داشته نمی‌شه که بشه ازش بازیابیش کرد.">
+          Audio goes from one phone to another over the link you are already on: the Wi-Fi network, a hotspot one of the
+          phones is hosting, or a direct Bluetooth connection. There is no server between them, ours or anyone else’s.
+          Sound is played as it arrives and then discarded — it is never written to storage, never queued for upload,
+          and never buffered anywhere it could be recovered from.</p>
+        <p
+          data-en="This is a property of how the app is built rather than a promise we are keeping on your behalf. If everyone walks out of range, the conversation does not exist anywhere — including here."
+          data-fa="این ویژگیِ خودِ ساختار برنامه‌ست، نه قولی که ما از طرف شما نگهش داشته باشیم. اگه همه از محدوده بیرون برن، اون گفت‌وگو دیگه هیچ‌جا وجود نداره — از جمله اینجا.">
+          This is a property of how the app is built rather than a promise we are keeping on your behalf. If everyone
+          walks out of range, the conversation does not exist anywhere — including here.</p>
+
+        <div class="legal-note">
+          <b data-en="WORTH KNOWING" data-fa="خوبه که بدونی">WORTH KNOWING</b>
+          <p
+            data-en="Tark does not add its own encryption on top of the link. On Wi-Fi your audio inherits whatever the network already protects it with; the Bluetooth link is opened without pairing, so that two phones that have never met can still talk. The short channel code keeps groups apart — it is not a password and it does not lock anything. Treat a Tark channel the way you would treat a radio channel: anyone with the right access to the same network, or the code, can listen. It is the wrong tool for a conversation that has to stay confidential."
+            data-fa="تَرک رمزنگاری خودش رو روی این مسیر اضافه نمی‌کنه. روی وای‌فای، صدات همون حفاظتی رو داره که خودِ شبکه براش فراهم می‌کنه؛ اتصال بلوتوث هم بدون جفت‌شدن باز می‌شه تا دو گوشی که تا حالا همدیگه رو ندیدن بتونن حرف بزنن. کد کوتاه کانال فقط گروه‌ها رو از هم جدا نگه می‌داره — رمز عبور نیست و چیزی رو قفل نمی‌کنه. با یه کانال تَرک همون‌طور رفتار کن که با یه کانال بیسیم رفتار می‌کنی: هر کسی که دسترسی درست به همون شبکه، یا خودِ کد رو داشته باشه، می‌تونه گوش بده. برای گفت‌وگویی که باید محرمانه بمونه ابزار درستی نیست.">
+            Tark does not add its own encryption on top of the link. On Wi-Fi your audio inherits whatever the network
+            already protects it with; the Bluetooth link is opened without pairing, so that two phones that have never
+            met can still talk. The short channel code keeps groups apart — it is not a password and it does not lock
+            anything. Treat a Tark channel the way you would treat a radio channel: anyone with the right access to the
+            same network, or the code, can listen. It is the wrong tool for a conversation that has to stay
+            confidential.</p>
+        </div>
+      </section>
+
+      <!-- ── 3 ───────────────────────────────────────────────────────── -->
+      <section class="legal-sec reveal" id="on-device">
+        <h2>
+          <span data-en="What stays on your phone" data-fa="چیزی که روی گوشی می‌مونه">What stays on your phone</span>
+          <a class="legal-anchor" href="#on-device"><span class="sr-only" data-en="Link to this section"
+              data-fa="پیوند به این بخش">Link to this section</span></a>
+        </h2>
+        <p
+          data-en="Tark keeps a small amount of state so it can behave sensibly the second time you open it. All of it lives in the app’s own storage on your device. None of it syncs anywhere, and uninstalling the app removes the lot."
+          data-fa="تَرک یه مقدار کمی وضعیت رو نگه می‌داره تا بار دومی که بازش می‌کنی درست رفتار کنه. همه‌ش توی حافظه‌ی خود برنامه روی دستگاه شماست. هیچ‌کدومش جایی هم‌گام نمی‌شه و با حذف برنامه، همه‌ش پاک می‌شه.">
+          Tark keeps a small amount of state so it can behave sensibly the second time you open it. All of it lives in
+          the app’s own storage on your device. None of it syncs anywhere, and uninstalling the app removes the lot.</p>
+        <div class="legal-rows">
+          <div class="legal-row">
+            <b data-en="Your settings" data-fa="تنظیمات شما">Your settings</b>
+            <p
+              data-en="Language, theme, audio preferences, the callsign you type, and the switches on the Settings screen."
+              data-fa="زبان، پوسته، تنظیمات صدا، اسم مستعاری که تایپ می‌کنی، و کلیدهای صفحه‌ی تنظیمات.">
+              Language, theme, audio preferences, the callsign you type, and the switches on the Settings screen.</p>
+          </div>
+          <div class="legal-row">
+            <b data-en="Channel state" data-fa="وضعیت کانال">Channel state</b>
+            <p
+              data-en="Enough about the last channel and the last connection to reconnect you automatically when someone comes back into range."
+              data-fa="به‌اندازه‌ای از آخرین کانال و آخرین اتصال که وقتی کسی دوباره وارد محدوده شد، خودکار وصلت کنه.">
+              Enough about the last channel and the last connection to reconnect you automatically when someone comes
+              back into range.</p>
+          </div>
+          <div class="legal-row">
+            <b data-en="The diagnostic log" data-fa="لاگ عیب‌یابی">The diagnostic log</b>
+            <p
+              data-en="A rotating technical log — session lifecycle, screen on and off, socket events, which peers a packet failed to reach. Never any audio. It is capped in size (8 MB by default, adjustable), it stays on the phone unless you deliberately share it, and Settings → Advanced → Diagnostics has a button that deletes it."
+              data-fa="یه لاگ فنی چرخشی — چرخه‌ی جلسه، روشن و خاموش شدن صفحه، رویدادهای سوکت، اینکه بسته به کدوم گوشی نرسیده. هیچ‌وقت هیچ صدایی. اندازه‌ش سقف داره (پیش‌فرض ۸ مگابایت، قابل تغییر)، تا وقتی خودت عمداً به اشتراک نذاریش روی گوشی می‌مونه، و توی تنظیمات ← پیشرفته ← عیب‌یابی دکمه‌ای هست که پاکش می‌کنه.">
+              A rotating technical log — session lifecycle, screen on and off, socket events, which peers a packet
+              failed to reach. Never any audio. It is capped in size (8 MB by default, adjustable), it stays on the
+              phone unless you deliberately share it, and Settings → Advanced → Diagnostics has a button that deletes
+              it.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 4 ───────────────────────────────────────────────────────── -->
+      <section class="legal-sec reveal" id="stats">
+        <h2>
+          <span data-en="Anonymous connection stats" data-fa="آمار بی‌نام اتصال">Anonymous connection stats</span>
+          <a class="legal-anchor" href="#stats"><span class="sr-only" data-en="Link to this section"
+              data-fa="پیوند به این بخش">Link to this section</span></a>
+        </h2>
+        <p
+          data-en="This is the one thing Tark measures, and it exists for a single reason: the connection bugs worth fixing happen on somebody else’s phone, on a network we cannot reach, halfway through a ride. Without a count of which transports fail and where, those bugs get ranked by whoever shouts loudest instead of by how often they actually happen."
+          data-fa="این تنها چیزیه که تَرک اندازه می‌گیره، و فقط یه دلیل داره: باگ‌های اتصالی که ارزش رفع کردن دارن، روی گوشی یکی دیگه اتفاق می‌افتن، روی شبکه‌ای که ما بهش دسترسی نداریم، وسط یه سفر. بدون شمارشِ اینکه کدوم مسیر و کجا شکست می‌خوره، اولویت این باگ‌ها رو صدای بلندتر تعیین می‌کنه، نه اینکه واقعاً چقدر تکرار می‌شن.">
+          This is the one thing Tark measures, and it exists for a single reason: the connection bugs worth fixing
+          happen on somebody else’s phone, on a network we cannot reach, halfway through a ride. Without a count of
+          which transports fail and where, those bugs get ranked by whoever shouts loudest instead of by how often they
+          actually happen.</p>
+
+        <div class="legal-note">
+          <b data-en="IT IS ON UNLESS YOU TURN IT OFF" data-fa="روشنه، مگر اینکه خاموشش کنی">IT IS ON UNLESS YOU TURN IT
+            OFF</b>
+          <p
+            data-en="The switch is in Settings → Privacy, and it starts on. An opt-in version of this gets enabled by roughly nobody, which produces data too thin to act on. We think the honest trade is to leave it on and hold ourselves to a strict limit on what it may contain — no names, no addresses, no free text, no audio, ever — and to say so here rather than bury it. Turning it off does not disable a feature or degrade the app in any way."
+            data-fa="کلیدش توی تنظیمات ← حریم خصوصی هست و از اول روشنه. نسخه‌ی «باید خودت روشنش کنی» رو تقریباً هیچ‌کس روشن نمی‌کنه و داده‌ی به‌دست‌اومده اون‌قدر کمه که نمی‌شه باهاش کاری کرد. به نظرمون معامله‌ی صادقانه اینه که روشن بمونه ولی خودمون رو به یه سقف سفت‌وسخت پایبند کنیم — نه اسمی، نه نشانی‌ای، نه متن آزادی، و هیچ‌وقت هیچ صدایی — و همین‌جا بگیمش، نه اینکه لای متن قایمش کنیم. خاموش کردنش هیچ قابلیتی رو از کار نمی‌ندازه و هیچ افتی توی برنامه ایجاد نمی‌کنه.">
+            The switch is in Settings → Privacy, and it starts on. An opt-in version of this gets enabled by roughly
+            nobody, which produces data too thin to act on. We think the honest trade is to leave it on and hold
+            ourselves to a strict limit on what it may contain — no names, no addresses, no free text, no audio, ever —
+            and to say so here rather than bury it. Turning it off does not disable a feature or degrade the app in any
+            way.</p>
+        </div>
+
+        <h3 data-en="The complete list of events" data-fa="فهرست کامل رویدادها">The complete list of events</h3>
+        <p
+          data-en="There are seven, and this is all of them. Every value below comes from a fixed list written into the app — there is no free-text field anywhere in this vocabulary for something personal to leak into, and every number is widened into a range before it is sent."
+          data-fa="هفت‌تان، و همه‌شون همین‌هاست. هر مقداری که پایین می‌بینی از یه فهرست ثابت میاد که توی خود برنامه نوشته شده — توی این واژگان هیچ فیلد متنِ آزادی وجود نداره که چیزی شخصی ازش نشت کنه، و هر عددی قبل از ارسال به یه بازه تبدیل می‌شه.">
+          There are seven, and this is all of them. Every value below comes from a fixed list written into the app —
+          there is no free-text field anywhere in this vocabulary for something personal to leak into, and every number
+          is widened into a range before it is sent.</p>
+        <div class="legal-rows">
+          <div class="legal-row">
+            <b data-en="Setup finished" data-fa="پایان راه‌اندازی">Setup finished</b>
+            <p data-en="That the intro was completed, whether it was skipped, and which language the app is set to."
+              data-fa="اینکه معرفی اولیه تموم شده، اینکه ردش کردی یا نه، و اینکه برنامه روی کدوم زبونه.">
+              That the intro was completed, whether it was skipped, and which language the app is set to.</p>
+          </div>
+          <div class="legal-row">
+            <b data-en="Pairing started" data-fa="شروع اتصال">Pairing started</b>
+            <p
+              data-en="Which transport (Wi-Fi, Bluetooth, hotspot or browser guest) and which side you were — host or joiner."
+              data-fa="کدوم مسیر (وای‌فای، بلوتوث، هات‌اسپات یا مهمان مرورگری) و اینکه کدوم طرف بودی — میزبان یا واردشونده.">
+              Which transport (Wi-Fi, Bluetooth, hotspot or browser guest) and which side you were — host or joiner.</p>
+          </div>
+          <div class="legal-row">
+            <b data-en="Pairing connected" data-fa="اتصال برقرار شد">Pairing connected</b>
+            <p
+              data-en="The same two, plus roughly how long it took as one of four ranges — under 5 seconds, 5–15, 15–45, or longer."
+              data-fa="همون دوتا، به‌علاوه‌ی اینکه تقریباً چقدر طول کشید، به شکل یکی از چهار بازه — زیر ۵ ثانیه، ۵ تا ۱۵، ۱۵ تا ۴۵، یا بیشتر.">
+              The same two, plus roughly how long it took as one of four ranges — under 5 seconds, 5–15, 15–45, or
+              longer.</p>
+          </div>
+          <div class="legal-row">
+            <b data-en="Pairing failed" data-fa="اتصال ناموفق">Pairing failed</b>
+            <p
+              data-en="The same two, plus how far it got (permission, discovery, dialling, handshake, hotspot setup) and why it stopped, from a list of eight reasons. This is the event the whole thing exists for."
+              data-fa="همون دوتا، به‌علاوه‌ی اینکه تا کجا پیش رفت (دسترسی، پیدا کردن، شماره‌گیری، دست‌دادن، بالا آوردن هات‌اسپات) و اینکه چرا متوقف شد، از فهرستی با هشت دلیل. کل این ماجرا به‌خاطر همین یه رویداده.">
+              The same two, plus how far it got (permission, discovery, dialling, handshake, hotspot setup) and why it
+              stopped, from a list of eight reasons. This is the event the whole thing exists for.</p>
+          </div>
+          <div class="legal-row">
+            <b data-en="First transmission" data-fa="اولین ارسال">First transmission</b>
+            <p data-en="The transport, and whether the first thing sent was speech or shared music."
+              data-fa="مسیر اتصال، و اینکه اولین چیزی که فرستاده شد صحبت بود یا آهنگِ به‌اشتراک‌گذاشته‌شده.">
+              The transport, and whether the first thing sent was speech or shared music.</p>
+          </div>
+          <div class="legal-row">
+            <b data-en="Session ended" data-fa="پایان جلسه">Session ended</b>
+            <p
+              data-en="The transport, a length range rather than a duration, how many people were in the channel at its fullest (exact up to three, then a range), how many times you transmitted on the same scale, and whether you left, the link dropped, or something errored."
+              data-fa="مسیر اتصال، یه بازه‌ی زمانی به‌جای مدت دقیق، اینکه توی شلوغ‌ترین لحظه چند نفر توی کانال بودن (تا سه نفر دقیق، بعدش بازه‌ای)، اینکه چند بار حرف زدی با همون مقیاس، و اینکه خودت رفتی، ارتباط قطع شد، یا خطایی پیش اومد.">
+              The transport, a length range rather than a duration, how many people were in the channel at its fullest
+              (exact up to three, then a range), how many times you transmitted on the same scale, and whether you left,
+              the link dropped, or something errored.</p>
+          </div>
+          <div class="legal-row">
+            <b data-en="Feature used" data-fa="استفاده از یک قابلیت">Feature used</b>
+            <p
+              data-en="The name of one optional feature, from a list of eleven — self-mute, shared music, QR scan, the home-screen widget, auto-reconnect, noise suppression and so on. Once per session per feature, not once per tap."
+              data-fa="اسم یکی از قابلیت‌های اختیاری، از فهرستی با یازده مورد — بی‌صدا کردن خود، پخش آهنگ مشترک، اسکن QR، ابزارک صفحه‌ی خانه، اتصال دوباره‌ی خودکار، حذف نویز و چیزهایی از این دست. برای هر قابلیت، هر جلسه یک‌بار، نه هر بار که لمسش می‌کنی.">
+              The name of one optional feature, from a list of eleven — self-mute, shared music, QR scan, the
+              home-screen widget, auto-reconnect, noise suppression and so on. Once per session per feature, not once
+              per tap.</p>
+          </div>
+        </div>
+
+        <h3 data-en="Who processes it" data-fa="چه کسی پردازشش می‌کنه">Who processes it</h3>
+        <p
+          data-en="AdTrace, an Iranian analytics provider — chosen because it is the one option that is both free and actually reachable from Iranian networks, where Firebase and Sentry are blocked at the endpoint. Their SDK is what receives the seven events above, and it also collects the technical device and install information described in their own privacy policy in order to count one phone as one install."
+          data-fa="AdTrace، یه سرویس تحلیل ایرانی — انتخاب شد چون تنها گزینه‌ایه که هم رایگانه و هم واقعاً از شبکه‌های ایران در دسترسه، جایی که Firebase و Sentry از سمت مقصد بسته‌ن. کیت اون‌هاست که این هفت رویداد بالا رو دریافت می‌کنه، و برای اینکه هر گوشی رو به‌عنوان یه نصب بشماره، اطلاعات فنی دستگاه و نصب رو هم — همون‌طور که توی سیاست حریم خصوصی خودشون توضیح داده شده — جمع می‌کنه.">
+          AdTrace, an Iranian analytics provider — chosen because it is the one option that is both free and actually
+          reachable from Iranian networks, where Firebase and Sentry are blocked at the endpoint. Their SDK is what
+          receives the seven events above, and it also collects the technical device and install information described
+          in their own privacy policy in order to count one phone as one install.</p>
+        <p
+          data-en="Their SDK arrives wired for ad attribution, which Tark does not do. The advertising-ID permission it wants, and the checks it makes for whether Facebook and Instagram are installed on your phone, are stripped out of the app when it is built. On an app whose whole promise is that nothing leaves the local link, those would read as exactly the tracking we tell you is not here."
+          data-fa="کیت اون‌ها به‌صورت پیش‌فرض برای انتساب تبلیغات آماده‌ست، کاری که تَرک انجام نمی‌ده. دسترسی به شناسه‌ی تبلیغاتی که می‌خواد، و بررسی‌هایی که برای نصب بودن فیسبوک و اینستاگرام روی گوشی شما انجام می‌ده، موقع ساخت برنامه حذف می‌شن. توی برنامه‌ای که کل وعده‌ش اینه که چیزی از مسیر محلی بیرون نمی‌ره، این‌ها دقیقاً همون ردیابی‌ای به نظر می‌رسن که می‌گیم اینجا خبری ازش نیست.">
+          Their SDK arrives wired for ad attribution, which Tark does not do. The advertising-ID permission it wants,
+          and the checks it makes for whether Facebook and Instagram are installed on your phone, are stripped out of
+          the app when it is built. On an app whose whole promise is that nothing leaves the local link, those would
+          read as exactly the tracking we tell you is not here.</p>
+        <p
+          data-en="When the switch is off, the SDK is not started at all. It is not started and then silenced — a started SDK has already sent a session ping, which is the thing somebody switching this off was switching off."
+          data-fa="وقتی کلید خاموشه، کیت اصلاً راه‌اندازی نمی‌شه. این‌طور نیست که راه بیفته و بعد ساکتش کنیم — کیتی که راه افتاده، تا اون لحظه یه پینگ جلسه فرستاده، و همون دقیقاً همون چیزیه که آدم با خاموش کردن این کلید داشته خاموشش می‌کرده.">
+          When the switch is off, the SDK is not started at all. It is not started and then silenced — a started SDK has
+          already sent a session ping, which is the thing somebody switching this off was switching off.</p>
+        <p
+          data-en="The browser guest and every desktop build never load it in the first place; it only exists on Android and iOS."
+          data-fa="مهمانِ مرورگری و همه‌ی نسخه‌های دسکتاپ اصلاً بارگذاریش نمی‌کنن؛ فقط روی اندروید و iOS وجود داره.">
+          The browser guest and every desktop build never load it in the first place; it only exists on Android and iOS.
+        </p>
+      </section>
+
+      <!-- ── 5 ───────────────────────────────────────────────────────── -->
+      <section class="legal-sec reveal" id="permissions">
+        <h2>
+          <span data-en="Permissions, and what each one is for"
+            data-fa="دسترسی‌ها، و اینکه هرکدوم به چه دردی می‌خوره">Permissions, and what each one is for</span>
+          <a class="legal-anchor" href="#permissions"><span class="sr-only" data-en="Link to this section"
+              data-fa="پیوند به این بخش">Link to this section</span></a>
+        </h2>
+        <p
+          data-en="Android names some permissions much more broadly than the use they are being granted for. Here is the whole list, and what Tark actually does with each."
+          data-fa="اندروید اسم بعضی دسترسی‌ها رو خیلی کلی‌تر از کاری که براش داده می‌شن گذاشته. این فهرست کامله، و اینکه تَرک واقعاً با هرکدوم چی‌کار می‌کنه.">
+          Android names some permissions much more broadly than the use they are being granted for. Here is the whole
+          list, and what Tark actually does with each.</p>
+        <div class="legal-rows">
+          <div class="legal-row">
+            <b data-en="Microphone" data-fa="میکروفون">Microphone</b>
+            <p
+              data-en="To pick up your voice and send it to the channel, live. Nothing is recorded, and the app does not listen while you are not in a channel."
+              data-fa="برای گرفتن صدات و فرستادنش به کانال، به‌صورت زنده. هیچی ضبط نمی‌شه و وقتی توی کانال نیستی برنامه گوش نمی‌ده.">
+              To pick up your voice and send it to the channel, live. Nothing is recorded, and the app does not listen
+              while you are not in a channel.</p>
+          </div>
+          <div class="legal-row">
+            <b data-en="Nearby devices / Bluetooth" data-fa="دستگاه‌های اطراف / بلوتوث">Nearby devices / Bluetooth</b>
+            <p
+              data-en="To find the other phone and open the link. Only used while you are connecting over Bluetooth or the hotspot bridge."
+              data-fa="برای پیدا کردن گوشی مقابل و باز کردن اتصال. فقط وقتی استفاده می‌شه که داری از طریق بلوتوث یا پل هات‌اسپات وصل می‌شی.">
+              To find the other phone and open the link. Only used while you are connecting over Bluetooth or the
+              hotspot bridge.</p>
+          </div>
+          <div class="legal-row">
+            <b data-en="Location (Android 12 and older)" data-fa="موقعیت مکانی (اندروید ۱۲ و پایین‌تر)">Location (Android
+              12 and older)</b>
+            <p
+              data-en="Older versions of Android refuse to scan for Wi-Fi or Bluetooth at all unless an app holds this. Tark asks for it for that reason alone and never reads a position; on Android 13 and newer it is not requested."
+              data-fa="اندرویدهای قدیمی‌تر بدون داشتن این دسترسی اصلاً اجازه‌ی اسکن وای‌فای یا بلوتوث نمی‌دن. تَرک فقط به همین دلیل ازش می‌خواد و هیچ‌وقت موقعیتی نمی‌خونه؛ روی اندروید ۱۳ و بالاتر اصلاً درخواستش نمی‌شه.">
+              Older versions of Android refuse to scan for Wi-Fi or Bluetooth at all unless an app holds this. Tark asks
+              for it for that reason alone and never reads a position; on Android 13 and newer it is not requested.</p>
+          </div>
+          <div class="legal-row">
+            <b data-en="Wi-Fi and network state" data-fa="وضعیت وای‌فای و شبکه">Wi-Fi and network state</b>
+            <p
+              data-en="To see which network you are on, to bind the channel to it, and to bring up a local hotspot when that is the route being used."
+              data-fa="برای اینکه ببینه روی کدوم شبکه‌ای، کانال رو بهش وصل کنه، و اگه مسیر انتخابی این باشه، یه هات‌اسپات محلی بالا بیاره.">
+              To see which network you are on, to bind the channel to it, and to bring up a local hotspot when that is
+              the route being used.</p>
+          </div>
+          <div class="legal-row">
+            <b data-en="Notifications" data-fa="اعلان‌ها">Notifications</b>
+            <p
+              data-en="So the channel keeps running with the screen off and the phone in a pocket. Android requires a visible notification for that."
+              data-fa="تا کانال با صفحه‌ی خاموش و گوشی توی جیب هم روشن بمونه. اندروید برای این کار یه اعلان قابل‌مشاهده لازم داره.">
+              So the channel keeps running with the screen off and the phone in a pocket. Android requires a visible
+              notification for that.</p>
+          </div>
+          <div class="legal-row">
+            <b data-en="Battery optimisation exemption" data-fa="معافیت از بهینه‌سازی باتری">Battery optimisation
+              exemption</b>
+            <p
+              data-en="Optional, and asked for once. Without it some phones kill the channel a few minutes after the screen goes off."
+              data-fa="اختیاریه و یک‌بار ازت خواسته می‌شه. بدون اون، بعضی گوشی‌ها چند دقیقه بعد از خاموش شدن صفحه کانال رو می‌کشن.">
+              Optional, and asked for once. Without it some phones kill the channel a few minutes after the screen goes
+              off.</p>
+          </div>
+          <div class="legal-row">
+            <b data-en="Camera" data-fa="دوربین">Camera</b>
+            <p data-en="Only when you scan a channel’s QR code. Nothing is stored and no image leaves the phone."
+              data-fa="فقط وقتی کد QR یه کانال رو اسکن می‌کنی. هیچی ذخیره نمی‌شه و هیچ تصویری از گوشی بیرون نمی‌ره.">
+              Only when you scan a channel’s QR code. Nothing is stored and no image leaves the phone.</p>
+          </div>
+          <div class="legal-row">
+            <b data-en="Internet" data-fa="اینترنت">Internet</b>
+            <p
+              data-en="Declared because Android treats local network sockets as internet access, and used by the analytics SDK when it is on. A Wi-Fi or Bluetooth channel needs no internet connection and works with none."
+              data-fa="اعلام شده چون اندروید سوکت‌های شبکه‌ی محلی رو هم دسترسی اینترنت حساب می‌کنه، و وقتی تحلیل روشنه توسط کیت تحلیل استفاده می‌شه. کانال وای‌فای یا بلوتوث هیچ اینترنتی لازم نداره و بدون اینترنت هم کار می‌کنه.">
+              Declared because Android treats local network sockets as internet access, and used by the analytics SDK
+              when it is on. A Wi-Fi or Bluetooth channel needs no internet connection and works with none.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 6 ───────────────────────────────────────────────────────── -->
+      <section class="legal-sec reveal" id="browser">
+        <h2>
+          <span data-en="Joining from a browser" data-fa="ورود از طریق مرورگر">Joining from a browser</span>
+          <a class="legal-anchor" href="#browser"><span class="sr-only" data-en="Link to this section"
+              data-fa="پیوند به این بخش">Link to this section</span></a>
+        </h2>
+        <p
+          data-en="app.tarkk.ir lets somebody join a channel without installing anything. It is a static page: it has no accounts, no database, and no record of who opened it."
+          data-fa="app.tarkk.ir به کسی اجازه می‌ده بدون نصب چیزی وارد کانال بشه. یه صفحه‌ی ایستاست: نه حساب کاربری داره، نه پایگاه داده، و نه سابقه‌ای از اینکه کی بازش کرده.">
+          app.tarkk.ir lets somebody join a channel without installing anything. It is a static page: it has no
+          accounts, no database, and no record of who opened it.</p>
+        <p
+          data-en="The connection itself is WebRTC, which browsers encrypt end-to-end by default — so a browser guest’s audio is in fact better protected in transit than the app-to-app Wi-Fi link. To let two devices that are not on the same network find each other, it asks a public STUN server run by Google what your public address looks like from the outside. That server sees your IP address and nothing else; it is not part of the audio path. Tark runs no relay server, which means audio never passes through any third party — and also means a strict corporate or carrier NAT can leave a browser guest unable to connect at all, with no fallback."
+          data-fa="خود اتصال با WebRTC انجام می‌شه که مرورگرها به‌صورت پیش‌فرض سرتاسری رمزنگاریش می‌کنن — پس صدای مهمان مرورگری در مسیر، در واقع بهتر از لینک وای‌فای بین دو برنامه محافظت می‌شه. برای اینکه دو دستگاهی که روی یه شبکه نیستن همدیگه رو پیدا کنن، از یه سرور عمومی STUN که گوگل اجراش می‌کنه می‌پرسه نشانی عمومی شما از بیرون چه شکلیه. اون سرور فقط IP شما رو می‌بینه و هیچ چیز دیگه؛ بخشی از مسیر صدا نیست. تَرک هیچ سرور بازپخشی نداره، یعنی صدا هیچ‌وقت از هیچ واسطه‌ای رد نمی‌شه — و همین یعنی یه NAT سخت‌گیر شرکتی یا اپراتوری می‌تونه مهمان مرورگری رو کلاً بی‌اتصال بذاره، بدون هیچ راه جایگزینی.">
+          The connection itself is WebRTC, which browsers encrypt end-to-end by default — so a browser guest’s audio is
+          in fact better protected in transit than the app-to-app Wi-Fi link. To let two devices that are not on the
+          same network find each other, it asks a public STUN server run by Google what your public address looks like
+          from the outside. That server sees your IP address and nothing else; it is not part of the audio path. Tark
+          runs no relay server, which means audio never passes through any third party — and also means a strict
+          corporate or carrier NAT can leave a browser guest unable to connect at all, with no fallback.</p>
+      </section>
+
+      <!-- ── 7 ───────────────────────────────────────────────────────── -->
+      <section class="legal-sec reveal" id="website">
+        <h2>
+          <span data-en="This website" data-fa="همین وب‌سایت">This website</span>
+          <a class="legal-anchor" href="#website"><span class="sr-only" data-en="Link to this section"
+              data-fa="پیوند به این بخش">Link to this section</span></a>
+        </h2>
+        <p
+          data-en="tarkk.ir sets no cookies, runs no analytics and carries no trackers or advertising. There is no consent banner because there is nothing to consent to."
+          data-fa="tarkk.ir هیچ کوکی‌ای نمی‌ذاره، هیچ ابزار تحلیلی اجرا نمی‌کنه و هیچ ردیاب یا تبلیغی نداره. بنر رضایت هم نداره، چون چیزی نیست که بهش رضایت بدی.">
+          tarkk.ir sets no cookies, runs no analytics and carries no trackers or advertising. There is no consent banner
+          because there is nothing to consent to.</p>
+        <p
+          data-en="It stores exactly one thing in your browser: a key called tark_lang, remembering whether you asked for English or Persian so the site stops sending you to the other one. It never leaves your browser, and clearing your site data removes it."
+          data-fa="فقط و فقط یه چیز توی مرورگرت ذخیره می‌کنه: کلیدی به اسم tark_lang، که یادش می‌مونه انگلیسی خواستی یا فارسی، تا سایت دیگه تو رو به اون یکی نفرسته. هیچ‌وقت از مرورگرت بیرون نمی‌ره و با پاک کردن داده‌های سایت حذف می‌شه.">
+          It stores exactly one thing in your browser: a key called tark_lang, remembering whether you asked for English
+          or Persian so the site stops sending you to the other one. It never leaves your browser, and clearing your
+          site data removes it.</p>
+        <p
+          data-en="The page’s font is loaded from a public CDN, which — like any host serving any file to your browser — sees the request and your IP address. Everything else on the page is served from the site itself."
+          data-fa="فونت این صفحه از یه CDN عمومی بارگذاری می‌شه که — مثل هر میزبانی که فایلی به مرورگرت می‌ده — درخواست و نشانی IP شما رو می‌بینه. بقیه‌ی چیزهای صفحه از خود سایت سرو می‌شن.">
+          The page’s font is loaded from a public CDN, which — like any host serving any file to your browser — sees the
+          request and your IP address. Everything else on the page is served from the site itself.</p>
+      </section>
+
+      <!-- ── 8 ───────────────────────────────────────────────────────── -->
+      <section class="legal-sec reveal" id="services">
+        <h2>
+          <span data-en="Services we rely on" data-fa="سرویس‌هایی که ازشون استفاده می‌کنیم">Services we rely on</span>
+          <a class="legal-anchor" href="#services"><span class="sr-only" data-en="Link to this section"
+              data-fa="پیوند به این بخش">Link to this section</span></a>
+        </h2>
+        <p
+          data-en="The complete list of third parties any part of Tark touches. Each has its own privacy policy, which governs what it does with what it sees."
+          data-fa="فهرست کامل واسطه‌هایی که هر بخشی از تَرک باهاشون سر و کار داره. هرکدوم سیاست حریم خصوصی خودشون رو دارن که تعیین می‌کنه با چیزی که می‌بینن چی‌کار می‌کنن.">
+          The complete list of third parties any part of Tark touches. Each has its own privacy policy, which governs
+          what it does with what it sees.</p>
+        <div class="legal-rows">
+          <div class="legal-row">
+            <a class="legal-row-name" href="https://adtrace.io" rel="noopener" target="_blank">AdTrace</a>
+            <p data-en="Receives the connection stats described above, while that switch is on. Android only."
+              data-fa="آمار اتصالی که بالاتر توضیح داده شد رو دریافت می‌کنه، تا وقتی اون کلید روشنه. فقط اندروید.">
+              Receives the connection stats described above, while that switch is on. Android only.</p>
+          </div>
+          <div class="legal-row">
+            <a class="legal-row-name" href="https://policies.google.com/privacy" rel="noopener"
+              target="_blank">Google STUN</a>
+            <p data-en="Sees the IP address of a browser guest while a connection is being set up. Never carries audio."
+              data-fa="موقع برقراری اتصال، نشانی IP مهمان مرورگری رو می‌بینه. هیچ‌وقت صدایی رو حمل نمی‌کنه.">
+              Sees the IP address of a browser guest while a connection is being set up. Never carries audio.</p>
+          </div>
+          <div class="legal-row">
+            <a class="legal-row-name" href="https://www.jsdelivr.com/terms/privacy-policy-jsdelivr-net" rel="noopener"
+              target="_blank">jsDelivr</a>
+            <p data-en="Serves this website’s font, and sees the request for it the way any file host would."
+              data-fa="فونت این وب‌سایت رو سرو می‌کنه و مثل هر میزبان فایلی، درخواستش رو می‌بینه.">
+              Serves this website’s font, and sees the request for it the way any file host would.</p>
+          </div>
+          <div class="legal-row">
+            <a class="legal-row-name" href="https://www.arvancloud.ir" rel="noopener" target="_blank">ArvanCloud</a>
+            <p data-en="Hosts the Android download. Sees the download request, as any file host does."
+              data-fa="میزبان فایل دانلود اندرویده. مثل هر میزبان فایلی، درخواست دانلود رو می‌بینه.">
+              Hosts the Android download. Sees the download request, as any file host does.</p>
+          </div>
+          <div class="legal-row">
+            <a class="legal-row-name" href="https://reymit.ir/tark" rel="noopener" target="_blank">Reymit</a>
+            <p
+              data-en="Handles donations, only if you choose to make one. That happens entirely on their site; no payment detail ever passes through Tark."
+              data-fa="حمایت‌های مالی رو مدیریت می‌کنه، فقط اگه خودت بخوای حمایت کنی. این کار کاملاً روی سایت خودشون انجام می‌شه؛ هیچ اطلاعات پرداختی از تَرک رد نمی‌شه.">
+              Handles donations, only if you choose to make one. That happens entirely on their site; no payment detail
+              ever passes through Tark.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 9 ───────────────────────────────────────────────────────── -->
+      <section class="legal-sec reveal" id="children">
+        <h2>
+          <span data-en="Children" data-fa="کودکان">Children</span>
+          <a class="legal-anchor" href="#children"><span class="sr-only" data-en="Link to this section"
+              data-fa="پیوند به این بخش">Link to this section</span></a>
+        </h2>
+        <p
+          data-en="Tark is not built for or aimed at children under 13. Because there is no account and no sign-up, the app has no way to tell how old anyone is and collects nothing that would identify a child. If you are a parent and something here concerns you, write to us — but the honest answer is usually that there is nothing held anywhere for us to delete."
+          data-fa="تَرک برای بچه‌های زیر ۱۳ سال ساخته نشده و مخاطبش اون‌ها نیستن. چون نه حساب کاربری هست نه ثبت‌نام، برنامه هیچ راهی نداره که سن کسی رو بفهمه و چیزی که یه بچه رو شناسایی کنه جمع نمی‌کنه. اگه پدر یا مادری هستی و چیزی اینجا نگرانت می‌کنه، برامون بنویس — ولی جواب صادقانه معمولاً اینه که چیزی جایی نگه داشته نشده که ما پاکش کنیم.">
+          Tark is not built for or aimed at children under 13. Because there is no account and no sign-up, the app has
+          no way to tell how old anyone is and collects nothing that would identify a child. If you are a parent and
+          something here concerns you, write to us — but the honest answer is usually that there is nothing held
+          anywhere for us to delete.</p>
+      </section>
+
+      <!-- ── 10 ──────────────────────────────────────────────────────── -->
+      <section class="legal-sec reveal" id="controls">
+        <h2>
+          <span data-en="What you can control" data-fa="چیزهایی که دست خودته">What you can control</span>
+          <a class="legal-anchor" href="#controls"><span class="sr-only" data-en="Link to this section"
+              data-fa="پیوند به این بخش">Link to this section</span></a>
+        </h2>
+        <ul class="legal-list">
+          <li
+            data-en="Turn connection stats off in Settings → Privacy. Nothing further is sent from that moment, and nothing about the app changes."
+            data-fa="آمار اتصال رو توی تنظیمات ← حریم خصوصی خاموش کن. از همون لحظه دیگه چیزی فرستاده نمی‌شه و هیچ‌چیز برنامه فرقی نمی‌کنه.">
+            Turn connection stats off in Settings → Privacy. Nothing further is sent from that moment, and nothing about
+            the app changes.</li>
+          <li
+            data-en="Delete the diagnostic log at any time in Settings → Advanced → Diagnostics, or shrink the cap on how much of it is kept."
+            data-fa="لاگ عیب‌یابی رو هر وقت خواستی از تنظیمات ← پیشرفته ← عیب‌یابی پاک کن، یا سقف چیزی که نگه داشته می‌شه رو کم کن.">
+            Delete the diagnostic log at any time in Settings → Advanced → Diagnostics, or shrink the cap on how much of
+            it is kept.</li>
+          <li
+            data-en="Revoke any Android permission in the system settings. The app will tell you plainly what stopped working rather than failing silently."
+            data-fa="هر دسترسی اندرویدی رو از تنظیمات سیستم پس بگیر. برنامه به‌جای اینکه بی‌صدا از کار بیفته، صاف و ساده بهت می‌گه چی از کار افتاده.">
+            Revoke any Android permission in the system settings. The app will tell you plainly what stopped working
+            rather than failing silently.</li>
+          <li
+            data-en="Uninstall, which removes everything the app kept — there is no copy of it anywhere else to ask about."
+            data-fa="حذفش کن، که هر چی برنامه نگه داشته بود رو پاک می‌کنه — نسخه‌ی دیگه‌ای جایی نیست که سراغش رو بگیری.">
+            Uninstall, which removes everything the app kept — there is no copy of it anywhere else to ask about.</li>
+          <li
+            data-en="Or build it yourself without analytics compiled in at all. The source is public and the build flag for it is documented in the README."
+            data-fa="یا خودت بدون اینکه اصلاً تحلیلی توش کامپایل بشه بسازش. سورس عمومیه و پرچم ساختش توی README مستند شده.">
+            Or build it yourself without analytics compiled in at all. The source is public and the build flag for it is
+            documented in the README.</li>
+        </ul>
+      </section>
+
+      <!-- ── 11 ──────────────────────────────────────────────────────── -->
+      <section class="legal-sec reveal" id="changes">
+        <h2>
+          <span data-en="Changes to this page" data-fa="تغییرات این صفحه">Changes to this page</span>
+          <a class="legal-anchor" href="#changes"><span class="sr-only" data-en="Link to this section"
+              data-fa="پیوند به این بخش">Link to this section</span></a>
+        </h2>
+        <p
+          data-en="If what Tark collects ever changes, this page changes with it and the date at the top moves. A change that widens what is collected will be called out in the app’s release notes rather than left for you to spot here."
+          data-fa="اگه چیزی که تَرک جمع می‌کنه عوض بشه، این صفحه هم باهاش عوض می‌شه و تاریخ بالای صفحه جلو می‌ره. تغییری که دامنه‌ی جمع‌آوری رو بازتر کنه، توی یادداشت‌های انتشار برنامه اعلام می‌شه، نه اینکه بذاریمش پای اینکه خودت اینجا پیداش کنی.">
+          If what Tark collects ever changes, this page changes with it and the date at the top moves. A change that
+          widens what is collected will be called out in the app’s release notes rather than left for you to spot here.
+        </p>
+        <p
+          data-en="This site is part of the public repository, so the full history of what this page has said is in the commit log — you do not have to trust a “last updated” date on its own."
+          data-fa="این سایت بخشی از مخزن عمومیه، پس تاریخچه‌ی کامل چیزی که این صفحه گفته توی لاگ کامیت‌هاست — لازم نیست فقط به یه تاریخ «آخرین به‌روزرسانی» اعتماد کنی.">
+          This site is part of the public repository, so the full history of what this page has said is in the commit
+          log — you do not have to trust a “last updated” date on its own.</p>
+      </section>
+
+      <!-- ── 12 ──────────────────────────────────────────────────────── -->
+      <section class="legal-sec reveal" id="contact">
+        <h2>
+          <span data-en="Contact" data-fa="تماس">Contact</span>
+          <a class="legal-anchor" href="#contact"><span class="sr-only" data-en="Link to this section"
+              data-fa="پیوند به این بخش">Link to this section</span></a>
+        </h2>
+        <p
+          data-en="Questions about anything on this page, or about something you think it fails to describe, go to the address below. A specific question about a specific line gets a specific answer."
+          data-fa="سؤال درباره‌ی هر چیزی توی این صفحه، یا درباره‌ی چیزی که فکر می‌کنی اینجا توضیح داده نشده، به نشانی زیر بفرست. سؤال مشخص درباره‌ی یه خط مشخص، جواب مشخص می‌گیره.">
+          Questions about anything on this page, or about something you think it fails to describe, go to the address
+          below. A specific question about a specific line gets a specific answer.</p>
+        <div class="legal-rows">
+          <div class="legal-row">
+            <a class="legal-row-name" href="mailto:tarkk.hp@gmail.com">tarkk.hp@gmail.com</a>
+            <p data-en="Privacy questions, and everything else." data-fa="سؤالات حریم خصوصی، و هر چیز دیگه‌ای.">
+              Privacy questions, and everything else.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── The other document ──────────────────────────────────────── -->
+      <div class="legal-cross reveal">
+        <a href="terms.html">
+          <span class="legal-cross-kicker" data-en="NEXT" data-fa="بعدی">NEXT</span>
+          <span class="legal-cross-title" data-en="Terms &amp; Conditions" data-fa="شرایط و ضوابط">Terms &amp;
+            Conditions</span>
+          <span class="legal-cross-sub" data-en="What you can expect from Tark, and what it cannot promise."
+            data-fa="چیزی که می‌تونی از تَرک انتظار داشته باشی، و چیزی که نمی‌تونه قولش رو بده.">
+            What you can expect from Tark, and what it cannot promise.</span>
+        </a>
+        <a href="/#download">
+          <span class="legal-cross-kicker" data-en="GET TARKK" data-fa="دریافت تَرک">GET TARKK</span>
+          <span class="legal-cross-title" data-en="Download the app" data-fa="دریافت برنامه">Download the app</span>
+          <span class="legal-cross-sub" data-en="Android, or join from a browser with nothing to install."
+            data-fa="اندروید، یا ورود از مرورگر بدون نیاز به نصب چیزی.">
+            Android, or join from a browser with nothing to install.</span>
+        </a>
+      </div>
+
+    </main>
+  </div>
+
+  <footer>
+    <span class="wordmark"><span class="wordmark-dot"></span>TARKK</span>
+    <div class="footer-links">
+      <a href="/#features" data-en="Features" data-fa="ویژگی‌ها">Features</a>
+      <a href="/#tech" data-en="Details" data-fa="جزئیات بیشتر">Details</a>
+      <a href="/#faq" data-en="FAQ" data-fa="سوالات شما">FAQ</a>
+      <a href="/#download" data-en="Download" data-fa="دریافت">Download</a>
+      <a href="privacy.html" data-en="Privacy" data-fa="حریم خصوصی">Privacy</a>
+      <a href="terms.html" data-en="Terms" data-fa="شرایط">Terms</a>
+    </div>
+    <p data-en="Made for riders. Easy for everybody." data-fa="طراحی شده برای موتورسوارها، راحت برای استفاده همه.">
+      Made for riders. Easy for everybody.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+
+</html>

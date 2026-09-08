@@ -2043,5 +2043,460 @@ footer p { color: var(--text-sec); font-size: .82rem; margin-top: 22px; }
   /* Frozen mid-travel these read as glitches, not decoration — hide them.
      (The mesh canvas falls back to a single static frame in app.js, and
      the divider bars simply stand still as a static waveform.) */
-  .road-rider, .road-oncoming, .radar-sweep, .radar-blip { display: none; }
+  .road-rider, .road-oncoming, .radar-sweep, .radar-blip, .legal-sweep { display: none; }
+}
+
+/* ── Legal pages (/privacy.html, /terms.html) ────────────────────────
+   These share the landing page's chrome — the same fixed bar, the same
+   grain, the same custom scrollbar, the same app.js — and add a reading
+   layout on top of it: a numbered document beside a table of contents
+   that tracks where you are. Everything below is logical-property only,
+   so the generated Persian documents mirror with almost no RTL override.
+
+   No new animation loops. The reading column rides the existing .reveal
+   observer, and the single moving part in the hero is one transform-only
+   sweep — a legal page is the last place worth spending frame budget on
+   the phones this app is aimed at. */
+
+.legal-hero {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(140px, 18vh, 190px) calc(24px + env(safe-area-inset-right, 0px))
+           clamp(52px, 8vh, 78px) calc(24px + env(safe-area-inset-left, 0px));
+  border-bottom: 1px solid var(--border);
+}
+
+/* Faint engineering grid: two static repeating gradients, painted once and
+   never repainted. The fade into the page colour is a second layer rather
+   than a mask — a full-width mask on a scrolling ancestor costs a
+   compositing pass on weaker GPUs for no visible gain. */
+.legal-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: .5;
+  background-image:
+    repeating-linear-gradient(90deg, rgba(45, 52, 61, .55) 0 1px, transparent 1px 68px),
+    repeating-linear-gradient(0deg, rgba(45, 52, 61, .38) 0 1px, transparent 1px 68px);
+}
+
+.legal-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 90% at 12% 0%, rgba(245, 133, 63, .10), transparent 58%),
+    linear-gradient(180deg, transparent 30%, var(--bg) 100%);
+}
+
+/* The one moving element on the page: a scan line crossing the grid.
+   translateY only, so it never touches layout or paint. */
+.legal-sweep {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(245, 133, 63, .5), transparent);
+  animation: legalSweep 9s cubic-bezier(.55, 0, .45, 1) infinite;
+  will-change: transform;
+}
+
+@keyframes legalSweep {
+  0%        { transform: translateY(0); opacity: 0; }
+  12%, 78%  { opacity: 1; }
+  100%      { transform: translateY(clamp(140px, 18vh, 190px)); opacity: 0; }
+}
+
+.legal-hero-inner { position: relative; z-index: 1; max-width: 1080px; margin: 0 auto; }
+
+.legal-title {
+  font-size: clamp(2.1rem, 5.4vw, 3.4rem);
+  font-weight: 900;
+  max-width: 16ch;
+}
+
+.legal-lede {
+  color: var(--text-sec);
+  font-size: clamp(.95rem, 1.6vw, 1.08rem);
+  max-width: 58ch;
+  margin-top: 18px;
+}
+
+/* Stamped rather than typeset: the effective date is the first thing a
+   returning reader looks for. */
+.legal-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-top: 30px;
+}
+
+.legal-stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(26, 32, 39, .6);
+  color: var(--text-sec);
+  font-size: .74rem;
+  font-weight: 700;
+}
+
+.legal-stamp b { color: var(--text); font-weight: 800; }
+
+.legal-stamp i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+}
+
+.legal-swap {
+  color: var(--text-sec);
+  font-size: .78rem;
+  font-weight: 700;
+  border-bottom: 1px solid transparent;
+  transition: color .2s, border-color .2s;
+}
+
+.legal-swap:hover { color: var(--amber); border-bottom-color: var(--amber); }
+
+/* ── Reading layout ─────────────────────────────────────────────────── */
+
+.legal-shell {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 56px calc(24px + env(safe-area-inset-right, 0px))
+           110px calc(24px + env(safe-area-inset-left, 0px));
+  display: grid;
+  gap: clamp(34px, 5vw, 64px);
+}
+
+@media (min-width: 981px) {
+  .legal-shell { grid-template-columns: 216px minmax(0, 1fr); align-items: start; }
+  .legal-toc { position: sticky; top: 104px; }
+}
+
+/* min-width: 0 rather than the grid default of auto. Below 980px the list
+   inside this becomes a nowrap horizontal rail; without this the column's
+   automatic minimum is that rail's full width, so the aside stretched to
+   ~1740px on a 390px phone and took the whole document with it — the
+   rail's own overflow-x never got the chance to scroll anything. */
+.legal-toc { min-width: 0; }
+
+.legal-toc-title {
+  color: var(--text-sec);
+  font-size: .66rem;
+  font-weight: 800;
+  letter-spacing: .24em;
+  margin-bottom: 16px;
+}
+
+.legal-toc ol { list-style: none; counter-reset: toc; }
+.legal-toc li { counter-increment: toc; }
+
+.legal-toc a {
+  display: block;
+  position: relative;
+  padding: 7px 0;
+  padding-inline-start: 26px;
+  color: var(--text-sec);
+  font-size: .82rem;
+  line-height: 1.45;
+  font-weight: 600;
+  transition: color .2s;
+}
+
+/* The numbering is generated on both sides, so a re-ordered document can
+   never disagree with itself — and the Persian build gets ۱۲۳ out of the
+   same counter rather than out of a translated string somebody would have
+   to remember to renumber. */
+.legal-toc a::before {
+  content: counter(toc);
+  position: absolute;
+  inset-inline-start: 0;
+  top: 7px;
+  width: 18px;
+  text-align: end;
+  font-size: .72rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #4E5763;
+  transition: color .2s;
+}
+
+[lang="fa"] .legal-toc a::before { content: counter(toc, persian); }
+
+.legal-toc a:hover,
+.legal-toc a.active { color: var(--amber); }
+.legal-toc a:hover::before,
+.legal-toc a.active::before { color: var(--amber); }
+
+/* ── Sections ───────────────────────────────────────────────────────── */
+
+.legal-main { counter-reset: sec; min-width: 0; }
+
+.legal-sec {
+  counter-increment: sec;
+  padding-top: 46px;
+  /* Clears the fixed bar when an anchor is followed. */
+  scroll-margin-top: 88px;
+}
+
+.legal-sec + .legal-sec { border-top: 1px solid var(--border); }
+
+.legal-sec h2 {
+  position: relative;
+  font-size: clamp(1.2rem, 2.6vw, 1.55rem);
+  font-weight: 800;
+  max-width: 26ch;
+  margin-bottom: 18px;
+  padding-inline-start: 46px;
+}
+
+.legal-sec h2::before {
+  content: counter(sec);
+  position: absolute;
+  inset-inline-start: 0;
+  top: .1em;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--amber);
+  font-size: .78rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+[lang="fa"] .legal-sec h2::before { content: counter(sec, persian); }
+
+/* Revealed by hovering the heading, so every section has a shareable
+   address without a permanent column of hash marks down the page. */
+.legal-anchor {
+  display: inline-block;
+  margin-inline-start: 10px;
+  color: var(--border);
+  font-weight: 800;
+  opacity: 0;
+  transition: opacity .2s, color .2s;
+}
+
+.legal-anchor::before { content: '#'; }
+.legal-sec h2:hover .legal-anchor { opacity: 1; }
+.legal-anchor:hover, .legal-anchor:focus-visible { color: var(--amber); opacity: 1; }
+
+.legal-sec p {
+  color: var(--text-sec);
+  font-size: .93rem;
+  line-height: 1.8;
+  max-width: 68ch;
+}
+
+.legal-sec p + p { margin-top: 14px; }
+
+.legal-sec h3 {
+  color: var(--text);
+  font-size: .95rem;
+  font-weight: 800;
+  margin: 26px 0 10px;
+}
+
+.legal-list {
+  list-style: none;
+  display: grid;
+  gap: 11px;
+  margin-top: 16px;
+  max-width: 68ch;
+}
+
+.legal-list li {
+  position: relative;
+  padding-inline-start: 20px;
+  color: var(--text-sec);
+  font-size: .9rem;
+  line-height: 1.7;
+}
+
+.legal-list li::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 2px;
+  top: .72em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--amber);
+  opacity: .75;
+}
+
+/* ── Callout ────────────────────────────────────────────────────────── */
+
+/* For the handful of statements a reader would be worse off for skimming
+   past — the ones where the honest answer is a limit, not a feature. */
+.legal-note {
+  margin-top: 22px;
+  padding: 20px 22px;
+  border: 1px solid var(--border);
+  border-inline-start: 2px solid var(--amber);
+  border-radius: 4px 14px 14px 4px;
+  background: linear-gradient(90deg, rgba(245, 133, 63, .06), transparent 60%), var(--surface);
+  max-width: 68ch;
+}
+
+[dir="rtl"] .legal-note {
+  border-radius: 14px 4px 4px 14px;
+  background: linear-gradient(-90deg, rgba(245, 133, 63, .06), transparent 60%), var(--surface);
+}
+
+.legal-note b {
+  display: block;
+  color: var(--text);
+  font-size: .82rem;
+  font-weight: 800;
+  letter-spacing: .1em;
+  margin-bottom: 8px;
+}
+
+[dir="rtl"] .legal-note b { letter-spacing: 0; }
+
+.legal-note p { font-size: .89rem; margin: 0; }
+
+/* ── Definition rows: permissions, and the services we lean on ──────── */
+
+.legal-rows { margin-top: 24px; border-top: 1px solid var(--border); max-width: 68ch; }
+
+.legal-row {
+  display: grid;
+  gap: 4px 24px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+@media (min-width: 620px) {
+  .legal-row { grid-template-columns: 190px minmax(0, 1fr); align-items: baseline; }
+}
+
+.legal-row > b,
+.legal-row > .legal-row-name {
+  color: var(--text);
+  font-size: .84rem;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.legal-row-name { border-bottom: 1px solid transparent; transition: color .2s, border-color .2s; }
+a.legal-row-name:hover { color: var(--amber); border-bottom-color: var(--amber); }
+
+.legal-row p { font-size: .88rem; line-height: 1.7; margin: 0; }
+
+/* ── The short version ──────────────────────────────────────────────── */
+
+/* Reuses the landing page's ledger, minus its top margin — here it is the
+   first thing under the hero rather than a panel inside a section. */
+.legal-summary .ledger { margin-top: 0; }
+.legal-summary .ledger-col { border-radius: 16px; }
+
+/* ── Footer pairing: the other document ─────────────────────────────── */
+
+.legal-cross {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+  margin-top: 64px;
+}
+
+.legal-cross a {
+  display: block;
+  padding: 22px 24px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  transition: border-color .25s, transform .25s cubic-bezier(.2, .7, .2, 1);
+}
+
+.legal-cross a:hover { border-color: var(--amber); transform: translateY(-2px); }
+
+.legal-cross-kicker {
+  display: block;
+  color: var(--text-sec);
+  font-size: .66rem;
+  font-weight: 800;
+  letter-spacing: .22em;
+  margin-bottom: 9px;
+}
+
+[dir="rtl"] .legal-cross-kicker { letter-spacing: .06em; }
+
+.legal-cross-title { display: block; font-size: 1rem; font-weight: 800; }
+.legal-cross-sub { display: block; color: var(--text-sec); font-size: .84rem; margin-top: 6px; }
+
+/* ── Mobile: the contents become a rail under the bar ───────────────── */
+
+@media (max-width: 980px) {
+  /* Sticks below the bar rather than at the viewport edge: the bar is fixed
+     and sits above this (z-index 50 against 30), so top: 0 parked the rail
+     underneath it, out of sight. 68px is the bar's height at this
+     breakpoint; the safe-area inset is added because the bar's own padding
+     already carries it. */
+  .legal-toc {
+    position: sticky;
+    top: calc(68px + env(safe-area-inset-top, 0px));
+    z-index: 30;
+    margin-inline: calc(-24px - env(safe-area-inset-left, 0px))
+                   calc(-24px - env(safe-area-inset-right, 0px));
+    padding-block: 10px;
+    background: rgba(11, 14, 17, .94);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .legal-toc-title { display: none; }
+
+  /* Horizontal, and scrolled natively: the page's eased-wheel handler
+     hands any [data-native-scroll] subtree straight back to the browser,
+     which is what lets a trackpad swipe this rail sideways instead of
+     dragging the document down. */
+  .legal-toc ol {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-inline: calc(24px + env(safe-area-inset-left, 0px))
+                    calc(24px + env(safe-area-inset-right, 0px));
+  }
+
+  .legal-toc ol::-webkit-scrollbar { display: none; }
+
+  .legal-toc li { flex: 0 0 auto; }
+
+  .legal-toc a {
+    padding: 8px 14px;
+    padding-inline-start: 32px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    white-space: nowrap;
+    font-size: .78rem;
+  }
+
+  .legal-toc a::before { inset-inline-start: 11px; top: 8px; width: auto; }
+  .legal-toc a.active { border-color: var(--amber); }
+
+  .legal-hero { padding-top: clamp(118px, 16vh, 150px); }
+  /* Clears the bar and the rail stacked under it (68 + 57), plus room to
+     read the heading as the top of something rather than as a line jammed
+     against a border. */
+  .legal-sec { scroll-margin-top: calc(140px + env(safe-area-inset-top, 0px)); }
 }

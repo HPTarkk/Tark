@@ -653,9 +653,20 @@
   }
 
   // ── Nav scrollspy ──────────────────────────────────────────────────
-  const navLinks = [...document.querySelectorAll('.nav-links a')];
+  // Every document on the site carries the same bar, but on the legal
+  // pages its links point back at the landing page ("/#features"), and the
+  // table of contents beside them points at sections here. Only a bare
+  // fragment names something in this document — anything else is not even a
+  // valid selector, and querySelector('/#features') throws rather than
+  // returning null, which would take out every block below this one.
+  const navLinks = [...document.querySelectorAll('.nav-links a, .legal-toc a')];
   const spySections = navLinks
-    .map((a) => document.querySelector(a.getAttribute('href')))
+    .map((a) => {
+      const href = a.getAttribute('href') || '';
+      return href.length > 1 && href.startsWith('#')
+        ? document.querySelector(href)
+        : null;
+    })
     .filter(Boolean);
   if (spySections.length) {
     const spy = new IntersectionObserver(
@@ -683,36 +694,39 @@
   // ── Pinned handshake scene ────────────────────────────────────────
   // The 320vh section pins its content; scroll progress through it maps
   // to steps 1..4 (show QR → scan → reply → connected).
+  // Only the landing page has the scene; the legal pages load this file
+  // too, and measureScene() below would throw on a null.
   const handshake = document.getElementById('handshake');
+  if (handshake) {
+    // The scene's geometry only changes when the layout does, so it is
+    // measured on resize instead of on every frame. Reading
+    // getBoundingClientRect() mid-scroll forces a synchronous layout,
+    // and doing that once per wheel event is what used to stutter here.
+    let sceneTop = 0;
+    let sceneRange = 0;
 
-  // The scene's geometry only changes when the layout does, so it is
-  // measured on resize instead of on every frame. Reading
-  // getBoundingClientRect() mid-scroll forces a synchronous layout,
-  // and doing that once per wheel event is what used to stutter here.
-  let sceneTop = 0;
-  let sceneRange = 0;
+    const measureScene = () => {
+      sceneTop = handshake.getBoundingClientRect().top + window.scrollY;
+      sceneRange = handshake.offsetHeight - window.innerHeight;
+    };
 
-  const measureScene = () => {
-    sceneTop = handshake.getBoundingClientRect().top + window.scrollY;
-    sceneRange = handshake.offsetHeight - window.innerHeight;
-  };
+    measureScene();
+    // Height moves with the viewport, the font load, and the RTL swap.
+    new ResizeObserver(measureScene).observe(handshake);
+    window.addEventListener('resize', measureScene, { passive: true });
 
-  measureScene();
-  // Height moves with the viewport, the font load, and the RTL swap.
-  new ResizeObserver(measureScene).observe(handshake);
-  window.addEventListener('resize', measureScene, { passive: true });
-
-  addScrollJob((y) => {
-    if (sceneRange <= 0) return;
-    const progress = Math.min(1, Math.max(0, (y - sceneTop) / sceneRange));
-    const step = progress < 0.02 ? 0 : Math.min(4, Math.floor(progress * 4) + 1);
-    if (String(step) === handshake.dataset.step) return;
-    if (step === 0) {
-      delete handshake.dataset.step;
-    } else {
-      handshake.dataset.step = String(step);
-    }
-  });
+    addScrollJob((y) => {
+      if (sceneRange <= 0) return;
+      const progress = Math.min(1, Math.max(0, (y - sceneTop) / sceneRange));
+      const step = progress < 0.02 ? 0 : Math.min(4, Math.floor(progress * 4) + 1);
+      if (String(step) === handshake.dataset.step) return;
+      if (step === 0) {
+        delete handshake.dataset.step;
+      } else {
+        handshake.dataset.step = String(step);
+      }
+    });
+  }
 
   // ── Language ──────────────────────────────────────────────────────
   // The two languages are two documents (/ and /fa/), each served already
