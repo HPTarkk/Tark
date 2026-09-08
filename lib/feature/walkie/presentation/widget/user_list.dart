@@ -229,11 +229,8 @@ class _RoomMemberPresenceTile extends StatelessWidget {
         }
         return false;
       },
-      builder: (context, isTalking) => _RoomMemberTile(
-        member: member,
-        phase: phase,
-        isTalking: isTalking,
-      ),
+      builder: (context, isTalking) =>
+          _RoomMemberTile(member: member, phase: phase, isTalking: isTalking),
     );
   }
 }
