@@ -284,7 +284,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       Logger.diagnostic(
         'room: readiness epoch=$readinessEpoch stage=connected',
       );
-      return const _EntryState.live();
+      return _EntryState.live(room: room);
     } catch (e) {
       Logger.diagnostic(
         'room: readiness epoch=$readinessEpoch stage=transport_setup',
@@ -443,10 +443,23 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       }
       final state = snapshot.data ?? const _EntryState.invalidSelection();
       if (state.live) {
-        return CarrierStatusScope(
+        final livePage = CarrierStatusScope(
           controller: _binding?.carrierPromotion,
           child: WalkieTalkiePage.buildPage(),
         );
+        final room = state.room;
+        final binding = _binding;
+        final runtime = binding?.runtime;
+        if (room != null && binding != null && runtime != null) {
+          return RoomConnectionStatusScope(
+            room: room,
+            runtime: runtime,
+            peerProofs: binding.verifiedPeerProofs,
+            initialPeerProofs: binding.verifiedPeerProofSnapshot,
+            child: livePage,
+          );
+        }
+        return livePage;
       }
       final room = state.room;
       if (room != null) {
@@ -514,7 +527,7 @@ class _EntryState {
 
   const _EntryState.lobby(SavedRoom room) : this._(room: room);
 
-  const _EntryState.live() : this._(live: true);
+  const _EntryState.live({SavedRoom? room}) : this._(room: room, live: true);
 
   const _EntryState.invalidSelection() : this._();
 
