@@ -217,10 +217,7 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
                 failureMessage != null &&
                 failureMessage.isNotEmpty) ...[
               const SizedBox(height: 14),
-              _FailureCallout(
-                message: failureMessage,
-                onRetry: widget.onRetry,
-              ),
+              _FailureCallout(message: failureMessage, onRetry: widget.onRetry),
             ],
             const SizedBox(height: 22),
             _MembersCard(
