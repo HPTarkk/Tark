@@ -34,5 +34,8 @@ export '../presentation/widget/in_room_people_action.dart'
 export '../presentation/widget/room_connection_status_chip.dart'
     show RoomConnectionStatusChip;
 export '../presentation/widget/room_connection_status_scope.dart'
-    show RoomConnectionUiPhase;
+    show
+        RoomConnectionStatusData,
+        RoomConnectionStatusScope,
+        RoomConnectionUiPhase;
 export '../presentation/widget/selected_room_lobby.dart' show SelectedRoomLobby;
