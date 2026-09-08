@@ -39,20 +39,23 @@ void main() {
       );
     });
 
-    test('live transport without verified Room scope never means connected', () {
-      final fixture = _fixture();
+    test(
+      'live transport without verified Room scope never means connected',
+      () {
+        final fixture = _fixture();
 
-      expect(
-        roomRosterMemberPhase(
-          room: fixture.room,
-          member: fixture.provenMember,
-          verifiedStatus: null,
-          transportLive: true,
-          startFailed: false,
-        ),
-        RoomConnectionUiPhase.connecting,
-      );
-    });
+        expect(
+          roomRosterMemberPhase(
+            room: fixture.room,
+            member: fixture.provenMember,
+            verifiedStatus: null,
+            transportLive: true,
+            startFailed: false,
+          ),
+          RoomConnectionUiPhase.connecting,
+        );
+      },
+    );
 
     test('proof from a stale attachment generation is not connected', () {
       final fixture = _fixture();
