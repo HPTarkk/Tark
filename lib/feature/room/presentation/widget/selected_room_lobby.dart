@@ -28,6 +28,8 @@ class SelectedRoomLobby extends StatefulWidget {
     required this.onStartRide,
     required this.onBack,
     this.connectionPhase = RoomConnectionUiPhase.readyToConnect,
+    this.failureMessage,
+    this.onRetry,
     this.link,
     this.mode,
     this.onConnect,
@@ -40,6 +42,11 @@ class SelectedRoomLobby extends StatefulWidget {
   final VoidCallback onStartRide;
   final VoidCallback onBack;
   final RoomConnectionUiPhase connectionPhase;
+
+  /// Safe, localized explanation for the most recent failed Start attempt.
+  /// Technical transport details and credentials never belong here.
+  final String? failureMessage;
+  final VoidCallback? onRetry;
 
   /// Legacy composition seams. They intentionally do not drive normal lobby
   /// copy or actions; transport is an implementation detail here.
@@ -160,6 +167,7 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
     final alone = confirmedMembers.length <= 1;
     final connecting =
         _starting || widget.connectionPhase == RoomConnectionUiPhase.connecting;
+    final failureMessage = widget.failureMessage?.trim();
 
     return Scaffold(
       appBar: AppBar(
@@ -205,6 +213,15 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
                 height: 1.5,
               ),
             ),
+            if (!connecting &&
+                failureMessage != null &&
+                failureMessage.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              _FailureCallout(
+                message: failureMessage,
+                onRetry: widget.onRetry,
+              ),
+            ],
             const SizedBox(height: 22),
             _MembersCard(
               room: _room,
@@ -232,6 +249,63 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
               primary: !alone || !canInvite,
               busy: connecting,
               onTap: _startRide,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FailureCallout extends StatelessWidget {
+  const _FailureCallout({required this.message, this.onRetry});
+
+  final String message;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final retry = onRetry;
+    return Semantics(
+      container: true,
+      liveRegion: true,
+      child: Container(
+        key: const Key('selected-room-start-failure'),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.amber.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.amber.withValues(alpha: 0.45)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.info_outline_rounded, color: AppColors.amber, size: 21),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    message,
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 13,
+                      height: 1.4,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (retry != null) ...[
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                      key: const Key('selected-room-retry'),
+                      onPressed: retry,
+                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                      label: Text(context.getString.retry),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ],
         ),
