@@ -28,6 +28,7 @@ final class RoomVerifiedTransportEvidenceBridge {
     required TransportRouteProofExchange proofExchange,
     required TransportRouteProofProvider localProofProvider,
     required this.onMemberProven,
+    this.onMemberPresenceProven,
     this.maxPendingCapabilities = 32,
   }) : _proofExchange = proofExchange,
        assert(maxPendingCapabilities > 0) {
@@ -52,6 +53,17 @@ final class RoomVerifiedTransportEvidenceBridge {
   /// to find. Composition has to say what it does with this, even if the answer
   /// is nothing.
   final void Function(ProvenRoomMember member) onMemberProven;
+
+  /// Optional projection hook for volatile live presence.
+  ///
+  /// [transportSenderId] is the sender metadata from the exact matched Pong
+  /// whose route proof just verified. It is deliberately *not* authorization:
+  /// the durable identity is still [ProvenRoomMember.memberId]. Consumers may
+  /// use this only to join ephemeral state (for example `isTalking`) to that
+  /// already-proven member. Older transports may provide null and therefore
+  /// fail closed for presence projection without losing the verified binding.
+  final void Function(ProvenRoomMember member, String? transportSenderId)?
+  onMemberPresenceProven;
 
   final TransportRouteProofExchange _proofExchange;
   final int maxPendingCapabilities;
@@ -125,6 +137,7 @@ final class RoomVerifiedTransportEvidenceBridge {
     // merely invited — and, when the peer signed one, to put a name on it
     // instead of the placeholder the host had to invent.
     onMemberProven(member);
+    onMemberPresenceProven?.call(member, observation.transportSenderId);
 
     final pending = _pendingCapabilities.remove(observation.peerKey);
     if (pending != null) _admitCapability(pending);
