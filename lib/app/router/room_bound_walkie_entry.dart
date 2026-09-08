@@ -239,10 +239,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     }
 
     if (!await _openLinkGate()) {
-      return _EntryState.lobby(
-        room,
-        failure: _EntryFailure.localLinkMissing,
-      );
+      return _EntryState.lobby(room, failure: _EntryFailure.localLinkMissing);
     }
     return _verifiedLiveFor(room);
   }
@@ -264,10 +261,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         .toSet();
     if (expectedPeers.isEmpty) {
       Logger.diagnostic('room: readiness stage=peer_proof_missing');
-      return _EntryState.lobby(
-        room,
-        failure: _EntryFailure.peerProofMissing,
-      );
+      return _EntryState.lobby(room, failure: _EntryFailure.peerProofMissing);
     }
 
     final readinessEpoch = ++_readinessEpoch;
@@ -278,10 +272,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       if (runtime == null || readinessEpoch != _readinessEpoch) {
         Logger.diagnostic('room: readiness stage=stale_open');
         await binding.close();
-        return _EntryState.lobby(
-          room,
-          failure: _EntryFailure.staleAttempt,
-        );
+        return _EntryState.lobby(room, failure: _EntryFailure.staleAttempt);
       }
 
       final readiness = await _readinessGate.wait(
@@ -355,10 +346,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       try {
         await binding.close();
       } catch (_) {}
-      return _EntryState.lobby(
-        room,
-        failure: _EntryFailure.transportSetup,
-      );
+      return _EntryState.lobby(room, failure: _EntryFailure.transportSetup);
     }
   }
 
