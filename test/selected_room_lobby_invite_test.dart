@@ -99,10 +99,7 @@ void main() {
     );
     expect(find.text('Open seat'), findsOneWidget);
     expect(find.byKey(const ValueKey('room-status-invited')), findsOneWidget);
-    expect(
-      find.byKey(const Key('selected-room-held-seats')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const Key('selected-room-held-seats')), findsOneWidget);
     expect(
       find.byKey(const Key('selected-room-invite-callout')),
       findsOneWidget,
@@ -189,10 +186,7 @@ void main() {
       find.text('این فقط جای دعوت است؛ هنوز کسی وارد اتاق نشده.'),
       findsOneWidget,
     );
-    expect(
-      find.byKey(const Key('selected-room-held-seats')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const Key('selected-room-held-seats')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
