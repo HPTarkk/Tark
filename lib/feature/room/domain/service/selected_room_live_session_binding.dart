@@ -200,11 +200,12 @@ final class SelectedRoomLiveSessionBinding {
                 );
                 return proof.encode();
               },
-          onMemberProven: (memberId) {
+          onMemberProven: (memberId, transportSenderId) {
             if (generation != _generation || runtime.hasLeft) return;
             final evidence = RoomPeerProofEvidence(
               memberId: memberId,
               attachmentGeneration: runtime.attachmentGeneration,
+              transportSenderId: transportSenderId,
             );
             _verifiedPeerProofByMember[memberId] = evidence;
             _verifiedPeerProofs.add(evidence);
@@ -326,7 +327,8 @@ final class _LiveFailoverSession {
   final Future<TransportCapabilityAdvertisement?> Function()
   readLocalCapability;
   final TransportRouteProofProvider localProofProvider;
-  final void Function(RoomMemberId memberId) onMemberProven;
+  final void Function(RoomMemberId memberId, String? transportSenderId)
+  onMemberProven;
 
   RoomVerifiedTransportEvidenceBridge? _evidenceBridge;
   StreamSubscription<ConnectionHealth>? _healthSubscription;
@@ -357,14 +359,18 @@ final class _LiveFailoverSession {
         capabilitySource: capabilitySource,
         proofExchange: proofExchange,
         localProofProvider: localProofProvider,
-        // Settling the roster row stays fire-and-forget, but readiness is
-        // published synchronously from the already-verified proof so storage
-        // latency cannot delay the security gate.
+        // Settling the roster row stays fire-and-forget. The live-presence
+        // projection below is independent and may be absent on older transports.
         onMemberProven: (member) {
-          onMemberProven(member.memberId);
           unawaited(
             seats.confirm(member.memberId, displayName: member.displayName),
           );
+        },
+        // Readiness/presence is published synchronously from the already-
+        // verified route proof so storage latency cannot delay the security
+        // gate or cause talking state to bind through display metadata.
+        onMemberPresenceProven: (member, transportSenderId) {
+          onMemberProven(member.memberId, transportSenderId);
         },
       );
     }

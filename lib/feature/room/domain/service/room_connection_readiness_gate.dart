@@ -16,10 +16,20 @@ final class RoomPeerProofEvidence {
   const RoomPeerProofEvidence({
     required this.memberId,
     required this.attachmentGeneration,
+    this.transportSenderId,
   });
 
   final RoomMemberId memberId;
   final int attachmentGeneration;
+
+  /// Ephemeral sender id observed on the exact proof-bearing control exchange.
+  ///
+  /// This is never membership authority. It is retained only so presentation
+  /// can join volatile transport presence (such as `isTalking`) to the member
+  /// whose route has already passed the signed Room proof above. Null means the
+  /// transport cannot safely provide that projection and therefore fails closed
+  /// for speaking UI without affecting readiness.
+  final String? transportSenderId;
 }
 
 /// Safe, credential-free failure stages for pre-live diagnostics.

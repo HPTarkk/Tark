@@ -123,8 +123,11 @@ class _UserListState extends State<UserList> {
     final room = _room;
     if (room != null) {
       return BlocBuilder<WalkieTalkieCubit, WalkieTalkieState>(
+        // TX/presence changes are intentionally excluded here. Each durable
+        // member row below selects only the talking bit for its exact verified
+        // live sender, so one rider speaking cannot rebuild/relayout the whole
+        // Room roster.
         buildWhen: (previous, current) =>
-            previous.activeUsers != current.activeUsers ||
             previous.connectionHealth != current.connectionHealth ||
             previous.isReady != current.isReady ||
             previous.startFailed != current.startFailed,
@@ -171,7 +174,7 @@ class _RoomRoster extends StatelessWidget {
                       Padding(
                         key: ValueKey('room-member-${member.id.value}'),
                         padding: const EdgeInsets.only(bottom: 8),
-                        child: _RoomMemberTile(
+                        child: _RoomMemberPresenceTile(
                           member: member,
                           phase: roomRosterMemberPhase(
                             room: room,
@@ -180,6 +183,8 @@ class _RoomRoster extends StatelessWidget {
                             transportLive: live.connectionHealth.isLive,
                             startFailed: live.startFailed,
                           ),
+                          transportSenderId: verifiedStatus
+                              ?.transportSenderIdFor(member),
                         ),
                       ),
                     const Padding(
@@ -194,30 +199,75 @@ class _RoomRoster extends StatelessWidget {
   }
 }
 
-class _RoomMemberTile extends StatelessWidget {
-  const _RoomMemberTile({required this.member, required this.phase});
+/// Volatile speaking projection for one durable member only.
+///
+/// The selector never uses name matching. A row can react to live transport
+/// presence only after the Room scope has supplied the sender id that arrived
+/// with this exact member's verified current-generation route proof. Missing or
+/// stale proof metadata therefore renders the row idle rather than guessing.
+class _RoomMemberPresenceTile extends StatelessWidget {
+  const _RoomMemberPresenceTile({
+    required this.member,
+    required this.phase,
+    required this.transportSenderId,
+  });
 
   final RoomMember member;
   final RoomConnectionUiPhase phase;
+  final String? transportSenderId;
 
   @override
   Widget build(BuildContext context) {
+    final senderId = transportSenderId;
+    return BlocSelector<WalkieTalkieCubit, WalkieTalkieState, bool>(
+      selector: (state) {
+        if (phase != RoomConnectionUiPhase.connected || senderId == null) {
+          return false;
+        }
+        for (final user in state.activeUsers) {
+          if (user.id == senderId) return user.isTalking;
+        }
+        return false;
+      },
+      builder: (context, isTalking) =>
+          _RoomMemberTile(member: member, phase: phase, isTalking: isTalking),
+    );
+  }
+}
+
+class _RoomMemberTile extends StatelessWidget {
+  const _RoomMemberTile({
+    required this.member,
+    required this.phase,
+    required this.isTalking,
+  });
+
+  final RoomMember member;
+  final RoomConnectionUiPhase phase;
+  final bool isTalking;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.getString;
     final name = roomMemberDisplayName(
       member,
       fa: Localizations.localeOf(context).languageCode == 'fa',
-      unnamed: context.getString.people_unnamed,
+      unnamed: s.people_unnamed,
     );
     final connected = phase == RoomConnectionUiPhase.connected;
+    final active = connected || isTalking;
 
     return Semantics(
       container: true,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: connected ? AppColors.green.withAlpha(15) : AppColors.card,
+          color: active ? AppColors.green.withAlpha(15) : AppColors.card,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: connected
+            color: isTalking
+                ? AppColors.green.withAlpha(180)
+                : connected
                 ? AppColors.green.withAlpha(130)
                 : AppColors.border,
             width: 1.5,
@@ -225,7 +275,7 @@ class _RoomMemberTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            AppAvatar(name: name, isActive: connected, size: 38),
+            AppAvatar(name: name, isActive: active, size: 38),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -247,6 +297,29 @@ class _RoomMemberTile extends StatelessWidget {
                 ],
               ),
             ),
+            if (isTalking) ...[
+              const SizedBox(width: 8),
+              const RepaintBoundary(child: WaveformBars()),
+              const SizedBox(width: 8),
+              Container(
+                key: ValueKey('room-member-tx-${member.id.value}'),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.green.withAlpha(40),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppColors.green.withAlpha(100)),
+                ),
+                child: Text(
+                  s.tx_label,
+                  style: TextStyle(
+                    color: AppColors.green,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
