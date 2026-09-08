@@ -3,6 +3,7 @@ import 'dart:async';
 import '../entity/room.dart';
 import '../entity/room_session.dart';
 import '../entity/transport_attachment.dart';
+import 'room_connection_trace.dart';
 import 'room_session_runtime.dart';
 
 /// A cryptographically verified peer observed on one concrete transport
@@ -89,12 +90,34 @@ final class RoomConnectionReadinessGate {
     StreamSubscription<RoomPeerProofEvidence>? proofSubscription;
     Timer? timer;
 
+    final roomId = runtime.state.roomId;
     bool transportReady = _isTransportReady(runtime.state);
+    RoomConnectionTrace.stage(
+      roomId: roomId,
+      attempt: epoch,
+      stage: 'wait_started',
+      attachmentGeneration: runtime.attachmentGeneration,
+    );
+    if (transportReady) {
+      RoomConnectionTrace.stage(
+        roomId: roomId,
+        attempt: epoch,
+        stage: 'transport_ready',
+        attachmentGeneration: runtime.attachmentGeneration,
+      );
+    }
 
     void remember(RoomPeerProofEvidence evidence) {
-      if (expectedPeers.contains(evidence.memberId)) {
-        proofGenerationByMember[evidence.memberId] =
-            evidence.attachmentGeneration;
+      if (!expectedPeers.contains(evidence.memberId)) return;
+      proofGenerationByMember[evidence.memberId] =
+          evidence.attachmentGeneration;
+      if (evidence.attachmentGeneration == runtime.attachmentGeneration) {
+        RoomConnectionTrace.stage(
+          roomId: roomId,
+          attempt: epoch,
+          stage: 'peer_proof_observed',
+          attachmentGeneration: evidence.attachmentGeneration,
+        );
       }
     }
 
@@ -121,6 +144,12 @@ final class RoomConnectionReadinessGate {
     }
 
     void failStale() {
+      RoomConnectionTrace.stage(
+        roomId: roomId,
+        attempt: epoch,
+        stage: 'stale_epoch',
+        attachmentGeneration: runtime.attachmentGeneration,
+      );
       unawaited(
         finish(
           RoomConnectionReadinessResult.failed(
@@ -140,6 +169,12 @@ final class RoomConnectionReadinessGate {
       }
       final proof = currentProof();
       if (!transportReady || proof.isEmpty) return;
+      RoomConnectionTrace.stage(
+        roomId: roomId,
+        attempt: epoch,
+        stage: 'ready',
+        attachmentGeneration: runtime.attachmentGeneration,
+      );
       unawaited(finish(RoomConnectionReadinessResult.ready(peerProof: proof)));
     }
 
@@ -149,7 +184,16 @@ final class RoomConnectionReadinessGate {
         failStale();
         return;
       }
+      final wasReady = transportReady;
       transportReady = _isTransportReady(state);
+      if (!wasReady && transportReady) {
+        RoomConnectionTrace.stage(
+          roomId: roomId,
+          attempt: epoch,
+          stage: 'transport_ready',
+          attachmentGeneration: runtime.attachmentGeneration,
+        );
+      }
       settleIfReady();
     }, onError: (Object _) {});
 
@@ -170,14 +214,23 @@ final class RoomConnectionReadinessGate {
         return;
       }
       final proof = currentProof();
+      final failure = transportReady
+          ? RoomConnectionReadinessFailureStage.peerProofMissing
+          : RoomConnectionReadinessFailureStage.transportBindTimeout;
+      RoomConnectionTrace.stage(
+        roomId: roomId,
+        attempt: epoch,
+        stage: failure == RoomConnectionReadinessFailureStage.peerProofMissing
+            ? 'peer_proof_missing'
+            : 'transport_bind_timeout',
+        attachmentGeneration: runtime.attachmentGeneration,
+      );
       unawaited(
         finish(
           RoomConnectionReadinessResult.failed(
             transportReady: transportReady,
             peerProof: proof,
-            failure: transportReady
-                ? RoomConnectionReadinessFailureStage.peerProofMissing
-                : RoomConnectionReadinessFailureStage.transportBindTimeout,
+            failure: failure,
           ),
         ),
       );

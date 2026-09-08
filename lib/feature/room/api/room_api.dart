@@ -15,6 +15,7 @@ export '../domain/service/room_connection_readiness_gate.dart'
         RoomConnectionReadinessGate,
         RoomConnectionReadinessResult,
         RoomPeerProofEvidence;
+export '../domain/service/room_connection_trace.dart' show RoomConnectionTrace;
 export '../domain/service/room_transport_planner.dart'
     show RoomTransportCandidate, RoomTransportKind, RoomTransportPlan;
 export '../domain/service/selected_room_live_session_binding.dart'
