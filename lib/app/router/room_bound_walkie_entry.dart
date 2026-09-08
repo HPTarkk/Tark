@@ -41,6 +41,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   TransferRepository? _transfer;
   SelectedRoomLiveSessionBinding? _binding;
   late Future<_EntryState> _entry;
+  SavedRoom? _attemptRoom;
 
   LiveLinkProbe? _probe;
   TransferModeStore? _modeStore;
@@ -148,18 +149,34 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   }
 
   Future<_EntryState> _resolveInitialEntry() async {
-    if (!_compose()) return const _EntryState.invalidSelection();
+    if (!_compose()) {
+      return const _EntryState.recoverable(
+        _EntryFailure.compositionUnavailable,
+      );
+    }
     final rooms = _rooms;
+    if (rooms == null) {
+      return const _EntryState.recoverable(
+        _EntryFailure.compositionUnavailable,
+      );
+    }
     try {
-      final selected = await SelectedRoomLobbyResolver(rooms!).resolve();
-      if (selected != null) {
-        if (widget.ride && await _openLinkGate()) {
+      // Only an explicit null selection is allowed to enter legacy quick
+      // access. A stale selected Room and a storage read failure are both
+      // fail-closed states and must never silently turn into unrelated audio.
+      final selectedId = await rooms.selectedRoomId();
+      if (selectedId != null) {
+        final selected = await SelectedRoomLobbyResolver(rooms).resolve();
+        if (selected == null) return const _EntryState.invalidSelection();
+        if (widget.ride) {
+          _showAttemptingRoom(selected);
           return await _startSelectedRoom(selected);
         }
         return _EntryState.lobby(selected);
       }
     } catch (e) {
       Logger.log('Room selection resolution failed: $e');
+      return const _EntryState.recoverable(_EntryFailure.selectionReadFailed);
     }
 
     // No durable Room selected: retain the legacy quick-access channel. This
@@ -171,6 +188,14 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       Logger.log('Legacy live binding failed: $e');
     }
     return const _EntryState.live();
+  }
+
+  void _showAttemptingRoom(SavedRoom room) {
+    if (!mounted) {
+      _attemptRoom = room;
+      return;
+    }
+    setState(() => _attemptRoom = room);
   }
 
   Future<_EntryState> _startSelectedRoom(SavedRoom room) {
@@ -194,17 +219,31 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
 
   Future<_EntryState> _startSelectedRoomOnce(SavedRoom room) async {
     final rooms = _rooms;
-    if (rooms == null) return const _EntryState.invalidSelection();
+    if (rooms == null) {
+      return _EntryState.lobby(
+        room,
+        failure: _EntryFailure.compositionUnavailable,
+      );
+    }
     try {
       final current = await SelectedRoomLobbyResolver(rooms).resolve();
       if (current == null || current.room.id != room.room.id) {
         return const _EntryState.invalidSelection();
       }
-    } catch (_) {
-      return const _EntryState.invalidSelection();
+    } catch (e) {
+      Logger.log('Room selection revalidation failed: $e');
+      return _EntryState.lobby(
+        room,
+        failure: _EntryFailure.selectionReadFailed,
+      );
     }
 
-    if (!await _openLinkGate()) return _EntryState.lobby(room);
+    if (!await _openLinkGate()) {
+      return _EntryState.lobby(
+        room,
+        failure: _EntryFailure.localLinkMissing,
+      );
+    }
     return _verifiedLiveFor(room);
   }
 
@@ -212,7 +251,10 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     final binding = _binding;
     if (binding == null) {
       Logger.diagnostic('room: readiness stage=binding_unavailable');
-      return _EntryState.lobby(room);
+      return _EntryState.lobby(
+        room,
+        failure: _EntryFailure.compositionUnavailable,
+      );
     }
 
     final localMemberId = room.membership.localMemberId;
@@ -222,7 +264,10 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         .toSet();
     if (expectedPeers.isEmpty) {
       Logger.diagnostic('room: readiness stage=peer_proof_missing');
-      return _EntryState.lobby(room);
+      return _EntryState.lobby(
+        room,
+        failure: _EntryFailure.peerProofMissing,
+      );
     }
 
     final readinessEpoch = ++_readinessEpoch;
@@ -233,7 +278,10 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       if (runtime == null || readinessEpoch != _readinessEpoch) {
         Logger.diagnostic('room: readiness stage=stale_open');
         await binding.close();
-        return _EntryState.lobby(room);
+        return _EntryState.lobby(
+          room,
+          failure: _EntryFailure.staleAttempt,
+        );
       }
 
       final readiness = await _readinessGate.wait(
@@ -248,12 +296,18 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         final stage = readiness.failure?.name ?? 'peerProofMissing';
         Logger.diagnostic('room: readiness epoch=$readinessEpoch stage=$stage');
         await binding.close();
-        return _EntryState.lobby(room);
+        return _EntryState.lobby(
+          room,
+          failure: readinessEpoch != _readinessEpoch
+              ? _EntryFailure.staleAttempt
+              : _entryFailureFor(readiness.failure),
+        );
       }
 
-      // Only now is shared LAN usable allowed to become true: the signed route
-      // proof above demonstrated that another Room member is actually reachable
-      // on this attachment. Radio-up or matching network metadata never sets it.
+      // Only now is shared LAN usable allowed to become true: the signed Room
+      // peer proof above demonstrated that another member is actually reachable
+      // on this attachment. #213 owns replacing the planner inputs below with
+      // verified pre-proof bootstrap/control-plane evidence.
       final start = _coordinator.requestStart(
         requester: localMemberId,
         sharedLanUsable: _modeStore?.mode == TransferMode.wifi,
@@ -267,7 +321,10 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         );
         _coordinator.cancel(epoch: start.epoch);
         await binding.close();
-        return _EntryState.lobby(room);
+        return _EntryState.lobby(
+          room,
+          failure: _EntryFailure.transportPlanMismatch,
+        );
       }
 
       _coordinator.reportTransportReady(epoch: start.epoch);
@@ -278,7 +335,10 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         );
         _coordinator.cancel(epoch: start.epoch);
         await binding.close();
-        return _EntryState.lobby(room);
+        return _EntryState.lobby(
+          room,
+          failure: _EntryFailure.coordinatorRejected,
+        );
       }
 
       Logger.diagnostic(
@@ -295,9 +355,24 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       try {
         await binding.close();
       } catch (_) {}
-      return _EntryState.lobby(room);
+      return _EntryState.lobby(
+        room,
+        failure: _EntryFailure.transportSetup,
+      );
     }
   }
+
+  static _EntryFailure _entryFailureFor(
+    RoomConnectionReadinessFailureStage? failure,
+  ) => switch (failure) {
+    RoomConnectionReadinessFailureStage.transportBindTimeout =>
+      _EntryFailure.transportBindTimeout,
+    RoomConnectionReadinessFailureStage.peerProofMissing =>
+      _EntryFailure.peerProofMissing,
+    RoomConnectionReadinessFailureStage.staleEpoch =>
+      _EntryFailure.staleAttempt,
+    null => _EntryFailure.peerProofMissing,
+  };
 
   /// Candidate set used only after the current transport has already produced
   /// signed Room peer proof. It does not claim remote battery/capability data.
@@ -353,7 +428,19 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
 
   void _startRide(SavedRoom room) {
     setState(() {
+      _attemptRoom = room;
       _entry = _startSelectedRoom(room);
+    });
+  }
+
+  void _retryInitial() {
+    _readinessEpoch++;
+    final epoch = _coordinator.state.epoch;
+    if (_coordinator.state.isActive) _coordinator.cancel(epoch: epoch);
+    unawaited(_binding?.close() ?? Future<void>.value());
+    setState(() {
+      _attemptRoom = null;
+      _entry = _resolveInitialEntry();
     });
   }
 
@@ -407,6 +494,22 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   String _newLegacySessionId() =>
       'room-live-${DateTime.now().microsecondsSinceEpoch.toRadixString(36)}';
 
+  String? _failureMessage(BuildContext context, _EntryFailure? failure) {
+    if (failure == null) return null;
+    final s = context.getString;
+    return switch (failure) {
+      _EntryFailure.localLinkMissing => s.no_network,
+      _EntryFailure.peerProofMissing => s.bt_waiting_for_peer,
+      _EntryFailure.staleAttempt => s.link_reconnecting,
+      _EntryFailure.transportBindTimeout ||
+      _EntryFailure.transportPlanMismatch ||
+      _EntryFailure.coordinatorRejected ||
+      _EntryFailure.transportSetup ||
+      _EntryFailure.compositionUnavailable ||
+      _EntryFailure.selectionReadFailed => s.bt_connection_failed,
+    };
+  }
+
   @override
   void dispose() {
     _readinessEpoch++;
@@ -429,6 +532,21 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     future: _entry,
     builder: (context, snapshot) {
       if (snapshot.connectionState != ConnectionState.done) {
+        final room = _attemptRoom;
+        if (room != null) {
+          return RouteExitScope(
+            onExit: () => leaveRoomEntry(context),
+            child: SelectedRoomLobby(
+              room: room,
+              connectionPhase: RoomConnectionUiPhase.connecting,
+              link: _resolvedLink,
+              mode: _modeStore?.mode,
+              onStartRide: () {},
+              onConnect: () => _connect(context, room),
+              onBack: () => leaveRoomEntry(context),
+            ),
+          );
+        }
         return const Scaffold(
           key: ValueKey('walkie-entry-waiting'),
           body: Center(child: _DelayedSpinner()),
@@ -438,7 +556,11 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         Logger.log('Room-bound walkie entry failed: ${snapshot.error}');
         return RouteExitScope(
           onExit: () => leaveRoomEntry(context),
-          child: _InvalidRoomSelection(onBack: () => leaveRoomEntry(context)),
+          child: _RecoverableRoomEntry(
+            message: context.getString.bt_connection_failed,
+            onRetry: _retryInitial,
+            onBack: () => leaveRoomEntry(context),
+          ),
         );
       }
       final state = snapshot.data ?? const _EntryState.invalidSelection();
@@ -469,8 +591,22 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
             room: room,
             link: _resolvedLink,
             mode: _modeStore?.mode,
+            failureMessage: _failureMessage(context, state.failure),
+            onRetry: state.failure == null ? null : () => _startRide(room),
             onStartRide: () => _startRide(room),
             onConnect: () => _connect(context, room),
+            onBack: () => leaveRoomEntry(context),
+          ),
+        );
+      }
+      if (state.failure != null) {
+        return RouteExitScope(
+          onExit: () => leaveRoomEntry(context),
+          child: _RecoverableRoomEntry(
+            message:
+                _failureMessage(context, state.failure) ??
+                context.getString.bt_connection_failed,
+            onRetry: _retryInitial,
             onBack: () => leaveRoomEntry(context),
           ),
         );
@@ -522,10 +658,26 @@ class _DelayedSpinnerState extends State<_DelayedSpinner> {
   );
 }
 
-class _EntryState {
-  const _EntryState._({this.room, this.live = false});
+enum _EntryFailure {
+  localLinkMissing,
+  transportBindTimeout,
+  peerProofMissing,
+  staleAttempt,
+  transportPlanMismatch,
+  coordinatorRejected,
+  transportSetup,
+  compositionUnavailable,
+  selectionReadFailed,
+}
 
-  const _EntryState.lobby(SavedRoom room) : this._(room: room);
+class _EntryState {
+  const _EntryState._({this.room, this.live = false, this.failure});
+
+  const _EntryState.lobby(SavedRoom room, {_EntryFailure? failure})
+    : this._(room: room, failure: failure);
+
+  const _EntryState.recoverable(_EntryFailure failure)
+    : this._(failure: failure);
 
   const _EntryState.live({SavedRoom? room}) : this._(room: room, live: true);
 
@@ -533,6 +685,50 @@ class _EntryState {
 
   final SavedRoom? room;
   final bool live;
+  final _EntryFailure? failure;
+}
+
+class _RecoverableRoomEntry extends StatelessWidget {
+  const _RecoverableRoomEntry({
+    required this.message,
+    required this.onRetry,
+    required this.onBack,
+  });
+
+  final String message;
+  final VoidCallback onRetry;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.sync_problem_rounded, size: 44),
+                const SizedBox(height: 12),
+                Text(message, textAlign: TextAlign.center),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  key: const Key('room-entry-retry'),
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: Text(s.retry),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton(onPressed: onBack, child: Text(s.entry_back)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _InvalidRoomSelection extends StatelessWidget {
