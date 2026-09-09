@@ -128,6 +128,7 @@ final class TransportCapabilityHeartbeatRuntime
     // witness to be the exact carrier-observed route before exposing it.
     final routeProof = decoded.routeProof;
     if (routeProof != null && challengeEpoch != null && routeMatchesCarrier) {
+      final senderId = decoded.packet.senderId.trim();
       _routeProofObservations.add(
         TransportRouteProofObservation(
           peerKey: decoded.carrierPeerKey,
@@ -135,6 +136,9 @@ final class TransportCapabilityHeartbeatRuntime
           challengeEpoch: challengeEpoch,
           encodedProof: routeProof,
           observedAt: at,
+          // Presence metadata from the exact proof-bearing Pong. This remains
+          // non-authoritative until the Room layer verifies the route proof.
+          transportSenderId: senderId.isEmpty ? null : senderId,
         ),
       );
     }

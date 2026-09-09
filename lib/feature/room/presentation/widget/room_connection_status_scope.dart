@@ -56,6 +56,7 @@ class RoomConnectionStatusScope extends StatefulWidget {
 class _RoomConnectionStatusScopeState extends State<RoomConnectionStatusScope> {
   late RoomSession _session = widget.runtime.state;
   final Map<RoomMemberId, int> _proofGenerationByMember = {};
+  final Map<RoomMemberId, String> _transportSenderIdByMember = {};
   StreamSubscription<RoomSession>? _sessionSubscription;
   StreamSubscription<RoomPeerProofEvidence>? _proofSubscription;
 
@@ -63,17 +64,27 @@ class _RoomConnectionStatusScopeState extends State<RoomConnectionStatusScope> {
   void initState() {
     super.initState();
     for (final proof in widget.initialPeerProofs) {
-      _proofGenerationByMember[proof.memberId] = proof.attachmentGeneration;
+      _remember(proof);
     }
     _sessionSubscription = widget.runtime.changes.listen((session) {
       if (mounted) setState(() => _session = session);
     });
     _proofSubscription = widget.peerProofs.listen((proof) {
       if (!mounted) return;
-      setState(() {
-        _proofGenerationByMember[proof.memberId] = proof.attachmentGeneration;
-      });
+      setState(() => _remember(proof));
     });
+  }
+
+  void _remember(RoomPeerProofEvidence proof) {
+    _proofGenerationByMember[proof.memberId] = proof.attachmentGeneration;
+    final senderId = proof.transportSenderId?.trim();
+    if (senderId == null || senderId.isEmpty) {
+      // A newer verified proof without presence metadata must not inherit a
+      // sender id from the previous attachment/proof.
+      _transportSenderIdByMember.remove(proof.memberId);
+    } else {
+      _transportSenderIdByMember[proof.memberId] = senderId;
+    }
   }
 
   @override
@@ -90,6 +101,7 @@ class _RoomConnectionStatusScopeState extends State<RoomConnectionStatusScope> {
         room: widget.room,
         session: _session,
         proofGenerationByMember: Map.unmodifiable(_proofGenerationByMember),
+        transportSenderIdByMember: Map.unmodifiable(_transportSenderIdByMember),
       ),
       child: widget.child,
     );
@@ -102,11 +114,16 @@ class RoomConnectionStatusData {
     required this.room,
     required this.session,
     required this.proofGenerationByMember,
+    this.transportSenderIdByMember = const {},
   });
 
   final SavedRoom room;
   final RoomSession session;
   final Map<RoomMemberId, int> proofGenerationByMember;
+
+  /// Volatile sender metadata accepted only alongside a verified Room proof.
+  /// It is never used for membership or Connected authority.
+  final Map<RoomMemberId, String> transportSenderIdByMember;
 
   int get attachmentGeneration => session.attachment.generation;
 
@@ -117,6 +134,17 @@ class RoomConnectionStatusData {
     RoomSessionPhase.open => RoomConnectionUiPhase.connecting,
     RoomSessionPhase.left => RoomConnectionUiPhase.reconnecting,
   };
+
+  /// The transport sender currently proven for [member], or null when the
+  /// sender metadata is absent/stale for this attachment.
+  ///
+  /// The generation fence is load-bearing: a delayed roster packet from an old
+  /// carrier may still exist for a few seconds, but it cannot animate a member
+  /// after transport replacement until that member proves the new attachment.
+  String? transportSenderIdFor(RoomMember member) {
+    if (proofGenerationByMember[member.id] != attachmentGeneration) return null;
+    return transportSenderIdByMember[member.id];
+  }
 
   RoomConnectionUiPhase phaseFor(RoomMember member) {
     if (member.pending) {
@@ -154,13 +182,17 @@ class _RoomConnectionStatusInherited extends InheritedWidget {
   bool updateShouldNotify(_RoomConnectionStatusInherited oldWidget) =>
       oldWidget.data.session != data.session ||
       oldWidget.data.room != data.room ||
-      !_sameProofs(
+      !_sameMap(
         oldWidget.data.proofGenerationByMember,
         data.proofGenerationByMember,
+      ) ||
+      !_sameMap(
+        oldWidget.data.transportSenderIdByMember,
+        data.transportSenderIdByMember,
       );
 }
 
-bool _sameProofs(Map<RoomMemberId, int> a, Map<RoomMemberId, int> b) {
+bool _sameMap<K, V>(Map<K, V> a, Map<K, V> b) {
   if (identical(a, b)) return true;
   if (a.length != b.length) return false;
   for (final entry in a.entries) {
