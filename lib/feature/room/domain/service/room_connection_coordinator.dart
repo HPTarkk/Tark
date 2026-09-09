@@ -77,6 +77,7 @@ final class RoomConnectionCoordinator {
     required RoomMemberId requester,
     required bool sharedLanUsable,
     required List<RoomTransportCandidate> candidates,
+    RoomMemberId? bootstrapHotspotHost,
   }) {
     final current = _state;
     if (current.isActive || current.phase == RoomConnectionPhase.connected) {
@@ -96,6 +97,7 @@ final class RoomConnectionCoordinator {
         sharedLanUsable: sharedLanUsable,
         candidates: candidates,
         epoch: epoch,
+        bootstrapHotspotHost: bootstrapHotspotHost,
       ),
     );
     _state = RoomConnectionState(

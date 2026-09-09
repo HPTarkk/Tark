@@ -41,6 +41,7 @@ final class RoomTransportEnvironment {
     required this.candidates,
     required this.epoch,
     this.guestExplicitlySelected = false,
+    this.bootstrapHotspotHost,
   }) : assert(epoch >= 0);
 
   /// True only for a peer-proven shared LAN for the current Room/session.
@@ -55,6 +56,12 @@ final class RoomTransportEnvironment {
   final List<RoomTransportCandidate> candidates;
   final int epoch;
   final bool guestExplicitlySelected;
+
+  /// A pre-existing Room bootstrap side, if the invite/create flow has already
+  /// established one.  This is intentionally not a capability claim: it is
+  /// only the narrow bridge that lets a joiner adopt the one temporary AP
+  /// while no authenticated capability exchange is possible yet.
+  final RoomMemberId? bootstrapHotspotHost;
 }
 
 final class RoomTransportPlan {
@@ -118,6 +125,21 @@ abstract final class RoomTransportPlanner {
             ? RoomTransportPlanReason.preferredHotspotHost
             : RoomTransportPlanReason.deterministicHotspotHost,
         hotspotHost: elected.memberId,
+      );
+    }
+
+    // Cold-start bootstrap precedes the first signed peer proof, so remote
+    // capability is correctly unknown here.  Do not invent it merely to run
+    // an election.  When the existing Room flow has a single bootstrap side,
+    // both participants instead adopt that same temporary AP; verified
+    // capability evidence takes over for later failover/handover.
+    final bootstrapHost = environment.bootstrapHotspotHost;
+    if (bootstrapHost != null) {
+      return RoomTransportPlan(
+        epoch: environment.epoch,
+        kind: RoomTransportKind.hotspot,
+        reason: RoomTransportPlanReason.deterministicHotspotHost,
+        hotspotHost: bootstrapHost,
       );
     }
 
