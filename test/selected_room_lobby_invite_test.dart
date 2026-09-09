@@ -94,7 +94,7 @@ void main() {
     expect(find.text('Room members (2)'), findsNothing);
     expect(find.text('Waiting to join (1)'), findsOneWidget);
     expect(
-      find.text('This is an invite spot, not someone in the Room yet.'),
+      find.text('They have a code but have not scanned it yet.'),
       findsOneWidget,
     );
     expect(find.text('Open seat'), findsOneWidget);
@@ -177,13 +177,13 @@ void main() {
     await seat(room, pending: true, name: 'جای دعوت');
     await beat(tester);
 
-    final waiting = find.text('در انتظار ورود (۱)');
+    final waiting = find.text('در انتظار پیوستن (۱)');
     expect(waiting, findsOneWidget);
     expect(Directionality.of(tester.element(waiting)), TextDirection.rtl);
     expect(find.text('اعضای اتاق (۱)'), findsOneWidget);
     expect(find.text('اعضای اتاق (۲)'), findsNothing);
     expect(
-      find.text('این فقط جای دعوت است؛ هنوز کسی وارد اتاق نشده.'),
+      find.text('کدشان را گرفته‌اند ولی هنوز اسکن نکرده‌اند.'),
       findsOneWidget,
     );
     expect(find.byKey(const Key('selected-room-held-seats')), findsOneWidget);
