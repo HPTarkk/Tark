@@ -155,15 +155,16 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
-    final members = _room.room.activeMembers;
     final confirmedMembers = _room.room.confirmedMembers;
+    final pendingMembers = _room.room.activeMembers
+        .where((member) => member.pending)
+        .toList(growable: false);
     final canInvite =
         !_room.room.archived &&
         _room.membership.active &&
         _room.membership.canManageInvites;
-    // Pending invite seats remain visible, but they are not joined people yet.
-    // A QR reservation must never make the Room look as though someone has
-    // already arrived.
+    // Pending invite seats are authorization bookkeeping, not joined people.
+    // Only confirmed membership can make this Room stop looking solo.
     final alone = confirmedMembers.length <= 1;
     final connecting =
         _starting || widget.connectionPhase == RoomConnectionUiPhase.connecting;
@@ -222,11 +223,15 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
             const SizedBox(height: 22),
             _MembersCard(
               room: _room,
-              members: members,
+              members: confirmedMembers,
               connectionPhase: connecting
                   ? RoomConnectionUiPhase.connecting
                   : RoomConnectionUiPhase.readyToConnect,
             ),
+            if (pendingMembers.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _PendingInvitesCard(members: pendingMembers),
+            ],
             const SizedBox(height: 18),
             if (canInvite) ...[
               _RoomAction(
@@ -341,9 +346,7 @@ class _MembersCard extends StatelessWidget {
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  s.lobby_members(
-                    room.room.confirmedMembers.length.localized(context),
-                  ),
+                  s.lobby_members(members.length.localized(context)),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -360,7 +363,7 @@ class _MembersCard extends StatelessWidget {
             _MemberRow(
               member: members[index],
               isYou: members[index].id == room.membership.localMemberId,
-              phase: _phaseFor(members[index]),
+              phase: connectionPhase,
             ),
             if (index != members.length - 1) const SizedBox(height: 8),
           ],
@@ -368,14 +371,72 @@ class _MembersCard extends StatelessWidget {
       ),
     );
   }
+}
 
-  RoomConnectionUiPhase _phaseFor(RoomMember member) {
-    if (member.pending) {
-      return isHeldSeatPlaceholder(member.displayName)
-          ? RoomConnectionUiPhase.invited
-          : RoomConnectionUiPhase.confirming;
-    }
-    return connectionPhase;
+class _PendingInvitesCard extends StatelessWidget {
+  const _PendingInvitesCard({required this.members});
+
+  final List<RoomMember> members;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    return Container(
+      key: const Key('selected-room-held-seats'),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.mark_email_unread_outlined,
+                size: 19,
+                color: AppColors.textSecondary,
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  s.lobby_held_seats(members.length.localized(context)),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            s.lobby_held_seats_hint,
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 12),
+          for (var index = 0; index < members.length; index++) ...[
+            _MemberRow(
+              member: members[index],
+              isYou: false,
+              phase: isHeldSeatPlaceholder(members[index].displayName)
+                  ? RoomConnectionUiPhase.invited
+                  : RoomConnectionUiPhase.confirming,
+            ),
+            if (index != members.length - 1) const SizedBox(height: 8),
+          ],
+        ],
+      ),
+    );
   }
 }
 
