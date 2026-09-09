@@ -238,9 +238,6 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       );
     }
 
-    if (!await _openLinkGate()) {
-      return _EntryState.lobby(room, failure: _EntryFailure.localLinkMissing);
-    }
     return _verifiedLiveFor(room);
   }
 
@@ -264,8 +261,39 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       return _EntryState.lobby(room, failure: _EntryFailure.peerProofMissing);
     }
 
+    // The coordinator owns the epoch *before* any carrier bind or readiness
+    // wait.  At cold start remote capability and LAN reachability are unknown;
+    // neither is manufactured from a Wi-Fi mode/interface.  The existing
+    // deterministic bootstrap side is only an adoption hint until the signed
+    // proof/capability runtime can publish verified evidence.
+    final bootstrapHost = _bootstrapHotspotHost(room);
+    final start = _coordinator.requestStart(
+      requester: localMemberId,
+      sharedLanUsable: false,
+      candidates: const [],
+      bootstrapHotspotHost: bootstrapHost,
+    );
+    if (!start.isActive || start.plan == null) {
+      Logger.diagnostic('room: readiness stage=no_verified_transport_plan');
+      return _EntryState.lobby(
+        room,
+        failure: _EntryFailure.transportPlanMismatch,
+      );
+    }
+
     final readinessEpoch = ++_readinessEpoch;
     try {
+      if (!await _executePlan(start.plan!, room)) {
+        _coordinator.cancel(epoch: start.epoch);
+        return _EntryState.lobby(
+          room,
+          failure: _EntryFailure.transportPlanMismatch,
+        );
+      }
+      if (!await _openLinkGate()) {
+        _coordinator.cancel(epoch: start.epoch);
+        return _EntryState.lobby(room, failure: _EntryFailure.localLinkMissing);
+      }
       final runtime = await binding.open(
         sessionId: _newRoomSessionId(room, readinessEpoch),
       );
@@ -292,29 +320,6 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
           failure: readinessEpoch != _readinessEpoch
               ? _EntryFailure.staleAttempt
               : _entryFailureFor(readiness.failure),
-        );
-      }
-
-      // Only now is shared LAN usable allowed to become true: the signed Room
-      // peer proof above demonstrated that another member is actually reachable
-      // on this attachment. #213 owns replacing the planner inputs below with
-      // verified pre-proof bootstrap/control-plane evidence.
-      final start = _coordinator.requestStart(
-        requester: localMemberId,
-        sharedLanUsable: _modeStore?.mode == TransferMode.wifi,
-        candidates: _connectionCandidates(room),
-      );
-      if (!start.isActive ||
-          start.plan == null ||
-          !_transportMatchesPlan(start.plan!, room)) {
-        Logger.diagnostic(
-          'room: readiness epoch=$readinessEpoch stage=transport_plan_mismatch',
-        );
-        _coordinator.cancel(epoch: start.epoch);
-        await binding.close();
-        return _EntryState.lobby(
-          room,
-          failure: _EntryFailure.transportPlanMismatch,
         );
       }
 
@@ -362,52 +367,39 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     null => _EntryFailure.peerProofMissing,
   };
 
-  /// Candidate set used only after the current transport has already produced
-  /// signed Room peer proof. It does not claim remote battery/capability data.
-  /// The oldest active member is the same deterministic temporary hotspot side
-  /// the existing bootstrap flow uses; verified capability election can replace
-  /// it later without changing Room ownership.
-  List<RoomTransportCandidate> _connectionCandidates(SavedRoom room) {
+  /// The existing one-scan/create flow has exactly one deterministic bootstrap
+  /// side. This is not Room ownership or a remote capability assertion.
+  RoomMemberId? _bootstrapHotspotHost(SavedRoom room) {
     final members = room.room.activeMembers.toList(growable: false)
       ..sort((a, b) {
         final byJoined = a.joinedAt.compareTo(b.joinedAt);
         return byJoined != 0 ? byJoined : a.id.value.compareTo(b.id.value);
       });
-    if (members.isEmpty) return const [];
-
-    final temporaryHotspotHost = members.first.id;
-    final bluetoothOnly = _modeStore?.mode == TransferMode.bluetooth;
-    return [
-      for (final member in members)
-        RoomTransportCandidate(
-          memberId: member.id,
-          canHostHotspot: !bluetoothOnly && member.id == temporaryHotspotHost,
-          bluetoothSupported: true,
-          backgroundReady: true,
-          batteryPercent: 50,
-          prefersHotspotHost: member.id == temporaryHotspotHost,
-        ),
-    ];
+    return members.isEmpty ? null : members.first.id;
   }
 
-  bool _transportMatchesPlan(RoomTransportPlan plan, SavedRoom room) {
-    final mode = _modeStore?.mode;
-    switch (mode) {
-      case TransferMode.wifi:
-        return plan.kind == RoomTransportKind.sharedLan;
-      case TransferMode.hotspot:
-        if (plan.kind != RoomTransportKind.hotspot) return false;
+  Future<bool> _executePlan(RoomTransportPlan plan, SavedRoom room) async {
+    switch (plan.kind) {
+      case RoomTransportKind.hotspot:
         final role = _transfer?.sessionRole ?? SessionRole.unknown;
         final localIsElected =
             plan.hotspotHost == room.membership.localMemberId;
+        // A role is a bootstrap hint, never an election input.  A contradiction
+        // is surfaced as recoverable instead of switching carriers silently.
         if (role == SessionRole.host && !localIsElected) return false;
         if (role == SessionRole.joiner && localIsElected) return false;
+        if (localIsElected) {
+          await PreLiveHotspotBootstrap().prepareHost();
+        }
         return true;
-      case TransferMode.bluetooth:
-        return plan.kind == RoomTransportKind.bluetooth;
-      case TransferMode.guest:
-        // Durable local Rooms do not silently reinterpret an explicitly remote
-        // guest carrier as verified local group audio.
+      case RoomTransportKind.sharedLan:
+        // This path cannot be selected at cold start. It becomes available only
+        // during verified failover after authenticated reachability evidence.
+        return false;
+      case RoomTransportKind.bluetooth:
+        // Group Bluetooth is never promoted to a general voice carrier.
+        return room.room.confirmedMembers.length == 2;
+      case RoomTransportKind.guest:
         return false;
       case null:
         return false;
