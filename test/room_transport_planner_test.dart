@@ -138,21 +138,24 @@ void main() {
     },
   );
 
-  test('cold bootstrap adopts one known side without fabricating capability', () {
-    const bootstrap = RoomMemberId('creator');
-    final plan = RoomTransportPlanner.plan(
-      const RoomTransportEnvironment(
-        sharedLanUsable: false,
-        epoch: 6,
-        candidates: [],
-        bootstrapHotspotHost: bootstrap,
-      ),
-    );
+  test(
+    'cold bootstrap adopts one known side without fabricating capability',
+    () {
+      const bootstrap = RoomMemberId('creator');
+      final plan = RoomTransportPlanner.plan(
+        const RoomTransportEnvironment(
+          sharedLanUsable: false,
+          epoch: 6,
+          candidates: [],
+          bootstrapHotspotHost: bootstrap,
+        ),
+      );
 
-    expect(plan.kind, RoomTransportKind.hotspot);
-    expect(plan.hotspotHost, bootstrap);
-    expect(plan.reason, RoomTransportPlanReason.deterministicHotspotHost);
-  });
+      expect(plan.kind, RoomTransportKind.hotspot);
+      expect(plan.hotspotHost, bootstrap);
+      expect(plan.reason, RoomTransportPlanReason.deterministicHotspotHost);
+    },
+  );
 
   test('explicit guest selection does not participate in hotspot election', () {
     final plan = RoomTransportPlanner.plan(
