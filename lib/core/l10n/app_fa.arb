@@ -613,5 +613,16 @@
     "header_alone": "تنها",
     "entry_room_unavailable": "این اتاق دیگر برای شروع ارتباط در دسترس نیست.",
     "entry_back": "بازگشت",
-    "confirm_cancel": "انصراف"
+    "confirm_cancel": "انصراف",
+    "consent_title_first": "قبل از شروع",
+    "consent_title_updated": "این‌ها به‌روز شدن",
+    "consent_body_first": "تَرک نه حساب کاربری داره نه سروری که صداتون رو ببره. این دو تا متن می‌گن این در عمل یعنی چی — و از چی محافظتت نمی‌کنه. خلاصه‌ی هرکدوم پایینه؛ متن کامل هم یک لمس فاصله داره.",
+    "consent_body_updated": "متن‌های پایین از آخرین باری که قبولشون کردی عوض شدن. خلاصه‌ی هرکدوم اینجاست، و اگه خواستی، متن کاملش.",
+    "consent_accept": "موافقم — ادامه",
+    "consent_read_full": "خوندن متن کامل",
+    "consent_effective_since": "معتبر از",
+    "consent_short_version": "خلاصه‌ی ماجرا",
+    "consent_updated_badge": "به‌روز شد",
+    "consent_new_badge": "تازه",
+    "consent_partial_notice": "این نسخه‌ی برنامه نمی‌تونه بخشی از این متن رو نشون بده. متن کامل رو توی tarkk.ir بخون."
 }

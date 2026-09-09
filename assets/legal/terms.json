@@ -1,0 +1,576 @@
+{
+  "schema": 1,
+  "id": "terms",
+  "name": {
+    "en": "Terms & Conditions",
+    "fa": "شرایط و ضوابط"
+  },
+  "version": 1,
+  "minAcceptedVersion": 1,
+  "effectiveDate": "2026-09-08",
+  "effectiveDateLabel": {
+    "en": "8 September 2026",
+    "fa": "۱۷ شهریور ۱۴۰۵"
+  },
+  "webPath": {
+    "en": "/terms.html",
+    "fa": "/fa/terms.html"
+  },
+  "meta": {
+    "title": {
+      "en": "Terms & Conditions — Tarkk",
+      "fa": "شرایط و ضوابط — تَرک"
+    },
+    "description": {
+      "en": "What you can expect from Tarkk and what it cannot promise. Free and unlocked, open source under the AGPL-3.0, and honest about where a radio link falls short.",
+      "fa": "چیزی که می‌تونی از تَرک انتظار داشته باشی و چیزی که نمی‌تونه قولش رو بده. رایگان، بدون قفل، متن‌باز — و صادق درباره‌ی جایی که یه لینک رادیویی کم میاره."
+    },
+    "twitterDescription": {
+      "en": "Free, unlocked and open source. Here is what that does and does not entitle you to, in words worth reading.",
+      "fa": "رایگان، بدون قفل و متن‌باز. اینکه این وضعیت چی بهت می‌ده و چی بهت نمی‌ده، با کلماتی که ارزش خوندن دارن."
+    }
+  },
+  "hero": {
+    "eyebrow": {
+      "en": "TERMS & CONDITIONS",
+      "fa": "شرایط و ضوابط"
+    },
+    "heading": {
+      "en": "What you can expect, and what we can’t promise.",
+      "fa": "چیزی که می‌تونی انتظار داشته باشی، و چیزی که نمی‌تونیم قولش رو بدیم."
+    },
+    "lede": {
+      "en": "Tark is free, unlocked and open source, and it talks over radios that do not always cooperate. These terms say what that gives you, what it asks of you, and — the part most terms skip — where the app can genuinely let you down.",
+      "fa": "تَرک رایگانه، هیچ‌چیزش قفل نیست و متن‌بازه، و از روی رادیوهایی حرف می‌زنه که همیشه همکاری نمی‌کنن. این شرایط می‌گه این وضعیت چی به تو می‌ده، چی ازت می‌خواد، و — همون بخشی که بیشتر شرایط‌ها ازش رد می‌شن — کجا برنامه واقعاً ممکنه تنهات بذاره."
+    },
+    "inEffectSince": {
+      "en": "In effect since",
+      "fa": "معتبر از"
+    },
+    "swap": {
+      "href": "privacy.html",
+      "label": {
+        "en": "Read the Privacy Policy →",
+        "fa": "سیاست حریم خصوصی رو بخونید →"
+      }
+    }
+  },
+  "contentsLabel": {
+    "en": "CONTENTS",
+    "fa": "فهرست"
+  },
+  "summary": {
+    "columns": [
+      {
+        "kind": "asks",
+        "title": {
+          "en": "WHAT YOU GET",
+          "fa": "چیزی که می‌گیری"
+        },
+        "items": [
+          {
+            "en": "Every feature, unlocked, at no cost. There is nothing to buy, no trial to expire and nothing sitting behind a paywall.",
+            "fa": "همه‌ی قابلیت‌ها، بدون قفل، بدون هزینه. چیزی برای خریدن نیست، دوره‌ی آزمایشی‌ای نیست که تموم بشه، و چیزی پشت دیوار پرداخت نمونده."
+          },
+          {
+            "en": "The source code, under the AGPL-3.0 — yours to read, run, change and pass on under that licence’s terms.",
+            "fa": "کد منبع، با پروانه‌ی AGPL-3.0 — مال خودته که بخونیش، اجراش کنی، تغییرش بدی و طبق شرایط همون پروانه دست به دستش کنی."
+          },
+          {
+            "en": "A plain answer when something fails, in the app itself, and somewhere to report it when the answer is not enough.",
+            "fa": "جواب صاف و ساده وقتی چیزی خراب می‌شه، توی خود برنامه، و جایی برای گزارشش وقتی اون جواب کافی نیست."
+          }
+        ]
+      },
+      {
+        "kind": "nevers",
+        "title": {
+          "en": "WHAT WE CAN’T PROMISE",
+          "fa": "چیزی که نمی‌تونیم قولش رو بدیم"
+        },
+        "items": [
+          {
+            "en": "That it will connect. Phones, radios and networks differ enormously, and some combinations simply refuse.",
+            "fa": "اینکه وصل می‌شه. گوشی‌ها، رادیوها و شبکه‌ها خیلی با هم فرق دارن و بعضی ترکیب‌ها اصلاً جواب نمی‌دن."
+          },
+          {
+            "en": "That it is private. A channel code keeps groups apart; it is not a password and it does not encrypt anything.",
+            "fa": "اینکه خصوصیه. کد کانال فقط گروه‌ها رو از هم جدا نگه می‌داره؛ رمز عبور نیست و چیزی رو رمزنگاری نمی‌کنه."
+          },
+          {
+            "en": "That it will always be here. The download, the browser guest and the project itself are run by a very small team with no contract behind them.",
+            "fa": "اینکه همیشه هست. فایل دانلود، مهمان مرورگری و خودِ پروژه رو یه تیم خیلی کوچیک اداره می‌کنه، بدون هیچ قرارداد پشتیبانی."
+          }
+        ]
+      }
+    ]
+  },
+  "sections": [
+    {
+      "id": "agreement",
+      "tocTitle": {
+        "en": "Agreeing to these terms",
+        "fa": "پذیرفتن این شرایط"
+      },
+      "title": {
+        "en": "Agreeing to these terms",
+        "fa": "پذیرفتن این شرایط"
+      },
+      "blocks": [
+        {
+          "type": "p",
+          "text": {
+            "en": "Using Tark — the Android app, the browser guest at app.tarkk.ir, or this website — means these terms apply to you. If you do not accept them, the remedy is simple and total: do not use it, or uninstall it. Nothing is held anywhere that would need closing down first.",
+            "fa": "استفاده از تَرک — اپلیکیشن اندروید، مهمان مرورگری روی app.tarkk.ir، یا همین وب‌سایت — یعنی این شرایط شامل تو هم می‌شه. اگه قبولشون نداری، راهش ساده و کامله: استفاده نکن، یا حذفش کن. چیزی جایی نگه داشته نشده که اول لازم باشه ببندیش."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "These terms cover how you use Tark. They are not the licence for the code — that is the AGPL-3.0, and it says what it says regardless of anything written here.",
+            "fa": "این شرایط به نحوه‌ی استفاده‌ی تو از تَرک مربوطه. پروانه‌ی کد نیستن — پروانه AGPL-3.0 هست و هر چیزی که اینجا نوشته شده، حرف اون رو عوض نمی‌کنه."
+          }
+        }
+      ]
+    },
+    {
+      "id": "what",
+      "tocTitle": {
+        "en": "What Tark is",
+        "fa": "تَرک چیه"
+      },
+      "title": {
+        "en": "What Tark is",
+        "fa": "تَرک چیه"
+      },
+      "blocks": [
+        {
+          "type": "p",
+          "text": {
+            "en": "Tark is a walkie-talkie for phones that are near each other. It connects them directly over Wi-Fi, a hotspot one of them hosts, or Bluetooth, and carries live voice between them. It needs no internet connection, no mobile signal and no account.",
+            "fa": "تَرک یه بیسیمه برای گوشی‌هایی که نزدیک همدیگه‌ن. مستقیم از طریق وای‌فای، هات‌اسپاتی که یکیشون بالا میاره، یا بلوتوث بهمشون وصل می‌کنه و صدای زنده رو بینشون جابه‌جا می‌کنه. نه اینترنت می‌خواد، نه آنتن، نه حساب کاربری."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "It is not a telephone service and not an emergency service. It cannot reach emergency numbers, it does not work beyond radio range, and it must never be the only way you can call for help.",
+            "fa": "سرویس تلفن نیست و سرویس اضطراری هم نیست. به شماره‌های اورژانسی وصل نمی‌شه، بیرون از برد رادیویی کار نمی‌کنه، و هیچ‌وقت نباید تنها راه کمک خواستنت باشه."
+          }
+        }
+      ]
+    },
+    {
+      "id": "licence",
+      "tocTitle": {
+        "en": "The licence",
+        "fa": "پروانه"
+      },
+      "title": {
+        "en": "The licence",
+        "fa": "پروانه"
+      },
+      "blocks": [
+        {
+          "type": "p",
+          "text": {
+            "en": "Tark’s source code is published under the GNU Affero General Public License, version 3. In short: you may read it, run it, modify it and redistribute it, provided anything you distribute — including anything you run as a network service — carries the same freedoms and the same licence.",
+            "fa": "کد منبع تَرک با پروانه‌ی GNU Affero General Public License نسخه‌ی ۳ منتشر شده. خلاصه‌ش: می‌تونی بخونیش، اجراش کنی، تغییرش بدی و بازنشرش کنی، به شرطی که هر چیزی که منتشر می‌کنی — از جمله هر چیزی که به‌عنوان سرویس شبکه‌ای اجرا می‌کنی — همون آزادی‌ها و همون پروانه رو با خودش ببره."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "The licence text itself is the authority here, not this summary. If you want Tark inside a closed-source product, or the AGPL’s terms do not suit you, a negotiated commercial licence is available — write to the address at the bottom of this page.",
+            "fa": "متن خود پروانه مرجعه، نه این خلاصه. اگه می‌خوای تَرک رو داخل یه محصول بسته استفاده کنی، یا شرایط AGPL به کارت نمی‌خوره، پروانه‌ی تجاری توافقی هم هست — به نشانی پایین همین صفحه بنویس."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "The name Tark, the wordmark and the logo are not covered by that licence. A fork is welcome; a fork that presents itself as the original is not.",
+            "fa": "اسم تَرک، نشانِ نوشتاری و لوگو مشمول اون پروانه نیستن. فورک کردن مشکلی نداره؛ فورکی که خودش رو جای نسخه‌ی اصلی جا بزنه، چرا."
+          }
+        }
+      ]
+    },
+    {
+      "id": "cost",
+      "tocTitle": {
+        "en": "What it costs",
+        "fa": "هزینه‌ش"
+      },
+      "title": {
+        "en": "What it costs",
+        "fa": "هزینه‌ش"
+      },
+      "blocks": [
+        {
+          "type": "p",
+          "text": {
+            "en": "Nothing. Every feature — Bluetooth, Wi-Fi, the hotspot bridge, shared music, all of it — is open, with no trial period and no paywall anywhere in the app.",
+            "fa": "هیچی. همه‌ی قابلیت‌ها — بلوتوث، وای‌فای، پل هات‌اسپات، پخش آهنگ مشترک، همه‌ش — بازه، بدون دوره‌ی آزمایشی و بدون هیچ دیوار پرداختی توی برنامه."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "Donations are welcome and entirely voluntary. A donation is a gift toward test devices, a domain and hosting; it is not a purchase, it buys no feature, it creates no obligation on either side, and it cannot be refunded. Not donating changes nothing about what you get.",
+            "fa": "حمایت مالی باعث خوشحالیه و کاملاً داوطلبانه‌ست. حمایت یه هدیه‌ست برای گوشی‌های تست، دامنه و هاست؛ خرید نیست، هیچ قابلیتی نمی‌خره، هیچ تعهدی برای هیچ‌کدوم از دو طرف نمی‌سازه و قابل بازگشت نیست. حمایت نکردن هیچ فرقی توی چیزی که می‌گیری ایجاد نمی‌کنه."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "If paid features are ever introduced, they will be described plainly at the point where you would be asked to pay, and these terms will be updated before that happens. Nothing you already have would be taken away to make room for them.",
+            "fa": "اگه روزی قابلیت‌های پولی اضافه بشن، همون‌جایی که ازت خواسته می‌شه پول بدی صاف و ساده توضیح داده می‌شن، و قبل از اینکه این اتفاق بیفته این شرایط به‌روز می‌شه. هیچ‌چیزی که همین الان داری، برای باز کردن جا برای اون‌ها ازت گرفته نمی‌شه."
+          }
+        }
+      ]
+    },
+    {
+      "id": "no-account",
+      "tocTitle": {
+        "en": "There is no account",
+        "fa": "حساب کاربری وجود نداره"
+      },
+      "title": {
+        "en": "There is no account",
+        "fa": "حساب کاربری وجود نداره"
+      },
+      "blocks": [
+        {
+          "type": "p",
+          "text": {
+            "en": "Tark has no sign-up, no password and no profile. The callsign you type is a label on your own phone, shown to whoever is in the channel with you; it is not registered anywhere and nothing stops two people choosing the same one.",
+            "fa": "تَرک نه ثبت‌نام داره، نه رمز عبور، نه پروفایل. اسم مستعاری که تایپ می‌کنی فقط یه برچسبه روی گوشی خودت که به هر کی توی کانال باهاته نشون داده می‌شه؛ جایی ثبت نمی‌شه و هیچی جلوی این رو نمی‌گیره که دو نفر یه اسم رو انتخاب کنن."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "The consequence is worth stating plainly: there is nothing to recover. We cannot restore your settings on a new phone, we cannot tell you who was in a channel, and we cannot look anything up on your behalf — because none of it was ever anywhere but on your device.",
+            "fa": "نتیجه‌ش رو صاف بگیم: چیزی برای بازیابی وجود نداره. نمی‌تونیم تنظیماتت رو روی گوشی جدید برگردونیم، نمی‌تونیم بهت بگیم کی توی کانال بوده، و نمی‌تونیم چیزی رو از طرف تو جست‌وجو کنیم — چون هیچ‌کدومش هیچ‌وقت جایی جز روی دستگاه خودت نبوده."
+          }
+        }
+      ]
+    },
+    {
+      "id": "use",
+      "tocTitle": {
+        "en": "Using Tark responsibly",
+        "fa": "استفاده‌ی مسئولانه"
+      },
+      "title": {
+        "en": "Using Tark responsibly",
+        "fa": "استفاده‌ی مسئولانه از تَرک"
+      },
+      "blocks": [
+        {
+          "type": "p",
+          "text": {
+            "en": "What you say over a channel is yours, and so is the responsibility for it. Do not use Tark to:",
+            "fa": "چیزی که توی کانال می‌گی مال خودته، و مسئولیتش هم همین‌طور. از تَرک برای این کارها استفاده نکن:"
+          }
+        },
+        {
+          "type": "list",
+          "items": [
+            {
+              "en": "Break the law that applies to you, or help someone else do it.",
+              "fa": "زیر پا گذاشتن قانونی که شامل حالت می‌شه، یا کمک به کسی برای این کار."
+            },
+            {
+              "en": "Harass, threaten or intimidate anyone, or push audio at people who have not chosen to hear it.",
+              "fa": "آزار، تهدید یا ترسوندن کسی، یا فرستادن صدا برای آدمایی که نخواستن بشنون."
+            },
+            {
+              "en": "Record or relay a conversation to someone outside the channel without the consent of the people in it, where your local law requires that consent.",
+              "fa": "ضبط یا بازپخش یه گفت‌وگو برای کسی بیرون از کانال، بدون رضایت آدمای داخلش، در جایی که قانون محلی‌ت این رضایت رو لازم می‌دونه."
+            },
+            {
+              "en": "Interfere with a network you do not have permission to use, or with anyone else’s use of one you share.",
+              "fa": "اخلال توی شبکه‌ای که اجازه‌ی استفاده ازش رو نداری، یا توی استفاده‌ی بقیه از شبکه‌ای که مشترکاً ازش استفاده می‌کنید."
+            },
+            {
+              "en": "Share music or other audio through the app in a way that infringes somebody’s rights in it. What you cast is your call and your responsibility.",
+              "fa": "پخش آهنگ یا صدای دیگه از طریق برنامه به شکلی که حقوق کسی رو نقض کنه. چیزی که پخش می‌کنی انتخاب خودته و مسئولیتش هم با خودته."
+            }
+          ]
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "There is no moderation and no way for us to intervene: no conversation reaches us, so there is nothing we could review, block or take down even if we wanted to. Enforcement here means walking out of a channel and starting one with a code you did not share.",
+            "fa": "نظارتی وجود نداره و راهی هم برای دخالت ما نیست: هیچ گفت‌وگویی به ما نمی‌رسه، پس چیزی نیست که حتی اگه بخوایم بتونیم بررسی، مسدود یا حذفش کنیم. اجرای این قواعد اینجا یعنی از کانال بیرون بیای و یکی جدید با کدی بسازی که به کسی ندادی."
+          }
+        }
+      ]
+    },
+    {
+      "id": "not-private",
+      "tocTitle": {
+        "en": "A channel is not a private line",
+        "fa": "کانال، خط خصوصی نیست"
+      },
+      "title": {
+        "en": "A channel is not a private line",
+        "fa": "کانال، خط خصوصی نیست"
+      },
+      "blocks": [
+        {
+          "type": "note",
+          "label": {
+            "en": "READ THIS ONE",
+            "fa": "این یکی رو بخون"
+          },
+          "text": {
+            "en": "The short code a channel gets keeps groups on one network from hearing each other. It is not a password, it does not encrypt anything, and Tark adds no encryption of its own over the Wi-Fi or Bluetooth link. Anyone with the code, or with the right access to the same network, can hear the channel. Treat it as a radio channel — because that is what it is — and do not use Tark for a conversation that has to stay confidential.",
+            "fa": "کد کوتاهی که هر کانال می‌گیره فقط جلوی این رو می‌گیره که گروه‌های روی یه شبکه صدای همدیگه رو بشنون. رمز عبور نیست، چیزی رو رمزنگاری نمی‌کنه، و تَرک هم روی لینک وای‌فای یا بلوتوث رمزنگاری خودش رو اضافه نمی‌کنه. هر کسی که کد رو داشته باشه، یا دسترسی درست به همون شبکه رو داشته باشه، می‌تونه کانال رو بشنوه. مثل یه کانال بیسیم باهاش رفتار کن — چون دقیقاً همینه — و از تَرک برای گفت‌وگویی که باید محرمانه بمونه استفاده نکن."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "One exception, and it is a narrow one: a guest joining through a browser connects over WebRTC, which browsers encrypt end-to-end as a matter of course. That protects that one link in transit. It does not make the channel itself private, because anyone holding the code can still walk into it.",
+            "fa": "یه استثنا هست، و خیلی هم محدوده: مهمونی که از مرورگر وارد می‌شه با WebRTC وصل می‌شه که مرورگرها به‌طور معمول سرتاسری رمزنگاریش می‌کنن. این فقط همون یه لینک رو در مسیر محافظت می‌کنه. کانال رو خصوصی نمی‌کنه، چون هر کسی که کد رو داشته باشه هنوز می‌تونه وارد بشه."
+          }
+        }
+      ]
+    },
+    {
+      "id": "riding",
+      "tocTitle": {
+        "en": "Riding, and your attention",
+        "fa": "رانندگی، و حواس شما"
+      },
+      "title": {
+        "en": "Riding, driving and your attention",
+        "fa": "موتورسواری، رانندگی و حواس شما"
+      },
+      "blocks": [
+        {
+          "type": "p",
+          "text": {
+            "en": "Tark was built with riders in mind, which makes this worth saying rather than assuming. Set the app up before you move. Do not look at your phone while riding or driving, and obey whatever your local law says about headsets, earpieces and phones on the road — those rules vary, and they are yours to know.",
+            "fa": "تَرک با موتورسوارها توی ذهن ساخته شده، برای همین این رو می‌گیم به‌جای اینکه فرض کنیم معلومه. برنامه رو قبل از حرکت تنظیم کن. موقع موتورسواری یا رانندگی به گوشیت نگاه نکن، و هر چی قانون محلی‌ت درباره‌ی هدست، هندزفری و گوشی توی جاده می‌گه رعایت کن — این قوانین فرق می‌کنن و دونستنشون با خودته."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "Anything you listen to takes some of your attention, however hands-free it is. You decide whether it is safe to have a channel open, and you carry the consequences of that decision.",
+            "fa": "هر چیزی که بهش گوش می‌دی بخشی از حواست رو می‌بره، هر چقدرم بدون دست باشه. تصمیم اینکه باز بودن کانال امنه یا نه با خودته، و پیامدهای این تصمیم هم با خودته."
+          }
+        }
+      ]
+    },
+    {
+      "id": "no-warranty",
+      "tocTitle": {
+        "en": "What we don’t promise",
+        "fa": "چیزی که قولش رو نمی‌دیم"
+      },
+      "title": {
+        "en": "What we don’t promise",
+        "fa": "چیزی که قولش رو نمی‌دیم"
+      },
+      "blocks": [
+        {
+          "type": "p",
+          "text": {
+            "en": "Tark is provided as it is, with no warranty of any kind — not of fitness for a particular purpose, not of merchantability, and not of uninterrupted or error-free operation. That is the AGPL’s position too, and it is stated here in the same words a court would expect rather than hidden in a licence file.",
+            "fa": "تَرک همون‌طور که هست ارائه می‌شه، بدون هیچ‌گونه ضمانتی — نه ضمانت مناسب بودن برای یه هدف خاص، نه قابلیت فروش، و نه کارکرد بی‌وقفه یا بدون خطا. موضع AGPL هم همینه، و اینجا با همون عباراتی گفته شده که یه دادگاه انتظارش رو داره، به‌جای اینکه لای یه فایل پروانه پنهون بمونه."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "Concretely, and from experience rather than caution: some phones kill background audio however carefully the app asks them not to; some Wi-Fi networks block the traffic between two clients entirely; some Bluetooth stacks refuse a link that works fine on the next handset over; and a strict NAT can leave a browser guest unable to connect at all. None of that is something we can guarantee our way out of.",
+            "fa": "مشخص‌تر بگیم، از روی تجربه و نه از سر احتیاط: بعضی گوشی‌ها صدای پس‌زمینه رو می‌کشن، هر چقدرم برنامه مؤدبانه ازشون خواهش کنه؛ بعضی شبکه‌های وای‌فای اصلاً ترافیک بین دو کلاینت رو مسدود می‌کنن؛ بعضی پشته‌های بلوتوث اتصالی رو رد می‌کنن که روی گوشی بغلی بدون مشکل کار می‌کنه؛ و یه NAT سخت‌گیر می‌تونه مهمان مرورگری رو کاملاً بی‌اتصال بذاره. هیچ‌کدوم از این‌ها چیزی نیست که بشه با ضمانت از پسش بربیایم."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "What we do promise is that the app will tell you which part is failing instead of shrugging — that is what the preflight check and the “Something wrong?” button exist for.",
+            "fa": "چیزی که قولش رو می‌دیم اینه که برنامه به‌جای شونه بالا انداختن، بهت می‌گه کدوم بخش خراب شده — بررسی پیش از پرواز و دکمه‌ی «مشکلی هست؟» دقیقاً برای همینه."
+          }
+        }
+      ]
+    },
+    {
+      "id": "liability",
+      "tocTitle": {
+        "en": "Limits on liability",
+        "fa": "حدود مسئولیت"
+      },
+      "title": {
+        "en": "Limits on liability",
+        "fa": "حدود مسئولیت"
+      },
+      "blocks": [
+        {
+          "type": "p",
+          "text": {
+            "en": "To the fullest extent the law allows, Tark and the people behind it are not liable for loss or damage arising from your use of it — including a message that did not arrive, a connection that dropped at a bad moment, a conversation somebody overheard, or anything that happened while you were paying attention to a channel instead of to the road.",
+            "fa": "تا جایی که قانون اجازه می‌ده، تَرک و آدمای پشتش مسئول ضرر یا خسارتی که از استفاده‌ی تو ازش ناشی می‌شه نیستن — از جمله پیامی که نرسیده، اتصالی که سر بدترین لحظه قطع شده، گفت‌وگویی که کسی شنیده، یا هر اتفاقی که وقتی حواست به کانال بوده و نه به جاده افتاده."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "Some jurisdictions do not allow certain limits to be excluded. Where that is the case, this section applies as far as it lawfully can and no further, and nothing here is intended to exclude liability for death or personal injury caused by negligence, or for fraud.",
+            "fa": "بعضی حوزه‌های قضایی اجازه نمی‌دن بعضی از این محدودیت‌ها کنار گذاشته بشن. هر جا که این‌طور باشه، این بخش تا همون‌جایی که قانوناً می‌تونه اعمال می‌شه و نه بیشتر، و هیچ‌چیزی اینجا قرار نیست مسئولیت مرگ یا آسیب جسمی ناشی از سهل‌انگاری، یا تقلب رو کنار بذاره."
+          }
+        }
+      ]
+    },
+    {
+      "id": "third-party",
+      "tocTitle": {
+        "en": "Things outside our control",
+        "fa": "چیزهای خارج از کنترل ما"
+      },
+      "title": {
+        "en": "Things outside our control",
+        "fa": "چیزهای خارج از کنترل ما"
+      },
+      "blocks": [
+        {
+          "type": "p",
+          "text": {
+            "en": "A few things Tark leans on belong to other people: the host that serves the Android download, the platform that handles donations, the public STUN server a browser guest uses to find its way, and the analytics service described in the privacy policy. Each has its own terms and its own privacy policy, and none of them is ours to guarantee.",
+            "fa": "چند چیزی که تَرک بهشون تکیه می‌کنه مال آدمای دیگه‌ست: میزبانی که فایل دانلود اندروید رو سرو می‌کنه، پلتفرمی که حمایت‌های مالی رو مدیریت می‌کنه، سرور عمومی STUN که مهمان مرورگری برای پیدا کردن راهش ازش استفاده می‌کنه، و سرویس تحلیلی که توی سیاست حریم خصوصی توضیح داده شده. هرکدوم شرایط و سیاست حریم خصوصی خودشون رو دارن و هیچ‌کدومشون چیزی نیست که ما بتونیم ضمانتش کنیم."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "The same goes for your own equipment. Phones, headsets, routers and operating-system updates change behaviour without asking us, and a release that works everywhere on Monday can meet a new Android build on Tuesday.",
+            "fa": "درباره‌ی تجهیزات خودت هم همین‌طوره. گوشی‌ها، هدست‌ها، مودم‌ها و به‌روزرسانی‌های سیستم‌عامل بدون اینکه از ما بپرسن رفتارشون رو عوض می‌کنن، و نسخه‌ای که دوشنبه همه‌جا کار می‌کنه ممکنه سه‌شنبه به یه بیلد جدید اندروید بخوره."
+          }
+        }
+      ]
+    },
+    {
+      "id": "ending",
+      "tocTitle": {
+        "en": "Changes, and endings",
+        "fa": "تغییرات، و پایان کار"
+      },
+      "title": {
+        "en": "Changes, and endings",
+        "fa": "تغییرات، و پایان کار"
+      },
+      "blocks": [
+        {
+          "type": "p",
+          "text": {
+            "en": "Features may be added, changed or removed as the app develops, and these terms may be updated with them. The date at the top of this page moves whenever they are, and the full history is in the public repository this site is part of.",
+            "fa": "با رشد برنامه ممکنه قابلیت‌هایی اضافه، عوض یا حذف بشن، و این شرایط هم ممکنه همراهشون به‌روز بشه. تاریخ بالای این صفحه هر بار که این اتفاق بیفته جلو می‌ره، و تاریخچه‌ی کاملش توی همون مخزن عمومی‌ایه که این سایت بخشی ازشه."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "We may also stop. The hosted parts — the download and the browser guest — could go offline, and development could end. If that happens, the app already on your phone keeps working exactly as it did, because nothing about a channel depends on us being here, and the source stays public for anyone who wants to carry it on.",
+            "fa": "ممکنه هم متوقف بشیم. بخش‌های میزبانی‌شده — فایل دانلود و مهمان مرورگری — ممکنه از دسترس خارج بشن و توسعه هم ممکنه تموم بشه. اگه این اتفاق بیفته، برنامه‌ای که همین الان روی گوشیته دقیقاً مثل قبل کار می‌کنه، چون هیچ‌چیز یه کانال به بودن ما وابسته نیست، و سورس هم عمومی می‌مونه برای هر کسی که بخواد ادامه‌ش بده."
+          }
+        }
+      ]
+    },
+    {
+      "id": "law",
+      "tocTitle": {
+        "en": "Governing law",
+        "fa": "قانون حاکم"
+      },
+      "title": {
+        "en": "Governing law",
+        "fa": "قانون حاکم"
+      },
+      "blocks": [
+        {
+          "type": "p",
+          "text": {
+            "en": "These terms are governed by the laws of the Islamic Republic of Iran, and disputes arising from them belong to the competent courts of Iran. If a mandatory consumer-protection rule where you live gives you rights this cannot override, it does not try to.",
+            "fa": "این شرایط تابع قوانین جمهوری اسلامی ایرانه و رسیدگی به اختلافات ناشی از اون با دادگاه‌های صالح ایران است. اگه قاعده‌ی آمره‌ی حمایت از مصرف‌کننده در محل زندگی شما حقوقی به شما می‌ده که این متن نمی‌تونه نادیده‌شون بگیره، قصد نادیده گرفتنشون رو هم نداره."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "If any part of these terms turns out to be unenforceable, the rest of it stands on its own.",
+            "fa": "اگه بخشی از این شرایط غیرقابل اجرا از آب دربیاد، بقیه‌ش سر جای خودش باقیه."
+          }
+        }
+      ]
+    },
+    {
+      "id": "contact",
+      "tocTitle": {
+        "en": "Contact",
+        "fa": "تماس"
+      },
+      "title": {
+        "en": "Contact",
+        "fa": "تماس"
+      },
+      "blocks": [
+        {
+          "type": "p",
+          "text": {
+            "en": "Questions about these terms, a commercial licence, or anything you think is missing from them go to the address below.",
+            "fa": "سؤال درباره‌ی این شرایط، پروانه‌ی تجاری، یا هر چیزی که فکر می‌کنی اینجا جاش خالیه، به نشانی زیر بفرست."
+          }
+        },
+        {
+          "type": "rows",
+          "items": [
+            {
+              "text": {
+                "en": "Licensing, these terms, and everything else.",
+                "fa": "پروانه، همین شرایط، و هر چیز دیگه‌ای."
+              },
+              "name": "tarkk.hp@gmail.com",
+              "href": "mailto:tarkk.hp@gmail.com"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "cross": [
+    {
+      "href": "privacy.html",
+      "kicker": {
+        "en": "ALSO",
+        "fa": "همچنین"
+      },
+      "title": {
+        "en": "Privacy Policy",
+        "fa": "سیاست حریم خصوصی"
+      },
+      "sub": {
+        "en": "What leaves your phone, what never does, and the switch for the rest.",
+        "fa": "چی از گوشیت بیرون می‌ره، چی هیچ‌وقت بیرون نمی‌ره، و کلیدِ بقیه‌ش."
+      }
+    },
+    {
+      "href": "/#download",
+      "kicker": {
+        "en": "GET TARKK",
+        "fa": "دریافت تَرک"
+      },
+      "title": {
+        "en": "Download the app",
+        "fa": "دریافت برنامه"
+      },
+      "sub": {
+        "en": "Android, or join from a browser with nothing to install.",
+        "fa": "اندروید، یا ورود از مرورگر بدون نیاز به نصب چیزی."
+      }
+    }
+  ]
+}

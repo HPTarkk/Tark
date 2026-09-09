@@ -1,0 +1,775 @@
+{
+  "schema": 1,
+  "id": "privacy",
+  "name": {
+    "en": "Privacy Policy",
+    "fa": "سیاست حریم خصوصی"
+  },
+  "version": 1,
+  "minAcceptedVersion": 1,
+  "effectiveDate": "2026-09-08",
+  "effectiveDateLabel": {
+    "en": "8 September 2026",
+    "fa": "۱۷ شهریور ۱۴۰۵"
+  },
+  "webPath": {
+    "en": "/privacy.html",
+    "fa": "/fa/privacy.html"
+  },
+  "meta": {
+    "title": {
+      "en": "Privacy Policy — Tarkk",
+      "fa": "سیاست حریم خصوصی — تَرک"
+    },
+    "description": {
+      "en": "What Tarkk collects, what it never collects, and why. No accounts, no server carrying your voice, and a switch for the one thing that is measured.",
+      "fa": "تَرک چی جمع می‌کنه، چی رو هیچ‌وقت جمع نمی‌کنه، و چرا. نه حساب کاربری، نه سروری که صداتون رو ببره، و یه کلید برای تنها چیزی که اندازه گرفته می‌شه."
+    },
+    "twitterDescription": {
+      "en": "No accounts, no server in the path, nothing recorded. The full account of what leaves your phone — and what never does.",
+      "fa": "نه حساب کاربری، نه سروری وسط راه، نه چیزی که ضبط بشه. گزارش کامل چیزی که از گوشیت بیرون می‌ره — و چیزی که هیچ‌وقت بیرون نمی‌ره."
+    }
+  },
+  "hero": {
+    "eyebrow": {
+      "en": "PRIVACY POLICY",
+      "fa": "سیاست حریم خصوصی"
+    },
+    "heading": {
+      "en": "A privacy policy for an app with no server.",
+      "fa": "سیاست حریم خصوصی برای برنامه‌ای که سرور نداره."
+    },
+    "lede": {
+      "en": "Tark connects phones straight to each other. There is no account to make, nothing in the middle carrying your voice, and no copy of a conversation anywhere. This page is the whole account of what does leave your phone — a short list — and what never does.",
+      "fa": "تَرک گوشی‌ها رو مستقیم به هم وصل می‌کنه. نه حسابی هست که بسازی، نه چیزی وسط راه که صداتون رو ببره، و نه نسخه‌ای از گفت‌وگو جایی می‌مونه. این صفحه کل حسابِ چیزیه که از گوشیت بیرون می‌ره — که فهرست کوتاهیه — و چیزی که هیچ‌وقت بیرون نمی‌ره."
+    },
+    "inEffectSince": {
+      "en": "In effect since",
+      "fa": "معتبر از"
+    },
+    "swap": {
+      "href": "terms.html",
+      "label": {
+        "en": "Read the Terms & Conditions →",
+        "fa": "شرایط و ضوابط رو بخونید →"
+      }
+    }
+  },
+  "contentsLabel": {
+    "en": "CONTENTS",
+    "fa": "فهرست"
+  },
+  "summary": {
+    "columns": [
+      {
+        "kind": "asks",
+        "title": {
+          "en": "WHAT LEAVES YOUR PHONE",
+          "fa": "چیزی که از گوشی شما بیرون می‌ره"
+        },
+        "items": [
+          {
+            "en": "Anonymous connection stats, unless you switch them off — which transport you used, whether it connected, and where it broke. Seven events, every value from a fixed list.",
+            "fa": "آمار بی‌نام اتصال، مگر اینکه خاموشش کنی — از کدوم مسیر وصل شدی، وصل شد یا نه، و کجا خراب شد. هفت رویداد، و هر مقدارش از یه فهرست ثابت میاد."
+          },
+          {
+            "en": "Your IP address, to the services any web page reaches: the font CDN this site loads from, and a public STUN server if you join a channel from a browser.",
+            "fa": "نشانی IP شما، به همون سرویس‌هایی که هر صفحه‌ی وبی بهشون وصل می‌شه: سرویس فونتی که این سایت ازش می‌گیره، و یه سرور عمومی STUN اگه از مرورگر وارد کانال بشی."
+          },
+          {
+            "en": "Whatever you deliberately send us — a diagnostic log attached to a bug report, or an email you write.",
+            "fa": "هر چیزی که خودت عمداً برامون می‌فرستی — لاگ عیب‌یابی که به گزارش خطا ضمیمه می‌کنی، یا ایمیلی که می‌نویسی."
+          }
+        ]
+      },
+      {
+        "kind": "nevers",
+        "title": {
+          "en": "WHAT NEVER DOES",
+          "fa": "چیزی که هیچ‌وقت بیرون نمی‌ره"
+        },
+        "items": [
+          {
+            "en": "Your voice. It is played and gone. Nothing records it, and no server of ours is anywhere in the path.",
+            "fa": "صدای شما. پخش می‌شه و تموم. هیچی ضبطش نمی‌کنه و هیچ سروری از ما توی مسیرش نیست."
+          },
+          {
+            "en": "Your callsign, the names of people around you, the network you are on, or any address belonging to your phone.",
+            "fa": "اسم مستعارت، اسم آدمای دور و برت، شبکه‌ای که روشی، یا هر نشانی‌ای که مال گوشیته."
+          },
+          {
+            "en": "Your location. Older versions of Android demand the permission before they will scan for radios; Tark never reads a position out of it.",
+            "fa": "موقعیت مکانی‌ت. اندرویدهای قدیمی‌تر بدون این دسترسی اجازه‌ی اسکن رادیویی نمی‌دن؛ تَرک هیچ‌وقت موقعیتی ازش نمی‌خونه."
+          },
+          {
+            "en": "A profile. There is no account, no phone number and no email, so there is nothing to build one out of.",
+            "fa": "پروفایل. نه حساب کاربری هست، نه شماره، نه ایمیل — پس چیزی نیست که باهاش پروفایلی ساخته بشه."
+          }
+        ]
+      }
+    ]
+  },
+  "sections": [
+    {
+      "id": "scope",
+      "tocTitle": {
+        "en": "Who this covers",
+        "fa": "چی رو پوشش می‌ده"
+      },
+      "title": {
+        "en": "Who this covers",
+        "fa": "این صفحه چی رو پوشش می‌ده"
+      },
+      "blocks": [
+        {
+          "type": "p",
+          "text": {
+            "en": "Tark (تَرک) is an independent project, not a company. This policy covers three things: the Android app, the browser guest at app.tarkk.ir, and this website.",
+            "fa": "تَرک یه پروژه‌ی مستقله، نه یه شرکت. این سیاست سه چیز رو پوشش می‌ده: اپلیکیشن اندروید، مهمانِ مرورگری روی app.tarkk.ir، و همین وب‌سایت."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "Every claim on this page is checkable. Tark is open source under the AGPL-3.0, so the code that does — or does not — collect something is public, and you are welcome to read it instead of taking our word for any of this.",
+            "fa": "هر ادعایی توی این صفحه قابل بررسیه. تَرک متن‌بازه و با پروانه‌ی AGPL-3.0 منتشر شده، پس کدی که چیزی رو جمع می‌کنه — یا نمی‌کنه — عمومیه و می‌تونی به‌جای اعتماد به حرف ما، خودت بخونیش."
+          }
+        }
+      ]
+    },
+    {
+      "id": "voice",
+      "tocTitle": {
+        "en": "Your voice",
+        "fa": "صدای شما"
+      },
+      "title": {
+        "en": "Your voice",
+        "fa": "صدای شما"
+      },
+      "blocks": [
+        {
+          "type": "p",
+          "text": {
+            "en": "Audio goes from one phone to another over the link you are already on: the Wi-Fi network, a hotspot one of the phones is hosting, or a direct Bluetooth connection. There is no server between them, ours or anyone else’s. Sound is played as it arrives and then discarded — it is never written to storage, never queued for upload, and never buffered anywhere it could be recovered from.",
+            "fa": "صدا از یه گوشی به گوشی دیگه می‌ره، از روی همون مسیری که روش هستید: شبکه‌ی وای‌فای، هات‌اسپاتی که یکی از گوشی‌ها بالا آورده، یا اتصال مستقیم بلوتوث. هیچ سروری بینشون نیست، نه مال ما نه مال کس دیگه. صدا همون‌طور که می‌رسه پخش می‌شه و بعد دور ریخته می‌شه — هیچ‌وقت روی حافظه نوشته نمی‌شه، هیچ‌وقت برای آپلود توی صف نمی‌ره، و هیچ‌وقت جایی نگه داشته نمی‌شه که بشه ازش بازیابیش کرد."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "This is a property of how the app is built rather than a promise we are keeping on your behalf. If everyone walks out of range, the conversation does not exist anywhere — including here.",
+            "fa": "این ویژگیِ خودِ ساختار برنامه‌ست، نه قولی که ما از طرف شما نگهش داشته باشیم. اگه همه از محدوده بیرون برن، اون گفت‌وگو دیگه هیچ‌جا وجود نداره — از جمله اینجا."
+          }
+        },
+        {
+          "type": "note",
+          "label": {
+            "en": "WORTH KNOWING",
+            "fa": "خوبه که بدونی"
+          },
+          "text": {
+            "en": "Tark does not add its own encryption on top of the link. On Wi-Fi your audio inherits whatever the network already protects it with; the Bluetooth link is opened without pairing, so that two phones that have never met can still talk. The short channel code keeps groups apart — it is not a password and it does not lock anything. Treat a Tark channel the way you would treat a radio channel: anyone with the right access to the same network, or the code, can listen. It is the wrong tool for a conversation that has to stay confidential.",
+            "fa": "تَرک رمزنگاری خودش رو روی این مسیر اضافه نمی‌کنه. روی وای‌فای، صدات همون حفاظتی رو داره که خودِ شبکه براش فراهم می‌کنه؛ اتصال بلوتوث هم بدون جفت‌شدن باز می‌شه تا دو گوشی که تا حالا همدیگه رو ندیدن بتونن حرف بزنن. کد کوتاه کانال فقط گروه‌ها رو از هم جدا نگه می‌داره — رمز عبور نیست و چیزی رو قفل نمی‌کنه. با یه کانال تَرک همون‌طور رفتار کن که با یه کانال بیسیم رفتار می‌کنی: هر کسی که دسترسی درست به همون شبکه، یا خودِ کد رو داشته باشه، می‌تونه گوش بده. برای گفت‌وگویی که باید محرمانه بمونه ابزار درستی نیست."
+          }
+        }
+      ]
+    },
+    {
+      "id": "on-device",
+      "tocTitle": {
+        "en": "What stays on your phone",
+        "fa": "چیزی که روی گوشی می‌مونه"
+      },
+      "title": {
+        "en": "What stays on your phone",
+        "fa": "چیزی که روی گوشی می‌مونه"
+      },
+      "blocks": [
+        {
+          "type": "p",
+          "text": {
+            "en": "Tark keeps a small amount of state so it can behave sensibly the second time you open it. All of it lives in the app’s own storage on your device. None of it syncs anywhere, and uninstalling the app removes the lot.",
+            "fa": "تَرک یه مقدار کمی وضعیت رو نگه می‌داره تا بار دومی که بازش می‌کنی درست رفتار کنه. همه‌ش توی حافظه‌ی خود برنامه روی دستگاه شماست. هیچ‌کدومش جایی هم‌گام نمی‌شه و با حذف برنامه، همه‌ش پاک می‌شه."
+          }
+        },
+        {
+          "type": "rows",
+          "items": [
+            {
+              "text": {
+                "en": "Language, theme, audio preferences, the callsign you type, and the switches on the Settings screen.",
+                "fa": "زبان، پوسته، تنظیمات صدا، اسم مستعاری که تایپ می‌کنی، و کلیدهای صفحه‌ی تنظیمات."
+              },
+              "name": {
+                "en": "Your settings",
+                "fa": "تنظیمات شما"
+              }
+            },
+            {
+              "text": {
+                "en": "Enough about the last channel and the last connection to reconnect you automatically when someone comes back into range.",
+                "fa": "به‌اندازه‌ای از آخرین کانال و آخرین اتصال که وقتی کسی دوباره وارد محدوده شد، خودکار وصلت کنه."
+              },
+              "name": {
+                "en": "Channel state",
+                "fa": "وضعیت کانال"
+              }
+            },
+            {
+              "text": {
+                "en": "A rotating technical log — session lifecycle, screen on and off, socket events, which peers a packet failed to reach. Never any audio. It is capped in size (8 MB by default, adjustable), it stays on the phone unless you deliberately share it, and Settings → Advanced → Diagnostics has a button that deletes it.",
+                "fa": "یه لاگ فنی چرخشی — چرخه‌ی جلسه، روشن و خاموش شدن صفحه، رویدادهای سوکت، اینکه بسته به کدوم گوشی نرسیده. هیچ‌وقت هیچ صدایی. اندازه‌ش سقف داره (پیش‌فرض ۸ مگابایت، قابل تغییر)، تا وقتی خودت عمداً به اشتراک نذاریش روی گوشی می‌مونه، و توی تنظیمات ← پیشرفته ← عیب‌یابی دکمه‌ای هست که پاکش می‌کنه."
+              },
+              "name": {
+                "en": "The diagnostic log",
+                "fa": "لاگ عیب‌یابی"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stats",
+      "tocTitle": {
+        "en": "Connection stats",
+        "fa": "آمار اتصال"
+      },
+      "title": {
+        "en": "Anonymous connection stats",
+        "fa": "آمار بی‌نام اتصال"
+      },
+      "blocks": [
+        {
+          "type": "p",
+          "text": {
+            "en": "This is the one thing Tark measures, and it exists for a single reason: the connection bugs worth fixing happen on somebody else’s phone, on a network we cannot reach, halfway through a ride. Without a count of which transports fail and where, those bugs get ranked by whoever shouts loudest instead of by how often they actually happen.",
+            "fa": "این تنها چیزیه که تَرک اندازه می‌گیره، و فقط یه دلیل داره: باگ‌های اتصالی که ارزش رفع کردن دارن، روی گوشی یکی دیگه اتفاق می‌افتن، روی شبکه‌ای که ما بهش دسترسی نداریم، وسط یه سفر. بدون شمارشِ اینکه کدوم مسیر و کجا شکست می‌خوره، اولویت این باگ‌ها رو صدای بلندتر تعیین می‌کنه، نه اینکه واقعاً چقدر تکرار می‌شن."
+          }
+        },
+        {
+          "type": "note",
+          "label": {
+            "en": "IT IS ON UNLESS YOU TURN IT OFF",
+            "fa": "روشنه، مگر اینکه خاموشش کنی"
+          },
+          "text": {
+            "en": "The switch is in Settings → Privacy, and it starts on. An opt-in version of this gets enabled by roughly nobody, which produces data too thin to act on. We think the honest trade is to leave it on and hold ourselves to a strict limit on what it may contain — no names, no addresses, no free text, no audio, ever — and to say so here rather than bury it. Turning it off does not disable a feature or degrade the app in any way.",
+            "fa": "کلیدش توی تنظیمات ← حریم خصوصی هست و از اول روشنه. نسخه‌ی «باید خودت روشنش کنی» رو تقریباً هیچ‌کس روشن نمی‌کنه و داده‌ی به‌دست‌اومده اون‌قدر کمه که نمی‌شه باهاش کاری کرد. به نظرمون معامله‌ی صادقانه اینه که روشن بمونه ولی خودمون رو به یه سقف سفت‌وسخت پایبند کنیم — نه اسمی، نه نشانی‌ای، نه متن آزادی، و هیچ‌وقت هیچ صدایی — و همین‌جا بگیمش، نه اینکه لای متن قایمش کنیم. خاموش کردنش هیچ قابلیتی رو از کار نمی‌ندازه و هیچ افتی توی برنامه ایجاد نمی‌کنه."
+          }
+        },
+        {
+          "type": "h3",
+          "text": {
+            "en": "The complete list of events",
+            "fa": "فهرست کامل رویدادها"
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "There are seven, and this is all of them. Every value below comes from a fixed list written into the app — there is no free-text field anywhere in this vocabulary for something personal to leak into, and every number is widened into a range before it is sent.",
+            "fa": "هفت‌تان، و همه‌شون همین‌هاست. هر مقداری که پایین می‌بینی از یه فهرست ثابت میاد که توی خود برنامه نوشته شده — توی این واژگان هیچ فیلد متنِ آزادی وجود نداره که چیزی شخصی ازش نشت کنه، و هر عددی قبل از ارسال به یه بازه تبدیل می‌شه."
+          }
+        },
+        {
+          "type": "rows",
+          "items": [
+            {
+              "text": {
+                "en": "That the intro was completed, whether it was skipped, and which language the app is set to.",
+                "fa": "اینکه معرفی اولیه تموم شده، اینکه ردش کردی یا نه، و اینکه برنامه روی کدوم زبونه."
+              },
+              "name": {
+                "en": "Setup finished",
+                "fa": "پایان راه‌اندازی"
+              }
+            },
+            {
+              "text": {
+                "en": "Which transport (Wi-Fi, Bluetooth, hotspot or browser guest) and which side you were — host or joiner.",
+                "fa": "کدوم مسیر (وای‌فای، بلوتوث، هات‌اسپات یا مهمان مرورگری) و اینکه کدوم طرف بودی — میزبان یا واردشونده."
+              },
+              "name": {
+                "en": "Pairing started",
+                "fa": "شروع اتصال"
+              }
+            },
+            {
+              "text": {
+                "en": "The same two, plus roughly how long it took as one of four ranges — under 5 seconds, 5–15, 15–45, or longer.",
+                "fa": "همون دوتا، به‌علاوه‌ی اینکه تقریباً چقدر طول کشید، به شکل یکی از چهار بازه — زیر ۵ ثانیه، ۵ تا ۱۵، ۱۵ تا ۴۵، یا بیشتر."
+              },
+              "name": {
+                "en": "Pairing connected",
+                "fa": "اتصال برقرار شد"
+              }
+            },
+            {
+              "text": {
+                "en": "The same two, plus how far it got (permission, discovery, dialling, handshake, hotspot setup) and why it stopped, from a list of eight reasons. This is the event the whole thing exists for.",
+                "fa": "همون دوتا، به‌علاوه‌ی اینکه تا کجا پیش رفت (دسترسی، پیدا کردن، شماره‌گیری، دست‌دادن، بالا آوردن هات‌اسپات) و اینکه چرا متوقف شد، از فهرستی با هشت دلیل. کل این ماجرا به‌خاطر همین یه رویداده."
+              },
+              "name": {
+                "en": "Pairing failed",
+                "fa": "اتصال ناموفق"
+              }
+            },
+            {
+              "text": {
+                "en": "The transport, and whether the first thing sent was speech or shared music.",
+                "fa": "مسیر اتصال، و اینکه اولین چیزی که فرستاده شد صحبت بود یا آهنگِ به‌اشتراک‌گذاشته‌شده."
+              },
+              "name": {
+                "en": "First transmission",
+                "fa": "اولین ارسال"
+              }
+            },
+            {
+              "text": {
+                "en": "The transport, a length range rather than a duration, how many people were in the channel at its fullest (exact up to three, then a range), how many times you transmitted on the same scale, and whether you left, the link dropped, or something errored.",
+                "fa": "مسیر اتصال، یه بازه‌ی زمانی به‌جای مدت دقیق، اینکه توی شلوغ‌ترین لحظه چند نفر توی کانال بودن (تا سه نفر دقیق، بعدش بازه‌ای)، اینکه چند بار حرف زدی با همون مقیاس، و اینکه خودت رفتی، ارتباط قطع شد، یا خطایی پیش اومد."
+              },
+              "name": {
+                "en": "Session ended",
+                "fa": "پایان جلسه"
+              }
+            },
+            {
+              "text": {
+                "en": "The name of one optional feature, from a list of eleven — self-mute, shared music, QR scan, the home-screen widget, auto-reconnect, noise suppression and so on. Once per session per feature, not once per tap.",
+                "fa": "اسم یکی از قابلیت‌های اختیاری، از فهرستی با یازده مورد — بی‌صدا کردن خود، پخش آهنگ مشترک، اسکن QR، ابزارک صفحه‌ی خانه، اتصال دوباره‌ی خودکار، حذف نویز و چیزهایی از این دست. برای هر قابلیت، هر جلسه یک‌بار، نه هر بار که لمسش می‌کنی."
+              },
+              "name": {
+                "en": "Feature used",
+                "fa": "استفاده از یک قابلیت"
+              }
+            }
+          ]
+        },
+        {
+          "type": "h3",
+          "text": {
+            "en": "Who processes it",
+            "fa": "چه کسی پردازشش می‌کنه"
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "AdTrace, an Iranian analytics provider — chosen because it is the one option that is both free and actually reachable from Iranian networks, where Firebase and Sentry are blocked at the endpoint. Their SDK is what receives the seven events above, and it also collects the technical device and install information described in their own privacy policy in order to count one phone as one install.",
+            "fa": "AdTrace، یه سرویس تحلیل ایرانی — انتخاب شد چون تنها گزینه‌ایه که هم رایگانه و هم واقعاً از شبکه‌های ایران در دسترسه، جایی که Firebase و Sentry از سمت مقصد بسته‌ن. کیت اون‌هاست که این هفت رویداد بالا رو دریافت می‌کنه، و برای اینکه هر گوشی رو به‌عنوان یه نصب بشماره، اطلاعات فنی دستگاه و نصب رو هم — همون‌طور که توی سیاست حریم خصوصی خودشون توضیح داده شده — جمع می‌کنه."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "Their SDK arrives wired for ad attribution, which Tark does not do. The advertising-ID permission it wants, and the checks it makes for whether Facebook and Instagram are installed on your phone, are stripped out of the app when it is built. On an app whose whole promise is that nothing leaves the local link, those would read as exactly the tracking we tell you is not here.",
+            "fa": "کیت اون‌ها به‌صورت پیش‌فرض برای انتساب تبلیغات آماده‌ست، کاری که تَرک انجام نمی‌ده. دسترسی به شناسه‌ی تبلیغاتی که می‌خواد، و بررسی‌هایی که برای نصب بودن فیسبوک و اینستاگرام روی گوشی شما انجام می‌ده، موقع ساخت برنامه حذف می‌شن. توی برنامه‌ای که کل وعده‌ش اینه که چیزی از مسیر محلی بیرون نمی‌ره، این‌ها دقیقاً همون ردیابی‌ای به نظر می‌رسن که می‌گیم اینجا خبری ازش نیست."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "When the switch is off, the SDK is not started at all. It is not started and then silenced — a started SDK has already sent a session ping, which is the thing somebody switching this off was switching off.",
+            "fa": "وقتی کلید خاموشه، کیت اصلاً راه‌اندازی نمی‌شه. این‌طور نیست که راه بیفته و بعد ساکتش کنیم — کیتی که راه افتاده، تا اون لحظه یه پینگ جلسه فرستاده، و همون دقیقاً همون چیزیه که آدم با خاموش کردن این کلید داشته خاموشش می‌کرده."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "The browser guest and every desktop build never load it in the first place; it only exists on Android and iOS.",
+            "fa": "مهمانِ مرورگری و همه‌ی نسخه‌های دسکتاپ اصلاً بارگذاریش نمی‌کنن؛ فقط روی اندروید و iOS وجود داره."
+          }
+        }
+      ]
+    },
+    {
+      "id": "permissions",
+      "tocTitle": {
+        "en": "Permissions",
+        "fa": "دسترسی‌ها"
+      },
+      "title": {
+        "en": "Permissions, and what each one is for",
+        "fa": "دسترسی‌ها، و اینکه هرکدوم به چه دردی می‌خوره"
+      },
+      "blocks": [
+        {
+          "type": "p",
+          "text": {
+            "en": "Android names some permissions much more broadly than the use they are being granted for. Here is the whole list, and what Tark actually does with each.",
+            "fa": "اندروید اسم بعضی دسترسی‌ها رو خیلی کلی‌تر از کاری که براش داده می‌شن گذاشته. این فهرست کامله، و اینکه تَرک واقعاً با هرکدوم چی‌کار می‌کنه."
+          }
+        },
+        {
+          "type": "rows",
+          "items": [
+            {
+              "text": {
+                "en": "To pick up your voice and send it to the channel, live. Nothing is recorded, and the app does not listen while you are not in a channel.",
+                "fa": "برای گرفتن صدات و فرستادنش به کانال، به‌صورت زنده. هیچی ضبط نمی‌شه و وقتی توی کانال نیستی برنامه گوش نمی‌ده."
+              },
+              "name": {
+                "en": "Microphone",
+                "fa": "میکروفون"
+              }
+            },
+            {
+              "text": {
+                "en": "To find the other phone and open the link. Only used while you are connecting over Bluetooth or the hotspot bridge.",
+                "fa": "برای پیدا کردن گوشی مقابل و باز کردن اتصال. فقط وقتی استفاده می‌شه که داری از طریق بلوتوث یا پل هات‌اسپات وصل می‌شی."
+              },
+              "name": {
+                "en": "Nearby devices / Bluetooth",
+                "fa": "دستگاه‌های اطراف / بلوتوث"
+              }
+            },
+            {
+              "text": {
+                "en": "Older versions of Android refuse to scan for Wi-Fi or Bluetooth at all unless an app holds this. Tark asks for it for that reason alone and never reads a position; on Android 13 and newer it is not requested.",
+                "fa": "اندرویدهای قدیمی‌تر بدون داشتن این دسترسی اصلاً اجازه‌ی اسکن وای‌فای یا بلوتوث نمی‌دن. تَرک فقط به همین دلیل ازش می‌خواد و هیچ‌وقت موقعیتی نمی‌خونه؛ روی اندروید ۱۳ و بالاتر اصلاً درخواستش نمی‌شه."
+              },
+              "name": {
+                "en": "Location (Android 12 and older)",
+                "fa": "موقعیت مکانی (اندروید ۱۲ و پایین‌تر)"
+              }
+            },
+            {
+              "text": {
+                "en": "To see which network you are on, to bind the channel to it, and to bring up a local hotspot when that is the route being used.",
+                "fa": "برای اینکه ببینه روی کدوم شبکه‌ای، کانال رو بهش وصل کنه، و اگه مسیر انتخابی این باشه، یه هات‌اسپات محلی بالا بیاره."
+              },
+              "name": {
+                "en": "Wi-Fi and network state",
+                "fa": "وضعیت وای‌فای و شبکه"
+              }
+            },
+            {
+              "text": {
+                "en": "So the channel keeps running with the screen off and the phone in a pocket. Android requires a visible notification for that.",
+                "fa": "تا کانال با صفحه‌ی خاموش و گوشی توی جیب هم روشن بمونه. اندروید برای این کار یه اعلان قابل‌مشاهده لازم داره."
+              },
+              "name": {
+                "en": "Notifications",
+                "fa": "اعلان‌ها"
+              }
+            },
+            {
+              "text": {
+                "en": "Optional, and asked for once. Without it some phones kill the channel a few minutes after the screen goes off.",
+                "fa": "اختیاریه و یک‌بار ازت خواسته می‌شه. بدون اون، بعضی گوشی‌ها چند دقیقه بعد از خاموش شدن صفحه کانال رو می‌کشن."
+              },
+              "name": {
+                "en": "Battery optimisation exemption",
+                "fa": "معافیت از بهینه‌سازی باتری"
+              }
+            },
+            {
+              "text": {
+                "en": "Only when you scan a channel’s QR code. Nothing is stored and no image leaves the phone.",
+                "fa": "فقط وقتی کد QR یه کانال رو اسکن می‌کنی. هیچی ذخیره نمی‌شه و هیچ تصویری از گوشی بیرون نمی‌ره."
+              },
+              "name": {
+                "en": "Camera",
+                "fa": "دوربین"
+              }
+            },
+            {
+              "text": {
+                "en": "Declared because Android treats local network sockets as internet access, and used by the analytics SDK when it is on. A Wi-Fi or Bluetooth channel needs no internet connection and works with none.",
+                "fa": "اعلام شده چون اندروید سوکت‌های شبکه‌ی محلی رو هم دسترسی اینترنت حساب می‌کنه، و وقتی تحلیل روشنه توسط کیت تحلیل استفاده می‌شه. کانال وای‌فای یا بلوتوث هیچ اینترنتی لازم نداره و بدون اینترنت هم کار می‌کنه."
+              },
+              "name": {
+                "en": "Internet",
+                "fa": "اینترنت"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "browser",
+      "tocTitle": {
+        "en": "Joining by browser",
+        "fa": "ورود از مرورگر"
+      },
+      "title": {
+        "en": "Joining from a browser",
+        "fa": "ورود از طریق مرورگر"
+      },
+      "blocks": [
+        {
+          "type": "p",
+          "text": {
+            "en": "app.tarkk.ir lets somebody join a channel without installing anything. It is a static page: it has no accounts, no database, and no record of who opened it.",
+            "fa": "app.tarkk.ir به کسی اجازه می‌ده بدون نصب چیزی وارد کانال بشه. یه صفحه‌ی ایستاست: نه حساب کاربری داره، نه پایگاه داده، و نه سابقه‌ای از اینکه کی بازش کرده."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "The connection itself is WebRTC, which browsers encrypt end-to-end by default — so a browser guest’s audio is in fact better protected in transit than the app-to-app Wi-Fi link. To let two devices that are not on the same network find each other, it asks a public STUN server run by Google what your public address looks like from the outside. That server sees your IP address and nothing else; it is not part of the audio path. Tark runs no relay server, which means audio never passes through any third party — and also means a strict corporate or carrier NAT can leave a browser guest unable to connect at all, with no fallback.",
+            "fa": "خود اتصال با WebRTC انجام می‌شه که مرورگرها به‌صورت پیش‌فرض سرتاسری رمزنگاریش می‌کنن — پس صدای مهمان مرورگری در مسیر، در واقع بهتر از لینک وای‌فای بین دو برنامه محافظت می‌شه. برای اینکه دو دستگاهی که روی یه شبکه نیستن همدیگه رو پیدا کنن، از یه سرور عمومی STUN که گوگل اجراش می‌کنه می‌پرسه نشانی عمومی شما از بیرون چه شکلیه. اون سرور فقط IP شما رو می‌بینه و هیچ چیز دیگه؛ بخشی از مسیر صدا نیست. تَرک هیچ سرور بازپخشی نداره، یعنی صدا هیچ‌وقت از هیچ واسطه‌ای رد نمی‌شه — و همین یعنی یه NAT سخت‌گیر شرکتی یا اپراتوری می‌تونه مهمان مرورگری رو کلاً بی‌اتصال بذاره، بدون هیچ راه جایگزینی."
+          }
+        }
+      ]
+    },
+    {
+      "id": "website",
+      "tocTitle": {
+        "en": "This website",
+        "fa": "همین وب‌سایت"
+      },
+      "title": {
+        "en": "This website",
+        "fa": "همین وب‌سایت"
+      },
+      "blocks": [
+        {
+          "type": "p",
+          "text": {
+            "en": "tarkk.ir sets no cookies, runs no analytics and carries no trackers or advertising. There is no consent banner because there is nothing to consent to.",
+            "fa": "tarkk.ir هیچ کوکی‌ای نمی‌ذاره، هیچ ابزار تحلیلی اجرا نمی‌کنه و هیچ ردیاب یا تبلیغی نداره. بنر رضایت هم نداره، چون چیزی نیست که بهش رضایت بدی."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "It stores exactly one thing in your browser: a key called tark_lang, remembering whether you asked for English or Persian so the site stops sending you to the other one. It never leaves your browser, and clearing your site data removes it.",
+            "fa": "فقط و فقط یه چیز توی مرورگرت ذخیره می‌کنه: کلیدی به اسم tark_lang، که یادش می‌مونه انگلیسی خواستی یا فارسی، تا سایت دیگه تو رو به اون یکی نفرسته. هیچ‌وقت از مرورگرت بیرون نمی‌ره و با پاک کردن داده‌های سایت حذف می‌شه."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "The page’s font is loaded from a public CDN, which — like any host serving any file to your browser — sees the request and your IP address. Everything else on the page is served from the site itself.",
+            "fa": "فونت این صفحه از یه CDN عمومی بارگذاری می‌شه که — مثل هر میزبانی که فایلی به مرورگرت می‌ده — درخواست و نشانی IP شما رو می‌بینه. بقیه‌ی چیزهای صفحه از خود سایت سرو می‌شن."
+          }
+        }
+      ]
+    },
+    {
+      "id": "services",
+      "tocTitle": {
+        "en": "Services we rely on",
+        "fa": "سرویس‌هایی که استفاده می‌کنیم"
+      },
+      "title": {
+        "en": "Services we rely on",
+        "fa": "سرویس‌هایی که ازشون استفاده می‌کنیم"
+      },
+      "blocks": [
+        {
+          "type": "p",
+          "text": {
+            "en": "The complete list of third parties any part of Tark touches. Each has its own privacy policy, which governs what it does with what it sees.",
+            "fa": "فهرست کامل واسطه‌هایی که هر بخشی از تَرک باهاشون سر و کار داره. هرکدوم سیاست حریم خصوصی خودشون رو دارن که تعیین می‌کنه با چیزی که می‌بینن چی‌کار می‌کنن."
+          }
+        },
+        {
+          "type": "rows",
+          "items": [
+            {
+              "text": {
+                "en": "Receives the connection stats described above, while that switch is on. Android only.",
+                "fa": "آمار اتصالی که بالاتر توضیح داده شد رو دریافت می‌کنه، تا وقتی اون کلید روشنه. فقط اندروید."
+              },
+              "name": "AdTrace",
+              "href": "https://adtrace.io",
+              "external": true
+            },
+            {
+              "text": {
+                "en": "Sees the IP address of a browser guest while a connection is being set up. Never carries audio.",
+                "fa": "موقع برقراری اتصال، نشانی IP مهمان مرورگری رو می‌بینه. هیچ‌وقت صدایی رو حمل نمی‌کنه."
+              },
+              "name": "Google STUN",
+              "href": "https://policies.google.com/privacy",
+              "external": true
+            },
+            {
+              "text": {
+                "en": "Serves this website’s font, and sees the request for it the way any file host would.",
+                "fa": "فونت این وب‌سایت رو سرو می‌کنه و مثل هر میزبان فایلی، درخواستش رو می‌بینه."
+              },
+              "name": "jsDelivr",
+              "href": "https://www.jsdelivr.com/terms/privacy-policy-jsdelivr-net",
+              "external": true
+            },
+            {
+              "text": {
+                "en": "Hosts the Android download. Sees the download request, as any file host does.",
+                "fa": "میزبان فایل دانلود اندرویده. مثل هر میزبان فایلی، درخواست دانلود رو می‌بینه."
+              },
+              "name": "ArvanCloud",
+              "href": "https://www.arvancloud.ir",
+              "external": true
+            },
+            {
+              "text": {
+                "en": "Handles donations, only if you choose to make one. That happens entirely on their site; no payment detail ever passes through Tark.",
+                "fa": "حمایت‌های مالی رو مدیریت می‌کنه، فقط اگه خودت بخوای حمایت کنی. این کار کاملاً روی سایت خودشون انجام می‌شه؛ هیچ اطلاعات پرداختی از تَرک رد نمی‌شه."
+              },
+              "name": "Reymit",
+              "href": "https://reymit.ir/tark",
+              "external": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "children",
+      "tocTitle": {
+        "en": "Children",
+        "fa": "کودکان"
+      },
+      "title": {
+        "en": "Children",
+        "fa": "کودکان"
+      },
+      "blocks": [
+        {
+          "type": "p",
+          "text": {
+            "en": "Tark is not built for or aimed at children under 13. Because there is no account and no sign-up, the app has no way to tell how old anyone is and collects nothing that would identify a child. If you are a parent and something here concerns you, write to us — but the honest answer is usually that there is nothing held anywhere for us to delete.",
+            "fa": "تَرک برای بچه‌های زیر ۱۳ سال ساخته نشده و مخاطبش اون‌ها نیستن. چون نه حساب کاربری هست نه ثبت‌نام، برنامه هیچ راهی نداره که سن کسی رو بفهمه و چیزی که یه بچه رو شناسایی کنه جمع نمی‌کنه. اگه پدر یا مادری هستی و چیزی اینجا نگرانت می‌کنه، برامون بنویس — ولی جواب صادقانه معمولاً اینه که چیزی جایی نگه داشته نشده که ما پاکش کنیم."
+          }
+        }
+      ]
+    },
+    {
+      "id": "controls",
+      "tocTitle": {
+        "en": "Your controls",
+        "fa": "اختیارات شما"
+      },
+      "title": {
+        "en": "What you can control",
+        "fa": "چیزهایی که دست خودته"
+      },
+      "blocks": [
+        {
+          "type": "list",
+          "items": [
+            {
+              "en": "Turn connection stats off in Settings → Privacy. Nothing further is sent from that moment, and nothing about the app changes.",
+              "fa": "آمار اتصال رو توی تنظیمات ← حریم خصوصی خاموش کن. از همون لحظه دیگه چیزی فرستاده نمی‌شه و هیچ‌چیز برنامه فرقی نمی‌کنه."
+            },
+            {
+              "en": "Delete the diagnostic log at any time in Settings → Advanced → Diagnostics, or shrink the cap on how much of it is kept.",
+              "fa": "لاگ عیب‌یابی رو هر وقت خواستی از تنظیمات ← پیشرفته ← عیب‌یابی پاک کن، یا سقف چیزی که نگه داشته می‌شه رو کم کن."
+            },
+            {
+              "en": "Revoke any Android permission in the system settings. The app will tell you plainly what stopped working rather than failing silently.",
+              "fa": "هر دسترسی اندرویدی رو از تنظیمات سیستم پس بگیر. برنامه به‌جای اینکه بی‌صدا از کار بیفته، صاف و ساده بهت می‌گه چی از کار افتاده."
+            },
+            {
+              "en": "Uninstall, which removes everything the app kept — there is no copy of it anywhere else to ask about.",
+              "fa": "حذفش کن، که هر چی برنامه نگه داشته بود رو پاک می‌کنه — نسخه‌ی دیگه‌ای جایی نیست که سراغش رو بگیری."
+            },
+            {
+              "en": "Or build it yourself without analytics compiled in at all. The source is public and the build flag for it is documented in the README.",
+              "fa": "یا خودت بدون اینکه اصلاً تحلیلی توش کامپایل بشه بسازش. سورس عمومیه و پرچم ساختش توی README مستند شده."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "changes",
+      "tocTitle": {
+        "en": "Changes to this page",
+        "fa": "تغییرات این صفحه"
+      },
+      "title": {
+        "en": "Changes to this page",
+        "fa": "تغییرات این صفحه"
+      },
+      "blocks": [
+        {
+          "type": "p",
+          "text": {
+            "en": "If what Tark collects ever changes, this page changes with it and the date at the top moves. A change that widens what is collected will be called out in the app’s release notes rather than left for you to spot here.",
+            "fa": "اگه چیزی که تَرک جمع می‌کنه عوض بشه، این صفحه هم باهاش عوض می‌شه و تاریخ بالای صفحه جلو می‌ره. تغییری که دامنه‌ی جمع‌آوری رو بازتر کنه، توی یادداشت‌های انتشار برنامه اعلام می‌شه، نه اینکه بذاریمش پای اینکه خودت اینجا پیداش کنی."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "This site is part of the public repository, so the full history of what this page has said is in the commit log — you do not have to trust a “last updated” date on its own.",
+            "fa": "این سایت بخشی از مخزن عمومیه، پس تاریخچه‌ی کامل چیزی که این صفحه گفته توی لاگ کامیت‌هاست — لازم نیست فقط به یه تاریخ «آخرین به‌روزرسانی» اعتماد کنی."
+          }
+        }
+      ]
+    },
+    {
+      "id": "contact",
+      "tocTitle": {
+        "en": "Contact",
+        "fa": "تماس"
+      },
+      "title": {
+        "en": "Contact",
+        "fa": "تماس"
+      },
+      "blocks": [
+        {
+          "type": "p",
+          "text": {
+            "en": "Questions about anything on this page, or about something you think it fails to describe, go to the address below. A specific question about a specific line gets a specific answer.",
+            "fa": "سؤال درباره‌ی هر چیزی توی این صفحه، یا درباره‌ی چیزی که فکر می‌کنی اینجا توضیح داده نشده، به نشانی زیر بفرست. سؤال مشخص درباره‌ی یه خط مشخص، جواب مشخص می‌گیره."
+          }
+        },
+        {
+          "type": "rows",
+          "items": [
+            {
+              "text": {
+                "en": "Privacy questions, and everything else.",
+                "fa": "سؤالات حریم خصوصی، و هر چیز دیگه‌ای."
+              },
+              "name": "tarkk.hp@gmail.com",
+              "href": "mailto:tarkk.hp@gmail.com"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "cross": [
+    {
+      "href": "terms.html",
+      "kicker": {
+        "en": "NEXT",
+        "fa": "بعدی"
+      },
+      "title": {
+        "en": "Terms & Conditions",
+        "fa": "شرایط و ضوابط"
+      },
+      "sub": {
+        "en": "What you can expect from Tark, and what it cannot promise.",
+        "fa": "چیزی که می‌تونی از تَرک انتظار داشته باشی، و چیزی که نمی‌تونه قولش رو بده."
+      }
+    },
+    {
+      "href": "/#download",
+      "kicker": {
+        "en": "GET TARKK",
+        "fa": "دریافت تَرک"
+      },
+      "title": {
+        "en": "Download the app",
+        "fa": "دریافت برنامه"
+      },
+      "sub": {
+        "en": "Android, or join from a browser with nothing to install.",
+        "fa": "اندروید، یا ورود از مرورگر بدون نیاز به نصب چیزی."
+      }
+    }
+  ]
+}

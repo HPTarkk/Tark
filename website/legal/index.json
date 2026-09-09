@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "generated": "scripts/build-legal-pages.mjs",
+  "documents": [
+    {
+      "id": "privacy",
+      "name": {
+        "en": "Privacy Policy",
+        "fa": "سیاست حریم خصوصی"
+      },
+      "version": 1,
+      "minAcceptedVersion": 1,
+      "effectiveDate": "2026-09-08",
+      "file": "privacy.json",
+      "webPath": {
+        "en": "/privacy.html",
+        "fa": "/fa/privacy.html"
+      }
+    },
+    {
+      "id": "terms",
+      "name": {
+        "en": "Terms & Conditions",
+        "fa": "شرایط و ضوابط"
+      },
+      "version": 1,
+      "minAcceptedVersion": 1,
+      "effectiveDate": "2026-09-08",
+      "file": "terms.json",
+      "webPath": {
+        "en": "/terms.html",
+        "fa": "/fa/terms.html"
+      }
+    }
+  ]
+}

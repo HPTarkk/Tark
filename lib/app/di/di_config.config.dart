@@ -26,6 +26,7 @@ import 'package:tark/core/home_widget/widget_control_channel.dart' as _i970;
 import 'package:tark/core/identity/channel_membership.dart' as _i523;
 import 'package:tark/core/identity/device_identity.dart' as _i990;
 import 'package:tark/core/identity/session_epoch.dart' as _i835;
+import 'package:tark/core/network/api_client.dart' as _i775;
 import 'package:tark/core/settings/settings_repository.dart' as _i349;
 import 'package:tark/core/settings/settings_repository_impl.dart' as _i632;
 import 'package:tark/core/sfx/sfx_player.dart' as _i690;
@@ -37,6 +38,13 @@ import 'package:tark/feature/audio/domain/service/session_wake_lock.dart'
     as _i430;
 import 'package:tark/feature/landing/presentation/manager/landing_cubit.dart'
     as _i205;
+import 'package:tark/feature/legal/data/legal_asset_source.dart' as _i762;
+import 'package:tark/feature/legal/data/legal_remote_source.dart' as _i496;
+import 'package:tark/feature/legal/data/legal_repository_impl.dart' as _i979;
+import 'package:tark/feature/legal/domain/repository/legal_repository.dart'
+    as _i633;
+import 'package:tark/feature/legal/presentation/manager/consent_cubit.dart'
+    as _i724;
 import 'package:tark/feature/onboarding/presentation/manager/onboarding_cubit.dart'
     as _i766;
 import 'package:tark/feature/room/data/repository/shared_preferences_room_repository.dart'
@@ -87,7 +95,7 @@ import 'package:tark/feature/transfer/presentation/manager/guest_link_cubit.dart
 import 'package:tark/feature/transfer/presentation/manager/wifi_hotspot_cubit.dart'
     as _i1045;
 import 'package:tark/feature/walkie/presentation/manager/walkie_talkie_cubit.dart'
-    as _i496;
+    as _i497;
 
 extension GetItInjectableX on _i174.GetIt {
   // initializes the registration of main-scope dependencies inside of GetIt
@@ -97,6 +105,8 @@ extension GetItInjectableX on _i174.GetIt {
   }) async {
     final gh = _i526.GetItHelper(this, environment, environmentFilter);
     final registerThirdParty = _$RegisterThirdParty();
+    final networkModule = _$NetworkModule();
+    final legalModule = _$LegalModule();
     final billingModule = _$BillingModule();
     final transferModule = _$TransferModule();
     await gh.factoryAsync<_i460.SharedPreferences>(
@@ -106,6 +116,10 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i462.NeHotspotJoiner>(() => _i462.NeHotspotJoiner());
     gh.factory<_i462.AndroidWifiJoiner>(() => _i462.AndroidWifiJoiner());
     gh.lazySingleton<_i891.AudioIo>(() => registerThirdParty.audioIo);
+    gh.lazySingleton<_i775.ApiClient>(() => networkModule.apiClient());
+    gh.lazySingleton<_i762.LegalAssetSource>(
+      () => legalModule.legalAssetSource(),
+    );
     gh.lazySingleton<_i547.BillingService>(
       () => billingModule.billingService(),
     );
@@ -119,8 +133,18 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i175.RoomRepository>(
       () => _i429.SharedPreferencesRoomRepository(),
     );
+    gh.lazySingleton<_i496.LegalRemoteSource>(
+      () => _i496.LegalRemoteSource(gh<_i775.ApiClient>()),
+    );
     gh.lazySingleton<_i690.SfxPlayer>(() => const _i690.SfxServicePlayer());
     gh.lazySingleton<_i794.HotspotHost>(() => _i462.WifiHotspotController());
+    gh.lazySingleton<_i633.LegalRepository>(
+      () => _i979.LegalRepositoryImpl(
+        gh<_i762.LegalAssetSource>(),
+        gh<_i496.LegalRemoteSource>(),
+        gh<_i460.SharedPreferences>(),
+      ),
+    );
     gh.lazySingleton<_i430.SessionWakeLock>(
       () => const _i278.SessionKeepAliveWakeLock(),
     );
@@ -155,12 +179,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i482.WebRtcTransferRepository>(),
       ),
     );
-    gh.lazySingleton<_i349.SettingsRepository>(
-      () => _i632.SettingsRepositoryImpl(gh<_i460.SharedPreferences>()),
-    );
-    gh.lazySingleton<_i52.LicenseGate>(
-      () => _i52.LicenseGateImpl(gh<_i721.EntitlementStore>()),
-    );
     gh.lazySingleton<_i1043.WifiTransferRepository>(
       () => _i627.WifiTransferRepositoryImpl(
         gh<_i990.DeviceIdentity>(),
@@ -169,6 +187,15 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i523.ChannelMembership>(),
       ),
       dispose: (i) => i.dispose(),
+    );
+    gh.lazySingleton<_i349.SettingsRepository>(
+      () => _i632.SettingsRepositoryImpl(gh<_i460.SharedPreferences>()),
+    );
+    gh.lazySingleton<_i52.LicenseGate>(
+      () => _i52.LicenseGateImpl(gh<_i721.EntitlementStore>()),
+    );
+    gh.factory<_i724.ConsentCubit>(
+      () => _i724.ConsentCubit(gh<_i633.LegalRepository>()),
     );
     gh.lazySingleton<_i991.HotspotLinkKeeper>(
       () => _i697.HotspotLinkKeeperImpl(
@@ -265,8 +292,8 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i638.BluetoothTransport>(),
       ),
     );
-    gh.factory<_i496.WalkieTalkieCubit>(
-      () => _i496.WalkieTalkieCubit(
+    gh.factory<_i497.WalkieTalkieCubit>(
+      () => _i497.WalkieTalkieCubit(
         gh<_i138.AudioEngine>(),
         gh<_i431.TransferRepository>(),
         gh<_i431.TransferModeStore>(),
@@ -287,6 +314,10 @@ extension GetItInjectableX on _i174.GetIt {
 }
 
 class _$RegisterThirdParty extends _i250.RegisterThirdParty {}
+
+class _$NetworkModule extends _i250.NetworkModule {}
+
+class _$LegalModule extends _i250.LegalModule {}
 
 class _$BillingModule extends _i250.BillingModule {}
 

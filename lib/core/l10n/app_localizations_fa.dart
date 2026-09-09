@@ -2055,4 +2055,40 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get confirm_cancel => 'انصراف';
+
+  @override
+  String get consent_title_first => 'قبل از شروع';
+
+  @override
+  String get consent_title_updated => 'این‌ها به‌روز شدن';
+
+  @override
+  String get consent_body_first =>
+      'تَرک نه حساب کاربری داره نه سروری که صداتون رو ببره. این دو تا متن می‌گن این در عمل یعنی چی — و از چی محافظتت نمی‌کنه. خلاصه‌ی هرکدوم پایینه؛ متن کامل هم یک لمس فاصله داره.';
+
+  @override
+  String get consent_body_updated =>
+      'متن‌های پایین از آخرین باری که قبولشون کردی عوض شدن. خلاصه‌ی هرکدوم اینجاست، و اگه خواستی، متن کاملش.';
+
+  @override
+  String get consent_accept => 'موافقم — ادامه';
+
+  @override
+  String get consent_read_full => 'خوندن متن کامل';
+
+  @override
+  String get consent_effective_since => 'معتبر از';
+
+  @override
+  String get consent_short_version => 'خلاصه‌ی ماجرا';
+
+  @override
+  String get consent_updated_badge => 'به‌روز شد';
+
+  @override
+  String get consent_new_badge => 'تازه';
+
+  @override
+  String get consent_partial_notice =>
+      'این نسخه‌ی برنامه نمی‌تونه بخشی از این متن رو نشون بده. متن کامل رو توی tarkk.ir بخون.';
 }

@@ -4,6 +4,9 @@ import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/entitlement/billing_service.dart';
+import '../../core/network/api_client.dart';
+import '../../core/network/http_api_client.dart';
+import '../../feature/legal/data/legal_asset_source.dart';
 
 import '../../feature/transfer/data/repository/bluetooth_transfer_repository.dart';
 import '../../feature/transfer/data/repository/live_transfer_repository.dart';
@@ -30,6 +33,29 @@ abstract class RegisterThirdParty {
   /// receives this instance instead of calling getInstance() itself.
   @preResolve
   Future<SharedPreferences> get prefs => SharedPreferences.getInstance();
+}
+
+@module
+abstract class NetworkModule {
+  /// One HTTP client for the whole process.
+  ///
+  /// Registered here rather than annotated on the class because
+  /// [HttpApiClient] takes an optional `http.Client` as a test seam, which
+  /// injectable would otherwise try to resolve out of the graph.
+  ///
+  /// The app makes exactly one kind of request through this: checking
+  /// whether a newer privacy policy or terms document has been published.
+  /// Nothing about a conversation goes near it — see core/network.
+  @lazySingleton
+  ApiClient apiClient() => HttpApiClient();
+}
+
+@module
+abstract class LegalModule {
+  /// The documents bundled in the APK. Same reasoning as [NetworkModule]:
+  /// the optional AssetBundle is a seam for tests.
+  @lazySingleton
+  LegalAssetSource legalAssetSource() => LegalAssetSource();
 }
 
 @module

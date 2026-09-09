@@ -3763,6 +3763,72 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'انصراف'**
   String get confirm_cancel;
+
+  /// No description provided for @consent_title_first.
+  ///
+  /// In fa, this message translates to:
+  /// **'قبل از شروع'**
+  String get consent_title_first;
+
+  /// No description provided for @consent_title_updated.
+  ///
+  /// In fa, this message translates to:
+  /// **'این‌ها به‌روز شدن'**
+  String get consent_title_updated;
+
+  /// No description provided for @consent_body_first.
+  ///
+  /// In fa, this message translates to:
+  /// **'تَرک نه حساب کاربری داره نه سروری که صداتون رو ببره. این دو تا متن می‌گن این در عمل یعنی چی — و از چی محافظتت نمی‌کنه. خلاصه‌ی هرکدوم پایینه؛ متن کامل هم یک لمس فاصله داره.'**
+  String get consent_body_first;
+
+  /// No description provided for @consent_body_updated.
+  ///
+  /// In fa, this message translates to:
+  /// **'متن‌های پایین از آخرین باری که قبولشون کردی عوض شدن. خلاصه‌ی هرکدوم اینجاست، و اگه خواستی، متن کاملش.'**
+  String get consent_body_updated;
+
+  /// No description provided for @consent_accept.
+  ///
+  /// In fa, this message translates to:
+  /// **'موافقم — ادامه'**
+  String get consent_accept;
+
+  /// No description provided for @consent_read_full.
+  ///
+  /// In fa, this message translates to:
+  /// **'خوندن متن کامل'**
+  String get consent_read_full;
+
+  /// No description provided for @consent_effective_since.
+  ///
+  /// In fa, this message translates to:
+  /// **'معتبر از'**
+  String get consent_effective_since;
+
+  /// No description provided for @consent_short_version.
+  ///
+  /// In fa, this message translates to:
+  /// **'خلاصه‌ی ماجرا'**
+  String get consent_short_version;
+
+  /// No description provided for @consent_updated_badge.
+  ///
+  /// In fa, this message translates to:
+  /// **'به‌روز شد'**
+  String get consent_updated_badge;
+
+  /// No description provided for @consent_new_badge.
+  ///
+  /// In fa, this message translates to:
+  /// **'تازه'**
+  String get consent_new_badge;
+
+  /// No description provided for @consent_partial_notice.
+  ///
+  /// In fa, this message translates to:
+  /// **'این نسخه‌ی برنامه نمی‌تونه بخشی از این متن رو نشون بده. متن کامل رو توی tarkk.ir بخون.'**
+  String get consent_partial_notice;
 }
 
 class _AppLocalizationsDelegate

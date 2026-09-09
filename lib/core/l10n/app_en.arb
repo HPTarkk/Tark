@@ -609,5 +609,16 @@
     "header_alone": "ALONE",
     "entry_room_unavailable": "This room is no longer available to start.",
     "entry_back": "Back",
-    "confirm_cancel": "Cancel"
+    "confirm_cancel": "Cancel",
+    "consent_title_first": "Before we start",
+    "consent_title_updated": "We’ve updated these",
+    "consent_body_first": "Tark has no account and no server carrying your voice. These two documents say what that means in practice — and what it doesn’t protect you from. The short version of each is below; the full text is one tap away.",
+    "consent_body_updated": "The documents below have changed since you last agreed to them. Here’s the short version of each, and the full text if you want it.",
+    "consent_accept": "I agree — continue",
+    "consent_read_full": "Read the full text",
+    "consent_effective_since": "In effect since",
+    "consent_short_version": "THE SHORT VERSION",
+    "consent_updated_badge": "UPDATED",
+    "consent_new_badge": "NEW",
+    "consent_partial_notice": "This version of the app can’t show part of this document. Read it in full at tarkk.ir."
 }

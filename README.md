@@ -244,6 +244,72 @@ flutter build apk --release --dart-define=ADTRACE_TOKEN=
 
 ---
 
+## Legal documents
+
+The privacy policy and the terms have **one source**: `website/legal/*.json`.
+Both languages live in the same file as `{en, fa}` pairs at every leaf, so
+there is no shape in which one language has a section the other does not.
+
+`scripts/build-legal-pages.mjs` renders everything else from it:
+
+| Output | What it is |
+| :--- | :--- |
+| `website/privacy.html`, `website/terms.html` | the English pages |
+| `website/fa/privacy.html`, `website/fa/terms.html` | the Persian pages |
+| `website/legal/index.json` | the version manifest the app polls |
+| `assets/legal/*.json` | the same bytes, bundled into the APK |
+
+```bash
+node scripts/build-legal-pages.mjs           # rebuild everything
+node scripts/build-legal-pages.mjs --check   # CI: verify, write nothing
+```
+
+**Never hand-edit any of those outputs** — change the JSON and rebuild. CI runs
+`--check`, so a commit that edits the source without rebuilding fails rather
+than shipping an app whose policy differs from the published one.
+
+### Versioning, and when people get asked again
+
+Each document carries two integers:
+
+- **`version`** — increments on *every* published change, typo fixes included.
+- **`minAcceptedVersion`** — the oldest `version` still counted as accepted.
+
+That second one is the only knob that interrupts anybody. A typo fix raises
+`version` and leaves it alone, so nobody is re-prompted for a missing comma; a
+substantive change raises both.
+
+### How the app behaves
+
+On launch the app checks the documents **bundled in the APK** against what this
+device has accepted — no network, always completes — and gates on the result.
+Separately and in the background it asks `tarkk.ir/legal/index.json` whether
+anything newer exists.
+
+The rules, which are pinned by `test/legal_consent_test.dart`:
+
+- A failed, slow or absent refresh **changes nothing**. Tark is for talking
+  when there is no internet; it must never refuse to work because a web server
+  was unreachable.
+- The network can only ever reveal that something *newer* exists. It is never
+  what lets the app show a document at all.
+- A newer manifest is adopted only once **every document it names has also been
+  downloaded and parsed** — so the app can never be in the state of knowing it
+  must block while being unable to show what it is blocking on.
+- Nothing downloaded is written to disk. The knowledge and the text stay
+  together, in memory, for the session.
+
+Point a fork at its own copy:
+
+```bash
+flutter build apk --dart-define=TARK_LEGAL_BASE=https://example.com/legal/
+```
+
+An empty value compiles the check out entirely, the way an empty
+`ADTRACE_TOKEN` does for analytics.
+
+---
+
 ## Diagnostics
 
 The bugs worth chasing here only happen on someone else's phone, mid-ride. `adb logcat` reaches none of that, so the app keeps its own rotating log.

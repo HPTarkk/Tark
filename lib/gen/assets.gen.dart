@@ -58,6 +58,22 @@ class $AssetsImageGen {
   ];
 }
 
+class $AssetsLegalGen {
+  const $AssetsLegalGen();
+
+  /// File path: assets/legal/index.json
+  String get index => 'assets/legal/index.json';
+
+  /// File path: assets/legal/privacy.json
+  String get privacy => 'assets/legal/privacy.json';
+
+  /// File path: assets/legal/terms.json
+  String get terms => 'assets/legal/terms.json';
+
+  /// List of all assets
+  List<String> get values => [index, privacy, terms];
+}
+
 class $AssetsSfxGen {
   const $AssetsSfxGen();
 
@@ -113,6 +129,7 @@ class $AssetsSfxGen {
 abstract final class Assets {
   static const $AssetsIconGen icon = $AssetsIconGen();
   static const $AssetsImageGen image = $AssetsImageGen();
+  static const $AssetsLegalGen legal = $AssetsLegalGen();
   static const $AssetsSfxGen sfx = $AssetsSfxGen();
 }
 

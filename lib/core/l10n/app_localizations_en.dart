@@ -2062,4 +2062,40 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get confirm_cancel => 'Cancel';
+
+  @override
+  String get consent_title_first => 'Before we start';
+
+  @override
+  String get consent_title_updated => 'We’ve updated these';
+
+  @override
+  String get consent_body_first =>
+      'Tark has no account and no server carrying your voice. These two documents say what that means in practice — and what it doesn’t protect you from. The short version of each is below; the full text is one tap away.';
+
+  @override
+  String get consent_body_updated =>
+      'The documents below have changed since you last agreed to them. Here’s the short version of each, and the full text if you want it.';
+
+  @override
+  String get consent_accept => 'I agree — continue';
+
+  @override
+  String get consent_read_full => 'Read the full text';
+
+  @override
+  String get consent_effective_since => 'In effect since';
+
+  @override
+  String get consent_short_version => 'THE SHORT VERSION';
+
+  @override
+  String get consent_updated_badge => 'UPDATED';
+
+  @override
+  String get consent_new_badge => 'NEW';
+
+  @override
+  String get consent_partial_notice =>
+      'This version of the app can’t show part of this document. Read it in full at tarkk.ir.';
 }

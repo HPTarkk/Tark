@@ -87,6 +87,15 @@ jobs:
       - name: Verify website localization output
         run: node scripts/build-website-i18n.mjs --check
 
+      # The legal documents have three consumers generated from one source:
+      # the English pages, the Persian pages, and the copy bundled into the
+      # APK. A commit that edits website/legal/*.json without rebuilding
+      # would ship an app whose privacy policy differs from the published
+      # one, which is the exact failure this whole arrangement exists to
+      # prevent.
+      - name: Verify legal documents and app assets are in step
+        run: node scripts/build-legal-pages.mjs --check
+
       - name: Protocol compatibility tests
         shell: bash
         run: |
