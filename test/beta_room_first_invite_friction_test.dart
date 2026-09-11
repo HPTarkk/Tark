@@ -72,25 +72,31 @@ void main() {
       expect(hotspotReady.isCompleted, isFalse);
       expect(find.byKey(const Key('one-scan-room-invite-qr')), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsNothing);
-      expect((await repository.list()).single.room.pendingMembers, hasLength(1));
+      expect(
+        (await repository.list()).single.room.pendingMembers,
+        hasLength(1),
+      );
       expect(tester.takeException(), isNull);
     },
   );
 
-  test('startup composition bypasses ConsentGate but keeps legal code', () async {
-    final app = await File('lib/app/my_app.dart').readAsString();
-    final gate = File(
-      'lib/feature/legal/presentation/widget/consent_gate.dart',
-    );
+  test(
+    'startup composition bypasses ConsentGate but keeps legal code',
+    () async {
+      final app = await File('lib/app/my_app.dart').readAsString();
+      final gate = File(
+        'lib/feature/legal/presentation/widget/consent_gate.dart',
+      );
 
-    expect(
-      app,
-      isNot(contains("feature/legal/presentation/widget/consent_gate.dart")),
-    );
-    expect(app, isNot(contains('ConsentGate(child: child!)')));
-    expect(app, contains('child: child!'));
-    expect(await gate.exists(), isTrue);
-  });
+      expect(
+        app,
+        isNot(contains("feature/legal/presentation/widget/consent_gate.dart")),
+      );
+      expect(app, isNot(contains('ConsentGate(child: child!)')));
+      expect(app, contains('child: child!'));
+      expect(await gate.exists(), isTrue);
+    },
+  );
 }
 
 final class _MemoryIdentityStore implements RoomTransportIdentitySecureStore {
