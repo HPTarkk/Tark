@@ -18,10 +18,11 @@ import 'room_connection_status_scope.dart';
 
 /// The durable Room lobby.
 ///
-/// Membership and connection are deliberately separate here. A pending seat is
-/// visible as invited/confirming, a confirmed member is ready to connect, and
-/// pressing Start moves the same roster to connecting. No carrier role,
-/// address, network name or credential appears in the normal Room flow.
+/// Membership and connection are deliberately separate here. Reserved invite
+/// seats remain internal authorization bookkeeping; only confirmed members are
+/// shown in the roster. Pressing Start moves that same visible roster to
+/// connecting. No carrier role, address, network name or credential appears in
+/// the normal Room flow.
 class SelectedRoomLobby extends StatefulWidget {
   const SelectedRoomLobby({
     required this.room,
@@ -156,9 +157,9 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
   Widget build(BuildContext context) {
     final s = context.getString;
     final confirmedMembers = _room.room.confirmedMembers;
-    final pendingMembers = _room.room.activeMembers
-        .where((member) => member.pending)
-        .toList(growable: false);
+    // Reserved invite seats are authorization bookkeeping, not people who have
+    // joined the Room. Keep them out of the user-facing roster entirely.
+    final pendingMembers = const <RoomMember>[];
     final canInvite =
         !_room.room.archived &&
         _room.membership.active &&

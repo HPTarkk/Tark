@@ -78,9 +78,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('unused invite seat is separate from confirmed member count', (
-    tester,
-  ) async {
+  testWidgets('unused invite seat stays internal to the Room', (tester) async {
     final room = await repository.create(
       name: 'Night ride',
       localDisplayName: 'Host',
@@ -92,14 +90,14 @@ void main() {
 
     expect(find.text('Room members (1)'), findsOneWidget);
     expect(find.text('Room members (2)'), findsNothing);
-    expect(find.text('Waiting to join (1)'), findsOneWidget);
+    expect(find.text('Waiting to join (1)'), findsNothing);
     expect(
       find.text('They have a code but have not scanned it yet.'),
-      findsOneWidget,
+      findsNothing,
     );
-    expect(find.text('Open seat'), findsOneWidget);
-    expect(find.byKey(const ValueKey('room-status-invited')), findsOneWidget);
-    expect(find.byKey(const Key('selected-room-held-seats')), findsOneWidget);
+    expect(find.text('Open seat'), findsNothing);
+    expect(find.byKey(const ValueKey('room-status-invited')), findsNothing);
+    expect(find.byKey(const Key('selected-room-held-seats')), findsNothing);
     expect(
       find.byKey(const Key('selected-room-invite-callout')),
       findsOneWidget,
@@ -165,7 +163,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Persian pending invite is separate and remains RTL', (
+  testWidgets('Persian pending invite remains hidden from the lobby', (
     tester,
   ) async {
     final room = await repository.create(
@@ -177,16 +175,15 @@ void main() {
     await seat(room, pending: true, name: 'جای دعوت');
     await beat(tester);
 
-    final waiting = find.text('در انتظار پیوستن (۱)');
-    expect(waiting, findsOneWidget);
-    expect(Directionality.of(tester.element(waiting)), TextDirection.rtl);
+    expect(find.text('در انتظار پیوستن (۱)'), findsNothing);
     expect(find.text('اعضای اتاق (۱)'), findsOneWidget);
     expect(find.text('اعضای اتاق (۲)'), findsNothing);
     expect(
       find.text('کدشان را گرفته‌اند ولی هنوز اسکن نکرده‌اند.'),
-      findsOneWidget,
+      findsNothing,
     );
-    expect(find.byKey(const Key('selected-room-held-seats')), findsOneWidget);
+    expect(find.text('جای دعوت'), findsNothing);
+    expect(find.byKey(const Key('selected-room-held-seats')), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }
