@@ -10,6 +10,7 @@ import 'package:tark/feature/room/data/security/room_transport_identity_lifecycl
 import 'package:tark/feature/room/data/security/room_transport_identity_secure_store.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
 import 'package:tark/feature/room/presentation/widget/one_scan_room_invite_sheet.dart';
+import 'package:tark/feature/transfer/api/hotspot_invite_api.dart';
 import 'package:tark/feature/transfer/api/transfer_api.dart';
 
 void main() {
