@@ -61,7 +61,7 @@ void main() {
   }
 
   testWidgets(
-    'English roster keeps invited seat visible without inflating joined count',
+    'English roster keeps pending invite internal without inflating joined count',
     (tester) async {
       await tester.pumpWidget(
         app(
@@ -73,12 +73,12 @@ void main() {
 
       expect(find.text('Room members (2)'), findsOneWidget);
       expect(find.text('Rider two'), findsOneWidget);
-      expect(find.text('Open seat'), findsOneWidget);
+      expect(find.text('Open seat'), findsNothing);
       expect(
         find.byKey(const ValueKey('room-status-readyToConnect')),
         findsOneWidget,
       );
-      expect(find.byKey(const ValueKey('room-status-invited')), findsOneWidget);
+      expect(find.byKey(const ValueKey('room-status-invited')), findsNothing);
       expect(find.textContaining('SSID'), findsNothing);
       expect(find.textContaining('IP'), findsNothing);
       expect(find.textContaining('Host'), findsNothing);
@@ -107,12 +107,12 @@ void main() {
     expect(lobby, findsOneWidget);
     expect(Directionality.of(tester.element(lobby)), TextDirection.rtl);
     expect(find.text('اعضای اتاق (۲)'), findsOneWidget);
-    expect(find.text('جای خالی'), findsOneWidget);
+    expect(find.text('جای خالی'), findsNothing);
     expect(
       find.byKey(const ValueKey('room-status-connecting')),
       findsOneWidget,
     );
-    expect(find.byKey(const ValueKey('room-status-invited')), findsOneWidget);
+    expect(find.byKey(const ValueKey('room-status-invited')), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }
