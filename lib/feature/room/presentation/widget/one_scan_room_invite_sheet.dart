@@ -185,10 +185,10 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
       // up. The wait is bounded, and any failure is recoverable in this same
       // sheet so closing/reopening is never the hidden retry mechanism.
       if (widget.bootstrapHost && _credentials == null) {
-        final credentials = await (widget.preLiveBootstrap ??
-                PreLiveHotspotBootstrap())
-            .prepareHost()
-            .timeout(_bootstrapTimeout);
+        final credentials =
+            await (widget.preLiveBootstrap ?? PreLiveHotspotBootstrap())
+                .prepareHost()
+                .timeout(_bootstrapTimeout);
         if (credentials == null) {
           throw StateError('Pre-live hotspot bootstrap failed');
         }
