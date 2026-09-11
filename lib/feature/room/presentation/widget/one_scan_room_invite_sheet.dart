@@ -102,7 +102,6 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
   String? _roomName;
   String? _roomInvite;
   HotspotCredentials? _credentials;
-  bool _hostRecovering = false;
   bool _loading = true;
   String? _error;
   StreamSubscription<HotspotLinkState>? _stateSub;
@@ -130,7 +129,6 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
         if (!mounted) return;
         setState(() {
           _credentials = _shouldCarryHotspot ? credentials : null;
-          _hostRecovering = false;
         });
       });
     }
@@ -139,7 +137,6 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
 
   void _syncKeeper(HotspotLinkKeeper keeper) {
     final host = _shouldCarryHotspot;
-    _hostRecovering = host && keeper.state == HotspotLinkState.recovering;
     _credentials = host && keeper.state == HotspotLinkState.up
         ? keeper.credentials
         : null;
@@ -158,10 +155,7 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
           await (widget.preLiveBootstrap ?? PreLiveHotspotBootstrap())
               .prepareHost();
       if (!mounted || credentials == null) return;
-      setState(() {
-        _credentials = credentials;
-        _hostRecovering = false;
-      });
+      setState(() => _credentials = credentials);
     } catch (_) {
       // Room membership is Bluetooth-first and the invite is still valid.
       // Keep its QR visible; transport can recover or be planned at Start.
