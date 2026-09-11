@@ -14,7 +14,6 @@ import '../core/locale/locale_service.dart';
 import '../core/router/routes.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/theme_service.dart';
-import '../feature/legal/presentation/widget/consent_gate.dart';
 import '../core/widget/theme_reveal_transition.dart';
 import '../feature/transfer/api/transfer_api.dart';
 import 'router/app_router.dart';
@@ -108,12 +107,7 @@ class _MyAppState extends State<MyApp> {
         key: AppRevealController.repaintBoundaryKey,
         child: KeyedSubtree(
           key: ValueKey(ThemeService.currentMode),
-          // Inside the builder rather than around MaterialApp, because the
-          // gate's own screens need Localizations and the theme — and inside
-          // the KeyedSubtree so a theme switch re-keys it along with
-          // everything else. It renders `child` untouched whenever there is
-          // nothing to ask, which is almost always.
-          child: ConsentGate(child: child!),
+          child: child!,
         ),
       ),
       locale: locale,
