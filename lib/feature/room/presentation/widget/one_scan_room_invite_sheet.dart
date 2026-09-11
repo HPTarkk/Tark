@@ -28,9 +28,10 @@ import '../../domain/repository/room_repository.dart';
 /// from the same scan. SSID/password and a second Wi-Fi QR stay out of the
 /// primary interaction entirely.
 ///
-/// [bootstrapHost] is the pre-live creator path. It raises Tark's temporary
-/// hotspot behind this loading sheet before the QR is minted, so Create Room →
-/// Invite has the same one-scan contract as Add person inside an active call.
+/// [bootstrapHost] is the pre-live creator path. It starts Tark's temporary
+/// hotspot behind this sheet, but invite creation does not wait for the radio
+/// bootstrap. The first QR is therefore available immediately and is enriched
+/// with hotspot credentials as soon as the transfer layer reports them.
 Future<void> showOneScanRoomInviteSheet(
   BuildContext context, {
   RoomRepository? repository,
@@ -151,6 +152,22 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
     super.dispose();
   }
 
+  Future<void> _bootstrapHost() async {
+    try {
+      final credentials =
+          await (widget.preLiveBootstrap ?? PreLiveHotspotBootstrap())
+              .prepareHost();
+      if (!mounted || credentials == null) return;
+      setState(() {
+        _credentials = credentials;
+        _hostRecovering = false;
+      });
+    } catch (_) {
+      // Room membership is Bluetooth-first and the invite is still valid.
+      // Keep its QR visible; transport can recover or be planned at Start.
+    }
+  }
+
   Future<void> _issue() async {
     try {
       final selectedId = await _repository.selectedRoomId();
@@ -169,19 +186,11 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
         return;
       }
 
-      // The creator's first invite needs a network before it needs a seat: the
-      // one QR must contain both membership and the temporary carrier. This is
-      // hidden behind the sheet rather than sending the user through Host / Join
-      // screens. The transfer feature owns the actual radio state machine.
+      // Start the temporary carrier in parallel. Native hotspot setup can take
+      // seconds (and on some OEMs needs a first-time permission interaction),
+      // so it must never block creation of the durable Room invite.
       if (widget.bootstrapHost && _credentials == null) {
-        final credentials =
-            await (widget.preLiveBootstrap ?? PreLiveHotspotBootstrap())
-                .prepareHost();
-        if (credentials == null) {
-          throw StateError('Pre-live hotspot bootstrap failed');
-        }
-        if (!mounted) return;
-        setState(() => _credentials = credentials);
+        unawaited(_bootstrapHost());
       }
 
       final invite = await _repository.issueInvite(
@@ -266,7 +275,7 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
   }
 
   Widget _body(BuildContext context) {
-    if (_loading || (_hostRecovering && _roomInvite != null)) {
+    if (_loading) {
       return const SizedBox(
         height: 300,
         child: Center(child: CircularProgressIndicator()),
