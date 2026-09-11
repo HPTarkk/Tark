@@ -91,14 +91,16 @@ void main() {
   ) async {
     final repository = await repositoryWithSelectedRoom();
     var calls = 0;
-    final bootstrap = PreLiveHotspotBootstrap(starter: () async {
-      calls++;
-      if (calls == 1) return null;
-      return const HotspotCredentials(
-        ssid: 'Tark-retry',
-        passphrase: 'retry-secret',
-      );
-    });
+    final bootstrap = PreLiveHotspotBootstrap(
+      starter: () async {
+        calls++;
+        if (calls == 1) return null;
+        return const HotspotCredentials(
+          ssid: 'Tark-retry',
+          passphrase: 'retry-secret',
+        );
+      },
+    );
 
     await tester.pumpWidget(
       inviteApp(repository: repository, bootstrap: bootstrap),
@@ -117,17 +119,23 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  test('beta startup defers consent without deleting the legal feature', () async {
-    final app = await File('lib/app/my_app.dart').readAsString();
-    final gate = File(
-      'lib/feature/legal/presentation/widget/consent_gate.dart',
-    );
+  test(
+    'beta startup defers consent without deleting the legal feature',
+    () async {
+      final app = await File('lib/app/my_app.dart').readAsString();
+      final gate = File(
+        'lib/feature/legal/presentation/widget/consent_gate.dart',
+      );
 
-    expect(app, isNot(contains("feature/legal/presentation/widget/consent_gate.dart")));
-    expect(app, isNot(contains('ConsentGate(child: child!)')));
-    expect(app, contains('child: child!'));
-    expect(await gate.exists(), isTrue);
-  });
+      expect(
+        app,
+        isNot(contains("feature/legal/presentation/widget/consent_gate.dart")),
+      );
+      expect(app, isNot(contains('ConsentGate(child: child!)')));
+      expect(app, contains('child: child!'));
+      expect(await gate.exists(), isTrue);
+    },
+  );
 }
 
 final class _MemoryIdentityStore implements RoomTransportIdentitySecureStore {
