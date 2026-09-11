@@ -83,6 +83,8 @@ class OneScanRoomInviteSheet extends StatefulWidget {
 }
 
 class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
+  static const _bootstrapTimeout = Duration(seconds: 20);
+
   RoomRepository get _repository =>
       widget.repository ?? GetIt.instance<RoomRepository>();
 
@@ -103,6 +105,7 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
   HotspotCredentials? _credentials;
   bool _hostRecovering = false;
   bool _loading = true;
+  bool _issuing = false;
   String? _error;
   StreamSubscription<HotspotLinkState>? _stateSub;
   StreamSubscription<HotspotCredentials>? _credentialsSub;
@@ -152,6 +155,14 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
   }
 
   Future<void> _issue() async {
+    if (_issuing) return;
+    _issuing = true;
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final selectedId = await _repository.selectedRoomId();
       final saved = selectedId == null
@@ -169,14 +180,15 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
         return;
       }
 
-      // The creator's first invite needs a network before it needs a seat: the
-      // one QR must contain both membership and the temporary carrier. This is
-      // hidden behind the sheet rather than sending the user through Host / Join
-      // screens. The transfer feature owns the actual radio state machine.
+      // A creator's first QR must still be the complete one-scan payload: do
+      // not flash a membership-only QR while Android is bringing the carrier
+      // up. The wait is bounded, and any failure is recoverable in this same
+      // sheet so closing/reopening is never the hidden retry mechanism.
       if (widget.bootstrapHost && _credentials == null) {
-        final credentials =
-            await (widget.preLiveBootstrap ?? PreLiveHotspotBootstrap())
-                .prepareHost();
+        final credentials = await (widget.preLiveBootstrap ??
+                PreLiveHotspotBootstrap())
+            .prepareHost()
+            .timeout(_bootstrapTimeout);
         if (credentials == null) {
           throw StateError('Pre-live hotspot bootstrap failed');
         }
@@ -243,6 +255,8 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
         _loading = false;
         _error = context.getString.people_issue_error;
       });
+    } finally {
+      _issuing = false;
     }
   }
 
@@ -267,20 +281,48 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
 
   Widget _body(BuildContext context) {
     if (_loading || (_hostRecovering && _roomInvite != null)) {
-      return const SizedBox(
+      return SizedBox(
+        key: const Key('one-scan-room-invite-loading'),
         height: 300,
-        child: Center(child: CircularProgressIndicator()),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 18),
+            Text(
+              context.getString.people_invite_title,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       );
     }
     final payload = _payload;
     if (payload == null) {
       return SizedBox(
-        height: 220,
+        height: 240,
         child: Center(
-          child: Text(
-            _error ?? context.getString.people_issue_error,
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textSecondary),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _error ?? context.getString.people_issue_error,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 12),
+              TextButton.icon(
+                key: const Key('one-scan-room-invite-retry'),
+                onPressed: _issue,
+                icon: const Icon(Icons.refresh_rounded),
+                label: Text(context.getString.retry),
+              ),
+            ],
           ),
         ),
       );
