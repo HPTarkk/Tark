@@ -8,7 +8,6 @@ import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../transfer/api/transfer_api.dart';
-import '../../domain/entity/held_seat_name.dart';
 import '../../domain/entity/room.dart';
 import '../../domain/repository/room_repository.dart';
 import '../room_member_display_name.dart';
@@ -18,10 +17,10 @@ import 'room_connection_status_scope.dart';
 
 /// The durable Room lobby.
 ///
-/// Membership and connection are deliberately separate here. A pending seat is
-/// visible as invited/confirming, a confirmed member is ready to connect, and
-/// pressing Start moves the same roster to connecting. No carrier role,
-/// address, network name or credential appears in the normal Room flow.
+/// Only people who have actually joined are presented as members. Pending
+/// invitation reservations stay in the Room repository as authorization
+/// bookkeeping, but they are deliberately invisible here: making a code is
+/// not the same thing as another person being in the Room.
 class SelectedRoomLobby extends StatefulWidget {
   const SelectedRoomLobby({
     required this.room,
@@ -129,6 +128,7 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
       context,
       repository: widget.repository,
       bootstrapHost: !_hasReusableRoomHotspot && _isPreferredBootstrapHost,
+      preLiveBootstrap: widget.preLiveBootstrap,
     );
     await _reload();
   }
@@ -156,15 +156,12 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
   Widget build(BuildContext context) {
     final s = context.getString;
     final confirmedMembers = _room.room.confirmedMembers;
-    final pendingMembers = _room.room.activeMembers
-        .where((member) => member.pending)
-        .toList(growable: false);
     final canInvite =
         !_room.room.archived &&
         _room.membership.active &&
         _room.membership.canManageInvites;
-    // Pending invite seats are authorization bookkeeping, not joined people.
-    // Only confirmed membership can make this Room stop looking solo.
+    // Pending invitation reservations are security state, not people. Only a
+    // confirmed join can make this Room stop looking solo.
     final alone = confirmedMembers.length <= 1;
     final connecting =
         _starting || widget.connectionPhase == RoomConnectionUiPhase.connecting;
@@ -228,10 +225,6 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
                   ? RoomConnectionUiPhase.connecting
                   : RoomConnectionUiPhase.readyToConnect,
             ),
-            if (pendingMembers.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              _PendingInvitesCard(members: pendingMembers),
-            ],
             const SizedBox(height: 18),
             if (canInvite) ...[
               _RoomAction(
@@ -364,73 +357,6 @@ class _MembersCard extends StatelessWidget {
               member: members[index],
               isYou: members[index].id == room.membership.localMemberId,
               phase: connectionPhase,
-            ),
-            if (index != members.length - 1) const SizedBox(height: 8),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _PendingInvitesCard extends StatelessWidget {
-  const _PendingInvitesCard({required this.members});
-
-  final List<RoomMember> members;
-
-  @override
-  Widget build(BuildContext context) {
-    final s = context.getString;
-    return Container(
-      key: const Key('selected-room-held-seats'),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.mark_email_unread_outlined,
-                size: 19,
-                color: AppColors.textSecondary,
-              ),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  s.lobby_held_seats(members.length.localized(context)),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            s.lobby_held_seats_hint,
-            style: TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 12,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 12),
-          for (var index = 0; index < members.length; index++) ...[
-            _MemberRow(
-              member: members[index],
-              isYou: false,
-              phase: isHeldSeatPlaceholder(members[index].displayName)
-                  ? RoomConnectionUiPhase.invited
-                  : RoomConnectionUiPhase.confirming,
             ),
             if (index != members.length - 1) const SizedBox(height: 8),
           ],
