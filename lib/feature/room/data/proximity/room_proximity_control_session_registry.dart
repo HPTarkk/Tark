@@ -65,7 +65,7 @@ final class RoomProximityControlSessionRegistry {
     if (session == null || session.roomId != roomId) {
       throw StateError('no authenticated proximity session for Room');
     }
-    return session.waitForHotspot(transportEpoch: transportEpoch);
+    return session.waitForHotspot(localTransportEpoch: transportEpoch);
   }
 
   Future<void> clear({RoomId? roomId}) async {
@@ -94,8 +94,9 @@ final class _RoomProximityControlSession {
 
   late final StreamSubscription<String> _messages;
   late final StreamSubscription<void> _closed;
-  final Map<String, HotspotCredentials> _bufferedCredentials = {};
-  final Map<String, Completer<HotspotCredentials>> _credentialWaiters = {};
+  _BufferedHotspot? _bufferedCredential;
+  Completer<HotspotCredentials>? _credentialWaiter;
+  int _lastAcceptedRemoteEpoch = 0;
   bool _disposed = false;
 
   static String _epochRequestId(int epoch) {
@@ -104,6 +105,9 @@ final class _RoomProximityControlSession {
     if (raw.length > 32) throw ArgumentError.value(epoch, 'epoch');
     return raw.padLeft(32, '0');
   }
+
+  static int? _transportEpochFromRequestId(String requestId) =>
+      int.tryParse(requestId, radix: 16);
 
   Future<void> publishHotspot({
     required int transportEpoch,
@@ -125,15 +129,25 @@ final class _RoomProximityControlSession {
     );
   }
 
-  Future<HotspotCredentials> waitForHotspot({required int transportEpoch}) {
-    final requestId = _epochRequestId(transportEpoch);
-    final buffered = _bufferedCredentials.remove(requestId);
-    if (buffered != null) return Future.value(buffered);
+  Future<HotspotCredentials> waitForHotspot({
+    required int localTransportEpoch,
+  }) {
+    // Validate the local coordinator epoch, but never require it to equal the
+    // host's epoch. Each phone owns its own RoomConnectionCoordinator, so an
+    // asymmetric retry can legitimately make those counters differ. The host
+    // is authoritative for credential generations on this control session.
+    _epochRequestId(localTransportEpoch);
+
+    final buffered = _bufferedCredential;
+    if (buffered != null && buffered.epoch > _lastAcceptedRemoteEpoch) {
+      _bufferedCredential = null;
+      _lastAcceptedRemoteEpoch = buffered.epoch;
+      return Future.value(buffered.credentials);
+    }
     if (_disposed) {
       return Future.error(StateError('proximity control session closed'));
     }
-    return (_credentialWaiters[requestId] ??= Completer<HotspotCredentials>())
-        .future;
+    return (_credentialWaiter ??= Completer<HotspotCredentials>()).future;
   }
 
   void _onMessage(String raw) {
@@ -146,6 +160,13 @@ final class _RoomProximityControlSession {
     if (envelope.kind != 'transportCredentials' ||
         envelope.roomId != roomId.value ||
         envelope.joinEpoch != invitation.invitationId) {
+      return;
+    }
+
+    final remoteEpoch = _transportEpochFromRequestId(envelope.requestId);
+    if (remoteEpoch == null ||
+        remoteEpoch <= 0 ||
+        remoteEpoch <= _lastAcceptedRemoteEpoch) {
       return;
     }
 
@@ -167,25 +188,31 @@ final class _RoomProximityControlSession {
         passphrase: passphrase,
         security: security,
       );
-      final waiter = _credentialWaiters.remove(envelope.requestId);
+      final waiter = _credentialWaiter;
       if (waiter != null && !waiter.isCompleted) {
+        _credentialWaiter = null;
+        _lastAcceptedRemoteEpoch = remoteEpoch;
         waiter.complete(credentials);
-      } else {
-        _bufferedCredentials[envelope.requestId] = credentials;
-        if (_bufferedCredentials.length > 4) {
-          _bufferedCredentials.remove(_bufferedCredentials.keys.first);
-        }
+        return;
+      }
+
+      final buffered = _bufferedCredential;
+      if (buffered == null || remoteEpoch > buffered.epoch) {
+        _bufferedCredential = _BufferedHotspot(
+          epoch: remoteEpoch,
+          credentials: credentials,
+        );
       }
     } catch (_) {}
   }
 
   void _onClosed() {
-    for (final waiter in _credentialWaiters.values) {
-      if (!waiter.isCompleted) {
-        waiter.completeError(StateError('proximity control session closed'));
-      }
+    final waiter = _credentialWaiter;
+    _credentialWaiter = null;
+    if (waiter != null && !waiter.isCompleted) {
+      waiter.completeError(StateError('proximity control session closed'));
     }
-    _credentialWaiters.clear();
+    _bufferedCredential = null;
   }
 
   Future<void> dispose() async {
@@ -197,4 +224,11 @@ final class _RoomProximityControlSession {
     await disposeProtocol?.call();
     await channel.dispose();
   }
+}
+
+final class _BufferedHotspot {
+  const _BufferedHotspot({required this.epoch, required this.credentials});
+
+  final int epoch;
+  final HotspotCredentials credentials;
 }
