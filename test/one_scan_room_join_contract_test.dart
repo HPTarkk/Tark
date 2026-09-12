@@ -3,23 +3,30 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('Room QR is bootstrap only and cannot finalize membership directly', () async {
-    final source = await File(
-      'lib/feature/room/presentation/page/room_qr_join_page.dart',
-    ).readAsString();
+  test(
+    'Room QR is bootstrap only and cannot finalize membership directly',
+    () async {
+      final source = await File(
+        'lib/feature/room/presentation/page/room_qr_join_page.dart',
+      ).readAsString();
 
-    expect(source, contains('RoomInvitation.decode(raw)'));
-    expect(source, contains('control.connect(rendezvousToken: invitation.invitationId)'));
-    expect(source, contains('RoomProximityJoinCarrier('));
-    expect(source, contains('widget.cubit.joinByInvite('));
-    expect(source, isNot(contains('joinDirect(')));
-    expect(source, isNot(contains('RoomDirectJoinBundle.decode')));
-    expect(
-      source,
-      contains('if (_joining) return false;'),
-      reason: 'duplicate camera frames must not create duplicate join requests',
-    );
-  });
+      expect(source, contains('RoomInvitation.decode(raw)'));
+      expect(
+        source,
+        contains('control.connect(rendezvousToken: invitation.invitationId)'),
+      );
+      expect(source, contains('RoomProximityJoinCarrier('));
+      expect(source, contains('widget.cubit.joinByInvite('));
+      expect(source, isNot(contains('joinDirect(')));
+      expect(source, isNot(contains('RoomDirectJoinBundle.decode')));
+      expect(
+        source,
+        contains('if (_joining) return false;'),
+        reason:
+            'duplicate camera frames must not create duplicate join requests',
+      );
+    },
+  );
 
   test('active Room Add person exposes one stable rendezvous QR', () async {
     final action = await File(
@@ -34,7 +41,10 @@ void main() {
     expect(sheet, contains('_roomInvite = invite.encode();'));
     expect(sheet, contains('requireMembershipReceipt: true'));
     expect(sheet, contains('RoomProximityJoinIssuerSession('));
-    expect(sheet, contains('_control.host(rendezvousToken: invite.invitationId)'));
+    expect(
+      sheet,
+      contains('_control.host(rendezvousToken: invite.invitationId)'),
+    );
     expect(sheet, isNot(contains('credentials.qrPayload')));
     expect(sheet, isNot(contains('RoomDirectJoinBundle')));
     expect(sheet, isNot(contains('.prepareHost()')));
@@ -44,7 +54,9 @@ void main() {
     final sheet = await File(
       'lib/feature/room/presentation/widget/one_scan_room_invite_sheet.dart',
     ).readAsString();
-    final listener = sheet.indexOf('_issuerSession = RoomProximityJoinIssuerSession(');
+    final listener = sheet.indexOf(
+      '_issuerSession = RoomProximityJoinIssuerSession(',
+    );
     final host = sheet.indexOf('await _control.host(');
     final qr = sheet.indexOf('_roomInvite = invite.encode();');
 
