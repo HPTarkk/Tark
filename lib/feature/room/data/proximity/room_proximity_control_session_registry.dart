@@ -31,6 +31,7 @@ final class RoomProximityControlSessionRegistry {
     required RoomInvitation invitation,
     required RoomProximityControlChannel channel,
     Future<void> Function()? disposeProtocol,
+    HotspotCredentials? Function()? currentHotspotCredentials,
   }) async {
     final previous = _session;
     final next = _RoomProximityControlSession(
@@ -38,6 +39,7 @@ final class RoomProximityControlSessionRegistry {
       invitation: invitation,
       channel: channel,
       disposeProtocol: disposeProtocol,
+      currentHotspotCredentials: currentHotspotCredentials,
     );
     _session = next;
     if (previous != null && previous.channel != channel) {
@@ -85,6 +87,7 @@ final class _RoomProximityControlSession {
     required this.invitation,
     required this.channel,
     required this.disposeProtocol,
+    required this.currentHotspotCredentials,
   }) {
     _messages = channel.messages.listen(_onMessage);
     _closed = channel.closed.listen((_) => _onClosed());
@@ -94,19 +97,21 @@ final class _RoomProximityControlSession {
   final RoomInvitation invitation;
   final RoomProximityControlChannel channel;
   final Future<void> Function()? disposeProtocol;
+  final HotspotCredentials? Function()? currentHotspotCredentials;
 
   late final StreamSubscription<String> _messages;
   late final StreamSubscription<void> _closed;
   _BufferedHotspot? _bufferedCredential;
   Completer<HotspotCredentials>? _credentialWaiter;
   int _lastAcceptedRemoteEpoch = 0;
+  int _lastPublishedTransportEpoch = 0;
   bool _peerClosed = false;
   bool _disposed = false;
 
   bool get isOpen => !_peerClosed && !_disposed;
 
   static String _epochRequestId(int epoch) {
-    if (epoch < 0) throw ArgumentError.value(epoch, 'epoch');
+    if (epoch <= 0) throw ArgumentError.value(epoch, 'epoch');
     final raw = epoch.toRadixString(16);
     if (raw.length > 32) throw ArgumentError.value(epoch, 'epoch');
     return raw.padLeft(32, '0');
@@ -123,6 +128,9 @@ final class _RoomProximityControlSession {
       return Future.error(StateError('proximity control session closed'));
     }
     final requestId = _epochRequestId(transportEpoch);
+    if (transportEpoch > _lastPublishedTransportEpoch) {
+      _lastPublishedTransportEpoch = transportEpoch;
+    }
     return channel.send(
       RoomProximityEnvelope(
         kind: 'transportCredentials',
@@ -140,23 +148,45 @@ final class _RoomProximityControlSession {
 
   Future<HotspotCredentials> waitForHotspot({
     required int localTransportEpoch,
-  }) {
+  }) async {
     // Validate the local coordinator epoch, but never require it to equal the
     // host's epoch. Each phone owns its own RoomConnectionCoordinator, so an
     // asymmetric retry can legitimately make those counters differ. The host
     // is authoritative for credential generations on this control session.
-    _epochRequestId(localTransportEpoch);
+    final requestId = _epochRequestId(localTransportEpoch);
 
     final buffered = _bufferedCredential;
     if (buffered != null && buffered.epoch > _lastAcceptedRemoteEpoch) {
       _bufferedCredential = null;
       _lastAcceptedRemoteEpoch = buffered.epoch;
-      return Future.value(buffered.credentials);
+      return buffered.credentials;
     }
     if (!isOpen) {
-      return Future.error(StateError('proximity control session closed'));
+      throw StateError('proximity control session closed');
     }
-    return (_credentialWaiter ??= Completer<HotspotCredentials>()).future;
+
+    final existing = _credentialWaiter;
+    if (existing != null) return existing.future;
+
+    final waiter = Completer<HotspotCredentials>();
+    _credentialWaiter = waiter;
+    try {
+      await channel.send(
+        RoomProximityEnvelope(
+          kind: 'transportRequest',
+          roomId: roomId.value,
+          requestId: requestId,
+          joinEpoch: invitation.invitationId,
+          payload: '{}',
+        ).encode(),
+      );
+    } catch (error, stackTrace) {
+      if (identical(_credentialWaiter, waiter)) {
+        _credentialWaiter = null;
+      }
+      if (!waiter.isCompleted) waiter.completeError(error, stackTrace);
+    }
+    return waiter.future;
   }
 
   void _onMessage(String raw) {
@@ -167,11 +197,33 @@ final class _RoomProximityControlSession {
     } catch (_) {
       return;
     }
-    if (envelope.kind != 'transportCredentials' ||
-        envelope.roomId != roomId.value ||
+    if (envelope.roomId != roomId.value ||
         envelope.joinEpoch != invitation.invitationId) {
       return;
     }
+
+    if (envelope.kind == 'transportRequest') {
+      final requestedEpoch = _transportEpochFromRequestId(envelope.requestId);
+      if (requestedEpoch == null || requestedEpoch <= 0) return;
+      final credentials = currentHotspotCredentials?.call();
+      if (credentials == null) return;
+
+      // This phone already owns a healthy live hotspot. A newly-added member
+      // can therefore attach to that same network without asking the existing
+      // Room to rebuild its call or press Start again. The response generation
+      // is host-owned; the joiner's local coordinator epoch is only a request
+      // correlation value and is deliberately not mirrored here.
+      final responseEpoch = _lastPublishedTransportEpoch + 1;
+      unawaited(
+        publishHotspot(
+          transportEpoch: responseEpoch,
+          credentials: credentials,
+        ).catchError((Object _) {}),
+      );
+      return;
+    }
+
+    if (envelope.kind != 'transportCredentials') return;
 
     final remoteEpoch = _transportEpochFromRequestId(envelope.requestId);
     if (remoteEpoch == null ||
