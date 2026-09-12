@@ -35,80 +35,84 @@ void main() {
     await RoomProximityControlSessionRegistry.instance.clear();
   });
 
-  test('joiner requests transport and accepts host-authoritative credentials', () async {
-    final engine = _RegistryFakeClassicBluetoothEngine();
-    final channel = RoomProximityControlChannel(engine: engine);
-    await channel.host(rendezvousToken: invitationId);
-    await RoomProximityControlSessionRegistry.instance.adopt(
-      roomId: roomId,
-      invitation: invitation,
-      channel: channel,
-    );
+  test(
+    'joiner requests transport and accepts host-authoritative credentials',
+    () async {
+      final engine = _RegistryFakeClassicBluetoothEngine();
+      final channel = RoomProximityControlChannel(engine: engine);
+      await channel.host(rendezvousToken: invitationId);
+      await RoomProximityControlSessionRegistry.instance.adopt(
+        roomId: roomId,
+        invitation: invitation,
+        channel: channel,
+      );
 
-    final waiting = RoomProximityControlSessionRegistry.instance.waitForHotspot(
-      roomId: roomId,
-      transportEpoch: 7,
-    );
-    await Future<void>.delayed(Duration.zero);
+      final waiting = RoomProximityControlSessionRegistry.instance
+          .waitForHotspot(roomId: roomId, transportEpoch: 7);
+      await Future<void>.delayed(Duration.zero);
 
-    final request = _decodeSingleWrite(engine);
-    expect(request.kind, 'transportRequest');
-    expect(request.requestId, '00000000000000000000000000000007');
+      final request = _decodeSingleWrite(engine);
+      expect(request.kind, 'transportRequest');
+      expect(request.requestId, '00000000000000000000000000000007');
 
-    const credentials = HotspotCredentials(
-      ssid: 'DIRECT-TARK',
-      passphrase: 'room-secret',
-    );
-    engine.addEnvelope(
-      RoomProximityEnvelope(
-        kind: 'transportCredentials',
-        roomId: roomId.value,
-        requestId: '00000000000000000000000000000001',
-        joinEpoch: invitationId,
-        payload: jsonEncode({
-          'ssid': credentials.ssid,
-          'passphrase': credentials.passphrase,
-          'security': credentials.security,
-        }),
-      ),
-    );
+      const credentials = HotspotCredentials(
+        ssid: 'DIRECT-TARK',
+        passphrase: 'room-secret',
+      );
+      engine.addEnvelope(
+        RoomProximityEnvelope(
+          kind: 'transportCredentials',
+          roomId: roomId.value,
+          requestId: '00000000000000000000000000000001',
+          joinEpoch: invitationId,
+          payload: jsonEncode({
+            'ssid': credentials.ssid,
+            'passphrase': credentials.passphrase,
+            'security': credentials.security,
+          }),
+        ),
+      );
 
-    expect(await waiting, credentials);
-  });
+      expect(await waiting, credentials);
+    },
+  );
 
-  test('live host answers a new member without rebuilding the hotspot', () async {
-    final engine = _RegistryFakeClassicBluetoothEngine();
-    final channel = RoomProximityControlChannel(engine: engine);
-    await channel.host(rendezvousToken: invitationId);
-    const credentials = HotspotCredentials(
-      ssid: 'DIRECT-LIVE',
-      passphrase: 'already-running',
-    );
-    await RoomProximityControlSessionRegistry.instance.adopt(
-      roomId: roomId,
-      invitation: invitation,
-      channel: channel,
-      currentHotspotCredentials: () => credentials,
-    );
+  test(
+    'live host answers a new member without rebuilding the hotspot',
+    () async {
+      final engine = _RegistryFakeClassicBluetoothEngine();
+      final channel = RoomProximityControlChannel(engine: engine);
+      await channel.host(rendezvousToken: invitationId);
+      const credentials = HotspotCredentials(
+        ssid: 'DIRECT-LIVE',
+        passphrase: 'already-running',
+      );
+      await RoomProximityControlSessionRegistry.instance.adopt(
+        roomId: roomId,
+        invitation: invitation,
+        channel: channel,
+        currentHotspotCredentials: () => credentials,
+      );
 
-    engine.addEnvelope(
-      const RoomProximityEnvelope(
-        kind: 'transportRequest',
-        roomId: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-        requestId: '00000000000000000000000000000009',
-        joinEpoch: invitationId,
-        payload: '{}',
-      ),
-    );
-    await Future<void>.delayed(Duration.zero);
+      engine.addEnvelope(
+        const RoomProximityEnvelope(
+          kind: 'transportRequest',
+          roomId: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          requestId: '00000000000000000000000000000009',
+          joinEpoch: invitationId,
+          payload: '{}',
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
 
-    final response = _decodeSingleWrite(engine);
-    expect(response.kind, 'transportCredentials');
-    final payload = jsonDecode(response.payload) as Map<String, dynamic>;
-    expect(payload['ssid'], credentials.ssid);
-    expect(payload['passphrase'], credentials.passphrase);
-    expect(payload['security'], credentials.security);
-  });
+      final response = _decodeSingleWrite(engine);
+      expect(response.kind, 'transportCredentials');
+      final payload = jsonDecode(response.payload) as Map<String, dynamic>;
+      expect(payload['ssid'], credentials.ssid);
+      expect(payload['passphrase'], credentials.passphrase);
+      expect(payload['security'], credentials.security);
+    },
+  );
 }
 
 RoomProximityEnvelope _decodeSingleWrite(
