@@ -9,37 +9,43 @@ import 'package:tark/feature/transfer/domain/entity/bluetooth_peer.dart';
 void main() {
   const token = '0123456789abcdef0123456789abcdef';
 
-  test('host does not expose an unusable invite when discoverability is denied', () async {
-    final engine = _FakeClassicBluetoothEngine(discoverable: false);
-    final channel = RoomProximityControlChannel(engine: engine);
-    addTearDown(channel.dispose);
+  test(
+    'host does not expose an unusable invite when discoverability is denied',
+    () async {
+      final engine = _FakeClassicBluetoothEngine(discoverable: false);
+      final channel = RoomProximityControlChannel(engine: engine);
+      addTearDown(channel.dispose);
 
-    await expectLater(
-      channel.host(rendezvousToken: token),
-      throwsA(isA<StateError>()),
-    );
-    expect(engine.hosted, isFalse);
-  });
+      await expectLater(
+        channel.host(rendezvousToken: token),
+        throwsA(isA<StateError>()),
+      );
+      expect(engine.hosted, isFalse);
+    },
+  );
 
-  test('failed RFCOMM dial fails the join instead of waiting forever', () async {
-    final engine = _FakeClassicBluetoothEngine();
-    final channel = RoomProximityControlChannel(engine: engine);
-    addTearDown(channel.dispose);
+  test(
+    'failed RFCOMM dial fails the join instead of waiting forever',
+    () async {
+      final engine = _FakeClassicBluetoothEngine();
+      final channel = RoomProximityControlChannel(engine: engine);
+      addTearDown(channel.dispose);
 
-    final joining = channel.connect(rendezvousToken: token);
-    engine.scans.add(
-      BluetoothPeer(
-        id: 'AA:BB:CC:DD:EE:FF',
-        name: RoomProximityControlChannel.rendezvousName(token),
-        isAppHost: true,
-      ),
-    );
-    await Future<void>.delayed(Duration.zero);
-    expect(engine.dialed, isTrue);
+      final joining = channel.connect(rendezvousToken: token);
+      engine.scans.add(
+        BluetoothPeer(
+          id: 'AA:BB:CC:DD:EE:FF',
+          name: RoomProximityControlChannel.rendezvousName(token),
+          isAppHost: true,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(engine.dialed, isTrue);
 
-    engine.errors.add('connect_failed');
-    await expectLater(joining, throwsA(isA<StateError>()));
-  });
+      engine.errors.add('connect_failed');
+      await expectLater(joining, throwsA(isA<StateError>()));
+    },
+  );
 
   test('peer connected event completes the proximity dial', () async {
     final engine = _FakeClassicBluetoothEngine();
