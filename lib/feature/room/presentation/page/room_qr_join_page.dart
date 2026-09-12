@@ -9,14 +9,12 @@ import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/widget/qr_scanner_surface.dart';
 import '../../../transfer/api/hotspot_invite_api.dart';
 import '../../../transfer/api/transfer_api.dart';
+import '../../data/proximity/room_proximity_control_session_registry.dart';
 import '../../data/proximity/room_proximity_join_carrier.dart';
 import '../../domain/entity/room_invitation.dart';
 import '../../domain/service/room_invite_join_orchestrator.dart';
 import '../manager/room_list_cubit.dart';
 
-/// One QR scan is only a rendezvous/bootstrap. Durable membership is committed
-/// after the Bluetooth control-plane request → signed grant → signed receipt →
-/// issuer confirmation handshake has completed.
 class RoomQrJoinPage extends StatefulWidget {
   const RoomQrJoinPage({required this.cubit, super.key});
 
@@ -39,12 +37,11 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
   bool _joining = false;
 
   Future<bool> _onCode(String raw) async {
-    // Camera plugins can report the same frame more than once before their UI
-    // lock paints. Only one control-plane join may exist for this screen.
     if (_joining) return false;
     _joining = true;
     RoomProximityControlChannel? control;
     RoomProximityJoinCarrier? carrier;
+    var registryOwnsControl = false;
     try {
       final invitation = RoomInvitation.decode(raw);
       if (invitation.isExpired) {
@@ -55,9 +52,7 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
       try {
         final stored = await GetIt.instance<SettingsRepository>().getMyName();
         if (stored.trim().isNotEmpty) myName = stored.trim();
-      } catch (_) {
-        // Offline joining must not depend on settings persistence.
-      }
+      } catch (_) {}
       if (!mounted) return false;
 
       control = RoomProximityControlChannel();
@@ -74,6 +69,14 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
       );
       if (!mounted) return false;
       if (status == RoomInviteJoinAttemptStatus.accepted) {
+        await RoomProximityControlSessionRegistry.instance.adopt(
+          roomId: invitation.roomId,
+          invitation: invitation,
+          channel: control,
+          disposeProtocol: carrier.dispose,
+        );
+        registryOwnsControl = true;
+        if (!mounted) return false;
         context.go(AppRoutes.walkiePath);
         return true;
       }
@@ -87,15 +90,15 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
       setState(() => _error = context.getString.roomjoin_not_joined);
       return false;
     } finally {
-      await carrier?.dispose();
-      await control?.dispose();
+      if (!registryOwnsControl) {
+        await carrier?.dispose();
+        await control?.dispose();
+      }
       _joining = false;
     }
   }
 
   bool _notAnInvite(String raw) {
-    // Legacy network-only QR remains a recovery route, but current Room QR
-    // never contains network credentials and never comes back for scan #2.
     final network = ScannedCode.parse(raw);
     if (network != null) {
       context.push(ConnectRoute.forScannedNetwork(), extra: raw);
