@@ -140,13 +140,15 @@ final class RoomInviteJoinOrchestrator {
 
     switch (response.status) {
       case RoomInviteJoinResponseStatus.accepted:
-        var grant = _client.verifyAcceptedResponse(
+        final verifiedGrant = _client.verifyAcceptedResponse(
           request: request,
           encodedResponse: encodedResponse,
         );
-        if (grant == null || grant.transportCertificate == null) {
+        if (verifiedGrant == null ||
+            verifiedGrant.transportCertificate == null) {
           return const RoomInviteJoinAttemptResult.invalidResponse();
         }
+        var grant = verifiedGrant;
         if (response.membershipReceiptRequired) {
           if (carrier is! RoomInviteJoinReceiptCarrier) {
             return const RoomInviteJoinAttemptResult.receiptNotConfirmed();
@@ -171,8 +173,7 @@ final class RoomInviteJoinOrchestrator {
               return const RoomInviteJoinAttemptResult.receiptNotConfirmed();
             }
             final local = snapshot.members.where(
-              (member) =>
-                  member.memberId == grant!.memberId && !member.pending,
+              (member) => member.memberId == grant.memberId && !member.pending,
             );
             if (local.length != 1) {
               return const RoomInviteJoinAttemptResult.receiptNotConfirmed();
