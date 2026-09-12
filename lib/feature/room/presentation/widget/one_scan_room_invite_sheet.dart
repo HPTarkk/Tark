@@ -67,6 +67,19 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
   RoomRepository get _repository =>
       widget.repository ?? GetIt.instance<RoomRepository>();
 
+  HotspotCredentials? _currentLiveHotspotCredentials() {
+    HotspotLinkKeeper? keeper = widget.hotspotLinkKeeper;
+    if (keeper == null) {
+      try {
+        if (GetIt.instance.isRegistered<HotspotLinkKeeper>()) {
+          keeper = GetIt.instance<HotspotLinkKeeper>();
+        }
+      } catch (_) {}
+    }
+    if (keeper == null || keeper.state != HotspotLinkState.up) return null;
+    return keeper.credentials;
+  }
+
   final RoomProximityControlChannel _control = RoomProximityControlChannel();
   RoomProximityJoinIssuerSession? _issuerSession;
   bool _registryOwnsControl = false;
@@ -157,6 +170,7 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
         invitation: invite,
         channel: _control,
         disposeProtocol: issuerSession.dispose,
+        currentHotspotCredentials: _currentLiveHotspotCredentials,
       );
       _registryOwnsControl = true;
 
