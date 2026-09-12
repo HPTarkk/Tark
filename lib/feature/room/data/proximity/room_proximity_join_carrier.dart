@@ -9,9 +9,6 @@ import '../../domain/service/room_invite_join_exchange.dart';
 import '../../domain/service/room_invite_join_orchestrator.dart';
 import '../../domain/service/room_invite_membership_receipt.dart';
 
-/// Correlated control-plane message. Every hop is scoped to one Room and one
-/// invitation epoch so stale native callbacks and duplicate frames cannot be
-/// mistaken for the current join.
 final class RoomProximityEnvelope {
   const RoomProximityEnvelope({
     required this.kind,
@@ -67,9 +64,6 @@ final class RoomProximityEnvelope {
   }
 }
 
-/// Joiner adapter from the generic invite protocol to the persistent RFCOMM
-/// control plane. Duplicate grants/ACKs are harmless: only the first matching
-/// correlated envelope completes an in-flight leg.
 final class RoomProximityJoinCarrier
     implements RoomInviteJoinConfirmedSnapshotCarrier {
   RoomProximityJoinCarrier({
@@ -199,8 +193,6 @@ final class RoomProximityJoinCarrier
   }
 }
 
-/// Issuer-side responder that keeps the same control socket alive across
-/// request → grant → signed receipt → confirmed roster snapshot.
 final class RoomProximityJoinIssuerSession {
   RoomProximityJoinIssuerSession({
     required RoomProximityControlChannel channel,
@@ -219,10 +211,6 @@ final class RoomProximityJoinIssuerSession {
   final RoomInviteJoinExchange _exchange;
   final RoomRepository _repository;
   late final StreamSubscription<String> _subscription;
-
-  /// Request replay cache. A duplicated native callback or request frame gets
-  /// the exact same signed grant; it never redeems the single-use capability a
-  /// second time.
   final Map<String, String> _grantCache = {};
 
   Future<void> _onMessage(String raw) async {
@@ -257,6 +245,7 @@ final class RoomProximityJoinIssuerSession {
             payload: response,
           ).encode(),
         );
+        return;
       case 'membershipReceipt':
         final confirmed = await _exchange.handleEncodedReceipt(envelope.payload);
         String payload = jsonEncode({'ok': false});
@@ -284,6 +273,9 @@ final class RoomProximityJoinIssuerSession {
             payload: payload,
           ).encode(),
         );
+        return;
+      default:
+        return;
     }
   }
 
