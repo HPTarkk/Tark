@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import '../../domain/entity/bluetooth_host_name.dart';
 import '../../domain/entity/bluetooth_peer.dart';
@@ -65,9 +66,6 @@ final class RoomProximityControlChannel {
       );
   }
 
-  /// Makes this phone discoverable under a short room-scoped rendezvous name
-  /// and starts the existing RFCOMM listener. The QR contains the token, not a
-  /// MAC address, SSID or password.
   Future<void> host({required String rendezvousToken}) async {
     if (_disposed) throw StateError('proximity control channel is disposed');
     _wire();
@@ -77,8 +75,6 @@ final class RoomProximityControlChannel {
     );
   }
 
-  /// Resolves the QR rendezvous token through normal nearby discovery and
-  /// dials exactly that Tark host. No user-selected Host/Join role is exposed.
   Future<void> connect({required String rendezvousToken}) async {
     if (_disposed) throw StateError('proximity control channel is disposed');
     _wire();
