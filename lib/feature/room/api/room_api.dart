@@ -4,6 +4,8 @@
 /// reaching into Room domain/presentation internals directly.
 library;
 
+export '../data/proximity/room_proximity_control_session_registry.dart'
+    show RoomProximityControlSessionRegistry;
 export '../domain/entity/held_seat_name.dart' show isHeldSeatPlaceholder;
 export '../domain/entity/room.dart' show RoomMember, RoomMemberId, SavedRoom;
 export '../domain/repository/room_repository.dart' show RoomRepository;
