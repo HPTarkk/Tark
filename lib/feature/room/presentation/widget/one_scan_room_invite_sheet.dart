@@ -9,6 +9,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/qr_widgets.dart';
 import '../../../../core/widget/sheet_shell.dart';
 import '../../../transfer/api/transfer_api.dart';
+import '../../data/proximity/room_proximity_control_session_registry.dart';
 import '../../data/proximity/room_proximity_join_carrier.dart';
 import '../../data/security/room_transport_identity_lifecycle.dart';
 import '../../data/security/room_transport_identity_secure_store.dart';
@@ -17,12 +18,6 @@ import '../../domain/repository/room_repository.dart';
 import '../../domain/service/room_invite_acceptance_coordinator.dart';
 import '../../domain/service/room_invite_join_exchange.dart';
 
-/// Opens the one-scan Add person flow.
-///
-/// The QR is deliberately stable: it contains only the short-lived Room bearer
-/// invitation/rendezvous data. It never mutates into a Wi-Fi QR and never
-/// contains SSID/password/IP. After the scan, request/grant/receipt and the
-/// confirmed roster snapshot cross the persistent Bluetooth control channel.
 Future<void> showOneScanRoomInviteSheet(
   BuildContext context, {
   RoomRepository? repository,
@@ -59,9 +54,6 @@ class OneScanRoomInviteSheet extends StatefulWidget {
 
   final RoomRepository? repository;
   final RoomTransportIdentityLifecycle? identityLifecycle;
-
-  /// Kept as compatibility seams for existing callers/tests. Membership no
-  /// longer reads or starts Wi-Fi from this surface.
   final HotspotLinkKeeper? hotspotLinkKeeper;
   final TransferRepository? transferRepository;
   final bool bootstrapHost;
@@ -77,6 +69,7 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
 
   final RoomProximityControlChannel _control = RoomProximityControlChannel();
   RoomProximityJoinIssuerSession? _issuerSession;
+  bool _registryOwnsControl = false;
 
   String? _roomName;
   String? _roomInvite;
@@ -91,8 +84,10 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
 
   @override
   void dispose() {
-    unawaited(_issuerSession?.dispose());
-    unawaited(_control.dispose());
+    if (!_registryOwnsControl) {
+      unawaited(_issuerSession?.dispose());
+      unawaited(_control.dispose());
+    }
     super.dispose();
   }
 
@@ -140,16 +135,21 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
             ),
       );
 
-      // Subscribe before becoming discoverable. A very fast scanner can land
-      // immediately after the QR appears and must never beat the issuer's
-      // request listener into existence.
-      _issuerSession = RoomProximityJoinIssuerSession(
+      final issuerSession = RoomProximityJoinIssuerSession(
         channel: _control,
         invitation: invite,
         exchange: exchange,
         repository: _repository,
       );
+      _issuerSession = issuerSession;
       await _control.host(rendezvousToken: invite.invitationId);
+      await RoomProximityControlSessionRegistry.instance.adopt(
+        roomId: saved.room.id,
+        invitation: invite,
+        channel: _control,
+        disposeProtocol: issuerSession.dispose,
+      );
+      _registryOwnsControl = true;
 
       if (!mounted) return;
       HapticFeedback.mediumImpact();
