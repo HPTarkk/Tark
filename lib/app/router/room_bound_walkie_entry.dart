@@ -25,8 +25,6 @@ import '../../feature/walkie/api/walkie_api.dart';
 class RoomBoundWalkieEntry extends StatefulWidget {
   const RoomBoundWalkieEntry({super.key, this.ride = false});
 
-  /// True only when a preceding connectivity surface already captured the
-  /// user's Start intent and is returning here after link setup.
   final bool ride;
 
   static Widget buildPage({bool ride = false}) =>
@@ -42,12 +40,10 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   SelectedRoomLiveSessionBinding? _binding;
   late Future<_EntryState> _entry;
   SavedRoom? _attemptRoom;
-
   LiveLinkProbe? _probe;
   TransferModeStore? _modeStore;
   LiveLinkSnapshot? _links;
   StreamSubscription<void>? _linkChanges;
-
   final RoomConnectionCoordinator _coordinator = RoomConnectionCoordinator();
   final RoomConnectionReadinessGate _readinessGate =
       const RoomConnectionReadinessGate();
@@ -123,8 +119,6 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     return links.resolve(modeStore.mode);
   }
 
-  /// Fast local precheck only. This can refuse an impossible attempt but can
-  /// never grant live entry; signed Room peer proof below is the authority.
   Future<bool> _openLinkGate() async {
     final probe = _probe;
     final modeStore = _modeStore;
@@ -173,7 +167,6 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       Logger.log('Room selection resolution failed: $e');
       return const _EntryState.recoverable(_EntryFailure.selectionReadFailed);
     }
-
     try {
       await _binding?.open(sessionId: _newLegacySessionId());
     } catch (e) {
@@ -193,7 +186,6 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   Future<_EntryState> _startSelectedRoom(SavedRoom room) {
     final existing = _activeStart;
     if (existing != null) return existing;
-
     final future = _startSelectedRoomOnce(room);
     _activeStart = future;
     unawaited(
@@ -229,7 +221,6 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         failure: _EntryFailure.selectionReadFailed,
       );
     }
-
     return _verifiedLiveFor(room);
   }
 
@@ -242,7 +233,6 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         failure: _EntryFailure.compositionUnavailable,
       );
     }
-
     final localMemberId = room.membership.localMemberId;
     final expectedPeers = room.room.activeMembers
         .map((member) => member.id)
@@ -252,7 +242,6 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       Logger.diagnostic('room: readiness stage=peer_proof_missing');
       return _EntryState.lobby(room, failure: _EntryFailure.peerProofMissing);
     }
-
     final bootstrapHost = _bootstrapHotspotHost(room);
     final start = _coordinator.requestStart(
       requester: localMemberId,
@@ -267,14 +256,9 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         failure: _EntryFailure.transportPlanMismatch,
       );
     }
-
     final readinessEpoch = ++_readinessEpoch;
     try {
-      if (!await _executePlan(
-        start.plan!,
-        room,
-        transportEpoch: start.epoch,
-      )) {
+      if (!await _executePlan(start.plan!, room, transportEpoch: start.epoch)) {
         _coordinator.cancel(epoch: start.epoch);
         return _EntryState.lobby(
           room,
@@ -293,7 +277,6 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         await binding.close();
         return _EntryState.lobby(room, failure: _EntryFailure.staleAttempt);
       }
-
       final readiness = await _readinessGate.wait(
         runtime: runtime,
         peerProofs: binding.verifiedPeerProofs,
@@ -313,7 +296,6 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
               : _entryFailureFor(readiness.failure),
         );
       }
-
       _coordinator.reportTransportReady(epoch: start.epoch);
       _coordinator.reportPeerProof(epoch: start.epoch);
       if (_coordinator.state.phase != RoomConnectionPhase.connected) {
@@ -327,7 +309,6 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
           failure: _EntryFailure.coordinatorRejected,
         );
       }
-
       Logger.diagnostic(
         'room: readiness epoch=$readinessEpoch stage=connected',
       );
@@ -379,12 +360,10 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
             plan.hotspotHost == room.membership.localMemberId;
         if (role == SessionRole.host && !localIsElected) return false;
         if (role == SessionRole.joiner && localIsElected) return false;
-
         final proximity = RoomProximityControlSessionRegistry.instance;
         if (!proximity.hasRoom(room.room.id)) return false;
         if (localIsElected) {
-          final credentials =
-              await PreLiveHotspotBootstrap().prepareHost();
+          final credentials = await PreLiveHotspotBootstrap().prepareHost();
           if (credentials == null) return false;
           await proximity.publishHotspot(
             roomId: room.room.id,
@@ -393,7 +372,6 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
           );
           return true;
         }
-
         final credentials = await proximity.waitForHotspot(
           roomId: room.room.id,
           transportEpoch: transportEpoch,
@@ -436,7 +414,6 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     final role = _transfer?.sessionRole ?? SessionRole.unknown;
     if (role == SessionRole.host) return ChannelIntent.create;
     if (role == SessionRole.joiner) return ChannelIntent.join;
-
     final members = room.room.activeMembers.toList(growable: false)
       ..sort((a, b) {
         final byJoined = a.joinedAt.compareTo(b.joinedAt);
