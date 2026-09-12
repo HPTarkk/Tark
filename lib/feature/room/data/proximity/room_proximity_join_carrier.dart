@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-import '../../../transfer/data/service/room_proximity_control_channel.dart';
+import '../../../transfer/api/transfer_api.dart';
 import '../../domain/entity/room_accepted_join_snapshot.dart';
 import '../../domain/entity/room_invitation.dart';
 import '../../domain/repository/room_repository.dart';
@@ -227,7 +227,8 @@ final class RoomProximityJoinIssuerSession {
 
     switch (envelope.kind) {
       case 'joinRequest':
-        final response = _grantCache[envelope.requestId] ??
+        final response =
+            _grantCache[envelope.requestId] ??
             await _exchange.handleEncodedRequest(
               envelope.payload,
               now: DateTime.now().toUtc(),
@@ -247,11 +248,15 @@ final class RoomProximityJoinIssuerSession {
         );
         return;
       case 'membershipReceipt':
-        final confirmed = await _exchange.handleEncodedReceipt(envelope.payload);
+        final confirmed = await _exchange.handleEncodedReceipt(
+          envelope.payload,
+        );
         String payload = jsonEncode({'ok': false});
         if (confirmed) {
           try {
-            final receipt = RoomInviteMembershipReceipt.decode(envelope.payload);
+            final receipt = RoomInviteMembershipReceipt.decode(
+              envelope.payload,
+            );
             final saved = await _repository.get(_invitation.roomId);
             if (saved != null) {
               final snapshot = RoomAcceptedJoinSnapshot.fromSavedRoom(
