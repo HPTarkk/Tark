@@ -132,8 +132,7 @@ final class _RoomProximityControlSession {
     if (_disposed) {
       return Future.error(StateError('proximity control session closed'));
     }
-    return (_credentialWaiters[requestId] ??=
-            Completer<HotspotCredentials>())
+    return (_credentialWaiters[requestId] ??= Completer<HotspotCredentials>())
         .future;
   }
 
@@ -172,18 +171,12 @@ final class _RoomProximityControlSession {
       if (waiter != null && !waiter.isCompleted) {
         waiter.complete(credentials);
       } else {
-        // Host can become ready a few milliseconds before the peer enters its
-        // execute-plan branch. Buffer one exact transport epoch, never a blind
-        // retry or timer.
         _bufferedCredentials[envelope.requestId] = credentials;
         if (_bufferedCredentials.length > 4) {
           _bufferedCredentials.remove(_bufferedCredentials.keys.first);
         }
       }
-    } catch (_) {
-      // Untrusted control payload: fail closed and keep waiting for a valid
-      // message on the same authenticated/correlated socket.
-    }
+    } catch (_) {}
   }
 
   void _onClosed() {
