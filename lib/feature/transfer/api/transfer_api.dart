@@ -7,11 +7,13 @@ library;
 export 'pre_live_hotspot_bootstrap.dart';
 export '../data/capability/transport_capability_reader.dart';
 export '../data/codec/opus_audio_codec.dart' show OpusAudioCodec;
+export '../data/service/room_proximity_control_channel.dart';
 export '../data/webrtc/ice_config.dart';
 export '../data/webrtc/sdp_codec.dart';
 export '../domain/entity/audio_profile.dart';
 export '../domain/entity/connection_health.dart';
 export '../domain/entity/guest_link_state.dart';
+export '../domain/entity/hotspot_credentials.dart' show HotspotCredentials;
 export '../domain/entity/live_link.dart';
 export '../domain/entity/channel_intent.dart';
 export '../domain/entity/session_role.dart';
@@ -33,7 +35,8 @@ export '../domain/repository/transport_route_proof_exchange.dart';
 // Exported for Room failover composition and channel recovery actions. These
 // interfaces expose temporary transport control only; Room identity must never
 // be derived from hotspot credentials or network metadata.
-export '../domain/service/hotspot_control.dart' show HotspotHost, HotspotJoiner;
+export '../domain/service/hotspot_control.dart'
+    show HotspotHost, HotspotJoiner, HotspotJoinResult;
 export '../domain/service/hotspot_link_keeper.dart' show HotspotLinkKeeper;
 // Create/one-scan Room entry stamps only a temporary bootstrap-side hint here.
 // It is deliberately session-scoped and is not Room ownership or invite

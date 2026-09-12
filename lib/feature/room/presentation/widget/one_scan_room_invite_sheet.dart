@@ -8,30 +8,16 @@ import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/qr_widgets.dart';
 import '../../../../core/widget/sheet_shell.dart';
-import '../../../transfer/api/hotspot_invite_api.dart';
 import '../../../transfer/api/transfer_api.dart';
+import '../../data/proximity/room_proximity_control_session_registry.dart';
+import '../../data/proximity/room_proximity_join_carrier.dart';
 import '../../data/security/room_transport_identity_lifecycle.dart';
 import '../../data/security/room_transport_identity_secure_store.dart';
-import '../../domain/entity/held_seat_name.dart';
-import '../../domain/entity/room.dart';
-import '../../domain/entity/room_accepted_join_snapshot.dart';
-import '../../domain/entity/room_direct_join_bundle.dart';
 import '../../domain/entity/room_invitation.dart';
 import '../../domain/repository/room_repository.dart';
+import '../../domain/service/room_invite_acceptance_coordinator.dart';
+import '../../domain/service/room_invite_join_exchange.dart';
 
-/// Opens the low-distraction Add person flow used from an active Room.
-///
-/// The normal path deliberately has exactly one actionable QR. When this
-/// phone is the current hotspot host, that QR remains a standards-compliant
-/// Wi-Fi payload but carries the durable Room invite as a Tark extension.
-/// The scanning phone therefore saves membership first and joins the network
-/// from the same scan. SSID/password and a second Wi-Fi QR stay out of the
-/// primary interaction entirely.
-///
-/// [bootstrapHost] is the pre-live creator path. It starts Tark's temporary
-/// hotspot behind this sheet, but invite creation does not wait for the radio
-/// bootstrap. The first QR is therefore available immediately and is enriched
-/// with hotspot credentials as soon as the transfer layer reports them.
 Future<void> showOneScanRoomInviteSheet(
   BuildContext context, {
   RoomRepository? repository,
@@ -70,13 +56,7 @@ class OneScanRoomInviteSheet extends StatefulWidget {
   final RoomTransportIdentityLifecycle? identityLifecycle;
   final HotspotLinkKeeper? hotspotLinkKeeper;
   final TransferRepository? transferRepository;
-
-  /// True only when this sheet is opened by the creator before any transport
-  /// exists. The normal in-call path already owns its live attachment and must
-  /// never start another hotspot just because Add person was tapped.
   final bool bootstrapHost;
-
-  /// Deterministic test seam around the transfer feature's hidden bridge.
   final PreLiveHotspotBootstrap? preLiveBootstrap;
 
   @override
@@ -87,79 +67,28 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
   RoomRepository get _repository =>
       widget.repository ?? GetIt.instance<RoomRepository>();
 
-  HotspotLinkKeeper? get _keeper =>
-      widget.hotspotLinkKeeper ??
-      (GetIt.instance.isRegistered<HotspotLinkKeeper>()
-          ? GetIt.instance<HotspotLinkKeeper>()
-          : null);
-
-  TransferRepository? get _transfer =>
-      widget.transferRepository ??
-      (GetIt.instance.isRegistered<TransferRepository>()
-          ? GetIt.instance<TransferRepository>()
-          : null);
+  final RoomProximityControlChannel _control = RoomProximityControlChannel();
+  RoomProximityJoinIssuerSession? _issuerSession;
+  bool _registryOwnsControl = false;
 
   String? _roomName;
   String? _roomInvite;
-  HotspotCredentials? _credentials;
   bool _loading = true;
   String? _error;
-  StreamSubscription<HotspotLinkState>? _stateSub;
-  StreamSubscription<HotspotCredentials>? _credentialsSub;
-
-  bool get _isTransportHost => _transfer?.sessionRole == SessionRole.host;
-
-  /// A pre-live creator is known to be the bootstrap host before a live
-  /// TransferRepository exists. Once live, the ordinary session role is the
-  /// authority. Keeping those two facts explicit prevents an early keeper
-  /// callback from clearing credentials the hidden bootstrap just produced.
-  bool get _shouldCarryHotspot => widget.bootstrapHost || _isTransportHost;
 
   @override
   void initState() {
     super.initState();
-    final keeper = _keeper;
-    if (keeper != null) {
-      _syncKeeper(keeper);
-      _stateSub = keeper.states.listen((_) {
-        if (!mounted) return;
-        setState(() => _syncKeeper(keeper));
-      });
-      _credentialsSub = keeper.credentialChanges.listen((credentials) {
-        if (!mounted) return;
-        setState(() {
-          _credentials = _shouldCarryHotspot ? credentials : null;
-        });
-      });
-    }
     unawaited(_issue());
-  }
-
-  void _syncKeeper(HotspotLinkKeeper keeper) {
-    final host = _shouldCarryHotspot;
-    _credentials = host && keeper.state == HotspotLinkState.up
-        ? keeper.credentials
-        : null;
   }
 
   @override
   void dispose() {
-    unawaited(_stateSub?.cancel());
-    unawaited(_credentialsSub?.cancel());
-    super.dispose();
-  }
-
-  Future<void> _bootstrapHost() async {
-    try {
-      final credentials =
-          await (widget.preLiveBootstrap ?? PreLiveHotspotBootstrap())
-              .prepareHost();
-      if (!mounted || credentials == null) return;
-      setState(() => _credentials = credentials);
-    } catch (_) {
-      // Room membership is Bluetooth-first and the invite is still valid.
-      // Keep its QR visible; transport can recover or be planned at Start.
+    if (!_registryOwnsControl) {
+      unawaited(_issuerSession?.dispose());
+      unawaited(_control.dispose());
     }
+    super.dispose();
   }
 
   Future<void> _issue() async {
@@ -180,63 +109,53 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
         return;
       }
 
-      // Start the temporary carrier in parallel. Native hotspot setup can take
-      // seconds (and on some OEMs needs a first-time permission interaction),
-      // so it must never block creation of the durable Room invite.
-      if (widget.bootstrapHost && _credentials == null) {
-        unawaited(_bootstrapHost());
-      }
-
       final invite = await _repository.issueInvite(
         saved.room.id,
         kind: RoomInvitationKind.trustedMembership,
         now: DateTime.now().toUtc(),
         ttl: const Duration(hours: 12),
       );
-      final verified = await _repository.verifyAndRedeemInvite(
-        invite,
-        now: DateTime.now().toUtc(),
-      );
-      if (verified == null) {
-        throw StateError('Room invite verification failed');
-      }
-      final fa =
-          mounted && Localizations.localeOf(context).languageCode == 'fa';
-      final accepted = await _repository.acceptVerifiedInvite(
-        verified,
-        displayName: heldSeatNameFor(fa: fa),
-        acceptedAt: DateTime.now().toUtc(),
-        pending: true,
-        heldUntil: invite.expiresAt,
-      );
-      final memberId = RoomMemberId(invite.invitationId.substring(0, 24));
       final identity =
           widget.identityLifecycle ??
           RoomTransportIdentityLifecycle(
             store: PlatformRoomTransportIdentitySecureStore(),
           );
-      final memberKeyPair = await identity.createPendingMemberKeyPair();
-      final certificate = await identity.issueMemberCertificate(
-        issuerRoom: accepted,
-        memberId: memberId,
-        memberPublicKey: memberKeyPair.publicKey,
+      final exchange = RoomInviteJoinExchange(
+        acceptance: RoomInviteAcceptanceCoordinator(_repository),
+        requireMembershipReceipt: true,
+        issueCertificate:
+            ({
+              required acceptedRoom,
+              required memberId,
+              required memberPublicKey,
+            }) => identity.issueMemberCertificate(
+              issuerRoom: acceptedRoom,
+              memberId: memberId,
+              memberPublicKey: memberPublicKey,
+            ),
       );
-      final bundle = RoomDirectJoinBundle(
-        memberId: memberId,
-        snapshot: RoomAcceptedJoinSnapshot.fromSavedRoom(
-          accepted,
-          acceptedMemberId: memberId,
-          grantsInviteManagement: false,
-        ),
-        memberKeyPair: memberKeyPair,
-        certificate: certificate,
-        expiresAt: invite.expiresAt,
+
+      final issuerSession = RoomProximityJoinIssuerSession(
+        channel: _control,
+        invitation: invite,
+        exchange: exchange,
+        repository: _repository,
       );
+      _issuerSession = issuerSession;
+      await _control.host(rendezvousToken: invite.invitationId);
+      await RoomProximityControlSessionRegistry.instance.adopt(
+        roomId: saved.room.id,
+        invitation: invite,
+        channel: _control,
+        disposeProtocol: issuerSession.dispose,
+      );
+      _registryOwnsControl = true;
+
       if (!mounted) return;
       HapticFeedback.mediumImpact();
       setState(() {
-        _roomName = accepted.room.name;
-        _roomInvite = bundle.encode();
+        _roomName = saved.room.name;
+        _roomInvite = invite.encode();
         _loading = false;
         _error = null;
       });
@@ -247,15 +166,6 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
         _error = context.getString.people_issue_error;
       });
     }
-  }
-
-  String? get _payload {
-    final roomInvite = _roomInvite;
-    if (roomInvite == null) return null;
-    final credentials = _credentials;
-    return credentials == null
-        ? roomInvite
-        : credentials.qrPayload(roomInvite: roomInvite);
   }
 
   @override
@@ -275,7 +185,7 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
         child: Center(child: CircularProgressIndicator()),
       );
     }
-    final payload = _payload;
+    final payload = _roomInvite;
     if (payload == null) {
       return SizedBox(
         height: 220,
@@ -302,8 +212,7 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
             key: const Key('one-scan-room-invite-qr'),
             data: payload,
             size: 270,
-            branded:
-                payload.length <= RoomDirectJoinBundle.brandableEncodedLength,
+            branded: true,
           ),
         ),
         const SizedBox(height: 10),

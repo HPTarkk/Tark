@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import '../entity/room_accepted_join_snapshot.dart';
 import '../entity/room_invitation.dart';
 import 'room_invite_join_client.dart';
 import 'room_invite_join_exchange.dart';
@@ -12,11 +13,20 @@ abstract interface class RoomInviteJoinCarrier {
 }
 
 /// Optional second leg supported by persistent control carriers such as
-/// Bluetooth. QR remains a compatible recovery carrier and does not advertise
-/// receipt-required responses.
+/// Bluetooth. QR itself is only rendezvous/bootstrap and must never be used as
+/// the receipt transport.
 abstract interface class RoomInviteJoinReceiptCarrier
     implements RoomInviteJoinCarrier {
   Future<bool> submitMembershipReceipt(String encodedReceipt);
+}
+
+/// A receipt carrier that also returns the issuer's canonical roster *after*
+/// the pending seat has been atomically confirmed. This closes the last race
+/// where both phones had accepted the same member but started transport from
+/// snapshots created on opposite sides of the pending → confirmed transition.
+abstract interface class RoomInviteJoinConfirmedSnapshotCarrier
+    implements RoomInviteJoinReceiptCarrier {
+  RoomAcceptedJoinSnapshot? get confirmedSnapshot;
 }
 
 enum RoomInviteJoinAttemptStatus {
@@ -65,10 +75,6 @@ final class RoomInviteJoinAttemptResult {
 
   final RoomInviteJoinAttemptStatus status;
   final RoomInviteJoinGrant? grant;
-
-  /// Ephemeral pending key material. It is never encoded by the carrier and is
-  /// handed directly to secure local persistence after the issuer response is
-  /// verified.
   final RoomMemberTransportKeyPair? memberKeyPair;
 }
 
@@ -134,13 +140,15 @@ final class RoomInviteJoinOrchestrator {
 
     switch (response.status) {
       case RoomInviteJoinResponseStatus.accepted:
-        final grant = _client.verifyAcceptedResponse(
+        final verifiedGrant = _client.verifyAcceptedResponse(
           request: request,
           encodedResponse: encodedResponse,
         );
-        if (grant == null || grant.transportCertificate == null) {
+        if (verifiedGrant == null ||
+            verifiedGrant.transportCertificate == null) {
           return const RoomInviteJoinAttemptResult.invalidResponse();
         }
+        var grant = verifiedGrant;
         if (response.membershipReceiptRequired) {
           if (carrier is! RoomInviteJoinReceiptCarrier) {
             return const RoomInviteJoinAttemptResult.receiptNotConfirmed();
@@ -158,6 +166,25 @@ final class RoomInviteJoinOrchestrator {
           }
           if (!confirmed) {
             return const RoomInviteJoinAttemptResult.receiptNotConfirmed();
+          }
+          if (carrier is RoomInviteJoinConfirmedSnapshotCarrier) {
+            final snapshot = carrier.confirmedSnapshot;
+            if (snapshot == null || snapshot.roomId != grant.roomId) {
+              return const RoomInviteJoinAttemptResult.receiptNotConfirmed();
+            }
+            final local = snapshot.members.where(
+              (member) => member.memberId == grant.memberId && !member.pending,
+            );
+            if (local.length != 1) {
+              return const RoomInviteJoinAttemptResult.receiptNotConfirmed();
+            }
+            grant = RoomInviteJoinGrant(
+              roomId: grant.roomId,
+              memberId: grant.memberId,
+              displayName: grant.displayName,
+              snapshot: snapshot,
+              transportCertificate: grant.transportCertificate,
+            );
           }
         }
         return RoomInviteJoinAttemptResult.accepted(
