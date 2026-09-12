@@ -21,7 +21,10 @@ final class RoomProximityControlSessionRegistry {
 
   _RoomProximityControlSession? _session;
 
-  bool hasRoom(RoomId roomId) => _session?.roomId == roomId;
+  bool hasRoom(RoomId roomId) {
+    final session = _session;
+    return session != null && session.roomId == roomId && session.isOpen;
+  }
 
   Future<void> adopt({
     required RoomId roomId,
@@ -48,7 +51,7 @@ final class RoomProximityControlSessionRegistry {
     required HotspotCredentials credentials,
   }) async {
     final session = _session;
-    if (session == null || session.roomId != roomId) {
+    if (session == null || session.roomId != roomId || !session.isOpen) {
       throw StateError('no authenticated proximity session for Room');
     }
     await session.publishHotspot(
@@ -62,7 +65,7 @@ final class RoomProximityControlSessionRegistry {
     required int transportEpoch,
   }) {
     final session = _session;
-    if (session == null || session.roomId != roomId) {
+    if (session == null || session.roomId != roomId || !session.isOpen) {
       throw StateError('no authenticated proximity session for Room');
     }
     return session.waitForHotspot(localTransportEpoch: transportEpoch);
@@ -97,7 +100,10 @@ final class _RoomProximityControlSession {
   _BufferedHotspot? _bufferedCredential;
   Completer<HotspotCredentials>? _credentialWaiter;
   int _lastAcceptedRemoteEpoch = 0;
+  bool _peerClosed = false;
   bool _disposed = false;
+
+  bool get isOpen => !_peerClosed && !_disposed;
 
   static String _epochRequestId(int epoch) {
     if (epoch < 0) throw ArgumentError.value(epoch, 'epoch');
@@ -113,6 +119,9 @@ final class _RoomProximityControlSession {
     required int transportEpoch,
     required HotspotCredentials credentials,
   }) {
+    if (!isOpen) {
+      return Future.error(StateError('proximity control session closed'));
+    }
     final requestId = _epochRequestId(transportEpoch);
     return channel.send(
       RoomProximityEnvelope(
@@ -144,13 +153,14 @@ final class _RoomProximityControlSession {
       _lastAcceptedRemoteEpoch = buffered.epoch;
       return Future.value(buffered.credentials);
     }
-    if (_disposed) {
+    if (!isOpen) {
       return Future.error(StateError('proximity control session closed'));
     }
     return (_credentialWaiter ??= Completer<HotspotCredentials>()).future;
   }
 
   void _onMessage(String raw) {
+    if (!isOpen) return;
     RoomProximityEnvelope envelope;
     try {
       envelope = RoomProximityEnvelope.decode(raw);
@@ -207,6 +217,8 @@ final class _RoomProximityControlSession {
   }
 
   void _onClosed() {
+    if (_peerClosed) return;
+    _peerClosed = true;
     final waiter = _credentialWaiter;
     _credentialWaiter = null;
     if (waiter != null && !waiter.isCompleted) {
