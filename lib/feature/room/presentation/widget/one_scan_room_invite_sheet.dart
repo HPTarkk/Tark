@@ -8,6 +8,7 @@ import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/qr_widgets.dart';
 import '../../../../core/widget/sheet_shell.dart';
+import '../../../transfer/api/hotspot_invite_api.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../../data/proximity/room_proximity_control_session_registry.dart';
 import '../../data/proximity/room_proximity_join_carrier.dart';
@@ -66,6 +67,19 @@ class OneScanRoomInviteSheet extends StatefulWidget {
 class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
   RoomRepository get _repository =>
       widget.repository ?? GetIt.instance<RoomRepository>();
+
+  HotspotCredentials? _currentLiveHotspotCredentials() {
+    HotspotLinkKeeper? keeper = widget.hotspotLinkKeeper;
+    if (keeper == null) {
+      try {
+        if (GetIt.instance.isRegistered<HotspotLinkKeeper>()) {
+          keeper = GetIt.instance<HotspotLinkKeeper>();
+        }
+      } catch (_) {}
+    }
+    if (keeper == null || keeper.state != HotspotLinkState.up) return null;
+    return keeper.credentials;
+  }
 
   final RoomProximityControlChannel _control = RoomProximityControlChannel();
   RoomProximityJoinIssuerSession? _issuerSession;
@@ -142,12 +156,22 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
         repository: _repository,
       );
       _issuerSession = issuerSession;
+
+      // The native RFCOMM bridge owns one socket at a time. Add person is an
+      // explicit handoff to a new control peer, so release the previous
+      // proximity socket before asking native code to listen again. Durable
+      // Room membership and an established Wi-Fi live attachment are separate
+      // planes and remain intact.
+      await RoomProximityControlSessionRegistry.instance.clear(
+        roomId: saved.room.id,
+      );
       await _control.host(rendezvousToken: invite.invitationId);
       await RoomProximityControlSessionRegistry.instance.adopt(
         roomId: saved.room.id,
         invitation: invite,
         channel: _control,
         disposeProtocol: issuerSession.dispose,
+        currentHotspotCredentials: _currentLiveHotspotCredentials,
       );
       _registryOwnsControl = true;
 

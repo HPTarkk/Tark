@@ -69,7 +69,10 @@ final class RoomProximityControlChannel {
   Future<void> host({required String rendezvousToken}) async {
     if (_disposed) throw StateError('proximity control channel is disposed');
     _wire();
-    await _engine.requestDiscoverable();
+    final discoverable = await _engine.requestDiscoverable();
+    if (!discoverable) {
+      throw StateError('Bluetooth discoverability was not granted');
+    }
     await _engine.startHosting(
       name: encodeHostName(rendezvousName(rendezvousToken)),
     );
@@ -89,9 +92,34 @@ final class RoomProximityControlChannel {
     try {
       final peer = await peerCompleter.future;
       _engine.cancelDiscovery();
-      final connected = _engine.onPeerConnected.first;
-      await _engine.connectToHost(peer.id);
-      await connected;
+
+      final outcome = Completer<void>();
+      final connectedSub = _engine.onPeerConnected.listen((_) {
+        if (!outcome.isCompleted) outcome.complete();
+      });
+      final errorSub = _engine.onError.listen((message) {
+        if (!outcome.isCompleted) {
+          outcome.completeError(
+            StateError('proximity Bluetooth dial failed: $message'),
+          );
+        }
+      });
+      final closedSub = _engine.onClosed.listen((_) {
+        if (!outcome.isCompleted) {
+          outcome.completeError(
+            StateError('proximity Bluetooth session closed before connect'),
+          );
+        }
+      });
+
+      try {
+        await _engine.connectToHost(peer.id);
+        await outcome.future;
+      } finally {
+        await connectedSub.cancel();
+        await errorSub.cancel();
+        await closedSub.cancel();
+      }
     } finally {
       _engine.cancelDiscovery();
       await scan.cancel();
