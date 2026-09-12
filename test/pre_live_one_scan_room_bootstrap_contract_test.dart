@@ -17,7 +17,10 @@ void main() {
       expect(sheet, contains('RoomProximityJoinIssuerSession'));
       expect(sheet, contains('_roomInvite = invite.encode();'));
       expect(sheet, isNot(contains('.prepareHost()')));
-      expect(sheet, isNot(contains('HotspotCredentials')));
+      expect(
+        sheet,
+        contains('currentHotspotCredentials: _currentLiveHotspotCredentials'),
+      );
       expect(sheet, isNot(contains('qrPayload(roomInvite:')));
 
       expect(page, contains('RoomProximityJoinCarrier'));
