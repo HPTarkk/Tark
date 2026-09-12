@@ -58,12 +58,16 @@ void main() {
       'final issuerSession = RoomProximityJoinIssuerSession(',
     );
     final retained = sheet.indexOf('_issuerSession = issuerSession;');
+    final releasePrevious = sheet.indexOf(
+      'await RoomProximityControlSessionRegistry.instance.clear(',
+    );
     final host = sheet.indexOf('await _control.host(');
     final qr = sheet.indexOf('_roomInvite = invite.encode();');
 
     expect(listener, greaterThanOrEqualTo(0));
     expect(retained, greaterThan(listener));
-    expect(host, greaterThan(retained));
+    expect(releasePrevious, greaterThan(retained));
+    expect(host, greaterThan(releasePrevious));
     expect(qr, greaterThan(host));
   });
 }
