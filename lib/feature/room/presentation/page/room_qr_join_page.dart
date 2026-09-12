@@ -104,6 +104,16 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
       context.push(ConnectRoute.forScannedNetwork(), extra: raw);
       return true;
     }
+
+    // Builds before the proximity-control migration minted direct Room QR
+    // payloads under this prefix. They are deliberately no longer imported as
+    // membership, but a damaged/expired one is still recognisably a Tark Room
+    // invite and should not be described as an unrelated QR code.
+    if (raw.trimLeft().toLowerCase().startsWith('tark-room:')) {
+      setState(() => _error = context.getString.roomjoin_not_joined);
+      return false;
+    }
+
     setState(() => _error = context.getString.roomjoin_not_our_code);
     return false;
   }
