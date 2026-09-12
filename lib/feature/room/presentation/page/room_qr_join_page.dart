@@ -110,7 +110,7 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
     // membership, but a damaged/expired one is still recognisably a Tark Room
     // invite and should not be described as an unrelated QR code.
     if (raw.trimLeft().toLowerCase().startsWith('tark-room:')) {
-      setState(() => _error = context.getString.roomjoin_not_joined);
+      setState(() => _error = context.getString.roomjoin_invalid);
       return false;
     }
 
