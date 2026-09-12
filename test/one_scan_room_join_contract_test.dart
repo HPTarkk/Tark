@@ -55,13 +55,15 @@ void main() {
       'lib/feature/room/presentation/widget/one_scan_room_invite_sheet.dart',
     ).readAsString();
     final listener = sheet.indexOf(
-      '_issuerSession = RoomProximityJoinIssuerSession(',
+      'final issuerSession = RoomProximityJoinIssuerSession(',
     );
+    final retained = sheet.indexOf('_issuerSession = issuerSession;');
     final host = sheet.indexOf('await _control.host(');
     final qr = sheet.indexOf('_roomInvite = invite.encode();');
 
     expect(listener, greaterThanOrEqualTo(0));
-    expect(host, greaterThan(listener));
+    expect(retained, greaterThan(listener));
+    expect(host, greaterThan(retained));
     expect(qr, greaterThan(host));
   });
 }
