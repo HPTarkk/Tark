@@ -1,0 +1,30 @@
+name: Dispatch Tark Release Once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/release-tark-once"
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  dispatch:
+    name: Dispatch Release Tark once
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.message, '[release-tark-once]')
+    steps:
+      - name: Dispatch fixed main release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh workflow run release-tark.yml \
+            --repo "$REPO" \
+            --ref main \
+            -f release_type=promote \
+            -f channel=beta \
+            -f release_notes="Release after deterministic localization fix"
