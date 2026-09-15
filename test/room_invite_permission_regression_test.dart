@@ -98,10 +98,10 @@ void main() {
       expect(find.byKey(const Key('one-scan-room-invite-qr')), findsOneWidget);
       expect(engine.hosted, isTrue);
 
-      await tester.pumpWidget(const SizedBox.shrink());
       await RoomProximityControlSessionRegistry.instance.clear(
         roomId: room.room.id,
       );
+      await tester.pumpWidget(const SizedBox.shrink());
     },
   );
 
@@ -226,10 +226,5 @@ final class _FakeClassicBluetoothEngine extends ClassicBluetoothEngine {
   Future<void> write(Uint8List bytes) async {}
 
   @override
-  Future<void> dispose() async {
-    await _input.close();
-    await _connected.close();
-    await _errors.close();
-    await _closed.close();
-  }
+  Future<void> dispose() async {}
 }
