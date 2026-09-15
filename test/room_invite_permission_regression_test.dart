@@ -6,7 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tark/core/l10n/app_localizations.dart';
-import 'package:tark/feature/room/data/proximity/room_proximity_control_session_registry.dart';
 import 'package:tark/feature/room/data/repository/shared_preferences_room_repository.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
 import 'package:tark/feature/room/domain/entity/room_invitation.dart';
@@ -98,9 +97,10 @@ void main() {
       expect(find.byKey(const Key('one-scan-room-invite-qr')), findsOneWidget);
       expect(engine.hosted, isTrue);
 
-      await RoomProximityControlSessionRegistry.instance.clear(
-        roomId: room.room.id,
-      );
+      // The sheet has adopted this channel into the process-wide registry.
+      // Do not synchronously dispose it from the widget tree: production owns
+      // the session past sheet dismissal, and the test isolate owns final
+      // cleanup. A different RoomId is used by every test invocation.
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
