@@ -1,11 +1,16 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/android_sdk.dart';
+import '../../../../core/utils/logger.dart';
+import '../../../../core/utils/permission_queue.dart';
 import '../../../../core/widget/qr_widgets.dart';
 import '../../../../core/widget/sheet_shell.dart';
 import '../../../transfer/api/hotspot_invite_api.dart';
@@ -18,6 +23,52 @@ import '../../domain/entity/room_invitation.dart';
 import '../../domain/repository/room_repository.dart';
 import '../../domain/service/room_invite_acceptance_coordinator.dart';
 import '../../domain/service/room_invite_join_exchange.dart';
+
+typedef RoomInvitePermissionGate = Future<bool> Function();
+typedef RoomInvitePermissionRequest =
+    Future<Map<Permission, PermissionStatus>> Function(
+      List<Permission> permissions,
+    );
+
+/// Requests the runtime permissions the Room's proximity invitation actually
+/// needs before it creates a durable bearer capability.
+///
+/// The regular Bluetooth page already has this gate. Room's one-scan sheet is
+/// a separate entry point, so relying on that page having been visited makes a
+/// clean install fail before any QR can be shown.
+Future<bool> ensureRoomInviteBluetoothPermissions({
+  TargetPlatform? platform,
+  Future<int> Function()? sdkVersion,
+  RoomInvitePermissionRequest? requestPermissions,
+}) async {
+  if ((platform ?? defaultTargetPlatform) != TargetPlatform.android) {
+    return true;
+  }
+
+  final permissions = <Permission>[
+    Permission.bluetoothScan,
+    Permission.bluetoothConnect,
+    Permission.bluetoothAdvertise,
+  ];
+  try {
+    if (await (sdkVersion ?? AndroidSdk.version)() < 31) {
+      permissions.add(Permission.locationWhenInUse);
+    }
+  } catch (error) {
+    Logger.diagnostic(
+      'room_invite: sdk lookup failed error=${error.runtimeType}',
+    );
+    // Match the established Bluetooth page: assume Android S+ when the SDK
+    // lookup itself fails, so modern devices are not asked for location.
+  }
+
+  final request =
+      requestPermissions ?? (List<Permission> values) => values.request();
+  final statuses = await PermissionQueue.run(() => request(permissions));
+  return permissions.every(
+    (permission) => statuses[permission]?.isGranted == true,
+  );
+}
 
 Future<void> showOneScanRoomInviteSheet(
   BuildContext context, {
@@ -49,6 +100,8 @@ class OneScanRoomInviteSheet extends StatefulWidget {
     this.identityLifecycle,
     this.hotspotLinkKeeper,
     this.transferRepository,
+    this.controlChannel,
+    this.permissionGate,
     this.bootstrapHost = false,
     this.preLiveBootstrap,
   });
@@ -57,6 +110,8 @@ class OneScanRoomInviteSheet extends StatefulWidget {
   final RoomTransportIdentityLifecycle? identityLifecycle;
   final HotspotLinkKeeper? hotspotLinkKeeper;
   final TransferRepository? transferRepository;
+  final RoomProximityControlChannel? controlChannel;
+  final RoomInvitePermissionGate? permissionGate;
   final bool bootstrapHost;
   final PreLiveHotspotBootstrap? preLiveBootstrap;
 
@@ -81,7 +136,8 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
     return keeper.credentials;
   }
 
-  final RoomProximityControlChannel _control = RoomProximityControlChannel();
+  late final RoomProximityControlChannel _control =
+      widget.controlChannel ?? RoomProximityControlChannel();
   RoomProximityJoinIssuerSession? _issuerSession;
   bool _registryOwnsControl = false;
 
@@ -106,6 +162,7 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
   }
 
   Future<void> _issue() async {
+    var stage = 'load_room';
     try {
       final selectedId = await _repository.selectedRoomId();
       final saved = selectedId == null
@@ -123,6 +180,15 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
         return;
       }
 
+      stage = 'permissions';
+      final permitted =
+          await (widget.permissionGate ??
+              ensureRoomInviteBluetoothPermissions)();
+      if (!permitted) {
+        throw const _RoomInvitePermissionDenied();
+      }
+
+      stage = 'issue_invitation';
       final invite = await _repository.issueInvite(
         saved.room.id,
         kind: RoomInvitationKind.trustedMembership,
@@ -162,10 +228,13 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
       // proximity socket before asking native code to listen again. Durable
       // Room membership and an established Wi-Fi live attachment are separate
       // planes and remain intact.
+      stage = 'clear_previous_proximity';
       await RoomProximityControlSessionRegistry.instance.clear(
         roomId: saved.room.id,
       );
+      stage = 'host_proximity';
       await _control.host(rendezvousToken: invite.invitationId);
+      stage = 'adopt_proximity';
       await RoomProximityControlSessionRegistry.instance.adopt(
         roomId: saved.room.id,
         invitation: invite,
@@ -175,6 +244,7 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
       );
       _registryOwnsControl = true;
 
+      stage = 'render_invitation';
       if (!mounted) return;
       HapticFeedback.mediumImpact();
       setState(() {
@@ -183,7 +253,10 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
         _loading = false;
         _error = null;
       });
-    } catch (_) {
+    } catch (error) {
+      Logger.diagnostic(
+        'room_invite: failed stage=$stage error=${_safeInviteError(error)}',
+      );
       if (!mounted) return;
       setState(() {
         _loading = false;
@@ -275,4 +348,16 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
       ],
     );
   }
+}
+
+final class _RoomInvitePermissionDenied implements Exception {
+  const _RoomInvitePermissionDenied();
+}
+
+String _safeInviteError(Object error) {
+  if (error is PlatformException) return 'platform:${error.code}';
+  if (error is _RoomInvitePermissionDenied) return 'permission_denied';
+  if (error is FormatException) return 'format';
+  if (error is StateError) return 'state';
+  return error.runtimeType.toString();
 }
