@@ -50,6 +50,17 @@ void main() {
     expect(sheet, isNot(contains('.prepareHost()')));
   });
 
+  test('the channel recovery banner mints the same one-scan invite', () async {
+    final recovery = await File(
+      'lib/feature/walkie/presentation/widget/channel_recovery.dart',
+    ).readAsString();
+
+    // The legacy people sheet mints `tark-room:` codes, which the scanner
+    // refuses as invalid. No in-channel surface may hand one out.
+    expect(recovery, contains('showOneScanRoomInviteSheet('));
+    expect(recovery, isNot(contains('showRoomPeopleSheet(')));
+  });
+
   test('issuer listener exists before the QR can be scanned', () async {
     final sheet = await File(
       'lib/feature/room/presentation/widget/one_scan_room_invite_sheet.dart',

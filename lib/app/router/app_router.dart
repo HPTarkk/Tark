@@ -107,10 +107,14 @@ class AppRouter {
         // way back here after the user tapped "Enter channel". Without it the
         // selected Room opens its lobby, which is the deliberate pause every
         // other route into this one wants.
+        //
+        // `start` is set by the invite scanner once a join is accepted: the
+        // Room connects straight away over the hand-off the scan opened.
         pageBuilder: (context, state) => roomPage(
           state,
           RoomBoundWalkieEntry.buildPage(
             ride: state.uri.queryParameters['ride'] == 'true',
+            start: state.uri.queryParameters['start'] == 'true',
           ),
         ),
       ),

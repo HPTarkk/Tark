@@ -12,7 +12,7 @@ import '../../../../core/recovery/recovery_check.dart';
 import '../../../../core/recovery/recovery_sheet.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
-import '../../../room/presentation/widget/room_people_sheet.dart';
+import '../../../room/presentation/widget/one_scan_room_invite_sheet.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../manager/walkie_talkie_cubit.dart';
 
@@ -413,9 +413,10 @@ class ChannelIssueBanner extends StatelessWidget {
           state: state,
           cubit: context.read<WalkieTalkieCubit>(),
           // Straight to the code: the tap on a card that says nobody is here
-          // is already the ask, and the roster it would otherwise open holds
-          // exactly one row, saying "You".
-          onInvite: () => showRoomPeopleSheet(context, autoIssue: true),
+          // is already the ask. It is the same one-scan invite every other
+          // surface shows — the legacy people sheet minted a `tark-room:` code
+          // the scanner now refuses as invalid.
+          onInvite: () => showOneScanRoomInviteSheet(context),
         ),
       ),
     );

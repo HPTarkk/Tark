@@ -54,14 +54,14 @@ export, and never a screenshot of one.
 
 - [ ] **Automatable** — session-epoch bookkeeping rejects stale/ghost traffic
   and accepts an immediate rejoin without a grace-period penalty:
-  `test/session_epoch_gate_test.dart`.
+  `test/feature/transfer/domain/service/session_epoch_gate_test.dart`.
 - [ ] **Automatable** — the hotspot link keeper rebinds sockets (not a full
   rejoin) when the OS moves this device back onto the AP after a screen-off
   nap, and re-hosts when the AP itself is torn down mid-session:
-  `test/hotspot_link_keeper_test.dart`.
+  `test/feature/transfer/domain/service/hotspot_link_keeper_test.dart`.
 - [ ] **Automatable** — the recovery ladder escalates
   `degraded → reconnecting → renegotiating` and never reports a terminal
-  `down` state on its own: `test/recovery_ladder_test.dart`.
+  `down` state on its own: `test/feature/transfer/domain/service/recovery_ladder_test.dart`.
 - [ ] **Physical** — a transient network/hotspot disturbance (walk out of
   range and back, toggle airplane mode briefly, move between AP and phone
   data) recovers automatically. No manual leave/rejoin.
@@ -75,7 +75,7 @@ export, and never a screenshot of one.
 - [ ] **Automatable** — a screen-off nap (verified against the real gaps seen
   in the field logs: 4.8s, 16.6s, 31.2s, 33.7s) does not trigger a false
   "mic restart" — the stall watchdog credits time the isolate was suspended
-  rather than reading it as silence: `test/stall_watchdog_test.dart`. This
+  rather than reading it as silence: `test/feature/audio/domain/stall_watchdog_test.dart`. This
   is the automated regression test for the false-mic-restart-on-resume gap
   the issue named; see also
   `lib/feature/audio/domain/stall_watchdog.dart`'s doc comment.
@@ -105,15 +105,15 @@ export, and never a screenshot of one.
   reconnect calls) clears per-sender sequence/stats state so the first
   packet of a reconnected stream plays immediately, unlike the slower
   in-stream restart heuristic that needs many packets to trust a far-behind
-  sequence: `test/audio_playback_buffer_test.dart` (`reset() after a real
+  sequence: `test/feature/audio/data/audio_playback_buffer_test.dart` (`reset() after a real
   reconnect` group).
 - [ ] **Automatable** — the adaptive jitter-depth controller preserves what
   the link already taught it across a `reset()`, rather than re-learning
-  from scratch on every reconnect: `test/audio_playback_buffer_adaptive_test.dart`.
+  from scratch on every reconnect: `test/feature/audio/data/audio_playback_buffer_adaptive_test.dart`.
 - [ ] **Automatable** — no duplicate subscriptions/timers survive a retry:
   `WalkieTalkieCubit.retryStart()` disposes its full resource set through
   `DisposeBag` before re-wiring, and re-registering under an existing key
-  cancels the stale entry: `test/dispose_bag_test.dart`.
+  cancels the stale entry: `test/core/utils/dispose_bag_test.dart`.
 - [ ] **Physical** — continuous conversation over the whole ride, VOX behaving
   normally (opens on speech, closes on silence, no chatter).
 - [ ] **Physical** — shared music/podcast runs for a long continuous interval
@@ -125,18 +125,18 @@ export, and never a screenshot of one.
 - [ ] **Automatable** — wire round-trip, independent voice/media sequence
   spaces, mixed-version peer fallback (an unrecognised media type byte is
   dropped, not misread as voice), and independent per-stream decoder reset:
-  `test/waki_packet_codec_test.dart` (`shared music as an independent
+  `test/feature/transfer/data/codec/waki_packet_codec_test.dart` (`shared music as an independent
   stream (#30)` group).
 - [ ] **Automatable** — send-side cushion (prefill/drift/flood/overflow),
   stereo-vs-mono channel handling, and clock lifecycle for the independent
-  media scheduler: `test/media_frame_scheduler_test.dart`.
+  media scheduler: `test/feature/audio/domain/media_frame_scheduler_test.dart`.
 - [ ] **Automatable** — receive-side jitter buffer (filling, concealment,
   drift, overflow, starvation, reset) for the independent media stream,
-  fully separate from voice's own: `test/media_receive_buffer_test.dart`.
+  fully separate from voice's own: `test/feature/audio/domain/media_receive_buffer_test.dart`.
 - [ ] **Automatable** — voice-first write priority on Bluetooth's shared pipe
   (ordering, priority preemption of an already-queued low-priority write,
   bounded drop, error propagation, `clear()`):
-  `test/priority_write_scheduler_test.dart`.
+  `test/feature/transfer/domain/service/priority_write_scheduler_test.dart`.
 - [ ] **Automatable** — the deterministic stress/replay fixture: simultaneous
   voice+media under independent injected loss without exceptions or
   cross-contamination, a corrupt media packet never disturbing voice
@@ -144,7 +144,7 @@ export, and never a screenshot of one.
   jitter, clean simultaneous reconnect recovery for both streams, no leaks
   across repeated media stop/start cycles, and a high-priority voice write
   completing promptly under a saturated media write queue:
-  `test/media_voice_stress_test.dart`.
+  `test/feature/audio/domain/media_voice_stress_test.dart`.
 - [ ] **Physical** — with two devices that both negotiate a media profile
   (independent mode confirmed via the `music cast: capture started —
   mode=independent` log line), shared music keeps playing while voice is
@@ -165,10 +165,10 @@ export, and never a screenshot of one.
 - [ ] **Automatable** — the container format's cross-language keystream
   matches between the Dart encoder and `scripts/decode_tark_log.py`, gzip +
   CRC32 round-trips, and no plaintext survives outside the keystream:
-  `test/tark_log_format_test.dart`.
+  `test/core/diagnostics/tark_log_format_test.dart`.
 - [ ] **Automatable** — the diagnostic log ring stays under its byte ceiling,
   keeps newest lines in order across segments, and resumes correctly across
-  detach/attach cycles: `test/diagnostic_log_rotation_test.dart`.
+  detach/attach cycles: `test/core/diagnostics/diagnostic_log_rotation_test.dart`.
 - [ ] **Automatable** — `scripts/decode_tark_log.py --report` scopes its
   metrics to one selected session and never merges two `--- session ...
   opened` blocks from a multi-run ring log: `scripts/test_decode_tark_log.py`.

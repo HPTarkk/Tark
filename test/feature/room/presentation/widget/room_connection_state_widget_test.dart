@@ -74,9 +74,12 @@ void main() {
       expect(find.text('Room members (2)'), findsOneWidget);
       expect(find.text('Rider two'), findsOneWidget);
       expect(find.text('Open seat'), findsNothing);
+      // Before Start nothing is known about the other phone, so its row makes
+      // no claim about it — a "ready" badge described a phone that might still
+      // be at home.
       expect(
         find.byKey(const ValueKey('room-status-readyToConnect')),
-        findsOneWidget,
+        findsNothing,
       );
       expect(find.byKey(const ValueKey('room-status-invited')), findsNothing);
       expect(find.textContaining('SSID'), findsNothing);

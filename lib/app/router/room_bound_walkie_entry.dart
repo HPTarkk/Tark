@@ -23,18 +23,38 @@ import '../../feature/walkie/api/walkie_api.dart';
 /// remote durable Room member has answered a signed route challenge on that
 /// same attachment generation.
 class RoomBoundWalkieEntry extends StatefulWidget {
-  const RoomBoundWalkieEntry({super.key, this.ride = false});
+  const RoomBoundWalkieEntry({
+    super.key,
+    this.ride = false,
+    this.start = false,
+  });
 
+  /// Arrived from a screen whose job was establishing a link — the hotspot
+  /// bridge, Bluetooth pairing, the guest link. That link is what Start uses.
   final bool ride;
 
-  static Widget buildPage({bool ride = false}) =>
-      RoomBoundWalkieEntry(ride: ride);
+  /// Arrived straight from scanning an invite. Connecting starts at once, over
+  /// the proximity hand-off the scan opened: scanning was that person's whole
+  /// part, and a second "start?" would have two people coordinating a tap.
+  final bool start;
+
+  static Widget buildPage({bool ride = false, bool start = false}) =>
+      RoomBoundWalkieEntry(ride: ride, start: start);
 
   @override
   State<RoomBoundWalkieEntry> createState() => _RoomBoundWalkieEntryState();
 }
 
 class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
+  /// How long the two ends of a proximity hand-off wait for each other. It has
+  /// to cover the host bringing an access point up and the joiner finding and
+  /// answering Android's "connect to this network?" prompt.
+  static const _handoffTimeout = Duration(seconds: 60);
+
+  /// A link that is already up either reaches the others promptly or not at
+  /// all; nothing is being set up while this runs.
+  static const _existingLinkTimeout = Duration(seconds: 30);
+
   RoomRepository? _rooms;
   TransferRepository? _transfer;
   SelectedRoomLiveSessionBinding? _binding;
@@ -45,10 +65,13 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   LiveLinkSnapshot? _links;
   StreamSubscription<void>? _linkChanges;
   final RoomConnectionCoordinator _coordinator = RoomConnectionCoordinator();
-  final RoomConnectionReadinessGate _readinessGate =
-      const RoomConnectionReadinessGate();
   Future<_EntryState>? _activeStart;
   int _readinessEpoch = 0;
+
+  SessionRoleStore? get _roleStore =>
+      GetIt.instance.isRegistered<SessionRoleStore>()
+      ? GetIt.instance<SessionRoleStore>()
+      : null;
 
   @override
   void initState() {
@@ -157,9 +180,12 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       if (selectedId != null) {
         final selected = await SelectedRoomLobbyResolver(rooms).resolve();
         if (selected == null) return const _EntryState.invalidSelection();
-        if (widget.ride) {
+        if (widget.ride || widget.start) {
           _showAttemptingRoom(selected);
-          return await _startSelectedRoom(selected);
+          return await _startSelectedRoom(
+            selected,
+            linkEstablished: widget.ride,
+          );
         }
         return _EntryState.lobby(selected);
       }
@@ -183,10 +209,13 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     setState(() => _attemptRoom = room);
   }
 
-  Future<_EntryState> _startSelectedRoom(SavedRoom room) {
+  Future<_EntryState> _startSelectedRoom(
+    SavedRoom room, {
+    bool linkEstablished = false,
+  }) {
     final existing = _activeStart;
     if (existing != null) return existing;
-    final future = _startSelectedRoomOnce(room);
+    final future = _startSelectedRoomOnce(room, linkEstablished);
     _activeStart = future;
     unawaited(
       future.then<void>(
@@ -201,7 +230,10 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     return future;
   }
 
-  Future<_EntryState> _startSelectedRoomOnce(SavedRoom room) async {
+  Future<_EntryState> _startSelectedRoomOnce(
+    SavedRoom room,
+    bool linkEstablished,
+  ) async {
     final rooms = _rooms;
     if (rooms == null) {
       return _EntryState.lobby(
@@ -221,10 +253,13 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         failure: _EntryFailure.selectionReadFailed,
       );
     }
-    return _verifiedLiveFor(room);
+    return _verifiedLiveFor(room, linkEstablished: linkEstablished);
   }
 
-  Future<_EntryState> _verifiedLiveFor(SavedRoom room) async {
+  Future<_EntryState> _verifiedLiveFor(
+    SavedRoom room, {
+    required bool linkEstablished,
+  }) async {
     final binding = _binding;
     if (binding == null) {
       Logger.diagnostic('room: readiness stage=binding_unavailable');
@@ -242,12 +277,25 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       Logger.diagnostic('room: readiness stage=peer_proof_missing');
       return _EntryState.lobby(room, failure: _EntryFailure.peerProofMissing);
     }
-    final bootstrapHost = _bootstrapHotspotHost(room);
+    // Only a proximity hand-off from a QR scan can plan a hotspot: it is the
+    // one channel both phones share before any network does, and the phone
+    // that showed the code raises the access point. Without one there is
+    // nothing to arrange, so the link this phone already holds — joined
+    // through recovery, paired over Bluetooth, a shared network — is tried as
+    // it is. "Usable" is provisional then: nothing is reported connected until
+    // the readiness gate below holds a signed proof from another member.
+    final issuer = linkEstablished
+        ? null
+        : RoomProximityControlSessionRegistry.instance.isIssuerFor(
+            room.room.id,
+          );
     final start = _coordinator.requestStart(
       requester: localMemberId,
-      sharedLanUsable: false,
+      sharedLanUsable: issuer == null,
       candidates: const [],
-      bootstrapHotspotHost: bootstrapHost,
+      bootstrapHotspotHost: issuer == null
+          ? null
+          : _bootstrapHotspotHost(room, localIsIssuer: issuer),
     );
     if (!start.isActive || start.plan == null) {
       Logger.diagnostic('room: readiness stage=no_verified_transport_plan');
@@ -258,12 +306,14 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     }
     final readinessEpoch = ++_readinessEpoch;
     try {
-      if (!await _executePlan(start.plan!, room, transportEpoch: start.epoch)) {
+      final planFailure = await _executePlan(
+        start.plan!,
+        room,
+        transportEpoch: start.epoch,
+      );
+      if (planFailure != null) {
         _coordinator.cancel(epoch: start.epoch);
-        return _EntryState.lobby(
-          room,
-          failure: _EntryFailure.transportPlanMismatch,
-        );
+        return _EntryState.lobby(room, failure: planFailure);
       }
       if (!await _openLinkGate()) {
         _coordinator.cancel(epoch: start.epoch);
@@ -277,14 +327,17 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         await binding.close();
         return _EntryState.lobby(room, failure: _EntryFailure.staleAttempt);
       }
-      final readiness = await _readinessGate.wait(
-        runtime: runtime,
-        peerProofs: binding.verifiedPeerProofs,
-        initialPeerProofs: binding.verifiedPeerProofSnapshot,
-        expectedPeers: expectedPeers,
-        epoch: readinessEpoch,
-        currentEpoch: () => _readinessEpoch,
-      );
+      final readiness =
+          await RoomConnectionReadinessGate(
+            timeout: issuer == null ? _existingLinkTimeout : _handoffTimeout,
+          ).wait(
+            runtime: runtime,
+            peerProofs: binding.verifiedPeerProofs,
+            initialPeerProofs: binding.verifiedPeerProofSnapshot,
+            expectedPeers: expectedPeers,
+            epoch: readinessEpoch,
+            currentEpoch: () => _readinessEpoch,
+          );
       if (!readiness.isReady || readinessEpoch != _readinessEpoch) {
         final stage = readiness.failure?.name ?? 'peerProofMissing';
         Logger.diagnostic('room: readiness epoch=$readinessEpoch stage=$stage');
@@ -339,56 +392,94 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     null => _EntryFailure.peerProofMissing,
   };
 
-  RoomMemberId? _bootstrapHotspotHost(SavedRoom room) {
-    final members = room.room.activeMembers.toList(growable: false)
-      ..sort((a, b) {
-        final byJoined = a.joinedAt.compareTo(b.joinedAt);
-        return byJoined != 0 ? byJoined : a.id.value.compareTo(b.id.value);
-      });
-    return members.isEmpty ? null : members.first.id;
+  /// The member who raises the first hotspot of a proximity hand-off: the
+  /// phone that showed the QR. Each end knows which side of the socket it is
+  /// on, so the two agree without an election — and unlike "whoever created
+  /// the Room", it is always one of the two phones actually standing there.
+  RoomMemberId _bootstrapHotspotHost(
+    SavedRoom room, {
+    required bool localIsIssuer,
+  }) {
+    final local = room.membership.localMemberId;
+    if (localIsIssuer) return local;
+    // The joining side only needs to name somebody other than itself; which
+    // remote member that is changes nothing it does.
+    return room.room.activeMembers
+        .map((member) => member.id)
+        .firstWhere((id) => id != local);
   }
 
-  Future<bool> _executePlan(
+  /// Carries out [plan], or says why it could not be carried out.
+  Future<_EntryFailure?> _executePlan(
     RoomTransportPlan plan,
     SavedRoom room, {
     required int transportEpoch,
   }) async {
     switch (plan.kind) {
       case RoomTransportKind.hotspot:
-        final role = _transfer?.sessionRole ?? SessionRole.unknown;
+        final proximity = RoomProximityControlSessionRegistry.instance;
+        if (!proximity.hasRoom(room.room.id)) {
+          return _EntryFailure.transportPlanMismatch;
+        }
         final localIsElected =
             plan.hotspotHost == room.membership.localMemberId;
-        if (role == SessionRole.host && !localIsElected) return false;
-        if (role == SessionRole.joiner && localIsElected) return false;
-        final proximity = RoomProximityControlSessionRegistry.instance;
-        if (!proximity.hasRoom(room.room.id)) return false;
+        Logger.diagnostic(
+          'room: handoff side=${localIsElected ? 'host' : 'joiner'}',
+        );
+        // The plan decides the side now, so it is what the rest of the
+        // transport stack hears: the network rebind coordinator clears its
+        // process pin for a host and binds for a joiner, and the hotspot
+        // bootstrap refuses to raise an AP for anyone not recorded as host. A
+        // hint left over from another Room — or none at all after a restart —
+        // would otherwise veto the side both phones just agreed on.
+        _roleStore?.setRole(
+          localIsElected ? SessionRole.host : SessionRole.joiner,
+        );
         if (localIsElected) {
           final credentials = await PreLiveHotspotBootstrap().prepareHost();
-          if (credentials == null) return false;
+          if (credentials == null) return _EntryFailure.transportSetup;
           await proximity.publishHotspot(
             roomId: room.room.id,
             transportEpoch: transportEpoch,
             credentials: credentials,
           );
-          return true;
+          return null;
         }
-        final credentials = await proximity.waitForHotspot(
-          roomId: room.room.id,
-          transportEpoch: transportEpoch,
-        );
-        final joiner = GetIt.instance<HotspotJoiner>();
-        final joined = await joiner.join(credentials);
-        if (joined != HotspotJoinResult.joined) return false;
-        await _modeStore?.setMode(TransferMode.hotspot);
-        return true;
+        try {
+          final credentials = await proximity
+              .waitForHotspot(
+                roomId: room.room.id,
+                transportEpoch: transportEpoch,
+              )
+              .timeout(_handoffTimeout);
+          final joined = await GetIt.instance<HotspotJoiner>().join(
+            credentials,
+          );
+          switch (joined) {
+            case HotspotJoinResult.joined:
+              await _modeStore?.setMode(TransferMode.hotspot);
+              return null;
+            case HotspotJoinResult.wifiOff:
+              return _EntryFailure.wifiOff;
+            case HotspotJoinResult.locationOff:
+              return _EntryFailure.locationOff;
+            case HotspotJoinResult.declined:
+              return _EntryFailure.transportSetup;
+          }
+        } on TimeoutException {
+          return _EntryFailure.peerProofMissing;
+        }
       case RoomTransportKind.sharedLan:
-        return false;
+        // Nothing to arrange (see _verifiedLiveFor). The link gate that runs
+        // next refuses a phone that is on nothing at all.
+        return null;
       case RoomTransportKind.bluetooth:
-        return room.room.confirmedMembers.length == 2;
+        return room.room.confirmedMembers.length == 2
+            ? null
+            : _EntryFailure.transportPlanMismatch;
       case RoomTransportKind.guest:
-        return false;
       case null:
-        return false;
+        return _EntryFailure.transportPlanMismatch;
     }
   }
 
@@ -463,17 +554,33 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     if (failure == null) return null;
     final s = context.getString;
     return switch (failure) {
-      _EntryFailure.localLinkMissing => s.no_network,
-      _EntryFailure.peerProofMissing => s.bt_waiting_for_peer,
-      _EntryFailure.staleAttempt => s.link_reconnecting,
-      _EntryFailure.transportBindTimeout ||
+      // A newer attempt replaced this one; it has nothing to tell anybody.
+      _EntryFailure.staleAttempt => null,
+      _EntryFailure.localLinkMissing => s.room_start_not_linked,
+      _EntryFailure.peerProofMissing ||
+      _EntryFailure.transportBindTimeout => s.room_start_nobody_answered,
+      _EntryFailure.wifiOff => s.room_start_wifi_off,
+      _EntryFailure.locationOff => s.room_start_location_off,
       _EntryFailure.transportPlanMismatch ||
       _EntryFailure.coordinatorRejected ||
       _EntryFailure.transportSetup ||
       _EntryFailure.compositionUnavailable ||
-      _EntryFailure.selectionReadFailed => s.bt_connection_failed,
+      _EntryFailure.selectionReadFailed => s.room_start_failed,
     };
   }
+
+  /// Whether a failure is one the automatic path could not get past, where
+  /// connecting the phones by hand is the way forward. A switched-off radio
+  /// is not: the message already names the switch.
+  static bool _offersConnect(_EntryFailure? failure) => switch (failure) {
+    _EntryFailure.localLinkMissing ||
+    _EntryFailure.peerProofMissing ||
+    _EntryFailure.transportBindTimeout ||
+    _EntryFailure.transportPlanMismatch ||
+    _EntryFailure.coordinatorRejected ||
+    _EntryFailure.transportSetup => true,
+    _ => false,
+  };
 
   @override
   void dispose() {
@@ -507,7 +614,6 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
               link: _resolvedLink,
               mode: _modeStore?.mode,
               onStartRide: () {},
-              onConnect: () => _connect(context, room),
               onBack: () => leaveRoomEntry(context),
             ),
           );
@@ -522,7 +628,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         return RouteExitScope(
           onExit: () => leaveRoomEntry(context),
           child: _RecoverableRoomEntry(
-            message: context.getString.bt_connection_failed,
+            message: context.getString.room_start_failed,
             onRetry: _retryInitial,
             onBack: () => leaveRoomEntry(context),
           ),
@@ -559,7 +665,9 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
             failureMessage: _failureMessage(context, state.failure),
             onRetry: state.failure == null ? null : () => _startRide(room),
             onStartRide: () => _startRide(room),
-            onConnect: () => _connect(context, room),
+            onConnect: _offersConnect(state.failure)
+                ? () => _connect(context, room)
+                : null,
             onBack: () => leaveRoomEntry(context),
           ),
         );
@@ -570,7 +678,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
           child: _RecoverableRoomEntry(
             message:
                 _failureMessage(context, state.failure) ??
-                context.getString.bt_connection_failed,
+                context.getString.room_start_failed,
             onRetry: _retryInitial,
             onBack: () => leaveRoomEntry(context),
           ),
@@ -631,6 +739,8 @@ enum _EntryFailure {
   transportPlanMismatch,
   coordinatorRejected,
   transportSetup,
+  wifiOff,
+  locationOff,
   compositionUnavailable,
   selectionReadFailed,
 }

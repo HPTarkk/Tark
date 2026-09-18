@@ -128,7 +128,7 @@ abstract final class TarkLogFormat {
 /// (it's a JS double under the hood — 53 bits of exact precision, not 64).
 /// `Int64` emulates the wraparound portably, so this produces the same bytes
 /// on VM, dart2js and wasm alike — see the golden vector in
-/// test/tark_log_format_test.dart.
+/// test/core/diagnostics/tark_log_format_test.dart.
 class _Keystream {
   _Keystream(Int64 secret, List<int> nonce) {
     var seed = secret;

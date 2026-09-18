@@ -37,8 +37,10 @@ void main() {
     required LiveLink? link,
     TransferMode? mode,
     SavedRoom? savedRoom,
-    PreLiveHotspotBootstrap? bootstrap,
     VoidCallback? onStartRide,
+    String? failureMessage,
+    VoidCallback? onRetry,
+    VoidCallback? onConnect,
     Locale locale = const Locale('en'),
   }) async {
     await tester.pumpWidget(
@@ -50,7 +52,9 @@ void main() {
           room: savedRoom ?? room(),
           link: link,
           mode: mode,
-          preLiveBootstrap: bootstrap,
+          failureMessage: failureMessage,
+          onRetry: onRetry,
+          onConnect: onConnect,
           onStartRide: onStartRide ?? () {},
           onBack: () {},
         ),
@@ -68,6 +72,7 @@ void main() {
     expect(find.byKey(const Key('selected-room-link-callout')), findsNothing);
     expect(find.byKey(const Key('selected-room-link-chip')), findsNothing);
     expect(find.byKey(const Key('selected-room-connect')), findsNothing);
+    expect(find.byKey(const Key('selected-room-connect-phones')), findsNothing);
     expect(
       find.byKey(const Key('selected-room-different-network')),
       findsNothing,
@@ -78,88 +83,66 @@ void main() {
     );
   });
 
-  testWidgets('existing Wi-Fi is tried without raising a new hotspot', (
+  testWidgets('Start hands the attempt to the entry whatever the link', (
     tester,
   ) async {
-    var bootstraps = 0;
-    var starts = 0;
-    final bootstrap = PreLiveHotspotBootstrap(
-      starter: () async {
-        bootstraps++;
-        return null;
-      },
-    );
+    for (final link in [LiveLink.none, LiveLink.wifi]) {
+      for (final preferred in [true, false]) {
+        var starts = 0;
+        await pumpLobby(
+          tester,
+          link: link,
+          mode: TransferMode.wifi,
+          savedRoom: room(localIsPreferred: preferred),
+          onStartRide: () => starts++,
+        );
 
-    await pumpLobby(
-      tester,
-      link: LiveLink.wifi,
-      mode: TransferMode.wifi,
-      bootstrap: bootstrap,
-      onStartRide: () => starts++,
-    );
+        await tester.tap(find.byKey(const Key('selected-room-start-ride')));
+        await tester.pump();
 
-    await tester.tap(find.byKey(const Key('selected-room-start-ride')));
-    await tester.pump();
-
-    expect(bootstraps, 0);
-    expect(starts, 1);
+        expect(starts, 1, reason: 'link=$link preferred=$preferred');
+      }
+    }
   });
 
-  testWidgets('preferred host hides hotspot bootstrap behind Start', (
+  testWidgets('a failed Start offers retrying and connecting by hand', (
     tester,
   ) async {
-    var bootstraps = 0;
-    var starts = 0;
-    final bootstrap = PreLiveHotspotBootstrap(
-      starter: () async {
-        bootstraps++;
-        return null;
-      },
-    );
-
+    var retries = 0;
+    var connects = 0;
     await pumpLobby(
       tester,
       link: LiveLink.none,
       mode: TransferMode.wifi,
-      bootstrap: bootstrap,
-      onStartRide: () => starts++,
+      failureMessage: "These phones aren't linked right now.",
+      onRetry: () => retries++,
+      onConnect: () => connects++,
     );
 
-    await tester.tap(find.byKey(const Key('selected-room-start-ride')));
-    await tester.pump();
+    expect(
+      find.byKey(const Key('selected-room-start-failure')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const Key('selected-room-retry')));
+    await tester.tap(find.byKey(const Key('selected-room-connect-phones')));
     await tester.pump();
 
-    expect(bootstraps, 1);
-    expect(starts, 1);
-    expect(find.byKey(const Key('selected-room-connect')), findsNothing);
+    expect(retries, 1);
+    expect(connects, 1);
   });
 
-  testWidgets('non-preferred member never self-promotes in the lobby', (
+  testWidgets('a failure without a way to connect shows no connect action', (
     tester,
   ) async {
-    var bootstraps = 0;
-    var starts = 0;
-    final bootstrap = PreLiveHotspotBootstrap(
-      starter: () async {
-        bootstraps++;
-        return null;
-      },
-    );
-
     await pumpLobby(
       tester,
       link: LiveLink.none,
-      mode: TransferMode.wifi,
-      savedRoom: room(localIsPreferred: false),
-      bootstrap: bootstrap,
-      onStartRide: () => starts++,
+      failureMessage: 'Wi-Fi is off. Switch it on and try again.',
+      onRetry: () {},
     );
 
-    await tester.tap(find.byKey(const Key('selected-room-start-ride')));
-    await tester.pump();
-
-    expect(bootstraps, 0);
-    expect(starts, 1);
+    expect(find.byKey(const Key('selected-room-retry')), findsOneWidget);
+    expect(find.byKey(const Key('selected-room-connect-phones')), findsNothing);
   });
 
   testWidgets('transport state never changes the durable roster', (

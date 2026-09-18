@@ -2897,8 +2897,62 @@ abstract class AppLocalizations {
   /// No description provided for @lobby_nothing_started.
   ///
   /// In fa, this message translates to:
-  /// **'تا وقتی «شروع ارتباط» را نزنید، هیچ هات‌اسپات، میکروفن یا اتصال زنده‌ای شروع نمی‌شود.'**
+  /// **'تا «شروع ارتباط» را نزنید، میکروفن خاموش می‌ماند.'**
   String get lobby_nothing_started;
+
+  /// No description provided for @lobby_connecting_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'گوشی‌ها را نزدیک هم نگه دارید. اگر گوشی برای اتصال به شبکه سؤال کرد، «اتصال» را بزنید.'**
+  String get lobby_connecting_hint;
+
+  /// No description provided for @lobby_invite_people.
+  ///
+  /// In fa, this message translates to:
+  /// **'دعوت به اتاق'**
+  String get lobby_invite_people;
+
+  /// No description provided for @lobby_alone_no_invite.
+  ///
+  /// In fa, this message translates to:
+  /// **'هنوز کس دیگری در این اتاق نیست. اول باید عضوی که اجازهٔ دعوت دارد افراد را اضافه کند.'**
+  String get lobby_alone_no_invite;
+
+  /// No description provided for @room_start_not_linked.
+  ///
+  /// In fa, this message translates to:
+  /// **'این گوشی‌ها الان به هم وصل نیستند. وصلشان کنید تا شروع شود.'**
+  String get room_start_not_linked;
+
+  /// No description provided for @room_start_nobody_answered.
+  ///
+  /// In fa, this message translates to:
+  /// **'به هیچ‌کدام از اعضای اتاق نرسیدیم. مطمئن شوید نزدیک‌اند و «ترک» روی گوشی‌شان باز است، بعد دوباره امتحان کنید.'**
+  String get room_start_nobody_answered;
+
+  /// No description provided for @room_start_failed.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتصال برقرار نشد. گوشی‌ها را نزدیک هم نگه دارید و دوباره امتحان کنید.'**
+  String get room_start_failed;
+
+  /// No description provided for @room_start_wifi_off.
+  ///
+  /// In fa, this message translates to:
+  /// **'وای‌فای خاموش است. روشنش کنید و دوباره امتحان کنید.'**
+  String get room_start_wifi_off;
+
+  /// No description provided for @room_start_location_off.
+  ///
+  /// In fa, this message translates to:
+  /// **'لوکیشن خاموش است، برای همین این گوشی بقیه را پیدا نمی‌کند. روشنش کنید و دوباره امتحان کنید.'**
+  String get room_start_location_off;
+
+  /// No description provided for @room_start_connect.
+  ///
+  /// In fa, this message translates to:
+  /// **'وصل کردن گوشی‌ها'**
+  String get room_start_connect;
 
   /// No description provided for @lobby_alone_title.
   ///
@@ -3341,8 +3395,38 @@ abstract class AppLocalizations {
   /// No description provided for @people_invite_hint.
   ///
   /// In fa, this message translates to:
-  /// **'بگذار طرف مقابل این کد را با «پیوستن با QR» اسکن کند. مستقیم وارد اتاق می‌شود.'**
+  /// **'بگذار طرف مقابل نزدیک همین گوشی، این کد را با «پیوستن با QR» اسکن کند. مستقیم وارد اتاق می‌شود.'**
   String get people_invite_hint;
+
+  /// No description provided for @people_invite_joined.
+  ///
+  /// In fa, this message translates to:
+  /// **'{name} وارد شد'**
+  String people_invite_joined(Object name);
+
+  /// No description provided for @people_invite_permission.
+  ///
+  /// In fa, this message translates to:
+  /// **'برای اشتراک دعوت، اجازهٔ «دستگاه‌های نزدیک» لازم است.'**
+  String get people_invite_permission;
+
+  /// No description provided for @people_invite_visible.
+  ///
+  /// In fa, this message translates to:
+  /// **'اجازه بدهید این گوشی برای دستگاه‌های نزدیک قابل مشاهده باشد تا گوشی آن‌ها پیدایش کند.'**
+  String get people_invite_visible;
+
+  /// No description provided for @people_invite_paused.
+  ///
+  /// In fa, this message translates to:
+  /// **'زمان این دعوت تمام شد.'**
+  String get people_invite_paused;
+
+  /// No description provided for @people_invite_show_again.
+  ///
+  /// In fa, this message translates to:
+  /// **'نمایش دوباره'**
+  String get people_invite_show_again;
 
   /// No description provided for @people_held_seats_hint.
   ///
@@ -3475,6 +3559,24 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'پیوستن انجام نشد. یک دعوت تازه از میزبان بگیر.'**
   String get roomjoin_not_joined;
+
+  /// No description provided for @roomjoin_bluetooth_permission.
+  ///
+  /// In fa, this message translates to:
+  /// **'برای پیوستن، اجازهٔ «دستگاه‌های نزدیک» لازم است. اجازه بده و دوباره اسکن کن.'**
+  String get roomjoin_bluetooth_permission;
+
+  /// No description provided for @roomjoin_bluetooth_off.
+  ///
+  /// In fa, this message translates to:
+  /// **'بلوتوث را روشن کن و دوباره اسکن کن.'**
+  String get roomjoin_bluetooth_off;
+
+  /// No description provided for @roomjoin_host_not_found.
+  ///
+  /// In fa, this message translates to:
+  /// **'گوشی میزبان پیدا نشد. دعوت را روی آن باز نگه دار، نزدیک بمان و دوباره اسکن کن.'**
+  String get roomjoin_host_not_found;
 
   /// No description provided for @roomjoin_invalid.
   ///

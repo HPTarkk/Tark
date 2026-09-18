@@ -32,6 +32,8 @@ void main() {
       addTearDown(channel.dispose);
 
       final joining = channel.connect(rendezvousToken: token);
+      // The adapter check runs before the scan subscribes.
+      await Future<void>.delayed(Duration.zero);
       engine.scans.add(
         BluetoothPeer(
           id: 'AA:BB:CC:DD:EE:FF',
@@ -47,12 +49,110 @@ void main() {
     },
   );
 
+  test(
+    'a host that never turns up fails the join instead of scanning forever',
+    () async {
+      final engine = _FakeClassicBluetoothEngine();
+      final channel = RoomProximityControlChannel(
+        engine: engine,
+        findTimeout: const Duration(milliseconds: 80),
+        rescanEvery: const Duration(milliseconds: 15),
+      );
+      addTearDown(channel.dispose);
+
+      await expectLater(
+        channel.connect(rendezvousToken: token),
+        throwsA(
+          isA<RoomProximityException>().having(
+            (error) => error.failure,
+            'failure',
+            RoomProximityFailure.hostNotFound,
+          ),
+        ),
+      );
+      // Discovery is restarted through Android's inquiry window rather than
+      // left to end on its own after the first one.
+      expect(engine.scanCount, greaterThan(1));
+      expect(engine.dialed, isFalse);
+    },
+  );
+
+  test('a dial that never answers is bounded too', () async {
+    final engine = _FakeClassicBluetoothEngine();
+    final channel = RoomProximityControlChannel(
+      engine: engine,
+      dialTimeout: const Duration(milliseconds: 20),
+    );
+    addTearDown(channel.dispose);
+
+    final joining = channel.connect(rendezvousToken: token);
+    await Future<void>.delayed(Duration.zero);
+    engine.scans.add(
+      BluetoothPeer(
+        id: 'AA:BB:CC:DD:EE:FF',
+        name: RoomProximityControlChannel.rendezvousName(token),
+        isAppHost: true,
+      ),
+    );
+
+    await expectLater(
+      joining,
+      throwsA(
+        isA<RoomProximityException>().having(
+          (error) => error.failure,
+          'failure',
+          RoomProximityFailure.dialFailed,
+        ),
+      ),
+    );
+    expect(engine.dialed, isTrue);
+  });
+
+  test('Bluetooth left off is reported before any scan starts', () async {
+    final engine = _FakeClassicBluetoothEngine(enabled: false);
+    final channel = RoomProximityControlChannel(engine: engine);
+    addTearDown(channel.dispose);
+
+    await expectLater(
+      channel.connect(rendezvousToken: token),
+      throwsA(
+        isA<RoomProximityException>().having(
+          (error) => error.failure,
+          'failure',
+          RoomProximityFailure.bluetoothOff,
+        ),
+      ),
+    );
+    expect(engine.scanned, isFalse);
+  });
+
+  test(
+    'a declined visibility prompt says so, not just that it failed',
+    () async {
+      final engine = _FakeClassicBluetoothEngine(discoverable: false);
+      final channel = RoomProximityControlChannel(engine: engine);
+      addTearDown(channel.dispose);
+
+      await expectLater(
+        channel.host(rendezvousToken: token),
+        throwsA(
+          isA<RoomProximityException>().having(
+            (error) => error.failure,
+            'failure',
+            RoomProximityFailure.discoverabilityDenied,
+          ),
+        ),
+      );
+    },
+  );
+
   test('peer connected event completes the proximity dial', () async {
     final engine = _FakeClassicBluetoothEngine();
     final channel = RoomProximityControlChannel(engine: engine);
     addTearDown(channel.dispose);
 
     final joining = channel.connect(rendezvousToken: token);
+    await Future<void>.delayed(Duration.zero);
     engine.scans.add(
       BluetoothPeer(
         id: 'AA:BB:CC:DD:EE:FF',
@@ -69,9 +169,10 @@ void main() {
 }
 
 class _FakeClassicBluetoothEngine extends ClassicBluetoothEngine {
-  _FakeClassicBluetoothEngine({this.discoverable = true});
+  _FakeClassicBluetoothEngine({this.discoverable = true, this.enabled = true});
 
   final bool discoverable;
+  final bool enabled;
   final scans = StreamController<BluetoothPeer>.broadcast();
   final connected = StreamController<String>.broadcast();
   final errors = StreamController<String>.broadcast();
@@ -80,6 +181,15 @@ class _FakeClassicBluetoothEngine extends ClassicBluetoothEngine {
 
   bool hosted = false;
   bool dialed = false;
+  int scanCount = 0;
+
+  bool get scanned => scanCount > 0;
+
+  @override
+  Future<bool> get isEnabled async => enabled;
+
+  @override
+  Future<bool> requestEnable() async => false;
 
   @override
   Stream<Uint8List> get input => incoming.stream;
@@ -103,7 +213,10 @@ class _FakeClassicBluetoothEngine extends ClassicBluetoothEngine {
   }
 
   @override
-  Stream<BluetoothPeer> scanForHosts() => scans.stream;
+  Stream<BluetoothPeer> scanForHosts() {
+    scanCount++;
+    return scans.stream;
+  }
 
   @override
   void cancelDiscovery() {}

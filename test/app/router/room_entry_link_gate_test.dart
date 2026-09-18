@@ -123,6 +123,18 @@ void main() {
     expect(find.byKey(const Key('selected-room-lobby')), findsOneWidget);
     expectTransportInvisible();
     expect(modeStore.writes, isEmpty);
+
+    // With no hand-off to plan and no link to try, the failure says what is
+    // wrong in plain words and offers the one thing that fixes it, rather
+    // than a retry that can only fail the same way.
+    expect(
+      find.text("These phones aren't linked right now. Connect them to start."),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('selected-room-connect-phones')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('local Wi-Fi never turns into a same-network instruction', (

@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tark/core/l10n/app_localizations.dart';
+import 'package:tark/feature/room/data/proximity/room_proximity_control_session_registry.dart';
 import 'package:tark/feature/room/data/repository/shared_preferences_room_repository.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
 import 'package:tark/feature/room/domain/entity/room_invitation.dart';
@@ -108,6 +109,73 @@ void main() {
   testWidgets('permission denial creates no invitation or fake QR', (
     tester,
   ) async {
+    // An earlier test's invite is still adopted in the process-wide registry,
+    // and adopting a new one releases it. Releasing awaits stream
+    // cancellations, which fake async never completes — so release it for
+    // real before this sheet gets that far.
+    await tester.runAsync(RoomProximityControlSessionRegistry.instance.clear);
+    SharedPreferences.setMockInitialValues({});
+    final events = <String>[];
+    final repository = _TracingRoomRepository(events);
+    final room = await repository.create(
+      name: 'Night ride',
+      localDisplayName: 'Creator',
+    );
+    await repository.select(room.room.id);
+    final control = RoomProximityControlChannel(
+      engine: _FakeClassicBluetoothEngine(events),
+    );
+    var allow = false;
+
+    await tester.pumpWidget(
+      _host(
+        repository: repository,
+        control: control,
+        permissionGate: () async {
+          events.add('permissions');
+          return allow;
+        },
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(events, orderedEquals(<String>['permissions']));
+    expect(find.byKey(const Key('one-scan-room-invite-qr')), findsNothing);
+    // Names what is missing and offers both ways past it, instead of a
+    // generic "try again" with nothing to press.
+    expect(
+      find.text('Sharing an invite needs the Nearby devices permission.'),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('one-scan-room-invite-settings')),
+      findsOneWidget,
+    );
+
+    allow = true;
+    await tester.tap(find.byKey(const Key('one-scan-room-invite-retry')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(
+      events,
+      orderedEquals(<String>[
+        'permissions',
+        'permissions',
+        'issue_invitation',
+        'host',
+      ]),
+    );
+    expect(find.byKey(const Key('one-scan-room-invite-qr')), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('the sheet says who joined and gets out of the way', (
+    tester,
+  ) async {
+    await tester.runAsync(RoomProximityControlSessionRegistry.instance.clear);
     SharedPreferences.setMockInitialValues({});
     final events = <String>[];
     final repository = _TracingRoomRepository(events);
@@ -124,22 +192,32 @@ void main() {
       _host(
         repository: repository,
         control: control,
-        permissionGate: () async {
-          events.add('permissions');
-          return false;
-        },
+        permissionGate: () async => true,
       ),
     );
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.byKey(const Key('one-scan-room-invite-qr')), findsOneWidget);
+    expect(find.byKey(const Key('one-scan-room-invite-copy')), findsNothing);
 
-    expect(events, orderedEquals(<String>['permissions']));
-    expect(find.byKey(const Key('one-scan-room-invite-qr')), findsNothing);
-    expect(
-      find.text('Could not create the invite. Try again.'),
-      findsOneWidget,
+    final now = DateTime.now().toUtc();
+    final verified = await repository.verifyAndRedeemInvite(
+      repository.lastInvite!,
+      now: now,
     );
+    await repository.acceptVerifiedInvite(
+      verified!,
+      displayName: 'Rider two',
+      acceptedAt: now,
+      pending: false,
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
+    expect(find.text('Rider two joined'), findsOneWidget);
+    expect(find.byKey(const Key('one-scan-room-invite-qr')), findsNothing);
+
+    await tester.pump(const Duration(seconds: 2));
     await tester.pumpWidget(const SizedBox.shrink());
   });
 }
@@ -165,6 +243,7 @@ final class _TracingRoomRepository extends SharedPreferencesRoomRepository {
   _TracingRoomRepository(this.events);
 
   final List<String> events;
+  RoomInvitation? lastInvite;
 
   @override
   Future<RoomInvitation> issueInvite(
@@ -173,9 +252,9 @@ final class _TracingRoomRepository extends SharedPreferencesRoomRepository {
     required DateTime now,
     required Duration ttl,
     RoomTransportBootstrap? transportBootstrap,
-  }) {
+  }) async {
     events.add('issue_invitation');
-    return super.issueInvite(
+    return lastInvite = await super.issueInvite(
       id,
       kind: kind,
       now: now,

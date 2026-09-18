@@ -154,9 +154,6 @@ class _RoomRoster extends StatelessWidget {
               !member.pending && member.id != room.membership.localMemberId,
         )
         .toList(growable: false);
-    final pendingMembers = allMembers
-        .where((member) => member.pending)
-        .toList(growable: false);
     final verifiedStatus = RoomConnectionStatusScope.maybeOf(context);
 
     return Column(
@@ -200,64 +197,9 @@ class _RoomRoster extends StatelessWidget {
                   ],
                 ),
         ),
-        if (pendingMembers.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          _PendingRoomInvites(members: pendingMembers),
-        ],
+        // Held invite seats stay out of the call, as they stay out of the
+        // lobby: a code nobody has scanned is not somebody in the Room.
       ],
-    );
-  }
-}
-
-class _PendingRoomInvites extends StatelessWidget {
-  const _PendingRoomInvites({required this.members});
-
-  final List<RoomMember> members;
-
-  @override
-  Widget build(BuildContext context) {
-    final s = context.getString;
-    return Container(
-      key: const ValueKey('room-pending-invites'),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            s.lobby_held_seats(members.length.localized(context)),
-            style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 13,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            s.lobby_held_seats_hint,
-            style: TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 11,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 10),
-          for (var index = 0; index < members.length; index++) ...[
-            _RoomMemberTile(
-              member: members[index],
-              phase: isHeldSeatPlaceholder(members[index].displayName)
-                  ? RoomConnectionUiPhase.invited
-                  : RoomConnectionUiPhase.confirming,
-              isTalking: false,
-            ),
-            if (index != members.length - 1) const SizedBox(height: 8),
-          ],
-        ],
-      ),
     );
   }
 }

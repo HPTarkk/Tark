@@ -1550,7 +1550,41 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get lobby_nothing_started =>
-      'تا وقتی «شروع ارتباط» را نزنید، هیچ هات‌اسپات، میکروفن یا اتصال زنده‌ای شروع نمی‌شود.';
+      'تا «شروع ارتباط» را نزنید، میکروفن خاموش می‌ماند.';
+
+  @override
+  String get lobby_connecting_hint =>
+      'گوشی‌ها را نزدیک هم نگه دارید. اگر گوشی برای اتصال به شبکه سؤال کرد، «اتصال» را بزنید.';
+
+  @override
+  String get lobby_invite_people => 'دعوت به اتاق';
+
+  @override
+  String get lobby_alone_no_invite =>
+      'هنوز کس دیگری در این اتاق نیست. اول باید عضوی که اجازهٔ دعوت دارد افراد را اضافه کند.';
+
+  @override
+  String get room_start_not_linked =>
+      'این گوشی‌ها الان به هم وصل نیستند. وصلشان کنید تا شروع شود.';
+
+  @override
+  String get room_start_nobody_answered =>
+      'به هیچ‌کدام از اعضای اتاق نرسیدیم. مطمئن شوید نزدیک‌اند و «ترک» روی گوشی‌شان باز است، بعد دوباره امتحان کنید.';
+
+  @override
+  String get room_start_failed =>
+      'اتصال برقرار نشد. گوشی‌ها را نزدیک هم نگه دارید و دوباره امتحان کنید.';
+
+  @override
+  String get room_start_wifi_off =>
+      'وای‌فای خاموش است. روشنش کنید و دوباره امتحان کنید.';
+
+  @override
+  String get room_start_location_off =>
+      'لوکیشن خاموش است، برای همین این گوشی بقیه را پیدا نمی‌کند. روشنش کنید و دوباره امتحان کنید.';
+
+  @override
+  String get room_start_connect => 'وصل کردن گوشی‌ها';
 
   @override
   String get lobby_alone_title => 'هنوز تنها هستید';
@@ -1806,7 +1840,26 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get people_invite_hint =>
-      'بگذار طرف مقابل این کد را با «پیوستن با QR» اسکن کند. مستقیم وارد اتاق می‌شود.';
+      'بگذار طرف مقابل نزدیک همین گوشی، این کد را با «پیوستن با QR» اسکن کند. مستقیم وارد اتاق می‌شود.';
+
+  @override
+  String people_invite_joined(Object name) {
+    return '$name وارد شد';
+  }
+
+  @override
+  String get people_invite_permission =>
+      'برای اشتراک دعوت، اجازهٔ «دستگاه‌های نزدیک» لازم است.';
+
+  @override
+  String get people_invite_visible =>
+      'اجازه بدهید این گوشی برای دستگاه‌های نزدیک قابل مشاهده باشد تا گوشی آن‌ها پیدایش کند.';
+
+  @override
+  String get people_invite_paused => 'زمان این دعوت تمام شد.';
+
+  @override
+  String get people_invite_show_again => 'نمایش دوباره';
 
   @override
   String get people_held_seats_hint =>
@@ -1886,6 +1939,17 @@ class AppLocalizationsFa extends AppLocalizations {
   @override
   String get roomjoin_not_joined =>
       'پیوستن انجام نشد. یک دعوت تازه از میزبان بگیر.';
+
+  @override
+  String get roomjoin_bluetooth_permission =>
+      'برای پیوستن، اجازهٔ «دستگاه‌های نزدیک» لازم است. اجازه بده و دوباره اسکن کن.';
+
+  @override
+  String get roomjoin_bluetooth_off => 'بلوتوث را روشن کن و دوباره اسکن کن.';
+
+  @override
+  String get roomjoin_host_not_found =>
+      'گوشی میزبان پیدا نشد. دعوت را روی آن باز نگه دار، نزدیک بمان و دوباره اسکن کن.';
 
   @override
   String get roomjoin_invalid => 'این کد دعوت معتبر نیست یا منقضی شده.';

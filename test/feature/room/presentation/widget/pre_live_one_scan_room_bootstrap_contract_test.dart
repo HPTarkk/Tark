@@ -39,9 +39,17 @@ void main() {
       final sheet = await File(
         'lib/feature/room/presentation/widget/one_scan_room_invite_sheet.dart',
       ).readAsString();
+      final entry = await File(
+        'lib/app/router/room_bound_walkie_entry.dart',
+      ).readAsString();
 
       expect(lobby, contains('_startRide()'));
-      expect(lobby, contains('PreLiveHotspotBootstrap'));
+      // The lobby hands Start to the entry, and only the entry decides — from
+      // which end of the proximity hand-off this phone is — whether it raises
+      // the hotspot. A second decision in the lobby is how the creator used to
+      // raise one while somebody else was doing the inviting.
+      expect(lobby, isNot(contains('PreLiveHotspotBootstrap')));
+      expect(entry, contains('PreLiveHotspotBootstrap().prepareHost()'));
       expect(sheet, isNot(contains('PreLiveHotspotBootstrap()')));
     },
   );

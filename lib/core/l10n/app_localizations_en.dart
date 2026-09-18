@@ -1556,7 +1556,40 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lobby_nothing_started =>
-      'No hotspot, microphone, or live transport starts until you press Start ride.';
+      'Your mic stays off until you press Start ride.';
+
+  @override
+  String get lobby_connecting_hint =>
+      'Keep the phones close. If your phone asks to connect to a network, tap Connect.';
+
+  @override
+  String get lobby_invite_people => 'Invite people';
+
+  @override
+  String get lobby_alone_no_invite =>
+      'Nobody else is in this room yet. A member who can invite has to add people first.';
+
+  @override
+  String get room_start_not_linked =>
+      'These phones aren\'t linked right now. Connect them to start.';
+
+  @override
+  String get room_start_nobody_answered =>
+      'Couldn\'t reach anyone in this room. Make sure they\'re nearby with Tarkk open, then try again.';
+
+  @override
+  String get room_start_failed =>
+      'Couldn\'t connect. Keep the phones close and try again.';
+
+  @override
+  String get room_start_wifi_off => 'Wi-Fi is off. Switch it on and try again.';
+
+  @override
+  String get room_start_location_off =>
+      'Location is off, so this phone can\'t find the others. Switch it on and try again.';
+
+  @override
+  String get room_start_connect => 'Connect phones';
 
   @override
   String get lobby_alone_title => 'You\'re the only one here';
@@ -1813,7 +1846,26 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get people_invite_hint =>
-      'Have them scan this with Join with QR. They come straight in.';
+      'Have them scan this with Join with QR, close to this phone. They come straight in.';
+
+  @override
+  String people_invite_joined(Object name) {
+    return '$name joined';
+  }
+
+  @override
+  String get people_invite_permission =>
+      'Sharing an invite needs the Nearby devices permission.';
+
+  @override
+  String get people_invite_visible =>
+      'Let this phone be visible to nearby devices, so theirs can find it.';
+
+  @override
+  String get people_invite_paused => 'This invite timed out.';
+
+  @override
+  String get people_invite_show_again => 'Show again';
 
   @override
   String get people_held_seats_hint =>
@@ -1893,6 +1945,17 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get roomjoin_not_joined =>
       'Could not join. Ask the host for a fresh invite.';
+
+  @override
+  String get roomjoin_bluetooth_permission =>
+      'Joining needs the Nearby devices permission. Allow it, then scan again.';
+
+  @override
+  String get roomjoin_bluetooth_off => 'Turn on Bluetooth, then scan again.';
+
+  @override
+  String get roomjoin_host_not_found =>
+      'Couldn\'t find their phone. Keep the invite open on it, stay close, and scan again.';
 
   @override
   String get roomjoin_invalid => 'That invite is invalid or expired.';

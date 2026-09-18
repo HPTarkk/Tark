@@ -14,9 +14,15 @@ import '../../data/proximity/room_proximity_join_carrier.dart';
 import '../../domain/entity/room_invitation.dart';
 import '../../domain/service/room_invite_join_orchestrator.dart';
 import '../manager/room_list_cubit.dart';
+import '../room_bluetooth_permissions.dart';
 
 class RoomQrJoinPage extends StatefulWidget {
-  const RoomQrJoinPage({required this.cubit, super.key});
+  const RoomQrJoinPage({
+    required this.cubit,
+    this.permissionGate,
+    this.controlChannelFactory,
+    super.key,
+  });
 
   static Widget buildPage() => BlocProvider<RoomListCubit>(
     create: (_) => GetIt.instance<RoomListCubit>()..load(),
@@ -27,6 +33,11 @@ class RoomQrJoinPage extends StatefulWidget {
   );
 
   final RoomListCubit cubit;
+
+  /// Seams for tests. Production asks for the Bluetooth permissions the
+  /// rendezvous needs and dials over a fresh control channel.
+  final RoomInvitePermissionGate? permissionGate;
+  final RoomProximityControlChannel Function()? controlChannelFactory;
 
   @override
   State<RoomQrJoinPage> createState() => _RoomQrJoinPageState();
@@ -48,6 +59,21 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
         throw const FormatException('expired room invite');
       }
 
+      // The rendezvous below scans for the host and dials it over Bluetooth.
+      // Nothing on a clean install has asked for that yet, and without it the
+      // scan simply finds nobody — so ask here, where the person has just
+      // shown exactly the intent the prompt is about.
+      final permitted =
+          await (widget.permissionGate ??
+              ensureRoomInviteBluetoothPermissions)();
+      if (!mounted) return false;
+      if (!permitted) {
+        setState(
+          () => _error = context.getString.roomjoin_bluetooth_permission,
+        );
+        return false;
+      }
+
       var myName = 'Tark';
       try {
         final stored = await GetIt.instance<SettingsRepository>().getMyName();
@@ -55,7 +81,8 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
       } catch (_) {}
       if (!mounted) return false;
 
-      control = RoomProximityControlChannel();
+      control =
+          (widget.controlChannelFactory ?? RoomProximityControlChannel.new)();
       await control.connect(rendezvousToken: invitation.invitationId);
       if (!mounted) return false;
       carrier = RoomProximityJoinCarrier(
@@ -77,7 +104,14 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
         );
         registryOwnsControl = true;
         if (!mounted) return false;
-        context.go(AppRoutes.walkiePath);
+        // Straight on to connecting, over the socket that just carried the
+        // join. Scanning was this person's whole part; stopping at the lobby
+        // to ask "start?" would have two people coordinating a second tap
+        // across two phones.
+        context.goNamed(
+          AppRoutes.walkieName,
+          queryParameters: const {'start': 'true'},
+        );
         return true;
       }
       setState(() => _error = context.getString.roomjoin_not_joined);
@@ -85,6 +119,10 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
     } on FormatException {
       if (!mounted) return false;
       return _notAnInvite(raw);
+    } on RoomProximityException catch (error) {
+      if (!mounted) return false;
+      setState(() => _error = _proximityMessage(error.failure));
+      return false;
     } catch (_) {
       if (!mounted) return false;
       setState(() => _error = context.getString.roomjoin_not_joined);
@@ -96,6 +134,16 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
       }
       _joining = false;
     }
+  }
+
+  String _proximityMessage(RoomProximityFailure failure) {
+    final s = context.getString;
+    return switch (failure) {
+      RoomProximityFailure.bluetoothOff => s.roomjoin_bluetooth_off,
+      RoomProximityFailure.hostNotFound => s.roomjoin_host_not_found,
+      RoomProximityFailure.discoverabilityDenied ||
+      RoomProximityFailure.dialFailed => s.roomjoin_not_joined,
+    };
   }
 
   bool _notAnInvite(String raw) {

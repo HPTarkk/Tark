@@ -8,7 +8,7 @@ import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../transfer/api/transfer_api.dart';
-import '../../domain/entity/held_seat_name.dart';
+import '../../data/proximity/room_proximity_control_session_registry.dart';
 import '../../domain/entity/room.dart';
 import '../../domain/repository/room_repository.dart';
 import '../room_member_display_name.dart';
@@ -22,7 +22,8 @@ import 'room_connection_status_scope.dart';
 /// seats remain internal authorization bookkeeping; only confirmed members are
 /// shown in the roster. Pressing Start moves that same visible roster to
 /// connecting. No carrier role, address, network name or credential appears in
-/// the normal Room flow.
+/// the normal Room flow — manual connection is offered only beside a failure
+/// the automatic path could not get past.
 class SelectedRoomLobby extends StatefulWidget {
   const SelectedRoomLobby({
     required this.room,
@@ -35,7 +36,6 @@ class SelectedRoomLobby extends StatefulWidget {
     this.mode,
     this.onConnect,
     this.repository,
-    this.preLiveBootstrap,
     super.key,
   });
 
@@ -53,9 +53,11 @@ class SelectedRoomLobby extends StatefulWidget {
   /// copy or actions; transport is an implementation detail here.
   final LiveLink? link;
   final TransferMode? mode;
+
+  /// Connecting the phones by hand. Shown only inside the failure callout,
+  /// and only for failures the caller says it can help with.
   final VoidCallback? onConnect;
   final RoomRepository? repository;
-  final PreLiveHotspotBootstrap? preLiveBootstrap;
 
   @override
   State<SelectedRoomLobby> createState() => _SelectedRoomLobbyState();
@@ -64,7 +66,6 @@ class SelectedRoomLobby extends StatefulWidget {
 class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
   late SavedRoom _room = widget.room;
   StreamSubscription<void>? _changes;
-  bool _starting = false;
 
   RoomRepository? get _repository {
     if (widget.repository != null) return widget.repository;
@@ -72,6 +73,9 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
         ? GetIt.instance<RoomRepository>()
         : null;
   }
+
+  bool get _connecting =>
+      widget.connectionPhase == RoomConnectionUiPhase.connecting;
 
   @override
   void initState() {
@@ -98,68 +102,57 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
   Future<void> _reload() async {
     final repository = _repository;
     if (repository == null) return;
+    final SavedRoom? next;
     try {
-      final next = await repository.get(_room.room.id);
-      if (next != null && mounted) setState(() => _room = next);
+      next = await repository.get(_room.room.id);
     } catch (_) {
       // Keep the last durable snapshot. A transient storage read is not a
       // useful error to put in front of somebody about to ride.
+      return;
     }
+    if (next == null || !mounted) return;
+    final before = {
+      for (final member in _room.room.confirmedMembers) member.id,
+    };
+    setState(() => _room = next!);
+    _startIfSomeoneArrived(before, next);
   }
 
-  bool get _isPreferredBootstrapHost {
-    final active = _room.room.activeMembers.toList(growable: false)
-      ..sort((a, b) {
-        final joined = a.joinedAt.compareTo(b.joinedAt);
-        return joined != 0 ? joined : a.id.value.compareTo(b.id.value);
-      });
-    return active.isNotEmpty &&
-        active.first.id == _room.membership.localMemberId;
-  }
-
-  bool get _hasReusableRoomHotspot {
-    final link = widget.link;
-    final mode = widget.mode;
-    if (link == null || mode == null) return false;
-    return link.isUp && mode == TransferMode.hotspot && link.arranged(mode);
+  /// Somebody has just finished scanning this phone's invite. Their phone is
+  /// already on its way to connecting; making this one wait for a tap would
+  /// leave them watching a spinner until somebody here noticed.
+  ///
+  /// Only an arrival over this phone's own proximity hand-off counts — that
+  /// is a person standing here, not a roster change that got here some other
+  /// way.
+  void _startIfSomeoneArrived(Set<RoomMemberId> before, SavedRoom next) {
+    if (_connecting) return;
+    final arrived = next.room.confirmedMembers.any(
+      (member) => !before.contains(member.id),
+    );
+    if (!arrived) return;
+    final issuer = RoomProximityControlSessionRegistry.instance.isIssuerFor(
+      next.room.id,
+    );
+    if (issuer != true) return;
+    _startRide();
   }
 
   Future<void> _invite() async {
     HapticFeedback.selectionClick();
-    await showOneScanRoomInviteSheet(
-      context,
-      repository: widget.repository,
-      bootstrapHost: !_hasReusableRoomHotspot && _isPreferredBootstrapHost,
-    );
+    await showOneScanRoomInviteSheet(context, repository: widget.repository);
     await _reload();
   }
 
-  Future<void> _startRide() async {
-    if (_starting ||
-        widget.connectionPhase == RoomConnectionUiPhase.connecting) {
-      return;
-    }
-    setState(() => _starting = true);
-    try {
-      final link = widget.link;
-      if (link != null && !link.isUp && _isPreferredBootstrapHost) {
-        await (widget.preLiveBootstrap ?? PreLiveHotspotBootstrap())
-            .prepareHost();
-      }
-      if (!mounted) return;
-      widget.onStartRide();
-    } finally {
-      if (mounted) setState(() => _starting = false);
-    }
+  void _startRide() {
+    if (_connecting) return;
+    widget.onStartRide();
   }
 
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
     final confirmedMembers = _room.room.confirmedMembers;
-    // Reserved invite seats are authorization bookkeeping, not people who have
-    // joined the Room. Keep them out of the user-facing roster entirely.
-    final pendingMembers = const <RoomMember>[];
     final canInvite =
         !_room.room.archived &&
         _room.membership.active &&
@@ -167,8 +160,6 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
     // Pending invite seats are authorization bookkeeping, not joined people.
     // Only confirmed membership can make this Room stop looking solo.
     final alone = confirmedMembers.length <= 1;
-    final connecting =
-        _starting || widget.connectionPhase == RoomConnectionUiPhase.connecting;
     final failureMessage = widget.failureMessage?.trim();
 
     return Scaffold(
@@ -197,7 +188,7 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
           children: [
             Text(
-              connecting
+              _connecting
                   ? s.connecting
                   : alone
                   ? s.lobby_alone_heading
@@ -208,51 +199,63 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
             ),
             const SizedBox(height: 8),
             Text(
-              s.lobby_nothing_started,
+              _connecting ? s.lobby_connecting_hint : s.lobby_nothing_started,
               style: TextStyle(
                 color: AppColors.textSecondary,
                 fontSize: 13,
                 height: 1.5,
               ),
             ),
-            if (!connecting &&
+            if (!_connecting &&
                 failureMessage != null &&
                 failureMessage.isNotEmpty) ...[
               const SizedBox(height: 14),
-              _FailureCallout(message: failureMessage, onRetry: widget.onRetry),
+              _FailureCallout(
+                message: failureMessage,
+                onRetry: widget.onRetry,
+                onConnect: widget.onConnect,
+              ),
             ],
             const SizedBox(height: 22),
             _MembersCard(
               room: _room,
               members: confirmedMembers,
-              connectionPhase: connecting
-                  ? RoomConnectionUiPhase.connecting
-                  : RoomConnectionUiPhase.readyToConnect,
+              connectionPhase: widget.connectionPhase,
             ),
-            if (pendingMembers.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              _PendingInvitesCard(members: pendingMembers),
-            ],
             const SizedBox(height: 18),
             if (canInvite) ...[
               _RoomAction(
                 key: const Key('selected-room-invite-callout'),
                 icon: Icons.person_add_alt_1_rounded,
-                label: s.invite_people,
+                label: s.lobby_invite_people,
                 primary: alone,
-                busy: connecting,
+                enabled: !_connecting,
                 onTap: _invite,
               ),
               const SizedBox(height: 12),
             ],
-            _RoomAction(
-              key: const Key('selected-room-start-ride'),
-              icon: Icons.play_arrow_rounded,
-              label: s.lobby_start_ride,
-              primary: !alone || !canInvite,
-              busy: connecting,
-              onTap: _startRide,
-            ),
+            // Start needs somebody to start with. Offering it to a Room of one
+            // only ever produced a failure explaining that nobody answered.
+            if (!alone)
+              _RoomAction(
+                key: const Key('selected-room-start-ride'),
+                icon: Icons.play_arrow_rounded,
+                label: s.lobby_start_ride,
+                primary: true,
+                busy: _connecting,
+                onTap: _startRide,
+              )
+            else if (!canInvite)
+              Text(
+                s.lobby_alone_no_invite,
+                key: const Key('selected-room-alone-no-invite'),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                  height: 1.5,
+                ),
+              ),
           ],
         ),
       ),
@@ -261,14 +264,16 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
 }
 
 class _FailureCallout extends StatelessWidget {
-  const _FailureCallout({required this.message, this.onRetry});
+  const _FailureCallout({required this.message, this.onRetry, this.onConnect});
 
   final String message;
   final VoidCallback? onRetry;
+  final VoidCallback? onConnect;
 
   @override
   Widget build(BuildContext context) {
     final retry = onRetry;
+    final connect = onConnect;
     return Semantics(
       container: true,
       liveRegion: true,
@@ -298,13 +303,26 @@ class _FailureCallout extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  if (retry != null) ...[
+                  if (retry != null || connect != null) ...[
                     const SizedBox(height: 8),
-                    TextButton.icon(
-                      key: const Key('selected-room-retry'),
-                      onPressed: retry,
-                      icon: const Icon(Icons.refresh_rounded, size: 18),
-                      label: Text(context.getString.retry),
+                    Wrap(
+                      spacing: 4,
+                      children: [
+                        if (retry != null)
+                          TextButton.icon(
+                            key: const Key('selected-room-retry'),
+                            onPressed: retry,
+                            icon: const Icon(Icons.refresh_rounded, size: 18),
+                            label: Text(context.getString.retry),
+                          ),
+                        if (connect != null)
+                          TextButton.icon(
+                            key: const Key('selected-room-connect-phones'),
+                            onPressed: connect,
+                            icon: const Icon(Icons.link_rounded, size: 18),
+                            label: Text(context.getString.room_start_connect),
+                          ),
+                      ],
                     ),
                   ],
                 ],
@@ -374,73 +392,6 @@ class _MembersCard extends StatelessWidget {
   }
 }
 
-class _PendingInvitesCard extends StatelessWidget {
-  const _PendingInvitesCard({required this.members});
-
-  final List<RoomMember> members;
-
-  @override
-  Widget build(BuildContext context) {
-    final s = context.getString;
-    return Container(
-      key: const Key('selected-room-held-seats'),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.mark_email_unread_outlined,
-                size: 19,
-                color: AppColors.textSecondary,
-              ),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  s.lobby_held_seats(members.length.localized(context)),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            s.lobby_held_seats_hint,
-            style: TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 12,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 12),
-          for (var index = 0; index < members.length; index++) ...[
-            _MemberRow(
-              member: members[index],
-              isYou: false,
-              phase: isHeldSeatPlaceholder(members[index].displayName)
-                  ? RoomConnectionUiPhase.invited
-                  : RoomConnectionUiPhase.confirming,
-            ),
-            if (index != members.length - 1) const SizedBox(height: 8),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
 class _MemberRow extends StatelessWidget {
   const _MemberRow({
     required this.member,
@@ -459,6 +410,10 @@ class _MemberRow extends StatelessWidget {
       fa: Localizations.localeOf(context).languageCode == 'fa',
       unnamed: context.getString.people_unnamed,
     );
+    // Before Start nothing is known about anybody else's phone, so their row
+    // says nothing about it. A "ready" badge here would be a claim about a
+    // phone that may still be at home.
+    final showStatus = !isYou && phase != RoomConnectionUiPhase.readyToConnect;
     return Semantics(
       container: true,
       child: Row(
@@ -491,17 +446,19 @@ class _MemberRow extends StatelessWidget {
                     fontSize: 14,
                   ),
                 ),
-                const SizedBox(height: 4),
-                if (isYou)
+                if (isYou) ...[
+                  const SizedBox(height: 4),
                   Text(
                     context.getString.people_you,
                     style: TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 11,
                     ),
-                  )
-                else
+                  ),
+                ] else if (showStatus) ...[
+                  const SizedBox(height: 4),
                   RoomConnectionStatusChip(phase: phase),
+                ],
               ],
             ),
           ),
@@ -518,6 +475,7 @@ class _RoomAction extends StatelessWidget {
     required this.primary,
     required this.onTap,
     this.busy = false,
+    this.enabled = true,
     super.key,
   });
 
@@ -525,62 +483,73 @@ class _RoomAction extends StatelessWidget {
   final String label;
   final bool primary;
   final VoidCallback onTap;
+
+  /// Spinner in place of the icon, and no taps: this action is the one in
+  /// progress.
   final bool busy;
+
+  /// No taps, without claiming to be the thing in progress.
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
     final accent = primary ? AppColors.amber : AppColors.textSecondary;
+    final interactive = enabled && !busy;
     return Semantics(
       button: true,
+      enabled: interactive,
       label: label,
-      child: InkWell(
-        onTap: busy
-            ? null
-            : () {
-                HapticFeedback.selectionClick();
-                onTap();
-              },
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-          decoration: BoxDecoration(
-            color: primary
-                ? AppColors.amber.withValues(alpha: 0.12)
-                : AppColors.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: primary ? AppColors.amber : AppColors.border,
-              width: primary ? 2 : 1,
+      child: Opacity(
+        opacity: enabled || busy ? 1 : 0.5,
+        child: InkWell(
+          onTap: interactive
+              ? () {
+                  HapticFeedback.selectionClick();
+                  onTap();
+                }
+              : null,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+            decoration: BoxDecoration(
+              color: primary
+                  ? AppColors.amber.withValues(alpha: 0.12)
+                  : AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: primary ? AppColors.amber : AppColors.border,
+                width: primary ? 2 : 1,
+              ),
             ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (busy)
-                SizedBox(
-                  width: 19,
-                  height: 19,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: accent,
-                  ),
-                )
-              else
-                Icon(icon, color: accent, size: 21),
-              const SizedBox(width: 10),
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: accent,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (busy)
+                  SizedBox(
+                    width: 19,
+                    height: 19,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: accent,
+                    ),
+                  )
+                else
+                  Icon(icon, color: accent, size: 21),
+                const SizedBox(width: 10),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: accent,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

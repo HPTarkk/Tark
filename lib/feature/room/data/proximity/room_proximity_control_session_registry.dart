@@ -26,12 +26,29 @@ final class RoomProximityControlSessionRegistry {
     return session != null && session.roomId == roomId && session.isOpen;
   }
 
+  /// Whether this phone issued the invite the open session for [roomId] was
+  /// built on, or null when there is no open session for it.
+  ///
+  /// The two ends of one proximity socket are exactly the two phones that
+  /// must agree on who raises the first hotspot, and the issuer is the answer
+  /// both can reach without an election: it is the phone the other was
+  /// standing next to. Deliberately not the Room's creator — a member with
+  /// invite rights can bring someone in while the creator is miles away.
+  bool? isIssuerFor(RoomId roomId) {
+    final session = _session;
+    if (session == null || session.roomId != roomId || !session.isOpen) {
+      return null;
+    }
+    return session.issuer;
+  }
+
   Future<void> adopt({
     required RoomId roomId,
     required RoomInvitation invitation,
     required RoomProximityControlChannel channel,
     Future<void> Function()? disposeProtocol,
     HotspotCredentials? Function()? currentHotspotCredentials,
+    bool issuer = false,
   }) async {
     final previous = _session;
     final next = _RoomProximityControlSession(
@@ -40,6 +57,7 @@ final class RoomProximityControlSessionRegistry {
       channel: channel,
       disposeProtocol: disposeProtocol,
       currentHotspotCredentials: currentHotspotCredentials,
+      issuer: issuer,
     );
     _session = next;
     if (previous != null && previous.channel != channel) {
@@ -88,6 +106,7 @@ final class _RoomProximityControlSession {
     required this.channel,
     required this.disposeProtocol,
     required this.currentHotspotCredentials,
+    required this.issuer,
   }) {
     _messages = channel.messages.listen(_onMessage);
     _closed = channel.closed.listen((_) => _onClosed());
@@ -98,6 +117,7 @@ final class _RoomProximityControlSession {
   final RoomProximityControlChannel channel;
   final Future<void> Function()? disposeProtocol;
   final HotspotCredentials? Function()? currentHotspotCredentials;
+  final bool issuer;
 
   late final StreamSubscription<String> _messages;
   late final StreamSubscription<void> _closed;
