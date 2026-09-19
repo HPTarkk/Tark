@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import '../../../../core/utils/logger.dart';
 import '../../domain/entity/bluetooth_host_name.dart';
 import '../../domain/entity/bluetooth_peer.dart';
 import '../bluetooth/classic_bluetooth_engine.dart';
@@ -132,6 +133,7 @@ final class RoomProximityControlChannel {
     if (_disposed) throw StateError('proximity control channel is disposed');
     _wire();
     final expectedName = rendezvousName(rendezvousToken);
+    Logger.diagnostic('room_proximity: connect start');
     await _ensureAdapterOn();
 
     final peerCompleter = Completer<BluetoothPeer>();
@@ -165,11 +167,13 @@ final class RoomProximityControlChannel {
       try {
         peer = await peerCompleter.future.timeout(findTimeout);
       } on TimeoutException {
+        Logger.diagnostic('room_proximity: host lookup timed out');
         throw RoomProximityException(
           RoomProximityFailure.hostNotFound,
           'proximity host was not found',
         );
       }
+      Logger.diagnostic('room_proximity: host found');
       rescan.cancel();
       _engine.cancelDiscovery();
 
@@ -199,9 +203,21 @@ final class RoomProximityControlChannel {
       });
 
       try {
-        await _engine.connectToHost(peer.id);
-        await outcome.future.timeout(dialTimeout);
+        // The native connectToPeer() call itself can block while Android is
+        // opening RFCOMM. Put that call AND the connected event behind one
+        // deadline; timing only outcome.future starts the clock too late and
+        // leaves the scanner stuck on "joining" if invokeMethod never returns.
+        await (() async {
+          await _engine.connectToHost(peer.id);
+          await outcome.future;
+        })().timeout(dialTimeout);
+        Logger.diagnostic('room_proximity: connected');
       } on TimeoutException {
+        Logger.diagnostic('room_proximity: dial timed out');
+        // Future.timeout cannot cancel the underlying platform call. reset()
+        // closes the pending native BluetoothSocket, which unblocks connect()
+        // and guarantees the next scan starts from a clean session.
+        await _engine.reset();
         throw RoomProximityException(
           RoomProximityFailure.dialFailed,
           'proximity Bluetooth dial timed out',

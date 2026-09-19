@@ -77,7 +77,7 @@ void main() {
     },
   );
 
-  test('a dial that never answers is bounded too', () async {
+  test('a connected event that never arrives is bounded too', () async {
     final engine = _FakeClassicBluetoothEngine();
     final channel = RoomProximityControlChannel(
       engine: engine,
@@ -107,6 +107,41 @@ void main() {
     );
     expect(engine.dialed, isTrue);
   });
+
+  test(
+    'a native dial future that never returns is cancelled by the deadline',
+    () async {
+      final engine = _FakeClassicBluetoothEngine(blockDial: true);
+      final channel = RoomProximityControlChannel(
+        engine: engine,
+        dialTimeout: const Duration(milliseconds: 20),
+      );
+      addTearDown(channel.dispose);
+
+      final joining = channel.connect(rendezvousToken: token);
+      await Future<void>.delayed(Duration.zero);
+      engine.scans.add(
+        BluetoothPeer(
+          id: 'AA:BB:CC:DD:EE:FF',
+          name: RoomProximityControlChannel.rendezvousName(token),
+          isAppHost: true,
+        ),
+      );
+
+      await expectLater(
+        joining,
+        throwsA(
+          isA<RoomProximityException>().having(
+            (error) => error.failure,
+            'failure',
+            RoomProximityFailure.dialFailed,
+          ),
+        ),
+      );
+      expect(engine.dialed, isTrue);
+      expect(engine.resetCalled, isTrue);
+    },
+  );
 
   test('Bluetooth left off is reported before any scan starts', () async {
     final engine = _FakeClassicBluetoothEngine(enabled: false);
@@ -169,10 +204,15 @@ void main() {
 }
 
 class _FakeClassicBluetoothEngine extends ClassicBluetoothEngine {
-  _FakeClassicBluetoothEngine({this.discoverable = true, this.enabled = true});
+  _FakeClassicBluetoothEngine({
+    this.discoverable = true,
+    this.enabled = true,
+    this.blockDial = false,
+  });
 
   final bool discoverable;
   final bool enabled;
+  final bool blockDial;
   final scans = StreamController<BluetoothPeer>.broadcast();
   final connected = StreamController<String>.broadcast();
   final errors = StreamController<String>.broadcast();
@@ -181,6 +221,7 @@ class _FakeClassicBluetoothEngine extends ClassicBluetoothEngine {
 
   bool hosted = false;
   bool dialed = false;
+  bool resetCalled = false;
   int scanCount = 0;
 
   bool get scanned => scanCount > 0;
@@ -224,6 +265,12 @@ class _FakeClassicBluetoothEngine extends ClassicBluetoothEngine {
   @override
   Future<void> connectToHost(String address) async {
     dialed = true;
+    if (blockDial) await Completer<void>().future;
+  }
+
+  @override
+  Future<void> reset() async {
+    resetCalled = true;
   }
 
   @override
