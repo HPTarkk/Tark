@@ -108,38 +108,40 @@ void main() {
     expect(engine.dialed, isTrue);
   });
 
-  test('a native dial future that never returns is cancelled by the deadline', (
-    ) async {
-    final engine = _FakeClassicBluetoothEngine(blockDial: true);
-    final channel = RoomProximityControlChannel(
-      engine: engine,
-      dialTimeout: const Duration(milliseconds: 20),
-    );
-    addTearDown(channel.dispose);
+  test(
+    'a native dial future that never returns is cancelled by the deadline',
+    () async {
+      final engine = _FakeClassicBluetoothEngine(blockDial: true);
+      final channel = RoomProximityControlChannel(
+        engine: engine,
+        dialTimeout: const Duration(milliseconds: 20),
+      );
+      addTearDown(channel.dispose);
 
-    final joining = channel.connect(rendezvousToken: token);
-    await Future<void>.delayed(Duration.zero);
-    engine.scans.add(
-      BluetoothPeer(
-        id: 'AA:BB:CC:DD:EE:FF',
-        name: RoomProximityControlChannel.rendezvousName(token),
-        isAppHost: true,
-      ),
-    );
-
-    await expectLater(
-      joining,
-      throwsA(
-        isA<RoomProximityException>().having(
-          (error) => error.failure,
-          'failure',
-          RoomProximityFailure.dialFailed,
+      final joining = channel.connect(rendezvousToken: token);
+      await Future<void>.delayed(Duration.zero);
+      engine.scans.add(
+        BluetoothPeer(
+          id: 'AA:BB:CC:DD:EE:FF',
+          name: RoomProximityControlChannel.rendezvousName(token),
+          isAppHost: true,
         ),
-      ),
-    );
-    expect(engine.dialed, isTrue);
-    expect(engine.resetCalled, isTrue);
-  });
+      );
+
+      await expectLater(
+        joining,
+        throwsA(
+          isA<RoomProximityException>().having(
+            (error) => error.failure,
+            'failure',
+            RoomProximityFailure.dialFailed,
+          ),
+        ),
+      );
+      expect(engine.dialed, isTrue);
+      expect(engine.resetCalled, isTrue);
+    },
+  );
 
   test('Bluetooth left off is reported before any scan starts', () async {
     final engine = _FakeClassicBluetoothEngine(enabled: false);
