@@ -100,7 +100,9 @@ final class RoomProximityControlChannel {
             // A hostile/garbled length prefix must not grow the buffer without
             // bound or poison the next control message.
             _framer.reset();
-            Logger.diagnostic('room_proximity: malformed control frame dropped');
+            Logger.diagnostic(
+              'room_proximity: malformed control frame dropped',
+            );
           }
         }),
       )
