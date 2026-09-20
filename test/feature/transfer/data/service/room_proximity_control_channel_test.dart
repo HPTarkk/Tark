@@ -136,6 +136,7 @@ void main() {
         id: 'AA:BB:CC:DD:EE:FF',
         name: RoomProximityControlChannel.rendezvousName(token),
         isAppHost: true,
+        rendezvousMatched: true,
       ),
     );
 
@@ -337,6 +338,7 @@ void main() {
         id: 'AA:BB:CC:DD:EE:FF',
         name: RoomProximityControlChannel.rendezvousName(token),
         isAppHost: true,
+        rendezvousMatched: true,
       ),
     );
     await Future<void>.delayed(Duration.zero);
