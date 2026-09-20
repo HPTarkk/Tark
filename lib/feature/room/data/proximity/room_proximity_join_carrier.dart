@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 
+import '../../../../core/utils/logger.dart';
 import '../../../transfer/api/transfer_api.dart';
+import '../../../transfer/domain/entity/room_rendezvous_identity.dart';
 import '../../domain/entity/room_accepted_join_snapshot.dart';
 import '../../domain/entity/room_invitation.dart';
 import '../../domain/repository/room_repository.dart';
@@ -86,6 +88,9 @@ final class RoomProximityJoinCarrier
 
   String get _epoch => _invitation.invitationId;
 
+  Future<String> get _correlation async =>
+      (await RoomRendezvousIdentity.derive(_epoch)).correlation;
+
   void _onMessage(String raw) {
     RoomProximityEnvelope envelope;
     try {
@@ -148,11 +153,18 @@ final class RoomProximityJoinCarrier
         request.invitation.invitationId != _invitation.invitationId) {
       throw const FormatException('proximity join request scope');
     }
+    final correlation = await _correlation;
+    Logger.diagnostic(
+      'room_join_protocol: request sent correlation=$correlation',
+    );
     final response = await _sendAndWait(
       sendKind: 'joinRequest',
       responseKind: 'joinGrant',
       requestId: request.requestId,
       payload: encodedRequest,
+    );
+    Logger.diagnostic(
+      'room_join_protocol: grant received correlation=$correlation',
     );
     return response.payload;
   }
@@ -161,6 +173,10 @@ final class RoomProximityJoinCarrier
   Future<bool> submitMembershipReceipt(String encodedReceipt) async {
     final receipt = RoomInviteMembershipReceipt.decode(encodedReceipt);
     if (receipt.certificate.roomId != _invitation.roomId) return false;
+    final correlation = await _correlation;
+    Logger.diagnostic(
+      'room_join_protocol: receipt sent correlation=$correlation',
+    );
     final response = await _sendAndWait(
       sendKind: 'membershipReceipt',
       responseKind: 'membershipConfirmed',
@@ -180,6 +196,9 @@ final class RoomProximityJoinCarrier
       );
       if (members.length != 1) return false;
       confirmedSnapshot = decoded;
+      Logger.diagnostic(
+        'room_join_protocol: confirmation received correlation=$correlation',
+      );
       return true;
     } catch (_) {
       return false;
@@ -214,6 +233,11 @@ final class RoomProximityJoinIssuerSession {
   final Map<String, String> _grantCache = {};
   final Map<String, Future<String>> _grantInFlight = {};
 
+  Future<String> get _correlation async =>
+      (await RoomRendezvousIdentity.derive(
+        _invitation.invitationId,
+      )).correlation;
+
   Future<void> _onMessage(String raw) async {
     RoomProximityEnvelope envelope;
     try {
@@ -228,6 +252,10 @@ final class RoomProximityJoinIssuerSession {
 
     switch (envelope.kind) {
       case 'joinRequest':
+        final correlation = await _correlation;
+        Logger.diagnostic(
+          'room_join_protocol: request received correlation=$correlation',
+        );
         final cached = _grantCache[envelope.requestId];
         final Future<String> work;
         if (cached != null) {
@@ -263,8 +291,15 @@ final class RoomProximityJoinIssuerSession {
             payload: response,
           ).encode(),
         );
+        Logger.diagnostic(
+          'room_join_protocol: grant sent correlation=$correlation',
+        );
         return;
       case 'membershipReceipt':
+        final correlation = await _correlation;
+        Logger.diagnostic(
+          'room_join_protocol: receipt received correlation=$correlation',
+        );
         final confirmed = await _exchange.handleEncodedReceipt(
           envelope.payload,
         );
@@ -294,6 +329,9 @@ final class RoomProximityJoinIssuerSession {
             joinEpoch: envelope.joinEpoch,
             payload: payload,
           ).encode(),
+        );
+        Logger.diagnostic(
+          'room_join_protocol: confirmation sent correlation=$correlation ok=$confirmed',
         );
         return;
       default:
