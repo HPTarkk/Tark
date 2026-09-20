@@ -9,17 +9,20 @@ class BluetoothPeer extends Equatable {
   /// the transport didn't report one. Refreshed while scanning.
   final int? rssi;
 
-  /// True when this device is hosting from inside the app, rather than being
-  /// some unrelated headset/TV the classic scan swept up. BLE peers are
-  /// filtered on the Tark service UUID so they always qualify; classic peers
-  /// are recognised by their broadcast name (see bluetooth_host_name.dart).
+  /// True when this device is hosting from inside the app.
   final bool isAppHost;
+
+  /// True only when native BLE service-data matched the one-way digest derived
+  /// from the scanned QR invitation. This is peer-selection evidence, not
+  /// membership authentication; the signed Room exchange still follows.
+  final bool rendezvousMatched;
 
   const BluetoothPeer({
     required this.id,
     required this.name,
     this.rssi,
     this.isAppHost = false,
+    this.rendezvousMatched = false,
   });
 
   /// BLE peers carry a `ble:` id prefix (see BleBluetoothEngine); everything
@@ -37,5 +40,5 @@ class BluetoothPeer extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, name, rssi, isAppHost];
+  List<Object?> get props => [id, name, rssi, isAppHost, rendezvousMatched];
 }
