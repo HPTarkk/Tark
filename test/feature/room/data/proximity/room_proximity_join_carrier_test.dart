@@ -180,7 +180,7 @@ void main() {
         isTrue,
       );
       expect(confirmations[0].payload, confirmations[1].payload);
-      final confirmation = jsonDecode(confirmations.single.payload);
+      final confirmation = jsonDecode(confirmations.first.payload);
       expect(confirmation, isA<Map<String, dynamic>>());
       expect((confirmation as Map<String, dynamic>)['ok'], isTrue);
 
