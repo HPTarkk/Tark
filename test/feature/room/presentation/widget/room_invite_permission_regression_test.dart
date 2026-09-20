@@ -313,6 +313,9 @@ final class _FakeClassicBluetoothEngine extends ClassicBluetoothEngine {
   bool hosted = false;
 
   @override
+  Future<bool> get isEnabled async => true;
+
+  @override
   Stream<Uint8List> get input => _input.stream;
 
   @override
