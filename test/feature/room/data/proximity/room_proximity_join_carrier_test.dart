@@ -9,6 +9,8 @@ import 'package:tark/feature/room/data/repository/shared_preferences_room_reposi
 import 'package:tark/feature/room/domain/entity/room_invitation.dart';
 import 'package:tark/feature/room/domain/service/room_invite_acceptance_coordinator.dart';
 import 'package:tark/feature/room/domain/service/room_invite_join_exchange.dart';
+import 'package:tark/feature/room/domain/service/room_invite_membership_receipt.dart';
+import 'package:tark/feature/room/domain/service/room_member_transport_identity.dart';
 import 'package:tark/feature/transfer/data/bluetooth/classic_bluetooth_engine.dart';
 import 'package:tark/feature/transfer/data/bluetooth/length_prefixed_framer.dart';
 import 'package:tark/feature/transfer/data/service/room_proximity_control_channel.dart';
@@ -80,6 +82,115 @@ void main() {
         (member) => member.id.value == invitation.invitationId.substring(0, 24),
       );
       expect(joined, hasLength(1));
+    },
+  );
+
+  test(
+    'concurrent duplicate membership receipts confirm once and ACK twice',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final repository = SharedPreferencesRoomRepository();
+      final crypto = RoomMemberTransportIdentityCrypto();
+      final issuerKey = await crypto.generateKeyPair();
+      final memberKey = await crypto.generateKeyPair();
+      final room = await repository.create(
+        name: 'Night ride',
+        localDisplayName: 'Owner',
+      );
+      final now = DateTime.now().toUtc();
+      final invitation = await repository.issueInvite(
+        room.room.id,
+        kind: RoomInvitationKind.trustedMembership,
+        now: now,
+        ttl: const Duration(hours: 1),
+      );
+      final exchange = RoomInviteJoinExchange(
+        acceptance: RoomInviteAcceptanceCoordinator(repository),
+        requireMembershipReceipt: true,
+        issueCertificate:
+            ({
+              required acceptedRoom,
+              required memberId,
+              required memberPublicKey,
+            }) => crypto.issueCertificate(
+              roomId: acceptedRoom.room.id,
+              memberId: memberId,
+              memberPublicKey: memberPublicKey,
+              issuer: issuerKey,
+            ),
+      );
+      final engine = _CarrierFakeEngine();
+      final channel = RoomProximityControlChannel(engine: engine);
+      await channel.host(rendezvousToken: invitation.invitationId);
+      final issuer = RoomProximityJoinIssuerSession(
+        channel: channel,
+        invitation: invitation,
+        exchange: exchange,
+        repository: repository,
+      );
+      addTearDown(() async {
+        await issuer.dispose();
+        await channel.dispose();
+      });
+
+      const requestId = 'dddddddddddddddddddddddddddddddd';
+      final request = RoomInviteJoinRequest(
+        requestId: requestId,
+        invitation: invitation,
+        displayName: 'Rider two',
+        memberTransportPublicKey: memberKey.publicKey,
+      );
+      engine.addEnvelope(
+        RoomProximityEnvelope(
+          kind: 'joinRequest',
+          roomId: invitation.roomId.value,
+          requestId: requestId,
+          joinEpoch: invitation.invitationId,
+          payload: request.encode(),
+        ),
+      );
+      await engine.waitForWrites(1);
+
+      final grantEnvelope = _decodeWrite(engine.writes.single);
+      final response = RoomInviteJoinResponse.decode(grantEnvelope.payload);
+      expect(response.membershipReceiptRequired, isTrue);
+      final receipt = await RoomInviteMembershipReceiptCrypto.sign(
+        requestId: requestId,
+        certificate: response.transportCertificate!,
+        member: memberKey,
+      );
+
+      engine.writes.clear();
+      final receiptEnvelope = RoomProximityEnvelope(
+        kind: 'membershipReceipt',
+        roomId: invitation.roomId.value,
+        requestId: requestId,
+        joinEpoch: invitation.invitationId,
+        payload: receipt.encode(),
+      );
+      engine.addEnvelope(receiptEnvelope);
+      engine.addEnvelope(receiptEnvelope);
+      await engine.waitForWrites(2);
+
+      final confirmations = engine.writes
+          .map(_decodeWrite)
+          .toList(growable: false);
+      expect(
+        confirmations.every((item) => item.kind == 'membershipConfirmed'),
+        isTrue,
+      );
+      expect(confirmations[0].payload, confirmations[1].payload);
+      final confirmation = jsonDecode(confirmations.single.payload);
+      expect(confirmation, isA<Map<String, dynamic>>());
+      expect((confirmation as Map<String, dynamic>)['ok'], isTrue);
+
+      final saved = await repository.get(invitation.roomId);
+      final joined = saved!.room.members.where(
+        (member) =>
+            member.id.value == invitation.invitationId.substring(0, 24),
+      );
+      expect(joined, hasLength(1));
+      expect(joined.single.pending, isFalse);
     },
   );
 
@@ -248,6 +359,7 @@ final class _LinkedCarrierEngine extends ClassicBluetoothEngine {
   @override
   Future<void> dispose() async {
     await incoming.close();
+    await writeCounts.close();
     await connected.close();
     await errors.close();
     await closed.close();
@@ -261,6 +373,7 @@ final class _CarrierFakeEngine extends ClassicBluetoothEngine {
   final closed = StreamController<void>.broadcast();
   final writes = <Uint8List>[];
   final twoWrites = Completer<void>();
+  final writeCounts = StreamController<int>.broadcast();
 
   @override
   Future<bool> get isEnabled async => true;
@@ -292,7 +405,15 @@ final class _CarrierFakeEngine extends ClassicBluetoothEngine {
   @override
   Future<void> write(Uint8List bytes) async {
     writes.add(Uint8List.fromList(bytes));
+    writeCounts.add(writes.length);
     if (writes.length == 2 && !twoWrites.isCompleted) twoWrites.complete();
+  }
+
+  Future<void> waitForWrites(int count) async {
+    if (writes.length >= count) return;
+    await writeCounts.stream
+        .firstWhere((value) => value >= count)
+        .timeout(const Duration(seconds: 2));
   }
 
   void addEnvelope(RoomProximityEnvelope envelope) {
