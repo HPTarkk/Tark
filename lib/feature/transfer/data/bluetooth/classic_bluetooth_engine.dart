@@ -120,22 +120,27 @@ class ClassicBluetoothEngine {
   /// both roles — the events are about the one live socket, not about who
   /// opened it.
   void _listenToSession() {
-    _sessionEventSub ??= _serverConnectionEvents.receiveBroadcastStream().listen(
-      (event) {
-        final map = Map<Object?, Object?>.from(event as Map);
-        switch (map['event']) {
-          case 'connected':
-            _connected = true;
-            _peerConnectedController.add((map['address'] as String?) ?? '');
-          case 'closed':
-            _connected = false;
-            _closedController.add(null);
-          case 'error':
-            _errorController.add((map['message'] as String?) ?? 'unknown error');
-        }
-      },
-      onError: (Object e) => Logger.log('Bluetooth session event error: $e'),
-    );
+    _sessionEventSub ??= _serverConnectionEvents
+        .receiveBroadcastStream()
+        .listen(
+          (event) {
+            final map = Map<Object?, Object?>.from(event as Map);
+            switch (map['event']) {
+              case 'connected':
+                _connected = true;
+                _peerConnectedController.add((map['address'] as String?) ?? '');
+              case 'closed':
+                _connected = false;
+                _closedController.add(null);
+              case 'error':
+                _errorController.add(
+                  (map['message'] as String?) ?? 'unknown error',
+                );
+            }
+          },
+          onError: (Object e) =>
+              Logger.log('Bluetooth session event error: $e'),
+        );
 
     _sessionReadSub ??= _serverReadEvents.receiveBroadcastStream().listen(
       (event) => _inputController.add(event as Uint8List),
@@ -157,14 +162,12 @@ class ClassicBluetoothEngine {
       throw StateError('rendezvous token must be set before hosting');
     }
     final identity = await RoomRendezvousIdentity.derive(token);
-    final readiness = await _serverMethods.invokeMapMethod<String, dynamic>(
-      'startHosting',
-      {
-        'name': name,
-        'rendezvousData': identity.serviceData,
-        'correlation': identity.correlation,
-      },
-    );
+    final readiness = await _serverMethods
+        .invokeMapMethod<String, dynamic>('startHosting', {
+          'name': name,
+          'rendezvousData': identity.serviceData,
+          'correlation': identity.correlation,
+        });
     if (readiness == null ||
         readiness['serverListening'] != true ||
         readiness['bleAdvertising'] != true) {
@@ -218,14 +221,12 @@ class ClassicBluetoothEngine {
     final token = _rendezvousToken;
     if (token != null) {
       final identity = await RoomRendezvousIdentity.derive(token);
-      final result = await _serverMethods.invokeMapMethod<String, dynamic>(
-        'findRendezvousPeer',
-        {
-          'rendezvousData': identity.serviceData,
-          'correlation': identity.correlation,
-          'timeoutMs': 10000,
-        },
-      );
+      final result = await _serverMethods
+          .invokeMapMethod<String, dynamic>('findRendezvousPeer', {
+            'rendezvousData': identity.serviceData,
+            'correlation': identity.correlation,
+            'timeoutMs': 10000,
+          });
       if (result == null) return;
       Logger.diagnostic(
         'room_proximity: ble scan correlation=${result['correlation'] ?? 'none'} '
@@ -270,7 +271,9 @@ class ClassicBluetoothEngine {
   void cancelDiscovery() {
     _fbc.stopScan();
     unawaited(
-      _serverMethods.invokeMethod<void>('cancelRendezvousScan').catchError((_) {}),
+      _serverMethods
+          .invokeMethod<void>('cancelRendezvousScan')
+          .catchError((_) {}),
     );
   }
 
