@@ -225,40 +225,37 @@ void main() {
     },
   );
 
-  test(
-    'exact adapter name without BLE binding is never accepted',
-    () async {
-      final engine = _FakeClassicBluetoothEngine();
-      final channel = RoomProximityControlChannel(
-        engine: engine,
-        findTimeout: const Duration(milliseconds: 40),
-        rescanEvery: const Duration(milliseconds: 15),
-      );
-      addTearDown(channel.dispose);
+  test('exact adapter name without BLE binding is never accepted', () async {
+    final engine = _FakeClassicBluetoothEngine();
+    final channel = RoomProximityControlChannel(
+      engine: engine,
+      findTimeout: const Duration(milliseconds: 40),
+      rescanEvery: const Duration(milliseconds: 15),
+    );
+    addTearDown(channel.dispose);
 
-      final joining = channel.connect(rendezvousToken: token);
-      await Future<void>.delayed(Duration.zero);
-      engine.scans.add(
-        BluetoothPeer(
-          id: 'AA:BB:CC:DD:EE:FF',
-          name: RoomProximityControlChannel.rendezvousName(token),
-          isAppHost: true,
-        ),
-      );
+    final joining = channel.connect(rendezvousToken: token);
+    await Future<void>.delayed(Duration.zero);
+    engine.scans.add(
+      BluetoothPeer(
+        id: 'AA:BB:CC:DD:EE:FF',
+        name: RoomProximityControlChannel.rendezvousName(token),
+        isAppHost: true,
+      ),
+    );
 
-      await expectLater(
-        joining,
-        throwsA(
-          isA<RoomProximityException>().having(
-            (error) => error.failure,
-            'failure',
-            RoomProximityFailure.hostNotFound,
-          ),
+    await expectLater(
+      joining,
+      throwsA(
+        isA<RoomProximityException>().having(
+          (error) => error.failure,
+          'failure',
+          RoomProximityFailure.hostNotFound,
         ),
-      );
-      expect(engine.dialed, isFalse);
-    },
-  );
+      ),
+    );
+    expect(engine.dialed, isFalse);
+  });
 
   test(
     'native discoverability error is host setup failure, not user denial',
