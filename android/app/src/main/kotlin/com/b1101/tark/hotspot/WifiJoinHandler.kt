@@ -670,13 +670,12 @@ class WifiJoinHandler(
             Log.i(TAG, "enableWifi: opened the Wi-Fi settings panel")
             return false
         }
-        runCatching {
-            context.startActivity(
-                Intent(Settings.ACTION_WIFI_SETTINGS)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-            )
-        }
-        Log.w(TAG, "enableWifi: no Wi-Fi panel, fell back to settings")
+        // A Room hand-off must not throw the user into the full Settings app:
+        // it would expose unrelated networks and turn an in-app permission
+        // step into manual network selection.  The compact system panel is the
+        // only supported consent surface here; when an OEM does not offer it,
+        // Dart keeps the Room retryable and reports the typed Wi-Fi-off state.
+        Log.w(TAG, "enableWifi: Wi-Fi panel unavailable")
         return false
     }
 
