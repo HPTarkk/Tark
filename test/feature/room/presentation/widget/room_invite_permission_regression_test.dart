@@ -257,6 +257,7 @@ void main() {
     expect(find.byKey(const Key('one-scan-room-invite-qr')), findsNothing);
 
     await tester.pump(const Duration(seconds: 2));
+    await tester.pump();
     expect(find.byKey(const Key('auto-room-start')), findsOneWidget);
   });
 }
