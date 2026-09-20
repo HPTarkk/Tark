@@ -4,16 +4,26 @@ import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothServerSocket
 import android.bluetooth.BluetoothSocket
+import android.bluetooth.le.AdvertiseCallback
+import android.bluetooth.le.AdvertiseData
+import android.bluetooth.le.AdvertiseSettings
+import android.bluetooth.le.BluetoothLeAdvertiser
+import android.bluetooth.le.BluetoothLeScanner
+import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanResult
+import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
+import android.os.ParcelUuid
 import android.util.Log
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.io.IOException
+import java.security.MessageDigest
 import java.util.UUID
 import java.util.concurrent.ArrayBlockingQueue
 
@@ -61,6 +71,10 @@ class BluetoothServerHandler(
         // either side needing to hardcode the other's UUID.
         private val SPP_UUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
         private const val REQUEST_DISCOVERABLE_CODE = 4242
+        private val RENDEZVOUS_SERVICE_UUID: UUID =
+            UUID.fromString("9f7a1c02-0b86-4c80-9e84-54524b000001")
+        private val RENDEZVOUS_PARCEL_UUID = ParcelUuid(RENDEZVOUS_SERVICE_UUID)
+        private const val RENDEZVOUS_PROTOCOL_VERSION: Byte = 1
 
         // Audio arrives at a fixed cadence (one packet per ~20ms) regardless of
         // what the RFCOMM link can carry. Matches the BLE engine's pending-write
@@ -104,6 +118,13 @@ class BluetoothServerHandler(
     /// [handleActivityResult] once the user accepts or declines the dialog.
     private var pendingDiscoverable: MethodChannel.Result? = null
 
+    private var bleAdvertiser: BluetoothLeAdvertiser? = null
+    private var bleAdvertiseCallback: AdvertiseCallback? = null
+    private var bleScanner: BluetoothLeScanner? = null
+    private var bleScanCallback: ScanCallback? = null
+    private var bleScanTimeout: Runnable? = null
+    private var pendingBleScanResult: MethodChannel.Result? = null
+
     init {
         connectionEvents.setStreamHandler(object : EventChannel.StreamHandler {
             override fun onListen(arguments: Any?, events: EventChannel.EventSink) {
@@ -135,7 +156,25 @@ class BluetoothServerHandler(
             }
             "startHosting" -> {
                 val name = call.argument<String>("name") ?: "tark"
-                startHosting(name, result)
+                val rendezvousToken = call.argument<String>("rendezvousToken")
+                if (rendezvousToken.isNullOrBlank()) {
+                    result.error("invalid_args", "rendezvousToken is required", null)
+                    return
+                }
+                startHosting(name, rendezvousToken, result)
+            }
+            "findRendezvousPeer" -> {
+                val rendezvousToken = call.argument<String>("rendezvousToken")
+                val timeoutMs = (call.argument<Int>("timeoutMs") ?: 10000).coerceIn(1000, 30000)
+                if (rendezvousToken.isNullOrBlank()) {
+                    result.error("invalid_args", "rendezvousToken is required", null)
+                    return
+                }
+                findRendezvousPeer(rendezvousToken, timeoutMs.toLong(), result)
+            }
+            "cancelRendezvousScan" -> {
+                cancelRendezvousScan(resolvePending = true)
+                result.success(null)
             }
             "connectToPeer" -> {
                 val address = call.argument<String>("address")
@@ -225,7 +264,9 @@ class BluetoothServerHandler(
         pendingDiscoverable = null
         // The system returns the granted duration as the result code, and
         // RESULT_CANCELED (0) when the user declined.
-        pending.success(resultCode != Activity.RESULT_CANCELED)
+        pending.success(
+            resultCode != Activity.RESULT_CANCELED && isDiscoverable()
+        )
         return true
     }
 
@@ -321,29 +362,39 @@ class BluetoothServerHandler(
         }.also { it.start() }
     }
 
-    private fun startHosting(name: String, result: MethodChannel.Result) {
-        // A re-host racing an incoming connection must not kill it. stopHosting()
-        // below closes the accepted socket too, so without this guard the repo's
-        // auto-reconnect loop (which re-hosts the moment a link looks closed)
-        // could tear down the very session that just landed — the joiner would
-        // see its brand-new connection die and dial again, forever.
+    private fun startHosting(
+        name: String,
+        rendezvousToken: String,
+        result: MethodChannel.Result,
+    ) {
         if (acceptedSocket != null) {
-            Log.i(TAG, "startHosting ignored: a session is already connected")
-            result.success(null)
+            result.error("busy", "A Bluetooth session is already connected", null)
             return
         }
-        Log.i(TAG, "startHosting as \"$name\" (discoverable=${isDiscoverable()})")
+
+        // The previous production order asked for discoverability first and
+        // only afterwards changed identity/opened RFCOMM. A joiner could scan
+        // inside that window and see an old cached name or no listening socket.
+        // This method is the native readiness transaction: identity + server +
+        // BLE advertisement must all be ready before Flutter asks the system
+        // for discoverability and renders the QR.
         stopHosting()
         val adapter = BluetoothAdapter.getDefaultAdapter()
         if (adapter == null) {
             result.error("unsupported", "Bluetooth is not supported on this device", null)
             return
         }
-        // A classic inquiry reports the remote ADAPTER name and nothing else —
-        // the service-record name below never reaches a scanning device. So
-        // the adapter itself carries the hosting name for the duration of the
-        // session; stopHosting()/onDestroy/next launch put the original back.
-        applyAdapterName(adapter, name)
+        try {
+            if (!adapter.isEnabled) {
+                result.error("bluetooth_off", "Bluetooth adapter is disabled", null)
+                return
+            }
+        } catch (e: SecurityException) {
+            result.error("permission_denied", e.message, null)
+            return
+        }
+
+        val nameApplied = applyAdapterName(adapter, name)
 
         try {
             serverSocket = adapter.listenUsingInsecureRfcommWithServiceRecord(name, SPP_UUID)
@@ -357,17 +408,21 @@ class BluetoothServerHandler(
             return
         }
 
-        result.success(null)
+        startAcceptLoop()
+        startRendezvousAdvertising(
+            adapter = adapter,
+            rendezvousToken = rendezvousToken,
+            nameApplied = nameApplied,
+            result = result,
+        )
+    }
 
+    private fun startAcceptLoop() {
         acceptThread = Thread {
             try {
-                // accept() blocks until a client connects or the socket is closed
-                // (stopHosting()/dispose() calls serverSocket.close() to unblock it).
                 val socket = serverSocket?.accept() ?: return@Thread
                 acceptedSocket = socket
-                Log.i(TAG, "accepted ${socket.remoteDevice?.address}")
-                // Stop listening for further connections once one peer is in —
-                // this app is strictly 1-to-1.
+                Log.i(TAG, "accepted proximity peer")
                 try {
                     serverSocket?.close()
                 } catch (_: IOException) {
@@ -378,10 +433,88 @@ class BluetoothServerHandler(
                 startReadLoop(socket)
                 startWriterLoop(socket)
             } catch (e: IOException) {
-                Log.w(TAG, "accept failed: ${e.message}")
-                emitConnectionEvent(mapOf("event" to "error", "message" to (e.message ?: "accept failed")))
+                if (serverSocket != null) {
+                    Log.w(TAG, "accept failed: ${e.message}")
+                    emitConnectionEvent(
+                        mapOf("event" to "error", "message" to (e.message ?: "accept failed"))
+                    )
+                }
             }
         }.also { it.start() }
+    }
+
+    private fun startRendezvousAdvertising(
+        adapter: BluetoothAdapter,
+        rendezvousToken: String,
+        nameApplied: Boolean,
+        result: MethodChannel.Result,
+    ) {
+        val advertiser = try {
+            adapter.bluetoothLeAdvertiser
+        } catch (e: SecurityException) {
+            null
+        }
+        if (advertiser == null || !adapter.isMultipleAdvertisementSupported) {
+            stopHosting()
+            result.error(
+                "ble_advertise_unsupported",
+                "BLE peripheral advertising is unavailable on this device",
+                null,
+            )
+            return
+        }
+
+        val payload = rendezvousPayload(rendezvousToken)
+        val settings = AdvertiseSettings.Builder()
+            .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
+            .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM)
+            .setConnectable(false)
+            .setTimeout(0)
+            .build()
+        // Only service-data is emitted. A 128-bit service UUID plus this
+        // compact 8-byte payload fits the legacy 31-byte packet including
+        // flags; duplicating the UUID in a separate AD structure would not.
+        val data = AdvertiseData.Builder()
+            .addServiceData(RENDEZVOUS_PARCEL_UUID, payload)
+            .setIncludeDeviceName(false)
+            .setIncludeTxPowerLevel(false)
+            .build()
+
+        val callback = object : AdvertiseCallback() {
+            override fun onStartSuccess(settingsInEffect: AdvertiseSettings?) {
+                bleAdvertiser = advertiser
+                bleAdvertiseCallback = this
+                Log.i(TAG, "BLE rendezvous advertising ready")
+                result.success(
+                    mapOf(
+                        "serverListening" to (serverSocket != null),
+                        "bleAdvertising" to true,
+                        "nameApplied" to nameApplied,
+                        "correlation" to rendezvousCorrelation(rendezvousToken),
+                    )
+                )
+            }
+
+            override fun onStartFailure(errorCode: Int) {
+                Log.w(TAG, "BLE rendezvous advertising failed code=$errorCode")
+                stopHosting()
+                result.error(
+                    "ble_advertise_failed",
+                    "BLE rendezvous advertising failed",
+                    mapOf("errorCode" to errorCode),
+                )
+            }
+        }
+
+        try {
+            advertiser.startAdvertising(settings, data, callback)
+        } catch (e: SecurityException) {
+            stopHosting()
+            result.error("permission_denied", e.message, null)
+        } catch (e: Exception) {
+            stopHosting()
+            result.error("ble_advertise_failed", e.message, null)
+        }
     }
 
     private fun startReadLoop(socket: BluetoothSocket) {
@@ -482,6 +615,8 @@ class BluetoothServerHandler(
     }
 
     fun stopHosting() {
+        stopRendezvousAdvertising()
+        cancelRendezvousScan(resolvePending = true)
         try {
             serverSocket?.close()
         } catch (_: IOException) {
@@ -495,19 +630,21 @@ class BluetoothServerHandler(
     // Renames the adapter to [hostName], remembering what it was called
     // first. A failure is not fatal: hosting still works, the joiner just
     // sees the OEM name and can't tell this device apart from a headset.
-    private fun applyAdapterName(adapter: BluetoothAdapter, hostName: String) {
-        try {
-            val current = adapter.name ?: return
-            if (current == hostName) return
+    private fun applyAdapterName(adapter: BluetoothAdapter, hostName: String): Boolean {
+        return try {
+            val current = adapter.name ?: return false
+            if (current == hostName) return true
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            // Only the FIRST rename records an original — re-hosting (or an
-            // auto-reconnect) must not save the hosting name over it.
             if (!prefs.contains(KEY_ORIGINAL_ADAPTER_NAME)) {
                 prefs.edit().putString(KEY_ORIGINAL_ADAPTER_NAME, current).apply()
             }
-            adapter.name = hostName
+            val accepted = adapter.setName(hostName)
+            val verified = accepted && adapter.name == hostName
+            Log.i(TAG, "adapter rendezvous name applied=$verified")
+            verified
         } catch (e: SecurityException) {
-            // BLUETOOTH_CONNECT revoked, or an OEM that locks the name down.
+            Log.w(TAG, "adapter name update denied")
+            false
         }
     }
 
@@ -519,10 +656,201 @@ class BluetoothServerHandler(
         val adapter = BluetoothAdapter.getDefaultAdapter() ?: return
         try {
             if (!adapter.isEnabled) return
-            adapter.name = original
-            prefs.edit().remove(KEY_ORIGINAL_ADAPTER_NAME).apply()
+            val restored = adapter.setName(original) && adapter.name == original
+            if (restored) {
+                prefs.edit().remove(KEY_ORIGINAL_ADAPTER_NAME).apply()
+            }
         } catch (e: SecurityException) {
         }
+    }
+
+
+    private fun rendezvousPayload(token: String): ByteArray {
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest(token.trim().lowercase().toByteArray(Charsets.UTF_8))
+        // 1 protocol byte + 7 one-way digest bytes. The BLE record is only a
+        // nearby selector; the Room challenge/receipt protocol authenticates
+        // the peer after RFCOMM connects.
+        return byteArrayOf(RENDEZVOUS_PROTOCOL_VERSION) + digest.copyOfRange(0, 7)
+    }
+
+    private fun rendezvousCorrelation(token: String): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest(token.trim().lowercase().toByteArray(Charsets.UTF_8))
+        return digest.take(4).joinToString("") { "%02x".format(it) }
+    }
+
+    private fun findRendezvousPeer(
+        rendezvousToken: String,
+        timeoutMs: Long,
+        result: MethodChannel.Result,
+    ) {
+        cancelRendezvousScan(resolvePending = true)
+
+        val adapter = BluetoothAdapter.getDefaultAdapter()
+        if (adapter == null) {
+            result.error("unsupported", "Bluetooth is not supported on this device", null)
+            return
+        }
+        val scanner = try {
+            adapter.bluetoothLeScanner
+        } catch (e: SecurityException) {
+            result.error("permission_denied", e.message, null)
+            return
+        }
+        if (scanner == null) {
+            result.error("ble_scan_unsupported", "BLE scanning is unavailable", null)
+            return
+        }
+
+        val expected = rendezvousPayload(rendezvousToken)
+        val correlation = rendezvousCorrelation(rendezvousToken)
+        val seen = mutableSetOf<String>()
+        var tarkCount = 0
+        var wrongTokenCount = 0
+        var finished = false
+        lateinit var callback: ScanCallback
+
+        fun finishSuccess(payload: Map<String, Any?>) {
+            if (finished) return
+            finished = true
+            try {
+                scanner.stopScan(callback)
+            } catch (_: Exception) {
+            }
+            bleScanTimeout?.let { mainHandler.removeCallbacks(it) }
+            bleScanTimeout = null
+            bleScanner = null
+            bleScanCallback = null
+            pendingBleScanResult = null
+            result.success(payload)
+        }
+
+        fun finishError(code: String, message: String, details: Any? = null) {
+            if (finished) return
+            finished = true
+            try {
+                scanner.stopScan(callback)
+            } catch (_: Exception) {
+            }
+            bleScanTimeout?.let { mainHandler.removeCallbacks(it) }
+            bleScanTimeout = null
+            bleScanner = null
+            bleScanCallback = null
+            pendingBleScanResult = null
+            result.error(code, message, details)
+        }
+
+        callback = object : ScanCallback() {
+            override fun onScanResult(callbackType: Int, scanResult: ScanResult) {
+                val address = scanResult.device.address
+                if (!seen.add(address)) return
+                val serviceData = scanResult.scanRecord?.getServiceData(RENDEZVOUS_PARCEL_UUID)
+                if (serviceData == null) return
+                tarkCount++
+                if (!serviceData.contentEquals(expected)) {
+                    wrongTokenCount++
+                    return
+                }
+                Log.i(TAG, "BLE rendezvous candidate matched correlation=$correlation")
+                finishSuccess(
+                    mapOf(
+                        "matched" to true,
+                        "address" to address,
+                        "rssi" to scanResult.rssi,
+                        "discoveredCount" to seen.size,
+                        "tarkCount" to tarkCount,
+                        "wrongTokenCount" to wrongTokenCount,
+                        "correlation" to correlation,
+                    )
+                )
+            }
+
+            override fun onScanFailed(errorCode: Int) {
+                Log.w(TAG, "BLE rendezvous scan failed code=$errorCode")
+                finishError(
+                    "ble_scan_failed",
+                    "BLE rendezvous scan failed",
+                    mapOf(
+                        "errorCode" to errorCode,
+                        "discoveredCount" to seen.size,
+                        "tarkCount" to tarkCount,
+                        "wrongTokenCount" to wrongTokenCount,
+                        "correlation" to correlation,
+                    ),
+                )
+            }
+        }
+
+        bleScanner = scanner
+        bleScanCallback = callback
+        pendingBleScanResult = result
+        val timeout = Runnable {
+            finishSuccess(
+                mapOf(
+                    "matched" to false,
+                    "discoveredCount" to seen.size,
+                    "tarkCount" to tarkCount,
+                    "wrongTokenCount" to wrongTokenCount,
+                    "correlation" to correlation,
+                )
+            )
+        }
+        bleScanTimeout = timeout
+
+        try {
+            val settings = ScanSettings.Builder()
+                .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+                .build()
+            scanner.startScan(null, settings, callback)
+            mainHandler.postDelayed(timeout, timeoutMs)
+            Log.i(TAG, "BLE rendezvous scan started correlation=$correlation")
+        } catch (e: SecurityException) {
+            finishError("permission_denied", e.message ?: "BLE scan permission denied")
+        } catch (e: Exception) {
+            finishError("ble_scan_failed", e.message ?: "BLE scan failed")
+        }
+    }
+
+    private fun cancelRendezvousScan(resolvePending: Boolean) {
+        val scanner = bleScanner
+        val callback = bleScanCallback
+        if (scanner != null && callback != null) {
+            try {
+                scanner.stopScan(callback)
+            } catch (_: Exception) {
+            }
+        }
+        bleScanTimeout?.let { mainHandler.removeCallbacks(it) }
+        bleScanTimeout = null
+        bleScanner = null
+        bleScanCallback = null
+        if (resolvePending) {
+            pendingBleScanResult?.success(
+                mapOf(
+                    "matched" to false,
+                    "cancelled" to true,
+                    "discoveredCount" to 0,
+                    "tarkCount" to 0,
+                    "wrongTokenCount" to 0,
+                    "correlation" to "cancelled",
+                )
+            )
+        }
+        pendingBleScanResult = null
+    }
+
+    private fun stopRendezvousAdvertising() {
+        val advertiser = bleAdvertiser
+        val callback = bleAdvertiseCallback
+        if (advertiser != null && callback != null) {
+            try {
+                advertiser.stopAdvertising(callback)
+            } catch (_: Exception) {
+            }
+        }
+        bleAdvertiser = null
+        bleAdvertiseCallback = null
     }
 
     private fun emitConnectionEvent(event: Map<String, Any?>) {
