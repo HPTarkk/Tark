@@ -239,7 +239,11 @@ class BluetoothServerHandler(
         }
         val activity = activityProvider()
         if (activity == null) {
-            result.success(false)
+            result.error(
+                "activity_unavailable",
+                "No foreground activity is available for discoverability",
+                null,
+            )
             return
         }
         // Only one dialog can be up at a time; a superseded request answers
@@ -253,9 +257,12 @@ class BluetoothServerHandler(
             pendingDiscoverable = result
             Log.i(TAG, "discoverability requested durationSeconds=$seconds")
             activity.startActivityForResult(intent, REQUEST_DISCOVERABLE_CODE)
+        } catch (e: SecurityException) {
+            pendingDiscoverable = null
+            result.error("permission_denied", e.message, null)
         } catch (e: Exception) {
             pendingDiscoverable = null
-            result.success(false)
+            result.error("discoverability_failed", e.message, null)
         }
     }
 
@@ -464,7 +471,9 @@ class BluetoothServerHandler(
         val advertiser = try {
             adapter.bluetoothLeAdvertiser
         } catch (e: SecurityException) {
-            null
+            result.error("permission_denied", e.message, null)
+            stopHosting()
+            return
         }
         if (advertiser == null || !adapter.isMultipleAdvertisementSupported) {
             stopHosting()
