@@ -226,7 +226,7 @@ class ClassicBluetoothEngine {
       if (result['matched'] != true) return;
       final address = result['address'];
       if (address is! String || address.isEmpty) {
-        throw const PlatformException(
+        throw PlatformException(
           code: 'ble_match_without_address',
           message: 'Matched BLE rendezvous had no dialable address',
         );
