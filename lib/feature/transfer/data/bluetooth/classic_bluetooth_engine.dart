@@ -236,6 +236,7 @@ class ClassicBluetoothEngine {
         name: rendezvousHostName(token),
         rssi: result['rssi'] is int ? result['rssi'] as int : null,
         isAppHost: true,
+        rendezvousMatched: true,
       );
       return;
     }
