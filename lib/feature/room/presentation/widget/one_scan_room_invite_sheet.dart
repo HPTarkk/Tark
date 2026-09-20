@@ -13,6 +13,7 @@ import '../../../../core/widget/qr_widgets.dart';
 import '../../../../core/widget/sheet_shell.dart';
 import '../../../transfer/api/hotspot_invite_api.dart';
 import '../../../transfer/api/transfer_api.dart';
+import '../../../transfer/domain/entity/room_rendezvous_identity.dart';
 import '../../data/proximity/room_proximity_control_session_registry.dart';
 import '../../data/proximity/room_proximity_join_carrier.dart';
 import '../../data/security/room_transport_identity_lifecycle.dart';
@@ -161,6 +162,7 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
       if (!permitted) {
         throw const _RoomInvitePermissionDenied();
       }
+      Logger.diagnostic('room_invite: permissions ok');
 
       stage = 'issue_invitation';
       final invite = await _repository.issueInvite(
@@ -168,6 +170,12 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
         kind: RoomInvitationKind.trustedMembership,
         now: DateTime.now().toUtc(),
         ttl: const Duration(hours: 12),
+      );
+      final rendezvous = await RoomRendezvousIdentity.derive(
+        invite.invitationId,
+      );
+      Logger.diagnostic(
+        'room_invite: issued correlation=${rendezvous.correlation}',
       );
       final identity =
           widget.identityLifecycle ??
@@ -226,6 +234,9 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
 
       stage = 'render_invitation';
       if (!mounted) return;
+      Logger.diagnostic(
+        'room_invite: qr ready correlation=${rendezvous.correlation}',
+      );
       HapticFeedback.mediumImpact();
       setState(() {
         _roomId = saved.room.id;
