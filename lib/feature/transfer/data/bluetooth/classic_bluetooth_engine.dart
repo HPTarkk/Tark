@@ -10,9 +10,10 @@ import '../../domain/entity/room_rendezvous_identity.dart';
 
 /// Android Bluetooth Classic (RFCOMM/SPP) engine.
 ///
-/// Discovery uses the flutter_blue_classic package — it covers inquiry and
-/// adapter state well. Both ends of the *connection* go through a custom
-/// platform channel (see android/.../bluetooth/BluetoothServerHandler.kt):
+/// Room rendezvous uses native BLE service-data to select the phone bound to
+/// the scanned invitation. flutter_blue_classic remains only for legacy
+/// non-Room inquiry and adapter state. Both ends of the *RFCOMM connection*
+/// go through a custom platform channel (see android/.../bluetooth/BluetoothServerHandler.kt):
 /// hosting because the package exposes no
 /// listenUsingRfcommWithServiceRecord()/accept(), and dialing because the
 /// package's connect() uses a SECURE socket while our server socket is
