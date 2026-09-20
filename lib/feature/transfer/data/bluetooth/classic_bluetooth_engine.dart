@@ -103,17 +103,17 @@ class ClassicBluetoothEngine {
   /// The timeout only guards against a dialog whose result never comes back
   /// (activity torn down mid-prompt); hosting must not hang on that.
   Future<bool> requestDiscoverable({int durationSeconds = 300}) async {
-    try {
-      final granted = await _serverMethods
-          .invokeMethod<bool>('requestDiscoverable', {
-            'durationSeconds': durationSeconds,
-          })
-          .timeout(const Duration(seconds: 60), onTimeout: () => false);
-      return granted ?? false;
-    } catch (e) {
-      Logger.log('requestDiscoverable failed: $e');
-      return false;
-    }
+    final granted = await _serverMethods
+        .invokeMethod<bool>('requestDiscoverable', {
+          'durationSeconds': durationSeconds,
+        })
+        .timeout(
+          const Duration(seconds: 60),
+          onTimeout: () => throw TimeoutException(
+            'Bluetooth discoverability result timed out',
+          ),
+        );
+    return granted ?? false;
   }
 
   /// Subscribes to the native session channels. Idempotent, and shared by
@@ -167,7 +167,8 @@ class ClassicBluetoothEngine {
           'name': name,
           'rendezvousData': identity.serviceData,
           'correlation': identity.correlation,
-        });
+        })
+        .timeout(const Duration(seconds: 10));
     if (readiness == null ||
         readiness['serverListening'] != true ||
         readiness['bleAdvertising'] != true) {
@@ -296,7 +297,7 @@ class ClassicBluetoothEngine {
           ? Duration.zero
           : DateTime.now().difference(startedAt);
       if (age < _dialStuckAfter) {
-        Logger.log('BT dial skipped: a dial to $address is still in flight');
+        Logger.log('BT dial skipped: a dial is still in flight');
         return;
       }
       // Cancel it natively first: the socket is what the connect() thread is
@@ -319,11 +320,11 @@ class ClassicBluetoothEngine {
       if (!landed) {
         // Cancelled mid-dial; the native side closed the socket, so nothing
         // is left holding the host's session open.
-        Logger.log('BT dial to $address was cancelled before it landed');
+        Logger.log('BT dial was cancelled before it landed');
         _errorController.add('Failed to connect');
       }
     } catch (e) {
-      Logger.log('BT dial to $address failed: $e');
+      Logger.log('BT dial failed: $e');
       _errorController.add('$e');
     } finally {
       if (gen == _dialGen) _dialing = false;
