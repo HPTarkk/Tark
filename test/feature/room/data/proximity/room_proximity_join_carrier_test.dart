@@ -186,8 +186,7 @@ void main() {
 
       final saved = await repository.get(invitation.roomId);
       final joined = saved!.room.members.where(
-        (member) =>
-            member.id.value == invitation.invitationId.substring(0, 24),
+        (member) => member.id.value == invitation.invitationId.substring(0, 24),
       );
       expect(joined, hasLength(1));
       expect(joined.single.pending, isFalse);
