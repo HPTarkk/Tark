@@ -358,7 +358,6 @@ final class _LinkedCarrierEngine extends ClassicBluetoothEngine {
   @override
   Future<void> dispose() async {
     await incoming.close();
-    await writeCounts.close();
     await connected.close();
     await errors.close();
     await closed.close();
@@ -424,6 +423,7 @@ final class _CarrierFakeEngine extends ClassicBluetoothEngine {
   @override
   Future<void> dispose() async {
     await incoming.close();
+    await writeCounts.close();
     await connected.close();
     await errors.close();
     await closed.close();
