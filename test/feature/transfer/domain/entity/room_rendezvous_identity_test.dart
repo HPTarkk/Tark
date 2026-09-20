@@ -10,22 +10,28 @@ void main() {
 
     expect(first.serviceData, second.serviceData);
     expect(first.correlation, second.correlation);
-    expect(first.serviceData, hasLength(RoomRendezvousIdentity.serviceDataLength));
+    expect(
+      first.serviceData,
+      hasLength(RoomRendezvousIdentity.serviceDataLength),
+    );
     expect(first.serviceData.first, RoomRendezvousIdentity.protocolVersion);
     expect(first.correlation, matches(RegExp(r'^[0-9a-f]{8}$')));
   });
 
-  test('a different invitation cannot match the QR-bound BLE identity', () async {
-    final one = await RoomRendezvousIdentity.derive(
-      '0123456789abcdef0123456789abcdef',
-    );
-    final two = await RoomRendezvousIdentity.derive(
-      'fedcba9876543210fedcba9876543210',
-    );
+  test(
+    'a different invitation cannot match the QR-bound BLE identity',
+    () async {
+      final one = await RoomRendezvousIdentity.derive(
+        '0123456789abcdef0123456789abcdef',
+      );
+      final two = await RoomRendezvousIdentity.derive(
+        'fedcba9876543210fedcba9876543210',
+      );
 
-    expect(two.serviceData, isNot(one.serviceData));
-    expect(two.correlation, isNot(one.correlation));
-  });
+      expect(two.serviceData, isNot(one.serviceData));
+      expect(two.correlation, isNot(one.correlation));
+    },
+  );
 
   test('invalid rendezvous token fails closed', () {
     expect(
