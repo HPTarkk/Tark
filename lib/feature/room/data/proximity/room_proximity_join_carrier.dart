@@ -1,5 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
+import 'dart:typed_data';
+
+import 'package:cryptography/cryptography.dart';
 
 import '../../../../core/utils/logger.dart';
 import '../../../transfer/api/transfer_api.dart';
@@ -82,6 +86,8 @@ final class RoomProximityJoinCarrier
   late final StreamSubscription<String> _subscription;
   late final StreamSubscription<void> _closedSubscription;
   final Map<String, Completer<RoomProximityEnvelope>> _pending = {};
+  static const _protocolTimeout = Duration(seconds: 10);
+  final Random _random = Random.secure();
 
   @override
   RoomAcceptedJoinSnapshot? confirmedSnapshot;
@@ -139,9 +145,12 @@ final class RoomProximityJoinCarrier
           payload: payload,
         ).encode(),
       );
-      return await completer.future;
+      return await completer.future.timeout(_protocolTimeout);
     } catch (_) {
-      _pending.remove(key);
+      final current = _pending[key];
+      if (identical(current, completer)) {
+        _pending.remove(key);
+      }
       rethrow;
     }
   }
@@ -154,6 +163,31 @@ final class RoomProximityJoinCarrier
       throw const FormatException('proximity join request scope');
     }
     final correlation = await _correlation;
+    final challenge = Uint8List.fromList(
+      List<int>.generate(16, (_) => _random.nextInt(256)),
+    );
+    final challengeEncoded = base64Url.encode(challenge).replaceAll('=', '');
+    Logger.diagnostic(
+      'room_join_protocol: host challenge sent correlation=$correlation',
+    );
+    final proof = await _sendAndWait(
+      sendKind: 'hostChallenge',
+      responseKind: 'hostProof',
+      requestId: request.requestId,
+      payload: challengeEncoded,
+    );
+    final verified = await _verifyHostProof(
+      invitation: _invitation,
+      requestId: request.requestId,
+      challenge: challenge,
+      encodedProof: proof.payload,
+    );
+    if (!verified) {
+      throw StateError('proximity host authentication failed');
+    }
+    Logger.diagnostic(
+      'room_join_protocol: host proof verified correlation=$correlation',
+    );
     Logger.diagnostic(
       'room_join_protocol: request sent correlation=$correlation',
     );
@@ -251,6 +285,28 @@ final class RoomProximityJoinIssuerSession {
     }
 
     switch (envelope.kind) {
+      case 'hostChallenge':
+        final correlation = await _correlation;
+        final challenge = _decodeChallenge(envelope.payload);
+        if (challenge == null) return;
+        final proof = await _createHostProof(
+          invitation: _invitation,
+          requestId: envelope.requestId,
+          challenge: challenge,
+        );
+        await _channel.send(
+          RoomProximityEnvelope(
+            kind: 'hostProof',
+            roomId: envelope.roomId,
+            requestId: envelope.requestId,
+            joinEpoch: envelope.joinEpoch,
+            payload: proof,
+          ).encode(),
+        );
+        Logger.diagnostic(
+          'room_join_protocol: host proof sent correlation=$correlation',
+        );
+        return;
       case 'joinRequest':
         final correlation = await _correlation;
         Logger.diagnostic(
@@ -340,4 +396,87 @@ final class RoomProximityJoinIssuerSession {
   }
 
   Future<void> dispose() => _subscription.cancel();
+}
+
+
+final Hmac _roomHostProofHmac = Hmac.sha256();
+
+Future<String> _createHostProof({
+  required RoomInvitation invitation,
+  required String requestId,
+  required Uint8List challenge,
+}) async {
+  final mac = await _roomHostProofHmac.calculateMac(
+    _hostProofMessage(
+      invitation: invitation,
+      requestId: requestId,
+      challenge: challenge,
+    ),
+    secretKey: SecretKey(_decodeHex(invitation.secret)),
+  );
+  return base64Url.encode(mac.bytes).replaceAll('=', '');
+}
+
+Future<bool> _verifyHostProof({
+  required RoomInvitation invitation,
+  required String requestId,
+  required Uint8List challenge,
+  required String encodedProof,
+}) async {
+  try {
+    final expected = await _createHostProof(
+      invitation: invitation,
+      requestId: requestId,
+      challenge: challenge,
+    );
+    final expectedBytes = base64Url.decode(base64Url.normalize(expected));
+    final actualBytes = base64Url.decode(
+      base64Url.normalize(encodedProof.trim()),
+    );
+    return _constantTimeEquals(expectedBytes, actualBytes);
+  } catch (_) {
+    return false;
+  }
+}
+
+Uint8List? _decodeChallenge(String encoded) {
+  try {
+    final bytes = base64Url.decode(base64Url.normalize(encoded.trim()));
+    if (bytes.length != 16) return null;
+    return Uint8List.fromList(bytes);
+  } catch (_) {
+    return null;
+  }
+}
+
+List<int> _hostProofMessage({
+  required RoomInvitation invitation,
+  required String requestId,
+  required Uint8List challenge,
+}) => utf8.encode(
+  'tark-room-host-proof-v1\n'
+  '${invitation.roomId.value}\n'
+  '${invitation.invitationId}\n'
+  '$requestId\n'
+  '${base64Url.encode(challenge).replaceAll('=', '')}',
+);
+
+Uint8List _decodeHex(String value) {
+  if (!RegExp(r'^[0-9a-f]{64}$').hasMatch(value)) {
+    throw const FormatException('invalid Room invitation secret');
+  }
+  final output = Uint8List(value.length ~/ 2);
+  for (var i = 0; i < output.length; i += 1) {
+    output[i] = int.parse(value.substring(i * 2, i * 2 + 2), radix: 16);
+  }
+  return output;
+}
+
+bool _constantTimeEquals(List<int> a, List<int> b) {
+  if (a.length != b.length) return false;
+  var diff = 0;
+  for (var i = 0; i < a.length; i += 1) {
+    diff |= a[i] ^ b[i];
+  }
+  return diff == 0;
 }
