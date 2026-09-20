@@ -210,10 +210,11 @@ class BluetoothServerHandler(
         }
     }
 
-    // A classic inquiry only ever reports adapters in DISCOVERABLE scan mode.
-    // Merely listening on RFCOMM (or being bonded) is invisible to a scanning
-    // device — which is why hosting has to check this rather than assume the
-    // server socket is enough to be found.
+    // Classic discoverability is now a compatibility/readiness signal only.
+    // Room peer selection itself uses BLE service-data and never trusts the
+    // mutable adapter name. We still verify this state because the product's
+    // Android host contract keeps Classic RFCOMM available as the control
+    // carrier after BLE has selected the intended phone.
     private fun isDiscoverable(): Boolean {
         val adapter = BluetoothAdapter.getDefaultAdapter() ?: return false
         return try {
@@ -226,11 +227,11 @@ class BluetoothServerHandler(
         }
     }
 
-    // Resolves only once the user answers the system dialog: the caller starts
-    // the RFCOMM server right afterwards, and doing that before the dialog is
-    // dismissed used to race the adapter being powered on by that very dialog.
-    // The result is the ANSWER (true = discoverable now), not "a dialog was
-    // shown" — the host screen needs to know whether it is actually findable.
+    // Resolves only once the user answers the system dialog. Identity,
+    // RFCOMM listening and BLE advertising are deliberately prepared BEFORE
+    // this call, so a granted visibility window can never expose a half-ready
+    // Room host. The result is actual scan-mode state, not merely "dialog
+    // shown".
     private fun requestDiscoverable(seconds: Int, result: MethodChannel.Result) {
         if (isDiscoverable()) {
             diagnostic("discoverability already granted")
@@ -647,9 +648,10 @@ class BluetoothServerHandler(
         restoreAdapterName()
     }
 
-    // Renames the adapter to [hostName], remembering what it was called
-    // first. A failure is not fatal: hosting still works, the joiner just
-    // sees the OEM name and can't tell this device apart from a headset.
+    // Best-effort compatibility label only. Room discovery no longer accepts
+    // this mutable name as identity; BLE service-data is the load-bearing
+    // rendezvous selector. We still verify setName() and restore the user's
+    // original adapter name on every teardown path.
     private fun applyAdapterName(adapter: BluetoothAdapter, hostName: String): Boolean {
         return try {
             val current = adapter.name ?: return false
