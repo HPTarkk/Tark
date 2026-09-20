@@ -106,6 +106,43 @@ void main() {
     },
   );
 
+  testWidgets('native host readiness failure creates no usable QR', (
+    tester,
+  ) async {
+    await tester.runAsync(RoomProximityControlSessionRegistry.instance.clear);
+    SharedPreferences.setMockInitialValues({});
+    final events = <String>[];
+    final repository = _TracingRoomRepository(events);
+    final room = await repository.create(
+      name: 'Night ride',
+      localDisplayName: 'Creator',
+    );
+    await repository.select(room.room.id);
+    final control = RoomProximityControlChannel(
+      engine: _FakeClassicBluetoothEngine(events, failHosting: true),
+    );
+
+    await tester.pumpWidget(
+      _host(
+        repository: repository,
+        control: control,
+        permissionGate: () async {
+          events.add('permissions');
+          return true;
+        },
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(
+      events,
+      orderedEquals(<String>['permissions', 'issue_invitation', 'host']),
+    );
+    expect(find.byKey(const Key('one-scan-room-invite-qr')), findsNothing);
+    expect(find.byKey(const Key('one-scan-room-invite-retry')), findsOneWidget);
+  });
+
   testWidgets('permission denial creates no invitation or fake QR', (
     tester,
   ) async {
@@ -265,9 +302,10 @@ final class _TracingRoomRepository extends SharedPreferencesRoomRepository {
 }
 
 final class _FakeClassicBluetoothEngine extends ClassicBluetoothEngine {
-  _FakeClassicBluetoothEngine(this.events);
+  _FakeClassicBluetoothEngine(this.events, {this.failHosting = false});
 
   final List<String> events;
+  final bool failHosting;
   final StreamController<Uint8List> _input = StreamController.broadcast();
   final StreamController<String> _connected = StreamController.broadcast();
   final StreamController<String> _errors = StreamController.broadcast();
@@ -293,7 +331,11 @@ final class _FakeClassicBluetoothEngine extends ClassicBluetoothEngine {
   Future<void> startHosting({String name = 'tark'}) async {
     events.add('host');
     hosted = true;
+    if (failHosting) throw StateError('native host readiness failed');
   }
+
+  @override
+  Future<void> stopHosting() async {}
 
   @override
   Stream<BluetoothPeer> scanForHosts() => const Stream.empty();
