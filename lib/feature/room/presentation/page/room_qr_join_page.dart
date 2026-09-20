@@ -142,6 +142,8 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
       RoomProximityFailure.bluetoothOff => s.roomjoin_bluetooth_off,
       RoomProximityFailure.hostNotFound => s.roomjoin_host_not_found,
       RoomProximityFailure.discoverabilityDenied ||
+      RoomProximityFailure.scanFailed ||
+      RoomProximityFailure.hostSetupFailed ||
       RoomProximityFailure.dialFailed => s.roomjoin_not_joined,
     };
   }
