@@ -23,6 +23,7 @@ import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.io.IOException
+import java.security.MessageDigest
 import java.util.UUID
 import java.util.concurrent.ArrayBlockingQueue
 
@@ -232,8 +233,7 @@ class BluetoothServerHandler(
     // shown" — the host screen needs to know whether it is actually findable.
     private fun requestDiscoverable(seconds: Int, result: MethodChannel.Result) {
         if (isDiscoverable()) {
-            // Still inside a previously granted window — asking again would
-            // pop a dialog for something already true.
+            Log.i(TAG, "discoverability already granted")
             result.success(true)
             return
         }
@@ -251,6 +251,7 @@ class BluetoothServerHandler(
                 putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, seconds)
             }
             pendingDiscoverable = result
+            Log.i(TAG, "discoverability requested durationSeconds=$seconds")
             activity.startActivityForResult(intent, REQUEST_DISCOVERABLE_CODE)
         } catch (e: Exception) {
             pendingDiscoverable = null
@@ -265,9 +266,10 @@ class BluetoothServerHandler(
         pendingDiscoverable = null
         // The system returns the granted duration as the result code, and
         // RESULT_CANCELED (0) when the user declined.
-        pending.success(
+        val granted =
             resultCode != Activity.RESULT_CANCELED && isDiscoverable()
-        )
+        Log.i(TAG, "discoverability result granted=$granted")
+        pending.success(granted)
         return true
     }
 
@@ -321,14 +323,15 @@ class BluetoothServerHandler(
             return
         }
         pendingClientSocket = socket
-        Log.i(TAG, "dialing $address (insecure RFCOMM)")
+        val peerHash = safePeerHash(address)
+        Log.i(TAG, "dialing peer=$peerHash (insecure RFCOMM)")
 
         Thread {
             try {
                 // Blocks until connected, refused, or closed by a cancel.
                 socket.connect()
             } catch (e: Exception) {
-                Log.w(TAG, "dial to $address failed: ${e.message}")
+                Log.w(TAG, "dial to peer=$peerHash failed: ${e.message}")
                 try {
                     socket.close()
                 } catch (_: IOException) {
@@ -354,7 +357,7 @@ class BluetoothServerHandler(
                 }
                 pendingClientSocket = null
                 acceptedSocket = socket
-                Log.i(TAG, "dial connected to $address")
+                Log.i(TAG, "dial connected peer=$peerHash")
                 result.success(true)
                 emitConnectionEvent(mapOf("event" to "connected", "address" to address))
                 startReadLoop(socket)
@@ -410,6 +413,10 @@ class BluetoothServerHandler(
             return
         }
 
+        Log.i(
+            TAG,
+            "RFCOMM server listening correlation=$correlation nameApplied=$nameApplied",
+        )
         startAcceptLoop()
         startRendezvousAdvertising(
             adapter = adapter,
@@ -425,7 +432,8 @@ class BluetoothServerHandler(
             try {
                 val socket = serverSocket?.accept() ?: return@Thread
                 acceptedSocket = socket
-                Log.i(TAG, "accepted proximity peer")
+                val peerHash = safePeerHash(socket.remoteDevice?.address ?: "unknown")
+                Log.i(TAG, "accepted proximity peer=$peerHash")
                 try {
                     serverSocket?.close()
                 } catch (_: IOException) {
@@ -488,7 +496,7 @@ class BluetoothServerHandler(
             override fun onStartSuccess(settingsInEffect: AdvertiseSettings?) {
                 bleAdvertiser = advertiser
                 bleAdvertiseCallback = this
-                Log.i(TAG, "BLE rendezvous advertising ready")
+                Log.i(TAG, "BLE rendezvous advertising ready correlation=$correlation")
                 result.success(
                     mapOf(
                         "serverListening" to (serverSocket != null),
@@ -740,14 +748,23 @@ class BluetoothServerHandler(
             override fun onScanResult(callbackType: Int, scanResult: ScanResult) {
                 val address = scanResult.device.address
                 if (!seen.add(address)) return
-                val serviceData = scanResult.scanRecord?.getServiceData(RENDEZVOUS_PARCEL_UUID)
-                if (serviceData == null) return
+                val serviceData =
+                    scanResult.scanRecord?.getServiceData(RENDEZVOUS_PARCEL_UUID)
+                val peerHash = safePeerHash(address)
+                if (serviceData == null) {
+                    Log.i(TAG, "BLE candidate peer=$peerHash reason=not_tark")
+                    return
+                }
                 tarkCount++
                 if (!serviceData.contentEquals(expected)) {
                     wrongTokenCount++
+                    Log.i(TAG, "BLE candidate peer=$peerHash reason=wrong_token")
                     return
                 }
-                Log.i(TAG, "BLE rendezvous candidate matched correlation=$correlation")
+                Log.i(
+                    TAG,
+                    "BLE candidate peer=$peerHash reason=matched correlation=$correlation",
+                )
                 finishSuccess(
                     mapOf(
                         "matched" to true,
@@ -781,6 +798,10 @@ class BluetoothServerHandler(
         bleScanCallback = callback
         pendingBleScanResult = result
         val timeout = Runnable {
+            Log.i(
+                TAG,
+                "BLE rendezvous scan finished correlation=$correlation discovered=${seen.size} tark=$tarkCount wrongToken=$wrongTokenCount matched=false",
+            )
             finishSuccess(
                 mapOf(
                     "matched" to false,
@@ -846,6 +867,14 @@ class BluetoothServerHandler(
         }
         bleAdvertiser = null
         bleAdvertiseCallback = null
+    }
+
+    private fun safePeerHash(value: String): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest(value.toByteArray(Charsets.UTF_8))
+        return digest.take(4).joinToString("") {
+            "%02x".format(it.toInt() and 0xff)
+        }
     }
 
     private fun emitConnectionEvent(event: Map<String, Any?>) {
