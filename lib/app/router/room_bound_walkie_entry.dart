@@ -297,10 +297,11 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         : null;
     final start = _coordinator.requestStart(
       requester: localMemberId,
-      // The generic link route has already established its own transport
-      // contract.  A Room proximity hand-off has not: Wi-Fi creation,
-      // association and the signed Room proof are still ahead of it.
-      sharedLanUsable: linkEstablished && !hasProximityHandoff,
+      // Non-proximity entry preserves the established recovery contract. A
+      // Room proximity hand-off has not yet established a LAN: Wi-Fi
+      // creation, association and the signed Room proof are still ahead of
+      // it, regardless of the `ride` route flag.
+      sharedLanUsable: !hasProximityHandoff,
       candidates: const [],
       bootstrapHotspotHost: issuer == null
           ? null
