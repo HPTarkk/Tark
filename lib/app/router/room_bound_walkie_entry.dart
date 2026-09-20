@@ -284,14 +284,24 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     // through recovery, paired over Bluetooth, a shared network — is tried as
     // it is. "Usable" is provisional then: nothing is reported connected until
     // the readiness gate below holds a signed proof from another member.
-    final issuer = linkEstablished
-        ? null
-        : RoomProximityControlSessionRegistry.instance.isIssuerFor(
-            room.room.id,
-          );
+    final proximity = RoomProximityControlSessionRegistry.instance;
+    final hasProximityHandoff = proximity.hasRoom(room.room.id);
+    // `ride=true` only says that a navigation route came back from a link
+    // screen.  It is not evidence that a remote Room member can be reached on
+    // that link.  In particular, a Room proximity hand-off must keep using its
+    // authenticated control socket until the new attachment has produced its
+    // own signed proof.  Treating the route flag as a shared LAN skipped that
+    // hand-off and sent the user into the generic second-QR fallback.
+    final issuer = hasProximityHandoff
+        ? proximity.isIssuerFor(room.room.id)
+        : null;
     final start = _coordinator.requestStart(
       requester: localMemberId,
-      sharedLanUsable: issuer == null,
+      // Non-proximity entry preserves the established recovery contract. A
+      // Room proximity hand-off has not yet established a LAN: Wi-Fi
+      // creation, association and the signed Room proof are still ahead of
+      // it, regardless of the `ride` route flag.
+      sharedLanUsable: !hasProximityHandoff,
       candidates: const [],
       bootstrapHotspotHost: issuer == null
           ? null
@@ -460,6 +470,11 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
               await _modeStore?.setMode(TransferMode.hotspot);
               return null;
             case HotspotJoinResult.wifiOff:
+              // Android 10+ does not let an app flip Wi-Fi silently.  Ask in
+              // context through the platform's Wi-Fi panel; this is an
+              // app-scoped system consent, never a diversion to the manual
+              // SSID/QR setup flow.
+              await GetIt.instance<HotspotJoiner>().enableWifi();
               return _EntryFailure.wifiOff;
             case HotspotJoinResult.locationOff:
               return _EntryFailure.locationOff;
@@ -665,7 +680,14 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
             failureMessage: _failureMessage(context, state.failure),
             onRetry: state.failure == null ? null : () => _startRide(room),
             onStartRide: () => _startRide(room),
-            onConnect: _offersConnect(state.failure)
+            // An accepted Room invite already has an authenticated control
+            // channel.  Its recovery stays inside that Room hand-off; the
+            // generic channel setup has a second QR and must not replace it.
+            onConnect:
+                _offersConnect(state.failure) &&
+                    !RoomProximityControlSessionRegistry.instance.hasRoom(
+                      room.room.id,
+                    )
                 ? () => _connect(context, room)
                 : null,
             onBack: () => leaveRoomEntry(context),

@@ -3,8 +3,10 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tark/core/router/routes.dart';
 import 'package:tark/core/l10n/app_localizations.dart';
 import 'package:tark/feature/room/data/proximity/room_proximity_control_session_registry.dart';
 import 'package:tark/feature/room/data/repository/shared_preferences_room_repository.dart';
@@ -209,7 +211,7 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
-  testWidgets('the sheet says who joined and gets out of the way', (
+  testWidgets('the confirmed issuer starts the Room hand-off automatically', (
     tester,
   ) async {
     await tester.runAsync(RoomProximityControlSessionRegistry.instance.clear);
@@ -255,7 +257,8 @@ void main() {
     expect(find.byKey(const Key('one-scan-room-invite-qr')), findsNothing);
 
     await tester.pump(const Duration(seconds: 2));
-    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    expect(find.byKey(const Key('auto-room-start')), findsOneWidget);
   });
 }
 
@@ -263,18 +266,34 @@ Widget _host({
   required SharedPreferencesRoomRepository repository,
   required RoomProximityControlChannel control,
   required Future<bool> Function() permissionGate,
-}) => MaterialApp(
-  locale: const Locale('en'),
-  supportedLocales: AppLocalizations.supportedLocales,
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  home: Scaffold(
-    body: OneScanRoomInviteSheet(
-      repository: repository,
-      controlChannel: control,
-      permissionGate: permissionGate,
-    ),
-  ),
-);
+}) {
+  final router = GoRouter(
+    initialLocation: '/',
+    routes: [
+      GoRoute(
+        path: '/',
+        builder: (_, _) => Scaffold(
+          body: OneScanRoomInviteSheet(
+            repository: repository,
+            controlChannel: control,
+            permissionGate: permissionGate,
+          ),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.walkiePath,
+        name: AppRoutes.walkieName,
+        builder: (_, _) => const SizedBox(key: Key('auto-room-start')),
+      ),
+    ],
+  );
+  return MaterialApp.router(
+    locale: const Locale('en'),
+    supportedLocales: AppLocalizations.supportedLocales,
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    routerConfig: router,
+  );
+}
 
 final class _TracingRoomRepository extends SharedPreferencesRoomRepository {
   _TracingRoomRepository(this.events);
