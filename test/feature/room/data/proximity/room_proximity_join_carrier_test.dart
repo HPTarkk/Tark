@@ -213,6 +213,8 @@ void main() {
     final pair = _PairedCarrierEngines();
     final hostChannel = RoomProximityControlChannel(engine: pair.host);
     final joinerChannel = RoomProximityControlChannel(engine: pair.joiner);
+    await hostChannel.host(rendezvousToken: invitation.invitationId);
+    await joinerChannel.connect(rendezvousToken: invitation.invitationId);
     final issuer = RoomProximityJoinIssuerSession(
       channel: hostChannel,
       invitation: invitation,
@@ -348,7 +350,28 @@ final class _LinkedCarrierEngine extends ClassicBluetoothEngine {
   Stream<void> get onClosed => closed.stream;
 
   @override
+  Future<void> startHosting({String name = 'tark'}) async {}
+
+  @override
+  Future<bool> requestDiscoverable({int durationSeconds = 300}) async => true;
+
+  @override
+  Stream<BluetoothPeer> scanForHosts() => Stream.value(
+    const BluetoothPeer(
+      id: 'paired-peer',
+      name: 'stale-name-is-irrelevant',
+      isAppHost: true,
+      rendezvousMatched: true,
+    ),
+  );
+
+  @override
   void cancelDiscovery() {}
+
+  @override
+  Future<void> connectToHost(String address) async {
+    connected.add(address);
+  }
 
   @override
   Future<void> write(Uint8List bytes) async {
