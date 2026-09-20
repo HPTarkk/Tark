@@ -23,7 +23,6 @@ import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.io.IOException
-import java.security.MessageDigest
 import java.util.UUID
 import java.util.concurrent.ArrayBlockingQueue
 
@@ -156,21 +155,23 @@ class BluetoothServerHandler(
             }
             "startHosting" -> {
                 val name = call.argument<String>("name") ?: "tark"
-                val rendezvousToken = call.argument<String>("rendezvousToken")
-                if (rendezvousToken.isNullOrBlank()) {
-                    result.error("invalid_args", "rendezvousToken is required", null)
+                val rendezvousData = call.argument<ByteArray>("rendezvousData")
+                val correlation = call.argument<String>("correlation")
+                if (!isValidRendezvousData(rendezvousData) || correlation.isNullOrBlank()) {
+                    result.error("invalid_args", "valid rendezvousData/correlation are required", null)
                     return
                 }
-                startHosting(name, rendezvousToken, result)
+                startHosting(name, rendezvousData!!, correlation, result)
             }
             "findRendezvousPeer" -> {
-                val rendezvousToken = call.argument<String>("rendezvousToken")
+                val rendezvousData = call.argument<ByteArray>("rendezvousData")
+                val correlation = call.argument<String>("correlation")
                 val timeoutMs = (call.argument<Int>("timeoutMs") ?: 10000).coerceIn(1000, 30000)
-                if (rendezvousToken.isNullOrBlank()) {
-                    result.error("invalid_args", "rendezvousToken is required", null)
+                if (!isValidRendezvousData(rendezvousData) || correlation.isNullOrBlank()) {
+                    result.error("invalid_args", "valid rendezvousData/correlation are required", null)
                     return
                 }
-                findRendezvousPeer(rendezvousToken, timeoutMs.toLong(), result)
+                findRendezvousPeer(rendezvousData!!, correlation, timeoutMs.toLong(), result)
             }
             "cancelRendezvousScan" -> {
                 cancelRendezvousScan(resolvePending = true)
@@ -364,7 +365,8 @@ class BluetoothServerHandler(
 
     private fun startHosting(
         name: String,
-        rendezvousToken: String,
+        rendezvousData: ByteArray,
+        correlation: String,
         result: MethodChannel.Result,
     ) {
         if (acceptedSocket != null) {
@@ -411,7 +413,8 @@ class BluetoothServerHandler(
         startAcceptLoop()
         startRendezvousAdvertising(
             adapter = adapter,
-            rendezvousToken = rendezvousToken,
+            rendezvousData = rendezvousData,
+            correlation = correlation,
             nameApplied = nameApplied,
             result = result,
         )
@@ -445,7 +448,8 @@ class BluetoothServerHandler(
 
     private fun startRendezvousAdvertising(
         adapter: BluetoothAdapter,
-        rendezvousToken: String,
+        rendezvousData: ByteArray,
+        correlation: String,
         nameApplied: Boolean,
         result: MethodChannel.Result,
     ) {
@@ -464,7 +468,7 @@ class BluetoothServerHandler(
             return
         }
 
-        val payload = rendezvousPayload(rendezvousToken)
+        val payload = rendezvousData
         val settings = AdvertiseSettings.Builder()
             .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
             .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM)
@@ -490,7 +494,7 @@ class BluetoothServerHandler(
                         "serverListening" to (serverSocket != null),
                         "bleAdvertising" to true,
                         "nameApplied" to nameApplied,
-                        "correlation" to rendezvousCorrelation(rendezvousToken),
+                        "correlation" to correlation,
                     )
                 )
             }
@@ -665,23 +669,15 @@ class BluetoothServerHandler(
     }
 
 
-    private fun rendezvousPayload(token: String): ByteArray {
-        val digest = MessageDigest.getInstance("SHA-256")
-            .digest(token.trim().lowercase().toByteArray(Charsets.UTF_8))
-        // 1 protocol byte + 7 one-way digest bytes. The BLE record is only a
-        // nearby selector; the Room challenge/receipt protocol authenticates
-        // the peer after RFCOMM connects.
-        return byteArrayOf(RENDEZVOUS_PROTOCOL_VERSION) + digest.copyOfRange(0, 7)
-    }
+    private fun isValidRendezvousData(data: ByteArray?): Boolean =
+        data != null &&
+            data.size == 8 &&
+            data[0] == RENDEZVOUS_PROTOCOL_VERSION
 
-    private fun rendezvousCorrelation(token: String): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-            .digest(token.trim().lowercase().toByteArray(Charsets.UTF_8))
-        return digest.take(4).joinToString("") { "%02x".format(it.toInt() and 0xff) }
-    }
 
     private fun findRendezvousPeer(
-        rendezvousToken: String,
+        rendezvousData: ByteArray,
+        correlation: String,
         timeoutMs: Long,
         result: MethodChannel.Result,
     ) {
@@ -703,8 +699,7 @@ class BluetoothServerHandler(
             return
         }
 
-        val expected = rendezvousPayload(rendezvousToken)
-        val correlation = rendezvousCorrelation(rendezvousToken)
+        val expected = rendezvousData
         val seen = mutableSetOf<String>()
         var tarkCount = 0
         var wrongTokenCount = 0
