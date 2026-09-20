@@ -33,6 +33,51 @@ const kTarkHostPrefix = '$kTarkHostBrand · ';
 /// fit where 21 Latin ones would.
 const kMaxHostNameBytes = 29;
 
+/// Stable human-readable rendezvous label used only inside Tark after a BLE
+/// service-data match. It is NOT trusted as the discovery identity.
+String rendezvousHostName(String token) {
+  final clean = token.trim().toLowerCase();
+  if (!RegExp(r'^[0-9a-f]{8,64}
+/// The adapter name to broadcast while hosting as [myName], abbreviated on a
+/// character boundary if it doesn't fit [kMaxHostNameBytes].
+String encodeHostName(String myName) {
+  final name = myName.trim();
+  if (name.isEmpty || name == kTarkHostBrand) return kTarkHostBrand;
+  final budget = kMaxHostNameBytes - utf8.encode(kTarkHostPrefix).length;
+  return '$kTarkHostPrefix${_truncateUtf8(name, budget)}';
+}
+
+/// Cuts [value] to at most [maxBytes] of UTF-8 without splitting a character —
+/// half of a two-byte Persian letter would render as a replacement box.
+String _truncateUtf8(String value, int maxBytes) {
+  final bytes = utf8.encode(value);
+  if (bytes.length <= maxBytes) return value;
+  var end = maxBytes;
+  while (end > 0 && (bytes[end] & 0xC0) == 0x80) {
+    end--;
+  }
+  return utf8.decode(bytes.sublist(0, end), allowMalformed: true).trimRight();
+}
+
+/// Whether [advertisedName] belongs to a device hosting from inside the app.
+bool isTarkHostName(String advertisedName) {
+  final name = advertisedName.trim();
+  return name == kTarkHostBrand || name.startsWith(kTarkHostPrefix);
+}
+
+/// The name to show the user for a peer broadcasting [advertisedName].
+String decodeHostName(String advertisedName) {
+  final name = advertisedName.trim();
+  if (!name.startsWith(kTarkHostPrefix)) return name;
+  final stripped = name.substring(kTarkHostPrefix.length).trim();
+  return stripped.isEmpty ? kTarkHostBrand : stripped;
+}
+).hasMatch(clean)) {
+    throw const FormatException('invalid proximity rendezvous token');
+  }
+  return 'R-${clean.substring(0, 8)}';
+}
+
 /// The adapter name to broadcast while hosting as [myName], abbreviated on a
 /// character boundary if it doesn't fit [kMaxHostNameBytes].
 String encodeHostName(String myName) {
