@@ -10,7 +10,7 @@ void main() {
   const token = '0123456789abcdef0123456789abcdef';
 
   test(
-    'host does not expose an unusable invite when discoverability is denied',
+    'host prepares native readiness before discoverability and cleans denial',
     () async {
       final engine = _FakeClassicBluetoothEngine(discoverable: false);
       final channel = RoomProximityControlChannel(engine: engine);
@@ -18,11 +18,51 @@ void main() {
 
       await expectLater(
         channel.host(rendezvousToken: token),
-        throwsA(isA<StateError>()),
+        throwsA(
+          isA<RoomProximityException>().having(
+            (error) => error.failure,
+            'failure',
+            RoomProximityFailure.discoverabilityDenied,
+          ),
+        ),
       );
-      expect(engine.hosted, isFalse);
+      expect(engine.hosted, isTrue);
+      expect(engine.stopped, isTrue);
+      expect(engine.events, orderedEquals(['host', 'discoverability', 'stop']));
     },
   );
+
+  test('host readiness is complete before discoverability is requested', () async {
+    final engine = _FakeClassicBluetoothEngine();
+    final channel = RoomProximityControlChannel(engine: engine);
+    addTearDown(channel.dispose);
+
+    await channel.host(rendezvousToken: token);
+
+    expect(engine.events, orderedEquals(['host', 'discoverability']));
+    expect(engine.hosted, isTrue);
+    expect(engine.stopped, isFalse);
+  });
+
+  test('native host setup failure never requests discoverability', () async {
+    final engine = _FakeClassicBluetoothEngine(failHosting: true);
+    final channel = RoomProximityControlChannel(engine: engine);
+    addTearDown(channel.dispose);
+
+    await expectLater(
+      channel.host(rendezvousToken: token),
+      throwsA(
+        isA<RoomProximityException>().having(
+          (error) => error.failure,
+          'failure',
+          RoomProximityFailure.hostSetupFailed,
+        ),
+      ),
+    );
+
+    expect(engine.events, orderedEquals(['host', 'stop']));
+    expect(engine.stopped, isTrue);
+  });
 
   test(
     'failed RFCOMM dial fails the join instead of waiting forever',
@@ -181,6 +221,52 @@ void main() {
     },
   );
 
+  test(
+    'BLE-bound candidate is accepted even when adapter name is stale',
+    () async {
+      final engine = _FakeClassicBluetoothEngine();
+      final channel = RoomProximityControlChannel(engine: engine);
+      addTearDown(channel.dispose);
+
+      final joining = channel.connect(rendezvousToken: token);
+      await Future<void>.delayed(Duration.zero);
+      engine.scans.add(
+        const BluetoothPeer(
+          id: 'AA:BB:CC:DD:EE:FF',
+          name: 'Old OEM Name',
+          isAppHost: true,
+          rendezvousMatched: true,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      engine.connected.add('AA:BB:CC:DD:EE:FF');
+
+      await joining;
+      expect(engine.dialed, isTrue);
+    },
+  );
+
+  test('scan errors are typed instead of becoming host-not-found', () async {
+    final engine = _FakeClassicBluetoothEngine();
+    final channel = RoomProximityControlChannel(engine: engine);
+    addTearDown(channel.dispose);
+
+    final joining = channel.connect(rendezvousToken: token);
+    await Future<void>.delayed(Duration.zero);
+    engine.scans.addError(StateError('native scan failed'));
+
+    await expectLater(
+      joining,
+      throwsA(
+        isA<RoomProximityException>().having(
+          (error) => error.failure,
+          'failure',
+          RoomProximityFailure.scanFailed,
+        ),
+      ),
+    );
+  });
+
   test('peer connected event completes the proximity dial', () async {
     final engine = _FakeClassicBluetoothEngine();
     final channel = RoomProximityControlChannel(engine: engine);
@@ -208,11 +294,14 @@ class _FakeClassicBluetoothEngine extends ClassicBluetoothEngine {
     this.discoverable = true,
     this.enabled = true,
     this.blockDial = false,
+    this.failHosting = false,
   });
 
   final bool discoverable;
   final bool enabled;
   final bool blockDial;
+  final bool failHosting;
+  final events = <String>[];
   final scans = StreamController<BluetoothPeer>.broadcast();
   final connected = StreamController<String>.broadcast();
   final errors = StreamController<String>.broadcast();
@@ -220,6 +309,7 @@ class _FakeClassicBluetoothEngine extends ClassicBluetoothEngine {
   final incoming = StreamController<Uint8List>.broadcast();
 
   bool hosted = false;
+  bool stopped = false;
   bool dialed = false;
   bool resetCalled = false;
   int scanCount = 0;
@@ -245,12 +335,22 @@ class _FakeClassicBluetoothEngine extends ClassicBluetoothEngine {
   Stream<void> get onClosed => closed.stream;
 
   @override
-  Future<bool> requestDiscoverable({int durationSeconds = 300}) async =>
-      discoverable;
+  Future<bool> requestDiscoverable({int durationSeconds = 300}) async {
+    events.add('discoverability');
+    return discoverable;
+  }
 
   @override
   Future<void> startHosting({String name = 'tark'}) async {
+    events.add('host');
     hosted = true;
+    if (failHosting) throw StateError('native host setup failed');
+  }
+
+  @override
+  Future<void> stopHosting() async {
+    events.add('stop');
+    stopped = true;
   }
 
   @override
