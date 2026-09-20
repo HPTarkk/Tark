@@ -266,6 +266,8 @@ final class RoomProximityJoinIssuerSession {
   late final StreamSubscription<String> _subscription;
   final Map<String, String> _grantCache = {};
   final Map<String, Future<String>> _grantInFlight = {};
+  final Map<String, String> _confirmationCache = {};
+  final Map<String, Future<String>> _confirmationInFlight = {};
 
   Future<String> get _correlation async => (await RoomRendezvousIdentity.derive(
     _invitation.invitationId,
@@ -355,27 +357,30 @@ final class RoomProximityJoinIssuerSession {
         Logger.diagnostic(
           'room_join_protocol: receipt received correlation=$correlation',
         );
-        final confirmed = await _exchange.handleEncodedReceipt(
-          envelope.payload,
-        );
-        String payload = jsonEncode({'ok': false});
-        if (confirmed) {
-          try {
-            final receipt = RoomInviteMembershipReceipt.decode(
-              envelope.payload,
-            );
-            final saved = await _repository.get(_invitation.roomId);
-            if (saved != null) {
-              final snapshot = RoomAcceptedJoinSnapshot.fromSavedRoom(
-                saved,
-                acceptedMemberId: receipt.certificate.memberId,
-              );
-              payload = jsonEncode({'ok': true, 'snapshot': snapshot.encode()});
-            }
-          } catch (_) {
-            payload = jsonEncode({'ok': false});
+        final cached = _confirmationCache[envelope.requestId];
+        final Future<String> work;
+        if (cached != null) {
+          work = Future<String>.value(cached);
+        } else {
+          work = _confirmationInFlight.putIfAbsent(
+            envelope.requestId,
+            () => _buildConfirmationPayload(envelope.payload),
+          );
+        }
+
+        final String payload;
+        try {
+          payload = await work;
+        } finally {
+          if (identical(_confirmationInFlight[envelope.requestId], work)) {
+            _confirmationInFlight.remove(envelope.requestId);
           }
         }
+        _confirmationCache[envelope.requestId] = payload;
+        if (_confirmationCache.length > 16) {
+          _confirmationCache.remove(_confirmationCache.keys.first);
+        }
+
         await _channel.send(
           RoomProximityEnvelope(
             kind: 'membershipConfirmed',
@@ -386,11 +391,28 @@ final class RoomProximityJoinIssuerSession {
           ).encode(),
         );
         Logger.diagnostic(
-          'room_join_protocol: confirmation sent correlation=$correlation ok=$confirmed',
+          'room_join_protocol: confirmation sent correlation=$correlation',
         );
         return;
       default:
         return;
+    }
+  }
+
+  Future<String> _buildConfirmationPayload(String encodedReceipt) async {
+    final confirmed = await _exchange.handleEncodedReceipt(encodedReceipt);
+    if (!confirmed) return jsonEncode({'ok': false});
+    try {
+      final receipt = RoomInviteMembershipReceipt.decode(encodedReceipt);
+      final saved = await _repository.get(_invitation.roomId);
+      if (saved == null) return jsonEncode({'ok': false});
+      final snapshot = RoomAcceptedJoinSnapshot.fromSavedRoom(
+        saved,
+        acceptedMemberId: receipt.certificate.memberId,
+      );
+      return jsonEncode({'ok': true, 'snapshot': snapshot.encode()});
+    } catch (_) {
+      return jsonEncode({'ok': false});
     }
   }
 
