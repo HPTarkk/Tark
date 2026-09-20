@@ -22,6 +22,12 @@ enum RoomProximityFailure {
   /// No phone advertising this invite turned up before the find timeout.
   hostNotFound,
 
+  /// BLE/classic discovery failed before a trustworthy candidate was found.
+  scanFailed,
+
+  /// Native host readiness (identity/server/BLE advertising) failed.
+  hostSetupFailed,
+
   /// The host was found but the RFCOMM dial did not land.
   dialFailed,
 }
@@ -50,8 +56,6 @@ final class RoomProximityControlChannel {
     this.rescanEvery = const Duration(seconds: 12),
   }) : _engine = engine ?? ClassicBluetoothEngine();
 
-  static const _rendezvousPrefix = 'R-';
-
   /// How long [connect] looks for the host before giving up.
   final Duration findTimeout;
 
@@ -75,13 +79,7 @@ final class RoomProximityControlChannel {
   Stream<String> get messages => _messages.stream;
   Stream<void> get closed => _closed.stream;
 
-  static String rendezvousName(String token) {
-    final clean = token.trim().toLowerCase();
-    if (!RegExp(r'^[0-9a-f]{8,64}$').hasMatch(clean)) {
-      throw const FormatException('invalid proximity rendezvous token');
-    }
-    return '$_rendezvousPrefix${clean.substring(0, 8)}';
-  }
+  static String rendezvousName(String token) => rendezvousHostName(token);
 
   void _wire() {
     if (_wired) return;
@@ -111,16 +109,35 @@ final class RoomProximityControlChannel {
   Future<void> host({required String rendezvousToken}) async {
     if (_disposed) throw StateError('proximity control channel is disposed');
     _wire();
+    _engine.setRendezvousToken(rendezvousToken);
+    await _ensureAdapterOn();
+
+    // Prepare identity, RFCOMM listener and BLE rendezvous advertising before
+    // asking Android to expose the phone to classic inquiry. The QR must not
+    // become usable while native hosting is only partially ready.
+    try {
+      await _engine.startHosting(
+        name: encodeHostName(rendezvousName(rendezvousToken)),
+      );
+    } catch (error) {
+      Logger.diagnostic('room_proximity: host readiness failed');
+      await _engine.stopHosting();
+      throw RoomProximityException(
+        RoomProximityFailure.hostSetupFailed,
+        'proximity host readiness failed: ${error.runtimeType}',
+      );
+    }
+
     final discoverable = await _engine.requestDiscoverable();
     if (!discoverable) {
+      Logger.diagnostic('room_proximity: discoverability denied');
+      await _engine.stopHosting();
       throw RoomProximityException(
         RoomProximityFailure.discoverabilityDenied,
         'Bluetooth discoverability was not granted',
       );
     }
-    await _engine.startHosting(
-      name: encodeHostName(rendezvousName(rendezvousToken)),
-    );
+    Logger.diagnostic('room_proximity: host ready');
   }
 
   /// Finds the phone advertising [rendezvousToken] and dials it.
@@ -133,6 +150,7 @@ final class RoomProximityControlChannel {
     if (_disposed) throw StateError('proximity control channel is disposed');
     _wire();
     final expectedName = rendezvousName(rendezvousToken);
+    _engine.setRendezvousToken(rendezvousToken);
     Logger.diagnostic('room_proximity: connect start');
     await _ensureAdapterOn();
 
@@ -144,9 +162,16 @@ final class RoomProximityControlChannel {
           if (peerCompleter.isCompleted || !peer.isAppHost) return;
           if (peer.name == expectedName) peerCompleter.complete(peer);
         },
-        // A scan error is not a verdict: the rescan below and the find
-        // timeout decide when to give up.
-        onError: (Object _) {},
+        onError: (Object error) {
+          if (!peerCompleter.isCompleted) {
+            peerCompleter.completeError(
+              RoomProximityException(
+                RoomProximityFailure.scanFailed,
+                'proximity scan failed: ${error.runtimeType}',
+              ),
+            );
+          }
+        },
       );
     }
 
@@ -271,6 +296,7 @@ final class RoomProximityControlChannel {
     if (_disposed) return;
     _disposed = true;
     _engine.cancelDiscovery();
+    _engine.setRendezvousToken(null);
     for (final subscription in _subscriptions) {
       await subscription.cancel();
     }
