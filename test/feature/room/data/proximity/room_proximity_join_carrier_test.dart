@@ -278,6 +278,8 @@ void main() {
     final pair = _PairedCarrierEngines();
     final hostChannel = RoomProximityControlChannel(engine: pair.host);
     final joinerChannel = RoomProximityControlChannel(engine: pair.joiner);
+    await hostChannel.host(rendezvousToken: invitation.invitationId);
+    await joinerChannel.connect(rendezvousToken: forged.invitationId);
     final issuer = RoomProximityJoinIssuerSession(
       channel: hostChannel,
       invitation: invitation,
