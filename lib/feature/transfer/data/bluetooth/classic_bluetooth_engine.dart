@@ -6,6 +6,7 @@ import 'package:flutter_blue_classic/flutter_blue_classic.dart' as fbc;
 import '../../../../core/utils/logger.dart';
 import '../../domain/entity/bluetooth_host_name.dart';
 import '../../domain/entity/bluetooth_peer.dart';
+import '../../domain/entity/room_rendezvous_identity.dart';
 
 /// Android Bluetooth Classic (RFCOMM/SPP) engine.
 ///
@@ -155,9 +156,14 @@ class ClassicBluetoothEngine {
     if (token == null) {
       throw StateError('rendezvous token must be set before hosting');
     }
+    final identity = await RoomRendezvousIdentity.derive(token);
     final readiness = await _serverMethods.invokeMapMethod<String, dynamic>(
       'startHosting',
-      {'name': name, 'rendezvousToken': token},
+      {
+        'name': name,
+        'rendezvousData': identity.serviceData,
+        'correlation': identity.correlation,
+      },
     );
     if (readiness == null ||
         readiness['serverListening'] != true ||
@@ -211,9 +217,14 @@ class ClassicBluetoothEngine {
   Stream<BluetoothPeer> scanForHosts() async* {
     final token = _rendezvousToken;
     if (token != null) {
+      final identity = await RoomRendezvousIdentity.derive(token);
       final result = await _serverMethods.invokeMapMethod<String, dynamic>(
         'findRendezvousPeer',
-        {'rendezvousToken': token, 'timeoutMs': 10000},
+        {
+          'rendezvousData': identity.serviceData,
+          'correlation': identity.correlation,
+          'timeoutMs': 10000,
+        },
       );
       if (result == null) return;
       Logger.diagnostic(
