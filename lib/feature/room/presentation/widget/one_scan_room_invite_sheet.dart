@@ -3,10 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
+import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
+import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../../core/widget/qr_widgets.dart';
@@ -276,8 +278,10 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
   }
 
   /// The host's half of "they come straight in": the moment the person who
-  /// scanned is a confirmed member, say so and get out of the way. The lobby
-  /// underneath notices the same arrival and starts connecting by itself.
+  /// scanned is confirmed, start the same Room hand-off as the joiner.  Merely
+  /// dismissing this sheet left the host at a passive lobby, so the joiner had
+  /// nobody to answer its authenticated hotspot request and users were driven
+  /// into the generic second-QR connection screen.
   void _watchForArrival() {
     unawaited(_roomChanges?.cancel());
     _roomChanges = _repository.changes.listen(
@@ -309,7 +313,11 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
       );
     });
     await Future<void>.delayed(_joinedBeat);
-    if (mounted) unawaited(Navigator.of(context).maybePop());
+    if (!mounted) return;
+    context.goNamed(
+      AppRoutes.walkieName,
+      queryParameters: const {'start': 'true'},
+    );
   }
 
   void _pause() {
