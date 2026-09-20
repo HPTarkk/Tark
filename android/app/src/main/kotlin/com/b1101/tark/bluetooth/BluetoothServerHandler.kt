@@ -233,7 +233,7 @@ class BluetoothServerHandler(
     // shown" — the host screen needs to know whether it is actually findable.
     private fun requestDiscoverable(seconds: Int, result: MethodChannel.Result) {
         if (isDiscoverable()) {
-            Log.i(TAG, "discoverability already granted")
+            diagnostic("discoverability already granted")
             result.success(true)
             return
         }
@@ -255,7 +255,7 @@ class BluetoothServerHandler(
                 putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, seconds)
             }
             pendingDiscoverable = result
-            Log.i(TAG, "discoverability requested durationSeconds=$seconds")
+            diagnostic("discoverability requested durationSeconds=$seconds")
             activity.startActivityForResult(intent, REQUEST_DISCOVERABLE_CODE)
         } catch (e: SecurityException) {
             pendingDiscoverable = null
@@ -275,7 +275,7 @@ class BluetoothServerHandler(
         // RESULT_CANCELED (0) when the user declined.
         val granted =
             resultCode != Activity.RESULT_CANCELED && isDiscoverable()
-        Log.i(TAG, "discoverability result granted=$granted")
+        diagnostic("discoverability result granted=$granted")
         pending.success(granted)
         return true
     }
@@ -331,7 +331,7 @@ class BluetoothServerHandler(
         }
         pendingClientSocket = socket
         val peerHash = safePeerHash(address)
-        Log.i(TAG, "dialing peer=$peerHash (insecure RFCOMM)")
+        diagnostic("dialing peer=$peerHash")
 
         Thread {
             try {
@@ -364,7 +364,7 @@ class BluetoothServerHandler(
                 }
                 pendingClientSocket = null
                 acceptedSocket = socket
-                Log.i(TAG, "dial connected peer=$peerHash")
+                diagnostic("dial connected peer=$peerHash")
                 result.success(true)
                 emitConnectionEvent(mapOf("event" to "connected", "address" to address))
                 startReadLoop(socket)
@@ -420,9 +420,8 @@ class BluetoothServerHandler(
             return
         }
 
-        Log.i(
-            TAG,
-            "RFCOMM server listening correlation=$correlation nameApplied=$nameApplied",
+        diagnostic(
+            "RFCOMM server listening correlation=$correlation nameApplied=$nameApplied"
         )
         startAcceptLoop()
         startRendezvousAdvertising(
@@ -440,7 +439,7 @@ class BluetoothServerHandler(
                 val socket = serverSocket?.accept() ?: return@Thread
                 acceptedSocket = socket
                 val peerHash = safePeerHash(socket.remoteDevice?.address ?: "unknown")
-                Log.i(TAG, "accepted proximity peer=$peerHash")
+                diagnostic("accepted proximity peer=$peerHash")
                 try {
                     serverSocket?.close()
                 } catch (_: IOException) {
@@ -505,7 +504,7 @@ class BluetoothServerHandler(
             override fun onStartSuccess(settingsInEffect: AdvertiseSettings?) {
                 bleAdvertiser = advertiser
                 bleAdvertiseCallback = this
-                Log.i(TAG, "BLE rendezvous advertising ready correlation=$correlation")
+                diagnostic("BLE advertising ready correlation=$correlation")
                 result.success(
                     mapOf(
                         "serverListening" to (serverSocket != null),
@@ -517,7 +516,7 @@ class BluetoothServerHandler(
             }
 
             override fun onStartFailure(errorCode: Int) {
-                Log.w(TAG, "BLE rendezvous advertising failed code=$errorCode")
+                diagnostic("BLE advertising failed code=$errorCode")
                 stopHosting()
                 result.error(
                     "ble_advertise_failed",
@@ -661,7 +660,7 @@ class BluetoothServerHandler(
             }
             val accepted = adapter.setName(hostName)
             val verified = accepted && adapter.name == hostName
-            Log.i(TAG, "adapter rendezvous name applied=$verified")
+            diagnostic("adapter compatibility name applied=$verified")
             verified
         } catch (e: SecurityException) {
             Log.w(TAG, "adapter name update denied")
@@ -761,18 +760,17 @@ class BluetoothServerHandler(
                     scanResult.scanRecord?.getServiceData(RENDEZVOUS_PARCEL_UUID)
                 val peerHash = safePeerHash(address)
                 if (serviceData == null) {
-                    Log.i(TAG, "BLE candidate peer=$peerHash reason=not_tark")
+                    diagnostic("BLE candidate peer=$peerHash reason=not_tark")
                     return
                 }
                 tarkCount++
                 if (!serviceData.contentEquals(expected)) {
                     wrongTokenCount++
-                    Log.i(TAG, "BLE candidate peer=$peerHash reason=wrong_token")
+                    diagnostic("BLE candidate peer=$peerHash reason=wrong_token")
                     return
                 }
-                Log.i(
-                    TAG,
-                    "BLE candidate peer=$peerHash reason=matched correlation=$correlation",
+                diagnostic(
+                    "BLE candidate peer=$peerHash reason=matched correlation=$correlation"
                 )
                 finishSuccess(
                     mapOf(
@@ -788,7 +786,7 @@ class BluetoothServerHandler(
             }
 
             override fun onScanFailed(errorCode: Int) {
-                Log.w(TAG, "BLE rendezvous scan failed code=$errorCode")
+                diagnostic("BLE scan failed code=$errorCode")
                 finishError(
                     "ble_scan_failed",
                     "BLE rendezvous scan failed",
@@ -829,7 +827,7 @@ class BluetoothServerHandler(
                 .build()
             scanner.startScan(null, settings, callback)
             mainHandler.postDelayed(timeout, timeoutMs)
-            Log.i(TAG, "BLE rendezvous scan started correlation=$correlation")
+            diagnostic("BLE scan started correlation=$correlation")
         } catch (e: SecurityException) {
             finishError("permission_denied", e.message ?: "BLE scan permission denied")
         } catch (e: Exception) {
@@ -884,6 +882,13 @@ class BluetoothServerHandler(
         return digest.take(4).joinToString("") {
             "%02x".format(it.toInt() and 0xff)
         }
+    }
+
+    private fun diagnostic(message: String) {
+        Log.i(TAG, message)
+        emitConnectionEvent(
+            mapOf("event" to "diagnostic", "message" to message)
+        )
     }
 
     private fun emitConnectionEvent(event: Map<String, Any?>) {
