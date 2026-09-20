@@ -166,7 +166,9 @@ final class RoomProximityControlChannel {
       scan = _engine.scanForHosts().listen(
         (peer) {
           if (peerCompleter.isCompleted || !peer.isAppHost) return;
-          if (peer.name == expectedName) peerCompleter.complete(peer);
+          if (peer.rendezvousMatched || peer.name == expectedName) {
+            peerCompleter.complete(peer);
+          }
         },
         onError: (Object error) {
           if (!peerCompleter.isCompleted) {
