@@ -267,10 +267,9 @@ final class RoomProximityJoinIssuerSession {
   final Map<String, String> _grantCache = {};
   final Map<String, Future<String>> _grantInFlight = {};
 
-  Future<String> get _correlation async =>
-      (await RoomRendezvousIdentity.derive(
-        _invitation.invitationId,
-      )).correlation;
+  Future<String> get _correlation async => (await RoomRendezvousIdentity.derive(
+    _invitation.invitationId,
+  )).correlation;
 
   Future<void> _onMessage(String raw) async {
     RoomProximityEnvelope envelope;
@@ -397,7 +396,6 @@ final class RoomProximityJoinIssuerSession {
 
   Future<void> dispose() => _subscription.cancel();
 }
-
 
 final Hmac _roomHostProofHmac = Hmac.sha256();
 
