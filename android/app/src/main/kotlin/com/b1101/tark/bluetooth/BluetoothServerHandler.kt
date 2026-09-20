@@ -677,7 +677,7 @@ class BluetoothServerHandler(
     private fun rendezvousCorrelation(token: String): String {
         val digest = MessageDigest.getInstance("SHA-256")
             .digest(token.trim().lowercase().toByteArray(Charsets.UTF_8))
-        return digest.take(4).joinToString("") { "%02x".format(it) }
+        return digest.take(4).joinToString("") { "%02x".format(it.toInt() and 0xff) }
     }
 
     private fun findRendezvousPeer(
