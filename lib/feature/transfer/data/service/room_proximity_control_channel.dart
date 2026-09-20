@@ -292,17 +292,23 @@ final class RoomProximityControlChannel {
     } catch (_) {
       return;
     }
-    if (enabled) return;
+    if (enabled) {
+      Logger.diagnostic('room_proximity: adapter enabled');
+      return;
+    }
+    Logger.diagnostic('room_proximity: adapter disabled');
     var turnedOn = false;
     try {
       turnedOn = await _engine.requestEnable();
     } catch (_) {}
     if (!turnedOn) {
+      Logger.diagnostic('room_proximity: adapter enable denied');
       throw RoomProximityException(
         RoomProximityFailure.bluetoothOff,
         'Bluetooth is off',
       );
     }
+    Logger.diagnostic('room_proximity: adapter enabled after request');
   }
 
   Future<void> send(String payload) async {
