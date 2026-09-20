@@ -32,17 +32,20 @@ void main() {
     },
   );
 
-  test('host readiness is complete before discoverability is requested', () async {
-    final engine = _FakeClassicBluetoothEngine();
-    final channel = RoomProximityControlChannel(engine: engine);
-    addTearDown(channel.dispose);
+  test(
+    'host readiness is complete before discoverability is requested',
+    () async {
+      final engine = _FakeClassicBluetoothEngine();
+      final channel = RoomProximityControlChannel(engine: engine);
+      addTearDown(channel.dispose);
 
-    await channel.host(rendezvousToken: token);
+      await channel.host(rendezvousToken: token);
 
-    expect(engine.events, orderedEquals(['host', 'discoverability']));
-    expect(engine.hosted, isTrue);
-    expect(engine.stopped, isFalse);
-  });
+      expect(engine.events, orderedEquals(['host', 'discoverability']));
+      expect(engine.hosted, isTrue);
+      expect(engine.stopped, isFalse);
+    },
+  );
 
   test('native host setup failure never requests discoverability', () async {
     final engine = _FakeClassicBluetoothEngine(failHosting: true);
