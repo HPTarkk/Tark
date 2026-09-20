@@ -34,9 +34,6 @@ final class RoomRendezvousIdentity {
         .take(4)
         .map((value) => value.toRadixString(16).padLeft(2, '0'))
         .join();
-    return RoomRendezvousIdentity(
-      serviceData: data,
-      correlation: correlation,
-    );
+    return RoomRendezvousIdentity(serviceData: data, correlation: correlation);
   }
 }
