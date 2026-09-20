@@ -87,14 +87,20 @@ final class RoomProximityControlChannel {
     _subscriptions
       ..add(
         _engine.input.listen((chunk) {
-          for (final frame in _framer.addBytes(chunk)) {
-            try {
-              final decoded = utf8.decode(frame, allowMalformed: false);
-              if (!_messages.isClosed) _messages.add(decoded);
-            } catch (_) {
-              // A malformed control frame is untrusted input. Drop it without
-              // poisoning the persistent socket or the next framed message.
+          try {
+            for (final frame in _framer.addBytes(chunk)) {
+              try {
+                final decoded = utf8.decode(frame, allowMalformed: false);
+                if (!_messages.isClosed) _messages.add(decoded);
+              } catch (_) {
+                // Malformed UTF-8 is untrusted input; drop this frame only.
+              }
             }
+          } on FormatException {
+            // A hostile/garbled length prefix must not grow the buffer without
+            // bound or poison the next control message.
+            _framer.reset();
+            Logger.diagnostic('room_proximity: malformed control frame dropped');
           }
         }),
       )
