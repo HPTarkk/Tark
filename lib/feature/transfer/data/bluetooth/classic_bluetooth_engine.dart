@@ -136,6 +136,11 @@ class ClassicBluetoothEngine {
                 _errorController.add(
                   (map['message'] as String?) ?? 'unknown error',
                 );
+              case 'diagnostic':
+                final message = map['message'];
+                if (message is String && message.isNotEmpty) {
+                  Logger.diagnostic('room_proximity_native: $message');
+                }
             }
           },
           onError: (Object e) =>
@@ -219,6 +224,7 @@ class ClassicBluetoothEngine {
   // ── Join (client) ────────────────────────────────────────────────────────
 
   Stream<BluetoothPeer> scanForHosts() async* {
+    _listenToSession();
     final token = _rendezvousToken;
     if (token != null) {
       final identity = await RoomRendezvousIdentity.derive(token);
