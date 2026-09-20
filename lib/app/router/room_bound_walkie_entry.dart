@@ -682,7 +682,8 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
             // An accepted Room invite already has an authenticated control
             // channel.  Its recovery stays inside that Room hand-off; the
             // generic channel setup has a second QR and must not replace it.
-            onConnect: _offersConnect(state.failure) &&
+            onConnect:
+                _offersConnect(state.failure) &&
                     !RoomProximityControlSessionRegistry.instance.hasRoom(
                       room.room.id,
                     )
