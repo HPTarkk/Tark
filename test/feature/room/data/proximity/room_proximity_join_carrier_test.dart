@@ -82,12 +82,176 @@ void main() {
       expect(joined, hasLength(1));
     },
   );
+
+  test('QR-bound host challenge authenticates before join request', () async {
+    SharedPreferences.setMockInitialValues({});
+    final repository = SharedPreferencesRoomRepository();
+    final room = await repository.create(
+      name: 'Morning ride',
+      localDisplayName: 'Owner',
+    );
+    final now = DateTime.now().toUtc();
+    final invitation = await repository.issueInvite(
+      room.room.id,
+      kind: RoomInvitationKind.trustedMembership,
+      now: now,
+      ttl: const Duration(hours: 1),
+    );
+    final exchange = RoomInviteJoinExchange(
+      acceptance: RoomInviteAcceptanceCoordinator(repository),
+    );
+    final pair = _PairedCarrierEngines();
+    final hostChannel = RoomProximityControlChannel(engine: pair.host);
+    final joinerChannel = RoomProximityControlChannel(engine: pair.joiner);
+    final issuer = RoomProximityJoinIssuerSession(
+      channel: hostChannel,
+      invitation: invitation,
+      exchange: exchange,
+      repository: repository,
+    );
+    final carrier = RoomProximityJoinCarrier(
+      channel: joinerChannel,
+      invitation: invitation,
+    );
+    addTearDown(() async {
+      await carrier.dispose();
+      await issuer.dispose();
+      await joinerChannel.dispose();
+      await hostChannel.dispose();
+    });
+
+    const requestId = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+    final request = RoomInviteJoinRequest(
+      requestId: requestId,
+      invitation: invitation,
+      displayName: 'Rider two',
+    );
+
+    final encoded = await carrier.exchange(request.encode());
+    final response = RoomInviteJoinResponse.decode(encoded);
+
+    expect(response.status, RoomInviteJoinResponseStatus.accepted);
+    expect(response.requestId, requestId);
+  });
+
+  test('host proof from a different invite secret fails closed', () async {
+    SharedPreferences.setMockInitialValues({});
+    final repository = SharedPreferencesRoomRepository();
+    final room = await repository.create(
+      name: 'Morning ride',
+      localDisplayName: 'Owner',
+    );
+    final now = DateTime.now().toUtc();
+    final invitation = await repository.issueInvite(
+      room.room.id,
+      kind: RoomInvitationKind.trustedMembership,
+      now: now,
+      ttl: const Duration(hours: 1),
+    );
+    final forged = RoomInvitation(
+      version: invitation.version,
+      roomId: invitation.roomId,
+      invitationId: invitation.invitationId,
+      secret: List.filled(64, 'f').join(),
+      kind: invitation.kind,
+      issuedAt: invitation.issuedAt,
+      expiresAt: invitation.expiresAt,
+      singleUse: invitation.singleUse,
+      displayCode: invitation.displayCode,
+      transportBootstrap: invitation.transportBootstrap,
+    );
+    final exchange = RoomInviteJoinExchange(
+      acceptance: RoomInviteAcceptanceCoordinator(repository),
+    );
+    final pair = _PairedCarrierEngines();
+    final hostChannel = RoomProximityControlChannel(engine: pair.host);
+    final joinerChannel = RoomProximityControlChannel(engine: pair.joiner);
+    final issuer = RoomProximityJoinIssuerSession(
+      channel: hostChannel,
+      invitation: invitation,
+      exchange: exchange,
+      repository: repository,
+    );
+    final carrier = RoomProximityJoinCarrier(
+      channel: joinerChannel,
+      invitation: forged,
+    );
+    addTearDown(() async {
+      await carrier.dispose();
+      await issuer.dispose();
+      await joinerChannel.dispose();
+      await hostChannel.dispose();
+    });
+
+    final request = RoomInviteJoinRequest(
+      requestId: 'cccccccccccccccccccccccccccccccc',
+      invitation: forged,
+      displayName: 'Rider two',
+    );
+
+    await expectLater(
+      carrier.exchange(request.encode()),
+      throwsA(isA<StateError>()),
+    );
+
+    final saved = await repository.get(invitation.roomId);
+    expect(saved!.room.members, hasLength(1));
+  });
 }
 
 RoomProximityEnvelope _decodeWrite(Uint8List bytes) {
   final frames = FrameReassembler().addBytes(bytes);
   expect(frames, hasLength(1));
   return RoomProximityEnvelope.decode(utf8.decode(frames.single));
+}
+
+final class _PairedCarrierEngines {
+  _PairedCarrierEngines() {
+    host.peer = joiner;
+    joiner.peer = host;
+  }
+
+  final host = _LinkedCarrierEngine();
+  final joiner = _LinkedCarrierEngine();
+}
+
+final class _LinkedCarrierEngine extends ClassicBluetoothEngine {
+  final incoming = StreamController<Uint8List>.broadcast();
+  final connected = StreamController<String>.broadcast();
+  final errors = StreamController<String>.broadcast();
+  final closed = StreamController<void>.broadcast();
+  _LinkedCarrierEngine? peer;
+
+  @override
+  Future<bool> get isEnabled async => true;
+
+  @override
+  Stream<Uint8List> get input => incoming.stream;
+
+  @override
+  Stream<String> get onPeerConnected => connected.stream;
+
+  @override
+  Stream<String> get onError => errors.stream;
+
+  @override
+  Stream<void> get onClosed => closed.stream;
+
+  @override
+  void cancelDiscovery() {}
+
+  @override
+  Future<void> write(Uint8List bytes) async {
+    peer?.incoming.add(Uint8List.fromList(bytes));
+  }
+
+  @override
+  Future<void> dispose() async {
+    await incoming.close();
+    await connected.close();
+    await errors.close();
+    await closed.close();
+  }
 }
 
 final class _CarrierFakeEngine extends ClassicBluetoothEngine {
