@@ -22,6 +22,12 @@ enum RoomProximityFailure {
   /// No phone advertising this invite turned up before the find timeout.
   hostNotFound,
 
+  /// BLE/classic discovery failed before a trustworthy candidate was found.
+  scanFailed,
+
+  /// Native host readiness (identity/server/BLE advertising) failed.
+  hostSetupFailed,
+
   /// The host was found but the RFCOMM dial did not land.
   dialFailed,
 }
@@ -50,8 +56,6 @@ final class RoomProximityControlChannel {
     this.rescanEvery = const Duration(seconds: 12),
   }) : _engine = engine ?? ClassicBluetoothEngine();
 
-  static const _rendezvousPrefix = 'R-';
-
   /// How long [connect] looks for the host before giving up.
   final Duration findTimeout;
 
@@ -75,13 +79,7 @@ final class RoomProximityControlChannel {
   Stream<String> get messages => _messages.stream;
   Stream<void> get closed => _closed.stream;
 
-  static String rendezvousName(String token) {
-    final clean = token.trim().toLowerCase();
-    if (!RegExp(r'^[0-9a-f]{8,64}$').hasMatch(clean)) {
-      throw const FormatException('invalid proximity rendezvous token');
-    }
-    return '$_rendezvousPrefix${clean.substring(0, 8)}';
-  }
+  static String rendezvousName(String token) => rendezvousHostName(token);
 
   void _wire() {
     if (_wired) return;
@@ -89,14 +87,22 @@ final class RoomProximityControlChannel {
     _subscriptions
       ..add(
         _engine.input.listen((chunk) {
-          for (final frame in _framer.addBytes(chunk)) {
-            try {
-              final decoded = utf8.decode(frame, allowMalformed: false);
-              if (!_messages.isClosed) _messages.add(decoded);
-            } catch (_) {
-              // A malformed control frame is untrusted input. Drop it without
-              // poisoning the persistent socket or the next framed message.
+          try {
+            for (final frame in _framer.addBytes(chunk)) {
+              try {
+                final decoded = utf8.decode(frame, allowMalformed: false);
+                if (!_messages.isClosed) _messages.add(decoded);
+              } catch (_) {
+                // Malformed UTF-8 is untrusted input; drop this frame only.
+              }
             }
+          } on FormatException {
+            // A hostile/garbled length prefix must not grow the buffer without
+            // bound or poison the next control message.
+            _framer.reset();
+            Logger.diagnostic(
+              'room_proximity: malformed control frame dropped',
+            );
           }
         }),
       )
@@ -111,16 +117,45 @@ final class RoomProximityControlChannel {
   Future<void> host({required String rendezvousToken}) async {
     if (_disposed) throw StateError('proximity control channel is disposed');
     _wire();
-    final discoverable = await _engine.requestDiscoverable();
+    _engine.setRendezvousToken(rendezvousToken);
+    await _ensureAdapterOn();
+
+    // Prepare identity, RFCOMM listener and BLE rendezvous advertising before
+    // asking Android to expose the phone to classic inquiry. The QR must not
+    // become usable while native hosting is only partially ready.
+    try {
+      await _engine.startHosting(
+        name: encodeHostName(rendezvousName(rendezvousToken)),
+      );
+    } catch (error) {
+      Logger.diagnostic('room_proximity: host readiness failed');
+      await _engine.stopHosting();
+      throw RoomProximityException(
+        RoomProximityFailure.hostSetupFailed,
+        'proximity host readiness failed: ${error.runtimeType}',
+      );
+    }
+
+    final bool discoverable;
+    try {
+      discoverable = await _engine.requestDiscoverable();
+    } catch (error) {
+      Logger.diagnostic('room_proximity: discoverability setup failed');
+      await _engine.stopHosting();
+      throw RoomProximityException(
+        RoomProximityFailure.hostSetupFailed,
+        'Bluetooth discoverability setup failed: ${error.runtimeType}',
+      );
+    }
     if (!discoverable) {
+      Logger.diagnostic('room_proximity: discoverability denied');
+      await _engine.stopHosting();
       throw RoomProximityException(
         RoomProximityFailure.discoverabilityDenied,
         'Bluetooth discoverability was not granted',
       );
     }
-    await _engine.startHosting(
-      name: encodeHostName(rendezvousName(rendezvousToken)),
-    );
+    Logger.diagnostic('room_proximity: host ready');
   }
 
   /// Finds the phone advertising [rendezvousToken] and dials it.
@@ -132,7 +167,7 @@ final class RoomProximityControlChannel {
   Future<void> connect({required String rendezvousToken}) async {
     if (_disposed) throw StateError('proximity control channel is disposed');
     _wire();
-    final expectedName = rendezvousName(rendezvousToken);
+    _engine.setRendezvousToken(rendezvousToken);
     Logger.diagnostic('room_proximity: connect start');
     await _ensureAdapterOn();
 
@@ -142,11 +177,23 @@ final class RoomProximityControlChannel {
       scan = _engine.scanForHosts().listen(
         (peer) {
           if (peerCompleter.isCompleted || !peer.isAppHost) return;
-          if (peer.name == expectedName) peerCompleter.complete(peer);
+          // Room peer selection is cryptographically bound to the scanned
+          // invitation's BLE service-data. A mutable/cached adapter name is
+          // never sufficient evidence for production Room rendezvous.
+          if (peer.rendezvousMatched) {
+            peerCompleter.complete(peer);
+          }
         },
-        // A scan error is not a verdict: the rescan below and the find
-        // timeout decide when to give up.
-        onError: (Object _) {},
+        onError: (Object error) {
+          if (!peerCompleter.isCompleted) {
+            peerCompleter.completeError(
+              RoomProximityException(
+                RoomProximityFailure.scanFailed,
+                'proximity scan failed: ${error.runtimeType}',
+              ),
+            );
+          }
+        },
       );
     }
 
@@ -245,17 +292,23 @@ final class RoomProximityControlChannel {
     } catch (_) {
       return;
     }
-    if (enabled) return;
+    if (enabled) {
+      Logger.diagnostic('room_proximity: adapter enabled');
+      return;
+    }
+    Logger.diagnostic('room_proximity: adapter disabled');
     var turnedOn = false;
     try {
       turnedOn = await _engine.requestEnable();
     } catch (_) {}
     if (!turnedOn) {
+      Logger.diagnostic('room_proximity: adapter enable denied');
       throw RoomProximityException(
         RoomProximityFailure.bluetoothOff,
         'Bluetooth is off',
       );
     }
+    Logger.diagnostic('room_proximity: adapter enabled after request');
   }
 
   Future<void> send(String payload) async {
@@ -271,6 +324,7 @@ final class RoomProximityControlChannel {
     if (_disposed) return;
     _disposed = true;
     _engine.cancelDiscovery();
+    _engine.setRendezvousToken(null);
     for (final subscription in _subscriptions) {
       await subscription.cancel();
     }

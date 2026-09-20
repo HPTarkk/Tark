@@ -19,6 +19,9 @@ Uint8List frameMessage(Uint8List payload) {
 /// Buffers partial reads from a Bluetooth Classic socket and yields complete
 /// length-prefixed messages as they become available.
 class FrameReassembler {
+  FrameReassembler({this.maxFrameLength = 16 * 1024});
+
+  final int maxFrameLength;
   final BytesBuilder _buffer = BytesBuilder(copy: true);
 
   List<Uint8List> addBytes(Uint8List chunk) {
@@ -32,6 +35,10 @@ class FrameReassembler {
         0,
         4,
       ).getUint32(0, Endian.little);
+      if (length == 0 || length > maxFrameLength) {
+        _buffer.clear();
+        throw FormatException('invalid framed message length: $length');
+      }
       if (pending.length < 4 + length) break;
       messages.add(pending.sublist(4, 4 + length));
       pending = pending.sublist(4 + length);

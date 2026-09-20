@@ -6,12 +6,14 @@ import 'package:flutter_blue_classic/flutter_blue_classic.dart' as fbc;
 import '../../../../core/utils/logger.dart';
 import '../../domain/entity/bluetooth_host_name.dart';
 import '../../domain/entity/bluetooth_peer.dart';
+import '../../domain/entity/room_rendezvous_identity.dart';
 
 /// Android Bluetooth Classic (RFCOMM/SPP) engine.
 ///
-/// Discovery uses the flutter_blue_classic package — it covers inquiry and
-/// adapter state well. Both ends of the *connection* go through a custom
-/// platform channel (see android/.../bluetooth/BluetoothServerHandler.kt):
+/// Room rendezvous uses native BLE service-data to select the phone bound to
+/// the scanned invitation. flutter_blue_classic remains only for legacy
+/// non-Room inquiry and adapter state. Both ends of the *RFCOMM connection*
+/// go through a custom platform channel (see android/.../bluetooth/BluetoothServerHandler.kt):
 /// hosting because the package exposes no
 /// listenUsingRfcommWithServiceRecord()/accept(), and dialing because the
 /// package's connect() uses a SECURE socket while our server socket is
@@ -34,6 +36,12 @@ class ClassicBluetoothEngine {
     : _fbc = fbc.FlutterBlueClassic(usesFineLocation: usesFineLocation);
 
   final fbc.FlutterBlueClassic _fbc;
+  String? _rendezvousToken;
+
+  /// Binds subsequent host/scan operations to the invitation being rendered
+  /// or scanned. The full token never leaves the process except over the local
+  /// MethodChannel; native advertises only a short one-way digest.
+  void setRendezvousToken(String? token) => _rendezvousToken = token;
 
   /// Guards against overlapping outgoing dials (see [connectToHost]).
   /// [_dialGen] separates a dial from the one that superseded it, so a late
@@ -96,39 +104,49 @@ class ClassicBluetoothEngine {
   /// The timeout only guards against a dialog whose result never comes back
   /// (activity torn down mid-prompt); hosting must not hang on that.
   Future<bool> requestDiscoverable({int durationSeconds = 300}) async {
-    try {
-      final granted = await _serverMethods
-          .invokeMethod<bool>('requestDiscoverable', {
-            'durationSeconds': durationSeconds,
-          })
-          .timeout(const Duration(seconds: 60), onTimeout: () => false);
-      return granted ?? false;
-    } catch (e) {
-      Logger.log('requestDiscoverable failed: $e');
-      return false;
-    }
+    final granted = await _serverMethods
+        .invokeMethod<bool>('requestDiscoverable', {
+          'durationSeconds': durationSeconds,
+        })
+        .timeout(
+          const Duration(seconds: 60),
+          onTimeout: () => throw TimeoutException(
+            'Bluetooth discoverability result timed out',
+          ),
+        );
+    return granted ?? false;
   }
 
   /// Subscribes to the native session channels. Idempotent, and shared by
   /// both roles — the events are about the one live socket, not about who
   /// opened it.
   void _listenToSession() {
-    _sessionEventSub ??= _serverConnectionEvents.receiveBroadcastStream().listen(
-      (event) {
-        final map = Map<Object?, Object?>.from(event as Map);
-        switch (map['event']) {
-          case 'connected':
-            _connected = true;
-            _peerConnectedController.add((map['address'] as String?) ?? '');
-          case 'closed':
-            _connected = false;
-            _closedController.add(null);
-          case 'error':
-            _errorController.add((map['message'] as String?) ?? 'unknown error');
-        }
-      },
-      onError: (Object e) => Logger.log('Bluetooth session event error: $e'),
-    );
+    _sessionEventSub ??= _serverConnectionEvents
+        .receiveBroadcastStream()
+        .listen(
+          (event) {
+            final map = Map<Object?, Object?>.from(event as Map);
+            switch (map['event']) {
+              case 'connected':
+                _connected = true;
+                _peerConnectedController.add((map['address'] as String?) ?? '');
+              case 'closed':
+                _connected = false;
+                _closedController.add(null);
+              case 'error':
+                _errorController.add(
+                  (map['message'] as String?) ?? 'unknown error',
+                );
+              case 'diagnostic':
+                final message = map['message'];
+                if (message is String && message.isNotEmpty) {
+                  Logger.diagnostic('room_proximity_native: $message');
+                }
+            }
+          },
+          onError: (Object e) =>
+              Logger.log('Bluetooth session event error: $e'),
+        );
 
     _sessionReadSub ??= _serverReadEvents.receiveBroadcastStream().listen(
       (event) => _inputController.add(event as Uint8List),
@@ -145,11 +163,30 @@ class ClassicBluetoothEngine {
 
   Future<void> startHosting({String name = 'tark'}) async {
     _listenToSession();
-    try {
-      await _serverMethods.invokeMethod<void>('startHosting', {'name': name});
-    } catch (e) {
-      _errorController.add('$e');
+    final token = _rendezvousToken;
+    if (token == null) {
+      throw StateError('rendezvous token must be set before hosting');
     }
+    final identity = await RoomRendezvousIdentity.derive(token);
+    final readiness = await _serverMethods
+        .invokeMapMethod<String, dynamic>('startHosting', {
+          'name': name,
+          'rendezvousData': identity.serviceData,
+          'correlation': identity.correlation,
+        })
+        .timeout(const Duration(seconds: 10));
+    if (readiness == null ||
+        readiness['serverListening'] != true ||
+        readiness['bleAdvertising'] != true) {
+      throw PlatformException(
+        code: 'host_not_ready',
+        message: 'Native Bluetooth host did not reach ready state',
+      );
+    }
+    Logger.diagnostic(
+      'room_proximity: native host ready correlation=${readiness['correlation'] ?? 'none'} '
+      'nameApplied=${readiness['nameApplied'] == true}',
+    );
   }
 
   /// Hands bytes to the native writer thread, which owns the bounded queue
@@ -187,26 +224,66 @@ class ClassicBluetoothEngine {
 
   // ── Join (client) ────────────────────────────────────────────────────────
 
-  Stream<BluetoothPeer> scanForHosts() {
+  Stream<BluetoothPeer> scanForHosts() async* {
+    _listenToSession();
+    final token = _rendezvousToken;
+    if (token != null) {
+      final identity = await RoomRendezvousIdentity.derive(token);
+      final result = await _serverMethods
+          .invokeMapMethod<String, dynamic>('findRendezvousPeer', {
+            'rendezvousData': identity.serviceData,
+            'correlation': identity.correlation,
+            'timeoutMs': 10000,
+          });
+      if (result == null) return;
+      Logger.diagnostic(
+        'room_proximity: ble scan correlation=${result['correlation'] ?? 'none'} '
+        'discovered=${result['discoveredCount'] ?? 0} '
+        'tark=${result['tarkCount'] ?? 0} '
+        'wrongToken=${result['wrongTokenCount'] ?? 0} '
+        'matched=${result['matched'] == true}',
+      );
+      if (result['matched'] != true) return;
+      final address = result['address'];
+      if (address is! String || address.isEmpty) {
+        throw PlatformException(
+          code: 'ble_match_without_address',
+          message: 'Matched BLE rendezvous had no dialable address',
+        );
+      }
+      yield BluetoothPeer(
+        id: address,
+        name: rendezvousHostName(token),
+        rssi: result['rssi'] is int ? result['rssi'] as int : null,
+        isAppHost: true,
+        rendezvousMatched: true,
+      );
+      return;
+    }
+
+    // Legacy non-Room callers keep classic inquiry. Room rendezvous never
+    // falls back to adapter-name matching: a stale/cached name must not choose
+    // the wrong phone.
     _fbc.startScan();
-    return _fbc.scanResults.map((d) {
-      // Everything within radio range lands here — headsets, TVs, laptops —
-      // so the broadcast name is also the only signal for which of them is a
-      // Tark host (an inquiry never reveals the RFCOMM service record).
+    await for (final d in _fbc.scanResults) {
       final advertised = d.name ?? '';
-      return BluetoothPeer(
+      yield BluetoothPeer(
         id: d.address,
-        // A device that broadcast no name stays nameless — the UI says
-        // "unnamed device", which means something to a person. Its MAC does
-        // not, and it used to sit in the list looking like a serial number.
         name: advertised.isEmpty ? '' : decodeHostName(advertised),
         rssi: d.rssi,
         isAppHost: isTarkHostName(advertised),
       );
-    });
+    }
   }
 
-  void cancelDiscovery() => _fbc.stopScan();
+  void cancelDiscovery() {
+    _fbc.stopScan();
+    unawaited(
+      _serverMethods
+          .invokeMethod<void>('cancelRendezvousScan')
+          .catchError((_) {}),
+    );
+  }
 
   /// Dials [address] over the native insecure RFCOMM path. Success is
   /// reported by the session's "connected" event, not by this future, so
@@ -227,7 +304,7 @@ class ClassicBluetoothEngine {
           ? Duration.zero
           : DateTime.now().difference(startedAt);
       if (age < _dialStuckAfter) {
-        Logger.log('BT dial skipped: a dial to $address is still in flight');
+        Logger.log('BT dial skipped: a dial is still in flight');
         return;
       }
       // Cancel it natively first: the socket is what the connect() thread is
@@ -250,11 +327,11 @@ class ClassicBluetoothEngine {
       if (!landed) {
         // Cancelled mid-dial; the native side closed the socket, so nothing
         // is left holding the host's session open.
-        Logger.log('BT dial to $address was cancelled before it landed');
+        Logger.log('BT dial was cancelled before it landed');
         _errorController.add('Failed to connect');
       }
     } catch (e) {
-      Logger.log('BT dial to $address failed: $e');
+      Logger.log('BT dial failed: $e');
       _errorController.add('$e');
     } finally {
       if (gen == _dialGen) _dialing = false;

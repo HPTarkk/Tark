@@ -6,9 +6,11 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/settings/settings_repository.dart';
+import '../../../../core/utils/logger.dart';
 import '../../../../core/widget/qr_scanner_surface.dart';
 import '../../../transfer/api/hotspot_invite_api.dart';
 import '../../../transfer/api/transfer_api.dart';
+import '../../../transfer/domain/entity/room_rendezvous_identity.dart';
 import '../../data/proximity/room_proximity_control_session_registry.dart';
 import '../../data/proximity/room_proximity_join_carrier.dart';
 import '../../domain/entity/room_invitation.dart';
@@ -58,6 +60,12 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
       if (invitation.isExpired) {
         throw const FormatException('expired room invite');
       }
+      final rendezvous = await RoomRendezvousIdentity.derive(
+        invitation.invitationId,
+      );
+      Logger.diagnostic(
+        'room_join: qr decoded correlation=${rendezvous.correlation}',
+      );
 
       // The rendezvous below scans for the host and dials it over Bluetooth.
       // Nothing on a clean install has asked for that yet, and without it the
@@ -68,11 +76,17 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
               ensureRoomInviteBluetoothPermissions)();
       if (!mounted) return false;
       if (!permitted) {
+        Logger.diagnostic(
+          'room_join: permissions denied correlation=${rendezvous.correlation}',
+        );
         setState(
           () => _error = context.getString.roomjoin_bluetooth_permission,
         );
         return false;
       }
+      Logger.diagnostic(
+        'room_join: permissions ok correlation=${rendezvous.correlation}',
+      );
 
       var myName = 'Tark';
       try {
@@ -96,6 +110,9 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
       );
       if (!mounted) return false;
       if (status == RoomInviteJoinAttemptStatus.accepted) {
+        Logger.diagnostic(
+          'room_join: membership confirmed correlation=${rendezvous.correlation}',
+        );
         await RoomProximityControlSessionRegistry.instance.adopt(
           roomId: invitation.roomId,
           invitation: invitation,
@@ -120,6 +137,9 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
       if (!mounted) return false;
       return _notAnInvite(raw);
     } on RoomProximityException catch (error) {
+      Logger.diagnostic(
+        'room_join: proximity failed reason=${error.failure.name}',
+      );
       if (!mounted) return false;
       setState(() => _error = _proximityMessage(error.failure));
       return false;
@@ -142,6 +162,8 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
       RoomProximityFailure.bluetoothOff => s.roomjoin_bluetooth_off,
       RoomProximityFailure.hostNotFound => s.roomjoin_host_not_found,
       RoomProximityFailure.discoverabilityDenied ||
+      RoomProximityFailure.scanFailed ||
+      RoomProximityFailure.hostSetupFailed ||
       RoomProximityFailure.dialFailed => s.roomjoin_not_joined,
     };
   }

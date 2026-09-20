@@ -1,7 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
+import 'dart:typed_data';
 
+import 'package:cryptography/cryptography.dart';
+
+import '../../../../core/utils/logger.dart';
 import '../../../transfer/api/transfer_api.dart';
+import '../../../transfer/domain/entity/room_rendezvous_identity.dart';
 import '../../domain/entity/room_accepted_join_snapshot.dart';
 import '../../domain/entity/room_invitation.dart';
 import '../../domain/repository/room_repository.dart';
@@ -80,11 +86,16 @@ final class RoomProximityJoinCarrier
   late final StreamSubscription<String> _subscription;
   late final StreamSubscription<void> _closedSubscription;
   final Map<String, Completer<RoomProximityEnvelope>> _pending = {};
+  static const _protocolTimeout = Duration(seconds: 10);
+  final Random _random = Random.secure();
 
   @override
   RoomAcceptedJoinSnapshot? confirmedSnapshot;
 
   String get _epoch => _invitation.invitationId;
+
+  Future<String> get _correlation async =>
+      (await RoomRendezvousIdentity.derive(_epoch)).correlation;
 
   void _onMessage(String raw) {
     RoomProximityEnvelope envelope;
@@ -134,9 +145,12 @@ final class RoomProximityJoinCarrier
           payload: payload,
         ).encode(),
       );
-      return await completer.future;
+      return await completer.future.timeout(_protocolTimeout);
     } catch (_) {
-      _pending.remove(key);
+      final current = _pending[key];
+      if (identical(current, completer)) {
+        _pending.remove(key);
+      }
       rethrow;
     }
   }
@@ -148,11 +162,43 @@ final class RoomProximityJoinCarrier
         request.invitation.invitationId != _invitation.invitationId) {
       throw const FormatException('proximity join request scope');
     }
+    final correlation = await _correlation;
+    final challenge = Uint8List.fromList(
+      List<int>.generate(16, (_) => _random.nextInt(256)),
+    );
+    final challengeEncoded = base64Url.encode(challenge).replaceAll('=', '');
+    Logger.diagnostic(
+      'room_join_protocol: host challenge sent correlation=$correlation',
+    );
+    final proof = await _sendAndWait(
+      sendKind: 'hostChallenge',
+      responseKind: 'hostProof',
+      requestId: request.requestId,
+      payload: challengeEncoded,
+    );
+    final verified = await _verifyHostProof(
+      invitation: _invitation,
+      requestId: request.requestId,
+      challenge: challenge,
+      encodedProof: proof.payload,
+    );
+    if (!verified) {
+      throw StateError('proximity host authentication failed');
+    }
+    Logger.diagnostic(
+      'room_join_protocol: host proof verified correlation=$correlation',
+    );
+    Logger.diagnostic(
+      'room_join_protocol: request sent correlation=$correlation',
+    );
     final response = await _sendAndWait(
       sendKind: 'joinRequest',
       responseKind: 'joinGrant',
       requestId: request.requestId,
       payload: encodedRequest,
+    );
+    Logger.diagnostic(
+      'room_join_protocol: grant received correlation=$correlation',
     );
     return response.payload;
   }
@@ -161,6 +207,10 @@ final class RoomProximityJoinCarrier
   Future<bool> submitMembershipReceipt(String encodedReceipt) async {
     final receipt = RoomInviteMembershipReceipt.decode(encodedReceipt);
     if (receipt.certificate.roomId != _invitation.roomId) return false;
+    final correlation = await _correlation;
+    Logger.diagnostic(
+      'room_join_protocol: receipt sent correlation=$correlation',
+    );
     final response = await _sendAndWait(
       sendKind: 'membershipReceipt',
       responseKind: 'membershipConfirmed',
@@ -180,6 +230,9 @@ final class RoomProximityJoinCarrier
       );
       if (members.length != 1) return false;
       confirmedSnapshot = decoded;
+      Logger.diagnostic(
+        'room_join_protocol: confirmation received correlation=$correlation',
+      );
       return true;
     } catch (_) {
       return false;
@@ -212,6 +265,13 @@ final class RoomProximityJoinIssuerSession {
   final RoomRepository _repository;
   late final StreamSubscription<String> _subscription;
   final Map<String, String> _grantCache = {};
+  final Map<String, Future<String>> _grantInFlight = {};
+  final Map<String, String> _confirmationCache = {};
+  final Map<String, Future<String>> _confirmationInFlight = {};
+
+  Future<String> get _correlation async => (await RoomRendezvousIdentity.derive(
+    _invitation.invitationId,
+  )).correlation;
 
   Future<void> _onMessage(String raw) async {
     RoomProximityEnvelope envelope;
@@ -226,13 +286,55 @@ final class RoomProximityJoinIssuerSession {
     }
 
     switch (envelope.kind) {
+      case 'hostChallenge':
+        final correlation = await _correlation;
+        final challenge = _decodeChallenge(envelope.payload);
+        if (challenge == null) return;
+        final proof = await _createHostProof(
+          invitation: _invitation,
+          requestId: envelope.requestId,
+          challenge: challenge,
+        );
+        await _channel.send(
+          RoomProximityEnvelope(
+            kind: 'hostProof',
+            roomId: envelope.roomId,
+            requestId: envelope.requestId,
+            joinEpoch: envelope.joinEpoch,
+            payload: proof,
+          ).encode(),
+        );
+        Logger.diagnostic(
+          'room_join_protocol: host proof sent correlation=$correlation',
+        );
+        return;
       case 'joinRequest':
-        final response =
-            _grantCache[envelope.requestId] ??
-            await _exchange.handleEncodedRequest(
+        final correlation = await _correlation;
+        Logger.diagnostic(
+          'room_join_protocol: request received correlation=$correlation',
+        );
+        final cached = _grantCache[envelope.requestId];
+        final Future<String> work;
+        if (cached != null) {
+          work = Future<String>.value(cached);
+        } else {
+          work = _grantInFlight.putIfAbsent(
+            envelope.requestId,
+            () => _exchange.handleEncodedRequest(
               envelope.payload,
               now: DateTime.now().toUtc(),
-            );
+            ),
+          );
+        }
+
+        final String response;
+        try {
+          response = await work;
+        } finally {
+          if (identical(_grantInFlight[envelope.requestId], work)) {
+            _grantInFlight.remove(envelope.requestId);
+          }
+        }
         _grantCache[envelope.requestId] = response;
         if (_grantCache.length > 16) {
           _grantCache.remove(_grantCache.keys.first);
@@ -246,29 +348,39 @@ final class RoomProximityJoinIssuerSession {
             payload: response,
           ).encode(),
         );
+        Logger.diagnostic(
+          'room_join_protocol: grant sent correlation=$correlation',
+        );
         return;
       case 'membershipReceipt':
-        final confirmed = await _exchange.handleEncodedReceipt(
-          envelope.payload,
+        final correlation = await _correlation;
+        Logger.diagnostic(
+          'room_join_protocol: receipt received correlation=$correlation',
         );
-        String payload = jsonEncode({'ok': false});
-        if (confirmed) {
-          try {
-            final receipt = RoomInviteMembershipReceipt.decode(
-              envelope.payload,
-            );
-            final saved = await _repository.get(_invitation.roomId);
-            if (saved != null) {
-              final snapshot = RoomAcceptedJoinSnapshot.fromSavedRoom(
-                saved,
-                acceptedMemberId: receipt.certificate.memberId,
-              );
-              payload = jsonEncode({'ok': true, 'snapshot': snapshot.encode()});
-            }
-          } catch (_) {
-            payload = jsonEncode({'ok': false});
+        final cached = _confirmationCache[envelope.requestId];
+        final Future<String> work;
+        if (cached != null) {
+          work = Future<String>.value(cached);
+        } else {
+          work = _confirmationInFlight.putIfAbsent(
+            envelope.requestId,
+            () => _buildConfirmationPayload(envelope.payload),
+          );
+        }
+
+        final String payload;
+        try {
+          payload = await work;
+        } finally {
+          if (identical(_confirmationInFlight[envelope.requestId], work)) {
+            _confirmationInFlight.remove(envelope.requestId);
           }
         }
+        _confirmationCache[envelope.requestId] = payload;
+        if (_confirmationCache.length > 16) {
+          _confirmationCache.remove(_confirmationCache.keys.first);
+        }
+
         await _channel.send(
           RoomProximityEnvelope(
             kind: 'membershipConfirmed',
@@ -278,11 +390,113 @@ final class RoomProximityJoinIssuerSession {
             payload: payload,
           ).encode(),
         );
+        Logger.diagnostic(
+          'room_join_protocol: confirmation sent correlation=$correlation',
+        );
         return;
       default:
         return;
     }
   }
 
+  Future<String> _buildConfirmationPayload(String encodedReceipt) async {
+    final confirmed = await _exchange.handleEncodedReceipt(encodedReceipt);
+    if (!confirmed) return jsonEncode({'ok': false});
+    try {
+      final receipt = RoomInviteMembershipReceipt.decode(encodedReceipt);
+      final saved = await _repository.get(_invitation.roomId);
+      if (saved == null) return jsonEncode({'ok': false});
+      final snapshot = RoomAcceptedJoinSnapshot.fromSavedRoom(
+        saved,
+        acceptedMemberId: receipt.certificate.memberId,
+      );
+      return jsonEncode({'ok': true, 'snapshot': snapshot.encode()});
+    } catch (_) {
+      return jsonEncode({'ok': false});
+    }
+  }
+
   Future<void> dispose() => _subscription.cancel();
+}
+
+final Hmac _roomHostProofHmac = Hmac.sha256();
+
+Future<String> _createHostProof({
+  required RoomInvitation invitation,
+  required String requestId,
+  required Uint8List challenge,
+}) async {
+  final mac = await _roomHostProofHmac.calculateMac(
+    _hostProofMessage(
+      invitation: invitation,
+      requestId: requestId,
+      challenge: challenge,
+    ),
+    secretKey: SecretKey(_decodeHex(invitation.secret)),
+  );
+  return base64Url.encode(mac.bytes).replaceAll('=', '');
+}
+
+Future<bool> _verifyHostProof({
+  required RoomInvitation invitation,
+  required String requestId,
+  required Uint8List challenge,
+  required String encodedProof,
+}) async {
+  try {
+    final expected = await _createHostProof(
+      invitation: invitation,
+      requestId: requestId,
+      challenge: challenge,
+    );
+    final expectedBytes = base64Url.decode(base64Url.normalize(expected));
+    final actualBytes = base64Url.decode(
+      base64Url.normalize(encodedProof.trim()),
+    );
+    return _constantTimeEquals(expectedBytes, actualBytes);
+  } catch (_) {
+    return false;
+  }
+}
+
+Uint8List? _decodeChallenge(String encoded) {
+  try {
+    final bytes = base64Url.decode(base64Url.normalize(encoded.trim()));
+    if (bytes.length != 16) return null;
+    return Uint8List.fromList(bytes);
+  } catch (_) {
+    return null;
+  }
+}
+
+List<int> _hostProofMessage({
+  required RoomInvitation invitation,
+  required String requestId,
+  required Uint8List challenge,
+}) => utf8.encode(
+  'tark-room-host-proof-v1\n'
+  '${invitation.roomId.value}\n'
+  '${invitation.invitationId}\n'
+  '$requestId\n'
+  '${base64Url.encode(challenge).replaceAll('=', '')}',
+);
+
+Uint8List _decodeHex(String value) {
+  if (!RegExp(r'^[0-9a-f]{64}$').hasMatch(value)) {
+    throw const FormatException('invalid Room invitation secret');
+  }
+  final output = Uint8List(value.length ~/ 2);
+  for (var i = 0; i < output.length; i += 1) {
+    output[i] = int.parse(value.substring(i * 2, i * 2 + 2), radix: 16);
+  }
+  return output;
+}
+
+bool _constantTimeEquals(List<int> a, List<int> b) {
+  if (a.length != b.length) return false;
+  var diff = 0;
+  for (var i = 0; i < a.length; i += 1) {
+    diff |= a[i] ^ b[i];
+  }
+  return diff == 0;
 }

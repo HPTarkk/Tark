@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import '../../../../core/utils/logger.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../../domain/entity/room.dart';
 import '../../domain/entity/room_invitation.dart';
@@ -151,6 +152,9 @@ final class _RoomProximityControlSession {
     if (transportEpoch > _lastPublishedTransportEpoch) {
       _lastPublishedTransportEpoch = transportEpoch;
     }
+    Logger.diagnostic(
+      'room_transport_control: credentials sent epoch=$transportEpoch',
+    );
     return channel.send(
       RoomProximityEnvelope(
         kind: 'transportCredentials',
@@ -191,6 +195,9 @@ final class _RoomProximityControlSession {
     final waiter = Completer<HotspotCredentials>();
     _credentialWaiter = waiter;
     try {
+      Logger.diagnostic(
+        'room_transport_control: request sent epoch=$localTransportEpoch',
+      );
       await channel.send(
         RoomProximityEnvelope(
           kind: 'transportRequest',
@@ -270,6 +277,9 @@ final class _RoomProximityControlSession {
         passphrase: passphrase,
         security: security,
       );
+      Logger.diagnostic(
+        'room_transport_control: credentials received epoch=$remoteEpoch',
+      );
       final waiter = _credentialWaiter;
       if (waiter != null && !waiter.isCompleted) {
         _credentialWaiter = null;
@@ -291,6 +301,7 @@ final class _RoomProximityControlSession {
   void _onClosed() {
     if (_peerClosed) return;
     _peerClosed = true;
+    Logger.diagnostic('room_transport_control: proximity channel closed');
     final waiter = _credentialWaiter;
     _credentialWaiter = null;
     if (waiter != null && !waiter.isCompleted) {
