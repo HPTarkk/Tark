@@ -34,6 +34,12 @@ class ClassicBluetoothEngine {
     : _fbc = fbc.FlutterBlueClassic(usesFineLocation: usesFineLocation);
 
   final fbc.FlutterBlueClassic _fbc;
+  String? _rendezvousToken;
+
+  /// Binds subsequent host/scan operations to the invitation being rendered
+  /// or scanned. The full token never leaves the process except over the local
+  /// MethodChannel; native advertises only a short one-way digest.
+  void setRendezvousToken(String? token) => _rendezvousToken = token;
 
   /// Guards against overlapping outgoing dials (see [connectToHost]).
   /// [_dialGen] separates a dial from the one that superseded it, so a late
@@ -145,11 +151,26 @@ class ClassicBluetoothEngine {
 
   Future<void> startHosting({String name = 'tark'}) async {
     _listenToSession();
-    try {
-      await _serverMethods.invokeMethod<void>('startHosting', {'name': name});
-    } catch (e) {
-      _errorController.add('$e');
+    final token = _rendezvousToken;
+    if (token == null) {
+      throw StateError('rendezvous token must be set before hosting');
     }
+    final readiness = await _serverMethods.invokeMapMethod<String, dynamic>(
+      'startHosting',
+      {'name': name, 'rendezvousToken': token},
+    );
+    if (readiness == null ||
+        readiness['serverListening'] != true ||
+        readiness['bleAdvertising'] != true) {
+      throw PlatformException(
+        code: 'host_not_ready',
+        message: 'Native Bluetooth host did not reach ready state',
+      );
+    }
+    Logger.diagnostic(
+      'room_proximity: native host ready correlation=${readiness['correlation'] ?? 'none'} '
+      'nameApplied=${readiness['nameApplied'] == true}',
+    );
   }
 
   /// Hands bytes to the native writer thread, which owns the bounded queue
@@ -187,26 +208,59 @@ class ClassicBluetoothEngine {
 
   // ── Join (client) ────────────────────────────────────────────────────────
 
-  Stream<BluetoothPeer> scanForHosts() {
+  Stream<BluetoothPeer> scanForHosts() async* {
+    final token = _rendezvousToken;
+    if (token != null) {
+      final result = await _serverMethods.invokeMapMethod<String, dynamic>(
+        'findRendezvousPeer',
+        {'rendezvousToken': token, 'timeoutMs': 10000},
+      );
+      if (result == null) return;
+      Logger.diagnostic(
+        'room_proximity: ble scan correlation=${result['correlation'] ?? 'none'} '
+        'discovered=${result['discoveredCount'] ?? 0} '
+        'tark=${result['tarkCount'] ?? 0} '
+        'wrongToken=${result['wrongTokenCount'] ?? 0} '
+        'matched=${result['matched'] == true}',
+      );
+      if (result['matched'] != true) return;
+      final address = result['address'];
+      if (address is! String || address.isEmpty) {
+        throw const PlatformException(
+          code: 'ble_match_without_address',
+          message: 'Matched BLE rendezvous had no dialable address',
+        );
+      }
+      yield BluetoothPeer(
+        id: address,
+        name: rendezvousHostName(token),
+        rssi: result['rssi'] is int ? result['rssi'] as int : null,
+        isAppHost: true,
+      );
+      return;
+    }
+
+    // Legacy non-Room callers keep classic inquiry. Room rendezvous never
+    // falls back to adapter-name matching: a stale/cached name must not choose
+    // the wrong phone.
     _fbc.startScan();
-    return _fbc.scanResults.map((d) {
-      // Everything within radio range lands here — headsets, TVs, laptops —
-      // so the broadcast name is also the only signal for which of them is a
-      // Tark host (an inquiry never reveals the RFCOMM service record).
+    await for (final d in _fbc.scanResults) {
       final advertised = d.name ?? '';
-      return BluetoothPeer(
+      yield BluetoothPeer(
         id: d.address,
-        // A device that broadcast no name stays nameless — the UI says
-        // "unnamed device", which means something to a person. Its MAC does
-        // not, and it used to sit in the list looking like a serial number.
         name: advertised.isEmpty ? '' : decodeHostName(advertised),
         rssi: d.rssi,
         isAppHost: isTarkHostName(advertised),
       );
-    });
+    }
   }
 
-  void cancelDiscovery() => _fbc.stopScan();
+  void cancelDiscovery() {
+    _fbc.stopScan();
+    unawaited(
+      _serverMethods.invokeMethod<void>('cancelRendezvousScan').catchError((_) {}),
+    );
+  }
 
   /// Dials [address] over the native insecure RFCOMM path. Success is
   /// reported by the session's "connected" event, not by this future, so
