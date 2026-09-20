@@ -212,6 +212,7 @@ final class RoomProximityJoinIssuerSession {
   final RoomRepository _repository;
   late final StreamSubscription<String> _subscription;
   final Map<String, String> _grantCache = {};
+  final Map<String, Future<String>> _grantInFlight = {};
 
   Future<void> _onMessage(String raw) async {
     RoomProximityEnvelope envelope;
@@ -227,12 +228,28 @@ final class RoomProximityJoinIssuerSession {
 
     switch (envelope.kind) {
       case 'joinRequest':
-        final response =
-            _grantCache[envelope.requestId] ??
-            await _exchange.handleEncodedRequest(
+        final cached = _grantCache[envelope.requestId];
+        final Future<String> work;
+        if (cached != null) {
+          work = Future<String>.value(cached);
+        } else {
+          work = _grantInFlight.putIfAbsent(
+            envelope.requestId,
+            () => _exchange.handleEncodedRequest(
               envelope.payload,
               now: DateTime.now().toUtc(),
-            );
+            ),
+          );
+        }
+
+        final String response;
+        try {
+          response = await work;
+        } finally {
+          if (identical(_grantInFlight[envelope.requestId], work)) {
+            _grantInFlight.remove(envelope.requestId);
+          }
+        }
         _grantCache[envelope.requestId] = response;
         if (_grantCache.length > 16) {
           _grantCache.remove(_grantCache.keys.first);
