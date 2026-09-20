@@ -136,7 +136,17 @@ final class RoomProximityControlChannel {
       );
     }
 
-    final discoverable = await _engine.requestDiscoverable();
+    final bool discoverable;
+    try {
+      discoverable = await _engine.requestDiscoverable();
+    } catch (error) {
+      Logger.diagnostic('room_proximity: discoverability setup failed');
+      await _engine.stopHosting();
+      throw RoomProximityException(
+        RoomProximityFailure.hostSetupFailed,
+        'Bluetooth discoverability setup failed: ${error.runtimeType}',
+      );
+    }
     if (!discoverable) {
       Logger.diagnostic('room_proximity: discoverability denied');
       await _engine.stopHosting();
@@ -157,7 +167,6 @@ final class RoomProximityControlChannel {
   Future<void> connect({required String rendezvousToken}) async {
     if (_disposed) throw StateError('proximity control channel is disposed');
     _wire();
-    final expectedName = rendezvousName(rendezvousToken);
     _engine.setRendezvousToken(rendezvousToken);
     Logger.diagnostic('room_proximity: connect start');
     await _ensureAdapterOn();
@@ -168,7 +177,10 @@ final class RoomProximityControlChannel {
       scan = _engine.scanForHosts().listen(
         (peer) {
           if (peerCompleter.isCompleted || !peer.isAppHost) return;
-          if (peer.rendezvousMatched || peer.name == expectedName) {
+          // Room peer selection is cryptographically bound to the scanned
+          // invitation's BLE service-data. A mutable/cached adapter name is
+          // never sufficient evidence for production Room rendezvous.
+          if (peer.rendezvousMatched) {
             peerCompleter.complete(peer);
           }
         },
