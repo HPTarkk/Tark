@@ -8,7 +8,6 @@ import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../transfer/api/transfer_api.dart';
-import '../../data/proximity/room_proximity_control_session_registry.dart';
 import '../../domain/entity/room.dart';
 import '../../domain/repository/room_repository.dart';
 import '../room_member_display_name.dart';
@@ -111,31 +110,7 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
       return;
     }
     if (next == null || !mounted) return;
-    final before = {
-      for (final member in _room.room.confirmedMembers) member.id,
-    };
     setState(() => _room = next!);
-    _startIfSomeoneArrived(before, next);
-  }
-
-  /// Somebody has just finished scanning this phone's invite. Their phone is
-  /// already on its way to connecting; making this one wait for a tap would
-  /// leave them watching a spinner until somebody here noticed.
-  ///
-  /// Only an arrival over this phone's own proximity hand-off counts — that
-  /// is a person standing here, not a roster change that got here some other
-  /// way.
-  void _startIfSomeoneArrived(Set<RoomMemberId> before, SavedRoom next) {
-    if (_connecting) return;
-    final arrived = next.room.confirmedMembers.any(
-      (member) => !before.contains(member.id),
-    );
-    if (!arrived) return;
-    final issuer = RoomProximityControlSessionRegistry.instance.isIssuerFor(
-      next.room.id,
-    );
-    if (issuer != true) return;
-    _startRide();
   }
 
   Future<void> _invite() async {

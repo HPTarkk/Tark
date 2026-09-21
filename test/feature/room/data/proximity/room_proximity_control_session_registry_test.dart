@@ -48,7 +48,11 @@ void main() {
       );
 
       final waiting = RoomProximityControlSessionRegistry.instance
-          .waitForHotspot(roomId: roomId, transportEpoch: 7);
+          .waitForHotspot(
+            roomId: roomId,
+            transportEpoch: 7,
+            timeout: const Duration(seconds: 1),
+          );
       await Future<void>.delayed(Duration.zero);
 
       final request = _decodeSingleWrite(engine);
@@ -74,6 +78,57 @@ void main() {
       );
 
       expect(await waiting, credentials);
+    },
+  );
+
+  test(
+    'a timed-out join wait is cleared so retry sends a fresh request',
+    () async {
+      final engine = _RegistryFakeClassicBluetoothEngine();
+      final channel = RoomProximityControlChannel(engine: engine);
+      await channel.host(rendezvousToken: invitationId);
+      await RoomProximityControlSessionRegistry.instance.adopt(
+        roomId: roomId,
+        invitation: invitation,
+        channel: channel,
+      );
+
+      final first = RoomProximityControlSessionRegistry.instance
+          .waitForHotspot(
+            roomId: roomId,
+            transportEpoch: 1,
+            timeout: Duration.zero,
+          );
+      await expectLater(first, throwsA(isA<TimeoutException>()));
+
+      final second = RoomProximityControlSessionRegistry.instance
+          .waitForHotspot(
+            roomId: roomId,
+            transportEpoch: 2,
+            timeout: const Duration(seconds: 1),
+          );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(engine.writes, hasLength(2));
+      expect(
+        _decodeWrite(engine, 1).requestId,
+        '00000000000000000000000000000002',
+      );
+
+      engine.addEnvelope(
+        RoomProximityEnvelope(
+          kind: 'transportCredentials',
+          roomId: roomId.value,
+          requestId: '00000000000000000000000000000001',
+          joinEpoch: invitationId,
+          payload: jsonEncode(const {
+            'ssid': 'DIRECT-TARK',
+            'passphrase': 'room-secret',
+            'security': 'WPA2',
+          }),
+        ),
+      );
+      expect((await second).ssid, 'DIRECT-TARK');
     },
   );
 
@@ -120,6 +175,15 @@ RoomProximityEnvelope _decodeSingleWrite(
 ) {
   expect(engine.writes, hasLength(1));
   final frames = FrameReassembler().addBytes(engine.writes.single);
+  expect(frames, hasLength(1));
+  return RoomProximityEnvelope.decode(utf8.decode(frames.single));
+}
+
+RoomProximityEnvelope _decodeWrite(
+  _RegistryFakeClassicBluetoothEngine engine,
+  int index,
+) {
+  final frames = FrameReassembler().addBytes(engine.writes[index]);
   expect(frames, hasLength(1));
   return RoomProximityEnvelope.decode(utf8.decode(frames.single));
 }
