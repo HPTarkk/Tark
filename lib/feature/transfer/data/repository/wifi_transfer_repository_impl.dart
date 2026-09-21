@@ -55,7 +55,6 @@ const kBroadcastPort = 4000;
 class WifiTransferRepositoryImpl
     implements
         WifiTransferRepository,
-        ConnectionHealthSnapshot,
         TransportCapabilityObservationSource,
         TransportRouteProofExchange,
         CarrierHandoverExchange {
