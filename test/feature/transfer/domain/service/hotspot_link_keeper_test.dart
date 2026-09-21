@@ -106,6 +106,9 @@ class _FakeWifi implements WifiTransferRepository {
   Stream<ConnectionHealth> connect() => const Stream<ConnectionHealth>.empty();
 
   @override
+  ConnectionHealth? get currentConnectionHealth => null;
+
+  @override
   TransportStats get stats => currentStats;
 
   @override
