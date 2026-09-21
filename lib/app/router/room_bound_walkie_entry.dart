@@ -241,11 +241,13 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         failure: _EntryFailure.compositionUnavailable,
       );
     }
+    late final SavedRoom current;
     try {
-      final current = await SelectedRoomLobbyResolver(rooms).resolve();
-      if (current == null || current.room.id != room.room.id) {
+      final resolved = await SelectedRoomLobbyResolver(rooms).resolve();
+      if (resolved == null || resolved.room.id != room.room.id) {
         return const _EntryState.invalidSelection();
       }
+      current = resolved;
     } catch (e) {
       Logger.log('Room selection revalidation failed: $e');
       return _EntryState.lobby(
