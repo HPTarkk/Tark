@@ -84,12 +84,16 @@ final class RoomProximityControlSessionRegistry {
   Future<HotspotCredentials> waitForHotspot({
     required RoomId roomId,
     required int transportEpoch,
+    required Duration timeout,
   }) {
     final session = _session;
     if (session == null || session.roomId != roomId || !session.isOpen) {
       throw StateError('no authenticated proximity session for Room');
     }
-    return session.waitForHotspot(localTransportEpoch: transportEpoch);
+    return session.waitForHotspot(
+      localTransportEpoch: transportEpoch,
+      timeout: timeout,
+    );
   }
 
   Future<void> clear({RoomId? roomId}) async {
@@ -172,6 +176,7 @@ final class _RoomProximityControlSession {
 
   Future<HotspotCredentials> waitForHotspot({
     required int localTransportEpoch,
+    required Duration timeout,
   }) async {
     // Validate the local coordinator epoch, but never require it to equal the
     // host's epoch. Each phone owns its own RoomConnectionCoordinator, so an
@@ -213,7 +218,20 @@ final class _RoomProximityControlSession {
       }
       if (!waiter.isCompleted) waiter.completeError(error, stackTrace);
     }
-    return waiter.future;
+    try {
+      return await waiter.future.timeout(timeout);
+    } on TimeoutException {
+      // A retry must send a fresh request. Leaving this completer installed
+      // meant every retry inherited a timed-out request and the host never
+      // heard that the joiner was still waiting.
+      if (identical(_credentialWaiter, waiter)) {
+        _credentialWaiter = null;
+      }
+      Logger.diagnostic(
+        'room_transport_control: request timed out epoch=$localTransportEpoch',
+      );
+      rethrow;
+    }
   }
 
   void _onMessage(String raw) {

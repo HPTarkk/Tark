@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:get_it/get_it.dart';
 
+import '../../../core/utils/logger.dart';
 import '../domain/entity/hotspot_credentials.dart';
 import '../domain/entity/session_role.dart';
 import '../domain/entity/wifi_hotspot_segment.dart';
@@ -50,13 +53,35 @@ class PreLiveHotspotBootstrap {
       bridge.switchSegment(WifiHotspotSegment.hotspot);
       await bridge.chooseRole(HotspotRole.host);
       if (bridge.state.phase != HotspotPhase.ready) return null;
-      return bridge.state.credentials;
+      final credentials = bridge.state.credentials;
+      if (credentials == null) return null;
+
+      // The credential is the hand-off boundary.  `WifiHotspotCubit.close()`
+      // only releases bridge UI subscriptions, but an Android EventChannel
+      // cancellation may stall on physical devices.  Do not make the Room's
+      // authenticated Bluetooth credential publication wait behind that
+      // non-essential cleanup; the HotspotLinkKeeper already owns the AP.
+      unawaited(_releaseBridgeAfterHandoff(bridge));
+      return credentials;
     } finally {
-      // WifiHotspotCubit.close intentionally keeps an established AP, selected
-      // network and foreground keep-alive alive. It only releases the bridge
-      // screen's subscriptions/retry machinery, handing the attachment to the
-      // HotspotLinkKeeper that outlives this hidden bootstrap.
-      await bridge.close();
+      // Cleanup is deliberately detached immediately above once credentials
+      // are ready. Failure paths still release the short-lived bridge.
+      if (bridge.state.credentials == null) {
+        await bridge.close();
+      }
+    }
+  }
+
+  static Future<void> _releaseBridgeAfterHandoff(
+    WifiHotspotCubit bridge,
+  ) async {
+    try {
+      await bridge.close().timeout(const Duration(seconds: 2));
+      Logger.diagnostic('room_transport: hotspot bridge cleanup complete');
+    } on TimeoutException {
+      Logger.diagnostic('room_transport: hotspot bridge cleanup timed out');
+    } catch (_) {
+      Logger.diagnostic('room_transport: hotspot bridge cleanup failed');
     }
   }
 }

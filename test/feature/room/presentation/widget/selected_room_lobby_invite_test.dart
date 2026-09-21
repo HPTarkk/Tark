@@ -1,15 +1,8 @@
-import 'dart:async';
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tark/core/l10n/app_localizations.dart';
-import 'package:tark/feature/room/data/proximity/room_proximity_control_session_registry.dart';
 import 'package:tark/feature/room/data/repository/shared_preferences_room_repository.dart';
-import 'package:tark/feature/transfer/data/bluetooth/classic_bluetooth_engine.dart';
-import 'package:tark/feature/transfer/data/service/room_proximity_control_channel.dart';
-import 'package:tark/feature/transfer/domain/entity/bluetooth_peer.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
 import 'package:tark/feature/room/domain/entity/room_invitation.dart';
 import 'package:tark/feature/room/presentation/widget/selected_room_lobby.dart';
@@ -205,47 +198,38 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('someone arriving over this phone\'s invite starts connecting', (
-    tester,
-  ) async {
-    final room = await repository.create(
-      name: 'Night ride',
-      localDisplayName: 'Host',
-    );
-    final invite = await repository.issueInvite(
-      room.room.id,
-      kind: RoomInvitationKind.trustedMembership,
-      now: at,
-      ttl: const Duration(hours: 12),
-    );
-    final registry = RoomProximityControlSessionRegistry.instance;
-    await registry.adopt(
-      roomId: room.room.id,
-      invitation: invite,
-      channel: RoomProximityControlChannel(engine: _QuietEngine()),
-      issuer: true,
-    );
-    var starts = 0;
+  testWidgets(
+    'roster arrival refreshes the lobby but does not start behind invite UI',
+    (tester) async {
+      final room = await repository.create(
+        name: 'Night ride',
+        localDisplayName: 'Host',
+      );
+      final invite = await repository.issueInvite(
+        room.room.id,
+        kind: RoomInvitationKind.trustedMembership,
+        now: at,
+        ttl: const Duration(hours: 12),
+      );
+      var starts = 0;
 
-    await show(tester, host(room, onStartRide: () => starts++));
-    final verified = await repository.verifyAndRedeemInvite(invite, now: at);
-    await repository.acceptVerifiedInvite(
-      verified!,
-      displayName: 'Rider two',
-      acceptedAt: at,
-      pending: false,
-    );
-    await beat(tester);
+      await show(tester, host(room, onStartRide: () => starts++));
+      final verified = await repository.verifyAndRedeemInvite(invite, now: at);
+      await repository.acceptVerifiedInvite(
+        verified!,
+        displayName: 'Rider two',
+        acceptedAt: at,
+        pending: false,
+      );
+      await beat(tester);
 
-    // The person who scanned is already connecting; this phone must not wait
-    // for somebody to notice and press Start.
-    expect(find.text('Room members (2)'), findsOneWidget);
-    expect(starts, 1);
-
-    // Releasing the session awaits stream cancellations, which fake async
-    // never completes.
-    await tester.runAsync(registry.clear);
-  });
+      // The invite sheet owns its automatic hand-off. A lobby underneath that
+      // sheet may refresh its roster, but must never launch a competing start
+      // with the stale one-member callback snapshot.
+      expect(find.text('Room members (2)'), findsOneWidget);
+      expect(starts, 0);
+    },
+  );
 
   testWidgets('a roster change from anywhere else does not start anything', (
     tester,
@@ -263,35 +247,4 @@ void main() {
     expect(find.text('Room members (2)'), findsOneWidget);
     expect(starts, 0);
   });
-}
-
-class _QuietEngine extends ClassicBluetoothEngine {
-  final _input = StreamController<Uint8List>.broadcast();
-  final _connected = StreamController<String>.broadcast();
-  final _errors = StreamController<String>.broadcast();
-  final _closed = StreamController<void>.broadcast();
-
-  @override
-  Stream<Uint8List> get input => _input.stream;
-
-  @override
-  Stream<String> get onPeerConnected => _connected.stream;
-
-  @override
-  Stream<String> get onError => _errors.stream;
-
-  @override
-  Stream<void> get onClosed => _closed.stream;
-
-  @override
-  Stream<BluetoothPeer> scanForHosts() => const Stream.empty();
-
-  @override
-  void cancelDiscovery() {}
-
-  @override
-  Future<void> write(Uint8List bytes) async {}
-
-  @override
-  Future<void> dispose() async {}
 }

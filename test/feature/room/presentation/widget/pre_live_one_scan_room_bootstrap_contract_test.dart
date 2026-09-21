@@ -42,6 +42,9 @@ void main() {
       final entry = await File(
         'lib/app/router/room_bound_walkie_entry.dart',
       ).readAsString();
+      final bootstrap = await File(
+        'lib/feature/transfer/api/pre_live_hotspot_bootstrap.dart',
+      ).readAsString();
 
       expect(lobby, contains('_startRide()'));
       // The lobby hands Start to the entry, and only the entry decides — from
@@ -51,6 +54,14 @@ void main() {
       expect(lobby, isNot(contains('PreLiveHotspotBootstrap')));
       expect(entry, contains('PreLiveHotspotBootstrap().prepareHost()'));
       expect(sheet, isNot(contains('PreLiveHotspotBootstrap()')));
+      expect(
+        bootstrap,
+        contains('unawaited(_releaseBridgeAfterHandoff(bridge));'),
+      );
+      expect(
+        bootstrap.indexOf('unawaited(_releaseBridgeAfterHandoff(bridge));'),
+        lessThan(bootstrap.indexOf('return credentials;')),
+      );
     },
   );
 }

@@ -241,11 +241,13 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         failure: _EntryFailure.compositionUnavailable,
       );
     }
+    late final SavedRoom current;
     try {
-      final current = await SelectedRoomLobbyResolver(rooms).resolve();
-      if (current == null || current.room.id != room.room.id) {
+      final resolved = await SelectedRoomLobbyResolver(rooms).resolve();
+      if (resolved == null || resolved.room.id != room.room.id) {
         return const _EntryState.invalidSelection();
       }
+      current = resolved;
     } catch (e) {
       Logger.log('Room selection revalidation failed: $e');
       return _EntryState.lobby(
@@ -253,7 +255,13 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         failure: _EntryFailure.selectionReadFailed,
       );
     }
-    return _verifiedLiveFor(room, linkEstablished: linkEstablished);
+    // The lobby can have been mounted while an invite sheet was on top of it.
+    // Its callback therefore carries the Room snapshot from before the new
+    // member was confirmed. The resolver above is the durable truth; using
+    // the callback snapshot here made the host see a one-person Room while
+    // its own lobby already rendered two people, and it aborted before the
+    // hotspot hand-off could begin.
+    return _verifiedLiveFor(current, linkEstablished: linkEstablished);
   }
 
   Future<_EntryState> _verifiedLiveFor(
@@ -274,7 +282,10 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         .where((memberId) => memberId != localMemberId)
         .toSet();
     if (expectedPeers.isEmpty) {
-      Logger.diagnostic('room: readiness stage=peer_proof_missing');
+      Logger.diagnostic(
+        'room: readiness stage=expected_peer_missing '
+        'confirmed=${room.room.confirmedMembers.length}',
+      );
       return _EntryState.lobby(room, failure: _EntryFailure.peerProofMissing);
     }
     // Only a proximity hand-off from a QR scan can plan a hotspot: it is the
@@ -448,20 +459,22 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         if (localIsElected) {
           final credentials = await PreLiveHotspotBootstrap().prepareHost();
           if (credentials == null) return _EntryFailure.transportSetup;
+          Logger.diagnostic('room_transport: host credentials ready');
+          Logger.diagnostic('room_transport: credential publish begin');
           await proximity.publishHotspot(
             roomId: room.room.id,
             transportEpoch: transportEpoch,
             credentials: credentials,
           );
+          Logger.diagnostic('room_transport: credential publish complete');
           return null;
         }
         try {
-          final credentials = await proximity
-              .waitForHotspot(
-                roomId: room.room.id,
-                transportEpoch: transportEpoch,
-              )
-              .timeout(_handoffTimeout);
+          final credentials = await proximity.waitForHotspot(
+            roomId: room.room.id,
+            transportEpoch: transportEpoch,
+            timeout: _handoffTimeout,
+          );
           final joined = await GetIt.instance<HotspotJoiner>().join(
             credentials,
           );
