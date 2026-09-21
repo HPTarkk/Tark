@@ -93,12 +93,11 @@ void main() {
         channel: channel,
       );
 
-      final first = RoomProximityControlSessionRegistry.instance
-          .waitForHotspot(
-            roomId: roomId,
-            transportEpoch: 1,
-            timeout: Duration.zero,
-          );
+      final first = RoomProximityControlSessionRegistry.instance.waitForHotspot(
+        roomId: roomId,
+        transportEpoch: 1,
+        timeout: Duration.zero,
+      );
       await expectLater(first, throwsA(isA<TimeoutException>()));
 
       final second = RoomProximityControlSessionRegistry.instance

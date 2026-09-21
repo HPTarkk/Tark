@@ -198,37 +198,38 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('roster arrival refreshes the lobby but does not start behind invite UI', (
-    tester,
-  ) async {
-    final room = await repository.create(
-      name: 'Night ride',
-      localDisplayName: 'Host',
-    );
-    final invite = await repository.issueInvite(
-      room.room.id,
-      kind: RoomInvitationKind.trustedMembership,
-      now: at,
-      ttl: const Duration(hours: 12),
-    );
-    var starts = 0;
+  testWidgets(
+    'roster arrival refreshes the lobby but does not start behind invite UI',
+    (tester) async {
+      final room = await repository.create(
+        name: 'Night ride',
+        localDisplayName: 'Host',
+      );
+      final invite = await repository.issueInvite(
+        room.room.id,
+        kind: RoomInvitationKind.trustedMembership,
+        now: at,
+        ttl: const Duration(hours: 12),
+      );
+      var starts = 0;
 
-    await show(tester, host(room, onStartRide: () => starts++));
-    final verified = await repository.verifyAndRedeemInvite(invite, now: at);
-    await repository.acceptVerifiedInvite(
-      verified!,
-      displayName: 'Rider two',
-      acceptedAt: at,
-      pending: false,
-    );
-    await beat(tester);
+      await show(tester, host(room, onStartRide: () => starts++));
+      final verified = await repository.verifyAndRedeemInvite(invite, now: at);
+      await repository.acceptVerifiedInvite(
+        verified!,
+        displayName: 'Rider two',
+        acceptedAt: at,
+        pending: false,
+      );
+      await beat(tester);
 
-    // The invite sheet owns its automatic hand-off. A lobby underneath that
-    // sheet may refresh its roster, but must never launch a competing start
-    // with the stale one-member callback snapshot.
-    expect(find.text('Room members (2)'), findsOneWidget);
-    expect(starts, 0);
-  });
+      // The invite sheet owns its automatic hand-off. A lobby underneath that
+      // sheet may refresh its roster, but must never launch a competing start
+      // with the stale one-member callback snapshot.
+      expect(find.text('Room members (2)'), findsOneWidget);
+      expect(starts, 0);
+    },
+  );
 
   testWidgets('a roster change from anywhere else does not start anything', (
     tester,

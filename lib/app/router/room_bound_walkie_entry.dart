@@ -468,12 +468,11 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
           return null;
         }
         try {
-          final credentials = await proximity
-              .waitForHotspot(
-                roomId: room.room.id,
-                transportEpoch: transportEpoch,
-                timeout: _handoffTimeout,
-              );
+          final credentials = await proximity.waitForHotspot(
+            roomId: room.room.id,
+            transportEpoch: transportEpoch,
+            timeout: _handoffTimeout,
+          );
           final joined = await GetIt.instance<HotspotJoiner>().join(
             credentials,
           );
