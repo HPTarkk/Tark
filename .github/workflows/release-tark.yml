@@ -241,6 +241,12 @@ jobs:
           cp build/app/outputs/bundle/release/app-release.aab "dist/tark-v$version.aab"
           (
             cd dist
+            # Keep an adjacent checksum with each downloadable artifact. This
+            # lets a tester who needs only the normal arm64 APK avoid the
+            # combined Actions artifact (and its much larger download).
+            for asset in *.apk *.aab *.zip; do
+              sha256sum "$asset" > "$asset.sha256"
+            done
             sha256sum *.apk *.aab *.zip > SHA256SUMS.txt
           )
 
@@ -252,16 +258,70 @@ jobs:
       - name: Create GitHub Release
         run: |
           set -euo pipefail
-          args=( "${{ steps.version.outputs.tag }}" dist/* --target "$(git rev-parse HEAD)" --title "Tark v${{ steps.version.outputs.version }}" --notes "${RELEASE_NOTES:-Tark release}" )
+          cat > release-notes.md <<EOF
+          ${RELEASE_NOTES:-Tark release}
+
+          ## Android downloads
+
+          - **Most Android phones (recommended):** \`tark-v${{ steps.version.outputs.version }}-arm64-v8a.apk\`
+          - Older 32-bit ARM phones: \`tark-v${{ steps.version.outputs.version }}-armeabi-v7a.apk\`
+          - Android emulator / x86_64 device: \`tark-v${{ steps.version.outputs.version }}-x86_64.apk\`
+          - Play Console only: \`tark-v${{ steps.version.outputs.version }}.aab\`
+
+          APKs are separate assets. Download only the APK that matches the phone; the arm64 APK is the normal choice. Each asset has a neighboring \`.sha256\` file for optional integrity verification.
+          EOF
+          args=( "${{ steps.version.outputs.tag }}" dist/* --target "$(git rev-parse HEAD)" --title "Tark v${{ steps.version.outputs.version }}" --notes-file release-notes.md )
           if [ "${RELEASE_CHANNEL}" = "beta" ]; then
             args+=( --prerelease )
           fi
           gh release create "${args[@]}"
 
-      - name: Upload workflow artifact
+      - name: Upload arm64 APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tark-v${{ steps.version.outputs.version }}-release-assets
-          path: dist/
+          name: tark-v${{ steps.version.outputs.version }}-arm64-v8a
+          path: |
+            dist/tark-v${{ steps.version.outputs.version }}-arm64-v8a.apk
+            dist/tark-v${{ steps.version.outputs.version }}-arm64-v8a.apk.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload 32-bit ARM APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tark-v${{ steps.version.outputs.version }}-armeabi-v7a
+          path: |
+            dist/tark-v${{ steps.version.outputs.version }}-armeabi-v7a.apk
+            dist/tark-v${{ steps.version.outputs.version }}-armeabi-v7a.apk.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload x86_64 APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tark-v${{ steps.version.outputs.version }}-x86_64
+          path: |
+            dist/tark-v${{ steps.version.outputs.version }}-x86_64.apk
+            dist/tark-v${{ steps.version.outputs.version }}-x86_64.apk.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload Android App Bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tark-v${{ steps.version.outputs.version }}-aab
+          path: |
+            dist/tark-v${{ steps.version.outputs.version }}.aab
+            dist/tark-v${{ steps.version.outputs.version }}.aab.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload guest PWA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tark-v${{ steps.version.outputs.version }}-guest-pwa
+          path: |
+            dist/tark-guest-pwa-v${{ steps.version.outputs.version }}.zip
+            dist/tark-guest-pwa-v${{ steps.version.outputs.version }}.zip.sha256
           if-no-files-found: error
           retention-days: 30
