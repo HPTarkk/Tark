@@ -5,7 +5,8 @@ import 'transfer_repository.dart';
 /// Consumers that must talk to the Wi-Fi transport regardless of mode (the
 /// hotspot bridge waiting for the first packet from the joined peer) depend
 /// on this instead of the concrete implementation.
-abstract interface class WifiTransferRepository implements TransferRepository {
+abstract interface class WifiTransferRepository
+    implements TransferRepository, ConnectionHealthSnapshot {
   /// Rebuilds both UDP sockets on the network this device is on NOW, without
   /// ending the session.
   ///

@@ -110,3 +110,18 @@ abstract interface class TransferRepository {
 
   void dispose();
 }
+
+/// Optional synchronous view of the latest transport health.
+///
+/// A health stream is intentionally broadcast: UI and recovery observers can
+/// come and go without taking ownership of the transport. A Room may, however,
+/// begin observing just after a socket has bound. The one `healthy` event has
+/// then already happened, so waiting only for a future stream event leaves the
+/// Room permanently in its attaching state despite an already-live transport.
+///
+/// Implementations that can retain their latest health expose it here. Callers
+/// still subscribe to [TransferRepository.connect] for subsequent changes;
+/// this is only the race-free initial snapshot.
+abstract interface class ConnectionHealthSnapshot {
+  ConnectionHealth? get currentConnectionHealth;
+}

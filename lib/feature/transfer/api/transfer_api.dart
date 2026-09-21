@@ -26,7 +26,8 @@ export '../domain/entity/transport_stats.dart';
 export '../domain/entity/waki_packet.dart';
 export '../domain/entity/wifi_hotspot_segment.dart';
 export '../domain/repository/guest_link_controller.dart';
-export '../domain/repository/transfer_repository.dart';
+export '../domain/repository/transfer_repository.dart'
+    show ConnectionHealthSnapshot, TransferRepository;
 export '../domain/entity/carrier_handover_observation.dart';
 export '../domain/repository/carrier_handover_exchange.dart';
 export '../domain/repository/transport_capability_observation_source.dart';

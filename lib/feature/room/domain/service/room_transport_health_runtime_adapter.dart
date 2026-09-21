@@ -19,6 +19,7 @@ class RoomTransportHealthRuntimeAdapter {
   Future<int> attach({
     required TransportKind kind,
     required Stream<ConnectionHealth> health,
+    ConnectionHealth? Function()? initialHealth,
     String? role,
     String? reason,
   }) async {
@@ -27,13 +28,14 @@ class RoomTransportHealthRuntimeAdapter {
       role: role,
       reason: reason,
     );
-    await _bind(generation, health);
+    await _bind(generation, health, initialHealth: initialHealth);
     return generation;
   }
 
   Future<int> replace({
     required TransportKind kind,
     required Stream<ConnectionHealth> health,
+    ConnectionHealth? Function()? initialHealth,
     String? role,
     String? reason,
   }) async {
@@ -42,11 +44,15 @@ class RoomTransportHealthRuntimeAdapter {
       role: role,
       reason: reason,
     );
-    await _bind(generation, health);
+    await _bind(generation, health, initialHealth: initialHealth);
     return generation;
   }
 
-  Future<void> _bind(int generation, Stream<ConnectionHealth> health) async {
+  Future<void> _bind(
+    int generation,
+    Stream<ConnectionHealth> health, {
+    ConnectionHealth? Function()? initialHealth,
+  }) async {
     late final StreamSubscription<ConnectionHealth> subscription;
     subscription = health.listen(
       (value) => _onHealth(generation, value),
@@ -55,6 +61,12 @@ class RoomTransportHealthRuntimeAdapter {
       onDone: () =>
           _failIfCurrent(generation, reason: 'transport_health_stream_closed'),
     );
+
+    // Subscribe first, then apply the snapshot. This closes the gap where a
+    // UDP bind succeeds just before the Room begins listening, while still
+    // letting all later stream events win normally.
+    final snapshot = initialHealth?.call();
+    if (snapshot != null) _onHealth(generation, snapshot);
 
     final owned = runtime.ownCurrentAttachmentResource(
       generation,

@@ -75,6 +75,12 @@ void main() {
     expect(wifi.connectStarts, 1);
   });
 
+  test('exposes a concrete transport health snapshot before subscription', () {
+    wifi.currentHealth = const ConnectionHealth.healthy();
+
+    expect(subject.currentConnectionHealth, const ConnectionHealth.healthy());
+  });
+
   test('consumed packet and health streams rebind to replacement', () async {
     subject.startListening();
     subject.connect();
@@ -234,12 +240,16 @@ final class _ModeStore implements TransferModeStore {
 }
 
 final class _FakeTransfer
-    implements TransferRepository, TransportCapabilityObservationSource {
+    implements
+        TransferRepository,
+        ConnectionHealthSnapshot,
+        TransportCapabilityObservationSource {
   int audioSends = 0;
   int stopCalls = 0;
   int listenStarts = 0;
   int connectStarts = 0;
   int disposeCalls = 0;
+  ConnectionHealth? currentHealth;
 
   final _packets = StreamController<WakiPacket>.broadcast();
   final _health = StreamController<ConnectionHealth>.broadcast();
@@ -265,6 +275,9 @@ final class _FakeTransfer
     connectStarts += 1;
     return _health.stream;
   }
+
+  @override
+  ConnectionHealth? get currentConnectionHealth => currentHealth;
 
   @override
   AudioFormatProfile get negotiatedFormat => AudioFormatProfile.legacy16k;

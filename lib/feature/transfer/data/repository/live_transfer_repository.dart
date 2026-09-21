@@ -50,6 +50,7 @@ import '../../domain/service/transfer_mode_store.dart';
 final class LiveTransferRepository
     implements
         TransferRepository,
+        ConnectionHealthSnapshot,
         TransportCapabilityObservationSource,
         TransportRouteProofExchange,
         CarrierHandoverExchange {
@@ -96,6 +97,7 @@ final class LiveTransferRepository
   bool _carrierHandoversRequested = false;
   bool _disposed = false;
   int _attachmentGeneration = 0;
+  ConnectionHealth? _currentConnectionHealth;
 
   static TransferRepository _select(
     TransferMode mode,
@@ -120,6 +122,19 @@ final class LiveTransferRepository
 
   TransferRepository get _current =>
       _select(_modeStore.mode, _wifi, _bluetooth, _guest);
+
+  @override
+  ConnectionHealth? get currentConnectionHealth {
+    final active = _current;
+    return active is ConnectionHealthSnapshot
+        ? (active as ConnectionHealthSnapshot).currentConnectionHealth
+        : _currentConnectionHealth;
+  }
+
+  void _publishHealth(ConnectionHealth health) {
+    _currentConnectionHealth = health;
+    if (!_healthController.isClosed) _healthController.add(health);
+  }
 
   void _onModeChanged(TransferMode mode) {
     if (_disposed) return;
@@ -187,7 +202,7 @@ final class LiveTransferRepository
     await previous?.cancel();
     if (_disposed || generation != _attachmentGeneration) return;
     _healthSubscription = repository.connect().listen(
-      _healthController.add,
+      _publishHealth,
       onError: _healthController.addError,
     );
   }
@@ -241,7 +256,7 @@ final class LiveTransferRepository
     if (_disposed) return const Stream<ConnectionHealth>.empty();
     _healthRequested = true;
     _healthSubscription ??= _current.connect().listen(
-      _healthController.add,
+      _publishHealth,
       onError: _healthController.addError,
     );
     _active = _current;

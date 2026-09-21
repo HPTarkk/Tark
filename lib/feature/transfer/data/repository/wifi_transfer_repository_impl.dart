@@ -61,6 +61,7 @@ class WifiTransferRepositoryImpl
   RawDatagramSocket? _sendSocket;
   RawDatagramSocket? _receiveSocket;
   final _connectionController = StreamController<ConnectionHealth>.broadcast();
+  ConnectionHealth? _currentConnectionHealth;
 
   bool _autoReconnectEnabled = true;
   Completer<void>? _manualRetryCompleter;
@@ -1090,6 +1091,9 @@ class WifiTransferRepositoryImpl
   Stream<ConnectionHealth> connect() => _connectionController.stream;
 
   @override
+  ConnectionHealth? get currentConnectionHealth => _currentConnectionHealth;
+
+  @override
   void setAutoReconnectEnabled(bool enabled) {
     _autoReconnectEnabled = enabled;
     if (enabled) retryNow();
@@ -2083,6 +2087,7 @@ class WifiTransferRepositoryImpl
   }
 
   void _setHealth(ConnectionHealth health) {
+    _currentConnectionHealth = health;
     if (_connectionController.isClosed) return;
     _connectionController.add(health);
   }
