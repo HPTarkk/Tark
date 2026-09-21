@@ -105,10 +105,13 @@ final class SelectedRoomLiveSessionBinding {
     // replacement. Reuse this single surface for lifecycle and failover
     // detection rather than opening another transport connection.
     final health = transfer.connect();
-    final ConnectionHealth? Function()? healthSnapshot =
-        transfer is ConnectionHealthSnapshot
-        ? () => transfer.currentConnectionHealth
+    final snapshotSource = transfer is ConnectionHealthSnapshot
+        ? transfer as ConnectionHealthSnapshot
         : null;
+    final ConnectionHealth? Function()? healthSnapshot =
+        snapshotSource == null
+        ? null
+        : () => snapshotSource.currentConnectionHealth;
     final adapter = RoomTransportHealthRuntimeAdapter(runtime);
     await adapter.attach(
       kind: transportKindFor(modeStore.mode),

@@ -127,7 +127,7 @@ final class LiveTransferRepository
   ConnectionHealth? get currentConnectionHealth {
     final active = _current;
     return active is ConnectionHealthSnapshot
-        ? active.currentConnectionHealth
+        ? (active as ConnectionHealthSnapshot).currentConnectionHealth
         : _currentConnectionHealth;
   }
 
