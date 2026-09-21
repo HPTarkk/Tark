@@ -58,30 +58,33 @@ void main() {
     await transfer.health.close();
   });
 
-  test('adopts a healthy transport that bound before Room subscribed', () async {
-    final rooms = _RoomRepository(selected: roomId, saved: savedRoom());
-    final transfer = _TransferRepository(
-      role: SessionRole.joiner,
-      currentHealth: const ConnectionHealth.healthy(),
-    );
-    final binding = SelectedRoomLiveSessionBinding(
-      rooms: rooms,
-      transfer: transfer,
-      modeStore: _ModeStore(TransferMode.hotspot),
-    );
+  test(
+    'adopts a healthy transport that bound before Room subscribed',
+    () async {
+      final rooms = _RoomRepository(selected: roomId, saved: savedRoom());
+      final transfer = _TransferRepository(
+        role: SessionRole.joiner,
+        currentHealth: const ConnectionHealth.healthy(),
+      );
+      final binding = SelectedRoomLiveSessionBinding(
+        rooms: rooms,
+        transfer: transfer,
+        modeStore: _ModeStore(TransferMode.hotspot),
+      );
 
-    final runtime = await binding.open(sessionId: 'already-bound');
+      final runtime = await binding.open(sessionId: 'already-bound');
 
-    // This is the physical-device race: Wi-Fi's UDP bind became healthy
-    // while the hotspot consent/join flow was completing, before Room began
-    // listening to the broadcast health stream.
-    expect(runtime, isNotNull);
-    expect(runtime!.state.phase, RoomSessionPhase.live);
-    expect(runtime.state.attachment.phase, TransportAttachmentPhase.attached);
+      // This is the physical-device race: Wi-Fi's UDP bind became healthy
+      // while the hotspot consent/join flow was completing, before Room began
+      // listening to the broadcast health stream.
+      expect(runtime, isNotNull);
+      expect(runtime!.state.phase, RoomSessionPhase.live);
+      expect(runtime.state.attachment.phase, TransportAttachmentPhase.attached);
 
-    await binding.close();
-    await transfer.health.close();
-  });
+      await binding.close();
+      await transfer.health.close();
+    },
+  );
 
   test(
     'live failover reuses health stream and refreshes local evidence on down',
@@ -216,10 +219,7 @@ class _RoomRepository implements RoomRepository {
 
 class _TransferRepository
     implements TransferRepository, ConnectionHealthSnapshot {
-  _TransferRepository({
-    this.role = SessionRole.unknown,
-    this.currentHealth,
-  });
+  _TransferRepository({this.role = SessionRole.unknown, this.currentHealth});
 
   final SessionRole role;
   final ConnectionHealth? currentHealth;

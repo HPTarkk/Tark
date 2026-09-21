@@ -107,8 +107,8 @@ final class SelectedRoomLiveSessionBinding {
     final health = transfer.connect();
     final ConnectionHealth? Function()? healthSnapshot =
         transfer is ConnectionHealthSnapshot
-            ? () => transfer.currentConnectionHealth
-            : null;
+        ? () => transfer.currentConnectionHealth
+        : null;
     final adapter = RoomTransportHealthRuntimeAdapter(runtime);
     await adapter.attach(
       kind: transportKindFor(modeStore.mode),
