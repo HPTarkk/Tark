@@ -108,8 +108,7 @@ final class SelectedRoomLiveSessionBinding {
     final snapshotSource = transfer is ConnectionHealthSnapshot
         ? transfer as ConnectionHealthSnapshot
         : null;
-    final ConnectionHealth? Function()? healthSnapshot =
-        snapshotSource == null
+    final ConnectionHealth? Function()? healthSnapshot = snapshotSource == null
         ? null
         : () => snapshotSource.currentConnectionHealth;
     final adapter = RoomTransportHealthRuntimeAdapter(runtime);
