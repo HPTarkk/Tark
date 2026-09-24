@@ -53,6 +53,11 @@ void main() {
       // raise one while somebody else was doing the inviting.
       expect(lobby, isNot(contains('PreLiveHotspotBootstrap')));
       expect(entry, contains('PreLiveHotspotBootstrap().prepareHost()'));
+      // The joiner goes through the same bridge funnel as the host. The raw
+      // HotspotJoiner associated the phone and nothing else: no link keeper,
+      // no keep-alive, no dropping this phone's own AP first.
+      expect(entry, contains('PreLiveHotspotBootstrap().joinHost('));
+      expect(entry, isNot(contains('HotspotJoiner>().join(')));
       expect(sheet, isNot(contains('PreLiveHotspotBootstrap()')));
       expect(
         bootstrap,

@@ -585,7 +585,8 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
             transportEpoch: transportEpoch,
             timeout: _handoffTimeout,
           );
-      final joined = await GetIt.instance<HotspotJoiner>().join(credentials);
+      // Through the bridge, like the host: see [PreLiveHotspotBootstrap.joinHost].
+      final joined = await PreLiveHotspotBootstrap().joinHost(credentials);
       switch (joined) {
         case HotspotJoinResult.joined:
           await _modeStore?.setMode(TransferMode.hotspot);

@@ -6,6 +6,7 @@ import '../../../core/utils/logger.dart';
 import '../domain/entity/hotspot_credentials.dart';
 import '../domain/entity/session_role.dart';
 import '../domain/entity/wifi_hotspot_segment.dart';
+import '../domain/service/hotspot_control.dart';
 import '../domain/service/hotspot_link_keeper.dart';
 import '../domain/service/session_role_store.dart';
 import '../presentation/manager/wifi_hotspot_cubit.dart';
@@ -24,12 +25,30 @@ import '../presentation/manager/wifi_hotspot_cubit.dart';
 /// phone is the creator/host side. Durable Room invite authority is never read
 /// here and therefore cannot make two authorised members both create an AP.
 class PreLiveHotspotBootstrap {
-  PreLiveHotspotBootstrap({Future<HotspotCredentials?> Function()? starter})
-    : _starter = starter ?? _startWithTransferBridge;
+  PreLiveHotspotBootstrap({
+    Future<HotspotCredentials?> Function()? starter,
+    Future<HotspotJoinResult> Function(HotspotCredentials)? joiner,
+  }) : _starter = starter ?? _startWithTransferBridge,
+       _joiner = joiner ?? _joinWithTransferBridge;
 
   final Future<HotspotCredentials?> Function() _starter;
+  final Future<HotspotJoinResult> Function(HotspotCredentials) _joiner;
 
   Future<HotspotCredentials?> prepareHost() => _starter();
+
+  /// Joins [credentials] through the same bridge funnel the manual hotspot
+  /// join has always used.
+  ///
+  /// Calling [HotspotJoiner.join] directly associated the phone and nothing
+  /// else. The bridge's join also drops any access point this phone still
+  /// holds (two live Wi-Fi networks make the native bind refuse to pick one),
+  /// hands the link to [HotspotLinkKeeper] (which rebinds the sockets when
+  /// Android moves the process and reports a lost AP), and starts the
+  /// keep-alive (wake and Wi-Fi locks) so the joiner does not doze while the
+  /// Room waits for its first proof. That is the path that connected phones
+  /// reliably before the Room flow existed.
+  Future<HotspotJoinResult> joinHost(HotspotCredentials credentials) =>
+      _joiner(credentials);
 
   static Future<HotspotCredentials?> _startWithTransferBridge() async {
     final getIt = GetIt.instance;
@@ -69,6 +88,33 @@ class PreLiveHotspotBootstrap {
       if (bridge.state.credentials == null) {
         await bridge.close();
       }
+    }
+  }
+
+  static Future<HotspotJoinResult> _joinWithTransferBridge(
+    HotspotCredentials credentials,
+  ) async {
+    final getIt = GetIt.instance;
+    if (!getIt.isRegistered<WifiHotspotCubit>()) {
+      return getIt<HotspotJoiner>().join(credentials);
+    }
+    final bridge = getIt<WifiHotspotCubit>();
+    try {
+      bridge.switchSegment(WifiHotspotSegment.hotspot);
+      if (bridge.state.role != HotspotRole.join) {
+        await bridge.chooseRole(HotspotRole.join);
+      }
+      await bridge.joinNetwork(credentials);
+      return switch (bridge.state.joinPhase) {
+        JoinPhase.joined => HotspotJoinResult.joined,
+        JoinPhase.wifiOff => HotspotJoinResult.wifiOff,
+        JoinPhase.locationOff => HotspotJoinResult.locationOff,
+        _ => HotspotJoinResult.declined,
+      };
+    } finally {
+      // As for the host: the link keeper and keep-alive now own the link, so
+      // the short-lived bridge is released without holding up the Room.
+      unawaited(_releaseBridgeAfterHandoff(bridge));
     }
   }
 
