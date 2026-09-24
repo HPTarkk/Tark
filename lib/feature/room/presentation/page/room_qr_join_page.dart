@@ -24,6 +24,7 @@ class RoomQrJoinPage extends StatefulWidget {
   const RoomQrJoinPage({
     required this.cubit,
     this.permissionGate,
+    this.locationGate,
     this.controlChannelFactory,
     super.key,
   });
@@ -41,6 +42,7 @@ class RoomQrJoinPage extends StatefulWidget {
   /// Seams for tests. Production asks for the Bluetooth permissions the
   /// rendezvous needs and dials over a fresh control channel.
   final RoomInvitePermissionGate? permissionGate;
+  final RoomScanLocationGate? locationGate;
   final RoomProximityControlChannel Function()? controlChannelFactory;
 
   @override
@@ -89,6 +91,16 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
       Logger.diagnostic(
         'room_join: permissions ok correlation=${rendezvous.correlation}',
       );
+      final locationReady =
+          await (widget.locationGate ?? roomScanLocationReady)();
+      if (!mounted) return false;
+      if (!locationReady) {
+        Logger.diagnostic(
+          'room_join: location off correlation=${rendezvous.correlation}',
+        );
+        setState(() => _error = context.getString.roomjoin_location_off);
+        return false;
+      }
 
       var myName = 'Tark';
       try {

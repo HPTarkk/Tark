@@ -1952,6 +1952,10 @@ class AppLocalizationsFa extends AppLocalizations {
   String get roomjoin_bluetooth_off => 'بلوتوث را روشن کن و دوباره اسکن کن.';
 
   @override
+  String get roomjoin_location_off =>
+      'در این گوشی، پیدا کردن گوشی‌های نزدیک به روشن بودن «موقعیت مکانی» نیاز دارد. آن را از تنظیمات سریع روشن کن و دوباره اسکن کن.';
+
+  @override
   String get roomjoin_host_not_found =>
       'گوشی میزبان پیدا نشد. دعوت را روی آن باز نگه دار، نزدیک بمان و دوباره اسکن کن.';
 

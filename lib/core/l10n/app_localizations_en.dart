@@ -1958,6 +1958,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get roomjoin_bluetooth_off => 'Turn on Bluetooth, then scan again.';
 
   @override
+  String get roomjoin_location_off =>
+      'On this phone, finding a nearby phone needs Location turned on. Turn it on in quick settings, then scan again.';
+
+  @override
   String get roomjoin_host_not_found =>
       'Couldn\'t find their phone. Keep the invite open on it, stay close, and scan again.';
 

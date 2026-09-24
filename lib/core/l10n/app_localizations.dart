@@ -3578,6 +3578,12 @@ abstract class AppLocalizations {
   /// **'بلوتوث را روشن کن و دوباره اسکن کن.'**
   String get roomjoin_bluetooth_off;
 
+  /// No description provided for @roomjoin_location_off.
+  ///
+  /// In fa, this message translates to:
+  /// **'در این گوشی، پیدا کردن گوشی‌های نزدیک به روشن بودن «موقعیت مکانی» نیاز دارد. آن را از تنظیمات سریع روشن کن و دوباره اسکن کن.'**
+  String get roomjoin_location_off;
+
   /// No description provided for @roomjoin_host_not_found.
   ///
   /// In fa, this message translates to:

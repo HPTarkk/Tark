@@ -51,3 +51,35 @@ Future<bool> ensureRoomInviteBluetoothPermissions({
     (permission) => statuses[permission]?.isGranted == true,
   );
 }
+
+typedef RoomScanLocationGate = Future<bool> Function();
+
+/// Whether Bluetooth scanning can find anyone right now.
+///
+/// Android 6–11 returns no scan results at all while the system Location
+/// switch is off, even with the permission granted. The rendezvous then
+/// times out and reads as "couldn't find their phone", which sends people to
+/// stand closer instead of flipping the switch. Android 12+ scans with
+/// `neverForLocation` and does not care.
+Future<bool> roomScanLocationReady({
+  TargetPlatform? platform,
+  Future<int> Function()? sdkVersion,
+  Future<ServiceStatus> Function()? locationService,
+}) async {
+  if ((platform ?? defaultTargetPlatform) != TargetPlatform.android) {
+    return true;
+  }
+  try {
+    if (await (sdkVersion ?? AndroidSdk.version)() >= 31) return true;
+    final status =
+        await (locationService ??
+            () => Permission.locationWhenInUse.serviceStatus)();
+    return status != ServiceStatus.disabled;
+  } catch (error) {
+    Logger.diagnostic(
+      'room_join: location check failed error=${error.runtimeType}',
+    );
+    // Unknown is not "off": let the scan run and speak for itself.
+    return true;
+  }
+}

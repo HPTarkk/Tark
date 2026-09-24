@@ -46,6 +46,7 @@ void main() {
     WidgetTester tester, {
     required bool permitted,
     bool bluetoothOn = true,
+    bool locationReady = true,
     Duration findTimeout = const Duration(seconds: 30),
   }) async {
     engine = _Engine(bluetoothOn: bluetoothOn);
@@ -57,6 +58,7 @@ void main() {
           builder: (_, _) => RoomQrJoinPage(
             cubit: _FakeRoomList(),
             permissionGate: () async => permitted,
+            locationGate: () async => locationReady,
             controlChannelFactory: () => RoomProximityControlChannel(
               engine: engine,
               findTimeout: findTimeout,
@@ -93,6 +95,24 @@ void main() {
       errorOn(tester),
       'Joining needs the Nearby devices permission. Allow it, then scan again.',
     );
+    expect(engine.scanned, isFalse);
+  });
+
+  testWidgets('with Location off on Android 6-11 it says so and never scans', (
+    tester,
+  ) async {
+    final surface = await pumpScanner(
+      tester,
+      permitted: true,
+      locationReady: false,
+    );
+
+    expect(await surface.onCode(invite), isFalse);
+    await tester.pump();
+
+    // Not "couldn't find their phone": the scan would have come back empty
+    // however close the two phones stood.
+    expect(errorOn(tester), contains('needs Location turned on'));
     expect(engine.scanned, isFalse);
   });
 
