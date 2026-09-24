@@ -464,6 +464,12 @@ class AppLocalizationsFa extends AppLocalizations {
   String get theme_light => 'روشن';
 
   @override
+  String get onb_theme_day => 'روز';
+
+  @override
+  String get onb_theme_night => 'شب';
+
+  @override
   String get noise_filter => 'صدای مزاحم اطراف';
 
   @override

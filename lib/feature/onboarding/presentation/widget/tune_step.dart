@@ -54,7 +54,8 @@ class TuneStep extends StatelessWidget {
                         compact: true,
                         selected: isFa,
                         label: 'فارسی',
-                        onTap: () => LocaleService.setLocale(const Locale('fa')),
+                        onTap: () =>
+                            LocaleService.setLocale(const Locale('fa')),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -63,7 +64,8 @@ class TuneStep extends StatelessWidget {
                         compact: true,
                         selected: !isFa,
                         label: 'English',
-                        onTap: () => LocaleService.setLocale(const Locale('en')),
+                        onTap: () =>
+                            LocaleService.setLocale(const Locale('en')),
                       ),
                     ),
                   ],

@@ -77,7 +77,11 @@ class ReadyStep extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(_modeIcon(state.mode), size: 15, color: Onb.text),
+                            Icon(
+                              _modeIcon(state.mode),
+                              size: 15,
+                              color: Onb.text,
+                            ),
                             const SizedBox(width: 7),
                             Flexible(
                               child: Text(
@@ -163,7 +167,11 @@ class _Tip extends StatelessWidget {
         Expanded(
           child: Text(
             text,
-            style: const TextStyle(color: Onb.textDim, fontSize: 11.5, height: 1.45),
+            style: const TextStyle(
+              color: Onb.textDim,
+              fontSize: 11.5,
+              height: 1.45,
+            ),
           ),
         ),
       ],

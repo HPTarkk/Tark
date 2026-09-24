@@ -142,6 +142,8 @@
     "bt_back": "BACK",
     "theme_dark": "DARK",
     "theme_light": "LIGHT",
+    "onb_theme_day": "DAY",
+    "onb_theme_night": "NIGHT",
     "noise_filter": "BACKGROUND NOISE",
     "noise_filter_off": "OFF",
     "noise_filter_weak": "LOW",

@@ -89,7 +89,11 @@ class _CallsignStepState extends State<CallsignStep> {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  const Icon(Icons.info_outline_rounded, size: 13, color: Onb.textDim),
+                  const Icon(
+                    Icons.info_outline_rounded,
+                    size: 13,
+                    color: Onb.textDim,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(

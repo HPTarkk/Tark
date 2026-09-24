@@ -52,7 +52,10 @@ class WelcomeStep extends StatelessWidget {
             const SizedBox(height: 16),
             _Fact(icon: Icons.lan_rounded, text: s.onboarding_info_lan),
             const _FactGap(),
-            _Fact(icon: Icons.cloud_off_rounded, text: s.onboarding_info_private),
+            _Fact(
+              icon: Icons.cloud_off_rounded,
+              text: s.onboarding_info_private,
+            ),
             const _FactGap(),
             _Fact(
               text: s.onboarding_info_vox,

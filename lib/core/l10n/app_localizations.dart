@@ -956,6 +956,18 @@ abstract class AppLocalizations {
   /// **'روشن'**
   String get theme_light;
 
+  /// No description provided for @onb_theme_day.
+  ///
+  /// In fa, this message translates to:
+  /// **'روز'**
+  String get onb_theme_day;
+
+  /// No description provided for @onb_theme_night.
+  ///
+  /// In fa, this message translates to:
+  /// **'شب'**
+  String get onb_theme_night;
+
   /// No description provided for @noise_filter.
   ///
   /// In fa, this message translates to:

@@ -464,6 +464,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get theme_light => 'LIGHT';
 
   @override
+  String get onb_theme_day => 'DAY';
+
+  @override
+  String get onb_theme_night => 'NIGHT';
+
+  @override
   String get noise_filter => 'BACKGROUND NOISE';
 
   @override

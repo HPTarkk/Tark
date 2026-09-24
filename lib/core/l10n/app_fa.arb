@@ -142,6 +142,8 @@
     "bt_back": "بازگشت",
     "theme_dark": "تاریک",
     "theme_light": "روشن",
+    "onb_theme_day": "روز",
+    "onb_theme_night": "شب",
     "noise_filter": "صدای مزاحم اطراف",
     "noise_filter_off": "خاموش",
     "noise_filter_weak": "کم",

@@ -301,7 +301,7 @@ class HudSunMoonTiles extends StatelessWidget {
           child: _Plate(
             selected: !night,
             glow: glow,
-            label: 'DAY',
+            label: context.getString.onb_theme_day,
             onTap: () => onSelect(false),
             glyph: _SunGlyph(color: !night ? Onb.amber : Onb.textDim),
           ),
@@ -311,7 +311,7 @@ class HudSunMoonTiles extends StatelessWidget {
           child: _Plate(
             selected: night,
             glow: glow,
-            label: 'NIGHT',
+            label: context.getString.onb_theme_night,
             onTap: () => onSelect(true),
             glyph: _MoonGlyph(color: night ? Onb.text : Onb.textDim),
           ),

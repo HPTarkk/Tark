@@ -207,8 +207,10 @@ class _WindPainter extends CustomPainter {
         final f1 = (i + 1) / _seg;
         final xA = headX - f0 * len;
         final xB = headX - f1 * len;
-        final yA = baseY + s.swayAmp * sin(s.swayFreq * t + s.swayPhase + xA * 0.012);
-        final yB = baseY + s.swayAmp * sin(s.swayFreq * t + s.swayPhase + xB * 0.012);
+        final yA =
+            baseY + s.swayAmp * sin(s.swayFreq * t + s.swayPhase + xA * 0.012);
+        final yB =
+            baseY + s.swayAmp * sin(s.swayFreq * t + s.swayPhase + xB * 0.012);
         // Brightest at the head, tapering to transparent at the tail.
         final a = (headAlpha * (1 - f0) * fade).clamp(0.0, 255.0);
         paint

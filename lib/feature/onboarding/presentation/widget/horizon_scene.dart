@@ -207,7 +207,13 @@ class _GroundPainter extends CustomPainter {
     // 1→0 wrap; the old fractional speeds (e.g. 1.6) left the offset snapping
     // back mid-stream every loop, so the road looked like it jumped to the
     // start every few seconds.
-    void dashRow(double yFrac, double period, double dashW, int cycles, Paint paint) {
+    void dashRow(
+      double yFrac,
+      double period,
+      double dashW,
+      int cycles,
+      Paint paint,
+    ) {
       final y = horizonY + (h - horizonY) * yFrac;
       final shift = (scroll * cycles % 1.0) * period;
       for (double x = -period + shift; x < w + period; x += period) {
@@ -308,7 +314,12 @@ class _Geometry {
     return _Geometry(
       size: size,
       skyRect: Rect.fromLTWH(0, 0, size.width, horizonY + 2),
-      groundRect: Rect.fromLTWH(0, horizonY, size.width, size.height - horizonY),
+      groundRect: Rect.fromLTWH(
+        0,
+        horizonY,
+        size.width,
+        size.height - horizonY,
+      ),
       ridges: ridges,
       ridgePans: pans,
       stars: stars,

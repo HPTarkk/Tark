@@ -118,9 +118,7 @@ class AssemblingRadio extends StatelessWidget {
                     boxShadow: step >= _powered
                         ? [
                             BoxShadow(
-                              color: Onb.amber.withAlpha(
-                                (120 * glow).toInt(),
-                              ),
+                              color: Onb.amber.withAlpha((120 * glow).toInt()),
                               blurRadius: 10,
                               spreadRadius: 1,
                             ),
@@ -182,10 +180,7 @@ class AssemblingRadio extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color.lerp(Onb.panel, Colors.white, 0.04)!,
-            Onb.panelHi,
-          ],
+          colors: [Color.lerp(Onb.panel, Colors.white, 0.04)!, Onb.panelHi],
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
@@ -234,9 +229,7 @@ class AssemblingRadio extends StatelessWidget {
           height: 9,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: powered
-                ? Onb.green
-                : Onb.textDim.withAlpha(90),
+            color: powered ? Onb.green : Onb.textDim.withAlpha(90),
             boxShadow: powered
                 ? [
                     BoxShadow(
@@ -354,10 +347,7 @@ class AssemblingRadio extends StatelessWidget {
                   ),
                 ),
               Center(
-                child: Opacity(
-                  opacity: lit,
-                  child: _screenContent(context),
-                ),
+                child: Opacity(opacity: lit, child: _screenContent(context)),
               ),
             ],
           ),
@@ -453,7 +443,10 @@ class AssemblingRadio extends StatelessWidget {
             opacity: e,
             child: Transform.translate(
               offset: Offset(26 * (1 - t), 0),
-              child: Transform.scale(scale: 0.7 + 0.3 * e, child: _moduleChip()),
+              child: Transform.scale(
+                scale: 0.7 + 0.3 * e,
+                child: _moduleChip(),
+              ),
             ),
           );
         },
