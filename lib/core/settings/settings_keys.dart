@@ -74,4 +74,9 @@ abstract final class SettingsKeys {
   /// Highest wall-clock instant ever observed, in epoch ms. Guards the trial
   /// against a device date wound backwards; see EntitlementStoreImpl.now.
   static const clockHighWaterMark = 'clock_high_water_mark';
+
+  /// Prefix for the member who last raised a Room's hotspot, one key per
+  /// Room id. Both phones read the same answer when Start finds no link, so
+  /// they agree on who shows the code and who scans it without a connection.
+  static const roomLastHotspotHostPrefix = 'room_last_hotspot_host_';
 }

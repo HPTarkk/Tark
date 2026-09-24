@@ -3614,6 +3614,132 @@ abstract class AppLocalizations {
   /// **'این کد مال «ترک» نیست. کد دعوت یا کد وای‌فای روی گوشی میزبان را اسکن کن.'**
   String get roomjoin_not_our_code;
 
+  /// No description provided for @reconnect_show_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'وصل شدن به {name}'**
+  String reconnect_show_title(String name);
+
+  /// No description provided for @reconnect_show_step_start.
+  ///
+  /// In fa, this message translates to:
+  /// **'روی گوشی {name}، همین اتاق را باز کند و «شروع» را بزند.'**
+  String reconnect_show_step_start(String name);
+
+  /// No description provided for @reconnect_show_step_hold.
+  ///
+  /// In fa, this message translates to:
+  /// **'دوربینش خودش باز می‌شود. این کد را جلوی آن بگیر.'**
+  String get reconnect_show_step_hold;
+
+  /// No description provided for @reconnect_waiting.
+  ///
+  /// In fa, this message translates to:
+  /// **'در انتظار {name}…'**
+  String reconnect_waiting(String name);
+
+  /// No description provided for @reconnect_preparing.
+  ///
+  /// In fa, this message translates to:
+  /// **'گوشی‌ات را آماده می‌کنیم…'**
+  String get reconnect_preparing;
+
+  /// No description provided for @reconnect_connecting.
+  ///
+  /// In fa, this message translates to:
+  /// **'وصل شد — تماس را باز می‌کنیم…'**
+  String get reconnect_connecting;
+
+  /// No description provided for @reconnect_switch_to_scan.
+  ///
+  /// In fa, this message translates to:
+  /// **'به‌جایش کد او را اسکن کن'**
+  String get reconnect_switch_to_scan;
+
+  /// No description provided for @reconnect_switch_to_show.
+  ///
+  /// In fa, this message translates to:
+  /// **'به‌جایش کد من را نشان بده'**
+  String get reconnect_switch_to_show;
+
+  /// No description provided for @reconnect_scan_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'کد او را اسکن کن'**
+  String get reconnect_scan_title;
+
+  /// No description provided for @reconnect_scan_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'دوربین را روی کدِ گوشی {name} بگیر.'**
+  String reconnect_scan_hint(String name);
+
+  /// No description provided for @reconnect_scan_searching.
+  ///
+  /// In fa, this message translates to:
+  /// **'در جست‌وجوی کد'**
+  String get reconnect_scan_searching;
+
+  /// No description provided for @reconnect_scan_locked.
+  ///
+  /// In fa, this message translates to:
+  /// **'کد پیدا شد'**
+  String get reconnect_scan_locked;
+
+  /// No description provided for @reconnect_scan_busy.
+  ///
+  /// In fa, this message translates to:
+  /// **'در حال وصل شدن'**
+  String get reconnect_scan_busy;
+
+  /// No description provided for @reconnect_cannot_host.
+  ///
+  /// In fa, this message translates to:
+  /// **'این گوشی نمی‌تواند اتصال را به اشتراک بگذارد. روی گوشی {name} «به‌جایش کد من را نشان بده» را بزند و کدش را همین‌جا اسکن کن.'**
+  String reconnect_cannot_host(String name);
+
+  /// No description provided for @reconnect_not_our_code.
+  ///
+  /// In fa, this message translates to:
+  /// **'این کدِ اتصال «ترک» نیست. کدِ روی گوشی {name} را اسکن کن.'**
+  String reconnect_not_our_code(String name);
+
+  /// No description provided for @reconnect_wifi_off.
+  ///
+  /// In fa, this message translates to:
+  /// **'وای‌فای این گوشی را روشن کن و دوباره اسکن کن.'**
+  String get reconnect_wifi_off;
+
+  /// No description provided for @reconnect_location_off.
+  ///
+  /// In fa, this message translates to:
+  /// **'«موقعیت مکانی» این گوشی را روشن کن و دوباره اسکن کن.'**
+  String get reconnect_location_off;
+
+  /// No description provided for @reconnect_join_failed.
+  ///
+  /// In fa, this message translates to:
+  /// **'وصل نشد. گوشی‌ها را نزدیک هم نگه دار و دوباره اسکن کن.'**
+  String get reconnect_join_failed;
+
+  /// No description provided for @reconnect_host_failed.
+  ///
+  /// In fa, this message translates to:
+  /// **'این گوشی نتوانست اشتراک‌گذاری را شروع کند. دوباره امتحان کن، یا «به‌جایش کد او را اسکن کن» را بزن.'**
+  String get reconnect_host_failed;
+
+  /// No description provided for @reconnect_retry.
+  ///
+  /// In fa, this message translates to:
+  /// **'دوباره امتحان کن'**
+  String get reconnect_retry;
+
+  /// No description provided for @lobby_use_home_wifi.
+  ///
+  /// In fa, this message translates to:
+  /// **'روی یک وای‌فای هستید؟ از همان وصل شو'**
+  String get lobby_use_home_wifi;
+
   /// No description provided for @roomjoin_other_version.
   ///
   /// In fa, this message translates to:

@@ -1979,6 +1979,86 @@ class AppLocalizationsEn extends AppLocalizations {
       'That code isn\'t a Tarkk one. Scan the invite, or the Wi-Fi code, from the host\'s phone.';
 
   @override
+  String reconnect_show_title(String name) {
+    return 'Connect with $name';
+  }
+
+  @override
+  String reconnect_show_step_start(String name) {
+    return 'On $name\'s phone, open this room and tap Start.';
+  }
+
+  @override
+  String get reconnect_show_step_hold =>
+      'Their camera opens by itself. Hold this code in front of it.';
+
+  @override
+  String reconnect_waiting(String name) {
+    return 'Waiting for $name…';
+  }
+
+  @override
+  String get reconnect_preparing => 'Getting your phone ready…';
+
+  @override
+  String get reconnect_connecting => 'Connected — opening the call…';
+
+  @override
+  String get reconnect_switch_to_scan => 'Scan their code instead';
+
+  @override
+  String get reconnect_switch_to_show => 'Show my code instead';
+
+  @override
+  String get reconnect_scan_title => 'SCAN THEIR CODE';
+
+  @override
+  String reconnect_scan_hint(String name) {
+    return 'Point the camera at the code on $name\'s phone.';
+  }
+
+  @override
+  String get reconnect_scan_searching => 'LOOKING FOR THE CODE';
+
+  @override
+  String get reconnect_scan_locked => 'CODE FOUND';
+
+  @override
+  String get reconnect_scan_busy => 'CONNECTING';
+
+  @override
+  String reconnect_cannot_host(String name) {
+    return 'This phone can\'t share a connection. On $name\'s phone, tap “Show my code instead”, then scan it here.';
+  }
+
+  @override
+  String reconnect_not_our_code(String name) {
+    return 'That isn\'t a Tarkk connection code. Scan the code on $name\'s phone.';
+  }
+
+  @override
+  String get reconnect_wifi_off =>
+      'Turn on Wi-Fi on this phone, then scan again.';
+
+  @override
+  String get reconnect_location_off =>
+      'Turn on Location on this phone, then scan again.';
+
+  @override
+  String get reconnect_join_failed =>
+      'Couldn\'t connect. Keep the phones close and scan again.';
+
+  @override
+  String get reconnect_host_failed =>
+      'This phone couldn\'t start sharing. Try again, or tap “Scan their code instead”.';
+
+  @override
+  String get reconnect_retry => 'Try again';
+
+  @override
+  String get lobby_use_home_wifi => 'On the same Wi-Fi? Connect through it';
+
+  @override
   String get roomjoin_other_version =>
       'This invite is from a different version of Tarkk. Update the app on both phones, then scan a fresh invite.';
 

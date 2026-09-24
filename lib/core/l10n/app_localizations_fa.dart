@@ -1973,6 +1973,86 @@ class AppLocalizationsFa extends AppLocalizations {
       'این کد مال «ترک» نیست. کد دعوت یا کد وای‌فای روی گوشی میزبان را اسکن کن.';
 
   @override
+  String reconnect_show_title(String name) {
+    return 'وصل شدن به $name';
+  }
+
+  @override
+  String reconnect_show_step_start(String name) {
+    return 'روی گوشی $name، همین اتاق را باز کند و «شروع» را بزند.';
+  }
+
+  @override
+  String get reconnect_show_step_hold =>
+      'دوربینش خودش باز می‌شود. این کد را جلوی آن بگیر.';
+
+  @override
+  String reconnect_waiting(String name) {
+    return 'در انتظار $name…';
+  }
+
+  @override
+  String get reconnect_preparing => 'گوشی‌ات را آماده می‌کنیم…';
+
+  @override
+  String get reconnect_connecting => 'وصل شد — تماس را باز می‌کنیم…';
+
+  @override
+  String get reconnect_switch_to_scan => 'به‌جایش کد او را اسکن کن';
+
+  @override
+  String get reconnect_switch_to_show => 'به‌جایش کد من را نشان بده';
+
+  @override
+  String get reconnect_scan_title => 'کد او را اسکن کن';
+
+  @override
+  String reconnect_scan_hint(String name) {
+    return 'دوربین را روی کدِ گوشی $name بگیر.';
+  }
+
+  @override
+  String get reconnect_scan_searching => 'در جست‌وجوی کد';
+
+  @override
+  String get reconnect_scan_locked => 'کد پیدا شد';
+
+  @override
+  String get reconnect_scan_busy => 'در حال وصل شدن';
+
+  @override
+  String reconnect_cannot_host(String name) {
+    return 'این گوشی نمی‌تواند اتصال را به اشتراک بگذارد. روی گوشی $name «به‌جایش کد من را نشان بده» را بزند و کدش را همین‌جا اسکن کن.';
+  }
+
+  @override
+  String reconnect_not_our_code(String name) {
+    return 'این کدِ اتصال «ترک» نیست. کدِ روی گوشی $name را اسکن کن.';
+  }
+
+  @override
+  String get reconnect_wifi_off =>
+      'وای‌فای این گوشی را روشن کن و دوباره اسکن کن.';
+
+  @override
+  String get reconnect_location_off =>
+      '«موقعیت مکانی» این گوشی را روشن کن و دوباره اسکن کن.';
+
+  @override
+  String get reconnect_join_failed =>
+      'وصل نشد. گوشی‌ها را نزدیک هم نگه دار و دوباره اسکن کن.';
+
+  @override
+  String get reconnect_host_failed =>
+      'این گوشی نتوانست اشتراک‌گذاری را شروع کند. دوباره امتحان کن، یا «به‌جایش کد او را اسکن کن» را بزن.';
+
+  @override
+  String get reconnect_retry => 'دوباره امتحان کن';
+
+  @override
+  String get lobby_use_home_wifi => 'روی یک وای‌فای هستید؟ از همان وصل شو';
+
+  @override
   String get roomjoin_other_version =>
       'این دعوت با نسخهٔ دیگری از «ترک» ساخته شده. برنامه را روی هر دو گوشی به‌روز کن و دعوت تازه‌ای را اسکن کن.';
 

@@ -34,6 +34,7 @@ class SelectedRoomLobby extends StatefulWidget {
     this.link,
     this.mode,
     this.onConnect,
+    this.onUseHomeWifi,
     this.repository,
     super.key,
   });
@@ -56,6 +57,11 @@ class SelectedRoomLobby extends StatefulWidget {
   /// Connecting the phones by hand. Shown only inside the failure callout,
   /// and only for failures the caller says it can help with.
   final VoidCallback? onConnect;
+
+  /// Start over the Wi-Fi network this phone is already on, instead of the
+  /// phones' own connection. Offered only when the caller sees one: a home
+  /// router is never used unless somebody asks for it here.
+  final VoidCallback? onUseHomeWifi;
   final RoomRepository? repository;
 
   @override
@@ -247,6 +253,23 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
                   height: 1.5,
                 ),
               ),
+            if (!alone && !_connecting && widget.onUseHomeWifi != null) ...[
+              const SizedBox(height: 8),
+              Center(
+                child: TextButton.icon(
+                  key: const Key('selected-room-use-home-wifi'),
+                  onPressed: () {
+                    HapticFeedback.selectionClick();
+                    widget.onUseHomeWifi!();
+                  },
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.textSecondary,
+                  ),
+                  icon: const Icon(Icons.wifi_rounded, size: 18),
+                  label: Text(s.lobby_use_home_wifi),
+                ),
+              ),
+            ],
           ],
         ),
       ),

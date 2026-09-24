@@ -6,6 +6,7 @@ library;
 
 export '../data/proximity/room_proximity_control_session_registry.dart'
     show RoomHotspotHostDeclined, RoomProximityControlSessionRegistry;
+export '../data/repository/room_hotspot_history.dart' show RoomHotspotHistory;
 export '../domain/entity/held_seat_name.dart' show isHeldSeatPlaceholder;
 export '../domain/entity/room.dart' show RoomMember, RoomMemberId, SavedRoom;
 export '../domain/repository/room_repository.dart' show RoomRepository;
@@ -42,4 +43,10 @@ export '../presentation/widget/room_connection_status_scope.dart'
         RoomConnectionStatusData,
         RoomConnectionStatusScope,
         RoomConnectionUiPhase;
+export '../presentation/widget/room_reconnect_view.dart'
+    show
+        RoomReconnectModel,
+        RoomReconnectPhase,
+        RoomReconnectSide,
+        RoomReconnectView;
 export '../presentation/widget/selected_room_lobby.dart' show SelectedRoomLobby;
