@@ -1,0 +1,84 @@
+name: Cleanup merged branches
+
+# Manual-only. Deletes branches that are fully merged into main or release/1.0.0.
+# Nothing is lost: every commit on a deleted branch still lives in main/release.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type DELETE to actually delete. Anything else = dry run.'
+        required: true
+        default: 'dry-run'
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute and delete merged branches
+        env:
+          CONFIRM: ${{ github.event.inputs.confirm }}
+        run: |
+          set -uo pipefail
+          KEEP_RE='^(main|release/1\.0\.0|chore/release-tark-once)$'
+
+          git fetch --prune origin '+refs/heads/*:refs/remotes/origin/*'
+
+          BASES=(origin/main)
+          git show-ref --verify --quiet refs/remotes/origin/release/1.0.0 \
+            && BASES+=(origin/release/1.0.0)
+
+          TO_DELETE=()
+          while read -r b; do
+            [ -z "$b" ] && continue
+            echo "$b" | grep -qE "$KEEP_RE" && continue
+            for base in "${BASES[@]}"; do
+              if git merge-base --is-ancestor "origin/$b" "$base" 2>/dev/null; then
+                TO_DELETE+=("$b"); break
+              fi
+            done
+          done < <(git branch -r | sed 's|^ *origin/||' | grep -v '^HEAD' | sort -u)
+
+          echo "=============================================="
+          echo "Merged branches selected: ${#TO_DELETE[@]}"
+          for b in "${TO_DELETE[@]}"; do
+            printf '  %-50s %s\n' "$b" "$(git rev-parse --short "origin/$b")"
+          done
+          echo "=============================================="
+
+          {
+            echo "### Merged-branch cleanup"
+            echo ""
+            echo "Selected: **${#TO_DELETE[@]}** branches"
+            echo ""
+            echo '| branch | sha (restore with `git push origin <sha>:refs/heads/<branch>`) |'
+            echo '| --- | --- |'
+            for b in "${TO_DELETE[@]}"; do
+              echo "| \`$b\` | \`$(git rev-parse "origin/$b")\` |"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "${#TO_DELETE[@]}" -eq 0 ]; then
+            echo "Nothing to do."; exit 0
+          fi
+
+          if [ "$CONFIRM" != "DELETE" ]; then
+            echo ""
+            echo "DRY RUN - nothing deleted. Re-run with confirm=DELETE to apply."
+            echo "**DRY RUN — nothing deleted.**" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          for ((i=0; i<${#TO_DELETE[@]}; i+=20)); do
+            batch=("${TO_DELETE[@]:i:20}")
+            git push origin --delete "${batch[@]}" \
+              && echo "deleted ${#batch[@]}" \
+              || { echo "FAILED batch at $i"; exit 1; }
+          done
+          echo "**Deleted ${#TO_DELETE[@]} branches.**" >> "$GITHUB_STEP_SUMMARY"
