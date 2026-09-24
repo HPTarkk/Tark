@@ -77,95 +77,101 @@ class _MicControlState extends State<MicControl> {
             final muted = state.isSelfMuted;
             // Live = green (channel can hear you); muted = red (you're cut off).
             final accent = muted ? AppColors.red : AppColors.green;
-            return GestureDetector(
-              onTap: () => _toggle(context),
-              onTapDown: (_) => setState(() => _pressed = true),
-              onTapUp: (_) => setState(() => _pressed = false),
-              onTapCancel: () => setState(() => _pressed = false),
-              child: AnimatedScale(
-                scale: _pressed ? 0.97 : 1.0,
-                duration: const Duration(milliseconds: 110),
-                curve: Curves.easeOut,
-                child: AnimatedContainer(
-                  duration: _kDur,
-                  curve: _kCurve,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: muted
-                        ? Color.alphaBlend(
-                            AppColors.red.withAlpha(22),
-                            AppColors.card,
-                          )
-                        : AppColors.card,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: muted ? accent.withAlpha(150) : AppColors.border,
-                      width: muted ? 1.5 : 1,
-                    ),
-                    boxShadow: muted
-                        ? [
-                            BoxShadow(
-                              color: accent.withAlpha(30),
-                              blurRadius: 18,
-                              spreadRadius: 1,
-                            ),
-                          ]
-                        : null,
-                  ),
-                  child: Row(
-                    children: [
-                      _MicBadge(muted: muted, accent: accent),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            TickerText(
-                              text: muted
-                                  ? s.mic_muted_title
-                                  : s.mic_live_title,
-                              duration: _kDur,
-                              curve: _kCurve,
-                              maxLines: 1,
-                              textAlign: TextAlign.start,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: AppColors.textPrimary,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 1.5,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            TickerText(
-                              text: muted
-                                  ? s.mic_muted_label
-                                  : s.mic_live_label,
-                              duration: _kDur,
-                              curve: _kCurve,
-                              maxLines: 1,
-                              textAlign: TextAlign.start,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 11.5,
-                              ),
-                            ),
-                          ],
-                        ),
+            // A bare GestureDetector is invisible to TalkBack as a control:
+            // it read the title text and gave no way to know it toggles.
+            return Semantics(
+              button: true,
+              toggled: !muted,
+              child: GestureDetector(
+                onTap: () => _toggle(context),
+                onTapDown: (_) => setState(() => _pressed = true),
+                onTapUp: (_) => setState(() => _pressed = false),
+                onTapCancel: () => setState(() => _pressed = false),
+                child: AnimatedScale(
+                  scale: _pressed ? 0.97 : 1.0,
+                  duration: const Duration(milliseconds: 110),
+                  curve: Curves.easeOut,
+                  child: AnimatedContainer(
+                    duration: _kDur,
+                    curve: _kCurve,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: muted
+                          ? Color.alphaBlend(
+                              AppColors.red.withAlpha(22),
+                              AppColors.card,
+                            )
+                          : AppColors.card,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: muted ? accent.withAlpha(150) : AppColors.border,
+                        width: muted ? 1.5 : 1,
                       ),
-                      const SizedBox(width: 8),
-                      if (_lockedFor(muted)) ...[
-                        Icon(
-                          Icons.lock_rounded,
-                          size: 13,
-                          color: AppColors.amber.withAlpha(200),
+                      boxShadow: muted
+                          ? [
+                              BoxShadow(
+                                color: accent.withAlpha(30),
+                                blurRadius: 18,
+                                spreadRadius: 1,
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Row(
+                      children: [
+                        _MicBadge(muted: muted, accent: accent),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              TickerText(
+                                text: muted
+                                    ? s.mic_muted_title
+                                    : s.mic_live_title,
+                                duration: _kDur,
+                                curve: _kCurve,
+                                maxLines: 1,
+                                textAlign: TextAlign.start,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 1.5,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              TickerText(
+                                text: muted
+                                    ? s.mic_muted_label
+                                    : s.mic_live_label,
+                                duration: _kDur,
+                                curve: _kCurve,
+                                maxLines: 1,
+                                textAlign: TextAlign.start,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 11.5,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 8),
+                        if (_lockedFor(muted)) ...[
+                          Icon(
+                            Icons.lock_rounded,
+                            size: 13,
+                            color: AppColors.amber.withAlpha(200),
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                        _ActionChip(muted: muted, accent: accent),
                       ],
-                      _ActionChip(muted: muted, accent: accent),
-                    ],
+                    ),
                   ),
                 ),
               ),

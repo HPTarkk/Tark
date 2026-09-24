@@ -377,35 +377,42 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
     final s = context.getString;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-      child: GestureDetector(
-        onTap: () => _confirmLeave(context),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 15),
-          decoration: BoxDecoration(
-            color: AppColors.red.withAlpha(18),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.red.withAlpha(90), width: 1.5),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.power_settings_new_rounded,
-                color: AppColors.red.withAlpha(210),
-                size: 18,
+      // Announced as a button; a bare GestureDetector was read as plain text.
+      child: Semantics(
+        button: true,
+        child: GestureDetector(
+          onTap: () => _confirmLeave(context),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 15),
+            decoration: BoxDecoration(
+              color: AppColors.red.withAlpha(18),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: AppColors.red.withAlpha(90),
+                width: 1.5,
               ),
-              const SizedBox(width: 10),
-              Text(
-                s.leave_channel,
-                style: TextStyle(
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.power_settings_new_rounded,
                   color: AppColors.red.withAlpha(210),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.5,
+                  size: 18,
                 ),
-              ),
-            ],
+                const SizedBox(width: 10),
+                Text(
+                  s.leave_channel,
+                  style: TextStyle(
+                    color: AppColors.red.withAlpha(210),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

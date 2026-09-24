@@ -20,7 +20,12 @@ class _Tip {
   final String title;
   final String body;
 
-  const _Tip({required this.asset, required this.lightAsset, required this.title, required this.body});
+  const _Tip({
+    required this.asset,
+    required this.lightAsset,
+    required this.title,
+    required this.body,
+  });
 }
 
 /// One-time (ever) usage-tips bottom sheet — practical suggestions for a
@@ -99,7 +104,10 @@ class _UsageTipsSheetState extends State<_UsageTipsSheet> {
     if (_isLastPage) {
       Navigator.of(context).pop();
     } else {
-      _controller.nextPage(duration: const Duration(milliseconds: 450), curve: Curves.easeOutCubic);
+      _controller.nextPage(
+        duration: const Duration(milliseconds: 450),
+        curve: Curves.easeOutCubic,
+      );
     }
   }
 
@@ -112,7 +120,10 @@ class _UsageTipsSheetState extends State<_UsageTipsSheet> {
     // Only the artwork carousel has a fixed height; the text below it sizes
     // to its own content (a Stack of all three tips), so descriptions can
     // never be clipped no matter the screen.
-    final artHeight = (MediaQuery.sizeOf(context).height * 0.30).clamp(180.0, 270.0);
+    final artHeight = (MediaQuery.sizeOf(context).height * 0.30).clamp(
+      180.0,
+      270.0,
+    );
     return SafeArea(
       child: Container(
         margin: const EdgeInsets.all(12),
@@ -121,7 +132,13 @@ class _UsageTipsSheetState extends State<_UsageTipsSheet> {
           color: AppColors.card,
           borderRadius: BorderRadius.circular(28),
           border: Border.all(color: AppColors.amber.withAlpha(90)),
-          boxShadow: [BoxShadow(color: AppColors.amber.withAlpha(30), blurRadius: 40, spreadRadius: -6)],
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.amber.withAlpha(30),
+              blurRadius: 40,
+              spreadRadius: -6,
+            ),
+          ],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -138,13 +155,21 @@ class _UsageTipsSheetState extends State<_UsageTipsSheet> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.tips_and_updates_rounded, size: 17, color: AppColors.amber),
+                Icon(
+                  Icons.tips_and_updates_rounded,
+                  size: 17,
+                  color: AppColors.amber,
+                ),
                 const SizedBox(width: 8),
                 Flexible(
                   child: Text(
                     s.usage_tips_title,
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w800),
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
               ],
@@ -159,7 +184,9 @@ class _UsageTipsSheetState extends State<_UsageTipsSheet> {
                 itemBuilder: (context, i) => _ParallaxArt(
                   index: i,
                   controller: _controller,
-                  child: isDark ? widget.tips[i].asset : widget.tips[i].lightAsset,
+                  child: isDark
+                      ? widget.tips[i].asset
+                      : widget.tips[i].lightAsset,
                 ),
               ),
             ),
@@ -175,11 +202,22 @@ class _UsageTipsSheetState extends State<_UsageTipsSheet> {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 decoration: BoxDecoration(
-                  color: _isLastPage ? AppColors.amber : AppColors.amber.withAlpha(25),
+                  color: _isLastPage
+                      ? AppColors.amber
+                      : AppColors.amber.withAlpha(25),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.amber.withAlpha(140), width: 1.5),
+                  border: Border.all(
+                    color: AppColors.amber.withAlpha(140),
+                    width: 1.5,
+                  ),
                   boxShadow: _isLastPage
-                      ? [BoxShadow(color: AppColors.amber.withAlpha(90), blurRadius: 18, spreadRadius: -2)]
+                      ? [
+                          BoxShadow(
+                            color: AppColors.amber.withAlpha(90),
+                            blurRadius: 18,
+                            spreadRadius: -2,
+                          ),
+                        ]
                       : null,
                 ),
                 child: AnimatedSwitcher(
@@ -189,7 +227,9 @@ class _UsageTipsSheetState extends State<_UsageTipsSheet> {
                     key: ValueKey(_isLastPage),
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: _isLastPage ? AppColors.background : AppColors.amber,
+                      color: _isLastPage
+                          ? AppColors.background
+                          : AppColors.amber,
                       fontSize: 13,
                       fontWeight: FontWeight.w800,
                       letterSpacing: isFa ? 0 : 1.5,
@@ -226,7 +266,11 @@ class _ParallaxArt extends StatelessWidget {
   final PageController controller;
   final Widget child;
 
-  const _ParallaxArt({required this.index, required this.controller, required this.child});
+  const _ParallaxArt({
+    required this.index,
+    required this.controller,
+    required this.child,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -285,7 +329,11 @@ class _TextConveyor extends StatelessWidget {
             Text(
               tip.title,
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textPrimary, fontSize: 15.5, fontWeight: FontWeight.w800),
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 15.5,
+                fontWeight: FontWeight.w800,
+              ),
             ),
             const SizedBox(height: 8),
             Padding(
@@ -293,7 +341,11 @@ class _TextConveyor extends StatelessWidget {
               child: Text(
                 tip.body,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5, height: 1.55),
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12.5,
+                  height: 1.55,
+                ),
               ),
             ),
           ],
@@ -318,7 +370,8 @@ class _SignalDots extends StatefulWidget {
   State<_SignalDots> createState() => _SignalDotsState();
 }
 
-class _SignalDotsState extends State<_SignalDots> with SingleTickerProviderStateMixin {
+class _SignalDotsState extends State<_SignalDots>
+    with SingleTickerProviderStateMixin {
   late final _pulse = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1800),
@@ -338,11 +391,15 @@ class _SignalDotsState extends State<_SignalDots> with SingleTickerProviderState
         animation: Listenable.merge([widget.controller, _pulse]),
         builder: (context, _) {
           double page = widget.controller.initialPage.toDouble();
-          if (widget.controller.hasClients && widget.controller.position.haveDimensions) {
+          if (widget.controller.hasClients &&
+              widget.controller.position.haveDimensions) {
             page = widget.controller.page ?? page;
           }
           return CustomPaint(
-            size: Size((widget.count - 1) * _SignalDotsPainter.spacing + 64, 28),
+            size: Size(
+              (widget.count - 1) * _SignalDotsPainter.spacing + 64,
+              28,
+            ),
             painter: _SignalDotsPainter(
               page: page.clamp(0.0, (widget.count - 1).toDouble()),
               pulse: _pulse.value,
@@ -396,8 +453,16 @@ class _SignalDotsPainter extends CustomPainter {
     final base = page.floor().clamp(0, count - 1);
     final next = (base + 1).clamp(0, count - 1);
     final f = (page - base).clamp(0.0, 1.0);
-    final head = _lerp(_dotX(base, size), _dotX(next, size), Curves.easeOutCubic.transform(f));
-    final tail = _lerp(_dotX(base, size), _dotX(next, size), Curves.easeInCubic.transform(f));
+    final head = _lerp(
+      _dotX(base, size),
+      _dotX(next, size),
+      Curves.easeOutCubic.transform(f),
+    );
+    final tail = _lerp(
+      _dotX(base, size),
+      _dotX(next, size),
+      Curves.easeInCubic.transform(f),
+    );
     final pill = RRect.fromLTRBR(
       math.min(head, tail) - 9,
       cy - 3,
@@ -417,7 +482,10 @@ class _SignalDotsPainter extends CustomPainter {
     // soon as the pill starts traveling and back in on arrival.
     final settled = (1 - math.min(f, 1 - f) * 2).clamp(0.0, 1.0);
     if (settled > 0.05) {
-      final center = Offset(f < 0.5 ? _dotX(base, size) : _dotX(next, size), cy);
+      final center = Offset(
+        f < 0.5 ? _dotX(base, size) : _dotX(next, size),
+        cy,
+      );
       for (var k = 0; k < 2; k++) {
         final phase = (pulse + k * 0.5) % 1.0;
         canvas.drawCircle(

@@ -205,9 +205,10 @@ class _StatusReadoutState extends State<_StatusReadout>
           Icon(Icons.mic_off_rounded, color: color, size: 15)
         else if (scope.pulse)
           FadeTransition(
-            opacity: Tween<double>(begin: 1, end: 0.25).animate(
-              CurvedAnimation(parent: _pulse, curve: Curves.easeInOut),
-            ),
+            opacity: Tween<double>(
+              begin: 1,
+              end: 0.25,
+            ).animate(CurvedAnimation(parent: _pulse, curve: Curves.easeInOut)),
             child: _dot(color, glow: true),
           )
         else
