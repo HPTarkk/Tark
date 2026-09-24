@@ -1965,6 +1965,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'That code isn\'t a Tarkk one. Scan the invite, or the Wi-Fi code, from the host\'s phone.';
 
   @override
+  String get roomjoin_other_version =>
+      'This invite is from a different version of Tarkk. Update the app on both phones, then scan a fresh invite.';
+
+  @override
   String get roomjoin_camera_denied =>
       'Tarkk needs the camera to read the host\'s invite.';
 

@@ -581,6 +581,7 @@
     "roomjoin_host_not_found": "Couldn't find their phone. Keep the invite open on it, stay close, and scan again.",
     "roomjoin_invalid": "That invite is invalid or expired.",
     "roomjoin_not_our_code": "That code isn't a Tarkk one. Scan the invite, or the Wi-Fi code, from the host's phone.",
+    "roomjoin_other_version": "This invite is from a different version of Tarkk. Update the app on both phones, then scan a fresh invite.",
     "roomjoin_camera_denied": "Tarkk needs the camera to read the host's invite.",
     "roomjoin_camera_failed": "The camera wouldn't start. Close whatever else is using it and try again.",
     "roomjoin_open_settings": "OPEN SETTINGS",

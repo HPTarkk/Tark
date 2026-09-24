@@ -3590,6 +3590,12 @@ abstract class AppLocalizations {
   /// **'این کد مال «ترک» نیست. کد دعوت یا کد وای‌فای روی گوشی میزبان را اسکن کن.'**
   String get roomjoin_not_our_code;
 
+  /// No description provided for @roomjoin_other_version.
+  ///
+  /// In fa, this message translates to:
+  /// **'این دعوت با نسخهٔ دیگری از «ترک» ساخته شده. برنامه را روی هر دو گوشی به‌روز کن و دعوت تازه‌ای را اسکن کن.'**
+  String get roomjoin_other_version;
+
   /// No description provided for @roomjoin_camera_denied.
   ///
   /// In fa, this message translates to:

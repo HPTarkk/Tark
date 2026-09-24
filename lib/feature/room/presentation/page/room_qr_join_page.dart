@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
@@ -175,6 +177,21 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
       return true;
     }
 
+    // A Room invite that is expired, damaged or from another app version is
+    // still a Tark invite. Calling it "not a Tarkk code" sent people looking
+    // for some other QR on the host's phone when the fix was a fresh invite
+    // or an update.
+    switch (_inviteShape(raw)) {
+      case _InviteShape.otherVersion:
+        setState(() => _error = context.getString.roomjoin_other_version);
+        return false;
+      case _InviteShape.invite:
+        setState(() => _error = context.getString.roomjoin_invalid);
+        return false;
+      case null:
+        break;
+    }
+
     // Builds before the proximity-control migration minted direct Room QR
     // payloads under this prefix. They are deliberately no longer imported as
     // membership, but a damaged/expired one is still recognisably a Tark Room
@@ -186,6 +203,24 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
 
     setState(() => _error = context.getString.roomjoin_not_our_code);
     return false;
+  }
+
+  /// Whether [raw] is shaped like a Room invite, without trusting any of it.
+  static _InviteShape? _inviteShape(String raw) {
+    try {
+      final value = jsonDecode(
+        utf8.decode(base64Url.decode(base64Url.normalize(raw.trim()))),
+      );
+      if (value is! Map<String, dynamic>) return null;
+      if (!value.containsKey('invitationId') || !value.containsKey('roomId')) {
+        return null;
+      }
+      return value['v'] == RoomInvitation.currentVersion
+          ? _InviteShape.invite
+          : _InviteShape.otherVersion;
+    } catch (_) {
+      return null;
+    }
   }
 
   @override
@@ -208,3 +243,5 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
     );
   }
 }
+
+enum _InviteShape { invite, otherVersion }

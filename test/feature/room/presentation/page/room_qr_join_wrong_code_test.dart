@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -113,6 +115,43 @@ void main() {
     // Nowhere to send it, so the camera re-arms rather than stranding the
     // user on a dead viewfinder.
     expect(find.byKey(const Key('hotspot-page')), findsNothing);
+  });
+
+  String inviteShaped(int version) => base64Url
+      .encode(
+        utf8.encode(
+          jsonEncode({
+            'v': version,
+            'roomId': '0123456789abcdef0123456789abcdef',
+            'invitationId': 'fedcba9876543210fedcba9876543210',
+            'expiresAt': '2020-01-01T00:00:00.000Z',
+          }),
+        ),
+      )
+      .replaceAll('=', '');
+
+  testWidgets('an expired or damaged Room invite is called an invite', (
+    tester,
+  ) async {
+    final surface = await pumpScanner(tester);
+
+    expect(await surface.onCode(inviteShaped(1)), isFalse);
+    await tester.pump();
+
+    // Not "isn't a Tarkk one": that sent people hunting for another QR on
+    // the host's phone when the fix was a fresh invite.
+    expect(errorOn(tester), 'That invite is invalid or expired.');
+  });
+
+  testWidgets('an invite from another app version says to update', (
+    tester,
+  ) async {
+    final surface = await pumpScanner(tester);
+
+    expect(await surface.onCode(inviteShaped(2)), isFalse);
+    await tester.pump();
+
+    expect(errorOn(tester), contains('different version of Tarkk'));
   });
 
   testWidgets('and something that was never ours says that instead', (

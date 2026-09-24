@@ -1959,6 +1959,10 @@ class AppLocalizationsFa extends AppLocalizations {
       'این کد مال «ترک» نیست. کد دعوت یا کد وای‌فای روی گوشی میزبان را اسکن کن.';
 
   @override
+  String get roomjoin_other_version =>
+      'این دعوت با نسخهٔ دیگری از «ترک» ساخته شده. برنامه را روی هر دو گوشی به‌روز کن و دعوت تازه‌ای را اسکن کن.';
+
+  @override
   String get roomjoin_camera_denied =>
       '«ترک» برای خواندن کد دعوت دوربین می‌خواهد.';
 
