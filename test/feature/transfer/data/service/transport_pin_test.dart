@@ -144,6 +144,24 @@ void main() {
       await s.setPinnedMode(TransferMode.bluetooth);
       expect(roles.role, isNull);
     });
+
+    test('recording the hotspot keeps the side just taken', () async {
+      // The bridge takes a side, then records the hotspot carrier once the
+      // AP is up. Clearing here unpinned the host from its own AP.
+      final roles = _FakeRoleStore()..setRole(SessionRole.host);
+      final s = await store({}, roles: roles);
+      await s.setMode(TransferMode.hotspot);
+      expect(roles.role, SessionRole.host);
+      expect(roles.clears, 0);
+    });
+
+    test('leaving the hotspot for plain Wi-Fi clears the side', () async {
+      final roles = _FakeRoleStore()..setRole(SessionRole.host);
+      final s = await store({}, roles: roles);
+      await s.setMode(TransferMode.hotspot);
+      await s.setMode(TransferMode.wifi);
+      expect(roles.role, isNull);
+    });
   });
 
   group('entitlement', () {
@@ -153,28 +171,28 @@ void main() {
     // rewriting it to Bluetooth would put a hand-picked value in a slot the
     // user never touched, so a later purchase would restore nothing.
     test('a paid pin falls back to automatic when unentitled', () async {
-      final s = await store(
-        {SettingsKeys.transportPin: 'wifi'},
-        unlocked: false,
-      );
+      final s = await store({
+        SettingsKeys.transportPin: 'wifi',
+      }, unlocked: false);
       expect(s.pinnedMode, isNull);
       expect(await readKey(SettingsKeys.transportPin), 'auto');
     });
 
     test('a free pin is untouched', () async {
-      final s = await store(
-        {SettingsKeys.transportPin: 'bluetooth'},
-        unlocked: false,
-      );
+      final s = await store({
+        SettingsKeys.transportPin: 'bluetooth',
+      }, unlocked: false);
       expect(s.pinnedMode, TransferMode.bluetooth);
     });
 
-    test('pinning a paid transport unentitled is refused, not half-applied',
-        () async {
-      final s = await store({}, unlocked: false);
-      await s.setPinnedMode(TransferMode.guest);
-      expect(s.pinnedMode, isNull);
-      expect(s.mode, isNot(TransferMode.guest));
-    });
+    test(
+      'pinning a paid transport unentitled is refused, not half-applied',
+      () async {
+        final s = await store({}, unlocked: false);
+        await s.setPinnedMode(TransferMode.guest);
+        expect(s.pinnedMode, isNull);
+        expect(s.mode, isNot(TransferMode.guest));
+      },
+    );
   });
 }

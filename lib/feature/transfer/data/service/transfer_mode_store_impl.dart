@@ -93,9 +93,17 @@ class TransferModeStoreImpl implements TransferModeStore {
     }
     _mode = mode;
     // A side taken on the hotspot bridge means nothing once the transport
-    // changes — without this, switching back to plain Wi-Fi would keep
-    // announcing "host" to a channel where nobody hosts.
-    _roleStore.clear();
+    // leaves the hotspot — without this, switching back to plain Wi-Fi would
+    // keep announcing "host" to a channel where nobody hosts.
+    //
+    // Switching *to* the hotspot must keep it. The side is taken first and
+    // the bridge records the hotspot carrier only once the AP is up, so
+    // clearing here erased the host role the instant it mattered: the network
+    // rebind coordinator then saw a non-host and pinned the process back to
+    // the home router, and every unicast to the joiner (the Room's signed
+    // proof pings included) left through the wrong interface. Broadcasts still
+    // got through, so each phone saw the other and neither ever went live.
+    if (mode != TransferMode.hotspot) _roleStore.clear();
     await _prefs.setString(SettingsKeys.transportMode, mode.key);
     if (!_modeController.isClosed) _modeController.add(mode);
   }
