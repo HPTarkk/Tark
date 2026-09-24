@@ -166,6 +166,7 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
       RoomProximityFailure.discoverabilityDenied ||
       RoomProximityFailure.scanFailed ||
       RoomProximityFailure.hostSetupFailed ||
+      RoomProximityFailure.advertisingUnsupported ||
       RoomProximityFailure.dialFailed => s.roomjoin_not_joined,
     };
   }

@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:typed_data';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tark/feature/transfer/data/bluetooth/classic_bluetooth_engine.dart';
 import 'package:tark/feature/transfer/data/service/room_proximity_control_channel.dart';
@@ -260,6 +260,29 @@ void main() {
   });
 
   test(
+    'a chip that cannot advertise says so rather than "try again"',
+    () async {
+      final engine = _FakeClassicBluetoothEngine(
+        hostingError: PlatformException(code: 'ble_advertise_unsupported'),
+      );
+      final channel = RoomProximityControlChannel(engine: engine);
+      addTearDown(channel.dispose);
+
+      await expectLater(
+        channel.host(rendezvousToken: token),
+        throwsA(
+          isA<RoomProximityException>().having(
+            (error) => error.failure,
+            'failure',
+            RoomProximityFailure.advertisingUnsupported,
+          ),
+        ),
+      );
+      expect(engine.events, isNot(contains('discoverability')));
+    },
+  );
+
+  test(
     'native discoverability error is host setup failure, not user denial',
     () async {
       final engine = _FakeClassicBluetoothEngine(failDiscoverability: true);
@@ -356,6 +379,7 @@ class _FakeClassicBluetoothEngine extends ClassicBluetoothEngine {
     this.blockDial = false,
     this.failHosting = false,
     this.failDiscoverability = false,
+    this.hostingError,
   });
 
   final bool discoverable;
@@ -363,6 +387,7 @@ class _FakeClassicBluetoothEngine extends ClassicBluetoothEngine {
   final bool blockDial;
   final bool failHosting;
   final bool failDiscoverability;
+  final Object? hostingError;
   final events = <String>[];
   final scans = StreamController<BluetoothPeer>.broadcast();
   final connected = StreamController<String>.broadcast();
@@ -409,6 +434,7 @@ class _FakeClassicBluetoothEngine extends ClassicBluetoothEngine {
   Future<void> startHosting({String name = 'tark'}) async {
     events.add('host');
     hosted = true;
+    if (hostingError != null) throw hostingError!;
     if (failHosting) throw StateError('native host setup failed');
   }
 

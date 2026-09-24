@@ -1862,6 +1862,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Let this phone be visible to nearby devices, so theirs can find it.';
 
   @override
+  String get people_invite_unsupported =>
+      'This phone\'s Bluetooth can\'t send an invite. Ask the other person to invite you, then scan their code with Join with QR.';
+
+  @override
   String get people_invite_paused => 'This invite timed out.';
 
   @override

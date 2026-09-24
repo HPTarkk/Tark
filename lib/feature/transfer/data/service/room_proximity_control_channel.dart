@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
+
+import 'package:flutter/services.dart';
 
 import '../../../../core/utils/logger.dart';
 import '../../domain/entity/bluetooth_host_name.dart';
@@ -27,6 +28,11 @@ enum RoomProximityFailure {
 
   /// Native host readiness (identity/server/BLE advertising) failed.
   hostSetupFailed,
+
+  /// This phone's Bluetooth chip cannot advertise over BLE, so no phone can
+  /// find its invite. Common on older and budget phones; it can still join
+  /// by scanning someone else's invite.
+  advertisingUnsupported,
 
   /// The host was found but the RFCOMM dial did not land.
   dialFailed,
@@ -130,6 +136,13 @@ final class RoomProximityControlChannel {
     } catch (error) {
       Logger.diagnostic('room_proximity: host readiness failed');
       await _engine.stopHosting();
+      if (error is PlatformException &&
+          error.code == 'ble_advertise_unsupported') {
+        throw RoomProximityException(
+          RoomProximityFailure.advertisingUnsupported,
+          'BLE advertising is unavailable on this device',
+        );
+      }
       throw RoomProximityException(
         RoomProximityFailure.hostSetupFailed,
         'proximity host readiness failed: ${error.runtimeType}',

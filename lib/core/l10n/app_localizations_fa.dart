@@ -1856,6 +1856,10 @@ class AppLocalizationsFa extends AppLocalizations {
       'اجازه بدهید این گوشی برای دستگاه‌های نزدیک قابل مشاهده باشد تا گوشی آن‌ها پیدایش کند.';
 
   @override
+  String get people_invite_unsupported =>
+      'بلوتوث این گوشی نمی‌تواند دعوت بفرستد. از طرف مقابل بخواه تو را دعوت کند، بعد کدش را با «پیوستن با QR» اسکن کن.';
+
+  @override
   String get people_invite_paused => 'زمان این دعوت تمام شد.';
 
   @override

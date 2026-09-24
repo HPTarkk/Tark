@@ -3416,6 +3416,12 @@ abstract class AppLocalizations {
   /// **'اجازه بدهید این گوشی برای دستگاه‌های نزدیک قابل مشاهده باشد تا گوشی آن‌ها پیدایش کند.'**
   String get people_invite_visible;
 
+  /// No description provided for @people_invite_unsupported.
+  ///
+  /// In fa, this message translates to:
+  /// **'بلوتوث این گوشی نمی‌تواند دعوت بفرستد. از طرف مقابل بخواه تو را دعوت کند، بعد کدش را با «پیوستن با QR» اسکن کن.'**
+  String get people_invite_unsupported;
+
   /// No description provided for @people_invite_paused.
   ///
   /// In fa, this message translates to:

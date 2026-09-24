@@ -263,7 +263,10 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
       final s = context.getString;
       setState(() {
         _loading = false;
-        _retryable = true;
+        // The chip will not learn to advertise on a second try.
+        _retryable =
+            !(error is RoomProximityException &&
+                error.failure == RoomProximityFailure.advertisingUnsupported);
         _permissionError = error is _RoomInvitePermissionDenied;
         _error = switch (error) {
           _RoomInvitePermissionDenied() => s.people_invite_permission,
@@ -271,6 +274,10 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
             failure: RoomProximityFailure.discoverabilityDenied,
           ) =>
             s.people_invite_visible,
+          RoomProximityException(
+            failure: RoomProximityFailure.advertisingUnsupported,
+          ) =>
+            s.people_invite_unsupported,
           _ => s.people_issue_error,
         };
       });
