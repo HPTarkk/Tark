@@ -96,6 +96,16 @@ final class RoomProximityControlSessionRegistry {
     );
   }
 
+  /// Tells the other end this phone cannot raise the hand-off's hotspot, so
+  /// it should raise one itself. See [RoomHotspotHostDeclined].
+  Future<void> declineHotspotHost({required RoomId roomId}) async {
+    final session = _session;
+    if (session == null || session.roomId != roomId || !session.isOpen) {
+      throw StateError('no authenticated proximity session for Room');
+    }
+    await session.declineHotspotHost();
+  }
+
   Future<void> clear({RoomId? roomId}) async {
     final session = _session;
     if (session == null || (roomId != null && session.roomId != roomId)) return;
@@ -127,6 +137,7 @@ final class _RoomProximityControlSession {
   late final StreamSubscription<String> _messages;
   late final StreamSubscription<void> _closed;
   _BufferedHotspot? _bufferedCredential;
+  bool _hostDeclined = false;
   Completer<HotspotCredentials>? _credentialWaiter;
   int _lastAcceptedRemoteEpoch = 0;
   int _lastPublishedTransportEpoch = 0;
@@ -174,10 +185,30 @@ final class _RoomProximityControlSession {
     );
   }
 
+  Future<void> declineHotspotHost() {
+    if (!isOpen) {
+      return Future.error(StateError('proximity control session closed'));
+    }
+    Logger.diagnostic('room_transport_control: host declined sent');
+    return channel.send(
+      RoomProximityEnvelope(
+        kind: 'transportHostDeclined',
+        roomId: roomId.value,
+        requestId: _epochRequestId(1),
+        joinEpoch: invitation.invitationId,
+        payload: '{}',
+      ).encode(),
+    );
+  }
+
   Future<HotspotCredentials> waitForHotspot({
     required int localTransportEpoch,
     required Duration timeout,
   }) async {
+    if (_hostDeclined) {
+      _hostDeclined = false;
+      throw const RoomHotspotHostDeclined();
+    }
     // Validate the local coordinator epoch, but never require it to equal the
     // host's epoch. Each phone owns its own RoomConnectionCoordinator, so an
     // asymmetric retry can legitimately make those counters differ. The host
@@ -268,6 +299,18 @@ final class _RoomProximityControlSession {
       return;
     }
 
+    if (envelope.kind == 'transportHostDeclined') {
+      Logger.diagnostic('room_transport_control: host declined received');
+      final waiter = _credentialWaiter;
+      if (waiter != null && !waiter.isCompleted) {
+        _credentialWaiter = null;
+        waiter.completeError(const RoomHotspotHostDeclined());
+      } else {
+        _hostDeclined = true;
+      }
+      return;
+    }
+
     if (envelope.kind != 'transportCredentials') return;
 
     final remoteEpoch = _transportEpochFromRequestId(envelope.requestId);
@@ -337,6 +380,15 @@ final class _RoomProximityControlSession {
     await disposeProtocol?.call();
     await channel.dispose();
   }
+}
+
+/// The phone expected to raise the hand-off's hotspot cannot (Android 7.x has
+/// no LocalOnlyHotspot), so the phone waiting on it should raise one instead.
+final class RoomHotspotHostDeclined implements Exception {
+  const RoomHotspotHostDeclined();
+
+  @override
+  String toString() => 'RoomHotspotHostDeclined';
 }
 
 final class _BufferedHotspot {

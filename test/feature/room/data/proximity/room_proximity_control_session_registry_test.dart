@@ -167,6 +167,65 @@ void main() {
       expect(payload['security'], credentials.security);
     },
   );
+
+  Future<_RegistryFakeClassicBluetoothEngine> adopted() async {
+    final engine = _RegistryFakeClassicBluetoothEngine();
+    final channel = RoomProximityControlChannel(engine: engine);
+    await channel.host(rendezvousToken: invitationId);
+    await RoomProximityControlSessionRegistry.instance.adopt(
+      roomId: roomId,
+      invitation: invitation,
+      channel: channel,
+    );
+    return engine;
+  }
+
+  RoomProximityEnvelope declined() => RoomProximityEnvelope(
+    kind: 'transportHostDeclined',
+    roomId: roomId.value,
+    requestId: '00000000000000000000000000000001',
+    joinEpoch: invitationId,
+    payload: '{}',
+  );
+
+  test('a phone that cannot host says so over the control socket', () async {
+    final engine = await adopted();
+
+    await RoomProximityControlSessionRegistry.instance.declineHotspotHost(
+      roomId: roomId,
+    );
+
+    expect(_decodeSingleWrite(engine).kind, 'transportHostDeclined');
+  });
+
+  test('a waiting joiner hears the decline instead of timing out', () async {
+    final engine = await adopted();
+    final waiting = RoomProximityControlSessionRegistry.instance.waitForHotspot(
+      roomId: roomId,
+      transportEpoch: 1,
+      timeout: const Duration(seconds: 5),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    engine.addEnvelope(declined());
+
+    await expectLater(waiting, throwsA(isA<RoomHotspotHostDeclined>()));
+  });
+
+  test('a decline that lands before the wait is not lost', () async {
+    final engine = await adopted();
+    engine.addEnvelope(declined());
+    await Future<void>.delayed(Duration.zero);
+
+    await expectLater(
+      RoomProximityControlSessionRegistry.instance.waitForHotspot(
+        roomId: roomId,
+        transportEpoch: 1,
+        timeout: const Duration(seconds: 5),
+      ),
+      throwsA(isA<RoomHotspotHostDeclined>()),
+    );
+  });
 }
 
 RoomProximityEnvelope _decodeSingleWrite(

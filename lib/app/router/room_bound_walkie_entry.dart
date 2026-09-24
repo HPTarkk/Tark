@@ -10,6 +10,7 @@ import '../../core/l10n/extension.dart';
 import '../../core/motion/app_motion.dart';
 import '../../core/router/route_exit.dart';
 import '../../core/router/routes.dart';
+import '../../core/utils/android_sdk.dart';
 import '../../core/utils/logger.dart';
 import '../../feature/room/api/room_api.dart';
 import '../../feature/room/presentation/widget/carrier_status_scope.dart';
@@ -515,56 +516,28 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         Logger.diagnostic(
           'room: handoff side=${localIsElected ? 'host' : 'joiner'}',
         );
-        // The plan decides the side now, so it is what the rest of the
-        // transport stack hears: the network rebind coordinator clears its
+        // The side each helper below records in the role store is what the
+        // rest of the transport stack hears: the network rebind coordinator clears its
         // process pin for a host and binds for a joiner, and the hotspot
         // bootstrap refuses to raise an AP for anyone not recorded as host. A
         // hint left over from another Room — or none at all after a restart —
         // would otherwise veto the side both phones just agreed on.
-        _roleStore?.setRole(
-          localIsElected ? SessionRole.host : SessionRole.joiner,
-        );
+        if (localIsElected && !await _canHostHotspot()) {
+          // Android 7.x has no LocalOnlyHotspot. Waiting for this phone to
+          // raise one left both ends on "connecting" for a full minute; the
+          // other phone can host just as well, so hand it the job.
+          Logger.diagnostic('room: handoff host unsupported, peer asked');
+          await proximity.declineHotspotHost(roomId: room.room.id);
+          return _joinHandoffHotspot(room, transportEpoch: transportEpoch);
+        }
         if (localIsElected) {
-          final credentials = await PreLiveHotspotBootstrap().prepareHost();
-          if (credentials == null) return _EntryFailure.transportSetup;
-          Logger.diagnostic('room_transport: host credentials ready');
-          Logger.diagnostic('room_transport: credential publish begin');
-          await proximity.publishHotspot(
-            roomId: room.room.id,
-            transportEpoch: transportEpoch,
-            credentials: credentials,
-          );
-          Logger.diagnostic('room_transport: credential publish complete');
-          return null;
+          return _hostHandoffHotspot(room, transportEpoch: transportEpoch);
         }
-        try {
-          final credentials = await proximity.waitForHotspot(
-            roomId: room.room.id,
-            transportEpoch: transportEpoch,
-            timeout: _handoffTimeout,
-          );
-          final joined = await GetIt.instance<HotspotJoiner>().join(
-            credentials,
-          );
-          switch (joined) {
-            case HotspotJoinResult.joined:
-              await _modeStore?.setMode(TransferMode.hotspot);
-              return null;
-            case HotspotJoinResult.wifiOff:
-              // Android 10+ does not let an app flip Wi-Fi silently.  Ask in
-              // context through the platform's Wi-Fi panel; this is an
-              // app-scoped system consent, never a diversion to the manual
-              // SSID/QR setup flow.
-              await GetIt.instance<HotspotJoiner>().enableWifi();
-              return _EntryFailure.wifiOff;
-            case HotspotJoinResult.locationOff:
-              return _EntryFailure.locationOff;
-            case HotspotJoinResult.declined:
-              return _EntryFailure.transportSetup;
-          }
-        } on TimeoutException {
-          return _EntryFailure.peerProofMissing;
-        }
+        return _joinHandoffHotspot(
+          room,
+          transportEpoch: transportEpoch,
+          hostIfDeclined: true,
+        );
       case RoomTransportKind.sharedLan:
         // Nothing to arrange (see _verifiedLiveFor). The link gate that runs
         // next refuses a phone that is on nothing at all.
@@ -576,6 +549,78 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       case RoomTransportKind.guest:
       case null:
         return _EntryFailure.transportPlanMismatch;
+    }
+  }
+
+  Future<_EntryFailure?> _hostHandoffHotspot(
+    SavedRoom room, {
+    required int transportEpoch,
+  }) async {
+    _roleStore?.setRole(SessionRole.host);
+    final credentials = await PreLiveHotspotBootstrap().prepareHost();
+    if (credentials == null) return _EntryFailure.transportSetup;
+    Logger.diagnostic('room_transport: host credentials ready');
+    Logger.diagnostic('room_transport: credential publish begin');
+    await RoomProximityControlSessionRegistry.instance.publishHotspot(
+      roomId: room.room.id,
+      transportEpoch: transportEpoch,
+      credentials: credentials,
+    );
+    Logger.diagnostic('room_transport: credential publish complete');
+    return null;
+  }
+
+  /// Joins the hotspot the other end of the hand-off raises. With
+  /// [hostIfDeclined], a peer that cannot host makes this phone the host.
+  Future<_EntryFailure?> _joinHandoffHotspot(
+    SavedRoom room, {
+    required int transportEpoch,
+    bool hostIfDeclined = false,
+  }) async {
+    _roleStore?.setRole(SessionRole.joiner);
+    try {
+      final credentials = await RoomProximityControlSessionRegistry.instance
+          .waitForHotspot(
+            roomId: room.room.id,
+            transportEpoch: transportEpoch,
+            timeout: _handoffTimeout,
+          );
+      final joined = await GetIt.instance<HotspotJoiner>().join(credentials);
+      switch (joined) {
+        case HotspotJoinResult.joined:
+          await _modeStore?.setMode(TransferMode.hotspot);
+          return null;
+        case HotspotJoinResult.wifiOff:
+          // Android 10+ does not let an app flip Wi-Fi silently.  Ask in
+          // context through the platform's Wi-Fi panel; this is an
+          // app-scoped system consent, never a diversion to the manual
+          // SSID/QR setup flow.
+          await GetIt.instance<HotspotJoiner>().enableWifi();
+          return _EntryFailure.wifiOff;
+        case HotspotJoinResult.locationOff:
+          return _EntryFailure.locationOff;
+        case HotspotJoinResult.declined:
+          return _EntryFailure.transportSetup;
+      }
+    } on TimeoutException {
+      return _EntryFailure.peerProofMissing;
+    } on RoomHotspotHostDeclined {
+      Logger.diagnostic('room: handoff peer cannot host');
+      if (!hostIfDeclined || !await _canHostHotspot()) {
+        return _EntryFailure.transportSetup;
+      }
+      return _hostHandoffHotspot(room, transportEpoch: transportEpoch);
+    }
+  }
+
+  /// Whether this phone can raise a LocalOnlyHotspot (Android 8.0+). Only an
+  /// Android below that is known not to; anything unreadable is left to try.
+  static Future<bool> _canHostHotspot() async {
+    if (!Platform.isAndroid) return true;
+    try {
+      return await AndroidSdk.version() >= 26;
+    } catch (_) {
+      return true;
     }
   }
 
