@@ -28,6 +28,8 @@ export '../domain/entity/wifi_hotspot_segment.dart';
 export '../domain/repository/guest_link_controller.dart';
 export '../domain/repository/transfer_repository.dart'
     show ConnectionHealthSnapshot, TransferRepository;
+export '../domain/repository/wifi_transfer_repository.dart'
+    show WifiTransferRepository;
 export '../domain/entity/carrier_handover_observation.dart';
 export '../domain/repository/carrier_handover_exchange.dart';
 export '../domain/repository/transport_capability_observation_source.dart';

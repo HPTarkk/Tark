@@ -18,6 +18,8 @@ export '../domain/service/room_connection_readiness_gate.dart'
         RoomConnectionReadinessResult,
         RoomPeerProofEvidence;
 export '../domain/service/room_connection_trace.dart' show RoomConnectionTrace;
+export '../domain/service/room_pre_live_announcer.dart'
+    show RoomPreLiveAnnouncer;
 export '../domain/service/room_transport_planner.dart'
     show RoomTransportCandidate, RoomTransportKind, RoomTransportPlan;
 export '../domain/service/selected_room_live_session_binding.dart'

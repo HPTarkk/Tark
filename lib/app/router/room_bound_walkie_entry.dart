@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/identity/channel_membership.dart';
 import '../../core/l10n/extension.dart';
 import '../../core/motion/app_motion.dart';
 import '../../core/router/route_exit.dart';
@@ -67,6 +68,9 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   final RoomConnectionCoordinator _coordinator = RoomConnectionCoordinator();
   Future<_EntryState>? _activeStart;
   int _readinessEpoch = 0;
+
+  /// The pre-live Wi-Fi presence of the attempt in flight, if it has one.
+  RoomPreLiveAnnouncer? _announcer;
 
   SessionRoleStore? get _roleStore =>
       GetIt.instance.isRegistered<SessionRoleStore>()
@@ -326,6 +330,8 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       );
     }
     final readinessEpoch = ++_readinessEpoch;
+    _joinRoomChannel(room);
+    RoomPreLiveAnnouncer? announcer;
     try {
       final planFailure = await _executePlan(
         start.plan!,
@@ -348,6 +354,10 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         await binding.close();
         return _EntryState.lobby(room, failure: _EntryFailure.staleAttempt);
       }
+      // Nothing else binds the Wi-Fi socket or says hello before the live
+      // screen, and the gate below will not open the live screen until a peer
+      // has been heard. See [RoomPreLiveAnnouncer].
+      announcer = _startAnnouncer(room);
       final readiness =
           await RoomConnectionReadinessGate(
             timeout: issuer == null ? _existingLinkTimeout : _handoffTimeout,
@@ -362,6 +372,13 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       if (!readiness.isReady || readinessEpoch != _readinessEpoch) {
         final stage = readiness.failure?.name ?? 'peerProofMissing';
         Logger.diagnostic('room: readiness epoch=$readinessEpoch stage=$stage');
+        _releaseAnnouncer(
+          announcer,
+          current: readinessEpoch == _readinessEpoch,
+        );
+        // Left active, the coordinator handed the next Start this attempt's
+        // epoch and plan back unchanged instead of planning a fresh one.
+        _coordinator.cancel(epoch: start.epoch);
         await binding.close();
         return _EntryState.lobby(
           room,
@@ -376,6 +393,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         Logger.diagnostic(
           'room: readiness epoch=$readinessEpoch stage=coordinator_rejected',
         );
+        _releaseAnnouncer(announcer, current: true);
         _coordinator.cancel(epoch: start.epoch);
         await binding.close();
         return _EntryState.lobby(
@@ -383,6 +401,8 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
           failure: _EntryFailure.coordinatorRejected,
         );
       }
+      announcer?.handOff();
+      if (identical(_announcer, announcer)) _announcer = null;
       Logger.diagnostic(
         'room: readiness epoch=$readinessEpoch stage=connected',
       );
@@ -392,6 +412,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         'room: readiness epoch=$readinessEpoch stage=transport_setup',
       );
       Logger.log('Room verified live entry failed: $e');
+      _releaseAnnouncer(announcer, current: readinessEpoch == _readinessEpoch);
       final epoch = _coordinator.state.epoch;
       if (_coordinator.state.isActive) _coordinator.cancel(epoch: epoch);
       try {
@@ -399,6 +420,53 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       } catch (_) {}
       return _EntryState.lobby(room, failure: _EntryFailure.transportSetup);
     }
+  }
+
+  /// Every member of a Room filters Wi-Fi traffic by the same channel code.
+  void _joinRoomChannel(SavedRoom room) {
+    if (!GetIt.instance.isRegistered<ChannelMembership>()) return;
+    final channel = RoomPreLiveAnnouncer.channelFor(room.room.id);
+    final membership = GetIt.instance<ChannelMembership>();
+    if (membership.current.value == channel.value) return;
+    Logger.diagnostic('room: wire channel aligned to Room');
+    membership.join(channel);
+  }
+
+  RoomPreLiveAnnouncer? _startAnnouncer(SavedRoom room) {
+    final mode = _modeStore?.mode;
+    if (mode == null || !RoomPreLiveAnnouncer.appliesTo(mode)) return null;
+    if (!GetIt.instance.isRegistered<WifiTransferRepository>()) return null;
+    _announcer?.stop();
+    final announcer = RoomPreLiveAnnouncer(
+      transport: GetIt.instance<WifiTransferRepository>(),
+      name: _localName(room),
+    )..start();
+    _announcer = announcer;
+    return announcer;
+  }
+
+  /// Ends [announcer]'s attempt. Only the current attempt may release the
+  /// socket: a superseded one shares it with the attempt that replaced it.
+  void _releaseAnnouncer(
+    RoomPreLiveAnnouncer? announcer, {
+    required bool current,
+  }) {
+    if (announcer == null) return;
+    if (current) {
+      announcer.stop();
+    } else {
+      announcer.handOff();
+    }
+    if (identical(_announcer, announcer)) _announcer = null;
+  }
+
+  static String _localName(SavedRoom room) {
+    for (final member in room.room.members) {
+      if (member.id != room.membership.localMemberId) continue;
+      final name = member.displayName.trim();
+      return isHeldSeatPlaceholder(name) ? '' : name;
+    }
+    return '';
   }
 
   static _EntryFailure _entryFailureFor(
@@ -520,6 +588,8 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
 
   void _retryInitial() {
     _readinessEpoch++;
+    _announcer?.stop();
+    _announcer = null;
     final epoch = _coordinator.state.epoch;
     if (_coordinator.state.isActive) _coordinator.cancel(epoch: epoch);
     unawaited(_binding?.close() ?? Future<void>.value());
@@ -613,6 +683,10 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   @override
   void dispose() {
     _readinessEpoch++;
+    // Already handed off when the Room went live; then the live session owns
+    // the socket and this is a no-op.
+    _announcer?.stop();
+    _announcer = null;
     final epoch = _coordinator.state.epoch;
     if (_coordinator.state.isActive) _coordinator.cancel(epoch: epoch);
     unawaited(_linkChanges?.cancel() ?? Future<void>.value());
