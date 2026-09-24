@@ -260,6 +260,83 @@ void main() {
     await tester.pump();
     expect(find.byKey(const Key('auto-room-start')), findsOneWidget);
   });
+
+  testWidgets('opened from the lobby, the sheet hands the arrival back and '
+      'closes', (tester) async {
+    await tester.runAsync(RoomProximityControlSessionRegistry.instance.clear);
+    SharedPreferences.setMockInitialValues({});
+    final events = <String>[];
+    final repository = _TracingRoomRepository(events);
+    final room = await repository.create(
+      name: 'Night ride',
+      localDisplayName: 'Creator',
+    );
+    await repository.select(room.room.id);
+    final control = RoomProximityControlChannel(
+      engine: _FakeClassicBluetoothEngine(events),
+    );
+    final results = <bool?>[];
+
+    // The lobby lives on the walkie route, so the sheet sits on top of that
+    // very page. Navigating "to" the walkie route from here was a no-op.
+    final router = GoRouter(
+      initialLocation: AppRoutes.walkiePath,
+      routes: [
+        GoRoute(
+          path: AppRoutes.walkiePath,
+          name: AppRoutes.walkieName,
+          builder: (context, _) => Scaffold(
+            body: TextButton(
+              key: const Key('open-invite'),
+              onPressed: () async => results.add(
+                await showModalBottomSheet<bool>(
+                  context: context,
+                  builder: (_) => OneScanRoomInviteSheet(
+                    repository: repository,
+                    controlChannel: control,
+                    permissionGate: () async => true,
+                  ),
+                ),
+              ),
+              child: const Text('invite'),
+            ),
+          ),
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp.router(
+        locale: const Locale('en'),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        routerConfig: router,
+      ),
+    );
+    await tester.tap(find.byKey(const Key('open-invite')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.byKey(const Key('one-scan-room-invite-qr')), findsOneWidget);
+
+    final now = DateTime.now().toUtc();
+    final verified = await repository.verifyAndRedeemInvite(
+      repository.lastInvite!,
+      now: now,
+    );
+    await repository.acceptVerifiedInvite(
+      verified!,
+      displayName: 'Rider two',
+      acceptedAt: now,
+      pending: false,
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('Rider two joined'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+    expect(results, [true]);
+    expect(find.text('Rider two joined'), findsNothing);
+  });
 }
 
 Widget _host({

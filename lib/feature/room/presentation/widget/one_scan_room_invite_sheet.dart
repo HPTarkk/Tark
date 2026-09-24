@@ -30,24 +30,28 @@ import '../room_member_display_name.dart';
 
 export '../room_bluetooth_permissions.dart';
 
-Future<void> showOneScanRoomInviteSheet(
+/// Completes with true when somebody joined through the invite, which is the
+/// caller's cue to start the Room hand-off.
+Future<bool> showOneScanRoomInviteSheet(
   BuildContext context, {
   RoomRepository? repository,
   RoomTransportIdentityLifecycle? identityLifecycle,
   HotspotLinkKeeper? hotspotLinkKeeper,
   TransferRepository? transferRepository,
-}) => showModalBottomSheet<void>(
-  context: context,
-  backgroundColor: Colors.transparent,
-  isScrollControlled: true,
-  barrierColor: Colors.black.withValues(alpha: 0.62),
-  builder: (_) => OneScanRoomInviteSheet(
-    repository: repository,
-    identityLifecycle: identityLifecycle,
-    hotspotLinkKeeper: hotspotLinkKeeper,
-    transferRepository: transferRepository,
-  ),
-);
+}) async =>
+    await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      barrierColor: Colors.black.withValues(alpha: 0.62),
+      builder: (_) => OneScanRoomInviteSheet(
+        repository: repository,
+        identityLifecycle: identityLifecycle,
+        hotspotLinkKeeper: hotspotLinkKeeper,
+        transferRepository: transferRepository,
+      ),
+    ) ??
+    false;
 
 class OneScanRoomInviteSheet extends StatefulWidget {
   const OneScanRoomInviteSheet({
@@ -321,6 +325,15 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
     });
     await Future<void>.delayed(_joinedBeat);
     if (!mounted) return;
+    // As a sheet, hand the arrival back to whoever opened it. Navigating to
+    // the walkie route from here did nothing: the lobby that opens this sheet
+    // already *is* that route, go_router kept the page (its key ignores the
+    // query), and the host sat on "joined" with the sheet still up while the
+    // joiner waited a minute for a hotspot nobody was raising.
+    if (ModalRoute.of(context) is PopupRoute) {
+      Navigator.of(context).pop(true);
+      return;
+    }
     context.goNamed(
       AppRoutes.walkieName,
       queryParameters: const {'start': 'true'},

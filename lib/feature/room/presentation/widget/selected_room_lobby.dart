@@ -115,8 +115,24 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
 
   Future<void> _invite() async {
     HapticFeedback.selectionClick();
-    await showOneScanRoomInviteSheet(context, repository: widget.repository);
+    final before = {
+      for (final member in _room.room.confirmedMembers) member.id,
+    };
+    final arrived = await showOneScanRoomInviteSheet(
+      context,
+      repository: widget.repository,
+    );
     await _reload();
+    if (!mounted) return;
+    // Somebody scanned and is already connecting from their side. Starting
+    // here too is the host's half of "they come straight in" — also when the
+    // sheet was swiped away during the "joined" beat.
+    final joined =
+        arrived ||
+        _room.room.confirmedMembers.any(
+          (member) => !before.contains(member.id),
+        );
+    if (joined) _startRide();
   }
 
   void _startRide() {
