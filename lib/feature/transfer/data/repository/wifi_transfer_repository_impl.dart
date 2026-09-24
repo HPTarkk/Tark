@@ -843,6 +843,11 @@ class WifiTransferRepositoryImpl
           }
         }
 
+        // A newer listener closed this one's socket to take over. The timer
+        // and the health are that listener's now: cancelling or reporting
+        // "down" from here would kill its watchdog, and with auto-reconnect
+        // off, announce a live session as dead.
+        if (_generation != myGen) break;
         _livenessTimer?.cancel();
         // Auto path: the reconnecting state (with its countdown) is emitted in
         // the backoff block below, once the delay is known. Only the terminal
@@ -850,6 +855,7 @@ class WifiTransferRepositoryImpl
         if (!_autoReconnectEnabled) _setHealth(const ConnectionHealth.down());
       } catch (error) {
         Logger.log('Socket error (gen $myGen): $error');
+        if (_generation != myGen) break;
         _livenessTimer?.cancel();
         if (!_autoReconnectEnabled) _setHealth(const ConnectionHealth.down());
         _receiveSocket?.close();
