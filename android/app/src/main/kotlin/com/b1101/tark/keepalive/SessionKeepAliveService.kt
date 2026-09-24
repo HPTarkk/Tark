@@ -14,6 +14,7 @@ import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
+import android.util.Log
 import com.b1101.tark.hotspot.HotspotHandler
 
 /**
@@ -44,6 +45,7 @@ import com.b1101.tark.hotspot.HotspotHandler
 class SessionKeepAliveService : Service() {
 
     companion object {
+        private const val TAG = "SessionKeepAlive"
         private const val NOTIFICATION_ID = 2110
         private const val CHANNEL_ID = "tark_session_keepalive"
         private const val WAKE_TAG = "tark:session"
@@ -163,21 +165,7 @@ class SessionKeepAliveService : Service() {
         // Default to microphone: the plain in-channel session (and any restart
         // via START_STICKY, where intent is null) records the mic.
         val usesMic = intent?.getBooleanExtra(EXTRA_USES_MIC, true) ?: true
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val type = if (usesMic) {
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
-                } else {
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
-                }
-                startForeground(NOTIFICATION_ID, buildNotification(), type)
-            } else {
-                startForeground(NOTIFICATION_ID, buildNotification())
-            }
-        } catch (_: Exception) {
-            // Best-effort: e.g. Android 14 rejecting a microphone FGS when the
-            // mic while-in-use op isn't held. Bail cleanly rather than crash —
-            // the session simply runs without the keep-alive guarantees.
+        if (!enterForeground(usesMic)) {
             abandonPendingStart()
             stopSelf()
             return START_NOT_STICKY
@@ -195,6 +183,41 @@ class SessionKeepAliveService : Service() {
         acquireLocks()
         // Restart if the OS kills us while a session is still meant to run.
         return START_STICKY
+    }
+
+    /**
+     * Calls startForeground(), falling back from the microphone type to the
+     * connected-device type when Android refuses it. Android 14 rejects a
+     * microphone foreground service when the mic permission was denied or the
+     * app is not in the foreground, and bailing out there left the session with
+     * no keep-alive at all: no wake lock, no Wi-Fi lock, and a hotspot the OS
+     * could reclaim the moment the screen went off. The connected-device type
+     * still carries the locks.
+     */
+    private fun enterForeground(usesMic: Boolean): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            return runCatching {
+                startForeground(NOTIFICATION_ID, buildNotification())
+            }.isSuccess
+        }
+        if (usesMic) {
+            val asMic = runCatching {
+                startForeground(
+                    NOTIFICATION_ID,
+                    buildNotification(),
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE,
+                )
+            }
+            if (asMic.isSuccess) return true
+            Log.w(TAG, "microphone foreground refused; falling back", asMic.exceptionOrNull())
+        }
+        return runCatching {
+            startForeground(
+                NOTIFICATION_ID,
+                buildNotification(),
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE,
+            )
+        }.onFailure { Log.w(TAG, "foreground start refused", it) }.isSuccess
     }
 
     private fun acquireLocks() {
