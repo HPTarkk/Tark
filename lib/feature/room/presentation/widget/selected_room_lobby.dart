@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../transfer/api/transfer_api.dart';
@@ -158,91 +159,112 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
     // Only confirmed membership can make this Room stop looking solo.
     final alone = confirmedMembers.length <= 1;
     final failureMessage = widget.failureMessage?.trim();
+    final showFailure =
+        !_connecting && failureMessage != null && failureMessage.isNotEmpty;
 
     return Scaffold(
-      appBar: AppBar(
-        leading: Semantics(
-          button: true,
-          label: s.lobby_back,
-          child: IconButton(
-            key: const Key('selected-room-lobby-back'),
-            tooltip: s.lobby_back,
-            onPressed: () {
-              HapticFeedback.selectionClick();
-              widget.onBack();
-            },
-            icon: Icon(
-              Icons.arrow_back_rounded,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ),
-        title: Text(_room.room.name),
-      ),
+      backgroundColor: AppColors.background,
       body: SafeArea(
-        child: ListView(
-          key: const Key('selected-room-lobby'),
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+        child: StaggeredEntrance(
+          builder: (context, children) => ListView(
+            key: const Key('selected-room-lobby'),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+            children: children,
+          ),
           children: [
-            Text(
-              _connecting
+            _LobbyTopBar(
+              title: _room.room.name,
+              backLabel: s.lobby_back,
+              onBack: () {
+                HapticFeedback.selectionClick();
+                widget.onBack();
+              },
+            ),
+            _LobbyHero(
+              heading: _connecting
                   ? s.connecting
                   : alone
                   ? s.lobby_alone_heading
                   : s.lobby_heading,
-              style: Theme.of(
-                context,
-              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+              hint: _connecting
+                  ? s.lobby_connecting_hint
+                  : s.lobby_nothing_started,
+              members: confirmedMembers,
+              connecting: _connecting,
             ),
-            const SizedBox(height: 8),
-            Text(
-              _connecting ? s.lobby_connecting_hint : s.lobby_nothing_started,
-              style: TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 13,
-                height: 1.5,
+            // The callout slides in and out rather than shoving the roster
+            // down in one frame.
+            AnimatedSwitcher(
+              duration: AppMotion.card,
+              switchInCurve: AppMotion.easeOut,
+              switchOutCurve: AppMotion.leaving,
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation,
+                child: SizeTransition(
+                  sizeFactor: animation,
+                  alignment: AlignmentDirectional.topStart,
+                  child: child,
+                ),
               ),
+              child: showFailure
+                  ? Padding(
+                      key: ValueKey(failureMessage),
+                      padding: const EdgeInsets.only(top: 14),
+                      child: _FailureCallout(
+                        message: failureMessage,
+                        onRetry: widget.onRetry,
+                        onConnect: widget.onConnect,
+                      ),
+                    )
+                  : const SizedBox(width: double.infinity),
             ),
-            if (!_connecting &&
-                failureMessage != null &&
-                failureMessage.isNotEmpty) ...[
-              const SizedBox(height: 14),
-              _FailureCallout(
-                message: failureMessage,
-                onRetry: widget.onRetry,
-                onConnect: widget.onConnect,
-              ),
-            ],
-            const SizedBox(height: 22),
+            const SizedBox(height: 18),
             _MembersCard(
               room: _room,
               members: confirmedMembers,
               connectionPhase: widget.connectionPhase,
             ),
-            const SizedBox(height: 18),
-            if (canInvite) ...[
-              _RoomAction(
-                key: const Key('selected-room-invite-callout'),
-                icon: Icons.person_add_alt_1_rounded,
-                label: s.lobby_invite_people,
-                primary: alone,
-                enabled: !_connecting,
-                onTap: _invite,
-              ),
-              const SizedBox(height: 12),
-            ],
+            const SizedBox(height: 20),
             // Start needs somebody to start with. Offering it to a Room of one
             // only ever produced a failure explaining that nobody answered.
             if (!alone)
-              _RoomAction(
+              _StartButton(
                 key: const Key('selected-room-start-ride'),
-                icon: Icons.play_arrow_rounded,
-                label: s.lobby_start_ride,
-                primary: true,
+                label: _connecting ? s.connecting : s.lobby_start_ride,
                 busy: _connecting,
                 onTap: _startRide,
+              ),
+            if (!alone && !_connecting && widget.onUseHomeWifi != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Center(
+                  child: TextButton.icon(
+                    key: const Key('selected-room-use-home-wifi'),
+                    onPressed: () {
+                      HapticFeedback.selectionClick();
+                      widget.onUseHomeWifi!();
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.textSecondary,
+                    ),
+                    icon: const Icon(Icons.wifi_rounded, size: 18),
+                    label: Text(s.lobby_use_home_wifi),
+                  ),
+                ),
+              ),
+            if (canInvite)
+              Padding(
+                padding: EdgeInsets.only(top: alone ? 0 : 12),
+                child: _RoomAction(
+                  key: const Key('selected-room-invite-callout'),
+                  icon: Icons.person_add_alt_1_rounded,
+                  label: s.lobby_invite_people,
+                  primary: alone,
+                  enabled: !_connecting,
+                  onTap: _invite,
+                ),
               )
-            else if (!canInvite)
+            else if (alone)
               Text(
                 s.lobby_alone_no_invite,
                 key: const Key('selected-room-alone-no-invite'),
@@ -253,24 +275,464 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
                   height: 1.5,
                 ),
               ),
-            if (!alone && !_connecting && widget.onUseHomeWifi != null) ...[
-              const SizedBox(height: 8),
-              Center(
-                child: TextButton.icon(
-                  key: const Key('selected-room-use-home-wifi'),
-                  onPressed: () {
-                    HapticFeedback.selectionClick();
-                    widget.onUseHomeWifi!();
-                  },
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.textSecondary,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LobbyTopBar extends StatelessWidget {
+  const _LobbyTopBar({
+    required this.title,
+    required this.backLabel,
+    required this.onBack,
+  });
+
+  final String title;
+  final String backLabel;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        IconButton(
+          key: const Key('selected-room-lobby-back'),
+          tooltip: backLabel,
+          onPressed: onBack,
+          icon: Icon(
+            Directionality.of(context) == TextDirection.rtl
+                ? Icons.arrow_forward_rounded
+                : Icons.arrow_back_rounded,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.4,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The top of the lobby: who is in this Room, drawn as faces rather than a
+/// list header, with the one line that says what happens next.
+class _LobbyHero extends StatelessWidget {
+  const _LobbyHero({
+    required this.heading,
+    required this.hint,
+    required this.members,
+    required this.connecting,
+  });
+
+  final String heading;
+  final String hint;
+  final List<RoomMember> members;
+  final bool connecting;
+
+  @override
+  Widget build(BuildContext context) {
+    final amber = AppColors.amber;
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 22),
+      // The signal rings ripple out to the card's edge and stop there.
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: amber.withValues(alpha: 0.28)),
+        gradient: RadialGradient(
+          center: const Alignment(0, -0.6),
+          radius: 1.2,
+          colors: [
+            amber.withValues(alpha: 0.20),
+            AppColors.surface.withValues(alpha: 0.0),
+          ],
+        ),
+        color: AppColors.surface,
+      ),
+      child: Column(
+        children: [
+          SizedBox(
+            height: 92,
+            child: _SignalRings(
+              active: connecting,
+              child: _AvatarCluster(members: members),
+            ),
+          ),
+          const SizedBox(height: 18),
+          AnimatedSwitcher(
+            duration: AppMotion.card,
+            switchInCurve: AppMotion.easeOut,
+            switchOutCurve: AppMotion.leaving,
+            child: Text(
+              heading,
+              key: ValueKey(heading),
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          AnimatedSwitcher(
+            duration: AppMotion.card,
+            switchInCurve: AppMotion.easeOut,
+            switchOutCurve: AppMotion.leaving,
+            child: Text(
+              hint,
+              key: ValueKey(hint),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+                height: 1.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Up to four overlapping faces, then "+N".
+class _AvatarCluster extends StatelessWidget {
+  const _AvatarCluster({required this.members});
+
+  final List<RoomMember> members;
+
+  static const _size = 64.0;
+  static const _overlap = 20.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final shown = members.take(4).toList(growable: false);
+    final extra = members.length - shown.length;
+    final count = shown.length + (extra > 0 ? 1 : 0);
+    if (count == 0) return const SizedBox.shrink();
+    final width = _size + (count - 1) * (_size - _overlap);
+    return ExcludeSemantics(
+      child: SizedBox(
+        width: width,
+        height: _size,
+        child: Stack(
+          children: [
+            for (var i = 0; i < shown.length; i++)
+              PositionedDirectional(
+                start: i * (_size - _overlap),
+                child: MemberAvatar(member: shown[i], size: _size, ring: true),
+              ),
+            if (extra > 0)
+              PositionedDirectional(
+                start: shown.length * (_size - _overlap),
+                child: Container(
+                  width: _size,
+                  height: _size,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.card,
+                    border: Border.all(color: AppColors.background, width: 3),
                   ),
-                  icon: const Icon(Icons.wifi_rounded, size: 18),
-                  label: Text(s.lobby_use_home_wifi),
+                  child: Text(
+                    '+${extra.localized(context)}',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                    ),
+                  ),
                 ),
               ),
-            ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A circle with the member's initial, tinted from their id so each person
+/// keeps the same colour on every phone and every visit.
+class MemberAvatar extends StatelessWidget {
+  const MemberAvatar({
+    required this.member,
+    this.size = 44,
+    this.ring = false,
+    super.key,
+  });
+
+  final RoomMember member;
+  final double size;
+  final bool ring;
+
+  static Color tintFor(RoomMemberId id) {
+    var hash = 0;
+    for (final unit in id.value.codeUnits) {
+      hash = (hash * 31 + unit) & 0x7fffffff;
+    }
+    // Warm-to-cool hues that all sit well on both themes.
+    const hues = [34.0, 12.0, 160.0, 200.0, 265.0, 330.0];
+    return HSLColor.fromAHSL(1, hues[hash % hues.length], 0.62, 0.55).toColor();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final name = roomMemberDisplayName(
+      member,
+      fa: Localizations.localeOf(context).languageCode == 'fa',
+      unnamed: context.getString.people_unnamed,
+    );
+    final initial = name.trim().isEmpty ? '?' : name.trim().characters.first;
+    final tint = tintFor(member.id);
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [tint, Color.lerp(tint, Colors.black, 0.28)!],
+        ),
+        border: ring ? Border.all(color: AppColors.background, width: 3) : null,
+        boxShadow: [
+          BoxShadow(
+            color: tint.withValues(alpha: 0.35),
+            blurRadius: size * 0.25,
+            offset: Offset(0, size * 0.06),
+          ),
+        ],
+      ),
+      child: Text(
+        initial.toUpperCase(),
+        style: TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w800,
+          fontSize: size * 0.4,
+          height: 1,
+        ),
+      ),
+    );
+  }
+}
+
+/// Soft rings travelling outward from the faces while the phones look for
+/// each other: the one visual cue that something is happening between them.
+/// Nothing moves when idle, and reduced motion keeps a single still ring.
+class _SignalRings extends StatefulWidget {
+  const _SignalRings({required this.active, required this.child});
+
+  final bool active;
+  final Widget child;
+
+  @override
+  State<_SignalRings> createState() => _SignalRingsState();
+}
+
+class _SignalRingsState extends State<_SignalRings>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: AppMotion.pulse,
+  );
+
+  bool _reduced = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reduced = AppMotion.reduced(context);
+    _sync();
+  }
+
+  @override
+  void didUpdateWidget(_SignalRings oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.active != widget.active) _sync();
+  }
+
+  void _sync() {
+    if (widget.active && !_reduced) {
+      if (!_controller.isAnimating) _controller.repeat();
+    } else {
+      _controller.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: widget.active
+          ? _RingsPainter(
+              progress: _controller,
+              color: AppColors.amber,
+              still: _reduced,
+            )
+          : null,
+      child: Center(child: widget.child),
+    );
+  }
+}
+
+class _RingsPainter extends CustomPainter {
+  _RingsPainter({
+    required this.progress,
+    required this.color,
+    required this.still,
+  }) : super(repaint: progress);
+
+  final Animation<double> progress;
+  final Color color;
+  final bool still;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final base = size.height / 2;
+    final reach = size.width / 2;
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    if (still) {
+      paint.color = color.withValues(alpha: 0.35);
+      canvas.drawCircle(center, base + 8, paint);
+      return;
+    }
+    // Three rings a third of a cycle apart, each easing out as it widens.
+    for (var i = 0; i < 3; i++) {
+      final t = (progress.value + i / 3) % 1.0;
+      final eased = AppMotion.easeOut.transform(t);
+      final radius = base + (reach - base) * eased;
+      paint.color = color.withValues(alpha: 0.45 * (1 - t));
+      canvas.drawCircle(center, radius, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_RingsPainter oldDelegate) =>
+      oldDelegate.color != color || oldDelegate.still != still;
+}
+
+/// The one thing on this screen that matters: a wide amber button that
+/// breathes while it waits for a tap, gives under the finger, and becomes a
+/// progress indicator once pressed.
+class _StartButton extends StatelessWidget {
+  const _StartButton({
+    required this.label,
+    required this.busy,
+    required this.onTap,
+    super.key,
+  });
+
+  final String label;
+  final bool busy;
+  final VoidCallback onTap;
+
+  static final _radius = BorderRadius.circular(20);
+
+  @override
+  Widget build(BuildContext context) {
+    final amber = AppColors.amber;
+    return Semantics(
+      button: true,
+      enabled: !busy,
+      label: label,
+      excludeSemantics: true,
+      child: PulseGlow(
+        enabled: !busy,
+        borderRadius: _radius,
+        child: PressableScale(
+          onTap: busy ? null : onTap,
+          borderRadius: _radius,
+          child: AnimatedContainer(
+            duration: AppMotion.card,
+            curve: AppMotion.easeOut,
+            height: 62,
+            decoration: BoxDecoration(
+              borderRadius: _radius,
+              gradient: LinearGradient(
+                begin: AlignmentDirectional.centerStart,
+                end: AlignmentDirectional.centerEnd,
+                colors: busy
+                    ? [
+                        amber.withValues(alpha: 0.22),
+                        amber.withValues(alpha: 0.14),
+                      ]
+                    : [amber, Color.lerp(amber, Colors.deepOrange, 0.35)!],
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                AnimatedSwitcher(
+                  duration: AppMotion.chip,
+                  switchInCurve: AppMotion.easeOut,
+                  switchOutCurve: AppMotion.leaving,
+                  transitionBuilder: (child, animation) => FadeTransition(
+                    opacity: animation,
+                    child: ScaleTransition(
+                      scale: Tween<double>(
+                        begin: 0.9,
+                        end: 1,
+                      ).animate(animation),
+                      child: child,
+                    ),
+                  ),
+                  child: busy
+                      ? SizedBox(
+                          key: const ValueKey('busy'),
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.4,
+                            color: amber,
+                          ),
+                        )
+                      : const Icon(
+                          Icons.play_arrow_rounded,
+                          key: ValueKey('idle'),
+                          color: Colors.black,
+                          size: 28,
+                        ),
+                ),
+                const SizedBox(width: 10),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: busy ? amber : Colors.black,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -296,7 +758,7 @@ class _FailureCallout extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: AppColors.amber.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(18),
           border: Border.all(color: AppColors.amber.withValues(alpha: 0.45)),
         ),
         child: Row(
@@ -363,45 +825,32 @@ class _MembersCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.groups_2_rounded, size: 19, color: AppColors.amber),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  s.lobby_members(members.length.localized(context)),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          for (var index = 0; index < members.length; index++) ...[
-            _MemberRow(
-              member: members[index],
-              isYou: members[index].id == room.membership.localMemberId,
-              phase: connectionPhase,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsetsDirectional.only(start: 4, bottom: 10),
+          child: Text(
+            s.lobby_members(members.length.localized(context)),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w800,
+              fontSize: 12.5,
+              letterSpacing: 0.6,
             ),
-            if (index != members.length - 1) const SizedBox(height: 8),
-          ],
+          ),
+        ),
+        for (var index = 0; index < members.length; index++) ...[
+          _MemberRow(
+            member: members[index],
+            isYou: members[index].id == room.membership.localMemberId,
+            phase: connectionPhase,
+          ),
+          if (index != members.length - 1) const SizedBox(height: 8),
         ],
-      ),
+      ],
     );
   }
 }
@@ -430,53 +879,80 @@ class _MemberRow extends StatelessWidget {
     final showStatus = !isYou && phase != RoomConnectionUiPhase.readyToConnect;
     return Semantics(
       container: true,
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.amber.withValues(alpha: 0.12),
-              border: Border.all(
-                color: AppColors.amber.withValues(alpha: 0.38),
-              ),
-            ),
-            child: Icon(Icons.person_rounded, size: 20, color: AppColors.amber),
-          ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                  ),
-                ),
-                if (isYou) ...[
-                  const SizedBox(height: 4),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            MemberAvatar(member: member, size: 42),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   Text(
-                    context.getString.people_you,
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 11,
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
                     ),
                   ),
-                ] else if (showStatus) ...[
-                  const SizedBox(height: 4),
-                  RoomConnectionStatusChip(phase: phase),
+                  // Status sits under the name, so a long name and a long
+                  // status never compete for one line on a narrow phone.
+                  AnimatedSize(
+                    duration: AppMotion.chip,
+                    curve: AppMotion.easeOut,
+                    alignment: AlignmentDirectional.topStart,
+                    child: AnimatedSwitcher(
+                      duration: AppMotion.chip,
+                      switchInCurve: AppMotion.easeOut,
+                      switchOutCurve: AppMotion.leaving,
+                      child: showStatus
+                          ? Padding(
+                              key: ValueKey(phase),
+                              padding: const EdgeInsets.only(top: 4),
+                              child: RoomConnectionStatusChip(phase: phase),
+                            )
+                          : const SizedBox(
+                              key: ValueKey('none'),
+                              width: double.infinity,
+                            ),
+                    ),
+                  ),
                 ],
-              ],
+              ),
             ),
-          ),
-        ],
+            if (isYou) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.amber.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  context.getString.people_you,
+                  style: TextStyle(
+                    color: AppColors.amber,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -488,7 +964,6 @@ class _RoomAction extends StatelessWidget {
     required this.label,
     required this.primary,
     required this.onTap,
-    this.busy = false,
     this.enabled = true,
     super.key,
   });
@@ -498,57 +973,42 @@ class _RoomAction extends StatelessWidget {
   final bool primary;
   final VoidCallback onTap;
 
-  /// Spinner in place of the icon, and no taps: this action is the one in
-  /// progress.
-  final bool busy;
-
   /// No taps, without claiming to be the thing in progress.
   final bool enabled;
 
+  static final _radius = BorderRadius.circular(18);
+
   @override
   Widget build(BuildContext context) {
-    final accent = primary ? AppColors.amber : AppColors.textSecondary;
-    final interactive = enabled && !busy;
+    final accent = primary ? AppColors.amber : AppColors.textPrimary;
     return Semantics(
       button: true,
-      enabled: interactive,
+      enabled: enabled,
       label: label,
-      child: Opacity(
-        opacity: enabled || busy ? 1 : 0.5,
-        child: InkWell(
-          onTap: interactive
-              ? () {
-                  HapticFeedback.selectionClick();
-                  onTap();
-                }
-              : null,
-          borderRadius: BorderRadius.circular(16),
+      excludeSemantics: true,
+      child: AnimatedOpacity(
+        opacity: enabled ? 1 : 0.5,
+        duration: AppMotion.chip,
+        curve: AppMotion.easeOut,
+        child: PressableScale(
+          onTap: enabled ? onTap : null,
+          borderRadius: _radius,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             decoration: BoxDecoration(
               color: primary
                   ? AppColors.amber.withValues(alpha: 0.12)
                   : AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: _radius,
               border: Border.all(
                 color: primary ? AppColors.amber : AppColors.border,
-                width: primary ? 2 : 1,
+                width: primary ? 1.5 : 1,
               ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                if (busy)
-                  SizedBox(
-                    width: 19,
-                    height: 19,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: accent,
-                    ),
-                  )
-                else
-                  Icon(icon, color: accent, size: 21),
+                Icon(icon, color: accent, size: 21),
                 const SizedBox(width: 10),
                 Flexible(
                   child: Text(
@@ -557,7 +1017,7 @@ class _RoomAction extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: accent,
-                      fontSize: 14,
+                      fontSize: 14.5,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
