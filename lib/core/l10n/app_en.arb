@@ -663,5 +663,14 @@
     "consent_short_version": "THE SHORT VERSION",
     "consent_updated_badge": "UPDATED",
     "consent_new_badge": "NEW",
-    "consent_partial_notice": "This version of the app can’t show part of this document. Read it in full at tarkk.ir."
+    "consent_partial_notice": "This version of the app can’t show part of this document. Read it in full at tarkk.ir.",
+    "bt_resume_title": "Reconnecting over Bluetooth",
+    "bt_resume_looking_for": "Looking for {name}...",
+    "bt_resume_waiting": "Waiting for the other phone...",
+    "bt_resume_hint": "Open Tarkk on the other phone too.",
+    "bt_resume_connected_to": "Connected to {name}",
+    "bt_resume_connected": "The other phone is connected",
+    "bt_resume_ask": "Go to the channel now?",
+    "bt_resume_not_now": "NOT NOW",
+    "bt_resume_failed": "Couldn't reach the other phone. Try again when you're both nearby with Tarkk open."
 }

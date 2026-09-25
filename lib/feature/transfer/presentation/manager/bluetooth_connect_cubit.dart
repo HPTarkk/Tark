@@ -156,7 +156,24 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
     _manualRetrySub = _manualRetry.phases.listen((phase) {
       if (!isClosed) emit(state.copyWith(dialRetry: phase));
     });
-    _loadIdentity().then((_) => _maybeAutoReconnect());
+    _loadIdentity().then((_) => _maybeAutoReconnect()).catchError((Object e) {
+      Logger.log('BT auto-reconnect setup failed: $e');
+      _settleAutoResume(false);
+    });
+  }
+
+  /// Whether the hands-free resume ([_maybeAutoReconnect]) went ahead.
+  ///
+  /// Completes once the cubit has decided: true as soon as it starts
+  /// re-hosting or re-dialing the remembered phone, false when it chose not to
+  /// (setting off, nothing remembered, a permission missing, the radio off).
+  /// The cold-start resume screen waits on this so it can step aside at once
+  /// instead of animating over an attempt that is never going to happen.
+  Future<bool> get autoResume => _autoResume.future;
+  final Completer<bool> _autoResume = Completer<bool>();
+
+  void _settleAutoResume(bool started) {
+    if (!_autoResume.isCompleted) _autoResume.complete(started);
   }
 
   Future<void> _loadIdentity() async {
@@ -193,22 +210,34 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
   /// First-time use (no remembered role yet) keeps the explicit host/join
   /// confirmation flow.
   Future<void> _maybeAutoReconnect() async {
-    if (isClosed || state.role != null) return;
-    if (!await _settingsRepository.getAutoReconnectEnabled()) return;
-    // Role first: what this device is about to do decides which permissions
-    // have to already be in hand for it to do it silently.
-    final lastRole = await _settingsRepository.getLastBluetoothRole();
-    if (lastRole != 'host' && lastRole != 'joiner') return;
-    if (!await _hasSilentPermissions(forHosting: lastRole == 'host')) return;
-    if (!await _transport.isAdapterReady) return;
-    // The user may have picked a role while the checks above were awaited.
-    if (isClosed || state.role != null) return;
-    if (lastRole == 'host') {
+    final role = await _autoReconnectRole();
+    _settleAutoResume(role != null);
+    if (role == 'host') {
       await _autoHost();
-    } else if (state.lastPeer != null) {
+    } else if (role == 'joiner') {
       await _autoJoin();
     }
     // Unknown role / nothing remembered → leave the role-selection screen up.
+  }
+
+  /// The role [_maybeAutoReconnect] should resume, or null when it must not
+  /// run at all.
+  Future<String?> _autoReconnectRole() async {
+    if (isClosed || state.role != null) return null;
+    if (!await _settingsRepository.getAutoReconnectEnabled()) return null;
+    // Role first: what this device is about to do decides which permissions
+    // have to already be in hand for it to do it silently.
+    final lastRole = await _settingsRepository.getLastBluetoothRole();
+    if (lastRole != 'host' && lastRole != 'joiner') return null;
+    // A joiner with nobody remembered has no one to dial.
+    if (lastRole == 'joiner' && state.lastPeer == null) return null;
+    if (!await _hasSilentPermissions(forHosting: lastRole == 'host')) {
+      return null;
+    }
+    if (!await _transport.isAdapterReady) return null;
+    // The user may have picked a role while the checks above were awaited.
+    if (isClosed || state.role != null) return null;
+    return lastRole;
   }
 
   /// Hands-free host: resume the beacon without the user picking a role again.
@@ -725,6 +754,7 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
     // connected session, and the cold-start auto-reconnect keeps working in
     // the background after the user navigates away.
     _pairing.abandon();
+    _settleAutoResume(false);
     _stopAutoJoin();
     _stopManualRetry();
     await _manualRetrySub?.cancel();

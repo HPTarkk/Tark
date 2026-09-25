@@ -2259,4 +2259,36 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get consent_partial_notice =>
       'This version of the app can’t show part of this document. Read it in full at tarkk.ir.';
+
+  @override
+  String get bt_resume_title => 'Reconnecting over Bluetooth';
+
+  @override
+  String bt_resume_looking_for(String name) {
+    return 'Looking for $name...';
+  }
+
+  @override
+  String get bt_resume_waiting => 'Waiting for the other phone...';
+
+  @override
+  String get bt_resume_hint => 'Open Tarkk on the other phone too.';
+
+  @override
+  String bt_resume_connected_to(String name) {
+    return 'Connected to $name';
+  }
+
+  @override
+  String get bt_resume_connected => 'The other phone is connected';
+
+  @override
+  String get bt_resume_ask => 'Go to the channel now?';
+
+  @override
+  String get bt_resume_not_now => 'NOT NOW';
+
+  @override
+  String get bt_resume_failed =>
+      'Couldn\'t reach the other phone. Try again when you\'re both nearby with Tarkk open.';
 }

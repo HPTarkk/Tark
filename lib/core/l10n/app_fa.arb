@@ -673,5 +673,16 @@
     "consent_short_version": "خلاصه‌ی ماجرا",
     "consent_updated_badge": "به‌روز شد",
     "consent_new_badge": "تازه",
-    "consent_partial_notice": "این نسخه‌ی برنامه نمی‌تونه بخشی از این متن رو نشون بده. متن کامل رو توی tarkk.ir بخون."
+    "consent_partial_notice": "این نسخه‌ی برنامه نمی‌تونه بخشی از این متن رو نشون بده. متن کامل رو توی tarkk.ir بخون.",
+    "bt_resume_title": "اتصال دوباره با بلوتوث",
+    "bt_resume_looking_for": "دنبال {name} می‌گردیم...",
+    "@bt_resume_looking_for": {"placeholders": {"name": {"type": "String"}}},
+    "bt_resume_waiting": "منتظر گوشی دیگه‌ایم...",
+    "bt_resume_hint": "روی گوشی دیگه هم «ترک» رو باز کن.",
+    "bt_resume_connected_to": "به {name} وصل شدی",
+    "@bt_resume_connected_to": {"placeholders": {"name": {"type": "String"}}},
+    "bt_resume_connected": "گوشی دیگه وصل شد",
+    "bt_resume_ask": "الان بریم توی کانال؟",
+    "bt_resume_not_now": "فعلاً نه",
+    "bt_resume_failed": "به گوشی دیگه نرسیدیم. وقتی هر دو نزدیک هم بودید و «ترک» باز بود، دوباره امتحان کن."
 }
