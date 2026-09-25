@@ -7,16 +7,19 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/identity/device_identity.dart';
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/sfx/sfx_event.dart';
 import '../../../../core/sfx/sfx_service.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/widget/app_avatar.dart';
+import '../../../../core/widget/confirm_sheet.dart';
 import '../../../../core/widget/ticker_text.dart';
 import '../../../../core/widget/version_badge.dart';
 import '../../../room/presentation/widget/carrier_handover_note.dart';
+import '../../../room/presentation/widget/room_visuals.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../manager/walkie_talkie_cubit.dart';
 import '../widget/background_permission_banner.dart';
@@ -45,40 +48,13 @@ class WalkieTalkiePage extends StatefulWidget {
   State<WalkieTalkiePage> createState() => _WalkieTalkiePageState();
 }
 
-class _WalkieTalkiePageState extends State<WalkieTalkiePage>
-    with TickerProviderStateMixin {
-  // Staggered entrance: [header, identityCard, visualizer, mic, music, members]
-  late AnimationController _entranceController;
-  late List<Animation<double>> _entranceSections;
+class _WalkieTalkiePageState extends State<WalkieTalkiePage> {
   StreamSubscription<String>? _systemAudioMsgSub;
   Timer? _usageTipsTimer;
 
   @override
   void initState() {
     super.initState();
-
-    _entranceController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    );
-
-    const starts = [0.0, 0.10, 0.22, 0.38, 0.52, 0.66];
-    _entranceSections = starts
-        .map(
-          (s) => CurvedAnimation(
-            parent: _entranceController,
-            curve: Interval(
-              s,
-              (s + 0.38).clamp(0.0, 1.0),
-              curve: Curves.easeOutCubic,
-            ),
-          ),
-        )
-        .toList();
-
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _entranceController.forward(),
-    );
 
     // One-shot toast for system-audio sharing notices (currently just the
     // capture-stalled case — see WalkieTalkieCubit.toggleShareSystemAudio).
@@ -120,24 +96,10 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
 
   @override
   void dispose() {
-    _entranceController.dispose();
     _systemAudioMsgSub?.cancel();
     _usageTipsTimer?.cancel();
     super.dispose();
   }
-
-  // Pass child through so the builder doesn't recreate it on every tick.
-  Widget _entrance(int index, Widget child) => AnimatedBuilder(
-    animation: _entranceSections[index],
-    child: child,
-    builder: (_, prebuilt) => Opacity(
-      opacity: _entranceSections[index].value,
-      child: Transform.translate(
-        offset: Offset(0, 22 * (1 - _entranceSections[index].value)),
-        child: prebuilt,
-      ),
-    ),
-  );
 
   @override
   Widget build(BuildContext context) {
@@ -169,16 +131,21 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
       body: SafeArea(
         child: Column(
           children: [
-            _entrance(0, const WalkieHeader()),
+            const WalkieHeader(),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                // The Room lobby's entrance: one shared controller, each
+                // section rising a little after the one above it.
+                child: StaggeredEntrance(
+                  builder: (context, children) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: children,
+                  ),
                   children: [
-                    _entrance(1, _buildIdentityCard(context)),
+                    _buildIdentityCard(context),
                     const SizedBox(height: 16),
-                    _entrance(2, const VisualizerSection()),
+                    const VisualizerSection(),
                     const SizedBox(height: 16),
                     const BackgroundPermissionBanner(),
                     // Above the link banner and the mic control: when this
@@ -194,14 +161,14 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
                     // in-channel — go silent without leaving. Sits where
                     // the old TX/RX chips were; that status now lives in
                     // the visualizer's pill above.
-                    _entrance(3, const MicControl()),
+                    const MicControl(),
                     // Renders nothing where playback capture is
                     // unsupported (iOS, Android < 10) — spacing lives
                     // inside the section so nothing doubles up here.
-                    _entrance(4, const MusicCastSection()),
+                    const MusicCastSection(),
                     const SizedBox(height: 20),
                     _buildPeerDepartureBanner(),
-                    _entrance(5, const UserList()),
+                    const UserList(),
                   ],
                 ),
               ),
@@ -234,7 +201,8 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
           p.localId != c.localId ||
           p.myName != c.myName ||
           p.isReady != c.isReady ||
-          p.myRole != c.myRole,
+          p.myRole != c.myRole ||
+          p.connectionHealth.isLive != c.connectionHealth.isLive,
       builder: (context, state) {
         final s = context.getString;
         // How you're connected, said with the transport's own glyph. This
@@ -248,10 +216,28 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
         //   TransferMode.wifi => Icons.wifi_rounded,
         // };
 
-        return _GlowCard(
+        // Lit like the lobby's hero while the link is up, so the card you
+        // pressed Start on is visibly the same one, now live. Unlit while
+        // connecting or reconnecting — the banners below say why.
+        final live = !isConnecting && state.connectionHealth.isLive;
+        return AnimatedContainer(
+          duration: AppMotion.card,
+          curve: AppMotion.easeOut,
+          padding: const EdgeInsets.all(16),
+          decoration: roomCardDecoration(
+            lit: live,
+            radius: BorderRadius.circular(20),
+          ),
           child: Row(
             children: [
-              AppAvatar(name: state.myName, isActive: true, size: 52),
+              // The same tinted face the other phones draw for this one.
+              TintedAvatar(
+                seed: GetIt.instance.isRegistered<DeviceIdentity>()
+                    ? GetIt.instance<DeviceIdentity>().id
+                    : state.myName,
+                name: state.myName,
+                size: 52,
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -380,18 +366,17 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
       // Announced as a button; a bare GestureDetector was read as plain text.
       child: Semantics(
         button: true,
-        child: GestureDetector(
+        child: PressableScale(
           onTap: () => _confirmLeave(context),
+          borderRadius: BorderRadius.circular(20),
+          // Quieter than the controls above it: an outline, not a fill. It
+          // is the one exit, but not the thing a rider should reach for.
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 15),
+            padding: const EdgeInsets.symmetric(vertical: 14),
             decoration: BoxDecoration(
-              color: AppColors.red.withAlpha(18),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: AppColors.red.withAlpha(90),
-                width: 1.5,
-              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.red.withAlpha(90)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -420,76 +405,26 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
   }
 
   // ── Dialogs ─────────────────────────────────────────────────────────────────
-  void _confirmLeave(BuildContext context) {
+  // A bottom sheet, like the Room screens' own confirmations: the safe
+  // choice is the wide, easy one, and leaving costs a deliberate reach. The
+  // sheet is its own route, so a second back dismisses it instead of
+  // re-triggering the PopScope above.
+  Future<void> _confirmLeave(BuildContext context) async {
     final s = context.getString;
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.card,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: AppColors.border),
-        ),
-        title: Text(
-          s.leave_channel_confirm_title,
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        content: Text(
-          s.leave_channel_confirm_message,
-          style: TextStyle(color: AppColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(
-              s.cancel,
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              Sfx.play(SfxEvent.channelLeave);
-              // goNamed (not pop) so leaving always lands cleanly on
-              // Landing regardless of how this screen was reached — the
-              // Bluetooth flow replaces the stack on connect (goNamed in
-              // BluetoothConnectPage), which left plain pop() with nothing
-              // to pop back to.
-              context.goNamed(AppRoutes.landingName);
-            },
-            child: Text(
-              s.leave,
-              style: TextStyle(
-                color: AppColors.red,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
+    final leave = await showConfirmSheet(
+      context,
+      title: s.leave_channel_confirm_title,
+      body: s.leave_channel_confirm_message,
+      action: s.leave,
+      icon: Icons.power_settings_new_rounded,
+      destructive: true,
     );
-  }
-}
-
-// ── Shared card ────────────────────────────────────────────────────────────────
-
-class _GlowCard extends StatelessWidget {
-  final Widget child;
-  const _GlowCard({required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border, width: 1.5),
-      ),
-      child: child,
-    );
+    if (!leave || !context.mounted) return;
+    Sfx.play(SfxEvent.channelLeave);
+    // goNamed (not pop) so leaving always lands cleanly on Landing regardless
+    // of how this screen was reached — the Bluetooth flow replaces the stack
+    // on connect (goNamed in BluetoothConnectPage), which left plain pop()
+    // with nothing to pop back to.
+    context.goNamed(AppRoutes.landingName);
   }
 }

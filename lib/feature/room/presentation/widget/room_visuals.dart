@@ -26,9 +26,44 @@ class MemberAvatar extends StatelessWidget {
   final double size;
   final bool ring;
 
-  static Color tintFor(RoomMemberId id) {
+  static Color tintFor(RoomMemberId id) => TintedAvatar.tintFor(id.value);
+
+  @override
+  Widget build(BuildContext context) {
+    final name = roomMemberDisplayName(
+      member,
+      fa: Localizations.localeOf(context).languageCode == 'fa',
+      unnamed: context.getString.people_unnamed,
+    );
+    return TintedAvatar(
+      seed: member.id.value,
+      name: name,
+      size: size,
+      ring: ring,
+    );
+  }
+}
+
+/// The face [MemberAvatar] draws, for someone known only by a [seed] (a
+/// stable id) and a [name]: the live channel's peers outside a saved Room
+/// look the same as the Room's members do.
+class TintedAvatar extends StatelessWidget {
+  const TintedAvatar({
+    required this.seed,
+    required this.name,
+    this.size = 44,
+    this.ring = false,
+    super.key,
+  });
+
+  final String seed;
+  final String name;
+  final double size;
+  final bool ring;
+
+  static Color tintFor(String seed) {
     var hash = 0;
-    for (final unit in id.value.codeUnits) {
+    for (final unit in seed.codeUnits) {
       hash = (hash * 31 + unit) & 0x7fffffff;
     }
     // Warm-to-cool hues that all sit well on both themes.
@@ -38,13 +73,8 @@ class MemberAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = roomMemberDisplayName(
-      member,
-      fa: Localizations.localeOf(context).languageCode == 'fa',
-      unnamed: context.getString.people_unnamed,
-    );
     final initial = name.trim().isEmpty ? '?' : name.trim().characters.first;
-    final tint = tintFor(member.id);
+    final tint = tintFor(seed);
     return Container(
       width: size,
       height: size,

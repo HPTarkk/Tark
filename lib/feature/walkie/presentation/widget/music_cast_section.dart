@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 
@@ -8,20 +9,29 @@ import '../../../../core/entitlement/license_gate.dart';
 import '../../../../core/entitlement/paywall_sheet.dart';
 import '../../../../core/entitlement/premium_feature.dart';
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../core/widget/section_header.dart';
 import '../../../../core/widget/ticker_text.dart';
 import '../../../audio/api/audio_api.dart';
+import '../../../room/presentation/widget/room_visuals.dart';
 import '../manager/walkie_talkie_cubit.dart';
 
 /// System-audio (music) casting card. Android 10+ only. Devices where
 /// playback capture is unavailable still get an honest disabled state instead
 /// of having the feature disappear while voice remains usable.
 ///
+/// Folded by default: music is an occasional act on a screen built around
+/// talking, so when nothing is being cast the card is one row — the amber
+/// music badge, the feature's name and the first line of its pitch, and a
+/// chevron — sitting right under the mic control where it has always been.
+/// Tapping it unfolds the pitch and the start button. It never folds while a
+/// cast is starting or live: the controls for something on air stay in view.
+///
 /// Three faces:
-///  * OFF      — pitch line + a big START CASTING call-to-action;
+///  * OFF      — the folded row; unfolded, pitch line + START CASTING;
 ///  * STARTING — the CTA turns into a spinner while the system consent
 ///               dialog is up;
 ///  * ON AIR   — glowing card with a live equalizer fed by the actual
@@ -48,12 +58,14 @@ class MusicCastSection extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 20),
-            SectionHeader(label: s.music_cast),
-            const SizedBox(height: 12),
-            if (!supported)
-              const _UnsupportedBody()
-            else
+            const SizedBox(height: 16),
+            // The folded row carries the name itself; only the unsupported
+            // note, which has no row, keeps the section heading.
+            if (!supported) ...[
+              SectionHeader(label: s.music_cast),
+              const SizedBox(height: 12),
+              const _UnsupportedBody(),
+            ] else
               BlocBuilder<WalkieTalkieCubit, WalkieTalkieState>(
                 buildWhen: (p, c) =>
                     p.isSharingSystemAudio != c.isSharingSystemAudio ||
@@ -62,40 +74,22 @@ class MusicCastSection extends StatelessWidget {
                 builder: (context, state) {
                   final live = state.isSharingSystemAudio;
                   return AnimatedContainer(
-                    duration: const Duration(milliseconds: 350),
-                    curve: Curves.easeOutCubic,
+                    duration: AppMotion.card,
+                    curve: AppMotion.easeOut,
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: live
-                          ? Color.alphaBlend(
-                              AppColors.amber.withAlpha(14),
-                              AppColors.card,
-                            )
-                          : AppColors.card,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: live
-                            ? AppColors.amber.withAlpha(150)
-                            : AppColors.border,
-                        width: live ? 1.5 : 1,
-                      ),
-                      boxShadow: live
-                          ? [
-                              BoxShadow(
-                                color: AppColors.amber.withAlpha(26),
-                                blurRadius: 20,
-                                spreadRadius: 1,
-                              ),
-                            ]
-                          : null,
+                    // The Room screens' lit card: amber from above while a
+                    // cast is live, the plain surface otherwise.
+                    decoration: roomCardDecoration(
+                      lit: live,
+                      radius: BorderRadius.circular(20),
                     ),
                     child: AnimatedSize(
-                      duration: const Duration(milliseconds: 350),
-                      curve: Curves.easeOutCubic,
+                      duration: AppMotion.card,
+                      curve: AppMotion.easeOut,
                       alignment: Alignment.topCenter,
                       child: live
                           ? const _LiveBody()
-                          : _IdleBody(starting: state.isStartingSystemAudio),
+                          : _FoldedIdle(starting: state.isStartingSystemAudio),
                     ),
                   );
                 },
@@ -152,6 +146,96 @@ class _UnsupportedBody extends StatelessWidget {
 
 // ── OFF / STARTING ───────────────────────────────────────────────────────────
 
+/// The folded row, and under it — once opened — the pitch and start button.
+class _FoldedIdle extends StatefulWidget {
+  const _FoldedIdle({required this.starting});
+
+  final bool starting;
+
+  @override
+  State<_FoldedIdle> createState() => _FoldedIdleState();
+}
+
+class _FoldedIdleState extends State<_FoldedIdle> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    // A cast on its way up keeps its spinner in view.
+    final open = _open || widget.starting;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Semantics(
+          key: const Key('music-cast-fold'),
+          button: true,
+          expanded: open,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: widget.starting
+                ? null
+                : () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _open = !_open);
+                  },
+            child: Row(
+              children: [
+                const _MusicBadge(active: false),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        s.music_cast,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      // One line folded, the whole pitch unfolded; the card's
+                      // AnimatedSize carries the growth.
+                      Text(
+                        s.music_cast_hint,
+                        maxLines: open ? 6 : 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                          height: 1.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                AnimatedRotation(
+                  turns: open ? 0.5 : 0,
+                  duration: AppMotion.card,
+                  curve: AppMotion.easeOut,
+                  child: Icon(
+                    Icons.expand_more_rounded,
+                    color: AppColors.amber,
+                    size: 24,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (open) _IdleBody(starting: widget.starting),
+      ],
+    );
+  }
+}
+
 class _IdleBody extends StatelessWidget {
   final bool starting;
 
@@ -165,22 +249,6 @@ class _IdleBody extends StatelessWidget {
     );
     return Column(
       children: [
-        Row(
-          children: [
-            _MusicBadge(active: false),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                s.music_cast_hint,
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 12,
-                  height: 1.5,
-                ),
-              ),
-            ),
-          ],
-        ),
         const SizedBox(height: 14),
         GestureDetector(
           onTap: starting
@@ -193,7 +261,7 @@ class _IdleBody extends StatelessWidget {
                   context.read<WalkieTalkieCubit>().toggleShareSystemAudio();
                 },
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
+            duration: AppMotion.chip,
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 13),
             decoration: BoxDecoration(
@@ -490,7 +558,7 @@ class _MusicBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
+      duration: AppMotion.card,
       width: 38,
       height: 38,
       decoration: BoxDecoration(
