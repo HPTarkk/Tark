@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/recovery/recovery_banner.dart';
 import '../../../../core/recovery/recovery_check.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -51,28 +52,10 @@ Future<bool> showPreflightPage(
   PreflightSessionStarter startSession = PreflightService.start,
 }) async {
   final result = await Navigator.of(context).push<bool>(
-    PageRouteBuilder<bool>(
-      transitionDuration: const Duration(milliseconds: 360),
-      reverseTransitionDuration: const Duration(milliseconds: 240),
-      pageBuilder: (_, _, _) =>
-          _PreflightPage(plan: plan, startSession: startSession),
-      // Rises in from just below rather than a flat cross-fade — the last
-      // physical trace of the sheet this replaced, kept because "the next
-      // screen comes up from where your thumb is" is still the right story
-      // for a page that opens on a tap, not a plain navigation.
-      transitionsBuilder: (_, animation, _, child) => FadeTransition(
-        opacity: animation,
-        child: SlideTransition(
-          position:
-              Tween<Offset>(
-                begin: const Offset(0, 0.05),
-                end: Offset.zero,
-              ).animate(
-                CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-              ),
-          child: child,
-        ),
-      ),
+    // A plain page route, so it takes the app-wide transition from the theme
+    // (AppPageTransitionsBuilder) like every other screen.
+    MaterialPageRoute<bool>(
+      builder: (_) => _PreflightPage(plan: plan, startSession: startSession),
     ),
   );
   return result ?? false;
@@ -132,10 +115,8 @@ class _PreflightPageState extends State<_PreflightPage>
     // — six independent controllers would each tick a frame callback for the
     // same single visual beat, which is the kind of per-row animation cost
     // the low-end-device floor can't absorb.
-    _entrance = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 620),
-    )..forward();
+    _entrance = AnimationController(vsync: this, duration: _rowEntranceDuration)
+      ..forward();
     _launch = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 640),
@@ -166,7 +147,10 @@ class _PreflightPageState extends State<_PreflightPage>
     // Guarded so a later dependency change (a locale switch mid-page) can't
     // start a second, orphaned session.
     if (_session == null) {
-      final session = widget.startSession(s: context.getString, plan: widget.plan);
+      final session = widget.startSession(
+        s: context.getString,
+        plan: widget.plan,
+      );
       _session = session;
       _result = session.initial;
       _scheduleAutoLaunch(session.initial);
@@ -268,7 +252,9 @@ class _PreflightPageState extends State<_PreflightPage>
               builder: (context, child) => Opacity(
                 opacity: 1 - _launch.value,
                 child: Transform.translate(
-                  offset: Offset(0, -18 * _launch.value),
+                  offset: AppMotion.reduced(context)
+                      ? Offset.zero
+                      : Offset(0, -18 * _launch.value),
                   child: child,
                 ),
               ),
@@ -325,7 +311,9 @@ class _PreflightPageState extends State<_PreflightPage>
           // Only ever mounted for the auto path (see _autoLaunch) — a
           // manual tap never sets _launching, so this never competes with
           // the instant close a deliberate press is owed.
-          if (_launching)
+          // Reduced motion skips the expanding rings; the page's own fade
+          // still says it is leaving.
+          if (_launching && !AppMotion.reduced(context))
             Positioned.fill(child: _LaunchBurst(animation: _launch)),
         ],
       ),
@@ -493,7 +481,9 @@ class _Header extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             AnimatedSwitcher(
-              duration: const Duration(milliseconds: 250),
+              duration: AppMotion.card,
+              switchInCurve: AppMotion.easeOut,
+              switchOutCurve: AppMotion.leaving,
               child: Text(
                 subtitle,
                 key: ValueKey(subtitle),
@@ -511,6 +501,11 @@ class _Header extends StatelessWidget {
     );
   }
 }
+
+/// The whole row sequence: one [AppMotion.entrance] window plus a stagger
+/// step per row after the first.
+final _rowEntranceDuration =
+    AppMotion.entrance + AppMotion.stagger * (_Slot.values.length - 1);
 
 class _PreflightRow extends StatelessWidget {
   const _PreflightRow({
@@ -538,23 +533,29 @@ class _PreflightRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Staggered off one shared controller: each row's own slice of the same
-    // 620ms sweep, not an independent animation — see _PreflightPageState.
-    final start = (index * 0.09).clamp(0.0, 0.55);
+    // Staggered off one shared controller: each row gets the full
+    // AppMotion.entrance window, offset by its own AppMotion.stagger — the
+    // same timing StaggeredEntrance uses — not an independent animation.
+    // See _PreflightPageState.
+    final totalMs = _rowEntranceDuration.inMilliseconds;
+    final startMs = AppMotion.stagger.inMilliseconds * index;
+    final endMs = startMs + AppMotion.entrance.inMilliseconds;
     final curved = CurvedAnimation(
       parent: entrance,
       curve: Interval(
-        start,
-        (start + 0.45).clamp(0.0, 1.0),
-        curve: Curves.easeOutCubic,
+        (startMs / totalMs).clamp(0.0, 1.0),
+        (endMs / totalMs).clamp(0.0, 1.0),
+        curve: AppMotion.easeOut,
       ),
     );
+    // Reduced motion keeps the fade and the order, and drops the travel.
+    final rise = AppMotion.reduced(context) ? 0.0 : AppMotion.rise;
     return AnimatedBuilder(
       animation: curved,
       builder: (context, child) => Opacity(
         opacity: curved.value,
         child: Transform.translate(
-          offset: Offset(0, (1 - curved.value) * 14),
+          offset: Offset(0, (1 - curved.value) * rise),
           child: child,
         ),
       ),
@@ -569,8 +570,8 @@ class _PreflightRow extends StatelessWidget {
         : RecoveryBanner.accentFor(resolved.status);
     final unhealthy = resolved != null && !resolved.isHealthy;
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeOut,
+      duration: AppMotion.card,
+      curve: AppMotion.easeOut,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: unhealthy ? accent.withAlpha(16) : Colors.transparent,
@@ -638,15 +639,23 @@ class _StatusGlyph extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final resolved = check;
+    // Overshoot is kept for a check that passed and nothing else: a warning
+    // or a failure bouncing into place would read as a celebration.
+    final curve = resolved != null && resolved.isHealthy
+        ? Curves.easeOutBack
+        : AppMotion.easeOut;
+    final reduced = AppMotion.reduced(context);
     return SizedBox(
       width: 18,
       height: 18,
       child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 260),
-        transitionBuilder: (child, animation) => ScaleTransition(
-          scale: CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
-          child: FadeTransition(opacity: animation, child: child),
-        ),
+        duration: AppMotion.chip,
+        transitionBuilder: (child, animation) => reduced
+            ? FadeTransition(opacity: animation, child: child)
+            : ScaleTransition(
+                scale: CurvedAnimation(parent: animation, curve: curve),
+                child: FadeTransition(opacity: animation, child: child),
+              ),
         child: resolved == null
             ? const _PendingDot(key: ValueKey('pending'))
             : Icon(
@@ -672,7 +681,19 @@ class _PendingDotState extends State<_PendingDot>
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 900),
-  )..repeat(reverse: true);
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // A breathing loop never finishes, so reduced motion holds the dot still
+    // at full strength instead.
+    if (AppMotion.reduced(context)) {
+      _controller.value = 1;
+    } else if (!_controller.isAnimating) {
+      _controller.repeat(reverse: true);
+    }
+  }
 
   @override
   void dispose() {
@@ -741,8 +762,8 @@ class _Cta extends StatelessWidget {
         width: double.infinity,
         height: 50,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
+          duration: AppMotion.card,
+          curve: AppMotion.easeOut,
           decoration: BoxDecoration(
             color: enabled ? accent : AppColors.surface,
             borderRadius: BorderRadius.circular(14),

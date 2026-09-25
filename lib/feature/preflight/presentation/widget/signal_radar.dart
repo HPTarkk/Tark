@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/recovery/recovery_banner.dart';
 import '../../../../core/recovery/recovery_check.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -57,27 +58,46 @@ class _SignalRadarState extends State<SignalRadar>
   @override
   void initState() {
     super.initState();
-    if (widget.isComplete) {
-      // Already resolved on first frame (a fixed test fixture, or a re-open
-      // after the answer was already known) — settle silently, no replay.
-      _bloom.value = 1;
-    } else {
-      _sweep.repeat();
-    }
+    // Already resolved on first frame (a fixed test fixture, or a re-open
+    // after the answer was already known) — settle silently, no replay.
+    if (widget.isComplete) _bloom.value = 1;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Here rather than initState, because reduced motion is read from
+    // MediaQuery, and so it follows the setting if it changes mid-check.
+    _syncSweep();
   }
 
   @override
   void didUpdateWidget(covariant SignalRadar old) {
     super.didUpdateWidget(old);
     if (!old.isComplete && widget.isComplete) {
-      _sweep.stop();
-      _bloom.forward(from: 0);
+      // Reduced motion lands on the settled state without the expanding ring.
+      if (AppMotion.reduced(context)) {
+        _bloom.value = 1;
+      } else {
+        _bloom.forward(from: 0);
+      }
       HapticFeedback.mediumImpact();
     } else if (old.isComplete && !widget.isComplete) {
       // A remediation action re-opened the question (e.g. "Allow mic" is
       // re-running the probe) — go back to scanning, allow the bloom again.
       _bloom.value = 0;
+    }
+    _syncSweep();
+  }
+
+  /// Runs the sweep only while a check is still pending, and never under
+  /// reduced motion: a loop has no end, so there is no moment it is done.
+  void _syncSweep() {
+    final shouldSweep = !widget.isComplete && !AppMotion.reduced(context);
+    if (shouldSweep && !_sweep.isAnimating) {
       _sweep.repeat();
+    } else if (!shouldSweep && _sweep.isAnimating) {
+      _sweep.stop();
     }
   }
 
@@ -104,8 +124,14 @@ class _SignalRadarState extends State<SignalRadar>
       ? Icons.warning_amber_rounded
       : Icons.check_rounded;
 
+  /// Everything resolved and nothing to fix: the one outcome that earns an
+  /// overshoot. A warning or a failure settles without a bounce.
+  bool get _passed =>
+      widget.isComplete && !widget.hasBlocking && !widget.hasOnlyWarning;
+
   @override
   Widget build(BuildContext context) {
+    final reduced = AppMotion.reduced(context);
     return RepaintBoundary(
       child: SizedBox(
         width: _size,
@@ -120,7 +146,8 @@ class _SignalRadarState extends State<SignalRadar>
             // everywhere else: the expensive thing is a blur redrawn every
             // tick, not one that sits still between real state changes).
             AnimatedContainer(
-              duration: const Duration(milliseconds: 400),
+              duration: AppMotion.card,
+              curve: AppMotion.easeOut,
               width: _size * 0.82,
               height: _size * 0.82,
               decoration: BoxDecoration(
@@ -174,16 +201,18 @@ class _SignalRadarState extends State<SignalRadar>
               ),
             ),
             for (var i = 0; i < widget.checks.length; i++)
-              _blip(i, widget.checks[i]),
+              _blip(i, widget.checks[i], reduced: reduced),
             AnimatedSwitcher(
-              duration: const Duration(milliseconds: 320),
-              transitionBuilder: (child, animation) => ScaleTransition(
-                scale: CurvedAnimation(
-                  parent: animation,
-                  curve: Curves.easeOutBack,
-                ),
-                child: FadeTransition(opacity: animation, child: child),
-              ),
+              duration: AppMotion.card,
+              transitionBuilder: (child, animation) => reduced
+                  ? FadeTransition(opacity: animation, child: child)
+                  : ScaleTransition(
+                      scale: CurvedAnimation(
+                        parent: animation,
+                        curve: _passed ? Curves.easeOutBack : AppMotion.easeOut,
+                      ),
+                      child: FadeTransition(opacity: animation, child: child),
+                    ),
               child: Container(
                 key: ValueKey(_centerIcon),
                 width: 46,
@@ -202,7 +231,7 @@ class _SignalRadarState extends State<SignalRadar>
     );
   }
 
-  Widget _blip(int index, RecoveryCheck? check) {
+  Widget _blip(int index, RecoveryCheck? check, {required bool reduced}) {
     final angle = -math.pi / 2 + index * (2 * math.pi / widget.checks.length);
     final radius = _size / 2 - 10;
     final offset = Offset(math.cos(angle), math.sin(angle)) * radius;
@@ -218,10 +247,15 @@ class _SignalRadarState extends State<SignalRadar>
       offset: offset,
       child: AnimatedScale(
         scale: resolved ? 1.0 : 0.55,
-        duration: const Duration(milliseconds: 320),
-        curve: Curves.easeOutBack,
+        // Reduced motion jumps to the new size; the colour change below
+        // still eases, and it carries the meaning on its own.
+        duration: reduced ? Duration.zero : AppMotion.card,
+        curve: resolved && check.isHealthy
+            ? Curves.easeOutBack
+            : AppMotion.easeOut,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
+          duration: AppMotion.card,
+          curve: AppMotion.easeOut,
           width: 10,
           height: 10,
           decoration: BoxDecoration(

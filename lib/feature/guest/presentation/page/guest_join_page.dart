@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/qr_widgets.dart';
 // Direct file imports (not the transfer barrel) — see GuestWebClient.
@@ -105,7 +106,9 @@ class _GuestJoinPageState extends State<GuestJoinPage> {
                           28,
                         ),
                         child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 350),
+                          duration: AppMotion.sheet,
+                          switchInCurve: AppMotion.easeOut,
+                          switchOutCurve: AppMotion.leaving,
                           child: KeyedSubtree(
                             key: ValueKey(_phaseKey),
                             child: _body(context),
@@ -282,7 +285,19 @@ class _WaitingDotsState extends State<_WaitingDots>
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1400),
-  )..repeat();
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // A breathing loop never finishes, so reduced motion holds the dots
+    // still instead.
+    if (AppMotion.reduced(context)) {
+      _controller.value = 0;
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
+  }
 
   @override
   void dispose() {
@@ -353,13 +368,17 @@ class _StartAudioButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final reduced = AppMotion.reduced(context);
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        // The connected check is a success mark, so it keeps a single
+        // overshoot (not the wobble of an elastic curve). Reduced motion
+        // shows it at rest.
         TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0.4, end: 1.0),
-          duration: const Duration(milliseconds: 450),
-          curve: Curves.elasticOut,
+          tween: Tween(begin: reduced ? 1.0 : 0.4, end: 1.0),
+          duration: AppMotion.sheet,
+          curve: Curves.easeOutBack,
           builder: (context, scale, child) =>
               Transform.scale(scale: scale, child: child),
           child: Container(
@@ -397,7 +416,8 @@ class _StartAudioButton extends StatelessWidget {
               ? null
               : () => context.read<GuestSessionCubit>().startAudio(),
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
+            duration: AppMotion.card,
+            curve: AppMotion.easeOut,
             padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 17),
             decoration: BoxDecoration(
               color: AppColors.amber.withAlpha(starting ? 12 : 25),

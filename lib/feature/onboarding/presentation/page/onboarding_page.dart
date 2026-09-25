@@ -6,6 +6,7 @@ import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/sfx/sfx_event.dart';
 import '../../../../core/sfx/sfx_service.dart';
@@ -86,8 +87,10 @@ class _OnboardingPageState extends State<OnboardingPage>
   /// carrying you somewhere, not racing you through a form.
   late final AnimationController _stepT = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1100),
+    duration: _handoverDuration,
   );
+
+  static const _handoverDuration = Duration(milliseconds: 1100);
 
   /// One-shot scene entrance for the persistent chrome (header, emblem,
   /// CTA); beats themselves ride [_stepT].
@@ -99,25 +102,27 @@ class _OnboardingPageState extends State<OnboardingPage>
   /// Shared ambient clocks: breathing glow (selected HUD frames, transmit key
   /// border), a slow drift loop (parallax sway, celestial glow, VOX waveform),
   /// and the periodic gloss glint on the transmit key.
+  ///
+  /// All four loops are started (or held still) by [_syncAmbient].
   late final AnimationController _pulse = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 2000),
-  )..repeat(reverse: true);
+    duration: AppMotion.pulse,
+  );
   late final AnimationController _ambient = AnimationController(
     vsync: this,
     duration: const Duration(seconds: 12),
-  )..repeat();
+  );
   late final AnimationController _shimmer = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 3200),
-  )..repeat();
+  );
 
   /// Continuous travel clock: streams the horizon's foreground ground dashes
   /// so the whole scene always reads as moving toward being on air.
   late final AnimationController _scroll = AnimationController(
     vsync: this,
     duration: const Duration(seconds: 4),
-  )..repeat();
+  );
 
   /// Time of day for the [HorizonScene]: 0 = day, 1 = night. Animated toward
   /// the tune beat's theme choice so picking Day/Night plays a real sunrise /
@@ -156,6 +161,12 @@ class _OnboardingPageState extends State<OnboardingPage>
   int _dir = 1;
   bool _finishing = false;
 
+  /// Whether the platform asked for less motion — see [AppMotion.reduced].
+  /// Read in [didChangeDependencies], since [initState] cannot reach
+  /// MediaQuery.
+  bool _reduced = false;
+  bool _started = false;
+
   @override
   void initState() {
     super.initState();
@@ -165,16 +176,46 @@ class _OnboardingPageState extends State<OnboardingPage>
     _shown = state.step;
     _dayNight.value = state.themePref == AppThemeMode.light ? 0.0 : 1.0;
     _intro.forward();
-    _stepT.forward();
-    _wave.forward(from: 0);
   }
 
-  /// Plays the sunrise/sunset toward the chosen theme.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reduced = AppMotion.reduced(context);
+    // Reduced motion swaps the handover for a short crossfade (see
+    // [_CrossfadeBeats]), so the clock that drives it shortens to match.
+    _stepT.duration = _reduced ? AppMotion.sheet : _handoverDuration;
+    _syncAmbient();
+    if (!_started) {
+      _started = true;
+      _stepT.forward();
+      if (!_reduced) _wave.forward(from: 0);
+    }
+  }
+
+  /// Runs the ambient loops, or holds them still under reduced motion: a loop
+  /// never finishes, so there is no moment at which it is done.
+  void _syncAmbient() {
+    for (final loop in [_pulse, _ambient, _shimmer, _scroll]) {
+      if (_reduced) {
+        // Back to rest rather than frozen wherever it was: a gloss band
+        // stopped mid-sweep would sit across the panel for good.
+        loop.value = 0;
+      } else if (!loop.isAnimating) {
+        loop.repeat(reverse: identical(loop, _pulse));
+      }
+    }
+  }
+
+  /// Plays the sunrise/sunset toward the chosen theme, or cuts straight to it
+  /// under reduced motion.
   void _syncDayNight(AppThemeMode mode) {
-    _dayNight.animateTo(
-      mode == AppThemeMode.light ? 0.0 : 1.0,
-      curve: Curves.easeInOutCubic,
-    );
+    final target = mode == AppThemeMode.light ? 0.0 : 1.0;
+    if (_reduced) {
+      _dayNight.value = target;
+      return;
+    }
+    _dayNight.animateTo(target, curve: AppMotion.easeInOut);
   }
 
   @override
@@ -194,7 +235,7 @@ class _OnboardingPageState extends State<OnboardingPage>
     FocusManager.instance.primaryFocus?.unfocus();
     final advancing = newStep > _shown;
     if (advancing) Sfx.play(SfxEvent.toggle);
-    _wave.forward(from: 0);
+    if (!_reduced) _wave.forward(from: 0);
     setState(() {
       _leaving = _shown;
       _dir = advancing ? 1 : -1;
@@ -370,7 +411,7 @@ class _OnboardingPageState extends State<OnboardingPage>
     final s = context.getString;
     final isLast = state.step == OnboardingCubit.stepCount - 1;
     return FadeTransition(
-      opacity: CurvedAnimation(parent: _intro, curve: Curves.easeOut),
+      opacity: CurvedAnimation(parent: _intro, curve: AppMotion.easeOut),
       child: SizedBox(
         height: 56,
         child: Stack(
@@ -440,7 +481,9 @@ class _OnboardingPageState extends State<OnboardingPage>
         _shown,
         firstBeat ? _reveal : kAlwaysCompleteAnimation,
       ),
-      transition: const HandoverTransition(accent: Onb.amber),
+      transition: _reduced
+          ? const _CrossfadeBeats()
+          : const HandoverTransition(accent: Onb.amber),
     );
     // With the radio band gone the beats own the whole middle: sit them a
     // touch below centre so the composition breathes, while still allowing
@@ -516,7 +559,7 @@ class _OnboardingPageState extends State<OnboardingPage>
     }
 
     return FadeTransition(
-      opacity: CurvedAnimation(parent: _intro, curve: Curves.easeOut),
+      opacity: CurvedAnimation(parent: _intro, curve: AppMotion.easeOut),
       // The key repaints every frame *while pulsing*; the boundary keeps that
       // off the layer shared with the rest of the column.
       child: RepaintBoundary(
@@ -576,7 +619,8 @@ class _OnboardingPageState extends State<OnboardingPage>
       height: 38,
       child: Center(
         child: AnimatedOpacity(
-          duration: const Duration(milliseconds: 300),
+          duration: AppMotion.card,
+          curve: AppMotion.easeOut,
           opacity: visible ? 1 : 0,
           child: IgnorePointer(
             ignoring: !visible,
@@ -622,7 +666,8 @@ class _HeaderButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnimatedOpacity(
-      duration: const Duration(milliseconds: 300),
+      duration: AppMotion.card,
+      curve: AppMotion.easeOut,
       opacity: visible ? 1 : 0,
       child: IgnorePointer(
         ignoring: !visible,
@@ -632,6 +677,47 @@ class _HeaderButton extends StatelessWidget {
           child: Padding(padding: const EdgeInsets.all(12), child: child),
         ),
       ),
+    );
+  }
+}
+
+/// The reduced-motion stand-in for [HandoverTransition]: the two beats
+/// dissolve into each other in place. No travel, no wind, no reticle — the
+/// change of beat is still visible, it just does not move.
+class _CrossfadeBeats extends BeatTransition {
+  const _CrossfadeBeats();
+
+  @override
+  Widget build({
+    required Widget? leaving,
+    required Widget incoming,
+    required Animation<double> progress,
+    required int direction,
+    required TextDirection textDirection,
+  }) {
+    if (leaving == null) return incoming;
+    final fadeIn = CurvedAnimation(parent: progress, curve: AppMotion.easeOut);
+    return Stack(
+      children: [
+        // Incoming is the non-positioned child, so it sizes the stage.
+        FadeTransition(opacity: fadeIn, child: incoming),
+        Positioned.fill(
+          child: IgnorePointer(
+            // The outgoing beat keeps its own height rather than being
+            // squashed to the incoming one's, as in HandoverTransition.
+            child: OverflowBox(
+              minHeight: 0,
+              maxHeight: double.infinity,
+              child: FadeTransition(
+                // 1 - easeOut(t), so the pair always sums to one: a single
+                // dissolve rather than a dip through the background.
+                opacity: Tween<double>(begin: 1, end: 0).animate(fadeIn),
+                child: leaving,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

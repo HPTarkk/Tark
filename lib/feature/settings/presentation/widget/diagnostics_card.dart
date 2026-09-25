@@ -10,6 +10,7 @@ import '../../../../core/diagnostics/diagnostics_bridge.dart';
 import '../../../../core/diagnostics/log_budget.dart';
 import '../../../../core/diagnostics/tark_log_format.dart';
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../core/widget/ticker_text.dart';
@@ -222,7 +223,9 @@ class _DiagnosticsCardState extends State<DiagnosticsCard> {
                   ? null
                   : () {
                       HapticFeedback.selectionClick();
-                      Clipboard.setData(ClipboardData(text: build.diagnosticLine));
+                      Clipboard.setData(
+                        ClipboardData(text: build.diagnosticLine),
+                      );
                       _say(build.shortCommit);
                     },
             ),
@@ -344,7 +347,7 @@ class _LogBudgetSectionState extends State<_LogBudgetSection> {
                 ),
                 child: TickerText(
                   text: LogBudget.format(selected).localized(context),
-                  duration: const Duration(milliseconds: 200),
+                  duration: AppMotion.chip,
                   style: TextStyle(
                     color: AppColors.amber,
                     fontSize: 12,
@@ -362,9 +365,9 @@ class _LogBudgetSectionState extends State<_LogBudgetSection> {
               Expanded(
                 child: Text(
                   s.settings_log_usage(
-                    LogBudget.format(math.max(0, widget.usedBytes)).localized(
-                      context,
-                    ),
+                    LogBudget.format(
+                      math.max(0, widget.usedBytes),
+                    ).localized(context),
                     LogBudget.format(selected).localized(context),
                   ),
                   style: TextStyle(
@@ -497,8 +500,8 @@ class _CapacityBar extends StatelessWidget {
               // something, and a fill that teleports reads as a repaint glitch.
               TweenAnimationBuilder<double>(
                 tween: Tween<double>(begin: 0, end: width.clamp(0.0, 1.0)),
-                duration: const Duration(milliseconds: 450),
-                curve: Curves.easeOutCubic,
+                duration: AppMotion.sheet,
+                curve: AppMotion.easeOut,
                 builder: (context, value, child) => FractionallySizedBox(
                   alignment: AlignmentDirectional.centerStart,
                   widthFactor: value,

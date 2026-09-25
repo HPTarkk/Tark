@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/app_avatar.dart';
 import '../../../../core/widget/localized_counter.dart';
@@ -277,7 +278,8 @@ class _VisualizerCard extends StatelessWidget {
         final isActive = state.isTalking || state.hostTalking;
         final color = state.isTalking ? AppColors.red : AppColors.amber;
         return AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: AppMotion.card,
+          curve: AppMotion.easeOut,
           height: 210,
           decoration: BoxDecoration(
             color: AppColors.card,
@@ -351,8 +353,8 @@ class _LinkBanner extends StatelessWidget {
     return BlocBuilder<GuestSessionCubit, GuestSessionState>(
       buildWhen: (p, c) => p.linkUp != c.linkUp,
       builder: (context, state) => AnimatedSize(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
+        duration: AppMotion.card,
+        curve: AppMotion.easeOut,
         child: state.linkUp
             ? const SizedBox(width: double.infinity)
             : Container(
@@ -461,7 +463,8 @@ class _StatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
+      duration: AppMotion.card,
+      curve: AppMotion.easeOut,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: isActive ? activeColor.withAlpha(30) : AppColors.card,
@@ -475,7 +478,8 @@ class _StatusChip extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
+            duration: AppMotion.card,
+            curve: AppMotion.easeOut,
             width: 8,
             height: 8,
             decoration: BoxDecoration(
@@ -527,7 +531,9 @@ class _HostMember extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
+            duration: AppMotion.card,
+            switchInCurve: AppMotion.easeOut,
+            switchOutCurve: AppMotion.leaving,
             child: !state.isHostOnline
                 ? Container(
                     key: const ValueKey('empty'),
@@ -735,7 +741,7 @@ class _SliderRow extends StatelessWidget {
               ),
               child: TickerText(
                 text: valueLabel,
-                duration: const Duration(milliseconds: 200),
+                duration: AppMotion.chip,
                 style: TextStyle(
                   color: AppColors.amber,
                   fontSize: 12,

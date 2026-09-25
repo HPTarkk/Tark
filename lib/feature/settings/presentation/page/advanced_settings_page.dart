@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/analytics/analytics.dart';
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/settings/noise_suppression_engine.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -47,58 +48,7 @@ class AdvancedSettingsPage extends StatefulWidget {
   State<AdvancedSettingsPage> createState() => _AdvancedSettingsPageState();
 }
 
-class _AdvancedSettingsPageState extends State<AdvancedSettingsPage>
-    with TickerProviderStateMixin {
-  // Staggered entrance, same pattern as the main Settings page:
-  // [transport, voice, HD audio, noise cleaner, delay, diagnostics]
-  late AnimationController _entranceController;
-  late List<Animation<double>> _sections;
-
-  static const _sectionCount = 6;
-
-  @override
-  void initState() {
-    super.initState();
-    _entranceController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 700),
-    );
-    final starts = List.generate(_sectionCount, (i) => i * 0.6 / _sectionCount);
-    _sections = starts
-        .map(
-          (s) => CurvedAnimation(
-            parent: _entranceController,
-            curve: Interval(
-              s,
-              (s + 0.4).clamp(0.0, 1.0),
-              curve: Curves.easeOutCubic,
-            ),
-          ),
-        )
-        .toList();
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _entranceController.forward(),
-    );
-  }
-
-  @override
-  void dispose() {
-    _entranceController.dispose();
-    super.dispose();
-  }
-
-  Widget _entrance(int index, Widget child) => AnimatedBuilder(
-    animation: _sections[index],
-    child: child,
-    builder: (_, prebuilt) => Opacity(
-      opacity: _sections[index].value,
-      child: Transform.translate(
-        offset: Offset(0, 18 * (1 - _sections[index].value)),
-        child: prebuilt,
-      ),
-    ),
-  );
-
+class _AdvancedSettingsPageState extends State<AdvancedSettingsPage> {
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
@@ -126,21 +76,21 @@ class _AdvancedSettingsPageState extends State<AdvancedSettingsPage>
         body: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+            // Same shared entrance as the main Settings page.
+            child: StaggeredEntrance(
               children: [
-                _entrance(0, _TransportCard()),
-                const SizedBox(height: 16),
-                _entrance(1, _VoiceCard()),
-                const SizedBox(height: 16),
-                _entrance(2, const _HdAudioCard()),
-                const SizedBox(height: 16),
-                _entrance(3, _NoiseCleanerCard()),
-                const SizedBox(height: 16),
-                _entrance(4, _DelayCard()),
-                const SizedBox(height: 16),
-                _entrance(5, const DiagnosticsCard()),
+                _TransportCard(),
+                _VoiceCard(),
+                const _HdAudioCard(),
+                _NoiseCleanerCard(),
+                _DelayCard(),
+                const DiagnosticsCard(),
               ],
+              builder: (context, cards) => Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                spacing: 16,
+                children: cards,
+              ),
             ),
           ),
         ),
@@ -195,7 +145,9 @@ class _VoiceCard extends StatelessWidget {
           // migrated from the old scale lands on the same percentage it always
           // showed. So this control looks untouched to someone who set it
           // months ago; only what it does changed. See [VoxMargin].
-          final marginPercent = (state.voxMargin * 100).clamp(0.0, 100.0).toInt();
+          final marginPercent = (state.voxMargin * 100)
+              .clamp(0.0, 100.0)
+              .toInt();
           // With no cleaner selected there is nothing for the strength to
           // apply to, so the slider is shown reading OFF and inert rather
           // than left live and lying about having an effect. The stored
@@ -280,10 +232,9 @@ class _VoiceCard extends StatelessWidget {
                     // see [locked] above.
                     onChanged: locked
                         ? null
-                        : (v) =>
-                              context.read<SettingsCubit>().setNoiseSuppression(
-                                v,
-                              ),
+                        : (v) => context
+                              .read<SettingsCubit>()
+                              .setNoiseSuppression(v),
                     onChangeEnd: (_) => HapticFeedback.selectionClick(),
                   ),
                 ),
@@ -337,7 +288,7 @@ class _VoiceCard extends StatelessWidget {
           ),
           child: TickerText(
             text: value,
-            duration: const Duration(milliseconds: 200),
+            duration: AppMotion.chip,
             style: TextStyle(
               color: active ? AppColors.amber : AppColors.textSecondary,
               fontSize: 12,
@@ -544,7 +495,8 @@ class _NoiseCleanerCard extends StatelessWidget {
                   downside: s.noise_cleaner_simple_downside,
                   selected: effectiveEngine == NoiseSuppressionEngine.spectral,
                   locked: riding,
-                  onTap: () => _select(context, NoiseSuppressionEngine.spectral),
+                  onTap: () =>
+                      _select(context, NoiseSuppressionEngine.spectral),
                 ),
                 const SizedBox(height: 10),
                 _CleanerOption(
@@ -655,7 +607,8 @@ class _CleanerOption extends StatelessWidget {
     return GestureDetector(
       onTap: enabled && !locked ? onTap : null,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        duration: AppMotion.card,
+        curve: AppMotion.easeOut,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: active ? AppColors.amber.withAlpha(20) : AppColors.surface,
@@ -789,7 +742,7 @@ class _DelayCard extends StatelessWidget {
                     ),
                     child: TickerText(
                       text: '${state.targetBufferMs} ms',
-                      duration: const Duration(milliseconds: 200),
+                      duration: AppMotion.chip,
                       style: TextStyle(
                         color: state.ridingPreset
                             ? AppColors.textSecondary

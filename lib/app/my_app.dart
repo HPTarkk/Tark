@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:audio_io/audio_io.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
@@ -11,6 +10,7 @@ import '../core/home_widget/widget_control_channel.dart';
 import '../core/l10n/app_localizations.dart';
 import '../core/l10n/extension.dart';
 import '../core/locale/locale_service.dart';
+import '../core/motion/app_motion.dart';
 import '../core/router/routes.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/theme_service.dart';
@@ -152,15 +152,7 @@ class _MyAppState extends State<MyApp> {
           ),
           actionTextColor: AppColors.amber,
         ),
-        pageTransitionsTheme: const PageTransitionsTheme(
-          builders: {
-            TargetPlatform.android: CupertinoPageTransitionsBuilder(),
-            TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-            TargetPlatform.windows: CupertinoPageTransitionsBuilder(),
-            TargetPlatform.linux: CupertinoPageTransitionsBuilder(),
-            TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
-          },
-        ),
+        pageTransitionsTheme: AppPageTransitionsBuilder.theme,
       ),
     );
   }
