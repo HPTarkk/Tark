@@ -188,6 +188,44 @@ void main() {
     payload: '{}',
   );
 
+  group('an invite nobody answered is not a link', () {
+    Future<_RegistryFakeClassicBluetoothEngine> issued() async {
+      final engine = _RegistryFakeClassicBluetoothEngine();
+      final channel = RoomProximityControlChannel(engine: engine);
+      await channel.host(rendezvousToken: invitationId);
+      await RoomProximityControlSessionRegistry.instance.adopt(
+        roomId: roomId,
+        invitation: invitation,
+        channel: channel,
+        issuer: true,
+      );
+      return engine;
+    }
+
+    test('a QR on screen with nobody connected does not count', () async {
+      await issued();
+      final registry = RoomProximityControlSessionRegistry.instance;
+      expect(registry.hasRoom(roomId), isFalse);
+      expect(registry.isIssuerFor(roomId), isNull);
+    });
+
+    test('the joining phone speaking makes it a link', () async {
+      final engine = await issued();
+      engine.addEnvelope(declined());
+      await Future<void>.delayed(Duration.zero);
+      final registry = RoomProximityControlSessionRegistry.instance;
+      expect(registry.hasRoom(roomId), isTrue);
+      expect(registry.isIssuerFor(roomId), isTrue);
+    });
+
+    test('a joiner adopts after dialing, so it is linked at once', () async {
+      await adopted();
+      final registry = RoomProximityControlSessionRegistry.instance;
+      expect(registry.hasRoom(roomId), isTrue);
+      expect(registry.isIssuerFor(roomId), isFalse);
+    });
+  });
+
   test('a phone that cannot host says so over the control socket', () async {
     final engine = await adopted();
 

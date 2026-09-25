@@ -673,5 +673,9 @@
     "bt_resume_ask": "Go to the channel now?",
     "bt_resume_not_now": "NOT NOW",
     "bt_resume_failed": "Couldn't reach the other phone. Try again when you're both nearby with Tarkk open.",
-    "rooms_section": "Your rooms ({count})"
+    "rooms_section": "Your rooms ({count})",
+    "reconnect_wifi_needed_title": "Turn on Wi-Fi",
+    "reconnect_wifi_needed_body": "To connect with {name}, this phone joins the connection {name}'s phone shares. That needs Wi-Fi on — no internet is used.",
+    "reconnect_wifi_needed_action": "Turn on Wi-Fi",
+    "reconnect_wifi_needed_waiting": "The camera opens by itself as soon as Wi-Fi is on."
 }

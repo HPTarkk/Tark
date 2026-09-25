@@ -22,9 +22,17 @@ final class RoomProximityControlSessionRegistry {
 
   _RoomProximityControlSession? _session;
 
+  /// Whether there is a live proximity link to another phone for [roomId].
+  ///
+  /// Linked, not merely open: an invite registers its session the moment its
+  /// QR is on screen, before anyone has scanned it. An invite nobody answered
+  /// left that session here, and the next Start took it for a working link —
+  /// it sent the hotspot to nobody over Bluetooth and sat on the lobby's
+  /// spinner for a minute, while the other phone opened its camera for a code
+  /// this one never showed.
   bool hasRoom(RoomId roomId) {
     final session = _session;
-    return session != null && session.roomId == roomId && session.isOpen;
+    return session != null && session.roomId == roomId && session.isLinked;
   }
 
   /// Whether this phone issued the invite the open session for [roomId] was
@@ -37,7 +45,7 @@ final class RoomProximityControlSessionRegistry {
   /// invite rights can bring someone in while the creator is miles away.
   bool? isIssuerFor(RoomId roomId) {
     final session = _session;
-    if (session == null || session.roomId != roomId || !session.isOpen) {
+    if (session == null || session.roomId != roomId || !session.isLinked) {
       return null;
     }
     return session.issuer;
@@ -145,6 +153,15 @@ final class _RoomProximityControlSession {
   bool _disposed = false;
 
   bool get isOpen => !_peerClosed && !_disposed;
+
+  /// Whether the other phone has been heard on this socket.
+  ///
+  /// A joiner adopts its session only after dialing the host, so it starts
+  /// linked. An issuer adopts while it is still only listening, and is linked
+  /// once the joiner's first message arrives.
+  late bool _peerSeen = !issuer;
+
+  bool get isLinked => isOpen && _peerSeen;
 
   static String _epochRequestId(int epoch) {
     if (epoch <= 0) throw ArgumentError.value(epoch, 'epoch');
@@ -267,6 +284,7 @@ final class _RoomProximityControlSession {
 
   void _onMessage(String raw) {
     if (!isOpen) return;
+    _peerSeen = true;
     RoomProximityEnvelope envelope;
     try {
       envelope = RoomProximityEnvelope.decode(raw);
