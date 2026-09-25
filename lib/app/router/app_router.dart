@@ -12,7 +12,6 @@ import '../../feature/splash/api/splash_api.dart';
 import '../../feature/transfer/api/transfer_api.dart';
 import 'quick_access.dart';
 import 'room_bound_walkie_entry.dart';
-import 'room_page_transition.dart';
 
 /// App composition root for navigation: the only place where pages from
 /// different features are wired together. Features themselves navigate by
@@ -80,24 +79,19 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.roomsPath,
         name: AppRoutes.roomsName,
-        pageBuilder: (context, state) => roomPage(
-          state,
-          RoomManagerEntry.buildPage(
-            createOnOpen: state.uri.queryParameters['create'] == 'true',
-          ),
+        builder: (context, state) => RoomManagerEntry.buildPage(
+          createOnOpen: state.uri.queryParameters['create'] == 'true',
         ),
       ),
       GoRoute(
         path: AppRoutes.roomQrJoinPath,
         name: AppRoutes.roomQrJoinName,
-        pageBuilder: (context, state) =>
-            roomPage(state, RoomQrJoinPage.buildPage()),
+        builder: (context, state) => RoomQrJoinPage.buildPage(),
       ),
       GoRoute(
         path: AppRoutes.roomQrJoinIssuerPath,
         name: AppRoutes.roomQrJoinIssuerName,
-        pageBuilder: (context, state) =>
-            roomPage(state, RoomQrJoinIssuerPage.buildPage()),
+        builder: (context, state) => RoomQrJoinIssuerPage.buildPage(),
       ),
       GoRoute(
         path: AppRoutes.walkiePath,
@@ -110,12 +104,9 @@ class AppRouter {
         //
         // `start` is set by the invite scanner once a join is accepted: the
         // Room connects straight away over the hand-off the scan opened.
-        pageBuilder: (context, state) => roomPage(
-          state,
-          RoomBoundWalkieEntry.buildPage(
-            ride: state.uri.queryParameters['ride'] == 'true',
-            start: state.uri.queryParameters['start'] == 'true',
-          ),
+        builder: (context, state) => RoomBoundWalkieEntry.buildPage(
+          ride: state.uri.queryParameters['ride'] == 'true',
+          start: state.uri.queryParameters['start'] == 'true',
         ),
       ),
       GoRoute(

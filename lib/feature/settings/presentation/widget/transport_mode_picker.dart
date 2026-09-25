@@ -6,6 +6,7 @@ import '../../../../core/entitlement/license_gate.dart';
 import '../../../../core/entitlement/paywall_sheet.dart';
 import '../../../../core/entitlement/premium_feature.dart';
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../transfer/api/transfer_api.dart';
 
@@ -153,7 +154,8 @@ class _ModeButton extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: AppMotion.card,
+          curve: AppMotion.easeOut,
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 2),
           decoration: BoxDecoration(
             color: selected ? AppColors.amber.withAlpha(25) : null,

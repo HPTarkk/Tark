@@ -94,6 +94,53 @@ abstract final class AppMotion {
       MediaQuery.maybeDisableAnimationsOf(context) ?? false;
 }
 
+/// The one page transition every route in the app uses.
+///
+/// Cupertino everywhere, on every platform: the page slides in from the
+/// trailing edge, the one underneath parallaxes away, and an edge swipe takes
+/// it back. One transition for every push is what makes navigation read as a
+/// single system instead of each flow picking its own.
+///
+/// Reduced motion keeps the fade and drops the slide, the same trade every
+/// other primitive in this file makes.
+class AppPageTransitionsBuilder extends PageTransitionsBuilder {
+  const AppPageTransitionsBuilder();
+
+  static const _cupertino = CupertinoPageTransitionsBuilder();
+
+  /// Drop-in value for `ThemeData.pageTransitionsTheme`.
+  static const theme = PageTransitionsTheme(
+    builders: {
+      TargetPlatform.android: AppPageTransitionsBuilder(),
+      TargetPlatform.iOS: AppPageTransitionsBuilder(),
+      TargetPlatform.windows: AppPageTransitionsBuilder(),
+      TargetPlatform.linux: AppPageTransitionsBuilder(),
+      TargetPlatform.macOS: AppPageTransitionsBuilder(),
+      TargetPlatform.fuchsia: AppPageTransitionsBuilder(),
+    },
+  );
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    if (AppMotion.reduced(context)) {
+      return FadeTransition(opacity: animation, child: child);
+    }
+    return _cupertino.buildTransitions(
+      route,
+      context,
+      animation,
+      secondaryAnimation,
+      child,
+    );
+  }
+}
+
 /// Fades and lifts a set of children into place, one shared controller for all
 /// of them.
 ///
