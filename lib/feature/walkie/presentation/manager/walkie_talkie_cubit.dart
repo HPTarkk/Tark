@@ -30,6 +30,7 @@ import '../../../../core/utils/logger.dart';
 import '../../../audio/api/audio_api.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../../domain/entity/channel_user.dart';
+import '../../domain/service/channel_health_monitor.dart';
 import '../../domain/service/channel_roster.dart';
 import 'walkie_widget_snapshot.dart';
 
@@ -130,7 +131,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
         // "nobody could hear me". Moved forward rather than cleared — clearing
         // it would let the check fall back to the last confirmation, which is
         // the very timestamp on the far side of the gap we are discounting.
-        _unheardSince = DateTime.now();
+        _health.restartUnheardClock(DateTime.now());
         // Capture chunks buffered up on the platform channel while the isolate
         // was stalled, and they land as one burst. That backlog is stale by
         // definition — it is audio from while the phone was locked — so it goes
@@ -162,50 +163,9 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     }
   }
 
-  /// When the channel finished opening, for the "nobody else is here" check —
-  /// which is only worth saying once enough time has passed for someone to
-  /// have shown up.
-  DateTime? _readyAt;
-
-  /// Last mic frame that actually arrived. The engine can report itself
-  /// started and then deliver nothing at all (see [_checkMicHealth]), so
-  /// "started" is not evidence the mic works — a frame is.
-  DateTime? _lastFrameAt;
-
-  /// When this device first had no usable local address, so a momentary gap
-  /// during a network change isn't announced as a failure.
-  DateTime? _noAddressSince;
-
-  /// Last time a peer's presence packet listed *us* among the devices it can
-  /// hear — proof our transmissions are arriving somewhere.
-  ///
-  /// Everything else this cubit grades is about receiving. A phone whose
-  /// outgoing path has died still has a bound socket, a healthy link, a
-  /// populated roster and a working mic, and every check on the
-  /// troubleshooting sheet goes green while nobody can hear it. This is the
-  /// only local evidence to the contrary there is.
-  DateTime? _lastHeardByPeerAt;
-
-  /// When peers started reporting they can't hear us, so a single dropped
-  /// presence packet isn't treated as going mute.
-  DateTime? _unheardSince;
-
-  /// How long peers must consistently report not hearing us before it counts.
-  /// Several presence ticks (they arrive every 2s), so this needs a sustained
-  /// disagreement rather than one lost datagram.
-  static const _unheardAfter = Duration(seconds: 7);
-
-  /// Silence longer than this, with the engine claiming to be started, means
-  /// the mic is not actually feeding us. Generous: a slow device can take a
-  /// couple of seconds to deliver its first callback.
-  static const _micSilentAfter = Duration(seconds: 6);
-
-  /// How long a missing local address must persist before it's reported.
-  static const _noAddressGrace = Duration(seconds: 5);
-
-  /// How long to sit in an empty channel before saying so. Long enough that
-  /// a peer joining normally is never preceded by a "you're alone" card.
-  static const _aloneAfter = Duration(seconds: 20);
+  /// The timed health checks (mic, address, audibility, alone) — see
+  /// [ChannelHealthMonitor]. Graded on the roster tick in [_cleanupStaleUsers].
+  final ChannelHealthMonitor _health = ChannelHealthMonitor();
 
   /// Wraps [_init] so a throw anywhere in it becomes a visible, recoverable
   /// state instead of a channel screen stuck on "connecting" forever.
@@ -241,11 +201,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     _widgetControlSub = null;
     _presenceTimer = null;
     _cleanupTimer = null;
-    _readyAt = null;
-    _lastFrameAt = null;
-    _noAddressSince = null;
-    _lastHeardByPeerAt = null;
-    _unheardSince = null;
+    _health.reset();
     emit(
       state.copyWith(
         startFailed: false,
@@ -265,7 +221,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   /// covers both mic failures the UI can show.
   Future<void> restartMic() async {
     if (isClosed) return;
-    _lastFrameAt = DateTime.now();
+    _health.noteFrame(DateTime.now());
     emit(state.copyWith(micDelivering: true));
     try {
       await _audioEngine.start();
@@ -294,7 +250,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     // From now: the repair deserves a full grace period to prove itself, and
     // clearing this outright would re-arm the warning against a confirmation
     // that predates the repair.
-    _unheardSince = DateTime.now();
+    _health.restartUnheardClock(DateTime.now());
     _refreshId();
     if (!isClosed && state.unheardByPeers) {
       emit(state.copyWith(unheardByPeers: false));
@@ -489,8 +445,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     // Both clocks start here rather than at construction: everything before
     // this point is legitimate warm-up, and grading the mic or the roster
     // against it would report a failure for a channel that is merely opening.
-    _readyAt = DateTime.now();
-    _lastFrameAt = DateTime.now();
+    _health.markReady(DateTime.now());
 
     // Plain Wi-Fi has no connect screen to own its funnel events — peers just
     // appear over UDP broadcast — so the channel itself is the pairing
@@ -651,7 +606,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
 
   void _onAudioFrame(AudioFrame frame) {
     // Proof the capture device is genuinely alive — see [_checkMicHealth].
-    _lastFrameAt = DateTime.now();
+    _health.noteFrame(DateTime.now());
 
     // Full duplex: TX and RX run independently, same as a phone call. No
     // half-duplex gate — the platform's voice processing (echo cancellation /
@@ -1284,8 +1239,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     final heard = packet.heardIds;
     if (heard == null) return;
     if (!heard.contains(_identity.id)) return;
-    _lastHeardByPeerAt = DateTime.now();
-    _unheardSince = null;
+    _health.noteHeardByPeer(DateTime.now());
     if (state.unheardByPeers) {
       Logger.diagnostic('transmit: peers can hear us again');
       emit(state.copyWith(unheardByPeers: false));
@@ -1303,39 +1257,30 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   /// an opinion. An empty channel says nothing about audibility, and neither
   /// does a peer on an older build.
   void _checkAudibility() {
-    if (!state.isReady || state.activeUsers.isEmpty) {
-      // An empty channel is not evidence of anything, and the confirmation
-      // clock goes with it: a peer arriving after a long gap has not had a
-      // chance to hear us yet, and grading it against the last person who did
-      // would flash a warning at every join.
-      _unheardSince = null;
-      _lastHeardByPeerAt = null;
-      if (state.unheardByPeers) emit(state.copyWith(unheardByPeers: false));
-      return;
+    final verdict = _health.audibility(
+      now: DateTime.now(),
+      isReady: state.isReady,
+      hasPeers: state.activeUsers.isNotEmpty,
+    );
+    switch (verdict) {
+      case AudibilityVerdict.clear:
+        if (state.unheardByPeers) emit(state.copyWith(unheardByPeers: false));
+      case AudibilityVerdict.unchanged:
+        break;
+      case AudibilityVerdict.unheard:
+        if (!state.unheardByPeers) {
+          Logger.diagnostic(
+            'transmit: peers we can hear stopped listing us for '
+            '${_health.unheardAfter.inSeconds}s — our send path is one-way',
+          );
+          _sfx.play(SfxEvent.error);
+          emit(state.copyWith(unheardByPeers: true));
+        }
+        // Asked on every tick, not just the transition: the transport
+        // rate-limits itself, and a repair that didn't take needs another go
+        // rather than one attempt and a permanent warning.
+        _transferRepository.repairSendPath();
     }
-    // Never heard back at all yet: this is a channel still forming, not a
-    // broken one. _lastHeardByPeerAt is set the first time any peer confirms
-    // us, and only from then on is its absence evidence of anything.
-    final confirmed = _lastHeardByPeerAt;
-    if (confirmed == null) return;
-    // The stretch is measured from the last confirmation by default, and from
-    // an explicit reset (a resume, a manual repair) when there has been one —
-    // see where [_unheardSince] is set forward.
-    final since = _unheardSince ??= confirmed;
-    if (DateTime.now().difference(since) < _unheardAfter) return;
-
-    if (!state.unheardByPeers) {
-      Logger.diagnostic(
-        'transmit: peers we can hear stopped listing us for '
-        '${_unheardAfter.inSeconds}s — our send path is one-way',
-      );
-      _sfx.play(SfxEvent.error);
-      emit(state.copyWith(unheardByPeers: true));
-    }
-    // Asked on every tick, not just the transition: the transport rate-limits
-    // itself, and a repair that didn't take needs another go rather than one
-    // attempt and a permanent warning.
-    _transferRepository.repairSendPath();
   }
 
   void _updateUser(String id, String name, bool isTalking, SessionRole role) {
@@ -1444,20 +1389,20 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   /// while the channel screen shows "MIC LIVE" and the user talks to nobody.
   /// Arriving frames are the only honest evidence, so that's what this grades.
   void _checkMicHealth() {
-    if (!state.isReady || !state.hasPermission) return;
-    final last = _lastFrameAt;
-    if (last == null) return;
-    final delivering = DateTime.now().difference(last) < _micSilentAfter;
-    if (delivering != state.micDelivering) {
-      if (!delivering) {
-        Logger.diagnostic(
-          'mic: no frames for ${_micSilentAfter.inSeconds}s while started — '
-          'reporting a dead microphone',
-        );
-        _sfx.play(SfxEvent.error);
-      }
-      emit(state.copyWith(micDelivering: delivering));
+    final delivering = _health.micDelivering(
+      now: DateTime.now(),
+      isReady: state.isReady,
+      hasPermission: state.hasPermission,
+    );
+    if (delivering == null || delivering == state.micDelivering) return;
+    if (!delivering) {
+      Logger.diagnostic(
+        'mic: no frames for ${_health.micSilentAfter.inSeconds}s while '
+        'started — reporting a dead microphone',
+      );
+      _sfx.play(SfxEvent.error);
     }
+    emit(state.copyWith(micDelivering: delivering));
   }
 
   /// Notices that this phone has no address to send from.
@@ -1468,40 +1413,34 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   /// the user says ever leaves the device. The transmit gate logs it; until
   /// now nothing showed it.
   void _checkNetwork() {
-    final needsAddress =
-        state.transferMode == TransferMode.wifi ||
-        state.transferMode == TransferMode.hotspot;
-    final missing =
-        needsAddress &&
-        state.isReady &&
-        (state.localId.isEmpty || state.localId == '0.0.0.0');
-    if (!missing) {
-      _noAddressSince = null;
-      if (state.networkMissing) emit(state.copyWith(networkMissing: false));
-      return;
-    }
-    // A network change legitimately drops the address for a moment — only a
-    // gap that outlasts the grace is worth a card.
-    final since = _noAddressSince ??= DateTime.now();
-    if (DateTime.now().difference(since) < _noAddressGrace) return;
-    if (!state.networkMissing) {
+    final missing = _health.networkMissing(
+      now: DateTime.now(),
+      needsAddress:
+          state.transferMode == TransferMode.wifi ||
+          state.transferMode == TransferMode.hotspot,
+      isReady: state.isReady,
+      localId: state.localId,
+    );
+    if (missing == null || missing == state.networkMissing) return;
+    if (missing) {
       Logger.diagnostic(
-        'wifi: no local address for ${_noAddressGrace.inSeconds}s',
+        'wifi: no local address for ${_health.noAddressGrace.inSeconds}s',
       );
-      emit(state.copyWith(networkMissing: true));
     }
+    emit(state.copyWith(networkMissing: missing));
   }
 
   /// An empty channel is not a failure — but sitting in one with no idea
   /// whether the app is broken or the other person simply hasn't joined is,
   /// and that's the state this ends.
   void _checkAlone() {
-    final readyAt = _readyAt;
-    if (readyAt == null) return;
-    final alone =
-        state.activeUsers.isEmpty &&
-        DateTime.now().difference(readyAt) >= _aloneAfter;
-    if (alone != state.isAlone) emit(state.copyWith(isAlone: alone));
+    final alone = _health.alone(
+      now: DateTime.now(),
+      hasPeers: state.activeUsers.isNotEmpty,
+    );
+    if (alone != null && alone != state.isAlone) {
+      emit(state.copyWith(isAlone: alone));
+    }
   }
 
   Future<void> setVoxMargin(double threshold) async {
@@ -1655,7 +1594,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     // completely invisible from the device's own point of view, which sees a
     // perfectly healthy socket the whole time.
     _wifiPairing.failed(PairStage.discover, PairFailure.discoverTimeout);
-    final startedAt = _readyAt;
+    final startedAt = _health.readyAt;
     if (startedAt == null) return;
     _analytics.track(
       AnalyticsEvent.sessionEnded(
