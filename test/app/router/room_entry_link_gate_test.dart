@@ -55,8 +55,9 @@ void main() {
     WidgetTester tester, {
     required LiveLinkSnapshot links,
     TransferMode mode = TransferMode.wifi,
+    TransferMode? pinned,
   }) async {
-    final modeStore = _FakeModeStore(mode);
+    final modeStore = _FakeModeStore(mode, pinned: pinned);
     getIt.registerLazySingleton<RoomRepository>(
       () => _FakeRoomRepository(room()),
     );
@@ -170,6 +171,39 @@ void main() {
     expect(find.text('On Wi-Fi'), findsNothing);
     expect(find.text('CONNECTED'), findsNothing);
   });
+
+  testWidgets('a Bluetooth pin is never traded for the Wi-Fi that is up', (
+    tester,
+  ) async {
+    // The field report: pinned to Bluetooth, still on home Wi-Fi, and Start
+    // "connected" the Room over that Wi-Fi. With Wi-Fi then switched off the
+    // Room was on nothing the user had chosen.
+    final modeStore = await pumpEntry(
+      tester,
+      links: const LiveLinkSnapshot(
+        wifi: true,
+        hostingHotspot: false,
+        bluetooth: false,
+      ),
+      mode: TransferMode.bluetooth,
+      pinned: TransferMode.bluetooth,
+    );
+
+    await tester.tap(find.byKey(const Key('selected-room-start-ride')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(modeStore.writes, isEmpty);
+    expect(modeStore.mode, TransferMode.bluetooth);
+    expect(
+      find.text("These phones aren't linked right now. Connect them to start."),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('selected-room-connect-phones')),
+      findsOneWidget,
+    );
+  });
 }
 
 class _FakeTransfer implements TransferRepository {
@@ -209,16 +243,17 @@ class _FakeProbe implements LiveLinkProbe {
 }
 
 class _FakeModeStore implements TransferModeStore {
-  _FakeModeStore(this._mode);
+  _FakeModeStore(this._mode, {this.pinned});
 
   TransferMode _mode;
+  final TransferMode? pinned;
   final writes = <TransferMode>[];
 
   @override
   TransferMode get mode => _mode;
 
   @override
-  TransferMode? get pinnedMode => null;
+  TransferMode? get pinnedMode => pinned;
 
   @override
   Future<void> setMode(TransferMode mode) async {

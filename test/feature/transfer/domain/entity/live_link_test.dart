@@ -183,6 +183,24 @@ void main() {
       );
     });
 
+    test('a pin is met only by a link of the same radio family', () {
+      expect(LiveLink.bluetooth.honours(TransferMode.bluetooth), isTrue);
+      expect(LiveLink.wifi.honours(TransferMode.bluetooth), isFalse);
+      expect(LiveLink.hotspotHost.honours(TransferMode.bluetooth), isFalse);
+      expect(LiveLink.none.honours(TransferMode.bluetooth), isFalse);
+      // The Wi-Fi pin covers the bridge and the guest link: same sockets.
+      for (final pin in [
+        TransferMode.wifi,
+        TransferMode.hotspot,
+        TransferMode.guest,
+      ]) {
+        expect(LiveLink.wifi.honours(pin), isTrue, reason: pin.key);
+        expect(LiveLink.hotspotHost.honours(pin), isTrue, reason: pin.key);
+        expect(LiveLink.bluetooth.honours(pin), isFalse, reason: pin.key);
+        expect(LiveLink.none.honours(pin), isFalse, reason: pin.key);
+      }
+    });
+
     test('no link leaves the transport exactly where it was', () {
       for (final mode in TransferMode.values) {
         expect(LiveLink.none.modeFor(mode), mode, reason: mode.key);

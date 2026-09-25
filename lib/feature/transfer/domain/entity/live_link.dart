@@ -98,6 +98,18 @@ enum LiveLink {
     LiveLink.bluetooth => mode == TransferMode.bluetooth,
   };
 
+  /// Whether this link is the transport the user pinned by hand.
+  ///
+  /// Coarser than [carries] on purpose. The picker offers Bluetooth or Wi-Fi,
+  /// and a Wi-Fi pin covers the hotspot bridge and the browser guest too,
+  /// since those are the same sockets on a local network. What a pin rules
+  /// out is crossing between radio families: a Bluetooth pin is only met by a
+  /// Bluetooth link, and a Wi-Fi pin by anything but one.
+  bool honours(TransferMode pinned) => switch (pinned) {
+    TransferMode.bluetooth => this == LiveLink.bluetooth,
+    _ => isUp && this != LiveLink.bluetooth,
+  };
+
   /// The transport to run over this link, given what the app is set to now.
   ///
   /// A mode that already fits is left exactly alone, and that is the whole

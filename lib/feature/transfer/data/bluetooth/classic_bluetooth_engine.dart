@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart';
 import 'package:flutter_blue_classic/flutter_blue_classic.dart' as fbc;
 
@@ -161,32 +162,53 @@ class ClassicBluetoothEngine {
     _sessionReadSub = null;
   }
 
+  /// Opens the RFCOMM listener under [name].
+  ///
+  /// With a rendezvous token (a Room invite) the native side also advertises
+  /// the invitation's BLE service data, and hosting is only ready once both
+  /// are up. Without one this is the plain Bluetooth screen: joiners find it
+  /// by classic inquiry on the tagged name (and iPhones through the BLE
+  /// engine's own advertisement), so the listener alone is ready. Requiring a
+  /// token here made that screen fail the instant Start was tapped.
   Future<void> startHosting({String name = 'tark'}) async {
     _listenToSession();
     final token = _rendezvousToken;
-    if (token == null) {
-      throw StateError('rendezvous token must be set before hosting');
-    }
-    final identity = await RoomRendezvousIdentity.derive(token);
+    final identity = token == null
+        ? null
+        : await RoomRendezvousIdentity.derive(token);
     final readiness = await _serverMethods
         .invokeMapMethod<String, dynamic>('startHosting', {
           'name': name,
-          'rendezvousData': identity.serviceData,
-          'correlation': identity.correlation,
+          if (identity != null) ...{
+            'rendezvousData': identity.serviceData,
+            'correlation': identity.correlation,
+          },
         })
         .timeout(const Duration(seconds: 10));
-    if (readiness == null ||
-        readiness['serverListening'] != true ||
-        readiness['bleAdvertising'] != true) {
+    if (!hostReady(readiness, rendezvous: identity != null)) {
       throw PlatformException(
         code: 'host_not_ready',
         message: 'Native Bluetooth host did not reach ready state',
       );
     }
     Logger.diagnostic(
-      'room_proximity: native host ready correlation=${readiness['correlation'] ?? 'none'} '
+      'room_proximity: native host ready correlation=${readiness!['correlation'] ?? 'none'} '
       'nameApplied=${readiness['nameApplied'] == true}',
     );
+  }
+
+  /// Whether the native `startHosting` answer means the host can be found.
+  /// A Room host also needs its rendezvous advertisement; a plain one only
+  /// needs the listener.
+  @visibleForTesting
+  static bool hostReady(
+    Map<String, dynamic>? readiness, {
+    required bool rendezvous,
+  }) {
+    if (readiness == null || readiness['serverListening'] != true) {
+      return false;
+    }
+    return !rendezvous || readiness['bleAdvertising'] == true;
   }
 
   /// Hands bytes to the native writer thread, which owns the bounded queue
