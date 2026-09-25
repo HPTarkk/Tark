@@ -3734,30 +3734,6 @@ abstract class AppLocalizations {
   /// **'دوباره امتحان کن'**
   String get reconnect_retry;
 
-  /// No description provided for @reconnect_host_wifi_off.
-  ///
-  /// In fa, this message translates to:
-  /// **'این گوشی نتوانست اشتراک‌گذاری را شروع کند. وای‌فای را روشن کن (لازم نیست به شبکه‌ای وصل شوی) و دوباره امتحان کن.'**
-  String get reconnect_host_wifi_off;
-
-  /// No description provided for @reconnect_scan_wifi_off.
-  ///
-  /// In fa, this message translates to:
-  /// **'وای‌فای خاموش است. روشنش کن تا این گوشی بتواند به گوشی {name} وصل شود.'**
-  String reconnect_scan_wifi_off(String name);
-
-  /// No description provided for @reconnect_scan_no_code_yet.
-  ///
-  /// In fa, this message translates to:
-  /// **'هنوز کدی نیامده؟ شاید گوشی {name} گیر کرده باشد. از او بخواه وای‌فایش را روشن کند و «دوباره امتحان کن» را بزند.'**
-  String reconnect_scan_no_code_yet(String name);
-
-  /// No description provided for @reconnect_turn_on_wifi.
-  ///
-  /// In fa, this message translates to:
-  /// **'روشن کردن وای‌فای'**
-  String get reconnect_turn_on_wifi;
-
   /// No description provided for @lobby_use_home_wifi.
   ///
   /// In fa, this message translates to:
@@ -4171,6 +4147,30 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'اتاق‌های تو ({count})'**
   String rooms_section(String count);
+
+  /// No description provided for @reconnect_wifi_needed_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'وای‌فای را روشن کن'**
+  String get reconnect_wifi_needed_title;
+
+  /// No description provided for @reconnect_wifi_needed_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'برای وصل شدن به {name}، این گوشی به اتصالی وصل می‌شود که گوشی {name} به اشتراک می‌گذارد. برای این کار وای‌فای باید روشن باشد — اینترنت مصرف نمی‌شود.'**
+  String reconnect_wifi_needed_body(String name);
+
+  /// No description provided for @reconnect_wifi_needed_action.
+  ///
+  /// In fa, this message translates to:
+  /// **'روشن کردن وای‌فای'**
+  String get reconnect_wifi_needed_action;
+
+  /// No description provided for @reconnect_wifi_needed_waiting.
+  ///
+  /// In fa, this message translates to:
+  /// **'همین که وای‌فای روشن شود، دوربین خودش باز می‌شود.'**
+  String get reconnect_wifi_needed_waiting;
 }
 
 class _AppLocalizationsDelegate

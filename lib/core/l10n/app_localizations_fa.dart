@@ -2050,23 +2050,6 @@ class AppLocalizationsFa extends AppLocalizations {
   String get reconnect_retry => 'دوباره امتحان کن';
 
   @override
-  String get reconnect_host_wifi_off =>
-      'این گوشی نتوانست اشتراک‌گذاری را شروع کند. وای‌فای را روشن کن (لازم نیست به شبکه‌ای وصل شوی) و دوباره امتحان کن.';
-
-  @override
-  String reconnect_scan_wifi_off(String name) {
-    return 'وای‌فای خاموش است. روشنش کن تا این گوشی بتواند به گوشی $name وصل شود.';
-  }
-
-  @override
-  String reconnect_scan_no_code_yet(String name) {
-    return 'هنوز کدی نیامده؟ شاید گوشی $name گیر کرده باشد. از او بخواه وای‌فایش را روشن کند و «دوباره امتحان کن» را بزند.';
-  }
-
-  @override
-  String get reconnect_turn_on_wifi => 'روشن کردن وای‌فای';
-
-  @override
   String get lobby_use_home_wifi => 'روی یک وای‌فای هستید؟ از همان وصل شو';
 
   @override
@@ -2307,4 +2290,19 @@ class AppLocalizationsFa extends AppLocalizations {
   String rooms_section(String count) {
     return 'اتاق‌های تو ($count)';
   }
+
+  @override
+  String get reconnect_wifi_needed_title => 'وای‌فای را روشن کن';
+
+  @override
+  String reconnect_wifi_needed_body(String name) {
+    return 'برای وصل شدن به $name، این گوشی به اتصالی وصل می‌شود که گوشی $name به اشتراک می‌گذارد. برای این کار وای‌فای باید روشن باشد — اینترنت مصرف نمی‌شود.';
+  }
+
+  @override
+  String get reconnect_wifi_needed_action => 'روشن کردن وای‌فای';
+
+  @override
+  String get reconnect_wifi_needed_waiting =>
+      'همین که وای‌فای روشن شود، دوربین خودش باز می‌شود.';
 }
