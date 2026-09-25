@@ -7,6 +7,7 @@ import '../../../../core/entitlement/license_gate.dart';
 import '../../../../core/entitlement/paywall_sheet.dart';
 import '../../../../core/entitlement/premium_feature.dart';
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/section_header.dart';
 import '../../../../core/widget/ticker_text.dart';
@@ -15,8 +16,8 @@ import '../manager/walkie_talkie_cubit.dart';
 /// One duration/curve for every part of the card, so the tint, the badge, the
 /// labels and the chip read as a single flip instead of separate animations
 /// that happen to overlap.
-const Duration _kDur = Duration(milliseconds: 260);
-const Curve _kCurve = Curves.easeOutCubic;
+const Duration _kDur = AppMotion.card;
+const Curve _kCurve = AppMotion.easeOut;
 
 /// Self-mute control — the primary in-channel action.
 ///
@@ -89,33 +90,41 @@ class _MicControlState extends State<MicControl> {
                 onTapCancel: () => setState(() => _pressed = false),
                 child: AnimatedScale(
                   scale: _pressed ? 0.97 : 1.0,
-                  duration: const Duration(milliseconds: 110),
-                  curve: Curves.easeOut,
+                  duration: AppMotion.press,
+                  curve: AppMotion.easeOut,
                   child: AnimatedContainer(
                     duration: _kDur,
                     curve: _kCurve,
-                    padding: const EdgeInsets.all(14),
+                    padding: const EdgeInsets.all(16),
+                    // The Room screens' card: same surface and radius, lit
+                    // from above in the mic's own colour — green while the
+                    // channel can hear you, red once you have cut yourself
+                    // off. A shadow list of constant length so the change
+                    // animates instead of popping.
                     decoration: BoxDecoration(
-                      color: muted
-                          ? Color.alphaBlend(
-                              AppColors.red.withAlpha(22),
-                              AppColors.card,
-                            )
-                          : AppColors.card,
-                      borderRadius: BorderRadius.circular(14),
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(20),
+                      gradient: RadialGradient(
+                        center: const Alignment(0, -0.9),
+                        radius: 1.6,
+                        colors: [
+                          accent.withValues(alpha: muted ? 0.16 : 0.08),
+                          AppColors.surface.withValues(alpha: 0.0),
+                        ],
+                      ),
                       border: Border.all(
-                        color: muted ? accent.withAlpha(150) : AppColors.border,
+                        color: muted
+                            ? accent.withAlpha(150)
+                            : accent.withAlpha(70),
                         width: muted ? 1.5 : 1,
                       ),
-                      boxShadow: muted
-                          ? [
-                              BoxShadow(
-                                color: accent.withAlpha(30),
-                                blurRadius: 18,
-                                spreadRadius: 1,
-                              ),
-                            ]
-                          : null,
+                      boxShadow: [
+                        BoxShadow(
+                          color: accent.withAlpha(muted ? 30 : 0),
+                          blurRadius: 18,
+                          spreadRadius: 1,
+                        ),
+                      ],
                     ),
                     child: Row(
                       children: [
