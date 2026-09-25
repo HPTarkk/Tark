@@ -25,6 +25,7 @@ export '../domain/entity/transport_route_proof_observation.dart';
 export '../domain/entity/transport_stats.dart';
 export '../domain/entity/waki_packet.dart';
 export '../domain/entity/wifi_hotspot_segment.dart';
+export '../domain/repository/bluetooth_transport.dart' show BluetoothTransport;
 export '../domain/repository/guest_link_controller.dart';
 export '../domain/repository/transfer_repository.dart'
     show ConnectionHealthSnapshot, TransferRepository;
@@ -38,6 +39,7 @@ export '../domain/repository/transport_route_proof_exchange.dart';
 // Exported for Room failover composition and channel recovery actions. These
 // interfaces expose temporary transport control only; Room identity must never
 // be derived from hotspot credentials or network metadata.
+export '../domain/service/bluetooth_link_handoff.dart';
 export '../domain/service/hotspot_control.dart'
     show HotspotHost, HotspotJoiner, HotspotJoinResult;
 export '../domain/service/hotspot_link_keeper.dart' show HotspotLinkKeeper;

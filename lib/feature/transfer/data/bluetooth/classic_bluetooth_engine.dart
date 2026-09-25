@@ -155,6 +155,20 @@ class ClassicBluetoothEngine {
     );
   }
 
+  /// Takes the native session events back for this engine.
+  ///
+  /// The native side keeps one event sink per channel, and the last Dart
+  /// listener to subscribe owns it. The Room invite's control channel runs its
+  /// own engine over the same native session, so once it has listened and
+  /// closed, an engine that subscribed earlier is left holding a stream
+  /// nothing feeds. Starting a host or a dial re-subscribes so the session
+  /// it is about to open is actually heard.
+  Future<void> _reclaimSession() async {
+    if (_connected) return;
+    await _cancelSessionSubs();
+    _listenToSession();
+  }
+
   Future<void> _cancelSessionSubs() async {
     await _sessionEventSub?.cancel();
     _sessionEventSub = null;
@@ -171,7 +185,7 @@ class ClassicBluetoothEngine {
   /// engine's own advertisement), so the listener alone is ready. Requiring a
   /// token here made that screen fail the instant Start was tapped.
   Future<void> startHosting({String name = 'tark'}) async {
-    _listenToSession();
+    await _reclaimSession();
     final token = _rendezvousToken;
     final identity = token == null
         ? null
@@ -339,7 +353,7 @@ class ClassicBluetoothEngine {
     _dialing = true;
     _dialStartedAt = DateTime.now();
     cancelDiscovery();
-    _listenToSession();
+    await _reclaimSession();
     try {
       final landed =
           await _serverMethods.invokeMethod<bool>('connectToPeer', {

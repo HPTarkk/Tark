@@ -81,6 +81,12 @@ final class RoomProximityControlChannel {
 
   bool _wired = false;
   bool _disposed = false;
+  String? _peerAddress;
+
+  /// The address this phone dialed, on the joining side; null on the host.
+  /// A Bluetooth hand-off re-dials it for the audio link once this control
+  /// socket is closed.
+  String? get peerAddress => _peerAddress;
 
   Stream<String> get messages => _messages.stream;
   Stream<void> get closed => _closed.stream;
@@ -271,6 +277,7 @@ final class RoomProximityControlChannel {
           await _engine.connectToHost(peer.id);
           await outcome.future;
         })().timeout(dialTimeout);
+        _peerAddress = peer.id;
         Logger.diagnostic('room_proximity: connected');
       } on TimeoutException {
         Logger.diagnostic('room_proximity: dial timed out');

@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:get_it/get_it.dart';
+
 import '../../../../core/utils/logger.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../../domain/entity/room.dart';
@@ -21,6 +23,17 @@ final class RoomProximityControlSessionRegistry {
       RoomProximityControlSessionRegistry._();
 
   _RoomProximityControlSession? _session;
+
+  /// Whether this phone has Bluetooth chosen in settings. Read when a link to
+  /// the other phone forms, so each end learns the other's choice before
+  /// either of them plans the Room's connection.
+  bool Function() wantsBluetooth = _pinnedToBluetooth;
+
+  static bool _pinnedToBluetooth() {
+    final getIt = GetIt.instance;
+    if (!getIt.isRegistered<TransferModeStore>()) return false;
+    return getIt<TransferModeStore>().pinnedMode == TransferMode.bluetooth;
+  }
 
   /// Whether there is a live proximity link to another phone for [roomId].
   ///
@@ -67,6 +80,7 @@ final class RoomProximityControlSessionRegistry {
       disposeProtocol: disposeProtocol,
       currentHotspotCredentials: currentHotspotCredentials,
       issuer: issuer,
+      wantsBluetooth: wantsBluetooth,
     );
     _session = next;
     if (previous != null && previous.channel != channel) {
@@ -114,6 +128,44 @@ final class RoomProximityControlSessionRegistry {
     await session.declineHotspotHost();
   }
 
+  /// Agrees with the other phone on whether this hand-off runs over
+  /// Bluetooth rather than a hotspot: it does when either phone has Bluetooth
+  /// chosen in settings, because raising a hotspot would put the Room on a
+  /// connection one of them said not to use.
+  ///
+  /// Each end sends its choice as soon as the two phones are linked (see
+  /// [_RoomProximityControlSession]), well before either plans the Room's
+  /// connection, so the other's answer is normally already here. [timeout]
+  /// only covers one that is still in flight. A phone that never answers (an
+  /// older build) counts as not choosing Bluetooth, so the hotspot hand-off
+  /// it understands still runs.
+  Future<bool> agreeOnBluetooth({
+    required RoomId roomId,
+    Duration timeout = const Duration(seconds: 1),
+  }) async {
+    final session = _session;
+    if (session == null || session.roomId != roomId || !session.isOpen) {
+      throw StateError('no authenticated proximity session for Room');
+    }
+    final local = wantsBluetooth();
+    session.sendPreferenceOnce();
+    final peer = local ? null : await session.waitForPeerPreference(timeout);
+    final agreed = local || peer == true;
+    Logger.diagnostic(
+      'room_transport_control: bluetooth local=$local '
+      'peer=${local ? 'skipped' : peer ?? 'none'} agreed=$agreed',
+    );
+    return agreed;
+  }
+
+  /// The address the joining phone dialed for [roomId]'s control socket, or
+  /// null on the hosting side or with no session.
+  String? peerAddressFor(RoomId roomId) {
+    final session = _session;
+    if (session == null || session.roomId != roomId) return null;
+    return session.channel.peerAddress;
+  }
+
   Future<void> clear({RoomId? roomId}) async {
     final session = _session;
     if (session == null || (roomId != null && session.roomId != roomId)) return;
@@ -130,9 +182,12 @@ final class _RoomProximityControlSession {
     required this.disposeProtocol,
     required this.currentHotspotCredentials,
     required this.issuer,
+    required this.wantsBluetooth,
   }) {
     _messages = channel.messages.listen(_onMessage);
     _closed = channel.closed.listen((_) => _onClosed());
+    // A joiner is linked from the start; an issuer once the joiner speaks.
+    if (isLinked) sendPreferenceOnce();
   }
 
   final RoomId roomId;
@@ -141,6 +196,8 @@ final class _RoomProximityControlSession {
   final Future<void> Function()? disposeProtocol;
   final HotspotCredentials? Function()? currentHotspotCredentials;
   final bool issuer;
+  final bool Function() wantsBluetooth;
+  bool _preferenceSent = false;
 
   late final StreamSubscription<String> _messages;
   late final StreamSubscription<void> _closed;
@@ -151,6 +208,8 @@ final class _RoomProximityControlSession {
   int _lastPublishedTransportEpoch = 0;
   bool _peerClosed = false;
   bool _disposed = false;
+  bool? _peerWantsBluetooth;
+  Completer<bool>? _preferenceWaiter;
 
   bool get isOpen => !_peerClosed && !_disposed;
 
@@ -216,6 +275,58 @@ final class _RoomProximityControlSession {
         payload: '{}',
       ).encode(),
     );
+  }
+
+  /// Tells the other phone, once per socket, whether this one has Bluetooth
+  /// chosen. Best effort: a failed send reads on the other end as no answer.
+  void sendPreferenceOnce() {
+    if (_preferenceSent || !isLinked) return;
+    _preferenceSent = true;
+    final bool bluetooth;
+    try {
+      bluetooth = wantsBluetooth();
+    } catch (_) {
+      return;
+    }
+    unawaited(
+      sendTransportPreference(bluetooth: bluetooth).catchError((Object _) {}),
+    );
+  }
+
+  Future<void> sendTransportPreference({required bool bluetooth}) {
+    if (!isOpen) {
+      return Future.error(StateError('proximity control session closed'));
+    }
+    return channel.send(
+      RoomProximityEnvelope(
+        kind: 'transportPreference',
+        roomId: roomId.value,
+        requestId: _epochRequestId(1),
+        joinEpoch: invitation.invitationId,
+        payload: jsonEncode({'bluetooth': bluetooth}),
+      ).encode(),
+    );
+  }
+
+  /// The other phone's answer to [sendTransportPreference], or null when it
+  /// did not give one within [timeout]. Consumed once, so a later hand-off on
+  /// the same socket waits for a fresh answer.
+  Future<bool?> waitForPeerPreference(Duration timeout) async {
+    final buffered = _peerWantsBluetooth;
+    if (buffered != null) {
+      _peerWantsBluetooth = null;
+      return buffered;
+    }
+    if (!isOpen) return null;
+    final waiter = _preferenceWaiter ??= Completer<bool>();
+    try {
+      return await waiter.future.timeout(timeout);
+    } catch (_) {
+      // Timed out, or the socket closed: no answer either way.
+      return null;
+    } finally {
+      if (identical(_preferenceWaiter, waiter)) _preferenceWaiter = null;
+    }
   }
 
   Future<HotspotCredentials> waitForHotspot({
@@ -285,6 +396,7 @@ final class _RoomProximityControlSession {
   void _onMessage(String raw) {
     if (!isOpen) return;
     _peerSeen = true;
+    sendPreferenceOnce();
     RoomProximityEnvelope envelope;
     try {
       envelope = RoomProximityEnvelope.decode(raw);
@@ -314,6 +426,23 @@ final class _RoomProximityControlSession {
           credentials: credentials,
         ).catchError((Object _) {}),
       );
+      return;
+    }
+
+    if (envelope.kind == 'transportPreference') {
+      try {
+        final value = jsonDecode(envelope.payload);
+        if (value is! Map<String, dynamic>) return;
+        final bluetooth = value['bluetooth'];
+        if (bluetooth is! bool) return;
+        final waiter = _preferenceWaiter;
+        if (waiter != null && !waiter.isCompleted) {
+          _preferenceWaiter = null;
+          waiter.complete(bluetooth);
+        } else {
+          _peerWantsBluetooth = bluetooth;
+        }
+      } catch (_) {}
       return;
     }
 
@@ -387,6 +516,11 @@ final class _RoomProximityControlSession {
       waiter.completeError(StateError('proximity control session closed'));
     }
     _bufferedCredential = null;
+    final preference = _preferenceWaiter;
+    _preferenceWaiter = null;
+    if (preference != null && !preference.isCompleted) {
+      preference.completeError(StateError('proximity control session closed'));
+    }
   }
 
   Future<void> dispose() async {
