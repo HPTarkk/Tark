@@ -2285,4 +2285,9 @@ class AppLocalizationsFa extends AppLocalizations {
   @override
   String get bt_resume_failed =>
       'به گوشی دیگه نرسیدیم. وقتی هر دو نزدیک هم بودید و «ترک» باز بود، دوباره امتحان کن.';
+
+  @override
+  String rooms_section(String count) {
+    return 'اتاق‌های تو ($count)';
+  }
 }

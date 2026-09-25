@@ -2291,4 +2291,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get bt_resume_failed =>
       'Couldn\'t reach the other phone. Try again when you\'re both nearby with Tarkk open.';
+
+  @override
+  String rooms_section(String count) {
+    return 'Your rooms ($count)';
+  }
 }

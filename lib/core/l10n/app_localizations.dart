@@ -4141,6 +4141,12 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'به گوشی دیگه نرسیدیم. وقتی هر دو نزدیک هم بودید و «ترک» باز بود، دوباره امتحان کن.'**
   String get bt_resume_failed;
+
+  /// No description provided for @rooms_section.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتاق‌های تو ({count})'**
+  String rooms_section(String count);
 }
 
 class _AppLocalizationsDelegate
