@@ -11,6 +11,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../../data/security/room_transport_identity_lifecycle.dart';
 import '../../domain/entity/room.dart';
+import '../../domain/entity/room_transport_choice.dart';
 import '../../domain/repository/room_repository.dart';
 import 'one_scan_room_invite_sheet.dart';
 
@@ -174,7 +175,8 @@ class _InRoomPeopleActionState extends State<InRoomPeopleAction> {
         intent: role == SessionRole.host
             ? ChannelIntent.create
             : ChannelIntent.join,
-        pinned: _modeStore?.pinnedMode,
+        // Guest is a browser-only link, never how two phones meet.
+        pinned: RoomTransportChoice.roomPin(_modeStore?.pinnedMode),
       ),
     );
   }

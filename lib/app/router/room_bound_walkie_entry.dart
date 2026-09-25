@@ -186,13 +186,20 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   /// gate refuses instead, and the lobby offers to connect the phones over
   /// the pinned transport. [honourPin] is false only for a Room invite
   /// hand-off, which arranges its own hotspot by design.
+  /// The settings pin a Room honours: Guest is a browser-only link, so a
+  /// Room treats it as Automatic.
+  TransferMode? get _roomPin =>
+      RoomTransportChoice.roomPin(_modeStore?.pinnedMode);
+
   Future<bool> _openLinkGate({bool honourPin = true}) async {
     final probe = _probe;
     final modeStore = _modeStore;
     if (probe == null || modeStore == null) return true;
     final links = await _readLinks();
     if (mounted) setState(() => _links = links);
-    final pinned = honourPin ? modeStore.pinnedMode : null;
+    final pinned = honourPin
+        ? RoomTransportChoice.roomPin(modeStore.pinnedMode)
+        : null;
     final link = links.resolve(pinned ?? modeStore.mode);
     if (!link.isUp) {
       Logger.diagnostic('room: readiness stage=local_link_missing');
@@ -343,9 +350,9 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     if (RoomProximityControlSessionRegistry.instance.hasRoom(room.room.id)) {
       return false;
     }
-    // A transport pinned in Advanced settings is the user's call.
-    final pinned = _modeStore?.pinnedMode;
-    return pinned != TransferMode.bluetooth && pinned != TransferMode.guest;
+    // A transport pinned in Advanced settings is the user's call. Guest is a
+    // browser link and says nothing about how two phones meet.
+    return _roomPin != TransferMode.bluetooth;
   }
 
   // ------------------------------------------------------ guided reconnect
@@ -1002,7 +1009,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
           useBluetooth = await proximity.agreeOnBluetooth(roomId: room.room.id);
         } catch (e) {
           Logger.log('Room transport preference exchange failed: $e');
-          useBluetooth = _modeStore?.pinnedMode == TransferMode.bluetooth;
+          useBluetooth = _roomPin == TransferMode.bluetooth;
         }
         if (useBluetooth) {
           return _bluetoothHandoff(room, localIsHost: localIsElected);
@@ -1332,7 +1339,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     if (links.isUp) {
       final route = ConnectRoute.forStrandedRoom(
         intent: intent,
-        pinned: _modeStore?.pinnedMode,
+        pinned: _roomPin,
       );
       Logger.diagnostic('room: connect stranded intent=${intent.key}');
       context.push(route);
@@ -1345,7 +1352,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         canHostHotspot: Platform.isAndroid,
         canJoinHotspot: Platform.isAndroid || Platform.isIOS,
         bluetoothSupported: Platform.isAndroid || Platform.isIOS,
-        pinned: _modeStore?.pinnedMode,
+        pinned: _roomPin,
       ),
     );
     Logger.diagnostic(

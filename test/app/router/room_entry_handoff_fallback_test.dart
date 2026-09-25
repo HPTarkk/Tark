@@ -250,6 +250,40 @@ void main() {
     });
   });
 
+  testWidgets('Wi-Fi/Hotspot on the other phone wins over Bluetooth here', (
+    tester,
+  ) async {
+    final engine = (await tester.runAsync(() => linked(issuer: true)))!;
+    await tester.runAsync(() async {
+      engine.addEnvelope(
+        RoomProximityEnvelope(
+          kind: 'transportPreference',
+          roomId: roomId.value,
+          requestId: '${'0' * 31}1',
+          joinEpoch: invitationId,
+          payload: jsonEncode({'choice': 'hotspot'}),
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    });
+    final bluetooth = _FakeBluetooth();
+    await pumpEntry(
+      tester,
+      links: hosting,
+      pinned: TransferMode.bluetooth,
+      bluetooth: bluetooth,
+    );
+    await start(tester);
+    await tester.pump(const Duration(seconds: 2));
+
+    expect(bluetooth.hosted, 0);
+    expect(modeStore?.writes, isNot(contains(TransferMode.bluetooth)));
+    await tester.pump(const Duration(seconds: 60));
+    await settleTeardown(tester);
+    await drain(tester);
+    await settleTeardown(tester);
+  });
+
   group('hosting phone', () {
     testWidgets('shows its code once the hand-off has gone quiet', (
       tester,
