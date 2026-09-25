@@ -85,6 +85,22 @@ void main() {
     expect(find.text('گروه جمعه'), findsOneWidget);
     final title = tester.element(find.text('اتاق‌های ذخیره‌شده'));
     expect(Directionality.of(title), TextDirection.rtl);
+    // The back arrow points right: arrow_back mirrors itself in RTL, and an
+    // arrow_forward swapped in for Persian would be mirrored back to the left.
+    final back = find.byKey(const Key('rooms-back'));
+    expect(
+      tester
+          .widget<Icon>(find.descendant(of: back, matching: find.byType(Icon)))
+          .icon,
+      Icons.arrow_back_rounded,
+    );
+    expect(
+      find
+          .descendant(of: back, matching: find.byType(Transform))
+          .evaluate()
+          .any((e) => (e.widget as Transform).transform.storage[0] == -1),
+      isTrue,
+    );
     expect(tester.takeException(), isNull);
   });
 }

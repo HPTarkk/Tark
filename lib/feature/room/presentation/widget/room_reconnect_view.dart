@@ -200,9 +200,9 @@ class _ShowSide extends StatelessWidget {
                     ).backButtonTooltip,
                     onPressed: onBack,
                     icon: Icon(
-                      Directionality.of(context) == TextDirection.rtl
-                          ? Icons.arrow_forward_rounded
-                          : Icons.arrow_back_rounded,
+                      // Mirrors itself in right-to-left (matchTextDirection), so it
+                      // already points the way back in Persian.
+                      Icons.arrow_back_rounded,
                       color: AppColors.textPrimary,
                     ),
                   ),
