@@ -15,6 +15,11 @@ import 'package:tark/feature/preflight/service/preflight_service.dart';
 import 'package:tark/feature/transfer/domain/entity/channel_intent.dart';
 import 'package:tark/feature/transfer/domain/service/transport_advisor.dart';
 
+/// Longer than any platform's page transition (Cupertino's 500ms is the
+/// longest), so a popped Preflight page has been removed and disposed by the
+/// time the test looks.
+const _routeSettle = Duration(milliseconds: 600);
+
 /// Fresh per run, mirroring how [MicProbe] resolves a brand-new engine on
 /// every call in production — never shared across runs.
 class _FakeAudioEngine implements AudioEngine {
@@ -132,7 +137,7 @@ void main() {
 
         await tester.tap(find.text('ENTER CHANNEL'));
         await tester.pump();
-        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump(_routeSettle);
         expect(find.text('ENTER CHANNEL'), findsNothing);
       }
 
@@ -214,7 +219,7 @@ void main() {
       // finishing.
       await tester.tap(find.byIcon(Icons.arrow_back_rounded));
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(_routeSettle);
     },
   );
 
@@ -283,7 +288,7 @@ void main() {
 
       await tester.tap(find.byIcon(Icons.arrow_back_rounded));
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(_routeSettle);
     },
   );
 }

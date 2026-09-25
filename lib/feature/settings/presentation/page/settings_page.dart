@@ -92,12 +92,8 @@ class _SettingsPageState extends State<SettingsPage> {
               ],
               builder: (context, cards) => Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  for (var i = 0; i < cards.length; i++) ...[
-                    if (i > 0) const SizedBox(height: 16),
-                    cards[i],
-                  ],
-                ],
+                spacing: 16,
+                children: cards,
               ),
             ),
           ),

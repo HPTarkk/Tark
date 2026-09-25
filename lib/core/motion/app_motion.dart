@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -119,6 +120,19 @@ class AppPageTransitionsBuilder extends PageTransitionsBuilder {
       TargetPlatform.fuchsia: AppPageTransitionsBuilder(),
     },
   );
+
+  // Timing and the outgoing page's parallax come straight from Cupertino, so
+  // this is the platform transition rather than an approximation of it.
+  @override
+  Duration get transitionDuration => _cupertino.transitionDuration;
+
+  @override
+  Duration get reverseTransitionDuration =>
+      _cupertino.reverseTransitionDuration;
+
+  @override
+  DelegatedTransitionBuilder? get delegatedTransition =>
+      _cupertino.delegatedTransition;
 
   @override
   Widget buildTransitions<T>(

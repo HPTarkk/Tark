@@ -11,6 +11,11 @@ import 'package:tark/feature/preflight/service/preflight_service.dart';
 import 'package:tark/feature/transfer/domain/entity/channel_intent.dart';
 import 'package:tark/feature/transfer/domain/service/transport_advisor.dart';
 
+/// Longer than any platform's page transition (Cupertino's 500ms is the
+/// longest), so a popped Preflight page has been removed and disposed by the
+/// time the test looks.
+const _routeSettle = Duration(milliseconds: 600);
+
 final _s = AppLocalizationsEn();
 
 RecoveryCheck _row(RecoveryStatus status, {String detail = 'detail'}) =>
@@ -189,7 +194,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 700));
       // The pop itself still has the modal sheet's own exit transition to
       // play out before the route is actually gone.
-      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(_routeSettle);
       expect(
         find.text('ENTER CHANNEL'),
         findsNothing,
@@ -269,7 +274,7 @@ void main() {
         await tester.pump(const Duration(milliseconds: 700));
         // The pop itself still has the modal sheet's own exit transition to
         // play out before the route is actually gone.
-        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump(_routeSettle);
         expect(find.text('ENTER CHANNEL'), findsNothing);
       },
     );

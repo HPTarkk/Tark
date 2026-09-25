@@ -135,4 +135,30 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('reduced motion holds the sweep still while scanning', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: const MediaQuery(
+          data: MediaQueryData(disableAnimations: true),
+          child: Scaffold(
+            body: Center(
+              child: SignalRadar(
+                checks: [null, null, null, null, null, null],
+                isComplete: false,
+                hasBlocking: false,
+                hasOnlyWarning: false,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    // Only settles because nothing repeats: with the sweep running this
+    // would time out.
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.podcasts_rounded), findsOneWidget);
+  });
 }

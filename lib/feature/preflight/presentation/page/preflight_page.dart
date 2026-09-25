@@ -688,9 +688,7 @@ class _PendingDotState extends State<_PendingDot>
     // A breathing loop never finishes, so reduced motion holds the dot still
     // at full strength instead.
     if (AppMotion.reduced(context)) {
-      _controller
-        ..stop()
-        ..value = 1;
+      _controller.value = 1;
     } else if (!_controller.isAnimating) {
       _controller.repeat(reverse: true);
     }
