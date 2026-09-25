@@ -4087,6 +4087,60 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'این نسخه‌ی برنامه نمی‌تونه بخشی از این متن رو نشون بده. متن کامل رو توی tarkk.ir بخون.'**
   String get consent_partial_notice;
+
+  /// No description provided for @bt_resume_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتصال دوباره با بلوتوث'**
+  String get bt_resume_title;
+
+  /// No description provided for @bt_resume_looking_for.
+  ///
+  /// In fa, this message translates to:
+  /// **'دنبال {name} می‌گردیم...'**
+  String bt_resume_looking_for(String name);
+
+  /// No description provided for @bt_resume_waiting.
+  ///
+  /// In fa, this message translates to:
+  /// **'منتظر گوشی دیگه‌ایم...'**
+  String get bt_resume_waiting;
+
+  /// No description provided for @bt_resume_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'روی گوشی دیگه هم «ترک» رو باز کن.'**
+  String get bt_resume_hint;
+
+  /// No description provided for @bt_resume_connected_to.
+  ///
+  /// In fa, this message translates to:
+  /// **'به {name} وصل شدی'**
+  String bt_resume_connected_to(String name);
+
+  /// No description provided for @bt_resume_connected.
+  ///
+  /// In fa, this message translates to:
+  /// **'گوشی دیگه وصل شد'**
+  String get bt_resume_connected;
+
+  /// No description provided for @bt_resume_ask.
+  ///
+  /// In fa, this message translates to:
+  /// **'الان بریم توی کانال؟'**
+  String get bt_resume_ask;
+
+  /// No description provided for @bt_resume_not_now.
+  ///
+  /// In fa, this message translates to:
+  /// **'فعلاً نه'**
+  String get bt_resume_not_now;
+
+  /// No description provided for @bt_resume_failed.
+  ///
+  /// In fa, this message translates to:
+  /// **'به گوشی دیگه نرسیدیم. وقتی هر دو نزدیک هم بودید و «ترک» باز بود، دوباره امتحان کن.'**
+  String get bt_resume_failed;
 }
 
 class _AppLocalizationsDelegate

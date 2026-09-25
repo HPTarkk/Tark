@@ -129,6 +129,13 @@ class AppRouter {
         ),
       ),
       GoRoute(
+        path: AppRoutes.bluetoothResumePath,
+        name: AppRoutes.bluetoothResumeName,
+        // Cold start only, when the last call ran over Bluetooth — see
+        // QuickAccess.shouldResumeBluetooth.
+        builder: (context, state) => BluetoothResumePage.buildPage(),
+      ),
+      GoRoute(
         path: AppRoutes.wifiHotspotPath,
         name: AppRoutes.wifiHotspotName,
         // `extra` carries a QR payload another scanner already read — the

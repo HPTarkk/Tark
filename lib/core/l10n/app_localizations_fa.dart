@@ -2253,4 +2253,36 @@ class AppLocalizationsFa extends AppLocalizations {
   @override
   String get consent_partial_notice =>
       'این نسخه‌ی برنامه نمی‌تونه بخشی از این متن رو نشون بده. متن کامل رو توی tarkk.ir بخون.';
+
+  @override
+  String get bt_resume_title => 'اتصال دوباره با بلوتوث';
+
+  @override
+  String bt_resume_looking_for(String name) {
+    return 'دنبال $name می‌گردیم...';
+  }
+
+  @override
+  String get bt_resume_waiting => 'منتظر گوشی دیگه‌ایم...';
+
+  @override
+  String get bt_resume_hint => 'روی گوشی دیگه هم «ترک» رو باز کن.';
+
+  @override
+  String bt_resume_connected_to(String name) {
+    return 'به $name وصل شدی';
+  }
+
+  @override
+  String get bt_resume_connected => 'گوشی دیگه وصل شد';
+
+  @override
+  String get bt_resume_ask => 'الان بریم توی کانال؟';
+
+  @override
+  String get bt_resume_not_now => 'فعلاً نه';
+
+  @override
+  String get bt_resume_failed =>
+      'به گوشی دیگه نرسیدیم. وقتی هر دو نزدیک هم بودید و «ترک» باز بود، دوباره امتحان کن.';
 }

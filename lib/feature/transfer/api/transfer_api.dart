@@ -61,5 +61,6 @@ export '../domain/service/transfer_mode_store.dart';
 // it is pure and holds no state, so it is exported rather than injected.
 export '../domain/service/transport_advisor.dart';
 export '../presentation/page/bluetooth_connect_page.dart';
+export '../presentation/page/bluetooth_resume_page.dart';
 export '../presentation/page/guest_link_page.dart';
 export '../presentation/page/wifi_hotspot_page.dart';
