@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../core/widget/ticker_text.dart';
 import 'onboarding_palette.dart';
@@ -192,7 +193,8 @@ class HudOption extends StatelessWidget {
                 Expanded(child: _labelBlock(centered: false)),
               if (!compact)
                 AnimatedOpacity(
-                  duration: const Duration(milliseconds: 200),
+                  duration: AppMotion.chip,
+                  curve: AppMotion.easeOut,
                   opacity: selected ? 1 : 0,
                   child: Text(
                     '◂ SET',
@@ -996,7 +998,7 @@ class SignalMeter extends StatelessWidget {
             const SizedBox(width: 5),
             TickerText(
               text: '${percent.localized(context)}%',
-              duration: const Duration(milliseconds: 350),
+              duration: AppMotion.chip,
               style: const TextStyle(
                 color: Onb.amber,
                 fontSize: 8.5,
@@ -1026,8 +1028,8 @@ class _SignalBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return TweenAnimationBuilder<double>(
       tween: Tween(end: filled ? 1.0 : 0.0),
-      duration: const Duration(milliseconds: 500),
-      curve: filled ? Curves.easeOutBack : Curves.easeOut,
+      duration: AppMotion.sheet,
+      curve: AppMotion.easeOut,
       builder: (_, t, _) => SizedBox(
         width: 5,
         height: height,
@@ -1089,15 +1091,17 @@ class StaggeredItem extends StatelessWidget {
     final start = count <= 1 ? 0.0 : index * 0.6 / count;
     final anim = CurvedAnimation(
       parent: reveal,
-      curve: Interval(start, min(start + 0.4, 1.0), curve: Curves.easeOutCubic),
+      curve: Interval(start, min(start + 0.4, 1.0), curve: AppMotion.easeOut),
     );
+    // Reduced motion keeps the fade and the order, and drops the travel.
+    final rise = AppMotion.reduced(context) ? 0.0 : AppMotion.rise;
     return AnimatedBuilder(
       animation: anim,
       child: child,
       builder: (_, prebuilt) => Opacity(
         opacity: anim.value,
         child: Transform.translate(
-          offset: Offset(0, 22 * (1 - anim.value)),
+          offset: Offset(0, rise * (1 - anim.value)),
           child: prebuilt,
         ),
       ),
