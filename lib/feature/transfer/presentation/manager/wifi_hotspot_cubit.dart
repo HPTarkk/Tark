@@ -248,6 +248,13 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   /// state the transport already detects and copes with.
   static const _ownApTeardownTimeout = Duration(seconds: 3);
 
+  /// How long one `startLocalOnlyHotspot` attempt may take. The platform
+  /// answers only from a callback, and a phone that never calls it back left
+  /// the Room stuck on "Getting your phone ready…" (reported with Wi-Fi off
+  /// on both phones). A healthy start answers within a few seconds, settle
+  /// and confirm windows included.
+  static const _hostAttemptTimeout = Duration(seconds: 15);
+
   /// Native error code for a start we cancelled ourselves (HotspotHandler
   /// .CANCELLED) — not a failure to report.
   static const _cancelledCode = 'cancelled';
@@ -543,7 +550,18 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
     var succeeded = false;
     await _hostRetry.run((attempt) async {
       try {
-        final creds = await _hotspot.start();
+        final HotspotCredentials creds;
+        try {
+          creds = await _hotspot.start().timeout(_hostAttemptTimeout);
+        } on TimeoutException {
+          code = 'timeout';
+          Logger.log('Hotspot start never answered — giving up');
+          // Drops the request natively, which also settles the call we
+          // stopped waiting for. A start that hung once hangs again, so no
+          // retry: the person gets the problem and a way out now instead.
+          unawaited(_hotspot.stop());
+          throw const RetryAbort();
+        }
         if (isClosed) throw const RetryAbort();
         succeeded = true;
         _onHostReady(creds);
@@ -558,6 +576,9 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
           throw const RetryAbort();
         }
         return false;
+      } on RetryAbort {
+        // Ours, from the body above: end the cycle, don't count a failure.
+        rethrow;
       } catch (e) {
         code = 'failed';
         Logger.log('Hotspot start failed: $e');
