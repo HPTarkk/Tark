@@ -995,6 +995,18 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         Logger.diagnostic(
           'room: handoff side=${localIsElected ? 'host' : 'joiner'}',
         );
+        // Bluetooth chosen in settings, on either phone, keeps the Room off
+        // any hotspot: the invite's own Bluetooth link becomes the audio link.
+        bool useBluetooth;
+        try {
+          useBluetooth = await proximity.agreeOnBluetooth(roomId: room.room.id);
+        } catch (e) {
+          Logger.log('Room transport preference exchange failed: $e');
+          useBluetooth = _modeStore?.pinnedMode == TransferMode.bluetooth;
+        }
+        if (useBluetooth) {
+          return _bluetoothHandoff(room, localIsHost: localIsElected);
+        }
         // The side each helper below records in the role store is what the
         // rest of the transport stack hears: the network rebind coordinator clears its
         // process pin for a host and binds for a joiner, and the hotspot
@@ -1029,6 +1041,42 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       case null:
         return _EntryFailure.transportPlanMismatch;
     }
+  }
+
+  /// Replaces the invite's control socket with the Bluetooth audio link:
+  /// the phone that showed the invite hosts, the other re-dials the address
+  /// it reached the first time.
+  Future<_EntryFailure?> _bluetoothHandoff(
+    SavedRoom room, {
+    required bool localIsHost,
+  }) async {
+    final proximity = RoomProximityControlSessionRegistry.instance;
+    final address = localIsHost ? null : proximity.peerAddressFor(room.room.id);
+    if (!localIsHost && address == null) {
+      Logger.diagnostic('room: bluetooth handoff has no peer address');
+      return _EntryFailure.transportSetup;
+    }
+    final BluetoothTransport transport;
+    try {
+      transport = GetIt.instance<BluetoothTransport>();
+    } catch (e) {
+      Logger.log('Bluetooth transport unavailable: $e');
+      return _EntryFailure.compositionUnavailable;
+    }
+    Logger.diagnostic(
+      'room: bluetooth handoff side=${localIsHost ? 'host' : 'joiner'}',
+    );
+    // Before the link comes up, so the live session is composed on the
+    // Bluetooth transport rather than the Wi-Fi one.
+    await _modeStore?.setMode(TransferMode.bluetooth);
+    // One Bluetooth socket at a time: the control socket has to go before
+    // the audio link can use the radio.
+    await proximity.clear(roomId: room.room.id);
+    final handoff = BluetoothLinkHandoff(transport);
+    final linked = localIsHost
+        ? await handoff.host()
+        : await handoff.join(address!);
+    return linked ? null : _EntryFailure.peerProofMissing;
   }
 
   Future<_EntryFailure?> _hostHandoffHotspot(

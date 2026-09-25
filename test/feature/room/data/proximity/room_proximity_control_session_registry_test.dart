@@ -264,6 +264,99 @@ void main() {
       throwsA(isA<RoomHotspotHostDeclined>()),
     );
   });
+  Future<_RegistryFakeClassicBluetoothEngine> adoptSession({
+    bool localBluetooth = false,
+  }) async {
+    RoomProximityControlSessionRegistry.instance.wantsBluetooth = () =>
+        localBluetooth;
+    addTearDown(
+      () =>
+          RoomProximityControlSessionRegistry.instance.wantsBluetooth = () =>
+              false,
+    );
+    final engine = _RegistryFakeClassicBluetoothEngine();
+    final channel = RoomProximityControlChannel(engine: engine);
+    await channel.host(rendezvousToken: invitationId);
+    await RoomProximityControlSessionRegistry.instance.adopt(
+      roomId: roomId,
+      invitation: invitation,
+      channel: channel,
+    );
+    await Future<void>.delayed(Duration.zero);
+    return engine;
+  }
+
+  RoomProximityEnvelope preference(bool bluetooth) => RoomProximityEnvelope(
+    kind: 'transportPreference',
+    roomId: roomId.value,
+    requestId: '00000000000000000000000000000001',
+    joinEpoch: invitationId,
+    payload: jsonEncode({'bluetooth': bluetooth}),
+  );
+
+  group('agreeOnBluetooth', () {
+    test('a linked phone tells the other its choice once, up front', () async {
+      final engine = await adoptSession(localBluetooth: true);
+      expect(engine.preferences, hasLength(1));
+      expect(jsonDecode(engine.preferences.single.payload), {
+        'bluetooth': true,
+      });
+
+      // Planning does not send it again, and needs no answer to go ahead.
+      expect(
+        await RoomProximityControlSessionRegistry.instance.agreeOnBluetooth(
+          roomId: roomId,
+        ),
+        isTrue,
+      );
+      expect(engine.preferences, hasLength(1));
+    });
+
+    test('follows the other phone choosing Bluetooth', () async {
+      final engine = await adoptSession();
+      final agreed = RoomProximityControlSessionRegistry.instance
+          .agreeOnBluetooth(roomId: roomId);
+      await Future<void>.delayed(Duration.zero);
+      engine.addEnvelope(preference(true));
+      expect(await agreed, isTrue);
+    });
+
+    test('an answer that arrived earlier is kept for the plan', () async {
+      final engine = await adoptSession();
+      engine.addEnvelope(preference(true));
+      await Future<void>.delayed(Duration.zero);
+      expect(
+        await RoomProximityControlSessionRegistry.instance.agreeOnBluetooth(
+          roomId: roomId,
+          timeout: Duration.zero,
+        ),
+        isTrue,
+      );
+    });
+
+    test('neither phone choosing Bluetooth keeps the hotspot', () async {
+      final engine = await adoptSession();
+      engine.addEnvelope(preference(false));
+      await Future<void>.delayed(Duration.zero);
+      expect(
+        await RoomProximityControlSessionRegistry.instance.agreeOnBluetooth(
+          roomId: roomId,
+        ),
+        isFalse,
+      );
+    });
+
+    test('a silent peer counts as not choosing Bluetooth', () async {
+      await adoptSession();
+      expect(
+        await RoomProximityControlSessionRegistry.instance.agreeOnBluetooth(
+          roomId: roomId,
+          timeout: Duration.zero,
+        ),
+        isFalse,
+      );
+    });
+  });
 }
 
 RoomProximityEnvelope _decodeSingleWrite(
@@ -289,7 +382,12 @@ class _RegistryFakeClassicBluetoothEngine extends ClassicBluetoothEngine {
   final connected = StreamController<String>.broadcast();
   final errors = StreamController<String>.broadcast();
   final closed = StreamController<void>.broadcast();
+
+  /// Transport-plan traffic. The Bluetooth preference every linked session
+  /// sends up front is kept apart in [preferences], so these read as the
+  /// exchange each test drives.
   final writes = <Uint8List>[];
+  final preferences = <RoomProximityEnvelope>[];
 
   @override
   Stream<Uint8List> get input => incoming.stream;
@@ -317,6 +415,12 @@ class _RegistryFakeClassicBluetoothEngine extends ClassicBluetoothEngine {
 
   @override
   Future<void> write(Uint8List bytes) async {
+    final frames = FrameReassembler().addBytes(Uint8List.fromList(bytes));
+    final envelope = RoomProximityEnvelope.decode(utf8.decode(frames.single));
+    if (envelope.kind == 'transportPreference') {
+      preferences.add(envelope);
+      return;
+    }
     writes.add(Uint8List.fromList(bytes));
   }
 
