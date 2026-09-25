@@ -194,9 +194,7 @@ void main() {
       expect(micRecheckCount, 0, reason: 'no resume has happened yet');
 
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
-      tester.binding.handleAppLifecycleStateChanged(
-        AppLifecycleState.resumed,
-      );
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await tester.pump();
 
       expect(backgroundRecheckCount, 1);
@@ -205,9 +203,7 @@ void main() {
       // Not just a one-shot subscription — every return from Settings should
       // pick up whatever changed while the user was away.
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
-      tester.binding.handleAppLifecycleStateChanged(
-        AppLifecycleState.resumed,
-      );
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await tester.pump();
 
       expect(backgroundRecheckCount, 2);

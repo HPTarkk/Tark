@@ -196,15 +196,11 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
 
   double _flickerEnvelope(double t) {
     if (t <= _kFlickerStart) return 0.0;
-    final local = ((t - _kFlickerStart) / (1 - _kFlickerStart)).clamp(
-      0.0,
-      1.0,
-    );
+    final local = ((t - _kFlickerStart) / (1 - _kFlickerStart)).clamp(0.0, 1.0);
     if (local >= _kFlickerSettle) return 1.0;
     // Reduced motion fades the wordmark up instead of strobing it.
     if (_reduced) return AppMotion.easeOut.transform(local / _kFlickerSettle);
-    return _flickerPattern[((local / _kFlickerSettle) *
-            _flickerPattern.length)
+    return _flickerPattern[((local / _kFlickerSettle) * _flickerPattern.length)
         .floor()];
   }
 
@@ -240,11 +236,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
                     amber: AppColors.amber,
                     amberDim: AppColors.amberDim,
                     haze: AppColors.border,
-                    shade: Color.lerp(
-                      AppColors.background,
-                      Colors.black,
-                      0.6,
-                    )!,
+                    shade: Color.lerp(AppColors.background, Colors.black, 0.6)!,
                   ),
                   size: Size.infinite,
                 ),
@@ -842,7 +834,10 @@ class _HaloRingPainter extends CustomPainter {
         ..shader = SweepGradient(
           startAngle: 0,
           endAngle: trailSweep,
-          colors: [amber.withAlpha(0), amber.withAlpha((210 * cometGate).toInt())],
+          colors: [
+            amber.withAlpha(0),
+            amber.withAlpha((210 * cometGate).toInt()),
+          ],
           transform: GradientRotation(head - trailSweep),
         ).createShader(rect),
     );

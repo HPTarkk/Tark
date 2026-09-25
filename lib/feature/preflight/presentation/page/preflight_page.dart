@@ -115,10 +115,8 @@ class _PreflightPageState extends State<_PreflightPage>
     // — six independent controllers would each tick a frame callback for the
     // same single visual beat, which is the kind of per-row animation cost
     // the low-end-device floor can't absorb.
-    _entrance = AnimationController(
-      vsync: this,
-      duration: _rowEntranceDuration,
-    )..forward();
+    _entrance = AnimationController(vsync: this, duration: _rowEntranceDuration)
+      ..forward();
     _launch = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 640),
@@ -149,7 +147,10 @@ class _PreflightPageState extends State<_PreflightPage>
     // Guarded so a later dependency change (a locale switch mid-page) can't
     // start a second, orphaned session.
     if (_session == null) {
-      final session = widget.startSession(s: context.getString, plan: widget.plan);
+      final session = widget.startSession(
+        s: context.getString,
+        plan: widget.plan,
+      );
       _session = session;
       _result = session.initial;
       _scheduleAutoLaunch(session.initial);

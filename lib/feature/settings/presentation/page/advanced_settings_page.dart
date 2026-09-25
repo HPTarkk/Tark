@@ -145,7 +145,9 @@ class _VoiceCard extends StatelessWidget {
           // migrated from the old scale lands on the same percentage it always
           // showed. So this control looks untouched to someone who set it
           // months ago; only what it does changed. See [VoxMargin].
-          final marginPercent = (state.voxMargin * 100).clamp(0.0, 100.0).toInt();
+          final marginPercent = (state.voxMargin * 100)
+              .clamp(0.0, 100.0)
+              .toInt();
           // With no cleaner selected there is nothing for the strength to
           // apply to, so the slider is shown reading OFF and inert rather
           // than left live and lying about having an effect. The stored
@@ -230,10 +232,9 @@ class _VoiceCard extends StatelessWidget {
                     // see [locked] above.
                     onChanged: locked
                         ? null
-                        : (v) =>
-                              context.read<SettingsCubit>().setNoiseSuppression(
-                                v,
-                              ),
+                        : (v) => context
+                              .read<SettingsCubit>()
+                              .setNoiseSuppression(v),
                     onChangeEnd: (_) => HapticFeedback.selectionClick(),
                   ),
                 ),
@@ -494,7 +495,8 @@ class _NoiseCleanerCard extends StatelessWidget {
                   downside: s.noise_cleaner_simple_downside,
                   selected: effectiveEngine == NoiseSuppressionEngine.spectral,
                   locked: riding,
-                  onTap: () => _select(context, NoiseSuppressionEngine.spectral),
+                  onTap: () =>
+                      _select(context, NoiseSuppressionEngine.spectral),
                 ),
                 const SizedBox(height: 10),
                 _CleanerOption(

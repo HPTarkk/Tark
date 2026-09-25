@@ -6,8 +6,9 @@ import 'package:tark/feature/preflight/presentation/widget/signal_radar.dart';
 RecoveryCheck _row(RecoveryStatus status) =>
     RecoveryCheck(label: 'x', detail: 'x', status: status);
 
-Widget _wrap(Widget child) =>
-    MaterialApp(home: Scaffold(body: Center(child: child)));
+Widget _wrap(Widget child) => MaterialApp(
+  home: Scaffold(body: Center(child: child)),
+);
 
 void main() {
   // Bounded pumps throughout, never pumpAndSettle — the sweep controller
@@ -100,41 +101,40 @@ void main() {
     expect(find.byIcon(Icons.warning_amber_rounded), findsOneWidget);
   });
 
-  testWidgets(
-    'transitioning from scanning to resolved swaps the glyph without '
-    'throwing — the sweep-stop/bloom-start handoff in didUpdateWidget',
-    (tester) async {
-      await tester.pumpWidget(
-        _wrap(
-          const SignalRadar(
-            checks: [null, null, null, null, null, null],
-            isComplete: false,
-            hasBlocking: false,
-            hasOnlyWarning: false,
-          ),
+  testWidgets('transitioning from scanning to resolved swaps the glyph without '
+      'throwing — the sweep-stop/bloom-start handoff in didUpdateWidget', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        const SignalRadar(
+          checks: [null, null, null, null, null, null],
+          isComplete: false,
+          hasBlocking: false,
+          hasOnlyWarning: false,
         ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 200));
-      expect(find.byIcon(Icons.podcasts_rounded), findsOneWidget);
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.byIcon(Icons.podcasts_rounded), findsOneWidget);
 
-      await tester.pumpWidget(
-        _wrap(
-          SignalRadar(
-            checks: List.filled(6, _row(RecoveryStatus.ok)),
-            isComplete: true,
-            hasBlocking: false,
-            hasOnlyWarning: false,
-          ),
+    await tester.pumpWidget(
+      _wrap(
+        SignalRadar(
+          checks: List.filled(6, _row(RecoveryStatus.ok)),
+          isComplete: true,
+          hasBlocking: false,
+          hasOnlyWarning: false,
         ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 800));
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 800));
 
-      expect(find.byIcon(Icons.check_rounded), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    },
-  );
+    expect(find.byIcon(Icons.check_rounded), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('reduced motion holds the sweep still while scanning', (
     tester,

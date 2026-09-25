@@ -142,7 +142,11 @@ void main() {
       expect(find.text('CONTINUE ANYWAY'), findsOneWidget);
       await tester.tap(find.text('CONTINUE ANYWAY'));
       await tester.pumpAndSettle();
-      expect(find.text('CONTINUE ANYWAY'), findsNothing, reason: 'sheet closed');
+      expect(
+        find.text('CONTINUE ANYWAY'),
+        findsNothing,
+        reason: 'sheet closed',
+      );
     });
 
     testWidgets('an unknown row never blocks or changes the CTA label', (
@@ -174,8 +178,7 @@ void main() {
     ) async {
       await _openSheet(
         tester,
-        ({required s, required plan}) =>
-            PreflightSession.debugFixed(_allGreen),
+        ({required s, required plan}) => PreflightSession.debugFixed(_allGreen),
       );
 
       expect(
@@ -217,8 +220,7 @@ void main() {
 
       await _openSheet(
         tester,
-        ({required s, required plan}) =>
-            PreflightSession.debugFixed(warnOnly),
+        ({required s, required plan}) => PreflightSession.debugFixed(warnOnly),
       );
       await tester.pump(const Duration(milliseconds: 1000));
       expect(

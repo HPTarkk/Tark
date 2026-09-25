@@ -209,9 +209,7 @@ class _SignalRadarState extends State<SignalRadar>
                   : ScaleTransition(
                       scale: CurvedAnimation(
                         parent: animation,
-                        curve: _passed
-                            ? Curves.easeOutBack
-                            : AppMotion.easeOut,
+                        curve: _passed ? Curves.easeOutBack : AppMotion.easeOut,
                       ),
                       child: FadeTransition(opacity: animation, child: child),
                     ),

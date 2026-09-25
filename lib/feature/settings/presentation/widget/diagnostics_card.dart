@@ -223,7 +223,9 @@ class _DiagnosticsCardState extends State<DiagnosticsCard> {
                   ? null
                   : () {
                       HapticFeedback.selectionClick();
-                      Clipboard.setData(ClipboardData(text: build.diagnosticLine));
+                      Clipboard.setData(
+                        ClipboardData(text: build.diagnosticLine),
+                      );
                       _say(build.shortCommit);
                     },
             ),
@@ -363,9 +365,9 @@ class _LogBudgetSectionState extends State<_LogBudgetSection> {
               Expanded(
                 child: Text(
                   s.settings_log_usage(
-                    LogBudget.format(math.max(0, widget.usedBytes)).localized(
-                      context,
-                    ),
+                    LogBudget.format(
+                      math.max(0, widget.usedBytes),
+                    ).localized(context),
                     LogBudget.format(selected).localized(context),
                   ),
                   style: TextStyle(
