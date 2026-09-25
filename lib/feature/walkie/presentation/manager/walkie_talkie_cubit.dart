@@ -648,6 +648,16 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   // Roster bookkeeping (join/leave/talk-timeout) — see [ChannelRoster].
   final ChannelRoster _roster = const ChannelRoster();
 
+  /// The roster as the cubit tracks it, `lastSeen` included.
+  ///
+  /// Kept apart from [WalkieTalkieState.activeUsers] because every audio
+  /// packet refreshes a talker's `lastSeen`, dozens of times a second per
+  /// talker. Emitting each of those rebuilt the member list and re-published
+  /// the home-screen widget for a change nobody can see. The state only moves
+  /// when something shown does (see [_publishRoster]); this list is what the
+  /// join, leave and talk-timeout bookkeeping reads.
+  List<ChannelUser> _users = const [];
+
   // System-audio (music) sharing: capture chunks queue up in the mixer,
   // which re-cuts them onto the mic's 20 ms frame grid — see [MusicMixer].
   //
@@ -1374,7 +1384,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
 
   void _updateUser(String id, String name, bool isTalking, SessionRole role) {
     final update = _roster.upsert(
-      state.activeUsers,
+      _users,
       ChannelUser(
         id: id,
         name: name,
@@ -1396,7 +1406,15 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
       case RosterChange.none:
         break;
     }
-    emit(state.copyWith(activeUsers: update.users));
+    _publishRoster(update.users);
+  }
+
+  /// Records [users] as the roster, emitting only when something a screen
+  /// shows changed: who is here, their names, roles and who is talking.
+  void _publishRoster(List<ChannelUser> users) {
+    _users = users;
+    if (ChannelRoster.sameForDisplay(state.activeUsers, users)) return;
+    emit(state.copyWith(activeUsers: users));
   }
 
   /// Handles a [PresencePacket.isLeaving] announcement — removes [id] at
@@ -1405,13 +1423,14 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   /// for a stray announcement from an id already gone (a duplicate, or a
   /// peer that had already aged out).
   void _removeUser(String id) {
-    final update = _roster.announceLeave(state.activeUsers, id);
+    final update = _roster.announceLeave(_users, id);
     final subject = update.subject;
     if (update.change != RosterChange.peerAnnouncedLeave || subject == null) {
-      emit(state.copyWith(activeUsers: update.users));
+      _publishRoster(update.users);
       return;
     }
     _sfx.play(SfxEvent.peerLeave);
+    _users = update.users;
     emit(
       state.copyWith(
         activeUsers: update.users,
@@ -1446,11 +1465,11 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   }
 
   void _cleanupStaleUsers() {
-    final update = _roster.cleanup(state.activeUsers, DateTime.now());
+    final update = _roster.cleanup(_users, DateTime.now());
     if (update.change == RosterChange.peerLeft) {
       _sfx.play(SfxEvent.peerLeave);
     }
-    emit(state.copyWith(activeUsers: update.users));
+    _publishRoster(update.users);
     // Rides the roster tick rather than adding timers of its own — these are
     // all "has this been wrong for a while now?" questions, and 3s is a finer
     // grain than any of their grace periods.

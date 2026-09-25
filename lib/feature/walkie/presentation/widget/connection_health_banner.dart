@@ -49,17 +49,29 @@ class _ConnectionHealthBannerState extends State<ConnectionHealthBanner>
   Timer? _flashTimer;
   Timer? _countdownTimer;
 
-  // Slow, continuous rotation of the reconnecting icon. Cheap — only shown
-  // while the bar is up.
+  // Slow, continuous rotation of the reconnecting icon. Runs only while the
+  // icon is on screen: the banner stays mounted for the whole session, and a
+  // repeating controller ticks every frame whether anything shows it or not.
   late final AnimationController _spin = AnimationController(
     vsync: this,
     duration: const Duration(seconds: 2),
-  )..repeat();
+  );
 
   @override
   void initState() {
     super.initState();
     _syncCountdownTimer();
+    _syncSpin();
+  }
+
+  void _syncSpin() {
+    final spinning =
+        _display == _Display.countdown || _display == _Display.attempting;
+    if (spinning && !_spin.isAnimating) {
+      _spin.repeat();
+    } else if (!spinning && _spin.isAnimating) {
+      _spin.stop();
+    }
   }
 
   @override
@@ -76,6 +88,7 @@ class _ConnectionHealthBannerState extends State<ConnectionHealthBanner>
       });
     }
     _syncCountdownTimer();
+    _syncSpin();
   }
 
   _Display _computeDisplay({required bool wasLive}) {

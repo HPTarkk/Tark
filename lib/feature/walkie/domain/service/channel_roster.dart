@@ -80,6 +80,25 @@ class ChannelRoster {
     );
   }
 
+  /// Whether [a] and [b] would look the same on screen: the same people, in
+  /// the same order, with the same names, roles and talking flags. Ignores
+  /// `lastSeen`, which every packet refreshes and nothing displays.
+  static bool sameForDisplay(List<ChannelUser> a, List<ChannelUser> b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      final x = a[i];
+      final y = b[i];
+      if (x.id != y.id ||
+          x.name != y.name ||
+          x.isTalking != y.isTalking ||
+          x.role != y.role) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   /// Drops stale users and un-flags silent talkers, reporting a leave when
   /// anyone was removed.
   RosterUpdate cleanup(List<ChannelUser> users, DateTime now) {
