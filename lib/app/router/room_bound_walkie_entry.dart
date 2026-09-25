@@ -176,15 +176,33 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     return links.resolve(modeStore.mode);
   }
 
-  Future<bool> _openLinkGate() async {
+  /// Whether this phone has a link the Room can run over, switching the
+  /// transport to fit it where that is allowed.
+  ///
+  /// A transport pinned in settings is never traded away here. Pinned to
+  /// Bluetooth, a phone still sitting on Wi-Fi used to be switched onto that
+  /// Wi-Fi without a word, so the Room "connected" over the network the user
+  /// had just said not to use, and failed the moment Wi-Fi went off. Now the
+  /// gate refuses instead, and the lobby offers to connect the phones over
+  /// the pinned transport. [honourPin] is false only for a Room invite
+  /// hand-off, which arranges its own hotspot by design.
+  Future<bool> _openLinkGate({bool honourPin = true}) async {
     final probe = _probe;
     final modeStore = _modeStore;
     if (probe == null || modeStore == null) return true;
     final links = await _readLinks();
     if (mounted) setState(() => _links = links);
-    final link = links.resolve(modeStore.mode);
+    final pinned = honourPin ? modeStore.pinnedMode : null;
+    final link = links.resolve(pinned ?? modeStore.mode);
     if (!link.isUp) {
       Logger.diagnostic('room: readiness stage=local_link_missing');
+      return false;
+    }
+    if (pinned != null && !link.honours(pinned)) {
+      Logger.diagnostic(
+        'room: readiness stage=pinned_link_missing '
+        'pinned=${pinned.key} link=${link.name}',
+      );
       return false;
     }
     final mode = link.modeFor(modeStore.mode);
@@ -797,7 +815,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         _coordinator.cancel(epoch: start.epoch);
         return _EntryState.lobby(room, failure: planFailure);
       }
-      if (!await _openLinkGate()) {
+      if (!await _openLinkGate(honourPin: !hasProximityHandoff)) {
         _coordinator.cancel(epoch: start.epoch);
         return _EntryState.lobby(room, failure: _EntryFailure.localLinkMissing);
       }

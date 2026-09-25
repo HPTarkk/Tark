@@ -158,6 +158,14 @@ class BluetoothServerHandler(
                 val name = call.argument<String>("name") ?: "tark"
                 val rendezvousData = call.argument<ByteArray>("rendezvousData")
                 val correlation = call.argument<String>("correlation")
+                // No rendezvous at all is the plain Bluetooth screen: joiners
+                // find it by classic inquiry (the tagged adapter name) and by
+                // the Dart BLE engine's own GATT advertisement, so only the
+                // RFCOMM listener is needed here. Half a rendezvous is a bug.
+                if (rendezvousData == null && correlation == null) {
+                    startHosting(name, null, null, result)
+                    return
+                }
                 if (!isValidRendezvousData(rendezvousData) || correlation.isNullOrBlank()) {
                     result.error("invalid_args", "valid rendezvousData/correlation are required", null)
                     return
@@ -376,8 +384,8 @@ class BluetoothServerHandler(
 
     private fun startHosting(
         name: String,
-        rendezvousData: ByteArray,
-        correlation: String,
+        rendezvousData: ByteArray?,
+        correlation: String?,
         result: MethodChannel.Result,
     ) {
         if (acceptedSocket != null) {
@@ -422,9 +430,20 @@ class BluetoothServerHandler(
         }
 
         diagnostic(
-            "RFCOMM server listening correlation=$correlation nameApplied=$nameApplied"
+            "RFCOMM server listening correlation=${correlation ?: "none"} nameApplied=$nameApplied"
         )
         startAcceptLoop()
+        if (rendezvousData == null || correlation == null) {
+            result.success(
+                mapOf(
+                    "serverListening" to (serverSocket != null),
+                    "bleAdvertising" to false,
+                    "nameApplied" to nameApplied,
+                    "correlation" to null,
+                )
+            )
+            return
+        }
         startRendezvousAdvertising(
             adapter = adapter,
             rendezvousData = rendezvousData,

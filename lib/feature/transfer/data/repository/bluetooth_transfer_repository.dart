@@ -15,7 +15,10 @@ import '../../../../core/utils/exponential_backoff.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entity/audio_profile.dart';
 import '../../domain/entity/connection_health.dart';
+import '../../domain/entity/control_packet.dart';
 import '../../domain/entity/session_role.dart';
+import '../../domain/entity/transport_capability_observation.dart';
+import '../../domain/entity/transport_route_proof_observation.dart';
 import '../../domain/entity/transport_stats.dart';
 import '../../domain/entity/waki_packet.dart';
 import '../../domain/entity/bluetooth_connection_state.dart' as bt;
@@ -23,12 +26,17 @@ import '../../domain/entity/bluetooth_host_name.dart';
 import '../../domain/entity/bluetooth_peer.dart';
 import '../../domain/repository/bluetooth_transport.dart';
 import '../../domain/repository/transfer_repository.dart';
+import '../../domain/repository/transport_capability_observation_source.dart';
+import '../../domain/repository/transport_route_proof_exchange.dart';
 import '../../domain/service/audio_capability_negotiator.dart';
+import '../../domain/service/peer_ping_tracker.dart';
 import '../../domain/service/priority_write_scheduler.dart';
 import '../bluetooth/ble_bluetooth_engine.dart';
 import '../bluetooth/classic_bluetooth_engine.dart';
 import '../bluetooth/length_prefixed_framer.dart';
 import '../codec/opus_audio_codec.dart';
+import '../codec/transport_capability_control_codec.dart';
+import '../codec/transport_capability_heartbeat_runtime.dart';
 import '../codec/waki_packet_codec.dart';
 
 /// Bluetooth transport for 1-to-1 sessions, running two engines:
@@ -46,7 +54,11 @@ import '../codec/waki_packet_codec.dart';
 /// connect() knows which engine owns the peer.
 @lazySingleton
 class BluetoothTransferRepository
-    implements TransferRepository, BluetoothTransport {
+    implements
+        TransferRepository,
+        BluetoothTransport,
+        TransportCapabilityObservationSource,
+        TransportRouteProofExchange {
   BluetoothTransferRepository(
     this._settingsRepository,
     this._identity,
@@ -65,6 +77,37 @@ class BluetoothTransferRepository
   final SessionEpoch _epoch;
 
   late final _codec = WakiPacketCodec(_identity.id, _epoch);
+
+  /// The same ping/pong heartbeat the Wi-Fi transport runs, carried over the
+  /// one Bluetooth socket. A Room only goes live once the other member's
+  /// signed route proof arrives in a pong, so without this a Room could never
+  /// start over Bluetooth: the link came up, and the readiness gate then
+  /// waited out its whole timeout for a proof nothing was ever going to send.
+  late final _heartbeat = TransportCapabilityHeartbeatRuntime(
+    codec: TransportCapabilityControlCodec(_codec),
+  );
+  final PeerPingTracker _pings = PeerPingTracker();
+  Timer? _pingTimer;
+  int _pingToken = 0;
+  bool _pingInFlight = false;
+  int _audioRxPackets = 0;
+  int _lastAudioRxSeq = 0;
+
+  /// Once a second, like Wi-Fi: the Room's readiness gate and the proof's
+  /// challenge window are both tuned to that cadence.
+  static const _pingInterval = Duration(seconds: 1);
+
+  @override
+  Stream<TransportCapabilityObservation> get transportCapabilityObservations =>
+      _heartbeat.transportCapabilityObservations;
+
+  @override
+  Stream<TransportRouteProofObservation> get routeProofObservations =>
+      _heartbeat.routeProofObservations;
+
+  @override
+  void setRouteProofProvider(TransportRouteProofProvider? provider) =>
+      _heartbeat.setRouteProofProvider(provider);
 
   /// #30: Bluetooth is the one transport with a single, shared, ordered
   /// write pipe — a queued write here genuinely blocks whatever comes after
@@ -421,6 +464,7 @@ class BluetoothTransferRepository
     _reconnectGen++;
     _sessionWatchdog?.cancel();
     _sessionWatchdog = null;
+    _stopPinging();
     _sessionRole = null;
     _sessionPeer = null;
     _connectedPeerId = null;
@@ -489,8 +533,18 @@ class BluetoothTransferRepository
     _sessionWatchdog = null;
     final peerId = _connectedPeerId;
     if (peerId == null) return;
+    // Control is answered here and never yielded, exactly as on Wi-Fi: a
+    // ping is a transport question with a transport answer.
+    if (message.isNotEmpty && WakiPacketCodec.isControl(message[0])) {
+      unawaited(_handleControl(message, peerId));
+      return;
+    }
     final packet = _codec.decode(message, peerId);
     if (packet == null) return;
+    if (packet is AudioPacket) {
+      _audioRxPackets++;
+      _lastAudioRxSeq = packet.seq;
+    }
     if (packet is PresencePacket) {
       _capabilities.observePeer(peerId, packet.capabilityBitmask);
       _syncFormatProfile();
@@ -528,6 +582,84 @@ class BluetoothTransferRepository
     }
     _publishConnectionState(bt.BluetoothConnectionState.connected);
     unawaited(_sendHello());
+    _startPinging(peerId);
+  }
+
+  void _startPinging(String peerId) {
+    _stopPinging();
+    _pingTimer = Timer.periodic(_pingInterval, (_) {
+      if (_connectedPeerId != peerId) {
+        _stopPinging();
+        return;
+      }
+      if (!_pingInFlight) unawaited(_ping(peerId));
+    });
+    unawaited(_ping(peerId));
+  }
+
+  void _stopPinging() {
+    _pingTimer?.cancel();
+    _pingTimer = null;
+    final peer = _connectedPeerId;
+    if (peer != null) _pings.forget(peer);
+    _audioRxPackets = 0;
+    _lastAudioRxSeq = 0;
+  }
+
+  Future<void> _ping(String peerId) async {
+    if (_pingInFlight) return;
+    _pingInFlight = true;
+    try {
+      final token = ++_pingToken;
+      final packet = await _heartbeat.encodePing(
+        token: token,
+        lastTxSeq: _audioSeq,
+        lastRxSeq: _lastAudioRxSeq,
+        audioRxPackets: _audioRxPackets,
+      );
+      if (_connectedPeerId != peerId) return;
+      _pings.sent(peerId, token, DateTime.now());
+      await _writeScheduler.writeHighPriority(packet);
+    } catch (e) {
+      Logger.log('Bluetooth ping failed: $e');
+    } finally {
+      _pingInFlight = false;
+    }
+  }
+
+  /// Answers a ping with a pong carrying this member's route proof, and
+  /// matches a pong against the ping that caused it before its proof is
+  /// believed. The peer key is the connected peer's address — the one route
+  /// this socket has.
+  Future<void> _handleControl(Uint8List message, String peerId) async {
+    final decoded = _heartbeat.decodeControl(message, peerId);
+    if (decoded == null) return;
+    switch (decoded.packet) {
+      case PingPacket(:final token, :final sessionEpoch):
+        try {
+          final pong = await _heartbeat.encodePong(
+            token: token,
+            lastTxSeq: _audioSeq,
+            lastRxSeq: _lastAudioRxSeq,
+            audioRxPackets: _audioRxPackets,
+            // The responder signs the challenger's join epoch echoed by Ping.
+            challengeEpoch: sessionEpoch,
+          );
+          if (_connectedPeerId != peerId) return;
+          await _writeScheduler.writeHighPriority(pong);
+        } catch (e) {
+          Logger.log('Bluetooth pong failed: $e');
+        }
+      case PongPacket(:final token):
+        final observedAt = DateTime.now();
+        if (_pings.pong(peerId, token, observedAt) == null) return;
+        _heartbeat.observeMatchedPong(
+          decoded: decoded,
+          peerKey: peerId,
+          observedAt: observedAt,
+          challengeEpoch: _epoch.value,
+        );
+    }
   }
 
   /// One packet on the wire the moment the link forms. A real peer therefore
@@ -572,6 +704,7 @@ class BluetoothTransferRepository
     if (_activeEngine != null && _activeEngine != engine) return;
     _sessionWatchdog?.cancel();
     _sessionWatchdog = null;
+    _stopPinging();
     final hadSession = _connectedPeerId != null;
     _connectedPeerId = null;
     _activeEngine = null;
@@ -809,6 +942,8 @@ class BluetoothTransferRepository
     _reconnectGen++;
     _sessionWatchdog?.cancel();
     _sessionWatchdog = null;
+    _stopPinging();
+    unawaited(_heartbeat.dispose());
     for (final sub in _engineSubs) {
       unawaited(sub.cancel());
     }
