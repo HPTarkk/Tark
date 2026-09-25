@@ -170,11 +170,7 @@ class _RoomListPageState extends State<RoomListPage> {
               saved: saved,
               selected: state.selectedRoomId == saved.room.id,
               busy: state.loading,
-              onSelect: () =>
-                  context.read<RoomListCubit>().select(saved.room.id),
-              onStart: state.selectedRoomId == saved.room.id
-                  ? () => context.go(AppRoutes.walkiePath)
-                  : null,
+              onOpen: () => _openRoom(context, saved),
               onRename: () => _renameRoom(context, saved),
               onArchive: () => _archiveRoom(context, saved),
               onLeave: () => _leaveRoom(context, saved),
@@ -227,6 +223,13 @@ class _RoomListPageState extends State<RoomListPage> {
     if (created != null && context.mounted) {
       context.go(AppRoutes.walkiePath);
     }
+  }
+
+  /// Selects the Room and opens its lobby. Nothing connects until Start is
+  /// pressed there.
+  Future<void> _openRoom(BuildContext context, SavedRoom saved) async {
+    await context.read<RoomListCubit>().select(saved.room.id);
+    if (context.mounted) context.go(AppRoutes.walkiePath);
   }
 
   Future<void> _renameRoom(BuildContext context, SavedRoom saved) async {
@@ -318,21 +321,17 @@ class _RoomListPageState extends State<RoomListPage> {
 ///
 /// The members are faces rather than a count on a grey monogram, so the list
 /// reads as *who* each Room is before what it is called. The Room in play is
-/// lit like the lobby's hero — a warm glow from above and an amber rim — and
-/// grows the same wide amber Start button underneath, so selecting a card is
-/// visibly the first half of the lobby rather than a different screen's idea
-/// of it.
+/// lit like the lobby's hero — a warm glow from above and an amber rim.
 ///
-/// One hierarchy that never moves: faces, the name, one line of metadata, and
-/// the menu. Selection adds Start underneath rather than replacing anything,
-/// so nothing the user was already looking at jumps.
+/// One tap opens the Room's lobby. Starting the connection happens there and
+/// only there; a Start button here only ever opened the lobby under a label
+/// that promised more.
 class _RoomCard extends StatelessWidget {
   const _RoomCard({
     required this.saved,
     required this.selected,
     required this.busy,
-    required this.onSelect,
-    required this.onStart,
+    required this.onOpen,
     required this.onRename,
     required this.onArchive,
     required this.onLeave,
@@ -342,8 +341,7 @@ class _RoomCard extends StatelessWidget {
   final SavedRoom saved;
   final bool selected;
   final bool busy;
-  final VoidCallback onSelect;
-  final VoidCallback? onStart;
+  final VoidCallback onOpen;
   final VoidCallback onRename;
   final VoidCallback onArchive;
   final VoidCallback onLeave;
@@ -369,14 +367,8 @@ class _RoomCard extends StatelessWidget {
       excludeSemantics: true,
       child: PressableScale(
         key: Key('room-${saved.room.id.value}'),
-        // Tapping an already-selected card starts it. The card is the control;
-        // needing a second, differently-shaped button to do the obvious thing
-        // is what made the old row feel like a form rather than a list.
-        onTap: busy || archived
-            ? null
-            : selected
-            ? onStart
-            : onSelect,
+        // The card is the control: one tap opens this Room's lobby.
+        onTap: busy || archived ? null : onOpen,
         borderRadius: _radius,
         child: AnimatedContainer(
           // Rim, glow and wash all travel together on one curve, so selecting
@@ -435,34 +427,6 @@ class _RoomCard extends StatelessWidget {
                     onDelete: onDelete,
                   ),
                 ],
-              ),
-              // Grows in under the identity rather than swapping with it, so
-              // selecting a card never reflows the line the user just read.
-              AnimatedSize(
-                duration: AppMotion.card,
-                curve: AppMotion.easeOut,
-                alignment: Alignment.topCenter,
-                child: lit
-                    ? Padding(
-                        padding: const EdgeInsetsDirectional.fromSTEB(
-                          0,
-                          16,
-                          10,
-                          0,
-                        ),
-                        // The lobby's own Start, minus the breathing: that
-                        // pulse is the lobby's cue that the ride is one tap
-                        // away, and on a list it would never settle.
-                        child: RoomStartButton(
-                          key: Key('room-start-${saved.room.id.value}'),
-                          label: context.getString.rooms_start_ride,
-                          busy: busy,
-                          breathe: false,
-                          height: 54,
-                          onTap: onStart,
-                        ),
-                      )
-                    : const SizedBox(width: double.infinity),
               ),
             ],
           ),

@@ -1748,9 +1748,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rooms_selected => 'Selected';
 
   @override
-  String get rooms_start_ride => 'Start ride';
-
-  @override
   String get rooms_manage => 'Manage room';
 
   @override

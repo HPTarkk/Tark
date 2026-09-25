@@ -305,6 +305,11 @@ void main() {
   testWidgets('home Wi-Fi, when asked for, skips the code entirely', (
     tester,
   ) async {
+    // A phone-height screen: the round Start sits above this link, and the
+    // default 800x600 test surface puts it below the fold.
+    tester.view.physicalSize = const Size(800, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     final modeStore = await pumpEntry(
       tester,
       links: const LiveLinkSnapshot(

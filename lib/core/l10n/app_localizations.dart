@@ -3230,12 +3230,6 @@ abstract class AppLocalizations {
   /// **'انتخاب‌شده'**
   String get rooms_selected;
 
-  /// No description provided for @rooms_start_ride.
-  ///
-  /// In fa, this message translates to:
-  /// **'شروع ارتباط'**
-  String get rooms_start_ride;
-
   /// No description provided for @rooms_manage.
   ///
   /// In fa, this message translates to:
