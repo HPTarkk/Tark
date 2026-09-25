@@ -32,6 +32,7 @@ import '../../../transfer/api/transfer_api.dart';
 import '../../domain/entity/channel_user.dart';
 import '../../domain/service/channel_health_monitor.dart';
 import '../../domain/service/channel_roster.dart';
+import '../../domain/service/music_cast_watch.dart';
 import '../../domain/service/transmit_counters.dart';
 import 'walkie_widget_snapshot.dart';
 
@@ -729,36 +730,9 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     }
   }
 
-  // Last reported mixer counters, so the log below stays quiet unless
-  // something actually changed.
-  int _lastMusicDropouts = 0;
-  int _lastMusicTrims = 0;
-  int _lastMusicFloods = 0;
-
-  /// Level below which a capture chunk counts as silence. The same threshold
-  /// the equalizer uses to decide it is flatlining, so what the log says and
-  /// what the card shows can never disagree.
-  static const double _kMusicAudibleLevel = 0.004;
-
-  /// Since when every captured chunk has been silent, or null if the last one
-  /// carried audio.
-  DateTime? _musicSilentSince;
-
-  /// Whether this cast has *ever* produced audible capture. A device that has
-  /// managed it once is not the blocked case, whatever it does later.
-  bool _musicEverAudible = false;
-
-  /// Whether the blocked-capture diagnosis has already been delivered, so it is
-  /// said once per cast rather than every tick.
-  bool _musicBlockedReported = false;
-
-  /// How long capture must be silent before another app claiming to be playing
-  /// counts as this device refusing to hand over the audio.
-  ///
-  /// Generous on purpose: starting the cast before choosing a song is normal
-  /// (the idle copy invites exactly that), and a cast must never be second-
-  /// guessed for a pause between tracks.
-  static const _musicBlockedAfter = Duration(seconds: 8);
+  // Silence, audibility and counter bookkeeping for the running cast — see
+  // [MusicCastWatch].
+  final MusicCastWatch _musicWatch = MusicCastWatch();
 
   /// Reports the music cast's buffer health while one is running.
   ///
@@ -823,14 +797,13 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
       prefill = _musicMixer.prefillSamples;
       overflow = _musicMixer.overflowDrops;
     }
-    if (dropouts == _lastMusicDropouts &&
-        trims == _lastMusicTrims &&
-        floods == _lastMusicFloods) {
+    if (!_musicWatch.countersMoved(
+      dropouts: dropouts,
+      trims: trims,
+      floods: floods,
+    )) {
       return;
     }
-    _lastMusicDropouts = dropouts;
-    _lastMusicTrims = trims;
-    _lastMusicFloods = floods;
     Logger.diagnostic(
       'music cast: $queued samples queued '
       '(cushion $prefill) | dropouts=$dropouts '
@@ -853,16 +826,16 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   /// absence of a signal proves nothing and changes nothing.
   Future<void> _checkMusicBlocked() async {
     if (!state.isSharingSystemAudio) return;
-    if (_musicBlockedReported || _musicEverAudible) return;
-    final silentSince = _musicSilentSince;
-    if (silentSince == null) return;
-    if (DateTime.now().difference(silentSince) < _musicBlockedAfter) return;
+    if (!_musicWatch.shouldSuspectBlocked(DateTime.now())) return;
     if (!await MediaControl.isOtherMediaPlaying()) return;
-    if (isClosed || !state.isSharingSystemAudio || _musicEverAudible) return;
+    if (isClosed || !state.isSharingSystemAudio || _musicWatch.everAudible) {
+      return;
+    }
 
-    _musicBlockedReported = true;
+    _musicWatch.markBlockedReported();
     Logger.diagnostic(
-      'music cast: capture silent for ${_musicBlockedAfter.inSeconds}s while '
+      'music cast: capture silent for '
+      '${_musicWatch.blockedAfter.inSeconds}s while '
       'another app reports playing — this device is withholding playback '
       'capture, most likely while our call-mode session is open',
     );
@@ -910,8 +883,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
       '${SystemAudioCapture.hdFormat.channels}ch)',
     );
     await _musicSub?.cancel();
-    _musicSilentSince = DateTime.now();
-    _musicEverAudible = false;
+    _musicWatch.started(DateTime.now());
     // Always subscribed, in both modes: this is the only capture stream the
     // native side reports capture_stalled/capture_revoked errors through
     // (see SystemAudioHandler.handleActivityResult — hd_frames has no error
@@ -922,12 +894,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
       (chunk) {
         if (!_usingIndependentMedia) _musicMixer.addChunk(chunk);
         final level = MusicMixer.levelOf(chunk);
-        if (level >= _kMusicAudibleLevel) {
-          _musicSilentSince = null;
-          _musicEverAudible = true;
-        } else {
-          _musicSilentSince ??= DateTime.now();
-        }
+        _musicWatch.noteChunk(level, DateTime.now());
         if (!_musicLevelController.isClosed &&
             _musicLevelController.hasListener &&
             chunk.isNotEmpty) {
@@ -1016,9 +983,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     _mediaScheduler?.dispose();
     _mediaScheduler = null;
     _usingIndependentMedia = false;
-    _musicSilentSince = null;
-    _musicEverAudible = false;
-    _musicBlockedReported = false;
+    _musicWatch.stopped();
     _transferRepository.setAudioProfile(AudioProfile.voice);
     await SystemAudioCapture.stop();
     // AudioPlaybackCapture never touches the source app, so without this the
