@@ -4147,6 +4147,30 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'اتاق‌های تو ({count})'**
   String rooms_section(String count);
+
+  /// No description provided for @reconnect_wifi_needed_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'وای‌فای را روشن کن'**
+  String get reconnect_wifi_needed_title;
+
+  /// No description provided for @reconnect_wifi_needed_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'برای وصل شدن به {name}، این گوشی به اتصالی وصل می‌شود که گوشی {name} به اشتراک می‌گذارد. برای این کار وای‌فای باید روشن باشد — اینترنت مصرف نمی‌شود.'**
+  String reconnect_wifi_needed_body(String name);
+
+  /// No description provided for @reconnect_wifi_needed_action.
+  ///
+  /// In fa, this message translates to:
+  /// **'روشن کردن وای‌فای'**
+  String get reconnect_wifi_needed_action;
+
+  /// No description provided for @reconnect_wifi_needed_waiting.
+  ///
+  /// In fa, this message translates to:
+  /// **'همین که وای‌فای روشن شود، دوربین خودش باز می‌شود.'**
+  String get reconnect_wifi_needed_waiting;
 }
 
 class _AppLocalizationsDelegate

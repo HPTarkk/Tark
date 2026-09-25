@@ -2290,4 +2290,19 @@ class AppLocalizationsFa extends AppLocalizations {
   String rooms_section(String count) {
     return 'اتاق‌های تو ($count)';
   }
+
+  @override
+  String get reconnect_wifi_needed_title => 'وای‌فای را روشن کن';
+
+  @override
+  String reconnect_wifi_needed_body(String name) {
+    return 'برای وصل شدن به $name، این گوشی به اتصالی وصل می‌شود که گوشی $name به اشتراک می‌گذارد. برای این کار وای‌فای باید روشن باشد — اینترنت مصرف نمی‌شود.';
+  }
+
+  @override
+  String get reconnect_wifi_needed_action => 'روشن کردن وای‌فای';
+
+  @override
+  String get reconnect_wifi_needed_waiting =>
+      'همین که وای‌فای روشن شود، دوربین خودش باز می‌شود.';
 }

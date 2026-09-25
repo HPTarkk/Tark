@@ -28,6 +28,7 @@ class RoomReconnectModel {
     this.qrData,
     this.message,
     this.canSwitch = true,
+    this.wifiOff = false,
   });
 
   final RoomReconnectSide side;
@@ -45,11 +46,18 @@ class RoomReconnectModel {
   final String? message;
   final bool canSwitch;
 
+  /// Scan side only: this phone's Wi-Fi is off. Joining the other phone's
+  /// connection needs it, so the screen asks for it before the camera opens —
+  /// scanning first and only then finding out was the dead end this replaces.
+  /// The showing side never needs Wi-Fi: it is the one sharing.
+  final bool wifiOff;
+
   RoomReconnectModel copyWith({
     RoomReconnectPhase? phase,
     String? qrData,
     String? message,
     bool clearMessage = false,
+    bool? wifiOff,
   }) => RoomReconnectModel(
     side: side,
     peerName: peerName,
@@ -57,6 +65,7 @@ class RoomReconnectModel {
     qrData: qrData ?? this.qrData,
     message: clearMessage ? null : message ?? this.message,
     canSwitch: canSwitch,
+    wifiOff: wifiOff ?? this.wifiOff,
   );
 }
 
@@ -75,6 +84,7 @@ class RoomReconnectView extends StatelessWidget {
     required this.onSwitch,
     required this.onRetry,
     required this.onBack,
+    this.onTurnOnWifi,
     super.key,
   });
 
@@ -83,6 +93,9 @@ class RoomReconnectView extends StatelessWidget {
   final VoidCallback onSwitch;
   final VoidCallback onRetry;
   final VoidCallback onBack;
+
+  /// Opens the system's Wi-Fi switch, for [RoomReconnectModel.wifiOff].
+  final VoidCallback? onTurnOnWifi;
 
   @override
   Widget build(BuildContext context) {
@@ -97,7 +110,15 @@ class RoomReconnectView extends StatelessWidget {
         duration: AppMotion.card,
         switchInCurve: AppMotion.easeOut,
         switchOutCurve: AppMotion.leaving,
-        child: model.side == RoomReconnectSide.scan
+        child: model.side == RoomReconnectSide.scan && model.wifiOff
+            ? _WifiNeeded(
+                key: const ValueKey('room-reconnect-wifi'),
+                model: model,
+                onTurnOnWifi: onTurnOnWifi,
+                onSwitch: onSwitch,
+                onBack: onBack,
+              )
+            : model.side == RoomReconnectSide.scan
             ? _ScanSide(
                 key: const ValueKey('room-reconnect-scan'),
                 model: model,
@@ -163,6 +184,166 @@ class _ScanSide extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// The scan side, before the camera: this phone's Wi-Fi is off, and joining
+/// the other phone's connection needs it on.
+///
+/// Says what is needed, why (and that no internet is involved), and offers
+/// the one control that fixes it. The entry watches the radio and swaps the
+/// camera in by itself the moment Wi-Fi is on, so there is no "done" to press.
+class _WifiNeeded extends StatelessWidget {
+  const _WifiNeeded({
+    required this.model,
+    required this.onTurnOnWifi,
+    required this.onSwitch,
+    required this.onBack,
+    super.key,
+  });
+
+  final RoomReconnectModel model;
+  final VoidCallback? onTurnOnWifi;
+  final VoidCallback onSwitch;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    final turnOn = onTurnOnWifi;
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(4, 4, 16, 0),
+              child: Row(
+                children: [
+                  IconButton(
+                    key: const Key('room-reconnect-back'),
+                    tooltip: MaterialLocalizations.of(
+                      context,
+                    ).backButtonTooltip,
+                    onPressed: onBack,
+                    icon: Icon(
+                      // Mirrors itself in right-to-left (matchTextDirection).
+                      Icons.arrow_back_rounded,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      s.reconnect_show_title(model.peerName),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 40, 20, 24),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 84,
+                      height: 84,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.amber.withValues(alpha: 0.12),
+                        border: Border.all(
+                          color: AppColors.amber.withValues(alpha: 0.55),
+                          width: 2,
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.wifi_off_rounded,
+                        size: 40,
+                        color: AppColors.amber,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      s.reconnect_wifi_needed_title,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      s.reconnect_wifi_needed_body(model.peerName),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 14,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    if (turnOn != null)
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          key: const Key('room-reconnect-turn-on-wifi'),
+                          onPressed: () {
+                            HapticFeedback.selectionClick();
+                            turnOn();
+                          },
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          icon: const Icon(Icons.wifi_rounded),
+                          label: Text(
+                            s.reconnect_wifi_needed_action,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 14),
+                    Text(
+                      s.reconnect_wifi_needed_waiting,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12.5,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (model.canSwitch)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                child: _SwitchButton(
+                  key: const Key('room-reconnect-switch'),
+                  label: s.reconnect_switch_to_show,
+                  icon: Icons.qr_code_2_rounded,
+                  onTap: onSwitch,
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

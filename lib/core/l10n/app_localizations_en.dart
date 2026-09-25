@@ -2296,4 +2296,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String rooms_section(String count) {
     return 'Your rooms ($count)';
   }
+
+  @override
+  String get reconnect_wifi_needed_title => 'Turn on Wi-Fi';
+
+  @override
+  String reconnect_wifi_needed_body(String name) {
+    return 'To connect with $name, this phone joins the connection $name\'s phone shares. That needs Wi-Fi on — no internet is used.';
+  }
+
+  @override
+  String get reconnect_wifi_needed_action => 'Turn on Wi-Fi';
+
+  @override
+  String get reconnect_wifi_needed_waiting =>
+      'The camera opens by itself as soon as Wi-Fi is on.';
 }

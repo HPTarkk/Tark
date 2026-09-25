@@ -14,6 +14,7 @@ import 'package:tark/core/widget/qr_scanner_surface.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
 import 'package:tark/feature/room/domain/repository/room_repository.dart';
 import 'package:tark/feature/transfer/domain/entity/connection_health.dart';
+import 'package:tark/feature/transfer/domain/entity/hotspot_credentials.dart';
 import 'package:tark/feature/transfer/domain/entity/live_link.dart';
 import 'package:tark/feature/transfer/domain/entity/session_role.dart';
 import 'package:tark/feature/transfer/domain/entity/transfer_mode.dart';
@@ -64,6 +65,8 @@ void main() {
     WidgetTester tester, {
     LiveLinkSnapshot links = LiveLinkSnapshot.none,
     RoomMemberId? lastHost,
+    ValueNotifier<bool>? wifi,
+    Future<HotspotCredentials?> Function()? prepareHost,
   }) async {
     SharedPreferences.setMockInitialValues({
       if (lastHost != null)
@@ -88,7 +91,7 @@ void main() {
     getIt.registerLazySingleton<LiveLinkProbe>(() => _FakeProbe(links));
     getIt.registerLazySingleton<TransferModeStore>(() => modeStore);
     getIt.registerLazySingleton<TransferRepository>(_FakeTransfer.new);
-    getIt.registerLazySingleton<HotspotHost>(_FakeHotspotHost.new);
+    getIt.registerLazySingleton<HotspotHost>(() => _FakeHotspotHost(wifi));
     getIt.registerLazySingleton<HotspotLinkKeeper>(_FakeKeeper.new);
 
     final router = GoRouter(
@@ -97,7 +100,11 @@ void main() {
         GoRoute(path: AppRoutes.roomsPath, builder: (_, _) => const Scaffold()),
         GoRoute(
           path: AppRoutes.walkiePath,
-          builder: (_, _) => const RoomBoundWalkieEntry(guidedReconnect: true),
+          builder: (_, _) => RoomBoundWalkieEntry(
+            guidedReconnect: true,
+            wifiCheck: wifi != null,
+            prepareHost: prepareHost,
+          ),
         ),
       ],
     );
@@ -185,6 +192,82 @@ void main() {
     );
   });
 
+  testWidgets('a hotspot that never comes up gives up after a minute', (
+    tester,
+  ) async {
+    final never = Completer<HotspotCredentials?>();
+    await pumpEntry(tester, prepareHost: () => never.future);
+    await tapStart(tester);
+
+    expect(find.byKey(const ValueKey('room-reconnect-show')), findsOneWidget);
+    expect(find.text('Getting your phone ready…'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 58));
+    expect(find.byKey(const Key('room-reconnect-retry')), findsNothing);
+
+    await tester.pump(const Duration(seconds: 3));
+    await settle(tester);
+    expect(find.textContaining("couldn't start sharing"), findsOneWidget);
+    expect(find.byKey(const Key('room-reconnect-retry')), findsOneWidget);
+    expect(find.byKey(const Key('room-reconnect-switch')), findsOneWidget);
+  });
+
+  group('Wi-Fi off', () {
+    testWidgets('the scanning phone asks for Wi-Fi before the camera', (
+      tester,
+    ) async {
+      final wifi = ValueNotifier(false);
+      await pumpEntry(tester, lastHost: peerId, wifi: wifi);
+      await tapStart(tester);
+
+      expect(find.byKey(const ValueKey('room-reconnect-wifi')), findsOneWidget);
+      expect(find.byType(QrScannerSurface), findsNothing);
+      expect(find.text('Turn on Wi-Fi'), findsWidgets);
+      expect(
+        find.byKey(const Key('room-reconnect-turn-on-wifi')),
+        findsOneWidget,
+      );
+      // The way out stays: this phone can still offer to show its own code.
+      expect(find.byKey(const Key('room-reconnect-switch')), findsOneWidget);
+
+      // Nothing to press once it is on: the camera takes over by itself.
+      wifi.value = true;
+      await tester.pump(const Duration(seconds: 2));
+      await settle(tester);
+      expect(find.byKey(const ValueKey('room-reconnect-wifi')), findsNothing);
+      expect(find.byType(QrScannerSurface), findsOneWidget);
+    });
+
+    testWidgets('with Wi-Fi already on, the camera opens straight away', (
+      tester,
+    ) async {
+      await pumpEntry(tester, lastHost: peerId, wifi: ValueNotifier(true));
+      await tapStart(tester);
+
+      expect(find.byKey(const ValueKey('room-reconnect-wifi')), findsNothing);
+      expect(find.byType(QrScannerSurface), findsOneWidget);
+    });
+
+    testWidgets('the phone showing its code is never asked for Wi-Fi', (
+      tester,
+    ) async {
+      await pumpEntry(tester, wifi: ValueNotifier(false));
+      await tapStart(tester);
+
+      expect(find.byKey(const ValueKey('room-reconnect-show')), findsOneWidget);
+      expect(find.byKey(const ValueKey('room-reconnect-wifi')), findsNothing);
+    });
+
+    testWidgets('back from the Wi-Fi card returns to the Room', (tester) async {
+      await pumpEntry(tester, lastHost: peerId, wifi: ValueNotifier(false));
+      await tapStart(tester);
+      await tester.tap(find.byKey(const Key('room-reconnect-back')));
+      await settle(tester);
+
+      expect(find.byKey(const Key('selected-room-lobby')), findsOneWidget);
+    });
+  });
+
   testWidgets('back from the code returns to the Room, not out of it', (
     tester,
   ) async {
@@ -257,8 +340,20 @@ class _FakeTransfer implements TransferRepository {
 }
 
 class _FakeHotspotHost implements HotspotHost {
+  _FakeHotspotHost(this.wifi);
+
+  /// This phone's Wi-Fi radio, when a test is about it.
+  final ValueNotifier<bool>? wifi;
+
   @override
   bool get isHosting => false;
+
+  @override
+  Future<HotspotWifiAdvice> wifiAdvice() async => HotspotWifiAdvice(
+    wifiEnabled: wifi?.value ?? true,
+    concurrent: true,
+    canPanel: true,
+  );
 
   @override
   dynamic noSuchMethod(Invocation invocation) =>
