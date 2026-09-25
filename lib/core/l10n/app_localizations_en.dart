@@ -2056,6 +2056,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reconnect_retry => 'Try again';
 
   @override
+  String get reconnect_host_wifi_off =>
+      'This phone couldn\'t start sharing. Turn on Wi-Fi (you don\'t need to join a network), then try again.';
+
+  @override
+  String reconnect_scan_wifi_off(String name) {
+    return 'Wi-Fi is off. Turn it on so this phone can join $name\'s phone.';
+  }
+
+  @override
+  String reconnect_scan_no_code_yet(String name) {
+    return 'No code yet? $name\'s phone may be stuck. Ask them to turn on Wi-Fi and tap “Try again”.';
+  }
+
+  @override
+  String get reconnect_turn_on_wifi => 'Turn on Wi-Fi';
+
+  @override
   String get lobby_use_home_wifi => 'On the same Wi-Fi? Connect through it';
 
   @override

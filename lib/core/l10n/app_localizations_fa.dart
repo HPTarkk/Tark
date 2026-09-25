@@ -2050,6 +2050,23 @@ class AppLocalizationsFa extends AppLocalizations {
   String get reconnect_retry => 'دوباره امتحان کن';
 
   @override
+  String get reconnect_host_wifi_off =>
+      'این گوشی نتوانست اشتراک‌گذاری را شروع کند. وای‌فای را روشن کن (لازم نیست به شبکه‌ای وصل شوی) و دوباره امتحان کن.';
+
+  @override
+  String reconnect_scan_wifi_off(String name) {
+    return 'وای‌فای خاموش است. روشنش کن تا این گوشی بتواند به گوشی $name وصل شود.';
+  }
+
+  @override
+  String reconnect_scan_no_code_yet(String name) {
+    return 'هنوز کدی نیامده؟ شاید گوشی $name گیر کرده باشد. از او بخواه وای‌فایش را روشن کند و «دوباره امتحان کن» را بزند.';
+  }
+
+  @override
+  String get reconnect_turn_on_wifi => 'روشن کردن وای‌فای';
+
+  @override
   String get lobby_use_home_wifi => 'روی یک وای‌فای هستید؟ از همان وصل شو';
 
   @override

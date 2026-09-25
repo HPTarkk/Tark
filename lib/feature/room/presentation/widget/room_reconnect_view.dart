@@ -28,6 +28,7 @@ class RoomReconnectModel {
     this.qrData,
     this.message,
     this.canSwitch = true,
+    this.wifiOff = false,
   });
 
   final RoomReconnectSide side;
@@ -45,11 +46,16 @@ class RoomReconnectModel {
   final String? message;
   final bool canSwitch;
 
+  /// This phone's Wi-Fi is off and that is what stands in the way. The screen
+  /// then offers the system's Wi-Fi switch next to the [message].
+  final bool wifiOff;
+
   RoomReconnectModel copyWith({
     RoomReconnectPhase? phase,
     String? qrData,
     String? message,
     bool clearMessage = false,
+    bool? wifiOff,
   }) => RoomReconnectModel(
     side: side,
     peerName: peerName,
@@ -57,6 +63,7 @@ class RoomReconnectModel {
     qrData: qrData ?? this.qrData,
     message: clearMessage ? null : message ?? this.message,
     canSwitch: canSwitch,
+    wifiOff: wifiOff ?? this.wifiOff,
   );
 }
 
@@ -75,6 +82,7 @@ class RoomReconnectView extends StatelessWidget {
     required this.onSwitch,
     required this.onRetry,
     required this.onBack,
+    this.onTurnOnWifi,
     super.key,
   });
 
@@ -83,6 +91,9 @@ class RoomReconnectView extends StatelessWidget {
   final VoidCallback onSwitch;
   final VoidCallback onRetry;
   final VoidCallback onBack;
+
+  /// Opens the system's Wi-Fi switch. Offered while [RoomReconnectModel.wifiOff].
+  final VoidCallback? onTurnOnWifi;
 
   @override
   Widget build(BuildContext context) {
@@ -103,6 +114,7 @@ class RoomReconnectView extends StatelessWidget {
                 model: model,
                 onScan: onScan,
                 onSwitch: onSwitch,
+                onTurnOnWifi: onTurnOnWifi,
               )
             : _ShowSide(
                 key: const ValueKey('room-reconnect-show'),
@@ -110,6 +122,7 @@ class RoomReconnectView extends StatelessWidget {
                 onSwitch: onSwitch,
                 onRetry: onRetry,
                 onBack: onBack,
+                onTurnOnWifi: onTurnOnWifi,
               ),
       ),
     );
@@ -121,12 +134,14 @@ class _ScanSide extends StatelessWidget {
     required this.model,
     required this.onScan,
     required this.onSwitch,
+    this.onTurnOnWifi,
     super.key,
   });
 
   final RoomReconnectModel model;
   final Future<bool> Function(String raw) onScan;
   final VoidCallback onSwitch;
+  final VoidCallback? onTurnOnWifi;
 
   @override
   Widget build(BuildContext context) {
@@ -147,21 +162,28 @@ class _ScanSide extends StatelessWidget {
             onCode: onScan,
           ),
         ),
-        if (model.canSwitch)
-          Positioned(
-            left: 24,
-            right: 24,
-            bottom: 24 + MediaQuery.paddingOf(context).bottom,
-            child: Center(
-              child: _SwitchButton(
-                key: const Key('room-reconnect-switch'),
-                label: s.reconnect_switch_to_show,
-                icon: Icons.qr_code_2_rounded,
-                onTap: onSwitch,
-                onDark: true,
+        Positioned(
+          left: 24,
+          right: 24,
+          bottom: 24 + MediaQuery.paddingOf(context).bottom,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _WifiButtonSlot(
+                visible: model.wifiOff && onTurnOnWifi != null,
+                onTap: onTurnOnWifi,
               ),
-            ),
+              if (model.canSwitch)
+                _SwitchButton(
+                  key: const Key('room-reconnect-switch'),
+                  label: s.reconnect_switch_to_show,
+                  icon: Icons.qr_code_2_rounded,
+                  onTap: onSwitch,
+                  onDark: true,
+                ),
+            ],
           ),
+        ),
       ],
     );
   }
@@ -173,6 +195,7 @@ class _ShowSide extends StatelessWidget {
     required this.onSwitch,
     required this.onRetry,
     required this.onBack,
+    this.onTurnOnWifi,
     super.key,
   });
 
@@ -180,6 +203,7 @@ class _ShowSide extends StatelessWidget {
   final VoidCallback onSwitch;
   final VoidCallback onRetry;
   final VoidCallback onBack;
+  final VoidCallback? onTurnOnWifi;
 
   @override
   Widget build(BuildContext context) {
@@ -282,15 +306,37 @@ class _ShowSide extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            FilledButton.icon(
-              key: const Key('room-reconnect-retry'),
-              onPressed: () {
-                HapticFeedback.selectionClick();
-                onRetry();
-              },
-              icon: const Icon(Icons.refresh_rounded),
-              label: Text(s.reconnect_retry),
-            ),
+            if (model.wifiOff && onTurnOnWifi != null) ...[
+              // Wi-Fi first: retrying with it still off fails the same way.
+              FilledButton.icon(
+                key: const Key('room-reconnect-wifi'),
+                onPressed: () {
+                  HapticFeedback.selectionClick();
+                  onTurnOnWifi!();
+                },
+                icon: const Icon(Icons.wifi_rounded),
+                label: Text(s.reconnect_turn_on_wifi),
+              ),
+              const SizedBox(height: 8),
+              TextButton.icon(
+                key: const Key('room-reconnect-retry'),
+                onPressed: () {
+                  HapticFeedback.selectionClick();
+                  onRetry();
+                },
+                icon: const Icon(Icons.refresh_rounded),
+                label: Text(s.reconnect_retry),
+              ),
+            ] else
+              FilledButton.icon(
+                key: const Key('room-reconnect-retry'),
+                onPressed: () {
+                  HapticFeedback.selectionClick();
+                  onRetry();
+                },
+                icon: const Icon(Icons.refresh_rounded),
+                label: Text(s.reconnect_retry),
+              ),
           ],
         );
       case RoomReconnectPhase.waiting:
@@ -452,6 +498,44 @@ class _WaitingPulseState extends State<_WaitingPulse>
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// The scan side's "Turn on Wi-Fi" button, which grows in above the switch
+/// when the camera is up but the radio it needs is off, and folds away once
+/// Wi-Fi is back.
+class _WifiButtonSlot extends StatelessWidget {
+  const _WifiButtonSlot({required this.visible, required this.onTap});
+
+  final bool visible;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSize(
+      duration: AppMotion.card,
+      curve: AppMotion.easeOut,
+      alignment: Alignment.bottomCenter,
+      child: AnimatedSwitcher(
+        duration: AppMotion.card,
+        switchInCurve: AppMotion.easeOut,
+        switchOutCurve: AppMotion.leaving,
+        child: !visible
+            ? const SizedBox(width: double.infinity)
+            : Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: FilledButton.icon(
+                  key: const Key('room-reconnect-wifi'),
+                  onPressed: () {
+                    HapticFeedback.selectionClick();
+                    onTap?.call();
+                  },
+                  icon: const Icon(Icons.wifi_rounded),
+                  label: Text(context.getString.reconnect_turn_on_wifi),
+                ),
+              ),
       ),
     );
   }

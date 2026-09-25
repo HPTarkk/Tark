@@ -83,6 +83,11 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   /// over, open the Room and scan it.
   static const _showCodeTimeout = Duration(minutes: 3);
 
+  /// How long the scanning phone waits for a code before suggesting the other
+  /// phone may be stuck: long enough for a healthy start and a walk across
+  /// the room, about when a stuck host has shown its own problem.
+  static const _scanNoCodeHint = Duration(seconds: 30);
+
   final RoomHotspotHistory _hotspotHistory = RoomHotspotHistory();
 
   /// The guided reconnect screen, while one is up. It takes the whole page.
@@ -91,6 +96,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   int _reconnectToken = 0;
   Completer<HotspotCredentials?>? _scanWaiter;
   Completer<bool>? _scanResult;
+  Timer? _scanNoCodeTimer;
 
   SessionRoleStore? get _roleStore =>
       GetIt.instance.isRegistered<SessionRoleStore>()
@@ -367,16 +373,22 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     _roleStore?.setRole(SessionRole.host);
     final credentials = await PreLiveHotspotBootstrap().prepareHost();
     if (!mounted || token != _reconnectToken) return _EntryState.lobby(room);
-    final s = context.getString;
     if (credentials == null) {
+      final wifiOff = await _wifiIsOff();
+      if (!mounted || token != _reconnectToken) return _EntryState.lobby(room);
+      final s = context.getString;
       _updateReconnect(
         (model) => model.copyWith(
           phase: RoomReconnectPhase.failed,
-          message: s.reconnect_host_failed,
+          message: wifiOff
+              ? s.reconnect_host_wifi_off
+              : s.reconnect_host_failed,
+          wifiOff: wifiOff,
         ),
       );
       return _EntryState.lobby(room);
     }
+    final s = context.getString;
     _updateReconnect(
       (model) => model.copyWith(
         phase: RoomReconnectPhase.waiting,
@@ -406,6 +418,19 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
 
   Future<_EntryState> _reconnectScanning(SavedRoom room, int token) async {
     _roleStore?.setRole(SessionRole.joiner);
+    // Joining the other phone's hotspot needs this phone's Wi-Fi. Say so while
+    // the camera is up, rather than only after a scan has already failed.
+    if (await _wifiIsOff()) {
+      if (!mounted || token != _reconnectToken) return _EntryState.lobby(room);
+      _updateReconnect(
+        (model) => model.copyWith(
+          message: context.getString.reconnect_scan_wifi_off(model.peerName),
+          wifiOff: true,
+        ),
+      );
+    }
+    if (!mounted || token != _reconnectToken) return _EntryState.lobby(room);
+    _armScanNoCodeHint(token);
     while (true) {
       final waiter = Completer<HotspotCredentials?>();
       _scanWaiter = waiter;
@@ -413,6 +438,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       if (!mounted || token != _reconnectToken || credentials == null) {
         return _EntryState.lobby(room);
       }
+      _scanNoCodeTimer?.cancel();
       final s = context.getString;
       final joiner = GetIt.instance.isRegistered<HotspotJoiner>()
           ? GetIt.instance<HotspotJoiner>()
@@ -430,18 +456,25 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         _completeScan(true);
         break;
       }
+      if (!mounted || token != _reconnectToken) return _EntryState.lobby(room);
       // Android 10+ will not let an app flip Wi-Fi itself; this raises the
       // system's own one-tap panel, and the camera stays up for the rescan.
       if (joined == HotspotJoinResult.wifiOff) {
         unawaited(joiner?.enableWifi() ?? Future<bool>.value(false));
       }
-      _updateReconnect((model) => model.copyWith(message: problem));
+      _updateReconnect(
+        (model) => model.copyWith(
+          message: problem,
+          wifiOff: joined == HotspotJoinResult.wifiOff,
+        ),
+      );
       _completeScan(false);
     }
     _updateReconnect(
       (model) => model.copyWith(
         phase: RoomReconnectPhase.connecting,
         clearMessage: true,
+        wifiOff: false,
       ),
     );
     final outcome = await _verifiedLiveFor(room, linkEstablished: true);
@@ -483,6 +516,74 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     if (result != null && !result.isCompleted) result.complete(joined);
   }
 
+  /// Whether this phone's Wi-Fi radio is known to be off. Only Android can
+  /// say; anywhere the question can't be answered this is false, so no one is
+  /// asked to fix a switch that may already be on.
+  Future<bool> _wifiIsOff() async {
+    if (!Platform.isAndroid || !GetIt.instance.isRegistered<HotspotHost>()) {
+      return false;
+    }
+    try {
+      final advice = await GetIt.instance<HotspotHost>().wifiAdvice();
+      return !advice.wifiEnabled;
+    } catch (e) {
+      Logger.log('Reading the Wi-Fi state failed: $e');
+      return false;
+    }
+  }
+
+  /// After [_scanNoCodeHint] with nothing scanned, tells the scanning person
+  /// the other phone may be stuck and what that person can do about it. The
+  /// two phones have no link yet, so this phone cannot know the other failed.
+  void _armScanNoCodeHint(int token) {
+    _scanNoCodeTimer?.cancel();
+    _scanNoCodeTimer = Timer(_scanNoCodeHint, () {
+      final model = _reconnectModel;
+      if (!mounted || token != _reconnectToken || model == null) return;
+      // A problem on this phone (Wi-Fi, a wrong code) is the more useful line.
+      if (model.message != null) return;
+      _updateReconnect(
+        (current) => current.copyWith(
+          message: context.getString.reconnect_scan_no_code_yet(
+            current.peerName,
+          ),
+        ),
+      );
+    });
+  }
+
+  /// Raises the system's Wi-Fi switch, then watches for the radio to come on
+  /// for a little while. The floating panel sits over the app without pausing
+  /// it, so nothing else would notice. Once it is on, a failed code screen
+  /// tries again by itself and the camera drops its Wi-Fi note.
+  Future<void> _turnOnWifi() async {
+    final token = _reconnectToken;
+    if (!GetIt.instance.isRegistered<HotspotHost>()) return;
+    try {
+      await GetIt.instance<HotspotHost>().openWifiPanel();
+    } catch (e) {
+      Logger.log('Opening the Wi-Fi panel failed: $e');
+      return;
+    }
+    for (var i = 0; i < 30; i++) {
+      await Future<void>.delayed(const Duration(seconds: 1));
+      if (!mounted || token != _reconnectToken) return;
+      if (await _wifiIsOff()) continue;
+      if (!mounted || token != _reconnectToken) return;
+      final model = _reconnectModel;
+      if (model == null || !model.wifiOff) return;
+      if (model.side == RoomReconnectSide.show &&
+          model.phase == RoomReconnectPhase.failed) {
+        _restartReconnect(showCode: true);
+      } else {
+        _updateReconnect(
+          (current) => current.copyWith(clearMessage: true, wifiOff: false),
+        );
+      }
+      return;
+    }
+  }
+
   /// Switch sides, or retry on the same side.
   void _restartReconnect({required bool showCode}) {
     final room = _reconnectRoom;
@@ -508,6 +609,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
 
   void _abandonReconnectAttempt() {
     _reconnectToken++;
+    _scanNoCodeTimer?.cancel();
     _readinessEpoch++;
     // The abandoned attempt may still be unwinding; a later Start must plan
     // afresh rather than be handed its future.
@@ -1090,6 +1192,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   void dispose() {
     _readinessEpoch++;
     _reconnectToken++;
+    _scanNoCodeTimer?.cancel();
     final waiter = _scanWaiter;
     if (waiter != null && !waiter.isCompleted) waiter.complete(null);
     // Already handed off when the Room went live; then the live session owns
@@ -1125,6 +1228,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
           showCode: reconnect.side == RoomReconnectSide.show,
         ),
         onBack: _cancelReconnect,
+        onTurnOnWifi: () => unawaited(_turnOnWifi()),
       );
     }
     return _resolvedEntry(context);
