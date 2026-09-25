@@ -32,6 +32,7 @@ import '../../../transfer/api/transfer_api.dart';
 import '../../domain/entity/channel_user.dart';
 import '../../domain/service/channel_health_monitor.dart';
 import '../../domain/service/channel_roster.dart';
+import '../../domain/service/transmit_counters.dart';
 import 'walkie_widget_snapshot.dart';
 
 /// Placeholder local id used in Bluetooth mode, where there's no IP concept
@@ -685,14 +686,13 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
         isOnline &&
         (voiceOpen || musicKeysVoice);
 
-    _txFramesSeen++;
+    _tx.frameSeen();
     if (isTransmitting) {
       final buffered = _voxGate.drainPreroll();
       if (voiceOpen && !state.isTransmitting) {
         // Gate just opened — flush the pre-roll so the word onset survives.
-        _txPrerollFlushes++;
+        _tx.prerollFlushed(buffered.length);
         for (final samples in buffered) {
-          _txPrerollFrames++;
           _transferRepository.sendAudio(
             _audioEngine.processForTransmit(samples, voxLevel),
             state.myName,
@@ -705,10 +705,10 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
       if (musicKeysVoice) {
         outgoing = _musicMixer.mix(outgoing, state.musicGain);
       }
-      _txFramesSent++;
+      _tx.frameSent();
       _transferRepository.sendAudio(outgoing, state.myName);
     } else {
-      _txFramesGated++;
+      _tx.frameGated();
       _voxGate.bufferWhileClosed(frame.samples);
     }
 
@@ -770,38 +770,16 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   /// cushion is simply too small for this device.
   // ── Transmit diagnostics ──────────────────────────────────────────────────
   //
-  // The capture line in AudioEngineImpl says the mic produced frames; this
-  // says what this cubit then did with them. Between the two sits VOX,
-  // self-mute and the online gate, and any of the three can silently swallow
-  // a whole session's speech — which reads on the other phone as "I could not
-  // hear you at all" and reads here, without these counters, as nothing.
-  int _txFramesSeen = 0;
-  int _txFramesSent = 0;
-  int _txFramesGated = 0;
-  int _txPrerollFlushes = 0;
-  int _txPrerollFrames = 0;
-  DateTime _lastTxLogAt = DateTime.fromMillisecondsSinceEpoch(0);
-  static const _txLogInterval = Duration(seconds: 15);
+  // What this cubit did with each mic frame — see [TransmitCounters].
+  final TransmitCounters _tx = TransmitCounters();
 
-  /// One line describing the VOX/transmit decision over the last window.
-  ///
-  /// Deliberately reports the *ratio*: frames arriving versus frames actually
-  /// put on the wire is what separates "the mic was dead" from "VOX never
-  /// opened" from "we were muted the whole time", and those three have
-  /// identical symptoms and completely different fixes.
+  /// One line describing the VOX/transmit decision over the last window: the
+  /// counts, and the settings and state that explain them.
   void _logTransmitState() {
-    final now = DateTime.now();
-    if (now.difference(_lastTxLogAt) < _txLogInterval) return;
-    final window = now.difference(_lastTxLogAt);
-    _lastTxLogAt = now;
-    if (window.inSeconds > 60 || _txFramesSeen == 0) {
-      _resetTxCounters();
-      return;
-    }
+    final counts = _tx.takeWindow(DateTime.now());
+    if (counts == null) return;
     Logger.diagnostic(
-      'transmit: ${window.inSeconds}s window — frames=$_txFramesSeen '
-      'sent=$_txFramesSent gated=$_txFramesGated '
-      'preroll=$_txPrerollFrames/${_txPrerollFlushes}bursts '
+      'transmit: $counts '
       // Margin, measured background and the level they resolve to. All three,
       // because a field report of "it kept cutting me off" is unattributable
       // with only one: the setting alone cannot say what the mic was hearing,
@@ -817,15 +795,6 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
       'muted=${state.isSelfMuted} music=${state.isSharingSystemAudio} '
       'peers=${state.activeUsers.length} localId=${state.localId}',
     );
-    _resetTxCounters();
-  }
-
-  void _resetTxCounters() {
-    _txFramesSeen = 0;
-    _txFramesSent = 0;
-    _txFramesGated = 0;
-    _txPrerollFlushes = 0;
-    _txPrerollFrames = 0;
   }
 
   /// Same line shape regardless of mode (#30) — `MediaFrameScheduler`
