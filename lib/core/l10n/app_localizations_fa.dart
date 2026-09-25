@@ -1742,9 +1742,6 @@ class AppLocalizationsFa extends AppLocalizations {
   String get rooms_selected => 'انتخاب‌شده';
 
   @override
-  String get rooms_start_ride => 'شروع ارتباط';
-
-  @override
   String get rooms_manage => 'مدیریت اتاق';
 
   @override

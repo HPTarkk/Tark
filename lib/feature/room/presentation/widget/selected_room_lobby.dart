@@ -229,11 +229,13 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
             // Start needs somebody to start with. Offering it to a Room of one
             // only ever produced a failure explaining that nobody answered.
             if (!alone)
-              RoomStartButton(
-                key: const Key('selected-room-start-ride'),
-                label: _connecting ? s.connecting : s.lobby_start_ride,
-                busy: _connecting,
-                onTap: _startRide,
+              Center(
+                child: RoomConnectButton(
+                  key: const Key('selected-room-start-ride'),
+                  label: _connecting ? s.connecting : s.lobby_start_ride,
+                  busy: _connecting,
+                  onTap: _startRide,
+                ),
               ),
             if (!alone && !_connecting && widget.onUseHomeWifi != null)
               Padding(
