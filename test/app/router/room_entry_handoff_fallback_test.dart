@@ -22,6 +22,7 @@ import 'package:tark/feature/room/domain/service/room_pre_live_announcer.dart';
 import 'package:tark/feature/transfer/data/bluetooth/classic_bluetooth_engine.dart';
 import 'package:tark/feature/transfer/data/bluetooth/length_prefixed_framer.dart';
 import 'package:tark/feature/transfer/data/service/room_proximity_control_channel.dart';
+import 'package:tark/feature/transfer/domain/entity/bluetooth_connection_state.dart';
 import 'package:tark/feature/transfer/domain/entity/bluetooth_peer.dart';
 import 'package:tark/feature/transfer/domain/entity/connection_health.dart';
 import 'package:tark/feature/transfer/domain/entity/hotspot_credentials.dart';
@@ -29,6 +30,7 @@ import 'package:tark/feature/transfer/domain/entity/live_link.dart';
 import 'package:tark/feature/transfer/domain/entity/session_role.dart';
 import 'package:tark/feature/transfer/domain/entity/transfer_mode.dart';
 import 'package:tark/feature/transfer/domain/entity/waki_packet.dart';
+import 'package:tark/feature/transfer/domain/repository/bluetooth_transport.dart';
 import 'package:tark/feature/transfer/domain/repository/transfer_repository.dart';
 import 'package:tark/feature/transfer/domain/repository/wifi_transfer_repository.dart';
 import 'package:tark/feature/transfer/domain/service/hotspot_control.dart';
@@ -62,7 +64,10 @@ void main() {
     displayCode: roomInviteDisplayCode(roomId, invitationId),
   );
 
+  _FakeModeStore? modeStore;
+
   tearDown(() async {
+    modeStore = null;
     await RoomProximityControlSessionRegistry.instance.clear();
     await getIt.reset();
   });
@@ -123,6 +128,8 @@ void main() {
     required LiveLinkSnapshot links,
     HotspotJoinResult joinResult = HotspotJoinResult.declined,
     ValueNotifier<bool>? wifi,
+    TransferMode? pinned,
+    _FakeBluetooth? bluetooth,
   }) async {
     const identityChannel = MethodChannel('tark/room_identity_secure_storage');
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
@@ -141,8 +148,11 @@ void main() {
     );
     getIt.registerLazySingleton<LiveLinkProbe>(() => _FakeProbe(links));
     getIt.registerLazySingleton<TransferModeStore>(
-      () => _FakeModeStore(TransferMode.wifi),
+      () => modeStore = _FakeModeStore(TransferMode.wifi, pinned: pinned),
     );
+    if (bluetooth != null) {
+      getIt.registerLazySingleton<BluetoothTransport>(() => bluetooth);
+    }
     getIt.registerLazySingleton<TransferRepository>(_FakeTransfer.new);
     getIt.registerLazySingleton<WifiTransferRepository>(_FakeWifi.new);
     getIt.registerLazySingleton<ChannelMembership>(ChannelMembership.new);
@@ -213,6 +223,32 @@ void main() {
     hostingHotspot: false,
     bluetooth: false,
   );
+
+  group('Bluetooth chosen in settings', () {
+    testWidgets('the phone that showed the invite hosts over Bluetooth', (
+      tester,
+    ) async {
+      await tester.runAsync(() => linked(issuer: true));
+      final bluetooth = _FakeBluetooth();
+      await pumpEntry(
+        tester,
+        links: onWifi,
+        pinned: TransferMode.bluetooth,
+        bluetooth: bluetooth,
+      );
+      await start(tester);
+      await tester.pump(const Duration(seconds: 2));
+      await settleTeardown(tester);
+
+      // No hotspot: the invite's Bluetooth link is swapped for the audio one.
+      expect(bluetooth.hosted, 1);
+      expect(modeStore?.writes, contains(TransferMode.bluetooth));
+      expect(modeStore?.writes, isNot(contains(TransferMode.hotspot)));
+      expect(find.byKey(const ValueKey('room-reconnect-show')), findsNothing);
+      await drain(tester);
+      await settleTeardown(tester);
+    });
+  });
 
   group('hosting phone', () {
     testWidgets('shows its code once the hand-off has gone quiet', (
@@ -445,16 +481,17 @@ class _FakeProbe implements LiveLinkProbe {
 }
 
 class _FakeModeStore implements TransferModeStore {
-  _FakeModeStore(this._mode);
+  _FakeModeStore(this._mode, {this.pinned});
 
   TransferMode _mode;
+  final TransferMode? pinned;
   final writes = <TransferMode>[];
 
   @override
   TransferMode get mode => _mode;
 
   @override
-  TransferMode? get pinnedMode => null;
+  TransferMode? get pinnedMode => pinned;
 
   @override
   Future<void> setMode(TransferMode mode) async {
@@ -546,4 +583,26 @@ class _FakeEngine extends ClassicBluetoothEngine {
     await errors.close();
     await closed.close();
   }
+}
+
+class _FakeBluetooth implements BluetoothTransport {
+  final _states = StreamController<BluetoothConnectionState>.broadcast();
+  int hosted = 0;
+
+  @override
+  Stream<BluetoothConnectionState> get connectionState => _states.stream;
+
+  @override
+  BluetoothConnectionState get currentConnectionState =>
+      BluetoothConnectionState.hosting;
+
+  @override
+  Future<void> startHosting() async => hosted++;
+
+  @override
+  void reset() {}
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(invocation.memberName.toString());
 }
