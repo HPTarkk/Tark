@@ -15,6 +15,7 @@ import '../room_member_display_name.dart';
 import 'one_scan_room_invite_sheet.dart';
 import 'room_connection_status_chip.dart';
 import 'room_connection_status_scope.dart';
+import 'room_visuals.dart';
 
 /// The durable Room lobby.
 ///
@@ -228,7 +229,7 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
             // Start needs somebody to start with. Offering it to a Room of one
             // only ever produced a failure explaining that nobody answered.
             if (!alone)
-              _StartButton(
+              RoomStartButton(
                 key: const Key('selected-room-start-ride'),
                 label: _connecting ? s.connecting : s.lobby_start_ride,
                 busy: _connecting,
@@ -369,7 +370,7 @@ class _LobbyHero extends StatelessWidget {
             height: 92,
             child: _SignalRings(
               active: connecting,
-              child: _AvatarCluster(members: members),
+              child: RoomFaces(members: members),
             ),
           ),
           const SizedBox(height: 18),
@@ -404,128 +405,6 @@ class _LobbyHero extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Up to four overlapping faces, then "+N".
-class _AvatarCluster extends StatelessWidget {
-  const _AvatarCluster({required this.members});
-
-  final List<RoomMember> members;
-
-  static const _size = 64.0;
-  static const _overlap = 20.0;
-
-  @override
-  Widget build(BuildContext context) {
-    final shown = members.take(4).toList(growable: false);
-    final extra = members.length - shown.length;
-    final count = shown.length + (extra > 0 ? 1 : 0);
-    if (count == 0) return const SizedBox.shrink();
-    final width = _size + (count - 1) * (_size - _overlap);
-    return ExcludeSemantics(
-      child: SizedBox(
-        width: width,
-        height: _size,
-        child: Stack(
-          children: [
-            for (var i = 0; i < shown.length; i++)
-              PositionedDirectional(
-                start: i * (_size - _overlap),
-                child: MemberAvatar(member: shown[i], size: _size, ring: true),
-              ),
-            if (extra > 0)
-              PositionedDirectional(
-                start: shown.length * (_size - _overlap),
-                child: Container(
-                  width: _size,
-                  height: _size,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.card,
-                    border: Border.all(color: AppColors.background, width: 3),
-                  ),
-                  child: Text(
-                    '+${extra.localized(context)}',
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// A circle with the member's initial, tinted from their id so each person
-/// keeps the same colour on every phone and every visit.
-class MemberAvatar extends StatelessWidget {
-  const MemberAvatar({
-    required this.member,
-    this.size = 44,
-    this.ring = false,
-    super.key,
-  });
-
-  final RoomMember member;
-  final double size;
-  final bool ring;
-
-  static Color tintFor(RoomMemberId id) {
-    var hash = 0;
-    for (final unit in id.value.codeUnits) {
-      hash = (hash * 31 + unit) & 0x7fffffff;
-    }
-    // Warm-to-cool hues that all sit well on both themes.
-    const hues = [34.0, 12.0, 160.0, 200.0, 265.0, 330.0];
-    return HSLColor.fromAHSL(1, hues[hash % hues.length], 0.62, 0.55).toColor();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final name = roomMemberDisplayName(
-      member,
-      fa: Localizations.localeOf(context).languageCode == 'fa',
-      unnamed: context.getString.people_unnamed,
-    );
-    final initial = name.trim().isEmpty ? '?' : name.trim().characters.first;
-    final tint = tintFor(member.id);
-    return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [tint, Color.lerp(tint, Colors.black, 0.28)!],
-        ),
-        border: ring ? Border.all(color: AppColors.background, width: 3) : null,
-        boxShadow: [
-          BoxShadow(
-            color: tint.withValues(alpha: 0.35),
-            blurRadius: size * 0.25,
-            offset: Offset(0, size * 0.06),
-          ),
-        ],
-      ),
-      child: Text(
-        initial.toUpperCase(),
-        style: TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w800,
-          fontSize: size * 0.4,
-          height: 1,
-        ),
       ),
     );
   }
@@ -632,111 +511,6 @@ class _RingsPainter extends CustomPainter {
   @override
   bool shouldRepaint(_RingsPainter oldDelegate) =>
       oldDelegate.color != color || oldDelegate.still != still;
-}
-
-/// The one thing on this screen that matters: a wide amber button that
-/// breathes while it waits for a tap, gives under the finger, and becomes a
-/// progress indicator once pressed.
-class _StartButton extends StatelessWidget {
-  const _StartButton({
-    required this.label,
-    required this.busy,
-    required this.onTap,
-    super.key,
-  });
-
-  final String label;
-  final bool busy;
-  final VoidCallback onTap;
-
-  static final _radius = BorderRadius.circular(20);
-
-  @override
-  Widget build(BuildContext context) {
-    final amber = AppColors.amber;
-    return Semantics(
-      button: true,
-      enabled: !busy,
-      label: label,
-      excludeSemantics: true,
-      child: PulseGlow(
-        enabled: !busy,
-        borderRadius: _radius,
-        child: PressableScale(
-          onTap: busy ? null : onTap,
-          borderRadius: _radius,
-          child: AnimatedContainer(
-            duration: AppMotion.card,
-            curve: AppMotion.easeOut,
-            height: 62,
-            decoration: BoxDecoration(
-              borderRadius: _radius,
-              gradient: LinearGradient(
-                begin: AlignmentDirectional.centerStart,
-                end: AlignmentDirectional.centerEnd,
-                colors: busy
-                    ? [
-                        amber.withValues(alpha: 0.22),
-                        amber.withValues(alpha: 0.14),
-                      ]
-                    : [amber, Color.lerp(amber, Colors.deepOrange, 0.35)!],
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                AnimatedSwitcher(
-                  duration: AppMotion.chip,
-                  switchInCurve: AppMotion.easeOut,
-                  switchOutCurve: AppMotion.leaving,
-                  transitionBuilder: (child, animation) => FadeTransition(
-                    opacity: animation,
-                    child: ScaleTransition(
-                      scale: Tween<double>(
-                        begin: 0.9,
-                        end: 1,
-                      ).animate(animation),
-                      child: child,
-                    ),
-                  ),
-                  child: busy
-                      ? SizedBox(
-                          key: const ValueKey('busy'),
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.4,
-                            color: amber,
-                          ),
-                        )
-                      : const Icon(
-                          Icons.play_arrow_rounded,
-                          key: ValueKey('idle'),
-                          color: Colors.black,
-                          size: 28,
-                        ),
-                ),
-                const SizedBox(width: 10),
-                Flexible(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: busy ? amber : Colors.black,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.6,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _FailureCallout extends StatelessWidget {

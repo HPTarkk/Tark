@@ -684,5 +684,7 @@
     "bt_resume_connected": "گوشی دیگه وصل شد",
     "bt_resume_ask": "الان بریم توی کانال؟",
     "bt_resume_not_now": "فعلاً نه",
-    "bt_resume_failed": "به گوشی دیگه نرسیدیم. وقتی هر دو نزدیک هم بودید و «ترک» باز بود، دوباره امتحان کن."
+    "bt_resume_failed": "به گوشی دیگه نرسیدیم. وقتی هر دو نزدیک هم بودید و «ترک» باز بود، دوباره امتحان کن.",
+    "rooms_section": "اتاق‌های تو ({count})",
+    "@rooms_section": {"placeholders": {"count": {"type": "String"}}}
 }

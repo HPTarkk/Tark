@@ -672,5 +672,6 @@
     "bt_resume_connected": "The other phone is connected",
     "bt_resume_ask": "Go to the channel now?",
     "bt_resume_not_now": "NOT NOW",
-    "bt_resume_failed": "Couldn't reach the other phone. Try again when you're both nearby with Tarkk open."
+    "bt_resume_failed": "Couldn't reach the other phone. Try again when you're both nearby with Tarkk open.",
+    "rooms_section": "Your rooms ({count})"
 }
