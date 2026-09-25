@@ -362,7 +362,8 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage> {
   Widget _buildLeaveButton(BuildContext context) {
     final s = context.getString;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      // Top gap so scrolled content doesn't run flush into the button.
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       // Announced as a button; a bare GestureDetector was read as plain text.
       child: Semantics(
         button: true,

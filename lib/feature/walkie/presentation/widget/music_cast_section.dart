@@ -179,7 +179,10 @@ class _FoldedIdleState extends State<_FoldedIdle> {
                     HapticFeedback.selectionClick();
                     setState(() => _open = !_open);
                   },
+            // Top-aligned so the badge and chevron stay put while the hint
+            // unfolds below the title, instead of sliding to its middle.
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const _MusicBadge(active: false),
                 const SizedBox(width: 12),
@@ -216,14 +219,21 @@ class _FoldedIdleState extends State<_FoldedIdle> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                AnimatedRotation(
-                  turns: open ? 0.5 : 0,
-                  duration: AppMotion.card,
-                  curve: AppMotion.easeOut,
-                  child: Icon(
-                    Icons.expand_more_rounded,
-                    color: AppColors.amber,
-                    size: 24,
+                // Badge-high box: the chevron lines up with the badge's
+                // middle whether the row is folded or open.
+                SizedBox(
+                  height: 38,
+                  child: Center(
+                    child: AnimatedRotation(
+                      turns: open ? 0.5 : 0,
+                      duration: AppMotion.card,
+                      curve: AppMotion.easeOut,
+                      child: Icon(
+                        Icons.expand_more_rounded,
+                        color: AppColors.amber,
+                        size: 24,
+                      ),
+                    ),
                   ),
                 ),
               ],
