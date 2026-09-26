@@ -129,6 +129,11 @@ void main() {
   }
 
   Future<void> tapStart(WidgetTester tester) async {
+    // Start sits below Invite and can be under the fold.
+    await tester.ensureVisible(
+      find.byKey(const Key('selected-room-start-ride')),
+    );
+    await tester.pump();
     await tester.tap(find.byKey(const Key('selected-room-start-ride')));
     await settle(tester);
   }
@@ -283,6 +288,10 @@ void main() {
   testWidgets('home Wi-Fi is offered only while this phone is on Wi-Fi', (
     tester,
   ) async {
+    // Phone height: the link sits below Invite and the round Start.
+    tester.view.physicalSize = const Size(800, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     await pumpEntry(
       tester,
       links: const LiveLinkSnapshot(

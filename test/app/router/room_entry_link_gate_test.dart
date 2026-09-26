@@ -117,6 +117,11 @@ void main() {
     // This harness intentionally has no hidden bootstrap bridge registered.
     // Pressing Start therefore exercises the router's safety backstop and
     // returns to the same Room rather than exposing a technical setup page.
+    // Start sits below Invite and can be under the fold.
+    await tester.ensureVisible(
+      find.byKey(const Key('selected-room-start-ride')),
+    );
+    await tester.pump();
     await tester.tap(find.byKey(const Key('selected-room-start-ride')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
@@ -189,6 +194,11 @@ void main() {
       pinned: TransferMode.bluetooth,
     );
 
+    // Start sits below Invite and can be under the fold.
+    await tester.ensureVisible(
+      find.byKey(const Key('selected-room-start-ride')),
+    );
+    await tester.pump();
     await tester.tap(find.byKey(const Key('selected-room-start-ride')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
