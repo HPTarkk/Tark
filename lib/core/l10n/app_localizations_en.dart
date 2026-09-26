@@ -365,6 +365,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bt_no_devices_found => 'Nothing nearby';
 
   @override
+  String get bt_location_off =>
+      'Android won\'t let this phone look for nearby phones while Location is off. Switch Location on to search.';
+
+  @override
   String get bt_unnamed_device => 'Unnamed device';
 
   @override

@@ -366,6 +366,10 @@ class AppLocalizationsFa extends AppLocalizations {
   String get bt_no_devices_found => 'این دور و بر چیزی نیست';
 
   @override
+  String get bt_location_off =>
+      'تا «موقعیت مکانی» خاموش باشه، اندروید نمی‌ذاره این گوشی دنبال گوشی‌های نزدیک بگرده. روشنش کن تا جستجو شروع بشه.';
+
+  @override
   String get bt_unnamed_device => 'دستگاه بی‌نام';
 
   @override
