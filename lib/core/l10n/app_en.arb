@@ -112,6 +112,7 @@
     "bt_waiting_for_peer": "Waiting on the other phone...",
     "bt_scanning": "Having a look...",
     "bt_no_devices_found": "Nothing nearby",
+    "bt_location_off": "Android won't let this phone look for nearby phones while Location is off. Switch Location on to search.",
     "bt_unnamed_device": "Unnamed device",
     "default_user_name": "Buddy",
     "landing_ready": "Ready to talk",

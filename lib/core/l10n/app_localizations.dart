@@ -776,6 +776,12 @@ abstract class AppLocalizations {
   /// **'این دور و بر چیزی نیست'**
   String get bt_no_devices_found;
 
+  /// No description provided for @bt_location_off.
+  ///
+  /// In fa, this message translates to:
+  /// **'تا «موقعیت مکانی» خاموش باشه، اندروید نمی‌ذاره این گوشی دنبال گوشی‌های نزدیک بگرده. روشنش کن تا جستجو شروع بشه.'**
+  String get bt_location_off;
+
   /// No description provided for @bt_unnamed_device.
   ///
   /// In fa, this message translates to:

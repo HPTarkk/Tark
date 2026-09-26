@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/utils/android_sdk.dart';
+import '../../../core/utils/bluetooth_scan_location.dart';
 import '../../../core/utils/logger.dart';
 import '../../../core/utils/permission_queue.dart';
 
@@ -54,32 +55,14 @@ Future<bool> ensureRoomInviteBluetoothPermissions({
 
 typedef RoomScanLocationGate = Future<bool> Function();
 
-/// Whether Bluetooth scanning can find anyone right now.
-///
-/// Android 6–11 returns no scan results at all while the system Location
-/// switch is off, even with the permission granted. The rendezvous then
-/// times out and reads as "couldn't find their phone", which sends people to
-/// stand closer instead of flipping the switch. Android 12+ scans with
-/// `neverForLocation` and does not care.
+/// Whether a Room's Bluetooth scan can find anyone right now. See
+/// [bluetoothScanLocationReady], which the plain Bluetooth page shares.
 Future<bool> roomScanLocationReady({
   TargetPlatform? platform,
   Future<int> Function()? sdkVersion,
   Future<ServiceStatus> Function()? locationService,
-}) async {
-  if ((platform ?? defaultTargetPlatform) != TargetPlatform.android) {
-    return true;
-  }
-  try {
-    if (await (sdkVersion ?? AndroidSdk.version)() >= 31) return true;
-    final status =
-        await (locationService ??
-            () => Permission.locationWhenInUse.serviceStatus)();
-    return status != ServiceStatus.disabled;
-  } catch (error) {
-    Logger.diagnostic(
-      'room_join: location check failed error=${error.runtimeType}',
-    );
-    // Unknown is not "off": let the scan run and speak for itself.
-    return true;
-  }
-}
+}) => bluetoothScanLocationReady(
+  platform: platform,
+  sdkVersion: sdkVersion,
+  locationService: locationService,
+);
