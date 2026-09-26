@@ -226,6 +226,30 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
               connectionPhase: widget.connectionPhase,
             ),
             const SizedBox(height: 20),
+            if (canInvite)
+              // Invite sits above Start: adding someone comes before starting.
+              Padding(
+                padding: EdgeInsets.only(bottom: alone ? 0 : 20),
+                child: _RoomAction(
+                  key: const Key('selected-room-invite-callout'),
+                  icon: Icons.person_add_alt_1_rounded,
+                  label: s.lobby_invite_people,
+                  primary: alone,
+                  enabled: !_connecting,
+                  onTap: _invite,
+                ),
+              )
+            else if (alone)
+              Text(
+                s.lobby_alone_no_invite,
+                key: const Key('selected-room-alone-no-invite'),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                  height: 1.5,
+                ),
+              ),
             // Start needs somebody to start with. Offering it to a Room of one
             // only ever produced a failure explaining that nobody answered.
             if (!alone)
@@ -253,29 +277,6 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
                     icon: const Icon(Icons.wifi_rounded, size: 18),
                     label: Text(s.lobby_use_home_wifi),
                   ),
-                ),
-              ),
-            if (canInvite)
-              Padding(
-                padding: EdgeInsets.only(top: alone ? 0 : 12),
-                child: _RoomAction(
-                  key: const Key('selected-room-invite-callout'),
-                  icon: Icons.person_add_alt_1_rounded,
-                  label: s.lobby_invite_people,
-                  primary: alone,
-                  enabled: !_connecting,
-                  onTap: _invite,
-                ),
-              )
-            else if (alone)
-              Text(
-                s.lobby_alone_no_invite,
-                key: const Key('selected-room-alone-no-invite'),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 13,
-                  height: 1.5,
                 ),
               ),
           ],

@@ -207,6 +207,11 @@ void main() {
   }
 
   Future<void> start(WidgetTester tester) async {
+    // Start sits below Invite and can be under the fold.
+    await tester.ensureVisible(
+      find.byKey(const Key('selected-room-start-ride')),
+    );
+    await tester.pump();
     await tester.tap(find.byKey(const Key('selected-room-start-ride')));
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 100));

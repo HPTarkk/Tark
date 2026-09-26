@@ -125,6 +125,15 @@ void main() {
     expect(find.text('Rider two'), findsOneWidget);
     expect(find.byKey(const Key('selected-room-held-seats')), findsNothing);
     expect(find.byKey(const Key('selected-room-start-ride')), findsOneWidget);
+    // Invite comes first, above Start.
+    expect(
+      tester
+          .getTopLeft(find.byKey(const Key('selected-room-invite-callout')))
+          .dy,
+      lessThan(
+        tester.getTopLeft(find.byKey(const Key('selected-room-start-ride'))).dy,
+      ),
+    );
     expect(tester.takeException(), isNull);
   });
 
