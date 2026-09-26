@@ -504,6 +504,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
 
   /// Brings this phone's hotspot up, or gives up after [_prepareTimeout].
   Future<HotspotCredentials?> _prepareHost() async {
+    unawaited(_offerWifiOff());
     final prepare =
         widget.prepareHost ?? () => PreLiveHotspotBootstrap().prepareHost();
     try {
@@ -514,6 +515,23 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       unawaited(_releaseOwnHotspot());
       return null;
     }
+  }
+
+  /// This entry already asked the host to switch Wi-Fi off. Retries and
+  /// reconnects inside the same visit don't ask again; the next visit does.
+  bool _wifiOffOffered = false;
+
+  /// Asks this phone to switch Wi-Fi off while its hotspot comes up.
+  ///
+  /// With Wi-Fi on, Android can hand the radio back to a saved network and
+  /// quietly take the hotspot down mid-Room. Not awaited by [_prepareHost]:
+  /// the hotspot and the hand-off keep going underneath, so the other phone is
+  /// never left waiting on someone reading.
+  Future<void> _offerWifiOff() async {
+    final host = _hotspotHost;
+    if (host == null || _wifiOffOffered || !mounted) return;
+    _wifiOffOffered = true;
+    await HotspotWifiOffPage.showIfWifiOn(context, host);
   }
 
   /// How often the Wi-Fi card looks at the radio while it waits for it.

@@ -665,6 +665,41 @@ class AppLocalizationsEn extends AppLocalizations {
       'You\'ll still hear everyone — the channel doesn\'t need Wi-Fi.';
 
   @override
+  String get hotspot_wifi_off_page_title =>
+      'Turn off Wi-Fi for a steadier connection';
+
+  @override
+  String get hotspot_wifi_off_page_body =>
+      'This phone is running the hotspot. While Wi-Fi is on, Android can jump back to a saved network and quietly switch the hotspot off.';
+
+  @override
+  String get hotspot_wifi_off_page_point_steady =>
+      'The hotspot stays on the whole time';
+
+  @override
+  String get hotspot_wifi_off_page_point_clear =>
+      'Voices come through clearer, with fewer drops';
+
+  @override
+  String get hotspot_wifi_off_page_point_channel =>
+      'Everyone still hears you. Tarkk doesn\'t need Wi-Fi here.';
+
+  @override
+  String get hotspot_wifi_off_page_status_on => 'Wi-Fi is on';
+
+  @override
+  String get hotspot_wifi_off_page_status_off => 'Wi-Fi is off';
+
+  @override
+  String get hotspot_wifi_off_page_action => 'Turn Wi-Fi off';
+
+  @override
+  String get hotspot_wifi_off_page_done => 'All set';
+
+  @override
+  String get hotspot_wifi_off_page_skip => 'Continue anyway';
+
+  @override
   String get hotspot_waiting => 'Waiting on the other phone...';
 
   @override

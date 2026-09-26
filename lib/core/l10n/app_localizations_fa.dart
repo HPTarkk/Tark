@@ -663,6 +663,41 @@ class AppLocalizationsFa extends AppLocalizations {
       'صدای همه رو می‌شنوی — کانال به وای‌فای احتیاجی نداره.';
 
   @override
+  String get hotspot_wifi_off_page_title =>
+      'برای ارتباط پایدارتر، وای‌فای رو خاموش کن';
+
+  @override
+  String get hotspot_wifi_off_page_body =>
+      'هات‌اسپات روی همین گوشیه. تا وقتی وای‌فای روشنه، اندروید ممکنه دوباره به یه شبکه‌ی ذخیره‌شده وصل بشه و بی‌صدا هات‌اسپات رو خاموش کنه.';
+
+  @override
+  String get hotspot_wifi_off_page_point_steady =>
+      'هات‌اسپات تا آخر روشن می‌مونه';
+
+  @override
+  String get hotspot_wifi_off_page_point_clear =>
+      'صداها واضح‌تر می‌رسن و کمتر قطع می‌شن';
+
+  @override
+  String get hotspot_wifi_off_page_point_channel =>
+      'همه هنوز صدات رو می‌شنون. ترک اینجا به وای‌فای احتیاجی نداره.';
+
+  @override
+  String get hotspot_wifi_off_page_status_on => 'وای‌فای روشنه';
+
+  @override
+  String get hotspot_wifi_off_page_status_off => 'وای‌فای خاموش شد';
+
+  @override
+  String get hotspot_wifi_off_page_action => 'خاموش کردن وای‌فای';
+
+  @override
+  String get hotspot_wifi_off_page_done => 'همه‌چی آماده‌ست';
+
+  @override
+  String get hotspot_wifi_off_page_skip => 'بدون خاموش کردن ادامه بده';
+
+  @override
   String get hotspot_waiting => 'منتظر گوشی دیگه‌ام...';
 
   @override
