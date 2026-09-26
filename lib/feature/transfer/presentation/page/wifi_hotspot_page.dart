@@ -17,6 +17,7 @@ import '../../domain/entity/channel_intent.dart';
 import '../../domain/entity/hotspot_credentials.dart';
 import '../../domain/entity/transfer_mode.dart';
 import '../../domain/entity/wifi_hotspot_segment.dart';
+import '../../domain/service/hotspot_control.dart';
 import '../manager/wifi_hotspot_cubit.dart';
 import '../widget/hotspot_host_flow.dart';
 import '../widget/hotspot_join_flow.dart';
@@ -25,6 +26,7 @@ import '../widget/hotspot_role_picker.dart';
 import '../widget/hotspot_segmented_control.dart';
 import '../widget/hotspot_shared_widgets.dart';
 import '../widget/hotspot_wifi_only_flow.dart';
+import 'hotspot_wifi_off_page.dart';
 
 /// Whether a bridge update is enough to leave transport setup and enter the
 /// channel.
@@ -117,6 +119,11 @@ class _WifiHotspotPageState extends State<WifiHotspotPage>
   /// never re-triggers the camera on its own.
   bool _autoScanTriggered = false;
 
+  /// This visit already asked the host to switch Wi-Fi off. A re-host after
+  /// the OS took the hotspot down doesn't ask again (the inline note speaks up
+  /// for that); the next time this screen hosts, it does.
+  bool _wifiOffOffered = false;
+
   /// True only for Tark's combined durable-Room + Wi-Fi payload.
   ///
   /// Merely having [WifiHotspotPage.handedCode] is not enough: old standalone
@@ -174,6 +181,36 @@ class _WifiHotspotPageState extends State<WifiHotspotPage>
       _autoScanTriggered = true;
       unawaited(openHotspotScanner(context));
     }
+  }
+
+  /// Puts the full-screen "turn Wi-Fi off" page over the host screen the first
+  /// time this visit hosts with Wi-Fi on. Hosting carries on underneath, and
+  /// the page outlives this screen when the peer joins and the channel opens,
+  /// so it reads the radio itself rather than through the cubit.
+  void _maybeOfferWifiOff(BuildContext context, HotspotBridgeState state) {
+    if (_wifiOffOffered ||
+        state.role != HotspotRole.host ||
+        !state.wifiAdvice.wifiEnabled ||
+        !GetIt.instance.isRegistered<HotspotHost>()) {
+      return;
+    }
+    _wifiOffOffered = true;
+    final cubit = context.read<WifiHotspotCubit>();
+    unawaited(
+      HotspotWifiOffPage.showIfWifiOn(
+        context,
+        GetIt.instance<HotspotHost>(),
+      ).then((result) {
+        if (cubit.isClosed) return;
+        if (result == HotspotWifiOffResult.wifiOff) {
+          unawaited(cubit.refreshWifiAdvice());
+        } else if (result == HotspotWifiOffResult.skipped) {
+          // The same answer as "not now" on the inline note, which then stays
+          // quiet until the hotspot actually drops.
+          cubit.dismissWifiNote();
+        }
+      }),
+    );
   }
 
   @override
@@ -396,6 +433,7 @@ class _WifiHotspotPageState extends State<WifiHotspotPage>
               unawaited(_enterChannel(context));
             }
             _maybeAutoScan(context, state);
+            _maybeOfferWifiOff(context, state);
           },
           builder: (context, state) {
             final showSegments = !_navigating && !state.peerConnected;

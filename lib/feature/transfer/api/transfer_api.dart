@@ -42,6 +42,9 @@ export '../domain/repository/transport_route_proof_exchange.dart';
 export '../domain/service/bluetooth_link_handoff.dart';
 export '../domain/service/hotspot_control.dart'
     show HotspotHost, HotspotJoiner, HotspotJoinResult;
+// Asked by every screen that makes this phone a hotspot host, Rooms included.
+export '../presentation/page/hotspot_wifi_off_page.dart'
+    show HotspotWifiOffPage, HotspotWifiOffResult;
 export '../domain/service/hotspot_link_keeper.dart' show HotspotLinkKeeper;
 // Create/one-scan Room entry stamps only a temporary bootstrap-side hint here.
 // It is deliberately session-scoped and is not Room ownership or invite

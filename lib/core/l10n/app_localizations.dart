@@ -1298,6 +1298,66 @@ abstract class AppLocalizations {
   /// **'صدای همه رو می‌شنوی — کانال به وای‌فای احتیاجی نداره.'**
   String get hotspot_wifi_note_reassure;
 
+  /// No description provided for @hotspot_wifi_off_page_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'برای ارتباط پایدارتر، وای‌فای رو خاموش کن'**
+  String get hotspot_wifi_off_page_title;
+
+  /// No description provided for @hotspot_wifi_off_page_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'هات‌اسپات روی همین گوشیه. تا وقتی وای‌فای روشنه، اندروید ممکنه دوباره به یه شبکه‌ی ذخیره‌شده وصل بشه و بی‌صدا هات‌اسپات رو خاموش کنه.'**
+  String get hotspot_wifi_off_page_body;
+
+  /// No description provided for @hotspot_wifi_off_page_point_steady.
+  ///
+  /// In fa, this message translates to:
+  /// **'هات‌اسپات تا آخر روشن می‌مونه'**
+  String get hotspot_wifi_off_page_point_steady;
+
+  /// No description provided for @hotspot_wifi_off_page_point_clear.
+  ///
+  /// In fa, this message translates to:
+  /// **'صداها واضح‌تر می‌رسن و کمتر قطع می‌شن'**
+  String get hotspot_wifi_off_page_point_clear;
+
+  /// No description provided for @hotspot_wifi_off_page_point_channel.
+  ///
+  /// In fa, this message translates to:
+  /// **'همه هنوز صدات رو می‌شنون. ترک اینجا به وای‌فای احتیاجی نداره.'**
+  String get hotspot_wifi_off_page_point_channel;
+
+  /// No description provided for @hotspot_wifi_off_page_status_on.
+  ///
+  /// In fa, this message translates to:
+  /// **'وای‌فای روشنه'**
+  String get hotspot_wifi_off_page_status_on;
+
+  /// No description provided for @hotspot_wifi_off_page_status_off.
+  ///
+  /// In fa, this message translates to:
+  /// **'وای‌فای خاموش شد'**
+  String get hotspot_wifi_off_page_status_off;
+
+  /// No description provided for @hotspot_wifi_off_page_action.
+  ///
+  /// In fa, this message translates to:
+  /// **'خاموش کردن وای‌فای'**
+  String get hotspot_wifi_off_page_action;
+
+  /// No description provided for @hotspot_wifi_off_page_done.
+  ///
+  /// In fa, this message translates to:
+  /// **'همه‌چی آماده‌ست'**
+  String get hotspot_wifi_off_page_done;
+
+  /// No description provided for @hotspot_wifi_off_page_skip.
+  ///
+  /// In fa, this message translates to:
+  /// **'بدون خاموش کردن ادامه بده'**
+  String get hotspot_wifi_off_page_skip;
+
   /// No description provided for @hotspot_waiting.
   ///
   /// In fa, this message translates to:
