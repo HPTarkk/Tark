@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dartz/dartz.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:injectable/injectable.dart';
 
 import '../../../../core/audio/audio_format_profile.dart';
@@ -56,6 +57,7 @@ import '../codec/waki_packet_codec.dart';
 class BluetoothTransferRepository
     implements
         TransferRepository,
+        ConnectionHealthSnapshot,
         BluetoothTransport,
         TransportCapabilityObservationSource,
         TransportRouteProofExchange {
@@ -890,14 +892,25 @@ class BluetoothTransferRepository
   };
 
   @override
-  Stream<ConnectionHealth> connect() => connectionState.map(
-    (s) => switch (s) {
-      bt.BluetoothConnectionState.connected => const ConnectionHealth.healthy(),
-      bt.BluetoothConnectionState.reconnecting =>
-        const ConnectionHealth.reconnecting(),
-      _ => const ConnectionHealth.down(),
-    },
-  );
+  Stream<ConnectionHealth> connect() => connectionState.map(healthFor);
+
+  /// The link as it is right now. A Room reaches its live screen after the
+  /// Bluetooth page has already connected, so the one `connected` event has
+  /// long gone by the time the Room subscribes to [connect]. Without this
+  /// snapshot the Room waited for a health change that never came, and only
+  /// went live if the link happened to flap on a later try.
+  @override
+  ConnectionHealth get currentConnectionHealth => healthFor(_connectionState);
+
+  @visibleForTesting
+  static ConnectionHealth healthFor(bt.BluetoothConnectionState s) =>
+      switch (s) {
+        bt.BluetoothConnectionState.connected =>
+          const ConnectionHealth.healthy(),
+        bt.BluetoothConnectionState.reconnecting =>
+          const ConnectionHealth.reconnecting(),
+        _ => const ConnectionHealth.down(),
+      };
 
   @override
   void setAutoReconnectEnabled(bool enabled) {
