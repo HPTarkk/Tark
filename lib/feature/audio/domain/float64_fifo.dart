@@ -35,6 +35,11 @@ class Float64Fifo {
     return _buf[(_head + index) & (_buf.length - 1)];
   }
 
+  void operator []=(int index, double value) {
+    assert(index >= 0 && index < _length);
+    _buf[(_head + index) & (_buf.length - 1)] = value;
+  }
+
   void _ensureRoom(int incoming) {
     final needed = _length + incoming;
     if (needed <= _buf.length) return;

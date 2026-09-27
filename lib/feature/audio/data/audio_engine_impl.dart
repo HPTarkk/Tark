@@ -414,6 +414,7 @@ class AudioEngineImpl implements AudioEngine {
         targetBufferMs: profile.targetBufferMs,
         debugLogging: true,
         outputUnderrunFrames: _audioIo.outputUnderrunFrames,
+        outputQueuedFrames: _audioIo.outputQueuedFrames,
       );
       _mediaCoordinatorTimer = Timer.periodic(
         const Duration(milliseconds: 10),

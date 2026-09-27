@@ -172,6 +172,16 @@ class AudioIo {
     return 0;
   }
 
+  /// Samples written to [output] that the device has not played yet, or -1
+  /// where the platform cannot report it (iOS, macOS, web). The playback
+  /// buffer uses it to keep the device fed at the device's own pace.
+  int outputQueuedFrames() {
+    if (_impl.usePlatformImpl) {
+      return _impl.getOutputQueuedFrames();
+    }
+    return -1;
+  }
+
   Future<void> requestLatency(AudioIoLatency option) async {
     if (_impl.usePlatformImpl) {
       await _impl.requestFrameDuration(_presetLatency[option]!);
