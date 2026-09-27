@@ -7,9 +7,18 @@ import 'package:ffi/ffi.dart';
 
 import 'audio_io_bindings.dart';
 
-/// Frames pulled per poll — also the size of the persistent read scratch
-/// buffer, so a poll never needs to allocate.
-const int _kFramesPerPoll = 480;
+/// Size of the persistent read scratch buffer, so a poll never needs to
+/// allocate. Matches the native input ring (RING_BUFFER_SIZE in
+/// audio_io_miniaudio.cpp), so one poll can always empty it.
+///
+/// It used to be 480 — exactly one 10 ms tick of audio — and each poll read
+/// at most that much. Dart skips a periodic timer's missed ticks rather than
+/// replaying them, so every poll that ran more than 10 ms late left 10 ms
+/// behind in the ring that no later poll could ever catch up on. Capture
+/// delay crept up by one tick per hiccup until the ring was full (170 ms),
+/// and from then on the audio thread dropped whatever did not fit — a hole in
+/// the speaker's voice that the listener heard as a tick.
+const int _kFramesPerPoll = 8192;
 
 class AudioIoFFI {
   static AudioIoFFI? _instance;
@@ -292,5 +301,14 @@ class AudioIoFFI {
   int getOutputUnderrunFrames() {
     if (_handle == null) return 0;
     return _bindings.getOutputUnderrunFrames(_handle!);
+  }
+
+  /// Samples in the output ring the device has not played yet, or -1 with no
+  /// device. Counts only what has reached the ring: [outputAudioStream]
+  /// delivers asynchronously, so a write made this same event-loop turn is
+  /// not included yet.
+  int getOutputQueuedFrames() {
+    if (_handle == null) return -1;
+    return _bindings.getOutputQueuedFrames(_handle!);
   }
 }

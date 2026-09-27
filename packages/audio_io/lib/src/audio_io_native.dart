@@ -60,6 +60,9 @@ class AudioIoNative implements AudioIoImpl {
 
   @override
   int getOutputUnderrunFrames() => _ffi?.getOutputUnderrunFrames() ?? 0;
+
+  @override
+  int getOutputQueuedFrames() => _ffi?.getOutputQueuedFrames() ?? -1;
 }
 
 AudioIoImpl createAudioIoImpl() => AudioIoNative();

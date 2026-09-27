@@ -225,6 +225,16 @@ long long audio_io_get_output_underrun_frames(void* handle) {
     return context->outputUnderrunFrames.load(std::memory_order_relaxed);
 }
 
+// Frames written to the output ring that the device has not played yet. The
+// Dart drain reads this every tick and tops the ring back up to its cushion,
+// so what it writes follows the device's own clock instead of a UI-isolate
+// timer that skips ticks whenever a frame runs long.
+int audio_io_get_output_queued_frames(void* handle) {
+    if (!handle) return -1;
+    AudioContext* context = (AudioContext*)handle;
+    return (int)context->outputRingBuffer->available_read();
+}
+
 int audio_io_get_sample_rate(void* handle) {
     if (!handle) return 0;
     

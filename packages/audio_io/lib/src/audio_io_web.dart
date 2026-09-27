@@ -256,6 +256,9 @@ class AudioIoWeb implements AudioIoImpl {
 
   @override
   int getOutputUnderrunFrames() => 0;
+
+  @override
+  int getOutputQueuedFrames() => -1;
 }
 
 AudioIoImpl createAudioIoImpl() => AudioIoWeb();

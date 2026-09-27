@@ -52,6 +52,10 @@ typedef AudioIoGetOutputUnderrunFramesNative = Int64 Function(
     Pointer<Void> handle);
 typedef AudioIoGetOutputUnderrunFrames = int Function(Pointer<Void> handle);
 
+typedef AudioIoGetOutputQueuedFramesNative = Int32 Function(
+    Pointer<Void> handle);
+typedef AudioIoGetOutputQueuedFrames = int Function(Pointer<Void> handle);
+
 class AudioIoBindings {
   late final DynamicLibrary _lib;
 
@@ -69,6 +73,7 @@ class AudioIoBindings {
   late final AudioIoGetFrameDuration getFrameDuration;
   late final AudioIoGetInputSessionId getInputSessionId;
   late final AudioIoGetOutputUnderrunFrames getOutputUnderrunFrames;
+  late final AudioIoGetOutputQueuedFrames getOutputQueuedFrames;
 
   AudioIoBindings() {
     _lib = _loadLibrary();
@@ -135,6 +140,11 @@ class AudioIoBindings {
     getOutputUnderrunFrames = _lib
         .lookup<NativeFunction<AudioIoGetOutputUnderrunFramesNative>>(
             'audio_io_get_output_underrun_frames')
+        .asFunction();
+
+    getOutputQueuedFrames = _lib
+        .lookup<NativeFunction<AudioIoGetOutputQueuedFramesNative>>(
+            'audio_io_get_output_queued_frames')
         .asFunction();
   }
 
