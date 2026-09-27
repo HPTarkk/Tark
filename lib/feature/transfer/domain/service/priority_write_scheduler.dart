@@ -19,6 +19,7 @@ class PriorityWriteScheduler<T> {
   PriorityWriteScheduler({
     required Future<void> Function(T payload) write,
     this.maxQueuedLowPriority = 5,
+    this.maxQueuedRealtime = 5,
   }) : _write = write;
 
   final Future<void> Function(T payload) _write;
@@ -27,6 +28,19 @@ class PriorityWriteScheduler<T> {
   /// memory — a deep queue here is exactly the accumulating-latency failure
   /// mode #30 exists to prevent, just moved from the network to this queue.
   final int maxQueuedLowPriority;
+
+  /// Cap on queued high-priority writes flagged `realtime` (voice). Five
+  /// 20 ms frames is 100 ms of audio.
+  ///
+  /// Everything else on the high lane (presence, control) must arrive, so it
+  /// is never dropped. Voice is different: a frame that has waited behind a
+  /// slow write is late for good, and a queue with no cap turns every stall
+  /// into delay that never goes away. The native Bluetooth writers already
+  /// cap their own queues at 8 packets; this covers the hop in front of them,
+  /// a platform channel that can itself stall while the main thread is busy.
+  /// Dropping the oldest frames keeps the delay bounded; the receiver covers
+  /// the gap as it would any lost packet.
+  final int maxQueuedRealtime;
 
   final Queue<_QueuedWrite<T>> _highPriority = Queue();
   final Queue<T> _lowPriority = Queue();
@@ -47,11 +61,34 @@ class PriorityWriteScheduler<T> {
   /// throws) — the same contract a direct `await write(payload)` call had,
   /// so callers (voice, presence, control) don't have to change how they
   /// treat the result.
-  Future<void> writeHighPriority(T payload) {
+  ///
+  /// [realtime] marks a write that is worthless once late (voice): past
+  /// [maxQueuedRealtime] such writes, the oldest queued one is dropped and
+  /// its future completes normally, since skipping it was the intent.
+  Future<void> writeHighPriority(T payload, {bool realtime = false}) {
     final completer = Completer<void>();
-    _highPriority.add(_QueuedWrite(payload, completer));
+    _highPriority.add(_QueuedWrite(payload, completer, realtime: realtime));
+    if (realtime) _dropStaleRealtime();
     unawaited(_pump());
     return completer.future;
+  }
+
+  /// Realtime writes dropped for arriving behind a full realtime lane.
+  int get realtimeDrops => _realtimeDrops;
+  int _realtimeDrops = 0;
+
+  void _dropStaleRealtime() {
+    var queued = 0;
+    for (final item in _highPriority) {
+      if (item.realtime) queued++;
+    }
+    while (queued > maxQueuedRealtime) {
+      final oldest = _highPriority.firstWhere((item) => item.realtime);
+      _highPriority.remove(oldest);
+      oldest.completer.complete();
+      _realtimeDrops++;
+      queued--;
+    }
   }
 
   /// Enqueues [payload] behind any pending/future high-priority write.
@@ -117,7 +154,9 @@ class PriorityWriteScheduler<T> {
 }
 
 class _QueuedWrite<T> {
-  _QueuedWrite(this.payload, this.completer);
+  _QueuedWrite(this.payload, this.completer, {this.realtime = false});
+
+  final bool realtime;
   final T payload;
   final Completer<void> completer;
 }
