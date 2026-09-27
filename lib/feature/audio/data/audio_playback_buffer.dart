@@ -195,6 +195,22 @@ class AudioPlaybackBuffer {
   /// trim against a depth the buffer is no longer aiming for.
   int get _trimThreshold => _targetSamples * 2;
 
+  /// Backlog past which the buffer stops walking latency down and jumps
+  /// straight back to target in one crossfaded cut.
+  ///
+  /// The gentle trim below gives back 10 ms every 200 ms: fine for the few
+  /// tens of milliseconds a jittery link leaves behind, but a second of
+  /// backlog (a Bluetooth link that stalled and then flushed) would take
+  /// twenty seconds to walk off, and the whole conversation would lag for all
+  /// of it. Past this point, skipping the late audio is the better trade, the
+  /// way call apps do: a word may be lost, but the listener is live again at
+  /// once.
+  int get _jumpThreshold => _targetSamples + _jumpSlackSamples;
+  late final int _jumpSlackSamples = _sampleRate * kJumpSlackMs ~/ 1000;
+
+  /// How far past target the queue may run before [_jumpThreshold] applies.
+  static const int kJumpSlackMs = 250;
+
   /// Latency is walked down in small steps rather than snapped back in one
   /// splice. A single trim big enough to cover the whole backlog removes an
   /// audible chunk of speech — a whole syllable. Dropping [_trimStepSamples]
@@ -347,6 +363,7 @@ class AudioPlaybackBuffer {
   int _underruns = 0;
   int _lastDeviceUnderrunFrames = 0;
   int _trims = 0;
+  int _jumps = 0;
   int _overflowDrops = 0;
   int _fedWindow = 0;
   int _concealedWindow = 0;
@@ -599,7 +616,8 @@ class AudioPlaybackBuffer {
       ' | ${windowSec.toStringAsFixed(0)}s window: fed ${_ms(_fedWindow)}ms'
       ' + concealed ${_ms(_concealedWindow)}ms'
       ' vs drained ${_ms(_drainedWindow)}ms'
-      ' | underruns=$_underruns trims=$_trims overflow=$_overflowDrops'
+      ' | underruns=$_underruns trims=$_trims jumps=$_jumps'
+      ' overflow=$_overflowDrops'
       ' | device starved ${_ms(devDelta)}ms'
       ' (${_ms(devFrames)}ms total)',
     );
@@ -627,6 +645,7 @@ class AudioPlaybackBuffer {
 
     _underruns = 0;
     _trims = 0;
+    _jumps = 0;
     _overflowDrops = 0;
     _fedWindow = 0;
     _concealedWindow = 0;
@@ -691,10 +710,12 @@ class AudioPlaybackBuffer {
   /// which is a 3 ms dip to silence in the middle of speech: on a queue
   /// sitting above its threshold that happened every 200 ms, and it was
   /// audible as a tick every time.
-  void _trimStep() {
+  void _trimStep({bool toTarget = false}) {
     final excess = _queue.length - _targetSamples;
     if (excess <= 0) return;
-    final step = excess < _trimStepSamples ? excess : _trimStepSamples;
+    final step = toTarget || excess < _trimStepSamples
+        ? excess
+        : _trimStepSamples;
     final fade = _spliceFadeSamples;
     // The overlap itself shortens the queue by [fade], so only the rest of
     // the step is cut outright.
@@ -711,7 +732,7 @@ class AudioPlaybackBuffer {
     // [before] came off the head, so the crossfade now starts the queue: it is
     // exactly what the next slice would have played, joined smoothly to what
     // comes after the cut.
-    _trims++;
+    if (!toTarget) _trims++;
   }
 
   void _startDraining() {
@@ -818,7 +839,11 @@ class AudioPlaybackBuffer {
     // leaves more queued than the drain plays, so the difference has to be
     // given back somewhere, and small steps are far less audible than one
     // splice.
-    if (_queue.length > _trimThreshold) {
+    if (_queue.length > _jumpThreshold) {
+      _sinceTrimTicks = 0;
+      _trimStep(toTarget: true);
+      _jumps++;
+    } else if (_queue.length > _trimThreshold) {
       if (++_sinceTrimTicks >= _trimIntervalTicks) {
         _sinceTrimTicks = 0;
         _trimStep();

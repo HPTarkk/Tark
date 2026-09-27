@@ -828,12 +828,37 @@ class BluetoothTransferRepository
         return const Left(DataTransferFailure());
       }
       final payload = _codec.encodeAudio(samples, senderName, _audioSeq++);
-      await _writeScheduler.writeHighPriority(payload);
+      final written = _writeScheduler.writeHighPriority(
+        payload,
+        realtime: true,
+      );
+      _noteVoiceDrops();
+      await written;
       return const Right(null);
     } catch (error) {
       Logger.log(error);
       return const Left(DataTransferFailure());
     }
+  }
+
+  DateTime _voiceDropLoggedAt = DateTime.fromMillisecondsSinceEpoch(0);
+  int _voiceDropsLogged = 0;
+
+  /// Says, at most every 15 s, that the link fell behind and late voice was
+  /// skipped. Without it a listener hearing a word go missing and a listener
+  /// hearing a lossy link look the same in the log.
+  void _noteVoiceDrops() {
+    final drops = _writeScheduler.realtimeDrops - _voiceDropsLogged;
+    if (drops <= 0) return;
+    final now = DateTime.now();
+    if (now.difference(_voiceDropLoggedAt) < const Duration(seconds: 15)) {
+      return;
+    }
+    _voiceDropLoggedAt = now;
+    Logger.diagnostic(
+      'bluetooth: link behind — skipped $drops late voice frames to stay live',
+    );
+    _voiceDropsLogged = _writeScheduler.realtimeDrops;
   }
 
   @override

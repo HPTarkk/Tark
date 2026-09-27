@@ -132,13 +132,15 @@ void main() {
         final device = _FakeDevice();
         final buffer = build(device);
         var seq = 0;
-        // 600 ms queued, far past twice the 100 ms target, so the trim runs
-        // repeatedly. Stops well before the queue runs out, since running out
-        // is meant to fade to silence.
-        for (var i = 0; i < 30; i++) {
+        // Hold the queue near 300 ms: past twice the 100 ms target, so the
+        // gentle trim runs, but short of the jump back to live.
+        for (var i = 0; i < 15; i++) {
           buffer.feed(_tone(960), seq++, 'peer');
         }
-        async.elapse(const Duration(milliseconds: 400));
+        for (var t = 0; t < 100; t++) {
+          if (t.isEven) buffer.feed(_tone(960), seq++, 'peer');
+          async.elapse(const Duration(milliseconds: drainMs));
+        }
         expect(buffer.queuedSamples, greaterThan(0));
         device.consume(device.queued);
 
@@ -182,6 +184,28 @@ void main() {
       buffer.feed(after, 3, 'peer');
       expect(after.every((s) => s == 0.5), isTrue);
       buffer.dispose();
+    });
+
+    test('a big backlog jumps back to live instead of lagging for seconds', () {
+      fakeAsync((async) {
+        final device = _FakeDevice();
+        final buffer = build(device);
+        var seq = 0;
+        // A link that stalled and then flushed: 800 ms arrives at once.
+        for (var i = 0; i < 40; i++) {
+          buffer.feed(_tone(960), seq++, 'peer');
+        }
+        async.elapse(const Duration(milliseconds: 20));
+        expect(
+          buffer.queuedSamples,
+          lessThanOrEqualTo(rate * 100 ~/ 1000),
+          reason: 'one tick must bring the queue back to its 100 ms target',
+        );
+        device.consume(device.queued);
+        final speech = device.played.sublist(prefillSamples + 480);
+        expect(speech.reduce((a, b) => a < b ? a : b), greaterThan(0.45));
+        buffer.dispose();
+      });
     });
   });
 }
