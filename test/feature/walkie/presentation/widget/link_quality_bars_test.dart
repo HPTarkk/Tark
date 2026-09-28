@@ -33,6 +33,8 @@ void main() {
         ),
       ),
     );
+    // Bars ease between levels; read them once they have landed.
+    await tester.pumpAndSettle();
   }
 
   group('LinkQualityBars', () {
