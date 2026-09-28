@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../../core/diagnostics/screen_log.dart';
-import '../../../../core/entitlement/entitlement.dart';
 import '../../../../core/entitlement/license_gate.dart';
-import '../../../../core/entitlement/paywall_sheet.dart';
+import '../../../../core/entitlement/subscription_gate_page.dart';
 import '../../../../core/entitlement/premium_feature.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
@@ -42,7 +41,7 @@ class TransportModePicker extends StatelessWidget {
     // Outer stream is entitlement, inner is the pin: a purchase completing in
     // the paywall has to unlock the buttons here without the user backing out
     // of Settings and coming back.
-    return StreamBuilder<Entitlement>(
+    return StreamBuilder<void>(
       stream: gate.changes,
       builder: (context, _) {
         final unlocked = gate.allows(PremiumFeature.wifiTransport);
@@ -57,7 +56,7 @@ class TransportModePicker extends StatelessWidget {
             void select(TransferMode? target) {
               ScreenLog.tap('Transport ${target?.name ?? 'auto'}');
               if (target != null && target.requiresPremium && !unlocked) {
-                showPaywallSheet(context, PremiumFeature.wifiTransport);
+                openSubscriptionGate(context, PremiumFeature.wifiTransport);
                 return;
               }
               store.setPinnedMode(target);

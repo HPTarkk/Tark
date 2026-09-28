@@ -88,6 +88,8 @@ dependencies:
   # core/network and feature/legal). Chosen over dart:io's HttpClient because
   # core/ is shared with the guest web build, where dart:io does not compile.
   http: ^1.2.0
+  # Opens the support address on the subscription screens in the mail app.
+  url_launcher: ^6.3.2
 
 
 dev_dependencies:

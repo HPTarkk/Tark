@@ -1,0 +1,244 @@
+openapi: 3.1.0
+info:
+  title: Tark API
+  version: 1.0.0
+  description: |
+    The contract between the Tark app and the Tark backend (Go, PostgreSQL,
+    hosted on ArvanCloud). Both sides are written against this file; neither
+    one is the source of truth on its own.
+
+    This revision covers the subscription surface the app's offline-first
+    entitlement logic depends on. Accounts, sign-in and profile endpoints are
+    added in the revision that introduces the sign-in flow.
+
+    Conventions
+    - Every endpoint is HTTPS only and versioned under /v1.
+    - Errors use one shape (Problem). `code` is stable and machine-readable;
+      the app never shows `detail` to people.
+    - Writes that the app may retry carry an `Idempotency-Key` header. The
+      same key with the same body returns the first response again; the same
+      key with a different body is refused with 422 `idempotency_mismatch`.
+    - Times are Unix epoch milliseconds (int64), always from the server clock.
+servers:
+  - url: https://api.tarkk.ir/v1
+security:
+  - accessToken: []
+
+paths:
+  /subscription:
+    get:
+      operationId: getSubscription
+      summary: Current subscription state as a signed entitlement.
+      description: |
+        Returns the caller's subscription as the server knows it right now,
+        re-checking Cafe Bazaar first when the stored state is stale.
+
+        A Bazaar outage or timeout never downgrades anyone: the server answers
+        with the last state it verified and sets `bazaarChecked: false`.
+      parameters:
+        - $ref: '#/components/parameters/InstallKey'
+      responses:
+        '200':
+          description: The caller's subscription.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionResponse'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+
+  /subscription/bazaar/purchases:
+    post:
+      operationId: submitBazaarPurchase
+      summary: Hand a Cafe Bazaar purchase to the server for verification.
+      description: |
+        Called right after a purchase and on "restore". The server verifies
+        the token with Bazaar's developer API; nothing the app sends about
+        dates or state is trusted.
+
+        A purchase token belongs to exactly one account. Submitting a token
+        already bound to another account answers 409 `purchase_owned_elsewhere`.
+        Submitting the same token again for the same account is harmless and
+        returns the current state.
+      parameters:
+        - $ref: '#/components/parameters/InstallKey'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BazaarPurchaseRequest'
+      responses:
+        '200':
+          description: Verified; the entitlement reflects it.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionResponse'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+        '503':
+          description: Bazaar could not be reached; retry later with the same Idempotency-Key.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+components:
+  securitySchemes:
+    accessToken:
+      type: http
+      scheme: bearer
+      description: Short-lived access token from the sign-in endpoints.
+
+  parameters:
+    InstallKey:
+      name: X-Tark-Install-Key
+      in: header
+      required: true
+      description: |
+        The install's Ed25519 public key, base64url without padding (32 bytes).
+        The entitlement is bound to it, so a copied entitlement does not
+        verify on another phone.
+      schema:
+        type: string
+        pattern: '^[A-Za-z0-9_-]{43}$'
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    Problem:
+      description: A failure, in the one shape every endpoint uses.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+
+  schemas:
+    Problem:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          description: Stable machine-readable failure code.
+          examples: [unauthorized, rate_limited, purchase_owned_elsewhere, purchase_invalid]
+        detail:
+          type: string
+          description: Developer-facing explanation. Never shown to people.
+        retryAfterMs:
+          type: integer
+          format: int64
+
+    BazaarPurchaseRequest:
+      type: object
+      required: [sku, purchaseToken]
+      properties:
+        sku:
+          type: string
+          enum: [tark_premium_1m, tark_premium_12m]
+        purchaseToken:
+          type: string
+          minLength: 1
+          maxLength: 512
+
+    SubscriptionResponse:
+      type: object
+      required: [entitlement, bazaarChecked]
+      properties:
+        entitlement:
+          type: string
+          description: |
+            The signed entitlement token (see EntitlementPayload). The app
+            stores this string as-is and verifies it offline; it never
+            stores the decoded fields separately.
+        bazaarChecked:
+          type: boolean
+          description: False when Bazaar could not be reached and the answer is the last verified state.
+
+    EntitlementPayload:
+      type: object
+      description: |
+        The body of the signed entitlement token.
+
+        Wire format: `v1.<kid>.<payload>.<signature>` where `payload` is the
+        base64url (no padding) UTF-8 JSON of this object and `signature` is
+        the base64url Ed25519 signature over the ASCII bytes of
+        `v1.<kid>.<payload>`. `kid` names the server signing key, so keys
+        can be rotated while older app builds still carry the previous one.
+      required: [sub, ik, st, iat, sus, pol]
+      properties:
+        sub:
+          type: string
+          description: Account id.
+        ik:
+          type: string
+          description: The install public key this entitlement is bound to (base64url).
+        st:
+          type: string
+          enum: [none, active, expired, refunded]
+          description: |
+            none: never subscribed. active: paid period running (auto-renew
+            may be on or off; turning it off is not suspicious).
+            expired: the paid period ended normally. refunded: the purchase
+            was refunded or revoked before its paid period ended.
+        sku:
+          type: [string, 'null']
+        until:
+          type: [integer, 'null']
+          format: int64
+          description: |
+            When access ends or ended: the end of the current or last paid
+            period, or for `refunded` the moment the refund took effect.
+        ar:
+          type: boolean
+          description: Auto-renew is on.
+        sus:
+          type: boolean
+          description: |
+            The account is in the conservative check mode after a refund
+            before expiry. Decided by the server and cleared by it after a
+            clean paid period.
+        iat:
+          type: integer
+          format: int64
+          description: Server time this token was issued. Also the last successful verification time.
+        pol:
+          $ref: '#/components/schemas/EntitlementPolicy'
+
+    EntitlementPolicy:
+      type: object
+      description: Offline policy numbers, sent by the server so they can change without an app release.
+      required: [graceH, refreshD, susOfflineH]
+      properties:
+        graceH:
+          type: integer
+          minimum: 0
+          maximum: 336
+          description: Hours an auto-renewing subscription stays usable offline after `until`.
+        refreshD:
+          type: integer
+          minimum: 0
+          maximum: 30
+          description: Days before `until` in which the app refreshes quietly whenever it is online.
+        susOfflineH:
+          type: integer
+          minimum: 1
+          maximum: 720
+          description: For accounts in the conservative mode, hours since `iat` after which a check is required.

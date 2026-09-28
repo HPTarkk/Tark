@@ -15,7 +15,7 @@ import 'core/diagnostics/lifecycle_log.dart';
 import 'core/diagnostics/log_budget.dart';
 import 'core/diagnostics/log_detail.dart';
 import 'core/diagnostics/screen_log.dart';
-import 'core/entitlement/entitlement_store.dart';
+import 'core/entitlement/subscription_service.dart';
 import 'core/home_widget/home_widget_service.dart';
 import 'core/home_widget/home_widget_snapshot.dart';
 import 'core/locale/locale_service.dart';
@@ -90,9 +90,10 @@ void main() async {
   await OpusAudioCodec.ensureInitialized();
   await configureDependencies();
   // Strictly before the mode store below: that one asks LicenseGate whether
-  // the persisted transport is still paid for, and on a genuinely first
-  // launch this call is what starts the trial clock.
-  await GetIt.instance<EntitlementStore>().initialize();
+  // the persisted transport is still paid for. Loads and verifies the stored
+  // entitlement from secure storage; any server refresh it wants runs in the
+  // background and never holds up the first frame.
+  await GetIt.instance<SubscriptionService>().initialize();
   // Must complete before the first page builds: the DI factory that picks
   // the active TransferRepository reads the persisted mode synchronously.
   final modeStore = GetIt.instance<TransferModeStore>();

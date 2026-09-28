@@ -4,7 +4,7 @@ import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/entitlement/license_gate.dart';
-import '../../../../core/entitlement/paywall_sheet.dart';
+import '../../../../core/entitlement/subscription_gate_page.dart';
 import '../../../../core/entitlement/premium_feature.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
@@ -22,7 +22,7 @@ Future<void> _switchToHotspot(BuildContext context) async {
   // hotspot page with the Bluetooth transport underneath it, and their
   // Bluetooth session already dropped.
   if (!GetIt.instance<LicenseGate>().allows(PremiumFeature.wifiTransport)) {
-    await showPaywallSheet(context, PremiumFeature.wifiTransport);
+    await openSubscriptionGate(context, PremiumFeature.wifiTransport);
     return;
   }
   if (!context.mounted) return;
