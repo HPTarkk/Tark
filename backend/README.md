@@ -159,9 +159,21 @@ contacts or location reaches this server.
 - Use managed PostgreSQL or a private-network database. The app runs
   migrations on start, under an advisory lock.
 - Put secrets in the platform's secret store, never in the repo.
-- Terminate TLS at ArvanCloud and set `TARK_CLIENT_IP_HEADER` and
-  `TARK_TRUSTED_PROXIES` to match its edge. Without them, per-IP limits
-  apply to the proxy's address.
+- Terminate TLS at ArvanCloud. Its CDN puts the visitor's address in the
+  `ar-real-ip` header, and the server believes that header only from
+  ArvanCloud's edge addresses (published at https://www.arvancloud.ir/ips.txt,
+  copied here on 2026-09-28; re-check them when ArvanCloud announces changes):
+
+  ```sh
+  TARK_CLIENT_IP_HEADER=ar-real-ip
+  TARK_TRUSTED_PROXIES=185.143.232.0/22,188.229.116.16/30,94.101.182.0/27,2.144.3.128/28,37.32.16.0/27,37.32.17.0/27,37.32.18.0/27,37.32.19.0/27,185.215.232.0/22,178.131.120.48/28,94.101.183.0/28,78.157.36.112/28,95.38.61.80/28,193.24.119.0/29
+  ```
+
+  If another proxy of ours sits between ArvanCloud and the server (a load
+  balancer or the platform's ingress), add its address range too. Without
+  these settings, per-IP limits apply to the proxy's address. Firewall the
+  server to these ranges too, so nobody can skip the CDN by using its own
+  address (a spoofed header from anywhere else is already ignored).
 - Health checks: `GET /healthz` (process up) and `GET /readyz` (database
   reachable).
 
@@ -187,10 +199,7 @@ contacts or location reaches this server.
    `/.well-known/apple-app-site-association` (Apple Team ID, once there is an
    iOS app), plus a small fallback page for people who open the link on a
    computer.
-5. **ArvanCloud client IP.** The header ArvanCloud puts the visitor's IP in
-   and its edge IP ranges are not confirmed yet. Until they are set, per-IP
-   limits see the proxy's address.
-6. **Deletion outside the app.** Google Play also asks for a web page where
+5. **Deletion outside the app.** Google Play also asks for a web page where
    people can request deletion without the app.
-7. **Sign in with Apple.** Not planned until there is an iOS app. Apple's
+6. **Sign in with Apple.** Not planned until there is an iOS app. Apple's
    rule 4.8 may require it next to Google sign-in then.
