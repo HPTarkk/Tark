@@ -152,11 +152,11 @@ contacts or location reaches this server.
 ## Still open
 
 1. **Bazaar refunds.** Bazaar's subscription API never reports refunds or
-   cancellations (see the project's `backend-design/bazaar-billing.md`).
-   The server infers a refund from a period cut short or a known token that
-   is no longer found. Refunds you grant yourself will need an admin
-   "refund this purchase" action that also calls Bazaar's cancel endpoint.
-   That waits on whether a refund should end access at once.
+   cancellations, and Bazaar has no subscription refunds of its own (a
+   cancelled subscription runs to the end of its period). So there is no
+   admin refund action. The server only infers a revocation from a period cut
+   short, or from a known token no longer being found, in case Bazaar support
+   ever revokes one.
 2. **Email provider.** Any SMTP provider works. The candidate so far is Gmail
    SMTP with an app password on the support account (free, a few hundred
    emails a day), which still needs to be tested from an ArvanCloud server.

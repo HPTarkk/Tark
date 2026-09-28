@@ -210,7 +210,7 @@ func Load() (*Config, error) {
 		ClientID:     secret("TARK_BAZAAR_CLIENT_ID", false),
 		ClientSecret: secret("TARK_BAZAAR_CLIENT_SECRET", false),
 		RefreshToken: secret("TARK_BAZAAR_REFRESH_TOKEN", false),
-		SKUs:         splitList(get("TARK_BAZAAR_SKUS", "tark_premium_1m,tark_premium_6m,tark_premium_12m")),
+		SKUs:         splitList(get("TARK_BAZAAR_SKUS", "tark_premium_1m,tark_premium_12m")),
 	}
 
 	c.Mail = MailConfig{

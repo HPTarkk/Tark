@@ -105,7 +105,7 @@ func setup(t *testing.T) *env {
 		Keys: config.Keys{TokenKey: key(1), LookupKey: key(2), DataKey: key(3), Pepper: key(4),
 			EntitlementSeeds: map[string][]byte{"k1": key(5)}, EntitlementKID: "k1"},
 		Google:             config.GoogleConfig{ClientIDs: []string{googleAud}, RequireNonce: true, JWKSURL: g.Server.URL},
-		Bazaar:             config.BazaarConfig{SKUs: []string{"tark_premium_1m", "tark_premium_6m", "tark_premium_12m"}},
+		Bazaar:             config.BazaarConfig{SKUs: []string{"tark_premium_1m", "tark_premium_12m"}},
 		Policy:             config.EntitlementPolicy{GraceHours: 72, RefreshDays: 5, SuspiciousOfflineHrs: 72},
 		AccessTokenTTL:     15 * time.Minute,
 		RefreshTokenTTL:    180 * 24 * time.Hour,
@@ -613,11 +613,11 @@ func TestSubscription(t *testing.T) {
 	expect(t, q.do("POST", "/v1/subscription/bazaar/purchases", inv, "Idempotency-Key", "0d2e7c1a-7777-4bbb-8ccc-123456789abd"), 422, "purchase_invalid")
 
 	// Bazaar down on first submission: retry later, nothing is lost.
-	down := q.do("POST", "/v1/subscription/bazaar/purchases", map[string]any{"sku": "tark_premium_6m", "purchaseToken": "down-1"},
+	down := q.do("POST", "/v1/subscription/bazaar/purchases", map[string]any{"sku": "tark_premium_12m", "purchaseToken": "down-1"},
 		"Idempotency-Key", "0d2e7c1a-7777-4bbb-8ccc-123456789abe")
 	expect(t, down, 503, "bazaar_unavailable")
 	e.bazaar.Set("down-1", billing.Subscription{InitiatedAt: time.Now(), ValidUntil: time.Now().Add(180 * 24 * time.Hour), AutoRenewing: false}, nil)
-	up := q.do("POST", "/v1/subscription/bazaar/purchases", map[string]any{"sku": "tark_premium_6m", "purchaseToken": "down-1"},
+	up := q.do("POST", "/v1/subscription/bazaar/purchases", map[string]any{"sku": "tark_premium_12m", "purchaseToken": "down-1"},
 		"Idempotency-Key", "0d2e7c1a-7777-4bbb-8ccc-123456789abe")
 	expect(t, up, 200, "")
 	if mm := e.decodeEntitlement(up.str("entitlement"), q.install); mm["st"] != "active" || mm["ar"] != false || mm["sus"] != false {
