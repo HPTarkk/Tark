@@ -601,7 +601,13 @@ class _OnAirTagState extends State<_OnAirTag>
   late final AnimationController _pulse = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1100),
-  )..repeat(reverse: true);
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _pulse.loopUnlessReduced(context, reverse: true);
+  }
 
   @override
   void dispose() {

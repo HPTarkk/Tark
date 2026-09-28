@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/app_avatar.dart';
 
@@ -60,8 +61,8 @@ class _PeerDepartureBannerState extends State<PeerDepartureBanner> {
   Widget build(BuildContext context) {
     final departure = widget.departure;
     return AnimatedSize(
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOutCubic,
+      duration: AppMotion.sheet,
+      curve: AppMotion.easeOut,
       alignment: Alignment.topCenter,
       child: (!_visible || departure == null)
           ? const SizedBox(width: double.infinity)

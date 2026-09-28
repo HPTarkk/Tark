@@ -4,9 +4,8 @@ import 'package:tark/core/l10n/extension.dart';
 
 import 'core/l10n/app_localizations.dart';
 import 'core/locale/locale_service.dart';
-import 'core/motion/app_motion.dart';
 import 'core/sfx/sfx_service.dart';
-import 'core/theme/app_colors.dart';
+import 'core/theme/app_theme.dart';
 import 'core/theme/theme_service.dart';
 import 'core/widget/theme_reveal_transition.dart';
 // Direct file import (not the transfer barrel): the barrel exports pages
@@ -88,24 +87,7 @@ class _GuestAppState extends State<GuestApp> {
           child: child!,
         ),
       ),
-      theme: ThemeData(
-        fontFamily: 'Vazirmatn',
-        brightness: ThemeService.isLight ? Brightness.light : Brightness.dark,
-        scaffoldBackgroundColor: AppColors.background,
-        useMaterial3: true,
-        // Same pairing as MyApp: M3 snackbar defaults (inverseSurface) don't
-        // match the palette, so pin card background + readable text.
-        snackBarTheme: SnackBarThemeData(
-          backgroundColor: AppColors.card,
-          contentTextStyle: TextStyle(
-            fontFamily: 'Vazirmatn',
-            color: AppColors.textPrimary,
-            fontSize: 14,
-          ),
-          actionTextColor: AppColors.amber,
-        ),
-        pageTransitionsTheme: AppPageTransitionsBuilder.theme,
-      ),
+      theme: buildAppTheme(),
       home: const GuestJoinPage(),
     );
   }

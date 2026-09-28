@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../audio/api/audio_api.dart';
@@ -79,8 +80,9 @@ class _BackgroundPermissionBannerState extends State<BackgroundPermissionBanner>
   @override
   Widget build(BuildContext context) {
     return AnimatedSize(
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOut,
+      duration: AppMotion.sheet,
+      curve: AppMotion.easeOut,
+      alignment: Alignment.topCenter,
       child: !_show
           ? const SizedBox(width: double.infinity)
           : _buildCard(context),

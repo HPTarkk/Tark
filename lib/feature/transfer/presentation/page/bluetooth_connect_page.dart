@@ -10,6 +10,7 @@ import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/widget/link_established.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/android_sdk.dart';
 import '../../../../core/utils/logger.dart';
@@ -218,45 +219,57 @@ class _BluetoothConnectPageState extends State<BluetoothConnectPage>
                 }
               }
             },
-            builder: (context, state) {
-              // Android runs Classic RFCOMM + BLE; iOS runs BLE. Anything
-              // else (desktop, web) has no Bluetooth transport.
-              if (!Platform.isAndroid && !Platform.isIOS) {
-                return BluetoothStatusMessage(
-                  icon: Icons.bluetooth_disabled_rounded,
-                  text: s.bt_not_supported_platform,
-                );
-              }
-              if (_permissionDenied) {
-                return BluetoothPermissionDenied(
-                  onOpenSettings: openAppSettings,
-                  onRetry: _ensurePermissions,
-                );
-              }
-              if (state.connectionState == BluetoothConnectionState.connected ||
-                  _navigatingToWalkie) {
-                return const BluetoothConnectedFlash();
-              }
-              if (state.connectionState == BluetoothConnectionState.error) {
-                return BluetoothErrorCard(
-                  onRetry: () => context
-                      .read<BluetoothConnectCubit>()
-                      .backToRoleSelection(),
-                );
-              }
-              if (state.role == null) {
-                return BluetoothRoleSelection(
-                  onEnsurePermissions: _ensurePermissions,
-                );
-              }
-              if (state.role == BluetoothRole.host) {
-                return BluetoothHostBeacon(state: state);
-              }
-              return BluetoothJoinerRadar(state: state);
-            },
+            builder: (context, state) =>
+                PhaseSwitcher(child: _phase(context, s, state)),
           ),
         ),
       ),
     );
+  }
+
+  /// The body for the current step, keyed so [PhaseSwitcher] crossfades
+  /// between steps and updates within one in place.
+  Widget _phase(
+    BuildContext context,
+    AppLocalizations s,
+    BluetoothConnectState state,
+  ) {
+    // Android runs Classic RFCOMM + BLE; iOS runs BLE. Anything
+    // else (desktop, web) has no Bluetooth transport.
+    if (!Platform.isAndroid && !Platform.isIOS) {
+      return BluetoothStatusMessage(
+        key: const ValueKey('unsupported'),
+        icon: Icons.bluetooth_disabled_rounded,
+        text: s.bt_not_supported_platform,
+      );
+    }
+    if (_permissionDenied) {
+      return BluetoothPermissionDenied(
+        key: const ValueKey('denied'),
+        onOpenSettings: openAppSettings,
+        onRetry: _ensurePermissions,
+      );
+    }
+    if (state.connectionState == BluetoothConnectionState.connected ||
+        _navigatingToWalkie) {
+      return const BluetoothConnectedFlash(key: ValueKey('connected'));
+    }
+    if (state.connectionState == BluetoothConnectionState.error) {
+      return BluetoothErrorCard(
+        key: const ValueKey('error'),
+        onRetry: () =>
+            context.read<BluetoothConnectCubit>().backToRoleSelection(),
+      );
+    }
+    if (state.role == null) {
+      return BluetoothRoleSelection(
+        key: const ValueKey('roles'),
+        onEnsurePermissions: _ensurePermissions,
+      );
+    }
+    if (state.role == BluetoothRole.host) {
+      return BluetoothHostBeacon(state: state, key: const ValueKey('host'));
+    }
+    return BluetoothJoinerRadar(state: state, key: const ValueKey('join'));
   }
 }

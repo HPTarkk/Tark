@@ -331,8 +331,8 @@ class _LegacyTransportRoster extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             AnimatedSize(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOut,
+              duration: AppMotion.card,
+              curve: AppMotion.easeOut,
               alignment: AlignmentDirectional.topStart,
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),
@@ -587,7 +587,13 @@ class _WaveformBarsState extends State<WaveformBars>
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true);
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _controller.loopUnlessReduced(context, reverse: true);
   }
 
   @override

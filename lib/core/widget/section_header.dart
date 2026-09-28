@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../motion/app_motion.dart';
 import '../theme/app_colors.dart';
 
 /// Amber bar + label row used to introduce a grouped section, with an
@@ -30,8 +31,8 @@ class SectionHeader extends StatelessWidget {
           ),
         ),
         AnimatedSize(
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOut,
+          duration: AppMotion.chip,
+          curve: AppMotion.easeOut,
           child: badge != null
               ? Row(
                   mainAxisSize: MainAxisSize.min,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/theme_service.dart';
 import '../../../audio/api/audio_api.dart';
@@ -192,8 +193,8 @@ class _StatusReadoutState extends State<_StatusReadout>
   );
 
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
     _syncPulse();
   }
 
@@ -204,7 +205,9 @@ class _StatusReadoutState extends State<_StatusReadout>
   }
 
   void _syncPulse() {
-    if (widget.scope.pulse) {
+    // Reduced motion keeps the dot lit and still: the colour already says
+    // "on air", and a loop that never ends is what the setting asks to drop.
+    if (widget.scope.pulse && !AppMotion.reduced(context)) {
       if (!_pulse.isAnimating) _pulse.repeat(reverse: true);
     } else if (_pulse.isAnimating) {
       _pulse.stop();

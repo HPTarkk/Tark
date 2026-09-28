@@ -168,7 +168,7 @@ void main() {
     await settleInvite(tester);
 
     expect(
-      find.text('این کد فقط برای بررسی است و به‌تنهایی اجازه ورود نمی‌دهد.'),
+      find.text('این کد فقط برای بررسیه و به‌تنهایی اجازه‌ی ورود نمی‌ده.'),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);
@@ -236,7 +236,7 @@ void main() {
     await openSheet(tester);
 
     expect(find.byKey(const Key('room-people-invite')), findsNothing);
-    expect(find.text('No Room is selected.'), findsOneWidget);
+    expect(find.text('No room is selected.'), findsOneWidget);
   });
 
   testWidgets('primary invite shows one QR and host network is recovery-only', (

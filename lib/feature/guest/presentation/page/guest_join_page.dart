@@ -1,12 +1,12 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widget/copy_chip.dart';
 import '../../../../core/widget/qr_widgets.dart';
 // Direct file imports (not the transfer barrel) — see GuestWebClient.
 import '../../../transfer/domain/codec/sdp_payload.dart';
@@ -230,40 +230,10 @@ class _ReplyQr extends StatelessWidget {
         const SizedBox(height: 14),
         // Not physically near the host to be scanned? This text is the same
         // payload as the QR — copy and send it back through any chat app.
-        GestureDetector(
-          onTap: () {
-            Clipboard.setData(ClipboardData(text: 'a=$payload'));
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(context.getString.guest_web_reply_copied),
-                duration: const Duration(seconds: 1),
-              ),
-            );
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppColors.card,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.copy_rounded, color: AppColors.amber, size: 14),
-                const SizedBox(width: 6),
-                Text(
-                  context.getString.guest_web_reply_copy,
-                  style: TextStyle(
-                    color: AppColors.amber,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1,
-                  ),
-                ),
-              ],
-            ),
-          ),
+        CopyChip(
+          text: 'a=$payload',
+          label: context.getString.guest_web_reply_copy,
+          copiedLabel: context.getString.guest_web_reply_copied,
         ),
         const SizedBox(height: 20),
         const _WaitingDots(),

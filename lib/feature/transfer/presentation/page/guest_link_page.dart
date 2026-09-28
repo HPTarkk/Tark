@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../../../../core/motion/app_motion.dart';
+import '../../../../core/widget/copy_chip.dart';
 import '../../../../core/widget/link_established.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/extension.dart';
@@ -193,7 +194,7 @@ class _InviteBody extends StatelessWidget {
         _Entrance(
           delayMs: 120,
           child: Center(
-            child: _CopyChip(
+            child: CopyChip(
               text: inviteUrl,
               label: s.guest_copy_link,
               copiedLabel: s.guest_link_copied,
@@ -380,58 +381,6 @@ class _LanBadge extends StatelessWidget {
   }
 }
 
-/// Small tap-to-copy chip, reused for the invite link.
-class _CopyChip extends StatelessWidget {
-  final String text;
-  final String label;
-  final String copiedLabel;
-
-  const _CopyChip({
-    required this.text,
-    required this.label,
-    required this.copiedLabel,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        Clipboard.setData(ClipboardData(text: text));
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(copiedLabel),
-            duration: const Duration(seconds: 1),
-          ),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.copy_rounded, color: AppColors.amber, size: 14),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: AppColors.amber,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 /// Primary action with a slow breathing glow so it reads as "this is your
 /// next move" without shouting.
 class _PulsingActionButton extends StatefulWidget {
@@ -454,7 +403,13 @@ class _PulsingActionButtonState extends State<_PulsingActionButton>
   late final AnimationController _pulse = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1600),
-  )..repeat(reverse: true);
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _pulse.loopUnlessReduced(context, reverse: true);
+  }
 
   @override
   void dispose() {
@@ -543,10 +498,16 @@ class _AnswerScannerState extends State<_AnswerScanner>
   late final AnimationController _line = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 2000),
-  )..repeat(reverse: true);
+  );
 
   bool _done = false;
   bool _torchOn = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _line.loopUnlessReduced(context, reverse: true);
+  }
 
   @override
   void dispose() {

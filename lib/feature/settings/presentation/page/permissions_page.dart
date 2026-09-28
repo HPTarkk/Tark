@@ -1,9 +1,11 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/android_sdk.dart';
 import '../../../../core/utils/permission_queue.dart';
@@ -131,58 +133,79 @@ class _PermissionsPageState extends State<PermissionsPage>
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: AppColors.systemOverlayStyle,
+      child: Scaffold(
         backgroundColor: AppColors.background,
-        title: Text(
-          s.permissions_title,
-          style: TextStyle(color: AppColors.textPrimary),
-        ),
-        iconTheme: IconThemeData(color: AppColors.textPrimary),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          PermissionTile(
-            icon: Icons.mic_rounded,
-            title: s.permission_mic_title,
-            description: s.permission_mic_desc,
-            status: _mic,
-            onRequest: _requestMic,
-            onOpenSettings: openAppSettings,
+        // Same bar as Settings, which this page is opened from.
+        appBar: AppBar(
+          backgroundColor: AppColors.background,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+            onPressed: () => Navigator.of(context).maybePop(),
           ),
-          if (Platform.isAndroid) ...[
-            PermissionTile(
-              icon: Icons.bluetooth_rounded,
-              title: s.permission_bluetooth_title,
-              description: s.permission_bluetooth_desc,
-              status: _bluetooth,
-              onRequest: _requestBluetooth,
-              onOpenSettings: openAppSettings,
+          title: Text(
+            s.permissions_title,
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
             ),
-            PermissionTile(
-              icon: Icons.wifi_tethering_rounded,
-              title: s.permission_hotspot_title,
-              description: s.permission_hotspot_desc,
-              status: _hotspot,
-              onRequest: _requestHotspot,
-              onOpenSettings: openAppSettings,
+          ),
+        ),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            child: StaggeredEntrance(
+              builder: (context, tiles) => Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: tiles,
+              ),
+              children: [
+                PermissionTile(
+                  icon: Icons.mic_rounded,
+                  title: s.permission_mic_title,
+                  description: s.permission_mic_desc,
+                  status: _mic,
+                  onRequest: _requestMic,
+                  onOpenSettings: openAppSettings,
+                ),
+                if (Platform.isAndroid) ...[
+                  PermissionTile(
+                    icon: Icons.bluetooth_rounded,
+                    title: s.permission_bluetooth_title,
+                    description: s.permission_bluetooth_desc,
+                    status: _bluetooth,
+                    onRequest: _requestBluetooth,
+                    onOpenSettings: openAppSettings,
+                  ),
+                  PermissionTile(
+                    icon: Icons.wifi_tethering_rounded,
+                    title: s.permission_hotspot_title,
+                    description: s.permission_hotspot_desc,
+                    status: _hotspot,
+                    onRequest: _requestHotspot,
+                    onOpenSettings: openAppSettings,
+                  ),
+                  PermissionTile(
+                    icon: Icons.battery_saver_rounded,
+                    title: s.permission_battery_title,
+                    description: s.permission_battery_desc,
+                    status: _batteryExempt
+                        ? PermissionTileStatus.granted
+                        : PermissionTileStatus.denied,
+                    onRequest: () =>
+                        SessionKeepAlive.requestIgnoreBatteryOptimizations(),
+                    onOpenSettings: () =>
+                        SessionKeepAlive.requestIgnoreBatteryOptimizations(),
+                  ),
+                ],
+              ],
             ),
-            PermissionTile(
-              icon: Icons.battery_saver_rounded,
-              title: s.permission_battery_title,
-              description: s.permission_battery_desc,
-              status: _batteryExempt
-                  ? PermissionTileStatus.granted
-                  : PermissionTileStatus.denied,
-              onRequest: () =>
-                  SessionKeepAlive.requestIgnoreBatteryOptimizations(),
-              onOpenSettings: () =>
-                  SessionKeepAlive.requestIgnoreBatteryOptimizations(),
-            ),
-          ],
-        ],
+          ),
+        ),
       ),
     );
   }

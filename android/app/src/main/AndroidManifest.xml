@@ -82,7 +82,7 @@
          invisible. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
-        android:label="تَرک"
+        android:label="@string/app_name"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <!-- Two things here keep the app to exactly ONE instance, and both

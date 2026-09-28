@@ -59,7 +59,7 @@ class LandingIdentityCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  state.myName.isEmpty ? '...' : state.myName,
+                  state.myName.isEmpty ? '…' : state.myName,
                   style: TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 18,
@@ -89,7 +89,9 @@ class LandingIdentityCard extends StatelessWidget {
                         text: networkStatus,
                         duration: const Duration(milliseconds: 300),
                         style: TextStyle(
-                          color: ready ? AppColors.textSecondary : AppColors.red,
+                          color: ready
+                              ? AppColors.textSecondary
+                              : AppColors.red,
                           fontSize: 12,
                         ),
                         overflow: TextOverflow.ellipsis,
