@@ -131,7 +131,7 @@ abstract class AppLocalizations {
   /// No description provided for @connecting.
   ///
   /// In fa, this message translates to:
-  /// **'دارم وصل می‌شم...'**
+  /// **'دارم وصل می‌شم…'**
   String get connecting;
 
   /// No description provided for @monitoring.
@@ -227,7 +227,7 @@ abstract class AppLocalizations {
   /// No description provided for @music_cast_starting.
   ///
   /// In fa, this message translates to:
-  /// **'دارم شروع می‌کنم...'**
+  /// **'دارم شروع می‌کنم…'**
   String get music_cast_starting;
 
   /// No description provided for @music_cast_stop.
@@ -551,7 +551,7 @@ abstract class AppLocalizations {
   /// No description provided for @guest_link_copied.
   ///
   /// In fa, this message translates to:
-  /// **'پیوند دعوت کپی شد!'**
+  /// **'پیوند دعوت کپی شد'**
   String get guest_link_copied;
 
   /// No description provided for @guest_paste_answer.
@@ -629,7 +629,7 @@ abstract class AppLocalizations {
   /// No description provided for @guest_web_reply_copied.
   ///
   /// In fa, this message translates to:
-  /// **'کد پاسخ کپی شد!'**
+  /// **'کد پاسخ کپی شد'**
   String get guest_web_reply_copied;
 
   /// No description provided for @guest_web_connected.
@@ -665,7 +665,7 @@ abstract class AppLocalizations {
   /// No description provided for @guest_web_talking.
   ///
   /// In fa, this message translates to:
-  /// **'داری حرف می‌زنی...'**
+  /// **'داری حرف می‌زنی…'**
   String get guest_web_talking;
 
   /// No description provided for @guest_web_on_air.
@@ -677,7 +677,7 @@ abstract class AppLocalizations {
   /// No description provided for @guest_web_standby.
   ///
   /// In fa, this message translates to:
-  /// **'منتظرم...'**
+  /// **'منتظرم…'**
   String get guest_web_standby;
 
   /// No description provided for @guest_web_link_lost.
@@ -689,7 +689,7 @@ abstract class AppLocalizations {
   /// No description provided for @guest_web_link_lost_text.
   ///
   /// In fa, this message translates to:
-  /// **'گمت کردم — دارم دوباره تلاش می‌کنم...'**
+  /// **'گمت کردم — دارم دوباره تلاش می‌کنم…'**
   String get guest_web_link_lost_text;
 
   /// No description provided for @guest_web_left_title.
@@ -749,7 +749,7 @@ abstract class AppLocalizations {
   /// No description provided for @bt_link_reconnecting.
   ///
   /// In fa, this message translates to:
-  /// **'بلوتوث قطع شد — دارم دوباره تلاش می‌کنم...'**
+  /// **'بلوتوث قطع شد — دارم دوباره تلاش می‌کنم…'**
   String get bt_link_reconnecting;
 
   /// No description provided for @bt_link_down.
@@ -761,13 +761,13 @@ abstract class AppLocalizations {
   /// No description provided for @bt_waiting_for_peer.
   ///
   /// In fa, this message translates to:
-  /// **'منتظر گوشی دیگه‌ام...'**
+  /// **'منتظر گوشی دیگه‌ام…'**
   String get bt_waiting_for_peer;
 
   /// No description provided for @bt_scanning.
   ///
   /// In fa, this message translates to:
-  /// **'دارم می‌گردم...'**
+  /// **'دارم می‌گردم…'**
   String get bt_scanning;
 
   /// No description provided for @bt_no_devices_found.
@@ -803,7 +803,7 @@ abstract class AppLocalizations {
   /// No description provided for @bt_connecting.
   ///
   /// In fa, this message translates to:
-  /// **'دارم وصل می‌شم...'**
+  /// **'دارم وصل می‌شم…'**
   String get bt_connecting;
 
   /// No description provided for @bt_connected.
@@ -1139,7 +1139,7 @@ abstract class AppLocalizations {
   /// No description provided for @link_reconnecting.
   ///
   /// In fa, this message translates to:
-  /// **'گمت کردم — دارم دوباره تلاش می‌کنم...'**
+  /// **'گمت کردم — دارم دوباره تلاش می‌کنم…'**
   String get link_reconnecting;
 
   /// No description provided for @link_reconnecting_in.
@@ -1253,7 +1253,7 @@ abstract class AppLocalizations {
   /// No description provided for @hotspot_creating.
   ///
   /// In fa, this message translates to:
-  /// **'دارم هات‌اسپات می‌سازم...'**
+  /// **'دارم هات‌اسپات می‌سازم…'**
   String get hotspot_creating;
 
   /// No description provided for @hotspot_wifi_note_title.
@@ -1361,7 +1361,7 @@ abstract class AppLocalizations {
   /// No description provided for @hotspot_waiting.
   ///
   /// In fa, this message translates to:
-  /// **'منتظر گوشی دیگه‌ام...'**
+  /// **'منتظر گوشی دیگه‌ام…'**
   String get hotspot_waiting;
 
   /// No description provided for @hotspot_step_scan.
@@ -1391,7 +1391,7 @@ abstract class AppLocalizations {
   /// No description provided for @hotspot_copied.
   ///
   /// In fa, this message translates to:
-  /// **'کپی شد!'**
+  /// **'کپی شد'**
   String get hotspot_copied;
 
   /// No description provided for @hotspot_enter_channel.
@@ -1505,7 +1505,7 @@ abstract class AppLocalizations {
   /// No description provided for @hotspot_joining.
   ///
   /// In fa, this message translates to:
-  /// **'دارم به شبکه وصل می‌شم... به سؤال اندروید که می‌پرسه به این شبکه وصل بشه یا نه، «آره» بگو — تو بعضی گوشی‌ها به جای صفحه، تو اعلان‌ها میاد.'**
+  /// **'دارم به شبکه وصل می‌شم… به سؤال اندروید که می‌پرسه به این شبکه وصل بشه یا نه، «آره» بگو — تو بعضی گوشی‌ها به جای صفحه، تو اعلان‌ها میاد.'**
   String get hotspot_joining;
 
   /// No description provided for @hotspot_joined.
@@ -2423,19 +2423,19 @@ abstract class AppLocalizations {
   /// No description provided for @retry_still_trying.
   ///
   /// In fa, this message translates to:
-  /// **'هنوز دارم تلاش می‌کنم...'**
+  /// **'هنوز دارم تلاش می‌کنم…'**
   String get retry_still_trying;
 
   /// No description provided for @bt_still_trying.
   ///
   /// In fa, this message translates to:
-  /// **'هنوز دارم دنبالشون می‌گردم...'**
+  /// **'هنوز دارم دنبالشون می‌گردم…'**
   String get bt_still_trying;
 
   /// No description provided for @hotspot_still_trying.
   ///
   /// In fa, this message translates to:
-  /// **'هنوز دارم راهش می‌ندازم...'**
+  /// **'هنوز دارم راهش می‌ندازم…'**
   String get hotspot_still_trying;
 
   /// No description provided for @premium_badge.
@@ -2921,7 +2921,7 @@ abstract class AppLocalizations {
   /// No description provided for @preflight_subtitle_checking.
   ///
   /// In fa, this message translates to:
-  /// **'در حال بررسی وضعیت...'**
+  /// **'در حال بررسی وضعیت…'**
   String get preflight_subtitle_checking;
 
   /// No description provided for @preflight_subtitle_ready.
@@ -2945,7 +2945,7 @@ abstract class AppLocalizations {
   /// No description provided for @preflight_checking.
   ///
   /// In fa, this message translates to:
-  /// **'در حال بررسی...'**
+  /// **'در حال بررسی…'**
   String get preflight_checking;
 
   /// No description provided for @preflight_fix_issues.
@@ -3101,7 +3101,7 @@ abstract class AppLocalizations {
   /// No description provided for @lobby_unlinked_body.
   ///
   /// In fa, this message translates to:
-  /// **'تارک روی وای‌فای، هات‌اسپاتی که یکی‌تان روشن می‌کند، یا بلوتوث کار می‌کند — بدون اینترنت و بدون سیم‌کارت. الان این گوشی روی هیچ‌کدام نیست.'**
+  /// **'«ترک» روی وای‌فای، هات‌اسپاتی که یکی‌تان روشن می‌کند، یا بلوتوث کار می‌کند — بدون اینترنت و بدون سیم‌کارت. الان این گوشی روی هیچ‌کدام نیست.'**
   String get lobby_unlinked_body;
 
   /// No description provided for @lobby_unlinked_no_way_out.
@@ -4169,13 +4169,13 @@ abstract class AppLocalizations {
   /// No description provided for @bt_resume_looking_for.
   ///
   /// In fa, this message translates to:
-  /// **'دنبال {name} می‌گردیم...'**
+  /// **'دنبال {name} می‌گردیم…'**
   String bt_resume_looking_for(String name);
 
   /// No description provided for @bt_resume_waiting.
   ///
   /// In fa, this message translates to:
-  /// **'منتظر گوشی دیگه‌ایم...'**
+  /// **'منتظر گوشی دیگه‌ایم…'**
   String get bt_resume_waiting;
 
   /// No description provided for @bt_resume_hint.

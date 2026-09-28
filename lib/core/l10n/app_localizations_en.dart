@@ -24,7 +24,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get edit_name => 'EDIT';
 
   @override
-  String get connecting => 'Hooking up...';
+  String get connecting => 'Hooking up…';
 
   @override
   String get monitoring => 'LISTENING';
@@ -73,7 +73,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get music_cast_start => 'START SHARING';
 
   @override
-  String get music_cast_starting => 'STARTING...';
+  String get music_cast_starting => 'STARTING…';
 
   @override
   String get music_cast_stop => 'STOP';
@@ -157,7 +157,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get channel_join => 'JOIN A CHANNEL';
 
   @override
-  String get channel_via_shared_network => 'on this WiFi network';
+  String get channel_via_shared_network => 'on this Wi-Fi network';
 
   @override
   String get channel_via_own_hotspot => 'this phone makes the network';
@@ -206,10 +206,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get leave => 'LEAVE';
 
   @override
-  String get transport_wifi => 'WIFI';
+  String get transport_wifi => 'WI-FI';
 
   @override
-  String get transport_wifi_hotspot => 'WIFI / HOTSPOT';
+  String get transport_wifi_hotspot => 'WI-FI / HOTSPOT';
 
   @override
   String get transport_bluetooth => 'BLUETOOTH';
@@ -279,7 +279,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get guest_web_reply_hint =>
-      'On the host: tap \"SCAN REPLY CODE\" and point the camera over here.';
+      'On the host: tap “SCAN REPLY CODE” and point the camera over here.';
 
   @override
   String get guest_web_reply_copy => 'COPY CODE';
@@ -304,7 +304,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get guest_web_unmute => 'UNMUTE';
 
   @override
-  String get guest_web_talking => 'Talking...';
+  String get guest_web_talking => 'Talking…';
 
   @override
   String get guest_web_on_air => 'Everyone can hear you';
@@ -316,7 +316,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get guest_web_link_lost => 'CONNECTION LOST';
 
   @override
-  String get guest_web_link_lost_text => 'Lost you — trying again...';
+  String get guest_web_link_lost_text => 'Lost you — trying again…';
 
   @override
   String get guest_web_left_title => 'You left the channel';
@@ -349,17 +349,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bt_reconnect => 'CONNECT AGAIN';
 
   @override
-  String get bt_link_reconnecting =>
-      'Lost the Bluetooth link — trying again...';
+  String get bt_link_reconnecting => 'Lost the Bluetooth link — trying again…';
 
   @override
   String get bt_link_down => 'Bluetooth connection lost';
 
   @override
-  String get bt_waiting_for_peer => 'Waiting on the other phone...';
+  String get bt_waiting_for_peer => 'Waiting on the other phone…';
 
   @override
-  String get bt_scanning => 'Having a look...';
+  String get bt_scanning => 'Having a look…';
 
   @override
   String get bt_no_devices_found => 'Nothing nearby';
@@ -378,7 +377,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get landing_ready => 'Ready to talk';
 
   @override
-  String get bt_connecting => 'Hooking up...';
+  String get bt_connecting => 'Hooking up…';
 
   @override
   String get bt_connected => 'You\'re in!';
@@ -389,7 +388,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get bt_not_supported_platform =>
-      'Bluetooth doesn\'t work on this phone yet — use WiFi instead.';
+      'Bluetooth doesn\'t work on this phone yet — use Wi-Fi instead.';
 
   @override
   String get open_settings => 'OPEN SETTINGS';
@@ -567,7 +566,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Automatically lowers shared music while someone is talking';
 
   @override
-  String get link_reconnecting => 'Lost you — trying again...';
+  String get link_reconnecting => 'Lost you — trying again…';
 
   @override
   String link_reconnecting_in(Object seconds) {
@@ -636,7 +635,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Android picks this name itself and no app can change it. This is your Tarkk hotspot — and the other phone never has to read it, scanning the code is enough.';
 
   @override
-  String get hotspot_creating => 'Making the hotspot...';
+  String get hotspot_creating => 'Making the hotspot…';
 
   @override
   String get hotspot_wifi_note_title =>
@@ -700,7 +699,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hotspot_wifi_off_page_skip => 'Continue anyway';
 
   @override
-  String get hotspot_waiting => 'Waiting on the other phone...';
+  String get hotspot_waiting => 'Waiting on the other phone…';
 
   @override
   String get hotspot_step_scan =>
@@ -717,7 +716,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hotspot_password => 'PASSWORD';
 
   @override
-  String get hotspot_copied => 'copied';
+  String get hotspot_copied => 'Copied';
 
   @override
   String get hotspot_enter_channel => 'ENTER CHANNEL';
@@ -786,7 +785,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get hotspot_joining =>
-      'Joining the network... Say yes to Android\'s \"connect to this network\" prompt — on some phones it turns up in your notifications rather than on screen.';
+      'Joining the network… Say yes to Android\'s “connect to this network” prompt — on some phones it turns up in your notifications rather than on screen.';
 
   @override
   String get hotspot_joined => 'You\'re on the network';
@@ -985,11 +984,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'See and change what the app can get at';
 
   @override
-  String get settings_wifi_hotspot_row => 'WiFi / Hotspot setup';
+  String get settings_wifi_hotspot_row => 'Wi-Fi / Hotspot setup';
 
   @override
   String get settings_wifi_hotspot_row_desc =>
-      'Make a hotspot, or see how to join over WiFi';
+      'Make a hotspot, or see how to join over Wi-Fi';
 
   @override
   String get settings_skip_splash => 'Skip splash screen';
@@ -1045,7 +1044,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Talk to phones nearby with no internet — straight across, fast and private.';
 
   @override
-  String get onboarding_info_lan => 'Works over shared WiFi or a hotspot';
+  String get onboarding_info_lan => 'Works over shared Wi-Fi or a hotspot';
 
   @override
   String get onboarding_info_private =>
@@ -1083,11 +1082,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onboarding_mode_auto_desc =>
-      'Tarkk picks — same WiFi, its own hotspot, or Bluetooth';
+      'Tarkk picks — same Wi-Fi, its own hotspot, or Bluetooth';
 
   @override
   String get onboarding_mode_wifi_desc =>
-      'Everyone on the same WiFi — clearest sound, longest reach';
+      'Everyone on the same Wi-Fi — clearest sound, longest reach';
 
   @override
   String get onboarding_mode_bluetooth_desc =>
@@ -1303,13 +1302,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fix_reconnect => 'RECONNECT';
 
   @override
-  String get retry_still_trying => 'Still trying...';
+  String get retry_still_trying => 'Still trying…';
 
   @override
-  String get bt_still_trying => 'Still trying to reach them...';
+  String get bt_still_trying => 'Still trying to reach them…';
 
   @override
-  String get hotspot_still_trying => 'Still setting it up...';
+  String get hotspot_still_trying => 'Still setting it up…';
 
   @override
   String get premium_badge => 'PREMIUM';
@@ -1935,7 +1934,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get people_grant_hint =>
-      'With this on, they can bring others into the Room too.';
+      'With this on, they can bring others into the room too.';
 
   @override
   String get people_granted_note =>
@@ -1943,13 +1942,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get people_cannot_invite =>
-      'You cannot invite people to this Room. Ask the host to turn on “Let them invite people” when they invite you.';
+      'You cannot invite people to this room. Ask the host to turn on “Let them invite people” when they invite you.';
 
   @override
   String get people_issue_error => 'Could not create the invite. Try again.';
 
   @override
-  String get people_no_room => 'No Room is selected.';
+  String get people_no_room => 'No room is selected.';
 
   @override
   String get people_wifi_title => 'Host Wi-Fi connection';
@@ -1962,7 +1961,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get people_wifi_ephemeral =>
-      'These credentials belong only to the current connection, not the Room.';
+      'These credentials belong only to the current connection, not the room.';
 
   @override
   String get people_wifi_recovering =>
@@ -2270,15 +2269,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get consent_title_first => 'Before we start';
 
   @override
-  String get consent_title_updated => 'We’ve updated these';
+  String get consent_title_updated => 'We\'ve updated these';
 
   @override
   String get consent_body_first =>
-      'Tark has no account and no server carrying your voice. These two documents say what that means in practice — and what it doesn’t protect you from. The short version of each is below; the full text is one tap away.';
+      'Tark has no account and no server carrying your voice. These two documents say what that means in practice — and what it doesn\'t protect you from. The short version of each is below; the full text is one tap away.';
 
   @override
   String get consent_body_updated =>
-      'The documents below have changed since you last agreed to them. Here’s the short version of each, and the full text if you want it.';
+      'The documents below have changed since you last agreed to them. Here\'s the short version of each, and the full text if you want it.';
 
   @override
   String get consent_accept => 'I agree — continue';
@@ -2300,18 +2299,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get consent_partial_notice =>
-      'This version of the app can’t show part of this document. Read it in full at tarkk.ir.';
+      'This version of the app can\'t show part of this document. Read it in full at tarkk.ir.';
 
   @override
   String get bt_resume_title => 'Reconnecting over Bluetooth';
 
   @override
   String bt_resume_looking_for(String name) {
-    return 'Looking for $name...';
+    return 'Looking for $name…';
   }
 
   @override
-  String get bt_resume_waiting => 'Waiting for the other phone...';
+  String get bt_resume_waiting => 'Waiting for the other phone…';
 
   @override
   String get bt_resume_hint => 'Open Tarkk on the other phone too.';

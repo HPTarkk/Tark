@@ -24,7 +24,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get edit_name => 'ویرایش';
 
   @override
-  String get connecting => 'دارم وصل می‌شم...';
+  String get connecting => 'دارم وصل می‌شم…';
 
   @override
   String get monitoring => 'دارم گوش می‌دم';
@@ -73,7 +73,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get music_cast_start => 'شروع پخش';
 
   @override
-  String get music_cast_starting => 'دارم شروع می‌کنم...';
+  String get music_cast_starting => 'دارم شروع می‌کنم…';
 
   @override
   String get music_cast_stop => 'توقف';
@@ -242,7 +242,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get guest_copy_link => 'کپی پیوند';
 
   @override
-  String get guest_link_copied => 'پیوند دعوت کپی شد!';
+  String get guest_link_copied => 'پیوند دعوت کپی شد';
 
   @override
   String get guest_paste_answer => 'چسبوندن کد پاسخ';
@@ -286,7 +286,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get guest_web_reply_copy => 'کپی کد';
 
   @override
-  String get guest_web_reply_copied => 'کد پاسخ کپی شد!';
+  String get guest_web_reply_copied => 'کد پاسخ کپی شد';
 
   @override
   String get guest_web_connected => 'وصل شدی!';
@@ -305,20 +305,19 @@ class AppLocalizationsFa extends AppLocalizations {
   String get guest_web_unmute => 'وصل صدا';
 
   @override
-  String get guest_web_talking => 'داری حرف می‌زنی...';
+  String get guest_web_talking => 'داری حرف می‌زنی…';
 
   @override
   String get guest_web_on_air => 'همه صدات رو می‌شنون!';
 
   @override
-  String get guest_web_standby => 'منتظرم...';
+  String get guest_web_standby => 'منتظرم…';
 
   @override
   String get guest_web_link_lost => 'ارتباط قطع شد';
 
   @override
-  String get guest_web_link_lost_text =>
-      'گمت کردم — دارم دوباره تلاش می‌کنم...';
+  String get guest_web_link_lost_text => 'گمت کردم — دارم دوباره تلاش می‌کنم…';
 
   @override
   String get guest_web_left_title => 'از کانال اومدی بیرون';
@@ -350,17 +349,16 @@ class AppLocalizationsFa extends AppLocalizations {
   String get bt_reconnect => 'دوباره وصل شو';
 
   @override
-  String get bt_link_reconnecting =>
-      'بلوتوث قطع شد — دارم دوباره تلاش می‌کنم...';
+  String get bt_link_reconnecting => 'بلوتوث قطع شد — دارم دوباره تلاش می‌کنم…';
 
   @override
   String get bt_link_down => 'ارتباط بلوتوث قطع شد';
 
   @override
-  String get bt_waiting_for_peer => 'منتظر گوشی دیگه‌ام...';
+  String get bt_waiting_for_peer => 'منتظر گوشی دیگه‌ام…';
 
   @override
-  String get bt_scanning => 'دارم می‌گردم...';
+  String get bt_scanning => 'دارم می‌گردم…';
 
   @override
   String get bt_no_devices_found => 'این دور و بر چیزی نیست';
@@ -379,7 +377,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get landing_ready => 'آماده‌ی حرف زدن';
 
   @override
-  String get bt_connecting => 'دارم وصل می‌شم...';
+  String get bt_connecting => 'دارم وصل می‌شم…';
 
   @override
   String get bt_connected => 'وصل شدی!';
@@ -566,7 +564,7 @@ class AppLocalizationsFa extends AppLocalizations {
       'وقتی یکی تو کانال داره حرف می‌زنه، صدای آهنگ مشترک خودش کم می‌شه تا صداش واضح بمونه.';
 
   @override
-  String get link_reconnecting => 'گمت کردم — دارم دوباره تلاش می‌کنم...';
+  String get link_reconnecting => 'گمت کردم — دارم دوباره تلاش می‌کنم…';
 
   @override
   String link_reconnecting_in(Object seconds) {
@@ -634,7 +632,7 @@ class AppLocalizationsFa extends AppLocalizations {
       'این اسم رو خود اندروید می‌ذاره و هیچ برنامه‌ای نمی‌تونه عوضش کنه. همین هات‌اسپات ترکه — گوشی دیگه هم اصلاً لازم نیست بخونتش، کد رو اسکن کنه کافیه.';
 
   @override
-  String get hotspot_creating => 'دارم هات‌اسپات می‌سازم...';
+  String get hotspot_creating => 'دارم هات‌اسپات می‌سازم…';
 
   @override
   String get hotspot_wifi_note_title =>
@@ -698,7 +696,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get hotspot_wifi_off_page_skip => 'بدون خاموش کردن ادامه بده';
 
   @override
-  String get hotspot_waiting => 'منتظر گوشی دیگه‌ام...';
+  String get hotspot_waiting => 'منتظر گوشی دیگه‌ام…';
 
   @override
   String get hotspot_step_scan =>
@@ -715,7 +713,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get hotspot_password => 'رمز عبور';
 
   @override
-  String get hotspot_copied => 'کپی شد!';
+  String get hotspot_copied => 'کپی شد';
 
   @override
   String get hotspot_enter_channel => 'ورود به کانال';
@@ -783,7 +781,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get hotspot_joining =>
-      'دارم به شبکه وصل می‌شم... به سؤال اندروید که می‌پرسه به این شبکه وصل بشه یا نه، «آره» بگو — تو بعضی گوشی‌ها به جای صفحه، تو اعلان‌ها میاد.';
+      'دارم به شبکه وصل می‌شم… به سؤال اندروید که می‌پرسه به این شبکه وصل بشه یا نه، «آره» بگو — تو بعضی گوشی‌ها به جای صفحه، تو اعلان‌ها میاد.';
 
   @override
   String get hotspot_joined => 'رو شبکه‌ای!';
@@ -1298,13 +1296,13 @@ class AppLocalizationsFa extends AppLocalizations {
   String get fix_reconnect => 'اتصال دوباره';
 
   @override
-  String get retry_still_trying => 'هنوز دارم تلاش می‌کنم...';
+  String get retry_still_trying => 'هنوز دارم تلاش می‌کنم…';
 
   @override
-  String get bt_still_trying => 'هنوز دارم دنبالشون می‌گردم...';
+  String get bt_still_trying => 'هنوز دارم دنبالشون می‌گردم…';
 
   @override
-  String get hotspot_still_trying => 'هنوز دارم راهش می‌ندازم...';
+  String get hotspot_still_trying => 'هنوز دارم راهش می‌ندازم…';
 
   @override
   String get premium_badge => 'ویژه';
@@ -1567,7 +1565,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get preflight_title => 'بررسی قبل از حرکت';
 
   @override
-  String get preflight_subtitle_checking => 'در حال بررسی وضعیت...';
+  String get preflight_subtitle_checking => 'در حال بررسی وضعیت…';
 
   @override
   String get preflight_subtitle_ready => 'همه چی آماده‌ست';
@@ -1579,7 +1577,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get preflight_subtitle_blocked => 'چندتا چیز باید درست بشه';
 
   @override
-  String get preflight_checking => 'در حال بررسی...';
+  String get preflight_checking => 'در حال بررسی…';
 
   @override
   String get preflight_fix_issues => 'موارد بالا رو درست کن';
@@ -1670,7 +1668,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get lobby_unlinked_body =>
-      'تارک روی وای‌فای، هات‌اسپاتی که یکی‌تان روشن می‌کند، یا بلوتوث کار می‌کند — بدون اینترنت و بدون سیم‌کارت. الان این گوشی روی هیچ‌کدام نیست.';
+      '«ترک» روی وای‌فای، هات‌اسپاتی که یکی‌تان روشن می‌کند، یا بلوتوث کار می‌کند — بدون اینترنت و بدون سیم‌کارت. الان این گوشی روی هیچ‌کدام نیست.';
 
   @override
   String get lobby_unlinked_no_way_out =>
@@ -2301,11 +2299,11 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String bt_resume_looking_for(String name) {
-    return 'دنبال $name می‌گردیم...';
+    return 'دنبال $name می‌گردیم…';
   }
 
   @override
-  String get bt_resume_waiting => 'منتظر گوشی دیگه‌ایم...';
+  String get bt_resume_waiting => 'منتظر گوشی دیگه‌ایم…';
 
   @override
   String get bt_resume_hint => 'روی گوشی دیگه هم «ترک» رو باز کن.';

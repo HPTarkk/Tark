@@ -248,7 +248,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage> {
                       children: [
                         Expanded(
                           child: Text(
-                            state.myName.isEmpty ? '...' : state.myName,
+                            state.myName.isEmpty ? '…' : state.myName,
                             style: TextStyle(
                               color: AppColors.textPrimary,
                               fontSize: 17,

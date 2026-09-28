@@ -59,7 +59,7 @@ class LandingIdentityCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  state.myName.isEmpty ? '...' : state.myName,
+                  state.myName.isEmpty ? '…' : state.myName,
                   style: TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 18,
