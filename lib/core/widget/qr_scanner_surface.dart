@@ -83,20 +83,20 @@ class _QrScannerSurfaceState extends State<QrScannerSurface>
   late final AnimationController _sweep = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 2600),
-  )..repeat(reverse: true);
+  );
 
   /// Slow breathing shared by the brackets and the status dot.
   late final AnimationController _pulse = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1500),
-  )..repeat();
+  );
 
   /// Light chasing around the frame — the radar's cadence, so "still looking"
   /// reads the same here as it does on the Bluetooth side.
   late final AnimationController _orbit = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 3600),
-  )..repeat();
+  );
 
   /// Runs on a hit: the frame snaps green and rings out.
   late final AnimationController _lock = AnimationController(
@@ -126,6 +126,16 @@ class _QrScannerSurfaceState extends State<QrScannerSurface>
     if (widget.errorText != null && widget.errorText != old.errorText) {
       _fail.forward(from: 0);
     }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // The sweep is paused while a read code is being handled; only the
+    // resting scanner loops.
+    if (!_handling) _sweep.loopUnlessReduced(context, reverse: true);
+    _pulse.loopUnlessReduced(context);
+    _orbit.loopUnlessReduced(context);
   }
 
   @override
@@ -167,7 +177,7 @@ class _QrScannerSurfaceState extends State<QrScannerSurface>
       HapticFeedback.heavyImpact();
       await _lock.reverse();
       if (!mounted) return;
-      _sweep.repeat(reverse: true);
+      _sweep.loopUnlessReduced(context, reverse: true);
       _handling = false;
       setState(() {});
       return;

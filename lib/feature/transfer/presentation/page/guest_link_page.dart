@@ -1,3 +1,4 @@
+import '../../../../core/motion/app_motion.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -454,7 +455,13 @@ class _PulsingActionButtonState extends State<_PulsingActionButton>
   late final AnimationController _pulse = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1600),
-  )..repeat(reverse: true);
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _pulse.loopUnlessReduced(context, reverse: true);
+  }
 
   @override
   void dispose() {
@@ -543,10 +550,16 @@ class _AnswerScannerState extends State<_AnswerScanner>
   late final AnimationController _line = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 2000),
-  )..repeat(reverse: true);
+  );
 
   bool _done = false;
   bool _torchOn = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _line.loopUnlessReduced(context, reverse: true);
+  }
 
   @override
   void dispose() {

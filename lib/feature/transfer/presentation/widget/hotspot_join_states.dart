@@ -1,3 +1,4 @@
+import '../../../../core/motion/app_motion.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -40,7 +41,13 @@ class _HotspotReachPulseState extends State<HotspotReachPulse>
   late final AnimationController _c = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1500),
-  )..repeat();
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _c.loopUnlessReduced(context);
+  }
 
   @override
   void dispose() {
@@ -134,7 +141,13 @@ class _HotspotJoinedPulseState extends State<HotspotJoinedPulse>
     // Slow on purpose. This is a waiting state that can be on screen for a
     // minute, and anything brisker starts to read as urgency.
     duration: const Duration(milliseconds: 2600),
-  )..repeat();
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _c.loopUnlessReduced(context);
+  }
 
   @override
   void dispose() {

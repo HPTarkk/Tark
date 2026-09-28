@@ -1,3 +1,4 @@
+import '../../../../core/motion/app_motion.dart';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -30,7 +31,7 @@ class _LandingLogoState extends State<LandingLogo>
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2000),
-    )..repeat(reverse: true);
+    );
     _pulseAnimation = CurvedAnimation(
       parent: _pulseController,
       curve: Curves.easeInOut,
@@ -39,7 +40,14 @@ class _LandingLogoState extends State<LandingLogo>
     _radarController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 8),
-    )..repeat();
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _pulseController.loopUnlessReduced(context, reverse: true);
+    _radarController.loopUnlessReduced(context);
   }
 
   @override

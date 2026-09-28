@@ -1,3 +1,4 @@
+import '../motion/app_motion.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -38,7 +39,13 @@ class _GlowingQrCardState extends State<GlowingQrCard>
   late final AnimationController _sweep = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 2600),
-  )..repeat(reverse: true);
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sweep.loopUnlessReduced(context, reverse: true);
+  }
 
   @override
   void dispose() {

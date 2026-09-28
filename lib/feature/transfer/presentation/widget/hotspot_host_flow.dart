@@ -1,3 +1,4 @@
+import '../../../../core/motion/app_motion.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -459,7 +460,13 @@ class _WaitingPulseState extends State<_WaitingPulse>
   late final AnimationController _pulse = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1400),
-  )..repeat(reverse: true);
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _pulse.loopUnlessReduced(context, reverse: true);
+  }
 
   @override
   void dispose() {

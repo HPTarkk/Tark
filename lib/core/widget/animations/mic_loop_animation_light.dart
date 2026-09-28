@@ -9,6 +9,8 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
+import '../../motion/app_motion.dart';
+
 // ── Palette ──────────────────────────────────────────────────────────────
 const Color kAccent = Color(0xFFB26B00);
 final Color kAccentSoft = kAccent.withValues(alpha: 0.35);
@@ -38,7 +40,13 @@ class _MicLoopAnimationLightState extends State<MicLoopAnimationLight>
     _controller = AnimationController(
       vsync: this,
       duration:  Duration(milliseconds: (kDurationSeconds * 1000).round()),
-    )..repeat();
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _controller.loopUnlessReduced(context);
   }
 
   @override

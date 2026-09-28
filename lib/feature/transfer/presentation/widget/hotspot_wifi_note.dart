@@ -1,3 +1,4 @@
+import '../../../../core/motion/app_motion.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -243,7 +244,13 @@ class _RadioContentionStripState extends State<_RadioContentionStrip>
   late final AnimationController _loop = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 4200),
-  )..repeat();
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _loop.loopUnlessReduced(context);
+  }
 
   @override
   void dispose() {

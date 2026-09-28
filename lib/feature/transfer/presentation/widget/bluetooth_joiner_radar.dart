@@ -1,3 +1,4 @@
+import '../../../../core/motion/app_motion.dart';
 import 'dart:async';
 import 'dart:math';
 
@@ -26,7 +27,7 @@ class _BluetoothJoinerRadarState extends State<BluetoothJoinerRadar>
   late final AnimationController _sweep = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 3600),
-  )..repeat();
+  );
 
   /// How long the list stays honestly blank before it says so. The scan only
   /// surfaces Tark hosts, so a room full of headsets now looks identical to an
@@ -45,6 +46,12 @@ class _BluetoothJoinerRadarState extends State<BluetoothJoinerRadar>
     _emptyHintTimer = Timer(_emptyHintAfter, () {
       if (mounted) setState(() => _searchedAWhile = true);
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sweep.loopUnlessReduced(context);
   }
 
   @override

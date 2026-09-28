@@ -587,7 +587,13 @@ class _WaveformBarsState extends State<WaveformBars>
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true);
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _controller.loopUnlessReduced(context, reverse: true);
   }
 
   @override

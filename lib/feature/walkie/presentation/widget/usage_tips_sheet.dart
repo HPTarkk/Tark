@@ -1,3 +1,4 @@
+import '../../../../core/motion/app_motion.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -376,7 +377,13 @@ class _SignalDotsState extends State<_SignalDots>
   late final _pulse = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1800),
-  )..repeat();
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _pulse.loopUnlessReduced(context);
+  }
 
   @override
   void dispose() {

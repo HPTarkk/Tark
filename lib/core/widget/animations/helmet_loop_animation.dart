@@ -10,6 +10,8 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
+import '../../motion/app_motion.dart';
+
 import '../../../gen/assets.gen.dart';
 
 // ── Palette ──────────────────────────────────────────────────────────────
@@ -47,7 +49,13 @@ class _HelmetLoopAnimationState extends State<HelmetLoopAnimation>
     _controller = AnimationController(
       vsync: this,
       duration:  Duration(milliseconds: (kDurationSeconds * 1000).round()),
-    )..repeat();
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _controller.loopUnlessReduced(context);
   }
 
   @override

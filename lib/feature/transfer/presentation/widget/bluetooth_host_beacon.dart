@@ -1,3 +1,4 @@
+import '../../../../core/motion/app_motion.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -21,7 +22,13 @@ class _BluetoothHostBeaconState extends State<BluetoothHostBeacon>
   late final AnimationController _ripple = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 2400),
-  )..repeat();
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _ripple.loopUnlessReduced(context);
+  }
 
   @override
   void dispose() {
