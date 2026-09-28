@@ -3,6 +3,8 @@
 *.keystore
 upload-keystore.jks
 key.properties
+# Bazaar bundle signer, copied next to scripts/build-bazaar.ps1 by hand
+scripts/bundlesigner-*.jar
 
 # Miscellaneous
 *.class
