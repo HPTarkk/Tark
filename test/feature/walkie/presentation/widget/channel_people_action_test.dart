@@ -134,7 +134,7 @@ void main() {
     await pump(tester, users: const [], locale: const Locale('fa'));
 
     expect(find.byKey(primary), findsOneWidget);
-    expect(find.text('دعوت کنید'), findsOneWidget);
+    expect(find.text('دعوت کن'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

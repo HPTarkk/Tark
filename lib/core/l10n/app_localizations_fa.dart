@@ -24,7 +24,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get edit_name => 'ویرایش';
 
   @override
-  String get connecting => 'دارم وصل می‌شم...';
+  String get connecting => 'دارم وصل می‌شم…';
 
   @override
   String get monitoring => 'دارم گوش می‌دم';
@@ -73,7 +73,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get music_cast_start => 'شروع پخش';
 
   @override
-  String get music_cast_starting => 'دارم شروع می‌کنم...';
+  String get music_cast_starting => 'دارم شروع می‌کنم…';
 
   @override
   String get music_cast_stop => 'توقف';
@@ -142,7 +142,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get mic_permission_denied =>
-      '«ترک» صدات رو نمی‌شنوه. برو توی تنظیمات میکروفون رو روشن کن.';
+      '«تَرک» صدات رو نمی‌شنوه. برو توی تنظیمات میکروفون رو روشن کن.';
 
   @override
   String get join_channel => 'ورود به کانال';
@@ -242,7 +242,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get guest_copy_link => 'کپی پیوند';
 
   @override
-  String get guest_link_copied => 'پیوند دعوت کپی شد!';
+  String get guest_link_copied => 'پیوند دعوت کپی شد';
 
   @override
   String get guest_paste_answer => 'چسبوندن کد پاسخ';
@@ -286,7 +286,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get guest_web_reply_copy => 'کپی کد';
 
   @override
-  String get guest_web_reply_copied => 'کد پاسخ کپی شد!';
+  String get guest_web_reply_copied => 'کد پاسخ کپی شد';
 
   @override
   String get guest_web_connected => 'وصل شدی!';
@@ -305,20 +305,19 @@ class AppLocalizationsFa extends AppLocalizations {
   String get guest_web_unmute => 'وصل صدا';
 
   @override
-  String get guest_web_talking => 'داری حرف می‌زنی...';
+  String get guest_web_talking => 'داری حرف می‌زنی…';
 
   @override
   String get guest_web_on_air => 'همه صدات رو می‌شنون!';
 
   @override
-  String get guest_web_standby => 'منتظرم...';
+  String get guest_web_standby => 'منتظرم…';
 
   @override
   String get guest_web_link_lost => 'ارتباط قطع شد';
 
   @override
-  String get guest_web_link_lost_text =>
-      'گمت کردم — دارم دوباره تلاش می‌کنم...';
+  String get guest_web_link_lost_text => 'گمت کردم — دارم دوباره تلاش می‌کنم…';
 
   @override
   String get guest_web_left_title => 'از کانال اومدی بیرون';
@@ -350,17 +349,16 @@ class AppLocalizationsFa extends AppLocalizations {
   String get bt_reconnect => 'دوباره وصل شو';
 
   @override
-  String get bt_link_reconnecting =>
-      'بلوتوث قطع شد — دارم دوباره تلاش می‌کنم...';
+  String get bt_link_reconnecting => 'بلوتوث قطع شد — دارم دوباره تلاش می‌کنم…';
 
   @override
   String get bt_link_down => 'ارتباط بلوتوث قطع شد';
 
   @override
-  String get bt_waiting_for_peer => 'منتظر گوشی دیگه‌ام...';
+  String get bt_waiting_for_peer => 'منتظر گوشی دیگه‌ام…';
 
   @override
-  String get bt_scanning => 'دارم می‌گردم...';
+  String get bt_scanning => 'دارم می‌گردم…';
 
   @override
   String get bt_no_devices_found => 'این دور و بر چیزی نیست';
@@ -379,14 +377,14 @@ class AppLocalizationsFa extends AppLocalizations {
   String get landing_ready => 'آماده‌ی حرف زدن';
 
   @override
-  String get bt_connecting => 'دارم وصل می‌شم...';
+  String get bt_connecting => 'دارم وصل می‌شم…';
 
   @override
   String get bt_connected => 'وصل شدی!';
 
   @override
   String get bt_permission_denied =>
-      '«ترک» نمی‌تونه از بلوتوث استفاده کنه. برو توی تنظیمات روشنش کن.';
+      '«تَرک» نمی‌تونه از بلوتوث استفاده کنه. برو توی تنظیمات روشنش کن.';
 
   @override
   String get bt_not_supported_platform =>
@@ -566,7 +564,7 @@ class AppLocalizationsFa extends AppLocalizations {
       'وقتی یکی تو کانال داره حرف می‌زنه، صدای آهنگ مشترک خودش کم می‌شه تا صداش واضح بمونه.';
 
   @override
-  String get link_reconnecting => 'گمت کردم — دارم دوباره تلاش می‌کنم...';
+  String get link_reconnecting => 'گمت کردم — دارم دوباره تلاش می‌کنم…';
 
   @override
   String link_reconnecting_in(Object seconds) {
@@ -621,7 +619,7 @@ class AppLocalizationsFa extends AppLocalizations {
       'کد روی گوشی‌ای که شبکه رو ساخته اسکن کن.';
 
   @override
-  String get hotspot_host_badge => 'هات‌اسپات ترک • روی آنتن';
+  String get hotspot_host_badge => 'هات‌اسپات تَرک • روی آنتن';
 
   @override
   String get hotspot_show_credentials => 'اسکن نمی‌شه؟ مشخصات شبکه رو ببین';
@@ -631,10 +629,10 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get hotspot_network_note =>
-      'این اسم رو خود اندروید می‌ذاره و هیچ برنامه‌ای نمی‌تونه عوضش کنه. همین هات‌اسپات ترکه — گوشی دیگه هم اصلاً لازم نیست بخونتش، کد رو اسکن کنه کافیه.';
+      'این اسم رو خود اندروید می‌ذاره و هیچ برنامه‌ای نمی‌تونه عوضش کنه. همین هات‌اسپات تَرکه — گوشی دیگه هم اصلاً لازم نیست بخونتش، کد رو اسکن کنه کافیه.';
 
   @override
-  String get hotspot_creating => 'دارم هات‌اسپات می‌سازم...';
+  String get hotspot_creating => 'دارم هات‌اسپات می‌سازم…';
 
   @override
   String get hotspot_wifi_note_title =>
@@ -680,7 +678,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get hotspot_wifi_off_page_point_channel =>
-      'همه هنوز صدات رو می‌شنون. ترک اینجا به وای‌فای احتیاجی نداره.';
+      'همه هنوز صدات رو می‌شنون. تَرک اینجا به وای‌فای احتیاجی نداره.';
 
   @override
   String get hotspot_wifi_off_page_status_on => 'وای‌فای روشنه';
@@ -698,11 +696,11 @@ class AppLocalizationsFa extends AppLocalizations {
   String get hotspot_wifi_off_page_skip => 'بدون خاموش کردن ادامه بده';
 
   @override
-  String get hotspot_waiting => 'منتظر گوشی دیگه‌ام...';
+  String get hotspot_waiting => 'منتظر گوشی دیگه‌ام…';
 
   @override
   String get hotspot_step_scan =>
-      'رو گوشی دیگه، «ترک» ← هات‌اسپات ← اتصال به یک هات‌اسپات رو باز کن و این کد رو اسکن کن.';
+      'رو گوشی دیگه، «تَرک» ← هات‌اسپات ← اتصال به یک هات‌اسپات رو باز کن و این کد رو اسکن کن.';
 
   @override
   String get hotspot_step_join_channel =>
@@ -715,7 +713,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get hotspot_password => 'رمز عبور';
 
   @override
-  String get hotspot_copied => 'کپی شد!';
+  String get hotspot_copied => 'کپی شد';
 
   @override
   String get hotspot_enter_channel => 'ورود به کانال';
@@ -734,7 +732,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get hotspot_error_permission =>
-      '«ترک» باید بتونه وای‌فای‌های نزدیک رو ببینه تا هات‌اسپات بسازه. اجازه بده و دوباره امتحان کن.';
+      '«تَرک» باید بتونه وای‌فای‌های نزدیک رو ببینه تا هات‌اسپات بسازه. اجازه بده و دوباره امتحان کن.';
 
   @override
   String get hotspot_error_no_channel =>
@@ -766,7 +764,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get hotspot_scan_camera_denied =>
-      '«ترک» برای خوندن کد میزبان دوربین می‌خواد.';
+      '«تَرک» برای خوندن کد میزبان دوربین می‌خواد.';
 
   @override
   String get hotspot_scan_camera_failed =>
@@ -783,7 +781,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get hotspot_joining =>
-      'دارم به شبکه وصل می‌شم... به سؤال اندروید که می‌پرسه به این شبکه وصل بشه یا نه، «آره» بگو — تو بعضی گوشی‌ها به جای صفحه، تو اعلان‌ها میاد.';
+      'دارم به شبکه وصل می‌شم… به سؤال اندروید که می‌پرسه به این شبکه وصل بشه یا نه، «آره» بگو — تو بعضی گوشی‌ها به جای صفحه، تو اعلان‌ها میاد.';
 
   @override
   String get hotspot_joined => 'رو شبکه‌ای!';
@@ -899,7 +897,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get settings_transport_desc =>
-      '«ترک» خودش مناسب‌ترین راه ارتباط رو با توجه به جایی که هستی انتخاب می‌کنه. فقط اگه دلیلی داری یکی رو ثابت کن.';
+      '«تَرک» خودش مناسب‌ترین راه ارتباط رو با توجه به جایی که هستی انتخاب می‌کنه. فقط اگه دلیلی داری یکی رو ثابت کن.';
 
   @override
   String get settings_section_startup => 'وقتی برنامه باز می‌شه';
@@ -993,7 +991,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get settings_skip_splash_desc => 'یه‌راست بپر تو برنامه';
 
   @override
-  String get usage_tips_title => 'استفاده بهینه از «ترک»';
+  String get usage_tips_title => 'استفاده بهینه از «تَرک»';
 
   @override
   String get usage_tips_1_title => 'هدفونی بزن که صدای اطراف رو کم می‌کنه';
@@ -1021,7 +1019,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get usage_tips_4_body =>
-      'ویجت ترک رو اضافه کن تا با یه نگاه ببینی کی روی خطه و با یه ضربه بپری تو کانال — بدون گشتن توی برنامه. هر وقت خواستی از تنظیمات اضافه‌ش کن.';
+      'ویجت تَرک رو اضافه کن تا با یه نگاه ببینی کی روی خطه و با یه ضربه بپری تو کانال — بدون گشتن توی برنامه. هر وقت خواستی از تنظیمات اضافه‌ش کن.';
 
   @override
   String get usage_tips_dismiss => 'فهمیدم';
@@ -1074,11 +1072,11 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get onboarding_mode_help =>
-      'روی خودکار بذارش تا «ترک» هر بار خودش تصمیم بگیره. بعداً از تنظیمات پیشرفته می‌تونی یکی رو ثابت کنی.';
+      'روی خودکار بذارش تا «تَرک» هر بار خودش تصمیم بگیره. بعداً از تنظیمات پیشرفته می‌تونی یکی رو ثابت کنی.';
 
   @override
   String get onboarding_mode_auto_desc =>
-      'خود «ترک» انتخاب می‌کنه — وای‌فای مشترک، هات‌اسپات خودش، یا بلوتوث';
+      'خود «تَرک» انتخاب می‌کنه — وای‌فای مشترک، هات‌اسپات خودش، یا بلوتوث';
 
   @override
   String get onboarding_mode_wifi_desc =>
@@ -1207,7 +1205,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get check_mic_ok => 'سالمه';
 
   @override
-  String get check_mic_denied => 'ترک اجازه‌ی استفاده ازش رو نداره';
+  String get check_mic_denied => 'تَرک اجازه‌ی استفاده ازش رو نداره';
 
   @override
   String get check_mic_silent => 'اجازه هست، ولی هیچ صدایی نمی‌رسه';
@@ -1255,7 +1253,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get issue_mic_denied_body =>
-      'ترک برای استفاده از میکروفون اجازه می‌خواد. روشنش کن تا یه‌راست برگردی رو خط.';
+      'تَرک برای استفاده از میکروفون اجازه می‌خواد. روشنش کن تا یه‌راست برگردی رو خط.';
 
   @override
   String get issue_mic_silent_title => 'بقیه صداتو نمی‌شنون';
@@ -1301,13 +1299,13 @@ class AppLocalizationsFa extends AppLocalizations {
   String get fix_reconnect => 'اتصال دوباره';
 
   @override
-  String get retry_still_trying => 'هنوز دارم تلاش می‌کنم...';
+  String get retry_still_trying => 'هنوز دارم تلاش می‌کنم…';
 
   @override
-  String get bt_still_trying => 'هنوز دارم دنبالشون می‌گردم...';
+  String get bt_still_trying => 'هنوز دارم دنبالشون می‌گردم…';
 
   @override
-  String get hotspot_still_trying => 'هنوز دارم راهش می‌ندازم...';
+  String get hotspot_still_trying => 'هنوز دارم راهش می‌ندازم…';
 
   @override
   String get premium_badge => 'ویژه';
@@ -1371,7 +1369,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String settings_share_log_desc(Object size) {
-    return 'چیزی که برنامه ثبت کرده را برای ما بفرست تا ببینیم چه شده ($size)';
+    return 'چیزی که برنامه ثبت کرده رو برامون بفرست تا ببینیم چی شده ($size)';
   }
 
   @override
@@ -1404,7 +1402,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get settings_log_max_size_desc =>
-      'گزارش هیچ‌وقت از این بیشتر نمی‌شود. وقتی پر شد، قدیمی‌ترین خط‌ها جا را به تازه‌ترین‌ها می‌دهند.';
+      'گزارش هیچ‌وقت از این بزرگ‌تر نمی‌شه. وقتی پر شد، قدیمی‌ترین خط‌ها جاشون رو به تازه‌ترین‌ها می‌دن.';
 
   @override
   String get settings_log_level => 'سطح گزارش';
@@ -1420,7 +1418,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get settings_log_level_desc =>
-      '«عادی» گزارش را مثل همیشه نگه می‌دارد. «صفحه‌ها» صفحه‌هایی را که باز می‌کنید و دکمه‌های اصلی‌ای را که می‌زنید هم ثبت می‌کند. «همه‌چیز» هر لمس و هر تغییر تنظیمات را هم اضافه می‌کند. همه‌اش روی همین گوشی می‌ماند.';
+      '«عادی» گزارش رو مثل همیشه نگه می‌داره. «صفحه‌ها» صفحه‌هایی که باز می‌کنی و دکمه‌های اصلی‌ای که می‌زنی رو هم ثبت می‌کنه. «همه‌چیز» هر لمس و هر تغییر تنظیمات رو هم اضافه می‌کنه. همه‌ش روی همین گوشی می‌مونه.';
 
   @override
   String settings_log_usage(Object max, Object used) {
@@ -1441,11 +1439,11 @@ class AppLocalizationsFa extends AppLocalizations {
   String get check_heard_unheard => 'چیزی که می‌فرستی نمی‌رسد — در حال ترمیم';
 
   @override
-  String get issue_unheard_title => 'صدایت را نمی‌شنوند';
+  String get issue_unheard_title => 'صدات رو نمی‌شنون';
 
   @override
   String get issue_unheard_body =>
-      'تو آن‌ها را می‌شنوی، ولی چیزی که می‌گویی به مقصد نمی‌رسد. اتصال دارد خودکار ترمیم می‌شود؛ اگر برنگشت، از کانال بیرون برو و دوباره وارد شو.';
+      'تو صداشون رو می‌شنوی، ولی چیزی که می‌گی بهشون نمی‌رسه. اتصال داره خودش درست می‌شه؛ اگه برنگشت، از کانال بیرون برو و دوباره بیا تو.';
 
   @override
   String get fix_repair_link => 'ترمیم اتصال';
@@ -1495,7 +1493,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get preflight_mic_permission_denied =>
-      'ترک اجازه‌ی استفاده ازش رو نداره';
+      'تَرک اجازه‌ی استفاده ازش رو نداره';
 
   @override
   String get preflight_mic_no_frames => 'روشن شده، ولی صدایی نمی‌رسه';
@@ -1557,7 +1555,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get preflight_background_restricted =>
-      'تنظیمات باتری ممکنه با خاموش شدن صفحه ترک رو متوقف کنه';
+      'تنظیمات باتری ممکنه با خاموش شدن صفحه تَرک رو متوقف کنه';
 
   @override
   String get preflight_background_notification_denied =>
@@ -1570,7 +1568,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get preflight_title => 'بررسی قبل از حرکت';
 
   @override
-  String get preflight_subtitle_checking => 'در حال بررسی وضعیت...';
+  String get preflight_subtitle_checking => 'در حال بررسی وضعیت…';
 
   @override
   String get preflight_subtitle_ready => 'همه چی آماده‌ست';
@@ -1582,7 +1580,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get preflight_subtitle_blocked => 'چندتا چیز باید درست بشه';
 
   @override
-  String get preflight_checking => 'در حال بررسی...';
+  String get preflight_checking => 'در حال بررسی…';
 
   @override
   String get preflight_fix_issues => 'موارد بالا رو درست کن';
@@ -1604,53 +1602,53 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get lobby_nothing_started =>
-      'تا «شروع ارتباط» را نزنید، میکروفن خاموش می‌ماند.';
+      'تا «شروع ارتباط» رو نزنی، میکروفون خاموش می‌مونه.';
 
   @override
   String get lobby_connecting_hint =>
-      'گوشی‌ها را نزدیک هم نگه دارید. اگر گوشی برای اتصال به شبکه سؤال کرد، «اتصال» را بزنید.';
+      'گوشی‌ها رو نزدیک هم نگه دار. اگه گوشی برای وصل شدن به شبکه سؤال کرد، «اتصال» رو بزن.';
 
   @override
   String get lobby_invite_people => 'دعوت به اتاق';
 
   @override
   String get lobby_alone_no_invite =>
-      'هنوز کس دیگری در این اتاق نیست. اول باید عضوی که اجازهٔ دعوت دارد افراد را اضافه کند.';
+      'هنوز کس دیگه‌ای تو این اتاق نیست. اول باید یه عضوی که اجازه‌ی دعوت داره آدم اضافه کنه.';
 
   @override
   String get room_start_not_linked =>
-      'این گوشی‌ها الان به هم وصل نیستند. وصلشان کنید تا شروع شود.';
+      'این گوشی‌ها الان به هم وصل نیستن. وصلشون کن تا شروع بشه.';
 
   @override
   String get room_start_nobody_answered =>
-      'به هیچ‌کدام از اعضای اتاق نرسیدیم. مطمئن شوید نزدیک‌اند و «ترک» روی گوشی‌شان باز است، بعد دوباره امتحان کنید.';
+      'به هیچ‌کدوم از اعضای اتاق نرسیدیم. مطمئن شو نزدیکن و «تَرک» روی گوشیشون بازه، بعد دوباره امتحان کن.';
 
   @override
   String get room_start_failed =>
-      'اتصال برقرار نشد. گوشی‌ها را نزدیک هم نگه دارید و دوباره امتحان کنید.';
+      'وصل نشد. گوشی‌ها رو نزدیک هم نگه دار و دوباره امتحان کن.';
 
   @override
   String get room_start_wifi_off =>
-      'وای‌فای خاموش است. روشنش کنید و دوباره امتحان کنید.';
+      'وای‌فای خاموشه. روشنش کن و دوباره امتحان کن.';
 
   @override
   String get room_start_location_off =>
-      'لوکیشن خاموش است، برای همین این گوشی بقیه را پیدا نمی‌کند. روشنش کنید و دوباره امتحان کنید.';
+      'لوکیشن خاموشه، برای همین این گوشی بقیه رو پیدا نمی‌کنه. روشنش کن و دوباره امتحان کن.';
 
   @override
   String get room_start_connect => 'وصل کردن گوشی‌ها';
 
   @override
-  String get lobby_alone_title => 'هنوز تنها هستید';
+  String get lobby_alone_title => 'هنوز تنهایی';
 
   @override
   String lobby_alone_body(Object room) {
-    return 'هنوز کسی جز شما در «$room» نیست. کد دعوت را نشانشان بدهید — با یک اسکن وارد همین اتاق می‌شوند، بدون اینترنت.';
+    return 'هنوز کسی جز تو تو «$room» نیست. کد دعوت رو نشونشون بده — با یه اسکن میان تو همین اتاق، بدون اینترنت.';
   }
 
   @override
   String get lobby_alone_no_right =>
-      'هنوز کسی جز شما اینجا نیست. دعوت کردن دست میزبان این اتاق است.';
+      'هنوز کسی جز تو اینجا نیست. دعوت کردن دست میزبان این اتاقه.';
 
   @override
   String get lobby_invite_someone => 'دعوت کردن';
@@ -1662,7 +1660,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get lobby_start_ride => 'شروع ارتباط';
 
   @override
-  String get lobby_unlinked_heading => 'هنوز وصل نیستید';
+  String get lobby_unlinked_heading => 'هنوز وصل نیستی';
 
   @override
   String get lobby_unlinked_lead =>
@@ -1673,11 +1671,11 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get lobby_unlinked_body =>
-      'تارک روی وای‌فای، هات‌اسپاتی که یکی‌تان روشن می‌کند، یا بلوتوث کار می‌کند — بدون اینترنت و بدون سیم‌کارت. الان این گوشی روی هیچ‌کدام نیست.';
+      '«تَرک» روی وای‌فای، هات‌اسپاتی که یکی‌تون روشن می‌کنه، یا بلوتوث کار می‌کنه — بدون اینترنت و بدون سیم‌کارت. الان این گوشی روی هیچ‌کدوم نیست.';
 
   @override
   String get lobby_unlinked_no_way_out =>
-      'الان این گوشی روی هیچ شبکه‌ای نیست. وای‌فای را روشن کنید یا از صفحهٔ اتصال، هات‌اسپات را بالا بیاورید.';
+      'الان این گوشی روی هیچ شبکه‌ای نیست. وای‌فای رو روشن کن یا از صفحه‌ی اتصال، هات‌اسپات رو راه بنداز.';
 
   @override
   String get lobby_connect => 'برقراری اتصال';
@@ -1687,21 +1685,21 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get lobby_assumed_lead =>
-      'روی وای‌فای بودن، با روی وای‌فایِ آن‌ها بودن یکی نیست.';
+      'رو وای‌فای بودن، با رو وای‌فایِ اونا بودن یکی نیست.';
 
   @override
   String get lobby_assumed_title => 'همه روی همین شبکه‌اند؟';
 
   @override
   String get lobby_assumed_body =>
-      'این گوشی روی شبکه‌ای است که از قبل بوده — و از اینجا هیچ راهی نیست که بفهمیم بقیه هم روی همان هستند. شبکه‌ای هم که چند دقیقهٔ دیگر از آن دور می‌شوید، جای شروع ارتباط نیست. هات‌اسپاتی که یکی‌تان روشن می‌کند هرجا بروید کار می‌کند: شما کد را نشان می‌دهید، آن‌ها اسکن می‌کنند.';
+      'این گوشی روی شبکه‌ایه که از قبل بوده — و از اینجا هیچ راهی نیست بفهمیم بقیه هم روی همونن. شبکه‌ای هم که چند دقیقه‌ی دیگه ازش دور می‌شی، جای شروع ارتباط نیست. هات‌اسپاتی که یکی‌تون روشن می‌کنه هرجا برید کار می‌کنه: تو کد رو نشون می‌دی، اونا اسکن می‌کنن.';
 
   @override
   String get lobby_assumed_no_way_out =>
-      'این گوشی روی شبکه‌ای است که از قبل بوده. تا صدایی نرسد، معلوم نیست بقیه هم روی همان باشند.';
+      'این گوشی روی شبکه‌ایه که از قبل بوده. تا صدایی نرسه، معلوم نیست بقیه هم روی همون باشن.';
 
   @override
-  String get lobby_get_on_one_network => 'یک شبکهٔ مشترک بسازید';
+  String get lobby_get_on_one_network => 'یه شبکه‌ی مشترک بسازین';
 
   @override
   String get lobby_already_together => 'همین حالا روی یک شبکه‌ایم — شروع کن';
@@ -1710,31 +1708,31 @@ class AppLocalizationsFa extends AppLocalizations {
   String get lobby_link_connected => 'وصل';
 
   @override
-  String get lobby_different_network => 'روی یک شبکه نیستید؟';
+  String get lobby_different_network => 'روی یه شبکه نیستین؟';
 
   @override
   String get lobby_caveat_wifi =>
-      'بقیه هم باید روی همین شبکه باشند. تا وقتی صدایی نرسد، از اینجا نمی‌شود فهمید هستند یا نه.';
+      'بقیه هم باید روی همین شبکه باشن. تا وقتی صدایی نرسه، از اینجا نمی‌شه فهمید هستن یا نه.';
 
   @override
   String get lobby_caveat_hotspot =>
-      'هات‌اسپات شما روشن است، ولی تا کدتان را اسکن نکنند کسی روی آن نیست.';
+      'هات‌اسپاتت روشنه، ولی تا کدت رو اسکن نکنن کسی روش نیست.';
 
   @override
   String get lobby_link_wifi => 'روی وای‌فای';
 
   @override
-  String get lobby_link_hotspot => 'هات‌اسپات شما روشن است';
+  String get lobby_link_hotspot => 'هات‌اسپاتت روشنه';
 
   @override
-  String get lobby_link_bluetooth => 'اتصال بلوتوث';
+  String get lobby_link_bluetooth => 'ارتباط بلوتوث';
 
   @override
   String get lobby_link_none => 'بدون اتصال';
 
   @override
   String get lobby_start_alone_hint =>
-      'یا همین حالا شروع کنید و بعد از روشن‌شدن ارتباط دعوت کنید.';
+      'یا همین الان شروع کن و بعد از روشن شدن ارتباط دعوت کن.';
 
   @override
   String get lobby_you => 'شما';
@@ -1743,8 +1741,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get lobby_unnamed => 'عضو اتاق';
 
   @override
-  String get lobby_held_seats_hint =>
-      'کدشان را گرفته‌اند ولی هنوز اسکن نکرده‌اند.';
+  String get lobby_held_seats_hint => 'کدشون رو گرفتن ولی هنوز اسکن نکردن.';
 
   @override
   String lobby_members(Object count) {
@@ -1802,18 +1799,18 @@ class AppLocalizationsFa extends AppLocalizations {
   String get rooms_fallback_member_name => 'راننده';
 
   @override
-  String get rooms_empty_title => 'هنوز اتاقی ندارید';
+  String get rooms_empty_title => 'هنوز اتاقی نداری';
 
   @override
   String get rooms_empty_body =>
-      'اتاق‌ها بدون اینترنت هم روی همین گوشی باقی می‌مانند. ساخت یا انتخاب اتاق به‌تنهایی هات‌اسپات یا میکروفن را روشن نمی‌کند.';
+      'اتاق‌ها بدون اینترنت هم روی همین گوشی می‌مونن. ساختن یا انتخاب کردن اتاق به‌تنهایی هات‌اسپات یا میکروفون رو روشن نمی‌کنه.';
 
   @override
   String get rooms_load_error =>
-      'اتاق‌های ذخیره‌شده خوانده نشدند. چیزی حذف نشده است.';
+      'اتاق‌های ذخیره‌شده خونده نشدن. چیزی پاک نشده.';
 
   @override
-  String get rooms_can_invite => 'می‌توانید دعوت کنید';
+  String get rooms_can_invite => 'می‌تونی دعوت کنی';
 
   @override
   String get rooms_delete => 'حذف اتاق';
@@ -1841,12 +1838,12 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String rooms_archive_confirm(Object name) {
-    return '«$name» از فهرست کنار می‌رود و عضویتش دست‌نخورده می‌ماند. هر وقت خواستید از بایگانی برش گردانید.';
+    return '«$name» از فهرست کنار می‌ره و عضویتش دست‌نخورده می‌مونه. هر وقت خواستی از بایگانی برش گردون.';
   }
 
   @override
   String rooms_leave_confirm(Object name) {
-    return 'عضویت شما در «$name» حذف شود؟ این کار با پایان دادن یک جلسه زنده فرق دارد.';
+    return 'عضویتت تو «$name» پاک بشه؟ این با تموم کردن یه جلسه‌ی زنده فرق داره.';
   }
 
   @override
@@ -1891,7 +1888,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get people_invite_hint =>
-      'بگذار طرف مقابل نزدیک همین گوشی، این کد را با «پیوستن با QR» اسکن کند. مستقیم وارد اتاق می‌شود.';
+      'بذار طرف نزدیک همین گوشی، این کد رو با «پیوستن با QR» اسکن کنه. مستقیم میاد تو اتاق.';
 
   @override
   String people_invite_joined(Object name) {
@@ -1900,15 +1897,15 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get people_invite_permission =>
-      'برای اشتراک دعوت، اجازهٔ «دستگاه‌های نزدیک» لازم است.';
+      'برای فرستادن دعوت، اجازه‌ی «دستگاه‌های نزدیک» لازمه.';
 
   @override
   String get people_invite_visible =>
-      'اجازه بدهید این گوشی برای دستگاه‌های نزدیک قابل مشاهده باشد تا گوشی آن‌ها پیدایش کند.';
+      'اجازه بده این گوشی برای دستگاه‌های نزدیک پیدا باشه تا گوشی اونا پیداش کنه.';
 
   @override
   String get people_invite_unsupported =>
-      'بلوتوث این گوشی نمی‌تواند دعوت بفرستد. از طرف مقابل بخواه تو را دعوت کند، بعد کدش را با «پیوستن با QR» اسکن کن.';
+      'بلوتوث این گوشی نمی‌تونه دعوت بفرسته. از طرف بخواه تو رو دعوت کنه، بعد کدش رو با «پیوستن با QR» اسکن کن.';
 
   @override
   String get people_invite_paused => 'زمان این دعوت تمام شد.';
@@ -1918,35 +1915,35 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get people_held_seats_hint =>
-      'این جاها با دعوت باز شده‌اند ولی هنوز کسی از آن‌ها استفاده نکرده. در شمار اعضا حساب نمی‌شوند.';
+      'این جاها با دعوت باز شدن ولی هنوز کسی ازشون استفاده نکرده. جزو اعضا حساب نمی‌شن.';
 
   @override
   String get people_code_label => 'کد بررسی اتاق';
 
   @override
   String get people_code_warning =>
-      'این کد فقط برای بررسی است و به‌تنهایی اجازه ورود نمی‌دهد.';
+      'این کد فقط برای بررسیه و به‌تنهایی اجازه‌ی ورود نمی‌ده.';
 
   @override
   String get people_grant_title => 'اجازه دعوت دیگران';
 
   @override
   String get people_grant_hint =>
-      'با این اجازه، این نفر هم می‌تواند دیگران را به اتاق بیاورد.';
+      'با این اجازه، این نفر هم می‌تونه بقیه رو بیاره تو اتاق.';
 
   @override
   String get people_granted_note =>
-      'این دعوت اجازه دعوت‌کردن دیگران را هم می‌دهد.';
+      'این دعوت اجازه‌ی دعوت کردن بقیه رو هم می‌ده.';
 
   @override
   String get people_cannot_invite =>
-      'شما اجازه دعوت در این اتاق را ندارید. از میزبان بخواهید هنگام دعوت، «اجازه دعوت دیگران» را روشن کند.';
+      'تو اجازه‌ی دعوت تو این اتاق رو نداری. از میزبان بخواه موقع دعوت، «اجازه‌ی دعوت بقیه» رو روشن کنه.';
 
   @override
-  String get people_issue_error => 'ساخت دعوت ممکن نشد. دوباره تلاش کنید.';
+  String get people_issue_error => 'دعوت ساخته نشد. دوباره امتحان کن.';
 
   @override
-  String get people_no_room => 'هیچ اتاقی انتخاب نشده است.';
+  String get people_no_room => 'هیچ اتاقی انتخاب نشده.';
 
   @override
   String get people_wifi_title => 'اتصال وای‌فای میزبان';
@@ -1959,11 +1956,11 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get people_wifi_ephemeral =>
-      'این اطلاعات فقط مربوط به اتصال فعلی است و شناسه اتاق نیست.';
+      'این اطلاعات فقط مال اتصال فعلیه، نه مال اتاق.';
 
   @override
   String get people_wifi_recovering =>
-      'هات‌اسپات در حال بازیابی است. کیوآر وای‌فای بعد از آماده‌شدن شبکه تازه می‌شود.';
+      'هات‌اسپات داره برمی‌گرده. کیوآر وای‌فای وقتی شبکه‌ی تازه آماده شد عوض می‌شه.';
 
   @override
   String people_in_room(Object count) {
@@ -1980,7 +1977,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get roomjoin_hint =>
-      'کد دعوت روی گوشی میزبان را بگیر جلوی دوربین. بعد از اسکن مستقیم وارد اتاق می‌شوی.';
+      'کد دعوت روی گوشی میزبان رو بگیر جلوی دوربین. بعد از اسکن مستقیم می‌ری تو اتاق.';
 
   @override
   String get roomjoin_searching => 'دنبال کد دعوت می‌گردم';
@@ -1997,25 +1994,25 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get roomjoin_bluetooth_permission =>
-      'برای پیوستن، اجازهٔ «دستگاه‌های نزدیک» لازم است. اجازه بده و دوباره اسکن کن.';
+      'برای پیوستن، اجازه‌ی «دستگاه‌های نزدیک» لازمه. اجازه بده و دوباره اسکن کن.';
 
   @override
-  String get roomjoin_bluetooth_off => 'بلوتوث را روشن کن و دوباره اسکن کن.';
+  String get roomjoin_bluetooth_off => 'بلوتوث رو روشن کن و دوباره اسکن کن.';
 
   @override
   String get roomjoin_location_off =>
-      'در این گوشی، پیدا کردن گوشی‌های نزدیک به روشن بودن «موقعیت مکانی» نیاز دارد. آن را از تنظیمات سریع روشن کن و دوباره اسکن کن.';
+      'رو این گوشی، پیدا کردن گوشی‌های نزدیک به روشن بودن «موقعیت مکانی» احتیاج داره. از تنظیمات سریع روشنش کن و دوباره اسکن کن.';
 
   @override
   String get roomjoin_host_not_found =>
-      'گوشی میزبان پیدا نشد. دعوت را روی آن باز نگه دار، نزدیک بمان و دوباره اسکن کن.';
+      'گوشی میزبان پیدا نشد. دعوت رو روش باز نگه دار، نزدیک بمون و دوباره اسکن کن.';
 
   @override
   String get roomjoin_invalid => 'این کد دعوت معتبر نیست یا منقضی شده.';
 
   @override
   String get roomjoin_not_our_code =>
-      'این کد مال «ترک» نیست. کد دعوت یا کد وای‌فای روی گوشی میزبان را اسکن کن.';
+      'این کد مال «تَرک» نیست. کد دعوت یا کد وای‌فای روی گوشی میزبان رو اسکن کن.';
 
   @override
   String reconnect_show_title(String name) {
@@ -2024,12 +2021,12 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String reconnect_show_step_start(String name) {
-    return 'روی گوشی $name، همین اتاق را باز کند و «شروع» را بزند.';
+    return 'روی گوشی $name، همین اتاق رو باز کنه و «شروع» رو بزنه.';
   }
 
   @override
   String get reconnect_show_step_hold =>
-      'دوربینش خودش باز می‌شود. این کد را جلوی آن بگیر.';
+      'دوربینش خودش باز می‌شه. این کد رو بگیر جلوش.';
 
   @override
   String reconnect_waiting(String name) {
@@ -2037,27 +2034,27 @@ class AppLocalizationsFa extends AppLocalizations {
   }
 
   @override
-  String get reconnect_preparing => 'گوشی‌ات را آماده می‌کنیم…';
+  String get reconnect_preparing => 'داریم گوشیت رو آماده می‌کنیم…';
 
   @override
-  String get reconnect_connecting => 'وصل شد — تماس را باز می‌کنیم…';
+  String get reconnect_connecting => 'وصل شد — داریم تماس رو باز می‌کنیم…';
 
   @override
-  String get reconnect_switch_to_scan => 'به‌جایش کد او را اسکن کن';
+  String get reconnect_switch_to_scan => 'به‌جاش کد اون رو اسکن کن';
 
   @override
-  String get reconnect_switch_to_show => 'به‌جایش کد من را نشان بده';
+  String get reconnect_switch_to_show => 'به‌جاش کد من رو نشون بده';
 
   @override
-  String get reconnect_scan_title => 'کد او را اسکن کن';
+  String get reconnect_scan_title => 'کد اون رو اسکن کن';
 
   @override
   String reconnect_scan_hint(String name) {
-    return 'دوربین را روی کدِ گوشی $name بگیر.';
+    return 'دوربین رو بگیر رو کدِ گوشی $name.';
   }
 
   @override
-  String get reconnect_scan_searching => 'در جست‌وجوی کد';
+  String get reconnect_scan_searching => 'دارم دنبال کد می‌گردم';
 
   @override
   String get reconnect_scan_locked => 'کد پیدا شد';
@@ -2067,47 +2064,47 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String reconnect_cannot_host(String name) {
-    return 'این گوشی نمی‌تواند اتصال را به اشتراک بگذارد. روی گوشی $name «به‌جایش کد من را نشان بده» را بزند و کدش را همین‌جا اسکن کن.';
+    return 'این گوشی نمی‌تونه اتصال رو به اشتراک بذاره. روی گوشی $name «به‌جاش کد من رو نشون بده» رو بزنه و کدش رو همین‌جا اسکن کن.';
   }
 
   @override
   String reconnect_not_our_code(String name) {
-    return 'این کدِ اتصال «ترک» نیست. کدِ روی گوشی $name را اسکن کن.';
+    return 'این کدِ اتصال «تَرک» نیست. کدِ روی گوشی $name رو اسکن کن.';
   }
 
   @override
   String get reconnect_wifi_off =>
-      'وای‌فای این گوشی را روشن کن و دوباره اسکن کن.';
+      'وای‌فای این گوشی رو روشن کن و دوباره اسکن کن.';
 
   @override
   String get reconnect_location_off =>
-      '«موقعیت مکانی» این گوشی را روشن کن و دوباره اسکن کن.';
+      '«موقعیت مکانی» این گوشی رو روشن کن و دوباره اسکن کن.';
 
   @override
   String get reconnect_join_failed =>
-      'وصل نشد. گوشی‌ها را نزدیک هم نگه دار و دوباره اسکن کن.';
+      'وصل نشد. گوشی‌ها رو نزدیک هم نگه دار و دوباره اسکن کن.';
 
   @override
   String get reconnect_host_failed =>
-      'این گوشی نتوانست اشتراک‌گذاری را شروع کند. دوباره امتحان کن، یا «به‌جایش کد او را اسکن کن» را بزن.';
+      'این گوشی نتونست اشتراک‌گذاری رو شروع کنه. دوباره امتحان کن، یا «به‌جاش کد اون رو اسکن کن» رو بزن.';
 
   @override
   String get reconnect_retry => 'دوباره امتحان کن';
 
   @override
-  String get lobby_use_home_wifi => 'روی یک وای‌فای هستید؟ از همان وصل شو';
+  String get lobby_use_home_wifi => 'روی یه وای‌فای هستین؟ از همون وصل شو';
 
   @override
   String get roomjoin_other_version =>
-      'این دعوت با نسخهٔ دیگری از «ترک» ساخته شده. برنامه را روی هر دو گوشی به‌روز کن و دعوت تازه‌ای را اسکن کن.';
+      'این دعوت با یه نسخه‌ی دیگه از «تَرک» ساخته شده. برنامه رو روی هر دو گوشی به‌روز کن و یه دعوت تازه اسکن کن.';
 
   @override
   String get roomjoin_camera_denied =>
-      '«ترک» برای خواندن کد دعوت دوربین می‌خواهد.';
+      '«تَرک» برای خوندن کد دعوت دوربین می‌خواد.';
 
   @override
   String get roomjoin_camera_failed =>
-      'دوربین باز نشد. هر چیز دیگری که از آن استفاده می‌کند را ببند و دوباره امتحان کن.';
+      'دوربین باز نشد. هر چی دیگه ازش استفاده می‌کنه رو ببند و دوباره امتحان کن.';
 
   @override
   String get roomjoin_open_settings => 'باز کردن تنظیمات';
@@ -2120,7 +2117,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get archive_blurb =>
-      'این اتاق‌ها روی همین گوشی می‌مانند و عضویت‌شان دست‌نخورده است. هر وقت خواستید برشان گردانید.';
+      'این اتاق‌ها روی همین گوشی می‌مونن و عضویتشون دست‌نخورده‌ست. هر وقت خواستی برشون گردون.';
 
   @override
   String get archive_restore => 'بازگرداندن';
@@ -2132,7 +2129,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get archive_delete_title => 'حذف اتاق';
 
   @override
-  String get archive_delete_action => 'حذف کن';
+  String get archive_delete_action => 'پاکش کن';
 
   @override
   String archive_member_count(Object count) {
@@ -2141,7 +2138,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String archive_delete_confirm(Object name) {
-    return '«$name» از این گوشی پاک می‌شود و برنمی‌گردد. اگر فقط می‌خواهید از فهرست کنار برود، بایگانی‌اش کنید.';
+    return '«$name» از این گوشی پاک می‌شه و دیگه برنمی‌گرده. اگه فقط می‌خوای از فهرست کنار بره، بایگانیش کن.';
   }
 
   @override
@@ -2150,18 +2147,17 @@ class AppLocalizationsFa extends AppLocalizations {
   }
 
   @override
-  String get inroom_alone_body =>
-      'کدِ اتاق را نشانشان بدهید؛ با یک اسکن وارد می‌شوند.';
+  String get inroom_alone_body => 'کد اتاق رو نشونشون بده؛ با یه اسکن میان تو.';
 
   @override
-  String get inroom_invite_someone => 'دعوت کنید';
+  String get inroom_invite_someone => 'دعوت کن';
 
   @override
   String get inroom_add_someone => 'افزودن نفر';
 
   @override
   String get inroom_stranded_body =>
-      'بقیه در این اتاق هستند ولی صدایشان نمی‌رسد — یعنی گوشی‌ها روی یک شبکه نیستند.';
+      'بقیه تو این اتاقن ولی صداشون نمی‌رسه — یعنی گوشی‌ها روی یه شبکه نیستن.';
 
   @override
   String get inroom_get_on_one_network => 'وصل شدن به یک شبکه';
@@ -2176,31 +2172,31 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get carrier_raising_host =>
-      'داریم آماده می‌شویم که وقتی راه افتادید ارتباط قطع نشود. این گوشی مرکز ارتباط می‌شود.';
+      'داریم آماده می‌شیم که وقتی راه افتادین ارتباط قطع نشه. این گوشی مرکز ارتباط می‌شه.';
 
   @override
   String get carrier_raising =>
-      'داریم آماده می‌شویم که وقتی راه افتادید ارتباط قطع نشود.';
+      'داریم آماده می‌شیم که وقتی راه افتادین ارتباط قطع نشه.';
 
   @override
   String get carrier_awaiting_host =>
-      'یک لحظه — داریم ارتباط را برای بیرون آماده می‌کنیم.';
+      'یه لحظه — داریم ارتباط رو برای بیرون آماده می‌کنیم.';
 
   @override
   String get carrier_settled_host =>
-      'این گوشی مرکز ارتباط اتاق است. تا وقتی اتاق باز باشد، اینترنت این گوشی خاموش می‌ماند.';
+      'این گوشی مرکز ارتباط اتاقه. تا وقتی اتاق بازه، اینترنت این گوشی خاموش می‌مونه.';
 
   @override
   String get entry_create_room => 'ساخت اتاق';
 
   @override
-  String get entry_create_room_hint => 'یک اتاق بساز و بقیه را دعوت کن';
+  String get entry_create_room_hint => 'یه اتاق بساز و بقیه رو دعوت کن';
 
   @override
   String get entry_join_qr => 'پیوستن با QR';
 
   @override
-  String get entry_join_qr_hint => 'کد روی گوشی میزبان را اسکن کن';
+  String get entry_join_qr_hint => 'کد روی گوشی میزبان رو اسکن کن';
 
   @override
   String get entry_resume_hint => 'ادامه در این اتاق';
@@ -2209,7 +2205,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get entry_join => 'پیوستن';
 
   @override
-  String get entry_join_hint => 'کد میزبان را اسکن کن';
+  String get entry_join_hint => 'کد میزبان رو اسکن کن';
 
   @override
   String get entry_new_room => 'اتاق تازه';
@@ -2225,19 +2221,18 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get issuer_scan_hint =>
-      'QR درخواست عضویت روی گوشی همراه را اسکن کنید. فقط دعوت معتبر و مصرف‌نشده تأیید می‌شود.';
+      'QR درخواست عضویت روی گوشی همراه رو اسکن کن. فقط دعوت معتبر و استفاده‌نشده تأیید می‌شه.';
 
   @override
-  String get issuer_verify_failed =>
-      'بررسی درخواست ممکن نشد. دوباره اسکن کنید.';
+  String get issuer_verify_failed => 'درخواست بررسی نشد. دوباره اسکن کن.';
 
   @override
   String get issuer_accepted =>
-      'درخواست تأیید شد. همراه باید این QR پاسخ را اسکن کند تا عضویت روی گوشی خودش ذخیره شود.';
+      'درخواست تأیید شد. همراه باید این QR پاسخ رو اسکن کنه تا عضویت روی گوشی خودش ذخیره بشه.';
 
   @override
   String get issuer_rejected =>
-      'درخواست تأیید نشد. این پاسخ فقط نتیجه رد را منتقل می‌کند.';
+      'درخواست تأیید نشد. این پاسخ فقط نتیجه‌ی رد رو می‌رسونه.';
 
   @override
   String get issuer_done => 'تمام';
@@ -2255,7 +2250,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get entry_room_unavailable =>
-      'این اتاق دیگر برای شروع ارتباط در دسترس نیست.';
+      'این اتاق دیگه برای شروع ارتباط در دسترس نیست.';
 
   @override
   String get entry_back => 'بازگشت';
@@ -2304,14 +2299,14 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String bt_resume_looking_for(String name) {
-    return 'دنبال $name می‌گردیم...';
+    return 'دنبال $name می‌گردیم…';
   }
 
   @override
-  String get bt_resume_waiting => 'منتظر گوشی دیگه‌ایم...';
+  String get bt_resume_waiting => 'منتظر گوشی دیگه‌ایم…';
 
   @override
-  String get bt_resume_hint => 'روی گوشی دیگه هم «ترک» رو باز کن.';
+  String get bt_resume_hint => 'روی گوشی دیگه هم «تَرک» رو باز کن.';
 
   @override
   String bt_resume_connected_to(String name) {
@@ -2329,7 +2324,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get bt_resume_failed =>
-      'به گوشی دیگه نرسیدیم. وقتی هر دو نزدیک هم بودید و «ترک» باز بود، دوباره امتحان کن.';
+      'به گوشی دیگه نرسیدیم. وقتی هر دو نزدیک هم بودید و «تَرک» باز بود، دوباره امتحان کن.';
 
   @override
   String rooms_section(String count) {
@@ -2337,17 +2332,17 @@ class AppLocalizationsFa extends AppLocalizations {
   }
 
   @override
-  String get reconnect_wifi_needed_title => 'وای‌فای را روشن کن';
+  String get reconnect_wifi_needed_title => 'وای‌فای رو روشن کن';
 
   @override
   String reconnect_wifi_needed_body(String name) {
-    return 'برای وصل شدن به $name، این گوشی به اتصالی وصل می‌شود که گوشی $name به اشتراک می‌گذارد. برای این کار وای‌فای باید روشن باشد — اینترنت مصرف نمی‌شود.';
+    return 'برای وصل شدن به $name، این گوشی به اتصالی وصل می‌شه که گوشی $name به اشتراک می‌ذاره. برای این کار وای‌فای باید روشن باشه — اینترنت مصرف نمی‌شه.';
   }
 
   @override
-  String get reconnect_wifi_needed_action => 'روشن کردن وای‌فای';
+  String get reconnect_wifi_needed_action => 'وای‌فای رو روشن کن';
 
   @override
   String get reconnect_wifi_needed_waiting =>
-      'همین که وای‌فای روشن شود، دوربین خودش باز می‌شود.';
+      'همین که وای‌فای روشن بشه، دوربین خودش باز می‌شه.';
 }

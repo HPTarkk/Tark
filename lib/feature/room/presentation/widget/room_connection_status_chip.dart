@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import 'room_connection_status_scope.dart';
 
@@ -39,8 +40,12 @@ class RoomConnectionStatusChip extends StatelessWidget {
 
     return Semantics(
       label: label,
-      child: Container(
-        key: ValueKey('room-status-${phase.name}'),
+      // The chip eases to its new colour and the icon and label crossfade, so
+      // a member going from "connecting" to "connected" reads as a change
+      // rather than a flicker.
+      child: AnimatedContainer(
+        duration: AppMotion.chip,
+        curve: AppMotion.easeOut,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
           color: active
@@ -48,24 +53,34 @@ class RoomConnectionStatusChip extends StatelessWidget {
               : AppColors.border.withValues(alpha: 0.55),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 13, color: accent),
-            const SizedBox(width: 5),
-            Flexible(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: accent,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
+        child: AnimatedSize(
+          duration: AppMotion.chip,
+          curve: AppMotion.easeOut,
+          child: AnimatedSwitcher(
+            duration: AppMotion.chip,
+            switchInCurve: AppMotion.easeOut,
+            switchOutCurve: AppMotion.leaving,
+            child: Row(
+              key: ValueKey('room-status-${phase.name}'),
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 13, color: accent),
+                const SizedBox(width: 5),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: accent,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

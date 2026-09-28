@@ -9,7 +9,10 @@
 //
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+
 import 'package:tark/gen/assets.gen.dart';
+
+import '../../motion/app_motion.dart';
 
 // ── Palette ──────────────────────────────────────────────────────────────
 const Color kAccent = Color(0xFFF5853F);
@@ -34,7 +37,8 @@ class AncHeadsetLoopAnimation extends StatefulWidget {
   const AncHeadsetLoopAnimation({super.key});
 
   @override
-  State<AncHeadsetLoopAnimation> createState() => _AncHeadsetLoopAnimationState();
+  State<AncHeadsetLoopAnimation> createState() =>
+      _AncHeadsetLoopAnimationState();
 }
 
 class _AncHeadsetLoopAnimationState extends State<AncHeadsetLoopAnimation>
@@ -46,8 +50,14 @@ class _AncHeadsetLoopAnimationState extends State<AncHeadsetLoopAnimation>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration:  Duration(milliseconds: (kDurationSeconds * 1000).round()),
-    )..repeat();
+      duration: Duration(milliseconds: (kDurationSeconds * 1000).round()),
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _controller.loopUnlessReduced(context);
   }
 
   @override
@@ -73,8 +83,10 @@ class _AncHeadsetLoopAnimationState extends State<AncHeadsetLoopAnimation>
               final double caseScale = 1 + 0.022 * math.sin(twoPi * phase * 2);
               final double bobY = math.sin(twoPi * phase * 2) * 6;
               final double bobRotDeg = math.sin(twoPi * phase * 2 + 0.5) * 3;
-              final double waveOpacity = 0.55 + 0.35 * math.sin(twoPi * phase * 3).abs();
-              final double waveScale = 0.9 + 0.14 * math.sin(twoPi * phase * 3).abs();
+              final double waveOpacity =
+                  0.55 + 0.35 * math.sin(twoPi * phase * 3).abs();
+              final double waveScale =
+                  0.9 + 0.14 * math.sin(twoPi * phase * 3).abs();
 
               return Stack(
                 clipBehavior: Clip.none,
@@ -91,7 +103,11 @@ class _AncHeadsetLoopAnimationState extends State<AncHeadsetLoopAnimation>
                     height: kIconH,
                     child: Transform.scale(
                       scale: caseScale,
-                      child: Image.asset(Assets.image.airpodsCase.path, width: kIconW, height: kIconH),
+                      child: Image.asset(
+                        Assets.image.airpodsCase.path,
+                        width: kIconW,
+                        height: kIconH,
+                      ),
                     ),
                   ),
                   // Single earbud, bobbing beside the case.
@@ -110,7 +126,11 @@ class _AncHeadsetLoopAnimationState extends State<AncHeadsetLoopAnimation>
                             (kEarX / kIconW) * 2 - 1,
                             (kEarY / kIconH) * 2 - 1,
                           ),
-                          child: Image.asset(Assets.image.airpodBud.path, width: kIconW, height: kIconH),
+                          child: Image.asset(
+                            Assets.image.airpodBud.path,
+                            width: kIconW,
+                            height: kIconH,
+                          ),
                         ),
                       ),
                     ),
@@ -118,7 +138,10 @@ class _AncHeadsetLoopAnimationState extends State<AncHeadsetLoopAnimation>
                   // Clear-channel audio pulsing at the earbud.
                   CustomPaint(
                     size: const Size(kCanvasSize, kCanvasSize),
-                    painter: _WavePainter(waveOpacity: waveOpacity, waveScale: waveScale),
+                    painter: _WavePainter(
+                      waveOpacity: waveOpacity,
+                      waveScale: waveScale,
+                    ),
                   ),
                 ],
               );
@@ -149,7 +172,8 @@ class _BackdropPainter extends CustomPainter {
     final double twoPi = 2 * math.pi;
 
     // Ambient glow.
-    final double glowOpacity = 0.35 + 0.12 * math.sin(twoPi * p * 2 + math.pi / 2);
+    final double glowOpacity =
+        0.35 + 0.12 * math.sin(twoPi * p * 2 + math.pi / 2);
     final double glowRadius = 190 + 14 * math.sin(twoPi * p * 2);
     canvas.saveLayer(
       Rect.fromCircle(center: Offset(cx, cy), radius: glowRadius),
@@ -159,18 +183,40 @@ class _BackdropPainter extends CustomPainter {
       Offset(cx, cy),
       glowRadius,
       Paint()
-        ..shader = RadialGradient(colors: [kAccentFaint, kAccent.withValues(alpha: 0)])
-            .createShader(Rect.fromCircle(center: Offset(cx, cy), radius: glowRadius)),
+        ..shader =
+            RadialGradient(
+              colors: [kAccentFaint, kAccent.withValues(alpha: 0)],
+            ).createShader(
+              Rect.fromCircle(center: Offset(cx, cy), radius: glowRadius),
+            ),
     );
     canvas.restore();
 
     // ANC boundary rings, breathing.
-    _ring(canvas, cx, cy, 300 + 20 * math.sin(twoPi * p * 2 + 1.2),
-        0.14 + 0.06 * math.sin(twoPi * p * 2 + 1.2), 1.0);
-    _ring(canvas, cx, cy, 230 + 16 * math.sin(twoPi * p * 2 + 0.6),
-        0.28 + 0.1 * math.sin(twoPi * p * 2 + 0.6), 1.25);
-    _ring(canvas, cx, cy, 160 + 10 * math.sin(twoPi * p * 2),
-        0.5 + 0.15 * math.sin(twoPi * p * 2), 1.5);
+    _ring(
+      canvas,
+      cx,
+      cy,
+      300 + 20 * math.sin(twoPi * p * 2 + 1.2),
+      0.14 + 0.06 * math.sin(twoPi * p * 2 + 1.2),
+      1.0,
+    );
+    _ring(
+      canvas,
+      cx,
+      cy,
+      230 + 16 * math.sin(twoPi * p * 2 + 0.6),
+      0.28 + 0.1 * math.sin(twoPi * p * 2 + 0.6),
+      1.25,
+    );
+    _ring(
+      canvas,
+      cx,
+      cy,
+      160 + 10 * math.sin(twoPi * p * 2),
+      0.5 + 0.15 * math.sin(twoPi * p * 2),
+      1.5,
+    );
 
     // Wind / engine noise squiggles, cancelled before they arrive.
     for (int i = 0; i < 7; i++) {
@@ -191,7 +237,14 @@ class _BackdropPainter extends CustomPainter {
     canvas.restore();
   }
 
-  void _ring(Canvas canvas, double cx, double cy, double radius, double opacity, double strokeWidth) {
+  void _ring(
+    Canvas canvas,
+    double cx,
+    double cy,
+    double radius,
+    double opacity,
+    double strokeWidth,
+  ) {
     final Paint ringPaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
@@ -199,7 +252,14 @@ class _BackdropPainter extends CustomPainter {
     canvas.drawCircle(Offset(cx, cy), radius, ringPaint);
   }
 
-  void _drawSquiggle(Canvas canvas, double x, double y, double ampScale, double sizeScale, double opacity) {
+  void _drawSquiggle(
+    Canvas canvas,
+    double x,
+    double y,
+    double ampScale,
+    double sizeScale,
+    double opacity,
+  ) {
     final double a = 9 * ampScale;
     final Paint paint = Paint()
       ..style = PaintingStyle.stroke
@@ -221,7 +281,8 @@ class _BackdropPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _BackdropPainter oldDelegate) => oldDelegate.phase != phase;
+  bool shouldRepaint(covariant _BackdropPainter oldDelegate) =>
+      oldDelegate.phase != phase;
 }
 
 /// Foreground: clear-channel audio pulsing from the earbud only.
@@ -268,5 +329,6 @@ class _WavePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _WavePainter oldDelegate) =>
-      oldDelegate.waveOpacity != waveOpacity || oldDelegate.waveScale != waveScale;
+      oldDelegate.waveOpacity != waveOpacity ||
+      oldDelegate.waveScale != waveScale;
 }

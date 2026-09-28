@@ -9,6 +9,8 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
+import '../../motion/app_motion.dart';
+
 // ── Palette ──────────────────────────────────────────────────────────────
 const Color kAccent = Color(0xFFB26B00);
 final Color kAccentSoft = kAccent.withValues(alpha: 0.35);
@@ -37,8 +39,14 @@ class _MicLoopAnimationLightState extends State<MicLoopAnimationLight>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration:  Duration(milliseconds: (kDurationSeconds * 1000).round()),
-    )..repeat();
+      duration: Duration(milliseconds: (kDurationSeconds * 1000).round()),
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _controller.loopUnlessReduced(context);
   }
 
   @override
@@ -101,7 +109,8 @@ class _MicLoopPainterLight extends CustomPainter {
     final double micScale = 1 + 0.028 * math.sin(twoPi * p * 2);
 
     // Ambient glow, slow breathing halo.
-    final double glowOpacity = 0.35 + 0.12 * math.sin(twoPi * p * 2 + math.pi / 2);
+    final double glowOpacity =
+        0.35 + 0.12 * math.sin(twoPi * p * 2 + math.pi / 2);
     final double glowRadius = 190 + 14 * math.sin(twoPi * p * 2);
     // final Paint glowPaint = Paint()
     //   ..shader = RadialGradient(
@@ -109,20 +118,48 @@ class _MicLoopPainterLight extends CustomPainter {
     //   ).createShader(Rect.fromCircle(center: Offset(cx, cy), radius: glowRadius))
     //   ..color = Colors.white.withOpacity(glowOpacity.clamp(0, 1));
     // Apply opacity via saveLayer so the gradient's own alpha is scaled too.
-    canvas.saveLayer(Rect.fromCircle(center: Offset(cx, cy), radius: glowRadius), Paint()
-      ..color = Colors.white.withValues(alpha: glowOpacity.clamp(0, 1)));
-    canvas.drawCircle(Offset(cx, cy), glowRadius, Paint()
-      ..shader = RadialGradient(colors: [kAccentFaint, kAccent.withValues(alpha: 0)])
-          .createShader(Rect.fromCircle(center: Offset(cx, cy), radius: glowRadius)));
+    canvas.saveLayer(
+      Rect.fromCircle(center: Offset(cx, cy), radius: glowRadius),
+      Paint()..color = Colors.white.withValues(alpha: glowOpacity.clamp(0, 1)),
+    );
+    canvas.drawCircle(
+      Offset(cx, cy),
+      glowRadius,
+      Paint()
+        ..shader =
+            RadialGradient(
+              colors: [kAccentFaint, kAccent.withValues(alpha: 0)],
+            ).createShader(
+              Rect.fromCircle(center: Offset(cx, cy), radius: glowRadius),
+            ),
+    );
     canvas.restore();
 
     // Sensitivity rings — "wide open" zone, breathing outward/inward.
-    _ring(canvas, cx, cy, 290 + 20 * math.sin(twoPi * p * 2 + 1.2),
-        0.14 + 0.06 * math.sin(twoPi * p * 2 + 1.2), 1.0);
-    _ring(canvas, cx, cy, 220 + 16 * math.sin(twoPi * p * 2 + 0.6),
-        0.28 + 0.1 * math.sin(twoPi * p * 2 + 0.6), 1.25);
-    _ring(canvas, cx, cy, 150 + 10 * math.sin(twoPi * p * 2),
-        0.5 + 0.15 * math.sin(twoPi * p * 2), 1.5);
+    _ring(
+      canvas,
+      cx,
+      cy,
+      290 + 20 * math.sin(twoPi * p * 2 + 1.2),
+      0.14 + 0.06 * math.sin(twoPi * p * 2 + 1.2),
+      1.0,
+    );
+    _ring(
+      canvas,
+      cx,
+      cy,
+      220 + 16 * math.sin(twoPi * p * 2 + 0.6),
+      0.28 + 0.1 * math.sin(twoPi * p * 2 + 0.6),
+      1.25,
+    );
+    _ring(
+      canvas,
+      cx,
+      cy,
+      150 + 10 * math.sin(twoPi * p * 2),
+      0.5 + 0.15 * math.sin(twoPi * p * 2),
+      1.5,
+    );
 
     // Noise specks — drift in from the wide sensitivity zone and dissolve
     // before reaching the mic: noise suppression doing the work.
@@ -167,7 +204,14 @@ class _MicLoopPainterLight extends CustomPainter {
     canvas.restore();
   }
 
-  void _ring(Canvas canvas, double cx, double cy, double radius, double opacity, double strokeWidth) {
+  void _ring(
+    Canvas canvas,
+    double cx,
+    double cy,
+    double radius,
+    double opacity,
+    double strokeWidth,
+  ) {
     final Paint ringPaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
@@ -188,17 +232,26 @@ class _MicLoopPainterLight extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     // Headband.
-    final Rect bandRect = Rect.fromCircle(center: const Offset(0, -25), radius: 68);
+    final Rect bandRect = Rect.fromCircle(
+      center: const Offset(0, -25),
+      radius: 68,
+    );
     final Path bandPath = Path()..addArc(bandRect, math.pi, math.pi);
     canvas.drawPath(bandPath, stroke..strokeWidth = 10);
 
     // Earcups.
     canvas.drawRRect(
-      RRect.fromRectAndRadius(const Rect.fromLTWH(-86, -33, 36, 72), const Radius.circular(18)),
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(-86, -33, 36, 72),
+        const Radius.circular(18),
+      ),
       fill,
     );
     canvas.drawRRect(
-      RRect.fromRectAndRadius(const Rect.fromLTWH(50, -33, 36, 72), const Radius.circular(18)),
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(50, -33, 36, 72),
+        const Radius.circular(18),
+      ),
       fill,
     );
 
@@ -215,5 +268,6 @@ class _MicLoopPainterLight extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _MicLoopPainterLight oldDelegate) => oldDelegate.phase != phase;
+  bool shouldRepaint(covariant _MicLoopPainterLight oldDelegate) =>
+      oldDelegate.phase != phase;
 }

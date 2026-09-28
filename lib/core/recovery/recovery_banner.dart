@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../motion/app_motion.dart';
 import '../theme/app_colors.dart';
 import 'recovery_action.dart';
 import 'recovery_check.dart';
@@ -17,11 +18,7 @@ import 'recovery_check.dart';
 /// Renders nothing (and takes no space) when [issue] is null, so callers can
 /// leave it in the tree unconditionally and let it animate itself open.
 class RecoveryBanner extends StatelessWidget {
-  const RecoveryBanner({
-    super.key,
-    required this.issue,
-    this.compact = false,
-  });
+  const RecoveryBanner({super.key, required this.issue, this.compact = false});
 
   /// The problem to show, or null for "everything's fine".
   final RecoveryCheck? issue;
@@ -33,8 +30,8 @@ class RecoveryBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final current = issue;
     return AnimatedSize(
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOutCubic,
+      duration: AppMotion.sheet,
+      curve: AppMotion.easeOut,
       alignment: Alignment.topCenter,
       child: current == null || current.isHealthy
           ? const SizedBox(width: double.infinity)

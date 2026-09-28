@@ -95,6 +95,31 @@ abstract final class AppMotion {
       MediaQuery.maybeDisableAnimationsOf(context) ?? false;
 }
 
+/// Runs an ambient loop only while the platform allows full motion.
+///
+/// An ambient loop answers nothing and never finishes, which is exactly what
+/// reduced motion asks to be spared. Call [loopUnlessReduced] from
+/// `didChangeDependencies` instead of `..repeat()` at construction: that is
+/// where `MediaQuery` can be read, and it runs again if the setting flips
+/// while the screen is open, so the loop pauses and resumes with it.
+extension AmbientLoop on AnimationController {
+  /// Repeats (back and forth when [reverse]) or, under reduced motion, stops
+  /// and holds at [rest] so a painter keyed to the value draws a calm frame
+  /// instead of wherever the loop happened to be.
+  void loopUnlessReduced(
+    BuildContext context, {
+    bool reverse = false,
+    double rest = 0,
+  }) {
+    if (AppMotion.reduced(context)) {
+      if (isAnimating) stop();
+      if (value != rest) value = rest;
+    } else if (!isAnimating) {
+      repeat(reverse: reverse);
+    }
+  }
+}
+
 /// The one page transition every route in the app uses.
 ///
 /// Cupertino everywhere, on every platform: the page slides in from the
@@ -151,6 +176,47 @@ class AppPageTransitionsBuilder extends PageTransitionsBuilder {
       animation,
       secondaryAnimation,
       child,
+    );
+  }
+}
+
+/// Crossfades a screen between its phases (choosing a role, searching,
+/// connected, an error) instead of cutting from one to the next.
+///
+/// Give [child] a key naming its phase: a new key crossfades, the same key
+/// updates in place and keeps its state. The incoming phase also settles up
+/// from a hair below full size, which is what makes it read as arriving
+/// rather than blinking; reduced motion keeps only the fade.
+class PhaseSwitcher extends StatelessWidget {
+  const PhaseSwitcher({
+    required this.child,
+    this.alignment = Alignment.topCenter,
+    super.key,
+  });
+
+  final Widget child;
+
+  /// Where the outgoing and incoming phases are pinned while they overlap.
+  final AlignmentGeometry alignment;
+
+  @override
+  Widget build(BuildContext context) {
+    final reduced = AppMotion.reduced(context);
+    return AnimatedSwitcher(
+      duration: AppMotion.card,
+      switchInCurve: AppMotion.easeOut,
+      switchOutCurve: AppMotion.leaving,
+      layoutBuilder: (current, previous) =>
+          Stack(alignment: alignment, children: [...previous, ?current]),
+      transitionBuilder: (child, animation) {
+        final fade = FadeTransition(opacity: animation, child: child);
+        if (reduced) return fade;
+        return ScaleTransition(
+          scale: Tween<double>(begin: 0.97, end: 1).animate(animation),
+          child: fade,
+        );
+      },
+      child: child,
     );
   }
 }
@@ -386,9 +452,11 @@ class _PulseGlowState extends State<PulseGlow>
   );
 
   @override
-  void initState() {
-    super.initState();
-    if (widget.enabled) _controller.repeat(reverse: true);
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Not just hidden in build: a controller left repeating under reduced
+    // motion would still tick every frame for a glow nobody is shown.
+    if (widget.enabled) _controller.loopUnlessReduced(context, reverse: true);
   }
 
   @override
@@ -396,7 +464,7 @@ class _PulseGlowState extends State<PulseGlow>
     super.didUpdateWidget(oldWidget);
     if (widget.enabled == oldWidget.enabled) return;
     if (widget.enabled) {
-      _controller.repeat(reverse: true);
+      _controller.loopUnlessReduced(context, reverse: true);
     } else {
       // Stops where it is and eases back to rest rather than snapping to zero
       // glow, which would read as the control being switched off.
