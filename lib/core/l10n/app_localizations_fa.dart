@@ -1258,11 +1258,11 @@ class AppLocalizationsFa extends AppLocalizations {
       'ترک برای استفاده از میکروفون اجازه می‌خواد. روشنش کن تا یه‌راست برگردی رو خط.';
 
   @override
-  String get issue_mic_silent_title => 'میکروفونت چیزی نمی‌گیره';
+  String get issue_mic_silent_title => 'بقیه صداتو نمی‌شنون';
 
   @override
   String get issue_mic_silent_body =>
-      'اجازه‌ش هست، ولی هیچ صدایی به کانال نمی‌رسه. شاید یه برنامه‌ی دیگه گرفتتش — هر چی داره ضبط می‌کنه ببند، یا هندزفری بزن.';
+      'روی «درست کردن صدا» بزن. اگه دوباره پیش اومد، هندزفریت رو دوباره وصل کن یا برنامه‌های دیگه‌ای که با صدا کار می‌کنن رو ببند.';
 
   @override
   String get issue_no_network_title => 'به هیچ شبکه‌ای وصل نیستی';
@@ -1293,6 +1293,9 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get fix_restart_mic => 'میکروفون رو دوباره راه بنداز';
+
+  @override
+  String get fix_sound => 'درست کردن صدا';
 
   @override
   String get fix_reconnect => 'اتصال دوباره';

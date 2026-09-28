@@ -115,7 +115,7 @@ RecoveryCheck _micCheck(
       status: RecoveryStatus.bad,
       actions: [
         RecoveryAction(
-          label: s.fix_restart_mic,
+          label: s.fix_sound,
           isPrimary: true,
           run: cubit.restartMic,
         ),
@@ -351,7 +351,7 @@ RecoveryCheck? primaryChannelIssue({
         status: RecoveryStatus.bad,
         actions: [
           RecoveryAction(
-            label: s.fix_restart_mic,
+            label: s.fix_sound,
             isPrimary: true,
             run: cubit.restartMic,
           ),

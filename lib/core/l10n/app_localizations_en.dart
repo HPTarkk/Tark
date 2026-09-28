@@ -1263,11 +1263,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'Tarkk needs permission to use your microphone. Switch it on and you\'re straight back on air.';
 
   @override
-  String get issue_mic_silent_title => 'Your mic isn\'t picking anything up';
+  String get issue_mic_silent_title => 'Others can\'t hear you';
 
   @override
   String get issue_mic_silent_body =>
-      'The mic is allowed, but no sound is reaching the channel. Another app may have grabbed it — close anything that records, or plug a headset in.';
+      'Tap Fix sound. If it happens again, reconnect your handsfree or close other apps that use sound.';
 
   @override
   String get issue_no_network_title => 'You\'re not on a network';
@@ -1298,6 +1298,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get fix_restart_mic => 'RESTART MIC';
+
+  @override
+  String get fix_sound => 'FIX SOUND';
 
   @override
   String get fix_reconnect => 'RECONNECT';
