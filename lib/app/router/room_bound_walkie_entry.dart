@@ -504,7 +504,8 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
 
   /// Brings this phone's hotspot up, or gives up after [_prepareTimeout].
   Future<HotspotCredentials?> _prepareHost() async {
-    unawaited(_offerWifiOff());
+    await _offerWifiOff();
+    if (!mounted) return null;
     final prepare =
         widget.prepareHost ?? () => PreLiveHotspotBootstrap().prepareHost();
     try {
@@ -521,17 +522,30 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   /// reconnects inside the same visit don't ask again; the next visit does.
   bool _wifiOffOffered = false;
 
-  /// Asks this phone to switch Wi-Fi off while its hotspot comes up.
+  /// The longest the hotspot waits for an answer on the Wi-Fi page. Well
+  /// inside [_handoffTimeout], so the other end of a hand-off is still
+  /// waiting when the credentials arrive.
+  static const _wifiOffWait = Duration(seconds: 25);
+
+  /// Asks this phone to switch Wi-Fi off before its hotspot comes up.
   ///
-  /// With Wi-Fi on, Android can hand the radio back to a saved network and
-  /// quietly take the hotspot down mid-Room. Not awaited by [_prepareHost]:
-  /// the hotspot and the hand-off keep going underneath, so the other phone is
-  /// never left waiting on someone reading.
+  /// Awaited by [_prepareHost], up to [_wifiOffWait]: a hotspot raised while
+  /// Wi-Fi is on and then left running after Wi-Fi goes off is the one the
+  /// field logs show dying for its joiner (2026-09-28, twice), while one
+  /// raised with Wi-Fi already off held. After the cap the hotspot starts
+  /// anyway and the page stays up.
   Future<void> _offerWifiOff() async {
     final host = _hotspotHost;
     if (host == null || _wifiOffOffered || !mounted) return;
     _wifiOffOffered = true;
-    await HotspotWifiOffPage.showIfWifiOn(context, host);
+    try {
+      await HotspotWifiOffPage.showIfWifiOn(
+        context,
+        host,
+      ).timeout(_wifiOffWait);
+    } on TimeoutException {
+      Logger.diagnostic('room: wifi-off page still open, hosting anyway');
+    }
   }
 
   /// How often the Wi-Fi card looks at the radio while it waits for it.

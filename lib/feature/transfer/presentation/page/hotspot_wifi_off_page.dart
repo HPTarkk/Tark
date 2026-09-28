@@ -31,14 +31,17 @@ enum HotspotWifiOffResult {
 /// whatever the chipset claims about running both, because phones that claim
 /// they can still drop the hotspot.
 ///
-/// ## It never blocks hosting
+/// ## The hotspot should come up after Wi-Fi goes off
 ///
-/// It sits *over* the host screen while the hotspot comes up underneath, so a
-/// Room hand-off keeps its own timer and the other phone is never left waiting
-/// on someone reading. Wi-Fi off closes it by itself with a check mark;
-/// "Continue anyway", close and back all leave with
-/// [HotspotWifiOffResult.skipped]. Nothing is remembered: the next time this
-/// phone hosts with Wi-Fi on, it asks again.
+/// Field logs (2026-09-28) showed a hotspot raised while Wi-Fi was on, then
+/// left running after Wi-Fi went off, dropping its joiner within a minute and
+/// refusing it back; one raised with Wi-Fi already off held. So a Room waits
+/// for this page (up to a cap, so a hand-off never times out) before raising
+/// its hotspot, and the Walkie host screen raises a fresh one when Wi-Fi goes
+/// off. Wi-Fi off closes the page by itself with a check mark; "Continue
+/// anyway", close and back all leave with [HotspotWifiOffResult.skipped].
+/// Nothing is remembered: the next time this phone hosts with Wi-Fi on, it
+/// asks again.
 ///
 /// ## Why an overlay and not a route
 ///
