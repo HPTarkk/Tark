@@ -428,6 +428,32 @@ func (a *api) changePassword(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (a *api) deleteAccount(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		ConfirmEmail             string `json:"confirmEmail"`
+		CurrentPassword          string `json:"currentPassword"`
+		GoogleIDToken            string `json:"googleIdToken"`
+		SubscriptionAcknowledged bool   `json:"subscriptionAcknowledged"`
+		Locale                   string `json:"locale"`
+	}
+	if err := decode(r, &body); err != nil {
+		writeError(w, r, a.Log, err)
+		return
+	}
+	c, err := a.client(r, body.Locale)
+	if err != nil {
+		writeError(w, r, a.Log, err)
+		return
+	}
+	if err := a.Auth.DeleteAccount(r.Context(), principal(r), auth.DeleteAccountInput{
+		ConfirmEmail: body.ConfirmEmail, CurrentPassword: body.CurrentPassword, GoogleIDToken: body.GoogleIDToken,
+		SubscriptionAcknowledged: body.SubscriptionAcknowledged}, c); err != nil {
+		writeError(w, r, a.Log, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (a *api) startEmailChange(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		NewEmail        string `json:"newEmail"`

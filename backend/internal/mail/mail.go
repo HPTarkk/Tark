@@ -31,6 +31,9 @@ type Message struct {
 	To      string `json:"-"`
 	Subject string `json:"subject"`
 	Text    string `json:"text"`
+	// HTML is optional. With it the email is multipart/alternative, and
+	// clients that cannot show HTML fall back to Text.
+	HTML string `json:"html,omitempty"`
 }
 
 // Sender delivers a message. An error means "try again later"; the outbox
@@ -116,7 +119,11 @@ func (s *SMTPSender) Send(ctx context.Context, m Message) error {
 	if err := w.Close(); err != nil {
 		return fmt.Errorf("mail: close data: %w", err)
 	}
-	return client.Quit()
+	// The server has accepted the message once DATA is closed. A failed
+	// QUIT after that is not a failed send, and retrying would deliver the
+	// email twice.
+	_ = client.Quit()
+	return nil
 }
 
 func (s *SMTPSender) render(m Message) ([]byte, error) {
@@ -141,18 +148,36 @@ func (s *SMTPSender) render(m Message) ([]byte, error) {
 	header("Date", time.Now().UTC().Format(time.RFC1123Z))
 	header("Message-ID", fmt.Sprintf("<%x@%s>", id, domain))
 	header("MIME-Version", "1.0")
-	header("Content-Type", `text/plain; charset="utf-8"`)
-	header("Content-Transfer-Encoding", "base64")
 	// Transactional mail: ask auto-responders not to reply.
 	header("Auto-Submitted", "auto-generated")
+	if m.HTML == "" {
+		writePart(&b, "text/plain", m.Text)
+		return []byte(b.String()), nil
+	}
+	boundary := fmt.Sprintf("tark-%x", id)
+	header("Content-Type", `multipart/alternative; boundary="`+boundary+`"`)
 	b.WriteString("\r\n")
-	enc := base64.StdEncoding.EncodeToString([]byte(strings.ReplaceAll(m.Text, "\n", "\r\n")))
+	// Plain text first: clients show the last part they can render.
+	b.WriteString("--" + boundary + "\r\n")
+	writePart(&b, "text/plain", m.Text)
+	b.WriteString("--" + boundary + "\r\n")
+	writePart(&b, "text/html", m.HTML)
+	b.WriteString("--" + boundary + "--\r\n")
+	return []byte(b.String()), nil
+}
+
+// writePart writes a part's headers and base64 body. Base64 keeps every
+// line short and ASCII whatever the content, and cannot collide with the
+// boundary.
+func writePart(b *strings.Builder, contentType, body string) {
+	b.WriteString("Content-Type: " + contentType + "; charset=\"utf-8\"\r\n")
+	b.WriteString("Content-Transfer-Encoding: base64\r\n\r\n")
+	enc := base64.StdEncoding.EncodeToString([]byte(strings.ReplaceAll(body, "\n", "\r\n")))
 	for len(enc) > 76 {
 		b.WriteString(enc[:76] + "\r\n")
 		enc = enc[76:]
 	}
 	b.WriteString(enc + "\r\n")
-	return []byte(b.String()), nil
 }
 
 // LogSender writes messages to the log instead of sending them. Allowed

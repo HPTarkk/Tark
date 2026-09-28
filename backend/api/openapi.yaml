@@ -632,6 +632,47 @@ paths:
         '429':
           $ref: '#/components/responses/Problem'
 
+  /account/delete:
+    post:
+      operationId: deleteAccount
+      summary: Delete the account and its data, at once and for good.
+      description: |
+        A "yes" is not enough. The request needs all of:
+        - `confirmEmail`: the account's email, typed by the person (case
+          and surrounding spaces do not matter). Anything else is 422
+          `confirmation_mismatch`.
+        - fresh proof: `currentPassword`, or for a Google-only account a
+          new `googleIdToken` of the linked Google account (get a nonce
+          first). Wrong proof is 401 `invalid_credentials`.
+        - while a paid Bazaar period is running, `subscriptionAcknowledged:
+          true`. Without it the answer is 409 `subscription_active` with
+          `autoRenewing`, so the app can say that deleting the account does
+          not cancel the Bazaar subscription.
+
+        On success every session ends, a confirmation email goes to the
+        address, and the email can be used for a new account. Bazaar
+        purchases are removed with the account, so the same purchase can
+        be restored in a new account later.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteAccountRequest'
+      responses:
+        '204':
+          description: Deleted. The tokens this app holds no longer work.
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+
   # ---- Subscription --------------------------------------------------------
 
   /subscription:
@@ -927,6 +968,26 @@ components:
         googleIdToken:
           type: string
           description: Required for a Google-only account; a fresh ID token of the linked Google account.
+        locale:
+          $ref: '#/components/schemas/Locale'
+
+    DeleteAccountRequest:
+      type: object
+      required: [confirmEmail]
+      properties:
+        confirmEmail:
+          type: string
+          description: The account's email, typed out by the person.
+        currentPassword:
+          type: string
+          description: Required when the account has a password.
+        googleIdToken:
+          type: string
+          description: Required for a Google-only account; a fresh ID token of the linked Google account.
+        subscriptionAcknowledged:
+          type: boolean
+          default: false
+          description: Required (true) while a paid Bazaar period is running.
         locale:
           $ref: '#/components/schemas/Locale'
 

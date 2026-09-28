@@ -138,7 +138,9 @@ func (o *Outbox) deliver(ctx context.Context, c claimed) {
 	}
 	m.To = string(to)
 
-	sendCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	// Room for a provider that hangs until its own timeout and a backup
+	// after it.
+	sendCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	err := o.sender.Send(sendCtx, m)
 	cancel()
 	if err == nil {

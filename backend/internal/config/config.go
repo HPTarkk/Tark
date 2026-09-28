@@ -80,12 +80,20 @@ type BazaarConfig struct {
 
 type MailConfig struct {
 	Driver   string // "smtp" or "log" (development only)
+	FromName string
+	// Servers are tried in order. The first is TARK_SMTP_*, the optional
+	// backup is TARK_SMTP2_* (meant for a provider inside Iran, for when
+	// the first one is unreachable from there).
+	Servers []SMTPServer
+}
+
+type SMTPServer struct {
+	Name     string
 	Host     string
 	Port     int
 	Username string
 	Password string
 	From     string
-	FromName string
 	// "starttls" or "tls". There is no plaintext option.
 	Security string
 }
@@ -213,15 +221,24 @@ func Load() (*Config, error) {
 		SKUs:         splitList(get("TARK_BAZAAR_SKUS", "tark_premium_1m,tark_premium_12m")),
 	}
 
+	smtpServer := func(name, prefix, fromVar string) SMTPServer {
+		return SMTPServer{
+			Name:     name,
+			Host:     get(prefix+"_HOST", ""),
+			Port:     integer(prefix+"_PORT", 587),
+			Username: secret(prefix+"_USERNAME", false),
+			Password: secret(prefix+"_PASSWORD", false),
+			From:     get(fromVar, ""),
+			Security: get(prefix+"_SECURITY", "starttls"),
+		}
+	}
 	c.Mail = MailConfig{
 		Driver:   get("TARK_MAIL_DRIVER", "smtp"),
-		Host:     get("TARK_SMTP_HOST", ""),
-		Port:     integer("TARK_SMTP_PORT", 587),
-		Username: secret("TARK_SMTP_USERNAME", false),
-		Password: secret("TARK_SMTP_PASSWORD", false),
-		From:     get("TARK_MAIL_FROM", ""),
 		FromName: get("TARK_MAIL_FROM_NAME", "Tark"),
-		Security: get("TARK_SMTP_SECURITY", "starttls"),
+		Servers:  []SMTPServer{smtpServer("primary", "TARK_SMTP", "TARK_MAIL_FROM")},
+	}
+	if backup := smtpServer("backup", "TARK_SMTP2", "TARK_SMTP2_FROM"); backup.Host != "" {
+		c.Mail.Servers = append(c.Mail.Servers, backup)
 	}
 
 	c.Policy = EntitlementPolicy{
@@ -258,11 +275,17 @@ func (c *Config) validate() []error {
 	}
 	switch c.Mail.Driver {
 	case "smtp":
-		if c.Mail.Host == "" || c.Mail.From == "" {
-			errs = append(errs, errors.New("TARK_SMTP_HOST and TARK_MAIL_FROM are required for the smtp mail driver"))
-		}
-		if c.Mail.Security != "starttls" && c.Mail.Security != "tls" {
-			errs = append(errs, errors.New("TARK_SMTP_SECURITY must be starttls or tls"))
+		for i, srv := range c.Mail.Servers {
+			prefix, from := "TARK_SMTP", "TARK_MAIL_FROM"
+			if i > 0 {
+				prefix, from = "TARK_SMTP2", "TARK_SMTP2_FROM"
+			}
+			if srv.Host == "" || srv.From == "" {
+				errs = append(errs, fmt.Errorf("%s_HOST and %s are required for the smtp mail driver", prefix, from))
+			}
+			if srv.Security != "starttls" && srv.Security != "tls" {
+				errs = append(errs, fmt.Errorf("%s_SECURITY must be starttls or tls", prefix))
+			}
 		}
 	case "log":
 		if !c.Development() {

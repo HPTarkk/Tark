@@ -89,6 +89,7 @@ func NewHandler(d Deps) http.Handler {
 			r.Use(a.authenticated)
 			r.Get("/profile", a.getProfile)
 			r.Put("/profile", a.putProfile)
+			r.Post("/account/delete", a.deleteAccount)
 
 			r.Group(func(r chi.Router) {
 				r.Use(a.requireInstallKey)

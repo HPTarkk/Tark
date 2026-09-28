@@ -72,6 +72,7 @@ or malformed secret.
 | `TARK_LINK_BASE_URL` | Base of email links, default `https://tarkk.ir` |
 | `TARK_SMTP_HOST`, `TARK_SMTP_PORT`, `TARK_SMTP_USERNAME`, `TARK_SMTP_PASSWORD`, `TARK_SMTP_SECURITY` | SMTP server. `starttls` (587) or `tls` (465); there is no plaintext mode. |
 | `TARK_MAIL_FROM`, `TARK_MAIL_FROM_NAME` | Sender address and name |
+| `TARK_SMTP2_HOST`, `TARK_SMTP2_PORT`, `TARK_SMTP2_USERNAME`, `TARK_SMTP2_PASSWORD`, `TARK_SMTP2_SECURITY`, `TARK_SMTP2_FROM` | Optional backup SMTP server, used when the first one fails. Meant for a provider inside Iran. |
 | `TARK_BAZAAR_CLIENT_ID`, `TARK_BAZAAR_CLIENT_SECRET`, `TARK_BAZAAR_REFRESH_TOKEN` | Bazaar developer API credentials |
 | `TARK_BAZAAR_PACKAGE`, `TARK_BAZAAR_SKUS`, `TARK_BAZAAR_BASE_URL` | Package name, accepted SKUs, API base |
 | `TARK_CLIENT_IP_HEADER`, `TARK_TRUSTED_PROXIES` | Where the real client IP is, and which peers may set it (CIDRs). Needed behind ArvanCloud's CDN or load balancer. |
@@ -125,13 +126,28 @@ even if the app is never opened.
 
 **Email.** Requests only queue mail inside their transaction, and a worker
 sends it. A retried request cannot send twice, and a slow mail server cannot
-slow sign-up. Queued bodies are encrypted and wiped after sending.
+slow sign-up. Queued bodies are encrypted and wiped after sending. Each email
+has an HTML part in the app's colours (right-to-left for Persian, with a dark
+version where the mail app supports it) and a plain-text part with the same
+words. If a backup SMTP server is set, a failed send goes to it, and the
+failed server is skipped for two minutes so an outage costs one timeout, not
+one per email.
+
+**Account deletion.** `POST /account/delete` needs the account's email typed
+out, the password (or a fresh Google sign-in), and, while a paid Bazaar period
+runs, a separate acknowledgement that deleting does not cancel the Bazaar
+subscription. Then the account and everything tied to it are deleted at once,
+every session ends, and a confirmation email is sent. Purchases go with it, so
+the same Bazaar purchase can be restored in a new account. Security events
+stay for their year without the account id.
 
 **Data kept** (relevant to the privacy policy): name, avatar id, email
 (current and replaced ones, with dates), password hash, Google account id,
 sessions (platform, install public key, created and last-seen time), Bazaar
 purchase tokens (encrypted), SKU, dates and state, subscription history, and
-security events for one year with IPs stored only as HMACs. Pending sign-ups,
+security events for one year with IPs stored only as HMACs. Deleting the
+account removes all of it except those security events, which lose the
+account id. Pending sign-ups,
 codes and queued mail expire within a day. Nothing about voice, rooms,
 contacts or location reaches this server.
 
@@ -157,9 +173,10 @@ contacts or location reaches this server.
    admin refund action. The server only infers a revocation from a period cut
    short, or from a known token no longer being found, in case Bazaar support
    ever revokes one.
-2. **Email provider.** Any SMTP provider works. The candidate so far is Gmail
-   SMTP with an app password on the support account (free, a few hundred
-   emails a day), which still needs to be tested from an ArvanCloud server.
+2. **Email provider.** Gmail SMTP with an app password on the support
+   account is the primary (free, a few hundred emails a day). It still needs
+   testing from an ArvanCloud server. A backup provider inside Iran for
+   international outages is not chosen yet.
 3. **Google nonce.** On by default. It needs the app's Google sign-in library
    to pass a nonce (Credential Manager on Android and GoogleSignIn on iOS
    both can). If the chosen Flutter plugin cannot, set
@@ -167,5 +184,13 @@ contacts or location reaches this server.
    refused either way.
 4. **App links.** `https://tarkk.ir/v/*` needs `/.well-known/assetlinks.json`
    (Android signing certificate SHA-256) and
-   `/.well-known/apple-app-site-association` (Apple Team ID), plus a small
-   fallback page for people who open the link on a computer.
+   `/.well-known/apple-app-site-association` (Apple Team ID, once there is an
+   iOS app), plus a small fallback page for people who open the link on a
+   computer.
+5. **ArvanCloud client IP.** The header ArvanCloud puts the visitor's IP in
+   and its edge IP ranges are not confirmed yet. Until they are set, per-IP
+   limits see the proxy's address.
+6. **Deletion outside the app.** Google Play also asks for a web page where
+   people can request deletion without the app.
+7. **Sign in with Apple.** Not planned until there is an iOS app. Apple's
+   rule 4.8 may require it next to Google sign-in then.

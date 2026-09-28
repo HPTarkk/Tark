@@ -70,10 +70,14 @@ func Build(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger, opts Option
 		if cfg.Mail.Driver == "log" {
 			sender = &mail.LogSender{Log: log}
 		} else {
-			sender = &mail.SMTPSender{
-				Host: cfg.Mail.Host, Port: cfg.Mail.Port, Username: cfg.Mail.Username, Password: cfg.Mail.Password,
-				From: cfg.Mail.From, FromName: cfg.Mail.FromName, Implicit: cfg.Mail.Security == "tls",
+			var senders []mail.NamedSender
+			for _, srv := range cfg.Mail.Servers {
+				senders = append(senders, mail.NamedSender{Name: srv.Name, Sender: &mail.SMTPSender{
+					Host: srv.Host, Port: srv.Port, Username: srv.Username, Password: srv.Password,
+					From: srv.From, FromName: cfg.Mail.FromName, Implicit: srv.Security == "tls",
+				}})
 			}
+			sender = &mail.FailoverSender{Senders: senders, Log: log}
 		}
 	}
 	outbox := mail.NewOutbox(pool, sealer, sender, log)

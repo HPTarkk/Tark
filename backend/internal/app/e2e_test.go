@@ -700,3 +700,73 @@ func TestConcurrentPurchaseSubmissions(t *testing.T) {
 		t.Fatalf("exactly one account should own the token, got %v", results)
 	}
 }
+
+func TestAccountDeletion(t *testing.T) {
+	e := setup(t)
+	p := e.phone()
+	p.register("gone@example.com", "a good passphrase", "Gone")
+	other := e.phone()
+	other.signedIn(other.do("POST", "/v1/auth/login", map[string]any{"email": "gone@example.com", "password": "a good passphrase"}))
+	buy := map[string]any{"sku": "tark_premium_12m", "purchaseToken": "tok-del"}
+	expect(t, p.do("POST", "/v1/subscription/bazaar/purchases", buy, "Idempotency-Key", "0f4c7a51-1b8e-4d52-9a3c-6b1e2d3f4a5b"), 200, "")
+
+	ok := map[string]any{"confirmEmail": " Gone@Example.com ", "currentPassword": "a good passphrase", "locale": "en"}
+	// A tap is not a confirmation: the email has to be typed.
+	expect(t, p.do("POST", "/v1/account/delete", map[string]any{"currentPassword": "a good passphrase"}), 422, "confirmation_mismatch")
+	expect(t, p.do("POST", "/v1/account/delete", map[string]any{"confirmEmail": "other@example.com", "currentPassword": "a good passphrase"}), 422, "confirmation_mismatch")
+	expect(t, p.do("POST", "/v1/account/delete", map[string]any{"confirmEmail": "gone@example.com", "currentPassword": "not it"}), 401, "invalid_credentials")
+	expect(t, p.do("POST", "/v1/account/delete", map[string]any{"confirmEmail": "gone@example.com"}), 400, "")
+	// A running paid period needs its own acknowledgement.
+	sub := p.do("POST", "/v1/account/delete", ok)
+	expect(t, sub, 409, "subscription_active")
+	if sub.body["autoRenewing"] != true {
+		t.Fatalf("%v", sub.body)
+	}
+	expect(t, e.phone().do("POST", "/v1/account/delete", ok), 401, "")
+
+	ok["subscriptionAcknowledged"] = true
+	expect(t, p.do("POST", "/v1/account/delete", ok), 204, "")
+	if m := e.lastMail("gone@example.com"); m.Subject != "Your Tark account was deleted" {
+		t.Fatalf("last mail %q", m.Subject)
+	}
+
+	// Every session is gone, and so is the account.
+	expect(t, p.do("GET", "/v1/profile", nil), 401, "")
+	expect(t, other.do("GET", "/v1/profile", nil), 401, "")
+	expect(t, other.do("POST", "/v1/auth/token/refresh", map[string]any{"refreshToken": other.refresh}), 401, "")
+	expect(t, e.phone().do("POST", "/v1/auth/login", map[string]any{"email": "gone@example.com", "password": "a good passphrase"}), 401, "invalid_credentials")
+	var left int
+	if err := e.pool.QueryRow(context.Background(), `
+		SELECT (SELECT count(*) FROM users) + (SELECT count(*) FROM user_emails) + (SELECT count(*) FROM sessions)
+		     + (SELECT count(*) FROM bazaar_purchases) + (SELECT count(*) FROM audit_events WHERE user_id IS NOT NULL)
+		     + (SELECT count(*) FROM idempotency_keys WHERE scope LIKE 'user:%')`).Scan(&left); err != nil {
+		t.Fatal(err)
+	}
+	if left != 0 {
+		t.Fatalf("%d rows still tied to the deleted account", left)
+	}
+
+	// The address can sign up again, and the purchase can be restored there.
+	n := e.phone()
+	n.register("gone@example.com", "another passphrase", "Back")
+	expect(t, n.do("POST", "/v1/subscription/bazaar/purchases", buy, "Idempotency-Key", "7d2e9c14-3a6b-4f81-b5d0-2c9e8a7f6b13"), 200, "")
+}
+
+func TestGoogleOnlyAccountDeletion(t *testing.T) {
+	e := setup(t)
+	p := e.phone()
+	p.signedIn(p.do("POST", "/v1/auth/google", map[string]any{"idToken": p.googleToken("g-del", "gdel@gmail.com", "G"), "name": "G"}))
+	body := map[string]any{"confirmEmail": "gdel@gmail.com"}
+	expect(t, p.do("POST", "/v1/account/delete", body), 400, "")
+	body["googleIdToken"] = p.googleToken("g-someone-else", "x@gmail.com", "")
+	expect(t, p.do("POST", "/v1/account/delete", body), 401, "invalid_credentials")
+	body["googleIdToken"] = p.googleToken("g-del", "gdel@gmail.com", "")
+	expect(t, p.do("POST", "/v1/account/delete", body), 204, "")
+	// The Google account can make a fresh account afterwards.
+	q := e.phone()
+	r := q.do("POST", "/v1/auth/google", map[string]any{"idToken": q.googleToken("g-del", "gdel@gmail.com", ""), "name": "G"})
+	q.signedIn(r)
+	if r.body["newAccount"] != true {
+		t.Fatalf("%v", r.body)
+	}
+}
