@@ -25,6 +25,9 @@ abstract final class SettingsKeys {
   static const usageTipsShown = 'usage_tips_shown';
   static const logMaxBytes = 'log_max_bytes';
 
+  /// How much user activity the diagnostic log records. See LogDetail.
+  static const logDetail = 'log_detail';
+
   /// #31 — whether Shared Music automatically ducks while someone is
   /// talking. See [AppSettings.smartMusicDuckingEnabled].
   static const smartMusicDuckingEnabled = 'smart_music_ducking_enabled';

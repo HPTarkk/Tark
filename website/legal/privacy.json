@@ -218,8 +218,8 @@
             },
             {
               "text": {
-                "en": "A rotating technical log — session lifecycle, screen on and off, which pages of the app you open and the main buttons you tap, socket events, which peers a packet failed to reach. Never any audio. It is capped in size (8 MB by default, adjustable), it stays on the phone unless you deliberately share it, and Settings → Advanced → Diagnostics has a button that deletes it.",
-                "fa": "یه لاگ فنی چرخشی — چرخه‌ی جلسه، روشن و خاموش شدن صفحه، صفحه‌هایی از برنامه که باز می‌کنی و دکمه‌های اصلی‌ای که می‌زنی، رویدادهای سوکت، اینکه بسته به کدوم گوشی نرسیده. هیچ‌وقت هیچ صدایی. اندازه‌ش سقف داره (پیش‌فرض ۸ مگابایت، قابل تغییر)، تا وقتی خودت عمداً به اشتراک نذاریش روی گوشی می‌مونه، و توی تنظیمات ← پیشرفته ← عیب‌یابی دکمه‌ای هست که پاکش می‌کنه."
+                "en": "A rotating technical log — session lifecycle, screen on and off, socket events, which peers a packet failed to reach. If you raise the log level in Settings → Advanced → Diagnostics, it also records the pages you open and, at the highest level, every tap and settings change. Never any audio. It is capped in size (8 MB by default, adjustable), it stays on the phone unless you deliberately share it, and Settings → Advanced → Diagnostics has a button that deletes it.",
+                "fa": "یه لاگ فنی چرخشی — چرخه‌ی جلسه، روشن و خاموش شدن صفحه، رویدادهای سوکت، اینکه بسته به کدوم گوشی نرسیده. اگه سطح گزارش رو توی تنظیمات ← پیشرفته ← عیب‌یابی بالا ببری، صفحه‌هایی که باز می‌کنی و توی بالاترین سطح، هر لمس و هر تغییر تنظیمات هم ثبت می‌شه. هیچ‌وقت هیچ صدایی. اندازه‌ش سقف داره (پیش‌فرض ۸ مگابایت، قابل تغییر)، تا وقتی خودت عمداً به اشتراک نذاریش روی گوشی می‌مونه، و توی تنظیمات ← پیشرفته ← عیب‌یابی دکمه‌ای هست که پاکش می‌کنه."
               },
               "name": {
                 "en": "The diagnostic log",

@@ -1365,6 +1365,22 @@ class AppLocalizationsFa extends AppLocalizations {
       'گزارش هیچ‌وقت از این بیشتر نمی‌شود. وقتی پر شد، قدیمی‌ترین خط‌ها جا را به تازه‌ترین‌ها می‌دهند.';
 
   @override
+  String get settings_log_level => 'سطح گزارش';
+
+  @override
+  String get settings_log_level_standard => 'عادی';
+
+  @override
+  String get settings_log_level_screens => 'صفحه‌ها';
+
+  @override
+  String get settings_log_level_everything => 'همه‌چیز';
+
+  @override
+  String get settings_log_level_desc =>
+      '«عادی» گزارش را مثل همیشه نگه می‌دارد. «صفحه‌ها» صفحه‌هایی را که باز می‌کنید و دکمه‌های اصلی‌ای را که می‌زنید هم ثبت می‌کند. «همه‌چیز» هر لمس و هر تغییر تنظیمات را هم اضافه می‌کند. همه‌اش روی همین گوشی می‌ماند.';
+
+  @override
   String settings_log_usage(Object max, Object used) {
     return '$used از $max پر شده';
   }

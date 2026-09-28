@@ -1,3 +1,4 @@
+import '../diagnostics/log_detail.dart';
 import 'app_settings.dart';
 import 'audio_profile.dart';
 import 'noise_suppression_engine.dart';
@@ -68,6 +69,11 @@ abstract interface class SettingsRepository {
   /// preference.
   Future<int> getLogMaxBytes();
   Future<void> setLogMaxBytes(int value);
+
+  /// How much user activity the diagnostic log records (Settings > Advanced
+  /// > Diagnostics > Log level). Defaults to [LogDetail.standard].
+  Future<LogDetail> getLogDetail();
+  Future<void> setLogDetail(LogDetail value);
 
   /// #31 — whether Shared Music automatically ducks while someone is
   /// talking. Enabled by default for new installs; off leaves shared-music

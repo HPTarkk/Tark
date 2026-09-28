@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/diagnostics/screen_log.dart';
 import '../../../../core/entitlement/license_gate.dart';
 import '../../../../core/entitlement/premium_feature.dart';
 import '../../../../core/settings/settings_keys.dart';
@@ -117,6 +118,7 @@ class TransferModeStoreImpl implements TransferModeStore {
       return;
     }
     _pinned = mode;
+    ScreenLog.setting(SettingsKeys.transportPin, mode?.key ?? _autoKey);
     await _prefs.setString(SettingsKeys.transportPin, mode?.key ?? _autoKey);
     if (!_pinController.isClosed) _pinController.add(mode);
     // Pinning is also a switch. Un-pinning is not — see [setPinnedMode] on the

@@ -6,6 +6,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/audio/audio_format_profile.dart';
 import '../../../../core/diagnostics/diagnostic_log.dart';
 import '../../../../core/diagnostics/log_budget.dart';
+import '../../../../core/diagnostics/log_detail.dart';
+import '../../../../core/diagnostics/screen_log.dart';
 import '../../../../core/settings/audio_profile.dart';
 import '../../../../core/settings/noise_suppression_engine.dart';
 import '../../../../core/settings/settings_repository.dart';
@@ -280,6 +282,12 @@ class SettingsCubit extends Cubit<SettingsState> {
   /// Applies immediately as well as persisting: lowering the ceiling is a
   /// request to reclaim that space now, and the size readout sitting next to
   /// the control has to agree with it before the user looks away.
+  /// Takes effect on the next line written — no restart.
+  Future<void> setLogDetail(LogDetail detail) async {
+    emit(state.copyWith(logDetail: detail));
+    await _repository.setLogDetail(detail);
+  }
+
   Future<void> setLogMaxBytes(int bytes) async {
     final clamped = LogBudget.clamp(bytes);
     emit(state.copyWith(logMaxBytes: clamped));
@@ -311,6 +319,7 @@ class SettingsState extends Equatable {
   final bool autoReconnectEnabled;
   final bool skipSplash;
   final int logMaxBytes;
+  final LogDetail logDetail;
   final bool smartMusicDuckingEnabled;
   final bool hdVoiceEnabled;
   final bool hdMusicEnabled;
@@ -326,6 +335,7 @@ class SettingsState extends Equatable {
     required this.autoReconnectEnabled,
     required this.skipSplash,
     required this.logMaxBytes,
+    required this.logDetail,
     required this.smartMusicDuckingEnabled,
     required this.hdVoiceEnabled,
     required this.hdMusicEnabled,
@@ -342,6 +352,9 @@ class SettingsState extends Equatable {
     autoReconnectEnabled: true,
     skipSplash: false,
     logMaxBytes: LogBudget.defaultBytes,
+    // Already read from prefs in main(), so the control never flashes the
+    // default before settling on the stored choice.
+    logDetail: ScreenLog.detail,
     smartMusicDuckingEnabled: true,
     hdVoiceEnabled: true,
     hdMusicEnabled: true,
@@ -357,6 +370,7 @@ class SettingsState extends Equatable {
     bool? autoReconnectEnabled,
     bool? skipSplash,
     int? logMaxBytes,
+    LogDetail? logDetail,
     bool? smartMusicDuckingEnabled,
     bool? hdVoiceEnabled,
     bool? hdMusicEnabled,
@@ -372,6 +386,7 @@ class SettingsState extends Equatable {
     autoReconnectEnabled: autoReconnectEnabled ?? this.autoReconnectEnabled,
     skipSplash: skipSplash ?? this.skipSplash,
     logMaxBytes: logMaxBytes ?? this.logMaxBytes,
+    logDetail: logDetail ?? this.logDetail,
     smartMusicDuckingEnabled:
         smartMusicDuckingEnabled ?? this.smartMusicDuckingEnabled,
     hdVoiceEnabled: hdVoiceEnabled ?? this.hdVoiceEnabled,
@@ -390,6 +405,7 @@ class SettingsState extends Equatable {
     autoReconnectEnabled,
     skipSplash,
     logMaxBytes,
+    logDetail,
     smartMusicDuckingEnabled,
     hdVoiceEnabled,
     hdMusicEnabled,

@@ -230,7 +230,7 @@ ios/Runner/, ios/TarkWidget/      — Swift equivalents + WidgetKit extension
 
 ## Privacy
 
-Conversations never leave the local link — phone to phone over Wi-Fi, Bluetooth, or a hosted hotspot, no server in the path. The app sends no analytics or usage stats anywhere. The diagnostic log (screens visited, connections, audio health) stays on the phone and only leaves it when you export it from Settings → Advanced → Diagnostics.
+Conversations never leave the local link — phone to phone over Wi-Fi, Bluetooth, or a hosted hotspot, no server in the path. The app sends no analytics or usage stats anywhere. The diagnostic log (connections, audio health, and at a higher log level the screens visited, taps and settings changes) stays on the phone and only leaves it when you export it from Settings → Advanced → Diagnostics.
 
 ---
 

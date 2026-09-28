@@ -13,6 +13,8 @@ import 'core/config/onboarding_config.dart';
 import 'core/diagnostics/diagnostic_log.dart';
 import 'core/diagnostics/lifecycle_log.dart';
 import 'core/diagnostics/log_budget.dart';
+import 'core/diagnostics/log_detail.dart';
+import 'core/diagnostics/screen_log.dart';
 import 'core/entitlement/entitlement_store.dart';
 import 'core/home_widget/home_widget_service.dart';
 import 'core/home_widget/home_widget_snapshot.dart';
@@ -66,6 +68,9 @@ void main() async {
       prefs.getInt(SettingsKeys.logMaxBytes) ?? LogBudget.defaultBytes,
     ),
   );
+  // Before the first route is pushed, so a phone set to log screens has the
+  // very first one on record.
+  ScreenLog.detail = LogDetail.fromKey(prefs.getString(SettingsKeys.logDetail));
   // Same reasoning: every TransferRepository is a DI singleton that reads
   // AudioFormatProfile.hdVoiceEnabled/hdMusicEnabled live (see their doc)
   // rather than caching a value at construction, but the in-memory default

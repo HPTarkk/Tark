@@ -1370,6 +1370,22 @@ class AppLocalizationsEn extends AppLocalizations {
       'The log never grows past this. When it\'s full, the oldest lines make way for the newest.';
 
   @override
+  String get settings_log_level => 'LOG LEVEL';
+
+  @override
+  String get settings_log_level_standard => 'Standard';
+
+  @override
+  String get settings_log_level_screens => 'Screens';
+
+  @override
+  String get settings_log_level_everything => 'Everything';
+
+  @override
+  String get settings_log_level_desc =>
+      'Standard keeps the log as it has always been. Screens also records the pages you open and the main buttons you tap. Everything adds every tap and every settings change. It all stays on this phone.';
+
+  @override
   String settings_log_usage(Object max, Object used) {
     return '$used of $max used';
   }

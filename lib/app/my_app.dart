@@ -5,6 +5,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
+import '../core/diagnostics/tap_log.dart';
 import '../core/home_widget/home_widget_launch.dart';
 import '../core/home_widget/home_widget_service.dart';
 import '../core/home_widget/widget_control_channel.dart';
@@ -107,7 +108,7 @@ class _MyAppState extends State<MyApp> {
         key: AppRevealController.repaintBoundaryKey,
         child: KeyedSubtree(
           key: ValueKey(ThemeService.currentMode),
-          child: child!,
+          child: TapLog(child: child!),
         ),
       ),
       locale: locale,

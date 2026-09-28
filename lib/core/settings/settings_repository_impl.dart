@@ -6,6 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../config/onboarding_config.dart';
 import '../config/quick_access_config.dart';
 import '../diagnostics/log_budget.dart';
+import '../diagnostics/log_detail.dart';
+import '../diagnostics/screen_log.dart';
 import 'app_settings.dart';
 import 'audio_profile.dart';
 import 'noise_suppression_engine.dart';
@@ -44,6 +46,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
 
   @override
   Future<void> setMyName(String value) async {
+    ScreenLog.setting(SettingsKeys.userName, value);
     await _prefs.setString(SettingsKeys.userName, value);
     _myNameController.add(value);
   }
@@ -55,8 +58,10 @@ class SettingsRepositoryImpl implements SettingsRepository {
   Future<double> getVoxMargin() async => SettingsModel.readVoxMargin(_prefs);
 
   @override
-  Future<void> setVoxMargin(double value) =>
-      _prefs.setDouble(SettingsKeys.voxMargin, value);
+  Future<void> setVoxMargin(double value) {
+    ScreenLog.setting(SettingsKeys.voxMargin, value);
+    return _prefs.setDouble(SettingsKeys.voxMargin, value);
+  }
 
   @override
   Future<double> getNoiseSuppression() async =>
@@ -64,8 +69,10 @@ class SettingsRepositoryImpl implements SettingsRepository {
       AppSettings.defaults().noiseSuppression;
 
   @override
-  Future<void> setNoiseSuppression(double value) =>
-      _prefs.setDouble(SettingsKeys.noiseSuppression, value);
+  Future<void> setNoiseSuppression(double value) {
+    ScreenLog.setting(SettingsKeys.noiseSuppression, value);
+    return _prefs.setDouble(SettingsKeys.noiseSuppression, value);
+  }
 
   @override
   Future<NoiseSuppressionEngine> getNoiseSuppressionEngine() async {
@@ -78,8 +85,10 @@ class SettingsRepositoryImpl implements SettingsRepository {
   }
 
   @override
-  Future<void> setNoiseSuppressionEngine(NoiseSuppressionEngine value) =>
-      _prefs.setString(SettingsKeys.noiseSuppressionEngine, value.name);
+  Future<void> setNoiseSuppressionEngine(NoiseSuppressionEngine value) {
+    ScreenLog.setting(SettingsKeys.noiseSuppressionEngine, value.name);
+    return _prefs.setString(SettingsKeys.noiseSuppressionEngine, value.name);
+  }
 
   @override
   Future<double> getMusicGain() async =>
@@ -87,8 +96,10 @@ class SettingsRepositoryImpl implements SettingsRepository {
       AppSettings.defaults().musicGain;
 
   @override
-  Future<void> setMusicGain(double value) =>
-      _prefs.setDouble(SettingsKeys.musicGain, value);
+  Future<void> setMusicGain(double value) {
+    ScreenLog.setting(SettingsKeys.musicGain, value);
+    return _prefs.setDouble(SettingsKeys.musicGain, value);
+  }
 
   @override
   Future<int> getTargetBufferMs() async =>
@@ -96,8 +107,10 @@ class SettingsRepositoryImpl implements SettingsRepository {
       AppSettings.defaults().targetBufferMs;
 
   @override
-  Future<void> setTargetBufferMs(int value) =>
-      _prefs.setInt(SettingsKeys.targetBufferMs, value);
+  Future<void> setTargetBufferMs(int value) {
+    ScreenLog.setting(SettingsKeys.targetBufferMs, value);
+    return _prefs.setInt(SettingsKeys.targetBufferMs, value);
+  }
 
   @override
   Future<bool> getRidingPreset() async =>
@@ -105,8 +118,10 @@ class SettingsRepositoryImpl implements SettingsRepository {
       AppSettings.defaults().ridingPreset;
 
   @override
-  Future<void> setRidingPreset(bool value) =>
-      _prefs.setBool(SettingsKeys.ridingPreset, value);
+  Future<void> setRidingPreset(bool value) {
+    ScreenLog.setting(SettingsKeys.ridingPreset, value);
+    return _prefs.setBool(SettingsKeys.ridingPreset, value);
+  }
 
   @override
   Future<AudioProfile> getAudioProfile() async {
@@ -128,8 +143,10 @@ class SettingsRepositoryImpl implements SettingsRepository {
       AppSettings.defaults().autoReconnectEnabled;
 
   @override
-  Future<void> setAutoReconnectEnabled(bool value) =>
-      _prefs.setBool(SettingsKeys.autoReconnectEnabled, value);
+  Future<void> setAutoReconnectEnabled(bool value) {
+    ScreenLog.setting(SettingsKeys.autoReconnectEnabled, value);
+    return _prefs.setBool(SettingsKeys.autoReconnectEnabled, value);
+  }
 
   @override
   Future<bool> getSkipSplash() async =>
@@ -137,8 +154,10 @@ class SettingsRepositoryImpl implements SettingsRepository {
       AppSettings.defaults().skipSplash;
 
   @override
-  Future<void> setSkipSplash(bool value) =>
-      _prefs.setBool(SettingsKeys.skipSplash, value);
+  Future<void> setSkipSplash(bool value) {
+    ScreenLog.setting(SettingsKeys.skipSplash, value);
+    return _prefs.setBool(SettingsKeys.skipSplash, value);
+  }
 
   @override
   Future<bool> getUsageTipsShown() async =>
@@ -156,8 +175,23 @@ class SettingsRepositoryImpl implements SettingsRepository {
   );
 
   @override
-  Future<void> setLogMaxBytes(int value) =>
-      _prefs.setInt(SettingsKeys.logMaxBytes, LogBudget.clamp(value));
+  Future<void> setLogMaxBytes(int value) {
+    ScreenLog.setting(SettingsKeys.logMaxBytes, LogBudget.clamp(value));
+    return _prefs.setInt(SettingsKeys.logMaxBytes, LogBudget.clamp(value));
+  }
+
+  @override
+  Future<LogDetail> getLogDetail() async =>
+      LogDetail.fromKey(_prefs.getString(SettingsKeys.logDetail));
+
+  @override
+  Future<void> setLogDetail(LogDetail value) async {
+    ScreenLog.detail = value;
+    // Logged after the switch, so raising it to Everything records the
+    // change that turned it on.
+    ScreenLog.setting(SettingsKeys.logDetail, value.key);
+    await _prefs.setString(SettingsKeys.logDetail, value.key);
+  }
 
   @override
   Future<bool> getSmartMusicDuckingEnabled() async =>
@@ -165,8 +199,10 @@ class SettingsRepositoryImpl implements SettingsRepository {
       AppSettings.defaults().smartMusicDuckingEnabled;
 
   @override
-  Future<void> setSmartMusicDuckingEnabled(bool value) =>
-      _prefs.setBool(SettingsKeys.smartMusicDuckingEnabled, value);
+  Future<void> setSmartMusicDuckingEnabled(bool value) {
+    ScreenLog.setting(SettingsKeys.smartMusicDuckingEnabled, value);
+    return _prefs.setBool(SettingsKeys.smartMusicDuckingEnabled, value);
+  }
 
   @override
   Future<bool> getHdVoiceEnabled() async =>
@@ -174,8 +210,10 @@ class SettingsRepositoryImpl implements SettingsRepository {
       AppSettings.defaults().hdVoiceEnabled;
 
   @override
-  Future<void> setHdVoiceEnabled(bool value) =>
-      _prefs.setBool(SettingsKeys.hdVoiceEnabled, value);
+  Future<void> setHdVoiceEnabled(bool value) {
+    ScreenLog.setting(SettingsKeys.hdVoiceEnabled, value);
+    return _prefs.setBool(SettingsKeys.hdVoiceEnabled, value);
+  }
 
   @override
   Future<bool> getHdMusicEnabled() async =>
@@ -183,8 +221,10 @@ class SettingsRepositoryImpl implements SettingsRepository {
       AppSettings.defaults().hdMusicEnabled;
 
   @override
-  Future<void> setHdMusicEnabled(bool value) =>
-      _prefs.setBool(SettingsKeys.hdMusicEnabled, value);
+  Future<void> setHdMusicEnabled(bool value) {
+    ScreenLog.setting(SettingsKeys.hdMusicEnabled, value);
+    return _prefs.setBool(SettingsKeys.hdMusicEnabled, value);
+  }
 
   @override
   Future<String?> getLastBluetoothPeerId() async =>

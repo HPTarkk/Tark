@@ -2552,6 +2552,36 @@ abstract class AppLocalizations {
   /// **'گزارش هیچ‌وقت از این بیشتر نمی‌شود. وقتی پر شد، قدیمی‌ترین خط‌ها جا را به تازه‌ترین‌ها می‌دهند.'**
   String get settings_log_max_size_desc;
 
+  /// No description provided for @settings_log_level.
+  ///
+  /// In fa, this message translates to:
+  /// **'سطح گزارش'**
+  String get settings_log_level;
+
+  /// No description provided for @settings_log_level_standard.
+  ///
+  /// In fa, this message translates to:
+  /// **'عادی'**
+  String get settings_log_level_standard;
+
+  /// No description provided for @settings_log_level_screens.
+  ///
+  /// In fa, this message translates to:
+  /// **'صفحه‌ها'**
+  String get settings_log_level_screens;
+
+  /// No description provided for @settings_log_level_everything.
+  ///
+  /// In fa, this message translates to:
+  /// **'همه‌چیز'**
+  String get settings_log_level_everything;
+
+  /// No description provided for @settings_log_level_desc.
+  ///
+  /// In fa, this message translates to:
+  /// **'«عادی» گزارش را مثل همیشه نگه می‌دارد. «صفحه‌ها» صفحه‌هایی را که باز می‌کنید و دکمه‌های اصلی‌ای را که می‌زنید هم ثبت می‌کند. «همه‌چیز» هر لمس و هر تغییر تنظیمات را هم اضافه می‌کند. همه‌اش روی همین گوشی می‌ماند.'**
+  String get settings_log_level_desc;
+
   /// No description provided for @settings_log_usage.
   ///
   /// In fa, this message translates to:
