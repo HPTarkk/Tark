@@ -168,7 +168,7 @@ void main() {
     await settleInvite(tester);
 
     expect(
-      find.text('این کد فقط برای بررسی است و به‌تنهایی اجازه ورود نمی‌دهد.'),
+      find.text('این کد فقط برای بررسیه و به‌تنهایی اجازه‌ی ورود نمی‌ده.'),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);

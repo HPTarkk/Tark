@@ -98,7 +98,7 @@ class _DiagnosticsCardState extends State<DiagnosticsCard> {
         // TarkLogFormat), and letting a mail client treat it as text is how a
         // binary attachment arrives mangled.
         mimeType: 'application/octet-stream',
-        subject: 'Tark diagnostic log (.${TarkLogFormat.extension})',
+        subject: 'Tarkk diagnostic log (.${TarkLogFormat.extension})',
       );
       if (!mounted) return;
       if (!shared) _say(s.settings_log_share_failed);

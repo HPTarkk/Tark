@@ -1025,7 +1025,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get usage_tips_4_body =>
-      'Add the Tark widget and you can see who\'s on air at a glance, then tap once to jump straight in — no digging through the app. Add it any time from Settings.';
+      'Add the Tarkk widget and you can see who\'s on air at a glance, then tap once to jump straight in — no digging through the app. Add it any time from Settings.';
 
   @override
   String get usage_tips_dismiss => 'GOT IT';
@@ -1674,7 +1674,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lobby_unlinked_body =>
-      'Tark runs over Wi-Fi, a hotspot one of you turns on, or Bluetooth — no internet, no SIM. Right now this phone is on none of them.';
+      'Tarkk runs over Wi-Fi, a hotspot one of you turns on, or Bluetooth — no internet, no SIM. Right now this phone is on none of them.';
 
   @override
   String get lobby_unlinked_no_way_out =>
@@ -2273,7 +2273,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get consent_body_first =>
-      'Tark has no account and no server carrying your voice. These two documents say what that means in practice — and what it doesn\'t protect you from. The short version of each is below; the full text is one tap away.';
+      'Tarkk has no account and no server carrying your voice. These two documents say what that means in practice — and what it doesn\'t protect you from. The short version of each is below; the full text is one tap away.';
 
   @override
   String get consent_body_updated =>

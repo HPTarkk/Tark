@@ -7,7 +7,7 @@
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
 		<key>CFBundleDisplayName</key>
-		<string>Tark</string>
+		<string>Tarkk</string>
 		<key>CFBundleExecutable</key>
 		<string>$(EXECUTABLE_NAME)</string>
 		<key>CFBundleIdentifier</key>
@@ -27,11 +27,11 @@
 		<key>LSRequiresIPhoneOS</key>
 		<true />
 		<key>NSCameraUsageDescription</key>
-		<string>Tark uses the camera to scan the guest's reply code when inviting a browser guest.</string>
+		<string>Tarkk uses the camera to scan the guest's reply code when inviting a browser guest.</string>
 		<key>NSBluetoothAlwaysUsageDescription</key>
-		<string>Tark uses Bluetooth to connect directly to a nearby device in Bluetooth mode.</string>
+		<string>Tarkk uses Bluetooth to connect directly to a nearby device in Bluetooth mode.</string>
 		<key>NSLocalNetworkUsageDescription</key>
-		<string>Tark discovers and talks to other devices on your local WiFi network to work as a walkie-talkie.</string>
+		<string>Tarkk discovers and talks to other devices on your local Wi-Fi network to work as a walkie-talkie.</string>
 		<key>NSMicrophoneUsageDescription</key>
 		<string>This app needs access to the microphone for audio processing.</string>
 		<!-- The scheme the home-screen widget's tap URLs use

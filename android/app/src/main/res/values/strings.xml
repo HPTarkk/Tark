@@ -7,8 +7,9 @@
     lib/core/home_widget/home_widget_service_impl.dart).
 -->
 <resources>
-    <string name="widget_app_name">Tark</string>
-    <string name="widget_label">Tark Channel</string>
+    <string name="app_name">Tarkk</string>
+    <string name="widget_app_name">Tarkk</string>
+    <string name="widget_label">Tarkk Channel</string>
     <string name="widget_description">Jump straight into your channel, and see who\'s on air.</string>
     <string name="widget_dial_description">Channel status dial</string>
     <string name="widget_level_description">Voice level</string>

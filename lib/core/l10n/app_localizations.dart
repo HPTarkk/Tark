@@ -359,7 +359,7 @@ abstract class AppLocalizations {
   /// No description provided for @mic_permission_denied.
   ///
   /// In fa, this message translates to:
-  /// **'«ترک» صدات رو نمی‌شنوه. برو توی تنظیمات میکروفون رو روشن کن.'**
+  /// **'«تَرک» صدات رو نمی‌شنوه. برو توی تنظیمات میکروفون رو روشن کن.'**
   String get mic_permission_denied;
 
   /// No description provided for @join_channel.
@@ -815,7 +815,7 @@ abstract class AppLocalizations {
   /// No description provided for @bt_permission_denied.
   ///
   /// In fa, this message translates to:
-  /// **'«ترک» نمی‌تونه از بلوتوث استفاده کنه. برو توی تنظیمات روشنش کن.'**
+  /// **'«تَرک» نمی‌تونه از بلوتوث استفاده کنه. برو توی تنظیمات روشنش کن.'**
   String get bt_permission_denied;
 
   /// No description provided for @bt_not_supported_platform.
@@ -1229,7 +1229,7 @@ abstract class AppLocalizations {
   /// No description provided for @hotspot_host_badge.
   ///
   /// In fa, this message translates to:
-  /// **'هات‌اسپات ترک • روی آنتن'**
+  /// **'هات‌اسپات تَرک • روی آنتن'**
   String get hotspot_host_badge;
 
   /// No description provided for @hotspot_show_credentials.
@@ -1247,7 +1247,7 @@ abstract class AppLocalizations {
   /// No description provided for @hotspot_network_note.
   ///
   /// In fa, this message translates to:
-  /// **'این اسم رو خود اندروید می‌ذاره و هیچ برنامه‌ای نمی‌تونه عوضش کنه. همین هات‌اسپات ترکه — گوشی دیگه هم اصلاً لازم نیست بخونتش، کد رو اسکن کنه کافیه.'**
+  /// **'این اسم رو خود اندروید می‌ذاره و هیچ برنامه‌ای نمی‌تونه عوضش کنه. همین هات‌اسپات تَرکه — گوشی دیگه هم اصلاً لازم نیست بخونتش، کد رو اسکن کنه کافیه.'**
   String get hotspot_network_note;
 
   /// No description provided for @hotspot_creating.
@@ -1325,7 +1325,7 @@ abstract class AppLocalizations {
   /// No description provided for @hotspot_wifi_off_page_point_channel.
   ///
   /// In fa, this message translates to:
-  /// **'همه هنوز صدات رو می‌شنون. ترک اینجا به وای‌فای احتیاجی نداره.'**
+  /// **'همه هنوز صدات رو می‌شنون. تَرک اینجا به وای‌فای احتیاجی نداره.'**
   String get hotspot_wifi_off_page_point_channel;
 
   /// No description provided for @hotspot_wifi_off_page_status_on.
@@ -1367,7 +1367,7 @@ abstract class AppLocalizations {
   /// No description provided for @hotspot_step_scan.
   ///
   /// In fa, this message translates to:
-  /// **'رو گوشی دیگه، «ترک» ← هات‌اسپات ← اتصال به یک هات‌اسپات رو باز کن و این کد رو اسکن کن.'**
+  /// **'رو گوشی دیگه، «تَرک» ← هات‌اسپات ← اتصال به یک هات‌اسپات رو باز کن و این کد رو اسکن کن.'**
   String get hotspot_step_scan;
 
   /// No description provided for @hotspot_step_join_channel.
@@ -1421,7 +1421,7 @@ abstract class AppLocalizations {
   /// No description provided for @hotspot_error_permission.
   ///
   /// In fa, this message translates to:
-  /// **'«ترک» باید بتونه وای‌فای‌های نزدیک رو ببینه تا هات‌اسپات بسازه. اجازه بده و دوباره امتحان کن.'**
+  /// **'«تَرک» باید بتونه وای‌فای‌های نزدیک رو ببینه تا هات‌اسپات بسازه. اجازه بده و دوباره امتحان کن.'**
   String get hotspot_error_permission;
 
   /// No description provided for @hotspot_error_no_channel.
@@ -1475,7 +1475,7 @@ abstract class AppLocalizations {
   /// No description provided for @hotspot_scan_camera_denied.
   ///
   /// In fa, this message translates to:
-  /// **'«ترک» برای خوندن کد میزبان دوربین می‌خواد.'**
+  /// **'«تَرک» برای خوندن کد میزبان دوربین می‌خواد.'**
   String get hotspot_scan_camera_denied;
 
   /// No description provided for @hotspot_scan_camera_failed.
@@ -1709,7 +1709,7 @@ abstract class AppLocalizations {
   /// No description provided for @settings_transport_desc.
   ///
   /// In fa, this message translates to:
-  /// **'«ترک» خودش مناسب‌ترین راه ارتباط رو با توجه به جایی که هستی انتخاب می‌کنه. فقط اگه دلیلی داری یکی رو ثابت کن.'**
+  /// **'«تَرک» خودش مناسب‌ترین راه ارتباط رو با توجه به جایی که هستی انتخاب می‌کنه. فقط اگه دلیلی داری یکی رو ثابت کن.'**
   String get settings_transport_desc;
 
   /// No description provided for @settings_section_startup.
@@ -1877,7 +1877,7 @@ abstract class AppLocalizations {
   /// No description provided for @usage_tips_title.
   ///
   /// In fa, this message translates to:
-  /// **'استفاده بهینه از «ترک»'**
+  /// **'استفاده بهینه از «تَرک»'**
   String get usage_tips_title;
 
   /// No description provided for @usage_tips_1_title.
@@ -1925,7 +1925,7 @@ abstract class AppLocalizations {
   /// No description provided for @usage_tips_4_body.
   ///
   /// In fa, this message translates to:
-  /// **'ویجت ترک رو اضافه کن تا با یه نگاه ببینی کی روی خطه و با یه ضربه بپری تو کانال — بدون گشتن توی برنامه. هر وقت خواستی از تنظیمات اضافه‌ش کن.'**
+  /// **'ویجت تَرک رو اضافه کن تا با یه نگاه ببینی کی روی خطه و با یه ضربه بپری تو کانال — بدون گشتن توی برنامه. هر وقت خواستی از تنظیمات اضافه‌ش کن.'**
   String get usage_tips_4_body;
 
   /// No description provided for @usage_tips_dismiss.
@@ -2021,13 +2021,13 @@ abstract class AppLocalizations {
   /// No description provided for @onboarding_mode_help.
   ///
   /// In fa, this message translates to:
-  /// **'روی خودکار بذارش تا «ترک» هر بار خودش تصمیم بگیره. بعداً از تنظیمات پیشرفته می‌تونی یکی رو ثابت کنی.'**
+  /// **'روی خودکار بذارش تا «تَرک» هر بار خودش تصمیم بگیره. بعداً از تنظیمات پیشرفته می‌تونی یکی رو ثابت کنی.'**
   String get onboarding_mode_help;
 
   /// No description provided for @onboarding_mode_auto_desc.
   ///
   /// In fa, this message translates to:
-  /// **'خود «ترک» انتخاب می‌کنه — وای‌فای مشترک، هات‌اسپات خودش، یا بلوتوث'**
+  /// **'خود «تَرک» انتخاب می‌کنه — وای‌فای مشترک، هات‌اسپات خودش، یا بلوتوث'**
   String get onboarding_mode_auto_desc;
 
   /// No description provided for @onboarding_mode_wifi_desc.
@@ -2255,7 +2255,7 @@ abstract class AppLocalizations {
   /// No description provided for @check_mic_denied.
   ///
   /// In fa, this message translates to:
-  /// **'ترک اجازه‌ی استفاده ازش رو نداره'**
+  /// **'تَرک اجازه‌ی استفاده ازش رو نداره'**
   String get check_mic_denied;
 
   /// No description provided for @check_mic_silent.
@@ -2345,7 +2345,7 @@ abstract class AppLocalizations {
   /// No description provided for @issue_mic_denied_body.
   ///
   /// In fa, this message translates to:
-  /// **'ترک برای استفاده از میکروفون اجازه می‌خواد. روشنش کن تا یه‌راست برگردی رو خط.'**
+  /// **'تَرک برای استفاده از میکروفون اجازه می‌خواد. روشنش کن تا یه‌راست برگردی رو خط.'**
   String get issue_mic_denied_body;
 
   /// No description provided for @issue_mic_silent_title.
@@ -2555,7 +2555,7 @@ abstract class AppLocalizations {
   /// No description provided for @settings_share_log_desc.
   ///
   /// In fa, this message translates to:
-  /// **'چیزی که برنامه ثبت کرده را برای ما بفرست تا ببینیم چه شده ({size})'**
+  /// **'چیزی که برنامه ثبت کرده رو برامون بفرست تا ببینیم چی شده ({size})'**
   String settings_share_log_desc(Object size);
 
   /// No description provided for @settings_clear_log.
@@ -2615,7 +2615,7 @@ abstract class AppLocalizations {
   /// No description provided for @settings_log_max_size_desc.
   ///
   /// In fa, this message translates to:
-  /// **'گزارش هیچ‌وقت از این بیشتر نمی‌شود. وقتی پر شد، قدیمی‌ترین خط‌ها جا را به تازه‌ترین‌ها می‌دهند.'**
+  /// **'گزارش هیچ‌وقت از این بزرگ‌تر نمی‌شه. وقتی پر شد، قدیمی‌ترین خط‌ها جاشون رو به تازه‌ترین‌ها می‌دن.'**
   String get settings_log_max_size_desc;
 
   /// No description provided for @settings_log_level.
@@ -2645,7 +2645,7 @@ abstract class AppLocalizations {
   /// No description provided for @settings_log_level_desc.
   ///
   /// In fa, this message translates to:
-  /// **'«عادی» گزارش را مثل همیشه نگه می‌دارد. «صفحه‌ها» صفحه‌هایی را که باز می‌کنید و دکمه‌های اصلی‌ای را که می‌زنید هم ثبت می‌کند. «همه‌چیز» هر لمس و هر تغییر تنظیمات را هم اضافه می‌کند. همه‌اش روی همین گوشی می‌ماند.'**
+  /// **'«عادی» گزارش رو مثل همیشه نگه می‌داره. «صفحه‌ها» صفحه‌هایی که باز می‌کنی و دکمه‌های اصلی‌ای که می‌زنی رو هم ثبت می‌کنه. «همه‌چیز» هر لمس و هر تغییر تنظیمات رو هم اضافه می‌کنه. همه‌ش روی همین گوشی می‌مونه.'**
   String get settings_log_level_desc;
 
   /// No description provided for @settings_log_usage.
@@ -2681,13 +2681,13 @@ abstract class AppLocalizations {
   /// No description provided for @issue_unheard_title.
   ///
   /// In fa, this message translates to:
-  /// **'صدایت را نمی‌شنوند'**
+  /// **'صدات رو نمی‌شنون'**
   String get issue_unheard_title;
 
   /// No description provided for @issue_unheard_body.
   ///
   /// In fa, this message translates to:
-  /// **'تو آن‌ها را می‌شنوی، ولی چیزی که می‌گویی به مقصد نمی‌رسد. اتصال دارد خودکار ترمیم می‌شود؛ اگر برنگشت، از کانال بیرون برو و دوباره وارد شو.'**
+  /// **'تو صداشون رو می‌شنوی، ولی چیزی که می‌گی بهشون نمی‌رسه. اتصال داره خودش درست می‌شه؛ اگه برنگشت، از کانال بیرون برو و دوباره بیا تو.'**
   String get issue_unheard_body;
 
   /// No description provided for @fix_repair_link.
@@ -2777,7 +2777,7 @@ abstract class AppLocalizations {
   /// No description provided for @preflight_mic_permission_denied.
   ///
   /// In fa, this message translates to:
-  /// **'ترک اجازه‌ی استفاده ازش رو نداره'**
+  /// **'تَرک اجازه‌ی استفاده ازش رو نداره'**
   String get preflight_mic_permission_denied;
 
   /// No description provided for @preflight_mic_no_frames.
@@ -2897,7 +2897,7 @@ abstract class AppLocalizations {
   /// No description provided for @preflight_background_restricted.
   ///
   /// In fa, this message translates to:
-  /// **'تنظیمات باتری ممکنه با خاموش شدن صفحه ترک رو متوقف کنه'**
+  /// **'تنظیمات باتری ممکنه با خاموش شدن صفحه تَرک رو متوقف کنه'**
   String get preflight_background_restricted;
 
   /// No description provided for @preflight_background_notification_denied.
@@ -2987,13 +2987,13 @@ abstract class AppLocalizations {
   /// No description provided for @lobby_nothing_started.
   ///
   /// In fa, this message translates to:
-  /// **'تا «شروع ارتباط» را نزنید، میکروفن خاموش می‌ماند.'**
+  /// **'تا «شروع ارتباط» رو نزنی، میکروفون خاموش می‌مونه.'**
   String get lobby_nothing_started;
 
   /// No description provided for @lobby_connecting_hint.
   ///
   /// In fa, this message translates to:
-  /// **'گوشی‌ها را نزدیک هم نگه دارید. اگر گوشی برای اتصال به شبکه سؤال کرد، «اتصال» را بزنید.'**
+  /// **'گوشی‌ها رو نزدیک هم نگه دار. اگه گوشی برای وصل شدن به شبکه سؤال کرد، «اتصال» رو بزن.'**
   String get lobby_connecting_hint;
 
   /// No description provided for @lobby_invite_people.
@@ -3005,37 +3005,37 @@ abstract class AppLocalizations {
   /// No description provided for @lobby_alone_no_invite.
   ///
   /// In fa, this message translates to:
-  /// **'هنوز کس دیگری در این اتاق نیست. اول باید عضوی که اجازهٔ دعوت دارد افراد را اضافه کند.'**
+  /// **'هنوز کس دیگه‌ای تو این اتاق نیست. اول باید یه عضوی که اجازه‌ی دعوت داره آدم اضافه کنه.'**
   String get lobby_alone_no_invite;
 
   /// No description provided for @room_start_not_linked.
   ///
   /// In fa, this message translates to:
-  /// **'این گوشی‌ها الان به هم وصل نیستند. وصلشان کنید تا شروع شود.'**
+  /// **'این گوشی‌ها الان به هم وصل نیستن. وصلشون کن تا شروع بشه.'**
   String get room_start_not_linked;
 
   /// No description provided for @room_start_nobody_answered.
   ///
   /// In fa, this message translates to:
-  /// **'به هیچ‌کدام از اعضای اتاق نرسیدیم. مطمئن شوید نزدیک‌اند و «ترک» روی گوشی‌شان باز است، بعد دوباره امتحان کنید.'**
+  /// **'به هیچ‌کدوم از اعضای اتاق نرسیدیم. مطمئن شو نزدیکن و «تَرک» روی گوشیشون بازه، بعد دوباره امتحان کن.'**
   String get room_start_nobody_answered;
 
   /// No description provided for @room_start_failed.
   ///
   /// In fa, this message translates to:
-  /// **'اتصال برقرار نشد. گوشی‌ها را نزدیک هم نگه دارید و دوباره امتحان کنید.'**
+  /// **'وصل نشد. گوشی‌ها رو نزدیک هم نگه دار و دوباره امتحان کن.'**
   String get room_start_failed;
 
   /// No description provided for @room_start_wifi_off.
   ///
   /// In fa, this message translates to:
-  /// **'وای‌فای خاموش است. روشنش کنید و دوباره امتحان کنید.'**
+  /// **'وای‌فای خاموشه. روشنش کن و دوباره امتحان کن.'**
   String get room_start_wifi_off;
 
   /// No description provided for @room_start_location_off.
   ///
   /// In fa, this message translates to:
-  /// **'لوکیشن خاموش است، برای همین این گوشی بقیه را پیدا نمی‌کند. روشنش کنید و دوباره امتحان کنید.'**
+  /// **'لوکیشن خاموشه، برای همین این گوشی بقیه رو پیدا نمی‌کنه. روشنش کن و دوباره امتحان کن.'**
   String get room_start_location_off;
 
   /// No description provided for @room_start_connect.
@@ -3047,19 +3047,19 @@ abstract class AppLocalizations {
   /// No description provided for @lobby_alone_title.
   ///
   /// In fa, this message translates to:
-  /// **'هنوز تنها هستید'**
+  /// **'هنوز تنهایی'**
   String get lobby_alone_title;
 
   /// No description provided for @lobby_alone_body.
   ///
   /// In fa, this message translates to:
-  /// **'هنوز کسی جز شما در «{room}» نیست. کد دعوت را نشانشان بدهید — با یک اسکن وارد همین اتاق می‌شوند، بدون اینترنت.'**
+  /// **'هنوز کسی جز تو تو «{room}» نیست. کد دعوت رو نشونشون بده — با یه اسکن میان تو همین اتاق، بدون اینترنت.'**
   String lobby_alone_body(Object room);
 
   /// No description provided for @lobby_alone_no_right.
   ///
   /// In fa, this message translates to:
-  /// **'هنوز کسی جز شما اینجا نیست. دعوت کردن دست میزبان این اتاق است.'**
+  /// **'هنوز کسی جز تو اینجا نیست. دعوت کردن دست میزبان این اتاقه.'**
   String get lobby_alone_no_right;
 
   /// No description provided for @lobby_invite_someone.
@@ -3083,7 +3083,7 @@ abstract class AppLocalizations {
   /// No description provided for @lobby_unlinked_heading.
   ///
   /// In fa, this message translates to:
-  /// **'هنوز وصل نیستید'**
+  /// **'هنوز وصل نیستی'**
   String get lobby_unlinked_heading;
 
   /// No description provided for @lobby_unlinked_lead.
@@ -3101,13 +3101,13 @@ abstract class AppLocalizations {
   /// No description provided for @lobby_unlinked_body.
   ///
   /// In fa, this message translates to:
-  /// **'«ترک» روی وای‌فای، هات‌اسپاتی که یکی‌تان روشن می‌کند، یا بلوتوث کار می‌کند — بدون اینترنت و بدون سیم‌کارت. الان این گوشی روی هیچ‌کدام نیست.'**
+  /// **'«تَرک» روی وای‌فای، هات‌اسپاتی که یکی‌تون روشن می‌کنه، یا بلوتوث کار می‌کنه — بدون اینترنت و بدون سیم‌کارت. الان این گوشی روی هیچ‌کدوم نیست.'**
   String get lobby_unlinked_body;
 
   /// No description provided for @lobby_unlinked_no_way_out.
   ///
   /// In fa, this message translates to:
-  /// **'الان این گوشی روی هیچ شبکه‌ای نیست. وای‌فای را روشن کنید یا از صفحهٔ اتصال، هات‌اسپات را بالا بیاورید.'**
+  /// **'الان این گوشی روی هیچ شبکه‌ای نیست. وای‌فای رو روشن کن یا از صفحه‌ی اتصال، هات‌اسپات رو راه بنداز.'**
   String get lobby_unlinked_no_way_out;
 
   /// No description provided for @lobby_connect.
@@ -3125,7 +3125,7 @@ abstract class AppLocalizations {
   /// No description provided for @lobby_assumed_lead.
   ///
   /// In fa, this message translates to:
-  /// **'روی وای‌فای بودن، با روی وای‌فایِ آن‌ها بودن یکی نیست.'**
+  /// **'رو وای‌فای بودن، با رو وای‌فایِ اونا بودن یکی نیست.'**
   String get lobby_assumed_lead;
 
   /// No description provided for @lobby_assumed_title.
@@ -3137,19 +3137,19 @@ abstract class AppLocalizations {
   /// No description provided for @lobby_assumed_body.
   ///
   /// In fa, this message translates to:
-  /// **'این گوشی روی شبکه‌ای است که از قبل بوده — و از اینجا هیچ راهی نیست که بفهمیم بقیه هم روی همان هستند. شبکه‌ای هم که چند دقیقهٔ دیگر از آن دور می‌شوید، جای شروع ارتباط نیست. هات‌اسپاتی که یکی‌تان روشن می‌کند هرجا بروید کار می‌کند: شما کد را نشان می‌دهید، آن‌ها اسکن می‌کنند.'**
+  /// **'این گوشی روی شبکه‌ایه که از قبل بوده — و از اینجا هیچ راهی نیست بفهمیم بقیه هم روی همونن. شبکه‌ای هم که چند دقیقه‌ی دیگه ازش دور می‌شی، جای شروع ارتباط نیست. هات‌اسپاتی که یکی‌تون روشن می‌کنه هرجا برید کار می‌کنه: تو کد رو نشون می‌دی، اونا اسکن می‌کنن.'**
   String get lobby_assumed_body;
 
   /// No description provided for @lobby_assumed_no_way_out.
   ///
   /// In fa, this message translates to:
-  /// **'این گوشی روی شبکه‌ای است که از قبل بوده. تا صدایی نرسد، معلوم نیست بقیه هم روی همان باشند.'**
+  /// **'این گوشی روی شبکه‌ایه که از قبل بوده. تا صدایی نرسه، معلوم نیست بقیه هم روی همون باشن.'**
   String get lobby_assumed_no_way_out;
 
   /// No description provided for @lobby_get_on_one_network.
   ///
   /// In fa, this message translates to:
-  /// **'یک شبکهٔ مشترک بسازید'**
+  /// **'یه شبکه‌ی مشترک بسازین'**
   String get lobby_get_on_one_network;
 
   /// No description provided for @lobby_already_together.
@@ -3167,19 +3167,19 @@ abstract class AppLocalizations {
   /// No description provided for @lobby_different_network.
   ///
   /// In fa, this message translates to:
-  /// **'روی یک شبکه نیستید؟'**
+  /// **'روی یه شبکه نیستین؟'**
   String get lobby_different_network;
 
   /// No description provided for @lobby_caveat_wifi.
   ///
   /// In fa, this message translates to:
-  /// **'بقیه هم باید روی همین شبکه باشند. تا وقتی صدایی نرسد، از اینجا نمی‌شود فهمید هستند یا نه.'**
+  /// **'بقیه هم باید روی همین شبکه باشن. تا وقتی صدایی نرسه، از اینجا نمی‌شه فهمید هستن یا نه.'**
   String get lobby_caveat_wifi;
 
   /// No description provided for @lobby_caveat_hotspot.
   ///
   /// In fa, this message translates to:
-  /// **'هات‌اسپات شما روشن است، ولی تا کدتان را اسکن نکنند کسی روی آن نیست.'**
+  /// **'هات‌اسپاتت روشنه، ولی تا کدت رو اسکن نکنن کسی روش نیست.'**
   String get lobby_caveat_hotspot;
 
   /// No description provided for @lobby_link_wifi.
@@ -3191,13 +3191,13 @@ abstract class AppLocalizations {
   /// No description provided for @lobby_link_hotspot.
   ///
   /// In fa, this message translates to:
-  /// **'هات‌اسپات شما روشن است'**
+  /// **'هات‌اسپاتت روشنه'**
   String get lobby_link_hotspot;
 
   /// No description provided for @lobby_link_bluetooth.
   ///
   /// In fa, this message translates to:
-  /// **'اتصال بلوتوث'**
+  /// **'ارتباط بلوتوث'**
   String get lobby_link_bluetooth;
 
   /// No description provided for @lobby_link_none.
@@ -3209,7 +3209,7 @@ abstract class AppLocalizations {
   /// No description provided for @lobby_start_alone_hint.
   ///
   /// In fa, this message translates to:
-  /// **'یا همین حالا شروع کنید و بعد از روشن‌شدن ارتباط دعوت کنید.'**
+  /// **'یا همین الان شروع کن و بعد از روشن شدن ارتباط دعوت کن.'**
   String get lobby_start_alone_hint;
 
   /// No description provided for @lobby_you.
@@ -3227,7 +3227,7 @@ abstract class AppLocalizations {
   /// No description provided for @lobby_held_seats_hint.
   ///
   /// In fa, this message translates to:
-  /// **'کدشان را گرفته‌اند ولی هنوز اسکن نکرده‌اند.'**
+  /// **'کدشون رو گرفتن ولی هنوز اسکن نکردن.'**
   String get lobby_held_seats_hint;
 
   /// No description provided for @lobby_members.
@@ -3335,25 +3335,25 @@ abstract class AppLocalizations {
   /// No description provided for @rooms_empty_title.
   ///
   /// In fa, this message translates to:
-  /// **'هنوز اتاقی ندارید'**
+  /// **'هنوز اتاقی نداری'**
   String get rooms_empty_title;
 
   /// No description provided for @rooms_empty_body.
   ///
   /// In fa, this message translates to:
-  /// **'اتاق‌ها بدون اینترنت هم روی همین گوشی باقی می‌مانند. ساخت یا انتخاب اتاق به‌تنهایی هات‌اسپات یا میکروفن را روشن نمی‌کند.'**
+  /// **'اتاق‌ها بدون اینترنت هم روی همین گوشی می‌مونن. ساختن یا انتخاب کردن اتاق به‌تنهایی هات‌اسپات یا میکروفون رو روشن نمی‌کنه.'**
   String get rooms_empty_body;
 
   /// No description provided for @rooms_load_error.
   ///
   /// In fa, this message translates to:
-  /// **'اتاق‌های ذخیره‌شده خوانده نشدند. چیزی حذف نشده است.'**
+  /// **'اتاق‌های ذخیره‌شده خونده نشدن. چیزی پاک نشده.'**
   String get rooms_load_error;
 
   /// No description provided for @rooms_can_invite.
   ///
   /// In fa, this message translates to:
-  /// **'می‌توانید دعوت کنید'**
+  /// **'می‌تونی دعوت کنی'**
   String get rooms_can_invite;
 
   /// No description provided for @rooms_delete.
@@ -3395,13 +3395,13 @@ abstract class AppLocalizations {
   /// No description provided for @rooms_archive_confirm.
   ///
   /// In fa, this message translates to:
-  /// **'«{name}» از فهرست کنار می‌رود و عضویتش دست‌نخورده می‌ماند. هر وقت خواستید از بایگانی برش گردانید.'**
+  /// **'«{name}» از فهرست کنار می‌ره و عضویتش دست‌نخورده می‌مونه. هر وقت خواستی از بایگانی برش گردون.'**
   String rooms_archive_confirm(Object name);
 
   /// No description provided for @rooms_leave_confirm.
   ///
   /// In fa, this message translates to:
-  /// **'عضویت شما در «{name}» حذف شود؟ این کار با پایان دادن یک جلسه زنده فرق دارد.'**
+  /// **'عضویتت تو «{name}» پاک بشه؟ این با تموم کردن یه جلسه‌ی زنده فرق داره.'**
   String rooms_leave_confirm(Object name);
 
   /// No description provided for @rooms_room_semantics.
@@ -3479,7 +3479,7 @@ abstract class AppLocalizations {
   /// No description provided for @people_invite_hint.
   ///
   /// In fa, this message translates to:
-  /// **'بگذار طرف مقابل نزدیک همین گوشی، این کد را با «پیوستن با QR» اسکن کند. مستقیم وارد اتاق می‌شود.'**
+  /// **'بذار طرف نزدیک همین گوشی، این کد رو با «پیوستن با QR» اسکن کنه. مستقیم میاد تو اتاق.'**
   String get people_invite_hint;
 
   /// No description provided for @people_invite_joined.
@@ -3491,19 +3491,19 @@ abstract class AppLocalizations {
   /// No description provided for @people_invite_permission.
   ///
   /// In fa, this message translates to:
-  /// **'برای اشتراک دعوت، اجازهٔ «دستگاه‌های نزدیک» لازم است.'**
+  /// **'برای فرستادن دعوت، اجازه‌ی «دستگاه‌های نزدیک» لازمه.'**
   String get people_invite_permission;
 
   /// No description provided for @people_invite_visible.
   ///
   /// In fa, this message translates to:
-  /// **'اجازه بدهید این گوشی برای دستگاه‌های نزدیک قابل مشاهده باشد تا گوشی آن‌ها پیدایش کند.'**
+  /// **'اجازه بده این گوشی برای دستگاه‌های نزدیک پیدا باشه تا گوشی اونا پیداش کنه.'**
   String get people_invite_visible;
 
   /// No description provided for @people_invite_unsupported.
   ///
   /// In fa, this message translates to:
-  /// **'بلوتوث این گوشی نمی‌تواند دعوت بفرستد. از طرف مقابل بخواه تو را دعوت کند، بعد کدش را با «پیوستن با QR» اسکن کن.'**
+  /// **'بلوتوث این گوشی نمی‌تونه دعوت بفرسته. از طرف بخواه تو رو دعوت کنه، بعد کدش رو با «پیوستن با QR» اسکن کن.'**
   String get people_invite_unsupported;
 
   /// No description provided for @people_invite_paused.
@@ -3521,7 +3521,7 @@ abstract class AppLocalizations {
   /// No description provided for @people_held_seats_hint.
   ///
   /// In fa, this message translates to:
-  /// **'این جاها با دعوت باز شده‌اند ولی هنوز کسی از آن‌ها استفاده نکرده. در شمار اعضا حساب نمی‌شوند.'**
+  /// **'این جاها با دعوت باز شدن ولی هنوز کسی ازشون استفاده نکرده. جزو اعضا حساب نمی‌شن.'**
   String get people_held_seats_hint;
 
   /// No description provided for @people_code_label.
@@ -3533,7 +3533,7 @@ abstract class AppLocalizations {
   /// No description provided for @people_code_warning.
   ///
   /// In fa, this message translates to:
-  /// **'این کد فقط برای بررسی است و به‌تنهایی اجازه ورود نمی‌دهد.'**
+  /// **'این کد فقط برای بررسیه و به‌تنهایی اجازه‌ی ورود نمی‌ده.'**
   String get people_code_warning;
 
   /// No description provided for @people_grant_title.
@@ -3545,31 +3545,31 @@ abstract class AppLocalizations {
   /// No description provided for @people_grant_hint.
   ///
   /// In fa, this message translates to:
-  /// **'با این اجازه، این نفر هم می‌تواند دیگران را به اتاق بیاورد.'**
+  /// **'با این اجازه، این نفر هم می‌تونه بقیه رو بیاره تو اتاق.'**
   String get people_grant_hint;
 
   /// No description provided for @people_granted_note.
   ///
   /// In fa, this message translates to:
-  /// **'این دعوت اجازه دعوت‌کردن دیگران را هم می‌دهد.'**
+  /// **'این دعوت اجازه‌ی دعوت کردن بقیه رو هم می‌ده.'**
   String get people_granted_note;
 
   /// No description provided for @people_cannot_invite.
   ///
   /// In fa, this message translates to:
-  /// **'شما اجازه دعوت در این اتاق را ندارید. از میزبان بخواهید هنگام دعوت، «اجازه دعوت دیگران» را روشن کند.'**
+  /// **'تو اجازه‌ی دعوت تو این اتاق رو نداری. از میزبان بخواه موقع دعوت، «اجازه‌ی دعوت بقیه» رو روشن کنه.'**
   String get people_cannot_invite;
 
   /// No description provided for @people_issue_error.
   ///
   /// In fa, this message translates to:
-  /// **'ساخت دعوت ممکن نشد. دوباره تلاش کنید.'**
+  /// **'دعوت ساخته نشد. دوباره امتحان کن.'**
   String get people_issue_error;
 
   /// No description provided for @people_no_room.
   ///
   /// In fa, this message translates to:
-  /// **'هیچ اتاقی انتخاب نشده است.'**
+  /// **'هیچ اتاقی انتخاب نشده.'**
   String get people_no_room;
 
   /// No description provided for @people_wifi_title.
@@ -3593,13 +3593,13 @@ abstract class AppLocalizations {
   /// No description provided for @people_wifi_ephemeral.
   ///
   /// In fa, this message translates to:
-  /// **'این اطلاعات فقط مربوط به اتصال فعلی است و شناسه اتاق نیست.'**
+  /// **'این اطلاعات فقط مال اتصال فعلیه، نه مال اتاق.'**
   String get people_wifi_ephemeral;
 
   /// No description provided for @people_wifi_recovering.
   ///
   /// In fa, this message translates to:
-  /// **'هات‌اسپات در حال بازیابی است. کیوآر وای‌فای بعد از آماده‌شدن شبکه تازه می‌شود.'**
+  /// **'هات‌اسپات داره برمی‌گرده. کیوآر وای‌فای وقتی شبکه‌ی تازه آماده شد عوض می‌شه.'**
   String get people_wifi_recovering;
 
   /// No description provided for @people_in_room.
@@ -3623,7 +3623,7 @@ abstract class AppLocalizations {
   /// No description provided for @roomjoin_hint.
   ///
   /// In fa, this message translates to:
-  /// **'کد دعوت روی گوشی میزبان را بگیر جلوی دوربین. بعد از اسکن مستقیم وارد اتاق می‌شوی.'**
+  /// **'کد دعوت روی گوشی میزبان رو بگیر جلوی دوربین. بعد از اسکن مستقیم می‌ری تو اتاق.'**
   String get roomjoin_hint;
 
   /// No description provided for @roomjoin_searching.
@@ -3653,25 +3653,25 @@ abstract class AppLocalizations {
   /// No description provided for @roomjoin_bluetooth_permission.
   ///
   /// In fa, this message translates to:
-  /// **'برای پیوستن، اجازهٔ «دستگاه‌های نزدیک» لازم است. اجازه بده و دوباره اسکن کن.'**
+  /// **'برای پیوستن، اجازه‌ی «دستگاه‌های نزدیک» لازمه. اجازه بده و دوباره اسکن کن.'**
   String get roomjoin_bluetooth_permission;
 
   /// No description provided for @roomjoin_bluetooth_off.
   ///
   /// In fa, this message translates to:
-  /// **'بلوتوث را روشن کن و دوباره اسکن کن.'**
+  /// **'بلوتوث رو روشن کن و دوباره اسکن کن.'**
   String get roomjoin_bluetooth_off;
 
   /// No description provided for @roomjoin_location_off.
   ///
   /// In fa, this message translates to:
-  /// **'در این گوشی، پیدا کردن گوشی‌های نزدیک به روشن بودن «موقعیت مکانی» نیاز دارد. آن را از تنظیمات سریع روشن کن و دوباره اسکن کن.'**
+  /// **'رو این گوشی، پیدا کردن گوشی‌های نزدیک به روشن بودن «موقعیت مکانی» احتیاج داره. از تنظیمات سریع روشنش کن و دوباره اسکن کن.'**
   String get roomjoin_location_off;
 
   /// No description provided for @roomjoin_host_not_found.
   ///
   /// In fa, this message translates to:
-  /// **'گوشی میزبان پیدا نشد. دعوت را روی آن باز نگه دار، نزدیک بمان و دوباره اسکن کن.'**
+  /// **'گوشی میزبان پیدا نشد. دعوت رو روش باز نگه دار، نزدیک بمون و دوباره اسکن کن.'**
   String get roomjoin_host_not_found;
 
   /// No description provided for @roomjoin_invalid.
@@ -3683,7 +3683,7 @@ abstract class AppLocalizations {
   /// No description provided for @roomjoin_not_our_code.
   ///
   /// In fa, this message translates to:
-  /// **'این کد مال «ترک» نیست. کد دعوت یا کد وای‌فای روی گوشی میزبان را اسکن کن.'**
+  /// **'این کد مال «تَرک» نیست. کد دعوت یا کد وای‌فای روی گوشی میزبان رو اسکن کن.'**
   String get roomjoin_not_our_code;
 
   /// No description provided for @reconnect_show_title.
@@ -3695,13 +3695,13 @@ abstract class AppLocalizations {
   /// No description provided for @reconnect_show_step_start.
   ///
   /// In fa, this message translates to:
-  /// **'روی گوشی {name}، همین اتاق را باز کند و «شروع» را بزند.'**
+  /// **'روی گوشی {name}، همین اتاق رو باز کنه و «شروع» رو بزنه.'**
   String reconnect_show_step_start(String name);
 
   /// No description provided for @reconnect_show_step_hold.
   ///
   /// In fa, this message translates to:
-  /// **'دوربینش خودش باز می‌شود. این کد را جلوی آن بگیر.'**
+  /// **'دوربینش خودش باز می‌شه. این کد رو بگیر جلوش.'**
   String get reconnect_show_step_hold;
 
   /// No description provided for @reconnect_waiting.
@@ -3713,43 +3713,43 @@ abstract class AppLocalizations {
   /// No description provided for @reconnect_preparing.
   ///
   /// In fa, this message translates to:
-  /// **'گوشی‌ات را آماده می‌کنیم…'**
+  /// **'داریم گوشیت رو آماده می‌کنیم…'**
   String get reconnect_preparing;
 
   /// No description provided for @reconnect_connecting.
   ///
   /// In fa, this message translates to:
-  /// **'وصل شد — تماس را باز می‌کنیم…'**
+  /// **'وصل شد — داریم تماس رو باز می‌کنیم…'**
   String get reconnect_connecting;
 
   /// No description provided for @reconnect_switch_to_scan.
   ///
   /// In fa, this message translates to:
-  /// **'به‌جایش کد او را اسکن کن'**
+  /// **'به‌جاش کد اون رو اسکن کن'**
   String get reconnect_switch_to_scan;
 
   /// No description provided for @reconnect_switch_to_show.
   ///
   /// In fa, this message translates to:
-  /// **'به‌جایش کد من را نشان بده'**
+  /// **'به‌جاش کد من رو نشون بده'**
   String get reconnect_switch_to_show;
 
   /// No description provided for @reconnect_scan_title.
   ///
   /// In fa, this message translates to:
-  /// **'کد او را اسکن کن'**
+  /// **'کد اون رو اسکن کن'**
   String get reconnect_scan_title;
 
   /// No description provided for @reconnect_scan_hint.
   ///
   /// In fa, this message translates to:
-  /// **'دوربین را روی کدِ گوشی {name} بگیر.'**
+  /// **'دوربین رو بگیر رو کدِ گوشی {name}.'**
   String reconnect_scan_hint(String name);
 
   /// No description provided for @reconnect_scan_searching.
   ///
   /// In fa, this message translates to:
-  /// **'در جست‌وجوی کد'**
+  /// **'دارم دنبال کد می‌گردم'**
   String get reconnect_scan_searching;
 
   /// No description provided for @reconnect_scan_locked.
@@ -3767,37 +3767,37 @@ abstract class AppLocalizations {
   /// No description provided for @reconnect_cannot_host.
   ///
   /// In fa, this message translates to:
-  /// **'این گوشی نمی‌تواند اتصال را به اشتراک بگذارد. روی گوشی {name} «به‌جایش کد من را نشان بده» را بزند و کدش را همین‌جا اسکن کن.'**
+  /// **'این گوشی نمی‌تونه اتصال رو به اشتراک بذاره. روی گوشی {name} «به‌جاش کد من رو نشون بده» رو بزنه و کدش رو همین‌جا اسکن کن.'**
   String reconnect_cannot_host(String name);
 
   /// No description provided for @reconnect_not_our_code.
   ///
   /// In fa, this message translates to:
-  /// **'این کدِ اتصال «ترک» نیست. کدِ روی گوشی {name} را اسکن کن.'**
+  /// **'این کدِ اتصال «تَرک» نیست. کدِ روی گوشی {name} رو اسکن کن.'**
   String reconnect_not_our_code(String name);
 
   /// No description provided for @reconnect_wifi_off.
   ///
   /// In fa, this message translates to:
-  /// **'وای‌فای این گوشی را روشن کن و دوباره اسکن کن.'**
+  /// **'وای‌فای این گوشی رو روشن کن و دوباره اسکن کن.'**
   String get reconnect_wifi_off;
 
   /// No description provided for @reconnect_location_off.
   ///
   /// In fa, this message translates to:
-  /// **'«موقعیت مکانی» این گوشی را روشن کن و دوباره اسکن کن.'**
+  /// **'«موقعیت مکانی» این گوشی رو روشن کن و دوباره اسکن کن.'**
   String get reconnect_location_off;
 
   /// No description provided for @reconnect_join_failed.
   ///
   /// In fa, this message translates to:
-  /// **'وصل نشد. گوشی‌ها را نزدیک هم نگه دار و دوباره اسکن کن.'**
+  /// **'وصل نشد. گوشی‌ها رو نزدیک هم نگه دار و دوباره اسکن کن.'**
   String get reconnect_join_failed;
 
   /// No description provided for @reconnect_host_failed.
   ///
   /// In fa, this message translates to:
-  /// **'این گوشی نتوانست اشتراک‌گذاری را شروع کند. دوباره امتحان کن، یا «به‌جایش کد او را اسکن کن» را بزن.'**
+  /// **'این گوشی نتونست اشتراک‌گذاری رو شروع کنه. دوباره امتحان کن، یا «به‌جاش کد اون رو اسکن کن» رو بزن.'**
   String get reconnect_host_failed;
 
   /// No description provided for @reconnect_retry.
@@ -3809,25 +3809,25 @@ abstract class AppLocalizations {
   /// No description provided for @lobby_use_home_wifi.
   ///
   /// In fa, this message translates to:
-  /// **'روی یک وای‌فای هستید؟ از همان وصل شو'**
+  /// **'روی یه وای‌فای هستین؟ از همون وصل شو'**
   String get lobby_use_home_wifi;
 
   /// No description provided for @roomjoin_other_version.
   ///
   /// In fa, this message translates to:
-  /// **'این دعوت با نسخهٔ دیگری از «ترک» ساخته شده. برنامه را روی هر دو گوشی به‌روز کن و دعوت تازه‌ای را اسکن کن.'**
+  /// **'این دعوت با یه نسخه‌ی دیگه از «تَرک» ساخته شده. برنامه رو روی هر دو گوشی به‌روز کن و یه دعوت تازه اسکن کن.'**
   String get roomjoin_other_version;
 
   /// No description provided for @roomjoin_camera_denied.
   ///
   /// In fa, this message translates to:
-  /// **'«ترک» برای خواندن کد دعوت دوربین می‌خواهد.'**
+  /// **'«تَرک» برای خوندن کد دعوت دوربین می‌خواد.'**
   String get roomjoin_camera_denied;
 
   /// No description provided for @roomjoin_camera_failed.
   ///
   /// In fa, this message translates to:
-  /// **'دوربین باز نشد. هر چیز دیگری که از آن استفاده می‌کند را ببند و دوباره امتحان کن.'**
+  /// **'دوربین باز نشد. هر چی دیگه ازش استفاده می‌کنه رو ببند و دوباره امتحان کن.'**
   String get roomjoin_camera_failed;
 
   /// No description provided for @roomjoin_open_settings.
@@ -3851,7 +3851,7 @@ abstract class AppLocalizations {
   /// No description provided for @archive_blurb.
   ///
   /// In fa, this message translates to:
-  /// **'این اتاق‌ها روی همین گوشی می‌مانند و عضویت‌شان دست‌نخورده است. هر وقت خواستید برشان گردانید.'**
+  /// **'این اتاق‌ها روی همین گوشی می‌مونن و عضویتشون دست‌نخورده‌ست. هر وقت خواستی برشون گردون.'**
   String get archive_blurb;
 
   /// No description provided for @archive_restore.
@@ -3875,7 +3875,7 @@ abstract class AppLocalizations {
   /// No description provided for @archive_delete_action.
   ///
   /// In fa, this message translates to:
-  /// **'حذف کن'**
+  /// **'پاکش کن'**
   String get archive_delete_action;
 
   /// No description provided for @archive_member_count.
@@ -3887,7 +3887,7 @@ abstract class AppLocalizations {
   /// No description provided for @archive_delete_confirm.
   ///
   /// In fa, this message translates to:
-  /// **'«{name}» از این گوشی پاک می‌شود و برنمی‌گردد. اگر فقط می‌خواهید از فهرست کنار برود، بایگانی‌اش کنید.'**
+  /// **'«{name}» از این گوشی پاک می‌شه و دیگه برنمی‌گرده. اگه فقط می‌خوای از فهرست کنار بره، بایگانیش کن.'**
   String archive_delete_confirm(Object name);
 
   /// No description provided for @archive_card_semantics.
@@ -3899,13 +3899,13 @@ abstract class AppLocalizations {
   /// No description provided for @inroom_alone_body.
   ///
   /// In fa, this message translates to:
-  /// **'کدِ اتاق را نشانشان بدهید؛ با یک اسکن وارد می‌شوند.'**
+  /// **'کد اتاق رو نشونشون بده؛ با یه اسکن میان تو.'**
   String get inroom_alone_body;
 
   /// No description provided for @inroom_invite_someone.
   ///
   /// In fa, this message translates to:
-  /// **'دعوت کنید'**
+  /// **'دعوت کن'**
   String get inroom_invite_someone;
 
   /// No description provided for @inroom_add_someone.
@@ -3917,7 +3917,7 @@ abstract class AppLocalizations {
   /// No description provided for @inroom_stranded_body.
   ///
   /// In fa, this message translates to:
-  /// **'بقیه در این اتاق هستند ولی صدایشان نمی‌رسد — یعنی گوشی‌ها روی یک شبکه نیستند.'**
+  /// **'بقیه تو این اتاقن ولی صداشون نمی‌رسه — یعنی گوشی‌ها روی یه شبکه نیستن.'**
   String get inroom_stranded_body;
 
   /// No description provided for @inroom_get_on_one_network.
@@ -3941,25 +3941,25 @@ abstract class AppLocalizations {
   /// No description provided for @carrier_raising_host.
   ///
   /// In fa, this message translates to:
-  /// **'داریم آماده می‌شویم که وقتی راه افتادید ارتباط قطع نشود. این گوشی مرکز ارتباط می‌شود.'**
+  /// **'داریم آماده می‌شیم که وقتی راه افتادین ارتباط قطع نشه. این گوشی مرکز ارتباط می‌شه.'**
   String get carrier_raising_host;
 
   /// No description provided for @carrier_raising.
   ///
   /// In fa, this message translates to:
-  /// **'داریم آماده می‌شویم که وقتی راه افتادید ارتباط قطع نشود.'**
+  /// **'داریم آماده می‌شیم که وقتی راه افتادین ارتباط قطع نشه.'**
   String get carrier_raising;
 
   /// No description provided for @carrier_awaiting_host.
   ///
   /// In fa, this message translates to:
-  /// **'یک لحظه — داریم ارتباط را برای بیرون آماده می‌کنیم.'**
+  /// **'یه لحظه — داریم ارتباط رو برای بیرون آماده می‌کنیم.'**
   String get carrier_awaiting_host;
 
   /// No description provided for @carrier_settled_host.
   ///
   /// In fa, this message translates to:
-  /// **'این گوشی مرکز ارتباط اتاق است. تا وقتی اتاق باز باشد، اینترنت این گوشی خاموش می‌ماند.'**
+  /// **'این گوشی مرکز ارتباط اتاقه. تا وقتی اتاق بازه، اینترنت این گوشی خاموش می‌مونه.'**
   String get carrier_settled_host;
 
   /// No description provided for @entry_create_room.
@@ -3971,7 +3971,7 @@ abstract class AppLocalizations {
   /// No description provided for @entry_create_room_hint.
   ///
   /// In fa, this message translates to:
-  /// **'یک اتاق بساز و بقیه را دعوت کن'**
+  /// **'یه اتاق بساز و بقیه رو دعوت کن'**
   String get entry_create_room_hint;
 
   /// No description provided for @entry_join_qr.
@@ -3983,7 +3983,7 @@ abstract class AppLocalizations {
   /// No description provided for @entry_join_qr_hint.
   ///
   /// In fa, this message translates to:
-  /// **'کد روی گوشی میزبان را اسکن کن'**
+  /// **'کد روی گوشی میزبان رو اسکن کن'**
   String get entry_join_qr_hint;
 
   /// No description provided for @entry_resume_hint.
@@ -4001,7 +4001,7 @@ abstract class AppLocalizations {
   /// No description provided for @entry_join_hint.
   ///
   /// In fa, this message translates to:
-  /// **'کد میزبان را اسکن کن'**
+  /// **'کد میزبان رو اسکن کن'**
   String get entry_join_hint;
 
   /// No description provided for @entry_new_room.
@@ -4031,25 +4031,25 @@ abstract class AppLocalizations {
   /// No description provided for @issuer_scan_hint.
   ///
   /// In fa, this message translates to:
-  /// **'QR درخواست عضویت روی گوشی همراه را اسکن کنید. فقط دعوت معتبر و مصرف‌نشده تأیید می‌شود.'**
+  /// **'QR درخواست عضویت روی گوشی همراه رو اسکن کن. فقط دعوت معتبر و استفاده‌نشده تأیید می‌شه.'**
   String get issuer_scan_hint;
 
   /// No description provided for @issuer_verify_failed.
   ///
   /// In fa, this message translates to:
-  /// **'بررسی درخواست ممکن نشد. دوباره اسکن کنید.'**
+  /// **'درخواست بررسی نشد. دوباره اسکن کن.'**
   String get issuer_verify_failed;
 
   /// No description provided for @issuer_accepted.
   ///
   /// In fa, this message translates to:
-  /// **'درخواست تأیید شد. همراه باید این QR پاسخ را اسکن کند تا عضویت روی گوشی خودش ذخیره شود.'**
+  /// **'درخواست تأیید شد. همراه باید این QR پاسخ رو اسکن کنه تا عضویت روی گوشی خودش ذخیره بشه.'**
   String get issuer_accepted;
 
   /// No description provided for @issuer_rejected.
   ///
   /// In fa, this message translates to:
-  /// **'درخواست تأیید نشد. این پاسخ فقط نتیجه رد را منتقل می‌کند.'**
+  /// **'درخواست تأیید نشد. این پاسخ فقط نتیجه‌ی رد رو می‌رسونه.'**
   String get issuer_rejected;
 
   /// No description provided for @issuer_done.
@@ -4079,7 +4079,7 @@ abstract class AppLocalizations {
   /// No description provided for @entry_room_unavailable.
   ///
   /// In fa, this message translates to:
-  /// **'این اتاق دیگر برای شروع ارتباط در دسترس نیست.'**
+  /// **'این اتاق دیگه برای شروع ارتباط در دسترس نیست.'**
   String get entry_room_unavailable;
 
   /// No description provided for @entry_back.
@@ -4181,7 +4181,7 @@ abstract class AppLocalizations {
   /// No description provided for @bt_resume_hint.
   ///
   /// In fa, this message translates to:
-  /// **'روی گوشی دیگه هم «ترک» رو باز کن.'**
+  /// **'روی گوشی دیگه هم «تَرک» رو باز کن.'**
   String get bt_resume_hint;
 
   /// No description provided for @bt_resume_connected_to.
@@ -4211,7 +4211,7 @@ abstract class AppLocalizations {
   /// No description provided for @bt_resume_failed.
   ///
   /// In fa, this message translates to:
-  /// **'به گوشی دیگه نرسیدیم. وقتی هر دو نزدیک هم بودید و «ترک» باز بود، دوباره امتحان کن.'**
+  /// **'به گوشی دیگه نرسیدیم. وقتی هر دو نزدیک هم بودید و «تَرک» باز بود، دوباره امتحان کن.'**
   String get bt_resume_failed;
 
   /// No description provided for @rooms_section.
@@ -4223,25 +4223,25 @@ abstract class AppLocalizations {
   /// No description provided for @reconnect_wifi_needed_title.
   ///
   /// In fa, this message translates to:
-  /// **'وای‌فای را روشن کن'**
+  /// **'وای‌فای رو روشن کن'**
   String get reconnect_wifi_needed_title;
 
   /// No description provided for @reconnect_wifi_needed_body.
   ///
   /// In fa, this message translates to:
-  /// **'برای وصل شدن به {name}، این گوشی به اتصالی وصل می‌شود که گوشی {name} به اشتراک می‌گذارد. برای این کار وای‌فای باید روشن باشد — اینترنت مصرف نمی‌شود.'**
+  /// **'برای وصل شدن به {name}، این گوشی به اتصالی وصل می‌شه که گوشی {name} به اشتراک می‌ذاره. برای این کار وای‌فای باید روشن باشه — اینترنت مصرف نمی‌شه.'**
   String reconnect_wifi_needed_body(String name);
 
   /// No description provided for @reconnect_wifi_needed_action.
   ///
   /// In fa, this message translates to:
-  /// **'روشن کردن وای‌فای'**
+  /// **'وای‌فای رو روشن کن'**
   String get reconnect_wifi_needed_action;
 
   /// No description provided for @reconnect_wifi_needed_waiting.
   ///
   /// In fa, this message translates to:
-  /// **'همین که وای‌فای روشن شود، دوربین خودش باز می‌شود.'**
+  /// **'همین که وای‌فای روشن بشه، دوربین خودش باز می‌شه.'**
   String get reconnect_wifi_needed_waiting;
 }
 
