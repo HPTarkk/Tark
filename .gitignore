@@ -70,3 +70,5 @@ app.*.map.json
 packages/**/.cxx/
 packages/**/build/
 packages/**/.gradle/
+scripts/bundlesigner-0.1.13.jar
+scripts/upload-keystore.jks
