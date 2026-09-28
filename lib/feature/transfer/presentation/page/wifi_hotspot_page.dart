@@ -204,6 +204,15 @@ class _WifiHotspotPageState extends State<WifiHotspotPage>
         if (cubit.isClosed) return;
         if (result == HotspotWifiOffResult.wifiOff) {
           unawaited(cubit.refreshWifiAdvice());
+          // The hotspot came up while Wi-Fi was on. One raised that way and
+          // left running once Wi-Fi goes off is the one the field logs show
+          // dying for its joiner, so raise a fresh one (and a fresh code)
+          // while nobody has joined it yet.
+          final now = cubit.state;
+          if (now.role == HotspotRole.host && !now.peerConnected) {
+            Logger.diagnostic('hotspot: re-hosting with Wi-Fi off');
+            unawaited(cubit.startHost());
+          }
         } else if (result == HotspotWifiOffResult.skipped) {
           // The same answer as "not now" on the inline note, which then stays
           // quiet until the hotspot actually drops.
