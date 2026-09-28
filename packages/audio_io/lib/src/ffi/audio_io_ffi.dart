@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 
+import '../device_call_limit.dart';
 import '../voice_queue.dart';
 import 'audio_io_bindings.dart';
 
@@ -20,6 +21,14 @@ import 'audio_io_bindings.dart';
 /// and from then on the audio thread dropped whatever did not fit — a hole in
 /// the speaker's voice that the listener heard as a tick.
 const int _kFramesPerPoll = 8192;
+
+/// How long a device start may take on its helper isolate. A healthy one
+/// returns in well under a second, including the retry inside miniaudio.
+const Duration _kStartLimit = Duration(seconds: 6);
+
+/// How long a device teardown may take. miniaudio's own wait for pending
+/// reroute jobs is capped at 2 s, so anything past this is stuck for good.
+const Duration _kTeardownLimit = Duration(seconds: 4);
 
 class AudioIoFFI {
   static AudioIoFFI? _instance;
@@ -87,6 +96,12 @@ class AudioIoFFI {
   // create + setFrameDuration + start are one hop so the ordering can't be
   // split, and a failed start disposes the handle there rather than handing
   // back something the caller would have to tear down on the main thread.
+  //
+  // "Audio does not come up" was still not recoverable, though: a call that
+  // never returns held [_lifecycle], so every later start and stop waited on
+  // it forever. Both calls are therefore time-limited (see
+  // [limitDeviceCall]). A stuck device is abandoned on its isolate and the
+  // next start opens a fresh one.
 
   /// Returns the device handle address, or 0 if the device could not start.
   static Future<int> _createAndStartDevice(double frameDuration) {
@@ -120,7 +135,23 @@ class AudioIoFFI {
   Future<void> _start() async {
     if (_isRunning) return;
 
-    final handleAddress = await _createAndStartDevice(_requestedFrameDuration);
+    final handleAddress = await limitDeviceCall(
+      _createAndStartDevice(_requestedFrameDuration),
+      limit: _kStartLimit,
+      onTimeout: () {
+        AudioIoDiagnostics.report(
+          'audio_io: device start did not return in '
+          '${_kStartLimit.inSeconds}s — abandoned it',
+        );
+        return 0;
+      },
+      // Came up after we gave up on it: nobody holds this handle, so close it.
+      onLate: (late) {
+        if (late != 0) {
+          unawaited(_stopAndDestroyDevice(late).catchError((Object _) {}));
+        }
+      },
+    );
     if (handleAddress == 0) {
       throw Exception('Failed to start audio device');
     }
@@ -178,7 +209,14 @@ class AudioIoFFI {
 
     // Native teardown last, and off this thread — see _stopAndDestroyDevice.
     if (handle != null) {
-      await _stopAndDestroyDevice(handle.address);
+      await limitDeviceCall<void>(
+        _stopAndDestroyDevice(handle.address),
+        limit: _kTeardownLimit,
+        onTimeout: () => AudioIoDiagnostics.report(
+          'audio_io: device teardown did not return in '
+          '${_kTeardownLimit.inSeconds}s — abandoned it',
+        ),
+      );
     }
   }
 
