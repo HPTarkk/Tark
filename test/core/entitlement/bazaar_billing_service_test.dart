@@ -86,6 +86,16 @@ void main() {
       });
     });
 
+    test('the build-time RSA key goes to Poolakey with the bind', () async {
+      await BazaarBillingService(rsaKey: 'MIIB-test').isAvailable();
+      await billing.isAvailable();
+      final keys = [
+        for (final call in bazaar.calls)
+          if (call.method == 'connect') (call.arguments as Map)['rsaKey'],
+      ];
+      expect(keys, ['MIIB-test', '']);
+    });
+
     test('concurrent callers share one bind', () async {
       final gate = Completer<bool>();
       bazaar.answers['connect'] = (_) => gate.future;

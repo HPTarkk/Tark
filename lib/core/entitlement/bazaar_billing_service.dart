@@ -13,10 +13,24 @@ import 'billing_service.dart';
 /// token with Bazaar, so this class never decides who is premium and never
 /// logs a purchase token.
 class BazaarBillingService implements BillingService {
-  BazaarBillingService({MethodChannel? channel})
-    : _channel = channel ?? const MethodChannel('tark/bazaar_billing');
+  BazaarBillingService({MethodChannel? channel, String rsaKey = _rsaKey})
+    : _channel = channel ?? const MethodChannel('tark/bazaar_billing'),
+      _key = rsaKey;
 
   final MethodChannel _channel;
+  final String _key;
+
+  /// The app's RSA public key from the Bazaar developer panel, given at build
+  /// time:
+  ///
+  ///   --dart-define=TARK_BAZAAR_RSA_KEY=KEY_FROM_THE_PANEL
+  ///
+  /// With it, Poolakey checks Bazaar's signature on every purchase before
+  /// Dart sees it: a cheap extra layer in front of the server's check, never
+  /// a replacement for it. Without it (dev and CI builds) the check is off
+  /// and the server's check is the only one, which Poolakey allows for apps
+  /// that verify through Bazaar's REST API. The key is public, not a secret.
+  static const _rsaKey = String.fromEnvironment('TARK_BAZAAR_RSA_KEY');
 
   /// Binding to the Bazaar app is local and normally instant. Past this,
   /// Bazaar is missing, frozen or mid-update, and the paywall should say so
@@ -39,7 +53,7 @@ class BazaarBillingService implements BillingService {
     return _connecting ??= () async {
       try {
         final connected = await _channel
-            .invokeMethod<bool>('connect')
+            .invokeMethod<bool>('connect', {'rsaKey': _key})
             .timeout(connectTimeout);
         return connected ?? false;
       } on Object catch (error) {

@@ -18,10 +18,11 @@ import ir.cafebazaar.poolakey.entity.PurchaseInfo
  * anything: Dart hands the purchase token to our server, which checks it with
  * Bazaar's developer API and answers with the signed entitlement.
  *
- * That is also why Poolakey's local RSA signature check is off. Poolakey
- * allows turning it off only when a server verifies through Bazaar's REST
- * API, which is exactly what happens, and keeping it on would put a key in the
- * APK that protects nothing the server does not already check.
+ * Poolakey's local RSA signature check runs when Dart passes the app's
+ * public key (a build-time define, see BazaarBillingService). It is an early
+ * filter in front of the server, not the decision. Without a key it is off,
+ * which Poolakey allows only because a server verifies through Bazaar's REST
+ * API.
  *
  * Every call either answers or errors. Poolakey reports some failures only
  * through the connection callback, so an operation is started only while the
@@ -42,7 +43,7 @@ class BazaarBillingHandler(
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         try {
             when (call.method) {
-                "connect" -> connect(result)
+                "connect" -> connect(call.argument<String>("rsaKey"), result)
                 "subscribe" -> subscribe(call, result)
                 "subscribedProducts" -> subscribedProducts(result)
                 "skuDetails" -> skuDetails(call, result)
@@ -57,7 +58,7 @@ class BazaarBillingHandler(
         connection?.getState() == ConnectionState.Connected
 
     /** Answers true once Bazaar's billing service is bound, false if it can't be. */
-    private fun connect(result: MethodChannel.Result) {
+    private fun connect(rsaKey: String?, result: MethodChannel.Result) {
         if (isConnected()) {
             result.success(true)
             return
@@ -76,7 +77,13 @@ class BazaarBillingHandler(
         val attempt = ++generation
         val fresh = Payment(
             context = context,
-            config = PaymentConfiguration(localSecurityCheck = SecurityCheck.Disable),
+            config = PaymentConfiguration(
+                localSecurityCheck = if (rsaKey.isNullOrBlank()) {
+                    SecurityCheck.Disable
+                } else {
+                    SecurityCheck.Enable(rsaPublicKey = rsaKey)
+                },
+            ),
         )
         payment = fresh
         connection = fresh.connect {
