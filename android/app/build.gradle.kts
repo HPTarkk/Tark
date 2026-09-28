@@ -72,7 +72,7 @@ android {
         }
         release {
             isMinifyEnabled = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.getByName("release")
         }
     }
@@ -90,4 +90,8 @@ dependencies {
     // accident of someone else's transitive graph. Gradle resolves conflicts
     // to the highest version, so this cannot downgrade the embedding's copy.
     implementation("androidx.core:core:1.13.1")
+
+    // Cafe Bazaar in-app billing (see billing/BazaarBillingHandler). Served
+    // from JitPack only; see the exclusiveContent block in ../build.gradle.kts.
+    implementation("com.github.cafebazaar.Poolakey:poolakey:2.2.0")
 }

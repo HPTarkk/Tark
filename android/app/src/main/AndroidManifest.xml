@@ -147,6 +147,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- Invisible host for Cafe Bazaar's checkout (see
+             BazaarPaymentActivity). configChanges keeps a rotation from
+             recreating it mid-purchase and starting a second checkout. -->
+        <activity
+            android:name=".billing.BazaarPaymentActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode" />
         <service
             android:name=".audio.SystemAudioCaptureService"
             android:exported="false"

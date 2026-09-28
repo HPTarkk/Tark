@@ -3,6 +3,7 @@ import 'package:get_it/get_it.dart';
 import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/entitlement/bazaar_billing_service.dart';
 import '../../core/entitlement/billing_service.dart';
 import '../../core/entitlement/install_identity.dart';
 import '../../core/entitlement/license_gate.dart';
@@ -67,10 +68,12 @@ abstract class LegalModule {
 
 @module
 abstract class BillingModule {
-  /// No store channel is wired up yet — Bazaar is the only planned one, and
-  /// it hasn't landed — so every platform, Android included, takes the stub.
+  /// Cafe Bazaar wherever the paid features are live (Android, monetized
+  /// builds); the stub everywhere else, which has nothing to sell.
   @lazySingleton
-  BillingService billingService() => const UnavailableBillingService();
+  BillingService billingService() => Monetization.active
+      ? BazaarBillingService()
+      : const UnavailableBillingService();
 
   /// Keystore-backed on Android, where the paid features live; memory-only
   /// elsewhere, where nothing is ever locked.

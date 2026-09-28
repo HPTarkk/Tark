@@ -12,6 +12,13 @@ val configureRepositories: RepositoryHandler.() -> Unit = {
     maven { setUrl("https://maven.aliyun.com/repository/google") }
     maven { setUrl("https://maven.aliyun.com/repository/central") }
     maven { setUrl("https://maven.myket.ir") }
+    // Poolakey (Cafe Bazaar billing) is published only on JitPack. JitPack
+    // builds whatever a GitHub repo tags, so it may serve Poolakey's group and
+    // nothing else, and nothing else may resolve from it.
+    exclusiveContent {
+        forRepository { maven { setUrl("https://jitpack.io") } }
+        filter { includeGroup("com.github.cafebazaar.Poolakey") }
+    }
 }
 
 allprojects {
