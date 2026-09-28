@@ -7,9 +7,11 @@ info:
     hosted on ArvanCloud). Both sides are written against this file; neither
     one is the source of truth on its own.
 
-    This revision covers the subscription surface the app's offline-first
-    entitlement logic depends on. Accounts, sign-in and profile endpoints are
-    added in the revision that introduces the sign-in flow.
+    It covers accounts and sign-in (email + password with a verification
+    code or link, Google Sign-In with account linking, password reset and
+    change, sessions, and the email-change flow the app does not offer yet),
+    the profile, and the subscription surface the app's offline-first
+    entitlement logic depends on.
 
     Conventions
     - Every endpoint is HTTPS only and versioned under /v1.
@@ -25,6 +27,654 @@ security:
   - accessToken: []
 
 paths:
+  # ---- Accounts and sign-in ----------------------------------------------
+  #
+  # None of these reveal whether an email has an account: register and
+  # forgot-password answer the same either way, and every login failure is
+  # the same `invalid_credentials`.
+  #
+  # Sign-in is Android and iOS only. Every call may carry X-Tark-Platform
+  # and X-Tark-Install-Key; they are stored on the session.
+  #
+  # Code entry and email links: a flow (sign-up, password reset, email
+  # change) sends one email with a 6-digit code and a link
+  # `https://tarkk.ir/v/<register|reset|email>#<linkToken>`. The app keeps
+  # the flowId from the start call in secure storage and verifies with
+  # either the code the person typed or the linkToken from the link, always
+  # together with that flowId. A link opened on another phone therefore
+  # cannot finish someone else's flow; the person types the code instead.
+
+  /auth/register:
+    post:
+      operationId: register
+      summary: Start email + password sign-up.
+      description: |
+        Always 202 with the same shape. A new address gets a code; an
+        address that already has an account gets an email saying so, and
+        its flowId never verifies. The name is the one the person typed, or
+        the one the app already has locally.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Platform'
+        - $ref: '#/components/parameters/OptionalInstallKey'
+        - $ref: '#/components/parameters/OptionalIdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '202':
+          $ref: '#/components/responses/FlowStarted'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '422':
+          description: Password refused (`password_too_short`, `password_too_long`, `password_too_common`, `password_matches_email`, `password_invalid`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+
+  /auth/register/resend:
+    post:
+      operationId: resendRegistrationCode
+      summary: Send a new code and link. The previous code stops working.
+      description: Allowed once per `resendAvailableAt`, at most 4 times per flow (then `resend_limit`).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FlowRef'
+      responses:
+        '202':
+          $ref: '#/components/responses/FlowStarted'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '410':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+
+  /auth/register/verify:
+    post:
+      operationId: verifyRegistration
+      summary: Verify the code or link; creates the account and signs in.
+      description: |
+        The app calls this as soon as the last digit is typed, or as soon
+        as the link opens the app. Success signs the app in directly.
+
+        Failures: `code_invalid` (422, with `attemptsLeft`), `code_locked`
+        (423, after 5 wrong codes; resend for a new one), `flow_expired`
+        (410), `flow_not_found` (404), `email_already_registered` (409, the
+        address got an account meanwhile; sign in instead).
+
+        Repeating a successful verify within 10 minutes (the answer got
+        lost) signs in again instead of failing.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Platform'
+        - $ref: '#/components/parameters/OptionalInstallKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProofRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Session'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '410':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+        '423':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+
+  /auth/login:
+    post:
+      operationId: login
+      summary: Sign in with email and password.
+      description: |
+        Every failure is 401 `invalid_credentials`, whatever the reason.
+        After 5 failures from one IP for one address (or 20 from anywhere
+        in an hour), 429 until the window passes. 403 `account_disabled`
+        only after a correct password.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Platform'
+        - $ref: '#/components/parameters/OptionalInstallKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Session'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+
+  /auth/google/nonce:
+    post:
+      operationId: googleNonce
+      summary: A one-time nonce to pass to the Google SDK before sign-in.
+      description: |
+        Google copies it into the ID token. The server accepts each nonce
+        once and only for 10 minutes, so an ID token captured elsewhere or
+        replayed is refused.
+      security: []
+      responses:
+        '200':
+          description: The nonce.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoogleNonce'
+        '429':
+          $ref: '#/components/responses/Problem'
+
+  /auth/google:
+    post:
+      operationId: googleSignIn
+      summary: Sign in or sign up with a Google ID token.
+      description: |
+        The server verifies the ID token itself (signature against Google's
+        keys, issuer, audience, expiry, verified email, nonce) and takes the
+        email and Google account id only from it.
+
+        - Known Google account: 200, signed in.
+        - The address already has a password account: 409 `link_required`
+          with `ticket`, `ticketExpiresAt` and a masked `email`. Ask for that
+          account's password and call /auth/google/link.
+        - New address: account created with `name` from the request (the
+          name the app already has locally) or, if absent, Google's name.
+          If neither exists, 422 `name_required` with `ticket` and maybe
+          `suggestedName`; ask for a name and call /auth/google/complete.
+
+        Other failures: 401 `google_token_invalid` (get a fresh token),
+        422 `google_email_unverified`, 409 `account_conflict` (the address
+        is on an account linked to a different Google account),
+        409 `retry_sign_in` (a race; sign in with Google again),
+        503 `google_unavailable` (Google's keys could not be fetched).
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Platform'
+        - $ref: '#/components/parameters/OptionalInstallKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoogleSignInRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Session'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '409':
+          description: '`link_required`, `account_conflict` or `retry_sign_in`.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/GoogleTicketProblem'
+        '422':
+          description: '`name_required` or `google_email_unverified`.'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/GoogleTicketProblem'
+        '429':
+          $ref: '#/components/responses/Problem'
+        '503':
+          $ref: '#/components/responses/Problem'
+
+  /auth/google/link:
+    post:
+      operationId: linkGoogle
+      summary: Link Google to an existing password account, after its password.
+      description: |
+        Wrong password: 401 `invalid_credentials` with `attemptsLeft`. The
+        ticket allows 5 tries (then 423 `ticket_locked`) and shares the login
+        failure limits. 410 `ticket_expired`: sign in with Google again.
+        Success signs in and emails the account that Google was added.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Platform'
+        - $ref: '#/components/parameters/OptionalInstallKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoogleLinkRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Session'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '410':
+          $ref: '#/components/responses/Problem'
+        '423':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+
+  /auth/google/complete:
+    post:
+      operationId: completeGoogleSignup
+      summary: Finish a Google sign-up that needed a name.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Platform'
+        - $ref: '#/components/parameters/OptionalInstallKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoogleCompleteRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Session'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '410':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+
+  /auth/token/refresh:
+    post:
+      operationId: refreshTokens
+      summary: Swap a refresh token for a new pair.
+      description: |
+        Refresh tokens rotate: each works once. Repeating the same refresh
+        within 60 seconds (the answer got lost) works and invalidates the
+        pair that was never received. Any other reuse is treated as theft
+        and ends the session: 401 `session_ended`, sign in again.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: New tokens.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tokens'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+
+  /auth/logout:
+    post:
+      operationId: logout
+      summary: End this session. Its access token stops working at once.
+      responses:
+        '204':
+          description: Signed out.
+        '401':
+          $ref: '#/components/responses/Problem'
+
+  /auth/logout-all:
+    post:
+      operationId: logoutAll
+      summary: End every session of the account, this one included.
+      responses:
+        '204':
+          description: Signed out everywhere.
+        '401':
+          $ref: '#/components/responses/Problem'
+
+  /auth/password/forgot:
+    post:
+      operationId: forgotPassword
+      summary: Start a password reset. Same answer for every address.
+      description: Only an address with an account receives a code; others receive nothing.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/OptionalIdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotRequest'
+      responses:
+        '202':
+          $ref: '#/components/responses/FlowStarted'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+
+  /auth/password/forgot/resend:
+    post:
+      operationId: resendResetCode
+      summary: Send a new reset code and link.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FlowRef'
+      responses:
+        '202':
+          $ref: '#/components/responses/FlowStarted'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '410':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+
+  /auth/password/forgot/verify:
+    post:
+      operationId: verifyReset
+      summary: Verify the reset code or link; returns a ticket for the new password.
+      description: Same failures as /auth/register/verify. Verifying again replaces the ticket.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProofRequest'
+      responses:
+        '200':
+          description: The ticket for /auth/password/reset.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResetTicket'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '410':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+        '423':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+
+  /auth/password/reset:
+    post:
+      operationId: resetPassword
+      summary: Set the new password and sign in. Every other session ends.
+      description: |
+        A Google-only account gains a password this way. The account's
+        email is told the password changed. 410 `ticket_expired` when the
+        ticket is used, old or unknown. 422 with a `password_*` code when
+        the password is refused.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Platform'
+        - $ref: '#/components/parameters/OptionalInstallKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Session'
+        '410':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+
+  /auth/password/change:
+    post:
+      operationId: changePassword
+      summary: Change the password, given the current one.
+      description: |
+        This session stays signed in; every other session ends. 401
+        `invalid_credentials` for a wrong current password. 409
+        `password_not_set` for a Google-only account (use forgot password
+        to add one). 422 with a `password_*` code or `password_unchanged`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '204':
+          description: Changed.
+        '401':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+
+  /auth/email-change:
+    post:
+      operationId: startEmailChange
+      summary: Start changing the account's email (not offered by the app yet).
+      description: |
+        Needs fresh proof: the current password, or for a Google-only
+        account a fresh Google ID token of the linked Google account. A code
+        and link go to the new address; nothing changes until it is
+        verified.
+      x-app-status: not used by the app yet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailChangeRequest'
+      responses:
+        '202':
+          $ref: '#/components/responses/FlowStarted'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+
+  /auth/email-change/resend:
+    post:
+      operationId: resendEmailChangeCode
+      summary: Send a new code to the new address.
+      x-app-status: not used by the app yet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FlowRef'
+      responses:
+        '202':
+          $ref: '#/components/responses/FlowStarted'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+
+  /auth/email-change/verify:
+    post:
+      operationId: confirmEmailChange
+      summary: Verify the new address; it becomes the account's email.
+      description: |
+        The old address is told; every other session ends. 409
+        `email_in_use` when the address belongs to another account.
+      x-app-status: not used by the app yet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProofRequest'
+      responses:
+        '200':
+          description: The updated profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '410':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+        '423':
+          $ref: '#/components/responses/Problem'
+
+  # ---- Profile -------------------------------------------------------------
+
+  /profile:
+    get:
+      operationId: getProfile
+      summary: The signed-in account's profile.
+      responses:
+        '200':
+          description: The profile. The ETag header is its version, for If-Match on PUT.
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '401':
+          $ref: '#/components/responses/Problem'
+    put:
+      operationId: putProfile
+      summary: Replace the editable profile fields.
+      description: |
+        Editable: name and avatarId. Email is read-only here; any other
+        field in the body is ignored. With If-Match, a write based on a
+        stale copy (another device changed the profile) is refused with
+        412 `profile_changed` instead of silently undoing that change.
+        Sending the current values again always succeeds, so retries are
+        safe.
+      parameters:
+        - name: If-Match
+          in: header
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileUpdate'
+      responses:
+        '200':
+          description: The updated profile.
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '412':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+
+  /account/delete:
+    post:
+      operationId: deleteAccount
+      summary: Delete the account and its data, at once and for good.
+      description: |
+        A "yes" is not enough. The request needs all of:
+        - `confirmEmail`: the account's email, typed by the person (case
+          and surrounding spaces do not matter). Anything else is 422
+          `confirmation_mismatch`.
+        - fresh proof: `currentPassword`, or for a Google-only account a
+          new `googleIdToken` of the linked Google account (get a nonce
+          first). Wrong proof is 401 `invalid_credentials`.
+        - while a paid Bazaar period is running, `subscriptionAcknowledged:
+          true`. Without it the answer is 409 `subscription_active` with
+          `autoRenewing`, so the app can say that deleting the account does
+          not cancel the Bazaar subscription.
+
+        On success every session ends, a confirmation email goes to the
+        address, and the email can be used for a new account. Bazaar
+        purchases are removed with the account, so the same purchase can
+        be restored in a new account later.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteAccountRequest'
+      responses:
+        '204':
+          description: Deleted. The tokens this app holds no longer work.
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+        '429':
+          $ref: '#/components/responses/Problem'
+
+  # ---- Subscription --------------------------------------------------------
+
   /subscription:
     get:
       operationId: getSubscription
@@ -44,6 +694,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SubscriptionResponse'
+        '400':
+          $ref: '#/components/responses/Problem'
         '401':
           $ref: '#/components/responses/Problem'
         '429':
@@ -89,7 +741,7 @@ paths:
         '429':
           $ref: '#/components/responses/Problem'
         '503':
-          description: Bazaar could not be reached; retry later with the same Idempotency-Key.
+          description: '`bazaar_unavailable` (Bazaar could not be reached) or `purchase_not_found_yet` (Bazaar does not show a fresh purchase yet). Retry later with the same Idempotency-Key.'
           content:
             application/problem+json:
               schema:
@@ -103,6 +755,30 @@ components:
       description: Short-lived access token from the sign-in endpoints.
 
   parameters:
+    Platform:
+      name: X-Tark-Platform
+      in: header
+      required: false
+      description: The platform signing in. Sign-in exists on Android and iOS only.
+      schema:
+        type: string
+        enum: [android, ios]
+    OptionalInstallKey:
+      name: X-Tark-Install-Key
+      in: header
+      required: false
+      description: The install's public key (as for /subscription), stored on the new session.
+      schema:
+        type: string
+        pattern: '^[A-Za-z0-9_-]{43}$'
+    OptionalIdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: When given, a retry with the same key and body replays the first answer instead of sending a second email.
+      schema:
+        type: string
+        format: uuid
     InstallKey:
       name: X-Tark-Install-Key
       in: header
@@ -123,6 +799,18 @@ components:
         format: uuid
 
   responses:
+    FlowStarted:
+      description: A flow started (or a code was resent). Looks the same whether or not the address has an account.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/FlowStarted'
+    Session:
+      description: Signed in. Carries the tokens and the profile, so the app can show the signed-in state at once.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Session'
     Problem:
       description: A failure, in the one shape every endpoint uses.
       content:
@@ -131,6 +819,321 @@ components:
             $ref: '#/components/schemas/Problem'
 
   schemas:
+    # ---- Accounts and profile ----------------------------------------------
+
+    Email:
+      type: string
+      maxLength: 254
+      description: Plain ASCII address. Compared case-insensitively.
+    Name:
+      type: string
+      minLength: 1
+      maxLength: 50
+      description: |
+        Display name, 1-50 characters after trimming. Shown to others in a
+        room, so control, bidi-override and other invisible formatting
+        characters are refused (ZWNJ and ZWJ are allowed).
+    Password:
+      type: string
+      minLength: 8
+      maxLength: 128
+      description: 8-128 characters. Very common passwords and the email itself are refused.
+    Locale:
+      type: string
+      enum: [en, fa]
+      description: Language of the emails this call sends. Defaults to Accept-Language, then English.
+
+    RegisterRequest:
+      type: object
+      required: [email, password, name]
+      properties:
+        email:
+          $ref: '#/components/schemas/Email'
+        password:
+          $ref: '#/components/schemas/Password'
+        name:
+          $ref: '#/components/schemas/Name'
+        locale:
+          $ref: '#/components/schemas/Locale'
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          $ref: '#/components/schemas/Email'
+        password:
+          type: string
+
+    ForgotRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          $ref: '#/components/schemas/Email'
+        locale:
+          $ref: '#/components/schemas/Locale'
+
+    CodeSpec:
+      type: object
+      description: The shape of the code, so the app shows the right keyboard and boxes.
+      required: [length, alphabet]
+      properties:
+        length:
+          type: integer
+          const: 6
+        alphabet:
+          type: string
+          const: digits
+          description: ASCII digits 0-9 only. Use a numeric keypad and one-time-code autofill.
+
+    FlowStarted:
+      type: object
+      required: [flowId, expiresAt, resendAvailableAt, code]
+      properties:
+        flowId:
+          type: string
+          description: |
+            Secret handle for this flow. Keep it in secure storage until the
+            flow ends: a deep link needs it to finish the flow when the app
+            was closed or in the background.
+        expiresAt:
+          type: integer
+          format: int64
+          description: The code, link and flow stop working at this time (15 minutes after the last send).
+        resendAvailableAt:
+          type: integer
+          format: int64
+        code:
+          $ref: '#/components/schemas/CodeSpec'
+
+    FlowRef:
+      type: object
+      required: [flowId]
+      properties:
+        flowId:
+          type: string
+
+    ProofRequest:
+      type: object
+      required: [flowId]
+      description: Exactly one of code or linkToken.
+      properties:
+        flowId:
+          type: string
+        code:
+          type: string
+          pattern: '^[0-9]{6}$'
+        linkToken:
+          type: string
+          description: The part after `#` in the email link.
+
+    ResetTicket:
+      type: object
+      required: [resetTicket, expiresAt]
+      properties:
+        resetTicket:
+          type: string
+        expiresAt:
+          type: integer
+          format: int64
+
+    ResetRequest:
+      type: object
+      required: [resetTicket, newPassword]
+      properties:
+        resetTicket:
+          type: string
+        newPassword:
+          $ref: '#/components/schemas/Password'
+
+    ChangePasswordRequest:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword:
+          type: string
+        newPassword:
+          $ref: '#/components/schemas/Password'
+
+    EmailChangeRequest:
+      type: object
+      required: [newEmail]
+      properties:
+        newEmail:
+          $ref: '#/components/schemas/Email'
+        currentPassword:
+          type: string
+          description: Required when the account has a password.
+        googleIdToken:
+          type: string
+          description: Required for a Google-only account; a fresh ID token of the linked Google account.
+        locale:
+          $ref: '#/components/schemas/Locale'
+
+    DeleteAccountRequest:
+      type: object
+      required: [confirmEmail]
+      properties:
+        confirmEmail:
+          type: string
+          description: The account's email, typed out by the person.
+        currentPassword:
+          type: string
+          description: Required when the account has a password.
+        googleIdToken:
+          type: string
+          description: Required for a Google-only account; a fresh ID token of the linked Google account.
+        subscriptionAcknowledged:
+          type: boolean
+          default: false
+          description: Required (true) while a paid Bazaar period is running.
+        locale:
+          $ref: '#/components/schemas/Locale'
+
+    GoogleNonce:
+      type: object
+      required: [nonce, expiresAt]
+      properties:
+        nonce:
+          type: string
+        expiresAt:
+          type: integer
+          format: int64
+
+    GoogleSignInRequest:
+      type: object
+      required: [idToken]
+      properties:
+        idToken:
+          type: string
+          maxLength: 8192
+        name:
+          $ref: '#/components/schemas/Name'
+        locale:
+          $ref: '#/components/schemas/Locale'
+
+    GoogleTicketProblem:
+      allOf:
+        - $ref: '#/components/schemas/Problem'
+        - type: object
+          properties:
+            ticket:
+              type: string
+              description: Continue with /auth/google/link (link_required) or /auth/google/complete (name_required). Valid 10 minutes, once.
+            ticketExpiresAt:
+              type: integer
+              format: int64
+            email:
+              type: string
+              description: link_required only. The address, masked (pe•••@gmail.com).
+            suggestedName:
+              type: string
+              description: name_required only, when Google had a usable name.
+
+    GoogleLinkRequest:
+      type: object
+      required: [ticket, password]
+      properties:
+        ticket:
+          type: string
+        password:
+          type: string
+        locale:
+          $ref: '#/components/schemas/Locale'
+
+    GoogleCompleteRequest:
+      type: object
+      required: [ticket, name]
+      properties:
+        ticket:
+          type: string
+        name:
+          $ref: '#/components/schemas/Name'
+
+    RefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+
+    Tokens:
+      type: object
+      required: [accessToken, accessTokenExpiresAt, refreshToken, refreshTokenExpiresAt]
+      properties:
+        accessToken:
+          type: string
+          description: "Opaque. Send as `Authorization: Bearer <token>`. Lives 15 minutes."
+        accessTokenExpiresAt:
+          type: integer
+          format: int64
+        refreshToken:
+          type: string
+          description: Opaque. Keep in secure storage. Works once; see /auth/token/refresh.
+        refreshTokenExpiresAt:
+          type: integer
+          format: int64
+          description: Unused for this long (180 days), the session ends.
+
+    Session:
+      allOf:
+        - $ref: '#/components/schemas/Tokens'
+        - type: object
+          required: [newAccount, profile]
+          properties:
+            newAccount:
+              type: boolean
+              description: This call created the account.
+            profile:
+              $ref: '#/components/schemas/Profile'
+
+    Profile:
+      type: object
+      required: [id, name, avatarId, email, signInMethods, createdAt, updatedAt]
+      description: New fields are only ever added, never renamed or removed; ignore unknown ones.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Account id; the same value as `sub` in the entitlement.
+        name:
+          $ref: '#/components/schemas/Name'
+        avatarId:
+          type: [string, 'null']
+          pattern: '^[a-z0-9][a-z0-9_-]{0,31}$'
+          description: |
+            One of the app's predefined avatars, or null when none was
+            chosen. The server does not keep the list; an app that does not
+            know an id shows its fallback avatar.
+        email:
+          type: string
+          description: Read-only. Changes only through the email-change flow.
+        signInMethods:
+          type: array
+          items:
+            type: string
+            enum: [google, password]
+        createdAt:
+          type: integer
+          format: int64
+        updatedAt:
+          type: integer
+          format: int64
+
+    ProfileUpdate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          $ref: '#/components/schemas/Name'
+        avatarId:
+          type: [string, 'null']
+          pattern: '^[a-z0-9][a-z0-9_-]{0,31}$'
+          description: Omitted or null clears the avatar.
+
+    # ---- Subscription ------------------------------------------------------
+
     Problem:
       type: object
       required: [code]
@@ -138,7 +1141,7 @@ components:
         code:
           type: string
           description: Stable machine-readable failure code.
-          examples: [unauthorized, rate_limited, purchase_owned_elsewhere, purchase_invalid]
+          examples: [unauthorized, rate_limited, invalid_request, invalid_credentials, code_invalid, link_required, session_ended, purchase_owned_elsewhere, purchase_invalid]
         detail:
           type: string
           description: Developer-facing explanation. Never shown to people.

@@ -1,0 +1,555 @@
+// Package billing verifies Cafe Bazaar subscriptions on the server and
+// issues the signed entitlement the app checks offline.
+//
+// Rules this package keeps:
+//   - Nothing the app says about dates or state is trusted; only Bazaar's
+//     answer is.
+//   - A purchase token belongs to one account (a unique index decides).
+//   - Concurrent or repeated submissions of one token are serialised by a
+//     row lock and give the same answer.
+//   - A Bazaar outage never downgrades anyone: the last verified state is
+//     served with bazaarChecked=false.
+//   - Turning off auto-renew is never suspicious. Only a refund (revocation
+//     before the paid period ends) puts an account in the conservative mode,
+//     and one clean paid period afterwards takes it out again.
+package billing
+
+import (
+	"context"
+	"errors"
+	"log/slog"
+	"slices"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/HPTarkk/Tark/backend/internal/apperr"
+	"github.com/HPTarkk/Tark/backend/internal/audit"
+	"github.com/HPTarkk/Tark/backend/internal/ratelimit"
+	"github.com/HPTarkk/Tark/backend/internal/secure"
+)
+
+const (
+	// A stored state younger than this is served without asking Bazaar.
+	freshFor = 6 * time.Hour
+	// Two answers closer together than this for one purchase are wasteful.
+	minRecheckGap = time.Minute
+	// A token Bazaar used to know but now reports missing is only treated
+	// as revoked after this many consecutive definitive answers, so one
+	// inconsistent response cannot take anyone's subscription away.
+	missingBeforeRevoked = 2
+	// Definitive "not found" answers before a new token is called unknown.
+	pendingMissingLimit = 3
+	// Slack when comparing Bazaar's dates with ours.
+	dateTolerance = 5 * time.Minute
+	// Expired purchases are still re-checked occasionally for this long, in
+	// case the same token renews late.
+	expiredWatch = 30 * 24 * time.Hour
+)
+
+var (
+	limitSubscriptionGet = ratelimit.Rule{Name: "subscription_get", Max: 60, Window: 10 * time.Minute}
+	limitPurchasePost    = ratelimit.Rule{Name: "purchase_post", Max: 20, Window: 10 * time.Minute}
+)
+
+type Service struct {
+	pool   *pgxpool.Pool
+	bazaar Bazaar
+	signer *Signer
+	sealer *secure.Sealer
+	lookup *secure.Hasher
+	limits ratelimit.Limiter
+	audit  *audit.Logger
+	policy Policy
+	skus   []string
+	log    *slog.Logger
+	now    func() time.Time
+}
+
+func NewService(pool *pgxpool.Pool, bz Bazaar, signer *Signer, sealer *secure.Sealer, lookup *secure.Hasher,
+	limits ratelimit.Limiter, aud *audit.Logger, policy Policy, skus []string, log *slog.Logger) *Service {
+	return &Service{pool: pool, bazaar: bz, signer: signer, sealer: sealer, lookup: lookup, limits: limits,
+		audit: aud, policy: policy, skus: skus, log: log, now: time.Now}
+}
+
+// Result is SubscriptionResponse.
+type Result struct {
+	Entitlement   string
+	BazaarChecked bool
+}
+
+type purchase struct {
+	id           string
+	userID       string
+	tokenEnc     []byte
+	sku          string
+	state        string
+	initiatedAt  *time.Time
+	validUntil   *time.Time
+	autoRenewing bool
+	refundedAt   *time.Time
+	missing      int
+	failures     int
+	lastChecked  *time.Time
+}
+
+const purchaseColumns = `id, user_id, token_enc, sku, state, initiated_at, valid_until, auto_renewing, refunded_at,
+	missing_count, check_failures, last_checked_at`
+
+func scanPurchase(row pgx.Row) (*purchase, error) {
+	var p purchase
+	err := row.Scan(&p.id, &p.userID, &p.tokenEnc, &p.sku, &p.state, &p.initiatedAt, &p.validUntil, &p.autoRenewing,
+		&p.refundedAt, &p.missing, &p.failures, &p.lastChecked)
+	return &p, err
+}
+
+// Get returns the caller's entitlement, re-checking Bazaar first for any
+// purchase whose stored state is stale.
+func (s *Service) Get(ctx context.Context, userID, installKey, ip string) (Result, error) {
+	if err := s.limits.Hit(ctx, limitSubscriptionGet, userID); err != nil {
+		return Result{}, err
+	}
+	now := s.now()
+	rows, err := s.pool.Query(ctx, `
+		SELECT id FROM bazaar_purchases
+		WHERE user_id = $1 AND (
+			state = 'pending'
+			OR (state = 'active' AND (last_checked_at IS NULL OR last_checked_at < $2 OR valid_until <= $3))
+			OR (state = 'expired' AND valid_until > $3 - $4::interval AND (last_checked_at IS NULL OR last_checked_at < $3 - interval '24 hours')))
+		AND (last_checked_at IS NULL OR last_checked_at < $3 - $5::interval)`,
+		userID, now.Add(-freshFor), now, expiredWatch, minRecheckGap)
+	if err != nil {
+		return Result{}, err
+	}
+	var stale []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return Result{}, err
+		}
+		stale = append(stale, id)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return Result{}, err
+	}
+
+	checked := true
+	for _, id := range stale {
+		ok, err := s.recheck(ctx, id, ip)
+		if err != nil {
+			return Result{}, err
+		}
+		checked = checked && ok
+	}
+	token, err := s.issue(ctx, s.pool, userID, installKey)
+	if err != nil {
+		return Result{}, err
+	}
+	return Result{Entitlement: token, BazaarChecked: checked}, nil
+}
+
+// Submit binds a purchase token to the caller and verifies it with Bazaar.
+func (s *Service) Submit(ctx context.Context, userID, installKey, sku, purchaseToken, ip string) (Result, error) {
+	if !slices.Contains(s.skus, sku) {
+		return Result{}, apperr.Validation("sku", "unknown product")
+	}
+	if purchaseToken == "" || len(purchaseToken) > 512 {
+		return Result{}, apperr.Validation("purchaseToken", "missing or too long")
+	}
+	if err := s.limits.Hit(ctx, limitPurchasePost, userID); err != nil {
+		return Result{}, err
+	}
+	tokenHash := s.lookup.Sum("bazaar-token", purchaseToken)
+
+	// Recorded on its own, before talking to Bazaar, so that if Bazaar is
+	// down the purchase is still known and the background worker verifies
+	// it even if the app never retries. The unique token_hash settles which
+	// account a token belongs to, even when two accounts submit it at once.
+	id := secure.NewUUID()
+	enc := s.sealer.Seal([]byte(purchaseToken), []byte("bazaar:"+id))
+	if _, err := s.pool.Exec(ctx, `
+		INSERT INTO bazaar_purchases (id, user_id, token_hash, token_enc, sku, state, next_check_at)
+		VALUES ($1, $2, $3, $4, $5, 'pending', now() + interval '1 minute')
+		ON CONFLICT (token_hash) DO NOTHING`, id, userID, tokenHash, enc, sku); err != nil {
+		return Result{}, err
+	}
+
+	var result Result
+	var notYet bool
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		p, err := scanPurchase(tx.QueryRow(ctx, `SELECT `+purchaseColumns+` FROM bazaar_purchases WHERE token_hash = $1 FOR UPDATE`, tokenHash))
+		if err != nil {
+			return err
+		}
+		if p.userID != userID {
+			s.audit.Record(ctx, audit.PurchaseOwnedElsewhere, userID, ip, nil)
+			return apperr.Conflict("purchase_owned_elsewhere", "this purchase belongs to another account")
+		}
+		if p.sku != sku {
+			return apperr.Unprocessable("purchase_invalid", "the purchase is for a different product")
+		}
+		if p.state == "invalid" {
+			return apperr.Unprocessable("purchase_invalid", "Bazaar does not recognise this purchase")
+		}
+		// A resubmission of a purchase checked moments ago needs no new call.
+		if p.state == "pending" || p.lastChecked == nil || s.now().Sub(*p.lastChecked) >= minRecheckGap {
+			ok, err := s.check(ctx, tx, p, purchaseToken, ip)
+			if err != nil {
+				return err
+			}
+			if ok && p.state == "pending" {
+				// Bazaar doesn't know it yet; the attempt is committed and the
+				// worker keeps looking.
+				notYet = true
+				return nil
+			}
+			if !ok {
+				if p.state == "pending" {
+					return apperr.Unavailable("bazaar_unavailable", "could not reach Cafe Bazaar; retry with the same Idempotency-Key", 30*time.Second)
+				}
+				result.BazaarChecked = false
+			} else {
+				result.BazaarChecked = true
+			}
+		} else {
+			result.BazaarChecked = true
+		}
+		if p.state == "invalid" {
+			// Commit the invalid state, then report it.
+			return nil
+		}
+		token, err := s.issue(ctx, tx, userID, installKey)
+		result.Entitlement = token
+		return err
+	})
+	if err != nil {
+		return Result{}, err
+	}
+	if notYet {
+		return Result{}, apperr.Unavailable("purchase_not_found_yet", "Bazaar does not show this purchase yet; retry with the same Idempotency-Key", 10*time.Second)
+	}
+	if result.Entitlement == "" {
+		s.audit.Record(ctx, audit.PurchaseInvalid, userID, ip, nil)
+		return Result{}, apperr.Unprocessable("purchase_invalid", "Bazaar does not recognise this purchase")
+	}
+	return result, nil
+}
+
+// recheck locks one purchase and checks it again.
+func (s *Service) recheck(ctx context.Context, id, ip string) (bool, error) {
+	var ok bool
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		p, err := scanPurchase(tx.QueryRow(ctx, `SELECT `+purchaseColumns+` FROM bazaar_purchases WHERE id = $1 FOR UPDATE`, id))
+		if err != nil {
+			return err
+		}
+		// Someone else checked it while we waited for the lock.
+		if p.lastChecked != nil && s.now().Sub(*p.lastChecked) < minRecheckGap {
+			ok = true
+			return nil
+		}
+		token, err := s.sealer.Open(p.tokenEnc, []byte("bazaar:"+p.id))
+		if err != nil {
+			s.log.ErrorContext(ctx, "purchase token could not be decrypted", "purchase", p.id)
+			ok = false
+			return nil
+		}
+		ok, err = s.check(ctx, tx, p, string(token), ip)
+		return err
+	})
+	return ok, err
+}
+
+// check asks Bazaar about one locked purchase and applies the answer. It
+// returns false when Bazaar gave no usable answer.
+func (s *Service) check(ctx context.Context, tx pgx.Tx, p *purchase, token, ip string) (bool, error) {
+	callCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	info, err := s.bazaar.Subscription(callCtx, p.sku, token)
+	cancel()
+	now := s.now()
+
+	switch {
+	case errors.Is(err, ErrNotFound):
+		return true, s.applyMissing(ctx, tx, p, now, ip)
+	case err != nil:
+		p.failures++
+		backoff := min(time.Duration(1<<min(p.failures, 8))*time.Minute, 6*time.Hour)
+		_, dbErr := tx.Exec(ctx, `UPDATE bazaar_purchases SET check_failures = check_failures + 1, next_check_at = $2, updated_at = now() WHERE id = $1`,
+			p.id, now.Add(backoff))
+		s.log.WarnContext(ctx, "bazaar check failed", "purchase", p.id, "err", err)
+		return false, dbErr
+	}
+	return true, s.applyAnswer(ctx, tx, p, info, now, ip)
+}
+
+func (s *Service) applyMissing(ctx context.Context, tx pgx.Tx, p *purchase, now time.Time, ip string) error {
+	if p.state == "pending" {
+		// A purchase moments old may not be visible yet. Look again a few
+		// times before calling the token unknown.
+		p.missing++
+		if p.missing < pendingMissingLimit {
+			_, err := tx.Exec(ctx, `UPDATE bazaar_purchases SET missing_count = $2, last_checked_at = now(), next_check_at = now() + interval '1 minute', updated_at = now() WHERE id = $1`, p.id, p.missing)
+			return err
+		}
+	}
+	if p.state == "pending" || p.state == "invalid" {
+		p.state = "invalid"
+		_, err := tx.Exec(ctx, `UPDATE bazaar_purchases SET state = 'invalid', last_checked_at = now(), next_check_at = NULL, updated_at = now() WHERE id = $1`, p.id)
+		return err
+	}
+	p.missing++
+	if p.state == "active" && p.missing >= missingBeforeRevoked && p.validUntil != nil && now.Before(*p.validUntil) {
+		return s.markRefunded(ctx, tx, p, now, ip, "token_revoked")
+	}
+	next := now.Add(time.Hour)
+	state := p.state
+	if p.missing >= missingBeforeRevoked && (p.validUntil == nil || !now.Before(*p.validUntil)) {
+		// Gone after its period ended: nothing was taken back early.
+		state, next = "expired", time.Time{}
+	}
+	p.state = state
+	_, err := tx.Exec(ctx, `
+		UPDATE bazaar_purchases SET missing_count = $2, state = $3, last_checked_at = now(), check_failures = 0,
+			next_check_at = $4, updated_at = now() WHERE id = $1`, p.id, p.missing, state, nullTime(next))
+	if err != nil {
+		return err
+	}
+	return s.settleAccount(ctx, tx, p.userID, now)
+}
+
+func (s *Service) applyAnswer(ctx context.Context, tx pgx.Tx, p *purchase, info Subscription, now time.Time, ip string) error {
+	// A period that Bazaar now reports as ending well before what it told us
+	// earlier, and that has already ended, was cut short: a refund.
+	if p.state == "active" && p.validUntil != nil && now.Before(*p.validUntil) &&
+		info.ValidUntil.Before(p.validUntil.Add(-dateTolerance)) && !now.Before(info.ValidUntil) {
+		return s.markRefunded(ctx, tx, p, now, ip, "period_shortened")
+	}
+	if p.state == "refunded" {
+		// Refunds are final for a token; a later purchase is a new token.
+		_, err := tx.Exec(ctx, `UPDATE bazaar_purchases SET last_checked_at = now(), next_check_at = NULL WHERE id = $1`, p.id)
+		return err
+	}
+
+	grace := time.Duration(s.policy.GraceH) * time.Hour
+	state := "active"
+	var next time.Time
+	switch {
+	case now.Before(info.ValidUntil):
+		// Mid-period checks catch refunds; one just after the end picks up
+		// the renewal.
+		next = minTime(now.Add(72*time.Hour), info.ValidUntil.Add(time.Hour))
+	case info.AutoRenewing && now.Before(info.ValidUntil.Add(grace)):
+		// The renewal is probably on its way; stay active through the grace
+		// period and look again soon.
+		next = now.Add(6 * time.Hour)
+	default:
+		state = "expired"
+		if now.Before(info.ValidUntil.Add(expiredWatch)) {
+			next = now.Add(72 * time.Hour)
+		}
+	}
+	wasPending := p.state == "pending"
+	p.state = state
+	_, err := tx.Exec(ctx, `
+		UPDATE bazaar_purchases SET state = $2, initiated_at = $3, valid_until = $4, auto_renewing = $5,
+			missing_count = 0, check_failures = 0, last_checked_at = now(), last_verified_at = now(),
+			next_check_at = $6, updated_at = now()
+		WHERE id = $1`, p.id, state, info.InitiatedAt, info.ValidUntil, info.AutoRenewing, nullTime(next))
+	if err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO subscription_accounts (user_id, last_verified_at) VALUES ($1, now())
+		ON CONFLICT (user_id) DO UPDATE SET last_verified_at = now(), updated_at = now()`, p.userID); err != nil {
+		return err
+	}
+	if wasPending {
+		if err := event(ctx, tx, p.userID, p.id, "verified", map[string]any{"sku": p.sku, "state": state}); err != nil {
+			return err
+		}
+		s.audit.Record(ctx, audit.PurchaseVerified, p.userID, ip, map[string]any{"sku": p.sku})
+	} else if p.validUntil != nil && info.ValidUntil.After(p.validUntil.Add(dateTolerance)) {
+		if err := event(ctx, tx, p.userID, p.id, "renewed", nil); err != nil {
+			return err
+		}
+	}
+	if p.autoRenewing != info.AutoRenewing {
+		kind := "auto_renew_on"
+		if !info.AutoRenewing {
+			kind = "auto_renew_off" // an ordinary choice, never suspicious
+		}
+		if err := event(ctx, tx, p.userID, p.id, kind, nil); err != nil {
+			return err
+		}
+	}
+	return s.settleAccount(ctx, tx, p.userID, now)
+}
+
+func (s *Service) markRefunded(ctx context.Context, tx pgx.Tx, p *purchase, now time.Time, ip, reason string) error {
+	p.state = "refunded"
+	if _, err := tx.Exec(ctx, `
+		UPDATE bazaar_purchases SET state = 'refunded', refunded_at = $2, last_checked_at = now(), next_check_at = NULL,
+			updated_at = now() WHERE id = $1`, p.id, now); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO subscription_accounts (user_id, suspicious_since) VALUES ($1, $2)
+		ON CONFLICT (user_id) DO UPDATE SET suspicious_since = $2, updated_at = now()`, p.userID, now); err != nil {
+		return err
+	}
+	if err := event(ctx, tx, p.userID, p.id, "refunded", map[string]any{"reason": reason}); err != nil {
+		return err
+	}
+	s.audit.Record(ctx, audit.PurchaseRefunded, p.userID, ip, map[string]any{"reason": reason})
+	return nil
+}
+
+// settleAccount lifts the conservative mode after one clean paid period
+// that began after the refund.
+func (s *Service) settleAccount(ctx context.Context, tx pgx.Tx, userID string, now time.Time) error {
+	tag, err := tx.Exec(ctx, `
+		UPDATE subscription_accounts a SET suspicious_since = NULL, updated_at = now()
+		WHERE a.user_id = $1 AND a.suspicious_since IS NOT NULL AND EXISTS (
+			SELECT 1 FROM bazaar_purchases p
+			WHERE p.user_id = a.user_id AND p.state IN ('active', 'expired')
+			AND p.initiated_at > a.suspicious_since AND p.valid_until <= $2)`, userID, now)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() > 0 {
+		return event(ctx, tx, userID, "", "suspicious_cleared", nil)
+	}
+	return nil
+}
+
+type querier interface {
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
+// issue signs the account's current standing for installKey.
+func (s *Service) issue(ctx context.Context, q querier, userID, installKey string) (string, error) {
+	now := s.now()
+	var suspicious bool
+	err := q.QueryRow(ctx, `SELECT suspicious_since IS NOT NULL FROM subscription_accounts WHERE user_id = $1`, userID).Scan(&suspicious)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return "", err
+	}
+
+	payload := Payload{Sub: userID, IK: installKey, St: "none", Sus: suspicious, Iat: now.UnixMilli(), Pol: s.policy}
+
+	// The purchase that decides the answer: a running period beats anything
+	// else (latest end first); otherwise the most recent one that ended.
+	var state, sku string
+	var until *time.Time
+	var ar bool
+	var refundedAt *time.Time
+	err = q.QueryRow(ctx, `
+		SELECT state, sku, valid_until, auto_renewing, refunded_at FROM bazaar_purchases
+		WHERE user_id = $1 AND state IN ('active', 'expired', 'refunded') AND valid_until IS NOT NULL
+		ORDER BY (state = 'active') DESC, coalesce(refunded_at, valid_until) DESC
+		LIMIT 1`, userID).Scan(&state, &sku, &until, &ar, &refundedAt)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return "", err
+	}
+	if err == nil {
+		payload.St = state
+		payload.SKU = &sku
+		end := until
+		if state == "refunded" && refundedAt != nil {
+			end = refundedAt
+		}
+		ms := end.UnixMilli()
+		payload.Until = &ms
+		payload.AR = ar && state == "active"
+	}
+	return s.signer.Sign(payload)
+}
+
+func event(ctx context.Context, tx pgx.Tx, userID, purchaseID, kind string, details map[string]any) error {
+	if details == nil {
+		details = map[string]any{}
+	}
+	var pid *string
+	if purchaseID != "" {
+		pid = &purchaseID
+	}
+	_, err := tx.Exec(ctx, `INSERT INTO subscription_events (user_id, purchase_id, kind, details) VALUES ($1, $2, $3, $4)`,
+		userID, pid, kind, details)
+	return err
+}
+
+// RunWorker re-checks due purchases in the background, so refunds and
+// renewals are noticed even for people who never open the app. Safe on
+// several instances: purchases are claimed with SKIP LOCKED.
+func (s *Service) RunWorker(ctx context.Context) {
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	for {
+		for {
+			n, err := s.workBatch(ctx)
+			if err != nil {
+				s.log.ErrorContext(ctx, "billing worker batch failed", "err", err)
+				break
+			}
+			if n == 0 {
+				break
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+func (s *Service) workBatch(ctx context.Context) (int, error) {
+	n := 0
+	for range 20 {
+		var done bool
+		err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+			p, err := scanPurchase(tx.QueryRow(ctx, `SELECT `+purchaseColumns+` FROM bazaar_purchases
+				WHERE next_check_at IS NOT NULL AND next_check_at <= now() ORDER BY next_check_at LIMIT 1 FOR UPDATE SKIP LOCKED`))
+			if errors.Is(err, pgx.ErrNoRows) {
+				done = true
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			token, err := s.sealer.Open(p.tokenEnc, []byte("bazaar:"+p.id))
+			if err != nil {
+				_, err := tx.Exec(ctx, `UPDATE bazaar_purchases SET next_check_at = NULL WHERE id = $1`, p.id)
+				s.log.ErrorContext(ctx, "purchase token could not be decrypted; background checks stopped", "purchase", p.id)
+				return err
+			}
+			_, err = s.check(ctx, tx, p, string(token), "")
+			return err
+		})
+		if err != nil {
+			return n, err
+		}
+		if done {
+			break
+		}
+		n++
+	}
+	return n, nil
+}
+
+func nullTime(t time.Time) *time.Time {
+	if t.IsZero() {
+		return nil
+	}
+	return &t
+}
+
+func minTime(a, b time.Time) time.Time {
+	if a.Before(b) {
+		return a
+	}
+	return b
+}
