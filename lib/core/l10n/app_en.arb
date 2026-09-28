@@ -402,7 +402,6 @@
     "paywall_restore_none": "Nothing to restore",
     "paywall_close": "NOT NOW",
     "paywall_plan_1m": "1 MONTH",
-    "paywall_plan_6m": "6 MONTHS",
     "paywall_plan_12m": "1 YEAR",
     "sub_checking": "Checking your subscription…",
     "sub_granted": "You're all set",
@@ -709,5 +708,17 @@
     "reconnect_wifi_needed_title": "Turn on Wi-Fi",
     "reconnect_wifi_needed_body": "To connect with {name}, this phone joins the connection {name}'s phone shares. That needs Wi-Fi on — no internet is used.",
     "reconnect_wifi_needed_action": "Turn on Wi-Fi",
-    "reconnect_wifi_needed_waiting": "The camera opens by itself as soon as Wi-Fi is on."
+    "reconnect_wifi_needed_waiting": "The camera opens by itself as soon as Wi-Fi is on.",
+    "update_eyebrow": "NEW VERSION",
+    "update_title": "Tark {version} is on the air",
+    "@update_title": {"placeholders": {"version": {"type": "String"}}},
+    "update_body": "A newer version is waiting on Bazaar. It takes about a minute.",
+    "update_required_eyebrow": "UPDATE REQUIRED",
+    "update_required_title": "This version is off the air",
+    "update_required_body": "Update to Tark {version} to keep talking. Everything you set up stays as it is.",
+    "@update_required_body": {"placeholders": {"version": {"type": "String"}}},
+    "update_whats_new": "WHAT'S NEW",
+    "update_action": "Update on Bazaar",
+    "update_later": "Not now",
+    "update_open_failed": "Bazaar didn't open. Try once more."
 }

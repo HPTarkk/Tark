@@ -81,4 +81,9 @@ abstract final class SettingsKeys {
   /// Room id. Both phones read the same answer when Start finds no link, so
   /// they agree on who shows the code and who scans it without a connection.
   static const roomLastHotspotHostPrefix = 'room_last_hotspot_host_';
+
+  // Owned by UpdateChecker (see feature/update/). The optional update the
+  // user last put off, and when — see decideUpdate.
+  static const updateSnoozedBuild = 'update_snoozed_build';
+  static const updateSnoozedAt = 'update_snoozed_at';
 }

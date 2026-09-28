@@ -1345,9 +1345,6 @@ class AppLocalizationsFa extends AppLocalizations {
   String get paywall_plan_1m => 'یک ماهه';
 
   @override
-  String get paywall_plan_6m => 'شش ماهه';
-
-  @override
   String get paywall_plan_12m => 'یک ساله';
 
   @override
@@ -2415,4 +2412,39 @@ class AppLocalizationsFa extends AppLocalizations {
   @override
   String get reconnect_wifi_needed_waiting =>
       'همین که وای‌فای روشن بشه، دوربین خودش باز می‌شه.';
+
+  @override
+  String get update_eyebrow => 'نسخه‌ی تازه';
+
+  @override
+  String update_title(String version) {
+    return 'تَرک $version اومده';
+  }
+
+  @override
+  String get update_body =>
+      'یه نسخه‌ی تازه‌تر توی بازار منتظرته. حدوداً یه دقیقه طول می‌کشه.';
+
+  @override
+  String get update_required_eyebrow => 'به‌روزرسانی لازمه';
+
+  @override
+  String get update_required_title => 'این نسخه دیگه کار نمی‌کنه';
+
+  @override
+  String update_required_body(String version) {
+    return 'برای اینکه بتونی ادامه بدی، تَرک رو به نسخه‌ی $version به‌روز کن. همه‌ی تنظیماتت سر جاش می‌مونه.';
+  }
+
+  @override
+  String get update_whats_new => 'چی عوض شده';
+
+  @override
+  String get update_action => 'به‌روزرسانی از بازار';
+
+  @override
+  String get update_later => 'الان نه';
+
+  @override
+  String get update_open_failed => 'بازار باز نشد. یه بار دیگه امتحان کن.';
 }

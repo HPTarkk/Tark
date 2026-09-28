@@ -1155,7 +1155,7 @@ components:
       properties:
         sku:
           type: string
-          enum: [tark_premium_1m, tark_premium_6m, tark_premium_12m]
+          enum: [tark_premium_1m, tark_premium_12m]
         purchaseToken:
           type: string
           minLength: 1

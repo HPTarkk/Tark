@@ -1351,9 +1351,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paywall_plan_1m => '1 MONTH';
 
   @override
-  String get paywall_plan_6m => '6 MONTHS';
-
-  @override
   String get paywall_plan_12m => '1 YEAR';
 
   @override
@@ -2425,4 +2422,39 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get reconnect_wifi_needed_waiting =>
       'The camera opens by itself as soon as Wi-Fi is on.';
+
+  @override
+  String get update_eyebrow => 'NEW VERSION';
+
+  @override
+  String update_title(String version) {
+    return 'Tark $version is on the air';
+  }
+
+  @override
+  String get update_body =>
+      'A newer version is waiting on Bazaar. It takes about a minute.';
+
+  @override
+  String get update_required_eyebrow => 'UPDATE REQUIRED';
+
+  @override
+  String get update_required_title => 'This version is off the air';
+
+  @override
+  String update_required_body(String version) {
+    return 'Update to Tark $version to keep talking. Everything you set up stays as it is.';
+  }
+
+  @override
+  String get update_whats_new => 'WHAT\'S NEW';
+
+  @override
+  String get update_action => 'Update on Bazaar';
+
+  @override
+  String get update_later => 'Not now';
+
+  @override
+  String get update_open_failed => 'Bazaar didn\'t open. Try once more.';
 }

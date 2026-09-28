@@ -14,3 +14,5 @@ key.properties
 **/*.jks
 key.properties
 key/upload-keystore.jks
+# Kotlin 2.x compiler session data
+.kotlin/

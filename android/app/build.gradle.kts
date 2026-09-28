@@ -44,7 +44,9 @@ android {
     defaultConfig {
         applicationId = "com.b1101.tark"
         minSdk = flutter.minSdkVersion.toInt()
-        targetSdk = flutter.targetSdkVersion
+        // Flutter's default (36 on 3.47) is what ships. The floor keeps an
+        // older Flutter SDK on some machine from ever building below 34.
+        targetSdk = maxOf(flutter.targetSdkVersion, 34)
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }

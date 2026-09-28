@@ -116,7 +116,7 @@
         <span class="legal-stamp">
           <i aria-hidden="true"></i>
           <span>In effect since</span>
-          <b><time datetime="2026-09-28">28 September 2026</time></b>
+          <b><time datetime="2026-09-29">29 September 2026</time></b>
         </span>
         <a class="legal-swap" href="terms.html">Read the Terms &amp; Conditions →</a>
       </div>
@@ -156,6 +156,7 @@
             <p class="ledger-title">WHAT LEAVES YOUR PHONE</p>
             <ul class="ledger-list asks">
               <li>Your IP address, to the services any web page reaches: the font CDN this site loads from, and a public STUN server if you join a channel from a browser.</li>
+              <li>From the Android app, your IP address to tarkk.ir, when it checks at launch whether a newer version of the app or of these documents is out. It asks for a public file and sends nothing with the request.</li>
               <li>Whatever you deliberately send us — a diagnostic log attached to a bug report, or an email you write.</li>
             </ul>
           </div>
@@ -213,6 +214,10 @@
             <p>Enough about the last channel and the last connection to reconnect you automatically when someone comes back into range.</p>
           </div>
           <div class="legal-row">
+            <b>Update reminder</b>
+            <p>If you tap “Not now” on an update, which version that was and when, so the same reminder waits a few days before it asks again.</p>
+          </div>
+          <div class="legal-row">
             <b>The diagnostic log</b>
             <p>A rotating technical log — session lifecycle, screen on and off, socket events, which peers a packet failed to reach. If you raise the log level in Settings → Advanced → Diagnostics, it also records the pages you open and, at the highest level, every tap and settings change. Never any audio. It is capped in size (8 MB by default, adjustable), it stays on the phone unless you deliberately share it, and Settings → Advanced → Diagnostics has a button that deletes it.</p>
           </div>
@@ -257,7 +262,7 @@
           </div>
           <div class="legal-row">
             <b>Internet</b>
-            <p>Declared because Android treats local network sockets as internet access. A Wi-Fi or Bluetooth channel needs no internet connection and works with none.</p>
+            <p>Declared because Android treats local network sockets as internet access. A Wi-Fi or Bluetooth channel needs no internet connection and works with none. When a connection happens to be there, the app also uses it at launch to ask tarkk.ir whether a newer version of the app or of these documents is out; with none, it skips the question and carries on.</p>
           </div>
         </div>
       </section>
@@ -292,12 +297,20 @@
         <p>The complete list of third parties any part of Tark touches. Each has its own privacy policy, which governs what it does with what it sees.</p>
         <div class="legal-rows">
           <div class="legal-row">
+            <a class="legal-row-name" href="https://www.cloudflare.com/privacypolicy/" rel="noopener" target="_blank">Cloudflare</a>
+            <p>Hosts tarkk.ir, including the files the app checks for updates. Sees each request the way any web host does.</p>
+          </div>
+          <div class="legal-row">
             <a class="legal-row-name" href="https://policies.google.com/privacy" rel="noopener" target="_blank">Google STUN</a>
             <p>Sees the IP address of a browser guest while a connection is being set up. Never carries audio.</p>
           </div>
           <div class="legal-row">
             <a class="legal-row-name" href="https://www.jsdelivr.com/terms/privacy-policy-jsdelivr-net" rel="noopener" target="_blank">jsDelivr</a>
             <p>Serves this website’s font, and sees the request for it the way any file host would.</p>
+          </div>
+          <div class="legal-row">
+            <a class="legal-row-name" href="https://cafebazaar.ir/app/com.b1101.tark" rel="noopener" target="_blank">Cafe Bazaar</a>
+            <p>Distributes the Android app and its updates. Installing or updating through Bazaar is covered by Bazaar’s own terms.</p>
           </div>
           <div class="legal-row">
             <a class="legal-row-name" href="https://www.arvancloud.ir" rel="noopener" target="_blank">ArvanCloud</a>

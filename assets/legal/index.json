@@ -8,9 +8,9 @@
         "en": "Privacy Policy",
         "fa": "سیاست حریم خصوصی"
       },
-      "version": 2,
+      "version": 3,
       "minAcceptedVersion": 1,
-      "effectiveDate": "2026-09-28",
+      "effectiveDate": "2026-09-29",
       "file": "privacy.json",
       "webPath": {
         "en": "/privacy.html",
