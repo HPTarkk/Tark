@@ -1351,9 +1351,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paywall_plan_1m => '1 MONTH';
 
   @override
-  String get paywall_plan_6m => '6 MONTHS';
-
-  @override
   String get paywall_plan_12m => '1 YEAR';
 
   @override

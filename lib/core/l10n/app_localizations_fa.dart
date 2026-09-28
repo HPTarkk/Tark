@@ -1345,9 +1345,6 @@ class AppLocalizationsFa extends AppLocalizations {
   String get paywall_plan_1m => 'یک ماهه';
 
   @override
-  String get paywall_plan_6m => 'شش ماهه';
-
-  @override
   String get paywall_plan_12m => 'یک ساله';
 
   @override

@@ -2516,12 +2516,6 @@ abstract class AppLocalizations {
   /// **'یک ماهه'**
   String get paywall_plan_1m;
 
-  /// No description provided for @paywall_plan_6m.
-  ///
-  /// In fa, this message translates to:
-  /// **'شش ماهه'**
-  String get paywall_plan_6m;
-
   /// No description provided for @paywall_plan_12m.
   ///
   /// In fa, this message translates to:
