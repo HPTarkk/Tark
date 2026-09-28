@@ -2351,13 +2351,13 @@ abstract class AppLocalizations {
   /// No description provided for @issue_mic_silent_title.
   ///
   /// In fa, this message translates to:
-  /// **'میکروفونت چیزی نمی‌گیره'**
+  /// **'بقیه صداتو نمی‌شنون'**
   String get issue_mic_silent_title;
 
   /// No description provided for @issue_mic_silent_body.
   ///
   /// In fa, this message translates to:
-  /// **'اجازه‌ش هست، ولی هیچ صدایی به کانال نمی‌رسه. شاید یه برنامه‌ی دیگه گرفتتش — هر چی داره ضبط می‌کنه ببند، یا هندزفری بزن.'**
+  /// **'روی «درست کردن صدا» بزن. اگه دوباره پیش اومد، هندزفریت رو دوباره وصل کن یا برنامه‌های دیگه‌ای که با صدا کار می‌کنن رو ببند.'**
   String get issue_mic_silent_body;
 
   /// No description provided for @issue_no_network_title.
@@ -2413,6 +2413,12 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'میکروفون رو دوباره راه بنداز'**
   String get fix_restart_mic;
+
+  /// No description provided for @fix_sound.
+  ///
+  /// In fa, this message translates to:
+  /// **'درست کردن صدا'**
+  String get fix_sound;
 
   /// No description provided for @fix_reconnect.
   ///
