@@ -4,6 +4,12 @@ import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/entitlement/billing_service.dart';
+import '../../core/entitlement/install_identity.dart';
+import '../../core/entitlement/license_gate.dart';
+import '../../core/entitlement/signed_entitlement.dart';
+import '../../core/entitlement/subscription_remote.dart';
+import '../../core/entitlement/subscription_service.dart';
+import '../../core/security/app_secure_storage.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/http_api_client.dart';
 import '../../feature/legal/data/legal_asset_source.dart';
@@ -62,10 +68,43 @@ abstract class LegalModule {
 @module
 abstract class BillingModule {
   /// No store channel is wired up yet — Bazaar is the only planned one, and
-  /// it hasn't landed — so every platform, Android included, takes the stub
-  /// and LicenseGate runs unlocked. Resolved once, at graph build time.
+  /// it hasn't landed — so every platform, Android included, takes the stub.
   @lazySingleton
   BillingService billingService() => const UnavailableBillingService();
+
+  /// Keystore-backed on Android, where the paid features live; memory-only
+  /// elsewhere, where nothing is ever locked.
+  @lazySingleton
+  AppSecureStorage appSecureStorage() => Monetization.active
+      ? PlatformAppSecureStorage()
+      : MemoryAppSecureStorage();
+
+  @lazySingleton
+  InstallIdentity installIdentity(AppSecureStorage storage) =>
+      InstallIdentity(storage);
+
+  /// Stand-in until the backend exists. Swapped for the HTTP implementation
+  /// in the change that adds sign-in, since every call needs a session.
+  @lazySingleton
+  SubscriptionRemote subscriptionRemote() =>
+      const UnavailableSubscriptionRemote();
+
+  @lazySingleton
+  SubscriptionService subscriptionService(
+    AppSecureStorage storage,
+    InstallIdentity identity,
+    SubscriptionRemote remote,
+  ) => SubscriptionService(
+    storage: storage,
+    identity: identity,
+    verifier: EntitlementVerifier(EntitlementKeys.fromEnvironment()),
+    remote: remote,
+    monetized: Monetization.active,
+  );
+
+  @lazySingleton
+  LicenseGate licenseGate(SubscriptionService subscription) =>
+      LicenseGateImpl(subscription);
 }
 
 @module

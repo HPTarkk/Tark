@@ -1329,14 +1329,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paywall_locked_music => 'Sharing music is premium';
 
   @override
-  String paywall_trial_left(Object days) {
-    return '$days days left in your trial';
-  }
-
-  @override
-  String get paywall_trial_over => 'Your trial has ended';
-
-  @override
   String get paywall_free_note => 'Bluetooth stays free, always';
 
   @override
@@ -1359,13 +1351,88 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paywall_plan_1m => '1 MONTH';
 
   @override
-  String get paywall_plan_6m => '6 MONTHS';
-
-  @override
   String get paywall_plan_12m => '1 YEAR';
 
   @override
-  String get paywall_plan_lifetime => 'LIFETIME';
+  String get sub_checking => 'Checking your subscription…';
+
+  @override
+  String get sub_granted => 'You\'re all set';
+
+  @override
+  String get sub_try_again => 'TRY AGAIN';
+
+  @override
+  String get sub_not_now => 'NOT NOW';
+
+  @override
+  String get sub_free_meanwhile =>
+      'Bluetooth keeps working as usual in the meantime.';
+
+  @override
+  String get sub_support_prompt => 'Something not right? We\'re glad to help:';
+
+  @override
+  String get sub_email_subject => 'Tark subscription';
+
+  @override
+  String get sub_nodata_title => 'Let\'s check your subscription';
+
+  @override
+  String get sub_nodata_body_offline =>
+      'To unlock this, we need to check your subscription once, and this phone doesn\'t seem to be online right now. Connect to the internet and try again.';
+
+  @override
+  String get sub_nodata_body_trouble =>
+      'To unlock this, we need to check your subscription once, and we couldn\'t reach our servers just now. That\'s on our side, not yours. Please try again in a little while.';
+
+  @override
+  String get sub_expired_title => 'Time for a quick check';
+
+  @override
+  String sub_expired_body_offline(String date) {
+    return 'According to the latest information we have, your subscription ended on $date. We couldn\'t get anything newer because this phone doesn\'t seem to be online right now.\n\nIf you\'ve already renewed, or this doesn\'t look right, connect to the internet and try again, or get in touch with us.';
+  }
+
+  @override
+  String sub_expired_body_trouble(String date) {
+    return 'According to the latest information we have, your subscription ended on $date. We couldn\'t reach our servers just now to get anything newer. That\'s on our side, not yours.\n\nIf you\'ve already renewed, or this doesn\'t look right, try again in a little while, or get in touch with us.';
+  }
+
+  @override
+  String get sub_stale_title => 'A quick check-in';
+
+  @override
+  String sub_stale_body_offline(String date) {
+    return 'We last confirmed your subscription on $date, and it\'s time for a quick refresh. Connect to the internet for a moment and we\'ll take care of the rest.';
+  }
+
+  @override
+  String sub_stale_body_trouble(String date) {
+    return 'We last confirmed your subscription on $date, and it\'s time for a quick refresh. We couldn\'t reach our servers just now. That\'s on our side, not yours. Please try again in a little while.';
+  }
+
+  @override
+  String get sub_renew_title => 'Welcome back';
+
+  @override
+  String sub_renew_body(String date) {
+    return 'Your subscription ended on $date. Renew any time to pick up right where you left off.';
+  }
+
+  @override
+  String get sub_signin_title => 'Sign in to subscribe';
+
+  @override
+  String get sub_signin_body =>
+      'A subscription belongs to your account, so it comes with you to a new phone. Sign in first, then pick a plan.';
+
+  @override
+  String get sub_owned_title => 'This purchase is on another account';
+
+  @override
+  String get sub_owned_body =>
+      'This Bazaar purchase is already linked to a different Tark account. Sign in with that account to use it, or write to us and we\'ll sort it out together.';
 
   @override
   String get settings_section_diagnostics => 'DIAGNOSTICS';

@@ -11,6 +11,7 @@ import com.b1101.tark.hotspot.WifiJoinHandler
 import com.b1101.tark.keepalive.KeepAliveHandler
 import com.b1101.tark.network.NetworkBindingHandler
 import com.b1101.tark.network.TransportCapabilityHandler
+import com.b1101.tark.security.AppSecureStorageHandler
 import com.b1101.tark.security.RoomIdentitySecureStorageHandler
 import com.b1101.tark.update.StoreHandler
 import com.b1101.tark.widget.WidgetControlBridge
@@ -100,6 +101,11 @@ class MainActivity : FlutterActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             RoomIdentitySecureStorageHandler.METHOD_CHANNEL,
         ).setMethodCallHandler(RoomIdentitySecureStorageHandler(applicationContext))
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            AppSecureStorageHandler.METHOD_CHANNEL,
+        ).setMethodCallHandler(AppSecureStorageHandler(applicationContext))
 
         val keepAlive = KeepAliveHandler(
             applicationContext,

@@ -2474,18 +2474,6 @@ abstract class AppLocalizations {
   /// **'پخش آهنگ توی نسخه ویژه‌ست'**
   String get paywall_locked_music;
 
-  /// No description provided for @paywall_trial_left.
-  ///
-  /// In fa, this message translates to:
-  /// **'{days} روز از دوره آزمایشیت مونده'**
-  String paywall_trial_left(Object days);
-
-  /// No description provided for @paywall_trial_over.
-  ///
-  /// In fa, this message translates to:
-  /// **'دوره آزمایشیت تموم شد'**
-  String get paywall_trial_over;
-
   /// No description provided for @paywall_free_note.
   ///
   /// In fa, this message translates to:
@@ -2528,23 +2516,143 @@ abstract class AppLocalizations {
   /// **'یک ماهه'**
   String get paywall_plan_1m;
 
-  /// No description provided for @paywall_plan_6m.
-  ///
-  /// In fa, this message translates to:
-  /// **'شش ماهه'**
-  String get paywall_plan_6m;
-
   /// No description provided for @paywall_plan_12m.
   ///
   /// In fa, this message translates to:
   /// **'یک ساله'**
   String get paywall_plan_12m;
 
-  /// No description provided for @paywall_plan_lifetime.
+  /// No description provided for @sub_checking.
   ///
   /// In fa, this message translates to:
-  /// **'دائمی'**
-  String get paywall_plan_lifetime;
+  /// **'داریم اشتراکت رو بررسی می‌کنیم…'**
+  String get sub_checking;
+
+  /// No description provided for @sub_granted.
+  ///
+  /// In fa, this message translates to:
+  /// **'همه‌چی آماده‌ست'**
+  String get sub_granted;
+
+  /// No description provided for @sub_try_again.
+  ///
+  /// In fa, this message translates to:
+  /// **'دوباره امتحان کن'**
+  String get sub_try_again;
+
+  /// No description provided for @sub_not_now.
+  ///
+  /// In fa, this message translates to:
+  /// **'بعداً'**
+  String get sub_not_now;
+
+  /// No description provided for @sub_free_meanwhile.
+  ///
+  /// In fa, this message translates to:
+  /// **'تا اون موقع بلوتوث مثل همیشه کار می‌کنه.'**
+  String get sub_free_meanwhile;
+
+  /// No description provided for @sub_support_prompt.
+  ///
+  /// In fa, this message translates to:
+  /// **'چیزی درست به نظر نمیاد؟ با کمال میل کمکت می‌کنیم:'**
+  String get sub_support_prompt;
+
+  /// No description provided for @sub_email_subject.
+  ///
+  /// In fa, this message translates to:
+  /// **'اشتراک ترک'**
+  String get sub_email_subject;
+
+  /// No description provided for @sub_nodata_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'بیا اشتراکت رو بررسی کنیم'**
+  String get sub_nodata_title;
+
+  /// No description provided for @sub_nodata_body_offline.
+  ///
+  /// In fa, this message translates to:
+  /// **'برای باز شدن این قابلیت باید یه بار اشتراکت رو بررسی کنیم، ولی به نظر می‌رسه این گوشی الان به اینترنت وصل نیست. به اینترنت وصل شو و دوباره امتحان کن.'**
+  String get sub_nodata_body_offline;
+
+  /// No description provided for @sub_nodata_body_trouble.
+  ///
+  /// In fa, this message translates to:
+  /// **'برای باز شدن این قابلیت باید یه بار اشتراکت رو بررسی کنیم، ولی الان نتونستیم به سرورهامون وصل بشیم. مشکل از طرف ماست، نه تو. لطفاً چند دقیقه دیگه دوباره امتحان کن.'**
+  String get sub_nodata_body_trouble;
+
+  /// No description provided for @sub_expired_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'وقت یه بررسی کوتاهه'**
+  String get sub_expired_title;
+
+  /// No description provided for @sub_expired_body_offline.
+  ///
+  /// In fa, this message translates to:
+  /// **'طبق آخرین اطلاعاتی که داریم، اشتراکت روز {date} تموم شده. چون به نظر می‌رسه این گوشی الان به اینترنت وصل نیست، نتونستیم اطلاعات جدیدتری بگیریم.\n\nاگه تمدیدش کردی یا این درست به نظر نمیاد، به اینترنت وصل شو و دوباره امتحان کن، یا بهمون پیام بده.'**
+  String sub_expired_body_offline(String date);
+
+  /// No description provided for @sub_expired_body_trouble.
+  ///
+  /// In fa, this message translates to:
+  /// **'طبق آخرین اطلاعاتی که داریم، اشتراکت روز {date} تموم شده. الان نتونستیم به سرورهامون وصل بشیم تا اطلاعات جدیدتری بگیریم. مشکل از طرف ماست، نه تو.\n\nاگه تمدیدش کردی یا این درست به نظر نمیاد، چند دقیقه دیگه دوباره امتحان کن، یا بهمون پیام بده.'**
+  String sub_expired_body_trouble(String date);
+
+  /// No description provided for @sub_stale_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'یه سر زدن کوتاه'**
+  String get sub_stale_title;
+
+  /// No description provided for @sub_stale_body_offline.
+  ///
+  /// In fa, this message translates to:
+  /// **'آخرین بار روز {date} اشتراکت رو تأیید کردیم و وقت یه به‌روزرسانی کوتاهه. یه لحظه به اینترنت وصل شو، بقیه‌ش با ما.'**
+  String sub_stale_body_offline(String date);
+
+  /// No description provided for @sub_stale_body_trouble.
+  ///
+  /// In fa, this message translates to:
+  /// **'آخرین بار روز {date} اشتراکت رو تأیید کردیم و وقت یه به‌روزرسانی کوتاهه. الان نتونستیم به سرورهامون وصل بشیم. مشکل از طرف ماست، نه تو. لطفاً چند دقیقه دیگه دوباره امتحان کن.'**
+  String sub_stale_body_trouble(String date);
+
+  /// No description provided for @sub_renew_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'خوش برگشتی'**
+  String get sub_renew_title;
+
+  /// No description provided for @sub_renew_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'اشتراکت روز {date} تموم شده. هر وقت خواستی تمدیدش کن و از همون جایی که بودی ادامه بده.'**
+  String sub_renew_body(String date);
+
+  /// No description provided for @sub_signin_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'برای اشتراک وارد شو'**
+  String get sub_signin_title;
+
+  /// No description provided for @sub_signin_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'اشتراک به حسابت وصله، برای همین با گوشی جدید هم همراهت میاد. اول وارد حسابت شو، بعد یه طرح انتخاب کن.'**
+  String get sub_signin_body;
+
+  /// No description provided for @sub_owned_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'این خرید روی یه حساب دیگه‌ست'**
+  String get sub_owned_title;
+
+  /// No description provided for @sub_owned_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'این خرید بازار قبلاً به یه حساب دیگه‌ی ترک وصل شده. با همون حساب وارد شو، یا بهمون پیام بده تا با هم درستش کنیم.'**
+  String get sub_owned_body;
 
   /// No description provided for @settings_section_diagnostics.
   ///

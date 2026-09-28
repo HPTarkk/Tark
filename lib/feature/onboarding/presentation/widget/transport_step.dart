@@ -4,7 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../../core/entitlement/license_gate.dart';
-import '../../../../core/entitlement/paywall_sheet.dart';
+import '../../../../core/entitlement/subscription_gate_page.dart';
 import '../../../../core/entitlement/premium_feature.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/sfx/sfx_event.dart';
@@ -117,7 +117,7 @@ class TransportStep extends StatelessWidget {
     if (mode != null &&
         mode.requiresPremium &&
         !GetIt.instance<LicenseGate>().allows(PremiumFeature.wifiTransport)) {
-      showPaywallSheet(context, PremiumFeature.wifiTransport);
+      openSubscriptionGate(context, PremiumFeature.wifiTransport);
       return;
     }
     HapticFeedback.selectionClick();

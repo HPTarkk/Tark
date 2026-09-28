@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tark/core/entitlement/entitlement.dart';
 import 'package:tark/core/entitlement/license_gate.dart';
 import 'package:tark/core/entitlement/premium_feature.dart';
 import 'package:tark/core/settings/settings_keys.dart';
@@ -40,7 +39,7 @@ class _FakeGate implements LicenseGate {
   bool get canPurchase => !unlocked;
 
   @override
-  Stream<Entitlement> get changes => const Stream<Entitlement>.empty();
+  Stream<void> get changes => const Stream<void>.empty();
 }
 
 void main() {
