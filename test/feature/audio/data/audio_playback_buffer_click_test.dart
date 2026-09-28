@@ -124,6 +124,29 @@ void main() {
         buffer.dispose();
       });
     });
+    test('a device that pulls 100 ms at a time is kept fed', () {
+      // Galaxy S8+ on Android 9: the audio callback takes ~100 ms per pull.
+      // A 40 ms cushion left it playing 60 ms of zeros every pull.
+      fakeAsync((async) {
+        final device = _FakeDevice();
+        final buffer = build(device, queued: () => device.queued);
+        var seq = 0;
+        for (var i = 0; i < 6; i++) {
+          buffer.feed(_tone(960), seq++, 'peer');
+        }
+        for (var t = 0; t < 300; t++) {
+          if (t.isEven) buffer.feed(_tone(960), seq++, 'peer');
+          if (t % 10 == 9) device.consume(rate * 100 ~/ 1000);
+          async.elapse(const Duration(milliseconds: drainMs));
+        }
+        expect(buffer.deviceBurstSamples, greaterThanOrEqualTo(4800));
+        // Allow the first second to learn the burst size; after that,
+        // nothing but speech.
+        final settled = device.played.sublist(rate);
+        expect(settled.where((s) => s == 0.0), isEmpty);
+        buffer.dispose();
+      });
+    });
   });
 
   group('no clicks from buffer housekeeping', () {

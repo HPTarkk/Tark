@@ -140,15 +140,52 @@ class AudioPlaybackBuffer {
   /// Samples in the native output ring the device has not played yet, or a
   /// negative number where the platform cannot tell. When known, each tick
   /// writes as many slices as it takes to bring the ring back to
-  /// [_prefillSamples] plus one slice — the level it sits at right after a
-  /// tick when everything runs on time — so the drain follows the device's
-  /// own clock and a late tick is made good on the next one.
+  /// [_prefillSamples] plus the most the device has been seen to take
+  /// between two ticks, so the drain follows the device's own clock and a
+  /// late tick is made good on the next one.
   final int Function()? _outputQueuedFrames;
 
   /// Upper bound on slices per tick, whichever way the count is decided. A
   /// tick that finds the device far behind (a long isolate pause) must not
-  /// dump the whole queue into the native ring in one go.
-  static const int _maxSlicesPerTick = 5;
+  /// dump the whole queue into the native ring in one go. Sized to refill
+  /// the largest cushion ([kMaxOutputCushionMs]) in one tick.
+  static const int _maxSlicesPerTick = 16;
+
+  /// Ceiling on the native ring cushion, kept well inside the 8192-sample
+  /// native ring (170 ms at 48 kHz).
+  static const int kMaxOutputCushionMs = 150;
+  late final int _maxCushionSamples = _sampleRate * kMaxOutputCushionMs ~/ 1000;
+
+  // ── Device burst size ──────────────────────────────────────────────────
+  //
+  // Most phones pull a few milliseconds from the ring at a time, so a cushion
+  // of [_prefillSamples] plus one slice keeps them fed. Not all: a Galaxy S8+
+  // on Android 9 pulls ~100 ms in one go (its capture log shows ten mic
+  // callbacks a second). Topping its ring up to 40 ms meant each pull found
+  // 40 ms and played 60 ms of zeros, so only 40% of the voice reached the
+  // speaker, the queue overflowed, and the jump-to-live cut the rest: robotic
+  // voice for the whole call. So the cushion is measured, not assumed: the
+  // most the ring lost between two ticks over the last second or so is what
+  // the device can take at once, and the ring is kept that much fuller.
+
+  /// Ring level right after the previous tick's writes, or -1 when unknown.
+  int _levelAfterLastTick = -1;
+
+  /// Largest drop between two ticks, in this window and the one before, so
+  /// the estimate always covers at least one full window of evidence.
+  int _burstThisWindow = 0;
+  int _burstLastWindow = 0;
+  int _burstWindowTicks = 0;
+  static const int _burstWindowLength = 50;
+
+  /// What the device can take in one pull, as far as the ring has seen.
+  /// Exposed for tests and the health log.
+  int get deviceBurstSamples {
+    final seen = _burstThisWindow > _burstLastWindow
+        ? _burstThisWindow
+        : _burstLastWindow;
+    return seen > _drainSize ? seen : _drainSize;
+  }
 
   /// [Timer.tick] at the previous drain callback, for platforms that fall back
   /// to counting timer periods.
@@ -619,7 +656,8 @@ class AudioPlaybackBuffer {
       ' | underruns=$_underruns trims=$_trims jumps=$_jumps'
       ' overflow=$_overflowDrops'
       ' | device starved ${_ms(devDelta)}ms'
-      ' (${_ms(devFrames)}ms total)',
+      ' (${_ms(devFrames)}ms total)'
+      ' | device burst ${_ms(deviceBurstSamples)}ms',
     );
 
     // Per sender, and only for senders that actually delivered something in
@@ -750,6 +788,7 @@ class AudioPlaybackBuffer {
         ? _prefillSamples
         : (_prefillSamples - queued).clamp(0, _prefillSamples);
     if (prefill > 0) _output.add(Float64List(prefill));
+    _levelAfterLastTick = queued < 0 ? -1 : queued + prefill;
     _drainTimer = Timer.periodic(Duration(milliseconds: _drainIntervalMs), (
       timer,
     ) {
@@ -781,12 +820,31 @@ class AudioPlaybackBuffer {
     final queued = _outputQueuedFrames?.call() ?? -1;
     int due;
     if (queued >= 0) {
-      final missing = _prefillSamples + _drainSize - queued;
+      _noteDeviceBurst(queued);
+      var cushion = _prefillSamples + deviceBurstSamples;
+      if (cushion > _maxCushionSamples) cushion = _maxCushionSamples;
+      final missing = cushion - queued;
       due = missing <= 0 ? 0 : (missing + _drainSize - 1) ~/ _drainSize;
+      if (due > _maxSlicesPerTick) due = _maxSlicesPerTick;
+      // Assumes every slice is written; an underrun stops the drain, and the
+      // next start re-reads the ring anyway.
+      _levelAfterLastTick = queued + due * _drainSize;
     } else {
       due = periods < 1 ? 1 : periods;
     }
     return due > _maxSlicesPerTick ? _maxSlicesPerTick : due;
+  }
+
+  void _noteDeviceBurst(int queued) {
+    if (_levelAfterLastTick >= 0) {
+      final taken = _levelAfterLastTick - queued;
+      if (taken > _burstThisWindow) _burstThisWindow = taken;
+    }
+    if (++_burstWindowTicks >= _burstWindowLength) {
+      _burstWindowTicks = 0;
+      _burstLastWindow = _burstThisWindow;
+      _burstThisWindow = 0;
+    }
   }
 
   /// Pushes one slice, or stops the drain on an underrun. Returns whether the
