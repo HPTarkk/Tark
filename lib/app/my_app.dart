@@ -11,9 +11,8 @@ import '../core/home_widget/widget_control_channel.dart';
 import '../core/l10n/app_localizations.dart';
 import '../core/l10n/extension.dart';
 import '../core/locale/locale_service.dart';
-import '../core/motion/app_motion.dart';
 import '../core/router/routes.dart';
-import '../core/theme/app_colors.dart';
+import '../core/theme/app_theme.dart';
 import '../core/theme/theme_service.dart';
 import '../core/widget/theme_reveal_transition.dart';
 import '../feature/transfer/api/transfer_api.dart';
@@ -123,38 +122,7 @@ class _MyAppState extends State<MyApp> {
         return supported.first;
       },
       onGenerateTitle: (context) => context.getString.app_name,
-      theme: ThemeData(
-        fontFamily: 'Vazirmatn',
-        brightness: ThemeService.isLight ? Brightness.light : Brightness.dark,
-        scaffoldBackgroundColor: AppColors.background,
-        colorScheme: ThemeService.isLight
-            ? ColorScheme.light(
-                primary: AppColors.amber,
-                secondary: AppColors.green,
-                surface: AppColors.surface,
-                error: AppColors.red,
-              )
-            : ColorScheme.dark(
-                primary: AppColors.amber,
-                secondary: AppColors.green,
-                surface: AppColors.surface,
-                error: AppColors.red,
-              ),
-        useMaterial3: true,
-        // M3 snackbars default to inverseSurface/onInverseSurface, which
-        // clashes with our card-colored backgrounds; pin both sides here so
-        // every SnackBar is card + readable text without per-call overrides.
-        snackBarTheme: SnackBarThemeData(
-          backgroundColor: AppColors.card,
-          contentTextStyle: TextStyle(
-            fontFamily: 'Vazirmatn',
-            color: AppColors.textPrimary,
-            fontSize: 14,
-          ),
-          actionTextColor: AppColors.amber,
-        ),
-        pageTransitionsTheme: AppPageTransitionsBuilder.theme,
-      ),
+      theme: buildAppTheme(),
     );
   }
 }

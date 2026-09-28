@@ -1,11 +1,11 @@
 import '../../../../core/motion/app_motion.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../../../../core/widget/copy_chip.dart';
 import '../../../../core/widget/link_established.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/extension.dart';
@@ -194,7 +194,7 @@ class _InviteBody extends StatelessWidget {
         _Entrance(
           delayMs: 120,
           child: Center(
-            child: _CopyChip(
+            child: CopyChip(
               text: inviteUrl,
               label: s.guest_copy_link,
               copiedLabel: s.guest_link_copied,
@@ -376,58 +376,6 @@ class _LanBadge extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Small tap-to-copy chip, reused for the invite link.
-class _CopyChip extends StatelessWidget {
-  final String text;
-  final String label;
-  final String copiedLabel;
-
-  const _CopyChip({
-    required this.text,
-    required this.label,
-    required this.copiedLabel,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        Clipboard.setData(ClipboardData(text: text));
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(copiedLabel),
-            duration: const Duration(seconds: 1),
-          ),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.copy_rounded, color: AppColors.amber, size: 14),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: AppColors.amber,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

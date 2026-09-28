@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widget/copy_chip.dart';
 import '../../../../core/widget/link_established.dart';
 
 /// Small shared pieces of the WiFi/Hotspot page family — entrance animation,
@@ -397,25 +397,7 @@ class HotspotCredentialRow extends StatelessWidget {
             ),
           ),
           if (value.isNotEmpty)
-            GestureDetector(
-              onTap: () {
-                Clipboard.setData(ClipboardData(text: value));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('$label $copiedLabel'),
-                    duration: const Duration(seconds: 1),
-                  ),
-                );
-              },
-              child: Padding(
-                padding: const EdgeInsets.only(left: 8),
-                child: Icon(
-                  Icons.copy_rounded,
-                  color: AppColors.amber,
-                  size: 18,
-                ),
-              ),
-            ),
+            CopyIconButton(text: value, copiedLabel: copiedLabel),
         ],
       ),
     );

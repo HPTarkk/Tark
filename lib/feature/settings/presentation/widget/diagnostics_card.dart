@@ -14,6 +14,7 @@ import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
+import '../../../../core/widget/confirm_sheet.dart';
 import '../../../../core/widget/ticker_text.dart';
 import '../manager/settings_cubit.dart';
 import 'settings_category_card.dart';
@@ -111,48 +112,16 @@ class _DiagnosticsCardState extends State<DiagnosticsCard> {
   /// the last place to remind someone to share it before it's gone.
   Future<void> _confirmClear() async {
     final s = context.getString;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      routeSettings: const RouteSettings(name: 'ClearLogDialog'),
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.card,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: AppColors.border),
-        ),
-        title: Text(
-          s.settings_clear_log_confirm_title,
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        content: Text(
-          s.settings_clear_log_confirm_message,
-          style: TextStyle(color: AppColors.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(
-              s.cancel,
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(
-              s.settings_clear_log_confirm_action,
-              style: TextStyle(
-                color: AppColors.red,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
+    // The same sheet every other destructive confirmation uses.
+    final confirmed = await showConfirmSheet(
+      context,
+      title: s.settings_clear_log_confirm_title,
+      body: s.settings_clear_log_confirm_message,
+      action: s.settings_clear_log_confirm_action,
+      icon: Icons.delete_outline_rounded,
+      destructive: true,
     );
-    if (confirmed != true) return;
+    if (!confirmed) return;
     await _clear();
   }
 
