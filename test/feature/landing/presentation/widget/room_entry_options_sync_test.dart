@@ -2,10 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tark/core/l10n/app_localizations.dart';
+import 'package:tark/core/router/routes.dart';
 import 'package:tark/feature/landing/presentation/widget/room_entry_options.dart';
 import 'package:tark/feature/room/data/repository/shared_preferences_room_repository.dart';
+import 'package:tark/feature/room/domain/entity/room.dart';
 
 /// Landing's room count used to be read once and never again.
 ///
@@ -89,6 +92,54 @@ void main() {
 
     expect(find.byKey(const Key('landing-resume-room')), findsOneWidget);
     expect(find.text('Made'), findsOneWidget);
+  });
+
+  // A phone with Rooms but none selected showed the first Room on the card,
+  // yet opened the old Room-less channel: no Room connection, and it "heard"
+  // a phone that was only waiting on its reconnect screen.
+  testWidgets('the card selects the Room it names before opening it', (
+    tester,
+  ) async {
+    final room = await repository.create(name: 'North', localDisplayName: 'A');
+    await repository.select(null);
+    RoomId? selectedOnOpen;
+    final router = GoRouter(
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, state) => Scaffold(
+            body: SingleChildScrollView(
+              child: RoomEntryOptions(repository: repository),
+            ),
+          ),
+        ),
+        GoRoute(
+          path: AppRoutes.walkiePath,
+          builder: (context, state) {
+            unawaited(
+              repository.selectedRoomId().then((id) => selectedOnOpen = id),
+            );
+            return const Scaffold(body: Text('walkie'));
+          },
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      MaterialApp.router(
+        routerConfig: router,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+      ),
+    );
+    await tester.pump();
+    expect(find.text('North'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('landing-resume-room')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('walkie'), findsOneWidget);
+    expect(selectedOnOpen, room.room.id);
   });
 
   testWidgets('storage that cannot be read never blocks the screen', (

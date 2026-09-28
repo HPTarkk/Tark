@@ -95,6 +95,23 @@ class _RoomEntryOptionsState extends State<RoomEntryOptions> {
     }
   }
 
+  /// Opens [room]'s lobby. With no Room selected, the card still names the
+  /// first saved Room, but the walkie route read "nothing selected" and opened
+  /// the old Room-less channel on whatever network the phone was on — it
+  /// skipped the Room's own connection and "heard" a phone that was only
+  /// waiting on its reconnect screen. So the Room on the card is selected
+  /// first.
+  Future<void> _resume(SavedRoom room) async {
+    if (room.room.id != _selected?.room.id) {
+      try {
+        await _repository?.select(room.room.id);
+      } catch (_) {
+        // Deleted in the meantime; the walkie route says so itself.
+      }
+    }
+    if (mounted) unawaited(context.push(AppRoutes.walkiePath));
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.getString;
@@ -137,7 +154,7 @@ class _RoomEntryOptionsState extends State<RoomEntryOptions> {
         label: resume.room.name,
         hint: t.entry_resume_hint,
         variant: RoomEntryVariant.hero,
-        onTap: () => context.push(AppRoutes.walkiePath),
+        onTap: () => _resume(resume),
       ),
       // Side by side because they are alternatives to *each other* — both are
       // "begin something new". Saying that is what finally gets create out of
