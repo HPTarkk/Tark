@@ -2,6 +2,10 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import 'src/voice_queue.dart';
+
+export 'src/voice_queue.dart';
+
 // Conditional imports for platform-specific implementations
 import 'src/audio_io_stub.dart'
     if (dart.library.io) 'src/audio_io_native.dart'
@@ -76,7 +80,6 @@ class AudioIo {
       StreamController<List<double>>.broadcast(sync: true);
   StreamController<List<double>> _inputController =
       StreamController<List<double>>.broadcast(sync: true);
-
 
   Stream<List<double>> get input {
     if (_impl.usePlatformImpl) {
@@ -181,6 +184,10 @@ class AudioIo {
     }
     return -1;
   }
+
+  /// The native received-voice queue the audio callback plays from, or null
+  /// where playback is not driven by miniaudio (iOS, macOS, web).
+  VoiceQueue? get voiceQueue => _impl.voiceQueue;
 
   Future<void> requestLatency(AudioIoLatency option) async {
     if (_impl.usePlatformImpl) {

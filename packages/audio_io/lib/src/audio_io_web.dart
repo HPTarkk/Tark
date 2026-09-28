@@ -3,6 +3,7 @@ import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 import 'package:web/web.dart' as web;
 
+import 'voice_queue.dart';
 import 'audio_io_stub.dart';
 
 @JS('window')
@@ -259,6 +260,9 @@ class AudioIoWeb implements AudioIoImpl {
 
   @override
   int getOutputQueuedFrames() => -1;
+
+  @override
+  VoiceQueue? get voiceQueue => null;
 }
 
 AudioIoImpl createAudioIoImpl() => AudioIoWeb();

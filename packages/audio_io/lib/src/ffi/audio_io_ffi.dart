@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 
+import '../voice_queue.dart';
 import 'audio_io_bindings.dart';
 
 /// Size of the persistent read scratch buffer, so a poll never needs to
@@ -192,9 +193,8 @@ class AudioIoFFI {
       final availableFrames = _bindings.getAvailableReadFrames(_handle!);
       if (availableFrames <= 0) return;
 
-      final framesToRead = availableFrames > _kFramesPerPoll
-          ? _kFramesPerPoll
-          : availableFrames;
+      final framesToRead =
+          availableFrames > _kFramesPerPoll ? _kFramesPerPoll : availableFrames;
       final framesRead = _bindings.read(_handle!, scratch, framesToRead);
       if (framesRead <= 0) return;
 
@@ -303,6 +303,10 @@ class AudioIoFFI {
     return _bindings.getOutputUnderrunFrames(_handle!);
   }
 
+  /// The native received-voice queue. Always the current device's: every
+  /// call resolves the handle afresh, and does nothing without one.
+  late final VoiceQueue voiceQueue = _FfiVoiceQueue(this);
+
   /// Samples in the output ring the device has not played yet, or -1 with no
   /// device. Counts only what has reached the ring: [outputAudioStream]
   /// delivers asynchronously, so a write made this same event-loop turn is
@@ -311,4 +315,73 @@ class AudioIoFFI {
     if (_handle == null) return -1;
     return _bindings.getOutputQueuedFrames(_handle!);
   }
+}
+
+class _FfiVoiceQueue implements VoiceQueue {
+  _FfiVoiceQueue(this._ffi);
+
+  final AudioIoFFI _ffi;
+
+  Pointer<Double>? _scratch;
+  int _scratchFrames = 0;
+
+  @override
+  int write(Float64List samples) {
+    final handle = _ffi._handle;
+    if (handle == null || samples.isEmpty) return 0;
+    if (_scratchFrames < samples.length) {
+      final old = _scratch;
+      _scratch = null;
+      _scratchFrames = 0;
+      if (old != null) malloc.free(old);
+      _scratch = malloc<Double>(samples.length);
+      _scratchFrames = samples.length;
+    }
+    final scratch = _scratch!;
+    scratch.asTypedList(samples.length).setAll(0, samples);
+    return _ffi._bindings.voiceWrite(handle, scratch, samples.length);
+  }
+
+  @override
+  int writeSilence(int count) {
+    final handle = _ffi._handle;
+    if (handle == null || count <= 0) return 0;
+    return _ffi._bindings.voiceWriteZeros(handle, count);
+  }
+
+  @override
+  set targetFrames(int frames) {
+    final handle = _ffi._handle;
+    if (handle != null) _ffi._bindings.voiceSetTarget(handle, frames);
+  }
+
+  @override
+  void reset() {
+    final handle = _ffi._handle;
+    if (handle != null) _ffi._bindings.voiceReset(handle);
+  }
+
+  int _stat(int which) {
+    final handle = _ffi._handle;
+    if (handle == null) return 0;
+    final v = _ffi._bindings.voiceStat(handle, which);
+    return v < 0 ? 0 : v;
+  }
+
+  @override
+  int get queuedFrames => _stat(0);
+  @override
+  bool get isPlaying => _stat(1) == 1;
+  @override
+  int get underruns => _stat(2);
+  @override
+  int get starvedFrames => _stat(3);
+  @override
+  int get playedFrames => _stat(4);
+  @override
+  int get trims => _stat(5);
+  @override
+  int get jumps => _stat(6);
+  @override
+  int get deviceBurstFrames => _stat(7);
 }

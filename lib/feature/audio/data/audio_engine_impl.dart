@@ -415,6 +415,7 @@ class AudioEngineImpl implements AudioEngine {
         debugLogging: true,
         outputUnderrunFrames: _audioIo.outputUnderrunFrames,
         outputQueuedFrames: _audioIo.outputQueuedFrames,
+        voiceQueue: _audioIo.voiceQueue,
       );
       _mediaCoordinatorTimer = Timer.periodic(
         const Duration(milliseconds: 10),
@@ -858,7 +859,17 @@ class AudioEngineImpl implements AudioEngine {
   /// cast active) are both cheap early-outs.
   static const _kCoordinatorFrameMs = 10;
 
+  /// Media kept queued in the output ring when voice plays natively, on top
+  /// of what the device takes per pull — the same margin the timer-driven
+  /// voice drain used, for the same reason: this tick shares the UI isolate.
+  static const _kNativeMediaCushionMs = 30;
+
   void _mediaCoordinatorTick() {
+    final voiceQueue = _audioIo.voiceQueue;
+    if (voiceQueue != null) {
+      _mediaCoordinatorTickNative(voiceQueue);
+      return;
+    }
     if (_buffer?.isDraining ?? false) return;
     final media = _mediaBuffer?.pullFrame(
       _outputRate.toInt() * _kCoordinatorFrameMs ~/ 1000,
@@ -872,6 +883,32 @@ class AudioEngineImpl implements AudioEngine {
       frameDurationMs: _kCoordinatorFrameMs,
     );
     _audioIo.output.add(gain == 1.0 ? media : _scale(media, gain));
+  }
+
+  /// With native voice, the audio callback mixes voice and the output ring
+  /// itself, so media is always written here — whether or not voice is
+  /// playing — and topped up against the ring's real level rather than one
+  /// frame per tick (a late tick would otherwise leave the ring short).
+  void _mediaCoordinatorTickNative(VoiceQueue voiceQueue) {
+    final media = _mediaBuffer;
+    if (media == null) return;
+    final rate = _outputRate.toInt();
+    final frame = rate * _kCoordinatorFrameMs ~/ 1000;
+    final queued = _audioIo.outputQueuedFrames();
+    if (queued < 0) return;
+    final cushion =
+        rate * _kNativeMediaCushionMs ~/ 1000 + voiceQueue.deviceBurstFrames;
+    var level = queued;
+    for (var i = 0; i < 16 && level < cushion + frame; i++) {
+      final pulled = media.pullFrame(frame);
+      if (pulled == null) return;
+      final gain = _advanceDucking(
+        voiceActive: voiceQueue.isPlaying || _localVoiceActive,
+        frameDurationMs: _kCoordinatorFrameMs,
+      );
+      _audioIo.output.add(gain == 1.0 ? pulled : _scale(pulled, gain));
+      level += frame;
+    }
   }
 
   /// Shared by [_mediaCoordinatorTick] and [_MixingOutputSink.add]'s inline
