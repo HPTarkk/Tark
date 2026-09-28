@@ -28,7 +28,7 @@ jobs:
           set -uo pipefail
           # Every release line is permanent: the release scripts merge each one
           # back into main, so "fully merged" would otherwise select them all.
-          KEEP_RE='^(main|release/[0-9]+\.[0-9]+\.0|chore/release-tark-once)$'
+          KEEP_RE='^(main|release/[0-9]+\.[0-9]+\.0)$'
 
           git fetch --prune origin '+refs/heads/*:refs/remotes/origin/*'
 
