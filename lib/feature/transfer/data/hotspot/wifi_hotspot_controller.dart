@@ -272,7 +272,21 @@ class AndroidWifiJoiner implements HotspotJoiner {
       .receiveBroadcastStream()
       .where((e) => e is Map)
       .cast<Map<Object?, Object?>>()
+      .map(_logReclaim)
       .asBroadcastStream();
+
+  /// Android 9 and older can move the radio off the host's AP onto a saved
+  /// network with internet; the native side selects the AP again. Logged once
+  /// here, ahead of the broadcast split, so it reaches the diagnostic log.
+  static Map<Object?, Object?> _logReclaim(Map<Object?, Object?> event) {
+    if (event['event'] == 'reclaim') {
+      Logger.diagnostic(
+        'network: hotspot reclaimed moved=${event['moved']} '
+        'asked=${event['asked']}',
+      );
+    }
+    return event;
+  }
 
   @override
   Stream<void> get onLost => _stream
