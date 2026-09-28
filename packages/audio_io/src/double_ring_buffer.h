@@ -122,6 +122,26 @@ public:
         return count;
     }
 
+    /// Like readToFloatClamped, but adds onto what is already in [out] (the
+    /// received voice) instead of overwriting it; frames the ring cannot
+    /// supply are left as they are.
+    size_t readAddToFloatClamped(float* out, size_t count) {
+        const size_t r = read_.load(std::memory_order_relaxed);
+        const size_t w = write_.load(std::memory_order_acquire);
+        count = std::min(count, w - r);
+        if (count == 0) return 0;
+
+        size_t pos = r & mask_;
+        for (size_t i = 0; i < count; i++) {
+            const double sample = (double)out[i] + buffer_[pos];
+            out[i] =
+                (float)(sample > 1.0 ? 1.0 : (sample < -1.0 ? -1.0 : sample));
+            pos = (pos + 1) & mask_;
+        }
+        read_.store(r + count, std::memory_order_release);
+        return count;
+    }
+
     /// Safe from either side: each load is independently atomic, and a
     /// concurrent advance by the other thread only makes the answer stale in
     /// the conservative direction.

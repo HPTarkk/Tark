@@ -5,6 +5,7 @@
 #include <atomic>
 
 #include "double_ring_buffer.h"
+#include "voice_playout.h"
 
 #ifdef __ANDROID__
 #include <android/log.h>
@@ -16,33 +17,34 @@ const size_t RING_BUFFER_SIZE = 8192;  // power of two — see DoubleRingBuffer
 const int SAMPLE_RATE = 48000;
 const int CHANNELS = 1;
 
+// Received voice queue: 65536 samples is 1.36 s at 48 kHz, far past anything
+// the jump back to live lets it reach.
+const size_t VOICE_QUEUE_SIZE = 65536;  // power of two — see VoicePlayout
+
 struct AudioContext {
     ma_device device;
     DoubleRingBuffer* inputRingBuffer;
+    // Media (Shared Music) and anything else written through
+    // audio_io_write. Received voice has its own queue below; the callback
+    // mixes the two.
     DoubleRingBuffer* outputRingBuffer;
+    VoicePlayout* voice;
     std::atomic<bool> isRunning;
     std::atomic<bool> isDeviceInitialized;
     double frameDuration;  // Store requested frame duration
 
-    // Frames the playback callback had to invent because the output ring was
-    // empty. Every one of them is a step to silence in the middle of a
-    // waveform — i.e. an audible tick — so this is the number that says
-    // whether the Dart side is feeding the device fast enough. Exposed via
-    // audio_io_get_output_underrun_frames() and logged with the jitter
-    // buffer's stats; it is a diagnostic, not something the audio path reads.
-    std::atomic<long long> outputUnderrunFrames;
-
     AudioContext()
         : inputRingBuffer(new DoubleRingBuffer(RING_BUFFER_SIZE)),
           outputRingBuffer(new DoubleRingBuffer(RING_BUFFER_SIZE)),
+          voice(new VoicePlayout(VOICE_QUEUE_SIZE, SAMPLE_RATE)),
           isRunning(false),
           isDeviceInitialized(false),
-          frameDuration(0.003),  // Default 3ms (Balanced)
-          outputUnderrunFrames(0) {}
-    
+          frameDuration(0.003) {}  // Default 3ms (Balanced)
+
     ~AudioContext() {
         delete inputRingBuffer;
         delete outputRingBuffer;
+        delete voice;
     }
 };
 
@@ -59,18 +61,12 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
         context->inputRingBuffer->writeFromFloat((const float*)pInput, frameCount);
     }
 
-    // Handle output
+    // Handle output: received voice straight from its queue, with whatever
+    // the output ring holds (media) mixed on top.
     if (pOutput) {
         float* floatOutput = (float*)pOutput;
-        const size_t framesRead =
-            context->outputRingBuffer->readToFloatClamped(floatOutput, frameCount);
-        // Underrun: silence whatever the ring could not supply.
-        if (framesRead < frameCount) {
-            std::memset(floatOutput + framesRead, 0,
-                        (frameCount - framesRead) * sizeof(float));
-            context->outputUnderrunFrames.fetch_add(
-                (long long)(frameCount - framesRead), std::memory_order_relaxed);
-        }
+        context->voice->render(floatOutput, frameCount);
+        context->outputRingBuffer->readAddToFloatClamped(floatOutput, frameCount);
     }
 }
 
@@ -142,6 +138,8 @@ int audio_io_init_device(void* handle) {
     if (ma_device_init(NULL, &config, &context->device) != MA_SUCCESS) {
         return -1;
     }
+    // Before start, while the callback cannot be running.
+    context->voice->configure((int)context->device.sampleRate);
     
     context->isDeviceInitialized = true;
     
@@ -216,13 +214,54 @@ int audio_io_write(void* handle, const double* buffer, int frameCount) {
     return context->outputRingBuffer->write(buffer, frameCount);
 }
 
-// Cumulative frames the playback callback had to fill with silence because the
-// output ring was empty. A steadily climbing value means the Dart drain is not
-// staying ahead of the device — each underrun is an audible tick.
+// Cumulative frames of received voice the playback callback had to replace
+// with silence because the voice queue ran dry mid-pull. Each one is heard as
+// a gap, so a value that climbs while someone is talking means the jitter
+// target is too shallow for the link.
 long long audio_io_get_output_underrun_frames(void* handle) {
     if (!handle) return 0;
     AudioContext* context = (AudioContext*)handle;
-    return context->outputUnderrunFrames.load(std::memory_order_relaxed);
+    return context->voice->starvedFrames();
+}
+
+// ── Received voice queue (see voice_playout.h) ──────────────────────────────
+
+int audio_io_voice_write(void* handle, const double* buffer, int frameCount) {
+    if (!handle || !buffer || frameCount <= 0) return 0;
+    return (int)((AudioContext*)handle)->voice->write(buffer, (size_t)frameCount);
+}
+
+int audio_io_voice_write_zeros(void* handle, int frameCount) {
+    if (!handle || frameCount <= 0) return 0;
+    return (int)((AudioContext*)handle)->voice->writeZeros((size_t)frameCount);
+}
+
+void audio_io_voice_set_target(void* handle, int frames) {
+    if (!handle) return;
+    ((AudioContext*)handle)->voice->setTarget(frames);
+}
+
+void audio_io_voice_reset(void* handle) {
+    if (!handle) return;
+    ((AudioContext*)handle)->voice->requestReset();
+}
+
+// One getter for every counter, so the binding surface stays small. -1 for an
+// unknown selector or no device.
+long long audio_io_voice_stat(void* handle, int which) {
+    if (!handle) return -1;
+    VoicePlayout* v = ((AudioContext*)handle)->voice;
+    switch (which) {
+        case 0: return (long long)v->queued();
+        case 1: return v->playing() ? 1 : 0;
+        case 2: return v->underruns();
+        case 3: return v->starvedFrames();
+        case 4: return v->playedFrames();
+        case 5: return v->trims();
+        case 6: return v->jumps();
+        case 7: return (long long)v->burstFrames();
+        default: return -1;
+    }
 }
 
 // Frames written to the output ring that the device has not played yet. The

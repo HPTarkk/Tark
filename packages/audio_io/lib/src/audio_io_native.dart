@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'audio_io_stub.dart';
+import 'voice_queue.dart';
 import 'ffi/audio_io_ffi.dart';
 
 class AudioIoNative implements AudioIoImpl {
@@ -63,6 +64,10 @@ class AudioIoNative implements AudioIoImpl {
 
   @override
   int getOutputQueuedFrames() => _ffi?.getOutputQueuedFrames() ?? -1;
+
+  @override
+  VoiceQueue? get voiceQueue =>
+      usePlatformImpl ? AudioIoFFI.instance.voiceQueue : null;
 }
 
 AudioIoImpl createAudioIoImpl() => AudioIoNative();

@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:audio_io/audio_io.dart';
+
 import '../../../core/utils/logger.dart';
 import '../domain/float64_fifo.dart';
 
@@ -83,6 +85,18 @@ import '../domain/float64_fifo.dart';
 /// audible as a faint recurring tick, independent of transport. [_prefillSamples]
 /// gives the ring a head start so ordinary jitter cannot empty it; it offsets
 /// where the ring sits between ticks and does not touch the cadence.
+///
+/// ## Native playout (Android)
+///
+/// Where the platform has a native voice queue ([VoiceQueue], miniaudio's
+/// playback callback), none of the timer machinery above runs. Samples go
+/// straight into that queue and the device pulls them itself, so there is no
+/// Dart timer to fall behind and no cushion to size. This class then keeps
+/// only what needs no clock: packet order, loss concealment, and the adaptive
+/// depth, which it pushes to the native side. Starting, trimming, the jump
+/// back to live and running dry are decided in the callback
+/// (`packages/audio_io/src/voice_playout.h`). The timer path stays for iOS,
+/// where playback goes through AVAudioEngine instead.
 class AudioPlaybackBuffer {
   AudioPlaybackBuffer({
     required Sink<List<double>> output,
@@ -94,7 +108,9 @@ class AudioPlaybackBuffer {
     this.debugLogging = false,
     int Function()? outputUnderrunFrames,
     int Function()? outputQueuedFrames,
+    VoiceQueue? voiceQueue,
   }) : _output = output,
+       _native = voiceQueue,
        _sampleRate = sampleRate,
        _targetSamples = sampleRate * targetBufferMs ~/ 1000,
        _minTargetSamples =
@@ -106,7 +122,42 @@ class AudioPlaybackBuffer {
        _defaultChunkLen = sampleRate * 10 ~/ 1000,
        _prefillSamples = sampleRate * outputPrefillMs ~/ 1000,
        _outputUnderrunFrames = outputUnderrunFrames,
-       _outputQueuedFrames = outputQueuedFrames;
+       _outputQueuedFrames = outputQueuedFrames {
+    final native = _native;
+    if (native != null) {
+      native.targetFrames = _targetSamples;
+      _lastNative = _NativeCounters.read(native);
+      _nativeTimer = Timer.periodic(
+        const Duration(milliseconds: _nativeTickMs),
+        (_) => _nativeTick(),
+      );
+    }
+  }
+
+  // ── Native playout ─────────────────────────────────────────────────────
+
+  final VoiceQueue? _native;
+
+  /// Housekeeping only: adaptation, the health log, and pushing the depth.
+  /// Nothing audible depends on when this runs.
+  Timer? _nativeTimer;
+  static const int _nativeTickMs = 50;
+  int _nativeTicks = 0;
+  _NativeCounters? _lastNative;
+
+  /// The last few milliseconds of the newest packet, held back from the
+  /// native queue. Once samples are there they belong to the audio thread,
+  /// so a loss can no longer ramp down the audio in front of it; holding
+  /// this much back is what lets [_enqueueSilence] still fade into the gap.
+  /// Costs [_spliceFadeSamples] of delay.
+  Float64List _heldTail = Float64List(0);
+
+  /// Native ticks since a packet last arrived, so a tail left over at the
+  /// end of a talk burst is not glued onto the front of the next one.
+  /// Counted in ticks rather than wall time so it follows the same clock as
+  /// everything else here. Three ticks is 100-150 ms: past normal jitter.
+  int _ticksSinceFeed = 0;
+  static const int _staleTailTicks = 3;
 
   /// How far below and above the configured depth adaptation may travel.
   ///
@@ -181,6 +232,8 @@ class AudioPlaybackBuffer {
   /// What the device can take in one pull, as far as the ring has seen.
   /// Exposed for tests and the health log.
   int get deviceBurstSamples {
+    final native = _native;
+    if (native != null) return native.deviceBurstFrames;
     final seen = _burstThisWindow > _burstLastWindow
         ? _burstThisWindow
         : _burstLastWindow;
@@ -417,12 +470,16 @@ class AudioPlaybackBuffer {
   late final int _logEveryTicks = (_logIntervalMs / _drainIntervalMs).ceil();
 
   int _ms(int samples) => samples * 1000 ~/ _sampleRate;
-  int get _queueMs => _ms(_queue.length);
+  int get _queueMs => _ms(queuedSamples);
 
   /// Samples currently waiting to be played. Exposed for diagnostics and for
   /// tests that need to assert on concealment/drop decisions directly, rather
   /// than inferring them from what eventually reaches the device.
-  int get queuedSamples => _queue.length;
+  int get queuedSamples {
+    final native = _native;
+    if (native != null) return native.queuedFrames + _heldTail.length;
+    return _queue.length;
+  }
 
   /// Whether the drain timer is currently running — i.e. whether this
   /// buffer's own write to [_output] is what's covering the current tick.
@@ -431,7 +488,7 @@ class AudioPlaybackBuffer {
   /// would interleave two unrelated PCM streams (see
   /// `AudioEngineImpl`'s media coordinator for the full reasoning) — so
   /// media's own tick only writes directly when this is false.
-  bool get isDraining => _drainTimer != null;
+  bool get isDraining => _native?.isPlaying ?? _drainTimer != null;
 
   /// Depth the buffer is currently aiming for, in milliseconds. Exposed so
   /// adaptation can be asserted on directly and read off the health log.
@@ -525,6 +582,7 @@ class AudioPlaybackBuffer {
         return;
       }
       stats.resyncs++;
+      _nativeDiscontinuity();
       // Rate-limited like the duplicate line below, and for the same reason:
       // when this fires it does not fire once. A stream split across two
       // delivery paths flips numbering every few hundred milliseconds, and a
@@ -552,6 +610,7 @@ class AudioPlaybackBuffer {
         // very different symptoms: concealed chunks are heard as small holes,
         // while a jump here is heard as speech starting mid-word.
         stats.bigGaps++;
+        _nativeDiscontinuity();
       }
     }
 
@@ -565,6 +624,7 @@ class AudioPlaybackBuffer {
     _lastChunkLenBySender[senderId] = samples.length;
     _enqueue(samples);
 
+    if (_native != null) return;
     if (_filling && _queue.length >= _targetSamples) {
       _filling = false;
       _startDraining();
@@ -638,7 +698,7 @@ class AudioPlaybackBuffer {
   /// The counters are per window, not cumulative: what matters is whether the
   /// queue is starving or overflowing *now*, and a total that only ever grows
   /// answers that for nobody.
-  void _logHealth() {
+  void _logHealth({int? windowMs}) {
     // devUnderrun counts frames the DEVICE had to invent, which is the click
     // the user actually hears; `underruns` only counts this queue running dry.
     // They are different failures — the device can starve while this queue is
@@ -646,7 +706,7 @@ class AudioPlaybackBuffer {
     final devFrames = _outputUnderrunFrames?.call() ?? 0;
     final devDelta = devFrames - _lastDeviceUnderrunFrames;
     _lastDeviceUnderrunFrames = devFrames;
-    final windowSec = _logEveryTicks * _drainIntervalMs / 1000;
+    final windowSec = (windowMs ?? _logEveryTicks * _drainIntervalMs) / 1000;
 
     Logger.diagnostic(
       'playback: ${_queueMs}ms queued (target ${_ms(_targetSamples)}ms)'
@@ -699,6 +759,10 @@ class AudioPlaybackBuffer {
   }
 
   void _enqueue(List<double> samples) {
+    if (_native != null) {
+      _enqueueNative(samples);
+      return;
+    }
     _dropOverflow(samples.length);
     final start = _queue.length;
     _queue.addAll(samples);
@@ -723,6 +787,14 @@ class AudioPlaybackBuffer {
   /// that has not been played yet can still be ramped, which is nearly always
   /// enough: the jitter buffer holds far more than one ramp.
   void _enqueueSilence(int count) {
+    final native = _native;
+    if (native != null) {
+      _flushTail(fadeOut: true);
+      _writeNative(null, count);
+      _concealedWindow += count;
+      _fadeInNextFeed = true;
+      return;
+    }
     _dropOverflow(count);
     final n = _queue.length < _spliceFadeSamples
         ? _queue.length
@@ -734,6 +806,106 @@ class AudioPlaybackBuffer {
     _queue.addZeros(count);
     _concealedWindow += count;
     _fadeInNextFeed = true;
+  }
+
+  void _enqueueNative(List<double> samples) {
+    _ticksSinceFeed = 0;
+    _fedWindow += samples.length;
+    final held = _heldTail.length;
+    final all = Float64List(held + samples.length)
+      ..setAll(0, _heldTail)
+      ..setAll(held, samples);
+    if (_fadeInNextFeed) {
+      _fadeInNextFeed = false;
+      final n = samples.length < _spliceFadeSamples
+          ? samples.length
+          : _spliceFadeSamples;
+      for (var i = 0; i < n; i++) {
+        all[held + i] *= (i + 1) / (n + 1);
+      }
+    }
+    final keep = all.length < _spliceFadeSamples
+        ? all.length
+        : _spliceFadeSamples;
+    _writeNative(Float64List.sublistView(all, 0, all.length - keep), 0);
+    _heldTail = Float64List.fromList(
+      Float64List.sublistView(all, all.length - keep),
+    );
+  }
+
+  /// Hands the held tail to the native queue, ramped down to silence when
+  /// [fadeOut] (something is about to interrupt it).
+  void _flushTail({required bool fadeOut}) {
+    final tail = _heldTail;
+    if (tail.isEmpty) return;
+    _heldTail = Float64List(0);
+    if (fadeOut) {
+      for (var i = 0; i < tail.length; i++) {
+        tail[i] *= 1.0 - (i + 1) / (tail.length + 1);
+      }
+    }
+    _writeNative(tail, 0);
+  }
+
+  /// Speech is restarting from somewhere unrelated (a new talk burst, or a
+  /// restarted sender). The held tail belongs to what came before: it is
+  /// ramped out if that is still playing, and dropped if it already ran out
+  /// (played now, it would be a stray blip in front of the new speech).
+  void _nativeDiscontinuity() {
+    final native = _native;
+    if (native == null) return;
+    if (native.isPlaying) {
+      _flushTail(fadeOut: true);
+      _fadeInNextFeed = true;
+    } else {
+      _heldTail = Float64List(0);
+    }
+  }
+
+  void _writeNative(Float64List? samples, int silence) {
+    final native = _native!;
+    final wanted = samples?.length ?? silence;
+    if (wanted == 0) return;
+    final written = samples != null
+        ? native.write(samples)
+        : native.writeSilence(silence);
+    // Only when the device has stopped pulling altogether: the jump back to
+    // live keeps the native queue far below its capacity otherwise.
+    if (written < wanted) _overflowDrops++;
+  }
+
+  void _nativeTick() {
+    final native = _native!;
+    final now = _NativeCounters.read(native);
+    final last = _lastNative ?? now;
+    _lastNative = now;
+
+    // Grown on the underrun, as on the timer path — just noticed here rather
+    // than in a drain callback, since the drain is native now.
+    final newUnderruns = now.underruns - last.underruns;
+    for (var i = 0; i < newUnderruns && i < 4; i++) {
+      _underruns++;
+      _growTarget();
+    }
+    // The talker stopped. VOX senders keep their numbering across a pause,
+    // so the next burst will not look like a gap, and the tail would play in
+    // front of it; settle it now instead.
+    if (_heldTail.isNotEmpty && ++_ticksSinceFeed >= _staleTailTicks) {
+      _nativeDiscontinuity();
+      _fadeInNextFeed = false;
+    }
+    _trims += now.trims - last.trims;
+    _jumps += now.jumps - last.jumps;
+    _drainedWindow += now.played - last.played;
+
+    if (++_nativeTicks % (_adaptIntervalMs ~/ _nativeTickMs) == 0) {
+      _adaptStep();
+    }
+    native.targetFrames = _targetSamples;
+
+    if (debugLogging && _nativeTicks % (_logIntervalMs ~/ _nativeTickMs) == 0) {
+      _logHealth(windowMs: _logIntervalMs);
+    }
   }
 
   /// Drop one small step off the stale head, walking playback latency down
@@ -933,6 +1105,8 @@ class AudioPlaybackBuffer {
     _drainTimer?.cancel();
     _drainTimer = null;
     _queue.clear();
+    _native?.reset();
+    _heldTail = Float64List(0);
     _filling = true;
     _expectedSeqBySender.clear();
     _lastChunkLenBySender.clear();
@@ -959,6 +1133,8 @@ class AudioPlaybackBuffer {
   void dispose() {
     _drainTimer?.cancel();
     _drainTimer = null;
+    _nativeTimer?.cancel();
+    _nativeTimer = null;
   }
 }
 
@@ -1020,4 +1196,18 @@ class _RestartCandidate {
 
   /// Packets seen on this run so far.
   int chunks = 1;
+}
+
+/// Snapshot of the native queue's cumulative counters, so each housekeeping
+/// tick can work in deltas.
+class _NativeCounters {
+  _NativeCounters(this.underruns, this.trims, this.jumps, this.played);
+
+  factory _NativeCounters.read(VoiceQueue q) =>
+      _NativeCounters(q.underruns, q.trims, q.jumps, q.playedFrames);
+
+  final int underruns;
+  final int trims;
+  final int jumps;
+  final int played;
 }
