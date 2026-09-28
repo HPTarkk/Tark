@@ -1324,14 +1324,6 @@ class AppLocalizationsFa extends AppLocalizations {
   String get paywall_locked_music => 'پخش آهنگ توی نسخه ویژه‌ست';
 
   @override
-  String paywall_trial_left(Object days) {
-    return '$days روز از دوره آزمایشیت مونده';
-  }
-
-  @override
-  String get paywall_trial_over => 'دوره آزمایشیت تموم شد';
-
-  @override
   String get paywall_free_note => 'بلوتوث همیشه رایگان می‌مونه';
 
   @override
@@ -1359,7 +1351,85 @@ class AppLocalizationsFa extends AppLocalizations {
   String get paywall_plan_12m => 'یک ساله';
 
   @override
-  String get paywall_plan_lifetime => 'دائمی';
+  String get sub_checking => 'داریم اشتراکت رو بررسی می‌کنیم…';
+
+  @override
+  String get sub_granted => 'همه‌چی آماده‌ست';
+
+  @override
+  String get sub_try_again => 'دوباره امتحان کن';
+
+  @override
+  String get sub_not_now => 'بعداً';
+
+  @override
+  String get sub_free_meanwhile => 'تا اون موقع بلوتوث مثل همیشه کار می‌کنه.';
+
+  @override
+  String get sub_support_prompt =>
+      'چیزی درست به نظر نمیاد؟ با کمال میل کمکت می‌کنیم:';
+
+  @override
+  String get sub_email_subject => 'اشتراک ترک';
+
+  @override
+  String get sub_nodata_title => 'بیا اشتراکت رو بررسی کنیم';
+
+  @override
+  String get sub_nodata_body_offline =>
+      'برای باز شدن این قابلیت باید یه بار اشتراکت رو بررسی کنیم، ولی به نظر می‌رسه این گوشی الان به اینترنت وصل نیست. به اینترنت وصل شو و دوباره امتحان کن.';
+
+  @override
+  String get sub_nodata_body_trouble =>
+      'برای باز شدن این قابلیت باید یه بار اشتراکت رو بررسی کنیم، ولی الان نتونستیم به سرورهامون وصل بشیم. مشکل از طرف ماست، نه تو. لطفاً چند دقیقه دیگه دوباره امتحان کن.';
+
+  @override
+  String get sub_expired_title => 'وقت یه بررسی کوتاهه';
+
+  @override
+  String sub_expired_body_offline(String date) {
+    return 'طبق آخرین اطلاعاتی که داریم، اشتراکت روز $date تموم شده. چون به نظر می‌رسه این گوشی الان به اینترنت وصل نیست، نتونستیم اطلاعات جدیدتری بگیریم.\n\nاگه تمدیدش کردی یا این درست به نظر نمیاد، به اینترنت وصل شو و دوباره امتحان کن، یا بهمون پیام بده.';
+  }
+
+  @override
+  String sub_expired_body_trouble(String date) {
+    return 'طبق آخرین اطلاعاتی که داریم، اشتراکت روز $date تموم شده. الان نتونستیم به سرورهامون وصل بشیم تا اطلاعات جدیدتری بگیریم. مشکل از طرف ماست، نه تو.\n\nاگه تمدیدش کردی یا این درست به نظر نمیاد، چند دقیقه دیگه دوباره امتحان کن، یا بهمون پیام بده.';
+  }
+
+  @override
+  String get sub_stale_title => 'یه سر زدن کوتاه';
+
+  @override
+  String sub_stale_body_offline(String date) {
+    return 'آخرین بار روز $date اشتراکت رو تأیید کردیم و وقت یه به‌روزرسانی کوتاهه. یه لحظه به اینترنت وصل شو، بقیه‌ش با ما.';
+  }
+
+  @override
+  String sub_stale_body_trouble(String date) {
+    return 'آخرین بار روز $date اشتراکت رو تأیید کردیم و وقت یه به‌روزرسانی کوتاهه. الان نتونستیم به سرورهامون وصل بشیم. مشکل از طرف ماست، نه تو. لطفاً چند دقیقه دیگه دوباره امتحان کن.';
+  }
+
+  @override
+  String get sub_renew_title => 'خوش برگشتی';
+
+  @override
+  String sub_renew_body(String date) {
+    return 'اشتراکت روز $date تموم شده. هر وقت خواستی تمدیدش کن و از همون جایی که بودی ادامه بده.';
+  }
+
+  @override
+  String get sub_signin_title => 'برای اشتراک وارد شو';
+
+  @override
+  String get sub_signin_body =>
+      'اشتراک به حسابت وصله، برای همین با گوشی جدید هم همراهت میاد. اول وارد حسابت شو، بعد یه طرح انتخاب کن.';
+
+  @override
+  String get sub_owned_title => 'این خرید روی یه حساب دیگه‌ست';
+
+  @override
+  String get sub_owned_body =>
+      'این خرید بازار قبلاً به یه حساب دیگه‌ی ترک وصل شده. با همون حساب وارد شو، یا بهمون پیام بده تا با هم درستش کنیم.';
 
   @override
   String get settings_section_diagnostics => 'عیب‌یابی';

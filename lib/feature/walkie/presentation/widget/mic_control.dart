@@ -4,7 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../../core/entitlement/license_gate.dart';
-import '../../../../core/entitlement/paywall_sheet.dart';
+import '../../../../core/entitlement/subscription_gate_page.dart';
 import '../../../../core/entitlement/premium_feature.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
@@ -57,7 +57,7 @@ class _MicControlState extends State<MicControl> {
   void _toggle(BuildContext context) {
     final muted = context.read<WalkieTalkieCubit>().state.isSelfMuted;
     if (_lockedFor(muted)) {
-      showPaywallSheet(context, PremiumFeature.selfMute);
+      openSubscriptionGate(context, PremiumFeature.selfMute);
       return;
     }
     HapticFeedback.selectionClick();

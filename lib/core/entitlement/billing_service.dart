@@ -1,30 +1,16 @@
-import 'entitlement.dart';
-
 /// A purchasable plan, mirroring the B2C table in the business plan. The
 /// [sku] values must match the product ids registered in each store's
 /// developer console before billing can ship.
 enum BillingPlan {
-  monthly(sku: 'tark_premium_1m', months: 1, subscription: true),
-  sixMonth(sku: 'tark_premium_6m', months: 6, subscription: true),
-  yearly(sku: 'tark_premium_12m', months: 12, subscription: true),
-  lifetime(sku: 'tark_premium_lifetime', months: null, subscription: false);
+  monthly(sku: 'tark_premium_1m', months: 1),
+  sixMonth(sku: 'tark_premium_6m', months: 6),
+  yearly(sku: 'tark_premium_12m', months: 12);
 
-  const BillingPlan({
-    required this.sku,
-    required this.months,
-    required this.subscription,
-  });
+  const BillingPlan({required this.sku, required this.months});
 
+  /// Also the `sku` enum in backend/api/openapi.yaml — change both together.
   final String sku;
-
-  /// `null` for [lifetime] — the entitlement it grants has no expiry.
-  final int? months;
-
-  /// Recurring tiers are subscription products; lifetime is a
-  /// non-consumable. Neither is ever consumed — consuming would hand the
-  /// entitlement back to the store. The flag also picks which native flow
-  /// runs (`launchSubscriptionPurchaseFlow` vs the in-app one).
-  final bool subscription;
+  final int months;
 
   static BillingPlan? forSku(String sku) {
     for (final plan in BillingPlan.values) {
@@ -40,9 +26,21 @@ sealed class PurchaseResult {
   const PurchaseResult();
 }
 
+/// The store says the purchase went through. That is a claim, not access:
+/// [purchase] goes to the server, which verifies it with Bazaar and answers
+/// with the signed entitlement.
 class PurchaseSuccess extends PurchaseResult {
-  const PurchaseSuccess(this.entitlement);
-  final Entitlement entitlement;
+  const PurchaseSuccess(this.purchase);
+  final StorePurchase purchase;
+}
+
+/// A purchase as the store reports it: which plan, and the token the server
+/// verifies it with.
+class StorePurchase {
+  const StorePurchase({required this.plan, required this.purchaseToken});
+
+  final BillingPlan plan;
+  final String purchaseToken;
 }
 
 class PurchaseCancelled extends PurchaseResult {
@@ -71,11 +69,9 @@ class BillingPlanOffer {
 /// implementation behind this; nothing above this line knows which store
 /// the running build talks to.
 ///
-/// The store hands back a purchase payload signed with a per-developer RSA
-/// key, verified locally against a public key compiled into the app — which
-/// is the whole reason monetization is compatible with an offline product.
-/// Implementations must verify that signature *before* returning
-/// [PurchaseSuccess]; [EntitlementStore.grant] trusts what it is given.
+/// Implementations only talk to the store. Whether a purchase counts is the
+/// server's call (see SubscriptionService.submitBazaarPurchase): nothing the
+/// store SDK returns on the phone is trusted on its own.
 abstract interface class BillingService {
   /// Whether a store SDK is present and connected in this build.
   Future<bool> isAvailable();
@@ -87,10 +83,9 @@ abstract interface class BillingService {
 
   Future<PurchaseResult> purchase(BillingPlan plan);
 
-  /// Re-reads purchases already owned by this account — the "restore" path
-  /// after a reinstall or device change. Returns `null` when nothing is
-  /// owned.
-  Future<Entitlement?> restore();
+  /// Re-reads purchases the store account already owns — the "restore" path
+  /// after a reinstall or device change. Empty when nothing is owned.
+  Future<List<StorePurchase>> restore();
 }
 
 /// Stand-in for every build without a store SDK: desktop, web, and Android
@@ -115,5 +110,5 @@ class UnavailableBillingService implements BillingService {
       const PurchaseFailed('billing_unavailable');
 
   @override
-  Future<Entitlement?> restore() async => null;
+  Future<List<StorePurchase>> restore() async => const [];
 }

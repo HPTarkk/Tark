@@ -2,18 +2,40 @@ import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:injectable/injectable.dart';
 
-import 'entitlement.dart';
-import 'entitlement_store.dart';
 import 'premium_feature.dart';
+import 'subscription_service.dart';
+
+/// Whether this build sells anything at all. One place, read by the gate and
+/// by DI (which skips the subscription machinery entirely when it is off).
+abstract final class Monetization {
+  /// Monetization is **parked**: Tark ships unlocked until the release that
+  /// starts charging, which flips this at build time:
+  ///
+  ///   flutter build appbundle --release --dart-define=TARK_MONETIZED=true
+  static const bool _enabled = bool.fromEnvironment('TARK_MONETIZED');
+
+  /// Build-time override that forces every gate shut, so the subscription
+  /// screens can be exercised on a device without a backend:
+  ///
+  ///   flutter build apk --release --dart-define=TARK_LOCK_PREMIUM=true
+  ///
+  /// Defaults to false, so a normal build can never ship locked by accident.
+  static const bool forceLocked = bool.fromEnvironment('TARK_LOCK_PREMIUM');
+
+  /// Bazaar is Android-only, so Android is the only platform with a purchase
+  /// path. Gating anywhere else would be a locked door with no key — desktop,
+  /// iOS and web builds run fully unlocked by decision, not by oversight.
+  static final bool active =
+      (_enabled || forceLocked) && !kIsWeb && Platform.isAndroid;
+}
 
 /// The single question the rest of the app is allowed to ask about money:
 /// "may this install use [PremiumFeature] X right now?"
 ///
 /// Everything funnels through here so the paid boundary stays auditable —
 /// grep for `allows(` and you have every gate in the product. Cubits must
-/// not read [EntitlementStore] and must not carry their own `isPremium`
+/// not read [SubscriptionService] and must not carry their own `isPremium`
 /// flags; that is exactly the scattering this class exists to prevent.
 abstract interface class LicenseGate {
   bool allows(PremiumFeature feature);
@@ -23,49 +45,19 @@ abstract interface class LicenseGate {
   /// checkout behind it is worse than showing nothing.
   bool get canPurchase;
 
-  /// Fires whenever entitlement changes, so a screen holding a gated control
-  /// can re-evaluate without polling.
-  Stream<Entitlement> get changes;
+  /// Fires whenever access may have changed, so a screen holding a gated
+  /// control can re-evaluate without polling.
+  Stream<void> get changes;
 }
 
-@LazySingleton(as: LicenseGate)
 class LicenseGateImpl implements LicenseGate {
-  LicenseGateImpl(this._store);
+  LicenseGateImpl(this._subscription, {bool? monetized, bool? forceLocked})
+    : _monetized = monetized ?? Monetization.active,
+      _forceLocked = forceLocked ?? Monetization.forceLocked;
 
-  final EntitlementStore _store;
-
-  /// Monetization is **parked**. Tark ships unlocked everywhere and asks for
-  /// donations instead of selling tiers, so this defaults off and every
-  /// `allows(...)` below answers yes.
-  ///
-  /// Nothing is deleted: the store and the paywall stay wired and compiled.
-  /// Flipping this back on is the whole of un-parking it — once a store
-  /// channel (Bazaar) exists behind [BillingService]:
-  ///
-  ///   flutter build apk --release --dart-define=TARK_MONETIZED=true
-  static const bool _monetizationEnabled = bool.fromEnvironment(
-    'TARK_MONETIZED',
-  );
-
-  /// Bazaar is Android-only, so Android is the only platform with a purchase
-  /// path. Gating anywhere else would be a locked door with no key — desktop
-  /// and web builds run fully unlocked by decision, not by oversight. Revisit
-  /// only if a store ever ships for those platforms.
-  ///
-  /// [_forceLocked] implies monetization, so the paywall stays exercisable on
-  /// a device with that one flag while the feature is parked.
-  static final bool _monetized =
-      (_monetizationEnabled || _forceLocked) && !kIsWeb && Platform.isAndroid;
-
-  /// Build-time override that forces every gate shut, so the paywall can be
-  /// exercised on a device without waiting out a 90-day trial. No store
-  /// channel is wired up yet, so this only exercises the gate and paywall
-  /// UI, not a real purchase:
-  ///
-  ///   flutter build apk --release --dart-define=TARK_LOCK_PREMIUM=true
-  ///
-  /// Defaults to false, so a normal build can never ship locked by accident.
-  static const bool _forceLocked = bool.fromEnvironment('TARK_LOCK_PREMIUM');
+  final SubscriptionService _subscription;
+  final bool _monetized;
+  final bool _forceLocked;
 
   @override
   bool get canPurchase => _monetized;
@@ -74,9 +66,9 @@ class LicenseGateImpl implements LicenseGate {
   bool allows(PremiumFeature feature) {
     if (!_monetized) return true;
     if (_forceLocked) return false;
-    return _store.isPremiumActive;
+    return _subscription.isPremiumActive;
   }
 
   @override
-  Stream<Entitlement> get changes => _store.changes;
+  Stream<void> get changes => _subscription.changes;
 }

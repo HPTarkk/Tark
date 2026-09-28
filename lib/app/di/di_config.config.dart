@@ -15,9 +15,10 @@ import 'package:injectable/injectable.dart' as _i526;
 import 'package:shared_preferences/shared_preferences.dart' as _i460;
 import 'package:tark/app/di/di_config.dart' as _i250;
 import 'package:tark/core/entitlement/billing_service.dart' as _i547;
-import 'package:tark/core/entitlement/entitlement_store.dart' as _i721;
-import 'package:tark/core/entitlement/entitlement_store_impl.dart' as _i165;
+import 'package:tark/core/entitlement/install_identity.dart' as _i987;
 import 'package:tark/core/entitlement/license_gate.dart' as _i52;
+import 'package:tark/core/entitlement/subscription_remote.dart' as _i1036;
+import 'package:tark/core/entitlement/subscription_service.dart' as _i428;
 import 'package:tark/core/home_widget/home_widget_service.dart' as _i590;
 import 'package:tark/core/home_widget/home_widget_service_impl.dart' as _i828;
 import 'package:tark/core/home_widget/widget_control_channel.dart' as _i970;
@@ -25,6 +26,7 @@ import 'package:tark/core/identity/channel_membership.dart' as _i523;
 import 'package:tark/core/identity/device_identity.dart' as _i990;
 import 'package:tark/core/identity/session_epoch.dart' as _i835;
 import 'package:tark/core/network/api_client.dart' as _i775;
+import 'package:tark/core/security/app_secure_storage.dart' as _i700;
 import 'package:tark/core/settings/settings_repository.dart' as _i349;
 import 'package:tark/core/settings/settings_repository_impl.dart' as _i632;
 import 'package:tark/core/sfx/sfx_player.dart' as _i690;
@@ -121,12 +123,21 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i547.BillingService>(
       () => billingModule.billingService(),
     );
+    gh.lazySingleton<_i700.AppSecureStorage>(
+      () => billingModule.appSecureStorage(),
+    );
+    gh.lazySingleton<_i1036.SubscriptionRemote>(
+      () => billingModule.subscriptionRemote(),
+    );
     gh.lazySingleton<_i523.ChannelMembership>(() => _i523.ChannelMembership());
     gh.lazySingleton<_i990.DeviceIdentity>(() => _i990.DeviceIdentity());
     gh.lazySingleton<_i835.SessionEpoch>(() => _i835.SessionEpoch());
     gh.lazySingleton<_i970.WidgetControlChannel>(
       () => _i970.WidgetControlChannelImpl(),
       dispose: (i) => i.dispose(),
+    );
+    gh.lazySingleton<_i987.InstallIdentity>(
+      () => billingModule.installIdentity(gh<_i700.AppSecureStorage>()),
     );
     gh.lazySingleton<_i175.RoomRepository>(
       () => _i429.SharedPreferencesRoomRepository(),
@@ -163,9 +174,6 @@ extension GetItInjectableX on _i174.GetIt {
       ),
       dispose: (i) => i.dispose(),
     );
-    gh.lazySingleton<_i721.EntitlementStore>(
-      () => _i165.EntitlementStoreImpl(gh<_i460.SharedPreferences>()),
-    );
     gh.lazySingleton<_i794.HotspotJoiner>(
       () => _i462.PlatformHotspotJoiner(
         gh<_i462.NeHotspotJoiner>(),
@@ -189,9 +197,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i349.SettingsRepository>(
       () => _i632.SettingsRepositoryImpl(gh<_i460.SharedPreferences>()),
     );
-    gh.lazySingleton<_i52.LicenseGate>(
-      () => _i52.LicenseGateImpl(gh<_i721.EntitlementStore>()),
-    );
     gh.factory<_i724.ConsentCubit>(
       () => _i724.ConsentCubit(gh<_i633.LegalRepository>()),
     );
@@ -209,6 +214,16 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i1043.WifiTransferRepository>(),
       ),
       dispose: (i) => i.dispose(),
+    );
+    gh.lazySingleton<_i428.SubscriptionService>(
+      () => billingModule.subscriptionService(
+        gh<_i700.AppSecureStorage>(),
+        gh<_i987.InstallIdentity>(),
+        gh<_i1036.SubscriptionRemote>(),
+      ),
+    );
+    gh.lazySingleton<_i52.LicenseGate>(
+      () => billingModule.licenseGate(gh<_i428.SubscriptionService>()),
     );
     gh.factory<_i565.AudioEngine>(
       () => _i876.AudioEngineImpl(
