@@ -180,6 +180,47 @@ class AppPageTransitionsBuilder extends PageTransitionsBuilder {
   }
 }
 
+/// Crossfades a screen between its phases (choosing a role, searching,
+/// connected, an error) instead of cutting from one to the next.
+///
+/// Give [child] a key naming its phase: a new key crossfades, the same key
+/// updates in place and keeps its state. The incoming phase also settles up
+/// from a hair below full size, which is what makes it read as arriving
+/// rather than blinking; reduced motion keeps only the fade.
+class PhaseSwitcher extends StatelessWidget {
+  const PhaseSwitcher({
+    required this.child,
+    this.alignment = Alignment.topCenter,
+    super.key,
+  });
+
+  final Widget child;
+
+  /// Where the outgoing and incoming phases are pinned while they overlap.
+  final AlignmentGeometry alignment;
+
+  @override
+  Widget build(BuildContext context) {
+    final reduced = AppMotion.reduced(context);
+    return AnimatedSwitcher(
+      duration: AppMotion.card,
+      switchInCurve: AppMotion.easeOut,
+      switchOutCurve: AppMotion.leaving,
+      layoutBuilder: (current, previous) =>
+          Stack(alignment: alignment, children: [...previous, ?current]),
+      transitionBuilder: (child, animation) {
+        final fade = FadeTransition(opacity: animation, child: child);
+        if (reduced) return fade;
+        return ScaleTransition(
+          scale: Tween<double>(begin: 0.97, end: 1).animate(animation),
+          child: fade,
+        );
+      },
+      child: child,
+    );
+  }
+}
+
 /// Fades and lifts a set of children into place, one shared controller for all
 /// of them.
 ///

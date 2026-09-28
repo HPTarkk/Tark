@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../../core/widget/link_established.dart';
@@ -376,28 +377,36 @@ class _WifiHotspotPageState extends State<WifiHotspotPage>
             if (_navigating ||
                 state.peerConnected ||
                 state.joinPhase == JoinPhase.joined) {
-              return HotspotConnectedFlash(label: s.bt_connected);
+              return PhaseSwitcher(
+                child: HotspotConnectedFlash(
+                  key: const ValueKey('connected'),
+                  label: s.bt_connected,
+                ),
+              );
             }
 
             if (state.joinPhase == JoinPhase.idle ||
                 state.joinPhase == JoinPhase.joining) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const HotspotReachPulse(),
-                      const SizedBox(height: 22),
-                      Text(
-                        s.hotspot_joining,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 13.5,
+              return PhaseSwitcher(
+                child: Center(
+                  key: const ValueKey('joining'),
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const HotspotReachPulse(),
+                        const SizedBox(height: 22),
+                        Text(
+                          s.hotspot_joining,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 13.5,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -406,9 +415,12 @@ class _WifiHotspotPageState extends State<WifiHotspotPage>
             // An intervention is actually required. Reuse the battle-tested
             // switch/manual/lost recovery cards, but never show role selection,
             // transport segments or another primary QR in the normal path.
-            return HotspotJoinFlow(
-              state: state,
-              onEnterChannel: () => unawaited(_enterChannel(context)),
+            return PhaseSwitcher(
+              child: HotspotJoinFlow(
+                key: const ValueKey('flow'),
+                state: state,
+                onEnterChannel: () => unawaited(_enterChannel(context)),
+              ),
             );
           },
         ),
@@ -459,14 +471,20 @@ class _WifiHotspotPageState extends State<WifiHotspotPage>
                     ),
                   ),
                 Expanded(
-                  child: _navigating || state.peerConnected
-                      ? HotspotConnectedFlash(label: s.bt_connected)
-                      : state.segment == WifiHotspotSegment.wifi
-                      ? WifiOnlyFlow(
-                          onEnterChannel: () =>
-                              unawaited(_enterChannel(context)),
-                        )
-                      : _buildHotspotSegment(context, s, state),
+                  child: PhaseSwitcher(
+                    child: _navigating || state.peerConnected
+                        ? HotspotConnectedFlash(
+                            key: const ValueKey('connected'),
+                            label: s.bt_connected,
+                          )
+                        : state.segment == WifiHotspotSegment.wifi
+                        ? WifiOnlyFlow(
+                            key: const ValueKey('wifi'),
+                            onEnterChannel: () =>
+                                unawaited(_enterChannel(context)),
+                          )
+                        : _buildHotspotSegment(context, s, state),
+                  ),
                 ),
               ],
             );
@@ -483,6 +501,7 @@ class _WifiHotspotPageState extends State<WifiHotspotPage>
   ) {
     if (!Platform.isAndroid && !Platform.isIOS) {
       return HotspotStatusMessage(
+        key: const ValueKey('unsupported'),
         icon: Icons.wifi_tethering_off_rounded,
         text: s.hotspot_not_supported,
       );
@@ -491,13 +510,16 @@ class _WifiHotspotPageState extends State<WifiHotspotPage>
     // Android is asked which end it is, since either phone can be either.
     return switch (state.role) {
       null => HotspotRolePicker(
+        key: const ValueKey('roles'),
         onChoose: context.read<WifiHotspotCubit>().chooseRole,
       ),
       HotspotRole.host => HotspotHostFlow(
+        key: const ValueKey('host'),
         state: state,
         onEnterChannel: () => unawaited(_enterChannel(context)),
       ),
       HotspotRole.join => HotspotJoinFlow(
+        key: const ValueKey('join'),
         state: state,
         onEnterChannel: () => unawaited(_enterChannel(context)),
       ),

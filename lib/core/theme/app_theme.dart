@@ -29,6 +29,22 @@ ThemeData buildAppTheme() => ThemeData(
           error: AppColors.red,
         ),
   useMaterial3: true,
+  // One top bar for every page that has one: flat, no tint when content
+  // scrolls under it, and the same 16/w700 title. Pages that still pass their
+  // own title style inherit the weight from here.
+  appBarTheme: AppBarTheme(
+    backgroundColor: AppColors.background,
+    elevation: 0,
+    scrolledUnderElevation: 0,
+    surfaceTintColor: Colors.transparent,
+    iconTheme: IconThemeData(color: AppColors.textPrimary),
+    titleTextStyle: TextStyle(
+      fontFamily: 'Vazirmatn',
+      color: AppColors.textPrimary,
+      fontSize: 16,
+      fontWeight: FontWeight.w700,
+    ),
+  ),
   // M3 snackbars default to inverseSurface/onInverseSurface, which clashes
   // with our card-colored backgrounds; pin both sides here so every SnackBar
   // is card + readable text without per-call overrides.

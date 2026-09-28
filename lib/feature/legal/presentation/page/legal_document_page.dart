@@ -33,7 +33,7 @@ class LegalDocumentPage extends StatelessWidget {
           style: TextStyle(
             color: AppColors.textPrimary,
             fontSize: 16,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),
