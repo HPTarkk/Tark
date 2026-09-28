@@ -36,6 +36,7 @@ Future<void> showRecoverySheet(
 }) {
   return showModalBottomSheet<void>(
     context: context,
+    routeSettings: const RouteSettings(name: 'RecoverySheet'),
     backgroundColor: Colors.transparent,
     isScrollControlled: true,
     barrierColor: Colors.black.withValues(alpha: 0.62),

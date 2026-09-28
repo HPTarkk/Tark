@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/diagnostics/screen_log.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/utils/extensions.dart';
@@ -112,7 +113,10 @@ class _RoomEntryOptionsState extends State<RoomEntryOptions> {
           label: t.entry_create_room,
           hint: t.entry_create_room_hint,
           variant: RoomEntryVariant.hero,
-          onTap: () => context.push('${AppRoutes.roomsPath}?create=true'),
+          onTap: () {
+            ScreenLog.tap('CreateRoom');
+            context.push('${AppRoutes.roomsPath}?create=true');
+          },
         ),
         alternatives: [
           RoomEntryAction(
@@ -121,7 +125,10 @@ class _RoomEntryOptionsState extends State<RoomEntryOptions> {
             label: t.entry_join_qr,
             hint: t.entry_join_qr_hint,
             variant: RoomEntryVariant.wide,
-            onTap: () => context.push(AppRoutes.roomQrJoinPath),
+            onTap: () {
+              ScreenLog.tap('JoinRoom');
+              context.push(AppRoutes.roomQrJoinPath);
+            },
           ),
         ],
       );
@@ -137,7 +144,10 @@ class _RoomEntryOptionsState extends State<RoomEntryOptions> {
         label: resume.room.name,
         hint: t.entry_resume_hint,
         variant: RoomEntryVariant.hero,
-        onTap: () => context.push(AppRoutes.walkiePath),
+        onTap: () {
+          ScreenLog.tap('ResumeRoom');
+          context.push(AppRoutes.walkiePath);
+        },
       ),
       // Side by side because they are alternatives to *each other* — both are
       // "begin something new". Saying that is what finally gets create out of
@@ -149,7 +159,10 @@ class _RoomEntryOptionsState extends State<RoomEntryOptions> {
           label: t.entry_join,
           hint: t.entry_join_hint,
           variant: RoomEntryVariant.compact,
-          onTap: () => context.push(AppRoutes.roomQrJoinPath),
+          onTap: () {
+            ScreenLog.tap('JoinRoom');
+            context.push(AppRoutes.roomQrJoinPath);
+          },
         ),
         RoomEntryAction(
           key: const Key('landing-create-room'),
@@ -160,7 +173,10 @@ class _RoomEntryOptionsState extends State<RoomEntryOptions> {
           label: t.entry_new_room,
           hint: t.entry_new_room_hint,
           variant: RoomEntryVariant.compact,
-          onTap: () => context.push('${AppRoutes.roomsPath}?create=true'),
+          onTap: () {
+            ScreenLog.tap('CreateRoom');
+            context.push('${AppRoutes.roomsPath}?create=true');
+          },
         ),
       ],
       browse: RoomBrowseLink(

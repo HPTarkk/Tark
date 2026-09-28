@@ -20,7 +20,6 @@ class SettingsModel extends AppSettings {
     required super.autoReconnectEnabled,
     required super.skipSplash,
     required super.usageTipsShown,
-    required super.analyticsEnabled,
     required super.logMaxBytes,
     required super.smartMusicDuckingEnabled,
     required super.hdVoiceEnabled,
@@ -38,7 +37,6 @@ class SettingsModel extends AppSettings {
     autoReconnectEnabled: s.autoReconnectEnabled,
     skipSplash: s.skipSplash,
     usageTipsShown: s.usageTipsShown,
-    analyticsEnabled: s.analyticsEnabled,
     logMaxBytes: s.logMaxBytes,
     smartMusicDuckingEnabled: s.smartMusicDuckingEnabled,
     hdVoiceEnabled: s.hdVoiceEnabled,
@@ -73,8 +71,6 @@ class SettingsModel extends AppSettings {
           json['autoReconnectEnabled'] as bool? ?? d.autoReconnectEnabled,
       skipSplash: json['skipSplash'] as bool? ?? d.skipSplash,
       usageTipsShown: json['usageTipsShown'] as bool? ?? d.usageTipsShown,
-      analyticsEnabled:
-          json['analyticsEnabled'] as bool? ?? d.analyticsEnabled,
       // Clamped, not just defaulted: a value from a build with a different
       // range must land inside this one's rather than uncapping the log.
       logMaxBytes: LogBudget.clamp(
@@ -99,7 +95,6 @@ class SettingsModel extends AppSettings {
     'autoReconnectEnabled': autoReconnectEnabled,
     'skipSplash': skipSplash,
     'usageTipsShown': usageTipsShown,
-    'analyticsEnabled': analyticsEnabled,
     'logMaxBytes': logMaxBytes,
     'smartMusicDuckingEnabled': smartMusicDuckingEnabled,
     'hdVoiceEnabled': hdVoiceEnabled,
@@ -154,8 +149,6 @@ class SettingsModel extends AppSettings {
       skipSplash: prefs.getBool(SettingsKeys.skipSplash) ?? d.skipSplash,
       usageTipsShown:
           prefs.getBool(SettingsKeys.usageTipsShown) ?? d.usageTipsShown,
-      analyticsEnabled:
-          prefs.getBool(SettingsKeys.analyticsEnabled) ?? d.analyticsEnabled,
       logMaxBytes: LogBudget.clamp(
         prefs.getInt(SettingsKeys.logMaxBytes) ?? d.logMaxBytes,
       ),

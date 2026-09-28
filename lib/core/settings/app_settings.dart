@@ -26,7 +26,6 @@ class AppSettings extends Equatable {
   final bool autoReconnectEnabled;
   final bool skipSplash;
   final bool usageTipsShown;
-  final bool analyticsEnabled;
 
   /// Ceiling on what the diagnostic log may occupy on disk, in bytes. See
   /// [LogBudget] for the range, and `DiagnosticLog` for what enforces it.
@@ -58,7 +57,6 @@ class AppSettings extends Equatable {
     required this.autoReconnectEnabled,
     required this.skipSplash,
     required this.usageTipsShown,
-    required this.analyticsEnabled,
     required this.logMaxBytes,
     required this.smartMusicDuckingEnabled,
     required this.hdVoiceEnabled,
@@ -99,13 +97,6 @@ class AppSettings extends Equatable {
     autoReconnectEnabled: true,
     skipSplash: false,
     usageTipsShown: false,
-    // Opt-out rather than opt-in: an opt-in analytics toggle is enabled by
-    // roughly nobody, which yields data too sparse to act on. The trade is
-    // that it has to be honest — a visible switch in Settings > Privacy, no
-    // personal data collected (see lib/core/analytics/analytics_event.dart:
-    // every attribute is a bucketed enum, never a name or an address), and
-    // it's disclosed in the README and on the website.
-    analyticsEnabled: true,
     // The log is a ring, so this is a ceiling and not a target: it costs
     // nothing until a phone actually produces that much, and it buys a bug
     // reported the next morning still being on record. See LogBudget.
@@ -133,7 +124,6 @@ class AppSettings extends Equatable {
     bool? autoReconnectEnabled,
     bool? skipSplash,
     bool? usageTipsShown,
-    bool? analyticsEnabled,
     int? logMaxBytes,
     bool? smartMusicDuckingEnabled,
     bool? hdVoiceEnabled,
@@ -149,7 +139,6 @@ class AppSettings extends Equatable {
     autoReconnectEnabled: autoReconnectEnabled ?? this.autoReconnectEnabled,
     skipSplash: skipSplash ?? this.skipSplash,
     usageTipsShown: usageTipsShown ?? this.usageTipsShown,
-    analyticsEnabled: analyticsEnabled ?? this.analyticsEnabled,
     logMaxBytes: logMaxBytes ?? this.logMaxBytes,
     smartMusicDuckingEnabled:
         smartMusicDuckingEnabled ?? this.smartMusicDuckingEnabled,
@@ -169,7 +158,6 @@ class AppSettings extends Equatable {
     autoReconnectEnabled,
     skipSplash,
     usageTipsShown,
-    analyticsEnabled,
     logMaxBytes,
     smartMusicDuckingEnabled,
     hdVoiceEnabled,

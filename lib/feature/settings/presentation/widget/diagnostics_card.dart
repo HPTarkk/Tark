@@ -111,6 +111,7 @@ class _DiagnosticsCardState extends State<DiagnosticsCard> {
     final s = context.getString;
     final confirmed = await showDialog<bool>(
       context: context,
+      routeSettings: const RouteSettings(name: 'ClearLogDialog'),
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.card,
         shape: RoundedRectangleBorder(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
+import '../../../../core/diagnostics/screen_log.dart';
 import '../../../../core/entitlement/entitlement.dart';
 import '../../../../core/entitlement/license_gate.dart';
 import '../../../../core/entitlement/paywall_sheet.dart';
@@ -53,6 +54,7 @@ class TransportModePicker extends StatelessWidget {
             // ambiguity is harmless — unlike in the store, where it is not.
             final pinned = snapshot.data;
             void select(TransferMode? target) {
+              ScreenLog.tap('Transport ${target?.name ?? 'auto'}');
               if (target != null && target.requiresPremium && !unlocked) {
                 showPaywallSheet(context, PremiumFeature.wifiTransport);
                 return;

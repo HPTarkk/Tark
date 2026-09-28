@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/diagnostics/screen_log.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/settings/settings_repository.dart';
@@ -381,7 +382,10 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
       child: Semantics(
         button: true,
         child: GestureDetector(
-          onTap: () => _confirmLeave(context),
+          onTap: () {
+            ScreenLog.tap('Leave');
+            _confirmLeave(context);
+          },
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 15),
@@ -424,6 +428,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
     final s = context.getString;
     showDialog<void>(
       context: context,
+      routeSettings: const RouteSettings(name: 'LeaveChannelDialog'),
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.card,
         shape: RoundedRectangleBorder(
@@ -451,6 +456,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage>
           ),
           TextButton(
             onPressed: () {
+              ScreenLog.tap('LeaveConfirmed');
               Navigator.of(ctx).pop();
               Sfx.play(SfxEvent.channelLeave);
               // goNamed (not pop) so leaving always lands cleanly on

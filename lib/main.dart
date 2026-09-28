@@ -8,7 +8,6 @@ import 'app/di/di_config.dart';
 import 'app/my_app.dart';
 import 'app/router/app_router.dart';
 import 'app/router/quick_access.dart';
-import 'core/analytics/analytics.dart';
 import 'core/audio/audio_format_profile.dart';
 import 'core/config/onboarding_config.dart';
 import 'core/diagnostics/diagnostic_log.dart';
@@ -84,10 +83,6 @@ void main() async {
   // falls back to PCM16, so this must never block or crash startup.
   await OpusAudioCodec.ensureInitialized();
   await configureDependencies();
-  // Deliberately not awaited: analytics is never allowed to sit on the
-  // critical path to the first frame. It reads the opt-out flag itself and
-  // does nothing at all if the user turned it off.
-  unawaited(GetIt.instance<Analytics>().start());
   // Strictly before the mode store below: that one asks LicenseGate whether
   // the persisted transport is still paid for, and on a genuinely first
   // launch this call is what starts the trial clock.

@@ -150,15 +150,6 @@ class SettingsRepositoryImpl implements SettingsRepository {
       _prefs.setBool(SettingsKeys.usageTipsShown, value);
 
   @override
-  Future<bool> getAnalyticsEnabled() async =>
-      _prefs.getBool(SettingsKeys.analyticsEnabled) ??
-      AppSettings.defaults().analyticsEnabled;
-
-  @override
-  Future<void> setAnalyticsEnabled(bool value) =>
-      _prefs.setBool(SettingsKeys.analyticsEnabled, value);
-
-  @override
   Future<int> getLogMaxBytes() async => LogBudget.clamp(
     _prefs.getInt(SettingsKeys.logMaxBytes) ??
         AppSettings.defaults().logMaxBytes,

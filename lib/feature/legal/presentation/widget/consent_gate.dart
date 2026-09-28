@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 
+import '../../../../core/diagnostics/screen_log.dart';
 import '../manager/consent_cubit.dart';
 import '../manager/consent_state.dart';
 import '../page/consent_page.dart';
@@ -42,6 +43,7 @@ class ConsentGate extends StatefulWidget {
 }
 
 class _ConsentGateState extends State<ConsentGate> {
+  final _screenLog = ScreenLog();
   late final ConsentCubit _cubit;
 
   @override
@@ -93,8 +95,9 @@ class _ConsentGateState extends State<ConsentGate> {
           // a route without escaping the gate or disturbing the app's own
           // navigation state underneath.
           return Navigator(
+            observers: [_screenLog],
             onGenerateRoute: (settings) => MaterialPageRoute<void>(
-              settings: settings,
+              settings: const RouteSettings(name: 'ConsentPage'),
               builder: (_) => gate,
             ),
           );

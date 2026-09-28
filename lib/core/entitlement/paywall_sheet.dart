@@ -21,6 +21,7 @@ import 'premium_feature.dart';
 Future<void> showPaywallSheet(BuildContext context, PremiumFeature feature) {
   return showModalBottomSheet<void>(
     context: context,
+    routeSettings: const RouteSettings(name: 'PaywallSheet'),
     backgroundColor: Colors.transparent,
     isScrollControlled: true,
     builder: (_) => _PaywallSheet(feature: feature),

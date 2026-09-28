@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
-import 'package:tark/core/analytics/analytics.dart';
 import 'package:tark/core/l10n/app_localizations.dart';
 import 'package:tark/core/router/routes.dart';
 import 'package:tark/core/settings/settings_repository.dart';
@@ -56,14 +55,9 @@ class _Sfx implements SfxPlayer {
   dynamic noSuchMethod(Invocation invocation) {}
 }
 
-class _Analytics implements Analytics {
-  @override
-  dynamic noSuchMethod(Invocation invocation) {}
-}
-
 /// The real cubit with the resume decision and the link driven by the test.
 class _Cubit extends BluetoothConnectCubit {
-  _Cubit(this.started) : super(_Transport(), _Settings(), _Sfx(), _Analytics());
+  _Cubit(this.started) : super(_Transport(), _Settings(), _Sfx());
 
   final Completer<bool> started;
   int resets = 0;

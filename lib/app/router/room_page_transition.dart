@@ -17,6 +17,8 @@ import '../../core/motion/app_motion.dart';
 Page<T> roomPage<T>(GoRouterState state, Widget child) =>
     CustomTransitionPage<T>(
       key: state.pageKey,
+      // Same name go_router gives its own pages, which is what ScreenLog logs.
+      name: state.name ?? state.path,
       child: child,
       transitionDuration: AppMotion.sheet,
       // Coming back is quicker than going in. The user already knows what is

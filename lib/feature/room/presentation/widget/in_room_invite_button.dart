@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 
+import '../../../../core/diagnostics/screen_log.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -97,6 +98,7 @@ class _InRoomInviteButtonState extends State<InRoomInviteButton> {
   }
 
   Future<void> _open() async {
+    ScreenLog.tap('Invite');
     HapticFeedback.selectionClick();
     await showRoomPeopleSheet(
       context,

@@ -40,7 +40,7 @@ class RecoveryCheck {
   /// Fixes offered inline on this row. Empty for a healthy check.
   final List<RecoveryAction> actions;
 
-  /// Stable machine id for diagnostics/analytics — "mic_no_frames",
+  /// Stable machine id for diagnostics — "mic_no_frames",
   /// "route_phone_speaker". Null for checks that only ever render (nothing
   /// downstream needs to tell their transitions apart in a log); Preflight
   /// (#33) is the first caller that sets it, since its whole diagnostics

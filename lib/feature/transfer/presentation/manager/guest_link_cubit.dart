@@ -4,9 +4,6 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
-import '../../../../core/analytics/analytics.dart';
-import '../../../../core/analytics/analytics_event.dart';
-import '../../../../core/analytics/pairing_attempt.dart';
 import '../../../../core/config/guest_config.dart';
 import '../../../../core/sfx/sfx_event.dart';
 import '../../../../core/sfx/sfx_player.dart';
@@ -21,29 +18,17 @@ import '../../domain/repository/guest_link_controller.dart';
 class GuestLinkCubit extends Cubit<GuestLinkPageState> {
   final GuestLinkController _link;
   final SfxPlayer _sfx;
-  final Analytics _analytics;
-  late final PairingAttempt _pairing;
   StreamSubscription<GuestLinkState>? _linkSub;
 
-  GuestLinkCubit(this._link, this._sfx, this._analytics)
-    : super(GuestLinkPageState.initial()) {
-    _pairing = PairingAttempt(_analytics, transport: AnalyticsTransport.guest);
+  GuestLinkCubit(this._link, this._sfx) : super(GuestLinkPageState.initial()) {
     _linkSub = _link.linkState.listen((s) {
       switch (s) {
         case GuestLinkState.awaitingPeer:
           _sfx.play(SfxEvent.toggle);
         case GuestLinkState.connected:
           _sfx.play(SfxEvent.peerJoin);
-          _pairing.connected();
         case GuestLinkState.failed:
           _sfx.play(SfxEvent.error);
-          // An invite we never managed to publish means the guest never got
-          // a chance to see us at all — closer to "discovery" than to a
-          // handshake that was attempted and lost.
-          _pairing.failed(
-            state.inviteUrl.isEmpty ? PairStage.discover : PairStage.handshake,
-            PairFailure.unknown,
-          );
         default:
           break;
       }
@@ -53,9 +38,6 @@ class GuestLinkCubit extends Cubit<GuestLinkPageState> {
   }
 
   Future<void> createInvite() async {
-    // Hosting is the only role this screen can play — the other end is a
-    // browser we have no SDK in.
-    _pairing.start(PairRole.host);
     emit(state.copyWith(link: GuestLinkState.preparing, inviteUrl: ''));
     try {
       final payload = await _link.createInvite();
@@ -69,7 +51,6 @@ class GuestLinkCubit extends Cubit<GuestLinkPageState> {
   Future<void> submitAnswer(String scanned) async {
     final payload = extractSdpPayload(scanned);
     if (payload == null) return;
-    _analytics.track(AnalyticsEvent.featureUsed(AppFeature.qrScan));
     try {
       await _link.acceptAnswer(payload);
     } catch (_) {
@@ -78,7 +59,6 @@ class GuestLinkCubit extends Cubit<GuestLinkPageState> {
   }
 
   void cancel() {
-    _pairing.failed(PairStage.handshake, PairFailure.userCancelled);
     _link.endSession();
   }
 
@@ -87,10 +67,6 @@ class GuestLinkCubit extends Cubit<GuestLinkPageState> {
     // Deliberately NOT ending the session here: on success this cubit
     // closes while navigating into the walkie page, which must inherit the
     // live link. cancel() is for the explicit back-out path.
-    //
-    // Same reasoning for the pairing attempt: an attempt still open at close
-    // is one navigating into a live session, not one that failed.
-    _pairing.abandon();
     await _linkSub?.cancel();
     return super.close();
   }

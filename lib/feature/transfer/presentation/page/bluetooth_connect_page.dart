@@ -14,7 +14,6 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/android_sdk.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../../core/utils/permission_queue.dart';
-import '../../../../core/analytics/analytics_event.dart';
 import '../../../preflight/presentation/widget/silent_preflight_guard.dart';
 import '../../domain/entity/bluetooth_connection_state.dart';
 import '../../domain/entity/bluetooth_role.dart';
@@ -76,7 +75,6 @@ class _BluetoothConnectPageState extends State<BluetoothConnectPage>
     final host = widget.intent == ChannelIntent.create;
     final cubit = context.read<BluetoothConnectCubit>();
     if (!await _ensurePermissions()) {
-      cubit.reportPermissionBlocked(host ? PairRole.host : PairRole.joiner);
       return;
     }
     if (!mounted) return;

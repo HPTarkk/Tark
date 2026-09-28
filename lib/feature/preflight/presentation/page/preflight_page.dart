@@ -52,6 +52,7 @@ Future<bool> showPreflightPage(
 }) async {
   final result = await Navigator.of(context).push<bool>(
     PageRouteBuilder<bool>(
+      settings: const RouteSettings(name: 'PreflightPage'),
       transitionDuration: const Duration(milliseconds: 360),
       reverseTransitionDuration: const Duration(milliseconds: 240),
       pageBuilder: (_, _, _) =>

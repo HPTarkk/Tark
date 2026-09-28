@@ -62,12 +62,6 @@ abstract interface class SettingsRepository {
   Future<bool> getUsageTipsShown();
   Future<void> setUsageTipsShown(bool value);
 
-  /// Whether anonymous product analytics may be collected (Settings >
-  /// Privacy). Read once at startup — see AdTraceAnalytics.start, which
-  /// declines to initialise the SDK at all when this is false.
-  Future<bool> getAnalyticsEnabled();
-  Future<void> setAnalyticsEnabled(bool value);
-
   /// Ceiling on the diagnostic log's size on disk, in bytes (Settings >
   /// Advanced > Diagnostics). Always returned inside `LogBudget`'s range,
   /// whatever is stored — the log is not allowed to be uncapped by a bad

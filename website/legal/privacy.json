@@ -5,12 +5,12 @@
     "en": "Privacy Policy",
     "fa": "سیاست حریم خصوصی"
   },
-  "version": 1,
+  "version": 2,
   "minAcceptedVersion": 1,
-  "effectiveDate": "2026-09-08",
+  "effectiveDate": "2026-09-28",
   "effectiveDateLabel": {
-    "en": "8 September 2026",
-    "fa": "۱۷ شهریور ۱۴۰۵"
+    "en": "28 September 2026",
+    "fa": "۶ مهر ۱۴۰۵"
   },
   "webPath": {
     "en": "/privacy.html",
@@ -69,10 +69,6 @@
         },
         "items": [
           {
-            "en": "Anonymous connection stats, unless you switch them off — which transport you used, whether it connected, and where it broke. Seven events, every value from a fixed list.",
-            "fa": "آمار بی‌نام اتصال، مگر اینکه خاموشش کنی — از کدوم مسیر وصل شدی، وصل شد یا نه، و کجا خراب شد. هفت رویداد، و هر مقدارش از یه فهرست ثابت میاد."
-          },
-          {
             "en": "Your IP address, to the services any web page reaches: the font CDN this site loads from, and a public STUN server if you join a channel from a browser.",
             "fa": "نشانی IP شما، به همون سرویس‌هایی که هر صفحه‌ی وبی بهشون وصل می‌شه: سرویس فونتی که این سایت ازش می‌گیره، و یه سرور عمومی STUN اگه از مرورگر وارد کانال بشی."
           },
@@ -104,6 +100,10 @@
           {
             "en": "A profile. There is no account, no phone number and no email, so there is nothing to build one out of.",
             "fa": "پروفایل. نه حساب کاربری هست، نه شماره، نه ایمیل — پس چیزی نیست که باهاش پروفایلی ساخته بشه."
+          },
+          {
+            "en": "Usage stats. Tark sends no analytics of any kind, to us or to anyone else.",
+            "fa": "آمار استفاده. تَرک هیچ نوع آماری، نه برای ما و نه برای هیچ‌کس دیگه، نمی‌فرسته."
           }
         ]
       }
@@ -218,8 +218,8 @@
             },
             {
               "text": {
-                "en": "A rotating technical log — session lifecycle, screen on and off, socket events, which peers a packet failed to reach. Never any audio. It is capped in size (8 MB by default, adjustable), it stays on the phone unless you deliberately share it, and Settings → Advanced → Diagnostics has a button that deletes it.",
-                "fa": "یه لاگ فنی چرخشی — چرخه‌ی جلسه، روشن و خاموش شدن صفحه، رویدادهای سوکت، اینکه بسته به کدوم گوشی نرسیده. هیچ‌وقت هیچ صدایی. اندازه‌ش سقف داره (پیش‌فرض ۸ مگابایت، قابل تغییر)، تا وقتی خودت عمداً به اشتراک نذاریش روی گوشی می‌مونه، و توی تنظیمات ← پیشرفته ← عیب‌یابی دکمه‌ای هست که پاکش می‌کنه."
+                "en": "A rotating technical log — session lifecycle, screen on and off, which pages of the app you open and the main buttons you tap, socket events, which peers a packet failed to reach. Never any audio. It is capped in size (8 MB by default, adjustable), it stays on the phone unless you deliberately share it, and Settings → Advanced → Diagnostics has a button that deletes it.",
+                "fa": "یه لاگ فنی چرخشی — چرخه‌ی جلسه، روشن و خاموش شدن صفحه، صفحه‌هایی از برنامه که باز می‌کنی و دکمه‌های اصلی‌ای که می‌زنی، رویدادهای سوکت، اینکه بسته به کدوم گوشی نرسیده. هیچ‌وقت هیچ صدایی. اندازه‌ش سقف داره (پیش‌فرض ۸ مگابایت، قابل تغییر)، تا وقتی خودت عمداً به اشتراک نذاریش روی گوشی می‌مونه، و توی تنظیمات ← پیشرفته ← عیب‌یابی دکمه‌ای هست که پاکش می‌کنه."
               },
               "name": {
                 "en": "The diagnostic log",
@@ -227,161 +227,6 @@
               }
             }
           ]
-        }
-      ]
-    },
-    {
-      "id": "stats",
-      "tocTitle": {
-        "en": "Connection stats",
-        "fa": "آمار اتصال"
-      },
-      "title": {
-        "en": "Anonymous connection stats",
-        "fa": "آمار بی‌نام اتصال"
-      },
-      "blocks": [
-        {
-          "type": "p",
-          "text": {
-            "en": "This is the one thing Tark measures, and it exists for a single reason: the connection bugs worth fixing happen on somebody else’s phone, on a network we cannot reach, halfway through a ride. Without a count of which transports fail and where, those bugs get ranked by whoever shouts loudest instead of by how often they actually happen.",
-            "fa": "این تنها چیزیه که تَرک اندازه می‌گیره، و فقط یه دلیل داره: باگ‌های اتصالی که ارزش رفع کردن دارن، روی گوشی یکی دیگه اتفاق می‌افتن، روی شبکه‌ای که ما بهش دسترسی نداریم، وسط یه سفر. بدون شمارشِ اینکه کدوم مسیر و کجا شکست می‌خوره، اولویت این باگ‌ها رو صدای بلندتر تعیین می‌کنه، نه اینکه واقعاً چقدر تکرار می‌شن."
-          }
-        },
-        {
-          "type": "note",
-          "label": {
-            "en": "IT IS ON UNLESS YOU TURN IT OFF",
-            "fa": "روشنه، مگر اینکه خاموشش کنی"
-          },
-          "text": {
-            "en": "The switch is in Settings → Privacy, and it starts on. An opt-in version of this gets enabled by roughly nobody, which produces data too thin to act on. We think the honest trade is to leave it on and hold ourselves to a strict limit on what it may contain — no names, no addresses, no free text, no audio, ever — and to say so here rather than bury it. Turning it off does not disable a feature or degrade the app in any way.",
-            "fa": "کلیدش توی تنظیمات ← حریم خصوصی هست و از اول روشنه. نسخه‌ی «باید خودت روشنش کنی» رو تقریباً هیچ‌کس روشن نمی‌کنه و داده‌ی به‌دست‌اومده اون‌قدر کمه که نمی‌شه باهاش کاری کرد. به نظرمون معامله‌ی صادقانه اینه که روشن بمونه ولی خودمون رو به یه سقف سفت‌وسخت پایبند کنیم — نه اسمی، نه نشانی‌ای، نه متن آزادی، و هیچ‌وقت هیچ صدایی — و همین‌جا بگیمش، نه اینکه لای متن قایمش کنیم. خاموش کردنش هیچ قابلیتی رو از کار نمی‌ندازه و هیچ افتی توی برنامه ایجاد نمی‌کنه."
-          }
-        },
-        {
-          "type": "h3",
-          "text": {
-            "en": "The complete list of events",
-            "fa": "فهرست کامل رویدادها"
-          }
-        },
-        {
-          "type": "p",
-          "text": {
-            "en": "There are seven, and this is all of them. Every value below comes from a fixed list written into the app — there is no free-text field anywhere in this vocabulary for something personal to leak into, and every number is widened into a range before it is sent.",
-            "fa": "هفت‌تان، و همه‌شون همین‌هاست. هر مقداری که پایین می‌بینی از یه فهرست ثابت میاد که توی خود برنامه نوشته شده — توی این واژگان هیچ فیلد متنِ آزادی وجود نداره که چیزی شخصی ازش نشت کنه، و هر عددی قبل از ارسال به یه بازه تبدیل می‌شه."
-          }
-        },
-        {
-          "type": "rows",
-          "items": [
-            {
-              "text": {
-                "en": "That the intro was completed, whether it was skipped, and which language the app is set to.",
-                "fa": "اینکه معرفی اولیه تموم شده، اینکه ردش کردی یا نه، و اینکه برنامه روی کدوم زبونه."
-              },
-              "name": {
-                "en": "Setup finished",
-                "fa": "پایان راه‌اندازی"
-              }
-            },
-            {
-              "text": {
-                "en": "Which transport (Wi-Fi, Bluetooth, hotspot or browser guest) and which side you were — host or joiner.",
-                "fa": "کدوم مسیر (وای‌فای، بلوتوث، هات‌اسپات یا مهمان مرورگری) و اینکه کدوم طرف بودی — میزبان یا واردشونده."
-              },
-              "name": {
-                "en": "Pairing started",
-                "fa": "شروع اتصال"
-              }
-            },
-            {
-              "text": {
-                "en": "The same two, plus roughly how long it took as one of four ranges — under 5 seconds, 5–15, 15–45, or longer.",
-                "fa": "همون دوتا، به‌علاوه‌ی اینکه تقریباً چقدر طول کشید، به شکل یکی از چهار بازه — زیر ۵ ثانیه، ۵ تا ۱۵، ۱۵ تا ۴۵، یا بیشتر."
-              },
-              "name": {
-                "en": "Pairing connected",
-                "fa": "اتصال برقرار شد"
-              }
-            },
-            {
-              "text": {
-                "en": "The same two, plus how far it got (permission, discovery, dialling, handshake, hotspot setup) and why it stopped, from a list of eight reasons. This is the event the whole thing exists for.",
-                "fa": "همون دوتا، به‌علاوه‌ی اینکه تا کجا پیش رفت (دسترسی، پیدا کردن، شماره‌گیری، دست‌دادن، بالا آوردن هات‌اسپات) و اینکه چرا متوقف شد، از فهرستی با هشت دلیل. کل این ماجرا به‌خاطر همین یه رویداده."
-              },
-              "name": {
-                "en": "Pairing failed",
-                "fa": "اتصال ناموفق"
-              }
-            },
-            {
-              "text": {
-                "en": "The transport, and whether the first thing sent was speech or shared music.",
-                "fa": "مسیر اتصال، و اینکه اولین چیزی که فرستاده شد صحبت بود یا آهنگِ به‌اشتراک‌گذاشته‌شده."
-              },
-              "name": {
-                "en": "First transmission",
-                "fa": "اولین ارسال"
-              }
-            },
-            {
-              "text": {
-                "en": "The transport, a length range rather than a duration, how many people were in the channel at its fullest (exact up to three, then a range), how many times you transmitted on the same scale, and whether you left, the link dropped, or something errored.",
-                "fa": "مسیر اتصال، یه بازه‌ی زمانی به‌جای مدت دقیق، اینکه توی شلوغ‌ترین لحظه چند نفر توی کانال بودن (تا سه نفر دقیق، بعدش بازه‌ای)، اینکه چند بار حرف زدی با همون مقیاس، و اینکه خودت رفتی، ارتباط قطع شد، یا خطایی پیش اومد."
-              },
-              "name": {
-                "en": "Session ended",
-                "fa": "پایان جلسه"
-              }
-            },
-            {
-              "text": {
-                "en": "The name of one optional feature, from a list of eleven — self-mute, shared music, QR scan, the home-screen widget, auto-reconnect, noise suppression and so on. Once per session per feature, not once per tap.",
-                "fa": "اسم یکی از قابلیت‌های اختیاری، از فهرستی با یازده مورد — بی‌صدا کردن خود، پخش آهنگ مشترک، اسکن QR، ابزارک صفحه‌ی خانه، اتصال دوباره‌ی خودکار، حذف نویز و چیزهایی از این دست. برای هر قابلیت، هر جلسه یک‌بار، نه هر بار که لمسش می‌کنی."
-              },
-              "name": {
-                "en": "Feature used",
-                "fa": "استفاده از یک قابلیت"
-              }
-            }
-          ]
-        },
-        {
-          "type": "h3",
-          "text": {
-            "en": "Who processes it",
-            "fa": "چه کسی پردازشش می‌کنه"
-          }
-        },
-        {
-          "type": "p",
-          "text": {
-            "en": "AdTrace, an Iranian analytics provider — chosen because it is the one option that is both free and actually reachable from Iranian networks, where Firebase and Sentry are blocked at the endpoint. Their SDK is what receives the seven events above, and it also collects the technical device and install information described in their own privacy policy in order to count one phone as one install.",
-            "fa": "AdTrace، یه سرویس تحلیل ایرانی — انتخاب شد چون تنها گزینه‌ایه که هم رایگانه و هم واقعاً از شبکه‌های ایران در دسترسه، جایی که Firebase و Sentry از سمت مقصد بسته‌ن. کیت اون‌هاست که این هفت رویداد بالا رو دریافت می‌کنه، و برای اینکه هر گوشی رو به‌عنوان یه نصب بشماره، اطلاعات فنی دستگاه و نصب رو هم — همون‌طور که توی سیاست حریم خصوصی خودشون توضیح داده شده — جمع می‌کنه."
-          }
-        },
-        {
-          "type": "p",
-          "text": {
-            "en": "Their SDK arrives wired for ad attribution, which Tark does not do. The advertising-ID permission it wants, and the checks it makes for whether Facebook and Instagram are installed on your phone, are stripped out of the app when it is built. On an app whose whole promise is that nothing leaves the local link, those would read as exactly the tracking we tell you is not here.",
-            "fa": "کیت اون‌ها به‌صورت پیش‌فرض برای انتساب تبلیغات آماده‌ست، کاری که تَرک انجام نمی‌ده. دسترسی به شناسه‌ی تبلیغاتی که می‌خواد، و بررسی‌هایی که برای نصب بودن فیسبوک و اینستاگرام روی گوشی شما انجام می‌ده، موقع ساخت برنامه حذف می‌شن. توی برنامه‌ای که کل وعده‌ش اینه که چیزی از مسیر محلی بیرون نمی‌ره، این‌ها دقیقاً همون ردیابی‌ای به نظر می‌رسن که می‌گیم اینجا خبری ازش نیست."
-          }
-        },
-        {
-          "type": "p",
-          "text": {
-            "en": "When the switch is off, the SDK is not started at all. It is not started and then silenced — a started SDK has already sent a session ping, which is the thing somebody switching this off was switching off.",
-            "fa": "وقتی کلید خاموشه، کیت اصلاً راه‌اندازی نمی‌شه. این‌طور نیست که راه بیفته و بعد ساکتش کنیم — کیتی که راه افتاده، تا اون لحظه یه پینگ جلسه فرستاده، و همون دقیقاً همون چیزیه که آدم با خاموش کردن این کلید داشته خاموشش می‌کرده."
-          }
-        },
-        {
-          "type": "p",
-          "text": {
-            "en": "The browser guest and every desktop build never load it in the first place; it only exists on Android and iOS.",
-            "fa": "مهمانِ مرورگری و همه‌ی نسخه‌های دسکتاپ اصلاً بارگذاریش نمی‌کنن؛ فقط روی اندروید و iOS وجود داره."
-          }
         }
       ]
     },
@@ -478,8 +323,8 @@
             },
             {
               "text": {
-                "en": "Declared because Android treats local network sockets as internet access, and used by the analytics SDK when it is on. A Wi-Fi or Bluetooth channel needs no internet connection and works with none.",
-                "fa": "اعلام شده چون اندروید سوکت‌های شبکه‌ی محلی رو هم دسترسی اینترنت حساب می‌کنه، و وقتی تحلیل روشنه توسط کیت تحلیل استفاده می‌شه. کانال وای‌فای یا بلوتوث هیچ اینترنتی لازم نداره و بدون اینترنت هم کار می‌کنه."
+                "en": "Declared because Android treats local network sockets as internet access. A Wi-Fi or Bluetooth channel needs no internet connection and works with none.",
+                "fa": "اعلام شده چون اندروید سوکت‌های شبکه‌ی محلی رو هم دسترسی اینترنت حساب می‌کنه. کانال وای‌فای یا بلوتوث هیچ اینترنتی لازم نداره و بدون اینترنت هم کار می‌کنه."
               },
               "name": {
                 "en": "Internet",
@@ -574,15 +419,6 @@
           "items": [
             {
               "text": {
-                "en": "Receives the connection stats described above, while that switch is on. Android only.",
-                "fa": "آمار اتصالی که بالاتر توضیح داده شد رو دریافت می‌کنه، تا وقتی اون کلید روشنه. فقط اندروید."
-              },
-              "name": "AdTrace",
-              "href": "https://adtrace.io",
-              "external": true
-            },
-            {
-              "text": {
                 "en": "Sees the IP address of a browser guest while a connection is being set up. Never carries audio.",
                 "fa": "موقع برقراری اتصال، نشانی IP مهمان مرورگری رو می‌بینه. هیچ‌وقت صدایی رو حمل نمی‌کنه."
               },
@@ -656,10 +492,6 @@
           "type": "list",
           "items": [
             {
-              "en": "Turn connection stats off in Settings → Privacy. Nothing further is sent from that moment, and nothing about the app changes.",
-              "fa": "آمار اتصال رو توی تنظیمات ← حریم خصوصی خاموش کن. از همون لحظه دیگه چیزی فرستاده نمی‌شه و هیچ‌چیز برنامه فرقی نمی‌کنه."
-            },
-            {
               "en": "Delete the diagnostic log at any time in Settings → Advanced → Diagnostics, or shrink the cap on how much of it is kept.",
               "fa": "لاگ عیب‌یابی رو هر وقت خواستی از تنظیمات ← پیشرفته ← عیب‌یابی پاک کن، یا سقف چیزی که نگه داشته می‌شه رو کم کن."
             },
@@ -670,10 +502,6 @@
             {
               "en": "Uninstall, which removes everything the app kept — there is no copy of it anywhere else to ask about.",
               "fa": "حذفش کن، که هر چی برنامه نگه داشته بود رو پاک می‌کنه — نسخه‌ی دیگه‌ای جایی نیست که سراغش رو بگیری."
-            },
-            {
-              "en": "Or build it yourself without analytics compiled in at all. The source is public and the build flag for it is documented in the README.",
-              "fa": "یا خودت بدون اینکه اصلاً تحلیلی توش کامپایل بشه بسازش. سورس عمومیه و پرچم ساختش توی README مستند شده."
             }
           ]
         }

@@ -3,8 +3,6 @@ import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../core/analytics/analytics.dart';
-import '../../../../core/analytics/analytics_event.dart';
 import '../../../../core/audio/audio_format_profile.dart';
 import '../../../../core/diagnostics/diagnostic_log.dart';
 import '../../../../core/diagnostics/log_budget.dart';
@@ -33,7 +31,6 @@ import '../../../walkie/api/walkie_api.dart';
 class SettingsCubit extends Cubit<SettingsState> {
   final WalkieTalkieCubit? _liveSession;
   final SettingsRepository _repository;
-  final Analytics _analytics;
   StreamSubscription<WalkieTalkieState>? _liveSub;
 
   /// The borrowed live-session cubit (if any), so the Settings page can
@@ -44,10 +41,8 @@ class SettingsCubit extends Cubit<SettingsState> {
   SettingsCubit({
     WalkieTalkieCubit? liveSession,
     required SettingsRepository repository,
-    required Analytics analytics,
   }) : _liveSession = liveSession,
        _repository = repository,
-       _analytics = analytics,
        super(SettingsState.initial(isLive: liveSession != null)) {
     _init();
   }
@@ -102,7 +97,6 @@ class SettingsCubit extends Cubit<SettingsState> {
               targetBufferMs: profile.targetBufferMs,
               autoReconnectEnabled: all.autoReconnectEnabled,
               skipSplash: all.skipSplash,
-              analyticsEnabled: all.analyticsEnabled,
               logMaxBytes: all.logMaxBytes,
               smartMusicDuckingEnabled: all.smartMusicDuckingEnabled,
               hdVoiceEnabled: all.hdVoiceEnabled,
@@ -117,7 +111,6 @@ class SettingsCubit extends Cubit<SettingsState> {
               targetBufferMs: profile.targetBufferMs,
               autoReconnectEnabled: all.autoReconnectEnabled,
               skipSplash: all.skipSplash,
-              analyticsEnabled: all.analyticsEnabled,
               logMaxBytes: all.logMaxBytes,
               smartMusicDuckingEnabled: all.smartMusicDuckingEnabled,
               hdVoiceEnabled: all.hdVoiceEnabled,
@@ -184,7 +177,6 @@ class SettingsCubit extends Cubit<SettingsState> {
       emit(state.copyWith(targetBufferMs: profile.targetBufferMs));
       return;
     }
-    _analytics.track(AnalyticsEvent.featureUsed(AppFeature.ridingPreset));
     await _repository.setRidingPreset(enabled);
     final profile = await _repository.getAudioProfile();
     if (isClosed) return;
@@ -205,7 +197,6 @@ class SettingsCubit extends Cubit<SettingsState> {
   /// turns the riding preset off, since otherwise it would keep overriding
   /// every value this just restored.
   Future<void> restoreVoiceDefaults() async {
-    _analytics.track(AnalyticsEvent.featureUsed(AppFeature.voiceDefaults));
     final (vox, noise, buffer) = await _repository.restoreVoiceDefaults();
     final live = _liveSession;
     if (live != null) {
@@ -286,26 +277,9 @@ class SettingsCubit extends Cubit<SettingsState> {
     await _repository.setHdMusicEnabled(enabled);
   }
 
-  /// For the rows that are a single deliberate tap rather than a session-long
-  /// mode — pinning the home-screen widget, replaying the intro. No
-  /// once-per-session guard like the channel screen's: these are navigations
-  /// nobody performs twice in a sitting.
-  void recordFeatureUsed(AppFeature feature) =>
-      _analytics.track(AnalyticsEvent.featureUsed(feature));
-
-  /// Takes effect immediately, not on next launch: switching off stops
-  /// uploads from the running SDK, and switching on starts an SDK that this
-  /// launch skipped. Persisting is what makes it stick across launches.
-  Future<void> setAnalyticsEnabled(bool enabled) async {
-    emit(state.copyWith(analyticsEnabled: enabled));
-    await _repository.setAnalyticsEnabled(enabled);
-    await _analytics.setEnabled(enabled);
-  }
-
-  /// Applies immediately as well as persisting, the same way the analytics
-  /// switch does: lowering the ceiling is a request to reclaim that space now,
-  /// and the size readout sitting next to the control has to agree with it
-  /// before the user looks away.
+  /// Applies immediately as well as persisting: lowering the ceiling is a
+  /// request to reclaim that space now, and the size readout sitting next to
+  /// the control has to agree with it before the user looks away.
   Future<void> setLogMaxBytes(int bytes) async {
     final clamped = LogBudget.clamp(bytes);
     emit(state.copyWith(logMaxBytes: clamped));
@@ -336,7 +310,6 @@ class SettingsState extends Equatable {
   final int targetBufferMs;
   final bool autoReconnectEnabled;
   final bool skipSplash;
-  final bool analyticsEnabled;
   final int logMaxBytes;
   final bool smartMusicDuckingEnabled;
   final bool hdVoiceEnabled;
@@ -352,7 +325,6 @@ class SettingsState extends Equatable {
     required this.targetBufferMs,
     required this.autoReconnectEnabled,
     required this.skipSplash,
-    required this.analyticsEnabled,
     required this.logMaxBytes,
     required this.smartMusicDuckingEnabled,
     required this.hdVoiceEnabled,
@@ -369,7 +341,6 @@ class SettingsState extends Equatable {
     targetBufferMs: 60,
     autoReconnectEnabled: true,
     skipSplash: false,
-    analyticsEnabled: true,
     logMaxBytes: LogBudget.defaultBytes,
     smartMusicDuckingEnabled: true,
     hdVoiceEnabled: true,
@@ -385,7 +356,6 @@ class SettingsState extends Equatable {
     int? targetBufferMs,
     bool? autoReconnectEnabled,
     bool? skipSplash,
-    bool? analyticsEnabled,
     int? logMaxBytes,
     bool? smartMusicDuckingEnabled,
     bool? hdVoiceEnabled,
@@ -401,7 +371,6 @@ class SettingsState extends Equatable {
     targetBufferMs: targetBufferMs ?? this.targetBufferMs,
     autoReconnectEnabled: autoReconnectEnabled ?? this.autoReconnectEnabled,
     skipSplash: skipSplash ?? this.skipSplash,
-    analyticsEnabled: analyticsEnabled ?? this.analyticsEnabled,
     logMaxBytes: logMaxBytes ?? this.logMaxBytes,
     smartMusicDuckingEnabled:
         smartMusicDuckingEnabled ?? this.smartMusicDuckingEnabled,
@@ -420,7 +389,6 @@ class SettingsState extends Equatable {
     targetBufferMs,
     autoReconnectEnabled,
     skipSplash,
-    analyticsEnabled,
     logMaxBytes,
     smartMusicDuckingEnabled,
     hdVoiceEnabled,

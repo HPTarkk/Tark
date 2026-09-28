@@ -170,6 +170,9 @@ class _DocumentCard extends StatelessWidget {
               child: TextButton(
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
+                    settings: RouteSettings(
+                      name: 'LegalDocumentPage/${document.id}',
+                    ),
                     builder: (_) => LegalDocumentPage(document: document),
                   ),
                 ),

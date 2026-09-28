@@ -2,6 +2,7 @@ import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/diagnostics/screen_log.dart';
 import '../../core/home_widget/home_widget_launch.dart';
 import '../../core/router/routes.dart';
 import '../../feature/landing/api/landing_api.dart';
@@ -34,6 +35,8 @@ class AppRouter {
 
   static GoRouter _buildRoute() => GoRouter(
     initialLocation: startLocation,
+    // Every page, sheet and dialog the user opens goes into the .tarklog.
+    observers: [ScreenLog()],
     // Belt-and-braces for widget launch URIs. They are meant to be consumed
     // from the platform intent by HomeWidgetService, never routed — Android
     // disables Flutter's automatic deep linking for exactly that reason (see
