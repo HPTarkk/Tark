@@ -12,7 +12,7 @@ void main() {
   testWidgets('a known avatar draws its picture', (tester) async {
     await pump(tester, const AppAvatar(name: 'Pedi', avatarId: 5));
     final image = tester.widget<Image>(find.byType(Image));
-    expect((image.image as AssetImage).assetName, 'assets/avatars/05-fox.jpg');
+    expect((image.image as AssetImage).assetName, 'assets/avatars/05-fox.webp');
     expect(find.text('P'), findsNothing);
   });
 

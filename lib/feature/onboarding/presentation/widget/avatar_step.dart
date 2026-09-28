@@ -9,9 +9,8 @@ import '../manager/onboarding_cubit.dart';
 import 'hud.dart';
 import 'onboarding_palette.dart';
 
-/// Beat 3 — pick a face to go with the callsign. Nothing is pre-selected:
-/// the CTA waits for a tap, like the callsign beat waits for a name, so the
-/// face people see in the channel is one this person chose.
+/// Beat 3 — pick a face to go with the callsign. The Tarkk mascot is
+/// pre-selected as the default, so continuing without a tap keeps it.
 class AvatarStep extends StatelessWidget {
   final Animation<double> reveal;
 

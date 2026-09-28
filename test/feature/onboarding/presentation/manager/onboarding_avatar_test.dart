@@ -58,18 +58,23 @@ void main() {
     expect(OnboardingCubit.launchStep, OnboardingCubit.stepCount - 1);
   });
 
-  test('the avatar beat waits for a pick', () {
+  test('the avatar beat starts on the Tarkk mascot', () {
     cubit
       ..setName('Pedi')
       ..jumpTo(OnboardingCubit.avatarStep);
-    expect(cubit.state.canContinue, isFalse);
-    cubit.next();
-    expect(cubit.state.step, OnboardingCubit.avatarStep);
+    expect(cubit.state.avatarId, AvatarCatalog.defaultId);
+    expect(cubit.state.canContinue, isTrue);
 
     cubit.selectAvatar(4);
-    expect(cubit.state.canContinue, isTrue);
     cubit.next();
     expect(cubit.state.step, OnboardingCubit.transportStep);
+    expect(cubit.state.avatarId, 4);
+  });
+
+  test('walking past the beat keeps the default', () async {
+    cubit.setName('Pedi');
+    await cubit.finish();
+    expect(settings.avatarId, AvatarCatalog.defaultId);
   });
 
   test('finishing saves the picked avatar', () async {
@@ -83,7 +88,7 @@ void main() {
 
   test('skipping still leaves a default avatar', () async {
     await cubit.skip();
-    expect(settings.avatarId, AvatarCatalog.defaultFor(''));
+    expect(settings.avatarId, AvatarCatalog.defaultId);
   });
 
   test('a replay starts from the saved avatar', () async {

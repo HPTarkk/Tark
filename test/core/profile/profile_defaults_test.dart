@@ -27,10 +27,10 @@ class _Settings implements SettingsRepository {
 }
 
 void main() {
-  test('someone who set up before avatars gets a stored default', () async {
+  test('someone who set up before avatars gets the Tarkk mascot', () async {
     final settings = _Settings();
     await ProfileDefaults.ensureAvatar(settings, setupDone: true);
-    expect(settings.avatarId, AvatarCatalog.defaultFor('Pedi'));
+    expect(settings.avatarId, AvatarCatalog.defaultId);
   });
 
   test('a picked avatar is never replaced', () async {

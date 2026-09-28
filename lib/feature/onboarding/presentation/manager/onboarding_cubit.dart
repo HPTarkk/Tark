@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../../../core/diagnostics/screen_log.dart';
+import '../../../../core/profile/avatar_catalog.dart';
 import '../../../../core/profile/profile_defaults.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/theme/theme_service.dart';
@@ -72,7 +73,8 @@ class OnboardingCubit extends Cubit<OnboardingState> {
       emit(state.copyWith(name: name));
     }
     final avatarId = await _settingsRepository.getMyAvatarId();
-    if (!isClosed && avatarId != null && state.avatarId == null) {
+    // A replay starts from the saved avatar; a first run keeps the default.
+    if (!isClosed && avatarId != null) {
       emit(state.copyWith(avatarId: avatarId));
     }
   }
@@ -158,8 +160,9 @@ class OnboardingState extends Equatable {
   final int step;
   final String name;
 
-  /// The avatar picked on the avatar beat (see AvatarCatalog), or null
-  /// until one is.
+  /// The avatar picked on the avatar beat (see AvatarCatalog). Starts on the
+  /// Tarkk mascot, [AvatarCatalog.defaultId], so walking past the beat keeps
+  /// the default rather than blocking on a choice.
   final int? avatarId;
 
   /// The transport the user pinned on beat 4, or null for automatic — which
@@ -185,6 +188,7 @@ class OnboardingState extends Equatable {
   factory OnboardingState.initial(TransferMode? mode) => OnboardingState(
     step: 0,
     name: '',
+    avatarId: AvatarCatalog.defaultId,
     mode: mode,
     themePref: ThemeService.currentMode,
   );

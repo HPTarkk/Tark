@@ -10,12 +10,19 @@ void main() {
     expect(ids.every(AvatarCatalog.isValidId), isTrue);
   });
 
-  test('the twelve shipped ids never change', () {
+  test('the shipped ids never change', () {
     // Ids are stored and sent to other phones; renumbering one would show
     // everyone who picked it as someone else.
-    expect(AvatarCatalog.byId(1)!.asset, 'assets/avatars/01-man.jpg');
-    expect(AvatarCatalog.byId(12)!.asset, 'assets/avatars/12-alien.jpg');
-    expect(AvatarCatalog.all, hasLength(12));
+    expect(AvatarCatalog.byId(1)!.asset, 'assets/avatars/01-man.webp');
+    expect(AvatarCatalog.byId(12)!.asset, 'assets/avatars/12-alien.webp');
+    expect(AvatarCatalog.byId(13)!.asset, 'assets/avatars/13-tarkk.webp');
+    expect(AvatarCatalog.byId(19)!.asset, 'assets/avatars/19-gamer.webp');
+    expect(AvatarCatalog.all, hasLength(19));
+  });
+
+  test('the Tarkk mascot is the default and leads the picker', () {
+    expect(AvatarCatalog.defaultId, 13);
+    expect(AvatarCatalog.all.first.id, AvatarCatalog.defaultId);
   });
 
   test('every picture is bundled', () {
@@ -31,16 +38,5 @@ void main() {
     expect(AvatarCatalog.isValidId(0), isFalse);
     expect(AvatarCatalog.isValidId(256), isFalse);
     expect(AvatarCatalog.isValidId(-1), isFalse);
-  });
-
-  test('the default is stable for a name and always a real avatar', () {
-    expect(AvatarCatalog.defaultFor('Pedi'), AvatarCatalog.defaultFor('Pedi'));
-    expect(
-      AvatarCatalog.defaultFor(' pedi '),
-      AvatarCatalog.defaultFor('Pedi'),
-    );
-    for (final name in ['', 'a', 'شاهین۱۲', 'Falcon42']) {
-      expect(AvatarCatalog.byId(AvatarCatalog.defaultFor(name)), isNotNull);
-    }
   });
 }
