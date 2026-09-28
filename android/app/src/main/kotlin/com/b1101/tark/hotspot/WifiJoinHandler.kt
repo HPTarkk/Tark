@@ -72,6 +72,20 @@ class WifiJoinHandler(
     private var keeperCallback: ConnectivityManager.NetworkCallback? = null
     private var suggested: List<WifiNetworkSuggestion> = emptyList()
     private var joinedSsid: String? = null
+
+    /**
+     * The saved-network id [joinLegacy] created, while that join is current.
+     * -1 on Android 10+ (which joins through a specifier) and when not joined.
+     *
+     * Below API 29 it is the one identity for the host's AP that is not
+     * location-gated: `getConnectionInfo().getNetworkId()` says whether the
+     * radio is on *our* network or some other saved one, where the SSID reads
+     * back as "<unknown ssid>" and a Network carries no SSID at all.
+     */
+    private var legacyNetId: Int = -1
+
+    /** When [reclaimLegacy] last asked for the AP back, for its debounce. */
+    private var lastReclaimAt: Long = 0L
     private var lostAnnouncement: Runnable? = null
     private var pendingJoin: PendingJoin? = null
     private var associationProbe: Runnable? = null
@@ -400,6 +414,10 @@ class WifiJoinHandler(
     }
 
     private fun networkMatchesJoinedAp(network: Network): Boolean {
+        // Below API 29 the radio can say outright whether it is on the network
+        // we created. A saved network it moved to (home Wi-Fi) is never the AP,
+        // whatever the station-address evidence below would conclude.
+        if (legacyNetId != -1 && connectedNetId() != legacyNetId) return false
         val candidates = eligibleWifiNetworks()
         val want = joinedSsid
         if (want == null) {
@@ -472,6 +490,9 @@ class WifiJoinHandler(
                 boundNetwork = null
                 runCatching { connectivity.bindProcessToNetwork(null) }
                 scheduleLostAnnouncement()
+                // Posted, not inline: the radio reports the new association a
+                // moment after the old Network is lost.
+                mainHandler.postDelayed({ reclaimLegacy() }, RECLAIM_DELAY_MS)
             }
         }
         keeperCallback = cb
@@ -579,6 +600,7 @@ class WifiJoinHandler(
                 result.success(false)
                 return
             }
+            legacyNetId = netId
             wifiManager.disconnect()
             wifiManager.enableNetwork(netId, true)
             wifiManager.reconnect()
@@ -734,8 +756,44 @@ class WifiJoinHandler(
         stopKeeper()
         removeSuggestions()
         joinedSsid = null
+        legacyNetId = -1
         boundNetwork = null
         runCatching { connectivity.bindProcessToNetwork(null) }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun connectedNetId(): Int =
+        runCatching { wifiManager.connectionInfo?.networkId }.getOrNull() ?: -1
+
+    /**
+     * Takes the radio back from a saved network Android moved to by itself.
+     *
+     * Android 9 and older treat a joined network with no internet as not good
+     * enough once validation fails, and on the next scan hand the radio to any
+     * saved network in range that has internet (a Galaxy S8 left the host's
+     * hotspot for home Wi-Fi about 50s after joining, with the hotspot still
+     * up). An app cannot stop that selection or disable a network it did not
+     * create, but it can select its own network again. If the hotspot really
+     * is gone the association simply fails, Android settles back on the saved
+     * network, and the lost announcement already scheduled reports it.
+     */
+    @Suppress("DEPRECATION")
+    private fun reclaimLegacy() {
+        val netId = legacyNetId
+        if (netId == -1 || boundNetwork != null) return
+        val current = connectedNetId()
+        if (current == netId) return
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastReclaimAt < RECLAIM_DEBOUNCE_MS) return
+        lastReclaimAt = now
+        val moved = current != -1
+        Log.w(TAG, "legacy: radio left the host AP (moved=$moved) — selecting it again")
+        val asked = runCatching {
+            wifiManager.enableNetwork(netId, true) && wifiManager.reconnect()
+        }.getOrDefault(false)
+        eventSink?.success(
+            mapOf("event" to "reclaim", "moved" to moved, "asked" to asked),
+        )
     }
 
     companion object {
@@ -746,5 +804,7 @@ class WifiJoinHandler(
         private const val UNKNOWN_SSID = "<unknown ssid>"
         private const val LEGACY_POLL_ATTEMPTS = 50
         private const val LEGACY_POLL_INTERVAL_MS = 500L
+        private const val RECLAIM_DELAY_MS = 1_500L
+        private const val RECLAIM_DEBOUNCE_MS = 10_000L
     }
 }
