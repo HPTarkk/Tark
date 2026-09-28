@@ -94,6 +94,31 @@ flutter build apk --release        # Android
 flutter build ios --release        # iOS (requires macOS + Xcode)
 ```
 
+### Releasing (Android)
+
+One script per kind of release. Each does the whole thing — version, build,
+Bazaar signing, tag, GitHub release — and ends back on `main` with the new
+version merged in:
+
+```powershell
+.\scripts\release-patch.ps1   # 1.0.21 -> 1.0.22, a new tag on release/1.0.0
+.\scripts\release-minor.ps1   # 1.0.21 -> 1.1.0,  opens release/1.1.0 from main
+.\scripts\release-major.ps1   # 1.4.2  -> 2.0.0,  opens release/2.0.0 from main
+```
+
+There is one branch per major.minor line (`release/<major>.<minor>.0`); a patch
+is only ever a tag. `pubspec.yaml` is the single source of the version, and the
+build number always rises. A patch run from `main` merges `main` into the line
+first; run it with a `release/*` branch checked out to hotfix that line
+without pulling in `main`. Signing passwords come from `android/key.properties`
+(gitignored), the same file Gradle signs with; `scripts/bundlesigner-*.jar`
+must sit next to the scripts.
+
+Output lands in `build/release/<version>/`: `Tarkk.aab` + `bin/` for the Bazaar
+console and `Tarkk.apk` for ArvanCloud. Uploading to Bazaar is the one manual
+step; once Bazaar has published the build, announce it in `website/update.json`
+(see [App updates](#app-updates)).
+
 ### iOS-specific requirements
 
 After pulling native changes, in `ios/`:
@@ -230,7 +255,7 @@ ios/Runner/, ios/TarkWidget/      — Swift equivalents + WidgetKit extension
 
 ## Privacy
 
-Conversations never leave the local link — phone to phone over Wi-Fi, Bluetooth, or a hosted hotspot, no server in the path. The app sends no analytics or usage stats anywhere. The diagnostic log (connections, audio health, and at a higher log level the screens visited, taps and settings changes) stays on the phone and only leaves it when you export it from Settings → Advanced → Diagnostics.
+Conversations never leave the local link — phone to phone over Wi-Fi, Bluetooth, or a hosted hotspot, no server in the path. The app sends no analytics or usage stats anywhere. The only things it fetches are two static files from tarkk.ir — the legal-document manifest and the update feed — and it sends nothing with them. The diagnostic log (connections, audio health, and at a higher log level the screens visited, taps and settings changes) stays on the phone and only leaves it when you export it from Settings → Advanced → Diagnostics.
 
 ---
 
@@ -296,6 +321,39 @@ flutter build apk --dart-define=TARK_LEGAL_BASE=https://example.com/legal/
 ```
 
 An empty value compiles the check out entirely.
+
+---
+
+## App updates
+
+On launch the Android app fetches `https://tarkk.ir/update.json` — a static file
+published with the website — and compares build numbers:
+
+```json
+{
+  "android": {
+    "latestVersion": "1.0.22",
+    "latestBuild": 32,
+    "minimumBuild": 0,
+    "url": "https://cafebazaar.ir/app/com.b1101.tark",
+    "notes": { "en": ["..."], "fa": ["..."] }
+  }
+}
+```
+
+- installed build **< `minimumBuild`** → a full-screen required update; the app
+  goes no further until it is updated.
+- installed build **< `latestBuild`** → an optional prompt, shown only on the
+  home and room-list screens (never over a live channel). *Not now* quiets that
+  build for three days.
+- anything else — no signal, a timeout, a malformed file — nothing happens.
+
+The request carries a throwaway `?t=` query so no cache along the way can hand
+back an old answer, and `website/_headers` marks the file uncacheable too.
+*Update on Bazaar* opens the Bazaar app, or the listing in a browser without it.
+Bump `latestBuild` only after Bazaar has published the build, or people will be
+sent to a store page that still has the old one. Point a fork elsewhere, or
+compile the check out, with `--dart-define=TARK_UPDATE_FEED=<url or empty>`.
 
 ---
 

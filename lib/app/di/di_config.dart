@@ -43,8 +43,9 @@ abstract class NetworkModule {
   /// [HttpApiClient] takes an optional `http.Client` as a test seam, which
   /// injectable would otherwise try to resolve out of the graph.
   ///
-  /// The app makes exactly one kind of request through this: checking
-  /// whether a newer privacy policy or terms document has been published.
+  /// The app makes two kinds of request through this, both for static files
+  /// on tarkk.ir: whether a newer privacy policy or terms document has been
+  /// published, and whether a newer app build is out (feature/update).
   /// Nothing about a conversation goes near it — see core/network.
   @lazySingleton
   ApiClient apiClient() => HttpApiClient();

@@ -10,7 +10,8 @@ import 'api_failure.dart';
 /// and that is still true: nothing here carries voice, presence, peers or
 /// anything a user said. This client fetches **published documents** — the
 /// privacy policy and the terms, from the same static files the website
-/// renders — so the app can notice that a newer version exists.
+/// renders — so the app can notice that a newer version exists, and the
+/// update feed that says whether a newer app build is out.
 ///
 /// It is written as an interface rather than a `http.get` at the call site
 /// for the reasons that always apply, plus one that is specific here:
