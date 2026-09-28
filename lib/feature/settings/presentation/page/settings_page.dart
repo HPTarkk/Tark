@@ -13,7 +13,6 @@ import '../../../../core/sfx/sfx_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/app_avatar.dart';
 import '../../../../core/widget/language_toggle.dart';
-import '../../../../core/widget/localized_counter.dart';
 import '../../../../core/widget/theme_toggle.dart';
 import '../../../walkie/api/walkie_api.dart';
 import '../manager/settings_cubit.dart';
@@ -106,7 +105,7 @@ class _ProfileCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = context.getString;
     return BlocBuilder<SettingsCubit, SettingsState>(
-      buildWhen: (p, c) => p.myName != c.myName,
+      buildWhen: (p, c) => p.myName != c.myName || p.myAvatarId != c.myAvatarId,
       builder: (context, state) => SettingsCategoryCard(
         icon: Icons.person_rounded,
         title: s.settings_section_identity,
@@ -114,7 +113,11 @@ class _ProfileCard extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 10),
           child: Row(
             children: [
-              AppAvatar(name: state.myName, size: 48),
+              AppAvatar(
+                name: state.myName,
+                avatarId: state.myAvatarId,
+                size: 48,
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Text(
@@ -128,9 +131,13 @@ class _ProfileCard extends StatelessWidget {
                 ),
               ),
               GestureDetector(
+                // Name and face are edited together on the Profile page.
                 onTap: () {
                   HapticFeedback.selectionClick();
-                  _showEditNameDialog(context, state.myName);
+                  context.pushNamed(
+                    AppRoutes.profileName,
+                    extra: context.read<SettingsCubit>().liveSession,
+                  );
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(
@@ -165,86 +172,6 @@ class _ProfileCard extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  void _showEditNameDialog(BuildContext context, String currentName) {
-    final controller = TextEditingController(text: currentName);
-    final cubit = context.read<SettingsCubit>();
-    final s = context.getString;
-    showDialog<void>(
-      context: context,
-      routeSettings: const RouteSettings(name: 'EditNameDialog'),
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.card,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: AppColors.border),
-        ),
-        title: Text(
-          s.set_name_title,
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLength: 20,
-          // The counter Flutter builds by default is ASCII whatever the
-          // locale says, so the style that used to sit in `counterStyle`
-          // moves onto the counter this builds instead.
-          buildCounter: localizedCounter(
-            style: TextStyle(color: AppColors.textSecondary.withAlpha(120)),
-          ),
-          style: TextStyle(color: AppColors.textPrimary),
-          decoration: InputDecoration(
-            hintText: s.name_hint,
-            hintStyle: TextStyle(color: AppColors.textSecondary.withAlpha(160)),
-            filled: true,
-            fillColor: AppColors.surface,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(color: AppColors.border),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(color: AppColors.border),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(color: AppColors.amber),
-            ),
-          ),
-          onSubmitted: (v) {
-            cubit.setMyName(v);
-            Navigator.of(ctx).pop();
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(
-              s.cancel,
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              cubit.setMyName(controller.text);
-              Navigator.of(ctx).pop();
-            },
-            child: Text(
-              s.save,
-              style: TextStyle(
-                color: AppColors.amber,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -161,6 +161,14 @@ class AppRouter {
             SettingsPage.buildPage(liveSession: state.extra),
       ),
       GoRoute(
+        path: AppRoutes.profilePath,
+        name: AppRoutes.profileName,
+        // Same live-session threading as Advanced below: Settings forwards
+        // its own `extra`, so a mid-channel change reaches the channel.
+        builder: (context, state) =>
+            ProfilePage.buildPage(liveSession: state.extra),
+      ),
+      GoRoute(
         path: AppRoutes.permissionsPath,
         name: AppRoutes.permissionsName,
         builder: (context, state) => PermissionsPage.buildPage(),

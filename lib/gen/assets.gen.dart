@@ -11,6 +11,105 @@
 
 import 'package:flutter/widgets.dart';
 
+class $AssetsAvatarsGen {
+  const $AssetsAvatarsGen();
+
+  /// File path: assets/avatars/01-man.webp
+  AssetGenImage get a01Man => const AssetGenImage('assets/avatars/01-man.webp');
+
+  /// File path: assets/avatars/02-woman.webp
+  AssetGenImage get a02Woman =>
+      const AssetGenImage('assets/avatars/02-woman.webp');
+
+  /// File path: assets/avatars/03-rider.webp
+  AssetGenImage get a03Rider =>
+      const AssetGenImage('assets/avatars/03-rider.webp');
+
+  /// File path: assets/avatars/04-woman-rider.webp
+  AssetGenImage get a04WomanRider =>
+      const AssetGenImage('assets/avatars/04-woman-rider.webp');
+
+  /// File path: assets/avatars/05-fox.webp
+  AssetGenImage get a05Fox => const AssetGenImage('assets/avatars/05-fox.webp');
+
+  /// File path: assets/avatars/06-cat.webp
+  AssetGenImage get a06Cat => const AssetGenImage('assets/avatars/06-cat.webp');
+
+  /// File path: assets/avatars/07-bear.webp
+  AssetGenImage get a07Bear =>
+      const AssetGenImage('assets/avatars/07-bear.webp');
+
+  /// File path: assets/avatars/08-owl.webp
+  AssetGenImage get a08Owl => const AssetGenImage('assets/avatars/08-owl.webp');
+
+  /// File path: assets/avatars/09-robot.webp
+  AssetGenImage get a09Robot =>
+      const AssetGenImage('assets/avatars/09-robot.webp');
+
+  /// File path: assets/avatars/10-astronaut.webp
+  AssetGenImage get a10Astronaut =>
+      const AssetGenImage('assets/avatars/10-astronaut.webp');
+
+  /// File path: assets/avatars/11-ninja.webp
+  AssetGenImage get a11Ninja =>
+      const AssetGenImage('assets/avatars/11-ninja.webp');
+
+  /// File path: assets/avatars/12-alien.webp
+  AssetGenImage get a12Alien =>
+      const AssetGenImage('assets/avatars/12-alien.webp');
+
+  /// File path: assets/avatars/13-tarkk.webp
+  AssetGenImage get a13Tarkk =>
+      const AssetGenImage('assets/avatars/13-tarkk.webp');
+
+  /// File path: assets/avatars/14-helmet-rider.webp
+  AssetGenImage get a14HelmetRider =>
+      const AssetGenImage('assets/avatars/14-helmet-rider.webp');
+
+  /// File path: assets/avatars/15-hoodie.webp
+  AssetGenImage get a15Hoodie =>
+      const AssetGenImage('assets/avatars/15-hoodie.webp');
+
+  /// File path: assets/avatars/16-climber.webp
+  AssetGenImage get a16Climber =>
+      const AssetGenImage('assets/avatars/16-climber.webp');
+
+  /// File path: assets/avatars/17-pilot.webp
+  AssetGenImage get a17Pilot =>
+      const AssetGenImage('assets/avatars/17-pilot.webp');
+
+  /// File path: assets/avatars/18-diver.webp
+  AssetGenImage get a18Diver =>
+      const AssetGenImage('assets/avatars/18-diver.webp');
+
+  /// File path: assets/avatars/19-gamer.webp
+  AssetGenImage get a19Gamer =>
+      const AssetGenImage('assets/avatars/19-gamer.webp');
+
+  /// List of all assets
+  List<AssetGenImage> get values => [
+    a01Man,
+    a02Woman,
+    a03Rider,
+    a04WomanRider,
+    a05Fox,
+    a06Cat,
+    a07Bear,
+    a08Owl,
+    a09Robot,
+    a10Astronaut,
+    a11Ninja,
+    a12Alien,
+    a13Tarkk,
+    a14HelmetRider,
+    a15Hoodie,
+    a16Climber,
+    a17Pilot,
+    a18Diver,
+    a19Gamer,
+  ];
+}
+
 class $AssetsIconGen {
   const $AssetsIconGen();
 
@@ -127,6 +226,7 @@ class $AssetsSfxGen {
 }
 
 abstract final class Assets {
+  static const $AssetsAvatarsGen avatars = $AssetsAvatarsGen();
   static const $AssetsIconGen icon = $AssetsIconGen();
   static const $AssetsImageGen image = $AssetsImageGen();
   static const $AssetsLegalGen legal = $AssetsLegalGen();

@@ -26,6 +26,14 @@ abstract interface class SettingsRepository {
   /// show the new name without polling or restarting.
   Stream<String> get myNameChanges;
 
+  /// The picked avatar's id (see AvatarCatalog), or null when none has been
+  /// picked yet.
+  Future<int?> getMyAvatarId();
+  Future<void> setMyAvatarId(int value);
+
+  /// Emits after every successful [setMyAvatarId], like [myNameChanges].
+  Stream<int> get myAvatarIdChanges;
+
   Future<double> getVoxMargin();
   Future<void> setVoxMargin(double value);
 

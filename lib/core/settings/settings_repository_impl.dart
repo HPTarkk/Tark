@@ -8,6 +8,8 @@ import '../config/quick_access_config.dart';
 import '../diagnostics/log_budget.dart';
 import '../diagnostics/log_detail.dart';
 import '../diagnostics/screen_log.dart';
+import '../profile/avatar_catalog.dart';
+import '../profile/local_profile.dart';
 import 'app_settings.dart';
 import 'audio_profile.dart';
 import 'noise_suppression_engine.dart';
@@ -31,6 +33,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
   // composition's direct construction) — a write through any instance must
   // reach subscribers of every other one.
   static final _myNameController = StreamController<String>.broadcast();
+  static final _myAvatarIdController = StreamController<int>.broadcast();
 
   @override
   Future<AppSettings> loadAll() async => SettingsModel.fromPrefs(_prefs);
@@ -53,6 +56,26 @@ class SettingsRepositoryImpl implements SettingsRepository {
 
   @override
   Stream<String> get myNameChanges => _myNameController.stream;
+
+  @override
+  Future<int?> getMyAvatarId() async {
+    final raw = _prefs.getInt(SettingsKeys.avatarId);
+    final id = AvatarCatalog.isValidId(raw) ? raw : null;
+    LocalProfile.avatarId = id;
+    return id;
+  }
+
+  @override
+  Future<void> setMyAvatarId(int value) async {
+    if (!AvatarCatalog.isValidId(value)) return;
+    ScreenLog.setting(SettingsKeys.avatarId, value);
+    await _prefs.setInt(SettingsKeys.avatarId, value);
+    LocalProfile.avatarId = value;
+    _myAvatarIdController.add(value);
+  }
+
+  @override
+  Stream<int> get myAvatarIdChanges => _myAvatarIdController.stream;
 
   @override
   Future<double> getVoxMargin() async => SettingsModel.readVoxMargin(_prefs);

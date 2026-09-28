@@ -201,6 +201,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage> {
       buildWhen: (p, c) =>
           p.localId != c.localId ||
           p.myName != c.myName ||
+          p.myAvatarId != c.myAvatarId ||
           p.isReady != c.isReady ||
           p.myRole != c.myRole ||
           p.connectionHealth.isLive != c.connectionHealth.isLive,
@@ -238,6 +239,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage> {
                     : state.myName,
                 name: state.myName,
                 size: 52,
+                avatarId: state.myAvatarId,
               ),
               const SizedBox(width: 14),
               Expanded(

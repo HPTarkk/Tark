@@ -27,7 +27,7 @@ class TuneStep extends StatelessWidget {
       count: 1,
       child: HudPanel(
         header: s.onboarding_tune_title,
-        status: '01·05',
+        status: '01·06',
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,

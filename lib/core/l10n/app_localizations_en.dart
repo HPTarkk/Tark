@@ -1074,6 +1074,22 @@ class AppLocalizationsEn extends AppLocalizations {
       'This is how everyone in the channel sees you.';
 
   @override
+  String get onboarding_avatar_title => 'Pick your face';
+
+  @override
+  String get onboarding_avatar_help =>
+      'Everyone in the channel sees it next to your name. You can change it any time on your profile.';
+
+  @override
+  String get profile_title => 'PROFILE';
+
+  @override
+  String get profile_name_label => 'RADIO NAME';
+
+  @override
+  String get profile_avatar_label => 'YOUR FACE';
+
+  @override
   String get onboarding_mode_title => 'How will you connect?';
 
   @override

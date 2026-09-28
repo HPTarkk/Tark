@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tark/core/identity/channel_id.dart';
 import 'package:tark/core/identity/channel_membership.dart';
 import 'package:tark/core/identity/session_epoch.dart';
+import 'package:tark/core/profile/local_profile.dart';
 import 'package:tark/feature/transfer/data/codec/waki_packet_codec.dart';
 import 'package:tark/feature/transfer/domain/entity/control_packet.dart';
 import 'package:tark/feature/transfer/domain/entity/session_role.dart';
@@ -425,17 +426,98 @@ void main() {
       });
     });
 
+    group('avatar', () {
+      tearDown(() => LocalProfile.avatarId = null);
+
+      test('the picked avatar round-trips', () {
+        LocalProfile.avatarId = 7;
+        final packet = codec.encodePresence(
+          'Pedram',
+          false,
+          role: SessionRole.peer,
+        );
+        final decoded = codec.decode(packet, '1.2.3.4')! as PresencePacket;
+        expect(decoded.avatarId, 7);
+      });
+
+      test('an id this build has no picture for still arrives', () {
+        // A newer build's avatar: passed on so the roster can draw the
+        // "newer avatar" face rather than nothing.
+        LocalProfile.avatarId = 200;
+        final packet = codec.encodePresence(
+          'Pedram',
+          false,
+          role: SessionRole.peer,
+        );
+        final decoded = codec.decode(packet, '1.2.3.4')! as PresencePacket;
+        expect(decoded.avatarId, 200);
+      });
+
+      test('none picked is written as zero and reads back as null', () {
+        final packet = codec.encodePresence(
+          'Pedram',
+          false,
+          role: SessionRole.peer,
+        );
+        expect(packet.last, 0);
+        final decoded = codec.decode(packet, '1.2.3.4')! as PresencePacket;
+        expect(decoded.avatarId, isNull);
+      });
+
+      test('a packet from before avatars reads as no avatar, and the rest '
+          'is unaffected', () {
+        LocalProfile.avatarId = 3;
+        final full = codec.encodePresence(
+          'Pedram',
+          false,
+          role: SessionRole.peer,
+          isLeaving: true,
+        );
+        // Exactly what a build before avatars sends: it ends at isLeaving.
+        final old = Uint8List.sublistView(full, 0, full.length - 1);
+        final decoded = codec.decode(old, '1.2.3.4')! as PresencePacket;
+        expect(decoded.avatarId, isNull);
+        expect(decoded.isLeaving, isTrue);
+        expect(decoded.role, SessionRole.peer);
+      });
+
+      test('the avatar sits after every older field, so older builds stop '
+          'reading before it', () {
+        LocalProfile.avatarId = 3;
+        final withAvatar = codec.encodePresence(
+          'Pedram',
+          true,
+          role: SessionRole.host,
+          heardIds: const ['abc123abc123'],
+        );
+        LocalProfile.avatarId = null;
+        final without = codec.encodePresence(
+          'Pedram',
+          true,
+          role: SessionRole.host,
+          heardIds: const ['abc123abc123'],
+        );
+        // Identical up to the last byte: nothing an older decoder reads
+        // moved.
+        expect(
+          withAvatar.sublist(0, withAvatar.length - 1),
+          without.sublist(0, without.length - 1),
+        );
+        expect(withAvatar.last, 3);
+      });
+    });
+
     test('a role this build has never heard of reads as unknown', () {
       final packet = codec.encodePresence(
         'Future',
         false,
         role: SessionRole.host,
       );
-      // Role is 4 bytes from the end now: after it come the heard-list
-      // no-opinion sentinel, the #28 capability byte, and the leaving byte
-      // (heardIds is null here) — a later build may put anything in the
-      // role byte itself.
-      packet[packet.length - 4] = 99;
+      // Role is 5 bytes from the end now: after it come the heard-list
+      // no-opinion sentinel, the #28 capability byte, the leaving byte and
+      // the avatar byte (heardIds is null here) — a later build may put
+      // anything in the role byte itself.
+      packet[packet.length - 5] = 99;
 
       final decoded = codec.decode(packet, '192.168.43.7');
       expect(decoded, isNotNull, reason: 'the packet is still perfectly good');
@@ -701,7 +783,7 @@ void main() {
       final withoutRole = Uint8List.sublistView(
         withRole,
         0,
-        withRole.length - 4,
+        withRole.length - 5,
       );
 
       final packet = codec.decode(withoutRole, '192.168.43.7');
@@ -740,12 +822,13 @@ void main() {
 
     test('a truncated v3 packet is rejected at every prefix length', () {
       final full = codec.encodePresence('Pedram', true, role: SessionRole.host);
-      // Stops 4 bytes short (role, the heard-list sentinel, the #28
-      // capability byte, and the leaving byte, in that order — heardIds is
-      // null here): every one of those prefixes is not truncation but a
-      // legitimate older format that decodes on purpose (covered above and
-      // in the capability and leaving-flag groups).
-      for (var length = 1; length < full.length - 4; length++) {
+      // Stops 5 bytes short (role, the heard-list sentinel, the #28
+      // capability byte, the leaving byte and the avatar byte, in that
+      // order — heardIds is null here): every one of those prefixes is not
+      // truncation but a legitimate older format that decodes on purpose
+      // (covered above and in the capability, leaving-flag and avatar
+      // groups).
+      for (var length = 1; length < full.length - 5; length++) {
         expect(
           codec.decode(Uint8List.sublistView(full, 0, length), 'x'),
           isNull,
@@ -882,8 +965,8 @@ void main() {
       final live = inChannel(channel);
       addTearDown(live.release);
       final full = live.encodePresence('P', true, role: SessionRole.host);
-      // See the v3 version of this test for why the bound is 4, not 1.
-      for (var length = 1; length < full.length - 4; length++) {
+      // See the v3 version of this test for why the bound is 5, not 1.
+      for (var length = 1; length < full.length - 5; length++) {
         expect(
           live.decode(Uint8List.sublistView(full, 0, length), 'x'),
           isNull,

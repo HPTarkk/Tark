@@ -34,6 +34,7 @@ class SettingsCubit extends Cubit<SettingsState> {
   final WalkieTalkieCubit? _liveSession;
   final SettingsRepository _repository;
   StreamSubscription<WalkieTalkieState>? _liveSub;
+  StreamSubscription<int>? _avatarSub;
 
   /// The borrowed live-session cubit (if any), so the Settings page can
   /// forward it as `extra` when pushing sub-pages (Advanced) that must also
@@ -50,6 +51,11 @@ class SettingsCubit extends Cubit<SettingsState> {
   }
 
   Future<void> _init() async {
+    // The Profile page is its own route with its own cubit; this keeps the
+    // Settings card under it in step when the person picks a new avatar.
+    _avatarSub = _repository.myAvatarIdChanges.listen((id) {
+      if (!isClosed) emit(state.copyWith(myAvatarId: id));
+    });
     final live = _liveSession;
     if (live != null) {
       // Live values are available synchronously — surface them before the
@@ -81,6 +87,7 @@ class SettingsCubit extends Cubit<SettingsState> {
     // field) — this runs while the page-open transition is animating, so
     // fewer emits means fewer whole-page rebuild passes mid-transition.
     final all = await _repository.loadAll();
+    final myAvatarId = await _repository.getMyAvatarId();
     if (isClosed) return;
     // Resolved, not raw: with the riding preset on, the controls have to show
     // what is actually running. A slider parked at the user's stored value
@@ -96,6 +103,7 @@ class SettingsCubit extends Cubit<SettingsState> {
     emit(
       live != null
           ? state.copyWith(
+              myAvatarId: myAvatarId,
               targetBufferMs: profile.targetBufferMs,
               autoReconnectEnabled: all.autoReconnectEnabled,
               skipSplash: all.skipSplash,
@@ -106,6 +114,7 @@ class SettingsCubit extends Cubit<SettingsState> {
             )
           : state.copyWith(
               myName: all.myName,
+              myAvatarId: myAvatarId,
               voxMargin: profile.voxMargin,
               noiseSuppression: profile.noiseSuppression,
               noiseSuppressionEngine: profile.noiseSuppressionEngine,
@@ -130,6 +139,18 @@ class SettingsCubit extends Cubit<SettingsState> {
     } else {
       emit(state.copyWith(myName: trimmed));
       await _repository.setMyName(trimmed);
+    }
+  }
+
+  /// Saves the picked avatar; with a live channel open, through it, so the
+  /// people in the channel see the change straight away.
+  Future<void> setMyAvatarId(int id) async {
+    emit(state.copyWith(myAvatarId: id));
+    final live = _liveSession;
+    if (live != null) {
+      await live.setMyAvatarId(id);
+    } else {
+      await _repository.setMyAvatarId(id);
     }
   }
 
@@ -300,6 +321,7 @@ class SettingsCubit extends Cubit<SettingsState> {
     // _liveSession is a borrowed reference — WalkieTalkiePage's own
     // BlocProvider owns starting/closing it, never this cubit.
     unawaited(_liveSub?.cancel());
+    unawaited(_avatarSub?.cancel());
     return super.close();
   }
 }
@@ -307,6 +329,9 @@ class SettingsCubit extends Cubit<SettingsState> {
 class SettingsState extends Equatable {
   final bool isLive;
   final String myName;
+
+  /// The picked avatar; null when none has been picked.
+  final int? myAvatarId;
   final double voxMargin;
   final double noiseSuppression;
   final NoiseSuppressionEngine noiseSuppressionEngine;
@@ -327,6 +352,7 @@ class SettingsState extends Equatable {
   const SettingsState({
     required this.isLive,
     required this.myName,
+    this.myAvatarId,
     required this.voxMargin,
     required this.noiseSuppression,
     required this.noiseSuppressionEngine,
@@ -362,6 +388,7 @@ class SettingsState extends Equatable {
 
   SettingsState copyWith({
     String? myName,
+    int? myAvatarId,
     double? voxMargin,
     double? noiseSuppression,
     NoiseSuppressionEngine? noiseSuppressionEngine,
@@ -377,6 +404,7 @@ class SettingsState extends Equatable {
   }) => SettingsState(
     isLive: isLive,
     myName: myName ?? this.myName,
+    myAvatarId: myAvatarId ?? this.myAvatarId,
     voxMargin: voxMargin ?? this.voxMargin,
     noiseSuppression: noiseSuppression ?? this.noiseSuppression,
     noiseSuppressionEngine:
@@ -397,6 +425,7 @@ class SettingsState extends Equatable {
   List<Object?> get props => [
     isLive,
     myName,
+    myAvatarId,
     voxMargin,
     noiseSuppression,
     noiseSuppressionEngine,

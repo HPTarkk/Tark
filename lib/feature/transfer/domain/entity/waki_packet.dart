@@ -92,6 +92,12 @@ final class PresencePacket extends WakiPacket {
   /// correct — that build has no way to send this at all.
   final bool isLeaving;
 
+  /// The sender's picked avatar (see `AvatarCatalog`), or null when it has
+  /// none or is on a build that predates avatars — the trailing byte is then
+  /// absent, or zero. An id this build has no picture for is still passed on
+  /// as is, so the roster can draw the "newer avatar" face for it.
+  final int? avatarId;
+
   const PresencePacket({
     required super.senderId,
     required super.senderName,
@@ -102,6 +108,7 @@ final class PresencePacket extends WakiPacket {
     this.heardIds,
     this.capabilityBitmask = 0,
     this.isLeaving = false,
+    this.avatarId,
   });
 
   @override
@@ -112,6 +119,7 @@ final class PresencePacket extends WakiPacket {
     heardIds,
     capabilityBitmask,
     isLeaving,
+    avatarId,
   ];
 }
 

@@ -235,8 +235,28 @@ class _RoomMemberPresenceTile extends StatelessWidget {
         }
         return false;
       },
+      // The avatar rides the same proof-matched sender id as the talking
+      // flag, so it is only ever shown for this exact member. A selector of
+      // its own, so a talk onset does not re-resolve it and vice versa.
       builder: (context, isTalking) =>
-          _RoomMemberTile(member: member, phase: phase, isTalking: isTalking),
+          BlocSelector<WalkieTalkieCubit, WalkieTalkieState, int?>(
+            selector: (state) {
+              if (phase != RoomConnectionUiPhase.connected ||
+                  senderId == null) {
+                return null;
+              }
+              for (final user in state.activeUsers) {
+                if (user.id == senderId) return user.avatarId;
+              }
+              return null;
+            },
+            builder: (context, avatarId) => _RoomMemberTile(
+              member: member,
+              phase: phase,
+              isTalking: isTalking,
+              avatarId: avatarId,
+            ),
+          ),
     );
   }
 }
@@ -246,11 +266,13 @@ class _RoomMemberTile extends StatelessWidget {
     required this.member,
     required this.phase,
     required this.isTalking,
+    this.avatarId,
   });
 
   final RoomMember member;
   final RoomConnectionUiPhase phase;
   final bool isTalking;
+  final int? avatarId;
 
   @override
   Widget build(BuildContext context) {
@@ -274,7 +296,11 @@ class _RoomMemberTile extends StatelessWidget {
           children: [
             _TalkingFace(
               talking: isTalking,
-              child: MemberAvatar(member: member, size: _kFaceSize),
+              child: MemberAvatar(
+                member: member,
+                size: _kFaceSize,
+                avatarId: avatarId,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -420,6 +446,7 @@ class UserTile extends StatelessWidget {
               seed: user.id,
               name: user.name,
               size: _kFaceSize,
+              avatarId: user.avatarId,
             ),
           ),
           const SizedBox(width: 12),

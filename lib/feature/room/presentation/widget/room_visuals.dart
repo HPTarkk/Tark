@@ -4,6 +4,7 @@ import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
+import '../../../../core/widget/app_avatar.dart';
 import '../../domain/entity/room.dart';
 import '../room_member_display_name.dart';
 
@@ -19,12 +20,18 @@ class MemberAvatar extends StatelessWidget {
     required this.member,
     this.size = 44,
     this.ring = false,
+    this.avatarId,
     super.key,
   });
 
   final RoomMember member;
   final double size;
   final bool ring;
+
+  /// The avatar this member announced in the live channel, when the Room is
+  /// connected and their presence has been matched to them — see
+  /// [TintedAvatar.avatarId].
+  final int? avatarId;
 
   static Color tintFor(RoomMemberId id) => TintedAvatar.tintFor(id.value);
 
@@ -40,6 +47,7 @@ class MemberAvatar extends StatelessWidget {
       name: name,
       size: size,
       ring: ring,
+      avatarId: avatarId,
     );
   }
 }
@@ -47,12 +55,16 @@ class MemberAvatar extends StatelessWidget {
 /// The face [MemberAvatar] draws, for someone known only by a [seed] (a
 /// stable id) and a [name]: the live channel's peers outside a saved Room
 /// look the same as the Room's members do.
+///
+/// With an [avatarId] the tinted initial gives way to that avatar's picture
+/// (keeping the ring), so a picked avatar shows the same everywhere.
 class TintedAvatar extends StatelessWidget {
   const TintedAvatar({
     required this.seed,
     required this.name,
     this.size = 44,
     this.ring = false,
+    this.avatarId,
     super.key,
   });
 
@@ -60,6 +72,10 @@ class TintedAvatar extends StatelessWidget {
   final String name;
   final double size;
   final bool ring;
+
+  /// The person's picked avatar, or null (never picked, not known yet, or
+  /// a phone too old to send one) for the tinted initial.
+  final int? avatarId;
 
   static Color tintFor(String seed) {
     var hash = 0;
@@ -75,6 +91,27 @@ class TintedAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final initial = name.trim().isEmpty ? '?' : name.trim().characters.first;
     final tint = tintFor(seed);
+    final id = avatarId;
+    if (AvatarPicture.shows(id)) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: ring
+              ? Border.all(color: AppColors.background, width: size * 0.047)
+              : null,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.18),
+              blurRadius: size * 0.25,
+              offset: Offset(0, size * 0.06),
+            ),
+          ],
+        ),
+        child: AvatarPicture(avatarId: id!, size: size),
+      );
+    }
     return Container(
       width: size,
       height: size,

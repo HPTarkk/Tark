@@ -17,6 +17,7 @@ import '../../../preflight/domain/service/pinned_plan.dart';
 import '../../../preflight/presentation/page/preflight_page.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../manager/onboarding_cubit.dart';
+import '../widget/avatar_step.dart';
 import '../widget/callsign_step.dart';
 import '../widget/horizon_scene.dart';
 import '../widget/hud.dart';
@@ -28,7 +29,7 @@ import '../widget/tune_step.dart';
 import '../widget/welcome_step.dart';
 import '../widget/wind_background.dart';
 
-/// First-run onboarding: one continuous scene, five beats.
+/// First-run onboarding: one continuous scene, six beats.
 ///
 /// Nothing pages or swipes — a travelling [HorizonScene] (parallax ridges, a
 /// day/night sky, streaming ground) and a field of [WindBackground] streaks
@@ -39,8 +40,8 @@ import '../widget/wind_background.dart';
 /// itself as you travel toward being on air:
 ///
 ///   tune in (language + theme, applied live — flips the sky day↔night) →
-///   welcome (what this is) → callsign (who you are) → transport (how you
-///   connect) → launch (key up on air).
+///   welcome (what this is) → callsign (who you are) → avatar (your face in
+///   the channel) → transport (how you connect) → launch (key up on air).
 ///
 /// Progress is gamified by a filling signal-strength meter in the header. The
 /// final beat drives straight into the product: JOIN CHANNEL lands the user in
@@ -520,6 +521,7 @@ class _OnboardingPageState extends State<OnboardingPage>
       reveal: reveal,
       onSubmit: () => context.read<OnboardingCubit>().next(),
     ),
+    OnboardingCubit.avatarStep => AvatarStep(reveal: reveal),
     OnboardingCubit.transportStep => TransportStep(reveal: reveal),
     _ => ReadyStep(reveal: reveal, shimmer: _shimmer),
   };

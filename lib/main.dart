@@ -19,6 +19,7 @@ import 'core/entitlement/subscription_service.dart';
 import 'core/home_widget/home_widget_service.dart';
 import 'core/home_widget/home_widget_snapshot.dart';
 import 'core/locale/locale_service.dart';
+import 'core/profile/profile_defaults.dart';
 import 'core/router/routes.dart';
 import 'core/settings/settings_keys.dart';
 import 'core/settings/settings_repository.dart';
@@ -114,6 +115,13 @@ void main() async {
   // Same reasoning: AppRouter.router is memoized on first read (inside
   // MyApp's build below), so this must also complete before runApp().
   final skipSplash = await GetIt.instance<SettingsRepository>().getSkipSplash();
+
+  // Before the first frame, so Landing never flashes an initial and then
+  // swaps it for the default face.
+  await ProfileDefaults.ensureAvatar(
+    GetIt.instance<SettingsRepository>(),
+    setupDone: prefs.getBool(OnboardingPrefs.completed) ?? false,
+  );
 
   final homeWidget = GetIt.instance<HomeWidgetService>();
   await homeWidget.initialize();

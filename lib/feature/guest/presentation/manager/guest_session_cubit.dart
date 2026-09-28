@@ -52,6 +52,7 @@ class GuestSessionCubit extends Cubit<GuestSessionState> {
             state.copyWith(
               hostName: packet.senderName,
               hostTalking: packet.isTalking,
+              hostAvatarId: packet.avatarId,
             ),
           );
         case AudioPacket():
@@ -299,6 +300,9 @@ class GuestSessionState extends Equatable {
   final String myName;
   final String hostName;
   final bool hostTalking;
+
+  /// The host's picked avatar, from its presence packets; null when none.
+  final int? hostAvatarId;
   final bool isTalking;
   final bool muted;
   final bool linkUp;
@@ -314,6 +318,7 @@ class GuestSessionState extends Equatable {
     required this.myName,
     required this.hostName,
     required this.hostTalking,
+    this.hostAvatarId,
     required this.isTalking,
     required this.muted,
     required this.linkUp,
@@ -346,6 +351,7 @@ class GuestSessionState extends Equatable {
     String? myName,
     String? hostName,
     bool? hostTalking,
+    int? hostAvatarId,
     bool? isTalking,
     bool? muted,
     bool? linkUp,
@@ -360,6 +366,7 @@ class GuestSessionState extends Equatable {
     myName: myName ?? this.myName,
     hostName: hostName ?? this.hostName,
     hostTalking: hostTalking ?? this.hostTalking,
+    hostAvatarId: hostAvatarId ?? this.hostAvatarId,
     isTalking: isTalking ?? this.isTalking,
     muted: muted ?? this.muted,
     linkUp: linkUp ?? this.linkUp,
@@ -369,7 +376,8 @@ class GuestSessionState extends Equatable {
     hasPermission: hasPermission ?? this.hasPermission,
     voxMargin: voxMargin ?? this.voxMargin,
     noiseSuppression: noiseSuppression ?? this.noiseSuppression,
-    noiseSuppressionEngine: noiseSuppressionEngine ?? this.noiseSuppressionEngine,
+    noiseSuppressionEngine:
+        noiseSuppressionEngine ?? this.noiseSuppressionEngine,
   );
 
   bool get isHostOnline => hostName.isNotEmpty;
@@ -379,6 +387,7 @@ class GuestSessionState extends Equatable {
     myName,
     hostName,
     hostTalking,
+    hostAvatarId,
     isTalking,
     muted,
     linkUp,

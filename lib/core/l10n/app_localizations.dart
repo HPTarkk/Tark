@@ -2012,6 +2012,36 @@ abstract class AppLocalizations {
   /// **'بچه‌های کانال تو رو با این اسم می‌بینن.'**
   String get onboarding_callsign_help;
 
+  /// No description provided for @onboarding_avatar_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'یه قیافه انتخاب کن'**
+  String get onboarding_avatar_title;
+
+  /// No description provided for @onboarding_avatar_help.
+  ///
+  /// In fa, this message translates to:
+  /// **'بچه‌های کانال این رو کنار اسمت می‌بینن. هر وقت خواستی از پروفایلت عوضش کن.'**
+  String get onboarding_avatar_help;
+
+  /// No description provided for @profile_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'پروفایل'**
+  String get profile_title;
+
+  /// No description provided for @profile_name_label.
+  ///
+  /// In fa, this message translates to:
+  /// **'اسم بیسیم'**
+  String get profile_name_label;
+
+  /// No description provided for @profile_avatar_label.
+  ///
+  /// In fa, this message translates to:
+  /// **'قیافه‌ات'**
+  String get profile_avatar_label;
+
   /// No description provided for @onboarding_mode_title.
   ///
   /// In fa, this message translates to:

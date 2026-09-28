@@ -521,7 +521,9 @@ class _HostMember extends StatelessWidget {
     final s = context.getString;
     return BlocBuilder<GuestSessionCubit, GuestSessionState>(
       buildWhen: (p, c) =>
-          p.hostName != c.hostName || p.hostTalking != c.hostTalking,
+          p.hostName != c.hostName ||
+          p.hostTalking != c.hostTalking ||
+          p.hostAvatarId != c.hostAvatarId,
       builder: (context, state) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -572,6 +574,7 @@ class _HostMember extends StatelessWidget {
                       children: [
                         AppAvatar(
                           name: state.hostName,
+                          avatarId: state.hostAvatarId,
                           isActive: state.hostTalking,
                           size: 40,
                         ),

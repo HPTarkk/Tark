@@ -53,9 +53,14 @@ class ChannelRoster {
       // Only presence announces a role; audio packets say nothing about it.
       // Without this, every frame of someone talking would wipe the role they
       // announced two seconds ago and their badge would flicker.
-      updated[idx] = user.role == SessionRole.unknown
-          ? user.copyWith(role: updated[idx].role)
-          : user;
+      //
+      // The avatar is kept the same way, for the same reason: only presence
+      // carries it.
+      final previous = updated[idx];
+      updated[idx] = user.copyWith(
+        role: user.role == SessionRole.unknown ? previous.role : null,
+        avatarId: user.avatarId ?? previous.avatarId,
+      );
       return RosterUpdate(
         updated,
         startedTalking ? RosterChange.peerStartedTalking : RosterChange.none,
@@ -81,7 +86,7 @@ class ChannelRoster {
   }
 
   /// Whether [a] and [b] would look the same on screen: the same people, in
-  /// the same order, with the same names, roles and talking flags. Ignores
+  /// the same order, with the same names, avatars, roles and talking flags. Ignores
   /// `lastSeen`, which every packet refreshes and nothing displays.
   static bool sameForDisplay(List<ChannelUser> a, List<ChannelUser> b) {
     if (identical(a, b)) return true;
@@ -92,7 +97,8 @@ class ChannelRoster {
       if (x.id != y.id ||
           x.name != y.name ||
           x.isTalking != y.isTalking ||
-          x.role != y.role) {
+          x.role != y.role ||
+          x.avatarId != y.avatarId) {
         return false;
       }
     }
