@@ -76,6 +76,7 @@ Future<void> showUsageTipsSheet(BuildContext context, {int initialPage = 0}) {
     routeSettings: const RouteSettings(name: 'UsageTipsSheet'),
     backgroundColor: Colors.transparent,
     isScrollControlled: true,
+    barrierColor: Colors.black.withValues(alpha: 0.62),
     builder: (context) => _UsageTipsSheet(tips: tips, initialPage: initialPage),
   );
 }

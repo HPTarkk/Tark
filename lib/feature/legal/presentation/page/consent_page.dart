@@ -191,7 +191,7 @@ class _DocumentCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    const Icon(Icons.arrow_forward, size: 15),
+                    const Icon(Icons.arrow_forward_rounded, size: 15),
                   ],
                 ),
               ),

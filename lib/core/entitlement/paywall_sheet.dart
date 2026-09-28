@@ -24,6 +24,7 @@ Future<void> showPaywallSheet(BuildContext context, PremiumFeature feature) {
     routeSettings: const RouteSettings(name: 'PaywallSheet'),
     backgroundColor: Colors.transparent,
     isScrollControlled: true,
+    barrierColor: Colors.black.withValues(alpha: 0.62),
     builder: (_) => _PaywallSheet(feature: feature),
   );
 }
@@ -52,7 +53,9 @@ class _PaywallSheetState extends State<_PaywallSheet> {
   }
 
   Future<void> _loadOffers() async {
-    final offers = _gate.canPurchase ? await _billing.offers() : <BillingPlanOffer>[];
+    final offers = _gate.canPurchase
+        ? await _billing.offers()
+        : <BillingPlanOffer>[];
     if (!mounted) return;
     setState(() {
       _offers = offers;
@@ -154,8 +157,11 @@ class _PaywallSheetState extends State<_PaywallSheet> {
           const SizedBox(height: 20),
           Row(
             children: [
-              Icon(Icons.workspace_premium_rounded,
-                  color: AppColors.amber, size: 22),
+              Icon(
+                Icons.workspace_premium_rounded,
+                color: AppColors.amber,
+                size: 22,
+              ),
               const SizedBox(width: 10),
               Text(
                 s.paywall_title,
@@ -219,8 +225,11 @@ class _PaywallSheetState extends State<_PaywallSheet> {
           const SizedBox(height: 16),
           Row(
             children: [
-              Icon(Icons.bluetooth_rounded,
-                  color: AppColors.textSecondary, size: 14),
+              Icon(
+                Icons.bluetooth_rounded,
+                color: AppColors.textSecondary,
+                size: 14,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -312,7 +321,9 @@ class _PlanRow extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                color: enabled ? AppColors.textPrimary : AppColors.textSecondary,
+                color: enabled
+                    ? AppColors.textPrimary
+                    : AppColors.textSecondary,
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1.2,

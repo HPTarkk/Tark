@@ -145,7 +145,7 @@ void main() {
     started.complete(true);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
-    expect(find.text('Looking for Sara...'), findsOneWidget);
+    expect(find.text('Looking for Sara…'), findsOneWidget);
 
     cubit.push(
       joining().copyWith(connectionState: BluetoothConnectionState.connected),
