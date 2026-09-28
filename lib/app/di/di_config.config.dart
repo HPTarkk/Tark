@@ -94,6 +94,8 @@ import 'package:tark/feature/transfer/presentation/manager/guest_link_cubit.dart
     as _i1007;
 import 'package:tark/feature/transfer/presentation/manager/wifi_hotspot_cubit.dart'
     as _i1045;
+import 'package:tark/feature/update/data/store_launcher.dart' as _i142;
+import 'package:tark/feature/update/data/update_checker.dart' as _i798;
 import 'package:tark/feature/walkie/presentation/manager/walkie_talkie_cubit.dart'
     as _i497;
 
@@ -132,6 +134,7 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i523.ChannelMembership>(() => _i523.ChannelMembership());
     gh.lazySingleton<_i990.DeviceIdentity>(() => _i990.DeviceIdentity());
     gh.lazySingleton<_i835.SessionEpoch>(() => _i835.SessionEpoch());
+    gh.lazySingleton<_i142.StoreLauncher>(() => _i142.StoreLauncher());
     gh.lazySingleton<_i970.WidgetControlChannel>(
       () => _i970.WidgetControlChannelImpl(),
       dispose: (i) => i.dispose(),
@@ -183,6 +186,12 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i945.GuestLinkController>(
       () => transferModule.guestLinkController(
         gh<_i482.WebRtcTransferRepository>(),
+      ),
+    );
+    gh.lazySingleton<_i798.UpdateChecker>(
+      () => _i798.UpdateChecker(
+        gh<_i775.ApiClient>(),
+        gh<_i460.SharedPreferences>(),
       ),
     );
     gh.lazySingleton<_i1043.WifiTransferRepository>(

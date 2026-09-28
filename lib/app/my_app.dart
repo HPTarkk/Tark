@@ -16,6 +16,7 @@ import '../core/theme/app_theme.dart';
 import '../core/theme/theme_service.dart';
 import '../core/widget/theme_reveal_transition.dart';
 import '../feature/transfer/api/transfer_api.dart';
+import '../feature/update/api/update_api.dart';
 import 'router/app_router.dart';
 import 'router/quick_access.dart';
 
@@ -103,11 +104,19 @@ class _MyAppState extends State<MyApp> {
       // The RepaintBoundary is what AppRevealController snapshots for the
       // circular-reveal transition (item 10) — kept in addition to, not
       // instead of, the KeyedSubtree re-key above.
+      //
+      // UpdateGate sits outside the re-key so a theme switch never throws away
+      // an update prompt that is already on screen.
       builder: (context, child) => RepaintBoundary(
         key: AppRevealController.repaintBoundaryKey,
-        child: KeyedSubtree(
-          key: ValueKey(ThemeService.currentMode),
-          child: TapLog(child: child!),
+        child: UpdateGate(
+          location: () =>
+              AppRouter.router.routerDelegate.currentConfiguration.uri.path,
+          locationChanges: AppRouter.router.routerDelegate,
+          child: KeyedSubtree(
+            key: ValueKey(ThemeService.currentMode),
+            child: TapLog(child: child!),
+          ),
         ),
       ),
       locale: locale,

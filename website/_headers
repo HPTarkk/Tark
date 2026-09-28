@@ -1,0 +1,8 @@
+# Cloudflare Pages response headers.
+#
+# The app checks /update.json at launch. It already adds a cache-busting
+# query, so this is for everything else in between — browsers, proxies, a
+# future caller that forgets the query.
+/update.json
+  Cache-Control: no-cache, no-store, must-revalidate
+  Access-Control-Allow-Origin: *

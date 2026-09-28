@@ -1,6 +1,6 @@
 name: Cleanup merged branches
 
-# Manual-only. Deletes branches that are fully merged into main or release/1.0.0.
+# Manual-only. Deletes branches that are fully merged into main or a release line.
 # Nothing is lost: every commit on a deleted branch still lives in main/release.
 on:
   workflow_dispatch:
@@ -26,13 +26,16 @@ jobs:
           CONFIRM: ${{ github.event.inputs.confirm }}
         run: |
           set -uo pipefail
-          KEEP_RE='^(main|release/1\.0\.0|chore/release-tark-once)$'
+          # Every release line is permanent: the release scripts merge each one
+          # back into main, so "fully merged" would otherwise select them all.
+          KEEP_RE='^(main|release/[0-9]+\.[0-9]+\.0)$'
 
           git fetch --prune origin '+refs/heads/*:refs/remotes/origin/*'
 
           BASES=(origin/main)
-          git show-ref --verify --quiet refs/remotes/origin/release/1.0.0 \
-            && BASES+=(origin/release/1.0.0)
+          while read -r line; do
+            BASES+=("origin/$line")
+          done < <(git branch -r | sed 's|^ *origin/||' | grep -E '^release/[0-9]+\.[0-9]+\.0$')
 
           TO_DELETE=()
           while read -r b; do

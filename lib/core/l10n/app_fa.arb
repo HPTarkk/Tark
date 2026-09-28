@@ -727,5 +727,17 @@
     "reconnect_wifi_needed_body": "برای وصل شدن به {name}، این گوشی به اتصالی وصل می‌شه که گوشی {name} به اشتراک می‌ذاره. برای این کار وای‌فای باید روشن باشه — اینترنت مصرف نمی‌شه.",
     "@reconnect_wifi_needed_body": {"placeholders": {"name": {"type": "String"}}},
     "reconnect_wifi_needed_action": "وای‌فای رو روشن کن",
-    "reconnect_wifi_needed_waiting": "همین که وای‌فای روشن بشه، دوربین خودش باز می‌شه."
+    "reconnect_wifi_needed_waiting": "همین که وای‌فای روشن بشه، دوربین خودش باز می‌شه.",
+    "update_eyebrow": "نسخه‌ی تازه",
+    "update_title": "تَرک {version} اومده",
+    "@update_title": {"placeholders": {"version": {"type": "String"}}},
+    "update_body": "یه نسخه‌ی تازه‌تر توی بازار منتظرته. حدوداً یه دقیقه طول می‌کشه.",
+    "update_required_eyebrow": "به‌روزرسانی لازمه",
+    "update_required_title": "این نسخه دیگه کار نمی‌کنه",
+    "update_required_body": "برای اینکه بتونی ادامه بدی، تَرک رو به نسخه‌ی {version} به‌روز کن. همه‌ی تنظیماتت سر جاش می‌مونه.",
+    "@update_required_body": {"placeholders": {"version": {"type": "String"}}},
+    "update_whats_new": "چی عوض شده",
+    "update_action": "به‌روزرسانی از بازار",
+    "update_later": "الان نه",
+    "update_open_failed": "بازار باز نشد. یه بار دیگه امتحان کن."
 }

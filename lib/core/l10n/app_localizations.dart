@@ -4357,6 +4357,66 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'همین که وای‌فای روشن بشه، دوربین خودش باز می‌شه.'**
   String get reconnect_wifi_needed_waiting;
+
+  /// No description provided for @update_eyebrow.
+  ///
+  /// In fa, this message translates to:
+  /// **'نسخه‌ی تازه'**
+  String get update_eyebrow;
+
+  /// No description provided for @update_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'تَرک {version} اومده'**
+  String update_title(String version);
+
+  /// No description provided for @update_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'یه نسخه‌ی تازه‌تر توی بازار منتظرته. حدوداً یه دقیقه طول می‌کشه.'**
+  String get update_body;
+
+  /// No description provided for @update_required_eyebrow.
+  ///
+  /// In fa, this message translates to:
+  /// **'به‌روزرسانی لازمه'**
+  String get update_required_eyebrow;
+
+  /// No description provided for @update_required_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'این نسخه دیگه کار نمی‌کنه'**
+  String get update_required_title;
+
+  /// No description provided for @update_required_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'برای اینکه بتونی ادامه بدی، تَرک رو به نسخه‌ی {version} به‌روز کن. همه‌ی تنظیماتت سر جاش می‌مونه.'**
+  String update_required_body(String version);
+
+  /// No description provided for @update_whats_new.
+  ///
+  /// In fa, this message translates to:
+  /// **'چی عوض شده'**
+  String get update_whats_new;
+
+  /// No description provided for @update_action.
+  ///
+  /// In fa, this message translates to:
+  /// **'به‌روزرسانی از بازار'**
+  String get update_action;
+
+  /// No description provided for @update_later.
+  ///
+  /// In fa, this message translates to:
+  /// **'الان نه'**
+  String get update_later;
+
+  /// No description provided for @update_open_failed.
+  ///
+  /// In fa, this message translates to:
+  /// **'بازار باز نشد. یه بار دیگه امتحان کن.'**
+  String get update_open_failed;
 }
 
 class _AppLocalizationsDelegate

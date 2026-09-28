@@ -14,6 +14,7 @@ import com.b1101.tark.network.NetworkBindingHandler
 import com.b1101.tark.network.TransportCapabilityHandler
 import com.b1101.tark.security.AppSecureStorageHandler
 import com.b1101.tark.security.RoomIdentitySecureStorageHandler
+import com.b1101.tark.update.StoreHandler
 import com.b1101.tark.widget.WidgetControlBridge
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -146,6 +147,12 @@ class MainActivity : FlutterActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             BazaarBillingHandler.METHOD_CHANNEL,
         ).setMethodCallHandler(bazaarBilling)
+
+        // The update prompt's button: Bazaar's listing, or the web page.
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            StoreHandler.METHOD_CHANNEL,
+        ).setMethodCallHandler(StoreHandler(activityProvider = { this }))
 
         // Outbound only: the home-screen widget's mute/end buttons call INTO
         // Dart through this, from TarkWidgetControlReceiver. Registering the
