@@ -4,6 +4,7 @@ import android.content.Intent
 import com.b1101.tark.audio.AudioSessionHandler
 import com.b1101.tark.audio.MediaControlHandler
 import com.b1101.tark.audio.SystemAudioHandler
+import com.b1101.tark.billing.BazaarBillingHandler
 import com.b1101.tark.bluetooth.BluetoothServerHandler
 import com.b1101.tark.diagnostics.DiagnosticsHandler
 import com.b1101.tark.hotspot.HotspotHandler
@@ -26,6 +27,7 @@ class MainActivity : FlutterActivity() {
     private var keepAliveHandler: KeepAliveHandler? = null
     private var audioSessionHandler: AudioSessionHandler? = null
     private var networkBindingHandler: NetworkBindingHandler? = null
+    private var bazaarBillingHandler: BazaarBillingHandler? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -133,6 +135,18 @@ class MainActivity : FlutterActivity() {
             DiagnosticsHandler(applicationContext, activityProvider = { this }),
         )
 
+        // Cafe Bazaar subscriptions (Poolakey). Talks to the Bazaar app only;
+        // the server decides whether a purchase counts.
+        val bazaarBilling = BazaarBillingHandler(
+            applicationContext,
+            activityProvider = { this },
+        )
+        bazaarBillingHandler = bazaarBilling
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            BazaarBillingHandler.METHOD_CHANNEL,
+        ).setMethodCallHandler(bazaarBilling)
+
         // Outbound only: the home-screen widget's mute/end buttons call INTO
         // Dart through this, from TarkWidgetControlReceiver. Registering the
         // channel here is what makes those buttons work without opening the
@@ -166,6 +180,7 @@ class MainActivity : FlutterActivity() {
         networkBindingHandler?.dispose()
         keepAliveHandler?.stop()
         audioSessionHandler?.dispose()
+        bazaarBillingHandler?.dispose()
         super.onDestroy()
     }
 }
