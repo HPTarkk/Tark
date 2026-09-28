@@ -110,7 +110,7 @@ class _LandingPageState extends State<LandingPage>
                                 LandingIdentityCard(
                                   state: state,
                                   onEdit: () =>
-                                      context.pushNamed(AppRoutes.settingsName),
+                                      context.pushNamed(AppRoutes.profileName),
                                 ),
                                 const SizedBox(height: 12),
                                 _TransportChip(pinned: state.pinnedMode),

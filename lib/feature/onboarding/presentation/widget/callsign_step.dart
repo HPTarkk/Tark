@@ -69,7 +69,7 @@ class _CallsignStepState extends State<CallsignStep> {
         count: 1,
         child: HudPanel(
           header: s.onboarding_callsign_title,
-          status: '03·05',
+          status: '03·06',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,

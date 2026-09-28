@@ -14,7 +14,7 @@ import '../manager/onboarding_cubit.dart';
 import 'hud.dart';
 import 'onboarding_palette.dart';
 
-/// Beat 3 — how peers connect, as a "network link" channel scan: four console
+/// Beat 4 — how peers connect, as a "network link" channel scan: four console
 /// rows, the first of which hands the decision back to the app.
 ///
 /// **AUTOMATIC leads and is pre-selected (P2 §1).** The beat used to open with
@@ -45,7 +45,7 @@ class TransportStep extends StatelessWidget {
           count: 1,
           child: HudPanel(
             header: s.onboarding_mode_title,
-            status: '04·05',
+            status: '05·06',
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,

@@ -52,7 +52,7 @@ class LandingIdentityCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          AppAvatar(name: state.myName, size: 50),
+          AppAvatar(name: state.myName, avatarId: state.myAvatarId, size: 50),
           const SizedBox(width: 14),
           Expanded(
             child: Column(

@@ -40,6 +40,9 @@ abstract final class AppRoutes {
   static const settingsName = 'SettingsPage';
   static const settingsPath = '/settings';
 
+  static const profileName = 'ProfilePage';
+  static const profilePath = '/settings/profile';
+
   static const permissionsName = 'PermissionsPage';
   static const permissionsPath = '/settings/permissions';
 

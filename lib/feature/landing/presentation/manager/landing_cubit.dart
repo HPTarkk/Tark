@@ -20,6 +20,7 @@ class LandingCubit extends Cubit<LandingState> {
   StreamSubscription<TransferMode>? _modeSub;
   StreamSubscription<TransferMode?>? _pinSub;
   StreamSubscription<String>? _nameSub;
+  StreamSubscription<int>? _avatarSub;
 
   LandingCubit(this._modeStore, this._settingsRepository, this._membership)
     : super(LandingState.initial(_modeStore.mode, _modeStore.pinnedMode)) {
@@ -38,6 +39,9 @@ class LandingCubit extends Cubit<LandingState> {
     _nameSub = _settingsRepository.myNameChanges.listen(
       (name) => emit(state.copyWith(myName: name)),
     );
+    _avatarSub = _settingsRepository.myAvatarIdChanges.listen(
+      (id) => emit(state.copyWith(myAvatarId: id)),
+    );
     _init();
   }
 
@@ -50,7 +54,15 @@ class LandingCubit extends Cubit<LandingState> {
             localIp,
           )
         : storedName;
-    emit(state.copyWith(localIp: localIp, myName: myName, isLoading: false));
+    final myAvatarId = await _settingsRepository.getMyAvatarId();
+    emit(
+      state.copyWith(
+        localIp: localIp,
+        myName: myName,
+        myAvatarId: myAvatarId,
+        isLoading: false,
+      ),
+    );
 
     _ipTimer = Timer.periodic(const Duration(seconds: 4), (_) async {
       final newIp = await _getLocalIp();
@@ -99,8 +111,7 @@ class LandingCubit extends Cubit<LandingState> {
 
   /// Marks onboarding complete so subsequent cold starts skip this page and
   /// resume the last channel/mode directly — see QuickAccess.
-  Future<void> markLaunched() =>
-      _settingsRepository.setHasLaunchedBefore(true);
+  Future<void> markLaunched() => _settingsRepository.setHasLaunchedBefore(true);
 
   @override
   Future<void> close() async {
@@ -108,15 +119,20 @@ class LandingCubit extends Cubit<LandingState> {
     await _modeSub?.cancel();
     await _pinSub?.cancel();
     await _nameSub?.cancel();
+    await _avatarSub?.cancel();
     return super.close();
   }
 
-  Future<String> _getLocalIp() async => await LocalNetwork.ipv4Address() ?? '0.0.0.0';
+  Future<String> _getLocalIp() async =>
+      await LocalNetwork.ipv4Address() ?? '0.0.0.0';
 }
 
 class LandingState extends Equatable {
   final String localIp;
   final String myName;
+
+  /// The picked avatar for the identity card; null when none.
+  final int? myAvatarId;
   final bool isLoading;
   final TransferMode transferMode;
 
@@ -132,6 +148,7 @@ class LandingState extends Equatable {
   const LandingState({
     required this.localIp,
     required this.myName,
+    this.myAvatarId,
     required this.isLoading,
     required this.transferMode,
     required this.pinnedMode,
@@ -185,12 +202,14 @@ class LandingState extends Equatable {
   LandingState copyWith({
     String? localIp,
     String? myName,
+    int? myAvatarId,
     bool? isLoading,
     TransferMode? transferMode,
     bool? preferSharedNetwork,
   }) => LandingState(
     localIp: localIp ?? this.localIp,
     myName: myName ?? this.myName,
+    myAvatarId: myAvatarId ?? this.myAvatarId,
     isLoading: isLoading ?? this.isLoading,
     transferMode: transferMode ?? this.transferMode,
     pinnedMode: pinnedMode,
@@ -202,6 +221,7 @@ class LandingState extends Equatable {
   LandingState withPin(TransferMode? pin) => LandingState(
     localIp: localIp,
     myName: myName,
+    myAvatarId: myAvatarId,
     isLoading: isLoading,
     transferMode: transferMode,
     pinnedMode: pin,
@@ -212,6 +232,7 @@ class LandingState extends Equatable {
   List<Object?> get props => [
     localIp,
     myName,
+    myAvatarId,
     isLoading,
     transferMode,
     pinnedMode,

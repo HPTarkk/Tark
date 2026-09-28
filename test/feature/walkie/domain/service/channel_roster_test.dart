@@ -8,18 +8,34 @@ ChannelUser user(
   bool isTalking = false,
   DateTime? lastSeen,
   SessionRole role = SessionRole.unknown,
+  int? avatarId,
 }) => ChannelUser(
   id: id,
   name: 'User $id',
   isTalking: isTalking,
   lastSeen: lastSeen ?? DateTime.now(),
   role: role,
+  avatarId: avatarId,
 );
 
 void main() {
   const roster = ChannelRoster();
 
   group('ChannelRoster.upsert', () {
+    test('audio, which carries no avatar, keeps the announced one', () {
+      final update = roster.upsert([
+        user('a', avatarId: 5),
+      ], user('a', isTalking: true));
+      expect(update.users.single.avatarId, 5);
+    });
+
+    test('a new avatar in presence replaces the old one', () {
+      final update = roster.upsert([
+        user('a', avatarId: 5),
+      ], user('a', avatarId: 9));
+      expect(update.users.single.avatarId, 9);
+    });
+
     test('new user is added and reported as a join', () {
       final update = roster.upsert([], user('a'));
       expect(update.change, RosterChange.peerJoined);
@@ -124,6 +140,16 @@ void main() {
   });
 
   group('ChannelRoster.sameForDisplay', () {
+    test('a changed avatar is a visible change', () {
+      expect(
+        ChannelRoster.sameForDisplay(
+          [user('a', avatarId: 1)],
+          [user('a', avatarId: 2)],
+        ),
+        isFalse,
+      );
+    });
+
     final earlier = DateTime.utc(2026, 9, 25, 12);
     final later = earlier.add(const Duration(seconds: 1));
 

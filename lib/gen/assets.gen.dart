@@ -11,6 +11,70 @@
 
 import 'package:flutter/widgets.dart';
 
+class $AssetsAvatarsGen {
+  const $AssetsAvatarsGen();
+
+  /// File path: assets/avatars/01-man.jpg
+  AssetGenImage get a01Man => const AssetGenImage('assets/avatars/01-man.jpg');
+
+  /// File path: assets/avatars/02-woman.jpg
+  AssetGenImage get a02Woman =>
+      const AssetGenImage('assets/avatars/02-woman.jpg');
+
+  /// File path: assets/avatars/03-rider.jpg
+  AssetGenImage get a03Rider =>
+      const AssetGenImage('assets/avatars/03-rider.jpg');
+
+  /// File path: assets/avatars/04-woman-rider.jpg
+  AssetGenImage get a04WomanRider =>
+      const AssetGenImage('assets/avatars/04-woman-rider.jpg');
+
+  /// File path: assets/avatars/05-fox.jpg
+  AssetGenImage get a05Fox => const AssetGenImage('assets/avatars/05-fox.jpg');
+
+  /// File path: assets/avatars/06-cat.jpg
+  AssetGenImage get a06Cat => const AssetGenImage('assets/avatars/06-cat.jpg');
+
+  /// File path: assets/avatars/07-bear.jpg
+  AssetGenImage get a07Bear =>
+      const AssetGenImage('assets/avatars/07-bear.jpg');
+
+  /// File path: assets/avatars/08-owl.jpg
+  AssetGenImage get a08Owl => const AssetGenImage('assets/avatars/08-owl.jpg');
+
+  /// File path: assets/avatars/09-robot.jpg
+  AssetGenImage get a09Robot =>
+      const AssetGenImage('assets/avatars/09-robot.jpg');
+
+  /// File path: assets/avatars/10-astronaut.jpg
+  AssetGenImage get a10Astronaut =>
+      const AssetGenImage('assets/avatars/10-astronaut.jpg');
+
+  /// File path: assets/avatars/11-ninja.jpg
+  AssetGenImage get a11Ninja =>
+      const AssetGenImage('assets/avatars/11-ninja.jpg');
+
+  /// File path: assets/avatars/12-alien.jpg
+  AssetGenImage get a12Alien =>
+      const AssetGenImage('assets/avatars/12-alien.jpg');
+
+  /// List of all assets
+  List<AssetGenImage> get values => [
+    a01Man,
+    a02Woman,
+    a03Rider,
+    a04WomanRider,
+    a05Fox,
+    a06Cat,
+    a07Bear,
+    a08Owl,
+    a09Robot,
+    a10Astronaut,
+    a11Ninja,
+    a12Alien,
+  ];
+}
+
 class $AssetsIconGen {
   const $AssetsIconGen();
 
@@ -127,6 +191,7 @@ class $AssetsSfxGen {
 }
 
 abstract final class Assets {
+  static const $AssetsAvatarsGen avatars = $AssetsAvatarsGen();
   static const $AssetsIconGen icon = $AssetsIconGen();
   static const $AssetsImageGen image = $AssetsImageGen();
   static const $AssetsLegalGen legal = $AssetsLegalGen();

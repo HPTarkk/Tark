@@ -1068,6 +1068,22 @@ class AppLocalizationsFa extends AppLocalizations {
       'بچه‌های کانال تو رو با این اسم می‌بینن.';
 
   @override
+  String get onboarding_avatar_title => 'یه قیافه انتخاب کن';
+
+  @override
+  String get onboarding_avatar_help =>
+      'بچه‌های کانال این رو کنار اسمت می‌بینن. هر وقت خواستی از پروفایلت عوضش کن.';
+
+  @override
+  String get profile_title => 'پروفایل';
+
+  @override
+  String get profile_name_label => 'اسم بیسیم';
+
+  @override
+  String get profile_avatar_label => 'قیافه‌ات';
+
+  @override
   String get onboarding_mode_title => 'چطور وصل می‌شی؟';
 
   @override

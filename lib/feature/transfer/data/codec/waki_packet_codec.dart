@@ -5,6 +5,7 @@ import '../../../../core/audio/audio_format_profile.dart';
 import '../../../../core/identity/channel_id.dart';
 import '../../../../core/identity/channel_membership.dart';
 import '../../../../core/identity/session_epoch.dart';
+import '../../../../core/profile/local_profile.dart';
 import '../../../audio/domain/media_receive_buffer.dart';
 import '../../../audio/domain/media_receiver_feedback_adapter.dart';
 import '../../domain/entity/control_packet.dart';
@@ -328,6 +329,13 @@ class WakiPacketCodec {
     // Appended last, by the same "old build stops reading first" reasoning
     // as every field above it — see [PresencePacket.isLeaving].
     builder.addByte(isLeaving ? 0x01 : 0x00);
+    // The sender's avatar, appended after isLeaving on the same terms: a
+    // build that predates it stops reading at isLeaving. Always written, 0
+    // for none, so a field appended after it has a fixed place to start.
+    final avatarId = LocalProfile.avatarId;
+    builder.addByte(
+      avatarId != null && avatarId >= 1 && avatarId <= 255 ? avatarId : 0,
+    );
     return builder.toBytes();
   }
 
@@ -532,6 +540,11 @@ class WakiPacketCodec {
       // before this field existed, which reads as "still present" — see
       // [PresencePacket.isLeaving].
       final leavingOffset = afterHeardIds + 1;
+      // And the avatar after that, absent from every build before avatars.
+      final avatarOffset = leavingOffset + 1;
+      final avatarByte = hasCapability && avatarOffset < bytes.length
+          ? bytes[avatarOffset]
+          : 0;
       return PresencePacket(
         senderId: senderId,
         senderName: name,
@@ -550,6 +563,7 @@ class WakiPacketCodec {
             hasCapability &&
             leavingOffset < bytes.length &&
             bytes[leavingOffset] == 0x01,
+        avatarId: avatarByte == 0 ? null : avatarByte,
       );
     }
 

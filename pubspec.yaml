@@ -125,6 +125,7 @@ flutter:
     - assets/icon/
     - assets/sfx/
     - assets/image/
+    - assets/avatars/
     # Generated from website/legal/*.json by scripts/build-legal-pages.mjs —
     # the same bytes the website renders and the app later downloads. Bundled
     # rather than fetched so the consent gate works on a phone that has never

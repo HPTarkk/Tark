@@ -9,7 +9,7 @@ import '../manager/onboarding_cubit.dart';
 import 'hud.dart';
 import 'onboarding_palette.dart';
 
-/// Beat 4 — the payoff: with the radio powered and transmitting below, this
+/// Beat 5 — the payoff: with the radio powered and transmitting below, this
 /// panel confirms the operator's loadout (callsign + channel) and stamps the
 /// unit READY, a holographic gloss sweeping across it like a laminated ID.
 class ReadyStep extends StatelessWidget {

@@ -3,24 +3,26 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../../../core/diagnostics/screen_log.dart';
+import '../../../../core/profile/profile_defaults.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/theme/theme_service.dart';
 import '../../../transfer/api/transfer_api.dart';
 
 /// Drives the first-run onboarding journey: which beat is on stage, the
-/// callsign being typed, and the transport choice — all kept local until
+/// callsign being typed, the avatar picked, and the transport choice — all kept local until
 /// [finish]/[launch], so backing out or skipping never leaves half-applied
 /// settings. (Language and theme are the exception: the tune-in beat applies
 /// them live through LocaleService/ThemeService because seeing the switch IS
 /// the point, and both persist themselves.)
 @injectable
 class OnboardingCubit extends Cubit<OnboardingState> {
-  static const stepCount = 5;
+  static const stepCount = 6;
   static const tuneStep = 0;
   static const welcomeStep = 1;
   static const callsignStep = 2;
-  static const transportStep = 3;
-  static const launchStep = 4;
+  static const avatarStep = 3;
+  static const transportStep = 4;
+  static const launchStep = 5;
 
   /// A theme change re-keys the whole app subtree (see MyApp.builder), which
   /// re-inflates this page and rebuilds its cubit mid-journey. The outgoing
@@ -48,6 +50,7 @@ class OnboardingCubit extends Cubit<OnboardingState> {
     'tune',
     'welcome',
     'callsign',
+    'avatar',
     'transport',
     'launch',
   ];
@@ -67,6 +70,10 @@ class OnboardingCubit extends Cubit<OnboardingState> {
     final name = await _settingsRepository.getMyName();
     if (!isClosed && name.isNotEmpty && state.name.isEmpty) {
       emit(state.copyWith(name: name));
+    }
+    final avatarId = await _settingsRepository.getMyAvatarId();
+    if (!isClosed && avatarId != null && state.avatarId == null) {
+      emit(state.copyWith(avatarId: avatarId));
     }
   }
 
@@ -88,6 +95,8 @@ class OnboardingCubit extends Cubit<OnboardingState> {
 
   void setName(String value) => emit(state.copyWith(name: value));
 
+  void selectAvatar(int id) => emit(state.copyWith(avatarId: id));
+
   /// Null is "automatic", and is a real selection here rather than the absence
   /// of one — see [OnboardingState.mode].
   void selectMode(TransferMode? mode) => emit(state.withMode(mode));
@@ -103,6 +112,8 @@ class OnboardingCubit extends Cubit<OnboardingState> {
   Future<void> finish() async {
     final name = state.name.trim();
     if (name.isNotEmpty) await _settingsRepository.setMyName(name);
+    final avatarId = state.avatarId;
+    if (avatarId != null) await _settingsRepository.setMyAvatarId(avatarId);
     // A *pin*, not the effective mode. The beat is pre-selected on AUTOMATIC,
     // so walking past it without touching anything leaves the advisor free to
     // choose — which is the whole of P2 §1, and would be undone on the very
@@ -124,8 +135,13 @@ class OnboardingCubit extends Cubit<OnboardingState> {
     await _settingsRepository.setHasLaunchedBefore(true);
   }
 
-  /// Marks onboarding done without touching name/mode — the skip path.
-  Future<void> skip() => _markCompleted();
+  /// Marks onboarding done without touching name/mode — the skip path. A
+  /// person who skips still gets a default avatar, like everyone who set up
+  /// before avatars existed; see [ProfileDefaults.ensureAvatar].
+  Future<void> skip() async {
+    await _markCompleted();
+    await ProfileDefaults.ensureAvatar(_settingsRepository, setupDone: true);
+  }
 
   /// The one exit from onboarding, whichever route got here.
   Future<void> _markCompleted() =>
@@ -142,7 +158,11 @@ class OnboardingState extends Equatable {
   final int step;
   final String name;
 
-  /// The transport the user pinned on beat 3, or null for automatic — which
+  /// The avatar picked on the avatar beat (see AvatarCatalog), or null
+  /// until one is.
+  final int? avatarId;
+
+  /// The transport the user pinned on beat 4, or null for automatic — which
   /// is where the beat starts and where the overwhelming majority of runs
   /// leave it.
   final TransferMode? mode;
@@ -157,6 +177,7 @@ class OnboardingState extends Equatable {
   const OnboardingState({
     required this.step,
     required this.name,
+    this.avatarId,
     required this.mode,
     required this.themePref,
   });
@@ -168,18 +189,23 @@ class OnboardingState extends Equatable {
     themePref: ThemeService.currentMode,
   );
 
-  /// The callsign beat gates its CTA on a non-blank name; every other beat
-  /// is always free to advance.
-  bool get canContinue =>
-      step != OnboardingCubit.callsignStep || name.trim().isNotEmpty;
+  /// The callsign beat gates its CTA on a non-blank name and the avatar beat
+  /// on a pick; every other beat is always free to advance.
+  bool get canContinue => switch (step) {
+    OnboardingCubit.callsignStep => name.trim().isNotEmpty,
+    OnboardingCubit.avatarStep => avatarId != null,
+    _ => true,
+  };
 
   OnboardingState copyWith({
     int? step,
     String? name,
+    int? avatarId,
     AppThemeMode? themePref,
   }) => OnboardingState(
     step: step ?? this.step,
     name: name ?? this.name,
+    avatarId: avatarId ?? this.avatarId,
     mode: mode,
     themePref: themePref ?? this.themePref,
   );
@@ -189,10 +215,11 @@ class OnboardingState extends Equatable {
   OnboardingState withMode(TransferMode? value) => OnboardingState(
     step: step,
     name: name,
+    avatarId: avatarId,
     mode: value,
     themePref: themePref,
   );
 
   @override
-  List<Object?> get props => [step, name, mode, themePref];
+  List<Object?> get props => [step, name, avatarId, mode, themePref];
 }

@@ -6,4 +6,5 @@ library;
 
 export '../presentation/page/advanced_settings_page.dart';
 export '../presentation/page/permissions_page.dart';
+export '../presentation/page/profile_page.dart';
 export '../presentation/page/settings_page.dart';

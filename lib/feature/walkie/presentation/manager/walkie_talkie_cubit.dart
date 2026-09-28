@@ -327,12 +327,14 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
             localId,
           )
         : storedName;
+    final myAvatarId = await _settingsRepository.getMyAvatarId();
 
     if (isClosed) return;
     emit(
       state.copyWith(
         localId: localId,
         myName: myName,
+        myAvatarId: myAvatarId,
         voxMargin: voxMargin,
         noiseSuppression: noiseSuppression,
         noiseSuppressionEngine: noiseSuppressionEngine,
@@ -959,6 +961,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
           packet.senderName,
           packet.isTalking,
           packet.role,
+          avatarId: packet.avatarId,
         );
         _syncWireFormat();
       case AudioPacket():
@@ -1142,7 +1145,13 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     }
   }
 
-  void _updateUser(String id, String name, bool isTalking, SessionRole role) {
+  void _updateUser(
+    String id,
+    String name,
+    bool isTalking,
+    SessionRole role, {
+    int? avatarId,
+  }) {
     final update = _roster.upsert(
       _users,
       ChannelUser(
@@ -1151,6 +1160,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
         isTalking: isTalking,
         lastSeen: DateTime.now(),
         role: role,
+        avatarId: avatarId,
       ),
     );
     switch (update.change) {
@@ -1405,6 +1415,15 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     _broadcastPresence();
   }
 
+  /// Saves the picked avatar and announces it at once, rather than on the
+  /// next presence tick. The presence packet reads it from `LocalProfile`,
+  /// which the save updates.
+  Future<void> setMyAvatarId(int id) async {
+    await _settingsRepository.setMyAvatarId(id);
+    emit(state.copyWith(myAvatarId: id));
+    _broadcastPresence();
+  }
+
   /// Resolves this device's transport-level identity. For WiFi this is the
   /// local IPv4 address, used both for display and to filter out our own
   /// broadcast echo. Bluetooth is point-to-point (no echo to filter, no IP
@@ -1519,6 +1538,9 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
 class WalkieTalkieState extends Equatable {
   final String localId;
   final String myName;
+
+  /// This person's picked avatar, for their own card; null when none.
+  final int? myAvatarId;
   final bool isTransmitting;
   final bool isSelfMuted;
   final bool hasPermission;
@@ -1590,6 +1612,7 @@ class WalkieTalkieState extends Equatable {
   const WalkieTalkieState({
     required this.localId,
     required this.myName,
+    this.myAvatarId,
     required this.isTransmitting,
     required this.isSelfMuted,
     required this.hasPermission,
@@ -1645,6 +1668,7 @@ class WalkieTalkieState extends Equatable {
   WalkieTalkieState copyWith({
     String? localId,
     String? myName,
+    int? myAvatarId,
     bool? isTransmitting,
     bool? isSelfMuted,
     bool? hasPermission,
@@ -1671,6 +1695,7 @@ class WalkieTalkieState extends Equatable {
   }) => WalkieTalkieState(
     localId: localId ?? this.localId,
     myName: myName ?? this.myName,
+    myAvatarId: myAvatarId ?? this.myAvatarId,
     isTransmitting: isTransmitting ?? this.isTransmitting,
     isSelfMuted: isSelfMuted ?? this.isSelfMuted,
     hasPermission: hasPermission ?? this.hasPermission,
@@ -1714,6 +1739,7 @@ class WalkieTalkieState extends Equatable {
   List<Object?> get props => [
     localId,
     myName,
+    myAvatarId,
     isTransmitting,
     isSelfMuted,
     hasPermission,

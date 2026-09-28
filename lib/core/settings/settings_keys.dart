@@ -6,6 +6,10 @@ abstract final class SettingsKeys {
   // Owned by SettingsRepository (see settings_repository_impl.dart).
   static const userName = 'user_name';
 
+  /// The picked avatar's permanent id (see AvatarCatalog). Absent means
+  /// never picked.
+  static const avatarId = 'avatar_id';
+
   /// How far above the measured background the VOX gate sits — see [VoxMargin].
   static const voxMargin = 'vox_margin';
 
