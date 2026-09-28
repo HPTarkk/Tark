@@ -372,7 +372,6 @@ class _SubscribeState extends StatelessWidget {
           _PlanRow(
             label: switch (plan) {
               BillingPlan.monthly => s.paywall_plan_1m,
-              BillingPlan.sixMonth => s.paywall_plan_6m,
               BillingPlan.yearly => s.paywall_plan_12m,
             },
             price: _priceFor(plan),

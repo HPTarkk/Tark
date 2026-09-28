@@ -1,9 +1,8 @@
-/// A purchasable plan, mirroring the B2C table in the business plan. The
-/// [sku] values must match the product ids registered in each store's
-/// developer console before billing can ship.
+/// A purchasable plan. Monthly and yearly only: those are the subscription
+/// periods Bazaar offers. The [sku] values must match the product ids
+/// registered in each store's developer console before billing can ship.
 enum BillingPlan {
   monthly(sku: 'tark_premium_1m', months: 1),
-  sixMonth(sku: 'tark_premium_6m', months: 6),
   yearly(sku: 'tark_premium_12m', months: 12);
 
   const BillingPlan({required this.sku, required this.months});
