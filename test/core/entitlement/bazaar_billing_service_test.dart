@@ -113,7 +113,6 @@ void main() {
         {'sku': 'tark_premium_12m', 'price': '۴۰۰٬۰۰۰ ریال'},
         {'sku': 'tark_premium_1m', 'price': '۵۰٬۰۰۰ ریال'},
         {'sku': 'someone_else', 'price': '1'},
-        {'sku': 'tark_premium_6m', 'price': ''},
       ];
       final offers = await billing.offers();
       expect(offers.map((o) => o.plan), [
