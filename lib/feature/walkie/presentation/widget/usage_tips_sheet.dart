@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/animations/anc_headset_loop_animation.dart';
@@ -75,6 +76,7 @@ Future<void> showUsageTipsSheet(BuildContext context, {int initialPage = 0}) {
     routeSettings: const RouteSettings(name: 'UsageTipsSheet'),
     backgroundColor: Colors.transparent,
     isScrollControlled: true,
+    barrierColor: Colors.black.withValues(alpha: 0.62),
     builder: (context) => _UsageTipsSheet(tips: tips, initialPage: initialPage),
   );
 }
@@ -376,7 +378,13 @@ class _SignalDotsState extends State<_SignalDots>
   late final _pulse = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1800),
-  )..repeat();
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _pulse.loopUnlessReduced(context);
+  }
 
   @override
   void dispose() {

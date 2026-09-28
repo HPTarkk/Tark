@@ -7,6 +7,7 @@
 
 import 'package:flutter/material.dart';
 
+import '../../motion/app_motion.dart';
 import 'widget_loop_animation.dart';
 
 // ── Palette ──────────────────────────────────────────────────────────────
@@ -38,7 +39,13 @@ class _WidgetLoopAnimationLightState extends State<WidgetLoopAnimationLight>
     _controller = AnimationController(
       vsync: this,
       duration: Duration(milliseconds: (kDurationSecondsLight * 1000).round()),
-    )..repeat();
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _controller.loopUnlessReduced(context);
   }
 
   @override

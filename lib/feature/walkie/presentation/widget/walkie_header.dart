@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/theme_service.dart';
 import '../../../../core/widget/settings_icon_button.dart';
@@ -514,8 +515,12 @@ class LinkQualityBars extends StatelessWidget {
     );
   }
 
+  // Bars ease between levels and colours: a one-shot tween on a real change,
+  // never a loop, so it keeps the no-continuous-frames promise above.
   static Widget _bar(double height, Color color, {required int alpha}) =>
-      Container(
+      AnimatedContainer(
+        duration: AppMotion.chip,
+        curve: AppMotion.easeOut,
         width: 3,
         height: height,
         decoration: BoxDecoration(

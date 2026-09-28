@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Persian widget-picker strings. See values/strings.xml. -->
 <resources>
+    <string name="app_name">تَرک</string>
     <string name="widget_app_name">تَرک</string>
     <string name="widget_label">کانال تَرک</string>
     <string name="widget_description">مستقیم بپر توی کانالت و ببین کی روی خطه.</string>

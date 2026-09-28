@@ -118,7 +118,7 @@ class _ProfileCard extends StatelessWidget {
               const SizedBox(width: 14),
               Expanded(
                 child: Text(
-                  state.myName.isEmpty ? '...' : state.myName,
+                  state.myName.isEmpty ? '…' : state.myName,
                   style: TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 16,

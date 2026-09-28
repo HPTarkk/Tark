@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../transfer/api/transfer_api.dart';
@@ -165,8 +166,8 @@ class _ConnectionHealthBannerState extends State<ConnectionHealthBanner>
   Widget build(BuildContext context) {
     final s = context.getString;
     return AnimatedSize(
-      duration: const Duration(milliseconds: 320),
-      curve: Curves.easeOutCubic,
+      duration: AppMotion.sheet,
+      curve: AppMotion.easeOut,
       alignment: Alignment.topCenter,
       child: _display == _Display.hidden
           ? const SizedBox(width: double.infinity)
@@ -349,7 +350,13 @@ class _SweepLineState extends State<_SweepLine>
   late final AnimationController _c = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1150),
-  )..repeat();
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _c.loopUnlessReduced(context);
+  }
 
   @override
   void dispose() {

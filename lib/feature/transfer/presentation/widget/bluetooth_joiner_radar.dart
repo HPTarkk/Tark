@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/recovery/bounded_retry.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entity/bluetooth_peer.dart';
@@ -26,7 +27,7 @@ class _BluetoothJoinerRadarState extends State<BluetoothJoinerRadar>
   late final AnimationController _sweep = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 3600),
-  )..repeat();
+  );
 
   /// How long the list stays honestly blank before it says so. The scan only
   /// surfaces Tark hosts, so a room full of headsets now looks identical to an
@@ -45,6 +46,12 @@ class _BluetoothJoinerRadarState extends State<BluetoothJoinerRadar>
     _emptyHintTimer = Timer(_emptyHintAfter, () {
       if (mounted) setState(() => _searchedAWhile = true);
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sweep.loopUnlessReduced(context);
   }
 
   @override

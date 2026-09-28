@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entity/legal_document.dart';
 import '../widget/legal_document_view.dart';
@@ -32,7 +33,7 @@ class LegalDocumentPage extends StatelessWidget {
           style: TextStyle(
             color: AppColors.textPrimary,
             fontSize: 16,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),
@@ -42,41 +43,56 @@ class LegalDocumentPage extends StatelessWidget {
           slivers: [
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate.fixed([
-                  Text(
-                    document.heading(language),
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 24,
-                      height: 1.25,
-                      fontWeight: FontWeight.w900,
+              // The heading block arrives in the same stagger as every other
+              // page; the long body below it simply scrolls.
+              sliver: SliverToBoxAdapter(
+                child: StaggeredEntrance(
+                  builder: (context, items) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: items,
+                  ),
+                  children: [
+                    Text(
+                      document.heading(language),
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 24,
+                        height: 1.25,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    document.lede(language),
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 14,
-                      height: 1.7,
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Text(
+                        document.lede(language),
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 14,
+                          height: 1.7,
+                        ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  _EffectiveStamp(
-                    label: strings.consent_effective_since,
-                    date: document.effectiveDateLabel(language),
-                  ),
-                  if (document.hasUnrenderableContent) ...[
-                    const SizedBox(height: 16),
-                    _PartialNotice(strings.consent_partial_notice),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16),
+                      child: _EffectiveStamp(
+                        label: strings.consent_effective_since,
+                        date: document.effectiveDateLabel(language),
+                      ),
+                    ),
+                    if (document.hasUnrenderableContent)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 16),
+                        child: _PartialNotice(strings.consent_partial_notice),
+                      ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 22),
+                      child: LegalSummaryView(
+                        columns: document.summary,
+                        language: language,
+                      ),
+                    ),
                   ],
-                  const SizedBox(height: 22),
-                  LegalSummaryView(
-                    columns: document.summary,
-                    language: language,
-                  ),
-                ]),
+                ),
               ),
             ),
             SliverPadding(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/extension.dart';
+import '../motion/app_motion.dart';
 import '../theme/app_colors.dart';
 
 /// Status of a single OS permission or device capability the app needs.
@@ -37,7 +38,11 @@ class PermissionTile extends StatelessWidget {
     final isGranted = status == PermissionTileStatus.granted;
     final accent = isGranted ? AppColors.green : AppColors.amber;
 
-    return Container(
+    // The tile answers a grant where it happened: border and badge ease from
+    // amber to green, and the action crossfades into the granted mark.
+    return AnimatedContainer(
+      duration: AppMotion.card,
+      curve: AppMotion.easeOut,
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -48,7 +53,9 @@ class PermissionTile extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
+          AnimatedContainer(
+            duration: AppMotion.card,
+            curve: AppMotion.easeOut,
             width: 40,
             height: 40,
             decoration: BoxDecoration(
@@ -79,44 +86,54 @@ class PermissionTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 10),
-                if (isGranted)
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.check_circle_rounded,
-                        color: AppColors.green,
-                        size: 15,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        s.permission_granted,
-                        style: TextStyle(
-                          color: AppColors.green,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  )
-                else
-                  GestureDetector(
-                    onTap: () =>
-                        status == PermissionTileStatus.permanentlyDenied
-                        ? onOpenSettings?.call()
-                        : onRequest(),
-                    child: Text(
-                      status == PermissionTileStatus.permanentlyDenied
-                          ? s.open_settings
-                          : s.permission_grant,
-                      style: TextStyle(
-                        color: AppColors.amber,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
+                AnimatedSwitcher(
+                  duration: AppMotion.chip,
+                  switchInCurve: AppMotion.easeOut,
+                  switchOutCurve: AppMotion.leaving,
+                  layoutBuilder: (current, previous) => Stack(
+                    alignment: AlignmentDirectional.centerStart,
+                    children: [...previous, ?current],
                   ),
+                  child: isGranted
+                      ? Row(
+                          key: const ValueKey('granted'),
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.check_circle_rounded,
+                              color: AppColors.green,
+                              size: 15,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              s.permission_granted,
+                              style: TextStyle(
+                                color: AppColors.green,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        )
+                      : PressableScale(
+                          key: ValueKey(status),
+                          onTap: () =>
+                              status == PermissionTileStatus.permanentlyDenied
+                              ? onOpenSettings?.call()
+                              : onRequest(),
+                          child: Text(
+                            status == PermissionTileStatus.permanentlyDenied
+                                ? s.open_settings
+                                : s.permission_grant,
+                            style: TextStyle(
+                              color: AppColors.amber,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                ),
               ],
             ),
           ),
