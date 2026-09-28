@@ -1,10 +1,10 @@
-import '../../../../core/motion/app_motion.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/widget/copy_chip.dart';
 import '../../../../core/widget/link_established.dart';
 import '../../../../core/l10n/app_localizations.dart';

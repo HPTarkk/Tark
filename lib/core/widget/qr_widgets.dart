@@ -1,8 +1,8 @@
-import '../motion/app_motion.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../gen/assets.gen.dart';
+import '../motion/app_motion.dart';
 import '../theme/app_colors.dart';
 import '../utils/extensions.dart';
 

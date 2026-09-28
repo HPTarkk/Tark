@@ -331,8 +331,8 @@ class _LegacyTransportRoster extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             AnimatedSize(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOut,
+              duration: AppMotion.card,
+              curve: AppMotion.easeOut,
               alignment: AlignmentDirectional.topStart,
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),

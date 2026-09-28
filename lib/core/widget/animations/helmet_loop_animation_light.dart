@@ -7,13 +7,11 @@
 // clear-audio sound waves at ear height, curving in toward the helmet.
 //
 
-
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
-import '../../motion/app_motion.dart';
-
 import '../../../gen/assets.gen.dart';
+import '../../motion/app_motion.dart';
 
 // ── Palette ──────────────────────────────────────────────────────────────
 const Color kAccent = Color(0xFFB26B00);
@@ -36,7 +34,8 @@ class HelmetLoopAnimationLight extends StatefulWidget {
   const HelmetLoopAnimationLight({super.key});
 
   @override
-  State<HelmetLoopAnimationLight> createState() => _HelmetLoopAnimationLightState();
+  State<HelmetLoopAnimationLight> createState() =>
+      _HelmetLoopAnimationLightState();
 }
 
 class _HelmetLoopAnimationLightState extends State<HelmetLoopAnimationLight>
@@ -78,9 +77,12 @@ class _HelmetLoopAnimationLightState extends State<HelmetLoopAnimationLight>
             builder: (context, _) {
               final double phase = _controller.value;
               final double twoPi = 2 * math.pi;
-              final double helmetScale = 1 + 0.022 * math.sin(twoPi * phase * 2);
-              final double waveOpacity = 0.55 + 0.35 * math.sin(twoPi * phase * 3).abs();
-              final double waveScale = 0.9 + 0.14 * math.sin(twoPi * phase * 3).abs();
+              final double helmetScale =
+                  1 + 0.022 * math.sin(twoPi * phase * 2);
+              final double waveOpacity =
+                  0.55 + 0.35 * math.sin(twoPi * phase * 3).abs();
+              final double waveScale =
+                  0.9 + 0.14 * math.sin(twoPi * phase * 3).abs();
 
               return Stack(
                 clipBehavior: Clip.none,
@@ -106,7 +108,10 @@ class _HelmetLoopAnimationLightState extends State<HelmetLoopAnimationLight>
                   ),
                   CustomPaint(
                     size: const Size(kCanvasSize, kCanvasSize),
-                    painter: _WavesPainterLight(waveOpacity: waveOpacity, waveScale: waveScale),
+                    painter: _WavesPainterLight(
+                      waveOpacity: waveOpacity,
+                      waveScale: waveScale,
+                    ),
                   ),
                 ],
               );
@@ -136,7 +141,8 @@ class _BackdropPainterLight extends CustomPainter {
     final double twoPi = 2 * math.pi;
 
     // Ambient glow.
-    final double glowOpacity = 0.35 + 0.12 * math.sin(twoPi * p * 2 + math.pi / 2);
+    final double glowOpacity =
+        0.35 + 0.12 * math.sin(twoPi * p * 2 + math.pi / 2);
     final double glowRadius = 190 + 14 * math.sin(twoPi * p * 2);
     canvas.saveLayer(
       Rect.fromCircle(center: Offset(cx, cy), radius: glowRadius),
@@ -146,9 +152,12 @@ class _BackdropPainterLight extends CustomPainter {
       Offset(cx, cy),
       glowRadius,
       Paint()
-        ..shader = RadialGradient(
-          colors: [kAccentFaint, kAccent.withValues(alpha: 0)],
-        ).createShader(Rect.fromCircle(center: Offset(cx, cy), radius: glowRadius)),
+        ..shader =
+            RadialGradient(
+              colors: [kAccentFaint, kAccent.withValues(alpha: 0)],
+            ).createShader(
+              Rect.fromCircle(center: Offset(cx, cy), radius: glowRadius),
+            ),
     );
     canvas.restore();
 
@@ -169,7 +178,14 @@ class _BackdropPainterLight extends CustomPainter {
       0.28 + 0.1 * math.sin(twoPi * p * 2 + 0.6),
       1.25,
     );
-    _ring(canvas, cx, cy, 160 + 10 * math.sin(twoPi * p * 2), 0.5 + 0.15 * math.sin(twoPi * p * 2), 1.5);
+    _ring(
+      canvas,
+      cx,
+      cy,
+      160 + 10 * math.sin(twoPi * p * 2),
+      0.5 + 0.15 * math.sin(twoPi * p * 2),
+      1.5,
+    );
 
     // Hazard specks — dissolve at the protection boundary.
     for (int i = 0; i < 9; i++) {
@@ -183,14 +199,22 @@ class _BackdropPainterLight extends CustomPainter {
       final double dotSize = 5 + 3 * math.sin(math.pi * localPhase);
       final double dx = cx + radius * math.cos(angleRad);
       final double dy = cy + radius * math.sin(angleRad) * 0.92;
-      final Paint speckPaint = Paint()..color = kHazard.withValues(alpha: (kHazard.a * opacity).clamp(0, 1));
+      final Paint speckPaint = Paint()
+        ..color = kHazard.withValues(alpha: (kHazard.a * opacity).clamp(0, 1));
       canvas.drawCircle(Offset(dx, dy), dotSize / 2, speckPaint);
     }
 
     canvas.restore();
   }
 
-  void _ring(Canvas canvas, double cx, double cy, double radius, double opacity, double strokeWidth) {
+  void _ring(
+    Canvas canvas,
+    double cx,
+    double cy,
+    double radius,
+    double opacity,
+    double strokeWidth,
+  ) {
     final Paint ringPaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
@@ -199,7 +223,8 @@ class _BackdropPainterLight extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _BackdropPainterLight oldDelegate) => oldDelegate.phase != phase;
+  bool shouldRepaint(covariant _BackdropPainterLight oldDelegate) =>
+      oldDelegate.phase != phase;
 }
 
 /// Foreground: clear-audio sound waves at ear height, curving in toward
@@ -242,7 +267,15 @@ class _WavesPainterLight extends CustomPainter {
   }
 
   // Arcs curve inward (toward the helmet) — mirrored via sx sign.
-  void _wavesAt(Canvas canvas, double x, double y, double sx, Paint p1, Paint p2, Paint p3) {
+  void _wavesAt(
+    Canvas canvas,
+    double x,
+    double y,
+    double sx,
+    Paint p1,
+    Paint p2,
+    Paint p3,
+  ) {
     canvas.save();
     canvas.translate(x, y);
     canvas.scale(sx, waveScale);
@@ -261,5 +294,6 @@ class _WavesPainterLight extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _WavesPainterLight oldDelegate) =>
-      oldDelegate.waveOpacity != waveOpacity || oldDelegate.waveScale != waveScale;
+      oldDelegate.waveOpacity != waveOpacity ||
+      oldDelegate.waveScale != waveScale;
 }

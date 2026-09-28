@@ -1,8 +1,8 @@
-import '../../../../core/motion/app_motion.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 
 /// The joiner's two live states, drawn rather than spun.

@@ -1,9 +1,9 @@
-import '../../../../core/motion/app_motion.dart';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/tark_mark.dart';
 

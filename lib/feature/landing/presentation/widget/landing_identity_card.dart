@@ -89,7 +89,9 @@ class LandingIdentityCard extends StatelessWidget {
                         text: networkStatus,
                         duration: const Duration(milliseconds: 300),
                         style: TextStyle(
-                          color: ready ? AppColors.textSecondary : AppColors.red,
+                          color: ready
+                              ? AppColors.textSecondary
+                              : AppColors.red,
                           fontSize: 12,
                         ),
                         overflow: TextOverflow.ellipsis,

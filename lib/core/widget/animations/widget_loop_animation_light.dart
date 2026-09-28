@@ -8,7 +8,6 @@
 import 'package:flutter/material.dart';
 
 import '../../motion/app_motion.dart';
-
 import 'widget_loop_animation.dart';
 
 // ── Palette ──────────────────────────────────────────────────────────────

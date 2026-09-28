@@ -1,8 +1,8 @@
-import '../../../../core/motion/app_motion.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../manager/bluetooth_connect_cubit.dart';
 import 'bluetooth_wifi_bridge_hint.dart';

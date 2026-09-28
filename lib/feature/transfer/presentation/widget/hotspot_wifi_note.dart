@@ -1,10 +1,10 @@
-import '../../../../core/motion/app_motion.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 
 /// The "switch Wi-Fi off" advisory on the hotspot host screen.
@@ -177,7 +177,10 @@ class _NoteButton extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: filled ? 14 : 12, vertical: 11),
+        padding: EdgeInsets.symmetric(
+          horizontal: filled ? 14 : 12,
+          vertical: 11,
+        ),
         decoration: BoxDecoration(
           color: filled ? tint.withAlpha(26) : Colors.transparent,
           borderRadius: BorderRadius.circular(11),

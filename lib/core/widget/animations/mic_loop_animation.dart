@@ -20,7 +20,6 @@ final Color kSpeck = const Color(0xFFFFD4B8).withValues(alpha: 0.85);
 const double kDurationSeconds = 4.5;
 const double kCanvasSize = 800;
 
-
 class MicLoopAnimation extends StatefulWidget {
   const MicLoopAnimation({super.key});
 
@@ -28,7 +27,8 @@ class MicLoopAnimation extends StatefulWidget {
   State<MicLoopAnimation> createState() => _MicLoopAnimationState();
 }
 
-class _MicLoopAnimationState extends State<MicLoopAnimation> with SingleTickerProviderStateMixin {
+class _MicLoopAnimationState extends State<MicLoopAnimation>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
   @override
@@ -106,7 +106,8 @@ class _MicLoopPainter extends CustomPainter {
     final double micScale = 1 + 0.028 * math.sin(twoPi * p * 2);
 
     // Ambient glow, slow breathing halo.
-    final double glowOpacity = 0.35 + 0.12 * math.sin(twoPi * p * 2 + math.pi / 2);
+    final double glowOpacity =
+        0.35 + 0.12 * math.sin(twoPi * p * 2 + math.pi / 2);
     final double glowRadius = 190 + 14 * math.sin(twoPi * p * 2);
     // final Paint glowPaint = Paint()
     //   ..shader = RadialGradient(
@@ -122,9 +123,12 @@ class _MicLoopPainter extends CustomPainter {
       Offset(cx, cy),
       glowRadius,
       Paint()
-        ..shader = RadialGradient(
-          colors: [kAccentFaint, kAccent.withValues(alpha: 0)],
-        ).createShader(Rect.fromCircle(center: Offset(cx, cy), radius: glowRadius)),
+        ..shader =
+            RadialGradient(
+              colors: [kAccentFaint, kAccent.withValues(alpha: 0)],
+            ).createShader(
+              Rect.fromCircle(center: Offset(cx, cy), radius: glowRadius),
+            ),
     );
     canvas.restore();
 
@@ -145,7 +149,14 @@ class _MicLoopPainter extends CustomPainter {
       0.28 + 0.1 * math.sin(twoPi * p * 2 + 0.6),
       1.25,
     );
-    _ring(canvas, cx, cy, 150 + 10 * math.sin(twoPi * p * 2), 0.5 + 0.15 * math.sin(twoPi * p * 2), 1.5);
+    _ring(
+      canvas,
+      cx,
+      cy,
+      150 + 10 * math.sin(twoPi * p * 2),
+      0.5 + 0.15 * math.sin(twoPi * p * 2),
+      1.5,
+    );
 
     // Noise specks — drift in from the wide sensitivity zone and dissolve
     // before reaching the mic: noise suppression doing the work.
@@ -190,7 +201,14 @@ class _MicLoopPainter extends CustomPainter {
     canvas.restore();
   }
 
-  void _ring(Canvas canvas, double cx, double cy, double radius, double opacity, double strokeWidth) {
+  void _ring(
+    Canvas canvas,
+    double cx,
+    double cy,
+    double radius,
+    double opacity,
+    double strokeWidth,
+  ) {
     final Paint ringPaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
@@ -211,17 +229,26 @@ class _MicLoopPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     // Headband.
-    final Rect bandRect = Rect.fromCircle(center: const Offset(0, -25), radius: 68);
+    final Rect bandRect = Rect.fromCircle(
+      center: const Offset(0, -25),
+      radius: 68,
+    );
     final Path bandPath = Path()..addArc(bandRect, math.pi, math.pi);
     canvas.drawPath(bandPath, stroke..strokeWidth = 10);
 
     // Earcups.
     canvas.drawRRect(
-      RRect.fromRectAndRadius(const Rect.fromLTWH(-86, -33, 36, 72), const Radius.circular(18)),
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(-86, -33, 36, 72),
+        const Radius.circular(18),
+      ),
       fill,
     );
     canvas.drawRRect(
-      RRect.fromRectAndRadius(const Rect.fromLTWH(50, -33, 36, 72), const Radius.circular(18)),
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(50, -33, 36, 72),
+        const Radius.circular(18),
+      ),
       fill,
     );
 
@@ -238,5 +265,6 @@ class _MicLoopPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _MicLoopPainter oldDelegate) => oldDelegate.phase != phase;
+  bool shouldRepaint(covariant _MicLoopPainter oldDelegate) =>
+      oldDelegate.phase != phase;
 }

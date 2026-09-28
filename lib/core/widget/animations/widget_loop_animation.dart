@@ -228,7 +228,10 @@ class WidgetLoopPainter extends CustomPainter {
     // meter tracking a voice rather than a fixed graphic.
     final swing = 0.5 - 0.5 * math.cos(phase * 2 * math.pi);
     final sweep = (0.3 + 0.65 * swing) * 300;
-    final rect = Rect.fromCircle(center: _dialCenter, radius: _dialRadius * 0.62);
+    final rect = Rect.fromCircle(
+      center: _dialCenter,
+      radius: _dialRadius * 0.62,
+    );
     canvas.drawArc(
       rect,
       -math.pi / 2,
@@ -278,8 +281,7 @@ class WidgetLoopPainter extends CustomPainter {
     final paint = Paint();
     const bars = 7;
     for (var i = 0; i < bars; i++) {
-      final t = 0.5 +
-          0.5 * math.sin((phase * 2 + i * 0.14) * 2 * math.pi);
+      final t = 0.5 + 0.5 * math.sin((phase * 2 + i * 0.14) * 2 * math.pi);
       final h = 12 + 34 * t;
       final x = 410.0 + i * 22;
       paint.color = accent.withValues(alpha: 0.45 + 0.55 * t);

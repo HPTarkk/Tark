@@ -1,4 +1,3 @@
-import '../../../../core/motion/app_motion.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -7,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/diagnostics/screen_log.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/recovery/bounded_retry.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/qr_widgets.dart';
@@ -315,8 +315,8 @@ class _ManualFallbackState extends State<_ManualFallback> {
     // sit around a reserved gap — the pulse and the button just slide down
     // when it arrives.
     return AnimatedSize(
-      duration: const Duration(milliseconds: 320),
-      curve: Curves.easeOutCubic,
+      duration: AppMotion.sheet,
+      curve: AppMotion.easeOut,
       alignment: Alignment.topCenter,
       child: _revealed
           ? HotspotEntrance(delayMs: 0, child: _buildContent(context))
@@ -341,11 +341,7 @@ class _ManualFallbackState extends State<_ManualFallback> {
                 AnimatedRotation(
                   turns: _open ? 0.5 : 0,
                   duration: const Duration(milliseconds: 220),
-                  child: Icon(
-                    Icons.expand_more_rounded,
-                    size: 17,
-                    color: tint,
-                  ),
+                  child: Icon(Icons.expand_more_rounded, size: 17, color: tint),
                 ),
                 const SizedBox(width: 6),
                 AnimatedDefaultTextStyle(
@@ -354,7 +350,7 @@ class _ManualFallbackState extends State<_ManualFallback> {
                     color: tint,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                     fontFamily: 'Vazirmatn',
+                    fontFamily: 'Vazirmatn',
                   ),
                   child: Text(
                     _open
@@ -367,8 +363,8 @@ class _ManualFallbackState extends State<_ManualFallback> {
           ),
         ),
         AnimatedSize(
-          duration: const Duration(milliseconds: 240),
-          curve: Curves.easeOutCubic,
+          duration: AppMotion.card,
+          curve: AppMotion.easeOut,
           alignment: Alignment.topCenter,
           child: _open
               ? Padding(
