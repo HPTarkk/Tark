@@ -366,6 +366,10 @@ class AppLocalizationsFa extends AppLocalizations {
   String get bt_no_devices_found => 'این دور و بر چیزی نیست';
 
   @override
+  String get bt_location_off =>
+      'تا «موقعیت مکانی» خاموش باشه، اندروید نمی‌ذاره این گوشی دنبال گوشی‌های نزدیک بگرده. روشنش کن تا جستجو شروع بشه.';
+
+  @override
   String get bt_unnamed_device => 'دستگاه بی‌نام';
 
   @override
@@ -657,6 +661,41 @@ class AppLocalizationsFa extends AppLocalizations {
   @override
   String get hotspot_wifi_note_reassure =>
       'صدای همه رو می‌شنوی — کانال به وای‌فای احتیاجی نداره.';
+
+  @override
+  String get hotspot_wifi_off_page_title =>
+      'برای ارتباط پایدارتر، وای‌فای رو خاموش کن';
+
+  @override
+  String get hotspot_wifi_off_page_body =>
+      'هات‌اسپات روی همین گوشیه. تا وقتی وای‌فای روشنه، اندروید ممکنه دوباره به یه شبکه‌ی ذخیره‌شده وصل بشه و بی‌صدا هات‌اسپات رو خاموش کنه.';
+
+  @override
+  String get hotspot_wifi_off_page_point_steady =>
+      'هات‌اسپات تا آخر روشن می‌مونه';
+
+  @override
+  String get hotspot_wifi_off_page_point_clear =>
+      'صداها واضح‌تر می‌رسن و کمتر قطع می‌شن';
+
+  @override
+  String get hotspot_wifi_off_page_point_channel =>
+      'همه هنوز صدات رو می‌شنون. ترک اینجا به وای‌فای احتیاجی نداره.';
+
+  @override
+  String get hotspot_wifi_off_page_status_on => 'وای‌فای روشنه';
+
+  @override
+  String get hotspot_wifi_off_page_status_off => 'وای‌فای خاموش شد';
+
+  @override
+  String get hotspot_wifi_off_page_action => 'خاموش کردن وای‌فای';
+
+  @override
+  String get hotspot_wifi_off_page_done => 'همه‌چی آماده‌ست';
+
+  @override
+  String get hotspot_wifi_off_page_skip => 'بدون خاموش کردن ادامه بده';
 
   @override
   String get hotspot_waiting => 'منتظر گوشی دیگه‌ام...';
@@ -1748,9 +1787,6 @@ class AppLocalizationsFa extends AppLocalizations {
   String get rooms_selected => 'انتخاب‌شده';
 
   @override
-  String get rooms_start_ride => 'شروع ارتباط';
-
-  @override
   String get rooms_manage => 'مدیریت اتاق';
 
   @override
@@ -2296,4 +2332,19 @@ class AppLocalizationsFa extends AppLocalizations {
   String rooms_section(String count) {
     return 'اتاق‌های تو ($count)';
   }
+
+  @override
+  String get reconnect_wifi_needed_title => 'وای‌فای را روشن کن';
+
+  @override
+  String reconnect_wifi_needed_body(String name) {
+    return 'برای وصل شدن به $name، این گوشی به اتصالی وصل می‌شود که گوشی $name به اشتراک می‌گذارد. برای این کار وای‌فای باید روشن باشد — اینترنت مصرف نمی‌شود.';
+  }
+
+  @override
+  String get reconnect_wifi_needed_action => 'روشن کردن وای‌فای';
+
+  @override
+  String get reconnect_wifi_needed_waiting =>
+      'همین که وای‌فای روشن شود، دوربین خودش باز می‌شود.';
 }

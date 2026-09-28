@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tark/feature/transfer/api/pre_live_hotspot_bootstrap.dart';
@@ -11,6 +13,34 @@ void main() {
   );
 
   tearDown(() => GetIt.instance.reset());
+
+  test('prepareHost hands back the AP the starter raised', () async {
+    final result = await PreLiveHotspotBootstrap(
+      starter: () async => credentials,
+    ).prepareHost();
+
+    expect(result, credentials);
+  });
+
+  test('prepareHost gives up on a start that never answers', () async {
+    // Some phones never call startLocalOnlyHotspot back (seen with Wi-Fi
+    // off). The Room must be able to say so instead of waiting for good.
+    final never = Completer<HotspotCredentials?>();
+    final result = await PreLiveHotspotBootstrap(
+      starter: () => never.future,
+      hostTimeout: const Duration(milliseconds: 20),
+    ).prepareHost();
+
+    expect(result, isNull);
+  });
+
+  test('prepareHost has a time limit by default', () {
+    expect(
+      PreLiveHotspotBootstrap.defaultHostTimeout,
+      lessThanOrEqualTo(const Duration(minutes: 1)),
+    );
+    expect(PreLiveHotspotBootstrap().hostTimeout, isNot(Duration.zero));
+  });
 
   test('joinHost uses the injected joiner', () async {
     final seen = <HotspotCredentials>[];

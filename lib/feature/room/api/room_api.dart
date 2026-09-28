@@ -9,6 +9,7 @@ export '../data/proximity/room_proximity_control_session_registry.dart'
 export '../data/repository/room_hotspot_history.dart' show RoomHotspotHistory;
 export '../domain/entity/held_seat_name.dart' show isHeldSeatPlaceholder;
 export '../domain/entity/room.dart' show RoomMember, RoomMemberId, SavedRoom;
+export '../domain/entity/room_transport_choice.dart';
 export '../domain/repository/room_repository.dart' show RoomRepository;
 export '../domain/service/room_connection_coordinator.dart'
     show RoomConnectionCoordinator, RoomConnectionPhase, RoomConnectionState;

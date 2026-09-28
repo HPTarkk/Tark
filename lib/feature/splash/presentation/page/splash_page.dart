@@ -4,6 +4,7 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/tark_mark.dart';
 import '../../../../core/widget/version_badge.dart';
@@ -58,29 +59,36 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
 
   /// Slow ambient loop — aurora drift, bokeh twinkle, halo shimmer rotation,
   /// comet orbit phase.
+  ///
+  /// This and the three loops below are started (or held at rest) by
+  /// [_syncAmbient].
   late final AnimationController _ambient = AnimationController(
     vsync: this,
     duration: const Duration(seconds: 10),
-  )..repeat();
+  );
 
   /// Idle breathing — glow and rim intensity.
   late final AnimationController _breath = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 2400),
-  )..repeat(reverse: true);
+  );
 
   /// Broadcast ripple cycle — three staggered rings expanding outward.
   late final AnimationController _ripple = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 2800),
-  )..repeat();
+  );
 
   /// Wordmark gloss sweep cycle (the band only occupies part of the cycle,
   /// so the shimmer reads as an occasional glint rather than a strobe).
   late final AnimationController _shimmer = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 2600),
-  )..repeat();
+  );
+
+  /// Whether the platform asked for less motion — see [AppMotion.reduced].
+  /// The hold before navigation stays the same; only movement is dropped.
+  bool _reduced = false;
 
   /// Fills the footer hairline across the full display duration, so the bar
   /// reflects the actual wall-clock wait.
@@ -91,35 +99,35 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
 
   late final Animation<double> _backdropFade = CurvedAnimation(
     parent: _entrance,
-    curve: const Interval(0.0, 0.30, curve: Curves.easeOut),
+    curve: const Interval(0.0, 0.30, curve: AppMotion.easeOut),
   );
   late final Animation<double> _haloDraw = CurvedAnimation(
     parent: _entrance,
-    curve: const Interval(0.10, 0.55, curve: Curves.easeInOutCubic),
+    curve: const Interval(0.10, 0.55, curve: AppMotion.easeInOut),
   );
   late final Animation<double> _discPop = CurvedAnimation(
     parent: _entrance,
-    curve: const Interval(0.28, 0.72, curve: Curves.easeOutBack),
+    curve: const Interval(0.28, 0.72, curve: AppMotion.easeOut),
   );
   late final Animation<double> _discFade = CurvedAnimation(
     parent: _entrance,
-    curve: const Interval(0.28, 0.50, curve: Curves.easeOut),
+    curve: const Interval(0.28, 0.50, curve: AppMotion.easeOut),
   );
   late final Animation<double> _markIn = CurvedAnimation(
     parent: _entrance,
-    curve: const Interval(0.42, 0.75, curve: Curves.easeOutCubic),
+    curve: const Interval(0.42, 0.75, curve: AppMotion.easeOut),
   );
   late final Animation<double> _rippleGate = CurvedAnimation(
     parent: _entrance,
-    curve: const Interval(0.55, 1.0, curve: Curves.easeOut),
+    curve: const Interval(0.55, 1.0, curve: AppMotion.easeOut),
   );
   late final Animation<double> _subIn = CurvedAnimation(
     parent: _entrance,
-    curve: const Interval(0.68, 0.95, curve: Curves.easeOut),
+    curve: const Interval(0.68, 0.95, curve: AppMotion.easeOut),
   );
   late final Animation<double> _footIn = CurvedAnimation(
     parent: _entrance,
-    curve: const Interval(0.78, 1.0, curve: Curves.easeOut),
+    curve: const Interval(0.78, 1.0, curve: AppMotion.easeOut),
   );
   late final Animation<double> _breathe = CurvedAnimation(
     parent: _breath,
@@ -135,6 +143,25 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     Future.delayed(_kDisplayDuration, () {
       if (mounted) widget.onFinished();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reduced = AppMotion.reduced(context);
+    _syncAmbient();
+  }
+
+  /// Runs the ambient loops, or holds them at rest under reduced motion: a
+  /// loop never finishes, so there is no moment at which it is done.
+  void _syncAmbient() {
+    for (final loop in [_ambient, _breath, _ripple, _shimmer]) {
+      if (_reduced) {
+        loop.value = 0;
+      } else if (!loop.isAnimating) {
+        loop.repeat(reverse: identical(loop, _breath));
+      }
+    }
   }
 
   @override
@@ -169,13 +196,11 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
 
   double _flickerEnvelope(double t) {
     if (t <= _kFlickerStart) return 0.0;
-    final local = ((t - _kFlickerStart) / (1 - _kFlickerStart)).clamp(
-      0.0,
-      1.0,
-    );
+    final local = ((t - _kFlickerStart) / (1 - _kFlickerStart)).clamp(0.0, 1.0);
     if (local >= _kFlickerSettle) return 1.0;
-    return _flickerPattern[((local / _kFlickerSettle) *
-            _flickerPattern.length)
+    // Reduced motion fades the wordmark up instead of strobing it.
+    if (_reduced) return AppMotion.easeOut.transform(local / _kFlickerSettle);
+    return _flickerPattern[((local / _kFlickerSettle) * _flickerPattern.length)
         .floor()];
   }
 
@@ -187,10 +212,13 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
       body: AnimatedBuilder(
         animation: _exit,
         builder: (context, child) {
-          final out = Curves.easeIn.transform(_exit.value);
+          final out = AppMotion.easeOut.transform(_exit.value);
           return Opacity(
             opacity: 1 - out,
-            child: Transform.scale(scale: 1 + 0.04 * out, child: child),
+            child: Transform.scale(
+              scale: _reduced ? 1 : 1 + 0.04 * out,
+              child: child,
+            ),
           );
         },
         child: Stack(
@@ -208,11 +236,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
                     amber: AppColors.amber,
                     amberDim: AppColors.amberDim,
                     haze: AppColors.border,
-                    shade: Color.lerp(
-                      AppColors.background,
-                      Colors.black,
-                      0.6,
-                    )!,
+                    shade: Color.lerp(AppColors.background, Colors.black, 0.6)!,
                   ),
                   size: Size.infinite,
                 ),
@@ -257,7 +281,8 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
             size: const Size(360, 360),
             painter: _BroadcastRipplePainter(
               t: _ripple.value,
-              gate: _rippleGate.value,
+              // No expanding rings under reduced motion.
+              gate: _reduced ? 0 : _rippleGate.value,
               amber: AppColors.amber,
             ),
           ),
@@ -283,7 +308,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     return Opacity(
       opacity: _discFade.value,
       child: Transform.scale(
-        scale: 0.7 + 0.3 * _discPop.value,
+        scale: _reduced ? 1 : 0.7 + 0.3 * _discPop.value,
         child: Container(
           width: 168,
           height: 168,
@@ -335,7 +360,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
                       child: Opacity(
                         opacity: _markIn.value,
                         child: Transform.scale(
-                          scale: 0.85 + 0.15 * _markIn.value,
+                          scale: _reduced ? 1 : 0.85 + 0.15 * _markIn.value,
                           child: TarkMark(
                             size: 86,
                             pulse: b,
@@ -809,7 +834,10 @@ class _HaloRingPainter extends CustomPainter {
         ..shader = SweepGradient(
           startAngle: 0,
           endAngle: trailSweep,
-          colors: [amber.withAlpha(0), amber.withAlpha((210 * cometGate).toInt())],
+          colors: [
+            amber.withAlpha(0),
+            amber.withAlpha((210 * cometGate).toInt()),
+          ],
           transform: GradientRotation(head - trailSweep),
         ).createShader(rect),
     );

@@ -227,40 +227,10 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
               connectionPhase: widget.connectionPhase,
             ),
             const SizedBox(height: 20),
-            // Start needs somebody to start with. Offering it to a Room of one
-            // only ever produced a failure explaining that nobody answered.
-            if (!alone)
-              RoomStartButton(
-                key: const Key('selected-room-start-ride'),
-                label: _connecting ? s.connecting : s.lobby_start_ride,
-                busy: _connecting,
-                onTap: () {
-                  ScreenLog.tap('Start');
-                  _startRide();
-                },
-              ),
-            if (!alone && !_connecting && widget.onUseHomeWifi != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Center(
-                  child: TextButton.icon(
-                    key: const Key('selected-room-use-home-wifi'),
-                    onPressed: () {
-                      HapticFeedback.selectionClick();
-                      ScreenLog.tap('UseHomeWifi');
-                      widget.onUseHomeWifi!();
-                    },
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.textSecondary,
-                    ),
-                    icon: const Icon(Icons.wifi_rounded, size: 18),
-                    label: Text(s.lobby_use_home_wifi),
-                  ),
-                ),
-              ),
             if (canInvite)
+              // Invite sits above Start: adding someone comes before starting.
               Padding(
-                padding: EdgeInsets.only(top: alone ? 0 : 12),
+                padding: EdgeInsets.only(bottom: alone ? 0 : 20),
                 child: _RoomAction(
                   key: const Key('selected-room-invite-callout'),
                   icon: Icons.person_add_alt_1_rounded,
@@ -282,6 +252,39 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
                   color: AppColors.textSecondary,
                   fontSize: 13,
                   height: 1.5,
+                ),
+              ),
+            // Start needs somebody to start with. Offering it to a Room of one
+            // only ever produced a failure explaining that nobody answered.
+            if (!alone)
+              Center(
+                child: RoomConnectButton(
+                  key: const Key('selected-room-start-ride'),
+                  label: _connecting ? s.connecting : s.lobby_start_ride,
+                  busy: _connecting,
+                  onTap: () {
+                    ScreenLog.tap('Start');
+                    _startRide();
+                  },
+                ),
+              ),
+            if (!alone && !_connecting && widget.onUseHomeWifi != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Center(
+                  child: TextButton.icon(
+                    key: const Key('selected-room-use-home-wifi'),
+                    onPressed: () {
+                      HapticFeedback.selectionClick();
+                      ScreenLog.tap('UseHomeWifi');
+                      widget.onUseHomeWifi!();
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.textSecondary,
+                    ),
+                    icon: const Icon(Icons.wifi_rounded, size: 18),
+                    label: Text(s.lobby_use_home_wifi),
+                  ),
                 ),
               ),
           ],

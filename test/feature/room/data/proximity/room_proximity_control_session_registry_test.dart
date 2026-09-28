@@ -7,6 +7,7 @@ import 'package:tark/feature/room/data/proximity/room_proximity_control_session_
 import 'package:tark/feature/room/data/proximity/room_proximity_join_carrier.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
 import 'package:tark/feature/room/domain/entity/room_invitation.dart';
+import 'package:tark/feature/room/domain/entity/room_transport_choice.dart';
 import 'package:tark/feature/transfer/data/bluetooth/classic_bluetooth_engine.dart';
 import 'package:tark/feature/transfer/data/bluetooth/length_prefixed_framer.dart';
 import 'package:tark/feature/transfer/data/service/room_proximity_control_channel.dart';
@@ -188,6 +189,44 @@ void main() {
     payload: '{}',
   );
 
+  group('an invite nobody answered is not a link', () {
+    Future<_RegistryFakeClassicBluetoothEngine> issued() async {
+      final engine = _RegistryFakeClassicBluetoothEngine();
+      final channel = RoomProximityControlChannel(engine: engine);
+      await channel.host(rendezvousToken: invitationId);
+      await RoomProximityControlSessionRegistry.instance.adopt(
+        roomId: roomId,
+        invitation: invitation,
+        channel: channel,
+        issuer: true,
+      );
+      return engine;
+    }
+
+    test('a QR on screen with nobody connected does not count', () async {
+      await issued();
+      final registry = RoomProximityControlSessionRegistry.instance;
+      expect(registry.hasRoom(roomId), isFalse);
+      expect(registry.isIssuerFor(roomId), isNull);
+    });
+
+    test('the joining phone speaking makes it a link', () async {
+      final engine = await issued();
+      engine.addEnvelope(declined());
+      await Future<void>.delayed(Duration.zero);
+      final registry = RoomProximityControlSessionRegistry.instance;
+      expect(registry.hasRoom(roomId), isTrue);
+      expect(registry.isIssuerFor(roomId), isTrue);
+    });
+
+    test('a joiner adopts after dialing, so it is linked at once', () async {
+      await adopted();
+      final registry = RoomProximityControlSessionRegistry.instance;
+      expect(registry.hasRoom(roomId), isTrue);
+      expect(registry.isIssuerFor(roomId), isFalse);
+    });
+  });
+
   test('a phone that cannot host says so over the control socket', () async {
     final engine = await adopted();
 
@@ -226,6 +265,119 @@ void main() {
       throwsA(isA<RoomHotspotHostDeclined>()),
     );
   });
+  Future<_RegistryFakeClassicBluetoothEngine> adoptSession({
+    RoomTransportChoice local = RoomTransportChoice.automatic,
+  }) async {
+    RoomProximityControlSessionRegistry.instance.localChoice = () => local;
+    addTearDown(
+      () =>
+          RoomProximityControlSessionRegistry.instance.localChoice = () =>
+              RoomTransportChoice.automatic,
+    );
+    final engine = _RegistryFakeClassicBluetoothEngine();
+    final channel = RoomProximityControlChannel(engine: engine);
+    await channel.host(rendezvousToken: invitationId);
+    await RoomProximityControlSessionRegistry.instance.adopt(
+      roomId: roomId,
+      invitation: invitation,
+      channel: channel,
+    );
+    await Future<void>.delayed(Duration.zero);
+    return engine;
+  }
+
+  RoomProximityEnvelope choice(RoomTransportChoice value) =>
+      RoomProximityEnvelope(
+        kind: 'transportPreference',
+        roomId: roomId.value,
+        requestId: '00000000000000000000000000000001',
+        joinEpoch: invitationId,
+        payload: jsonEncode({'choice': value.key}),
+      );
+
+  Future<bool> agree({
+    required RoomTransportChoice local,
+    RoomTransportChoice? peer,
+  }) async {
+    final engine = await adoptSession(local: local);
+    if (peer != null) engine.addEnvelope(choice(peer));
+    await Future<void>.delayed(Duration.zero);
+    return RoomProximityControlSessionRegistry.instance.agreeOnBluetooth(
+      roomId: roomId,
+      timeout: Duration.zero,
+    );
+  }
+
+  group('agreeOnBluetooth', () {
+    test('a linked phone tells the other its choice once, up front', () async {
+      final engine = await adoptSession(local: RoomTransportChoice.bluetooth);
+      expect(engine.preferences, hasLength(1));
+      expect(jsonDecode(engine.preferences.single.payload), {
+        'choice': 'bluetooth',
+      });
+
+      // Planning does not send it again.
+      await RoomProximityControlSessionRegistry.instance.agreeOnBluetooth(
+        roomId: roomId,
+        timeout: Duration.zero,
+      );
+      expect(engine.preferences, hasLength(1));
+    });
+
+    test('waits briefly for an answer still in flight', () async {
+      final engine = await adoptSession();
+      final agreed = RoomProximityControlSessionRegistry.instance
+          .agreeOnBluetooth(roomId: roomId);
+      await Future<void>.delayed(Duration.zero);
+      engine.addEnvelope(choice(RoomTransportChoice.bluetooth));
+      expect(await agreed, isTrue);
+    });
+
+    test(
+      'Bluetooth on one phone and automatic on the other: Bluetooth',
+      () async {
+        expect(
+          await agree(
+            local: RoomTransportChoice.bluetooth,
+            peer: RoomTransportChoice.automatic,
+          ),
+          isTrue,
+        );
+        await RoomProximityControlSessionRegistry.instance.clear();
+        expect(
+          await agree(
+            local: RoomTransportChoice.automatic,
+            peer: RoomTransportChoice.bluetooth,
+          ),
+          isTrue,
+        );
+      },
+    );
+
+    test('Wi-Fi/Hotspot on either phone wins over Bluetooth', () async {
+      expect(
+        await agree(
+          local: RoomTransportChoice.bluetooth,
+          peer: RoomTransportChoice.hotspot,
+        ),
+        isFalse,
+      );
+      await RoomProximityControlSessionRegistry.instance.clear();
+      expect(
+        await agree(
+          local: RoomTransportChoice.hotspot,
+          peer: RoomTransportChoice.bluetooth,
+        ),
+        isFalse,
+      );
+    });
+
+    test('a silent peer counts as automatic', () async {
+      expect(await agree(local: RoomTransportChoice.bluetooth), isTrue);
+      await RoomProximityControlSessionRegistry.instance.clear();
+      expect(await agree(local: RoomTransportChoice.automatic), isFalse);
+    });
+  });
 }
 
 RoomProximityEnvelope _decodeSingleWrite(
@@ -251,7 +403,12 @@ class _RegistryFakeClassicBluetoothEngine extends ClassicBluetoothEngine {
   final connected = StreamController<String>.broadcast();
   final errors = StreamController<String>.broadcast();
   final closed = StreamController<void>.broadcast();
+
+  /// Transport-plan traffic. The Bluetooth preference every linked session
+  /// sends up front is kept apart in [preferences], so these read as the
+  /// exchange each test drives.
   final writes = <Uint8List>[];
+  final preferences = <RoomProximityEnvelope>[];
 
   @override
   Stream<Uint8List> get input => incoming.stream;
@@ -279,6 +436,12 @@ class _RegistryFakeClassicBluetoothEngine extends ClassicBluetoothEngine {
 
   @override
   Future<void> write(Uint8List bytes) async {
+    final frames = FrameReassembler().addBytes(Uint8List.fromList(bytes));
+    final envelope = RoomProximityEnvelope.decode(utf8.decode(frames.single));
+    if (envelope.kind == 'transportPreference') {
+      preferences.add(envelope);
+      return;
+    }
     writes.add(Uint8List.fromList(bytes));
   }
 

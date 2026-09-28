@@ -22,7 +22,7 @@ class BluetoothJoinerRadar extends StatefulWidget {
 }
 
 class _BluetoothJoinerRadarState extends State<BluetoothJoinerRadar>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final AnimationController _sweep = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 3600),
@@ -41,6 +41,7 @@ class _BluetoothJoinerRadarState extends State<BluetoothJoinerRadar>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _emptyHintTimer = Timer(_emptyHintAfter, () {
       if (mounted) setState(() => _searchedAWhile = true);
     });
@@ -48,9 +49,18 @@ class _BluetoothJoinerRadarState extends State<BluetoothJoinerRadar>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _emptyHintTimer?.cancel();
     _sweep.dispose();
     super.dispose();
+  }
+
+  /// Back from the settings screen: start the search if Location is on now.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && widget.state.locationOff) {
+      unawaited(context.read<BluetoothConnectCubit>().recheckLocation());
+    }
   }
 
   @override
@@ -115,7 +125,17 @@ class _BluetoothJoinerRadarState extends State<BluetoothJoinerRadar>
             ),
           const SizedBox(height: 14),
           Expanded(
-            child: state.peers.isEmpty
+            child: state.locationOff
+                ? _LocationOffNote(
+                    message: s.bt_location_off,
+                    actionLabel: s.hotspot_enable_location,
+                    onAction: () => unawaited(
+                      context
+                          .read<BluetoothConnectCubit>()
+                          .openLocationSettings(),
+                    ),
+                  )
+                : state.peers.isEmpty
                 ? Align(
                     alignment: Alignment.topCenter,
                     child: AnimatedOpacity(
@@ -149,6 +169,55 @@ class _BluetoothJoinerRadarState extends State<BluetoothJoinerRadar>
                   ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Why the search isn't running, and the one switch that fixes it.
+class _LocationOffNote extends StatelessWidget {
+  final String message;
+  final String actionLabel;
+  final VoidCallback onAction;
+
+  const _LocationOffNote({
+    required this.message,
+    required this.actionLabel,
+    required this.onAction,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.topCenter,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.location_off_rounded, color: AppColors.amber, size: 28),
+            const SizedBox(height: 10),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            TextButton.icon(
+              onPressed: onAction,
+              icon: Icon(Icons.my_location_rounded, color: AppColors.amber),
+              label: Text(
+                actionLabel,
+                style: TextStyle(
+                  color: AppColors.amber,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

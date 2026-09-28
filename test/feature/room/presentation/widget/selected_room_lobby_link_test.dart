@@ -97,6 +97,11 @@ void main() {
           onStartRide: () => starts++,
         );
 
+        // Start sits below Invite and can be under the fold.
+        await tester.ensureVisible(
+          find.byKey(const Key('selected-room-start-ride')),
+        );
+        await tester.pump();
         await tester.tap(find.byKey(const Key('selected-room-start-ride')));
         await tester.pump();
 

@@ -96,6 +96,23 @@ class _RoomEntryOptionsState extends State<RoomEntryOptions> {
     }
   }
 
+  /// Opens [room]'s lobby. With no Room selected, the card still names the
+  /// first saved Room, but the walkie route read "nothing selected" and opened
+  /// the old Room-less channel on whatever network the phone was on — it
+  /// skipped the Room's own connection and "heard" a phone that was only
+  /// waiting on its reconnect screen. So the Room on the card is selected
+  /// first.
+  Future<void> _resume(SavedRoom room) async {
+    if (room.room.id != _selected?.room.id) {
+      try {
+        await _repository?.select(room.room.id);
+      } catch (_) {
+        // Deleted in the meantime; the walkie route says so itself.
+      }
+    }
+    if (mounted) unawaited(context.push(AppRoutes.walkiePath));
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.getString;
@@ -126,9 +143,9 @@ class _RoomEntryOptionsState extends State<RoomEntryOptions> {
             hint: t.entry_join_qr_hint,
             variant: RoomEntryVariant.wide,
             onTap: () {
-              ScreenLog.tap('JoinRoom');
-              context.push(AppRoutes.roomQrJoinPath);
-            },
+            ScreenLog.tap('JoinRoom');
+            context.push(AppRoutes.roomQrJoinPath);
+          },
           ),
         ],
       );
@@ -146,7 +163,7 @@ class _RoomEntryOptionsState extends State<RoomEntryOptions> {
         variant: RoomEntryVariant.hero,
         onTap: () {
           ScreenLog.tap('ResumeRoom');
-          context.push(AppRoutes.walkiePath);
+          _resume(resume);
         },
       ),
       // Side by side because they are alternatives to *each other* — both are
@@ -183,7 +200,10 @@ class _RoomEntryOptionsState extends State<RoomEntryOptions> {
         key: const Key('landing-all-rooms'),
         label: t.entry_my_rooms,
         count: _rooms.length.localized(context),
-        onTap: () => context.push(AppRoutes.roomsPath),
+        onTap: () {
+          ScreenLog.tap('MyRooms');
+          context.push(AppRoutes.roomsPath);
+        },
       ),
     );
   }

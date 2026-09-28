@@ -776,6 +776,12 @@ abstract class AppLocalizations {
   /// **'این دور و بر چیزی نیست'**
   String get bt_no_devices_found;
 
+  /// No description provided for @bt_location_off.
+  ///
+  /// In fa, this message translates to:
+  /// **'تا «موقعیت مکانی» خاموش باشه، اندروید نمی‌ذاره این گوشی دنبال گوشی‌های نزدیک بگرده. روشنش کن تا جستجو شروع بشه.'**
+  String get bt_location_off;
+
   /// No description provided for @bt_unnamed_device.
   ///
   /// In fa, this message translates to:
@@ -1291,6 +1297,66 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'صدای همه رو می‌شنوی — کانال به وای‌فای احتیاجی نداره.'**
   String get hotspot_wifi_note_reassure;
+
+  /// No description provided for @hotspot_wifi_off_page_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'برای ارتباط پایدارتر، وای‌فای رو خاموش کن'**
+  String get hotspot_wifi_off_page_title;
+
+  /// No description provided for @hotspot_wifi_off_page_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'هات‌اسپات روی همین گوشیه. تا وقتی وای‌فای روشنه، اندروید ممکنه دوباره به یه شبکه‌ی ذخیره‌شده وصل بشه و بی‌صدا هات‌اسپات رو خاموش کنه.'**
+  String get hotspot_wifi_off_page_body;
+
+  /// No description provided for @hotspot_wifi_off_page_point_steady.
+  ///
+  /// In fa, this message translates to:
+  /// **'هات‌اسپات تا آخر روشن می‌مونه'**
+  String get hotspot_wifi_off_page_point_steady;
+
+  /// No description provided for @hotspot_wifi_off_page_point_clear.
+  ///
+  /// In fa, this message translates to:
+  /// **'صداها واضح‌تر می‌رسن و کمتر قطع می‌شن'**
+  String get hotspot_wifi_off_page_point_clear;
+
+  /// No description provided for @hotspot_wifi_off_page_point_channel.
+  ///
+  /// In fa, this message translates to:
+  /// **'همه هنوز صدات رو می‌شنون. ترک اینجا به وای‌فای احتیاجی نداره.'**
+  String get hotspot_wifi_off_page_point_channel;
+
+  /// No description provided for @hotspot_wifi_off_page_status_on.
+  ///
+  /// In fa, this message translates to:
+  /// **'وای‌فای روشنه'**
+  String get hotspot_wifi_off_page_status_on;
+
+  /// No description provided for @hotspot_wifi_off_page_status_off.
+  ///
+  /// In fa, this message translates to:
+  /// **'وای‌فای خاموش شد'**
+  String get hotspot_wifi_off_page_status_off;
+
+  /// No description provided for @hotspot_wifi_off_page_action.
+  ///
+  /// In fa, this message translates to:
+  /// **'خاموش کردن وای‌فای'**
+  String get hotspot_wifi_off_page_action;
+
+  /// No description provided for @hotspot_wifi_off_page_done.
+  ///
+  /// In fa, this message translates to:
+  /// **'همه‌چی آماده‌ست'**
+  String get hotspot_wifi_off_page_done;
+
+  /// No description provided for @hotspot_wifi_off_page_skip.
+  ///
+  /// In fa, this message translates to:
+  /// **'بدون خاموش کردن ادامه بده'**
+  String get hotspot_wifi_off_page_skip;
 
   /// No description provided for @hotspot_waiting.
   ///
@@ -3242,12 +3308,6 @@ abstract class AppLocalizations {
   /// **'انتخاب‌شده'**
   String get rooms_selected;
 
-  /// No description provided for @rooms_start_ride.
-  ///
-  /// In fa, this message translates to:
-  /// **'شروع ارتباط'**
-  String get rooms_start_ride;
-
   /// No description provided for @rooms_manage.
   ///
   /// In fa, this message translates to:
@@ -4159,6 +4219,30 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'اتاق‌های تو ({count})'**
   String rooms_section(String count);
+
+  /// No description provided for @reconnect_wifi_needed_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'وای‌فای را روشن کن'**
+  String get reconnect_wifi_needed_title;
+
+  /// No description provided for @reconnect_wifi_needed_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'برای وصل شدن به {name}، این گوشی به اتصالی وصل می‌شود که گوشی {name} به اشتراک می‌گذارد. برای این کار وای‌فای باید روشن باشد — اینترنت مصرف نمی‌شود.'**
+  String reconnect_wifi_needed_body(String name);
+
+  /// No description provided for @reconnect_wifi_needed_action.
+  ///
+  /// In fa, this message translates to:
+  /// **'روشن کردن وای‌فای'**
+  String get reconnect_wifi_needed_action;
+
+  /// No description provided for @reconnect_wifi_needed_waiting.
+  ///
+  /// In fa, this message translates to:
+  /// **'همین که وای‌فای روشن شود، دوربین خودش باز می‌شود.'**
+  String get reconnect_wifi_needed_waiting;
 }
 
 class _AppLocalizationsDelegate

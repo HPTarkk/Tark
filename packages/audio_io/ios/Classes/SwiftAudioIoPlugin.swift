@@ -19,7 +19,11 @@ enum _Constants {
     static let defaultFrameDuration = 0.003  // (3ms)
     static let defaultMaxFrameJitter = 4.0
     static let processingQueueName = "SwiftAudioIoPluginQueue"
-    static let ringBufferSize = 2048
+    // 170 ms at 48 kHz. The Dart playback buffer keeps a 30 ms cushion in
+    // here plus one 10 ms slice, and after a late timer it writes the missed
+    // slices in one go. At 2048 (43 ms) that catch-up overflowed the ring,
+    // and whatever did not fit was dropped mid-word: an audible tick.
+    static let ringBufferSize = 8192
 }
 
 enum Methods: String {

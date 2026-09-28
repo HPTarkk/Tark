@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:equatable/equatable.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -11,6 +12,7 @@ import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/sfx/sfx_event.dart';
 import '../../../../core/sfx/sfx_player.dart';
 import '../../../../core/utils/android_sdk.dart';
+import '../../../../core/utils/bluetooth_scan_location.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entity/bluetooth_connection_state.dart';
 import '../../domain/entity/bluetooth_peer.dart';
@@ -84,8 +86,16 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
 
   StreamSubscription<RetryPhase>? _manualRetrySub;
 
-  BluetoothConnectCubit(this._transport, this._settingsRepository, this._sfx)
-    : super(BluetoothConnectState.initial()) {
+  /// Whether a search can find anyone right now (see
+  /// [bluetoothScanLocationReady]). Replaced in tests.
+  @visibleForTesting
+  Future<bool> Function() scanLocationReady = bluetoothScanLocationReady;
+
+  BluetoothConnectCubit(
+    this._transport,
+    this._settingsRepository,
+    this._sfx,
+  ) : super(BluetoothConnectState.initial()) {
     _connectionSub = _transport.connectionState.listen((s) {
       if (s == BluetoothConnectionState.connected) {
         _autoAttempt = false;
@@ -474,14 +484,47 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
     _autoAttempt = false;
     _stopAutoJoin();
     emit(state.copyWith(role: BluetoothRole.joiner, peers: const []));
+    await _scanIfLocationReady();
+  }
+
+  /// Android 6–11 finds nobody while Location is off, so the search would
+  /// just stay empty. Ask for the switch instead of pretending to look.
+  Future<void> _scanIfLocationReady() async {
+    final ready = await scanLocationReady();
+    if (isClosed || state.role != BluetoothRole.joiner) return;
+    if (!ready) {
+      Logger.diagnostic('bluetooth: joiner scan blocked reason=location_off');
+      emit(state.copyWith(locationOff: true));
+      return;
+    }
+    if (state.locationOff) emit(state.copyWith(locationOff: false));
     await _listenToScan();
   }
+
+  /// Checks the Location switch again, after the user comes back from the
+  /// settings screen, and starts the search once it is on.
+  Future<void> recheckLocation() async {
+    if (isClosed || !state.locationOff) return;
+    await _scanIfLocationReady();
+  }
+
+  Future<void> openLocationSettings() => openSystemLocationSettings();
 
   Future<void> _listenToScan({String? autoConnectId}) async {
     await _scanSub?.cancel();
     late final StreamSubscription<BluetoothPeer> sub;
+    final seen = <String>{};
     sub = _transport.scanForHosts().listen(
       (peer) {
+        // Once per device, so a search that "stayed empty" still says in the
+        // log whether it heard anyone at all and why they were left out.
+        if (seen.add(peer.id)) {
+          Logger.diagnostic(
+            'bluetooth: joiner saw peer=${peer.id.hashCode.toRadixString(16)} '
+            'radio=${peer.id.startsWith('ble:') ? 'ble' : 'classic'} '
+            'tarkHost=${peer.isAppHost}',
+          );
+        }
         // Only Tark hosts reach the list — everything else a classic inquiry
         // sweeps up is somebody's headset or TV, and unjoinable (see
         // [isVisibleHost] for the reconnect-target exception).
@@ -762,6 +805,10 @@ class BluetoothConnectState extends Equatable {
   /// "Hooking up..." at someone for twenty seconds.
   final RetryPhase dialRetry;
 
+  /// The joiner can't search because the system Location switch is off
+  /// (Android 6–11 only).
+  final bool locationOff;
+
   const BluetoothConnectState({
     required this.role,
     required this.connectionState,
@@ -772,6 +819,7 @@ class BluetoothConnectState extends Equatable {
     required this.bleUnavailable,
     required this.hostDiscoverable,
     required this.dialRetry,
+    this.locationOff = false,
   });
 
   factory BluetoothConnectState.initial() => const BluetoothConnectState(
@@ -796,6 +844,7 @@ class BluetoothConnectState extends Equatable {
     bool? bleUnavailable,
     bool? hostDiscoverable,
     RetryPhase? dialRetry,
+    bool? locationOff,
   }) => BluetoothConnectState(
     role: role ?? this.role,
     connectionState: connectionState ?? this.connectionState,
@@ -808,6 +857,7 @@ class BluetoothConnectState extends Equatable {
     bleUnavailable: bleUnavailable ?? this.bleUnavailable,
     hostDiscoverable: hostDiscoverable ?? this.hostDiscoverable,
     dialRetry: dialRetry ?? this.dialRetry,
+    locationOff: locationOff ?? this.locationOff,
   );
 
   @override
@@ -821,6 +871,7 @@ class BluetoothConnectState extends Equatable {
     bleUnavailable,
     hostDiscoverable,
     dialRetry,
+    locationOff,
   ];
 }
 

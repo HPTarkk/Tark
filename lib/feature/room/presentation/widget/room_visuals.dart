@@ -26,9 +26,44 @@ class MemberAvatar extends StatelessWidget {
   final double size;
   final bool ring;
 
-  static Color tintFor(RoomMemberId id) {
+  static Color tintFor(RoomMemberId id) => TintedAvatar.tintFor(id.value);
+
+  @override
+  Widget build(BuildContext context) {
+    final name = roomMemberDisplayName(
+      member,
+      fa: Localizations.localeOf(context).languageCode == 'fa',
+      unnamed: context.getString.people_unnamed,
+    );
+    return TintedAvatar(
+      seed: member.id.value,
+      name: name,
+      size: size,
+      ring: ring,
+    );
+  }
+}
+
+/// The face [MemberAvatar] draws, for someone known only by a [seed] (a
+/// stable id) and a [name]: the live channel's peers outside a saved Room
+/// look the same as the Room's members do.
+class TintedAvatar extends StatelessWidget {
+  const TintedAvatar({
+    required this.seed,
+    required this.name,
+    this.size = 44,
+    this.ring = false,
+    super.key,
+  });
+
+  final String seed;
+  final String name;
+  final double size;
+  final bool ring;
+
+  static Color tintFor(String seed) {
     var hash = 0;
-    for (final unit in id.value.codeUnits) {
+    for (final unit in seed.codeUnits) {
       hash = (hash * 31 + unit) & 0x7fffffff;
     }
     // Warm-to-cool hues that all sit well on both themes.
@@ -38,13 +73,8 @@ class MemberAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = roomMemberDisplayName(
-      member,
-      fa: Localizations.localeOf(context).languageCode == 'fa',
-      unnamed: context.getString.people_unnamed,
-    );
     final initial = name.trim().isEmpty ? '?' : name.trim().characters.first;
-    final tint = tintFor(member.id);
+    final tint = tintFor(seed);
     return Container(
       width: size,
       height: size,
@@ -292,6 +322,100 @@ class RoomStartButton extends StatelessWidget {
       child: breathe
           ? PulseGlow(enabled: !busy, borderRadius: _radius, child: button)
           : button,
+    );
+  }
+}
+
+/// Round connect control: the lobby's single start action drawn as a
+/// power button rather than a full-width bar.
+class RoomConnectButton extends StatelessWidget {
+  const RoomConnectButton({
+    required this.label,
+    required this.onTap,
+    this.busy = false,
+    super.key,
+  });
+
+  final String label;
+  final bool busy;
+  final VoidCallback? onTap;
+
+  static const _size = 84.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final amber = AppColors.amber;
+    final radius = BorderRadius.circular(_size);
+    return Semantics(
+      button: true,
+      enabled: !busy,
+      label: label,
+      excludeSemantics: true,
+      child: PressableScale(
+        onTap: busy ? null : onTap,
+        scale: 0.95,
+        borderRadius: radius,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedContainer(
+              duration: AppMotion.card,
+              curve: AppMotion.easeOut,
+              width: _size,
+              height: _size,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: busy ? amber.withValues(alpha: 0.14) : amber,
+                border: Border.all(
+                  color: amber.withValues(alpha: busy ? 0.45 : 0.0),
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: amber.withValues(alpha: busy ? 0.0 : 0.22),
+                    blurRadius: 24,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+              child: Center(
+                child: AnimatedSwitcher(
+                  duration: AppMotion.chip,
+                  switchInCurve: AppMotion.easeOut,
+                  switchOutCurve: AppMotion.leaving,
+                  child: busy
+                      ? SizedBox(
+                          key: const ValueKey('busy'),
+                          width: 28,
+                          height: 28,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.6,
+                            color: amber,
+                          ),
+                        )
+                      : const Icon(
+                          Icons.power_settings_new_rounded,
+                          key: ValueKey('idle'),
+                          color: Colors.black,
+                          size: 38,
+                        ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: busy ? AppColors.textSecondary : amber,
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

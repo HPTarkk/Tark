@@ -4,6 +4,7 @@ import 'package:tark/core/l10n/extension.dart';
 
 import 'core/l10n/app_localizations.dart';
 import 'core/locale/locale_service.dart';
+import 'core/motion/app_motion.dart';
 import 'core/sfx/sfx_service.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/theme_service.dart';
@@ -103,6 +104,7 @@ class _GuestAppState extends State<GuestApp> {
           ),
           actionTextColor: AppColors.amber,
         ),
+        pageTransitionsTheme: AppPageTransitionsBuilder.theme,
       ),
       home: const GuestJoinPage(),
     );

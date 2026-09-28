@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/home_widget/home_widget_service.dart';
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/sfx/sfx_service.dart';
@@ -41,58 +42,7 @@ class SettingsPage extends StatefulWidget {
   State<SettingsPage> createState() => _SettingsPageState();
 }
 
-class _SettingsPageState extends State<SettingsPage>
-    with TickerProviderStateMixin {
-  // Staggered entrance, same pattern as landing/walkie pages: [profile,
-  // riding, connection, sound, appearance, startup, advanced-nav]
-  late AnimationController _entranceController;
-  late List<Animation<double>> _sections;
-
-  static const _sectionCount = 7;
-
-  @override
-  void initState() {
-    super.initState();
-    _entranceController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1000),
-    );
-    final starts = List.generate(_sectionCount, (i) => i * 0.6 / _sectionCount);
-    _sections = starts
-        .map(
-          (s) => CurvedAnimation(
-            parent: _entranceController,
-            curve: Interval(
-              s,
-              (s + 0.4).clamp(0.0, 1.0),
-              curve: Curves.easeOutCubic,
-            ),
-          ),
-        )
-        .toList();
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _entranceController.forward(),
-    );
-  }
-
-  @override
-  void dispose() {
-    _entranceController.dispose();
-    super.dispose();
-  }
-
-  Widget _entrance(int index, Widget child) => AnimatedBuilder(
-    animation: _sections[index],
-    child: child,
-    builder: (_, prebuilt) => Opacity(
-      opacity: _sections[index].value,
-      child: Transform.translate(
-        offset: Offset(0, 18 * (1 - _sections[index].value)),
-        child: prebuilt,
-      ),
-    ),
-  );
-
+class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
@@ -120,27 +70,27 @@ class _SettingsPageState extends State<SettingsPage>
         body: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+            // One shared controller staggers the cards in, the same entrance
+            // every page uses.
+            child: StaggeredEntrance(
               children: [
-                _entrance(0, _ProfileCard()),
-                const SizedBox(height: 16),
+                _ProfileCard(),
                 // Second, above everything technical: for the audience this
                 // app is built for, it is the most consequential switch on
                 // the page. Burying it under Advanced with the sliders it
                 // overrides would be filing the answer behind the question.
-                _entrance(1, _RidingCard()),
-                const SizedBox(height: 16),
-                _entrance(2, _ConnectionCard()),
-                const SizedBox(height: 16),
-                _entrance(3, _SoundCard()),
-                const SizedBox(height: 16),
-                _entrance(4, _AppearanceCard()),
-                const SizedBox(height: 16),
-                _entrance(5, _StartupCard()),
-                const SizedBox(height: 16),
-                _entrance(6, _AdvancedNavCard()),
+                _RidingCard(),
+                _ConnectionCard(),
+                _SoundCard(),
+                _AppearanceCard(),
+                _StartupCard(),
+                _AdvancedNavCard(),
               ],
+              builder: (context, cards) => Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                spacing: 16,
+                children: cards,
+              ),
             ),
           ),
         ),
@@ -349,10 +299,10 @@ class _RidingCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: AnimatedCrossFade(
-                duration: const Duration(milliseconds: 300),
-                sizeCurve: Curves.ease,
-                firstCurve: Curves.ease,
-                secondCurve: Curves.ease,
+                duration: AppMotion.card,
+                sizeCurve: AppMotion.easeOut,
+                firstCurve: AppMotion.easeOut,
+                secondCurve: AppMotion.easeOut,
                 crossFadeState: state.ridingPreset
                     ? CrossFadeState.showSecond
                     : CrossFadeState.showFirst,

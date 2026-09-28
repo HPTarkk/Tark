@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tark/core/motion/app_motion.dart';
@@ -285,6 +286,47 @@ void main() {
       // outgoing child is still at 95% when the incoming one has finished.
       expect(AppMotion.easeOut.transform(0.5), greaterThan(0.9));
       expect(AppMotion.leaving.transform(0.5), lessThan(0.1));
+    });
+  });
+
+  group('AppPageTransitionsBuilder', () {
+    Future<void> pushPage(
+      WidgetTester tester, {
+      required bool reduceMotion,
+    }) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(
+            pageTransitionsTheme: AppPageTransitionsBuilder.theme,
+          ),
+          builder: (context, child) => MediaQuery(
+            data: MediaQueryData(disableAnimations: reduceMotion),
+            child: child!,
+          ),
+          home: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const Text('next')),
+              ),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    testWidgets('pushes with the Cupertino transition', (tester) async {
+      await pushPage(tester, reduceMotion: false);
+      expect(find.byType(CupertinoPageTransition), findsWidgets);
+    });
+
+    testWidgets('reduced motion fades instead of sliding', (tester) async {
+      await pushPage(tester, reduceMotion: true);
+      expect(find.byType(CupertinoPageTransition), findsNothing);
+      expect(find.text('next'), findsOneWidget);
     });
   });
 }

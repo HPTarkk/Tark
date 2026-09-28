@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../manager/onboarding_cubit.dart';
 import 'hud.dart';
@@ -191,6 +192,9 @@ class _ReadyStamp extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = context.getString;
     final isFa = Localizations.localeOf(context).languageCode == 'fa';
+    // The stamp is the journey's success mark, so it keeps its overshoot.
+    // Reduced motion drops the slam down from oversize and keeps the fade.
+    final reduced = AppMotion.reduced(context);
     final slam = CurvedAnimation(
       parent: reveal,
       curve: const Interval(0.72, 1.0, curve: Curves.easeOutBack),
@@ -204,7 +208,10 @@ class _ReadyStamp extends StatelessWidget {
           opacity: t.clamp(0.0, 1.0),
           child: Transform.rotate(
             angle: -0.16,
-            child: Transform.scale(scale: 2.2 - 1.2 * t, child: child),
+            child: Transform.scale(
+              scale: reduced ? 1 : 2.2 - 1.2 * t,
+              child: child,
+            ),
           ),
         );
       },

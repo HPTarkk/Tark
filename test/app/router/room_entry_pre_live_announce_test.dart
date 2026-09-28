@@ -128,6 +128,11 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     expect(wifi.listens, 0, reason: 'opening the lobby starts nothing');
 
+    // Start sits below Invite and can be under the fold.
+    await tester.ensureVisible(
+      find.byKey(const Key('selected-room-start-ride')),
+    );
+    await tester.pump();
     await tester.tap(find.byKey(const Key('selected-room-start-ride')));
     for (var i = 0; i < 20; i++) {
       await tester.pump(const Duration(milliseconds: 100));

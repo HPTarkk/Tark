@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'voice_queue.dart';
+
 /// Stub implementation for platform detection
 abstract class AudioIoImpl {
   bool get usePlatformImpl;
@@ -21,6 +23,14 @@ abstract class AudioIoImpl {
   /// audible tick, so a climbing value means the feed isn't staying ahead of
   /// the device.
   int getOutputUnderrunFrames();
+
+  /// Samples handed to the output that the device has not played yet, or -1
+  /// where the platform cannot say.
+  int getOutputQueuedFrames();
+
+  /// The native received-voice queue, or null where playback is not driven
+  /// by miniaudio (iOS, macOS, web).
+  VoiceQueue? get voiceQueue;
 }
 
 AudioIoImpl createAudioIoImpl() => throw UnsupportedError(

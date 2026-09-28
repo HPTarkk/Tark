@@ -6,11 +6,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
-import '../../../../core/widget/app_avatar.dart';
 import '../../../../core/widget/section_header.dart';
 import '../../../room/api/room_api.dart';
+import '../../../room/presentation/widget/room_visuals.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../../domain/entity/channel_user.dart';
 import '../manager/walkie_talkie_cubit.dart';
@@ -264,23 +265,17 @@ class _RoomMemberTile extends StatelessWidget {
 
     return Semantics(
       container: true,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: active ? AppColors.green.withAlpha(15) : AppColors.card,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isTalking
-                ? AppColors.green.withAlpha(180)
-                : connected
-                ? AppColors.green.withAlpha(130)
-                : AppColors.border,
-            width: 1.5,
-          ),
-        ),
+      child: AnimatedContainer(
+        duration: AppMotion.card,
+        curve: AppMotion.easeOut,
+        padding: _kRowPadding,
+        decoration: _memberRowDecoration(talking: isTalking, live: active),
         child: Row(
           children: [
-            AppAvatar(name: name, isActive: active, size: 38),
+            _TalkingFace(
+              talking: isTalking,
+              child: MemberAvatar(member: member, size: _kFaceSize),
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -304,25 +299,9 @@ class _RoomMemberTile extends StatelessWidget {
             ),
             if (isTalking) ...[
               const SizedBox(width: 8),
-              const RepaintBoundary(child: WaveformBars()),
-              const SizedBox(width: 8),
-              Container(
+              _TalkingMark(
                 key: ValueKey('room-member-tx-${member.id.value}'),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.green.withAlpha(40),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: AppColors.green.withAlpha(100)),
-                ),
-                child: Text(
-                  s.tx_label,
-                  style: TextStyle(
-                    color: AppColors.green,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1,
-                  ),
-                ),
+                label: s.tx_label,
               ),
             ],
           ],
@@ -429,19 +408,20 @@ class UserTile extends StatelessWidget {
     final isTalking = user.isTalking;
     final s = context.getString;
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: isTalking ? AppColors.green.withAlpha(15) : AppColors.card,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isTalking ? AppColors.green.withAlpha(180) : AppColors.border,
-          width: 1.5,
-        ),
-      ),
+      duration: AppMotion.card,
+      curve: AppMotion.easeOut,
+      padding: _kRowPadding,
+      decoration: _memberRowDecoration(talking: isTalking, live: isTalking),
       child: Row(
         children: [
-          AppAvatar(name: user.name, isActive: isTalking, size: 38),
+          _TalkingFace(
+            talking: isTalking,
+            child: TintedAvatar(
+              seed: user.id,
+              name: user.name,
+              size: _kFaceSize,
+            ),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -464,27 +444,9 @@ class UserTile extends StatelessWidget {
               ],
             ),
           ),
-          if (isTalking) ...[
-            const RepaintBoundary(child: WaveformBars()),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.green.withAlpha(40),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: AppColors.green.withAlpha(100)),
-              ),
-              child: Text(
-                s.tx_label,
-                style: TextStyle(
-                  color: AppColors.green,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1,
-                ),
-              ),
-            ),
-          ] else
+          if (isTalking)
+            _TalkingMark(label: s.tx_label)
+          else
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
@@ -503,6 +465,107 @@ class UserTile extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+// ── Member row pieces ────────────────────────────────────────────────────────
+//
+// The Room lobby's member card, carried into the live channel: the same
+// surface, radius and tinted faces, so a Room reads as the same group once it
+// is live. Talking lights the row green — the channel's colour for "them".
+
+const double _kFaceSize = 40;
+const EdgeInsets _kRowPadding = EdgeInsets.symmetric(
+  horizontal: 12,
+  vertical: 10,
+);
+
+BoxDecoration _memberRowDecoration({
+  required bool talking,
+  required bool live,
+}) {
+  final green = AppColors.green;
+  return BoxDecoration(
+    color: talking
+        ? Color.alphaBlend(green.withValues(alpha: 0.08), AppColors.surface)
+        : AppColors.surface,
+    borderRadius: BorderRadius.circular(18),
+    border: Border.all(
+      color: talking
+          ? green.withValues(alpha: 0.70)
+          : live
+          ? green.withValues(alpha: 0.35)
+          : AppColors.border,
+      width: talking ? 1.5 : 1,
+    ),
+    boxShadow: [
+      BoxShadow(
+        color: green.withValues(alpha: talking ? 0.16 : 0.0),
+        blurRadius: 18,
+        spreadRadius: 1,
+      ),
+    ],
+  );
+}
+
+/// The face, with a green ring drawn around it while that person talks.
+class _TalkingFace extends StatelessWidget {
+  const _TalkingFace({required this.talking, required this.child});
+
+  final bool talking;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: AppMotion.chip,
+      curve: AppMotion.easeOut,
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: talking ? AppColors.green : Colors.transparent,
+          width: 2,
+        ),
+      ),
+      child: child,
+    );
+  }
+}
+
+/// Moving bars and the TX tag, shown only while a member is talking.
+class _TalkingMark extends StatelessWidget {
+  const _TalkingMark({required this.label, super.key});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final green = AppColors.green;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const RepaintBoundary(child: WaveformBars()),
+        const SizedBox(width: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: green.withAlpha(40),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: green.withAlpha(100)),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: green,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

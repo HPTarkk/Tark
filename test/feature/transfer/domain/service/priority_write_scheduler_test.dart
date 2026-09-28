@@ -22,9 +22,7 @@ void main() {
       'writeHighPriority completes only after the underlying write does',
       () async {
         final gate = Future.delayed(const Duration(milliseconds: 30));
-        final scheduler = PriorityWriteScheduler<int>(
-          write: (p) async => gate,
-        );
+        final scheduler = PriorityWriteScheduler<int>(write: (p) async => gate);
 
         var completed = false;
         final future = scheduler.writeHighPriority(1)
@@ -97,7 +95,9 @@ void main() {
       scheduler.writeLowPriority(3);
       expect(scheduler.lowPriorityDrops, 0);
 
-      scheduler.writeLowPriority(4); // over the cap — drops the oldest queued (2)
+      scheduler.writeLowPriority(
+        4,
+      ); // over the cap — drops the oldest queued (2)
       expect(scheduler.lowPriorityDrops, 1);
       hold.complete();
     });
@@ -125,5 +125,58 @@ void main() {
       // Only the in-flight write (0) went through — the cleared ones never did.
       expect(written, [0]);
     });
+
+    test(
+      'late realtime writes are dropped oldest-first past the cap',
+      () async {
+        final written = <int>[];
+        final gate = Completer<void>();
+        final scheduler = PriorityWriteScheduler<int>(
+          write: (p) async {
+            if (p == 0) await gate.future;
+            written.add(p);
+          },
+          maxQueuedRealtime: 3,
+        );
+
+        // 0 is in flight and stuck; 1..6 pile up behind it.
+        final futures = [
+          for (var i = 0; i <= 6; i++)
+            scheduler.writeHighPriority(i, realtime: true),
+        ];
+        gate.complete();
+        await Future.wait(futures);
+
+        expect(written, [0, 4, 5, 6]);
+        expect(scheduler.realtimeDrops, 3);
+      },
+    );
+
+    test(
+      'presence and control are never dropped, whatever the backlog',
+      () async {
+        final written = <int>[];
+        final gate = Completer<void>();
+        final scheduler = PriorityWriteScheduler<int>(
+          write: (p) async {
+            if (p == 0) await gate.future;
+            written.add(p);
+          },
+          maxQueuedRealtime: 1,
+        );
+
+        final futures = [
+          scheduler.writeHighPriority(0),
+          scheduler.writeHighPriority(100),
+          for (var i = 1; i <= 4; i++)
+            scheduler.writeHighPriority(i, realtime: true),
+          scheduler.writeHighPriority(101),
+        ];
+        gate.complete();
+        await Future.wait(futures);
+
+        expect(written, [0, 100, 4, 101]);
+      },
+    );
   });
 }

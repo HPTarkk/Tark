@@ -52,6 +52,31 @@ typedef AudioIoGetOutputUnderrunFramesNative = Int64 Function(
     Pointer<Void> handle);
 typedef AudioIoGetOutputUnderrunFrames = int Function(Pointer<Void> handle);
 
+typedef AudioIoGetOutputQueuedFramesNative = Int32 Function(
+    Pointer<Void> handle);
+typedef AudioIoGetOutputQueuedFrames = int Function(Pointer<Void> handle);
+
+typedef AudioIoVoiceWriteNative = Int32 Function(
+    Pointer<Void> handle, Pointer<Double> buffer, Int32 frameCount);
+typedef AudioIoVoiceWrite = int Function(
+    Pointer<Void> handle, Pointer<Double> buffer, int frameCount);
+
+typedef AudioIoVoiceWriteZerosNative = Int32 Function(
+    Pointer<Void> handle, Int32 frameCount);
+typedef AudioIoVoiceWriteZeros = int Function(
+    Pointer<Void> handle, int frameCount);
+
+typedef AudioIoVoiceSetTargetNative = Void Function(
+    Pointer<Void> handle, Int32 frames);
+typedef AudioIoVoiceSetTarget = void Function(Pointer<Void> handle, int frames);
+
+typedef AudioIoVoiceResetNative = Void Function(Pointer<Void> handle);
+typedef AudioIoVoiceReset = void Function(Pointer<Void> handle);
+
+typedef AudioIoVoiceStatNative = Int64 Function(
+    Pointer<Void> handle, Int32 which);
+typedef AudioIoVoiceStat = int Function(Pointer<Void> handle, int which);
+
 class AudioIoBindings {
   late final DynamicLibrary _lib;
 
@@ -69,6 +94,12 @@ class AudioIoBindings {
   late final AudioIoGetFrameDuration getFrameDuration;
   late final AudioIoGetInputSessionId getInputSessionId;
   late final AudioIoGetOutputUnderrunFrames getOutputUnderrunFrames;
+  late final AudioIoGetOutputQueuedFrames getOutputQueuedFrames;
+  late final AudioIoVoiceWrite voiceWrite;
+  late final AudioIoVoiceWriteZeros voiceWriteZeros;
+  late final AudioIoVoiceSetTarget voiceSetTarget;
+  late final AudioIoVoiceReset voiceReset;
+  late final AudioIoVoiceStat voiceStat;
 
   AudioIoBindings() {
     _lib = _loadLibrary();
@@ -135,6 +166,29 @@ class AudioIoBindings {
     getOutputUnderrunFrames = _lib
         .lookup<NativeFunction<AudioIoGetOutputUnderrunFramesNative>>(
             'audio_io_get_output_underrun_frames')
+        .asFunction();
+
+    getOutputQueuedFrames = _lib
+        .lookup<NativeFunction<AudioIoGetOutputQueuedFramesNative>>(
+            'audio_io_get_output_queued_frames')
+        .asFunction();
+
+    voiceWrite = _lib
+        .lookup<NativeFunction<AudioIoVoiceWriteNative>>('audio_io_voice_write')
+        .asFunction();
+    voiceWriteZeros = _lib
+        .lookup<NativeFunction<AudioIoVoiceWriteZerosNative>>(
+            'audio_io_voice_write_zeros')
+        .asFunction();
+    voiceSetTarget = _lib
+        .lookup<NativeFunction<AudioIoVoiceSetTargetNative>>(
+            'audio_io_voice_set_target')
+        .asFunction();
+    voiceReset = _lib
+        .lookup<NativeFunction<AudioIoVoiceResetNative>>('audio_io_voice_reset')
+        .asFunction();
+    voiceStat = _lib
+        .lookup<NativeFunction<AudioIoVoiceStatNative>>('audio_io_voice_stat')
         .asFunction();
   }
 

@@ -365,6 +365,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bt_no_devices_found => 'Nothing nearby';
 
   @override
+  String get bt_location_off =>
+      'Android won\'t let this phone look for nearby phones while Location is off. Switch Location on to search.';
+
+  @override
   String get bt_unnamed_device => 'Unnamed device';
 
   @override
@@ -659,6 +663,41 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get hotspot_wifi_note_reassure =>
       'You\'ll still hear everyone — the channel doesn\'t need Wi-Fi.';
+
+  @override
+  String get hotspot_wifi_off_page_title =>
+      'Turn off Wi-Fi for a steadier connection';
+
+  @override
+  String get hotspot_wifi_off_page_body =>
+      'This phone is running the hotspot. While Wi-Fi is on, Android can jump back to a saved network and quietly switch the hotspot off.';
+
+  @override
+  String get hotspot_wifi_off_page_point_steady =>
+      'The hotspot stays on the whole time';
+
+  @override
+  String get hotspot_wifi_off_page_point_clear =>
+      'Voices come through clearer, with fewer drops';
+
+  @override
+  String get hotspot_wifi_off_page_point_channel =>
+      'Everyone still hears you. Tarkk doesn\'t need Wi-Fi here.';
+
+  @override
+  String get hotspot_wifi_off_page_status_on => 'Wi-Fi is on';
+
+  @override
+  String get hotspot_wifi_off_page_status_off => 'Wi-Fi is off';
+
+  @override
+  String get hotspot_wifi_off_page_action => 'Turn Wi-Fi off';
+
+  @override
+  String get hotspot_wifi_off_page_done => 'All set';
+
+  @override
+  String get hotspot_wifi_off_page_skip => 'Continue anyway';
 
   @override
   String get hotspot_waiting => 'Waiting on the other phone...';
@@ -1754,9 +1793,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rooms_selected => 'Selected';
 
   @override
-  String get rooms_start_ride => 'Start ride';
-
-  @override
   String get rooms_manage => 'Manage room';
 
   @override
@@ -2302,4 +2338,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String rooms_section(String count) {
     return 'Your rooms ($count)';
   }
+
+  @override
+  String get reconnect_wifi_needed_title => 'Turn on Wi-Fi';
+
+  @override
+  String reconnect_wifi_needed_body(String name) {
+    return 'To connect with $name, this phone joins the connection $name\'s phone shares. That needs Wi-Fi on — no internet is used.';
+  }
+
+  @override
+  String get reconnect_wifi_needed_action => 'Turn on Wi-Fi';
+
+  @override
+  String get reconnect_wifi_needed_waiting =>
+      'The camera opens by itself as soon as Wi-Fi is on.';
 }

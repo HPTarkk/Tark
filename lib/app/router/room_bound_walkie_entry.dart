@@ -31,6 +31,8 @@ class RoomBoundWalkieEntry extends StatefulWidget {
     this.ride = false,
     this.start = false,
     this.guidedReconnect,
+    this.wifiCheck,
+    this.prepareHost,
   });
 
   /// Arrived from a screen whose job was establishing a link — the hotspot
@@ -45,6 +47,14 @@ class RoomBoundWalkieEntry extends StatefulWidget {
   /// Whether Start without a proximity hand-off opens the guided reconnect
   /// screen. Null follows the platform (Android and iOS); tests set it.
   final bool? guidedReconnect;
+
+  /// Whether the scanning side reads the Wi-Fi radio before opening the
+  /// camera. Null follows the platform (Android: iOS cannot read it this way,
+  /// and would read "off"); tests set it.
+  final bool? wifiCheck;
+
+  /// Brings this phone's hotspot up. Null uses the real bridge; tests set it.
+  final Future<HotspotCredentials?> Function()? prepareHost;
 
   static Widget buildPage({bool ride = false, bool start = false}) =>
       RoomBoundWalkieEntry(ride: ride, start: start);
@@ -166,15 +176,40 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     return links.resolve(modeStore.mode);
   }
 
-  Future<bool> _openLinkGate() async {
+  /// Whether this phone has a link the Room can run over, switching the
+  /// transport to fit it where that is allowed.
+  ///
+  /// A transport pinned in settings is never traded away here. Pinned to
+  /// Bluetooth, a phone still sitting on Wi-Fi used to be switched onto that
+  /// Wi-Fi without a word, so the Room "connected" over the network the user
+  /// had just said not to use, and failed the moment Wi-Fi went off. Now the
+  /// gate refuses instead, and the lobby offers to connect the phones over
+  /// the pinned transport. [honourPin] is false only for a Room invite
+  /// hand-off, which arranges its own hotspot by design.
+  /// The settings pin a Room honours: Guest is a browser-only link, so a
+  /// Room treats it as Automatic.
+  TransferMode? get _roomPin =>
+      RoomTransportChoice.roomPin(_modeStore?.pinnedMode);
+
+  Future<bool> _openLinkGate({bool honourPin = true}) async {
     final probe = _probe;
     final modeStore = _modeStore;
     if (probe == null || modeStore == null) return true;
     final links = await _readLinks();
     if (mounted) setState(() => _links = links);
-    final link = links.resolve(modeStore.mode);
+    final pinned = honourPin
+        ? RoomTransportChoice.roomPin(modeStore.pinnedMode)
+        : null;
+    final link = links.resolve(pinned ?? modeStore.mode);
     if (!link.isUp) {
       Logger.diagnostic('room: readiness stage=local_link_missing');
+      return false;
+    }
+    if (pinned != null && !link.honours(pinned)) {
+      Logger.diagnostic(
+        'room: readiness stage=pinned_link_missing '
+        'pinned=${pinned.key} link=${link.name}',
+      );
       return false;
     }
     final mode = link.modeFor(modeStore.mode);
@@ -315,9 +350,9 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     if (RoomProximityControlSessionRegistry.instance.hasRoom(room.room.id)) {
       return false;
     }
-    // A transport pinned in Advanced settings is the user's call.
-    final pinned = _modeStore?.pinnedMode;
-    return pinned != TransferMode.bluetooth && pinned != TransferMode.guest;
+    // A transport pinned in Advanced settings is the user's call. Guest is a
+    // browser link and says nothing about how two phones meet.
+    return _roomPin != TransferMode.bluetooth;
   }
 
   // ------------------------------------------------------ guided reconnect
@@ -365,7 +400,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
 
   Future<_EntryState> _reconnectShowing(SavedRoom room, int token) async {
     _roleStore?.setRole(SessionRole.host);
-    final credentials = await PreLiveHotspotBootstrap().prepareHost();
+    final credentials = await _prepareHost();
     if (!mounted || token != _reconnectToken) return _EntryState.lobby(room);
     final s = context.getString;
     if (credentials == null) {
@@ -406,6 +441,9 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
 
   Future<_EntryState> _reconnectScanning(SavedRoom room, int token) async {
     _roleStore?.setRole(SessionRole.joiner);
+    // Joining the other phone's connection needs Wi-Fi on. Asked for before
+    // the camera opens, not after a scan fails on it.
+    if (!await _awaitWifiForScan(token)) return _EntryState.lobby(room);
     while (true) {
       final waiter = Completer<HotspotCredentials?>();
       _scanWaiter = waiter;
@@ -413,12 +451,20 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       if (!mounted || token != _reconnectToken || credentials == null) {
         return _EntryState.lobby(room);
       }
-      final s = context.getString;
-      final joiner = GetIt.instance.isRegistered<HotspotJoiner>()
-          ? GetIt.instance<HotspotJoiner>()
-          : null;
-      final joined = await PreLiveHotspotBootstrap().joinHost(credentials);
+      var joined = await PreLiveHotspotBootstrap().joinHost(credentials);
       if (!mounted || token != _reconnectToken) return _EntryState.lobby(room);
+      if (joined == HotspotJoinResult.wifiOff) {
+        // Switched off after the camera opened. The code is already in hand,
+        // so once Wi-Fi is back this joins with it rather than asking for a
+        // second scan.
+        _completeScan(false);
+        if (!await _awaitWifiForScan(token)) return _EntryState.lobby(room);
+        joined = await PreLiveHotspotBootstrap().joinHost(credentials);
+        if (!mounted || token != _reconnectToken) {
+          return _EntryState.lobby(room);
+        }
+      }
+      final s = context.getString;
       final String? problem = switch (joined) {
         HotspotJoinResult.joined => null,
         HotspotJoinResult.wifiOff => s.reconnect_wifi_off,
@@ -429,11 +475,6 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         await _modeStore?.setMode(TransferMode.hotspot);
         _completeScan(true);
         break;
-      }
-      // Android 10+ will not let an app flip Wi-Fi itself; this raises the
-      // system's own one-tap panel, and the camera stays up for the rescan.
-      if (joined == HotspotJoinResult.wifiOff) {
-        unawaited(joiner?.enableWifi() ?? Future<bool>.value(false));
       }
       _updateReconnect((model) => model.copyWith(message: problem));
       _completeScan(false);
@@ -454,6 +495,96 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       showCode: false,
       message: context.getString.reconnect_join_failed,
     );
+  }
+
+  /// The longest this phone spends bringing its hotspot up before it says it
+  /// could not. Normally a few seconds; Android can also simply never answer,
+  /// and that left the phone on a spinner with nothing to press.
+  static const _prepareTimeout = Duration(seconds: 60);
+
+  /// Brings this phone's hotspot up, or gives up after [_prepareTimeout].
+  Future<HotspotCredentials?> _prepareHost() async {
+    unawaited(_offerWifiOff());
+    final prepare =
+        widget.prepareHost ?? () => PreLiveHotspotBootstrap().prepareHost();
+    try {
+      return await prepare().timeout(_prepareTimeout);
+    } on TimeoutException {
+      Logger.diagnostic('room: hotspot prepare timed out');
+      // The request may still land later; nothing would be holding it then.
+      unawaited(_releaseOwnHotspot());
+      return null;
+    }
+  }
+
+  /// This entry already asked the host to switch Wi-Fi off. Retries and
+  /// reconnects inside the same visit don't ask again; the next visit does.
+  bool _wifiOffOffered = false;
+
+  /// Asks this phone to switch Wi-Fi off while its hotspot comes up.
+  ///
+  /// With Wi-Fi on, Android can hand the radio back to a saved network and
+  /// quietly take the hotspot down mid-Room. Not awaited by [_prepareHost]:
+  /// the hotspot and the hand-off keep going underneath, so the other phone is
+  /// never left waiting on someone reading.
+  Future<void> _offerWifiOff() async {
+    final host = _hotspotHost;
+    if (host == null || _wifiOffOffered || !mounted) return;
+    _wifiOffOffered = true;
+    await HotspotWifiOffPage.showIfWifiOn(context, host);
+  }
+
+  /// How often the Wi-Fi card looks at the radio while it waits for it.
+  static const _wifiPoll = Duration(seconds: 1);
+
+  /// Holds the scan side on the "turn on Wi-Fi" card until the radio is on.
+  ///
+  /// Returns false when the attempt was abandoned meanwhile (back, switch,
+  /// retry). Where the radio cannot be read — iOS, or no hotspot service —
+  /// this says nothing and lets the camera open, as before.
+  Future<bool> _awaitWifiForScan(int token) async {
+    final host = _hotspotHost;
+    if (host == null) return true;
+    var shown = false;
+    while (true) {
+      if (!mounted || token != _reconnectToken) return false;
+      bool on;
+      try {
+        on = (await host.wifiAdvice()).wifiEnabled;
+      } catch (e) {
+        Logger.log('Wi-Fi state read failed: $e');
+        on = true;
+      }
+      if (!mounted || token != _reconnectToken) return false;
+      if (on) {
+        if (shown) {
+          Logger.diagnostic('room: reconnect wifi on');
+          _updateReconnect(
+            (model) => model.copyWith(wifiOff: false, clearMessage: true),
+          );
+        }
+        return true;
+      }
+      if (!shown) {
+        shown = true;
+        Logger.diagnostic('room: reconnect waiting for wifi');
+        _updateReconnect((model) => model.copyWith(wifiOff: true));
+      }
+      await Future<void>.delayed(_wifiPoll);
+    }
+  }
+
+  HotspotHost? get _hotspotHost =>
+      (widget.wifiCheck ?? Platform.isAndroid) &&
+          GetIt.instance.isRegistered<HotspotHost>()
+      ? GetIt.instance<HotspotHost>()
+      : null;
+
+  /// The "Turn on Wi-Fi" button. Android 10+ does not let an app flip the
+  /// radio itself; this raises the system's own panel over the app.
+  void _turnOnWifi() {
+    if (!GetIt.instance.isRegistered<HotspotJoiner>()) return;
+    unawaited(GetIt.instance<HotspotJoiner>().enableWifi());
   }
 
   /// The scanner found a code. Hands usable credentials to the waiting scan
@@ -509,6 +640,8 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   void _abandonReconnectAttempt() {
     _reconnectToken++;
     _readinessEpoch++;
+    _handoffFallback = false;
+    _handoffCodeTimer?.cancel();
     // The abandoned attempt may still be unwinding; a later Start must plan
     // afresh rather than be handed its future.
     _activeStart = null;
@@ -623,6 +756,20 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     required bool linkEstablished,
     Duration? readinessTimeout,
   }) async {
+    final outcome = await _verifiedLiveAttempt(
+      room,
+      linkEstablished: linkEstablished,
+      readinessTimeout: readinessTimeout,
+    );
+    // A no-op unless a slow hand-off put the code or camera up meanwhile.
+    return _settleHandoffFallback(room, outcome);
+  }
+
+  Future<_EntryState> _verifiedLiveAttempt(
+    SavedRoom room, {
+    required bool linkEstablished,
+    Duration? readinessTimeout,
+  }) async {
     final binding = _binding;
     if (binding == null) {
       Logger.diagnostic('room: readiness stage=binding_unavailable');
@@ -693,7 +840,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         _coordinator.cancel(epoch: start.epoch);
         return _EntryState.lobby(room, failure: planFailure);
       }
-      if (!await _openLinkGate()) {
+      if (!await _openLinkGate(honourPin: !hasProximityHandoff)) {
         _coordinator.cancel(epoch: start.epoch);
         return _EntryState.lobby(room, failure: _EntryFailure.localLinkMissing);
       }
@@ -873,6 +1020,18 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         Logger.diagnostic(
           'room: handoff side=${localIsElected ? 'host' : 'joiner'}',
         );
+        // Bluetooth chosen in settings, on either phone, keeps the Room off
+        // any hotspot: the invite's own Bluetooth link becomes the audio link.
+        bool useBluetooth;
+        try {
+          useBluetooth = await proximity.agreeOnBluetooth(roomId: room.room.id);
+        } catch (e) {
+          Logger.log('Room transport preference exchange failed: $e');
+          useBluetooth = _roomPin == TransferMode.bluetooth;
+        }
+        if (useBluetooth) {
+          return _bluetoothHandoff(room, localIsHost: localIsElected);
+        }
         // The side each helper below records in the role store is what the
         // rest of the transport stack hears: the network rebind coordinator clears its
         // process pin for a host and binds for a joiner, and the hotspot
@@ -909,12 +1068,48 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     }
   }
 
+  /// Replaces the invite's control socket with the Bluetooth audio link:
+  /// the phone that showed the invite hosts, the other re-dials the address
+  /// it reached the first time.
+  Future<_EntryFailure?> _bluetoothHandoff(
+    SavedRoom room, {
+    required bool localIsHost,
+  }) async {
+    final proximity = RoomProximityControlSessionRegistry.instance;
+    final address = localIsHost ? null : proximity.peerAddressFor(room.room.id);
+    if (!localIsHost && address == null) {
+      Logger.diagnostic('room: bluetooth handoff has no peer address');
+      return _EntryFailure.transportSetup;
+    }
+    final BluetoothTransport transport;
+    try {
+      transport = GetIt.instance<BluetoothTransport>();
+    } catch (e) {
+      Logger.log('Bluetooth transport unavailable: $e');
+      return _EntryFailure.compositionUnavailable;
+    }
+    Logger.diagnostic(
+      'room: bluetooth handoff side=${localIsHost ? 'host' : 'joiner'}',
+    );
+    // Before the link comes up, so the live session is composed on the
+    // Bluetooth transport rather than the Wi-Fi one.
+    await _modeStore?.setMode(TransferMode.bluetooth);
+    // One Bluetooth socket at a time: the control socket has to go before
+    // the audio link can use the radio.
+    await proximity.clear(roomId: room.room.id);
+    final handoff = BluetoothLinkHandoff(transport);
+    final linked = localIsHost
+        ? await handoff.host()
+        : await handoff.join(address!);
+    return linked ? null : _EntryFailure.peerProofMissing;
+  }
+
   Future<_EntryFailure?> _hostHandoffHotspot(
     SavedRoom room, {
     required int transportEpoch,
   }) async {
     _roleStore?.setRole(SessionRole.host);
-    final credentials = await PreLiveHotspotBootstrap().prepareHost();
+    final credentials = await _prepareHost();
     if (credentials == null) return _EntryFailure.transportSetup;
     Logger.diagnostic('room_transport: host credentials ready');
     Logger.diagnostic('room_transport: credential publish begin');
@@ -924,6 +1119,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       credentials: credentials,
     );
     Logger.diagnostic('room_transport: credential publish complete');
+    _armHandoffCode(room, credentials);
     return null;
   }
 
@@ -935,15 +1131,40 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     bool hostIfDeclined = false,
   }) async {
     _roleStore?.setRole(SessionRole.joiner);
+    final token = ++_reconnectToken;
+    final epoch = _readinessEpoch;
+    // The details normally arrive over Bluetooth within seconds. If they have
+    // not by [_handoffCodeAfter], the camera opens too, for the code the
+    // other phone will be showing by then — whichever arrives first is used.
+    final scanned = Completer<HotspotCredentials>();
+    _handoffCodeTimer?.cancel();
+    _handoffCodeTimer = Timer(
+      _handoffCodeAfter,
+      () => unawaited(_offerHandoffScan(room, token, epoch, scanned)),
+    );
     try {
-      final credentials = await RoomProximityControlSessionRegistry.instance
-          .waitForHotspot(
-            roomId: room.room.id,
-            transportEpoch: transportEpoch,
-            timeout: _handoffTimeout,
-          );
+      final credentials = await Future.any([
+        RoomProximityControlSessionRegistry.instance.waitForHotspot(
+          roomId: room.room.id,
+          transportEpoch: transportEpoch,
+          timeout: _handoffTimeout,
+        ),
+        scanned.future,
+      ]);
+      _handoffCodeTimer?.cancel();
       // Through the bridge, like the host: see [PreLiveHotspotBootstrap.joinHost].
-      final joined = await PreLiveHotspotBootstrap().joinHost(credentials);
+      var joined = await PreLiveHotspotBootstrap().joinHost(credentials);
+      if (joined == HotspotJoinResult.wifiOff && _hotspotHost != null) {
+        // Joining needs Wi-Fi. Ask for it here, on this phone's own screen,
+        // then join with the details already in hand.
+        _showHandoffScan(room);
+        _completeScan(false);
+        if (!await _awaitWifiForScan(token)) {
+          return _EntryFailure.staleAttempt;
+        }
+        joined = await PreLiveHotspotBootstrap().joinHost(credentials);
+      }
+      _completeScan(joined == HotspotJoinResult.joined);
       switch (joined) {
         case HotspotJoinResult.joined:
           await _modeStore?.setMode(TransferMode.hotspot);
@@ -968,7 +1189,117 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         return _EntryFailure.transportSetup;
       }
       return _hostHandoffHotspot(room, transportEpoch: transportEpoch);
+    } finally {
+      _handoffCodeTimer?.cancel();
     }
+  }
+
+  // ------------------------------------------------ slow hand-off fallback
+
+  /// How long a Bluetooth hand-off gets before the code screen comes up as
+  /// well. The first-time invite usually connects well inside it, so that
+  /// flow looks as it did; a hand-off whose Bluetooth link quietly died
+  /// shows a code both phones can use instead of a spinner.
+  static const _handoffCodeAfter = Duration(seconds: 8);
+  Timer? _handoffCodeTimer;
+
+  /// The reconnect screen currently up was opened by a slow hand-off rather
+  /// than by the guided reconnect, so the hand-off's outcome decides it.
+  bool _handoffFallback = false;
+
+  /// Hosting side: once the hotspot is up and the details are sent, show
+  /// the code if the other phone has not arrived by [_handoffCodeAfter].
+  void _armHandoffCode(SavedRoom room, HotspotCredentials credentials) {
+    final epoch = _readinessEpoch;
+    _handoffCodeTimer?.cancel();
+    _handoffCodeTimer = Timer(_handoffCodeAfter, () {
+      if (!mounted || epoch != _readinessEpoch || _reconnectModel != null) {
+        return;
+      }
+      Logger.diagnostic('room: handoff slow, showing code');
+      _handoffFallback = true;
+      _setReconnect(
+        room,
+        RoomReconnectModel(
+          side: RoomReconnectSide.show,
+          peerName: _memberName(_peerFor(room)),
+          phase: RoomReconnectPhase.waiting,
+          qrData: credentials.qrPayload(
+            channel: RoomPreLiveAnnouncer.channelFor(room.room.id),
+          ),
+          canSwitch: false,
+        ),
+      );
+    });
+  }
+
+  /// Joining side: the scan screen, for a hand-off that is taking too long.
+  void _showHandoffScan(SavedRoom room) {
+    if (_reconnectModel != null) return;
+    _handoffFallback = true;
+    _setReconnect(
+      room,
+      RoomReconnectModel(
+        side: RoomReconnectSide.scan,
+        peerName: _memberName(_peerFor(room)),
+        phase: RoomReconnectPhase.waiting,
+        canSwitch: false,
+      ),
+    );
+  }
+
+  Future<void> _offerHandoffScan(
+    SavedRoom room,
+    int token,
+    int epoch,
+    Completer<HotspotCredentials> scanned,
+  ) async {
+    if (!mounted || token != _reconnectToken || epoch != _readinessEpoch) {
+      return;
+    }
+    Logger.diagnostic('room: handoff slow, offering scan');
+    _showHandoffScan(room);
+    if (!await _awaitWifiForScan(token)) return;
+    while (!scanned.isCompleted) {
+      final waiter = Completer<HotspotCredentials?>();
+      _scanWaiter = waiter;
+      final credentials = await waiter.future;
+      if (credentials == null || token != _reconnectToken) return;
+      if (!scanned.isCompleted) scanned.complete(credentials);
+    }
+  }
+
+  /// Resolves a reconnect screen a slow hand-off put up, once the hand-off
+  /// itself has finished: gone on success, and on failure the reason in
+  /// place of the spinner — never a silent drop back to the lobby.
+  Future<_EntryState> _settleHandoffFallback(
+    SavedRoom room,
+    _EntryState outcome,
+  ) async {
+    _handoffCodeTimer?.cancel();
+    final shown = _handoffFallback;
+    _handoffFallback = false;
+    final waiter = _scanWaiter;
+    if (shown && waiter != null && !waiter.isCompleted) {
+      _scanWaiter = null;
+      waiter.complete(null);
+    }
+    final model = _reconnectModel;
+    if (!shown || !mounted || model == null) return outcome;
+    if (outcome.live) return _leaveReconnect(outcome);
+    if (outcome.failure == _EntryFailure.staleAttempt) return outcome;
+    final message =
+        _failureMessage(context, outcome.failure) ??
+        context.getString.room_start_nobody_answered;
+    if (model.side == RoomReconnectSide.scan) {
+      // Back to a fresh camera with the reason, as the guided scan does.
+      return _reconnect(room, showCode: false, message: message);
+    }
+    _updateReconnect(
+      (current) =>
+          current.copyWith(phase: RoomReconnectPhase.failed, message: message),
+    );
+    return outcome;
   }
 
   /// Whether this phone can raise a LocalOnlyHotspot (Android 8.0+). Only an
@@ -1026,7 +1357,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     if (links.isUp) {
       final route = ConnectRoute.forStrandedRoom(
         intent: intent,
-        pinned: _modeStore?.pinnedMode,
+        pinned: _roomPin,
       );
       Logger.diagnostic('room: connect stranded intent=${intent.key}');
       context.push(route);
@@ -1039,7 +1370,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         canHostHotspot: Platform.isAndroid,
         canJoinHotspot: Platform.isAndroid || Platform.isIOS,
         bluetoothSupported: Platform.isAndroid || Platform.isIOS,
-        pinned: _modeStore?.pinnedMode,
+        pinned: _roomPin,
       ),
     );
     Logger.diagnostic(
@@ -1090,6 +1421,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   void dispose() {
     _readinessEpoch++;
     _reconnectToken++;
+    _handoffCodeTimer?.cancel();
     final waiter = _scanWaiter;
     if (waiter != null && !waiter.isCompleted) waiter.complete(null);
     // Already handed off when the Room went live; then the live session owns
@@ -1125,6 +1457,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
           showCode: reconnect.side == RoomReconnectSide.show,
         ),
         onBack: _cancelReconnect,
+        onTurnOnWifi: _turnOnWifi,
       );
     }
     return _resolvedEntry(context);

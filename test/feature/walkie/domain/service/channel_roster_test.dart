@@ -122,4 +122,47 @@ void main() {
       expect(input, hasLength(1));
     });
   });
+
+  group('ChannelRoster.sameForDisplay', () {
+    final earlier = DateTime.utc(2026, 9, 25, 12);
+    final later = earlier.add(const Duration(seconds: 1));
+
+    test('a lastSeen refresh alone is not a visible change', () {
+      // What every audio packet from a talker does, many times a second.
+      expect(
+        ChannelRoster.sameForDisplay(
+          [user('a', isTalking: true, lastSeen: earlier)],
+          [user('a', isTalking: true, lastSeen: later)],
+        ),
+        isTrue,
+      );
+    });
+
+    test('talking, role, name and membership changes are visible', () {
+      final base = [user('a', lastSeen: earlier)];
+      expect(
+        ChannelRoster.sameForDisplay(base, [
+          user('a', isTalking: true, lastSeen: earlier),
+        ]),
+        isFalse,
+      );
+      expect(
+        ChannelRoster.sameForDisplay(base, [
+          user('a', role: SessionRole.host, lastSeen: earlier),
+        ]),
+        isFalse,
+      );
+      expect(
+        ChannelRoster.sameForDisplay(base, [
+          user('a', lastSeen: earlier).copyWith(name: 'Renamed'),
+        ]),
+        isFalse,
+      );
+      expect(ChannelRoster.sameForDisplay(base, []), isFalse);
+      expect(
+        ChannelRoster.sameForDisplay(base, [user('b', lastSeen: earlier)]),
+        isFalse,
+      );
+    });
+  });
 }

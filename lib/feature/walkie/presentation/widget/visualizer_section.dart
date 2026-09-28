@@ -183,10 +183,34 @@ class _StatusReadout extends StatefulWidget {
 
 class _StatusReadoutState extends State<_StatusReadout>
     with SingleTickerProviderStateMixin {
+  // Runs only while on air. The readout lives for the whole session and is
+  // idle most of it, so a controller left repeating would tick every frame
+  // for a dot that is not pulsing.
   late final AnimationController _pulse = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 900),
-  )..repeat(reverse: true);
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _syncPulse();
+  }
+
+  @override
+  void didUpdateWidget(_StatusReadout oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncPulse();
+  }
+
+  void _syncPulse() {
+    if (widget.scope.pulse) {
+      if (!_pulse.isAnimating) _pulse.repeat(reverse: true);
+    } else if (_pulse.isAnimating) {
+      _pulse.stop();
+      _pulse.value = 0;
+    }
+  }
 
   @override
   void dispose() {

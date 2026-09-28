@@ -27,7 +27,11 @@ import '../../../../core/utils/logger.dart';
 import '../../../audio/api/audio_api.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../../domain/entity/channel_user.dart';
+import '../../domain/service/channel_health_monitor.dart';
 import '../../domain/service/channel_roster.dart';
+import '../../domain/service/music_cast_watch.dart';
+import '../../domain/service/transmit_counters.dart';
+import 'walkie_widget_snapshot.dart';
 
 /// Placeholder local id used in Bluetooth mode, where there's no IP concept
 /// and the peer connection (established before this cubit is even built) is
@@ -124,7 +128,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
         // "nobody could hear me". Moved forward rather than cleared — clearing
         // it would let the check fall back to the last confirmation, which is
         // the very timestamp on the far side of the gap we are discounting.
-        _unheardSince = DateTime.now();
+        _health.restartUnheardClock(DateTime.now());
         // Capture chunks buffered up on the platform channel while the isolate
         // was stalled, and they land as one burst. That backlog is stale by
         // definition — it is audio from while the phone was locked — so it goes
@@ -156,50 +160,9 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     }
   }
 
-  /// When the channel finished opening, for the "nobody else is here" check —
-  /// which is only worth saying once enough time has passed for someone to
-  /// have shown up.
-  DateTime? _readyAt;
-
-  /// Last mic frame that actually arrived. The engine can report itself
-  /// started and then deliver nothing at all (see [_checkMicHealth]), so
-  /// "started" is not evidence the mic works — a frame is.
-  DateTime? _lastFrameAt;
-
-  /// When this device first had no usable local address, so a momentary gap
-  /// during a network change isn't announced as a failure.
-  DateTime? _noAddressSince;
-
-  /// Last time a peer's presence packet listed *us* among the devices it can
-  /// hear — proof our transmissions are arriving somewhere.
-  ///
-  /// Everything else this cubit grades is about receiving. A phone whose
-  /// outgoing path has died still has a bound socket, a healthy link, a
-  /// populated roster and a working mic, and every check on the
-  /// troubleshooting sheet goes green while nobody can hear it. This is the
-  /// only local evidence to the contrary there is.
-  DateTime? _lastHeardByPeerAt;
-
-  /// When peers started reporting they can't hear us, so a single dropped
-  /// presence packet isn't treated as going mute.
-  DateTime? _unheardSince;
-
-  /// How long peers must consistently report not hearing us before it counts.
-  /// Several presence ticks (they arrive every 2s), so this needs a sustained
-  /// disagreement rather than one lost datagram.
-  static const _unheardAfter = Duration(seconds: 7);
-
-  /// Silence longer than this, with the engine claiming to be started, means
-  /// the mic is not actually feeding us. Generous: a slow device can take a
-  /// couple of seconds to deliver its first callback.
-  static const _micSilentAfter = Duration(seconds: 6);
-
-  /// How long a missing local address must persist before it's reported.
-  static const _noAddressGrace = Duration(seconds: 5);
-
-  /// How long to sit in an empty channel before saying so. Long enough that
-  /// a peer joining normally is never preceded by a "you're alone" card.
-  static const _aloneAfter = Duration(seconds: 20);
+  /// The timed health checks (mic, address, audibility, alone) — see
+  /// [ChannelHealthMonitor]. Graded on the roster tick in [_cleanupStaleUsers].
+  final ChannelHealthMonitor _health = ChannelHealthMonitor();
 
   /// Wraps [_init] so a throw anywhere in it becomes a visible, recoverable
   /// state instead of a channel screen stuck on "connecting" forever.
@@ -235,11 +198,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     _widgetControlSub = null;
     _presenceTimer = null;
     _cleanupTimer = null;
-    _readyAt = null;
-    _lastFrameAt = null;
-    _noAddressSince = null;
-    _lastHeardByPeerAt = null;
-    _unheardSince = null;
+    _health.reset();
     emit(
       state.copyWith(
         startFailed: false,
@@ -259,7 +218,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   /// covers both mic failures the UI can show.
   Future<void> restartMic() async {
     if (isClosed) return;
-    _lastFrameAt = DateTime.now();
+    _health.noteFrame(DateTime.now());
     emit(state.copyWith(micDelivering: true));
     try {
       await _audioEngine.start();
@@ -288,7 +247,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     // From now: the repair deserves a full grace period to prove itself, and
     // clearing this outright would re-arm the warning against a confirmation
     // that predates the repair.
-    _unheardSince = DateTime.now();
+    _health.restartUnheardClock(DateTime.now());
     _refreshId();
     if (!isClosed && state.unheardByPeers) {
       emit(state.copyWith(unheardByPeers: false));
@@ -472,7 +431,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
         // minutes (nobody talking, roster steady), and the native side
         // demotes state it hasn't heard about to "idle". publish() throttles
         // this down to one actual write every 30s.
-        unawaited(_homeWidget.publish(_widgetSnapshot(state)));
+        unawaited(_homeWidget.publish(walkieWidgetSnapshot(state)));
       }),
     );
     _cleanupTimer = _resources.register(
@@ -483,8 +442,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     // Both clocks start here rather than at construction: everything before
     // this point is legitimate warm-up, and grading the mic or the roster
     // against it would report a failure for a channel that is merely opening.
-    _readyAt = DateTime.now();
-    _lastFrameAt = DateTime.now();
+    _health.markReady(DateTime.now());
 
     emit(state.copyWith(isReady: true));
     _sfx.play(SfxEvent.channelJoin);
@@ -525,52 +483,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   @override
   void onChange(Change<WalkieTalkieState> change) {
     super.onChange(change);
-    unawaited(_homeWidget.publish(_widgetSnapshot(change.nextState)));
-  }
-
-  HomeWidgetSnapshot _widgetSnapshot(WalkieTalkieState s) {
-    // Same precedence the on-screen scope pill uses (see VisualizerSection),
-    // so the widget and the channel page never disagree about what's
-    // happening — with link health on top, since a dropped link makes every
-    // other state a lie.
-    final session = switch (s) {
-      // Before isReady, so a channel that failed to open reads as down on the
-      // home screen rather than connecting forever.
-      _ when s.startFailed => HomeWidgetSession.down,
-      _ when !s.isReady => HomeWidgetSession.connecting,
-      _ when s.connectionHealth.status == ConnectionHealthStatus.down =>
-        HomeWidgetSession.down,
-      // Every rung that is not live reads as reconnecting here, rather than
-      // naming them: the widget has one glyph for "the app is working on it",
-      // and matching only ConnectionHealthStatus.reconnecting would let the
-      // harder rung above it (renegotiating) fall through to "listening" — the
-      // widget cheerfully reporting a healthy channel during the worst state
-      // the link can be in short of down.
-      //
-      // Degraded is live and so lands below with the ordinary states, which is
-      // the intent: the quiet rung is quiet here too.
-      _ when !s.connectionHealth.isLive => HomeWidgetSession.reconnecting,
-      _ when s.isTransmitting => HomeWidgetSession.onAir,
-      // Muted only wins when nothing is actually going out — a music share
-      // keeps the channel hot even with the mic closed.
-      _ when s.isSelfMuted => HomeWidgetSession.muted,
-      _ when s.isSomeoneElseTalking => HomeWidgetSession.receiving,
-      _ => HomeWidgetSession.listening,
-    };
-    return HomeWidgetSnapshot(
-      session: session,
-      modeKey: s.transferMode.key,
-      callsign: s.myName,
-      peerCount: s.activeUsers.length,
-      talker: session == HomeWidgetSession.receiving ? _talkerName(s) : '',
-    );
-  }
-
-  String _talkerName(WalkieTalkieState s) {
-    for (final u in s.activeUsers) {
-      if (u.isTalking) return u.name;
-    }
-    return '';
+    unawaited(_homeWidget.publish(walkieWidgetSnapshot(change.nextState)));
   }
 
   // Hangover + pre-roll VOX shaping — see [VoxGate] for the why.
@@ -587,6 +500,16 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
 
   // Roster bookkeeping (join/leave/talk-timeout) — see [ChannelRoster].
   final ChannelRoster _roster = const ChannelRoster();
+
+  /// The roster as the cubit tracks it, `lastSeen` included.
+  ///
+  /// Kept apart from [WalkieTalkieState.activeUsers] because every audio
+  /// packet refreshes a talker's `lastSeen`, dozens of times a second per
+  /// talker. Emitting each of those rebuilt the member list and re-published
+  /// the home-screen widget for a change nobody can see. The state only moves
+  /// when something shown does (see [_publishRoster]); this list is what the
+  /// join, leave and talk-timeout bookkeeping reads.
+  List<ChannelUser> _users = const [];
 
   // System-audio (music) sharing: capture chunks queue up in the mixer,
   // which re-cuts them onto the mic's 20 ms frame grid — see [MusicMixer].
@@ -625,7 +548,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
 
   void _onAudioFrame(AudioFrame frame) {
     // Proof the capture device is genuinely alive — see [_checkMicHealth].
-    _lastFrameAt = DateTime.now();
+    _health.noteFrame(DateTime.now());
 
     // Full duplex: TX and RX run independently, same as a phone call. No
     // half-duplex gate — the platform's voice processing (echo cancellation /
@@ -703,14 +626,13 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
         isOnline &&
         (voiceOpen || musicKeysVoice);
 
-    _txFramesSeen++;
+    _tx.frameSeen();
     if (isTransmitting) {
       final buffered = _voxGate.drainPreroll();
       if (voiceOpen && !state.isTransmitting) {
         // Gate just opened — flush the pre-roll so the word onset survives.
-        _txPrerollFlushes++;
+        _tx.prerollFlushed(buffered.length);
         for (final samples in buffered) {
-          _txPrerollFrames++;
           _transferRepository.sendAudio(
             _audioEngine.processForTransmit(samples, voxLevel),
             state.myName,
@@ -723,10 +645,10 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
       if (musicKeysVoice) {
         outgoing = _musicMixer.mix(outgoing, state.musicGain);
       }
-      _txFramesSent++;
+      _tx.frameSent();
       _transferRepository.sendAudio(outgoing, state.myName);
     } else {
-      _txFramesGated++;
+      _tx.frameGated();
       _voxGate.bufferWhileClosed(frame.samples);
     }
 
@@ -735,36 +657,9 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     }
   }
 
-  // Last reported mixer counters, so the log below stays quiet unless
-  // something actually changed.
-  int _lastMusicDropouts = 0;
-  int _lastMusicTrims = 0;
-  int _lastMusicFloods = 0;
-
-  /// Level below which a capture chunk counts as silence. The same threshold
-  /// the equalizer uses to decide it is flatlining, so what the log says and
-  /// what the card shows can never disagree.
-  static const double _kMusicAudibleLevel = 0.004;
-
-  /// Since when every captured chunk has been silent, or null if the last one
-  /// carried audio.
-  DateTime? _musicSilentSince;
-
-  /// Whether this cast has *ever* produced audible capture. A device that has
-  /// managed it once is not the blocked case, whatever it does later.
-  bool _musicEverAudible = false;
-
-  /// Whether the blocked-capture diagnosis has already been delivered, so it is
-  /// said once per cast rather than every tick.
-  bool _musicBlockedReported = false;
-
-  /// How long capture must be silent before another app claiming to be playing
-  /// counts as this device refusing to hand over the audio.
-  ///
-  /// Generous on purpose: starting the cast before choosing a song is normal
-  /// (the idle copy invites exactly that), and a cast must never be second-
-  /// guessed for a pause between tracks.
-  static const _musicBlockedAfter = Duration(seconds: 8);
+  // Silence, audibility and counter bookkeeping for the running cast — see
+  // [MusicCastWatch].
+  final MusicCastWatch _musicWatch = MusicCastWatch();
 
   /// Reports the music cast's buffer health while one is running.
   ///
@@ -776,38 +671,16 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   /// cushion is simply too small for this device.
   // ── Transmit diagnostics ──────────────────────────────────────────────────
   //
-  // The capture line in AudioEngineImpl says the mic produced frames; this
-  // says what this cubit then did with them. Between the two sits VOX,
-  // self-mute and the online gate, and any of the three can silently swallow
-  // a whole session's speech — which reads on the other phone as "I could not
-  // hear you at all" and reads here, without these counters, as nothing.
-  int _txFramesSeen = 0;
-  int _txFramesSent = 0;
-  int _txFramesGated = 0;
-  int _txPrerollFlushes = 0;
-  int _txPrerollFrames = 0;
-  DateTime _lastTxLogAt = DateTime.fromMillisecondsSinceEpoch(0);
-  static const _txLogInterval = Duration(seconds: 15);
+  // What this cubit did with each mic frame — see [TransmitCounters].
+  final TransmitCounters _tx = TransmitCounters();
 
-  /// One line describing the VOX/transmit decision over the last window.
-  ///
-  /// Deliberately reports the *ratio*: frames arriving versus frames actually
-  /// put on the wire is what separates "the mic was dead" from "VOX never
-  /// opened" from "we were muted the whole time", and those three have
-  /// identical symptoms and completely different fixes.
+  /// One line describing the VOX/transmit decision over the last window: the
+  /// counts, and the settings and state that explain them.
   void _logTransmitState() {
-    final now = DateTime.now();
-    if (now.difference(_lastTxLogAt) < _txLogInterval) return;
-    final window = now.difference(_lastTxLogAt);
-    _lastTxLogAt = now;
-    if (window.inSeconds > 60 || _txFramesSeen == 0) {
-      _resetTxCounters();
-      return;
-    }
+    final counts = _tx.takeWindow(DateTime.now());
+    if (counts == null) return;
     Logger.diagnostic(
-      'transmit: ${window.inSeconds}s window — frames=$_txFramesSeen '
-      'sent=$_txFramesSent gated=$_txFramesGated '
-      'preroll=$_txPrerollFrames/${_txPrerollFlushes}bursts '
+      'transmit: $counts '
       // Margin, measured background and the level they resolve to. All three,
       // because a field report of "it kept cutting me off" is unattributable
       // with only one: the setting alone cannot say what the mic was hearing,
@@ -823,15 +696,6 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
       'muted=${state.isSelfMuted} music=${state.isSharingSystemAudio} '
       'peers=${state.activeUsers.length} localId=${state.localId}',
     );
-    _resetTxCounters();
-  }
-
-  void _resetTxCounters() {
-    _txFramesSeen = 0;
-    _txFramesSent = 0;
-    _txFramesGated = 0;
-    _txPrerollFlushes = 0;
-    _txPrerollFrames = 0;
   }
 
   /// Same line shape regardless of mode (#30) — `MediaFrameScheduler`
@@ -860,14 +724,13 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
       prefill = _musicMixer.prefillSamples;
       overflow = _musicMixer.overflowDrops;
     }
-    if (dropouts == _lastMusicDropouts &&
-        trims == _lastMusicTrims &&
-        floods == _lastMusicFloods) {
+    if (!_musicWatch.countersMoved(
+      dropouts: dropouts,
+      trims: trims,
+      floods: floods,
+    )) {
       return;
     }
-    _lastMusicDropouts = dropouts;
-    _lastMusicTrims = trims;
-    _lastMusicFloods = floods;
     Logger.diagnostic(
       'music cast: $queued samples queued '
       '(cushion $prefill) | dropouts=$dropouts '
@@ -890,16 +753,16 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   /// absence of a signal proves nothing and changes nothing.
   Future<void> _checkMusicBlocked() async {
     if (!state.isSharingSystemAudio) return;
-    if (_musicBlockedReported || _musicEverAudible) return;
-    final silentSince = _musicSilentSince;
-    if (silentSince == null) return;
-    if (DateTime.now().difference(silentSince) < _musicBlockedAfter) return;
+    if (!_musicWatch.shouldSuspectBlocked(DateTime.now())) return;
     if (!await MediaControl.isOtherMediaPlaying()) return;
-    if (isClosed || !state.isSharingSystemAudio || _musicEverAudible) return;
+    if (isClosed || !state.isSharingSystemAudio || _musicWatch.everAudible) {
+      return;
+    }
 
-    _musicBlockedReported = true;
+    _musicWatch.markBlockedReported();
     Logger.diagnostic(
-      'music cast: capture silent for ${_musicBlockedAfter.inSeconds}s while '
+      'music cast: capture silent for '
+      '${_musicWatch.blockedAfter.inSeconds}s while '
       'another app reports playing — this device is withholding playback '
       'capture, most likely while our call-mode session is open',
     );
@@ -946,8 +809,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
       '${SystemAudioCapture.hdFormat.channels}ch)',
     );
     await _musicSub?.cancel();
-    _musicSilentSince = DateTime.now();
-    _musicEverAudible = false;
+    _musicWatch.started(DateTime.now());
     // Always subscribed, in both modes: this is the only capture stream the
     // native side reports capture_stalled/capture_revoked errors through
     // (see SystemAudioHandler.handleActivityResult — hd_frames has no error
@@ -958,12 +820,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
       (chunk) {
         if (!_usingIndependentMedia) _musicMixer.addChunk(chunk);
         final level = MusicMixer.levelOf(chunk);
-        if (level >= _kMusicAudibleLevel) {
-          _musicSilentSince = null;
-          _musicEverAudible = true;
-        } else {
-          _musicSilentSince ??= DateTime.now();
-        }
+        _musicWatch.noteChunk(level, DateTime.now());
         if (!_musicLevelController.isClosed &&
             _musicLevelController.hasListener &&
             chunk.isNotEmpty) {
@@ -1052,9 +909,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     _mediaScheduler?.dispose();
     _mediaScheduler = null;
     _usingIndependentMedia = false;
-    _musicSilentSince = null;
-    _musicEverAudible = false;
-    _musicBlockedReported = false;
+    _musicWatch.stopped();
     _transferRepository.setAudioProfile(AudioProfile.voice);
     await SystemAudioCapture.stop();
     // AudioPlaybackCapture never touches the source app, so without this the
@@ -1243,8 +1098,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     final heard = packet.heardIds;
     if (heard == null) return;
     if (!heard.contains(_identity.id)) return;
-    _lastHeardByPeerAt = DateTime.now();
-    _unheardSince = null;
+    _health.noteHeardByPeer(DateTime.now());
     if (state.unheardByPeers) {
       Logger.diagnostic('transmit: peers can hear us again');
       emit(state.copyWith(unheardByPeers: false));
@@ -1262,44 +1116,35 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   /// an opinion. An empty channel says nothing about audibility, and neither
   /// does a peer on an older build.
   void _checkAudibility() {
-    if (!state.isReady || state.activeUsers.isEmpty) {
-      // An empty channel is not evidence of anything, and the confirmation
-      // clock goes with it: a peer arriving after a long gap has not had a
-      // chance to hear us yet, and grading it against the last person who did
-      // would flash a warning at every join.
-      _unheardSince = null;
-      _lastHeardByPeerAt = null;
-      if (state.unheardByPeers) emit(state.copyWith(unheardByPeers: false));
-      return;
+    final verdict = _health.audibility(
+      now: DateTime.now(),
+      isReady: state.isReady,
+      hasPeers: state.activeUsers.isNotEmpty,
+    );
+    switch (verdict) {
+      case AudibilityVerdict.clear:
+        if (state.unheardByPeers) emit(state.copyWith(unheardByPeers: false));
+      case AudibilityVerdict.unchanged:
+        break;
+      case AudibilityVerdict.unheard:
+        if (!state.unheardByPeers) {
+          Logger.diagnostic(
+            'transmit: peers we can hear stopped listing us for '
+            '${_health.unheardAfter.inSeconds}s — our send path is one-way',
+          );
+          _sfx.play(SfxEvent.error);
+          emit(state.copyWith(unheardByPeers: true));
+        }
+        // Asked on every tick, not just the transition: the transport
+        // rate-limits itself, and a repair that didn't take needs another go
+        // rather than one attempt and a permanent warning.
+        _transferRepository.repairSendPath();
     }
-    // Never heard back at all yet: this is a channel still forming, not a
-    // broken one. _lastHeardByPeerAt is set the first time any peer confirms
-    // us, and only from then on is its absence evidence of anything.
-    final confirmed = _lastHeardByPeerAt;
-    if (confirmed == null) return;
-    // The stretch is measured from the last confirmation by default, and from
-    // an explicit reset (a resume, a manual repair) when there has been one —
-    // see where [_unheardSince] is set forward.
-    final since = _unheardSince ??= confirmed;
-    if (DateTime.now().difference(since) < _unheardAfter) return;
-
-    if (!state.unheardByPeers) {
-      Logger.diagnostic(
-        'transmit: peers we can hear stopped listing us for '
-        '${_unheardAfter.inSeconds}s — our send path is one-way',
-      );
-      _sfx.play(SfxEvent.error);
-      emit(state.copyWith(unheardByPeers: true));
-    }
-    // Asked on every tick, not just the transition: the transport rate-limits
-    // itself, and a repair that didn't take needs another go rather than one
-    // attempt and a permanent warning.
-    _transferRepository.repairSendPath();
   }
 
   void _updateUser(String id, String name, bool isTalking, SessionRole role) {
     final update = _roster.upsert(
-      state.activeUsers,
+      _users,
       ChannelUser(
         id: id,
         name: name,
@@ -1319,7 +1164,15 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
       case RosterChange.none:
         break;
     }
-    emit(state.copyWith(activeUsers: update.users));
+    _publishRoster(update.users);
+  }
+
+  /// Records [users] as the roster, emitting only when something a screen
+  /// shows changed: who is here, their names, roles and who is talking.
+  void _publishRoster(List<ChannelUser> users) {
+    _users = users;
+    if (ChannelRoster.sameForDisplay(state.activeUsers, users)) return;
+    emit(state.copyWith(activeUsers: users));
   }
 
   /// Handles a [PresencePacket.isLeaving] announcement — removes [id] at
@@ -1328,13 +1181,14 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   /// for a stray announcement from an id already gone (a duplicate, or a
   /// peer that had already aged out).
   void _removeUser(String id) {
-    final update = _roster.announceLeave(state.activeUsers, id);
+    final update = _roster.announceLeave(_users, id);
     final subject = update.subject;
     if (update.change != RosterChange.peerAnnouncedLeave || subject == null) {
-      emit(state.copyWith(activeUsers: update.users));
+      _publishRoster(update.users);
       return;
     }
     _sfx.play(SfxEvent.peerLeave);
+    _users = update.users;
     emit(
       state.copyWith(
         activeUsers: update.users,
@@ -1369,11 +1223,11 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   }
 
   void _cleanupStaleUsers() {
-    final update = _roster.cleanup(state.activeUsers, DateTime.now());
+    final update = _roster.cleanup(_users, DateTime.now());
     if (update.change == RosterChange.peerLeft) {
       _sfx.play(SfxEvent.peerLeave);
     }
-    emit(state.copyWith(activeUsers: update.users));
+    _publishRoster(update.users);
     // Rides the roster tick rather than adding timers of its own — these are
     // all "has this been wrong for a while now?" questions, and 3s is a finer
     // grain than any of their grace periods.
@@ -1392,20 +1246,20 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   /// while the channel screen shows "MIC LIVE" and the user talks to nobody.
   /// Arriving frames are the only honest evidence, so that's what this grades.
   void _checkMicHealth() {
-    if (!state.isReady || !state.hasPermission) return;
-    final last = _lastFrameAt;
-    if (last == null) return;
-    final delivering = DateTime.now().difference(last) < _micSilentAfter;
-    if (delivering != state.micDelivering) {
-      if (!delivering) {
-        Logger.diagnostic(
-          'mic: no frames for ${_micSilentAfter.inSeconds}s while started — '
-          'reporting a dead microphone',
-        );
-        _sfx.play(SfxEvent.error);
-      }
-      emit(state.copyWith(micDelivering: delivering));
+    final delivering = _health.micDelivering(
+      now: DateTime.now(),
+      isReady: state.isReady,
+      hasPermission: state.hasPermission,
+    );
+    if (delivering == null || delivering == state.micDelivering) return;
+    if (!delivering) {
+      Logger.diagnostic(
+        'mic: no frames for ${_health.micSilentAfter.inSeconds}s while '
+        'started — reporting a dead microphone',
+      );
+      _sfx.play(SfxEvent.error);
     }
+    emit(state.copyWith(micDelivering: delivering));
   }
 
   /// Notices that this phone has no address to send from.
@@ -1416,40 +1270,34 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   /// the user says ever leaves the device. The transmit gate logs it; until
   /// now nothing showed it.
   void _checkNetwork() {
-    final needsAddress =
-        state.transferMode == TransferMode.wifi ||
-        state.transferMode == TransferMode.hotspot;
-    final missing =
-        needsAddress &&
-        state.isReady &&
-        (state.localId.isEmpty || state.localId == '0.0.0.0');
-    if (!missing) {
-      _noAddressSince = null;
-      if (state.networkMissing) emit(state.copyWith(networkMissing: false));
-      return;
-    }
-    // A network change legitimately drops the address for a moment — only a
-    // gap that outlasts the grace is worth a card.
-    final since = _noAddressSince ??= DateTime.now();
-    if (DateTime.now().difference(since) < _noAddressGrace) return;
-    if (!state.networkMissing) {
+    final missing = _health.networkMissing(
+      now: DateTime.now(),
+      needsAddress:
+          state.transferMode == TransferMode.wifi ||
+          state.transferMode == TransferMode.hotspot,
+      isReady: state.isReady,
+      localId: state.localId,
+    );
+    if (missing == null || missing == state.networkMissing) return;
+    if (missing) {
       Logger.diagnostic(
-        'wifi: no local address for ${_noAddressGrace.inSeconds}s',
+        'wifi: no local address for ${_health.noAddressGrace.inSeconds}s',
       );
-      emit(state.copyWith(networkMissing: true));
     }
+    emit(state.copyWith(networkMissing: missing));
   }
 
   /// An empty channel is not a failure — but sitting in one with no idea
   /// whether the app is broken or the other person simply hasn't joined is,
   /// and that's the state this ends.
   void _checkAlone() {
-    final readyAt = _readyAt;
-    if (readyAt == null) return;
-    final alone =
-        state.activeUsers.isEmpty &&
-        DateTime.now().difference(readyAt) >= _aloneAfter;
-    if (alone != state.isAlone) emit(state.copyWith(isAlone: alone));
+    final alone = _health.alone(
+      now: DateTime.now(),
+      hasPeers: state.activeUsers.isNotEmpty,
+    );
+    if (alone != null && alone != state.isAlone) {
+      emit(state.copyWith(isAlone: alone));
+    }
   }
 
   Future<void> setVoxMargin(double threshold) async {

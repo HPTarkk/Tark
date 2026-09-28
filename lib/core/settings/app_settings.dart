@@ -83,11 +83,12 @@ class AppSettings extends Equatable {
     // RnnoiseSuppressor.isAvailable / AudioEngineImpl).
     noiseSuppressionEngine: NoiseSuppressionEngine.rnnoise,
     musicGain: 0.85,
-    // Playback jitter-buffer depth. 60 ms was the old value and was
-    // measurably too shallow: it drained dry on every scheduling burst even
-    // over WiFi, and far worse over Bluetooth, where each underrun costs a
-    // full refill pause (heard as chopped speech).
-    targetBufferMs: 100,
+    // Playback jitter-buffer depth, at the slider's minimum. 60 ms used to
+    // drain dry on every scheduling burst, but that was the Dart drain timer
+    // falling behind; the speaker now pulls straight from the native queue,
+    // which adds the device's own pull size on top, and the depth still
+    // grows by itself after an underrun.
+    targetBufferMs: 60,
     // Off by default. The preset is tuned for one situation — a phone in a
     // pocket, a helmet headset, road noise — and it is the wrong setup at a
     // desk, where gating the mic at all only costs word onsets. Making it a

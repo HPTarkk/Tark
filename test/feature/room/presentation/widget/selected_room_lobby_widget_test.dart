@@ -64,15 +64,23 @@ void main() {
     );
     expect(tester.takeException(), isNull);
 
+    // Start sits below Invite and can be under the fold.
     await tester.ensureVisible(
       find.byKey(const Key('selected-room-start-ride')),
     );
+    await tester.pump();
     await tester.tap(find.byKey(const Key('selected-room-start-ride')));
     expect(starts, 1);
 
     // Creating a room replaces the route stack, so this screen is routinely
     // the only thing on it: without a control of its own there is no system
     // back to inherit and the gesture closed the app.
+    await tester.dragUntilVisible(
+      find.byKey(const Key('selected-room-lobby-back')),
+      find.byKey(const Key('selected-room-lobby')),
+      const Offset(0, 200),
+    );
+    await tester.pump();
     await tester.tap(find.byKey(const Key('selected-room-lobby-back')));
     expect(backs, 1);
     expect(find.byTooltip('بازگشت'), findsOneWidget);
@@ -102,12 +110,20 @@ void main() {
     expect(find.text('Room members (2)'), findsOneWidget);
     expect(find.text('Rider one'), findsOneWidget);
     expect(find.text('Rider two'), findsOneWidget);
+    // Start sits below Invite and can be under the fold.
     await tester.ensureVisible(
       find.byKey(const Key('selected-room-start-ride')),
     );
+    await tester.pump();
     await tester.tap(find.byKey(const Key('selected-room-start-ride')));
     expect(starts, 1);
 
+    await tester.dragUntilVisible(
+      find.byKey(const Key('selected-room-lobby-back')),
+      find.byKey(const Key('selected-room-lobby')),
+      const Offset(0, 200),
+    );
+    await tester.pump();
     await tester.tap(find.byKey(const Key('selected-room-lobby-back')));
     expect(backs, 1);
     expect(find.byTooltip('Back'), findsOneWidget);

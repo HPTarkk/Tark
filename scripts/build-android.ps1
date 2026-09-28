@@ -23,17 +23,18 @@
 # ── Release model ───────────────────────────────────────────────────────────
 # Answer Yes to "Publish" and this script also tags and uploads.
 #
-# There is ONE permanent release branch per major version, and a release is an
+# There is ONE permanent release branch per minor version, and a release is an
 # annotated tag on it — never a branch of its own. Both names come from
 # pubspec.yaml, so bumping the version there is how you cut a release:
 #
 #   version: 1.0.10+11  ->  branch release/1.0.0   tag v1.0.10
-#   version: 1.4.2+18   ->  branch release/1.0.0   tag v1.4.2
+#   version: 1.4.2+18   ->  branch release/1.4.0   tag v1.4.2
 #   version: 2.0.0+20   ->  branch release/2.0.0   tag v2.0.0
 #
-# Only the MAJOR reaches the branch name; the whole line lives on one branch.
+# MAJOR.MINOR reaches the branch name; patches are only tags on that branch.
 # A bugfix for a shipped version is therefore a commit on that branch plus the
-# next tag, and a new major opens a new branch the first time it is published.
+# next tag, and a new major or minor opens a new branch the first time it is
+# published.
 #
 # Features live on main, so a feature release needs main merged into the release
 # branch first — offered in preflight, listing the commits, defaulting to yes.
@@ -66,7 +67,7 @@ Set-Location $repoRoot
 $assetName = 'Tarkk.apk'
 
 # Reads pubspec.yaml and derives everything named after the version: the tag,
-# and the release branch for its major line. Called again after any branch
+# and the release branch for its major.minor line. Called again after any branch
 # switch, because a different branch can carry a different version.
 function Get-PubspecVersion {
     $line = (Get-Content (Join-Path $repoRoot 'pubspec.yaml')) |
@@ -79,17 +80,19 @@ function Get-PubspecVersion {
     $name = $Matches['name']
     $code = $Matches['code']
 
-    if (-not ($name -match '^(?<major>\d+)\.')) {
-        throw "version '$name' in pubspec.yaml does not start with a major number"
+    if (-not ($name -match '^(?<major>\d+)\.(?<minor>\d+)\.')) {
+        throw "version '$name' in pubspec.yaml does not start with major.minor numbers"
     }
     $major = $Matches['major']
+    $minor = $Matches['minor']
 
     return [pscustomobject]@{
         Name   = $name
         Code   = $code
         Major  = $major
+        Minor  = $minor
         Tag    = "v$name"
-        Branch = "release/$major.0.0"
+        Branch = "release/$major.$minor.0"
     }
 }
 
@@ -334,7 +337,7 @@ if ($publish) {
         } elseif ($remoteExists) {
             Run 'git' @('checkout', '-b', $releaseBranch, '--track', "origin/$releaseBranch") 'git checkout'
         } else {
-            # A fresh clone, or the first ever publish of this major line.
+            # A fresh clone, or the first ever publish of this major.minor line.
             Write-Host "  $releaseBranch does not exist yet — creating it here." -ForegroundColor DarkGray
             Run 'git' @('checkout', '-b', $releaseBranch) 'git checkout'
             Run 'git' @('push', '-u', 'origin', $releaseBranch) 'git push'
@@ -459,7 +462,7 @@ if (-not $suggested) {
         Write-Host "  pubspec.yaml now reads $newVersion  (tag $tag)" -ForegroundColor Green
 
         if ($publish) {
-            # Typing a version from another major line would tag it on a branch
+            # Typing a version from another major.minor line would tag it on a branch
             # that is not its own, so put the file back rather than leave the
             # tree carrying a version this branch must never build.
             if ($v.Branch -ne $releaseBranch) {

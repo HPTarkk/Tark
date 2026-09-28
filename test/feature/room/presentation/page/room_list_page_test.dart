@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tark/core/l10n/app_localizations.dart';
 import 'package:get_it/get_it.dart';
+import 'package:go_router/go_router.dart';
+import 'package:tark/core/router/routes.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
 import 'package:tark/feature/room/domain/entity/room_accepted_join_snapshot.dart';
 import 'package:tark/feature/room/domain/entity/room_invitation.dart';
@@ -33,35 +35,44 @@ void main() {
       );
       getIt.registerFactory<RoomListCubit>(() => RoomListCubit(repository));
 
+      final router = GoRouter(
+        initialLocation: AppRoutes.roomsPath,
+        routes: [
+          GoRoute(
+            path: AppRoutes.roomsPath,
+            builder: (_, _) => RoomListPage.buildPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.walkiePath,
+            builder: (_, _) => const Scaffold(body: Text('lobby')),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
       await tester.pumpWidget(
-        _app(const Locale('en'), RoomListPage.buildPage()),
+        MaterialApp.router(
+          routerConfig: router,
+          locale: const Locale('en'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+        ),
       );
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('rooms-list')), findsOneWidget);
       expect(find.text('Weekend crew'), findsOneWidget);
       expect(find.text('Mountain ride'), findsOneWidget);
-      // Selection is now carried by the card itself — the amber frame, the
-      // lit wash and the Start action that grows in under it — rather than by
-      // a chip beside the name. What proves it is that only the selected card
-      // offers Start.
-      expect(
-        find.byKey(Key('room-start-${second.room.id.value}')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(Key('room-start-${first.room.id.value}')),
-        findsNothing,
-      );
+      // The list offers no Start of its own: connecting happens in the lobby
+      // and only there.
+      expect(find.text('Start ride'), findsNothing);
       expect(tester.takeException(), isNull);
 
-      // Tapping an unselected card selects it. There is no separate "Select
-      // this room" button any more: the card was always the control, and the
-      // button only restated it.
+      // One tap on any card selects it and opens its lobby. Nothing connects.
       await tester.tap(find.byKey(Key('room-${first.room.id.value}')));
       await tester.pumpAndSettle();
 
       expect(repository.selected, first.room.id);
+      expect(find.text('lobby'), findsOneWidget);
       expect(repository.transportStarts, 0);
       expect(tester.takeException(), isNull);
     },
