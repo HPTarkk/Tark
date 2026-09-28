@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'src/voice_queue.dart';
 
 export 'src/voice_queue.dart';
+export 'src/device_call_limit.dart' show AudioIoDiagnostics;
 
 // Conditional imports for platform-specific implementations
 import 'src/audio_io_stub.dart'

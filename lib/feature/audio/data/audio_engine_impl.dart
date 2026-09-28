@@ -30,7 +30,11 @@ import 'voice_audio_session.dart';
 
 @Injectable(as: AudioEngine)
 class AudioEngineImpl implements AudioEngine {
-  AudioEngineImpl(this._audioIo, this._settingsRepository);
+  AudioEngineImpl(this._audioIo, this._settingsRepository) {
+    // audio_io abandons a device call that never returns; the field log is
+    // the only place that can say it happened.
+    AudioIoDiagnostics.sink = Logger.diagnostic;
+  }
 
   final AudioIo _audioIo;
   final SettingsRepository _settingsRepository;
@@ -422,7 +426,9 @@ class AudioEngineImpl implements AudioEngine {
         (_) => _mediaCoordinatorTick(),
       );
     } catch (e) {
-      Logger.log('AudioIo start error: $e');
+      // Diagnostic: without it a reopen that fails looks, in the field log,
+      // exactly like one that is still in progress.
+      Logger.diagnostic('audio: device did not open — $e');
       // Continue without crashing — processor stays default, buffer is null.
     }
 
