@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/tark_mark.dart';
 import '../manager/consent_state.dart';
@@ -50,40 +51,54 @@ class ConsentPage extends StatelessWidget {
           child: Column(
             children: [
               Expanded(
-                child: ListView(
+                child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(22, 28, 22, 20),
-                  children: [
-                    TarkMark(size: 34, color: AppColors.amber),
-                    const SizedBox(height: 26),
-                    Text(
-                      _isFirstRun
-                          ? strings.consent_title_first
-                          : strings.consent_title_updated,
-                      style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 27,
-                        height: 1.2,
-                        fontWeight: FontWeight.w900,
-                      ),
+                  // The mark, the heading and each document arrive in the
+                  // same stagger as every other page.
+                  child: StaggeredEntrance(
+                    builder: (context, items) => Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: items,
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      _isFirstRun
-                          ? strings.consent_body_first
-                          : strings.consent_body_updated,
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 14,
-                        height: 1.7,
+                    children: [
+                      Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: TarkMark(size: 34, color: AppColors.amber),
                       ),
-                    ),
-                    const SizedBox(height: 26),
-                    for (final item in pending)
                       Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: _DocumentCard(item: item, language: language),
+                        padding: const EdgeInsets.only(top: 26),
+                        child: Text(
+                          _isFirstRun
+                              ? strings.consent_title_first
+                              : strings.consent_title_updated,
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 27,
+                            height: 1.2,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
                       ),
-                  ],
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12, bottom: 26),
+                        child: Text(
+                          _isFirstRun
+                              ? strings.consent_body_first
+                              : strings.consent_body_updated,
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 14,
+                            height: 1.7,
+                          ),
+                        ),
+                      ),
+                      for (final item in pending)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: _DocumentCard(item: item, language: language),
+                        ),
+                    ],
+                  ),
                 ),
               ),
               _AcceptBar(
@@ -266,22 +281,29 @@ class _AcceptBar extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
             ),
           ),
-          child: isSaving
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.black,
+          child: AnimatedSwitcher(
+            duration: AppMotion.chip,
+            switchInCurve: AppMotion.easeOut,
+            switchOutCurve: AppMotion.leaving,
+            child: isSaving
+                ? const SizedBox(
+                    key: ValueKey('saving'),
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.black,
+                    ),
+                  )
+                : Text(
+                    label,
+                    key: const ValueKey('label'),
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-                )
-              : Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
+          ),
         ),
       ),
     );
