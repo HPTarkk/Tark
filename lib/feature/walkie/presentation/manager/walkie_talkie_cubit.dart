@@ -7,9 +7,6 @@ import 'package:flutter/widgets.dart'
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
-import '../../../../core/analytics/analytics.dart';
-import '../../../../core/analytics/analytics_event.dart';
-import '../../../../core/analytics/pairing_attempt.dart';
 import '../../../../core/audio/audio_format_profile.dart';
 import '../../../../core/entitlement/license_gate.dart';
 import '../../../../core/entitlement/premium_feature.dart';
@@ -56,7 +53,6 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   final WidgetControlChannel _widgetControl;
   final DeviceIdentity _identity;
   final HotspotLinkKeeper _linkKeeper;
-  final Analytics _analytics;
   final LicenseGate _gate;
 
   /// Only ever used for [openWifiSettings] — the channel screen never joins a
@@ -94,7 +90,6 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     this._identity,
     this._linkKeeper,
     this._wifiSettings,
-    this._analytics,
     this._gate,
   ) : super(WalkieTalkieState.initial()) {
     WidgetsBinding.instance.addObserver(this);
@@ -449,20 +444,6 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     // against it would report a failure for a channel that is merely opening.
     _health.markReady(DateTime.now());
 
-    // Plain Wi-Fi has no connect screen to own its funnel events — peers just
-    // appear over UDP broadcast — so the channel itself is the pairing
-    // attempt. Without this the funnel would be missing the app's default and
-    // most-used transport entirely, which would make every cross-transport
-    // comparison in the panel a lie. The other three transports each have a
-    // connect screen that already reports for them.
-    if (_modeStore.mode == TransferMode.wifi) {
-      _wifiPairing.start(
-        _transferRepository.sessionRole == SessionRole.host
-            ? PairRole.host
-            : PairRole.joiner,
-      );
-    }
-
     emit(state.copyWith(isReady: true));
     _sfx.play(SfxEvent.channelJoin);
     _broadcastPresence();
@@ -503,48 +484,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   void onChange(Change<WalkieTalkieState> change) {
     super.onChange(change);
     unawaited(_homeWidget.publish(walkieWidgetSnapshot(change.nextState)));
-    // Cheapest possible peak-tracking, hooked here for the same reason the
-    // widget publish is: no emit site can forget it. This runs on audio-rate
-    // flag flips, so it must stay two comparisons and nothing else.
-    final peers = change.nextState.activeUsers.length;
-    if (peers > _peersMax) _peersMax = peers;
   }
-
-  /// The pairing attempt for plain Wi-Fi sessions only — see where it's
-  /// started in [_init]. Left permanently closed for every other transport,
-  /// which makes all of its methods no-ops there.
-  late final PairingAttempt _wifiPairing = PairingAttempt(
-    _analytics,
-    transport: AnalyticsTransport.wifi,
-  );
-
-  /// Records first use of a feature this session, at most once.
-  void _useFeature(AppFeature feature) {
-    if (_featuresUsed.add(feature)) {
-      _analytics.track(AnalyticsEvent.featureUsed(feature));
-    }
-  }
-
-  // ── Session analytics bookkeeping ──────────────────────────────────────
-  // All of it collapses into a single session_ended event at close(), rather
-  // than a stream of per-minute heartbeats: one row per session is both far
-  // cheaper and the shape the funnel actually reads.
-
-  /// Peak concurrent peers. Whether sessions are mostly duos or mostly
-  /// groups decides which features are worth building, so it's the one
-  /// number worth carrying through the whole session.
-  int _peersMax = 0;
-
-  /// Voice bursts — how many times the VOX gate opened. A music cast keys
-  /// the channel continuously and deliberately doesn't count here; this is
-  /// meant to answer "did they actually talk", not "was the channel hot".
-  int _txCount = 0;
-
-  bool _firstTransmitSent = false;
-
-  /// Features already reported this session — [_useFeature] fires once per
-  /// feature per session, so a user who taps mute forty times counts once.
-  final Set<AppFeature> _featuresUsed = {};
 
   // Hangover + pre-roll VOX shaping — see [VoxGate] for the why.
   final VoxGate _voxGate = VoxGate();
@@ -668,7 +608,6 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
       if (voiceOpen) {
         _sfx.play(SfxEvent.pttOpen);
         unawaited(HapticFeedback.lightImpact());
-        _txCount++;
       }
     }
     _prevVoiceOpen = voiceOpen;
@@ -714,18 +653,6 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     }
 
     if (isTransmitting != state.isTransmitting) {
-      // The activation funnel's last step. Connected-but-never-transmitted is
-      // the failure this exists to detect: it means the channel screen isn't
-      // teaching people how to talk, which no crash report would ever show.
-      if (isTransmitting && !_firstTransmitSent) {
-        _firstTransmitSent = true;
-        _analytics.track(
-          AnalyticsEvent.firstTransmit(
-            transport: state.transferMode.analytics,
-            mode: voiceOpen ? TxMode.vox : TxMode.music,
-          ),
-        );
-      }
       emit(state.copyWith(isTransmitting: isTransmitting));
     }
   }
@@ -863,7 +790,6 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     }
 
     _sfx.play(SfxEvent.toggle);
-    _useFeature(AppFeature.systemAudio);
     emit(state.copyWith(isStartingSystemAudio: true));
     final started = await SystemAudioCapture.start();
     if (isClosed) return;
@@ -1000,7 +926,6 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   }
 
   Future<void> setMusicGain(double gain) async {
-    _useFeature(AppFeature.musicGain);
     emit(state.copyWith(musicGain: gain.clamp(0.0, 1.0)));
     if (state.isSharingSystemAudio) {
       unawaited(SystemAudioCapture.setLocalVolume(state.musicGain));
@@ -1232,8 +1157,6 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
       case RosterChange.peerStartedTalking:
         _sfx.play(SfxEvent.rxStart);
       case RosterChange.peerJoined:
-        // Someone else is actually here — for Wi-Fi that IS the connection.
-        _wifiPairing.connected();
         _sfx.play(SfxEvent.peerJoin);
       // upsert() never produces either — see [ChannelRoster.cleanup] and
       // [ChannelRoster.announceLeave], the only callers that do.
@@ -1398,12 +1321,10 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
       return;
     }
     _sfx.play(SfxEvent.toggle);
-    _useFeature(AppFeature.selfMute);
     emit(state.copyWith(isSelfMuted: !state.isSelfMuted));
   }
 
   Future<void> setNoiseSuppression(double strength) async {
-    _useFeature(AppFeature.noiseSuppression);
     _audioEngine.setNoiseSuppression(strength);
     emit(state.copyWith(noiseSuppression: strength));
     await _settingsRepository.setNoiseSuppression(strength);
@@ -1422,7 +1343,6 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   /// return to their setup rather than to the factory's, which is what makes
   /// this safe to try at a red light.
   Future<void> setRidingPreset(bool enabled) async {
-    _useFeature(AppFeature.ridingPreset);
     await _settingsRepository.setRidingPreset(enabled);
     await applyAudioProfile();
   }
@@ -1464,7 +1384,6 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   }
 
   Future<void> setAutoReconnectEnabled(bool enabled) async {
-    _useFeature(AppFeature.autoReconnect);
     _transferRepository.setAutoReconnectEnabled(enabled);
     await _settingsRepository.setAutoReconnectEnabled(enabled);
   }
@@ -1473,7 +1392,6 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   /// or anything reconnect-adjacent: ducking is a local playback-mix
   /// concern, so flipping this can never itself cause a reconnect.
   Future<void> setSmartMusicDuckingEnabled(bool enabled) async {
-    _useFeature(AppFeature.smartMusicDucking);
     emit(state.copyWith(smartMusicDuckingEnabled: enabled));
     _audioEngine.setSmartMusicDuckingEnabled(enabled);
     await _settingsRepository.setSmartMusicDuckingEnabled(enabled);
@@ -1512,49 +1430,9 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     return '0.0.0.0';
   }
 
-  /// One row per session, emitted while the state is still readable — before
-  /// any of the teardown below has run.
-  ///
-  /// Skipped entirely when the channel never opened: a screen that failed to
-  /// connect is a pairing failure, already reported as such, and counting it
-  /// as a zero-second session would drag the duration distribution down with
-  /// sessions that never happened. Sessions ended by the OS killing the app
-  /// are simply lost — close() doesn't run then, and no amount of
-  /// bookkeeping here would change that.
-  void _reportSessionEnded() {
-    // A Wi-Fi attempt still open means nobody ever joined this channel. That
-    // is the transport's signature failure — the two phones ended up on
-    // different networks, or one of them has client isolation on — and it is
-    // completely invisible from the device's own point of view, which sees a
-    // perfectly healthy socket the whole time.
-    _wifiPairing.failed(PairStage.discover, PairFailure.discoverTimeout);
-    final startedAt = _health.readyAt;
-    if (startedAt == null) return;
-    _analytics.track(
-      AnalyticsEvent.sessionEnded(
-        transport: state.transferMode.analytics,
-        duration: DateTime.now().difference(startedAt),
-        peersMax: _peersMax,
-        txCount: _txCount,
-        reason: switch (state) {
-          _ when state.startFailed => SessionEndReason.error,
-          // isLive, not isHealthy: a session that ended during a quiet repair
-          // was almost certainly ended by the user — the degraded rung lasts a
-          // few seconds and they were never told about it. Counting those as
-          // connection losses would inflate the one number this event exists
-          // to measure.
-          _ when !state.connectionHealth.isLive =>
-            SessionEndReason.connectionLost,
-          _ => SessionEndReason.userLeft,
-        },
-      ),
-    );
-  }
-
   @override
   Future<void> close() async {
     WidgetsBinding.instance.removeObserver(this);
-    _reportSessionEnded();
     _presenceTimer?.cancel();
     _cleanupTimer?.cancel();
     // A graceful goodbye, sent while the transport is still fully alive so

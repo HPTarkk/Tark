@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../diagnostics/screen_log.dart';
 import '../settings/settings_keys.dart';
 
 class LocaleService {
@@ -21,6 +22,7 @@ class LocaleService {
 
   static Future<void> setLocale(Locale locale) async {
     _locale.value = locale;
+    ScreenLog.setting(SettingsKeys.appLocale, locale.languageCode);
     await _prefs.setString(SettingsKeys.appLocale, locale.languageCode);
   }
 }

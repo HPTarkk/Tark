@@ -116,7 +116,7 @@
         <span class="legal-stamp">
           <i aria-hidden="true"></i>
           <span>In effect since</span>
-          <b><time datetime="2026-09-08">8 September 2026</time></b>
+          <b><time datetime="2026-09-28">28 September 2026</time></b>
         </span>
         <a class="legal-swap" href="terms.html">Read the Terms &amp; Conditions →</a>
       </div>
@@ -134,7 +134,6 @@
         <li><a href="#scope">Who this covers</a></li>
         <li><a href="#voice">Your voice</a></li>
         <li><a href="#on-device">What stays on your phone</a></li>
-        <li><a href="#stats">Connection stats</a></li>
         <li><a href="#permissions">Permissions</a></li>
         <li><a href="#browser">Joining by browser</a></li>
         <li><a href="#website">This website</a></li>
@@ -156,7 +155,6 @@
           <div class="ledger-col reveal">
             <p class="ledger-title">WHAT LEAVES YOUR PHONE</p>
             <ul class="ledger-list asks">
-              <li>Anonymous connection stats, unless you switch them off — which transport you used, whether it connected, and where it broke. Seven events, every value from a fixed list.</li>
               <li>Your IP address, to the services any web page reaches: the font CDN this site loads from, and a public STUN server if you join a channel from a browser.</li>
               <li>Whatever you deliberately send us — a diagnostic log attached to a bug report, or an email you write.</li>
             </ul>
@@ -168,6 +166,7 @@
               <li>Your callsign, the names of people around you, the network you are on, or any address belonging to your phone.</li>
               <li>Your location. Older versions of Android demand the permission before they will scan for radios; Tark never reads a position out of it.</li>
               <li>A profile. There is no account, no phone number and no email, so there is nothing to build one out of.</li>
+              <li>Usage stats. Tark sends no analytics of any kind, to us or to anyone else.</li>
             </ul>
           </div>
         </div>
@@ -215,62 +214,12 @@
           </div>
           <div class="legal-row">
             <b>The diagnostic log</b>
-            <p>A rotating technical log — session lifecycle, screen on and off, socket events, which peers a packet failed to reach. Never any audio. It is capped in size (8 MB by default, adjustable), it stays on the phone unless you deliberately share it, and Settings → Advanced → Diagnostics has a button that deletes it.</p>
+            <p>A rotating technical log — session lifecycle, screen on and off, socket events, which peers a packet failed to reach. If you raise the log level in Settings → Advanced → Diagnostics, it also records the pages you open and, at the highest level, every tap and settings change. Never any audio. It is capped in size (8 MB by default, adjustable), it stays on the phone unless you deliberately share it, and Settings → Advanced → Diagnostics has a button that deletes it.</p>
           </div>
         </div>
       </section>
 
       <!-- ── 4 ───────────────────────────────────────────────────── -->
-      <section class="legal-sec reveal" id="stats">
-        <h2>
-          <span>Anonymous connection stats</span>
-          <a class="legal-anchor" href="#stats"><span class="sr-only">Link to this section</span></a>
-        </h2>
-        <p>This is the one thing Tark measures, and it exists for a single reason: the connection bugs worth fixing happen on somebody else’s phone, on a network we cannot reach, halfway through a ride. Without a count of which transports fail and where, those bugs get ranked by whoever shouts loudest instead of by how often they actually happen.</p>
-        <div class="legal-note">
-          <b>IT IS ON UNLESS YOU TURN IT OFF</b>
-          <p>The switch is in Settings → Privacy, and it starts on. An opt-in version of this gets enabled by roughly nobody, which produces data too thin to act on. We think the honest trade is to leave it on and hold ourselves to a strict limit on what it may contain — no names, no addresses, no free text, no audio, ever — and to say so here rather than bury it. Turning it off does not disable a feature or degrade the app in any way.</p>
-        </div>
-        <h3>The complete list of events</h3>
-        <p>There are seven, and this is all of them. Every value below comes from a fixed list written into the app — there is no free-text field anywhere in this vocabulary for something personal to leak into, and every number is widened into a range before it is sent.</p>
-        <div class="legal-rows">
-          <div class="legal-row">
-            <b>Setup finished</b>
-            <p>That the intro was completed, whether it was skipped, and which language the app is set to.</p>
-          </div>
-          <div class="legal-row">
-            <b>Pairing started</b>
-            <p>Which transport (Wi-Fi, Bluetooth, hotspot or browser guest) and which side you were — host or joiner.</p>
-          </div>
-          <div class="legal-row">
-            <b>Pairing connected</b>
-            <p>The same two, plus roughly how long it took as one of four ranges — under 5 seconds, 5–15, 15–45, or longer.</p>
-          </div>
-          <div class="legal-row">
-            <b>Pairing failed</b>
-            <p>The same two, plus how far it got (permission, discovery, dialling, handshake, hotspot setup) and why it stopped, from a list of eight reasons. This is the event the whole thing exists for.</p>
-          </div>
-          <div class="legal-row">
-            <b>First transmission</b>
-            <p>The transport, and whether the first thing sent was speech or shared music.</p>
-          </div>
-          <div class="legal-row">
-            <b>Session ended</b>
-            <p>The transport, a length range rather than a duration, how many people were in the channel at its fullest (exact up to three, then a range), how many times you transmitted on the same scale, and whether you left, the link dropped, or something errored.</p>
-          </div>
-          <div class="legal-row">
-            <b>Feature used</b>
-            <p>The name of one optional feature, from a list of eleven — self-mute, shared music, QR scan, the home-screen widget, auto-reconnect, noise suppression and so on. Once per session per feature, not once per tap.</p>
-          </div>
-        </div>
-        <h3>Who processes it</h3>
-        <p>AdTrace, an Iranian analytics provider — chosen because it is the one option that is both free and actually reachable from Iranian networks, where Firebase and Sentry are blocked at the endpoint. Their SDK is what receives the seven events above, and it also collects the technical device and install information described in their own privacy policy in order to count one phone as one install.</p>
-        <p>Their SDK arrives wired for ad attribution, which Tark does not do. The advertising-ID permission it wants, and the checks it makes for whether Facebook and Instagram are installed on your phone, are stripped out of the app when it is built. On an app whose whole promise is that nothing leaves the local link, those would read as exactly the tracking we tell you is not here.</p>
-        <p>When the switch is off, the SDK is not started at all. It is not started and then silenced — a started SDK has already sent a session ping, which is the thing somebody switching this off was switching off.</p>
-        <p>The browser guest and every desktop build never load it in the first place; it only exists on Android and iOS.</p>
-      </section>
-
-      <!-- ── 5 ───────────────────────────────────────────────────── -->
       <section class="legal-sec reveal" id="permissions">
         <h2>
           <span>Permissions, and what each one is for</span>
@@ -308,12 +257,12 @@
           </div>
           <div class="legal-row">
             <b>Internet</b>
-            <p>Declared because Android treats local network sockets as internet access, and used by the analytics SDK when it is on. A Wi-Fi or Bluetooth channel needs no internet connection and works with none.</p>
+            <p>Declared because Android treats local network sockets as internet access. A Wi-Fi or Bluetooth channel needs no internet connection and works with none.</p>
           </div>
         </div>
       </section>
 
-      <!-- ── 6 ───────────────────────────────────────────────────── -->
+      <!-- ── 5 ───────────────────────────────────────────────────── -->
       <section class="legal-sec reveal" id="browser">
         <h2>
           <span>Joining from a browser</span>
@@ -323,7 +272,7 @@
         <p>The connection itself is WebRTC, which browsers encrypt end-to-end by default — so a browser guest’s audio is in fact better protected in transit than the app-to-app Wi-Fi link. To let two devices that are not on the same network find each other, it asks a public STUN server run by Google what your public address looks like from the outside. That server sees your IP address and nothing else; it is not part of the audio path. Tark runs no relay server, which means audio never passes through any third party — and also means a strict corporate or carrier NAT can leave a browser guest unable to connect at all, with no fallback.</p>
       </section>
 
-      <!-- ── 7 ───────────────────────────────────────────────────── -->
+      <!-- ── 6 ───────────────────────────────────────────────────── -->
       <section class="legal-sec reveal" id="website">
         <h2>
           <span>This website</span>
@@ -334,7 +283,7 @@
         <p>The page’s font is loaded from a public CDN, which — like any host serving any file to your browser — sees the request and your IP address. Everything else on the page is served from the site itself.</p>
       </section>
 
-      <!-- ── 8 ───────────────────────────────────────────────────── -->
+      <!-- ── 7 ───────────────────────────────────────────────────── -->
       <section class="legal-sec reveal" id="services">
         <h2>
           <span>Services we rely on</span>
@@ -342,10 +291,6 @@
         </h2>
         <p>The complete list of third parties any part of Tark touches. Each has its own privacy policy, which governs what it does with what it sees.</p>
         <div class="legal-rows">
-          <div class="legal-row">
-            <a class="legal-row-name" href="https://adtrace.io" rel="noopener" target="_blank">AdTrace</a>
-            <p>Receives the connection stats described above, while that switch is on. Android only.</p>
-          </div>
           <div class="legal-row">
             <a class="legal-row-name" href="https://policies.google.com/privacy" rel="noopener" target="_blank">Google STUN</a>
             <p>Sees the IP address of a browser guest while a connection is being set up. Never carries audio.</p>
@@ -365,7 +310,7 @@
         </div>
       </section>
 
-      <!-- ── 9 ───────────────────────────────────────────────────── -->
+      <!-- ── 8 ───────────────────────────────────────────────────── -->
       <section class="legal-sec reveal" id="children">
         <h2>
           <span>Children</span>
@@ -374,22 +319,20 @@
         <p>Tark is not built for or aimed at children under 13. Because there is no account and no sign-up, the app has no way to tell how old anyone is and collects nothing that would identify a child. If you are a parent and something here concerns you, write to us — but the honest answer is usually that there is nothing held anywhere for us to delete.</p>
       </section>
 
-      <!-- ── 10 ───────────────────────────────────────────────────── -->
+      <!-- ── 9 ───────────────────────────────────────────────────── -->
       <section class="legal-sec reveal" id="controls">
         <h2>
           <span>What you can control</span>
           <a class="legal-anchor" href="#controls"><span class="sr-only">Link to this section</span></a>
         </h2>
         <ul class="legal-list">
-          <li>Turn connection stats off in Settings → Privacy. Nothing further is sent from that moment, and nothing about the app changes.</li>
           <li>Delete the diagnostic log at any time in Settings → Advanced → Diagnostics, or shrink the cap on how much of it is kept.</li>
           <li>Revoke any Android permission in the system settings. The app will tell you plainly what stopped working rather than failing silently.</li>
           <li>Uninstall, which removes everything the app kept — there is no copy of it anywhere else to ask about.</li>
-          <li>Or build it yourself without analytics compiled in at all. The source is public and the build flag for it is documented in the README.</li>
         </ul>
       </section>
 
-      <!-- ── 11 ───────────────────────────────────────────────────── -->
+      <!-- ── 10 ───────────────────────────────────────────────────── -->
       <section class="legal-sec reveal" id="changes">
         <h2>
           <span>Changes to this page</span>
@@ -399,7 +342,7 @@
         <p>This site is part of the public repository, so the full history of what this page has said is in the commit log — you do not have to trust a “last updated” date on its own.</p>
       </section>
 
-      <!-- ── 12 ───────────────────────────────────────────────────── -->
+      <!-- ── 11 ───────────────────────────────────────────────────── -->
       <section class="legal-sec reveal" id="contact">
         <h2>
           <span>Contact</span>

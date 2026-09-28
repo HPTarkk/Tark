@@ -31,7 +31,7 @@ class LegalRemoteSource {
   );
 
   /// Whether this build has anywhere to ask. An empty base compiles the
-  /// check out entirely, the way an empty ADTRACE_TOKEN does for analytics.
+  /// check out entirely.
   static bool get isConfigured => base.isNotEmpty;
 
   Future<LegalManifest?> manifest() async {

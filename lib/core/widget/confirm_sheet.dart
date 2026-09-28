@@ -28,6 +28,7 @@ Future<bool> showConfirmSheet(
 }) async =>
     await showModalBottomSheet<bool>(
       context: context,
+      routeSettings: const RouteSettings(name: 'ConfirmSheet'),
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       barrierColor: Colors.black.withValues(alpha: 0.62),

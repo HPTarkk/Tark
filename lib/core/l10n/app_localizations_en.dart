@@ -998,16 +998,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_skip_splash_desc => 'Jump straight into the app';
 
   @override
-  String get settings_section_privacy => 'PRIVACY';
-
-  @override
-  String get settings_analytics => 'Anonymous usage stats';
-
-  @override
-  String get settings_analytics_desc =>
-      'Helps us fix what breaks. No names, no audio, no contacts — just which connections work and where they fail.';
-
-  @override
   String get usage_tips_title => 'Get the most out of TarkK';
 
   @override
@@ -1417,6 +1407,22 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settings_log_max_size_desc =>
       'The log never grows past this. When it\'s full, the oldest lines make way for the newest.';
+
+  @override
+  String get settings_log_level => 'LOG LEVEL';
+
+  @override
+  String get settings_log_level_standard => 'Standard';
+
+  @override
+  String get settings_log_level_screens => 'Screens';
+
+  @override
+  String get settings_log_level_everything => 'Everything';
+
+  @override
+  String get settings_log_level_desc =>
+      'Standard keeps the log as it has always been. Screens also records the pages you open and the main buttons you tap. Everything adds every tap and every settings change. It all stays on this phone.';
 
   @override
   String settings_log_usage(Object max, Object used) {

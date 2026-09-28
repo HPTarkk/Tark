@@ -2,8 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
-import '../../../../core/analytics/analytics.dart';
-import '../../../../core/analytics/analytics_event.dart';
+import '../../../../core/diagnostics/screen_log.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/theme/theme_service.dart';
 import '../../../transfer/api/transfer_api.dart';
@@ -32,9 +31,8 @@ class OnboardingCubit extends Cubit<OnboardingState> {
 
   final TransferModeStore _modeStore;
   final SettingsRepository _settingsRepository;
-  final Analytics _analytics;
 
-  OnboardingCubit(this._modeStore, this._settingsRepository, this._analytics)
+  OnboardingCubit(this._modeStore, this._settingsRepository)
     : super(
         _resumeAfterThemeRekey ??
             OnboardingState.initial(_modeStore.pinnedMode),
@@ -45,6 +43,23 @@ class OnboardingCubit extends Cubit<OnboardingState> {
   }
 
   void _onThemeChanged() => _resumeAfterThemeRekey = state;
+
+  static const _stepNames = [
+    'tune',
+    'welcome',
+    'callsign',
+    'transport',
+    'launch',
+  ];
+
+  /// The beats are one route, so ScreenLog never sees them change; each one
+  /// is logged here as a tab instead.
+  @override
+  void onChange(Change<OnboardingState> change) {
+    super.onChange(change);
+    final step = change.nextState.step;
+    if (step != change.currentState.step) ScreenLog.tab(_stepNames[step]);
+  }
 
   Future<void> _init() async {
     // Pre-fill from an existing profile so a replay (or a retry after a
@@ -110,20 +125,11 @@ class OnboardingCubit extends Cubit<OnboardingState> {
   }
 
   /// Marks onboarding done without touching name/mode — the skip path.
-  Future<void> skip() => _markCompleted(skipped: true);
+  Future<void> skip() => _markCompleted();
 
-  /// The one exit from onboarding, whichever route got here — so it's also
-  /// the one place the funnel's first event belongs. A replay re-fires it,
-  /// which is correct: the panel counts unique users, not visits.
-  Future<void> _markCompleted({bool skipped = false}) async {
-    await _settingsRepository.setOnboardingCompleted(true);
-    _analytics.track(
-      AnalyticsEvent.onboardingFinished(
-        locale: await _settingsRepository.getLocaleCode(),
-        skipped: skipped,
-      ),
-    );
-  }
+  /// The one exit from onboarding, whichever route got here.
+  Future<void> _markCompleted() =>
+      _settingsRepository.setOnboardingCompleted(true);
 
   @override
   Future<void> close() {

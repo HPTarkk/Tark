@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/diagnostics/screen_log.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entity/wifi_hotspot_segment.dart';
@@ -31,13 +32,19 @@ class HotspotSegmentedControl extends StatelessWidget {
             label: s.transport_wifi,
             icon: Icons.wifi_rounded,
             selected: segment == WifiHotspotSegment.wifi,
-            onTap: () => onChanged(WifiHotspotSegment.wifi),
+            onTap: () {
+              ScreenLog.tab('wifi');
+              onChanged(WifiHotspotSegment.wifi);
+            },
           ),
           _SegmentButton(
             label: s.transport_hotspot,
             icon: Icons.wifi_tethering_rounded,
             selected: segment == WifiHotspotSegment.hotspot,
-            onTap: () => onChanged(WifiHotspotSegment.hotspot),
+            onTap: () {
+              ScreenLog.tab('hotspot');
+              onChanged(WifiHotspotSegment.hotspot);
+            },
           ),
         ],
       ),

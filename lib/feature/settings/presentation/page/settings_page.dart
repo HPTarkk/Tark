@@ -4,8 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/analytics/analytics.dart';
-import '../../../../core/analytics/analytics_event.dart';
 import '../../../../core/home_widget/home_widget_service.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
@@ -36,7 +34,6 @@ class SettingsPage extends StatefulWidget {
     create: (_) => SettingsCubit(
       liveSession: liveSession as WalkieTalkieCubit?,
       repository: GetIt.instance<SettingsRepository>(),
-      analytics: GetIt.instance<Analytics>(),
     ),
     child: const SettingsPage._(),
   );
@@ -87,7 +84,6 @@ class _SettingsPageState extends State<SettingsPage> {
                 _SoundCard(),
                 _AppearanceCard(),
                 _StartupCard(),
-                _PrivacyCard(),
                 _AdvancedNavCard(),
               ],
               builder: (context, cards) => Column(
@@ -179,6 +175,7 @@ class _ProfileCard extends StatelessWidget {
     final s = context.getString;
     showDialog<void>(
       context: context,
+      routeSettings: const RouteSettings(name: 'EditNameDialog'),
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.card,
         shape: RoundedRectangleBorder(
@@ -571,52 +568,12 @@ class _AddWidgetRowState extends State<_AddWidgetRow> {
           trailing: Icon(Icons.add_rounded, color: AppColors.amber),
           onTap: () {
             HapticFeedback.selectionClick();
-            context.read<SettingsCubit>().recordFeatureUsed(
-              AppFeature.homeWidget,
-            );
             // The launcher takes it from here with its own confirmation, so
             // there's no result worth waiting for.
             GetIt.instance<HomeWidgetService>().requestPin();
           },
         ),
       ],
-    );
-  }
-}
-
-// ── Privacy ──────────────────────────────────────────────────────────────────
-
-/// The one place the app admits it phones home at all.
-///
-/// Tark's whole pitch is that conversations never leave the local link, and
-/// that stays true — analytics carries no names, no addresses and no audio,
-/// only bucketed counters about which transports connect and where pairing
-/// fails (see lib/core/analytics/analytics_event.dart). But a user who
-/// believes "no server" deserves to find the switch without hunting, and to
-/// read what it does in plain language before deciding.
-class _PrivacyCard extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final s = context.getString;
-    return SettingsCategoryCard(
-      icon: Icons.privacy_tip_rounded,
-      title: s.settings_section_privacy,
-      child: BlocBuilder<SettingsCubit, SettingsState>(
-        buildWhen: (p, c) => p.analyticsEnabled != c.analyticsEnabled,
-        builder: (context, state) => SettingsRow(
-          icon: Icons.insights_rounded,
-          label: s.settings_analytics,
-          subtitle: s.settings_analytics_desc,
-          trailing: Switch(
-            value: state.analyticsEnabled,
-            activeThumbColor: AppColors.amber,
-            onChanged: (v) {
-              HapticFeedback.selectionClick();
-              context.read<SettingsCubit>().setAnalyticsEnabled(v);
-            },
-          ),
-        ),
-      ),
     );
   }
 }
@@ -662,9 +619,6 @@ class _StartupCard extends StatelessWidget {
                 color: AppColors.textSecondary,
               ),
               onTap: () {
-                context.read<SettingsCubit>().recordFeatureUsed(
-                  AppFeature.replayIntro,
-                );
                 context.pushNamed(
                   AppRoutes.onboardingName,
                   queryParameters: const {'replay': 'true'},

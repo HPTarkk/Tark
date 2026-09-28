@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/diagnostics/screen_log.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/recovery/bounded_retry.dart';
@@ -39,7 +40,10 @@ class HotspotHostFlow extends StatelessWidget {
         // Hosting is the half of the bridge that can fail; joining the other
         // phone's hotspot instead is almost always available.
         altLabel: s.hotspot_try_joining,
-        onAlt: () => cubit.chooseRole(HotspotRole.join),
+        onAlt: () {
+          ScreenLog.tap('HotspotTryJoining');
+          cubit.chooseRole(HotspotRole.join);
+        },
       );
     }
     final creds = state.credentials;

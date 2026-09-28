@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/diagnostics/screen_log.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../manager/wifi_hotspot_cubit.dart';
@@ -56,7 +57,10 @@ class HotspotRolePicker extends StatelessWidget {
             icon: Icons.wifi_tethering_rounded,
             title: s.hotspot_role_host,
             description: s.hotspot_role_host_desc,
-            onTap: () => onChoose(HotspotRole.host),
+            onTap: () {
+              ScreenLog.tap('HotspotHost');
+              onChoose(HotspotRole.host);
+            },
           ),
         ),
         const SizedBox(height: 14),
@@ -66,7 +70,10 @@ class HotspotRolePicker extends StatelessWidget {
             icon: Icons.qr_code_scanner_rounded,
             title: s.hotspot_role_join,
             description: s.hotspot_role_join_desc,
-            onTap: () => onChoose(HotspotRole.join),
+            onTap: () {
+              ScreenLog.tap('HotspotJoin');
+              onChoose(HotspotRole.join);
+            },
           ),
         ),
       ],

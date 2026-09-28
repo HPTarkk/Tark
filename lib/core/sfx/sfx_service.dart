@@ -4,6 +4,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../diagnostics/screen_log.dart';
 import '../settings/settings_keys.dart';
 import '../theme/theme_service.dart';
 import '../utils/logger.dart';
@@ -50,6 +51,7 @@ class Sfx {
 
   static Future<void> setEnabled(bool value) async {
     enabled.value = value;
+    ScreenLog.setting(SettingsKeys.sfxEnabled, value);
     await _prefs.setBool(SettingsKeys.sfxEnabled, value);
   }
 

@@ -1,3 +1,4 @@
+import '../diagnostics/log_detail.dart';
 import 'app_settings.dart';
 import 'audio_profile.dart';
 import 'noise_suppression_engine.dart';
@@ -62,18 +63,17 @@ abstract interface class SettingsRepository {
   Future<bool> getUsageTipsShown();
   Future<void> setUsageTipsShown(bool value);
 
-  /// Whether anonymous product analytics may be collected (Settings >
-  /// Privacy). Read once at startup — see AdTraceAnalytics.start, which
-  /// declines to initialise the SDK at all when this is false.
-  Future<bool> getAnalyticsEnabled();
-  Future<void> setAnalyticsEnabled(bool value);
-
   /// Ceiling on the diagnostic log's size on disk, in bytes (Settings >
   /// Advanced > Diagnostics). Always returned inside `LogBudget`'s range,
   /// whatever is stored — the log is not allowed to be uncapped by a bad
   /// preference.
   Future<int> getLogMaxBytes();
   Future<void> setLogMaxBytes(int value);
+
+  /// How much user activity the diagnostic log records (Settings > Advanced
+  /// > Diagnostics > Log level). Defaults to [LogDetail.standard].
+  Future<LogDetail> getLogDetail();
+  Future<void> setLogDetail(LogDetail value);
 
   /// #31 — whether Shared Music automatically ducks while someone is
   /// talking. Enabled by default for new installs; off leaves shared-music

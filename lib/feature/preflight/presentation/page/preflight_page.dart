@@ -55,6 +55,7 @@ Future<bool> showPreflightPage(
     // A plain page route, so it takes the app-wide transition from the theme
     // (AppPageTransitionsBuilder) like every other screen.
     MaterialPageRoute<bool>(
+      settings: const RouteSettings(name: 'PreflightPage'),
       builder: (_) => _PreflightPage(plan: plan, startSession: startSession),
     ),
   );

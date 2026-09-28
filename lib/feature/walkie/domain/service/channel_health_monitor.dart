@@ -48,7 +48,7 @@ class ChannelHealthMonitor {
 
   /// When the channel finished opening, for the "nobody else is here" check —
   /// which is only worth saying once enough time has passed for someone to
-  /// have shown up. Also the session's start for analytics.
+  /// have shown up.
   DateTime? get readyAt => _readyAt;
   DateTime? _readyAt;
 

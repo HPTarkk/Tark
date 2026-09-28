@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../diagnostics/screen_log.dart';
 import '../settings/settings_keys.dart';
 
 enum AppThemeMode { dark, light }
@@ -24,6 +25,7 @@ class ThemeService {
 
   static Future<void> setMode(AppThemeMode mode) async {
     _mode.value = mode;
+    ScreenLog.setting(SettingsKeys.appTheme, mode.name);
     await _prefs.setString(SettingsKeys.appTheme, mode.name);
   }
 }

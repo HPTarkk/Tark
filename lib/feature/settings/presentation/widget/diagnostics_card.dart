@@ -8,6 +8,7 @@ import '../../../../core/diagnostics/build_provenance.dart';
 import '../../../../core/diagnostics/diagnostic_log.dart';
 import '../../../../core/diagnostics/diagnostics_bridge.dart';
 import '../../../../core/diagnostics/log_budget.dart';
+import '../../../../core/diagnostics/log_detail.dart';
 import '../../../../core/diagnostics/tark_log_format.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
@@ -112,6 +113,7 @@ class _DiagnosticsCardState extends State<DiagnosticsCard> {
     final s = context.getString;
     final confirmed = await showDialog<bool>(
       context: context,
+      routeSettings: const RouteSettings(name: 'ClearLogDialog'),
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.card,
         shape: RoundedRectangleBorder(
@@ -185,6 +187,14 @@ class _DiagnosticsCardState extends State<DiagnosticsCard> {
       title: s.settings_section_diagnostics,
       child: Column(
         children: [
+          BlocBuilder<SettingsCubit, SettingsState>(
+            buildWhen: (p, c) => p.logDetail != c.logDetail,
+            builder: (context, state) => _LogLevelSection(
+              selected: state.logDetail,
+              onChanged: context.read<SettingsCubit>().setLogDetail,
+            ),
+          ),
+          Divider(color: AppColors.border, height: 1),
           BlocBuilder<SettingsCubit, SettingsState>(
             buildWhen: (p, c) => p.logMaxBytes != c.logMaxBytes,
             builder: (context, state) => _LogBudgetSection(
@@ -523,6 +533,81 @@ class _CapacityBar extends StatelessWidget {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Log level: how much of what the user does goes into the log. Three
+/// options, so a row of chips rather than a slider; see [LogDetail].
+class _LogLevelSection extends StatelessWidget {
+  const _LogLevelSection({required this.selected, required this.onChanged});
+
+  final LogDetail selected;
+  final ValueChanged<LogDetail> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    String label(LogDetail d) => switch (d) {
+      LogDetail.standard => s.settings_log_level_standard,
+      LogDetail.screens => s.settings_log_level_screens,
+      LogDetail.everything => s.settings_log_level_everything,
+    };
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 14, 4, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            s.settings_log_level,
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 11,
+              letterSpacing: 1.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final d in LogDetail.values)
+                ChoiceChip(
+                  key: ValueKey('log-level-${d.key}'),
+                  label: Text(label(d)),
+                  selected: d == selected,
+                  showCheckmark: false,
+                  selectedColor: AppColors.amber.withAlpha(40),
+                  backgroundColor: AppColors.card,
+                  side: BorderSide(
+                    color: d == selected ? AppColors.amber : AppColors.border,
+                  ),
+                  labelStyle: TextStyle(
+                    color: d == selected
+                        ? AppColors.amber
+                        : AppColors.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  onSelected: (_) {
+                    if (d == selected) return;
+                    HapticFeedback.selectionClick();
+                    onChanged(d);
+                  },
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            s.settings_log_level_desc,
+            style: TextStyle(
+              color: AppColors.textSecondary.withAlpha(190),
+              fontSize: 11,
+            ),
+          ),
+        ],
       ),
     );
   }

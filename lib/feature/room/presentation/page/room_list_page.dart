@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/diagnostics/screen_log.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/utils/extensions.dart';
@@ -170,7 +171,10 @@ class _RoomListPageState extends State<RoomListPage> {
               saved: saved,
               selected: state.selectedRoomId == saved.room.id,
               busy: state.loading,
-              onOpen: () => _openRoom(context, saved),
+              onOpen: () {
+                ScreenLog.tap('OpenRoom');
+                _openRoom(context, saved);
+              },
               onRename: () => _renameRoom(context, saved),
               onArchive: () => _archiveRoom(context, saved),
               onLeave: () => _leaveRoom(context, saved),
@@ -197,6 +201,7 @@ class _RoomListPageState extends State<RoomListPage> {
   }
 
   Future<void> _createRoom(BuildContext context) async {
+    ScreenLog.tap('NewRoom');
     final name = await _nameDialog(
       context,
       title: context.getString.rooms_create,
@@ -281,6 +286,7 @@ class _RoomListPageState extends State<RoomListPage> {
     final controller = TextEditingController(text: initialValue);
     final result = await showDialog<String>(
       context: context,
+      routeSettings: const RouteSettings(name: 'RoomNameDialog'),
       builder: (dialogContext) => AlertDialog(
         title: Text(title),
         content: TextField(
@@ -591,7 +597,9 @@ class _RoomMenu extends StatelessWidget {
     iconColor: AppColors.textSecondary,
     iconSize: 20,
     position: PopupMenuPosition.under,
+    routeSettings: const RouteSettings(name: 'RoomMenu'),
     onSelected: (action) {
+      ScreenLog.tap('RoomMenu ${action.name}');
       switch (action) {
         case _RoomAction.rename:
           onRename();

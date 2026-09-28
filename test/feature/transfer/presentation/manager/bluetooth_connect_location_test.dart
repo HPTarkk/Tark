@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tark/core/analytics/analytics.dart';
 import 'package:tark/core/settings/settings_repository.dart';
 import 'package:tark/core/sfx/sfx_player.dart';
 import 'package:tark/feature/transfer/domain/entity/bluetooth_connection_state.dart';
@@ -55,11 +54,6 @@ class _Sfx implements SfxPlayer {
   dynamic noSuchMethod(Invocation invocation) {}
 }
 
-class _Analytics implements Analytics {
-  @override
-  dynamic noSuchMethod(Invocation invocation) {}
-}
-
 void main() {
   late _Transport transport;
   late BluetoothConnectCubit cubit;
@@ -68,7 +62,7 @@ void main() {
   setUp(() {
     transport = _Transport();
     locationOn = true;
-    cubit = BluetoothConnectCubit(transport, _Settings(), _Sfx(), _Analytics())
+    cubit = BluetoothConnectCubit(transport, _Settings(), _Sfx())
       ..scanLocationReady = (() async => locationOn);
   });
 

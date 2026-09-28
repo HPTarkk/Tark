@@ -45,6 +45,7 @@ Future<void> showRoomPeopleSheet(
   bool autoIssue = false,
 }) => showModalBottomSheet<void>(
   context: context,
+  routeSettings: const RouteSettings(name: 'RoomPeopleSheet'),
   backgroundColor: Colors.transparent,
   isScrollControlled: true,
   // The sheet is tall and the content behind it is the live channel; a scrim

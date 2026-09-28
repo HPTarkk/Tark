@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../core/analytics/analytics_event.dart';
+import '../../../../core/diagnostics/screen_log.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entity/bluetooth_peer.dart';
@@ -31,9 +31,9 @@ class BluetoothRoleSelection extends StatelessWidget {
             title: s.bt_start_session,
             description: s.bt_role_host_desc,
             onTap: () async {
+              ScreenLog.tap('BluetoothHost');
               final cubit = context.read<BluetoothConnectCubit>();
               if (!await onEnsurePermissions()) {
-                cubit.reportPermissionBlocked(PairRole.host);
                 return;
               }
               if (!context.mounted) return;
@@ -49,9 +49,9 @@ class BluetoothRoleSelection extends StatelessWidget {
             title: s.bt_find_nearby,
             description: s.bt_role_join_desc,
             onTap: () async {
+              ScreenLog.tap('BluetoothFind');
               final cubit = context.read<BluetoothConnectCubit>();
               if (!await onEnsurePermissions()) {
-                cubit.reportPermissionBlocked(PairRole.joiner);
                 return;
               }
               if (!context.mounted) return;
@@ -66,9 +66,9 @@ class BluetoothRoleSelection extends StatelessWidget {
             child: _ReconnectCard(
               peer: lastPeer,
               onTap: () async {
+                ScreenLog.tap('BluetoothReconnect');
                 final cubit = context.read<BluetoothConnectCubit>();
                 if (!await onEnsurePermissions()) {
-                  cubit.reportPermissionBlocked(PairRole.joiner);
                   return;
                 }
                 if (!context.mounted) return;

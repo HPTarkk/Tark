@@ -23,8 +23,10 @@ abstract final class SettingsKeys {
   static const autoReconnectEnabled = 'auto_reconnect_enabled';
   static const skipSplash = 'skip_splash';
   static const usageTipsShown = 'usage_tips_shown';
-  static const analyticsEnabled = 'analytics_enabled';
   static const logMaxBytes = 'log_max_bytes';
+
+  /// How much user activity the diagnostic log records. See LogDetail.
+  static const logDetail = 'log_detail';
 
   /// #31 — whether Shared Music automatically ducks while someone is
   /// talking. See [AppSettings.smartMusicDuckingEnabled].

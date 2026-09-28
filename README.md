@@ -228,19 +228,9 @@ ios/Runner/, ios/TarkWidget/      — Swift equivalents + WidgetKit extension
 
 ---
 
-## Privacy & analytics
+## Privacy
 
-Conversations never leave the local link — phone to phone over Wi-Fi, Bluetooth, or a hosted hotspot, no server in the path. That's literal, and nothing below changes it.
-
-Anonymous usage stats are **on by default and opt-out**, toggled in Settings → Privacy, and exist purely so connection failures we can't reproduce still get fixed. Opt-in gets enabled by roughly nobody, which yields data too sparse to act on — the trade is that what's collected has to stay strictly bounded, and be disclosed (here, in the app, and on [the privacy policy](https://tarkk.ir/privacy.html)). When on, what's sent: which transport a pairing attempt used and whether it connected; a bucketed session shape (never exact numbers); which optional features got used. What's never sent: callsigns, peer names, device names, SSIDs, IP/MAC addresses, contacts, location, or any audio — every attribute is a value from a closed enum in [`analytics_event.dart`](lib/core/analytics/analytics_event.dart), so there's no free-text field to leak into.
-
-Backend is [AdTrace](https://adtrace.io) — the one option that's free and reachable from Iranian networks. Its SDK's advertising-ID permission and Facebook/Instagram `<queries>` probes are stripped at merge time.
-
-Build without analytics entirely:
-
-```bash
-flutter build apk --release --dart-define=ADTRACE_TOKEN=
-```
+Conversations never leave the local link — phone to phone over Wi-Fi, Bluetooth, or a hosted hotspot, no server in the path. The app sends no analytics or usage stats anywhere. The diagnostic log (connections, audio health, and at a higher log level the screens visited, taps and settings changes) stays on the phone and only leaves it when you export it from Settings → Advanced → Diagnostics.
 
 ---
 
@@ -305,8 +295,7 @@ Point a fork at its own copy:
 flutter build apk --dart-define=TARK_LEGAL_BASE=https://example.com/legal/
 ```
 
-An empty value compiles the check out entirely, the way an empty
-`ADTRACE_TOKEN` does for analytics.
+An empty value compiles the check out entirely.
 
 ---
 

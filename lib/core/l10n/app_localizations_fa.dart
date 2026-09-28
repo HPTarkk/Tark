@@ -993,16 +993,6 @@ class AppLocalizationsFa extends AppLocalizations {
   String get settings_skip_splash_desc => 'یه‌راست بپر تو برنامه';
 
   @override
-  String get settings_section_privacy => 'حریم خصوصی';
-
-  @override
-  String get settings_analytics => 'آمار ناشناس استفاده';
-
-  @override
-  String get settings_analytics_desc =>
-      'کمک می‌کنه بفهمیم چی خراب می‌شه. نه اسمی، نه صدایی، نه مخاطبی — فقط اینکه کدوم اتصال جواب می‌ده و کجا قطع می‌شه.';
-
-  @override
   String get usage_tips_title => 'استفاده بهینه از «ترک»';
 
   @override
@@ -1412,6 +1402,22 @@ class AppLocalizationsFa extends AppLocalizations {
   @override
   String get settings_log_max_size_desc =>
       'گزارش هیچ‌وقت از این بیشتر نمی‌شود. وقتی پر شد، قدیمی‌ترین خط‌ها جا را به تازه‌ترین‌ها می‌دهند.';
+
+  @override
+  String get settings_log_level => 'سطح گزارش';
+
+  @override
+  String get settings_log_level_standard => 'عادی';
+
+  @override
+  String get settings_log_level_screens => 'صفحه‌ها';
+
+  @override
+  String get settings_log_level_everything => 'همه‌چیز';
+
+  @override
+  String get settings_log_level_desc =>
+      '«عادی» گزارش را مثل همیشه نگه می‌دارد. «صفحه‌ها» صفحه‌هایی را که باز می‌کنید و دکمه‌های اصلی‌ای را که می‌زنید هم ثبت می‌کند. «همه‌چیز» هر لمس و هر تغییر تنظیمات را هم اضافه می‌کند. همه‌اش روی همین گوشی می‌ماند.';
 
   @override
   String settings_log_usage(Object max, Object used) {

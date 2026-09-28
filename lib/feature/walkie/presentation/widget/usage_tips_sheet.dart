@@ -72,6 +72,7 @@ Future<void> showUsageTipsSheet(BuildContext context, {int initialPage = 0}) {
 
   return showModalBottomSheet<void>(
     context: context,
+    routeSettings: const RouteSettings(name: 'UsageTipsSheet'),
     backgroundColor: Colors.transparent,
     isScrollControlled: true,
     builder: (context) => _UsageTipsSheet(tips: tips, initialPage: initialPage),

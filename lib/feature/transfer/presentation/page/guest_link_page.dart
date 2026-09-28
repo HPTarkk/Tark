@@ -42,9 +42,12 @@ class _GuestLinkPageState extends State<GuestLinkPage>
 
   Future<void> _openScanner(BuildContext context) async {
     final cubit = context.read<GuestLinkCubit>();
-    final scanned = await Navigator.of(
-      context,
-    ).push<String>(MaterialPageRoute(builder: (_) => const _AnswerScanner()));
+    final scanned = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        settings: const RouteSettings(name: 'GuestAnswerScanner'),
+        builder: (_) => const _AnswerScanner(),
+      ),
+    );
     if (scanned != null && scanned.isNotEmpty) {
       await cubit.submitAnswer(scanned);
     }
@@ -280,6 +283,7 @@ void _showPasteAnswerDialog(
   final s = context.getString;
   showDialog<void>(
     context: context,
+    routeSettings: const RouteSettings(name: 'PasteAnswerDialog'),
     builder: (ctx) => AlertDialog(
       backgroundColor: AppColors.card,
       shape: RoundedRectangleBorder(

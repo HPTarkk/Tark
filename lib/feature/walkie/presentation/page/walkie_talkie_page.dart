@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/diagnostics/screen_log.dart';
 import '../../../../core/identity/device_identity.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
@@ -368,7 +369,10 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage> {
       child: Semantics(
         button: true,
         child: PressableScale(
-          onTap: () => _confirmLeave(context),
+          onTap: () {
+            ScreenLog.tap('Leave');
+            _confirmLeave(context);
+          },
           borderRadius: BorderRadius.circular(20),
           // Quieter than the controls above it: an outline, not a fill. It
           // is the one exit, but not the thing a rider should reach for.
@@ -421,6 +425,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage> {
       destructive: true,
     );
     if (!leave || !context.mounted) return;
+    ScreenLog.tap('LeaveConfirmed');
     Sfx.play(SfxEvent.channelLeave);
     // goNamed (not pop) so leaving always lands cleanly on Landing regardless
     // of how this screen was reached — the Bluetooth flow replaces the stack

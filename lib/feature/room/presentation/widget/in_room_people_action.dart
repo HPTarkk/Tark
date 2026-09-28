@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/diagnostics/screen_log.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -161,6 +162,7 @@ class _InRoomPeopleActionState extends State<InRoomPeopleAction> {
   /// nobody on it — there is no call to interrupt, and asking "are you sure"
   /// about abandoning silence is friction charged for nothing.
   void _connect() {
+    ScreenLog.tap('ConnectPhones');
     HapticFeedback.selectionClick();
     final role = _transferRepository?.sessionRole;
     context.go(
@@ -182,6 +184,7 @@ class _InRoomPeopleActionState extends State<InRoomPeopleAction> {
   }
 
   Future<void> _open() async {
+    ScreenLog.tap('People');
     HapticFeedback.selectionClick();
     await showOneScanRoomInviteSheet(
       context,

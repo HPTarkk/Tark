@@ -5,12 +5,12 @@
     "en": "Terms & Conditions",
     "fa": "شرایط و ضوابط"
   },
-  "version": 1,
+  "version": 2,
   "minAcceptedVersion": 1,
-  "effectiveDate": "2026-09-08",
+  "effectiveDate": "2026-09-28",
   "effectiveDateLabel": {
-    "en": "8 September 2026",
-    "fa": "۱۷ شهریور ۱۴۰۵"
+    "en": "28 September 2026",
+    "fa": "۶ مهر ۱۴۰۵"
   },
   "webPath": {
     "en": "/terms.html",
@@ -440,8 +440,8 @@
         {
           "type": "p",
           "text": {
-            "en": "A few things Tark leans on belong to other people: the host that serves the Android download, the platform that handles donations, the public STUN server a browser guest uses to find its way, and the analytics service described in the privacy policy. Each has its own terms and its own privacy policy, and none of them is ours to guarantee.",
-            "fa": "چند چیزی که تَرک بهشون تکیه می‌کنه مال آدمای دیگه‌ست: میزبانی که فایل دانلود اندروید رو سرو می‌کنه، پلتفرمی که حمایت‌های مالی رو مدیریت می‌کنه، سرور عمومی STUN که مهمان مرورگری برای پیدا کردن راهش ازش استفاده می‌کنه، و سرویس تحلیلی که توی سیاست حریم خصوصی توضیح داده شده. هرکدوم شرایط و سیاست حریم خصوصی خودشون رو دارن و هیچ‌کدومشون چیزی نیست که ما بتونیم ضمانتش کنیم."
+            "en": "A few things Tark leans on belong to other people: the host that serves the Android download, the platform that handles donations, and the public STUN server a browser guest uses to find its way. Each has its own terms and its own privacy policy, and none of them is ours to guarantee.",
+            "fa": "چند چیزی که تَرک بهشون تکیه می‌کنه مال آدمای دیگه‌ست: میزبانی که فایل دانلود اندروید رو سرو می‌کنه، پلتفرمی که حمایت‌های مالی رو مدیریت می‌کنه، و سرور عمومی STUN که مهمان مرورگری برای پیدا کردن راهش ازش استفاده می‌کنه. هرکدوم شرایط و سیاست حریم خصوصی خودشون رو دارن و هیچ‌کدومشون چیزی نیست که ما بتونیم ضمانتش کنیم."
           }
         },
         {

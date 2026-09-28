@@ -126,7 +126,9 @@ abstract final class DiagnosticLog {
 
     // Before any await, so the very first lines of a cold start — which is
     // where a startup failure lives — are already being captured.
-    _append('--- session $sessionId opened ${DateTime.now().toIso8601String()}');
+    _append(
+      '--- session $sessionId opened ${DateTime.now().toIso8601String()}',
+    );
 
     try {
       final build = await BuildProvenance.resolve();
@@ -268,11 +270,7 @@ abstract final class DiagnosticLog {
       segment = _newSegment(dir);
       _segments.add(segment);
     }
-    await segment.file.writeAsBytes(
-      data,
-      mode: FileMode.append,
-      flush: false,
-    );
+    await segment.file.writeAsBytes(data, mode: FileMode.append, flush: false);
     segment.bytes += data.length;
     // Per chunk rather than per flush: a burst big enough to fill the whole
     // ring in one go — a stack trace storm, or a first flush after a long

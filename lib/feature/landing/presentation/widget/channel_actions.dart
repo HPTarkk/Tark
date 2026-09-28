@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../core/diagnostics/screen_log.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -75,7 +76,10 @@ class ChannelActions extends StatelessWidget {
             primary: true,
             pulse: pulse,
             enabled: enabled && !createPlan.blocked,
-            onTap: () => onTap(createPlan),
+            onTap: () {
+              ScreenLog.tap('CreateChannel');
+              onTap(createPlan);
+            },
           ),
         ),
         // Guest is host-only: the far end is a browser, so there is nothing
@@ -89,7 +93,10 @@ class ChannelActions extends StatelessWidget {
             primary: false,
             pulse: pulse,
             enabled: enabled && !joinPlan.blocked,
-            onTap: () => onTap(joinPlan),
+            onTap: () {
+              ScreenLog.tap('JoinChannel');
+              onTap(joinPlan);
+            },
           ),
         ],
         // Only worth offering while the plan still assumes one shared network.
@@ -100,7 +107,10 @@ class ChannelActions extends StatelessWidget {
           _WayOutLink(
             icon: Icons.wifi_tethering_rounded,
             label: s.channel_different_network,
-            onTap: onDifferentNetwork,
+            onTap: () {
+              ScreenLog.tap('DifferentNetwork');
+              onDifferentNetwork();
+            },
           ),
         ],
         // The reverse case: the default assumed a hotspot, but there is a
@@ -110,7 +120,10 @@ class ChannelActions extends StatelessWidget {
           _WayOutLink(
             icon: Icons.wifi_rounded,
             label: s.channel_same_wifi,
-            onTap: onSameWifi,
+            onTap: () {
+              ScreenLog.tap('SameWifi');
+              onSameWifi();
+            },
           ),
         ],
       ],

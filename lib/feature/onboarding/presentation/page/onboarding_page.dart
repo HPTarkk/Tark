@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/diagnostics/screen_log.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/router/routes.dart';
@@ -267,6 +268,7 @@ class _OnboardingPageState extends State<OnboardingPage>
   Future<void> _launch(OnboardingCubit cubit) async {
     if (_finishing) return;
     _finishing = true;
+    ScreenLog.tap('OnboardingLaunch');
     HapticFeedback.mediumImpact();
     await cubit.launch();
     if (!mounted) return;
@@ -309,6 +311,7 @@ class _OnboardingPageState extends State<OnboardingPage>
   Future<void> _explore(OnboardingCubit cubit) async {
     if (_finishing) return;
     _finishing = true;
+    ScreenLog.tap('OnboardingExplore');
     await cubit.finish();
     if (!mounted) return;
     context.go(AppRoutes.landingPath);
@@ -318,6 +321,7 @@ class _OnboardingPageState extends State<OnboardingPage>
   Future<void> _finishReplay(OnboardingCubit cubit) async {
     if (_finishing) return;
     _finishing = true;
+    ScreenLog.tap('OnboardingDone');
     HapticFeedback.mediumImpact();
     await cubit.finish();
     if (!mounted) return;
@@ -327,6 +331,7 @@ class _OnboardingPageState extends State<OnboardingPage>
   Future<void> _skip(OnboardingCubit cubit) async {
     if (_finishing) return;
     _finishing = true;
+    ScreenLog.tap('OnboardingSkip');
     await cubit.skip();
     if (!mounted) return;
     if (widget.replay) {

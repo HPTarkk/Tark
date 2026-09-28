@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 
+import '../../../../core/diagnostics/screen_log.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -236,7 +237,10 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
                   label: s.lobby_invite_people,
                   primary: alone,
                   enabled: !_connecting,
-                  onTap: _invite,
+                  onTap: () {
+                    ScreenLog.tap('Invite');
+                    _invite();
+                  },
                 ),
               )
             else if (alone)
@@ -258,7 +262,10 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
                   key: const Key('selected-room-start-ride'),
                   label: _connecting ? s.connecting : s.lobby_start_ride,
                   busy: _connecting,
-                  onTap: _startRide,
+                  onTap: () {
+                    ScreenLog.tap('Start');
+                    _startRide();
+                  },
                 ),
               ),
             if (!alone && !_connecting && widget.onUseHomeWifi != null)
@@ -269,6 +276,7 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
                     key: const Key('selected-room-use-home-wifi'),
                     onPressed: () {
                       HapticFeedback.selectionClick();
+                      ScreenLog.tap('UseHomeWifi');
                       widget.onUseHomeWifi!();
                     },
                     style: TextButton.styleFrom(

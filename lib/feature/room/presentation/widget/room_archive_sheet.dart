@@ -22,6 +22,7 @@ Future<void> showRoomArchiveSheet(BuildContext context) {
   final cubit = context.read<RoomListCubit>();
   return showModalBottomSheet<void>(
     context: context,
+    routeSettings: const RouteSettings(name: 'RoomArchiveSheet'),
     backgroundColor: Colors.transparent,
     isScrollControlled: true,
     barrierColor: Colors.black.withValues(alpha: 0.62),
