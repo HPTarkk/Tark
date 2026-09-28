@@ -151,11 +151,12 @@ contacts or location reaches this server.
 
 ## Still open
 
-1. **Bazaar developer API.** `internal/billing/bazaar.go` follows the
-   publicly known shape of the API, but `developers.cafebazaar.ir` was
-   blocked where this was written. Before launch, check the OAuth and
-   subscription endpoints, and how a refunded subscription shows up. Only
-   `BazaarHTTP` depends on those details.
+1. **Bazaar refunds.** Bazaar's subscription API never reports refunds or
+   cancellations (see the project's `backend-design/bazaar-billing.md`).
+   The server infers a refund from a period cut short or a known token that
+   is no longer found. Refunds you grant yourself will need an admin
+   "refund this purchase" action that also calls Bazaar's cancel endpoint.
+   That waits on whether a refund should end access at once.
 2. **Email provider.** Any SMTP provider works. The candidate so far is Gmail
    SMTP with an app password on the support account (free, a few hundred
    emails a day), which still needs to be tested from an ArvanCloud server.

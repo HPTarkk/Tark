@@ -39,6 +39,8 @@ const (
 	// as revoked after this many consecutive definitive answers, so one
 	// inconsistent response cannot take anyone's subscription away.
 	missingBeforeRevoked = 2
+	// Definitive "not found" answers before a new token is called unknown.
+	pendingMissingLimit = 3
 	// Slack when comparing Bazaar's dates with ours.
 	dateTolerance = 5 * time.Minute
 	// Expired purchases are still re-checked occasionally for this long, in
@@ -176,6 +178,7 @@ func (s *Service) Submit(ctx context.Context, userID, installKey, sku, purchaseT
 	}
 
 	var result Result
+	var notYet bool
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		p, err := scanPurchase(tx.QueryRow(ctx, `SELECT `+purchaseColumns+` FROM bazaar_purchases WHERE token_hash = $1 FOR UPDATE`, tokenHash))
 		if err != nil {
@@ -196,6 +199,12 @@ func (s *Service) Submit(ctx context.Context, userID, installKey, sku, purchaseT
 			ok, err := s.check(ctx, tx, p, purchaseToken, ip)
 			if err != nil {
 				return err
+			}
+			if ok && p.state == "pending" {
+				// Bazaar doesn't know it yet; the attempt is committed and the
+				// worker keeps looking.
+				notYet = true
+				return nil
 			}
 			if !ok {
 				if p.state == "pending" {
@@ -218,6 +227,9 @@ func (s *Service) Submit(ctx context.Context, userID, installKey, sku, purchaseT
 	})
 	if err != nil {
 		return Result{}, err
+	}
+	if notYet {
+		return Result{}, apperr.Unavailable("purchase_not_found_yet", "Bazaar does not show this purchase yet; retry with the same Idempotency-Key", 10*time.Second)
 	}
 	if result.Entitlement == "" {
 		s.audit.Record(ctx, audit.PurchaseInvalid, userID, ip, nil)
@@ -274,6 +286,15 @@ func (s *Service) check(ctx context.Context, tx pgx.Tx, p *purchase, token, ip s
 }
 
 func (s *Service) applyMissing(ctx context.Context, tx pgx.Tx, p *purchase, now time.Time, ip string) error {
+	if p.state == "pending" {
+		// A purchase moments old may not be visible yet. Look again a few
+		// times before calling the token unknown.
+		p.missing++
+		if p.missing < pendingMissingLimit {
+			_, err := tx.Exec(ctx, `UPDATE bazaar_purchases SET missing_count = $2, last_checked_at = now(), next_check_at = now() + interval '1 minute', updated_at = now() WHERE id = $1`, p.id, p.missing)
+			return err
+		}
+	}
 	if p.state == "pending" || p.state == "invalid" {
 		p.state = "invalid"
 		_, err := tx.Exec(ctx, `UPDATE bazaar_purchases SET state = 'invalid', last_checked_at = now(), next_check_at = NULL, updated_at = now() WHERE id = $1`, p.id)

@@ -601,9 +601,16 @@ func TestSubscription(t *testing.T) {
 	q.register("thief@example.com", "a good passphrase", "T")
 	expect(t, q.do("POST", "/v1/subscription/bazaar/purchases", body, "Idempotency-Key", "0d2e7c1a-7777-4bbb-8ccc-123456789abc"), 409, "purchase_owned_elsewhere")
 
-	// Unknown to Bazaar.
-	expect(t, q.do("POST", "/v1/subscription/bazaar/purchases", map[string]any{"sku": "tark_premium_1m", "purchaseToken": "invalid-x"},
-		"Idempotency-Key", "0d2e7c1a-7777-4bbb-8ccc-123456789abd"), 422, "purchase_invalid")
+	// Unknown to Bazaar: the first answers may just be a fresh purchase not
+	// visible yet; the third definitive "not found" makes it invalid.
+	inv := map[string]any{"sku": "tark_premium_1m", "purchaseToken": "invalid-x"}
+	for i := 0; i < 2; i++ {
+		expect(t, q.do("POST", "/v1/subscription/bazaar/purchases", inv, "Idempotency-Key", "0d2e7c1a-7777-4bbb-8ccc-123456789abd"), 503, "purchase_not_found_yet")
+		if _, err := e.pool.Exec(context.Background(), `UPDATE bazaar_purchases SET last_checked_at = now() - interval '2 minutes' WHERE state = 'pending'`); err != nil {
+			t.Fatal(err)
+		}
+	}
+	expect(t, q.do("POST", "/v1/subscription/bazaar/purchases", inv, "Idempotency-Key", "0d2e7c1a-7777-4bbb-8ccc-123456789abd"), 422, "purchase_invalid")
 
 	// Bazaar down on first submission: retry later, nothing is lost.
 	down := q.do("POST", "/v1/subscription/bazaar/purchases", map[string]any{"sku": "tark_premium_6m", "purchaseToken": "down-1"},

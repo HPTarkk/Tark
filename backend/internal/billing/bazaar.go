@@ -39,15 +39,18 @@ type Bazaar interface {
 
 // BazaarHTTP talks to pardakht.cafebazaar.ir.
 //
-// UNVERIFIED against the official docs. Based on the publicly known shape
-// of the Bazaar developer API (v2):
+// Per Bazaar's developer API docs (v2), summarised in the project's
+// backend-design/bazaar-billing.md:
 //   - OAuth: POST {base}/auth/token/ with grant_type=refresh_token,
 //     client_id, client_secret, refresh_token -> access_token, expires_in.
+//     The refresh token is long-lived and not rotated.
 //   - GET {base}/api/applications/{package}/subscriptions/{sku}/purchases/{token}/
 //     -> initiationTimestampMsec, validUntilTimestampMsec, autoRenewing.
-//     404 for unknown tokens.
+//     A success does not mean active; validUntil is compared with our clock.
+//     Only 404 not_found is definitive; anything else means "unknown".
 //
-// Confirm both, and how refunds of subscriptions appear, before launch.
+// The API never reports refunds or cancellations; see applyAnswer and
+// applyMissing for how the service infers them.
 type BazaarHTTP struct {
 	BaseURL      string
 	PackageName  string
@@ -91,7 +94,9 @@ func (b *BazaarHTTP) token(ctx context.Context, force bool) (string, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("%w: token status %d", ErrUnavailable, resp.StatusCode)
+		// Every verification stops until this is fixed (possibly by redoing
+		// the one-time authorisation by hand), so the error names it.
+		return "", fmt.Errorf("%w: bazaar oauth refresh failed with status %d; check the developer API credentials", ErrUnavailable, resp.StatusCode)
 	}
 	var body struct {
 		AccessToken string `json:"access_token"`
@@ -122,10 +127,8 @@ func (b *BazaarHTTP) Subscription(ctx context.Context, sku, purchaseToken string
 		if err != nil {
 			return Subscription{}, err
 		}
+		// The header, not ?access_token=, keeps the token out of access logs.
 		req.Header.Set("Authorization", "Bearer "+access)
-		q := req.URL.Query()
-		q.Set("access_token", access)
-		req.URL.RawQuery = q.Encode()
 
 		resp, err := b.client().Do(req)
 		if err != nil {

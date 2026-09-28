@@ -700,7 +700,7 @@ paths:
         '429':
           $ref: '#/components/responses/Problem'
         '503':
-          description: Bazaar could not be reached; retry later with the same Idempotency-Key.
+          description: '`bazaar_unavailable` (Bazaar could not be reached) or `purchase_not_found_yet` (Bazaar does not show a fresh purchase yet). Retry later with the same Idempotency-Key.'
           content:
             application/problem+json:
               schema:
