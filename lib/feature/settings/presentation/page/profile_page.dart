@@ -13,10 +13,12 @@ import '../../../../core/widget/avatar_picker_grid.dart';
 import '../../../../core/widget/localized_counter.dart';
 import '../../../walkie/api/walkie_api.dart';
 import '../manager/settings_cubit.dart';
+import '../widget/account_section.dart';
 import '../widget/settings_category_card.dart';
 
 /// The person's profile: their face and radio name, both editable, with the
-/// face shown large at the top the way others will see it.
+/// face shown large at the top the way others will see it, and — on builds
+/// with sign-in — the optional account underneath.
 ///
 /// Like Advanced settings, [buildPage] takes the running [WalkieTalkieCubit]
 /// (if any) through go_router's `extra`, so a change made mid-channel reaches
@@ -83,6 +85,7 @@ class ProfilePage extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (AccountSection.visible) const AccountSection(),
               ],
               builder: (context, cards) => Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,

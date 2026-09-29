@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
+import 'package:tark/core/account/account_session.dart';
 import 'package:tark/core/config/support_config.dart';
 import 'package:tark/core/entitlement/billing_service.dart';
 import 'package:tark/core/entitlement/install_identity.dart';
@@ -12,6 +13,7 @@ import 'package:tark/core/entitlement/subscription_service.dart';
 import 'package:tark/core/l10n/app_localizations.dart';
 import 'package:tark/core/security/app_secure_storage.dart';
 
+import '../account/account_fakes.dart';
 import 'token_factory.dart';
 
 class _Remote implements SubscriptionRemote {
@@ -184,5 +186,30 @@ void main() {
     expect(find.text('Welcome back'), findsOneWidget);
     expect(find.text('1 MONTH'), findsOneWidget);
     expect(find.text('TRY AGAIN'), findsNothing);
+  });
+
+  testWidgets('signed out: offers sign-in where this build has it', (
+    tester,
+  ) async {
+    await tester.runAsync(
+      () => prime(now: issued, offline: const FetchSignedOut()),
+    );
+    GetIt.instance.registerSingleton<AccountSession>(AccountHarness().session);
+    await pumpGate(tester);
+
+    expect(find.text('Sign in to subscribe'), findsOneWidget);
+    expect(find.text('SIGN IN'), findsOneWidget);
+  });
+
+  testWidgets('signed out on a build without sign-in: no dead button', (
+    tester,
+  ) async {
+    await tester.runAsync(
+      () => prime(now: issued, offline: const FetchSignedOut()),
+    );
+    await pumpGate(tester);
+
+    expect(find.text('Sign in to subscribe'), findsOneWidget);
+    expect(find.text('SIGN IN'), findsNothing);
   });
 }

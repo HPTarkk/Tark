@@ -90,6 +90,19 @@ dependencies:
   http: ^1.2.0
   # Opens the support address on the subscription screens in the mail app.
   url_launcher: ^6.3.2
+  # Google sign-in for accounts (core/account). The account screens talk to
+  # the platform interface directly so every sign-in can carry its own
+  # server nonce; see PlatformGoogleIdTokenSource.
+  google_sign_in: ^7.2.0
+  google_sign_in_platform_interface: ^3.1.0
+  # 7.2.12 migrated the plugin to AGP built-in Kotlin, which Tark's
+  # legacy-KGP Android baseline (android.builtInKotlin=false) cannot compile
+  # — same story as flutter_blue_classic above. 7.2.11 is the last release
+  # that applies kotlin-android itself. Unpin together with that migration.
+  google_sign_in_android: 7.2.11
+  # Opens the app from the verification links in account emails
+  # (https://tarkk.ir/v/...), see core/account/email_link.dart.
+  app_links: ^7.2.1
 
 
 dev_dependencies:

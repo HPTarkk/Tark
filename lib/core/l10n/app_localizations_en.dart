@@ -2473,4 +2473,360 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get update_open_failed => 'Bazaar didn\'t open. Try once more.';
+
+  @override
+  String get account_section_title => 'ACCOUNT';
+
+  @override
+  String get account_signed_out_body =>
+      'An account is only needed for a subscription. Everything else in Tark works without one.';
+
+  @override
+  String get account_sign_in_row => 'Sign in or create an account';
+
+  @override
+  String get account_email_label => 'Email';
+
+  @override
+  String get account_change_password => 'Change password';
+
+  @override
+  String get account_sign_out => 'Sign out';
+
+  @override
+  String get account_sign_out_everywhere => 'Sign out on all phones';
+
+  @override
+  String get account_sign_out_everywhere_body =>
+      'Every phone signed in to this account, this one included, will need to sign in again.';
+
+  @override
+  String get account_signed_out_toast => 'You\'re signed out.';
+
+  @override
+  String get account_delete => 'Delete account';
+
+  @override
+  String get signin_title => 'Sign in';
+
+  @override
+  String get signin_subtitle =>
+      'A subscription belongs to your account, so it comes with you to any phone.';
+
+  @override
+  String get auth_email_hint => 'Email address';
+
+  @override
+  String get auth_password_hint => 'Password';
+
+  @override
+  String get auth_new_password_hint => 'New password (8 characters or more)';
+
+  @override
+  String get auth_current_password_hint => 'Current password';
+
+  @override
+  String get auth_name_hint => 'Your name';
+
+  @override
+  String get auth_show_password => 'Show password';
+
+  @override
+  String get auth_hide_password => 'Hide password';
+
+  @override
+  String get auth_close => 'CLOSE';
+
+  @override
+  String get signin_action => 'SIGN IN';
+
+  @override
+  String get signin_google => 'CONTINUE WITH GOOGLE';
+
+  @override
+  String get signin_or => 'or';
+
+  @override
+  String get signin_forgot => 'Forgot your password?';
+
+  @override
+  String get signin_create => 'New here? Create an account';
+
+  @override
+  String get signin_done => 'You\'re signed in.';
+
+  @override
+  String get register_title => 'Create an account';
+
+  @override
+  String get register_body =>
+      'We\'ll email you a 6-digit code to confirm the address.';
+
+  @override
+  String get register_action => 'CREATE ACCOUNT';
+
+  @override
+  String get code_title => 'Check your email';
+
+  @override
+  String code_body(String email) {
+    return 'We sent a 6-digit code to $email. Type it here, or open the link in that email on this phone.';
+  }
+
+  @override
+  String get code_resend => 'SEND A NEW CODE';
+
+  @override
+  String code_resend_in(String time) {
+    return 'You can ask for a new code in $time';
+  }
+
+  @override
+  String get code_resent => 'A new code is on its way.';
+
+  @override
+  String get code_spam_hint =>
+      'Nothing yet? Have a look in your spam folder too.';
+
+  @override
+  String get code_verifying => 'Checking…';
+
+  @override
+  String get code_start_over => 'START AGAIN';
+
+  @override
+  String get code_link_elsewhere_title => 'Type the code instead';
+
+  @override
+  String get code_link_elsewhere_body =>
+      'This link is for a sign-up or password reset that was started on another phone, or has already finished. On the phone where you started, type the 6-digit code from the same email.';
+
+  @override
+  String get forgot_title => 'Reset your password';
+
+  @override
+  String get forgot_body =>
+      'Type your account\'s email. If there\'s an account with it, we\'ll send a code there.';
+
+  @override
+  String get forgot_action => 'SEND CODE';
+
+  @override
+  String get reset_title => 'Choose a new password';
+
+  @override
+  String get reset_body =>
+      'You\'ll be signed in here, and signed out on your other phones.';
+
+  @override
+  String get reset_action => 'SAVE AND SIGN IN';
+
+  @override
+  String get change_password_body =>
+      'Your other phones will be signed out; this one stays signed in.';
+
+  @override
+  String get change_password_action => 'SAVE';
+
+  @override
+  String get change_password_done => 'Password changed.';
+
+  @override
+  String get google_link_title => 'You already have an account';
+
+  @override
+  String google_link_body(String email) {
+    return '$email already has a Tark account with a password. Type that password once to add Google sign-in to it.';
+  }
+
+  @override
+  String get google_link_action => 'ADD GOOGLE AND SIGN IN';
+
+  @override
+  String get google_name_title => 'What should we call you?';
+
+  @override
+  String get google_name_action => 'CONTINUE';
+
+  @override
+  String get delete_title => 'Delete account';
+
+  @override
+  String get delete_warning =>
+      'This deletes your account and everything kept with it, right away and for good. It can\'t be undone.';
+
+  @override
+  String get delete_keeps =>
+      'Tark itself keeps working on this phone: your rooms, name and settings stay here.';
+
+  @override
+  String delete_type_email(String email) {
+    return 'To confirm, type your account\'s email: $email';
+  }
+
+  @override
+  String get delete_google_note =>
+      'You\'ll confirm it\'s you with your Google account.';
+
+  @override
+  String get delete_sub_title => 'Your Bazaar subscription is still running';
+
+  @override
+  String get delete_sub_body_renewing =>
+      'Deleting the account doesn\'t cancel it: Bazaar keeps renewing it until you cancel it in Bazaar. You can restore the purchase into a new account later.';
+
+  @override
+  String get delete_sub_body =>
+      'Deleting the account doesn\'t refund it. You can restore the purchase into a new account later.';
+
+  @override
+  String get delete_sub_ack => 'I understand';
+
+  @override
+  String get delete_action => 'DELETE MY ACCOUNT';
+
+  @override
+  String get delete_action_google => 'CONFIRM WITH GOOGLE AND DELETE';
+
+  @override
+  String get delete_confirm_title => 'Delete your account for good?';
+
+  @override
+  String get delete_confirm_body =>
+      'There\'s no undo. Your subscription purchase can be restored into a new account later.';
+
+  @override
+  String get delete_done => 'Your account was deleted.';
+
+  @override
+  String get auth_error_offline =>
+      'Couldn\'t reach Tark. Check that this phone is online, then try again.';
+
+  @override
+  String get auth_error_trouble =>
+      'Something went wrong on our side. Please try again in a moment.';
+
+  @override
+  String get auth_error_rate_limited =>
+      'That\'s a lot of tries in a short time. Please wait a little, then try again.';
+
+  @override
+  String get auth_error_fill => 'Please fill in every field.';
+
+  @override
+  String get auth_error_email => 'That email address doesn\'t look complete.';
+
+  @override
+  String get auth_error_name =>
+      'That name has characters we can\'t show. Try another one.';
+
+  @override
+  String get auth_error_check_input =>
+      'Please check what you typed and try again.';
+
+  @override
+  String get auth_error_credentials =>
+      'That email and password don\'t match an account.';
+
+  @override
+  String get auth_error_password_wrong => 'That password doesn\'t match.';
+
+  @override
+  String auth_error_account_disabled(String email) {
+    return 'This account is on hold. Write to us at $email and we\'ll sort it out.';
+  }
+
+  @override
+  String get auth_error_password_short => 'Use 8 characters or more.';
+
+  @override
+  String get auth_error_password_long => 'Use 128 characters or fewer.';
+
+  @override
+  String get auth_error_password_common =>
+      'That password is easy to guess. Try a longer or less common one.';
+
+  @override
+  String get auth_error_password_email =>
+      'The password can\'t be your email address.';
+
+  @override
+  String get auth_error_password_invalid =>
+      'That password can\'t be used. Try another one.';
+
+  @override
+  String get auth_error_password_unchanged =>
+      'That\'s the current password. Pick a new one.';
+
+  @override
+  String get auth_error_password_not_set =>
+      'This account signs in with Google and has no password yet. Use “Forgot your password?” to add one.';
+
+  @override
+  String auth_error_code(String count) {
+    return 'That code doesn\'t match. $count tries left.';
+  }
+
+  @override
+  String get auth_error_code_plain => 'That code doesn\'t match.';
+
+  @override
+  String get auth_error_code_locked =>
+      'That\'s a lot of codes tried. Send a new code to carry on.';
+
+  @override
+  String get auth_error_flow_expired =>
+      'This code has run out of time. Start again to get a new one.';
+
+  @override
+  String get auth_error_flow_gone =>
+      'This code can\'t be used any more. Please start again.';
+
+  @override
+  String get auth_error_resend_limit =>
+      'That\'s as many codes as we can send for this one. Please start again.';
+
+  @override
+  String get auth_error_already_registered =>
+      'This address already has an account. Sign in instead.';
+
+  @override
+  String get auth_error_google_unavailable =>
+      'Google sign-in isn\'t available right now. You can use email and password instead.';
+
+  @override
+  String get auth_error_google_retry =>
+      'Google sign-in didn\'t finish. Please try again.';
+
+  @override
+  String get auth_error_google_unverified =>
+      'Google hasn\'t confirmed this Google account\'s email yet. Confirm it with Google, or use email and password.';
+
+  @override
+  String get auth_error_google_unsupported =>
+      'This Google account\'s email can\'t be used with Tark. Try another account, or email and password.';
+
+  @override
+  String get auth_error_account_conflict =>
+      'This address is linked to a different Google account. Sign in with that one, or with your password.';
+
+  @override
+  String get auth_error_ticket_expired =>
+      'That took a while, so it timed out. Please start again.';
+
+  @override
+  String get auth_error_confirmation =>
+      'That isn\'t the account\'s email. Type it exactly as shown.';
+
+  @override
+  String get auth_error_signed_out =>
+      'You\'ve been signed out. Please sign in again.';
+
+  @override
+  String auth_error_reauth(String email) {
+    return 'We can\'t confirm it\'s you on this phone. Write to us at $email and we\'ll help.';
+  }
+
+  @override
+  String get sub_signin_action => 'SIGN IN';
 }

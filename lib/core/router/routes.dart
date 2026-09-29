@@ -48,4 +48,15 @@ abstract final class AppRoutes {
 
   static const advancedSettingsName = 'AdvancedSettingsPage';
   static const advancedSettingsPath = '/settings/advanced';
+
+  /// Optional sign-in, for subscriptions. Pushed; pops `true` once signed
+  /// in. The rest of the account screens are pushed from here and from the
+  /// Profile page's account card.
+  static const signInName = 'SignInPage';
+  static const signInPath = '/account/sign-in';
+
+  /// Where an email verification link lands when no code screen for its
+  /// flow is open. `extra` carries the parsed EmailLink.
+  static const accountLinkName = 'AccountLinkPage';
+  static const accountLinkPath = '/account/verify';
 }

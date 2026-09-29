@@ -136,8 +136,10 @@
                  overrides the start location main.dart already worked out.
                  The URI isn't a route: it's read out of the intent by
                  home_widget (see HomeWidgetService.takeInitialLaunch) and
-                 turned into a destination there. The app declares no VIEW
-                 intent-filters, so nothing else relies on this. -->
+                 turned into a destination there. The one VIEW
+                 intent-filter below (account email links) is read by
+                 app_links, not by the router, so it does not rely on this
+                 either. -->
             <meta-data
                 android:name="flutter_deeplinking_enabled"
                 android:value="false"
@@ -145,6 +147,22 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Verification links in the account emails:
+                 https://tarkk.ir/v/<register|reset|email>#<linkToken>.
+                 Verified App Links (autoVerify), so they open Tark directly
+                 instead of a chooser; that needs
+                 https://tarkk.ir/.well-known/assetlinks.json to list this
+                 app's signing-key SHA-256. Handled by app_links in
+                 core/account/email_link.dart, never by the router. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="tarkk.ir"
+                    android:pathPrefix="/v/" />
             </intent-filter>
         </activity>
         <!-- Invisible host for Cafe Bazaar's checkout (see

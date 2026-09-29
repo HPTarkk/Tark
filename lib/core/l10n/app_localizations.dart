@@ -4447,6 +4447,612 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'بازار باز نشد. یه بار دیگه امتحان کن.'**
   String get update_open_failed;
+
+  /// No description provided for @account_section_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'حساب'**
+  String get account_section_title;
+
+  /// No description provided for @account_signed_out_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'حساب فقط برای اشتراک لازمه. بقیه‌ی تَرک بدون حساب هم کار می‌کنه.'**
+  String get account_signed_out_body;
+
+  /// No description provided for @account_sign_in_row.
+  ///
+  /// In fa, this message translates to:
+  /// **'ورود یا ساخت حساب'**
+  String get account_sign_in_row;
+
+  /// No description provided for @account_email_label.
+  ///
+  /// In fa, this message translates to:
+  /// **'ایمیل'**
+  String get account_email_label;
+
+  /// No description provided for @account_change_password.
+  ///
+  /// In fa, this message translates to:
+  /// **'عوض کردن رمز'**
+  String get account_change_password;
+
+  /// No description provided for @account_sign_out.
+  ///
+  /// In fa, this message translates to:
+  /// **'خروج از حساب'**
+  String get account_sign_out;
+
+  /// No description provided for @account_sign_out_everywhere.
+  ///
+  /// In fa, this message translates to:
+  /// **'خروج از حساب روی همه‌ی گوشی‌ها'**
+  String get account_sign_out_everywhere;
+
+  /// No description provided for @account_sign_out_everywhere_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'همه‌ی گوشی‌هایی که با این حساب وارد شدن، این یکی هم، باید دوباره وارد بشن.'**
+  String get account_sign_out_everywhere_body;
+
+  /// No description provided for @account_signed_out_toast.
+  ///
+  /// In fa, this message translates to:
+  /// **'از حسابت خارج شدی.'**
+  String get account_signed_out_toast;
+
+  /// No description provided for @account_delete.
+  ///
+  /// In fa, this message translates to:
+  /// **'پاک کردن حساب'**
+  String get account_delete;
+
+  /// No description provided for @signin_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'ورود به حساب'**
+  String get signin_title;
+
+  /// No description provided for @signin_subtitle.
+  ///
+  /// In fa, this message translates to:
+  /// **'اشتراک به حسابت وصله، برای همین با هر گوشی‌ای همراهت میاد.'**
+  String get signin_subtitle;
+
+  /// No description provided for @auth_email_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'آدرس ایمیل'**
+  String get auth_email_hint;
+
+  /// No description provided for @auth_password_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'رمز'**
+  String get auth_password_hint;
+
+  /// No description provided for @auth_new_password_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'رمز تازه (۸ نویسه یا بیشتر)'**
+  String get auth_new_password_hint;
+
+  /// No description provided for @auth_current_password_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'رمز فعلی'**
+  String get auth_current_password_hint;
+
+  /// No description provided for @auth_name_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'اسمت'**
+  String get auth_name_hint;
+
+  /// No description provided for @auth_show_password.
+  ///
+  /// In fa, this message translates to:
+  /// **'نمایش رمز'**
+  String get auth_show_password;
+
+  /// No description provided for @auth_hide_password.
+  ///
+  /// In fa, this message translates to:
+  /// **'پنهان کردن رمز'**
+  String get auth_hide_password;
+
+  /// No description provided for @auth_close.
+  ///
+  /// In fa, this message translates to:
+  /// **'بستن'**
+  String get auth_close;
+
+  /// No description provided for @signin_action.
+  ///
+  /// In fa, this message translates to:
+  /// **'ورود'**
+  String get signin_action;
+
+  /// No description provided for @signin_google.
+  ///
+  /// In fa, this message translates to:
+  /// **'ادامه با گوگل'**
+  String get signin_google;
+
+  /// No description provided for @signin_or.
+  ///
+  /// In fa, this message translates to:
+  /// **'یا'**
+  String get signin_or;
+
+  /// No description provided for @signin_forgot.
+  ///
+  /// In fa, this message translates to:
+  /// **'رمزت یادت رفته؟'**
+  String get signin_forgot;
+
+  /// No description provided for @signin_create.
+  ///
+  /// In fa, this message translates to:
+  /// **'حساب نداری؟ یکی بساز'**
+  String get signin_create;
+
+  /// No description provided for @signin_done.
+  ///
+  /// In fa, this message translates to:
+  /// **'وارد حسابت شدی.'**
+  String get signin_done;
+
+  /// No description provided for @register_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'ساخت حساب'**
+  String get register_title;
+
+  /// No description provided for @register_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'یه کد ۶ رقمی به ایمیلت می‌فرستیم تا آدرس تأیید بشه.'**
+  String get register_body;
+
+  /// No description provided for @register_action.
+  ///
+  /// In fa, this message translates to:
+  /// **'ساخت حساب'**
+  String get register_action;
+
+  /// No description provided for @code_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'ایمیلت رو ببین'**
+  String get code_title;
+
+  /// No description provided for @code_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'یه کد ۶ رقمی به {email} فرستادیم. اینجا واردش کن، یا لینک همون ایمیل رو روی همین گوشی باز کن.'**
+  String code_body(String email);
+
+  /// No description provided for @code_resend.
+  ///
+  /// In fa, this message translates to:
+  /// **'فرستادن کد تازه'**
+  String get code_resend;
+
+  /// No description provided for @code_resend_in.
+  ///
+  /// In fa, this message translates to:
+  /// **'تا {time} دیگه می‌تونی کد تازه بخوای'**
+  String code_resend_in(String time);
+
+  /// No description provided for @code_resent.
+  ///
+  /// In fa, this message translates to:
+  /// **'کد تازه در راهه.'**
+  String get code_resent;
+
+  /// No description provided for @code_spam_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'چیزی نرسیده؟ پوشه‌ی هرزنامه رو هم ببین.'**
+  String get code_spam_hint;
+
+  /// No description provided for @code_verifying.
+  ///
+  /// In fa, this message translates to:
+  /// **'داریم بررسی می‌کنیم…'**
+  String get code_verifying;
+
+  /// No description provided for @code_start_over.
+  ///
+  /// In fa, this message translates to:
+  /// **'شروع دوباره'**
+  String get code_start_over;
+
+  /// No description provided for @code_link_elsewhere_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'به‌جاش کد رو وارد کن'**
+  String get code_link_elsewhere_title;
+
+  /// No description provided for @code_link_elsewhere_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'این لینک مال ثبت‌نام یا بازیابی رمزیه که روی گوشی دیگه‌ای شروع شده، یا قبلاً تموم شده. روی همون گوشی‌ای که شروع کردی، کد ۶ رقمی همون ایمیل رو وارد کن.'**
+  String get code_link_elsewhere_body;
+
+  /// No description provided for @forgot_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'بازیابی رمز'**
+  String get forgot_title;
+
+  /// No description provided for @forgot_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'ایمیل حسابت رو بنویس. اگه حسابی با این ایمیل باشه، یه کد براش می‌فرستیم.'**
+  String get forgot_body;
+
+  /// No description provided for @forgot_action.
+  ///
+  /// In fa, this message translates to:
+  /// **'فرستادن کد'**
+  String get forgot_action;
+
+  /// No description provided for @reset_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'یه رمز تازه انتخاب کن'**
+  String get reset_title;
+
+  /// No description provided for @reset_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'اینجا وارد حسابت می‌شی و روی بقیه‌ی گوشی‌ها از حساب خارج می‌شی.'**
+  String get reset_body;
+
+  /// No description provided for @reset_action.
+  ///
+  /// In fa, this message translates to:
+  /// **'ذخیره و ورود'**
+  String get reset_action;
+
+  /// No description provided for @change_password_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'بقیه‌ی گوشی‌ها از حساب خارج می‌شن؛ این گوشی وارد می‌مونه.'**
+  String get change_password_body;
+
+  /// No description provided for @change_password_action.
+  ///
+  /// In fa, this message translates to:
+  /// **'ذخیره'**
+  String get change_password_action;
+
+  /// No description provided for @change_password_done.
+  ///
+  /// In fa, this message translates to:
+  /// **'رمز عوض شد.'**
+  String get change_password_done;
+
+  /// No description provided for @google_link_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'از قبل حساب داری'**
+  String get google_link_title;
+
+  /// No description provided for @google_link_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'{email} از قبل یه حساب تَرک با رمز داره. یه بار رمزش رو وارد کن تا ورود با گوگل هم بهش اضافه بشه.'**
+  String google_link_body(String email);
+
+  /// No description provided for @google_link_action.
+  ///
+  /// In fa, this message translates to:
+  /// **'افزودن گوگل و ورود'**
+  String get google_link_action;
+
+  /// No description provided for @google_name_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'اسمت چیه؟'**
+  String get google_name_title;
+
+  /// No description provided for @google_name_action.
+  ///
+  /// In fa, this message translates to:
+  /// **'ادامه'**
+  String get google_name_action;
+
+  /// No description provided for @delete_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'پاک کردن حساب'**
+  String get delete_title;
+
+  /// No description provided for @delete_warning.
+  ///
+  /// In fa, this message translates to:
+  /// **'این کار حسابت و هر چیزی که همراهش نگه داشته شده رو همین الان و برای همیشه پاک می‌کنه. برگشت‌پذیر نیست.'**
+  String get delete_warning;
+
+  /// No description provided for @delete_keeps.
+  ///
+  /// In fa, this message translates to:
+  /// **'خود تَرک روی این گوشی کار می‌کنه: اتاق‌ها، اسم و تنظیماتت همین‌جا می‌مونن.'**
+  String get delete_keeps;
+
+  /// No description provided for @delete_type_email.
+  ///
+  /// In fa, this message translates to:
+  /// **'برای تأیید، ایمیل حسابت رو بنویس: {email}'**
+  String delete_type_email(String email);
+
+  /// No description provided for @delete_google_note.
+  ///
+  /// In fa, this message translates to:
+  /// **'با حساب گوگلت تأیید می‌کنی که خودتی.'**
+  String get delete_google_note;
+
+  /// No description provided for @delete_sub_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'اشتراک بازارت هنوز فعاله'**
+  String get delete_sub_title;
+
+  /// No description provided for @delete_sub_body_renewing.
+  ///
+  /// In fa, this message translates to:
+  /// **'پاک کردن حساب اشتراک رو لغو نمی‌کنه: بازار تا وقتی خودت توی بازار لغوش نکنی تمدیدش می‌کنه. بعداً می‌تونی خرید رو توی یه حساب تازه بازیابی کنی.'**
+  String get delete_sub_body_renewing;
+
+  /// No description provided for @delete_sub_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'پاک کردن حساب هزینه‌اش رو برنمی‌گردونه. بعداً می‌تونی خرید رو توی یه حساب تازه بازیابی کنی.'**
+  String get delete_sub_body;
+
+  /// No description provided for @delete_sub_ack.
+  ///
+  /// In fa, this message translates to:
+  /// **'متوجهم'**
+  String get delete_sub_ack;
+
+  /// No description provided for @delete_action.
+  ///
+  /// In fa, this message translates to:
+  /// **'حسابم رو پاک کن'**
+  String get delete_action;
+
+  /// No description provided for @delete_action_google.
+  ///
+  /// In fa, this message translates to:
+  /// **'تأیید با گوگل و پاک کردن'**
+  String get delete_action_google;
+
+  /// No description provided for @delete_confirm_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'حسابت برای همیشه پاک بشه؟'**
+  String get delete_confirm_title;
+
+  /// No description provided for @delete_confirm_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'برگشتی در کار نیست. خرید اشتراکت رو بعداً می‌تونی توی یه حساب تازه بازیابی کنی.'**
+  String get delete_confirm_body;
+
+  /// No description provided for @delete_done.
+  ///
+  /// In fa, this message translates to:
+  /// **'حسابت پاک شد.'**
+  String get delete_done;
+
+  /// No description provided for @auth_error_offline.
+  ///
+  /// In fa, this message translates to:
+  /// **'به تَرک نرسیدیم. ببین این گوشی به اینترنت وصله، بعد دوباره امتحان کن.'**
+  String get auth_error_offline;
+
+  /// No description provided for @auth_error_trouble.
+  ///
+  /// In fa, this message translates to:
+  /// **'یه مشکلی سمت ما پیش اومد. چند لحظه دیگه دوباره امتحان کن.'**
+  String get auth_error_trouble;
+
+  /// No description provided for @auth_error_rate_limited.
+  ///
+  /// In fa, this message translates to:
+  /// **'توی مدت کوتاهی خیلی تلاش شد. کمی صبر کن، بعد دوباره امتحان کن.'**
+  String get auth_error_rate_limited;
+
+  /// No description provided for @auth_error_fill.
+  ///
+  /// In fa, this message translates to:
+  /// **'لطفاً همه‌ی خونه‌ها رو پر کن.'**
+  String get auth_error_fill;
+
+  /// No description provided for @auth_error_email.
+  ///
+  /// In fa, this message translates to:
+  /// **'این آدرس ایمیل کامل به نظر نمی‌رسه.'**
+  String get auth_error_email;
+
+  /// No description provided for @auth_error_name.
+  ///
+  /// In fa, this message translates to:
+  /// **'این اسم نویسه‌هایی داره که نمی‌تونیم نشونش بدیم. یه اسم دیگه امتحان کن.'**
+  String get auth_error_name;
+
+  /// No description provided for @auth_error_check_input.
+  ///
+  /// In fa, this message translates to:
+  /// **'یه بار دیگه نوشته‌ات رو ببین و دوباره امتحان کن.'**
+  String get auth_error_check_input;
+
+  /// No description provided for @auth_error_credentials.
+  ///
+  /// In fa, this message translates to:
+  /// **'این ایمیل و رمز با هیچ حسابی جور نیست.'**
+  String get auth_error_credentials;
+
+  /// No description provided for @auth_error_password_wrong.
+  ///
+  /// In fa, this message translates to:
+  /// **'این رمز جور نیست.'**
+  String get auth_error_password_wrong;
+
+  /// No description provided for @auth_error_account_disabled.
+  ///
+  /// In fa, this message translates to:
+  /// **'این حساب فعلاً متوقف شده. به {email} ایمیل بزن تا درستش کنیم.'**
+  String auth_error_account_disabled(String email);
+
+  /// No description provided for @auth_error_password_short.
+  ///
+  /// In fa, this message translates to:
+  /// **'۸ نویسه یا بیشتر بنویس.'**
+  String get auth_error_password_short;
+
+  /// No description provided for @auth_error_password_long.
+  ///
+  /// In fa, this message translates to:
+  /// **'حداکثر ۱۲۸ نویسه بنویس.'**
+  String get auth_error_password_long;
+
+  /// No description provided for @auth_error_password_common.
+  ///
+  /// In fa, this message translates to:
+  /// **'این رمز راحت حدس زده می‌شه. یه رمز بلندتر یا کمتر رایج امتحان کن.'**
+  String get auth_error_password_common;
+
+  /// No description provided for @auth_error_password_email.
+  ///
+  /// In fa, this message translates to:
+  /// **'رمز نمی‌تونه همون آدرس ایمیلت باشه.'**
+  String get auth_error_password_email;
+
+  /// No description provided for @auth_error_password_invalid.
+  ///
+  /// In fa, this message translates to:
+  /// **'این رمز قابل استفاده نیست. یه رمز دیگه امتحان کن.'**
+  String get auth_error_password_invalid;
+
+  /// No description provided for @auth_error_password_unchanged.
+  ///
+  /// In fa, this message translates to:
+  /// **'این همون رمز فعلیه. یه رمز تازه انتخاب کن.'**
+  String get auth_error_password_unchanged;
+
+  /// No description provided for @auth_error_password_not_set.
+  ///
+  /// In fa, this message translates to:
+  /// **'این حساب با گوگل وارد می‌شه و هنوز رمز نداره. برای گذاشتن رمز از «رمزت یادت رفته؟» استفاده کن.'**
+  String get auth_error_password_not_set;
+
+  /// No description provided for @auth_error_code.
+  ///
+  /// In fa, this message translates to:
+  /// **'این کد جور نیست. {count} بار دیگه می‌تونی امتحان کنی.'**
+  String auth_error_code(String count);
+
+  /// No description provided for @auth_error_code_plain.
+  ///
+  /// In fa, this message translates to:
+  /// **'این کد جور نیست.'**
+  String get auth_error_code_plain;
+
+  /// No description provided for @auth_error_code_locked.
+  ///
+  /// In fa, this message translates to:
+  /// **'کدهای زیادی امتحان شد. برای ادامه یه کد تازه بفرست.'**
+  String get auth_error_code_locked;
+
+  /// No description provided for @auth_error_flow_expired.
+  ///
+  /// In fa, this message translates to:
+  /// **'زمان این کد تموم شده. از اول شروع کن تا یه کد تازه بگیری.'**
+  String get auth_error_flow_expired;
+
+  /// No description provided for @auth_error_flow_gone.
+  ///
+  /// In fa, this message translates to:
+  /// **'این کد دیگه قابل استفاده نیست. لطفاً از اول شروع کن.'**
+  String get auth_error_flow_gone;
+
+  /// No description provided for @auth_error_resend_limit.
+  ///
+  /// In fa, this message translates to:
+  /// **'برای این یکی بیشتر از این نمی‌تونیم کد بفرستیم. لطفاً از اول شروع کن.'**
+  String get auth_error_resend_limit;
+
+  /// No description provided for @auth_error_already_registered.
+  ///
+  /// In fa, this message translates to:
+  /// **'این آدرس از قبل حساب داره. به‌جاش وارد شو.'**
+  String get auth_error_already_registered;
+
+  /// No description provided for @auth_error_google_unavailable.
+  ///
+  /// In fa, this message translates to:
+  /// **'ورود با گوگل الان در دسترس نیست. می‌تونی با ایمیل و رمز وارد شی.'**
+  String get auth_error_google_unavailable;
+
+  /// No description provided for @auth_error_google_retry.
+  ///
+  /// In fa, this message translates to:
+  /// **'ورود با گوگل کامل نشد. دوباره امتحان کن.'**
+  String get auth_error_google_retry;
+
+  /// No description provided for @auth_error_google_unverified.
+  ///
+  /// In fa, this message translates to:
+  /// **'گوگل هنوز ایمیل این حساب گوگل رو تأیید نکرده. توی گوگل تأییدش کن، یا با ایمیل و رمز وارد شو.'**
+  String get auth_error_google_unverified;
+
+  /// No description provided for @auth_error_google_unsupported.
+  ///
+  /// In fa, this message translates to:
+  /// **'ایمیل این حساب گوگل با تَرک قابل استفاده نیست. یه حساب دیگه یا ایمیل و رمز رو امتحان کن.'**
+  String get auth_error_google_unsupported;
+
+  /// No description provided for @auth_error_account_conflict.
+  ///
+  /// In fa, this message translates to:
+  /// **'این آدرس به یه حساب گوگل دیگه وصله. با همون یکی یا با رمزت وارد شو.'**
+  String get auth_error_account_conflict;
+
+  /// No description provided for @auth_error_ticket_expired.
+  ///
+  /// In fa, this message translates to:
+  /// **'یه کم طول کشید و زمانش تموم شد. لطفاً دوباره شروع کن.'**
+  String get auth_error_ticket_expired;
+
+  /// No description provided for @auth_error_confirmation.
+  ///
+  /// In fa, this message translates to:
+  /// **'این ایمیل حساب نیست. دقیقاً همونی که نشون داده شده رو بنویس.'**
+  String get auth_error_confirmation;
+
+  /// No description provided for @auth_error_signed_out.
+  ///
+  /// In fa, this message translates to:
+  /// **'از حسابت خارج شدی. لطفاً دوباره وارد شو.'**
+  String get auth_error_signed_out;
+
+  /// No description provided for @auth_error_reauth.
+  ///
+  /// In fa, this message translates to:
+  /// **'روی این گوشی نمی‌تونیم تأیید کنیم که خودتی. به {email} ایمیل بزن تا کمکت کنیم.'**
+  String auth_error_reauth(String email);
+
+  /// No description provided for @sub_signin_action.
+  ///
+  /// In fa, this message translates to:
+  /// **'ورود به حساب'**
+  String get sub_signin_action;
 }
 
 class _AppLocalizationsDelegate
