@@ -4,6 +4,8 @@ import 'package:audio_io/audio_io.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
+import '../core/account/account_session.dart';
+import '../core/account/email_link.dart';
 import '../core/diagnostics/tap_log.dart';
 import '../core/home_widget/home_widget_launch.dart';
 import '../core/home_widget/home_widget_service.dart';
@@ -30,6 +32,8 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   StreamSubscription<HomeWidgetLaunch>? _launchSub;
   StreamSubscription<WidgetControlAction>? _controlSub;
+  StreamSubscription<EmailLink>? _linkSub;
+  StreamSubscription<EmailLink>? _unclaimedSub;
 
   @override
   void initState() {
@@ -60,6 +64,47 @@ class _MyAppState extends State<MyApp> {
         AppRouter.router.go(AppRoutes.landingPath);
       }
     });
+    _listenForEmailLinks();
+  }
+
+  /// Verification links from the account emails
+  /// (`https://tarkk.ir/v/<flow>#<token>`). An open code screen for the
+  /// same flow takes its link itself (see EmailLinkDispatcher); any other
+  /// link opens a code screen, which finishes the flow if this phone
+  /// started it and otherwise says to type the code instead.
+  void _listenForEmailLinks() {
+    if (!GetIt.instance<AccountSession>().available) return;
+    final dispatcher = GetIt.instance<EmailLinkDispatcher>();
+    _unclaimedSub = dispatcher.unclaimed.listen(
+      (link) => unawaited(_openLink(link)),
+    );
+    _linkSub = GetIt.instance<EmailLinkSource>().links.listen(
+      dispatcher.dispatch,
+    );
+  }
+
+  Future<void> _openLink(EmailLink link) async {
+    final delegate = AppRouter.router.routerDelegate;
+    String location() => delegate.currentConfiguration.uri.path;
+    // A cold start through the link lands on the splash, which replaces the
+    // whole stack when it finishes; wait for that, or the code screen would
+    // be swept away with it.
+    if (location() == AppRoutes.splashPath) {
+      final left = Completer<void>();
+      void onChange() {
+        if (location() != AppRoutes.splashPath && !left.isCompleted) {
+          left.complete();
+        }
+      }
+
+      delegate.addListener(onChange);
+      await left.future.timeout(const Duration(seconds: 20), onTimeout: () {});
+      delegate.removeListener(onChange);
+    }
+    if (!mounted) return;
+    unawaited(
+      AppRouter.router.pushNamed<bool>(AppRoutes.accountLinkName, extra: link),
+    );
   }
 
   @override
@@ -68,6 +113,8 @@ class _MyAppState extends State<MyApp> {
     ThemeService.mode.removeListener(_onAppSettingChanged);
     _launchSub?.cancel();
     _controlSub?.cancel();
+    _linkSub?.cancel();
+    _unclaimedSub?.cancel();
     GetIt.instance<AudioIo>().dispose();
     super.dispose();
   }

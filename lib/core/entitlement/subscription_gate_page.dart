@@ -2,11 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../account/account_session.dart';
 import '../config/support_config.dart';
 import '../l10n/extension.dart';
 import '../motion/app_motion.dart';
+import '../router/routes.dart';
 import '../theme/app_colors.dart';
 import '../utils/friendly_date.dart';
 import '../utils/logger.dart';
@@ -155,6 +158,19 @@ class _SubscriptionGatePageState extends State<SubscriptionGatePage> {
     await _resolve(outcome);
   }
 
+  /// A subscription belongs to an account: sign in (optional everywhere
+  /// else in Tark), then ask the server again.
+  Future<void> _signIn() async {
+    final router = GoRouter.maybeOf(context);
+    if (router == null) return;
+    final signedIn = await router.pushNamed<bool>(AppRoutes.signInName);
+    if (signedIn == true && mounted) await _check();
+  }
+
+  static bool get _canSignIn =>
+      GetIt.instance.isRegistered<AccountSession>() &&
+      GetIt.instance<AccountSession>().available;
+
   void _toast(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: AppColors.card),
@@ -217,6 +233,8 @@ class _SubscriptionGatePageState extends State<SubscriptionGatePage> {
         icon: Icons.account_circle_outlined,
         title: s.sub_signin_title,
         body: s.sub_signin_body,
+        action: _canSignIn ? s.sub_signin_action : null,
+        onAction: _signIn,
       ),
       GatePurchaseOwnedElsewhere() => _MessageState(
         icon: Icons.swap_horiz_rounded,
@@ -423,6 +441,8 @@ class _MessageState extends StatelessWidget {
     required this.title,
     required this.body,
     this.showSupport = false,
+    this.action,
+    this.onAction,
   });
 
   final IconData icon;
@@ -430,13 +450,23 @@ class _MessageState extends StatelessWidget {
   final String body;
   final bool showSupport;
 
+  /// An optional primary button (e.g. "Sign in").
+  final String? action;
+  final VoidCallback? onAction;
+
   @override
   Widget build(BuildContext context) {
+    final label = action;
+    final onTap = onAction;
     return _StateLayout(
       glyph: _Glyph(icon: icon),
       title: title,
       body: body,
       footer: [
+        if (label != null && onTap != null) ...[
+          _PrimaryButton(label: label, onTap: onTap, glow: true),
+          const SizedBox(height: 18),
+        ],
         if (showSupport) const _SupportCard(),
         const SizedBox(height: 14),
         _FreeNote(text: context.getString.sub_free_meanwhile),

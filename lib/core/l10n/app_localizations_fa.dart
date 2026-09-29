@@ -2463,4 +2463,356 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get update_open_failed => 'بازار باز نشد. یه بار دیگه امتحان کن.';
+
+  @override
+  String get account_section_title => 'حساب';
+
+  @override
+  String get account_signed_out_body =>
+      'حساب فقط برای اشتراک لازمه. بقیه‌ی تَرک بدون حساب هم کار می‌کنه.';
+
+  @override
+  String get account_sign_in_row => 'ورود یا ساخت حساب';
+
+  @override
+  String get account_email_label => 'ایمیل';
+
+  @override
+  String get account_change_password => 'عوض کردن رمز';
+
+  @override
+  String get account_sign_out => 'خروج از حساب';
+
+  @override
+  String get account_sign_out_everywhere => 'خروج از حساب روی همه‌ی گوشی‌ها';
+
+  @override
+  String get account_sign_out_everywhere_body =>
+      'همه‌ی گوشی‌هایی که با این حساب وارد شدن، این یکی هم، باید دوباره وارد بشن.';
+
+  @override
+  String get account_signed_out_toast => 'از حسابت خارج شدی.';
+
+  @override
+  String get account_delete => 'پاک کردن حساب';
+
+  @override
+  String get signin_title => 'ورود به حساب';
+
+  @override
+  String get signin_subtitle =>
+      'اشتراک به حسابت وصله، برای همین با هر گوشی‌ای همراهت میاد.';
+
+  @override
+  String get auth_email_hint => 'آدرس ایمیل';
+
+  @override
+  String get auth_password_hint => 'رمز';
+
+  @override
+  String get auth_new_password_hint => 'رمز تازه (۸ نویسه یا بیشتر)';
+
+  @override
+  String get auth_current_password_hint => 'رمز فعلی';
+
+  @override
+  String get auth_name_hint => 'اسمت';
+
+  @override
+  String get auth_show_password => 'نمایش رمز';
+
+  @override
+  String get auth_hide_password => 'پنهان کردن رمز';
+
+  @override
+  String get auth_close => 'بستن';
+
+  @override
+  String get signin_action => 'ورود';
+
+  @override
+  String get signin_google => 'ادامه با گوگل';
+
+  @override
+  String get signin_or => 'یا';
+
+  @override
+  String get signin_forgot => 'رمزت یادت رفته؟';
+
+  @override
+  String get signin_create => 'حساب نداری؟ یکی بساز';
+
+  @override
+  String get signin_done => 'وارد حسابت شدی.';
+
+  @override
+  String get register_title => 'ساخت حساب';
+
+  @override
+  String get register_body =>
+      'یه کد ۶ رقمی به ایمیلت می‌فرستیم تا آدرس تأیید بشه.';
+
+  @override
+  String get register_action => 'ساخت حساب';
+
+  @override
+  String get code_title => 'ایمیلت رو ببین';
+
+  @override
+  String code_body(String email) {
+    return 'یه کد ۶ رقمی به $email فرستادیم. اینجا واردش کن، یا لینک همون ایمیل رو روی همین گوشی باز کن.';
+  }
+
+  @override
+  String get code_resend => 'فرستادن کد تازه';
+
+  @override
+  String code_resend_in(String time) {
+    return 'تا $time دیگه می‌تونی کد تازه بخوای';
+  }
+
+  @override
+  String get code_resent => 'کد تازه در راهه.';
+
+  @override
+  String get code_spam_hint => 'چیزی نرسیده؟ پوشه‌ی هرزنامه رو هم ببین.';
+
+  @override
+  String get code_verifying => 'داریم بررسی می‌کنیم…';
+
+  @override
+  String get code_start_over => 'شروع دوباره';
+
+  @override
+  String get code_link_elsewhere_title => 'به‌جاش کد رو وارد کن';
+
+  @override
+  String get code_link_elsewhere_body =>
+      'این لینک مال ثبت‌نام یا بازیابی رمزیه که روی گوشی دیگه‌ای شروع شده، یا قبلاً تموم شده. روی همون گوشی‌ای که شروع کردی، کد ۶ رقمی همون ایمیل رو وارد کن.';
+
+  @override
+  String get forgot_title => 'بازیابی رمز';
+
+  @override
+  String get forgot_body =>
+      'ایمیل حسابت رو بنویس. اگه حسابی با این ایمیل باشه، یه کد براش می‌فرستیم.';
+
+  @override
+  String get forgot_action => 'فرستادن کد';
+
+  @override
+  String get reset_title => 'یه رمز تازه انتخاب کن';
+
+  @override
+  String get reset_body =>
+      'اینجا وارد حسابت می‌شی و روی بقیه‌ی گوشی‌ها از حساب خارج می‌شی.';
+
+  @override
+  String get reset_action => 'ذخیره و ورود';
+
+  @override
+  String get change_password_body =>
+      'بقیه‌ی گوشی‌ها از حساب خارج می‌شن؛ این گوشی وارد می‌مونه.';
+
+  @override
+  String get change_password_action => 'ذخیره';
+
+  @override
+  String get change_password_done => 'رمز عوض شد.';
+
+  @override
+  String get google_link_title => 'از قبل حساب داری';
+
+  @override
+  String google_link_body(String email) {
+    return '$email از قبل یه حساب تَرک با رمز داره. یه بار رمزش رو وارد کن تا ورود با گوگل هم بهش اضافه بشه.';
+  }
+
+  @override
+  String get google_link_action => 'افزودن گوگل و ورود';
+
+  @override
+  String get google_name_title => 'اسمت چیه؟';
+
+  @override
+  String get google_name_action => 'ادامه';
+
+  @override
+  String get delete_title => 'پاک کردن حساب';
+
+  @override
+  String get delete_warning =>
+      'این کار حسابت و هر چیزی که همراهش نگه داشته شده رو همین الان و برای همیشه پاک می‌کنه. برگشت‌پذیر نیست.';
+
+  @override
+  String get delete_keeps =>
+      'خود تَرک روی این گوشی کار می‌کنه: اتاق‌ها، اسم و تنظیماتت همین‌جا می‌مونن.';
+
+  @override
+  String delete_type_email(String email) {
+    return 'برای تأیید، ایمیل حسابت رو بنویس: $email';
+  }
+
+  @override
+  String get delete_google_note => 'با حساب گوگلت تأیید می‌کنی که خودتی.';
+
+  @override
+  String get delete_sub_title => 'اشتراک بازارت هنوز فعاله';
+
+  @override
+  String get delete_sub_body_renewing =>
+      'پاک کردن حساب اشتراک رو لغو نمی‌کنه: بازار تا وقتی خودت توی بازار لغوش نکنی تمدیدش می‌کنه. بعداً می‌تونی خرید رو توی یه حساب تازه بازیابی کنی.';
+
+  @override
+  String get delete_sub_body =>
+      'پاک کردن حساب هزینه‌اش رو برنمی‌گردونه. بعداً می‌تونی خرید رو توی یه حساب تازه بازیابی کنی.';
+
+  @override
+  String get delete_sub_ack => 'متوجهم';
+
+  @override
+  String get delete_action => 'حسابم رو پاک کن';
+
+  @override
+  String get delete_action_google => 'تأیید با گوگل و پاک کردن';
+
+  @override
+  String get delete_confirm_title => 'حسابت برای همیشه پاک بشه؟';
+
+  @override
+  String get delete_confirm_body =>
+      'برگشتی در کار نیست. خرید اشتراکت رو بعداً می‌تونی توی یه حساب تازه بازیابی کنی.';
+
+  @override
+  String get delete_done => 'حسابت پاک شد.';
+
+  @override
+  String get auth_error_offline =>
+      'به تَرک نرسیدیم. ببین این گوشی به اینترنت وصله، بعد دوباره امتحان کن.';
+
+  @override
+  String get auth_error_trouble =>
+      'یه مشکلی سمت ما پیش اومد. چند لحظه دیگه دوباره امتحان کن.';
+
+  @override
+  String get auth_error_rate_limited =>
+      'توی مدت کوتاهی خیلی تلاش شد. کمی صبر کن، بعد دوباره امتحان کن.';
+
+  @override
+  String get auth_error_fill => 'لطفاً همه‌ی خونه‌ها رو پر کن.';
+
+  @override
+  String get auth_error_email => 'این آدرس ایمیل کامل به نظر نمی‌رسه.';
+
+  @override
+  String get auth_error_name =>
+      'این اسم نویسه‌هایی داره که نمی‌تونیم نشونش بدیم. یه اسم دیگه امتحان کن.';
+
+  @override
+  String get auth_error_check_input =>
+      'یه بار دیگه نوشته‌ات رو ببین و دوباره امتحان کن.';
+
+  @override
+  String get auth_error_credentials => 'این ایمیل و رمز با هیچ حسابی جور نیست.';
+
+  @override
+  String get auth_error_password_wrong => 'این رمز جور نیست.';
+
+  @override
+  String auth_error_account_disabled(String email) {
+    return 'این حساب فعلاً متوقف شده. به $email ایمیل بزن تا درستش کنیم.';
+  }
+
+  @override
+  String get auth_error_password_short => '۸ نویسه یا بیشتر بنویس.';
+
+  @override
+  String get auth_error_password_long => 'حداکثر ۱۲۸ نویسه بنویس.';
+
+  @override
+  String get auth_error_password_common =>
+      'این رمز راحت حدس زده می‌شه. یه رمز بلندتر یا کمتر رایج امتحان کن.';
+
+  @override
+  String get auth_error_password_email => 'رمز نمی‌تونه همون آدرس ایمیلت باشه.';
+
+  @override
+  String get auth_error_password_invalid =>
+      'این رمز قابل استفاده نیست. یه رمز دیگه امتحان کن.';
+
+  @override
+  String get auth_error_password_unchanged =>
+      'این همون رمز فعلیه. یه رمز تازه انتخاب کن.';
+
+  @override
+  String get auth_error_password_not_set =>
+      'این حساب با گوگل وارد می‌شه و هنوز رمز نداره. برای گذاشتن رمز از «رمزت یادت رفته؟» استفاده کن.';
+
+  @override
+  String auth_error_code(String count) {
+    return 'این کد جور نیست. $count بار دیگه می‌تونی امتحان کنی.';
+  }
+
+  @override
+  String get auth_error_code_plain => 'این کد جور نیست.';
+
+  @override
+  String get auth_error_code_locked =>
+      'کدهای زیادی امتحان شد. برای ادامه یه کد تازه بفرست.';
+
+  @override
+  String get auth_error_flow_expired =>
+      'زمان این کد تموم شده. از اول شروع کن تا یه کد تازه بگیری.';
+
+  @override
+  String get auth_error_flow_gone =>
+      'این کد دیگه قابل استفاده نیست. لطفاً از اول شروع کن.';
+
+  @override
+  String get auth_error_resend_limit =>
+      'برای این یکی بیشتر از این نمی‌تونیم کد بفرستیم. لطفاً از اول شروع کن.';
+
+  @override
+  String get auth_error_already_registered =>
+      'این آدرس از قبل حساب داره. به‌جاش وارد شو.';
+
+  @override
+  String get auth_error_google_unavailable =>
+      'ورود با گوگل الان در دسترس نیست. می‌تونی با ایمیل و رمز وارد شی.';
+
+  @override
+  String get auth_error_google_retry =>
+      'ورود با گوگل کامل نشد. دوباره امتحان کن.';
+
+  @override
+  String get auth_error_google_unverified =>
+      'گوگل هنوز ایمیل این حساب گوگل رو تأیید نکرده. توی گوگل تأییدش کن، یا با ایمیل و رمز وارد شو.';
+
+  @override
+  String get auth_error_google_unsupported =>
+      'ایمیل این حساب گوگل با تَرک قابل استفاده نیست. یه حساب دیگه یا ایمیل و رمز رو امتحان کن.';
+
+  @override
+  String get auth_error_account_conflict =>
+      'این آدرس به یه حساب گوگل دیگه وصله. با همون یکی یا با رمزت وارد شو.';
+
+  @override
+  String get auth_error_ticket_expired =>
+      'یه کم طول کشید و زمانش تموم شد. لطفاً دوباره شروع کن.';
+
+  @override
+  String get auth_error_confirmation =>
+      'این ایمیل حساب نیست. دقیقاً همونی که نشون داده شده رو بنویس.';
+
+  @override
+  String get auth_error_signed_out =>
+      'از حسابت خارج شدی. لطفاً دوباره وارد شو.';
+
+  @override
+  String auth_error_reauth(String email) {
+    return 'روی این گوشی نمی‌تونیم تأیید کنیم که خودتی. به $email ایمیل بزن تا کمکت کنیم.';
+  }
+
+  @override
+  String get sub_signin_action => 'ورود به حساب';
 }

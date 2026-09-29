@@ -2,9 +2,11 @@ import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/account/email_link.dart';
 import '../../core/diagnostics/screen_log.dart';
 import '../../core/home_widget/home_widget_launch.dart';
 import '../../core/router/routes.dart';
+import '../../feature/account/api/account_api.dart';
 import '../../feature/landing/api/landing_api.dart';
 import '../../feature/onboarding/api/onboarding_api.dart';
 import '../../feature/room/api/room_api.dart';
@@ -172,6 +174,22 @@ class AppRouter {
         path: AppRoutes.permissionsPath,
         name: AppRoutes.permissionsName,
         builder: (context, state) => PermissionsPage.buildPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.signInPath,
+        name: AppRoutes.signInName,
+        builder: (context, state) => SignInPage.buildPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.accountLinkPath,
+        name: AppRoutes.accountLinkName,
+        // `extra` is the EmailLink that opened the app. Never a query
+        // parameter: the link token finishes a sign-up or a password reset,
+        // and a URL is the one place it must not be written down.
+        builder: (context, state) => switch (state.extra) {
+          final EmailLink link => CodeEntryPage.buildForLink(link),
+          _ => SignInPage.buildPage(),
+        },
       ),
       GoRoute(
         path: AppRoutes.advancedSettingsPath,
