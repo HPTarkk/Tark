@@ -14,6 +14,12 @@ import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
 import 'package:shared_preferences/shared_preferences.dart' as _i460;
 import 'package:tark/app/di/di_config.dart' as _i250;
+import 'package:tark/core/account/account_session.dart' as _i1002;
+import 'package:tark/core/account/account_store.dart' as _i516;
+import 'package:tark/core/account/auth_repository.dart' as _i856;
+import 'package:tark/core/account/email_link.dart' as _i375;
+import 'package:tark/core/account/google_id_token_source.dart' as _i220;
+import 'package:tark/core/account/profile_sync.dart' as _i594;
 import 'package:tark/core/entitlement/billing_service.dart' as _i547;
 import 'package:tark/core/entitlement/install_identity.dart' as _i987;
 import 'package:tark/core/entitlement/license_gate.dart' as _i52;
@@ -26,6 +32,8 @@ import 'package:tark/core/identity/channel_membership.dart' as _i523;
 import 'package:tark/core/identity/device_identity.dart' as _i990;
 import 'package:tark/core/identity/session_epoch.dart' as _i835;
 import 'package:tark/core/network/api_client.dart' as _i775;
+import 'package:tark/core/network/authenticated_api_client.dart' as _i699;
+import 'package:tark/core/network/service_api.dart' as _i184;
 import 'package:tark/core/security/app_secure_storage.dart' as _i700;
 import 'package:tark/core/settings/settings_repository.dart' as _i349;
 import 'package:tark/core/settings/settings_repository_impl.dart' as _i632;
@@ -110,6 +118,7 @@ extension GetItInjectableX on _i174.GetIt {
     final networkModule = _$NetworkModule();
     final legalModule = _$LegalModule();
     final billingModule = _$BillingModule();
+    final accountModule = _$AccountModule();
     final transferModule = _$TransferModule();
     await gh.factoryAsync<_i460.SharedPreferences>(
       () => registerThirdParty.prefs,
@@ -128,8 +137,14 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i700.AppSecureStorage>(
       () => billingModule.appSecureStorage(),
     );
-    gh.lazySingleton<_i1036.SubscriptionRemote>(
-      () => billingModule.subscriptionRemote(),
+    gh.lazySingleton<_i220.GoogleIdTokenSource>(
+      () => accountModule.googleIdTokenSource(),
+    );
+    gh.lazySingleton<_i375.EmailLinkSource>(
+      () => accountModule.emailLinkSource(),
+    );
+    gh.lazySingleton<_i375.EmailLinkDispatcher>(
+      () => accountModule.emailLinkDispatcher(),
     );
     gh.lazySingleton<_i523.ChannelMembership>(() => _i523.ChannelMembership());
     gh.lazySingleton<_i990.DeviceIdentity>(() => _i990.DeviceIdentity());
@@ -142,6 +157,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i987.InstallIdentity>(
       () => billingModule.installIdentity(gh<_i700.AppSecureStorage>()),
     );
+    gh.lazySingleton<_i516.AccountStore>(
+      () => accountModule.accountStore(gh<_i700.AppSecureStorage>()),
+    );
     gh.lazySingleton<_i175.RoomRepository>(
       () => _i429.SharedPreferencesRoomRepository(),
     );
@@ -149,6 +167,9 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i496.LegalRemoteSource(gh<_i775.ApiClient>()),
     );
     gh.lazySingleton<_i690.SfxPlayer>(() => const _i690.SfxServicePlayer());
+    gh.lazySingleton<_i184.TarkServiceClient>(
+      () => accountModule.tarkServiceClient(gh<_i987.InstallIdentity>()),
+    );
     gh.lazySingleton<_i794.HotspotHost>(() => _i462.WifiHotspotController());
     gh.lazySingleton<_i633.LegalRepository>(
       () => _i979.LegalRepositoryImpl(
@@ -157,14 +178,30 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i460.SharedPreferences>(),
       ),
     );
+    gh.lazySingleton<_i699.AuthenticatedApiClient>(
+      () => accountModule.authenticatedApiClient(
+        gh<_i184.TarkServiceClient>(),
+        gh<_i516.AccountStore>(),
+      ),
+    );
     gh.lazySingleton<_i430.SessionWakeLock>(
       () => const _i278.SessionKeepAliveWakeLock(),
     );
     gh.factory<_i598.RoomListCubit>(
       () => _i598.RoomListCubit(gh<_i175.RoomRepository>()),
     );
+    gh.lazySingleton<_i1002.AccountSession>(
+      () => accountModule.accountSession(
+        gh<_i699.AuthenticatedApiClient>(),
+        gh<_i516.AccountStore>(),
+      ),
+    );
     gh.lazySingleton<_i293.SessionRoleStore>(
       () => _i1042.SessionRoleStoreImpl(),
+    );
+    gh.lazySingleton<_i1036.SubscriptionRemote>(
+      () =>
+          billingModule.subscriptionRemote(gh<_i699.AuthenticatedApiClient>()),
     );
     gh.lazySingleton<_i590.HomeWidgetService>(
       () => _i828.HomeWidgetServiceImpl(gh<_i460.SharedPreferences>()),
@@ -209,6 +246,14 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i724.ConsentCubit>(
       () => _i724.ConsentCubit(gh<_i633.LegalRepository>()),
     );
+    gh.lazySingleton<_i428.SubscriptionService>(
+      () => billingModule.subscriptionService(
+        gh<_i700.AppSecureStorage>(),
+        gh<_i987.InstallIdentity>(),
+        gh<_i1036.SubscriptionRemote>(),
+        gh<_i1002.AccountSession>(),
+      ),
+    );
     gh.factory<_i1007.GuestLinkCubit>(
       () => _i1007.GuestLinkCubit(
         gh<_i945.GuestLinkController>(),
@@ -223,13 +268,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i1043.WifiTransferRepository>(),
       ),
       dispose: (i) => i.dispose(),
-    );
-    gh.lazySingleton<_i428.SubscriptionService>(
-      () => billingModule.subscriptionService(
-        gh<_i700.AppSecureStorage>(),
-        gh<_i987.InstallIdentity>(),
-        gh<_i1036.SubscriptionRemote>(),
-      ),
     );
     gh.lazySingleton<_i52.LicenseGate>(
       () => billingModule.licenseGate(gh<_i428.SubscriptionService>()),
@@ -260,6 +298,13 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i485.BluetoothTransferRepository>(),
       ),
     );
+    gh.lazySingleton<_i594.ProfileSync>(
+      () => accountModule.profileSync(
+        gh<_i1002.AccountSession>(),
+        gh<_i516.AccountStore>(),
+        gh<_i349.SettingsRepository>(),
+      ),
+    );
     gh.factory<_i766.OnboardingCubit>(
       () => _i766.OnboardingCubit(
         gh<_i431.TransferModeStore>(),
@@ -272,6 +317,14 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i1043.WifiTransferRepository>(),
         gh<_i485.BluetoothTransferRepository>(),
         gh<_i482.WebRtcTransferRepository>(),
+      ),
+    );
+    gh.lazySingleton<_i856.AuthRepository>(
+      () => accountModule.authRepository(
+        gh<_i1002.AccountSession>(),
+        gh<_i516.AccountStore>(),
+        gh<_i220.GoogleIdTokenSource>(),
+        gh<_i349.SettingsRepository>(),
       ),
     );
     gh.factory<_i1058.BluetoothConnectCubit>(
@@ -334,5 +387,7 @@ class _$NetworkModule extends _i250.NetworkModule {}
 class _$LegalModule extends _i250.LegalModule {}
 
 class _$BillingModule extends _i250.BillingModule {}
+
+class _$AccountModule extends _i250.AccountModule {}
 
 class _$TransferModule extends _i250.TransferModule {}

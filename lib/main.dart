@@ -8,6 +8,8 @@ import 'app/di/di_config.dart';
 import 'app/my_app.dart';
 import 'app/router/app_router.dart';
 import 'app/router/quick_access.dart';
+import 'core/account/account_session.dart';
+import 'core/account/profile_sync.dart';
 import 'core/audio/audio_format_profile.dart';
 import 'core/config/onboarding_config.dart';
 import 'core/diagnostics/diagnostic_log.dart';
@@ -89,6 +91,11 @@ void main() async {
   // falls back to PCM16, so this must never block or crash startup.
   await OpusAudioCodec.ensureInitialized();
   await configureDependencies();
+  // The signed-in state, from secure storage only: no network before the
+  // first frame. Then pushes a profile edit made offline last time, if any.
+  // Both are no-ops on builds without sign-in.
+  await GetIt.instance<AccountSession>().load();
+  unawaited(GetIt.instance<ProfileSync>().start());
   // Strictly before the mode store below: that one asks LicenseGate whether
   // the persisted transport is still paid for. Loads and verifies the stored
   // entitlement from secure storage; any server refresh it wants runs in the

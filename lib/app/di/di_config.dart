@@ -3,16 +3,28 @@ import 'package:get_it/get_it.dart';
 import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/account/account_config.dart';
+import '../../core/account/account_session.dart';
+import '../../core/account/account_store.dart';
+import '../../core/account/auth_repository.dart';
+import '../../core/account/email_link.dart';
+import '../../core/account/google_id_token_source.dart';
+import '../../core/account/profile_sync.dart';
 import '../../core/entitlement/bazaar_billing_service.dart';
 import '../../core/entitlement/billing_service.dart';
 import '../../core/entitlement/install_identity.dart';
 import '../../core/entitlement/license_gate.dart';
 import '../../core/entitlement/signed_entitlement.dart';
+import '../../core/entitlement/http_subscription_remote.dart';
 import '../../core/entitlement/subscription_remote.dart';
 import '../../core/entitlement/subscription_service.dart';
 import '../../core/security/app_secure_storage.dart';
 import '../../core/network/api_client.dart';
+import '../../core/network/authenticated_api_client.dart';
 import '../../core/network/http_api_client.dart';
+import '../../core/network/http_service_client.dart';
+import '../../core/network/service_api.dart';
+import '../../core/settings/settings_repository.dart';
 import '../../feature/legal/data/legal_asset_source.dart';
 
 import '../../feature/transfer/data/repository/bluetooth_transfer_repository.dart';
@@ -75,10 +87,11 @@ abstract class BillingModule {
       ? BazaarBillingService()
       : const UnavailableBillingService();
 
-  /// Keystore-backed on Android, where the paid features live; memory-only
-  /// elsewhere, where nothing is ever locked.
+  /// Keystore-backed on Android wherever the paid features or sign-in are
+  /// live (AccountConfig.enabled covers both); memory-only elsewhere, where
+  /// nothing is ever locked and nobody signs in.
   @lazySingleton
-  AppSecureStorage appSecureStorage() => Monetization.active
+  AppSecureStorage appSecureStorage() => AccountConfig.enabled
       ? PlatformAppSecureStorage()
       : MemoryAppSecureStorage();
 
@@ -86,28 +99,103 @@ abstract class BillingModule {
   InstallIdentity installIdentity(AppSecureStorage storage) =>
       InstallIdentity(storage);
 
-  /// Stand-in until the backend exists. Swapped for the HTTP implementation
-  /// in the change that adds sign-in, since every call needs a session.
+  /// The backend, on behalf of the signed-in account. Answers "signed out"
+  /// without a request when nobody is.
   @lazySingleton
-  SubscriptionRemote subscriptionRemote() =>
-      const UnavailableSubscriptionRemote();
+  SubscriptionRemote subscriptionRemote(AuthenticatedApiClient api) =>
+      HttpSubscriptionRemote(api);
 
+  /// Local subscription state belongs to the account that fetched it, so it
+  /// is dropped whenever the session ends (sign-out, deletion, or the
+  /// server ending it).
   @lazySingleton
   SubscriptionService subscriptionService(
     AppSecureStorage storage,
     InstallIdentity identity,
     SubscriptionRemote remote,
-  ) => SubscriptionService(
-    storage: storage,
-    identity: identity,
-    verifier: EntitlementVerifier(EntitlementKeys.fromEnvironment()),
-    remote: remote,
-    monetized: Monetization.active,
-  );
+    AccountSession session,
+  ) {
+    final service = SubscriptionService(
+      storage: storage,
+      identity: identity,
+      verifier: EntitlementVerifier(EntitlementKeys.fromEnvironment()),
+      remote: remote,
+      monetized: Monetization.active,
+    );
+    session.signedOut.listen((_) => service.clear());
+    return service;
+  }
 
   @lazySingleton
   LicenseGate licenseGate(SubscriptionService subscription) =>
       LicenseGateImpl(subscription);
+}
+
+@module
+abstract class AccountModule {
+  @lazySingleton
+  AccountStore accountStore(AppSecureStorage storage) => AccountStore(storage);
+
+  /// The backend client every account and subscription call goes through.
+  /// Each call carries the platform and, where sign-in exists, this
+  /// install's public key (the server stores both on the session).
+  @lazySingleton
+  TarkServiceClient tarkServiceClient(InstallIdentity identity) =>
+      HttpTarkServiceClient(
+        commonHeaders: () async {
+          final platform = AccountConfig.platformHeader;
+          final headers = <String, String>{'X-Tark-Platform': ?platform};
+          if (AccountConfig.enabled) {
+            await identity.load();
+            headers['X-Tark-Install-Key'] = identity.publicKey;
+          }
+          return headers;
+        },
+      );
+
+  @lazySingleton
+  AuthenticatedApiClient authenticatedApiClient(
+    TarkServiceClient transport,
+    AccountStore store,
+  ) => AuthenticatedApiClient(transport, store);
+
+  @lazySingleton
+  AccountSession accountSession(
+    AuthenticatedApiClient api,
+    AccountStore store,
+  ) => AccountSession(api: api, store: store, available: AccountConfig.enabled);
+
+  @lazySingleton
+  GoogleIdTokenSource googleIdTokenSource() => PlatformGoogleIdTokenSource(
+    serverClientId: AccountConfig.googleServerClientId,
+  );
+
+  @lazySingleton
+  AuthRepository authRepository(
+    AccountSession session,
+    AccountStore store,
+    GoogleIdTokenSource google,
+    SettingsRepository settings,
+  ) => AuthRepository(
+    session: session,
+    store: store,
+    google: google,
+    localeCode: settings.getLocaleCode,
+    localName: settings.getMyName,
+  );
+
+  @lazySingleton
+  ProfileSync profileSync(
+    AccountSession session,
+    AccountStore store,
+    SettingsRepository settings,
+  ) => ProfileSync(session: session, store: store, settings: settings);
+
+  @lazySingleton
+  EmailLinkSource emailLinkSource() => AppLinksEmailLinkSource();
+
+  @lazySingleton
+  EmailLinkDispatcher emailLinkDispatcher() => EmailLinkDispatcher();
 }
 
 @module
