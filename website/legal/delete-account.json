@@ -1,0 +1,353 @@
+{
+  "schema": 1,
+  "id": "delete-account",
+  "name": {
+    "en": "Delete your account",
+    "fa": "پاک کردن حساب"
+  },
+  "effectiveDate": "2026-09-29",
+  "effectiveDateLabel": {
+    "en": "29 September 2026",
+    "fa": "۷ مهر ۱۴۰۵"
+  },
+  "webPath": {
+    "en": "/delete-account.html",
+    "fa": "/fa/delete-account.html"
+  },
+  "meta": {
+    "title": {
+      "en": "Delete your account — Tarkk",
+      "fa": "پاک کردن حساب کاربری — تَرک"
+    },
+    "description": {
+      "en": "How to delete your Tark account: in the app, or by an email request. What is deleted, what may be kept and why, and what happens to a subscription.",
+      "fa": "چطور حساب تَرکت رو پاک کنی: از داخل برنامه، یا با درخواست ایمیلی. چی پاک می‌شه، چی ممکنه نگه داشته بشه و چرا، و اشتراکت چی می‌شه."
+    },
+    "twitterDescription": {
+      "en": "Delete your Tark account in the app, or ask by email. What is deleted, and what may be kept.",
+      "fa": "حساب تَرکت رو از داخل برنامه پاک کن، یا با ایمیل درخواست بده. چی پاک می‌شه و چی ممکنه بمونه."
+    }
+  },
+  "hero": {
+    "eyebrow": {
+      "en": "ACCOUNT DELETION",
+      "fa": "پاک کردن حساب"
+    },
+    "heading": {
+      "en": "How to delete your Tark account.",
+      "fa": "چطور حساب تَرکت رو پاک کنی."
+    },
+    "lede": {
+      "en": "The quickest way is inside the app, and it takes effect at once. If you can’t use the app, send us a request by email from the address the account uses. This page doesn’t delete anything by itself — it explains both ways.",
+      "fa": "سریع‌ترین راه از داخل خود برنامه‌ست و همون لحظه انجام می‌شه. اگه به برنامه دسترسی نداری، از همون ایمیلی که حسابت باهاش ساخته شده برامون درخواست بفرست. این صفحه خودش چیزی رو پاک نمی‌کنه — فقط هر دو راه رو توضیح می‌ده."
+    },
+    "inEffectSince": {
+      "en": "Last updated",
+      "fa": "آخرین به‌روزرسانی"
+    },
+    "swap": {
+      "href": "privacy.html",
+      "label": {
+        "en": "Read the Privacy Policy →",
+        "fa": "سیاست حریم خصوصی رو بخونید →"
+      }
+    }
+  },
+  "contentsLabel": {
+    "en": "CONTENTS",
+    "fa": "فهرست"
+  },
+  "summary": {
+    "columns": [
+      {
+        "kind": "nevers",
+        "title": {
+          "en": "WHAT IS DELETED",
+          "fa": "چیزی که پاک می‌شه"
+        },
+        "items": [
+          {
+            "en": "Your email address, and your password hash or the link to your Google account.",
+            "fa": "نشانی ایمیلت، و هش رمز عبورت یا اتصال به حساب گوگلت."
+          },
+          {
+            "en": "Your display name and avatar choice.",
+            "fa": "اسم و آواتاری که انتخاب کرده بودی."
+          },
+          {
+            "en": "Your sign-in sessions. Every phone signed in to the account is signed out.",
+            "fa": "نشست‌های ورودت. همه‌ی گوشی‌هایی که وارد حساب بودن ازش خارج می‌شن."
+          }
+        ]
+      },
+      {
+        "kind": "asks",
+        "title": {
+          "en": "WHAT MAY BE KEPT, AND WHY",
+          "fa": "چیزی که ممکنه بمونه، و چرا"
+        },
+        "items": [
+          {
+            "en": "Records of purchases and subscriptions, where the law or Cafe Bazaar requires them — only as long as required by law.",
+            "fa": "سابقه‌ی خریدها و اشتراک‌ها، جایی که قانون یا کافه‌بازار لازمش بدونه — فقط تا مدتی که قانون لازم می‌دونه."
+          },
+          {
+            "en": "A subscription in Bazaar keeps running until you cancel it there. Deleting the account doesn’t cancel or refund it.",
+            "fa": "اشتراکی که توی بازار داری تا وقتی همون‌جا لغوش نکنی ادامه داره. پاک کردن حساب، نه لغوش می‌کنه نه پولش رو برمی‌گردونه."
+          },
+          {
+            "en": "What’s on your phone. Tark keeps working without an account, with your channels, name and settings.",
+            "fa": "چیزهایی که روی گوشیته. تَرک بدون حساب هم کار می‌کنه، با همون کانال‌ها، اسم و تنظیماتت."
+          }
+        ]
+      }
+    ]
+  },
+  "sections": [
+    {
+      "id": "in-app",
+      "tocTitle": {
+        "en": "In the app",
+        "fa": "از داخل برنامه"
+      },
+      "title": {
+        "en": "Delete it in the app",
+        "fa": "پاک کردن از داخل برنامه"
+      },
+      "blocks": [
+        {
+          "type": "p",
+          "text": {
+            "en": "This is the fastest way, and it happens straight away.",
+            "fa": "این سریع‌ترین راهه و همون لحظه انجام می‌شه."
+          }
+        },
+        {
+          "type": "list",
+          "items": [
+            {
+              "en": "Open Tark and go to Profile.",
+              "fa": "تَرک رو باز کن و برو به پروفایل."
+            },
+            {
+              "en": "In the Account section, tap Delete account.",
+              "fa": "توی بخش «حساب»، «پاک کردن حساب» رو بزن."
+            },
+            {
+              "en": "Confirm it’s you: type the account’s email and your password — or, for a Google account, sign in with Google again.",
+              "fa": "تأیید کن که خودتی: ایمیل حساب و رمز عبورت رو وارد کن — یا اگه حسابت گوگلیه، دوباره با گوگل وارد شو."
+            },
+            {
+              "en": "If a subscription is still running, the app reminds you that deleting the account doesn’t cancel it.",
+              "fa": "اگه اشتراکت هنوز فعاله، برنامه یادآوری می‌کنه که پاک کردن حساب اون رو لغو نمی‌کنه."
+            },
+            {
+              "en": "Confirm once more. The account is deleted, and every phone signed in to it is signed out.",
+              "fa": "یه بار دیگه تأیید کن. حساب پاک می‌شه و همه‌ی گوشی‌هایی که واردش بودن ازش خارج می‌شن."
+            }
+          ]
+        },
+        {
+          "type": "note",
+          "label": {
+            "en": "THERE IS NO UNDO",
+            "fa": "برگشت‌پذیر نیست"
+          },
+          "text": {
+            "en": "A deleted account can’t be brought back. If you make a new account later, it starts empty — though a subscription that is still running in Bazaar can be restored into it.",
+            "fa": "حساب پاک‌شده رو نمی‌شه برگردوند. اگه بعداً حساب تازه‌ای بسازی، خالی شروع می‌شه — البته اشتراکی که هنوز توی بازار فعاله رو می‌شه توی اون حساب بازیابی کرد."
+          }
+        }
+      ]
+    },
+    {
+      "id": "by-email",
+      "tocTitle": {
+        "en": "By email",
+        "fa": "با ایمیل"
+      },
+      "title": {
+        "en": "Ask us by email",
+        "fa": "درخواست با ایمیل"
+      },
+      "blocks": [
+        {
+          "type": "p",
+          "text": {
+            "en": "If you no longer have the app, or can’t sign in, you can ask us to delete the account. Please send the request from the email address the account uses, so we can tell it comes from the account’s owner.",
+            "fa": "اگه دیگه برنامه رو نداری یا نمی‌تونی وارد حساب بشی، می‌تونی ازمون بخوای حساب رو پاک کنیم. لطفاً درخواست رو از همون نشانی ایمیلی بفرست که حساب باهاش ساخته شده، تا بدونیم از طرف صاحب حسابه."
+          }
+        },
+        {
+          "type": "button",
+          "href": {
+            "en": "mailto:tarkk.hp@gmail.com?subject=Delete%20my%20Tark%20account&body=Please%20delete%20the%20Tark%20account%20that%20uses%20this%20email%20address.",
+            "fa": "mailto:tarkk.hp@gmail.com?subject=%D8%AF%D8%B1%D8%AE%D9%88%D8%A7%D8%B3%D8%AA%20%D9%BE%D8%A7%DA%A9%20%DA%A9%D8%B1%D8%AF%D9%86%20%D8%AD%D8%B3%D8%A7%D8%A8%20%D8%AA%D9%8E%D8%B1%DA%A9&body=%D9%84%D8%B7%D9%81%D8%A7%D9%8B%20%D8%AD%D8%B3%D8%A7%D8%A8%20%D8%AA%D9%8E%D8%B1%DA%A9%DB%8C%20%DA%A9%D9%87%20%D8%A8%D8%A7%20%D9%87%D9%85%DB%8C%D9%86%20%D9%86%D8%B4%D8%A7%D9%86%DB%8C%20%D8%A7%DB%8C%D9%85%DB%8C%D9%84%20%D8%B3%D8%A7%D8%AE%D8%AA%D9%87%20%D8%B4%D8%AF%D9%87%20%D8%B1%D9%88%20%D9%BE%D8%A7%DA%A9%20%DA%A9%D9%86%DB%8C%D8%AF."
+          },
+          "label": {
+            "en": "Email a deletion request",
+            "fa": "فرستادن درخواست با ایمیل"
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "If the button doesn’t open your email app, write to tarkk.hp@gmail.com with the subject “Delete my Tark account”. We may reply to that address to confirm the request before deleting anything, and we’ll let you know once it’s done.",
+            "fa": "اگه دکمه برنامه‌ی ایمیلت رو باز نکرد، به tarkk.hp@gmail.com با موضوع «درخواست پاک کردن حساب تَرک» ایمیل بزن. ممکنه قبل از پاک کردن، برای تأیید درخواست به همون نشانی جواب بدیم، و وقتی کار انجام شد خبرت می‌کنیم."
+          }
+        }
+      ]
+    },
+    {
+      "id": "what",
+      "tocTitle": {
+        "en": "What is deleted",
+        "fa": "چی پاک می‌شه"
+      },
+      "title": {
+        "en": "What is deleted, and what may be kept",
+        "fa": "چی پاک می‌شه، و چی ممکنه بمونه"
+      },
+      "blocks": [
+        {
+          "type": "p",
+          "text": {
+            "en": "Deleting the account removes these from our server:",
+            "fa": "با پاک کردن حساب، این‌ها از سرور ما پاک می‌شن:"
+          }
+        },
+        {
+          "type": "list",
+          "items": [
+            {
+              "en": "Your email address.",
+              "fa": "نشانی ایمیلت."
+            },
+            {
+              "en": "Your password hash, for a password account, or your Google account id, for a Google account.",
+              "fa": "هش رمز عبورت، اگه حسابت با رمز عبوره، یا شناسه‌ی حساب گوگلت، اگه حسابت گوگلیه."
+            },
+            {
+              "en": "Your display name and avatar id.",
+              "fa": "اسم نمایشی و شماره‌ی آواتارت."
+            },
+            {
+              "en": "Your sign-in sessions, including each phone’s platform and install key.",
+              "fa": "نشست‌های ورودت، همراه با سکو و کلید نصب هر گوشی."
+            }
+          ]
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "Records of purchases and subscriptions may be kept where the law or Cafe Bazaar requires them — for example, to account for a payment. They are kept only as long as required by law, and used for nothing else.",
+            "fa": "سابقه‌ی خریدها و اشتراک‌ها ممکنه جایی که قانون یا کافه‌بازار لازم بدونه نگه داشته بشه — مثلاً برای پاسخ‌گویی درباره‌ی یه پرداخت. این سوابق فقط تا مدتی که قانون لازم می‌دونه نگه داشته می‌شن و برای هیچ کار دیگه‌ای استفاده نمی‌شن."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "There is nothing about your conversations to delete, because none of it was ever on our server: voice, presence and what is said in a channel never leave the local link.",
+            "fa": "چیزی از گفت‌وگوهات نیست که پاک بشه، چون هیچ‌کدومش هیچ‌وقت روی سرور ما نبوده: صدا، حضور و حرف‌هایی که توی کانال زده می‌شه هیچ‌وقت از اتصال محلی بیرون نمی‌رن."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "What the app keeps on your phone stays there — Tark keeps working without an account. Uninstalling the app removes it.",
+            "fa": "چیزی که برنامه روی گوشیت نگه داشته همون‌جا می‌مونه — تَرک بدون حساب هم کار می‌کنه. با حذف برنامه، اون‌ها هم پاک می‌شن."
+          }
+        }
+      ]
+    },
+    {
+      "id": "subscription",
+      "tocTitle": {
+        "en": "Your subscription",
+        "fa": "اشتراک شما"
+      },
+      "title": {
+        "en": "Your subscription",
+        "fa": "اشتراک شما"
+      },
+      "blocks": [
+        {
+          "type": "note",
+          "label": {
+            "en": "CANCEL IT IN BAZAAR",
+            "fa": "توی بازار لغوش کن"
+          },
+          "text": {
+            "en": "Deleting your account does not cancel a subscription. Subscriptions are billed by Cafe Bazaar, so cancel it in Bazaar as well, or it will keep renewing. Deleting the account doesn’t refund it either.",
+            "fa": "پاک کردن حساب، اشتراک رو لغو نمی‌کنه. پول اشتراک رو کافه‌بازار می‌گیره، پس اون رو هم توی بازار لغو کن، وگرنه تمدید می‌شه. پاک کردن حساب پولی هم برنمی‌گردونه."
+          }
+        }
+      ]
+    },
+    {
+      "id": "contact",
+      "tocTitle": {
+        "en": "Contact",
+        "fa": "تماس"
+      },
+      "title": {
+        "en": "Contact",
+        "fa": "تماس"
+      },
+      "blocks": [
+        {
+          "type": "p",
+          "text": {
+            "en": "Questions about deleting your account, or about what we keep, go to the address below.",
+            "fa": "سؤال درباره‌ی پاک کردن حساب، یا چیزهایی که نگه می‌داریم، به نشانی زیر بفرست."
+          }
+        },
+        {
+          "type": "rows",
+          "items": [
+            {
+              "name": "tarkk.hp@gmail.com",
+              "href": "mailto:tarkk.hp@gmail.com",
+              "text": {
+                "en": "Account deletion requests, privacy questions, and everything else.",
+                "fa": "درخواست پاک کردن حساب، سؤالات حریم خصوصی، و هر چیز دیگه‌ای."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "cross": [
+    {
+      "href": "privacy.html",
+      "kicker": {
+        "en": "ALSO",
+        "fa": "همچنین"
+      },
+      "title": {
+        "en": "Privacy Policy",
+        "fa": "سیاست حریم خصوصی"
+      },
+      "sub": {
+        "en": "What leaves your phone, what never does, and what an account holds.",
+        "fa": "چی از گوشیت بیرون می‌ره، چی هیچ‌وقت بیرون نمی‌ره، و حساب کاربری چی نگه می‌داره."
+      }
+    },
+    {
+      "href": "terms.html",
+      "kicker": {
+        "en": "ALSO",
+        "fa": "همچنین"
+      },
+      "title": {
+        "en": "Terms & Conditions",
+        "fa": "شرایط و ضوابط"
+      },
+      "sub": {
+        "en": "What you get free, what a subscription adds, and what the app cannot promise.",
+        "fa": "چی رایگانه، اشتراک چی بهش اضافه می‌کنه، و چیزی که برنامه نمی‌تونه قولش رو بده."
+      }
+    }
+  ]
+}

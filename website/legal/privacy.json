@@ -5,8 +5,8 @@
     "en": "Privacy Policy",
     "fa": "سیاست حریم خصوصی"
   },
-  "version": 3,
-  "minAcceptedVersion": 1,
+  "version": 4,
+  "minAcceptedVersion": 4,
   "effectiveDate": "2026-09-29",
   "effectiveDateLabel": {
     "en": "29 September 2026",
@@ -22,12 +22,12 @@
       "fa": "سیاست حریم خصوصی — تَرک"
     },
     "description": {
-      "en": "What Tarkk collects, what it never collects, and why. No accounts, no server carrying your voice, and a switch for the one thing that is measured.",
-      "fa": "تَرک چی جمع می‌کنه، چی رو هیچ‌وقت جمع نمی‌کنه، و چرا. نه حساب کاربری، نه سروری که صداتون رو ببره، و یه کلید برای تنها چیزی که اندازه گرفته می‌شه."
+      "en": "What Tarkk collects, what it never collects, and why. Your voice never reaches a server; the optional account you need to subscribe is described here in full.",
+      "fa": "تَرک چی جمع می‌کنه، چی رو هیچ‌وقت جمع نمی‌کنه، و چرا. صداتون هیچ‌وقت به هیچ سروری نمی‌رسه؛ حساب اختیاری‌ای هم که برای خرید اشتراک لازمه، اینجا کامل توضیح داده شده."
     },
     "twitterDescription": {
-      "en": "No accounts, no server in the path, nothing recorded. The full account of what leaves your phone — and what never does.",
-      "fa": "نه حساب کاربری، نه سروری وسط راه، نه چیزی که ضبط بشه. گزارش کامل چیزی که از گوشیت بیرون می‌ره — و چیزی که هیچ‌وقت بیرون نمی‌ره."
+      "en": "Voice goes phone to phone and never reaches a server. Accounts are optional and only needed to subscribe. The full list of what leaves your phone — and what never does.",
+      "fa": "صدا از گوشی به گوشی می‌ره و هیچ‌وقت به سرور نمی‌رسه. حساب کاربری اختیاریه و فقط برای خرید اشتراک لازمه. فهرست کامل چیزی که از گوشیت بیرون می‌ره — و چیزی که هیچ‌وقت بیرون نمی‌ره."
     }
   },
   "hero": {
@@ -36,12 +36,12 @@
       "fa": "سیاست حریم خصوصی"
     },
     "heading": {
-      "en": "A privacy policy for an app with no server.",
-      "fa": "سیاست حریم خصوصی برای برنامه‌ای که سرور نداره."
+      "en": "Your voice never reaches a server. Here is what does.",
+      "fa": "صدای شما هیچ‌وقت به سرور نمی‌رسه. این هم چیزهایی که می‌رسه."
     },
     "lede": {
-      "en": "Tark connects phones straight to each other. There is no account to make, nothing in the middle carrying your voice, and no copy of a conversation anywhere. This page is the whole account of what does leave your phone — a short list — and what never does.",
-      "fa": "تَرک گوشی‌ها رو مستقیم به هم وصل می‌کنه. نه حسابی هست که بسازی، نه چیزی وسط راه که صداتون رو ببره، و نه نسخه‌ای از گفت‌وگو جایی می‌مونه. این صفحه کل حسابِ چیزیه که از گوشیت بیرون می‌ره — که فهرست کوتاهیه — و چیزی که هیچ‌وقت بیرون نمی‌ره."
+      "en": "Tark connects phones straight to each other. What you say in a channel travels over that local link and nowhere else — no server of ours hears it, and no copy of a conversation is kept anywhere. An account is optional and only needed to subscribe; if you make one, this page says exactly what it holds. This is the whole account of what leaves your phone, and what never does.",
+      "fa": "تَرک گوشی‌ها رو مستقیم به هم وصل می‌کنه. هر چی توی کانال می‌گید فقط از روی همون اتصال محلی رد می‌شه و جای دیگه‌ای نمی‌ره — هیچ سروری از ما اون رو نمی‌شنوه و هیچ نسخه‌ای از گفت‌وگو جایی نگه داشته نمی‌شه. حساب کاربری اختیاریه و فقط برای خرید اشتراک لازمه؛ اگه بسازی، این صفحه دقیقاً می‌گه چی توش نگه داشته می‌شه. این کل حسابِ چیزیه که از گوشیت بیرون می‌ره، و چیزی که هیچ‌وقت بیرون نمی‌ره."
     },
     "inEffectSince": {
       "en": "In effect since",
@@ -77,6 +77,10 @@
             "fa": "از اپ اندروید، نشانی IP شما به tarkk.ir، وقتی موقع باز شدن چک می‌کنه نسخه‌ی تازه‌تری از برنامه یا همین متن‌ها اومده یا نه. فقط یه فایل عمومی رو می‌گیره و هیچ چیزی همراه درخواست نمی‌فرسته."
           },
           {
+            "en": "Only if you make an account: your email, a password hash or your Google account id, the display name and avatar you pick, your sign-in sessions and your subscription purchases. They are kept on our server in Iran.",
+            "fa": "فقط اگه حساب بسازی: ایمیلت، هش رمز عبور یا شناسه‌ی حساب گوگلت، اسم و آواتاری که انتخاب می‌کنی، نشست‌های ورودت و خریدهای اشتراکت. این‌ها روی سرور ما داخل ایران نگه داشته می‌شن."
+          },
+          {
             "en": "Whatever you deliberately send us — a diagnostic log attached to a bug report, or an email you write.",
             "fa": "هر چیزی که خودت عمداً برامون می‌فرستی — لاگ عیب‌یابی که به گزارش خطا ضمیمه می‌کنی، یا ایمیلی که می‌نویسی."
           }
@@ -90,20 +94,20 @@
         },
         "items": [
           {
-            "en": "Your voice. It is played and gone. Nothing records it, and no server of ours is anywhere in the path.",
-            "fa": "صدای شما. پخش می‌شه و تموم. هیچی ضبطش نمی‌کنه و هیچ سروری از ما توی مسیرش نیست."
+            "en": "Your voice. It is played and gone. Nothing records it, and no server — ours included — is anywhere in its path, account or no account.",
+            "fa": "صدای شما. پخش می‌شه و تموم. هیچی ضبطش نمی‌کنه و هیچ سروری — از جمله سرور خود ما — توی مسیرش نیست، چه حساب داشته باشی چه نداشته باشی."
           },
           {
-            "en": "Your callsign, the names of people around you, the network you are on, or any address belonging to your phone.",
-            "fa": "اسم مستعارت، اسم آدمای دور و برت، شبکه‌ای که روشی، یا هر نشانی‌ای که مال گوشیته."
+            "en": "What happens in a channel: who is in it, when you talk, and what is said. Presence and channel content stay on the local link, and so do the names of the people around you, the network you are on and your phone's addresses.",
+            "fa": "اتفاق‌هایی که توی کانال می‌افته: کی توشه، کی حرف می‌زنی و چی گفته می‌شه. حضور و محتوای کانال روی همون اتصال محلی می‌مونه؛ اسم آدمای دور و برت، شبکه‌ای که روشی و نشانی‌های گوشیت هم همین‌طور."
           },
           {
             "en": "Your location. Older versions of Android demand the permission before they will scan for radios; Tark never reads a position out of it.",
             "fa": "موقعیت مکانی‌ت. اندرویدهای قدیمی‌تر بدون این دسترسی اجازه‌ی اسکن رادیویی نمی‌دن؛ تَرک هیچ‌وقت موقعیتی ازش نمی‌خونه."
           },
           {
-            "en": "A profile. There is no account, no phone number and no email, so there is nothing to build one out of.",
-            "fa": "پروفایل. نه حساب کاربری هست، نه شماره، نه ایمیل — پس چیزی نیست که باهاش پروفایلی ساخته بشه."
+            "en": "A profile of you. An account holds only what this page lists — nothing about where you go, who you talk to or how you use the app.",
+            "fa": "پروفایلی از خودت. حساب کاربری فقط چیزهایی رو نگه می‌داره که این صفحه فهرست کرده — هیچی درباره‌ی اینکه کجا می‌ری، با کی حرف می‌زنی یا چطور از برنامه استفاده می‌کنی."
           },
           {
             "en": "Usage stats. Tark sends no analytics of any kind, to us or to anyone else.",
@@ -128,8 +132,8 @@
         {
           "type": "p",
           "text": {
-            "en": "Tark (تَرک) is an independent project, not a company. This policy covers three things: the Android app, the browser guest at app.tarkk.ir, and this website.",
-            "fa": "تَرک یه پروژه‌ی مستقله، نه یه شرکت. این سیاست سه چیز رو پوشش می‌ده: اپلیکیشن اندروید، مهمانِ مرورگری روی app.tarkk.ir، و همین وب‌سایت."
+            "en": "Tark (تَرک) is an independent project, not a company. This policy covers four things: the Android app, the optional Tark account and the server behind it, the browser guest at app.tarkk.ir, and this website.",
+            "fa": "تَرک یه پروژه‌ی مستقله، نه یه شرکت. این سیاست چهار چیز رو پوشش می‌ده: اپلیکیشن اندروید، حساب کاربری اختیاری تَرک و سروری که پشتشه، مهمانِ مرورگری روی app.tarkk.ir، و همین وب‌سایت."
           }
         },
         {
@@ -167,6 +171,13 @@
           }
         },
         {
+          "type": "p",
+          "text": {
+            "en": "That does not change if you sign in or subscribe. The account server handles sign-in, your profile and your subscription, and nothing else: it never receives audio, it is not told when you are in a channel or who with, and nothing people say reaches it.",
+            "fa": "با ورود به حساب یا خرید اشتراک هم این عوض نمی‌شه. سرور حساب فقط کار ورود، پروفایل و اشتراکت رو انجام می‌ده و بس: هیچ‌وقت صدایی دریافت نمی‌کنه، خبر نداره کی توی کانالی یا با کی، و هیچ حرفی از کسی بهش نمی‌رسه."
+          }
+        },
+        {
           "type": "note",
           "label": {
             "en": "WORTH KNOWING",
@@ -175,6 +186,149 @@
           "text": {
             "en": "Tark does not add its own encryption on top of the link. On Wi-Fi your audio inherits whatever the network already protects it with; the Bluetooth link is opened without pairing, so that two phones that have never met can still talk. The short channel code keeps groups apart — it is not a password and it does not lock anything. Treat a Tark channel the way you would treat a radio channel: anyone with the right access to the same network, or the code, can listen. It is the wrong tool for a conversation that has to stay confidential.",
             "fa": "تَرک رمزنگاری خودش رو روی این مسیر اضافه نمی‌کنه. روی وای‌فای، صدات همون حفاظتی رو داره که خودِ شبکه براش فراهم می‌کنه؛ اتصال بلوتوث هم بدون جفت‌شدن باز می‌شه تا دو گوشی که تا حالا همدیگه رو ندیدن بتونن حرف بزنن. کد کوتاه کانال فقط گروه‌ها رو از هم جدا نگه می‌داره — رمز عبور نیست و چیزی رو قفل نمی‌کنه. با یه کانال تَرک همون‌طور رفتار کن که با یه کانال بیسیم رفتار می‌کنی: هر کسی که دسترسی درست به همون شبکه، یا خودِ کد رو داشته باشه، می‌تونه گوش بده. برای گفت‌وگویی که باید محرمانه بمونه ابزار درستی نیست."
+          }
+        }
+      ]
+    },
+    {
+      "id": "account",
+      "tocTitle": {
+        "en": "Your account (optional)",
+        "fa": "حساب کاربری (اختیاری)"
+      },
+      "title": {
+        "en": "Your account, if you make one",
+        "fa": "حساب کاربری، اگه بسازی"
+      },
+      "blocks": [
+        {
+          "type": "p",
+          "text": {
+            "en": "You do not need an account to use Tark. An account is needed for one thing: a subscription belongs to an account, so it can follow you to another phone. You can make one with an email and a password, or — on Android — with Google sign-in.",
+            "fa": "برای استفاده از تَرک به حساب کاربری نیازی نیست. حساب فقط برای یه کار لازمه: اشتراک به حساب وصله، تا بتونه همراهت به گوشی دیگه بیاد. می‌تونی با ایمیل و رمز عبور حساب بسازی، یا — روی اندروید — با ورود از طریق گوگل."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "If you do, this is everything our server keeps about you:",
+            "fa": "اگه بسازی، این همه‌ی چیزیه که سرور ما درباره‌ت نگه می‌داره:"
+          }
+        },
+        {
+          "type": "rows",
+          "items": [
+            {
+              "name": {
+                "en": "Email address",
+                "fa": "نشانی ایمیل"
+              },
+              "text": {
+                "en": "To identify your account, and to send the emails an account needs: verification codes and links, and password resets.",
+                "fa": "برای شناختن حسابت، و فرستادن ایمیل‌هایی که یه حساب لازم داره: کدها و لینک‌های تأیید، و بازنشانی رمز عبور."
+              }
+            },
+            {
+              "name": {
+                "en": "Password",
+                "fa": "رمز عبور"
+              },
+              "text": {
+                "en": "For a password account, only a one-way hash of it. The password itself is never stored.",
+                "fa": "برای حسابی که با رمز عبور ساخته شده، فقط یه هش یک‌طرفه ازش. خودِ رمز عبور هیچ‌وقت ذخیره نمی‌شه."
+              }
+            },
+            {
+              "name": {
+                "en": "Google account id",
+                "fa": "شناسه‌ی حساب گوگل"
+              },
+              "text": {
+                "en": "For a Google account, the identifier Google gives your account, so the same Google account always opens the same Tark account. We never see your Google password.",
+                "fa": "برای حسابی که با گوگل ساخته شده، شناسه‌ای که گوگل به حسابت داده، تا همون حساب گوگل همیشه همون حساب تَرک رو باز کنه. رمز عبور گوگلت رو هیچ‌وقت نمی‌بینیم."
+              }
+            },
+            {
+              "name": {
+                "en": "Name and avatar",
+                "fa": "اسم و آواتار"
+              },
+              "text": {
+                "en": "The display name you choose, and the number of the avatar you picked from Tark’s fixed set. There are no photo uploads. The same name and avatar are shown to the people in a channel with you, over the local link, as they always have been.",
+                "fa": "اسمی که برای نمایش انتخاب می‌کنی، و شماره‌ی آواتاری که از مجموعه‌ی ثابت تَرک برداشتی. عکسی آپلود نمی‌شه. همین اسم و آواتار، مثل همیشه، از روی اتصال محلی به آدمایی که باهات توی کانالن نشون داده می‌شه."
+              }
+            },
+            {
+              "name": {
+                "en": "Sign-in sessions",
+                "fa": "نشست‌های ورود"
+              },
+              "text": {
+                "en": "A record for each phone signed in to the account, including its platform (such as Android) and a random install key the app creates, so a session can be ended — one at a time or on all phones at once.",
+                "fa": "یه رکورد برای هر گوشی‌ای که وارد حساب شده، شامل سکوش (مثلاً اندروید) و یه کلید نصب تصادفی که خود برنامه می‌سازه، تا بشه نشست رو بست — تک‌تک یا روی همه‌ی گوشی‌ها با هم."
+              }
+            },
+            {
+              "name": {
+                "en": "Subscription and purchases",
+                "fa": "اشتراک و خریدها"
+              },
+              "text": {
+                "en": "Which plan you have, when it started and when it ends, and the purchase details Cafe Bazaar gives us to confirm a payment. We never see your card or bank details; paying happens entirely inside Bazaar.",
+                "fa": "اینکه کدوم طرح رو داری، کی شروع شده و کی تموم می‌شه، و جزئیات خریدی که کافه‌بازار برای تأیید پرداخت به ما می‌ده. اطلاعات کارت یا حساب بانکیت رو هیچ‌وقت نمی‌بینیم؛ پرداخت کاملاً داخل بازار انجام می‌شه."
+              }
+            },
+            {
+              "name": {
+                "en": "Connection details",
+                "fa": "جزئیات اتصال"
+              },
+              "text": {
+                "en": "Like any web server, ours sees the IP address each request comes from, as part of answering it.",
+                "fa": "مثل هر سرور وبی، سرور ما هم نشانی IP هر درخواست رو، به‌عنوان بخشی از جواب دادن بهش، می‌بینه."
+              }
+            }
+          ]
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "The server is written in Go with a PostgreSQL database, and is hosted by ArvanCloud in data centres inside Iran. Account emails are sent through Gmail’s SMTP service.",
+            "fa": "سرور با Go و پایگاه داده‌ی PostgreSQL نوشته شده و میزبانش آروان‌کلاده، توی مراکز داده‌ی داخل ایران. ایمیل‌های حساب از طریق سرویس SMTP جیمیل فرستاده می‌شن."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "Account data is used to run your account, send its emails and keep your subscription working.",
+            "fa": "داده‌های حساب برای اداره‌ی حسابت، فرستادن ایمیل‌هاش و کار کردن درست اشتراکت استفاده می‌شه."
+          }
+        }
+      ]
+    },
+    {
+      "id": "subscriptions",
+      "tocTitle": {
+        "en": "Subscriptions",
+        "fa": "اشتراک"
+      },
+      "title": {
+        "en": "Subscriptions and payments",
+        "fa": "اشتراک و پرداخت"
+      },
+      "blocks": [
+        {
+          "type": "p",
+          "text": {
+            "en": "Paid features are sold as a monthly or annual subscription, through Cafe Bazaar only. Bazaar takes the payment and tells our server a purchase was made, so the subscription can be attached to your account. What reaches us is the purchase record, not your payment details.",
+            "fa": "قابلیت‌های پولی به‌صورت اشتراک ماهانه یا سالانه، و فقط از طریق کافه‌بازار فروخته می‌شن. بازار پرداخت رو انجام می‌ده و به سرور ما خبر می‌ده که خریدی انجام شده، تا اشتراک به حسابت وصل بشه. چیزی که به ما می‌رسه سابقه‌ی خریده، نه اطلاعات پرداختت."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "What Bazaar collects when you buy through it is covered by Bazaar’s own privacy policy.",
+            "fa": "اینکه بازار موقع خرید از طریقش چی جمع می‌کنه، تابع سیاست حریم خصوصی خود بازاره."
           }
         }
       ]
@@ -193,8 +347,8 @@
         {
           "type": "p",
           "text": {
-            "en": "Tark keeps a small amount of state so it can behave sensibly the second time you open it. All of it lives in the app’s own storage on your device. None of it syncs anywhere, and uninstalling the app removes the lot.",
-            "fa": "تَرک یه مقدار کمی وضعیت رو نگه می‌داره تا بار دومی که بازش می‌کنی درست رفتار کنه. همه‌ش توی حافظه‌ی خود برنامه روی دستگاه شماست. هیچ‌کدومش جایی هم‌گام نمی‌شه و با حذف برنامه، همه‌ش پاک می‌شه."
+            "en": "Tark keeps a small amount of state so it can behave sensibly the second time you open it. All of it lives in the app’s own storage on your device, and uninstalling the app removes the lot. Apart from the account details described above, none of it syncs anywhere.",
+            "fa": "تَرک یه مقدار کمی وضعیت رو نگه می‌داره تا بار دومی که بازش می‌کنی درست رفتار کنه. همه‌ش توی حافظه‌ی خود برنامه روی دستگاه شماست و با حذف برنامه، همه‌ش پاک می‌شه. جز جزئیات حسابی که بالاتر گفتیم، هیچ‌کدومش جایی هم‌گام نمی‌شه."
           }
         },
         {
@@ -208,6 +362,16 @@
               "name": {
                 "en": "Your settings",
                 "fa": "تنظیمات شما"
+              }
+            },
+            {
+              "name": {
+                "en": "Your account",
+                "fa": "حساب شما"
+              },
+              "text": {
+                "en": "If you sign in: the sign-in session for this phone, and the account details the app shows you — email, name, avatar and subscription status. Signing out removes the session from the phone.",
+                "fa": "اگه وارد حساب بشی: نشست ورود همین گوشی، و جزئیاتی از حساب که برنامه بهت نشون می‌ده — ایمیل، اسم، آواتار و وضعیت اشتراک. با خروج از حساب، نشست از روی گوشی پاک می‌شه."
               }
             },
             {
@@ -337,8 +501,8 @@
             },
             {
               "text": {
-                "en": "Declared because Android treats local network sockets as internet access. A Wi-Fi or Bluetooth channel needs no internet connection and works with none. When a connection happens to be there, the app also uses it at launch to ask tarkk.ir whether a newer version of the app or of these documents is out; with none, it skips the question and carries on.",
-                "fa": "اعلام شده چون اندروید سوکت‌های شبکه‌ی محلی رو دسترسی اینترنت حساب می‌کنه. کانال وای‌فای یا بلوتوث به اینترنت نیازی نداره و بدون اون کار می‌کنه. اگه اتفاقاً اینترنت باشه، برنامه موقع باز شدن ازش استفاده می‌کنه تا از tarkk.ir بپرسه نسخه‌ی تازه‌تری از برنامه یا همین متن‌ها اومده یا نه؛ اگه نباشه، از این سؤال می‌گذره و کارش رو ادامه می‌ده."
+                "en": "Declared because Android treats local network sockets as internet access. A Wi-Fi or Bluetooth channel needs no internet connection and works with none. When a connection happens to be there, the app also uses it at launch to ask tarkk.ir whether a newer version of the app or of these documents is out, and — only if you use an account — to sign in, keep your profile and check your subscription with our server. With no connection, it skips all of that and carries on.",
+                "fa": "اعلام شده چون اندروید سوکت‌های شبکه‌ی محلی رو دسترسی اینترنت حساب می‌کنه. کانال وای‌فای یا بلوتوث به اینترنت نیازی نداره و بدون اون کار می‌کنه. اگه اتفاقاً اینترنت باشه، برنامه موقع باز شدن ازش استفاده می‌کنه تا از tarkk.ir بپرسه نسخه‌ی تازه‌تری از برنامه یا همین متن‌ها اومده یا نه، و — فقط اگه حساب داشته باشی — برای ورود، به‌روز نگه داشتن پروفایل و بررسی اشتراکت با سرور ما. اگه اینترنت نباشه، از همه‌ی این‌ها می‌گذره و کارش رو ادامه می‌ده."
               },
               "name": {
                 "en": "Internet",
@@ -407,6 +571,13 @@
             "en": "The page’s font is loaded from a public CDN, which — like any host serving any file to your browser — sees the request and your IP address. Everything else on the page is served from the site itself.",
             "fa": "فونت این صفحه از یه CDN عمومی بارگذاری می‌شه که — مثل هر میزبانی که فایلی به مرورگرت می‌ده — درخواست و نشانی IP شما رو می‌بینه. بقیه‌ی چیزهای صفحه از خود سایت سرو می‌شن."
           }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "Links in account emails point to tarkk.ir/v/. On a phone with Tark installed they open the app directly. If one opens in a browser instead, the page only tells you what to do next: the code in the link stays in your browser, and the page runs no scripts and sends it nowhere.",
+            "fa": "لینک‌های داخل ایمیل‌های حساب به tarkk.ir/v/ اشاره می‌کنن. روی گوشی‌ای که تَرک نصبه، مستقیم برنامه رو باز می‌کنن. اگه یکیشون به‌جاش توی مرورگر باز بشه، صفحه فقط می‌گه قدم بعدی چیه: کدِ داخل لینک توی مرورگرت می‌مونه، و صفحه هیچ اسکریپتی اجرا نمی‌کنه و اون کد رو جایی نمی‌فرسته."
+          }
         }
       ]
     },
@@ -436,8 +607,8 @@
               "href": "https://www.cloudflare.com/privacypolicy/",
               "external": true,
               "text": {
-                "en": "Hosts tarkk.ir, including the files the app checks for updates. Sees each request the way any web host does.",
-                "fa": "میزبان tarkk.ir، از جمله فایل‌هایی که برنامه برای به‌روزرسانی چک می‌کنه. مثل هر میزبان وبی، هر درخواست رو می‌بینه."
+                "en": "Hosts tarkk.ir, including the files the app checks for updates and the page account-email links fall back to. Sees each request the way any web host does.",
+                "fa": "میزبان tarkk.ir، از جمله فایل‌هایی که برنامه برای به‌روزرسانی چک می‌کنه و صفحه‌ای که لینک‌های ایمیل حساب در صورت نیاز روش باز می‌شن. مثل هر میزبان وبی، هر درخواست رو می‌بینه."
               }
             },
             {
@@ -448,6 +619,15 @@
               "name": "Google STUN",
               "href": "https://policies.google.com/privacy",
               "external": true
+            },
+            {
+              "name": "Google (Gmail, Google sign-in)",
+              "href": "https://policies.google.com/privacy",
+              "external": true,
+              "text": {
+                "en": "Delivers account emails, which are sent through Gmail. If you choose Google sign-in, Google confirms your account to us and shares your Google account id and email address; it does not share your password.",
+                "fa": "ایمیل‌های حساب رو، که از طریق جیمیل فرستاده می‌شن، می‌رسونه. اگه ورود با گوگل رو انتخاب کنی، گوگل حسابت رو برای ما تأیید می‌کنه و شناسه‌ی حساب گوگل و نشانی ایمیلت رو در اختیارمون می‌ذاره؛ رمز عبورت رو نه."
+              }
             },
             {
               "text": {
@@ -463,14 +643,14 @@
               "href": "https://cafebazaar.ir/app/com.b1101.tark",
               "external": true,
               "text": {
-                "en": "Distributes the Android app and its updates. Installing or updating through Bazaar is covered by Bazaar’s own terms.",
-                "fa": "اپ اندروید و به‌روزرسانی‌هاش رو پخش می‌کنه. نصب یا به‌روزرسانی از طریق بازار تابع شرایط خود بازاره."
+                "en": "Distributes the Android app and its updates, and sells and bills the subscriptions. Buying, renewing, cancelling and refunds go through Bazaar and are covered by Bazaar’s own terms and privacy policy.",
+                "fa": "اپ اندروید و به‌روزرسانی‌هاش رو پخش می‌کنه، و اشتراک‌ها رو می‌فروشه و پولش رو می‌گیره. خرید، تمدید، لغو و بازگشت وجه از طریق بازار انجام می‌شه و تابع شرایط و سیاست حریم خصوصی خود بازاره."
               }
             },
             {
               "text": {
-                "en": "Hosts the Android download. Sees the download request, as any file host does.",
-                "fa": "میزبان فایل دانلود اندرویده. مثل هر میزبان فایلی، درخواست دانلود رو می‌بینه."
+                "en": "Hosts the Android download, and the Tark account server and its database, inside Iran. Sees the requests made to them, as any host does, and stores the account data described above.",
+                "fa": "میزبان فایل دانلود اندروید، و سرور حساب تَرک و پایگاه داده‌ش، داخل ایران. مثل هر میزبانی، درخواست‌هایی که بهشون می‌رسه رو می‌بینه و داده‌های حسابی که بالاتر گفتیم رو نگه می‌داره."
               },
               "name": "ArvanCloud",
               "href": "https://www.arvancloud.ir",
@@ -503,9 +683,63 @@
         {
           "type": "p",
           "text": {
-            "en": "Tark is not built for or aimed at children under 13. Because there is no account and no sign-up, the app has no way to tell how old anyone is and collects nothing that would identify a child. If you are a parent and something here concerns you, write to us — but the honest answer is usually that there is nothing held anywhere for us to delete.",
-            "fa": "تَرک برای بچه‌های زیر ۱۳ سال ساخته نشده و مخاطبش اون‌ها نیستن. چون نه حساب کاربری هست نه ثبت‌نام، برنامه هیچ راهی نداره که سن کسی رو بفهمه و چیزی که یه بچه رو شناسایی کنه جمع نمی‌کنه. اگه پدر یا مادری هستی و چیزی اینجا نگرانت می‌کنه، برامون بنویس — ولی جواب صادقانه معمولاً اینه که چیزی جایی نگه داشته نشده که ما پاکش کنیم."
+            "en": "Tark is not built for or aimed at children under 13. The app works without an account, and the optional account asks for an email and a name but never an age, so there is no way for us to tell how old anyone is. If you are a parent and believe your child has made an account, write to us and we will delete it.",
+            "fa": "تَرک برای بچه‌های زیر ۱۳ سال ساخته نشده و مخاطبش اون‌ها نیستن. برنامه بدون حساب کاربری کار می‌کنه، و حساب اختیاری هم ایمیل و اسم می‌خواد ولی هیچ‌وقت سن نمی‌پرسه، پس ما راهی نداریم که سن کسی رو بفهمیم. اگه پدر یا مادری و فکر می‌کنی فرزندت حساب ساخته، برامون بنویس تا پاکش کنیم."
           }
+        }
+      ]
+    },
+    {
+      "id": "deleting",
+      "tocTitle": {
+        "en": "Deleting your account",
+        "fa": "پاک کردن حساب"
+      },
+      "title": {
+        "en": "How long it is kept, and deleting it",
+        "fa": "مدت نگهداری، و پاک کردن حساب"
+      },
+      "blocks": [
+        {
+          "type": "p",
+          "text": {
+            "en": "Account data is kept for as long as the account exists. You can delete the account whenever you like: in the app, go to Profile → Delete account and confirm with your email and password, or with a fresh Google sign-in. It is deleted straight away, and every phone signed in to it is signed out.",
+            "fa": "داده‌های حساب تا وقتی حساب وجود داره نگه داشته می‌شن. هر وقت خواستی می‌تونی حساب رو پاک کنی: توی برنامه برو به پروفایل ← پاک کردن حساب و با ایمیل و رمز عبورت، یا با یه ورود تازه با گوگل، تأییدش کن. حساب همون لحظه پاک می‌شه و همه‌ی گوشی‌هایی که واردش بودن ازش خارج می‌شن."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "Deleting removes your email, your password hash or Google account id, your name and avatar, and your sign-in sessions. Records of purchases and subscriptions may be kept where the law or Cafe Bazaar requires it, only as long as required by law, and for no other purpose.",
+            "fa": "با پاک کردن حساب، ایمیلت، هش رمز عبور یا شناسه‌ی حساب گوگلت، اسم و آواتارت و نشست‌های ورودت پاک می‌شن. سابقه‌ی خریدها و اشتراک‌ها ممکنه جایی که قانون یا کافه‌بازار لازم بدونه نگه داشته بشه — فقط تا مدتی که قانون لازم می‌دونه، و برای هیچ کار دیگه‌ای."
+          }
+        },
+        {
+          "type": "note",
+          "label": {
+            "en": "A SUBSCRIPTION IS SEPARATE",
+            "fa": "اشتراک جداست"
+          },
+          "text": {
+            "en": "Deleting the account does not cancel a subscription running in Bazaar. Cancel it in Bazaar as well, or it will keep renewing.",
+            "fa": "پاک کردن حساب، اشتراکی که توی بازار فعاله رو لغو نمی‌کنه. اون رو هم توی بازار لغو کن، وگرنه تمدید می‌شه."
+          }
+        },
+        {
+          "type": "rows",
+          "items": [
+            {
+              "name": {
+                "en": "Delete your account",
+                "fa": "پاک کردن حساب"
+              },
+              "href": "https://tarkk.ir/delete-account.html",
+              "text": {
+                "en": "Both ways to do it — in the app, or by an email request if you can’t use the app — and exactly what is deleted.",
+                "fa": "هر دو راهش — از داخل برنامه، یا با درخواست ایمیلی اگه به برنامه دسترسی نداری — و اینکه دقیقاً چی پاک می‌شه."
+              }
+            }
+          ]
         }
       ]
     },
@@ -528,12 +762,20 @@
               "fa": "لاگ عیب‌یابی رو هر وقت خواستی از تنظیمات ← پیشرفته ← عیب‌یابی پاک کن، یا سقف چیزی که نگه داشته می‌شه رو کم کن."
             },
             {
+              "en": "Change your display name, avatar or password on the Profile page, sign out, or sign out on all phones at once.",
+              "fa": "اسم، آواتار یا رمز عبورت رو توی صفحه‌ی پروفایل عوض کن، از حساب خارج شو، یا با یه دکمه از همه‌ی گوشی‌ها خارج شو."
+            },
+            {
+              "en": "Delete your account in the app, under Profile → Delete account, or ask us to by email.",
+              "fa": "حسابت رو توی برنامه از پروفایل ← پاک کردن حساب پاک کن، یا با ایمیل ازمون بخواه که پاکش کنیم."
+            },
+            {
               "en": "Revoke any Android permission in the system settings. The app will tell you plainly what stopped working rather than failing silently.",
               "fa": "هر دسترسی اندرویدی رو از تنظیمات سیستم پس بگیر. برنامه به‌جای اینکه بی‌صدا از کار بیفته، صاف و ساده بهت می‌گه چی از کار افتاده."
             },
             {
-              "en": "Uninstall, which removes everything the app kept — there is no copy of it anywhere else to ask about.",
-              "fa": "حذفش کن، که هر چی برنامه نگه داشته بود رو پاک می‌کنه — نسخه‌ی دیگه‌ای جایی نیست که سراغش رو بگیری."
+              "en": "Uninstall, which removes everything the app kept on the phone. If you have an account, uninstalling does not delete it — delete it in the app first, or ask us.",
+              "fa": "حذف برنامه، که هر چی برنامه روی گوشی نگه داشته بود رو پاک می‌کنه. اگه حساب داری، حذف برنامه حساب رو پاک نمی‌کنه — اول توی برنامه پاکش کن، یا ازمون بخواه."
             }
           ]
         }
@@ -589,8 +831,8 @@
           "items": [
             {
               "text": {
-                "en": "Privacy questions, and everything else.",
-                "fa": "سؤالات حریم خصوصی، و هر چیز دیگه‌ای."
+                "en": "Privacy questions, account deletion requests, and everything else.",
+                "fa": "سؤالات حریم خصوصی، درخواست پاک کردن حساب، و هر چیز دیگه‌ای."
               },
               "name": "tarkk.hp@gmail.com",
               "href": "mailto:tarkk.hp@gmail.com"
@@ -612,8 +854,8 @@
         "fa": "شرایط و ضوابط"
       },
       "sub": {
-        "en": "What you can expect from Tark, and what it cannot promise.",
-        "fa": "چیزی که می‌تونی از تَرک انتظار داشته باشی، و چیزی که نمی‌تونه قولش رو بده."
+        "en": "What you get free, what a subscription adds, and what the app cannot promise.",
+        "fa": "چی رایگانه، اشتراک چی بهش اضافه می‌کنه، و چیزی که برنامه نمی‌تونه قولش رو بده."
       }
     },
     {

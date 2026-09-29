@@ -5,12 +5,12 @@
     "en": "Terms & Conditions",
     "fa": "شرایط و ضوابط"
   },
-  "version": 2,
-  "minAcceptedVersion": 1,
-  "effectiveDate": "2026-09-28",
+  "version": 3,
+  "minAcceptedVersion": 3,
+  "effectiveDate": "2026-09-29",
   "effectiveDateLabel": {
-    "en": "28 September 2026",
-    "fa": "۶ مهر ۱۴۰۵"
+    "en": "29 September 2026",
+    "fa": "۷ مهر ۱۴۰۵"
   },
   "webPath": {
     "en": "/terms.html",
@@ -22,12 +22,12 @@
       "fa": "شرایط و ضوابط — تَرک"
     },
     "description": {
-      "en": "What you can expect from Tarkk and what it cannot promise. Free and unlocked, open source under the AGPL-3.0, and honest about where a radio link falls short.",
-      "fa": "چیزی که می‌تونی از تَرک انتظار داشته باشی و چیزی که نمی‌تونه قولش رو بده. رایگان، بدون قفل، متن‌باز — و صادق درباره‌ی جایی که یه لینک رادیویی کم میاره."
+      "en": "What you can expect from Tarkk and what it cannot promise. Bluetooth is free; a subscription adds Wi-Fi, hotspot and guest connections, self-mute and music. Open source under the AGPL-3.0.",
+      "fa": "چیزی که می‌تونی از تَرک انتظار داشته باشی و چیزی که نمی‌تونه قولش رو بده. بلوتوث رایگانه؛ اشتراک، اتصال وای‌فای و هات‌اسپات و مهمان، بی‌صدا کردن خودت و پخش آهنگ رو اضافه می‌کنه. متن‌باز با پروانه‌ی AGPL-3.0."
     },
     "twitterDescription": {
-      "en": "Free, unlocked and open source. Here is what that does and does not entitle you to, in words worth reading.",
-      "fa": "رایگان، بدون قفل و متن‌باز. اینکه این وضعیت چی بهت می‌ده و چی بهت نمی‌ده، با کلماتی که ارزش خوندن دارن."
+      "en": "Bluetooth stays free; the rest is a monthly or annual subscription through Cafe Bazaar. Here is what that does and does not entitle you to, in words worth reading.",
+      "fa": "بلوتوث رایگان می‌مونه؛ بقیه‌ش اشتراک ماهانه یا سالانه از طریق کافه‌بازاره. اینکه این چی بهت می‌ده و چی نمی‌ده، با کلماتی که ارزش خوندن دارن."
     }
   },
   "hero": {
@@ -40,8 +40,8 @@
       "fa": "چیزی که می‌تونی انتظار داشته باشی، و چیزی که نمی‌تونیم قولش رو بدیم."
     },
     "lede": {
-      "en": "Tark is free, unlocked and open source, and it talks over radios that do not always cooperate. These terms say what that gives you, what it asks of you, and — the part most terms skip — where the app can genuinely let you down.",
-      "fa": "تَرک رایگانه، هیچ‌چیزش قفل نیست و متن‌بازه، و از روی رادیوهایی حرف می‌زنه که همیشه همکاری نمی‌کنن. این شرایط می‌گه این وضعیت چی به تو می‌ده، چی ازت می‌خواد، و — همون بخشی که بیشتر شرایط‌ها ازش رد می‌شن — کجا برنامه واقعاً ممکنه تنهات بذاره."
+      "en": "Tark is open source, talking over Bluetooth is free, and the rest is a subscription. It talks over radios that do not always cooperate. These terms say what you get, what it asks of you, and — the part most terms skip — where the app can genuinely let you down.",
+      "fa": "تَرک متن‌بازه، حرف زدن با بلوتوث رایگانه و بقیه‌ش با اشتراکه. از روی رادیوهایی حرف می‌زنه که همیشه همکاری نمی‌کنن. این شرایط می‌گه چی می‌گیری، چی ازت می‌خواد، و — همون بخشی که بیشتر شرایط‌ها ازش رد می‌شن — کجا برنامه واقعاً ممکنه تنهات بذاره."
     },
     "inEffectSince": {
       "en": "In effect since",
@@ -69,8 +69,8 @@
         },
         "items": [
           {
-            "en": "Every feature, unlocked, at no cost. There is nothing to buy, no trial to expire and nothing sitting behind a paywall.",
-            "fa": "همه‌ی قابلیت‌ها، بدون قفل، بدون هزینه. چیزی برای خریدن نیست، دوره‌ی آزمایشی‌ای نیست که تموم بشه، و چیزی پشت دیوار پرداخت نمونده."
+            "en": "Talking over Bluetooth, free and without an account. A monthly or annual subscription adds Wi-Fi, hotspot and guest connections, muting yourself, and sharing music.",
+            "fa": "حرف زدن با بلوتوث، رایگان و بدون حساب کاربری. اشتراک ماهانه یا سالانه، اتصال وای‌فای و هات‌اسپات و مهمان، بی‌صدا کردن خودت و پخش آهنگ رو اضافه می‌کنه."
           },
           {
             "en": "The source code, under the AGPL-3.0 — yours to read, run, change and pass on under that licence’s terms.",
@@ -98,8 +98,8 @@
             "fa": "اینکه خصوصیه. کد کانال فقط گروه‌ها رو از هم جدا نگه می‌داره؛ رمز عبور نیست و چیزی رو رمزنگاری نمی‌کنه."
           },
           {
-            "en": "That it will always be here. The download, the browser guest and the project itself are run by a very small team with no contract behind them.",
-            "fa": "اینکه همیشه هست. فایل دانلود، مهمان مرورگری و خودِ پروژه رو یه تیم خیلی کوچیک اداره می‌کنه، بدون هیچ قرارداد پشتیبانی."
+            "en": "That it will always be here. The download, the browser guest, the account server and the project itself are run by a very small team.",
+            "fa": "اینکه همیشه هست. فایل دانلود، مهمان مرورگری، سرور حساب و خودِ پروژه رو یه تیم خیلی کوچیک اداره می‌کنه."
           }
         ]
       }
@@ -120,8 +120,8 @@
         {
           "type": "p",
           "text": {
-            "en": "Using Tark — the Android app, the browser guest at app.tarkk.ir, or this website — means these terms apply to you. If you do not accept them, the remedy is simple and total: do not use it, or uninstall it. Nothing is held anywhere that would need closing down first.",
-            "fa": "استفاده از تَرک — اپلیکیشن اندروید، مهمان مرورگری روی app.tarkk.ir، یا همین وب‌سایت — یعنی این شرایط شامل تو هم می‌شه. اگه قبولشون نداری، راهش ساده و کامله: استفاده نکن، یا حذفش کن. چیزی جایی نگه داشته نشده که اول لازم باشه ببندیش."
+            "en": "Using Tark — the Android app, the optional Tark account, the browser guest at app.tarkk.ir, or this website — means these terms apply to you. If you do not accept them, do not use it, or uninstall it; if you made an account, you can delete it too (see “Your account” below).",
+            "fa": "استفاده از تَرک — اپلیکیشن اندروید، حساب کاربری اختیاری تَرک، مهمان مرورگری روی app.tarkk.ir، یا همین وب‌سایت — یعنی این شرایط شامل تو هم می‌شه. اگه قبولشون نداری، استفاده نکن یا برنامه رو حذف کن؛ اگه حساب ساختی، می‌تونی اون رو هم پاک کنی (بخش «حساب کاربری» رو پایین‌تر ببین)."
           }
         },
         {
@@ -147,8 +147,8 @@
         {
           "type": "p",
           "text": {
-            "en": "Tark is a walkie-talkie for phones that are near each other. It connects them directly over Wi-Fi, a hotspot one of them hosts, or Bluetooth, and carries live voice between them. It needs no internet connection, no mobile signal and no account.",
-            "fa": "تَرک یه بیسیمه برای گوشی‌هایی که نزدیک همدیگه‌ن. مستقیم از طریق وای‌فای، هات‌اسپاتی که یکیشون بالا میاره، یا بلوتوث بهمشون وصل می‌کنه و صدای زنده رو بینشون جابه‌جا می‌کنه. نه اینترنت می‌خواد، نه آنتن، نه حساب کاربری."
+            "en": "Tark is a walkie-talkie for phones that are near each other. It connects them directly over Wi-Fi, a hotspot one of them hosts, or Bluetooth, and carries live voice between them. Talking needs no internet connection and no mobile signal. An account is needed only to subscribe.",
+            "fa": "تَرک یه بیسیمه برای گوشی‌هایی که نزدیک همدیگه‌ن. مستقیم از طریق وای‌فای، هات‌اسپاتی که یکیشون بالا میاره، یا بلوتوث بهمشون وصل می‌کنه و صدای زنده رو بینشون جابه‌جا می‌کنه. برای حرف زدن نه اینترنت لازمه، نه آنتن. حساب کاربری فقط برای خرید اشتراک لازمه."
           }
         },
         {
@@ -208,49 +208,112 @@
         {
           "type": "p",
           "text": {
-            "en": "Nothing. Every feature — Bluetooth, Wi-Fi, the hotspot bridge, shared music, all of it — is open, with no trial period and no paywall anywhere in the app.",
-            "fa": "هیچی. همه‌ی قابلیت‌ها — بلوتوث، وای‌فای، پل هات‌اسپات، پخش آهنگ مشترک، همه‌ش — بازه، بدون دوره‌ی آزمایشی و بدون هیچ دیوار پرداختی توی برنامه."
+            "en": "Talking over Bluetooth is free, and needs no account. The paid features — Wi-Fi, hotspot and browser-guest connections, muting yourself, and sharing music — come with a subscription.",
+            "fa": "حرف زدن با بلوتوث رایگانه و حساب کاربری نمی‌خواد. قابلیت‌های پولی — اتصال وای‌فای، هات‌اسپات و مهمان مرورگری، بی‌صدا کردن خودت، و پخش آهنگ — با اشتراک باز می‌شن."
           }
         },
         {
           "type": "p",
           "text": {
-            "en": "Donations are welcome and entirely voluntary. A donation is a gift toward test devices, a domain and hosting; it is not a purchase, it buys no feature, it creates no obligation on either side, and it cannot be refunded. Not donating changes nothing about what you get.",
-            "fa": "حمایت مالی باعث خوشحالیه و کاملاً داوطلبانه‌ست. حمایت یه هدیه‌ست برای گوشی‌های تست، دامنه و هاست؛ خرید نیست، هیچ قابلیتی نمی‌خره، هیچ تعهدی برای هیچ‌کدوم از دو طرف نمی‌سازه و قابل بازگشت نیست. حمایت نکردن هیچ فرقی توی چیزی که می‌گیری ایجاد نمی‌کنه."
+            "en": "There are two plans, monthly and annual. There is no free trial and no lifetime purchase. The price is shown in the app and in Bazaar before you pay.",
+            "fa": "دو طرح هست: ماهانه و سالانه. دوره‌ی آزمایشی رایگان و خرید مادام‌العمر وجود نداره. قیمت قبل از پرداخت، هم توی برنامه و هم توی بازار نشون داده می‌شه."
           }
         },
         {
           "type": "p",
           "text": {
-            "en": "If paid features are ever introduced, they will be described plainly at the point where you would be asked to pay, and these terms will be updated before that happens. Nothing you already have would be taken away to make room for them.",
-            "fa": "اگه روزی قابلیت‌های پولی اضافه بشن، همون‌جایی که ازت خواسته می‌شه پول بدی صاف و ساده توضیح داده می‌شن، و قبل از اینکه این اتفاق بیفته این شرایط به‌روز می‌شه. هیچ‌چیزی که همین الان داری، برای باز کردن جا برای اون‌ها ازت گرفته نمی‌شه."
+            "en": "Subscriptions are sold only through Cafe Bazaar and paid with Iranian payment methods inside Bazaar. A subscription belongs to your Tark account: you sign in to buy one, and signing in on another phone brings it with you.",
+            "fa": "اشتراک فقط از طریق کافه‌بازار فروخته می‌شه و پرداختش با روش‌های پرداخت ایرانی داخل خود بازار انجام می‌شه. اشتراک به حساب تَرکت وصله: برای خریدش وارد حساب می‌شی، و با ورود روی گوشی دیگه، اشتراک هم همراهت میاد."
+          }
+        },
+        {
+          "type": "list",
+          "items": [
+            {
+              "en": "A subscription renews at the end of each period until you cancel it in Bazaar.",
+              "fa": "اشتراک آخر هر دوره تمدید می‌شه، تا وقتی که توی بازار لغوش کنی."
+            },
+            {
+              "en": "If you cancel, you keep the paid features until the end of the period you have already paid for.",
+              "fa": "اگه لغوش کنی، قابلیت‌های پولی تا آخر دوره‌ای که پولش رو دادی برات باز می‌مونن."
+            },
+            {
+              "en": "If a purchase is refunded before it expires, the paid features end straight away.",
+              "fa": "اگه پول یه خرید قبل از تموم شدنش برگردونده بشه، قابلیت‌های پولی همون لحظه بسته می‌شن."
+            },
+            {
+              "en": "Buying, renewing, cancelling and refunds are also subject to Cafe Bazaar’s own terms.",
+              "fa": "خرید، تمدید، لغو و بازگشت وجه تابع شرایط خود کافه‌بازار هم هست."
+            }
+          ]
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "If you used Tark before subscriptions existed, the same rules now apply to you as to anyone new: Bluetooth stays free, and the other features need a subscription. Thank you for being here early.",
+            "fa": "اگه قبل از اومدن اشتراک از تَرک استفاده می‌کردی، الان همون قواعدی شامل حالت می‌شه که برای هر کاربر تازه‌ای هست: بلوتوث رایگان می‌مونه و بقیه‌ی قابلیت‌ها اشتراک لازم دارن. ممنون که از اول همراه بودی."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "Donations are still welcome and entirely voluntary. A donation is a gift toward test devices, a domain and hosting; it is not a purchase, it does not unlock any paid feature, it creates no obligation on either side, and it cannot be refunded.",
+            "fa": "حمایت مالی هنوز هم باعث خوشحالیه و کاملاً داوطلبانه‌ست. حمایت یه هدیه‌ست برای گوشی‌های تست، دامنه و هاست؛ خرید نیست، هیچ قابلیت پولی‌ای رو باز نمی‌کنه، هیچ تعهدی برای هیچ‌کدوم از دو طرف نمی‌سازه و قابل بازگشت نیست."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "If prices or plans change, the new price is shown in the app and in Bazaar before you are asked to pay it.",
+            "fa": "اگه قیمت یا طرح‌ها عوض بشن، قیمت جدید قبل از اینکه ازت خواسته بشه پرداختش کنی، توی برنامه و بازار نشون داده می‌شه."
           }
         }
       ]
     },
     {
-      "id": "no-account",
+      "id": "account",
       "tocTitle": {
-        "en": "There is no account",
-        "fa": "حساب کاربری وجود نداره"
+        "en": "Your account",
+        "fa": "حساب کاربری"
       },
       "title": {
-        "en": "There is no account",
-        "fa": "حساب کاربری وجود نداره"
+        "en": "Your account",
+        "fa": "حساب کاربری"
       },
       "blocks": [
         {
           "type": "p",
           "text": {
-            "en": "Tark has no sign-up, no password and no profile. The callsign you type is a label on your own phone, shown to whoever is in the channel with you; it is not registered anywhere and nothing stops two people choosing the same one.",
-            "fa": "تَرک نه ثبت‌نام داره، نه رمز عبور، نه پروفایل. اسم مستعاری که تایپ می‌کنی فقط یه برچسبه روی گوشی خودت که به هر کی توی کانال باهاته نشون داده می‌شه؛ جایی ثبت نمی‌شه و هیچی جلوی این رو نمی‌گیره که دو نفر یه اسم رو انتخاب کنن."
+            "en": "An account is optional. You only need one to subscribe; everything free works without it. You can sign up with an email and a password, or with Google sign-in on Android.",
+            "fa": "حساب کاربری اختیاریه. فقط برای خرید اشتراک لازمش داری؛ هر چی رایگانه بدون اون کار می‌کنه. می‌تونی با ایمیل و رمز عبور ثبت‌نام کنی، یا روی اندروید با ورود از طریق گوگل."
           }
         },
         {
           "type": "p",
           "text": {
-            "en": "The consequence is worth stating plainly: there is nothing to recover. We cannot restore your settings on a new phone, we cannot tell you who was in a channel, and we cannot look anything up on your behalf — because none of it was ever anywhere but on your device.",
-            "fa": "نتیجه‌ش رو صاف بگیم: چیزی برای بازیابی وجود نداره. نمی‌تونیم تنظیماتت رو روی گوشی جدید برگردونیم، نمی‌تونیم بهت بگیم کی توی کانال بوده، و نمی‌تونیم چیزی رو از طرف تو جست‌وجو کنیم — چون هیچ‌کدومش هیچ‌وقت جایی جز روی دستگاه خودت نبوده."
+            "en": "Use an email address that is yours and that you can read — verification codes and password resets are sent there — and keep your password to yourself.",
+            "fa": "از نشانی ایمیلی استفاده کن که مال خودته و بهش دسترسی داری — کدهای تأیید و بازنشانی رمز عبور اونجا فرستاده می‌شن — و رمز عبورت رو پیش خودت نگه دار."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "The display name and avatar you choose are shown to the people in a channel with you. Names are not checked for uniqueness, so nothing stops two people choosing the same one.",
+            "fa": "اسم و آواتاری که انتخاب می‌کنی به آدمایی که باهات توی کانالن نشون داده می‌شه. یکتا بودن اسم‌ها بررسی نمی‌شه، پس هیچی جلوی این رو نمی‌گیره که دو نفر یه اسم رو انتخاب کنن."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "You can delete your account whenever you like: in the app under Profile → Delete account, or by asking us by email. Deleting the account does not cancel a subscription in Bazaar; cancel that in Bazaar too.",
+            "fa": "هر وقت خواستی می‌تونی حسابت رو پاک کنی: توی برنامه از پروفایل ← پاک کردن حساب، یا با ایمیل ازمون بخوای. پاک کردن حساب، اشتراک توی بازار رو لغو نمی‌کنه؛ اون رو هم توی بازار لغو کن."
+          }
+        },
+        {
+          "type": "p",
+          "text": {
+            "en": "Your channels, settings and history live on your phone, not in the account. We cannot restore them on a new phone and we cannot tell anyone who was in a channel — because none of that ever reaches us.",
+            "fa": "کانال‌ها، تنظیمات و سوابقت روی گوشی خودت هستن، نه توی حساب. نمی‌تونیم اون‌ها رو روی گوشی جدید برگردونیم و نمی‌تونیم به کسی بگیم کی توی کانال بوده — چون هیچ‌کدومش هیچ‌وقت به ما نمی‌رسه."
           }
         }
       ]
@@ -295,6 +358,10 @@
             {
               "en": "Share music or other audio through the app in a way that infringes somebody’s rights in it. What you cast is your call and your responsibility.",
               "fa": "پخش آهنگ یا صدای دیگه از طریق برنامه به شکلی که حقوق کسی رو نقض کنه. چیزی که پخش می‌کنی انتخاب خودته و مسئولیتش هم با خودته."
+            },
+            {
+              "en": "Choose a display name that pretends to be someone else or is meant to offend.",
+              "fa": "انتخاب اسمی که خودت رو جای کس دیگه‌ای جا بزنه یا برای توهین به کسی باشه."
             }
           ]
         },
@@ -440,8 +507,8 @@
         {
           "type": "p",
           "text": {
-            "en": "A few things Tark leans on belong to other people: the host that serves the Android download, the platform that handles donations, and the public STUN server a browser guest uses to find its way. Each has its own terms and its own privacy policy, and none of them is ours to guarantee.",
-            "fa": "چند چیزی که تَرک بهشون تکیه می‌کنه مال آدمای دیگه‌ست: میزبانی که فایل دانلود اندروید رو سرو می‌کنه، پلتفرمی که حمایت‌های مالی رو مدیریت می‌کنه، و سرور عمومی STUN که مهمان مرورگری برای پیدا کردن راهش ازش استفاده می‌کنه. هرکدوم شرایط و سیاست حریم خصوصی خودشون رو دارن و هیچ‌کدومشون چیزی نیست که ما بتونیم ضمانتش کنیم."
+            "en": "A few things Tark leans on belong to other people: Cafe Bazaar, which sells and bills the subscriptions; the host of the Android download and of the account server; Google, which delivers account emails and offers Google sign-in; the platform that handles donations; and the public STUN server a browser guest uses to find its way. Each has its own terms and its own privacy policy, and none of them is ours to guarantee.",
+            "fa": "چند چیزی که تَرک بهشون تکیه می‌کنه مال آدمای دیگه‌ست: کافه‌بازار، که اشتراک‌ها رو می‌فروشه و پولشون رو می‌گیره؛ میزبان فایل دانلود اندروید و سرور حساب؛ گوگل، که ایمیل‌های حساب رو می‌رسونه و ورود با گوگل رو فراهم می‌کنه؛ پلتفرمی که حمایت‌های مالی رو مدیریت می‌کنه؛ و سرور عمومی STUN که مهمان مرورگری برای پیدا کردن راهش ازش استفاده می‌کنه. هرکدوم شرایط و سیاست حریم خصوصی خودشون رو دارن و هیچ‌کدومشون چیزی نیست که ما بتونیم ضمانتش کنیم."
           }
         },
         {
@@ -474,8 +541,8 @@
         {
           "type": "p",
           "text": {
-            "en": "We may also stop. The hosted parts — the download and the browser guest — could go offline, and development could end. If that happens, the app already on your phone keeps working exactly as it did, because nothing about a channel depends on us being here, and the source stays public for anyone who wants to carry it on.",
-            "fa": "ممکنه هم متوقف بشیم. بخش‌های میزبانی‌شده — فایل دانلود و مهمان مرورگری — ممکنه از دسترس خارج بشن و توسعه هم ممکنه تموم بشه. اگه این اتفاق بیفته، برنامه‌ای که همین الان روی گوشیته دقیقاً مثل قبل کار می‌کنه، چون هیچ‌چیز یه کانال به بودن ما وابسته نیست، و سورس هم عمومی می‌مونه برای هر کسی که بخواد ادامه‌ش بده."
+            "en": "We may also stop. The hosted parts — the download, the browser guest and the account server — could go offline, and development could end. The app already on your phone would still talk over Bluetooth, because a channel never depends on us being there, and the source stays public for anyone who wants to carry it on. If it ever comes to that while subscriptions are running, we will say so in the app and on this site before it happens.",
+            "fa": "ممکنه هم متوقف بشیم. بخش‌های میزبانی‌شده — فایل دانلود، مهمان مرورگری و سرور حساب — ممکنه از دسترس خارج بشن و توسعه هم ممکنه تموم بشه. برنامه‌ای که الان روی گوشیته باز هم با بلوتوث حرف می‌زنه، چون یه کانال هیچ‌وقت به بودن ما وابسته نیست، و سورس هم عمومی می‌مونه برای هر کسی که بخواد ادامه‌ش بده. اگه روزی کار به اینجا بکشه و اشتراک‌هایی فعال باشن، قبلش توی برنامه و همین سایت اعلامش می‌کنیم."
           }
         }
       ]
@@ -521,8 +588,8 @@
         {
           "type": "p",
           "text": {
-            "en": "Questions about these terms, a commercial licence, or anything you think is missing from them go to the address below.",
-            "fa": "سؤال درباره‌ی این شرایط، پروانه‌ی تجاری، یا هر چیزی که فکر می‌کنی اینجا جاش خالیه، به نشانی زیر بفرست."
+            "en": "Questions about these terms, a subscription, a commercial licence, or anything you think is missing from them go to the address below.",
+            "fa": "سؤال درباره‌ی این شرایط، اشتراک، پروانه‌ی تجاری، یا هر چیزی که فکر می‌کنی اینجا جاش خالیه، به نشانی زیر بفرست."
           }
         },
         {
@@ -553,8 +620,8 @@
         "fa": "سیاست حریم خصوصی"
       },
       "sub": {
-        "en": "What leaves your phone, what never does, and the switch for the rest.",
-        "fa": "چی از گوشیت بیرون می‌ره، چی هیچ‌وقت بیرون نمی‌ره، و کلیدِ بقیه‌ش."
+        "en": "What leaves your phone, what never does, and what an account holds.",
+        "fa": "چی از گوشیت بیرون می‌ره، چی هیچ‌وقت بیرون نمی‌ره، و حساب کاربری چی نگه می‌داره."
       }
     },
     {
