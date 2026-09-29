@@ -158,7 +158,7 @@ node scripts/build-website-i18n.mjs           # regenerate website/fa/index.html
 node scripts/build-website-i18n.mjs --check    # verify it's current; exits 1 if not
 ```
 
-Account-email links (`https://tarkk.ir/v/<register|reset|email>#<token>`) open the app through Android App Links, verified by `website/.well-known/assetlinks.json` — **its SHA-256 is a placeholder until the release signing key's fingerprint is filled in** (`keytool -list -v -keystore <release keystore>`). Without the app they land on `website/v/index.html`, served at all three paths by `website/_redirects`: a static, script-free, `noindex` page that never reads or sends the fragment.
+Account-email links (`https://tarkk.ir/v/<register|reset|email>#<token>`) open the app through Android App Links, verified by `website/.well-known/assetlinks.json`, which lists the release signing key's SHA-256 (`keytool -list -v -keystore <release keystore>`). Without the app they land on `website/v/index.html`, served at all three paths by `website/_redirects`: a static, script-free, `noindex` page that never reads or sends the fragment.
 
 ---
 
