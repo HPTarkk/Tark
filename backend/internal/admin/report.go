@@ -95,7 +95,8 @@ func weeklyMessage(server string, st *Stats, at time.Time) mail.Message {
 	}
 	fmt.Fprintf(&b, "\n  %d new purchases and %d ended in 30 days\n", st.NewSubs30, st.SubsEnded30)
 	fmt.Fprintf(&b, "  %d active with auto-renew off (%d end within 7 days)\n", st.RenewOff, st.Expiring7)
-	fmt.Fprintf(&b, "  %d refunded in 30 days, %d accounts flagged suspicious\n\n", st.Refunded30, st.Suspicious)
+	fmt.Fprintf(&b, "  %d refunded in 30 days, %d accounts flagged suspicious\n", st.Refunded30, st.Suspicious)
+	fmt.Fprintf(&b, "  %d accounts have premium given by hand right now\n\n", st.Grants)
 	fmt.Fprintf(&b, "HEALTH (last 24 hours)\n  Email: %d sent, %d dropped, %d waiting\n", st.MailSent24, st.MailFailed24, st.MailPending)
 	fmt.Fprintf(&b, "  Failed sign-ins: %d, lockouts: %d, reused refresh tokens: %d\n", st.FailedLogins, st.Lockouts, st.TokenReuse)
 	if st.LastBackup != nil {

@@ -899,3 +899,48 @@ func TestSuccessfulLoginsDoNotUseUpTheLimit(t *testing.T) {
 		}
 	}
 }
+
+// Premium given in the admin panel shows in the entitlement while it runs,
+// loses to a longer paid period, and stops when revoked.
+func TestPremiumGrantAndAdminDeletion(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	p := e.phone()
+	p.register("gift@example.com", "a good passphrase", "G")
+	var uid string
+	if err := e.pool.QueryRow(ctx, `SELECT user_id FROM user_emails WHERE email = 'gift@example.com'`).Scan(&uid); err != nil {
+		t.Fatal(err)
+	}
+	st := func() map[string]any {
+		return e.decodeEntitlement(p.do("GET", "/v1/subscription", nil).str("entitlement"), p.install)
+	}
+	if st()["st"] != "none" {
+		t.Fatal("expected none before the grant")
+	}
+	var gid string
+	if err := e.pool.QueryRow(ctx, `INSERT INTO premium_grants (user_id, reason, ends_at) VALUES ($1, 'tester', now() + interval '30 days') RETURNING id`, uid).Scan(&gid); err != nil {
+		t.Fatal(err)
+	}
+	got := st()
+	if got["st"] != "active" || got["sku"] != "comp" || got["ar"] != false || got["until"] == nil {
+		t.Fatalf("with a grant: %v", got)
+	}
+	if _, err := e.pool.Exec(ctx, `UPDATE premium_grants SET revoked_at = now() WHERE id = $1`, gid); err != nil {
+		t.Fatal(err)
+	}
+	if st()["st"] != "none" {
+		t.Fatal("revoked grant still counts")
+	}
+
+	if err := e.app.AdminDeps.Accounts.DeleteByAdmin(ctx, uid, "fa"); err != nil {
+		t.Fatal(err)
+	}
+	var n int
+	if err := e.pool.QueryRow(ctx, `SELECT count(*) FROM users WHERE id = $1`, uid).Scan(&n); err != nil || n != 0 {
+		t.Fatalf("account still there: %d %v", n, err)
+	}
+	if m := e.lastMail("gift@example.com"); m.Subject == "" {
+		t.Fatal("no deletion email")
+	}
+	expect(t, p.do("GET", "/v1/subscription", nil), 401, "")
+}
