@@ -10,6 +10,7 @@
 #   bash remote.sh backup-now       make a backup now
 #   bash remote.sh backup-cat NAME  write one backup file to stdout (fetch-backups.ps1 uses it)
 #   bash remote.sh alert-test       email a test alert to TARK_ALERT_EMAILS
+#   bash remote.sh admin-create EMAIL ROLE NAME   add an admin panel account (ROLE: owner, support or viewer)
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -116,6 +117,7 @@ case "$cmd" in
     need_docker
     [ -f "$ENV_FILE" ] || die "$ENV_FILE is missing. Run the first deploy with -Init." 2
     fill_from_example TARK_GOOGLE_CLIENT_IDS
+    grep -qE '^TARK_ADMIN_DOMAIN=' "$ENV_FILE" || set_kv TARK_ADMIN_DOMAIN "$(grep -E '^TARK_ADMIN_DOMAIN=' .env.production.example | cut -d= -f2-)"
     ensure_backup_key
     ensure_alert_emails
     if grep -n 'CHANGE_ME' "$ENV_FILE" >&2; then die "Fill in the CHANGE_ME values above in $ENV_FILE first." 3; fi
@@ -159,7 +161,13 @@ case "$cmd" in
     need_docker
     api_exec alert-test
     ;;
+  admin-create)
+    [ $# -ge 4 ] || die "usage: remote.sh admin-create <email> <owner|support|viewer> <name>"
+    need_docker
+    shift
+    api_exec admin-create "$@"
+    ;;
   *)
-    die "usage: remote.sh init <image> | up <image> | rollback | status | backups | backup-now | backup-cat <name> | alert-test"
+    die "usage: remote.sh init <image> | up <image> | rollback | status | backups | backup-now | backup-cat <name> | alert-test | admin-create <email> <role> <name>"
     ;;
 esac

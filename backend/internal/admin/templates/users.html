@@ -1,0 +1,10 @@
+{{define "title"}}Users · Tarkk admin{{end}}
+{{define "main"}}
+<h1>Find an account</h1>
+<p>Type the person's exact email address or account id. There is no browsing; every search is recorded.</p>
+<form method="get" action="/users" class="row">
+  <input name="q" value="{{.Q}}" placeholder="email@example.com" required maxlength="254" autofocus>
+  <button>Find</button>
+</form>
+{{if .NotFound}}<p class="error">No account has that address or id.</p>{{end}}
+{{end}}

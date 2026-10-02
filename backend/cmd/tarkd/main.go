@@ -12,6 +12,7 @@
 //	tarkd backup-cat <name>     write a backup file to stdout (to download it)
 //	tarkd restore <name|->      load a backup (a name in TARK_BACKUP_DIR, or - for stdin) into an EMPTY database
 //	tarkd alert-test   email a test alert to TARK_ALERT_EMAILS
+//	tarkd admin-create <email> <owner|support|viewer> <name>  add an admin panel account and print its one-time password
 package main
 
 import (
@@ -34,6 +35,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/HPTarkk/Tark/backend/internal/admin"
 	"github.com/HPTarkk/Tark/backend/internal/app"
 	"github.com/HPTarkk/Tark/backend/internal/audit"
 	"github.com/HPTarkk/Tark/backend/internal/auth"
@@ -62,7 +64,7 @@ func main() {
 		err = keygen()
 	case "healthcheck":
 		err = healthcheck()
-	case "serve", "worker", "migrate", "pubkeys", "backup", "backup-list", "backup-verify", "backup-cat", "restore", "alert-test":
+	case "serve", "worker", "migrate", "pubkeys", "backup", "backup-list", "backup-verify", "backup-cat", "restore", "alert-test", "admin-create":
 		err = run(cmd, log)
 	default:
 		err = fmt.Errorf("unknown command %q", cmd)
@@ -197,6 +199,17 @@ func run(cmd string, log *slog.Logger) error {
 		}
 		fmt.Printf("%s  %d bytes  %d rows\n", res.File, res.Bytes, res.Summary.TotalRows())
 		return nil
+	case "admin-create":
+		if len(os.Args) < 5 {
+			return errors.New("usage: tarkd admin-create <email> <owner|support|viewer> <name>")
+		}
+		temp, err := admin.CreateAdmin(ctx, a.AdminDeps, os.Args[2], strings.Join(os.Args[4:], " "), admin.Role(os.Args[3]), "")
+		if err != nil {
+			return err
+		}
+		fmt.Println("Admin created. One-time password (shown only now):", temp)
+		fmt.Println("At first sign-in they choose their own password and set up an authenticator app.")
+		return nil
 	case "alert-test":
 		if err := a.Monitor.SendTest(ctx); err != nil {
 			return err
@@ -212,6 +225,7 @@ func run(cmd string, log *slog.Logger) error {
 		if a.Backup != nil {
 			go a.Backup.Run(ctx)
 		}
+		go a.Admin.RunReports(ctx)
 		go sweeper(ctx, pool, log)
 	}
 	if cmd == "worker" {
@@ -228,11 +242,29 @@ func run(cmd string, log *slog.Logger) error {
 		IdleTimeout:       90 * time.Second,
 		MaxHeaderBytes:    16 << 10,
 	}
-	errCh := make(chan error, 1)
+	errCh := make(chan error, 2)
 	go func() {
 		log.Info("listening", "addr", cfg.HTTPAddr, "env", cfg.Env)
 		errCh <- srv.ListenAndServe()
 	}()
+	// The admin panel has its own listener, so the public API's address can
+	// never reach it, whatever a proxy in front does with Host headers.
+	var adminSrv *http.Server
+	if cfg.AdminAddr != "" {
+		adminSrv = &http.Server{
+			Addr:              cfg.AdminAddr,
+			Handler:           a.Admin.Handler(),
+			ReadHeaderTimeout: 5 * time.Second,
+			ReadTimeout:       15 * time.Second,
+			WriteTimeout:      30 * time.Second,
+			IdleTimeout:       90 * time.Second,
+			MaxHeaderBytes:    16 << 10,
+		}
+		go func() {
+			log.Info("admin panel listening", "addr", cfg.AdminAddr)
+			errCh <- adminSrv.ListenAndServe()
+		}()
+	}
 	select {
 	case err := <-errCh:
 		if !errors.Is(err, http.ErrServerClosed) {
@@ -242,6 +274,11 @@ func run(cmd string, log *slog.Logger) error {
 	}
 	shutdown, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
+	if adminSrv != nil {
+		if err := adminSrv.Shutdown(shutdown); err != nil {
+			log.Error("admin panel shutdown", "err", err)
+		}
+	}
 	return srv.Shutdown(shutdown)
 }
 

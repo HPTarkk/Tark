@@ -10,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/HPTarkk/Tark/backend/internal/admin"
 	"github.com/HPTarkk/Tark/backend/internal/audit"
 	"github.com/HPTarkk/Tark/backend/internal/auth"
 	"github.com/HPTarkk/Tark/backend/internal/backup"
@@ -46,6 +47,11 @@ type App struct {
 	Monitor *monitor.Monitor
 	// Backup is nil when TARK_BACKUP_DIR is not set.
 	Backup *backup.Service
+	// Admin is the admin panel and its weekly report. Its handler is served
+	// only on TARK_ADMIN_ADDR.
+	Admin *admin.Server
+	// AdminDeps builds admins from the command line (tarkd admin-create).
+	AdminDeps admin.Deps
 }
 
 func Build(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger, opts Options) (*App, error) {
@@ -138,5 +144,16 @@ func Build(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger, opts Option
 		Log:         log, ClientIPHeader: cfg.ClientIPHeader, TrustedProxies: cfg.TrustedProxies, Docs: cfg.DocsEnabled,
 		OnServerError: serverErrors.Inc,
 	})
-	return &App{Handler: handler, Outbox: outbox, Billing: billingSvc, Signer: signer, Monitor: mon, Backup: bk}, nil
+	adminDeps := admin.Deps{
+		Pool: pool, Passwords: pw, Lookup: lookup, Sealer: sealer, Limits: limits, Mailer: outbox,
+		AlertEmails: cfg.Monitor.AlertEmails, ServerName: cfg.Monitor.ServerName,
+		ClientIP: httpapi.ClientIPResolver(cfg.ClientIPHeader, cfg.TrustedProxies),
+		Log:      log, Secure: !cfg.Development(),
+	}
+	adm, err := admin.New(adminDeps)
+	if err != nil {
+		return nil, err
+	}
+	return &App{Handler: handler, Outbox: outbox, Billing: billingSvc, Signer: signer, Monitor: mon, Backup: bk,
+		Admin: adm, AdminDeps: adminDeps}, nil
 }

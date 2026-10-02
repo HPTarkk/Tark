@@ -1,0 +1,13 @@
+{{define "title"}}Sign in · Tarkk admin{{end}}
+{{define "main"}}
+<section class="narrow">
+<h1>Tarkk admin</h1>
+{{with .Error}}<p class="error">{{.}}</p>{{end}}
+<form method="post" action="/login" class="stack">
+  <input type="hidden" name="pre" value="{{.Pre}}">
+  <label>Email <input type="email" name="email" autocomplete="username" required maxlength="254"></label>
+  <label>Password <input type="password" name="password" autocomplete="current-password" required maxlength="1024"></label>
+  <button>Continue</button>
+</form>
+</section>
+{{end}}

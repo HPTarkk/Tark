@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>{{block "title" .}}Tarkk admin{{end}}</title>
+<link rel="stylesheet" href="/static/admin.css">
+</head>
+<body>
+{{with .Admin}}{{if not .MustChangePassword}}
+<header class="top">
+  <a class="brand" href="/">Tarkk admin</a>
+  <nav>
+    <a href="/">Dashboard</a>
+    {{if or (eq .Role "owner") (eq .Role "support")}}<a href="/users">Users</a><a href="/security">Security</a><a href="/mail">Mail</a>{{end}}
+    {{if eq .Role "owner"}}<a href="/backups">Backups</a><a href="/admins">Admins</a><a href="/activity">Activity</a>{{end}}
+    <a href="/account/password">Account</a>
+  </nav>
+  <form method="post" action="/logout" class="logout"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button>Sign out</button></form>
+</header>
+{{end}}{{end}}
+<main>
+{{block "main" .}}{{end}}
+</main>
+</body>
+</html>

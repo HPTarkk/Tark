@@ -1,0 +1,23 @@
+{{define "title"}}Code · Tarkk admin{{end}}
+{{define "main"}}
+<section class="narrow">
+{{if .Enroll}}
+<h1>Set up your authenticator</h1>
+<p>Every sign-in needs a code from an authenticator app (Google Authenticator, Microsoft Authenticator, Aegis, 2FAS…).</p>
+<ol>
+  <li>On this phone, <a href="{{.URL}}">tap here to add Tarkk admin to your authenticator app</a>. On a computer, add an account in the app by hand with this key:<br><code class="key">{{.Key}}</code></li>
+  <li>Type the 6-digit code the app shows.</li>
+</ol>
+{{else}}
+<h1>Enter your code</h1>
+<p>Open your authenticator app and type the 6-digit code for Tarkk admin.</p>
+{{end}}
+{{with .Error}}<p class="error">{{.}}</p>{{end}}
+<form method="post" action="/login/totp" class="stack">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <label>Code <input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,7}" required autofocus></label>
+  <button>Sign in</button>
+</form>
+<form method="post" action="/logout"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="link">Cancel</button></form>
+</section>
+{{end}}

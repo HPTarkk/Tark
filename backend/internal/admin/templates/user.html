@@ -1,0 +1,32 @@
+{{define "title"}}Account · Tarkk admin{{end}}
+{{define "main"}}
+{{with .U}}
+<h1>{{.Name}}</h1>
+<p>Account <code>{{.ID}}</code> · {{.Status}} · created {{when .Created}} · avatar {{deref .Avatar}} · signs in with {{range $i, $p := .Providers}}{{if $i}}, {{end}}{{$p}}{{end}}</p>
+<h2>Email</h2>
+<table><tr><th>Address</th><th>Primary</th><th>Verified</th><th>Removed</th><th></th></tr>
+{{range .Emails}}<tr>
+  <td>{{if eq .ID $.U.RevealedEmailID}}<strong>{{$.U.RevealedEmail}}</strong>{{else}}{{.Masked}}{{end}}</td>
+  <td>{{if .Primary}}yes{{end}}</td><td>{{when .Verified}}</td><td>{{when .Removed}}</td>
+  <td>{{if ne .ID $.U.RevealedEmailID}}<form method="post" action="/users/{{$.U.ID}}/reveal"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="email" value="{{.ID}}"><button class="link">Show (recorded)</button></form>{{end}}</td>
+</tr>{{end}}</table>
+<h2>Subscription</h2>
+{{with .Suspicious}}<p class="error">Flagged suspicious since {{when .}} (a refund before expiry).</p>{{end}}
+<table><tr><th>Plan</th><th>State</th><th>Valid until</th><th>Auto-renew</th><th>Refunded</th><th>Last verified</th><th>Failed checks</th><th>Bought</th></tr>
+{{range .Purchases}}<tr><td>{{.SKU}}</td><td>{{.State}}</td><td>{{when .ValidUntil}}</td><td>{{if .AutoRenew}}on{{else}}off{{end}}</td><td>{{when .Refunded}}</td><td>{{when .LastVerified}}</td><td>{{.CheckFailures}}</td><td>{{when .Created}}</td></tr>
+{{else}}<tr><td colspan="8">No purchases.</td></tr>{{end}}</table>
+<h2>Devices</h2>
+<table><tr><th>Platform</th><th>Signed in</th><th>Last used</th><th>Ended</th></tr>
+{{range .Sessions}}<tr><td>{{deref .Platform}}</td><td>{{when .Created}}</td><td>{{ago .LastSeen}}</td><td>{{when .Revoked}} {{deref .Reason}}</td></tr>
+{{else}}<tr><td colspan="4">None.</td></tr>{{end}}</table>
+<h2>Subscription history</h2>
+<table><tr><th>When</th><th>Event</th><th>Details</th></tr>
+{{range .SubEvents}}<tr><td>{{when .At}}</td><td>{{.Kind}}</td><td><code>{{.Details}}</code></td></tr>{{else}}<tr><td colspan="3">None.</td></tr>{{end}}</table>
+<h2>Security events</h2>
+<table><tr><th>When</th><th>Event</th><th>Details</th></tr>
+{{range .Audit}}<tr><td>{{when .At}}</td><td>{{.Kind}}</td><td><code>{{.Details}}</code></td></tr>{{else}}<tr><td colspan="3">None.</td></tr>{{end}}</table>
+<h2>Admin activity on this account</h2>
+<table><tr><th>When</th><th>Admin</th><th>Action</th></tr>
+{{range .AdminEvents}}<tr><td>{{when .At}}</td><td>{{.Who}}</td><td>{{.Kind}}</td></tr>{{else}}<tr><td colspan="3">None.</td></tr>{{end}}</table>
+{{end}}
+{{end}}

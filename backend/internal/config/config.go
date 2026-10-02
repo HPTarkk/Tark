@@ -39,6 +39,8 @@ type Config struct {
 	// /openapi.yaml. On by default in development only.
 	DocsEnabled bool
 	RunWorkers  bool
+	// AdminAddr serves the admin panel on its own listener. Empty: no panel.
+	AdminAddr string
 
 	// Where email links point, e.g. https://tarkk.ir. Links are
 	// <base>/v/<purpose>#<token>; the fragment never reaches a web server.
@@ -216,6 +218,7 @@ func Load() (*Config, error) {
 		DBAuxConns:       int32(integer("TARK_DB_AUX_CONNS", 5)),
 		DBAllowPlaintext: boolean("TARK_DATABASE_ALLOW_PLAINTEXT", false),
 		RunWorkers:       boolean("TARK_RUN_WORKERS", true),
+		AdminAddr:        get("TARK_ADMIN_ADDR", ""),
 		LinkBaseURL:      strings.TrimRight(get("TARK_LINK_BASE_URL", "https://tarkk.ir"), "/"),
 		ClientIPHeader:   get("TARK_CLIENT_IP_HEADER", ""),
 
@@ -374,6 +377,9 @@ func (c *Config) validate() []error {
 		if strings.Count(e, "@") != 1 || strings.ContainsAny(e, " <>\r\n") || strings.Contains(e, "CHANGE_ME") {
 			errs = append(errs, fmt.Errorf("TARK_ALERT_EMAILS: %q is not an email address", e))
 		}
+	}
+	if c.AdminAddr != "" && c.AdminAddr == c.HTTPAddr {
+		errs = append(errs, errors.New("TARK_ADMIN_ADDR must differ from TARK_HTTP_ADDR: the panel never shares the public API's listener"))
 	}
 	if c.Backup.HourUTC < 0 || c.Backup.HourUTC > 23 {
 		errs = append(errs, errors.New("TARK_BACKUP_HOUR_UTC must be 0 to 23"))

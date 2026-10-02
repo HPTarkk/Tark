@@ -1,0 +1,6 @@
+{{define "title"}}Activity · Tarkk admin{{end}}
+{{define "main"}}
+<h1>Admin activity</h1>
+<table><tr><th>When</th><th>Admin</th><th>Action</th><th>Account</th><th>Details</th></tr>
+{{range .Events}}<tr><td>{{when .At}}</td><td>{{.Who}}</td><td>{{.Kind}}</td><td>{{with .Target}}<a href="/users/{{.}}">{{short .}}</a>{{end}}</td><td><code>{{.Detail}}</code></td></tr>{{end}}</table>
+{{end}}

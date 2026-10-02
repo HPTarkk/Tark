@@ -76,6 +76,25 @@ never personal data. To check that they reach you:
 cd /opt/tark && bash remote.sh alert-test
 ```
 
+**Admin panel.** It lives at `TARK_ADMIN_DOMAIN` (default `admin.tarkk.ir`):
+add a DNS record for that name pointing at the server, like the API's, and
+Caddy gets its certificate on the next deploy. Create the first admin on the
+server:
+
+```sh
+cd /opt/tark && bash remote.sh admin-create you@example.com owner "Your name"
+```
+
+It prints a one-time password. At first sign-in you choose your own password
+and set up an authenticator app (Google Authenticator, Microsoft
+Authenticator, Aegis, 2FAS…); every sign-in after that needs a code from it.
+Owners add more admins on the Admins page with one of three roles: **owner**
+(everything, manages admins, backups, admin activity), **support** (dashboard,
+user lookup, security and mail pages) and **viewer** (dashboard only). Every
+admin sign-in is emailed to `TARK_ALERT_EMAILS`, and every look at an account
+is recorded on the Activity page. The same addresses get a summary email every
+Monday at 05:00 UTC (08:30 in Tehran).
+
 **Server down? The server cannot tell you that itself.** Add one free outside
 check that emails you when `https://<your API domain>/readyz` stops answering
 (it also fails when the database is down). For example UptimeRobot's free
