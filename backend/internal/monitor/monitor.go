@@ -1,16 +1,20 @@
 // Package monitor watches the service and emails the people in
-// TARK_ALERT_EMAILS when something needs a human: internal errors, mail not
-// going out, Bazaar unreachable, signs of an attack, a filling disk, or a
-// missing backup.
+// TARK_ALERT_EMAILS when something needs a human: internal errors, a slow
+// API, the database running out of connections, mail not going out, Bazaar
+// unreachable, signs of an attack, a filling disk, a missing backup, or an
+// expiring HTTPS certificate.
 //
-// Every check reads data the service already keeps (the database and an
-// in-process error counter). Alerts carry counts only, never personal data.
+// Every check reads data the service already keeps (the database and
+// in-process counters) or, for certificates, what the HTTPS front end
+// presents. Alerts carry counts only, never personal data.
 // What the monitor cannot see is its own server going down; an outside
 // uptime check on /readyz covers that (see DEPLOYMENT.md).
 package monitor
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -24,6 +28,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/HPTarkk/Tark/backend/internal/mail"
+	"github.com/HPTarkk/Tark/backend/internal/metrics"
 	"github.com/HPTarkk/Tark/backend/internal/store"
 )
 
@@ -46,6 +51,21 @@ const (
 	DiskUsedPercent = 80
 
 	BackupMaxAge = 26 * time.Hour
+
+	// Slow API: at least this share of requests in the window took longer
+	// than metrics.SlowAfter, with enough requests to mean something.
+	SlowWindow      = 5 * time.Minute
+	SlowMinRequests = 20
+	SlowPercent     = 10
+
+	// Database connections: requests gave up waiting for one, or waiting
+	// took this long on average.
+	DBWindow       = 5 * time.Minute
+	DBCanceled     = 5
+	DBMinAcquires  = 50
+	DBSlowAcquire  = 250 * time.Millisecond
+	CertMinDays    = 14
+	CertCheckEvery = time.Hour
 
 	// While an alert keeps firing it is repeated this often.
 	RemindEvery = 6 * time.Hour
@@ -74,6 +94,14 @@ type Settings struct {
 	Backups bool
 	// Server names this deployment in the email subject, e.g. api.tarkk.ir.
 	Server string
+	// Metrics enables the slow-API and database-connection checks.
+	Metrics *metrics.Registry
+	// TLSAddr is where the HTTPS front end answers (caddy:443 in the
+	// compose stack); with TLSNames it enables the certificate check.
+	TLSAddr  string
+	TLSNames []string
+	// TLSRoots replaces the system roots (tests only).
+	TLSRoots *x509.CertPool
 }
 
 type Monitor struct {
@@ -88,6 +116,14 @@ type Monitor struct {
 
 	mu      sync.Mutex
 	samples []sample
+
+	certAt     time.Time
+	certResult certResult
+}
+
+type certResult struct {
+	firing bool
+	detail string
 }
 
 type sample struct {
@@ -116,6 +152,14 @@ func New(pool *pgxpool.Pool, mailer Mailer, errs *Counter, set Settings, log *sl
 	}
 	if set.Backups {
 		m.checks = append(m.checks, check{"backup", "Database backups are failing or late", m.backupCheck})
+	}
+	if set.Metrics != nil {
+		m.checks = append(m.checks,
+			check{"slow", "The API is answering slowly", m.slowCheck},
+			check{"database", "Requests are waiting for database connections", m.dbCheck})
+	}
+	if set.TLSAddr != "" && len(set.TLSNames) > 0 {
+		m.checks = append(m.checks, check{"certificate", "An HTTPS certificate is expiring or invalid", m.certCheck})
 	}
 	return m
 }
@@ -339,6 +383,9 @@ var advice = map[string]string{
 	"security":      "look at the recent security events; per-IP and per-account limits are already slowing the caller down.",
 	"disk":          "free disk space on the server (old Docker images: docker image prune) before the database stops.",
 	"backup":        "read the API log for the backup error; until it is fixed there is no fresh backup.",
+	"slow":          "open System in the admin panel to see which routes are slow, and check the server's CPU and memory (bash remote.sh status).",
+	"database":      "the database is overloaded or a query is stuck; check System in the admin panel and the database container (bash remote.sh status).",
+	"certificate":   "Caddy renews certificates by itself; read its log (docker compose logs caddy) and check the domain's DNS still points at this server.",
 }
 
 func (m *Monitor) sample() {
@@ -457,4 +504,88 @@ func (m *Monitor) backupCheck(ctx context.Context) (bool, string, error) {
 		return true, fmt.Sprintf("The last good backup finished %s ago; alert after %s.", now.Sub(*lastOK).Round(time.Minute), BackupMaxAge), nil
 	}
 	return false, fmt.Sprintf("Last good backup %s ago.", now.Sub(*lastOK).Round(time.Minute)), nil
+}
+
+// apiRoutes leaves out the health endpoints, which are always fast and
+// polled every few seconds, so they would hide slow real traffic.
+func apiRoutes(t metrics.Totals) (n, slow int64) {
+	for _, r := range t.Routes {
+		if r.Route == "/healthz" || r.Route == "/readyz" {
+			continue
+		}
+		n += r.Requests()
+		slow += r.Slow
+	}
+	return n, slow
+}
+
+func (m *Monitor) slowCheck(context.Context) (bool, string, error) {
+	w, _ := m.set.Metrics.Window(SlowWindow)
+	n, slow := apiRoutes(w)
+	return n >= SlowMinRequests && slow*100 >= n*SlowPercent,
+		fmt.Sprintf("%d of %d requests in the last %s took over %s; alert at %d%% of at least %d requests.",
+			slow, n, SlowWindow, metrics.SlowAfter, SlowPercent, SlowMinRequests), nil
+}
+
+func (m *Monitor) dbCheck(context.Context) (bool, string, error) {
+	w, _ := m.set.Metrics.Window(DBWindow)
+	p := w.Pool
+	avg := p.AvgWait()
+	return p.Canceled >= DBCanceled || (p.Acquires >= DBMinAcquires && avg >= DBSlowAcquire),
+		fmt.Sprintf("In the last %s: %d requests gave up waiting for a database connection (alert at %d); "+
+			"getting one took %s on average (alert at %s); %d of %d connections in use now.",
+			DBWindow, p.Canceled, DBCanceled, avg.Round(time.Millisecond), DBSlowAcquire, p.InUse, p.Max), nil
+}
+
+// certCheck connects to the HTTPS front end the way a phone would and reads
+// each certificate's expiry. It runs at most once an hour.
+func (m *Monitor) certCheck(ctx context.Context) (bool, string, error) {
+	m.mu.Lock()
+	if !m.certAt.IsZero() && m.now().Sub(m.certAt) < CertCheckEvery {
+		r := m.certResult
+		m.mu.Unlock()
+		return r.firing, r.detail, nil
+	}
+	m.mu.Unlock()
+	firing := false
+	var parts []string
+	for _, name := range m.set.TLSNames {
+		left, err := m.certDaysLeft(ctx, name)
+		var verr *tls.CertificateVerificationError
+		switch {
+		case errors.As(err, &verr):
+			firing = true
+			parts = append(parts, fmt.Sprintf("%s: the certificate is not valid (%v)", name, verr.Err))
+		case err != nil:
+			// Cannot connect: says nothing about the certificate, and the
+			// outside uptime check reports a server that is down.
+			return false, "", fmt.Errorf("%s: %w", name, err)
+		case left < CertMinDays:
+			firing = true
+			parts = append(parts, fmt.Sprintf("%s: expires in %d days", name, left))
+		default:
+			parts = append(parts, fmt.Sprintf("%s: %d days left", name, left))
+		}
+	}
+	detail := strings.Join(parts, "; ") + fmt.Sprintf(". Alert under %d days.", CertMinDays)
+	m.mu.Lock()
+	m.certAt, m.certResult = m.now(), certResult{firing, detail}
+	m.mu.Unlock()
+	return firing, detail, nil
+}
+
+func (m *Monitor) certDaysLeft(ctx context.Context, name string) (int, error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	d := tls.Dialer{Config: &tls.Config{ServerName: name, RootCAs: m.set.TLSRoots, MinVersion: tls.VersionTLS12}}
+	conn, err := d.DialContext(ctx, "tcp", m.set.TLSAddr)
+	if err != nil {
+		return 0, err
+	}
+	defer conn.Close()
+	certs := conn.(*tls.Conn).ConnectionState().PeerCertificates
+	if len(certs) == 0 {
+		return 0, errors.New("no certificate")
+	}
+	return int(certs[0].NotAfter.Sub(m.now()).Hours() / 24), nil
 }

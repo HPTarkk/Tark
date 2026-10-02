@@ -92,9 +92,12 @@ or malformed secret.
 | `TARK_CLIENT_IP_HEADER`, `TARK_TRUSTED_PROXIES` | Where the real client IP is, and which peers may set it (CIDRs). Needed behind ArvanCloud's CDN or load balancer. |
 | `TARK_POLICY_GRACE_HOURS`, `TARK_POLICY_REFRESH_DAYS`, `TARK_POLICY_SUSPICIOUS_OFFLINE_HOURS` | Offline policy signed into every entitlement (defaults 72, 5, 72) |
 | `TARK_ACCESS_TOKEN_TTL`, `TARK_REFRESH_TOKEN_TTL`, `TARK_SESSION_MAX_LIFETIME` | Defaults 15m, 180 days idle, 2 years |
-| `TARK_ALERT_EMAILS` | Comma-separated addresses for alert emails (internal errors, mail or Bazaar failing, attack signs, disk, backups). Empty: alerts only go to the log. `tarkd alert-test` sends a test. |
+| `TARK_ALERT_EMAILS` | Comma-separated addresses for alert emails (internal errors, slow API, database connections, mail or Bazaar failing, attack signs, disk, backups, certificates). Empty: alerts only go to the log. `tarkd alert-test` sends a test. |
 | `TARK_ADMIN_ADDR` | Listen address of the admin panel, e.g. `:8081`. Empty: no panel. Must differ from `TARK_HTTP_ADDR`; never expose it without HTTPS in front. `tarkd admin-create <email> <owner\|support\|viewer> <name>` adds an admin. |
 | `TARK_ALERT_SERVER_NAME` | Names the server in alert subjects. Default `TARK_DOMAIN`. |
+| `TARK_ALERT_TLS_ADDR`, `TARK_ALERT_TLS_NAMES` | Where the HTTPS front end answers (`caddy:443` in the compose stack) and the host names whose certificates to check there (default `TARK_DOMAIN` and `TARK_ADMIN_DOMAIN`). Empty address: no certificate alert. |
+| `TARK_LOG_DIR`, `TARK_LOG_KEEP_DAYS` | Also write the log there, one file per UTC day, compressed after the day and kept 30 days by default. `tarkd log-days` lists them, `tarkd log-cat <YYYY-MM-DD>` prints one; owners search them in the admin panel. |
+| `TARK_METRICS_ADDR` | Serve `/metrics` (Prometheus text format) on this address, e.g. `:9091`. Empty: off; the admin panel's System page shows the same numbers. Must differ from the API and admin addresses and never be published. |
 | `TARK_BACKUP_DIR`, `TARK_BACKUP_KEY` | Directory for the nightly encrypted backups, and the 32-byte key (from `keygen`) that encrypts them. Empty directory: no backups. Keep the key off the server too. |
 | `TARK_BACKUP_HOUR_UTC`, `TARK_BACKUP_KEEP_DAYS` | When the nightly backup runs (default 23 UTC) and how many days of files are kept (default 14). |
 

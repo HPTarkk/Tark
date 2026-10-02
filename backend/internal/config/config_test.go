@@ -143,3 +143,35 @@ func TestAlertAndBackupSettings(t *testing.T) {
 		}
 	}
 }
+
+func TestLogMetricsAndCertificateSettings(t *testing.T) {
+	c, err := loadWith(t, map[string]string{
+		"TARK_DOMAIN":         "api.tarkk.ir",
+		"TARK_ADMIN_DOMAIN":   "admin.tarkk.ir",
+		"TARK_ALERT_TLS_ADDR": "caddy:443",
+		"TARK_LOG_DIR":        "/logs",
+		"TARK_METRICS_ADDR":   ":9091",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Monitor.TLSAddr != "caddy:443" || strings.Join(c.Monitor.TLSNames, ",") != "api.tarkk.ir,admin.tarkk.ir" ||
+		c.Log.Dir != "/logs" || c.Log.KeepDays != 30 || c.MetricsAddr != ":9091" {
+		t.Fatalf("got %+v %+v %q", c.Monitor, c.Log, c.MetricsAddr)
+	}
+	c, err = loadWith(t, map[string]string{"TARK_ALERT_TLS_ADDR": "caddy:443", "TARK_ALERT_TLS_NAMES": "a.example.com"})
+	if err != nil || strings.Join(c.Monitor.TLSNames, ",") != "a.example.com" {
+		t.Fatalf("names: %v %v", c.Monitor.TLSNames, err)
+	}
+
+	for name, env := range map[string]map[string]string{
+		"metrics on the public port": {"TARK_HTTP_ADDR": ":8080", "TARK_METRICS_ADDR": ":8080"},
+		"metrics on the admin port":  {"TARK_ADMIN_ADDR": ":8081", "TARK_METRICS_ADDR": ":8081"},
+		"certificate check, no name": {"TARK_ALERT_TLS_ADDR": "caddy:443"},
+		"keep no logs":               {"TARK_LOG_KEEP_DAYS": "0"},
+	} {
+		if _, err := loadWith(t, env); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+}

@@ -47,8 +47,14 @@ services:
       # The admin panel listens here, inside the stack only; Caddy serves it
       # at TARK_ADMIN_DOMAIN.
       TARK_ADMIN_ADDR: ":8081"
+      # The API log is also kept here, one file per day, for 30 days
+      # (Docker itself keeps only the last 50 MB). bash remote.sh log-days.
+      TARK_LOG_DIR: /logs
+      # Alert when the HTTPS certificates Caddy serves are close to expiry.
+      TARK_ALERT_TLS_ADDR: caddy:443
     volumes:
       - backups:/backups
+      - logs:/logs
     depends_on:
       db:
         condition: service_healthy
@@ -86,5 +92,6 @@ networks:
 volumes:
   pgdata:
   backups:
+  logs:
   caddy_data:
   caddy_config:

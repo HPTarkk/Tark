@@ -5,9 +5,16 @@ import (
 	"html/template"
 	"reflect"
 	"time"
+
+	"github.com/HPTarkk/Tark/backend/internal/metrics"
 )
 
 var funcs = template.FuncMap{
+	"latency": latency,
+	"list":    func(v ...int) []int { return v },
+	"p":       func(h metrics.Hist, q float64) string { return latency(h.Quantile(q)) },
+	"bytes":   func(n uint64) string { return fmt.Sprintf("%.1f MB", float64(n)/(1<<20)) },
+	"dur":     func(d time.Duration) string { return d.Round(time.Millisecond).String() },
 	// when formats a time (or *time.Time) in UTC; nil and zero show a dash.
 	"when": func(v any) string {
 		t, ok := timeOf(v)

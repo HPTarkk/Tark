@@ -20,6 +20,7 @@ import (
 	"github.com/HPTarkk/Tark/backend/internal/httpapi"
 	"github.com/HPTarkk/Tark/backend/internal/idempotency"
 	"github.com/HPTarkk/Tark/backend/internal/mail"
+	"github.com/HPTarkk/Tark/backend/internal/metrics"
 	"github.com/HPTarkk/Tark/backend/internal/monitor"
 	"github.com/HPTarkk/Tark/backend/internal/password"
 	"github.com/HPTarkk/Tark/backend/internal/profile"
@@ -52,6 +53,8 @@ type App struct {
 	Admin *admin.Server
 	// AdminDeps builds admins from the command line (tarkd admin-create).
 	AdminDeps admin.Deps
+	// Metrics are the in-process numbers (see TARK_METRICS_ADDR).
+	Metrics *metrics.Registry
 }
 
 func Build(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger, opts Options) (*App, error) {
@@ -95,7 +98,8 @@ func Build(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger, opts Option
 			sender = &mail.FailoverSender{Senders: senders, Log: log}
 		}
 	}
-	outbox := mail.NewOutbox(pool, sealer, sender, log)
+	reg := metrics.New(pool)
+	outbox := mail.NewOutbox(pool, sealer, meteredSender{sender, reg}, log)
 
 	bz := opts.Bazaar
 	if bz == nil {
@@ -122,7 +126,7 @@ func Build(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger, opts Option
 		LinkBaseURL: cfg.LinkBaseURL, GoogleRequireNonce: cfg.Google.RequireNonce,
 	}, log)
 	profileSvc := profile.NewService(pool, limits)
-	billingSvc := billing.NewService(pool, bz, signer, sealer, lookup, limits, aud, billing.Policy{
+	billingSvc := billing.NewService(pool, meteredBazaar{bz, reg}, signer, sealer, lookup, limits, aud, billing.Policy{
 		GraceH: cfg.Policy.GraceHours, RefreshD: cfg.Policy.RefreshDays, SusOfflineH: cfg.Policy.SuspiciousOfflineHrs,
 	}, cfg.Bazaar.SKUs, log)
 
@@ -136,6 +140,7 @@ func Build(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger, opts Option
 	mon := monitor.New(pool, outbox, serverErrors, monitor.Settings{
 		Recipients: cfg.Monitor.AlertEmails, Server: cfg.Monitor.ServerName,
 		DiskPath: cfg.Backup.Dir, Backups: bk != nil,
+		Metrics: reg, TLSAddr: cfg.Monitor.TLSAddr, TLSNames: cfg.Monitor.TLSNames,
 	}, log)
 
 	handler := httpapi.NewHandler(httpapi.Deps{
@@ -143,10 +148,11 @@ func Build(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger, opts Option
 		Idempotency: idempotency.New(pool, sealer, lookup, 24*time.Hour),
 		Log:         log, ClientIPHeader: cfg.ClientIPHeader, TrustedProxies: cfg.TrustedProxies, Docs: cfg.DocsEnabled,
 		OnServerError: serverErrors.Inc,
+		Metrics:       reg,
 	})
 	adminDeps := admin.Deps{
 		Pool: pool, Passwords: pw, Lookup: lookup, Sealer: sealer, Limits: limits, Mailer: outbox,
-		Accounts: authSvc, Billing: billingSvc,
+		Accounts: authSvc, Billing: billingSvc, Metrics: reg, LogDir: cfg.Log.Dir,
 		AlertEmails: cfg.Monitor.AlertEmails, ServerName: cfg.Monitor.ServerName,
 		ClientIP: httpapi.ClientIPResolver(cfg.ClientIPHeader, cfg.TrustedProxies),
 		Log:      log, Secure: !cfg.Development(),
@@ -156,5 +162,5 @@ func Build(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger, opts Option
 		return nil, err
 	}
 	return &App{Handler: handler, Outbox: outbox, Billing: billingSvc, Signer: signer, Monitor: mon, Backup: bk,
-		Admin: adm, AdminDeps: adminDeps}, nil
+		Admin: adm, AdminDeps: adminDeps, Metrics: reg}, nil
 }

@@ -42,6 +42,7 @@ import (
 	"github.com/HPTarkk/Tark/backend/internal/backup"
 	"github.com/HPTarkk/Tark/backend/internal/billing"
 	"github.com/HPTarkk/Tark/backend/internal/config"
+	"github.com/HPTarkk/Tark/backend/internal/logfile"
 	"github.com/HPTarkk/Tark/backend/internal/mail"
 	"github.com/HPTarkk/Tark/backend/internal/ratelimit"
 	"github.com/HPTarkk/Tark/backend/internal/secure"
@@ -54,7 +55,7 @@ func main() {
 		cmd = os.Args[1]
 	}
 	logOut := os.Stdout
-	if cmd == "backup-cat" {
+	if cmd == "backup-cat" || cmd == "log-cat" {
 		logOut = os.Stderr // stdout carries the file
 	}
 	log := slog.New(slog.NewJSONHandler(logOut, &slog.HandlerOptions{Level: slog.LevelInfo}))
@@ -64,7 +65,8 @@ func main() {
 		err = keygen()
 	case "healthcheck":
 		err = healthcheck()
-	case "serve", "worker", "migrate", "pubkeys", "backup", "backup-list", "backup-verify", "backup-cat", "restore", "alert-test", "admin-create":
+	case "serve", "worker", "migrate", "pubkeys", "backup", "backup-list", "backup-verify", "backup-cat", "restore", "alert-test", "admin-create",
+		"log-days", "log-cat":
 		err = run(cmd, log)
 	default:
 		err = fmt.Errorf("unknown command %q", cmd)
@@ -160,6 +162,18 @@ func run(cmd string, log *slog.Logger) error {
 	switch cmd {
 	case "backup-list", "backup-verify", "backup-cat":
 		return backupFiles(cmd, cfg)
+	case "log-days", "log-cat":
+		return logFiles(cmd, cfg)
+	}
+	if (cmd == "serve" || cmd == "worker") && cfg.Log.Dir != "" {
+		// The long-running commands also keep their log on disk for
+		// TARK_LOG_KEEP_DAYS days (Docker keeps only the last 50 MB).
+		lf, err := logfile.Open(cfg.Log.Dir, cfg.Log.KeepDays)
+		if err != nil {
+			return err
+		}
+		defer lf.Close()
+		log = slog.New(slog.NewJSONHandler(io.MultiWriter(os.Stdout, lf), &slog.HandlerOptions{Level: slog.LevelInfo}))
 	}
 
 	pool, err := store.Open(ctx, cfg.DatabaseURL, cfg.DBMaxConns)
@@ -218,6 +232,7 @@ func run(cmd string, log *slog.Logger) error {
 		return nil
 	}
 
+	go a.Metrics.Run(ctx)
 	if cmd == "worker" || cfg.RunWorkers {
 		go a.Outbox.Run(ctx)
 		go a.Billing.RunWorker(ctx)
@@ -242,7 +257,7 @@ func run(cmd string, log *slog.Logger) error {
 		IdleTimeout:       90 * time.Second,
 		MaxHeaderBytes:    16 << 10,
 	}
-	errCh := make(chan error, 2)
+	errCh := make(chan error, 3)
 	go func() {
 		log.Info("listening", "addr", cfg.HTTPAddr, "env", cfg.Env)
 		errCh <- srv.ListenAndServe()
@@ -265,6 +280,22 @@ func run(cmd string, log *slog.Logger) error {
 			errCh <- adminSrv.ListenAndServe()
 		}()
 	}
+	// Metrics have their own listener too, never published outside the
+	// stack, for a Prometheus on the same network if one is ever added.
+	var metricsSrv *http.Server
+	if cfg.MetricsAddr != "" {
+		mux := http.NewServeMux()
+		mux.HandleFunc("GET /metrics", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+			_ = a.Metrics.WriteText(w)
+		})
+		metricsSrv = &http.Server{Addr: cfg.MetricsAddr, Handler: mux, ReadHeaderTimeout: 5 * time.Second,
+			ReadTimeout: 10 * time.Second, WriteTimeout: 10 * time.Second, MaxHeaderBytes: 16 << 10}
+		go func() {
+			log.Info("metrics listening", "addr", cfg.MetricsAddr)
+			errCh <- metricsSrv.ListenAndServe()
+		}()
+	}
 	select {
 	case err := <-errCh:
 		if !errors.Is(err, http.ErrServerClosed) {
@@ -278,6 +309,9 @@ func run(cmd string, log *slog.Logger) error {
 		if err := adminSrv.Shutdown(shutdown); err != nil {
 			log.Error("admin panel shutdown", "err", err)
 		}
+	}
+	if metricsSrv != nil {
+		_ = metricsSrv.Shutdown(shutdown)
 	}
 	return srv.Shutdown(shutdown)
 }
@@ -343,6 +377,33 @@ func backupFiles(cmd string, cfg *config.Config) error {
 	fmt.Printf("OK: taken %s, schema %s, %d rows\n", sum.CreatedAt.Format(time.RFC3339),
 		sum.Migrations[len(sum.Migrations)-1], sum.TotalRows())
 	return nil
+}
+
+// logFiles lists the kept log days or prints one day's log.
+func logFiles(cmd string, cfg *config.Config) error {
+	if cfg.Log.Dir == "" {
+		return errors.New("TARK_LOG_DIR is not set")
+	}
+	if cmd == "log-days" {
+		days, err := logfile.Days(cfg.Log.Dir)
+		if err != nil {
+			return err
+		}
+		for _, d := range days {
+			fmt.Printf("%s\t%d\n", d.Date, d.Bytes)
+		}
+		return nil
+	}
+	if len(os.Args) < 3 {
+		return errors.New("usage: tarkd log-cat <YYYY-MM-DD>")
+	}
+	r, err := logfile.OpenDay(cfg.Log.Dir, os.Args[2])
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	_, err = io.Copy(os.Stdout, r)
+	return err
 }
 
 // restore loads a backup into an empty database. It runs before migrations,
