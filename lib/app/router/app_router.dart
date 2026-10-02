@@ -109,9 +109,13 @@ class AppRouter {
         //
         // `start` is set by the invite scanner once a join is accepted: the
         // Room connects straight away over the hand-off the scan opened.
+        //
+        // `rejoin` is set by Landing's "Get back to …?" question, after the
+        // app stopped in the middle of a Room's call.
         builder: (context, state) => RoomBoundWalkieEntry.buildPage(
           ride: state.uri.queryParameters['ride'] == 'true',
           start: state.uri.queryParameters['start'] == 'true',
+          rejoin: state.uri.queryParameters['rejoin'] == 'true',
         ),
       ),
       GoRoute(

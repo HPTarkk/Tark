@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -16,6 +18,7 @@ import '../manager/landing_cubit.dart';
 import '../widget/landing_identity_card.dart';
 import '../widget/landing_logo.dart';
 import '../widget/room_entry_options.dart';
+import '../widget/room_rejoin_prompt.dart';
 
 class LandingPage extends StatefulWidget {
   const LandingPage._();
@@ -58,9 +61,10 @@ class _LandingPageState extends State<LandingPage>
         )
         .toList();
 
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _entranceController.forward(),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _entranceController.forward();
+      if (mounted) unawaited(RoomRejoinPrompt.maybeAsk(context));
+    });
   }
 
   @override

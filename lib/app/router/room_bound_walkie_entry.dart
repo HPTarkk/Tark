@@ -30,6 +30,7 @@ class RoomBoundWalkieEntry extends StatefulWidget {
     super.key,
     this.ride = false,
     this.start = false,
+    this.rejoin = false,
     this.guidedReconnect,
     this.wifiCheck,
     this.prepareHost,
@@ -44,6 +45,11 @@ class RoomBoundWalkieEntry extends StatefulWidget {
   /// part, and a second "start?" would have two people coordinating a tap.
   final bool start;
 
+  /// Arrived from Landing's "Get back to …?" question: this phone dropped out
+  /// of the selected Room's call (a phone call, the app closed) and the user
+  /// asked to go back. See [RoomRejoinTicket].
+  final bool rejoin;
+
   /// Whether Start without a proximity hand-off opens the guided reconnect
   /// screen. Null follows the platform (Android and iOS); tests set it.
   final bool? guidedReconnect;
@@ -56,8 +62,11 @@ class RoomBoundWalkieEntry extends StatefulWidget {
   /// Brings this phone's hotspot up. Null uses the real bridge; tests set it.
   final Future<HotspotCredentials?> Function()? prepareHost;
 
-  static Widget buildPage({bool ride = false, bool start = false}) =>
-      RoomBoundWalkieEntry(ride: ride, start: start);
+  static Widget buildPage({
+    bool ride = false,
+    bool start = false,
+    bool rejoin = false,
+  }) => RoomBoundWalkieEntry(ride: ride, start: start, rejoin: rejoin);
 
   @override
   State<RoomBoundWalkieEntry> createState() => _RoomBoundWalkieEntryState();
@@ -94,6 +103,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   static const _showCodeTimeout = Duration(minutes: 3);
 
   final RoomHotspotHistory _hotspotHistory = RoomHotspotHistory();
+  final RoomRejoinTicketStore _rejoinTickets = RoomRejoinTicketStore();
 
   /// The guided reconnect screen, while one is up. It takes the whole page.
   RoomReconnectModel? _reconnectModel;
@@ -239,6 +249,10 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       if (selectedId != null) {
         final selected = await SelectedRoomLobbyResolver(rooms).resolve();
         if (selected == null) return const _EntryState.invalidSelection();
+        if (widget.rejoin && !widget.ride && !widget.start) {
+          _showAttemptingRoom(selected);
+          return await _rejoinSelectedRoom(selected);
+        }
         if (widget.ride || widget.start) {
           _showAttemptingRoom(selected);
           return await _startSelectedRoom(
@@ -353,6 +367,124 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     // A transport pinned in Advanced settings is the user's call. Guest is a
     // browser link and says nothing about how two phones meet.
     return _roomPin != TransferMode.bluetooth;
+  }
+
+  // ---------------------------------------------------------------- rejoin
+
+  /// How long the quiet way back gets to join the network it was on before
+  /// the code screen takes over.
+  static const _quietJoinTimeout = Duration(seconds: 25);
+
+  /// Goes back into the call this phone dropped out of, over the connection
+  /// it ran on and nothing else.
+  ///
+  /// - Home Wi-Fi: the network is still there, so it simply starts on it.
+  /// - Joined someone's shared connection: joins it again with the details
+  ///   remembered from the call, with no code, while that phone still holds
+  ///   it up. If it has gone, the code screen opens on the scanning side and
+  ///   the other phone shows its code from the live screen.
+  /// - Shared the connection itself: that went with the app, and a new one
+  ///   has new details, so this phone shares again and shows its code.
+  /// - Bluetooth, or no ticket: the ordinary Start, which already re-dials.
+  ///
+  /// A transport picked in settings since then still wins over the ticket.
+  Future<_EntryState> _rejoinSelectedRoom(SavedRoom room) async {
+    final ticket = await _rejoinTickets.read();
+    if (ticket == null ||
+        ticket.roomId != room.room.id ||
+        !ticket.isFresh(DateTime.now())) {
+      Logger.diagnostic('room: rejoin without ticket');
+      return _startSelectedRoom(room);
+    }
+    Logger.diagnostic(
+      'room: rejoin mode=${ticket.mode.key} side=${ticket.side.name} '
+      'remembered=${ticket.credentials != null}',
+    );
+    final pin = _roomPin;
+    if (pin == TransferMode.bluetooth &&
+        ticket.mode != TransferMode.bluetooth) {
+      return _startSelectedRoom(room);
+    }
+    switch (ticket.mode) {
+      case TransferMode.wifi:
+        return _startSelectedRoom(room, useHomeWifi: true);
+      case TransferMode.hotspot:
+        if (ticket.side == SessionRole.host) {
+          return _reconnect(room, showCode: true);
+        }
+        final credentials = ticket.credentials;
+        if (credentials != null && await _quietJoin(credentials)) {
+          if (!mounted) return _EntryState.lobby(room);
+          final outcome = await _verifiedLiveFor(room, linkEstablished: true);
+          if (outcome.live || !mounted) return outcome;
+          if (outcome.failure == _EntryFailure.staleAttempt) return outcome;
+        }
+        if (!mounted) return _EntryState.lobby(room);
+        return _reconnect(
+          room,
+          showCode: false,
+          message: context.getString.rejoin_quiet_failed,
+        );
+      case TransferMode.bluetooth:
+      case TransferMode.guest:
+        return _startSelectedRoom(room);
+    }
+  }
+
+  /// Joins the shared connection this phone was on before it dropped out.
+  Future<bool> _quietJoin(HotspotCredentials credentials) async {
+    _roleStore?.setRole(SessionRole.joiner);
+    try {
+      final joined = await PreLiveHotspotBootstrap()
+          .joinHost(credentials)
+          .timeout(_quietJoinTimeout);
+      Logger.diagnostic('room: rejoin quiet join=${joined.name}');
+      if (joined != HotspotJoinResult.joined) return false;
+      await _modeStore?.setMode(TransferMode.hotspot);
+      return true;
+    } on TimeoutException {
+      Logger.diagnostic('room: rejoin quiet join timed out');
+      return false;
+    } catch (e) {
+      Logger.log('Quiet rejoin failed: $e');
+      return false;
+    }
+  }
+
+  /// Remembers this call, so if the app stops without a Leave the next start
+  /// can offer the way back. Written every time a Room goes live.
+  Future<void> _saveRejoinTicket(SavedRoom room) async {
+    final mode = _modeStore?.mode;
+    if (mode == null || mode == TransferMode.guest) return;
+    final side = _roleStore?.role ?? SessionRole.unknown;
+    HotspotCredentials? credentials;
+    if (mode == TransferMode.hotspot &&
+        side == SessionRole.joiner &&
+        GetIt.instance.isRegistered<HotspotLinkKeeper>()) {
+      credentials = GetIt.instance<HotspotLinkKeeper>().credentials;
+    }
+    await _rejoinTickets.save(
+      RoomRejoinTicket(
+        roomId: room.room.id,
+        mode: mode,
+        side: side,
+        at: DateTime.now(),
+        credentials: credentials,
+      ),
+    );
+  }
+
+  /// "Scan their code" from the live screen: the person who dropped out was
+  /// sharing the connection, and it went with their app. This screen swaps
+  /// for the camera, joins the new connection their phone shows, and comes
+  /// back live: no lobby, no Start.
+  void _scanPeerCodeFromLive(SavedRoom room) {
+    Logger.diagnostic('room: rejoin scan from live');
+    _abandonReconnectAttempt();
+    setState(() {
+      _attemptRoom = room;
+      _entry = _reconnect(room, showCode: false);
+    });
   }
 
   // ------------------------------------------------------ guided reconnect
@@ -920,6 +1052,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       announcer?.handOff();
       if (identical(_announcer, announcer)) _announcer = null;
       unawaited(_recordHotspotHost(room, readiness.peerProof));
+      unawaited(_saveRejoinTicket(room));
       Logger.diagnostic(
         'room: readiness epoch=$readinessEpoch stage=connected',
       );
@@ -1446,6 +1579,9 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     if (_coordinator.state.isActive) _coordinator.cancel(epoch: epoch);
     unawaited(_linkChanges?.cancel() ?? Future<void>.value());
     unawaited(_binding?.close() ?? Future<void>.value());
+    // Left on purpose (Leave, the alone countdown, back out of the Room): no
+    // way back is needed. Only an app that stops never gets here.
+    unawaited(_rejoinTickets.clear());
     super.dispose();
   }
 
@@ -1521,12 +1657,15 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         final binding = _binding;
         final runtime = binding?.runtime;
         if (room != null && binding != null && runtime != null) {
-          return RoomConnectionStatusScope(
-            room: room,
-            runtime: runtime,
-            peerProofs: binding.verifiedPeerProofs,
-            initialPeerProofs: binding.verifiedPeerProofSnapshot,
-            child: livePage,
+          return RoomLiveRejoinScope(
+            onScanPeerCode: () => _scanPeerCodeFromLive(room),
+            child: RoomConnectionStatusScope(
+              room: room,
+              runtime: runtime,
+              peerProofs: binding.verifiedPeerProofs,
+              initialPeerProofs: binding.verifiedPeerProofSnapshot,
+              child: livePage,
+            ),
           );
         }
         return livePage;

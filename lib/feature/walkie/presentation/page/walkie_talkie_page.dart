@@ -29,6 +29,7 @@ import '../widget/connection_health_banner.dart';
 import '../widget/mic_control.dart';
 import '../widget/music_cast_section.dart';
 import '../widget/peer_departure_banner.dart';
+import '../widget/room_alone_guard.dart';
 import '../widget/role_badge.dart';
 import '../widget/usage_tips_sheet.dart';
 import '../widget/user_list.dart';
@@ -121,7 +122,15 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage> {
         value: AppColors.systemOverlayStyle.copyWith(
           statusBarColor: Colors.transparent,
         ),
-        child: _buildScaffold(context),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            _buildScaffold(context),
+            // Over everything, Rooms only: the last minute before a phone
+            // left alone in a Room leaves by itself.
+            RoomAloneGuard(onLeave: () => _leave(context)),
+          ],
+        ),
       ),
     );
   }
@@ -428,6 +437,11 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage> {
     );
     if (!leave || !context.mounted) return;
     ScreenLog.tap('LeaveConfirmed');
+    _leave(context);
+  }
+
+  void _leave(BuildContext context) {
+    if (!context.mounted) return;
     Sfx.play(SfxEvent.channelLeave);
     // goNamed (not pop) so leaving always lands cleanly on Landing regardless
     // of how this screen was reached — the Bluetooth flow replaces the stack
