@@ -770,6 +770,10 @@
               "fa": "حسابت رو توی برنامه از پروفایل ← پاک کردن حساب پاک کن، یا با ایمیل ازمون بخواه که پاکش کنیم."
             },
             {
+              "en": "Ask us by email for a copy of what your account holds, or to correct anything in it that is wrong. We will answer, and tell you when it is done.",
+              "fa": "با ایمیل ازمون بخواه یه نسخه از چیزهایی که حسابت نگه می‌داره برات بفرستیم، یا هر چیزی رو که توش اشتباهه درست کنیم. جواب می‌دیم، و وقتی انجام شد خبرت می‌کنیم."
+            },
+            {
               "en": "Revoke any Android permission in the system settings. The app will tell you plainly what stopped working rather than failing silently.",
               "fa": "هر دسترسی اندرویدی رو از تنظیمات سیستم پس بگیر. برنامه به‌جای اینکه بی‌صدا از کار بیفته، صاف و ساده بهت می‌گه چی از کار افتاده."
             },
