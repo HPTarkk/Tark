@@ -27,6 +27,17 @@ set_kv() {
   chmod 600 "$ENV_FILE"
 }
 
+# fill_from_example KEY: take a public value (not a secret) from the example
+# when the env file still has a placeholder, so a server set up before the value
+# was known picks it up on its next deploy. A value someone set is kept.
+fill_from_example() {
+  local key=$1 example current
+  example=$(grep -E "^${key}=" .env.production.example | head -n1 | cut -d= -f2- || true)
+  current=$(grep -E "^${key}=" "$ENV_FILE" | head -n1 | cut -d= -f2- || true)
+  case "$example" in ''|*CHANGE_ME*) return 0 ;; esac
+  case "$current" in ''|*CHANGE_ME*) set_kv "$key" "$example"; echo "Set $key from .env.production.example." ;; esac
+}
+
 current_image() { grep -E '^TARK_IMAGE=' "$ENV_FILE" | head -n1 | cut -d= -f2-; }
 
 need_docker() {
@@ -67,12 +78,13 @@ case "$cmd" in
     echo "Public entitlement key for the app build (safe to publish):"
     echo "$keys" | grep '"TARK_ENTITLEMENT_KEYS"' || true
     echo
-    echo "Now edit the CHANGE_ME values (domain, Google, SMTP, Bazaar), then deploy again without -Init."
+    echo "Now edit the CHANGE_ME values (domain, SMTP, Bazaar), then deploy again without -Init."
     ;;
   up)
     image=${2:?usage: remote.sh up <image>}
     need_docker
     [ -f "$ENV_FILE" ] || die "$ENV_FILE is missing. Run the first deploy with -Init." 2
+    fill_from_example TARK_GOOGLE_CLIENT_IDS
     if grep -n 'CHANGE_ME' "$ENV_FILE" >&2; then die "Fill in the CHANGE_ME values above in $ENV_FILE first." 3; fi
     prev=$(current_image || true)
     if [ -n "$prev" ] && [ "$prev" != "$image" ]; then echo "$prev" >> .deploy-history; fi
