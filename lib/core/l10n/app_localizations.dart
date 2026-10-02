@@ -5053,6 +5053,120 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'ورود به حساب'**
   String get sub_signin_action;
+
+  /// No description provided for @room_member_away.
+  ///
+  /// In fa, this message translates to:
+  /// **'قطع شده'**
+  String get room_member_away;
+
+  /// No description provided for @room_member_waiting_back.
+  ///
+  /// In fa, this message translates to:
+  /// **'منتظرم {name} برگرده'**
+  String room_member_waiting_back(String name);
+
+  /// No description provided for @room_rejoin_show_code.
+  ///
+  /// In fa, this message translates to:
+  /// **'کدت رو نشون بده'**
+  String get room_rejoin_show_code;
+
+  /// No description provided for @room_rejoin_scan_code.
+  ///
+  /// In fa, this message translates to:
+  /// **'کد {name} رو اسکن کن'**
+  String room_rejoin_scan_code(String name);
+
+  /// No description provided for @room_rejoin_code_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'اینو به {name} نشون بده'**
+  String room_rejoin_code_title(String name);
+
+  /// No description provided for @room_rejoin_code_step_open.
+  ///
+  /// In fa, this message translates to:
+  /// **'{name} تَرک رو باز کنه و «برگرد» رو بزنه.'**
+  String room_rejoin_code_step_open(String name);
+
+  /// No description provided for @room_rejoin_code_step_scan.
+  ///
+  /// In fa, this message translates to:
+  /// **'اگه کد خواست، همینو اسکن کنه.'**
+  String get room_rejoin_code_step_scan;
+
+  /// No description provided for @room_rejoin_code_back.
+  ///
+  /// In fa, this message translates to:
+  /// **'{name} برگشت'**
+  String room_rejoin_code_back(String name);
+
+  /// No description provided for @rejoin_prompt_title_person.
+  ///
+  /// In fa, this message translates to:
+  /// **'برگردی پیش {name}؟'**
+  String rejoin_prompt_title_person(String name);
+
+  /// No description provided for @rejoin_prompt_title_room.
+  ///
+  /// In fa, this message translates to:
+  /// **'برگردی به «{room}»؟'**
+  String rejoin_prompt_title_room(String room);
+
+  /// No description provided for @rejoin_prompt_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'از «{room}» قطع شدی. می‌تونی همین الان برگردی.'**
+  String rejoin_prompt_body(String room);
+
+  /// No description provided for @rejoin_prompt_go.
+  ///
+  /// In fa, this message translates to:
+  /// **'برگرد'**
+  String get rejoin_prompt_go;
+
+  /// No description provided for @rejoin_prompt_not_now.
+  ///
+  /// In fa, this message translates to:
+  /// **'الان نه'**
+  String get rejoin_prompt_not_now;
+
+  /// No description provided for @rejoin_quiet_failed.
+  ///
+  /// In fa, this message translates to:
+  /// **'خودکار نشد برگردی. یه اسکن کوچیک و تمومه.'**
+  String get rejoin_quiet_failed;
+
+  /// No description provided for @alone_leaving_in.
+  ///
+  /// In fa, this message translates to:
+  /// **'خروج از اتاق تا'**
+  String get alone_leaving_in;
+
+  /// No description provided for @alone_seconds.
+  ///
+  /// In fa, this message translates to:
+  /// **'ثانیه دیگه'**
+  String get alone_seconds;
+
+  /// No description provided for @alone_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'{minutes} دقیقه‌ست جز تو کسی اینجا نیست.'**
+  String alone_body(String minutes);
+
+  /// No description provided for @alone_stay.
+  ///
+  /// In fa, this message translates to:
+  /// **'بیشتر می‌مونم'**
+  String get alone_stay;
+
+  /// No description provided for @alone_leave_now.
+  ///
+  /// In fa, this message translates to:
+  /// **'همین الان خارج شو'**
+  String get alone_leave_now;
 }
 
 class _AppLocalizationsDelegate

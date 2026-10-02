@@ -21,6 +21,10 @@ import javax.crypto.spec.GCMParameterSpec
  * Plaintext private keys never enter SharedPreferences or disk. Only AES-GCM
  * ciphertext is written to the app-private files directory and the AES master
  * key is non-exportable in Android Keystore.
+ *
+ * The same sealed file format also keeps the one Room rejoin ticket: the
+ * network a phone was on when its app stopped mid-call, so it can get back on
+ * without a code. There is only ever one, so it has a fixed name.
  */
 class RoomIdentitySecureStorageHandler(
     private val context: Context,
@@ -31,6 +35,12 @@ class RoomIdentitySecureStorageHandler(
                 "write" -> write(call, result)
                 "read" -> read(call, result)
                 "delete" -> delete(call, result)
+                "writeRejoin" -> writeRejoin(call, result)
+                "readRejoin" -> readRejoin(result)
+                "deleteRejoin" -> {
+                    fileFor(REJOIN_SCOPE).delete()
+                    result.success(null)
+                }
                 else -> result.notImplemented()
             }
         } catch (error: Throwable) {
@@ -39,7 +49,16 @@ class RoomIdentitySecureStorageHandler(
     }
 
     private fun write(call: MethodCall, result: MethodChannel.Result) {
-        val scope = scope(call)
+        seal(scope(call), call)
+        result.success(null)
+    }
+
+    private fun writeRejoin(call: MethodCall, result: MethodChannel.Result) {
+        seal(REJOIN_SCOPE, call)
+        result.success(null)
+    }
+
+    private fun seal(scope: String, call: MethodCall) {
         @Suppress("UNCHECKED_CAST")
         val material = call.argument<Map<String, Any?>>("material")
             ?: throw IllegalArgumentException("missing material")
@@ -52,11 +71,17 @@ class RoomIdentitySecureStorageHandler(
             tmp.delete()
             throw IllegalStateException("atomic secure identity write failed")
         }
-        result.success(null)
     }
 
     private fun read(call: MethodCall, result: MethodChannel.Result) {
-        val scope = scope(call)
+        open(scope(call), result)
+    }
+
+    private fun readRejoin(result: MethodChannel.Result) {
+        open(REJOIN_SCOPE, result)
+    }
+
+    private fun open(scope: String, result: MethodChannel.Result) {
         val target = fileFor(scope)
         if (!target.exists()) {
             result.success(null)
@@ -153,5 +178,8 @@ class RoomIdentitySecureStorageHandler(
         private const val KEY_ALIAS = "tark_room_identity_master_v1"
         private const val TRANSFORMATION = "AES/GCM/NoPadding"
         private const val FORMAT_VERSION: Byte = 1
+
+        // Never a valid identity scope (those are "<32 hex>:<24 hex>").
+        private const val REJOIN_SCOPE = "rejoin-ticket:v1"
     }
 }

@@ -86,6 +86,11 @@ abstract final class SettingsKeys {
   /// they agree on who shows the code and who scans it without a connection.
   static const roomLastHotspotHostPrefix = 'room_last_hotspot_host_';
 
+  /// The live Room this phone was in when its app stopped without a Leave —
+  /// a phone call, the app swiped away. Landing reads it once to offer the
+  /// way back. Network details never live here; see RoomRejoinTicketStore.
+  static const roomRejoinTicket = 'room_rejoin_ticket';
+
   // Owned by UpdateChecker (see feature/update/). The optional update the
   // user last put off, and when — see decideUpdate.
   static const updateSnoozedBuild = 'update_snoozed_build';

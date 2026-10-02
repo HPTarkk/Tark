@@ -2829,4 +2829,81 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sub_signin_action => 'SIGN IN';
+
+  @override
+  String get room_member_away => 'Dropped out';
+
+  @override
+  String room_member_waiting_back(String name) {
+    return 'Waiting for $name to come back';
+  }
+
+  @override
+  String get room_rejoin_show_code => 'Show your code';
+
+  @override
+  String room_rejoin_scan_code(String name) {
+    return 'Scan $name\'s code';
+  }
+
+  @override
+  String room_rejoin_code_title(String name) {
+    return 'Show this to $name';
+  }
+
+  @override
+  String room_rejoin_code_step_open(String name) {
+    return 'On $name\'s phone, open Tarkk and tap “Go back”.';
+  }
+
+  @override
+  String get room_rejoin_code_step_scan =>
+      'If it asks for a code, scan this one.';
+
+  @override
+  String room_rejoin_code_back(String name) {
+    return '$name is back';
+  }
+
+  @override
+  String rejoin_prompt_title_person(String name) {
+    return 'Get back to $name?';
+  }
+
+  @override
+  String rejoin_prompt_title_room(String room) {
+    return 'Get back to “$room”?';
+  }
+
+  @override
+  String rejoin_prompt_body(String room) {
+    return 'You dropped out of “$room”. You can go right back in.';
+  }
+
+  @override
+  String get rejoin_prompt_go => 'Go back';
+
+  @override
+  String get rejoin_prompt_not_now => 'Not now';
+
+  @override
+  String get rejoin_quiet_failed =>
+      'Couldn\'t get back on its own. One quick scan and you\'re in.';
+
+  @override
+  String get alone_leaving_in => 'Leaving the room in';
+
+  @override
+  String get alone_seconds => 'seconds';
+
+  @override
+  String alone_body(String minutes) {
+    return 'Nobody else has been here for $minutes minutes.';
+  }
+
+  @override
+  String get alone_stay => 'Stay longer';
+
+  @override
+  String get alone_leave_now => 'Leave now';
 }

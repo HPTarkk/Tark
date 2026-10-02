@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
@@ -179,6 +180,7 @@ class _RoomRoster extends StatelessWidget {
                         key: ValueKey('room-member-${member.id.value}'),
                         padding: const EdgeInsets.only(bottom: 8),
                         child: _RoomMemberPresenceTile(
+                          room: room,
                           member: member,
                           phase: roomRosterMemberPhase(
                             room: room,
@@ -211,67 +213,121 @@ class _RoomRoster extends StatelessWidget {
 /// presence only after the Room scope has supplied the sender id that arrived
 /// with this exact member's verified current-generation route proof. Missing or
 /// stale proof metadata therefore renders the row idle rather than guessing.
-class _RoomMemberPresenceTile extends StatelessWidget {
+///
+/// The same proof-matched sender is how a member who dropped out is noticed: a
+/// proof stays valid for the whole connection, so without this the row went on
+/// saying "connected" for someone whose app had stopped minutes ago. Once they
+/// have been heard here and then go quiet past the roster's timeout, the row
+/// turns [RoomConnectionUiPhase.away] and waits for them to come back.
+class _RoomMemberPresenceTile extends StatefulWidget {
   const _RoomMemberPresenceTile({
+    required this.room,
     required this.member,
     required this.phase,
     required this.transportSenderId,
   });
 
+  final SavedRoom room;
   final RoomMember member;
   final RoomConnectionUiPhase phase;
   final String? transportSenderId;
 
   @override
+  State<_RoomMemberPresenceTile> createState() =>
+      _RoomMemberPresenceTileState();
+}
+
+class _RoomMemberPresenceTileState extends State<_RoomMemberPresenceTile> {
+  /// Heard on this live screen at least once. A member who never was is
+  /// still arriving, not gone.
+  bool _seen = false;
+
+  /// For an open code sheet: true again once this member is heard.
+  final ValueNotifier<bool> _back = ValueNotifier(true);
+
+  @override
+  void dispose() {
+    _back.dispose();
+    super.dispose();
+  }
+
+  bool _settled(RoomConnectionUiPhase phase) =>
+      phase == RoomConnectionUiPhase.connected ||
+      phase == RoomConnectionUiPhase.reconnecting;
+
+  @override
   Widget build(BuildContext context) {
-    final senderId = transportSenderId;
+    final senderId = widget.transportSenderId;
+    final phase = widget.phase;
     return BlocSelector<WalkieTalkieCubit, WalkieTalkieState, bool>(
       selector: (state) {
-        if (phase != RoomConnectionUiPhase.connected || senderId == null) {
-          return false;
-        }
+        if (senderId == null) return false;
         for (final user in state.activeUsers) {
-          if (user.id == senderId) return user.isTalking;
+          if (user.id == senderId) return true;
         }
         return false;
       },
-      // The avatar rides the same proof-matched sender id as the talking
-      // flag, so it is only ever shown for this exact member. A selector of
-      // its own, so a talk onset does not re-resolve it and vice versa.
-      builder: (context, isTalking) =>
-          BlocSelector<WalkieTalkieCubit, WalkieTalkieState, int?>(
-            selector: (state) {
-              if (phase != RoomConnectionUiPhase.connected ||
-                  senderId == null) {
-                return null;
-              }
-              for (final user in state.activeUsers) {
-                if (user.id == senderId) return user.avatarId;
-              }
-              return null;
-            },
-            builder: (context, avatarId) => _RoomMemberTile(
-              member: member,
-              phase: phase,
-              isTalking: isTalking,
-              avatarId: avatarId,
-            ),
-          ),
+      builder: (context, present) {
+        if (present) _seen = true;
+        final away = senderId != null && _seen && !present && _settled(phase);
+        // After the frame: an open code sheet listens, and a listener must
+        // not rebuild another route in the middle of this one's build.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _back.value = !away;
+        });
+        final shown = away ? RoomConnectionUiPhase.away : phase;
+        return BlocSelector<WalkieTalkieCubit, WalkieTalkieState, bool>(
+          selector: (state) {
+            if (shown != RoomConnectionUiPhase.connected || senderId == null) {
+              return false;
+            }
+            for (final user in state.activeUsers) {
+              if (user.id == senderId) return user.isTalking;
+            }
+            return false;
+          },
+          // The avatar rides the same proof-matched sender id as the talking
+          // flag, so it is only ever shown for this exact member. A selector
+          // of its own, so a talk onset does not re-resolve it and vice versa.
+          builder: (context, isTalking) =>
+              BlocSelector<WalkieTalkieCubit, WalkieTalkieState, int?>(
+                selector: (state) {
+                  if (senderId == null) return null;
+                  for (final user in state.activeUsers) {
+                    if (user.id == senderId) return user.avatarId;
+                  }
+                  return null;
+                },
+                builder: (context, avatarId) => _RoomMemberTile(
+                  room: widget.room,
+                  member: widget.member,
+                  phase: shown,
+                  isTalking: isTalking,
+                  avatarId: avatarId,
+                  back: _back,
+                ),
+              ),
+        );
+      },
     );
   }
 }
 
 class _RoomMemberTile extends StatelessWidget {
   const _RoomMemberTile({
+    required this.room,
     required this.member,
     required this.phase,
     required this.isTalking,
+    required this.back,
     this.avatarId,
   });
 
+  final SavedRoom room;
   final RoomMember member;
   final RoomConnectionUiPhase phase;
   final bool isTalking;
+  final ValueListenable<bool> back;
   final int? avatarId;
 
   @override
@@ -283,6 +339,7 @@ class _RoomMemberTile extends StatelessWidget {
       unnamed: s.people_unnamed,
     );
     final connected = phase == RoomConnectionUiPhase.connected;
+    final away = phase == RoomConnectionUiPhase.away;
     final active = connected || isTalking;
 
     return Semantics(
@@ -291,45 +348,90 @@ class _RoomMemberTile extends StatelessWidget {
         duration: AppMotion.card,
         curve: AppMotion.easeOut,
         padding: _kRowPadding,
-        decoration: _memberRowDecoration(talking: isTalking, live: active),
-        child: Row(
+        decoration: _memberRowDecoration(
+          talking: isTalking,
+          live: active,
+          away: away,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            _TalkingFace(
-              talking: isTalking,
-              child: MemberAvatar(
-                member: member,
-                size: _kFaceSize,
-                avatarId: avatarId,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
+            Row(
+              children: [
+                _TalkingFace(
+                  talking: isTalking,
+                  away: away,
+                  child: MemberAvatar(
+                    member: member,
+                    size: _kFaceSize,
+                    avatarId: avatarId,
                   ),
-                  const SizedBox(height: 4),
-                  RoomConnectionStatusChip(phase: phase),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AnimatedDefaultTextStyle(
+                        duration: AppMotion.card,
+                        curve: AppMotion.easeOut,
+                        style: TextStyle(
+                          color: away
+                              ? AppColors.textSecondary
+                              : AppColors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        child: Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      RoomConnectionStatusChip(phase: phase),
+                    ],
+                  ),
+                ),
+                if (isTalking) ...[
+                  const SizedBox(width: 8),
+                  _TalkingMark(
+                    key: ValueKey('room-member-tx-${member.id.value}'),
+                    label: s.tx_label,
+                  ),
                 ],
+              ],
+            ),
+            // Opens under the row rather than replacing it: the person is
+            // still in the Room, and this is only what the Room is doing
+            // about them.
+            AnimatedSize(
+              duration: AppMotion.sheet,
+              curve: AppMotion.easeOut,
+              alignment: AlignmentDirectional.topStart,
+              child: AnimatedSwitcher(
+                duration: AppMotion.card,
+                switchInCurve: AppMotion.easeOut,
+                switchOutCurve: AppMotion.leaving,
+                child: away
+                    ? Padding(
+                        key: ValueKey('room-member-away-${member.id.value}'),
+                        padding: const EdgeInsetsDirectional.only(
+                          top: 10,
+                          start: _kFaceSize + 16,
+                        ),
+                        child: RoomAwayMemberHelp(
+                          room: room,
+                          member: member,
+                          name: name,
+                          back: back,
+                        ),
+                      )
+                    : const SizedBox(width: double.infinity),
               ),
             ),
-            if (isTalking) ...[
-              const SizedBox(width: 8),
-              _TalkingMark(
-                key: ValueKey('room-member-tx-${member.id.value}'),
-                label: s.tx_label,
-              ),
-            ],
           ],
         ),
       ),
@@ -511,6 +613,7 @@ const EdgeInsets _kRowPadding = EdgeInsets.symmetric(
 BoxDecoration _memberRowDecoration({
   required bool talking,
   required bool live,
+  bool away = false,
 }) {
   final green = AppColors.green;
   return BoxDecoration(
@@ -523,6 +626,8 @@ BoxDecoration _memberRowDecoration({
           ? green.withValues(alpha: 0.70)
           : live
           ? green.withValues(alpha: 0.35)
+          : away
+          ? AppColors.amber.withValues(alpha: 0.40)
           : AppColors.border,
       width: talking ? 1.5 : 1,
     ),
@@ -537,26 +642,92 @@ BoxDecoration _memberRowDecoration({
 }
 
 /// The face, with a green ring drawn around it while that person talks.
-class _TalkingFace extends StatelessWidget {
-  const _TalkingFace({required this.talking, required this.child});
+///
+/// While they are away the face dims and an amber ring breathes slowly around
+/// it: the seat is kept, and the Room is waiting. The breath is an ambient
+/// loop, so it holds still under reduced motion.
+class _TalkingFace extends StatefulWidget {
+  const _TalkingFace({
+    required this.talking,
+    required this.child,
+    this.away = false,
+  });
 
   final bool talking;
+  final bool away;
   final Widget child;
 
   @override
+  State<_TalkingFace> createState() => _TalkingFaceState();
+}
+
+class _TalkingFaceState extends State<_TalkingFace>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _breath = AnimationController(
+    vsync: this,
+    duration: AppMotion.pulse,
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncBreath();
+  }
+
+  @override
+  void didUpdateWidget(_TalkingFace oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.away != widget.away) _syncBreath();
+  }
+
+  void _syncBreath() {
+    if (widget.away) {
+      _breath.loopUnlessReduced(context, reverse: true, rest: 1);
+    } else if (_breath.isAnimating || _breath.value != 0) {
+      _breath.stop();
+      _breath.value = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _breath.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: AppMotion.chip,
+    final face = AnimatedOpacity(
+      duration: AppMotion.card,
       curve: AppMotion.easeOut,
-      padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: talking ? AppColors.green : Colors.transparent,
-          width: 2,
-        ),
-      ),
-      child: child,
+      opacity: widget.away ? 0.45 : 1,
+      child: widget.child,
+    );
+    return AnimatedBuilder(
+      animation: _breath,
+      child: face,
+      builder: (context, child) {
+        final amber = AppColors.amber.withValues(
+          alpha: 0.25 + 0.5 * Curves.easeInOut.transform(_breath.value),
+        );
+        return AnimatedContainer(
+          duration: AppMotion.chip,
+          curve: AppMotion.easeOut,
+          padding: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: widget.talking
+                  ? AppColors.green
+                  : widget.away
+                  ? amber
+                  : Colors.transparent,
+              width: 2,
+            ),
+          ),
+          child: child,
+        );
+      },
     );
   }
 }

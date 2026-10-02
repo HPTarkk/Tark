@@ -2815,4 +2815,79 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get sub_signin_action => 'ورود به حساب';
+
+  @override
+  String get room_member_away => 'قطع شده';
+
+  @override
+  String room_member_waiting_back(String name) {
+    return 'منتظرم $name برگرده';
+  }
+
+  @override
+  String get room_rejoin_show_code => 'کدت رو نشون بده';
+
+  @override
+  String room_rejoin_scan_code(String name) {
+    return 'کد $name رو اسکن کن';
+  }
+
+  @override
+  String room_rejoin_code_title(String name) {
+    return 'اینو به $name نشون بده';
+  }
+
+  @override
+  String room_rejoin_code_step_open(String name) {
+    return '$name تَرک رو باز کنه و «برگرد» رو بزنه.';
+  }
+
+  @override
+  String get room_rejoin_code_step_scan => 'اگه کد خواست، همینو اسکن کنه.';
+
+  @override
+  String room_rejoin_code_back(String name) {
+    return '$name برگشت';
+  }
+
+  @override
+  String rejoin_prompt_title_person(String name) {
+    return 'برگردی پیش $name؟';
+  }
+
+  @override
+  String rejoin_prompt_title_room(String room) {
+    return 'برگردی به «$room»؟';
+  }
+
+  @override
+  String rejoin_prompt_body(String room) {
+    return 'از «$room» قطع شدی. می‌تونی همین الان برگردی.';
+  }
+
+  @override
+  String get rejoin_prompt_go => 'برگرد';
+
+  @override
+  String get rejoin_prompt_not_now => 'الان نه';
+
+  @override
+  String get rejoin_quiet_failed => 'خودکار نشد برگردی. یه اسکن کوچیک و تمومه.';
+
+  @override
+  String get alone_leaving_in => 'خروج از اتاق تا';
+
+  @override
+  String get alone_seconds => 'ثانیه دیگه';
+
+  @override
+  String alone_body(String minutes) {
+    return '$minutes دقیقه‌ست جز تو کسی اینجا نیست.';
+  }
+
+  @override
+  String get alone_stay => 'بیشتر می‌مونم';
+
+  @override
+  String get alone_leave_now => 'همین الان خارج شو';
 }

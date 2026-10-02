@@ -20,6 +20,10 @@ enum RoomConnectionUiPhase {
   connecting,
   connected,
   reconnecting,
+
+  /// Proven on this connection, then gone quiet: their app stopped or their
+  /// phone lost the call. The row stays and waits for them to come back.
+  away,
 }
 
 /// Live Room state shared with the Walkie surface after verified entry.

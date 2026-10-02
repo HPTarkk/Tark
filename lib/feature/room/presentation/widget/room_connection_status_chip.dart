@@ -25,6 +25,7 @@ class RoomConnectionStatusChip extends StatelessWidget {
       RoomConnectionUiPhase.connecting => s.connecting,
       RoomConnectionUiPhase.connected => s.preflight_transport_ready,
       RoomConnectionUiPhase.reconnecting => s.preflight_transport_degraded,
+      RoomConnectionUiPhase.away => s.room_member_away,
     };
     final icon = switch (phase) {
       RoomConnectionUiPhase.invited => Icons.mail_outline_rounded,
@@ -34,9 +35,15 @@ class RoomConnectionStatusChip extends StatelessWidget {
       RoomConnectionUiPhase.connecting => Icons.sync_rounded,
       RoomConnectionUiPhase.connected => Icons.check_circle_rounded,
       RoomConnectionUiPhase.reconnecting => Icons.sync_problem_rounded,
+      RoomConnectionUiPhase.away => Icons.hourglass_bottom_rounded,
     };
     final active = phase == RoomConnectionUiPhase.connected;
-    final accent = active ? AppColors.green : AppColors.textSecondary;
+    final away = phase == RoomConnectionUiPhase.away;
+    final accent = active
+        ? AppColors.green
+        : away
+        ? AppColors.amber
+        : AppColors.textSecondary;
 
     return Semantics(
       label: label,
@@ -48,8 +55,8 @@ class RoomConnectionStatusChip extends StatelessWidget {
         curve: AppMotion.easeOut,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: active
-              ? AppColors.green.withValues(alpha: 0.10)
+          color: active || away
+              ? accent.withValues(alpha: 0.10)
               : AppColors.border.withValues(alpha: 0.55),
           borderRadius: BorderRadius.circular(8),
         ),
