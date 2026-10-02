@@ -10,7 +10,7 @@
       },
       "version": 4,
       "minAcceptedVersion": 4,
-      "effectiveDate": "2026-09-29",
+      "effectiveDate": "2027-06-02",
       "file": "privacy.json",
       "webPath": {
         "en": "/privacy.html",
@@ -25,7 +25,7 @@
       },
       "version": 3,
       "minAcceptedVersion": 3,
-      "effectiveDate": "2026-09-29",
+      "effectiveDate": "2027-06-02",
       "file": "terms.json",
       "webPath": {
         "en": "/terms.html",

@@ -5,10 +5,10 @@
     "en": "Delete your account",
     "fa": "پاک کردن حساب"
   },
-  "effectiveDate": "2026-09-29",
+  "effectiveDate": "2027-06-02",
   "effectiveDateLabel": {
-    "en": "29 September 2026",
-    "fa": "۷ مهر ۱۴۰۵"
+    "en": "2 June 2027",
+    "fa": "۱۲ خرداد ۱۴۰۶"
   },
   "webPath": {
     "en": "/delete-account.html",
