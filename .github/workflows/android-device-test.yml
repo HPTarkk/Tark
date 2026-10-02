@@ -118,7 +118,7 @@ jobs:
           echo "package_name=$package_name" >> "$GITHUB_OUTPUT"
 
       - name: Upload phone-downloadable APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tark-device-test-${{ steps.package.outputs.short_sha }}
           path: dist/
