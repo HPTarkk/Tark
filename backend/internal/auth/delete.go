@@ -83,6 +83,9 @@ func (s *Service) DeleteAccount(ctx context.Context, p Principal, in DeleteAccou
 		if _, err := tx.Exec(ctx, `UPDATE audit_events SET user_id = NULL WHERE user_id = $1`, p.UserID); err != nil {
 			return err
 		}
+		if _, err := tx.Exec(ctx, `UPDATE admin_events SET target_user = NULL WHERE target_user = $1`, p.UserID); err != nil {
+			return err
+		}
 		// Replays of this account's writes could hold a signed entitlement.
 		if _, err := tx.Exec(ctx, `DELETE FROM idempotency_keys WHERE scope = $1`, "user:"+p.UserID); err != nil {
 			return err

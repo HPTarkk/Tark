@@ -179,3 +179,10 @@ func (s *statusRecorder) Write(b []byte) (int, error) {
 	}
 	return s.ResponseWriter.Write(b)
 }
+
+// ClientIPResolver returns a function that finds a request's real client
+// address with the same rules as the API (forwarding header trusted only
+// from TrustedProxies, IPv6 keyed by /64). The admin panel uses it.
+func ClientIPResolver(header string, trusted []netip.Prefix) func(*http.Request) string {
+	return ipResolver{header: header, trusted: trusted}.resolve
+}

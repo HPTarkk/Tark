@@ -22,3 +22,11 @@
 	#	}
 	# }
 }
+
+# The admin panel, on its own host name. Its DNS record must point at this
+# server too. The panel has its own sign-in (password + authenticator code);
+# this block only adds HTTPS.
+{$TARK_ADMIN_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy api:8081
+}

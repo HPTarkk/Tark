@@ -1,0 +1,7 @@
+{{define "title"}}Mail · Tarkk admin{{end}}
+{{define "main"}}
+<h1>Email, last 7 days</h1>
+<table><tr><th>Kind</th><th>Sent</th><th>Dropped</th><th>Waiting</th><th>Most tries of a waiting one</th></tr>
+{{range .Rows}}<tr><td>{{.Kind}}</td><td>{{.Sent}}</td><td>{{.Failed}}</td><td>{{.Pending}}</td><td>{{.Tries}}</td></tr>{{else}}<tr><td colspan="5">No email in 7 days.</td></tr>{{end}}</table>
+<p class="muted">Sent emails are wiped from the database right away; only these counts remain, for 7 days.</p>
+{{end}}

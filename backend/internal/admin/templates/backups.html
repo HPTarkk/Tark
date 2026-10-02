@@ -1,0 +1,7 @@
+{{define "title"}}Backups · Tarkk admin{{end}}
+{{define "main"}}
+<h1>Backups</h1>
+<p>One encrypted backup a night, kept 14 days on the server. Copy them to your computer with fetch-backups.ps1.</p>
+<table><tr><th>Started</th><th>Result</th><th>File</th><th>Size</th><th>Rows</th></tr>
+{{range .Runs}}<tr><td>{{when .Started}}</td><td>{{if .OK}}ok{{else if .Finished}}<span class="error-text">failed: {{deref .Error}}</span>{{else}}running{{end}}</td><td>{{deref .File}}</td><td>{{mb .Bytes}}</td><td>{{deref .Rows}}</td></tr>{{else}}<tr><td colspan="5">No backups yet.</td></tr>{{end}}</table>
+{{end}}

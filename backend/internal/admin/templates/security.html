@@ -1,0 +1,11 @@
+{{define "title"}}Security · Tarkk admin{{end}}
+{{define "main"}}
+<h1>Security events</h1>
+<h2>Last 24 hours</h2>
+<table><tr><th>Event</th><th>Count</th></tr>
+{{range .Counts}}<tr><td>{{.Kind}}</td><td>{{.Count}}</td></tr>{{else}}<tr><td colspan="2">Nothing.</td></tr>{{end}}</table>
+<h2>Latest 100 (successful sign-ins left out)</h2>
+<p class="muted">"Source" is the first characters of a keyed hash of the IP address: equal values mean the same address, the address itself is never stored.</p>
+<table><tr><th>When</th><th>Event</th><th>Account</th><th>Source</th><th>Details</th></tr>
+{{range .Recent}}<tr><td>{{when .At}}</td><td>{{.Kind}}</td><td>{{with .UserID}}<a href="/users/{{.}}">{{short .}}</a>{{end}}</td><td><code>{{.IP}}</code></td><td><code>{{.Detail}}</code></td></tr>{{end}}</table>
+{{end}}
