@@ -83,3 +83,7 @@ backend/deploy/**/.env
 backend/deploy/**/.env.*
 !backend/deploy/**/.env*.example
 backend/.local/
+
+# Google OAuth client downloads. Matched by pattern, never by name: the file
+# name is the client ID itself.
+client_secret_*.json
