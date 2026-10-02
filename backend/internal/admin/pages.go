@@ -67,6 +67,15 @@ type userView struct {
 	AdminEvents      []eventView
 	RevealedEmail    string
 	RevealedEmailID  string
+	Grants           []grantView
+	PrimaryMasked    string
+}
+
+type grantView struct {
+	ID, Reason, By string
+	Starts, Ends   time.Time
+	Revoked        *time.Time
+	Live           bool
 }
 
 type emailView struct {
@@ -85,13 +94,13 @@ type sessionView struct {
 }
 
 type purchaseView struct {
-	SKU, State    string
-	ValidUntil    *time.Time
-	AutoRenew     bool
-	Refunded      *time.Time
-	LastVerified  *time.Time
-	CheckFailures int
-	Created       time.Time
+	ID, SKU, State string
+	ValidUntil     *time.Time
+	AutoRenew      bool
+	Refunded       *time.Time
+	LastVerified   *time.Time
+	CheckFailures  int
+	Created        time.Time
 }
 
 type eventView struct {
@@ -172,14 +181,34 @@ func (s *Server) loadUserDetails(r *http.Request, u *userView) error {
 		return err
 	}
 	rows, err = s.Pool.Query(ctx, `
-		SELECT sku, state, valid_until, auto_renewing, refunded_at, last_verified_at, check_failures, created_at
+		SELECT id, sku, state, valid_until, auto_renewing, refunded_at, last_verified_at, check_failures, created_at
 		FROM bazaar_purchases WHERE user_id = $1 ORDER BY created_at DESC`, u.ID)
 	if err != nil {
 		return err
 	}
 	u.Purchases, err = pgx.CollectRows(rows, func(row pgx.CollectableRow) (purchaseView, error) {
 		var p purchaseView
-		return p, row.Scan(&p.SKU, &p.State, &p.ValidUntil, &p.AutoRenew, &p.Refunded, &p.LastVerified, &p.CheckFailures, &p.Created)
+		return p, row.Scan(&p.ID, &p.SKU, &p.State, &p.ValidUntil, &p.AutoRenew, &p.Refunded, &p.LastVerified, &p.CheckFailures, &p.Created)
+	})
+	if err != nil {
+		return err
+	}
+	for _, e := range u.Emails {
+		if e.Primary && e.Removed == nil {
+			u.PrimaryMasked = e.Masked
+		}
+	}
+	rows, err = s.Pool.Query(ctx, `
+		SELECT g.id, g.reason, COALESCE(a.name, '(removed admin)'), g.starts_at, g.ends_at, g.revoked_at,
+		       g.revoked_at IS NULL AND g.ends_at > now()
+		FROM premium_grants g LEFT JOIN admin_users a ON a.id = g.granted_by
+		WHERE g.user_id = $1 ORDER BY g.created_at DESC`, u.ID)
+	if err != nil {
+		return err
+	}
+	u.Grants, err = pgx.CollectRows(rows, func(row pgx.CollectableRow) (grantView, error) {
+		var g grantView
+		return g, row.Scan(&g.ID, &g.Reason, &g.By, &g.Starts, &g.Ends, &g.Revoked, &g.Live)
 	})
 	if err != nil {
 		return err

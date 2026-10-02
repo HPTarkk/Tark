@@ -37,3 +37,8 @@ td code { white-space: normal; }
 .bar b { font-size: 10px; font-weight: 500; }
 .h0 { height: 0; } .h1 { height: 10%; } .h2 { height: 20%; } .h3 { height: 30%; } .h4 { height: 40%; } .h5 { height: 50%; }
 .h6 { height: 60%; } .h7 { height: 70%; } .h8 { height: 80%; } .h9 { height: 90%; } .h10 { height: 100%; }
+.actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.actions form { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; }
+.actions h3 { margin: 0; font-size: 1rem; } .actions p { margin: 0; color: var(--muted); }
+.actions .danger { border-color: var(--bad); } .actions .danger button { background: var(--bad); border-color: var(--bad); }
+p.notice { border-left: 4px solid var(--accent); }

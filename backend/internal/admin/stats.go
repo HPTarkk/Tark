@@ -29,6 +29,7 @@ type Stats struct {
 	Refunded30  int
 	Suspicious  int
 	SubsEnded30 int
+	Grants      int // premium given by hand, running now
 
 	MailSent24   int
 	MailFailed24 int
@@ -80,8 +81,9 @@ func loadStats(ctx context.Context, q store.Querier) (*Stats, error) {
 		     AND valid_until BETWEEN now() AND now() + interval '7 days'),
 		  (SELECT count(*) FROM bazaar_purchases WHERE refunded_at > now() - interval '30 days'),
 		  (SELECT count(*) FROM subscription_accounts WHERE suspicious_since IS NOT NULL),
-		  (SELECT count(*) FROM bazaar_purchases WHERE state = 'expired' AND valid_until > now() - interval '30 days')`).
-		Scan(&st.Subscribers, &st.NewSubs30, &st.RenewOff, &st.Expiring7, &st.Refunded30, &st.Suspicious, &st.SubsEnded30); err != nil {
+		  (SELECT count(*) FROM bazaar_purchases WHERE state = 'expired' AND valid_until > now() - interval '30 days'),
+		  (SELECT count(DISTINCT user_id) FROM premium_grants WHERE revoked_at IS NULL AND starts_at <= now() AND ends_at > now())`).
+		Scan(&st.Subscribers, &st.NewSubs30, &st.RenewOff, &st.Expiring7, &st.Refunded30, &st.Suspicious, &st.SubsEnded30, &st.Grants); err != nil {
 		return nil, err
 	}
 	rows, err := q.Query(ctx, `

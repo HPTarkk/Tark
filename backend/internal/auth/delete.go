@@ -66,11 +66,20 @@ func (s *Service) DeleteAccount(ctx context.Context, p Principal, in DeleteAccou
 		}
 	}
 
-	locale := c.Locale
-	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+	if err := s.deleteNow(ctx, p.UserID, email, c.Locale); err != nil {
+		return err
+	}
+	s.audit.Record(ctx, audit.AccountDeleted, "", c.IP, nil)
+	return nil
+}
+
+// deleteNow removes the account in one transaction and queues the
+// confirmation email to its address.
+func (s *Service) deleteNow(ctx context.Context, userID, email, locale string) error {
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		// The row lock makes a concurrent sign-in, refresh or profile change
 		// wait, then find nothing.
-		tag, err := tx.Exec(ctx, `SELECT 1 FROM users WHERE id = $1 FOR UPDATE`, p.UserID)
+		tag, err := tx.Exec(ctx, `SELECT 1 FROM users WHERE id = $1 FOR UPDATE`, userID)
 		if err != nil {
 			return err
 		}
@@ -80,25 +89,40 @@ func (s *Service) DeleteAccount(ctx context.Context, p Principal, in DeleteAccou
 		if err := s.outbox.Enqueue(ctx, tx, mail.KindAccountDeleted, mail.AccountDeleted(locale, email), s.now().Add(24*time.Hour)); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `UPDATE audit_events SET user_id = NULL WHERE user_id = $1`, p.UserID); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE audit_events SET user_id = NULL WHERE user_id = $1`, userID); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `UPDATE admin_events SET target_user = NULL WHERE target_user = $1`, p.UserID); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE admin_events SET target_user = NULL WHERE target_user = $1`, userID); err != nil {
 			return err
 		}
 		// Replays of this account's writes could hold a signed entitlement.
-		if _, err := tx.Exec(ctx, `DELETE FROM idempotency_keys WHERE scope = $1`, "user:"+p.UserID); err != nil {
+		if _, err := tx.Exec(ctx, `DELETE FROM idempotency_keys WHERE scope = $1`, "user:"+userID); err != nil {
 			return err
 		}
 		// Everything else (emails, identities, sessions, refresh tokens,
 		// flows, purchases, subscription history) goes by ON DELETE CASCADE.
-		_, err = tx.Exec(ctx, `DELETE FROM users WHERE id = $1`, p.UserID)
+		_, err = tx.Exec(ctx, `DELETE FROM users WHERE id = $1`, userID)
 		return err
 	})
 	if err != nil {
 		return err
 	}
 	s.outbox.Nudge()
-	s.audit.Record(ctx, audit.AccountDeleted, "", c.IP, nil)
+	return nil
+}
+
+// DeleteByAdmin deletes an account at the person's written request, from
+// the admin panel. The admin panel checks who may do it and records it; the
+// person gets the same confirmation email as when they delete it themselves.
+func (s *Service) DeleteByAdmin(ctx context.Context, userID, locale string) error {
+	var email string
+	err := s.pool.QueryRow(ctx, `SELECT email FROM user_emails WHERE user_id = $1 AND is_primary AND removed_at IS NULL`, userID).Scan(&email)
+	if err != nil {
+		return err
+	}
+	if err := s.deleteNow(ctx, userID, email, locale); err != nil {
+		return err
+	}
+	s.audit.Record(ctx, audit.AccountDeleted, "", "", map[string]any{"by": "admin"})
 	return nil
 }

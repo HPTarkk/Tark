@@ -30,12 +30,28 @@ func (f *fakeMailer) Enqueue(_ context.Context, _ store.Querier, _ string, m mai
 }
 func (f *fakeMailer) Nudge() {}
 
+type fakeAccounts struct{ deleted []string }
+
+func (f *fakeAccounts) DeleteByAdmin(_ context.Context, userID, locale string) error {
+	f.deleted = append(f.deleted, userID+":"+locale)
+	return nil
+}
+
+type fakeBilling struct{ checked []string }
+
+func (f *fakeBilling) RecheckNow(_ context.Context, id string) (bool, error) {
+	f.checked = append(f.checked, id)
+	return true, nil
+}
+
 type env struct {
-	t      *testing.T
-	srv    *Server
-	ts     *httptest.Server
-	mailer *fakeMailer
-	deps   Deps
+	accounts *fakeAccounts
+	billing  *fakeBilling
+	t        *testing.T
+	srv      *Server
+	ts       *httptest.Server
+	mailer   *fakeMailer
+	deps     Deps
 }
 
 func setup(t *testing.T) *env {
@@ -64,7 +80,9 @@ func setup(t *testing.T) *env {
 		t.Fatal(err)
 	}
 	fm := &fakeMailer{}
+	fa, fb := &fakeAccounts{}, &fakeBilling{}
 	d := Deps{
+		Accounts: fa, Billing: fb,
 		Pool: pool, Passwords: pw, Lookup: lookup, Sealer: sealer, Limits: ratelimit.NewPG(pool, lookup), Mailer: fm,
 		AlertEmails: []string{"owner@example.com"}, ServerName: "api.test",
 		ClientIP: func(*http.Request) string { return "203.0.113.7" },
@@ -76,7 +94,7 @@ func setup(t *testing.T) *env {
 	}
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
-	return &env{t: t, srv: srv, ts: ts, mailer: fm, deps: d}
+	return &env{t: t, srv: srv, ts: ts, mailer: fm, deps: d, accounts: fa, billing: fb}
 }
 
 type browser struct {
@@ -363,5 +381,166 @@ func TestMaskEmail(t *testing.T) {
 		if got := maskEmail(in); got != want {
 			t.Errorf("%s: %s, want %s", in, got, want)
 		}
+	}
+}
+
+// owner returns a signed-in owner whose password change is done.
+func (e *env) owner(email string) *browser {
+	e.t.Helper()
+	temp, err := CreateAdmin(context.Background(), e.deps, email, "Owner", RoleOwner, "")
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	b := e.browser()
+	body, _ := b.signIn(email, temp, nil)
+	if code, _ := b.post("/account/password", url.Values{"csrf": {field(e.t, body, "csrf")}, "current": {temp},
+		"new": {"owner-passphrase-123"}, "again": {"owner-passphrase-123"}}); code != http.StatusOK {
+		e.t.Fatalf("password change: %d", code)
+	}
+	return b
+}
+
+func TestUserActions(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	const uid = "11111111-1111-1111-1111-111111111111"
+	const pid = "33333333-3333-3333-3333-333333333333"
+	for _, q := range []string{
+		`INSERT INTO users (id, name) VALUES ('` + uid + `', 'Rider')`,
+		`INSERT INTO user_emails (user_id, email, is_primary, verified_at) VALUES ('` + uid + `', 'rider@example.com', true, now())`,
+		`INSERT INTO sessions (user_id, expires_at) VALUES ('` + uid + `', now() + interval '1 day'), ('` + uid + `', now() + interval '1 day')`,
+		`INSERT INTO bazaar_purchases (id, user_id, token_hash, token_enc, sku, state) VALUES ('` + pid + `', '` + uid + `', '\x01', '\x01', 'tark_premium_1m', 'active')`,
+		`INSERT INTO subscription_accounts (user_id, suspicious_since) VALUES ('` + uid + `', now())`,
+	} {
+		if _, err := e.deps.Pool.Exec(ctx, q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	b := e.owner("boss@example.com")
+	page := "/users/" + uid
+	do := func(action string, form url.Values) string {
+		t.Helper()
+		_, body := b.get(page)
+		form.Set("csrf", field(t, body, "csrf"))
+		code, body := b.post(page+"/"+action, form)
+		if code != http.StatusOK {
+			t.Fatalf("%s: %d\n%s", action, code, body)
+		}
+		return body
+	}
+	count := func(sql string) int {
+		t.Helper()
+		var n int
+		if err := e.deps.Pool.QueryRow(ctx, sql).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+
+	// A reason is required.
+	_, body := b.get(page)
+	if code, _ := b.post(page+"/disable", url.Values{"csrf": {field(t, body, "csrf")}}); code != http.StatusBadRequest {
+		t.Fatalf("disable without reason: %d", code)
+	}
+	do("disable", url.Values{"reason": {"chargeback fraud"}})
+	if count(`SELECT count(*) FROM users WHERE status = 'disabled'`) != 1 || count(`SELECT count(*) FROM sessions WHERE revoked_at IS NULL`) != 0 {
+		t.Fatal("disable did not disable and sign out")
+	}
+	do("enable", url.Values{"reason": {"cleared"}})
+	if count(`SELECT count(*) FROM users WHERE status = 'active'`) != 1 {
+		t.Fatal("not enabled")
+	}
+	if _, err := e.deps.Pool.Exec(ctx, `INSERT INTO sessions (user_id, expires_at) VALUES ($1, now() + interval '1 day')`, uid); err != nil {
+		t.Fatal(err)
+	}
+	if body := do("signout", url.Values{}); !strings.Contains(body, "Signed out on 1 device") {
+		t.Fatalf("signout:\n%s", body)
+	}
+	do("recheck", url.Values{"purchase": {pid}})
+	if len(e.billing.checked) != 1 || e.billing.checked[0] != pid {
+		t.Fatalf("rechecked %v", e.billing.checked)
+	}
+	// Another account's purchase id is refused.
+	_, body = b.get(page)
+	if code, _ := b.post(page+"/recheck", url.Values{"csrf": {field(t, body, "csrf")}, "purchase": {"44444444-4444-4444-4444-444444444444"}}); code != http.StatusNotFound {
+		t.Fatalf("foreign purchase: %d", code)
+	}
+
+	if body := do("grant", url.Values{"months": {"3"}, "reason": {"beta tester"}}); !strings.Contains(body, "Premium given until") {
+		t.Fatalf("grant:\n%s", body)
+	}
+	if count(`SELECT count(*) FROM premium_grants WHERE revoked_at IS NULL AND ends_at > now() + interval '80 days'`) != 1 ||
+		count(`SELECT count(*) FROM subscription_events WHERE kind = 'premium_granted'`) != 1 {
+		t.Fatal("grant not stored and tracked")
+	}
+	var gid string
+	if err := e.deps.Pool.QueryRow(ctx, `SELECT id FROM premium_grants`).Scan(&gid); err != nil {
+		t.Fatal(err)
+	}
+	_, body = b.get(page)
+	if code, _ := b.post(page+"/grant", url.Values{"csrf": {field(t, body, "csrf")}, "months": {"24"}, "reason": {"too long"}}); code != http.StatusBadRequest {
+		t.Fatalf("24 months: %d", code)
+	}
+	do("revoke-grant", url.Values{"grant": {gid}, "reason": {"tester left"}})
+	if count(`SELECT count(*) FROM premium_grants WHERE revoked_at IS NOT NULL AND revoked_by IS NOT NULL`) != 1 {
+		t.Fatal("grant not revoked")
+	}
+	do("clear-suspicious", url.Values{"reason": {"Bazaar confirmed mistake"}})
+	if count(`SELECT count(*) FROM subscription_accounts WHERE suspicious_since IS NOT NULL`) != 0 {
+		t.Fatal("flag not cleared")
+	}
+
+	// Deleting needs the exact address.
+	_, body = b.get(page)
+	if code, _ := b.post(page+"/delete", url.Values{"csrf": {field(t, body, "csrf")}, "confirm": {"someone@example.com"}, "reason": {"request"}, "locale": {"fa"}}); code != http.StatusBadRequest {
+		t.Fatalf("wrong confirmation: %d", code)
+	}
+	if len(e.accounts.deleted) != 0 {
+		t.Fatal("deleted without confirmation")
+	}
+	do("delete", url.Values{"confirm": {"Rider@example.com"}, "reason": {"request by email"}, "locale": {"fa"}})
+	if len(e.accounts.deleted) != 1 || e.accounts.deleted[0] != uid+":fa" {
+		t.Fatalf("deleted %v", e.accounts.deleted)
+	}
+
+	var kinds string
+	if err := e.deps.Pool.QueryRow(ctx, `SELECT string_agg(kind, ',' ORDER BY id) FROM admin_events WHERE kind NOT LIKE 'admin.%' AND kind <> 'user.viewed'`).Scan(&kinds); err != nil {
+		t.Fatal(err)
+	}
+	want := "user.disabled,user.enabled,user.signed_out,purchase.rechecked,premium.granted,premium.revoked,subscription.suspicious_cleared,user.deleted"
+	if kinds != want {
+		t.Fatalf("recorded %s\nwant     %s", kinds, want)
+	}
+	if count(`SELECT count(*) FROM admin_events WHERE kind = 'user.deleted' AND target_user IS NULL AND details->>'reason' = 'request by email'`) != 1 {
+		t.Fatal("deletion record keeps a link to the account or lost its reason")
+	}
+}
+
+func TestSupportCannotDoOwnerActions(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	const uid = "11111111-1111-1111-1111-111111111111"
+	if _, err := e.deps.Pool.Exec(ctx, `INSERT INTO users (id, name) VALUES ($1, 'Rider')`, uid); err != nil {
+		t.Fatal(err)
+	}
+	owner := e.owner("boss@example.com")
+	_, body := owner.get("/admins")
+	_, body = owner.post("/admins", url.Values{"csrf": {field(t, body, "csrf")}, "name": {"Sup"}, "email": {"sup@example.com"}, "role": {"support"}})
+	temp := regexp.MustCompile(`<code class="key">([A-Za-z0-9_-]+)</code>`).FindStringSubmatch(body)[1]
+	sup := e.browser()
+	body, _ = sup.signIn("sup@example.com", temp, nil)
+	_, body = sup.post("/account/password", url.Values{"csrf": {field(t, body, "csrf")}, "current": {temp}, "new": {"support-passphrase-1"}, "again": {"support-passphrase-1"}})
+	_, body = sup.get("/users/" + uid)
+	if strings.Contains(body, "Give premium") || strings.Contains(body, "Delete account") {
+		t.Fatal("support sees owner actions")
+	}
+	csrf := field(t, body, "csrf")
+	for _, a := range []string{"grant", "revoke-grant", "clear-suspicious", "delete"} {
+		if code, _ := sup.post("/users/"+uid+"/"+a, url.Values{"csrf": {csrf}, "reason": {"try it"}, "months": {"1"}}); code != http.StatusForbidden {
+			t.Fatalf("support %s: %d", a, code)
+		}
+	}
+	if code, _ := sup.post("/users/"+uid+"/signout", url.Values{"csrf": {csrf}}); code != http.StatusOK {
+		t.Fatalf("support signout: %d", code)
 	}
 }

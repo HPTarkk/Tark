@@ -52,6 +52,8 @@ type Deps struct {
 	Sealer    *secure.Sealer
 	Limits    ratelimit.Limiter
 	Mailer    Mailer
+	Accounts  Accounts
+	Billing   Billing
 	// Notified of every admin sign-in, and receive the weekly summary.
 	AlertEmails []string
 	// ServerName labels emails, e.g. api.tarkk.ir.
@@ -140,6 +142,11 @@ func (s *Server) Handler() http.Handler {
 				r.Post("/users/{id}/reveal", s.reveal)
 				r.Get("/security", s.security)
 				r.Get("/mail", s.mailPage)
+				r.Post("/mail/retry", s.retryMail)
+				r.Post("/users/{id}/disable", s.act("user.disabled", true, s.disableUser))
+				r.Post("/users/{id}/enable", s.act("user.enabled", true, s.enableUser))
+				r.Post("/users/{id}/signout", s.act("user.signed_out", false, s.signOutUser))
+				r.Post("/users/{id}/recheck", s.act("purchase.rechecked", false, s.recheckPurchase))
 			})
 			r.Group(func(r chi.Router) {
 				r.Use(requireRole(RoleOwner))
@@ -148,6 +155,10 @@ func (s *Server) Handler() http.Handler {
 				r.Post("/admins/{id}/disable", s.setAdminDisabled(true))
 				r.Post("/admins/{id}/enable", s.setAdminDisabled(false))
 				r.Post("/admins/{id}/reset", s.resetAdmin)
+				r.Post("/users/{id}/clear-suspicious", s.act("subscription.suspicious_cleared", true, s.clearSuspicious))
+				r.Post("/users/{id}/grant", s.act("premium.granted", true, s.grantPremium))
+				r.Post("/users/{id}/revoke-grant", s.act("premium.revoked", true, s.revokeGrant))
+				r.Post("/users/{id}/delete", s.act("user.deleted", true, s.deleteUser))
 				r.Get("/backups", s.backups)
 				r.Get("/activity", s.activity)
 			})

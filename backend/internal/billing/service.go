@@ -267,6 +267,16 @@ func (s *Service) ask(ctx context.Context, sku, token string) (Subscription, err
 	return s.bazaar.Subscription(callCtx, sku, token)
 }
 
+// CompSKU marks an entitlement that comes from premium given in the admin
+// panel rather than from a Bazaar purchase.
+const CompSKU = "comp"
+
+// RecheckNow asks Bazaar about one purchase immediately (the admin panel's
+// "check with Bazaar now"). It reports whether Bazaar answered.
+func (s *Service) RecheckNow(ctx context.Context, purchaseID string) (bool, error) {
+	return s.recheck(ctx, purchaseID, "")
+}
+
 // recheck asks Bazaar about one purchase, then records the answer.
 func (s *Service) recheck(ctx context.Context, id, ip string) (bool, error) {
 	p, err := scanPurchase(s.pool.QueryRow(ctx, `SELECT `+purchaseColumns+` FROM bazaar_purchases WHERE id = $1`, id))
@@ -509,6 +519,20 @@ func (s *Service) issue(ctx context.Context, q querier, userID, installKey strin
 		ms := end.UnixMilli()
 		payload.Until = &ms
 		payload.AR = ar && state == "active"
+	}
+
+	// Premium given from the admin panel counts when it runs longer than any
+	// paid period (or there is none). It never renews by itself.
+	var grantEnd *time.Time
+	if err := q.QueryRow(ctx, `
+		SELECT max(ends_at) FROM premium_grants
+		WHERE user_id = $1 AND revoked_at IS NULL AND starts_at <= $2 AND ends_at > $2`, userID, now).Scan(&grantEnd); err != nil {
+		return "", err
+	}
+	if grantEnd != nil && (payload.St != "active" || payload.Until == nil || grantEnd.UnixMilli() > *payload.Until) {
+		ms := grantEnd.UnixMilli()
+		compSKU := CompSKU
+		payload.St, payload.SKU, payload.Until, payload.AR = "active", &compSKU, &ms, false
 	}
 	return s.signer.Sign(payload)
 }
