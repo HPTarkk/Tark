@@ -14,8 +14,8 @@
 
   First deploy:   .\deploy.ps1 -Server deploy@203.0.113.10 -Init
                   (creates .env.production on the server with fresh secrets,
-                  then stops so you can fill in the domain, Google, SMTP and
-                  Bazaar values:  ssh deploy@203.0.113.10 nano /opt/tark/.env.production)
+                  then stops so you can fill in the domain, SMTP and
+                  Bazaar values; the Google client id is already set:  ssh deploy@203.0.113.10 nano /opt/tark/.env.production)
   Every update:   .\deploy.ps1 -Server deploy@203.0.113.10
   Go back:        .\deploy.ps1 -Server deploy@203.0.113.10 -Rollback
 

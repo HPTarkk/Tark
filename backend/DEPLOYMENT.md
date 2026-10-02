@@ -39,7 +39,7 @@ and renews the HTTPS certificate by itself.
 # 1. First time: build, ship the image, create .env.production with fresh secrets
 .\backend\deploy\vps\deploy.ps1 -Server deploy@203.0.113.10 -Init
 
-# 2. Fill in the CHANGE_ME values (domain, Google client id, SMTP, Bazaar)
+# 2. Fill in the CHANGE_ME values (domain, SMTP, Bazaar; the Google client id is preset)
 ssh deploy@203.0.113.10 nano /opt/tark/.env.production
 
 # 3. Deploy (and every later update)
