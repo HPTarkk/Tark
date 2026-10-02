@@ -104,6 +104,24 @@ function Get-VersionAt([string]$Ref) {
 
 function Get-LineBranch([int]$Major, [int]$Minor) { "release/$Major.$Minor.0" }
 
+# The highest build number anything has ever shipped or been cut with: every
+# release tag (v* and the old tark-v*), every release line, and main. Stores
+# reject a build number that is not higher than the last one, and the in-app
+# update check compares build numbers, so a new release has to beat them all —
+# not just main, which can lag behind a line it was never merged back from.
+# (1.1.0 was first cut as +31, the same build as 1.0.21, exactly that way.)
+function Get-HighestBuildNumber {
+    $refs = @('origin/main', 'HEAD')
+    $refs += @(git tag -l 'v*' 'tark-v*')
+    $refs += @(git for-each-ref --format='%(refname:short)' 'refs/remotes/origin/release/')
+    $highest = 0
+    foreach ($ref in $refs) {
+        try { $code = (Get-VersionAt $ref).Code } catch { continue }
+        if ($code -gt $highest) { $highest = $code }
+    }
+    return $highest
+}
+
 # Rewrites the "version:" line and nothing else, keeping line endings intact.
 function Set-PubspecVersion([string]$Version) {
     $path = Join-Path $repoRoot 'pubspec.yaml'
@@ -231,6 +249,58 @@ function Sync-MainWithRelease([string]$Branch, [bool]$MergeBack) {
     }
 }
 
+# Creates the GitHub release for an already pushed tag, or replaces the APK on
+# one that exists, so it is safe to run twice. Returns the release URL.
+#
+# No --verify-tag: it needs gh 2.21+, and the tag is always pushed first anyway.
+function Publish-GitHubRelease([string]$Tag, [string]$Apk) {
+    Step 'Publishing the GitHub release'
+    if (-not (Test-Path $Apk)) { throw "$Apk not found — it is built by the release run" }
+    gh release view $Tag 2>&1 | Out-Null
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "  Release $Tag already exists — replacing $apkAssetName." -ForegroundColor DarkGray
+        Run 'gh' @('release', 'upload', $Tag, $Apk, '--clobber') 'gh release upload'
+    } else {
+        $code = (Get-VersionAt $Tag).Code
+        $notesFile = Write-TempUtf8 "$(Get-ReleaseNotes $Tag)`n`nversionCode $code."
+        try {
+            Run 'gh' @('release', 'create', $Tag, '--title', "Tark $($Tag.TrimStart('v'))", '--notes-file', $notesFile, $Apk) 'gh release create'
+        } finally {
+            Remove-Item $notesFile -Force -ErrorAction SilentlyContinue
+        }
+    }
+    # "gh release create" makes a draft, uploads, then publishes. An
+    # interrupted upload leaves a draft nobody else can see.
+    $isDraft = gh release view $Tag --json isDraft --jq .isDraft 2>$null
+    if ($isDraft -and $isDraft.Trim() -eq 'true') {
+        Run 'gh' @('release', 'edit', $Tag, '--draft=false') 'gh release edit'
+    }
+    $url = gh release view $Tag --json url --jq .url 2>$null
+    if ($url) { return $url.Trim() }
+}
+
+# Everything after the tag is pushed: the GitHub release, then main brought up
+# to the shipped version. Invoke-Release ends with it, and it is the resume
+# point when that end fails:
+#
+#   . .\scripts\release-common.ps1; Complete-Release v1.1.0
+function Complete-Release([Parameter(Mandatory)][string]$Tag) {
+    git fetch origin --tags --quiet
+    if (-not (Test-GitRef "refs/tags/$Tag")) { throw "tag $Tag does not exist — run the release script instead" }
+    $v = Get-VersionAt $Tag
+    $name = "$($v.Major).$($v.Minor).$($v.Patch)"
+    $branch = Get-LineBranch $v.Major $v.Minor
+    $apk = Join-Path $repoRoot "build\release\$name\$apkAssetName"
+    $url = Publish-GitHubRelease $Tag $apk
+
+    # Main carries the version it just shipped, unless this was an older
+    # line's hotfix.
+    $main = Get-VersionAt 'origin/main'
+    $mergeBack = ($v.Major -gt $main.Major) -or ($v.Major -eq $main.Major -and $v.Minor -ge $main.Minor)
+    Sync-MainWithRelease $branch $mergeBack
+    return $url
+}
+
 # ── The release ─────────────────────────────────────────────────────────────
 
 function Invoke-Release {
@@ -289,11 +359,7 @@ function Invoke-Release {
 
     $name = "$major.$minor.$patch"
     $tag = "v$name"
-    # Stores reject a re-used versionCode, and an older line's hotfix still has
-    # to outrank everything main has handed out.
-    $codes = @($main.Code, (Get-VersionAt 'HEAD').Code)
-    if (Test-GitRef "refs/remotes/origin/$branch") { $codes += (Get-VersionAt "origin/$branch").Code }
-    $code = [int]($codes | Measure-Object -Maximum).Maximum + 1
+    $code = (Get-HighestBuildNumber) + 1
     $version = "$name+$code"
 
     Write-Host ''
@@ -388,29 +454,21 @@ function Invoke-Release {
         throw
     }
 
-    Step 'Publishing the GitHub release'
-    $notesFile = Write-TempUtf8 "$(Get-ReleaseNotes $tag)`n`nversionCode $code."
+    # 7-8. The release is public from here on, so nothing is rewound. A failure
+    # says how to finish instead of leaving half a release to piece together.
     try {
-        Run 'gh' @('release', 'create', $tag, '--title', "Tark $name", '--notes-file', $notesFile, '--verify-tag', $apk) 'gh release create'
-    } finally {
-        Remove-Item $notesFile -Force -ErrorAction SilentlyContinue
+        $url = Complete-Release $tag
+    } catch {
+        Write-Host ''
+        Write-Host "  $tag is tagged and pushed, but the rest did not finish: $_" -ForegroundColor Red
+        Write-Host '  Fix the cause, then finish it without rebuilding:' -ForegroundColor Red
+        Write-Host "    . .\scripts\release-common.ps1; Complete-Release $tag" -ForegroundColor Yellow
+        throw
     }
-    # "gh release create" makes a draft, uploads, then publishes. An
-    # interrupted upload leaves a draft nobody else can see.
-    $isDraft = gh release view $tag --json isDraft --jq .isDraft 2>$null
-    if ($isDraft -and $isDraft.Trim() -eq 'true') {
-        Run 'gh' @('release', 'edit', $tag, '--draft=false') 'gh release edit'
-    }
-    $url = gh release view $tag --json url --jq .url 2>$null
-
-    # 8. Main carries the version it just shipped, unless this was an older
-    # line's hotfix.
-    $mergeBack = ($major -gt $main.Major) -or ($major -eq $main.Major -and $minor -ge $main.Minor)
-    Sync-MainWithRelease $branch $mergeBack
 
     Write-Host ''
     Write-Host "  Tark $version released." -ForegroundColor Green
-    if ($url) { Write-Host "  GitHub:      $($url.Trim())" -ForegroundColor Cyan }
+    if ($url) { Write-Host "  GitHub:      $url" -ForegroundColor Cyan }
     Write-Host "  Bazaar:      upload $aab  $(Show-Size $aab)  with $binDir"
     Write-Host "  ArvanCloud:  upload $apk  $(Show-Size $apk)"
     Write-Host "  Update feed: once Bazaar has published it, bump website\update.json"
