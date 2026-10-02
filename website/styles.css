@@ -2500,3 +2500,46 @@ a.legal-row-name:hover { color: var(--amber); border-bottom-color: var(--amber);
      against a border. */
   .legal-sec { scroll-margin-top: calc(140px + env(safe-area-inset-top, 0px)); }
 }
+
+/* ── Call to action inside a legal page ─────────────────────────────── */
+
+/* The one button on the account-deletion page: the prefilled request
+   email. Rendered from a "button" block by build-legal-pages.mjs. */
+.legal-sec .legal-action { margin-top: 22px; }
+.legal-action .btn { font-size: .8rem; }
+[dir="rtl"] .legal-action .btn { letter-spacing: 0; }
+
+/* ── Email-link fallback (/v/) ──────────────────────────────────────── */
+
+/* A static page with no scripts (see website/v/index.html), so nothing
+   here may depend on app.js: no .reveal, no nav. Both languages are on
+   the page, Persian first. */
+.vlink-main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: calc(48px + env(safe-area-inset-top, 0px))
+           calc(16px + env(safe-area-inset-right, 0px))
+           calc(56px + env(safe-area-inset-bottom, 0px))
+           calc(16px + env(safe-area-inset-left, 0px));
+}
+
+.vlink-main > .wordmark { margin-bottom: 32px; }
+
+.vlink-card {
+  margin-top: 20px;
+  padding: 26px 24px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.vlink-card h1 { font-size: clamp(1.25rem, 4.6vw, 1.6rem); font-weight: 800; }
+.vlink-card p { color: var(--text-sec); line-height: 1.75; margin-top: 14px; }
+.vlink-card p b { color: var(--text); }
+.vlink-card .eyebrow { margin: 0 0 12px; }
+[dir="rtl"] .vlink-card .eyebrow { letter-spacing: .06em; }
+.vlink-card .vlink-note { font-size: .82rem; }
+
+.vlink-links { margin-top: 26px; text-align: center; font-size: .85rem; }
+.vlink-links a { color: var(--amber); border-bottom: 1px solid transparent; }
+.vlink-links a:hover { border-bottom-color: var(--amber); }

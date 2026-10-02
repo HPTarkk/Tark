@@ -6,3 +6,20 @@
 /update.json
   Cache-Control: no-cache, no-store, must-revalidate
   Access-Control-Allow-Origin: *
+
+# Android App Links verification. Google fetches this file directly and
+# requires JSON with no redirect; say the type explicitly rather than rely
+# on the extension mapping.
+/.well-known/assetlinks.json
+  Content-Type: application/json
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=3600
+
+# The account-email fallback page (see _redirects and v/index.html). The
+# token is in the URL fragment; these make sure nothing on the page could
+# pass it on, and keep the page out of search results.
+/v/*
+  X-Robots-Tag: noindex, nofollow
+  Referrer-Policy: no-referrer
+  Content-Security-Policy: default-src 'none'; style-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+  Cache-Control: no-cache

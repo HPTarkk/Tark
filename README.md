@@ -158,6 +158,8 @@ node scripts/build-website-i18n.mjs           # regenerate website/fa/index.html
 node scripts/build-website-i18n.mjs --check    # verify it's current; exits 1 if not
 ```
 
+Account-email links (`https://tarkk.ir/v/<register|reset|email>#<token>`) open the app through Android App Links, verified by `website/.well-known/assetlinks.json`, which lists the release signing key's SHA-256 (`keytool -list -v -keystore <release keystore>`). Without the app they land on `website/v/index.html`, served at all three paths by `website/_redirects`: a static, script-free, `noindex` page that never reads or sends the fragment.
+
 ---
 
 ## Audio pipeline
@@ -255,7 +257,7 @@ ios/Runner/, ios/TarkWidget/      — Swift equivalents + WidgetKit extension
 
 ## Privacy
 
-Conversations never leave the local link — phone to phone over Wi-Fi, Bluetooth, or a hosted hotspot, no server in the path. The app sends no analytics or usage stats anywhere. The only things it fetches are two static files from tarkk.ir — the legal-document manifest and the update feed — and it sends nothing with them. The diagnostic log (connections, audio health, and at a higher log level the screens visited, taps and settings changes) stays on the phone and only leaves it when you export it from Settings → Advanced → Diagnostics.
+Conversations never leave the local link — phone to phone over Wi-Fi, Bluetooth, or a hosted hotspot, no server in the path. Voice, presence and channel content never reach any server, the account server included. The app sends no analytics or usage stats anywhere. Without an account, the only things it fetches are two static files from tarkk.ir — the legal-document manifest and the update feed — and it sends nothing with them. Accounts are optional and exist only for subscriptions (Cafe Bazaar); what the account server keeps is listed in the [privacy policy](https://tarkk.ir/privacy.html), and accounts can be deleted in the app or via [tarkk.ir/delete-account.html](https://tarkk.ir/delete-account.html). The diagnostic log (connections, audio health, and at a higher log level the screens visited, taps and settings changes) stays on the phone and only leaves it when you export it from Settings → Advanced → Diagnostics.
 
 ---
 
@@ -273,6 +275,7 @@ there is no shape in which one language has a section the other does not.
 | `website/fa/privacy.html`, `website/fa/terms.html` | the Persian pages |
 | `website/legal/index.json` | the version manifest the app polls |
 | `assets/legal/*.json` | the same bytes, bundled into the APK |
+| `website/delete-account.html`, `website/fa/delete-account.html` | the account-deletion page, from `website/legal/delete-account.json` — a web page only: not in the manifest, not bundled, never a consent gate |
 
 ```bash
 node scripts/build-legal-pages.mjs           # rebuild everything

@@ -5,6 +5,11 @@
 //   both               → website/legal/index.json   (the version manifest)
 //   both               → assets/legal/*.json        (the app's bundled copy)
 //
+//   legal/delete-account.json → website/delete-account.html + website/fa/…
+//     A page, not a consent document: rendered with the same template, but
+//     left out of the manifest and the app's assets, so the app never asks
+//     anyone to accept it. See PAGES below.
+//
 //   node scripts/build-legal-pages.mjs
 //   node scripts/build-legal-pages.mjs --check   (CI: verify, write nothing)
 //
@@ -46,7 +51,13 @@ const LEGAL = join(SITE, 'legal');
 const APP_ASSETS = join(ROOT, 'assets', 'legal');
 
 const ORIGIN = 'https://tarkk.ir';
+/** Documents the app asks people to accept: versioned, in the manifest,
+ *  bundled into the APK. */
 const DOCS = ['privacy', 'terms'];
+/** Web-only pages rendered from the same kind of JSON with the same
+ *  template. Not in the manifest, not in the app's assets, never a consent
+ *  gate — so they may also use the web-only block types (see renderBlock). */
+const PAGES = ['delete-account'];
 const LANGS = ['en', 'fa'];
 
 /** Shared with the landing page: one social image for the whole site. */
@@ -80,6 +91,7 @@ const UI = {
   },
   privacy: { en: 'Privacy', fa: 'حریم خصوصی' },
   terms: { en: 'Terms', fa: 'شرایط' },
+  deleteAccount: { en: 'Delete account', fa: 'پاک کردن حساب' },
   toEnglish: { label: 'English', aria: 'View in English' },
   toPersian: { label: 'فارسی', aria: 'نمایش به فارسی' },
 };
@@ -113,6 +125,18 @@ const esc = (s) =>
 
 /** Escapes text for a double-quoted attribute value. */
 const attr = (s) => esc(s).replace(/"/g, '&quot;');
+
+/**
+ * A link written as an absolute tarkk.ir page URL — which is what the app
+ * needs, since it has no site to resolve a relative one against — points
+ * the Persian page at the Persian copy instead of bouncing through the
+ * English one.
+ */
+function localHref(href, lang) {
+  if (lang !== 'fa' || !href.startsWith(`${ORIGIN}/`)) return href;
+  const path = href.slice(ORIGIN.length);
+  return path.startsWith('/fa/') ? href : `${ORIGIN}/fa${path}`;
+}
 
 // ── Blocks ───────────────────────────────────────────────────────────
 
@@ -148,9 +172,9 @@ function renderBlock(block, lang, where) {
           // A row is titled either by a link (a brand, an address — the same
           // string in both languages) or by a translated label.
           const name = item.href
-            ? `<a class="legal-row-name" href="${attr(item.href)}"` +
+            ? `<a class="legal-row-name" href="${attr(localHref(item.href, lang))}"` +
               (item.external ? ' rel="noopener" target="_blank"' : '') +
-              `>${esc(item.name)}</a>`
+              `>${esc(t(item.name, lang, `${where} row name`))}</a>`
             : `<b>${esc(t(item.name, lang, `${where} row name`))}</b>`;
           return [
             '          <div class="legal-row">',
@@ -160,6 +184,19 @@ function renderBlock(block, lang, where) {
           ].join('\n');
         }),
         '        </div>',
+      ].join('\n');
+
+    // Web-only: a call to action, such as the prefilled deletion-request
+    // email. The href may differ per language (a translated subject line).
+    // The app has no renderer for it, so validate() keeps it out of the
+    // consent documents.
+    case 'button':
+      return [
+        '        <p class="legal-action">',
+        `          <a class="btn btn-primary" href="${attr(t(block.href, lang, `${where} href`))}">${esc(
+          t(block.label, lang, `${where} label`)
+        )}</a>`,
+        '        </p>',
       ].join('\n');
 
     default:
@@ -403,6 +440,7 @@ ${FOOTER.map(
 ).join('\n')}
       <a href="privacy.html">${esc(UI.privacy[lang])}</a>
       <a href="terms.html">${esc(UI.terms[lang])}</a>
+      <a href="delete-account.html">${esc(UI.deleteAccount[lang])}</a>
     </div>
     <p>${esc(UI.tagline[lang])}</p>
   </footer>
@@ -430,9 +468,34 @@ function renderDocument(doc, lang) {
  * cost of a bad legal page is not a broken layout, it is a claim nobody
  * checked, so these are refusals rather than warnings.
  */
-function validate(doc) {
+function validate(doc, { consent }) {
   const where = `legal/${doc.id}.json`;
   if (doc.schema !== 1) fail(`${where}: unknown schema ${doc.schema}`);
+  if (consent) validateVersions(doc, where);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(doc.effectiveDate)) {
+    fail(`${where}: effectiveDate must be YYYY-MM-DD`);
+  }
+  if (!doc.sections?.length) fail(`${where}: no sections`);
+
+  const ids = new Set();
+  for (const sec of doc.sections) {
+    if (!sec.id) fail(`${where}: a section has no id`);
+    if (ids.has(sec.id)) fail(`${where}: duplicate section id "${sec.id}"`);
+    ids.add(sec.id);
+    if (!sec.blocks?.length) fail(`${where}: section "${sec.id}" has no blocks`);
+    if (consent && sec.blocks.some((b) => b.type === 'button')) {
+      fail(`${where}: section "${sec.id}" uses a "button" block, which the app cannot show`);
+    }
+  }
+
+  // Both languages, everywhere. t() enforces this while rendering; doing it
+  // here as well means the failure names the document rather than whichever
+  // page happened to be rendered first.
+  for (const lang of LANGS) renderBody(doc, lang);
+}
+
+/** The two integers the app's consent gate runs on. */
+function validateVersions(doc, where) {
   if (!Number.isInteger(doc.version) || doc.version < 1) {
     fail(`${where}: version must be a positive integer`);
   }
@@ -446,23 +509,6 @@ function validate(doc) {
         `got ${doc.minAcceptedVersion}`
     );
   }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(doc.effectiveDate)) {
-    fail(`${where}: effectiveDate must be YYYY-MM-DD`);
-  }
-  if (!doc.sections?.length) fail(`${where}: no sections`);
-
-  const ids = new Set();
-  for (const sec of doc.sections) {
-    if (!sec.id) fail(`${where}: a section has no id`);
-    if (ids.has(sec.id)) fail(`${where}: duplicate section id "${sec.id}"`);
-    ids.add(sec.id);
-    if (!sec.blocks?.length) fail(`${where}: section "${sec.id}" has no blocks`);
-  }
-
-  // Both languages, everywhere. t() enforces this while rendering; doing it
-  // here as well means the failure names the document rather than whichever
-  // page happened to be rendered first.
-  for (const lang of LANGS) renderBody(doc, lang);
 }
 
 // ── Build ────────────────────────────────────────────────────────────
@@ -513,7 +559,8 @@ const manifest = {
   documents: [],
 };
 
-for (const id of DOCS) {
+/** Reads, checks and renders one source file into its two pages. */
+async function renderPages(id, consent) {
   const raw = await readFile(join(LEGAL, `${id}.json`), 'utf8');
   let doc;
   try {
@@ -522,12 +569,22 @@ for (const id of DOCS) {
     fail(`legal/${id}.json is not valid JSON: ${e.message}`);
   }
   if (doc.id !== id) fail(`legal/${id}.json declares id "${doc.id}"`);
-  validate(doc);
+  validate(doc, { consent });
 
   for (const lang of LANGS) {
     const out = renderDocument(doc, lang);
     await emit(lang === 'fa' ? `fa/${id}.html` : `${id}.html`, out);
   }
+  return { doc, raw };
+}
+
+for (const id of PAGES) {
+  const { doc } = await renderPages(id, false);
+  if (!check) console.log(`${id}: web page, ${doc.sections.length} sections → 2 pages`);
+}
+
+for (const id of DOCS) {
+  const { doc, raw } = await renderPages(id, true);
 
   manifest.documents.push({
     id: doc.id,

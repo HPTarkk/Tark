@@ -46,14 +46,14 @@ const FA_URL = `${ORIGIN}/fa/`;
 const FA = {
   title: 'تَرک — بیسیم بدون اینترنت برای حرف زدن با اطرافیان',
   description:
-    'تَرک گوشی‌های نزدیک رو مستقیم با وای‌فای یا بلوتوث به هم وصل می‌کنه تا بدون اینترنت و بدون حساب کاربری با هم حرف بزنید.',
+    'تَرک گوشی‌های نزدیک رو مستقیم با وای‌فای یا بلوتوث به هم وصل می‌کنه تا بدون اینترنت با هم حرف بزنید؛ صداتون هیچ‌وقت به هیچ سروری نمی‌رسه.',
   twitterDescription:
-    'با وای‌فای یا بلوتوث با آدمای نزدیکت حرف بزن. بدون اینترنت، بدون حساب کاربری، بدون ذخیره شدن.',
+    'با وای‌فای یا بلوتوث با آدمای نزدیکت حرف بزن. بدون اینترنت، بدون ضبط شدن، با بلوتوث رایگان.',
   imageAlt: 'تَرک — فوری حرف بزنید، بدون آنتن و بدون اینترنت.',
   siteDescription:
-    'اپلیکیشن بیسیم که گوشی‌های نزدیک رو با وای‌فای یا بلوتوث به هم وصل می‌کنه، بدون اینترنت و بدون حساب کاربری.',
+    'اپلیکیشن بیسیم که گوشی‌های نزدیک رو با وای‌فای یا بلوتوث به هم وصل می‌کنه، بدون نیاز به اینترنت.',
   appDescription:
-    'تَرک یه اپلیکیشن بیسیمه که گوشی‌های نزدیک رو مستقیم با وای‌فای یا بلوتوث به هم وصل می‌کنه. نه اینترنت می‌خواد، نه حساب کاربری، و هیچی از حرفاتون ذخیره یا آپلود نمی‌شه.',
+    'تَرک یه اپلیکیشن بیسیمه که گوشی‌های نزدیک رو مستقیم با وای‌فای یا بلوتوث به هم وصل می‌کنه. اینترنت نمی‌خواد، و هیچی از حرفاتون ذخیره یا آپلود نمی‌شه.',
   featureList: [
     'حرف زدن با دکمه فشاری روی وای‌فای دایرکت یا بلوتوث',
     'کار کردن بدون آنتن و بدون اینترنت',
@@ -263,7 +263,7 @@ function localizeChrome(html, jsonLdBlock) {
     // The description and og:description share one string in the source, so
     // both matches are replaced.
     [
-      /content="Tarkk is a walkie-talkie app that connects you directly to people nearby using WiFi or Bluetooth\. No internet or accounts required\."/g,
+      /content="Tarkk is a walkie-talkie app that connects you directly to people nearby using WiFi or Bluetooth\. No internet needed, and your voice never touches a server\."/g,
       `content="${FA.description}"`,
     ],
     [
