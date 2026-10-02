@@ -172,6 +172,7 @@ func (o *Outbox) finish(ctx context.Context, id string, sent bool) {
 
 // Sweep removes delivered or abandoned rows after a while.
 func Sweep(ctx context.Context, db store.Querier, olderThan time.Duration) error {
-	_, err := db.Exec(ctx, `DELETE FROM mail_outbox WHERE (sent_at IS NOT NULL OR failed_at IS NOT NULL) AND created_at < now() - $1::interval`, olderThan)
-	return err
+	return store.Sweep(ctx, db, store.SweepRule{
+		Table: "mail_outbox", Where: `(sent_at IS NOT NULL OR failed_at IS NOT NULL) AND created_at < now() - $1::interval`,
+		Args: []any{olderThan}})
 }

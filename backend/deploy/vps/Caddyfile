@@ -1,0 +1,24 @@
+# Caddy terminates TLS (certificates from Let's Encrypt, renewed automatically)
+# and forwards to the API. Point your domain's DNS A/AAAA record at this server
+# before the first start: Caddy needs it to obtain the certificate.
+{$TARK_DOMAIN} {
+	encode zstd gzip
+
+	reverse_proxy api:8080 {
+		health_uri /healthz
+		health_interval 10s
+		# Caddy sets X-Forwarded-For to the real client address itself.
+	}
+
+	# Behind a CDN such as ArvanCloud instead of facing the internet directly?
+	# Tell Caddy to believe the CDN's forwarding header, and add the CDN's ranges
+	# to TARK_TRUSTED_PROXIES in docker-compose.prod.yml as well (see README.md,
+	# "Deploying on ArvanCloud"):
+	#
+	# {
+	#	servers {
+	#		trusted_proxies static <ArvanCloud ranges>
+	#		client_ip_headers ar-real-ip
+	#	}
+	# }
+}

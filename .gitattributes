@@ -1,0 +1,4 @@
+# Shell scripts and server config run on Linux: keep LF even when checked out on Windows.
+backend/deploy/**/*.sh       text eol=lf
+backend/deploy/**/Caddyfile  text eol=lf
+backend/deploy/**/*.yml      text eol=lf

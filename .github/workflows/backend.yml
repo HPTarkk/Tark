@@ -31,7 +31,7 @@ jobs:
           POSTGRES_DB: tark_test
         ports: ["5432:5432"]
         options: >-
-          --health-cmd "pg_isready -U tark" --health-interval 5s --health-timeout 5s --health-retries 10
+          --health-cmd "pg_isready -U tark -d tark_test" --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -42,7 +42,20 @@ jobs:
         run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
       - name: vet
         run: go vet ./...
+      - name: modules are untampered
+        run: go mod verify
       - name: test
         env:
           TARK_TEST_DATABASE_URL: postgres://tark:tark@localhost:5432/tark_test?sslmode=disable
         run: go test -race -p 1 -count=1 ./...
+      - name: known vulnerabilities (govulncheck)
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest -show verbose ./...
+
+  docker:
+    name: image-builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: build the image
+        run: docker build -t tarkd:ci backend

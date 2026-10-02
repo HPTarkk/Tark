@@ -32,18 +32,22 @@ func (s *Service) Login(ctx context.Context, rawEmail, pw string, c Client) (Sig
 	if err := s.limits.Hit(ctx, limitLoginIP, c.IP); err != nil {
 		return SignedIn{}, err
 	}
-	// Failure counters are checked before the password, so a locked-out
-	// address costs no hashing at all.
+	// The attempt is counted before the password is checked, atomically in the
+	// database, and given back if it turns out not to be a failure. Checking
+	// first and counting afterwards would let a burst of parallel guesses all
+	// pass the check before any of them was counted. A locked-out address
+	// costs no hashing at all.
 	emailIP := email + "|" + c.IP
-	for _, rule := range []struct {
-		r       ratelimit.Rule
-		subject string
-	}{{limitLoginEmailIP, emailIP}, {limitLoginEmail, email}} {
-		if err := s.limits.Peek(ctx, rule.r, rule.subject); err != nil {
-			s.audit.Record(ctx, audit.LoginThrottled, "", c.IP, nil)
-			return SignedIn{}, err
-		}
+	if err := s.reserveLoginAttempt(ctx, email, emailIP); err != nil {
+		s.audit.Record(ctx, audit.LoginThrottled, "", c.IP, nil)
+		return SignedIn{}, err
 	}
+	failed := false
+	defer func() {
+		if !failed {
+			s.refundLoginAttempt(ctx, email, emailIP)
+		}
+	}()
 
 	var userID, status, hash string
 	err = s.pool.QueryRow(ctx, `
@@ -57,11 +61,13 @@ func (s *Service) Login(ctx context.Context, rawEmail, pw string, c Client) (Sig
 	}
 	if userID == "" {
 		s.pw.VerifyDummy(ctx, pw)
-		return SignedIn{}, s.loginFailed(ctx, email, emailIP, "", c.IP)
+		failed = true
+		return SignedIn{}, s.loginFailed(ctx, "", c.IP)
 	}
 	needsRehash, err := s.pw.Verify(ctx, pw, hash)
 	if errors.Is(err, password.ErrMismatch) {
-		return SignedIn{}, s.loginFailed(ctx, email, emailIP, userID, c.IP)
+		failed = true
+		return SignedIn{}, s.loginFailed(ctx, userID, c.IP)
 	}
 	if err != nil {
 		return SignedIn{}, err
@@ -87,21 +93,49 @@ func (s *Service) Login(ctx context.Context, rawEmail, pw string, c Client) (Sig
 	if err != nil {
 		return SignedIn{}, err
 	}
+	// The right password: this person's own failed tries no longer count.
 	_ = s.limits.Reset(ctx, limitLoginEmailIP, emailIP)
 	s.audit.Record(ctx, audit.LoginSucceeded, userID, c.IP, map[string]any{"method": "password"})
 	return out, nil
 }
 
-func (s *Service) loginFailed(ctx context.Context, email, emailIP, userID, ip string) error {
-	s.audit.Record(ctx, audit.LoginFailed, userID, ip, map[string]any{"known": userID != ""})
-	for _, hit := range []struct {
+// loginRules are the failure counters shared by password sign-in and the
+// Google link step, so the link step is not a side door for guessing.
+func loginRules(email, emailIP string) []struct {
+	r       ratelimit.Rule
+	subject string
+} {
+	return []struct {
 		r       ratelimit.Rule
 		subject string
-	}{{limitLoginEmailIP, emailIP}, {limitLoginEmail, email}} {
-		if err := s.limits.Hit(ctx, hit.r, hit.subject); err != nil {
+	}{{limitLoginEmailIP, emailIP}, {limitLoginEmail, email}}
+}
+
+// reserveLoginAttempt counts one attempt against both failure counters and
+// refuses it when either is over its limit.
+func (s *Service) reserveLoginAttempt(ctx context.Context, email, emailIP string) error {
+	for _, rule := range loginRules(email, emailIP) {
+		if err := s.limits.Hit(ctx, rule.r, rule.subject); err != nil {
 			return err
 		}
 	}
+	return nil
+}
+
+// refundLoginAttempt gives back an attempt that was not a wrong guess (the
+// password was right, or the request failed for another reason).
+func (s *Service) refundLoginAttempt(ctx context.Context, email, emailIP string) {
+	for _, rule := range loginRules(email, emailIP) {
+		if err := s.limits.Refund(ctx, rule.r, rule.subject); err != nil {
+			s.log.WarnContext(ctx, "login counter refund failed", "err", err)
+		}
+	}
+}
+
+// loginFailed records a wrong password. The attempt was already counted by
+// reserveLoginAttempt.
+func (s *Service) loginFailed(ctx context.Context, userID, ip string) error {
+	s.audit.Record(ctx, audit.LoginFailed, userID, ip, map[string]any{"known": userID != ""})
 	return errInvalidCredentials
 }
 

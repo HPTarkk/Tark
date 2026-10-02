@@ -80,14 +80,22 @@ type env struct {
 
 func key(b byte) []byte { return bytes.Repeat([]byte{b}, 32) }
 
-func setup(t *testing.T) *env {
+func setup(t *testing.T) *env { t.Helper(); return setupPools(t, 10, 4) }
+
+// setupPools wires the app the way tarkd does: a main pool for requests and
+// a small auxiliary pool for audit and rate-limit writes.
+func setupPools(t *testing.T, mainConns, auxConns int32) *env {
 	t.Helper()
 	url := os.Getenv("TARK_TEST_DATABASE_URL")
 	if url == "" {
 		t.Skip("TARK_TEST_DATABASE_URL not set")
 	}
 	ctx := context.Background()
-	pool, err := store.Open(ctx, url, 10)
+	pool, err := store.Open(ctx, url, mainConns)
+	if err != nil {
+		t.Fatal(err)
+	}
+	aux, err := store.Open(ctx, url, auxConns)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +124,7 @@ func setup(t *testing.T) *env {
 	bz := &billing.FakeBazaar{}
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	params := password.Params{MemoryKiB: 8 * 1024, Iterations: 1, Parallelism: 1}
-	a, err := app.Build(cfg, pool, log, app.Options{Sender: sender, Bazaar: bz, PasswordParams: &params})
+	a, err := app.Build(cfg, pool, log, app.Options{Sender: sender, Bazaar: bz, PasswordParams: &params, AuxPool: aux})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,6 +136,7 @@ func setup(t *testing.T) *env {
 		srv.Close()
 		g.Server.Close()
 		pool.Close()
+		aux.Close()
 	})
 	return e
 }
@@ -768,5 +777,125 @@ func TestGoogleOnlyAccountDeletion(t *testing.T) {
 	q.signedIn(r)
 	if r.body["newAccount"] != true {
 		t.Fatalf("%v", r.body)
+	}
+}
+
+// Audit and rate-limit writes happen while a request holds a transaction
+// connection. On a shared pool, as many concurrent requests as there are
+// connections each wait for a second one and none ever gets it (measured
+// before the auxiliary pool existed: 40 of 40 requests hung on a pool of 4).
+func TestSmallPoolDoesNotDeadlock(t *testing.T) {
+	e := setupPools(t, 4, 2)
+	const n = 40
+	flows := make([]string, n)
+	for i := range flows {
+		r := e.phone().do("POST", "/v1/auth/register", map[string]any{
+			"email": fmt.Sprintf("pool%d@example.com", i), "password": "a good passphrase", "name": "P"})
+		expect(t, r, http.StatusAccepted, "")
+		flows[i] = r.str("flowId")
+	}
+	var wg sync.WaitGroup
+	statuses := make([]int, n)
+	for i := range flows {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			body, _ := json.Marshal(map[string]any{"flowId": flows[i], "code": "000000"})
+			req, _ := http.NewRequest("POST", e.srv.URL+"/v1/auth/register/verify", bytes.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("X-Forwarded-For", fmt.Sprintf("10.8.%d.%d", i/200, i%200+1))
+			res, err := (&http.Client{Timeout: 10 * time.Second}).Do(req)
+			if err != nil {
+				statuses[i] = -1
+				return
+			}
+			res.Body.Close()
+			statuses[i] = res.StatusCode
+		}()
+	}
+	wg.Wait()
+	for i, st := range statuses {
+		if st != http.StatusUnprocessableEntity && st != http.StatusLocked {
+			t.Fatalf("request %d got %d; a wrong code must be answered, not hang", i, st)
+		}
+	}
+}
+
+// Bazaar can take seconds to answer. No database connection or row lock may
+// be held meanwhile, or a slow Bazaar starves the pool for everyone.
+func TestNoDatabaseConnectionHeldWhileAskingBazaar(t *testing.T) {
+	e := setup(t)
+	p := e.phone()
+	p.register("bazaar-pool@example.com", "a good passphrase", "B")
+
+	var held []int32
+	e.bazaar.OnCall = func() { held = append(held, e.pool.Stat().AcquiredConns()) }
+
+	r := p.do("POST", "/v1/subscription/bazaar/purchases", map[string]any{"sku": "tark_premium_1m", "purchaseToken": "tok-pool-1"},
+		"Idempotency-Key", "6f1c1e0e-5a58-4f5e-9d63-0a4b6a2f9c01")
+	expect(t, r, http.StatusOK, "")
+
+	// Make the purchase stale so GET /subscription asks Bazaar again.
+	if _, err := e.pool.Exec(context.Background(), `UPDATE bazaar_purchases SET last_checked_at = now() - interval '7 hours'`); err != nil {
+		t.Fatal(err)
+	}
+	expect(t, p.do("GET", "/v1/subscription", nil), http.StatusOK, "")
+
+	if len(held) < 2 {
+		t.Fatalf("expected Bazaar to be asked by submit and by the stale re-check, got %d calls", len(held))
+	}
+	for i, n := range held {
+		// The request's own authentication check has returned its connection
+		// by now; nothing may be acquired.
+		if n != 0 {
+			t.Errorf("call %d: %d database connection(s) held while Bazaar was being asked", i, n)
+		}
+	}
+}
+
+// Parallel guesses must be counted atomically: with a check-then-count lockout
+// every request in a burst passes the check before any is counted. The
+// per-address limit is 20 an hour, however many IPs the guesses come from.
+func TestParallelGuessesAreCountedAtomically(t *testing.T) {
+	e := setup(t)
+	e.phone().register("burst@example.com", "a good passphrase", "B")
+
+	const n = 60
+	var wg sync.WaitGroup
+	var wrong, limited atomic.Int64
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			r := e.phone().do("POST", "/v1/auth/login", map[string]any{"email": "burst@example.com", "password": "not the password"})
+			switch r.status {
+			case http.StatusUnauthorized:
+				wrong.Add(1)
+			case http.StatusTooManyRequests:
+				limited.Add(1)
+			}
+		}()
+	}
+	wg.Wait()
+	if wrong.Load() > 20 || wrong.Load()+limited.Load() != n {
+		t.Fatalf("%d guesses reached the password check (limit 20), %d were limited, of %d", wrong.Load(), limited.Load(), n)
+	}
+
+	// The right password from a fresh phone is refused too while locked out.
+	expect(t, e.phone().do("POST", "/v1/auth/login", map[string]any{"email": "burst@example.com", "password": "a good passphrase"}), 429, "rate_limited")
+}
+
+// A correct password hands the attempt back, so a person who signs in
+// normally never drifts towards the limit.
+func TestSuccessfulLoginsDoNotUseUpTheLimit(t *testing.T) {
+	e := setup(t)
+	p := e.phone()
+	p.register("steady@example.com", "a good passphrase", "S")
+	q := e.phone()
+	for i := 0; i < 30; i++ {
+		q.signedIn(q.do("POST", "/v1/auth/login", map[string]any{"email": "steady@example.com", "password": "a good passphrase"}))
+		if i%10 == 9 {
+			q = e.phone() // a new IP now and then keeps clear of the per-IP cap
+		}
 	}
 }

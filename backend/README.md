@@ -5,12 +5,15 @@ profile, and Cafe Bazaar subscription verification with the signed
 entitlement the app checks offline. It is planned to run on ArvanCloud.
 
 The contract with the app is [`api/openapi.yaml`](api/openapi.yaml). Both
-sides are written against it.
+sides are written against it. It is also served as interactive documentation
+(Swagger UI) at `/docs`, see [API documentation](#api-documentation).
 
 ## Layout
 
 ```
-cmd/tarkd            the binary: serve, worker, migrate, keygen, pubkeys
+api                  openapi.yaml (the contract) and the embedded Swagger UI
+deploy               server deployment: vps/ (Compose + Caddy), arvan/ (registry push)
+cmd/tarkd            the binary: serve, worker, migrate, keygen, pubkeys, healthcheck
 internal/app         wires everything together (also used by the e2e tests)
 internal/httpapi     routing, middleware, JSON in and out; no business rules
 internal/auth        sign-up, login, Google, sessions, password and email flows
@@ -31,6 +34,14 @@ need its own service one day, and it only talks to the rest through the
 database and its own package API.
 
 ## Running it locally
+
+**Windows, one command:** `.\setup-backend.ps1` (from this folder, or
+`.\backend\setup-backend.ps1` from the repo root) sets up everything: Go,
+PostgreSQL (Docker or native), secrets, build, migrations, tests, and starts the
+API at <http://localhost:8080> with the docs at <http://localhost:8080/docs/>.
+Re-running is safe. See [DEPLOYMENT.md](DEPLOYMENT.md) for its options.
+
+By hand:
 
 ```sh
 # PostgreSQL 14+ with a database called tark
@@ -64,6 +75,9 @@ or malformed secret.
 | `TARK_ENV` | `production` (default) or `development` |
 | `TARK_DATABASE_URL` | PostgreSQL URL. Use `sslmode=verify-full` when the database is not on a private network. |
 | `TARK_HTTP_ADDR` | Listen address, default `:8080` |
+| `TARK_DB_MAX_CONNS`, `TARK_DB_AUX_CONNS` | Size of the main connection pool (default 20) and of the small pool used only for audit and rate-limit writes (default 5). Keep `replicas x (max + aux)` under the database's `max_connections`. |
+| `TARK_DATABASE_ALLOW_PLAINTEXT` | In production the server refuses a database connection without TLS to a host that does not look private. Set `true` only for a private network with a public-looking name. |
+| `TARK_DOCS_ENABLED` | Serve `/docs` (Swagger UI) and `/openapi.yaml`. Default `true` in development, `false` in production. |
 | `TARK_RUN_WORKERS` | Run the mail, billing and cleanup workers in the API process (default `true`). Several instances are safe. |
 | `TARK_TOKEN_KEY`, `TARK_LOOKUP_KEY`, `TARK_DATA_KEY`, `TARK_PASSWORD_PEPPER` | 32-byte secrets from `keygen` |
 | `TARK_ENTITLEMENT_KEYS`, `TARK_ENTITLEMENT_ACTIVE_KID` | Ed25519 seeds `kid:seed,…` and the one that signs. `tarkd pubkeys` prints the public halves for the app's `TARK_ENTITLEMENT_KEYS`. |
@@ -78,6 +92,22 @@ or malformed secret.
 | `TARK_CLIENT_IP_HEADER`, `TARK_TRUSTED_PROXIES` | Where the real client IP is, and which peers may set it (CIDRs). Needed behind ArvanCloud's CDN or load balancer. |
 | `TARK_POLICY_GRACE_HOURS`, `TARK_POLICY_REFRESH_DAYS`, `TARK_POLICY_SUSPICIOUS_OFFLINE_HOURS` | Offline policy signed into every entitlement (defaults 72, 5, 72) |
 | `TARK_ACCESS_TOKEN_TTL`, `TARK_REFRESH_TOKEN_TTL`, `TARK_SESSION_MAX_LIFETIME` | Defaults 15m, 180 days idle, 2 years |
+
+## API documentation
+
+[`api/openapi.yaml`](api/openapi.yaml) (OpenAPI 3.1) is the single description
+of the API. When the server runs with `TARK_DOCS_ENABLED=true` (the default in
+development) it serves:
+
+- `/docs/`: Swagger UI, with an Authorize button for the access token and
+  Try it out against the same server. The page is embedded in the binary
+  (`api/swaggerui`, Swagger UI 5.33.1, Apache-2.0), so it needs no CDN.
+- `/openapi.yaml`: the raw contract, for importing into Postman, Insomnia or a
+  code generator.
+
+A test (`TestSpecMatchesRoutes`) fails when a route is added without being
+documented, or documented without being served, so the contract cannot drift.
+When you add an endpoint, add it to `openapi.yaml` in the same change.
 
 ## How the pieces behave
 
@@ -175,7 +205,10 @@ contacts or location reaches this server.
   server to these ranges too, so nobody can skip the CDN by using its own
   address (a spoofed header from anywhere else is already ignored).
 - Health checks: `GET /healthz` (process up) and `GET /readyz` (database
-  reachable).
+  reachable; the answer is cached for two seconds). The image also carries a
+  Docker `HEALTHCHECK` (`tarkd healthcheck`).
+- Step-by-step deployment scripts for ArvanCloud container hosting and for a
+  single server: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Still open
 

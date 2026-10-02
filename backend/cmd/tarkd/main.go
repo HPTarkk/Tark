@@ -5,6 +5,7 @@
 //	tarkd migrate   apply database migrations and exit
 //	tarkd keygen    print fresh secrets for a new environment
 //	tarkd pubkeys   print the entitlement public keys for the app build
+//	tarkd healthcheck  exit 0 if the local server answers /healthz (for container HEALTHCHECK)
 package main
 
 import (
@@ -15,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -26,6 +28,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/HPTarkk/Tark/backend/internal/app"
+	"github.com/HPTarkk/Tark/backend/internal/audit"
 	"github.com/HPTarkk/Tark/backend/internal/auth"
 	"github.com/HPTarkk/Tark/backend/internal/billing"
 	"github.com/HPTarkk/Tark/backend/internal/config"
@@ -45,6 +48,8 @@ func main() {
 	switch cmd {
 	case "keygen":
 		err = keygen()
+	case "healthcheck":
+		err = healthcheck()
 	case "serve", "worker", "migrate", "pubkeys":
 		err = run(cmd, log)
 	default:
@@ -54,6 +59,32 @@ func main() {
 		log.Error("tarkd failed", "cmd", cmd, "err", err)
 		os.Exit(1)
 	}
+}
+
+// healthcheck asks the server running in this container whether it is alive.
+// The image has no shell or curl, so the binary does it itself.
+func healthcheck() error {
+	addr := os.Getenv("TARK_HTTP_ADDR")
+	if addr == "" {
+		addr = ":8080"
+	}
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return err
+	}
+	if host == "" || host == "0.0.0.0" || host == "::" {
+		host = "127.0.0.1"
+	}
+	client := &http.Client{Timeout: 3 * time.Second}
+	res, err := client.Get("http://" + net.JoinHostPort(host, port) + "/healthz")
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	if res.StatusCode >= 300 {
+		return fmt.Errorf("healthz answered %d", res.StatusCode)
+	}
+	return nil
 }
 
 func keygen() error {
@@ -115,6 +146,11 @@ func run(cmd string, log *slog.Logger) error {
 		return err
 	}
 	defer pool.Close()
+	auxPool, err := store.Open(ctx, cfg.DatabaseURL, cfg.DBAuxConns)
+	if err != nil {
+		return err
+	}
+	defer auxPool.Close()
 	if err := store.Migrate(ctx, pool); err != nil {
 		return err
 	}
@@ -123,7 +159,7 @@ func run(cmd string, log *slog.Logger) error {
 		return nil
 	}
 
-	a, err := app.Build(cfg, pool, log, app.Options{})
+	a, err := app.Build(cfg, pool, log, app.Options{AuxPool: auxPool})
 	if err != nil {
 		return err
 	}
@@ -179,7 +215,7 @@ func sweeper(ctx context.Context, pool *pgxpool.Pool, log *slog.Logger) {
 			log.Error("mail sweep failed", "err", err)
 		}
 		// Security events are kept for a year, then dropped.
-		if _, err := pool.Exec(ctx, `DELETE FROM audit_events WHERE at < now() - interval '365 days'`); err != nil {
+		if err := audit.Sweep(ctx, pool); err != nil {
 			log.Error("audit sweep failed", "err", err)
 		}
 		select {
