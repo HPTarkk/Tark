@@ -20,12 +20,17 @@ abstract final class AccountConfig {
       !kIsWeb && Platform.isAndroid && (Monetization.active || _forced);
 
   /// The OAuth "web" client id the backend verifies Google ID tokens
-  /// against (their audience). Unknown until the Google Cloud project is set
-  /// up; while empty, the Google button is not shown at all.
+  /// against (their audience). It is a public id, not a secret, so the real
+  /// one is the default; an empty override hides the Google button.
+  ///
+  /// The Android OAuth client is never named in code: Google matches it by
+  /// package name (com.b1101.tark) and the signing certificate's SHA-1.
   ///
   ///   --dart-define=TARK_GOOGLE_SERVER_CLIENT_ID=123-abc.apps.googleusercontent.com
   static const googleServerClientId = String.fromEnvironment(
     'TARK_GOOGLE_SERVER_CLIENT_ID',
+    defaultValue:
+        '632050243845-ntpm08ltt1uhmqd9401f5k2tjgb81l7h.apps.googleusercontent.com',
   );
 
   /// The `X-Tark-Platform` header value; the server accepts android and ios.
