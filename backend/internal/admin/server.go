@@ -30,6 +30,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/HPTarkk/Tark/backend/internal/mail"
+	"github.com/HPTarkk/Tark/backend/internal/metrics"
 	"github.com/HPTarkk/Tark/backend/internal/password"
 	"github.com/HPTarkk/Tark/backend/internal/ratelimit"
 	"github.com/HPTarkk/Tark/backend/internal/secure"
@@ -54,6 +55,10 @@ type Deps struct {
 	Mailer    Mailer
 	Accounts  Accounts
 	Billing   Billing
+	// Metrics feed the System page; nil hides those numbers.
+	Metrics *metrics.Registry
+	// LogDir is TARK_LOG_DIR, searched by the Logs page; empty turns it off.
+	LogDir string
 	// Notified of every admin sign-in, and receive the weekly summary.
 	AlertEmails []string
 	// ServerName labels emails, e.g. api.tarkk.ir.
@@ -135,6 +140,7 @@ func (s *Server) Handler() http.Handler {
 		r.Group(func(r chi.Router) {
 			r.Use(s.requirePasswordChanged)
 			r.Get("/", s.dashboard)
+			r.Get("/system", s.system)
 			r.Group(func(r chi.Router) {
 				r.Use(requireRole(RoleSupport))
 				r.Get("/users", s.users)
@@ -161,6 +167,7 @@ func (s *Server) Handler() http.Handler {
 				r.Post("/users/{id}/delete", s.act("user.deleted", true, s.deleteUser))
 				r.Get("/backups", s.backups)
 				r.Get("/activity", s.activity)
+				r.Get("/logs", s.logs)
 			})
 		})
 	})

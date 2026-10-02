@@ -21,6 +21,7 @@ import (
 	"github.com/HPTarkk/Tark/backend/internal/auth"
 	"github.com/HPTarkk/Tark/backend/internal/billing"
 	"github.com/HPTarkk/Tark/backend/internal/idempotency"
+	"github.com/HPTarkk/Tark/backend/internal/metrics"
 	"github.com/HPTarkk/Tark/backend/internal/profile"
 )
 
@@ -38,6 +39,8 @@ type Deps struct {
 	// OnServerError, if set, is called for every HTTP 500 (the monitor
 	// counts them).
 	OnServerError func()
+	// Metrics, if set, counts every request by route, status and latency.
+	Metrics *metrics.Registry
 }
 
 type api struct {
@@ -193,18 +196,33 @@ func (a *api) accessLog(next http.Handler) http.Handler {
 		if rec.status == http.StatusInternalServerError {
 			a.serverError()
 		}
+		elapsed := time.Since(start)
+		route := r.URL.Path
+		if rc := chi.RouteContext(r.Context()); rc != nil && rc.RoutePattern() != "" {
+			route = rc.RoutePattern()
+			a.Metrics.ObserveRequest(metricMethod(r.Method), route, rec.status, elapsed)
+		} else {
+			// Unmatched paths are whatever a scanner tried; one bucket for
+			// all of them keeps the numbers from growing without end.
+			a.Metrics.ObserveRequest(metricMethod(r.Method), "(no route)", rec.status, elapsed)
+		}
 		// Load balancers poll the health endpoints every few seconds; logging
 		// every success would bury the real traffic. Failures are still logged.
 		if (r.URL.Path == "/healthz" || r.URL.Path == "/readyz") && rec.status < 400 {
 			return
 		}
-		route := r.URL.Path
-		if rc := chi.RouteContext(r.Context()); rc != nil && rc.RoutePattern() != "" {
-			route = rc.RoutePattern()
-		}
 		a.Log.InfoContext(r.Context(), "request", "method", r.Method, "route", route, "status", rec.status,
-			"ms", time.Since(start).Milliseconds(), "request_id", requestID(r.Context()))
+			"ms", elapsed.Milliseconds(), "request_id", requestID(r.Context()))
 	})
+}
+
+// metricMethod keeps made-up methods from adding rows to the metrics.
+func metricMethod(m string) string {
+	switch m {
+	case http.MethodGet, http.MethodHead, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions:
+		return m
+	}
+	return "OTHER"
 }
 
 func securityHeaders(next http.Handler) http.Handler {

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/HPTarkk/Tark/backend/internal/mail"
+	"github.com/HPTarkk/Tark/backend/internal/metrics"
 	"github.com/HPTarkk/Tark/backend/internal/password"
 	"github.com/HPTarkk/Tark/backend/internal/ratelimit"
 	"github.com/HPTarkk/Tark/backend/internal/secure"
@@ -87,6 +88,7 @@ func setup(t *testing.T) *env {
 		AlertEmails: []string{"owner@example.com"}, ServerName: "api.test",
 		ClientIP: func(*http.Request) string { return "203.0.113.7" },
 		Log:      slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Metrics:  metrics.New(pool), LogDir: t.TempDir(),
 	}
 	srv, err := New(d)
 	if err != nil {
@@ -542,5 +544,55 @@ func TestSupportCannotDoOwnerActions(t *testing.T) {
 	}
 	if code, _ := sup.post("/users/"+uid+"/signout", url.Values{"csrf": {csrf}}); code != http.StatusOK {
 		t.Fatalf("support signout: %d", code)
+	}
+}
+
+func TestSystemAndLogsPages(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	e.deps.Metrics.ObserveRequest("POST", "/v1/auth/login", 200, 40*time.Millisecond)
+	e.deps.Metrics.ObserveRequest("POST", "/v1/auth/login", 500, 3*time.Second)
+	if _, err := e.deps.Pool.Exec(ctx, `INSERT INTO alert_state (key, firing, since, detail) VALUES ('slow', true, now(), '9 of 20 requests were slow')`); err != nil {
+		t.Fatal(err)
+	}
+	today := time.Now().UTC().Format(time.DateOnly)
+	lines := `{"time":"t1","level":"INFO","msg":"request","route":"/v1/auth/login"}
+{"time":"t2","level":"ERROR","msg":"backup failed","err":"disk full"}
+{"time":"t3","level":"WARN","msg":"alert","key":"slow"}
+`
+	if err := os.WriteFile(e.deps.LogDir+"/tark-"+today+".log", []byte(lines), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	owner := e.owner("boss@example.com")
+	code, body := owner.get("/system")
+	if code != http.StatusOK || !strings.Contains(body, "POST /v1/auth/login") || !strings.Contains(body, "9 of 20 requests were slow") ||
+		!strings.Contains(body, "firing since") {
+		t.Fatalf("system page: %d %s", code, body)
+	}
+	code, body = owner.get("/logs?level=WARN&days=7")
+	if code != http.StatusOK || !strings.Contains(body, "backup failed") || !strings.Contains(body, "&#34;key&#34;:&#34;slow&#34;") ||
+		strings.Contains(body, "&#34;msg&#34;:&#34;request&#34;") {
+		t.Fatalf("logs page (warn): %d %s", code, body)
+	}
+	if strings.Index(body, "&#34;key&#34;:&#34;slow&#34;") > strings.Index(body, "backup failed") {
+		t.Fatal("logs are not newest first")
+	}
+	_, body = owner.get("/logs?q=DISK+FULL")
+	if !strings.Contains(body, "backup failed") || strings.Contains(body, "&#34;key&#34;:&#34;slow&#34;") {
+		t.Fatalf("logs page (text): %s", body)
+	}
+
+	_, body = owner.get("/admins")
+	_, body = owner.post("/admins", url.Values{"csrf": {field(t, body, "csrf")}, "name": {"Vee"}, "email": {"vee@example.com"}, "role": {"viewer"}})
+	temp := regexp.MustCompile(`<code class="key">([A-Za-z0-9_-]+)</code>`).FindStringSubmatch(body)[1]
+	viewer := e.browser()
+	body, _ = viewer.signIn("vee@example.com", temp, nil)
+	viewer.post("/account/password", url.Values{"csrf": {field(t, body, "csrf")}, "current": {temp}, "new": {"viewer-passphrase-1"}, "again": {"viewer-passphrase-1"}})
+	if code, _ := viewer.get("/system"); code != http.StatusOK {
+		t.Fatalf("viewer system: %d", code)
+	}
+	if code, _ := viewer.get("/logs"); code != http.StatusForbidden {
+		t.Fatalf("viewer logs: %d", code)
 	}
 }

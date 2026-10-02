@@ -10,6 +10,8 @@
 #   bash remote.sh backup-now       make a backup now
 #   bash remote.sh backup-cat NAME  write one backup file to stdout (fetch-backups.ps1 uses it)
 #   bash remote.sh alert-test       email a test alert to TARK_ALERT_EMAILS
+#   bash remote.sh log-days         list the days of API log kept on the server (30 by default)
+#   bash remote.sh log-day DATE     write one day's API log (YYYY-MM-DD, UTC) to stdout
 #   bash remote.sh admin-create EMAIL ROLE NAME   add an admin panel account (ROLE: owner, support or viewer)
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -161,6 +163,15 @@ case "$cmd" in
     need_docker
     api_exec alert-test
     ;;
+  log-days)
+    need_docker
+    api_exec log-days
+    ;;
+  log-day)
+    day=${2:?usage: remote.sh log-day <YYYY-MM-DD>}
+    need_docker
+    api_exec log-cat "$day"
+    ;;
   admin-create)
     [ $# -ge 4 ] || die "usage: remote.sh admin-create <email> <owner|support|viewer> <name>"
     need_docker
@@ -168,6 +179,6 @@ case "$cmd" in
     api_exec admin-create "$@"
     ;;
   *)
-    die "usage: remote.sh init <image> | up <image> | rollback | status | backups | backup-now | backup-cat <name> | alert-test | admin-create <email> <role> <name>"
+    die "usage: remote.sh init <image> | up <image> | rollback | status | backups | backup-now | backup-cat <name> | alert-test | log-days | log-day <date> | admin-create <email> <role> <name>"
     ;;
 esac

@@ -66,9 +66,12 @@ every password account out.
 
 **Alerts.** Put the address(es) that should hear about trouble in
 `TARK_ALERT_EMAILS` (comma-separated). The server checks itself every minute
-and emails when the API returns internal errors, email stops going out,
-Bazaar checks fail, sign-in failures spike (a likely attack), the disk passes
-80%, or the nightly backup fails or is late. It emails again every 6 hours
+and emails when the API returns internal errors or answers slowly, requests
+wait for database connections, email stops going out, Bazaar checks fail,
+sign-in failures spike (a likely attack), the disk passes 80%, the nightly
+backup fails or is late, or an HTTPS certificate is within 14 days of expiry
+or invalid (Caddy renews them by itself, so that one means renewal is
+failing). The admin panel's System page shows every check's last reading. It emails again every 6 hours
 while a problem lasts and once more when it clears. Alerts hold counts only,
 never personal data. To check that they reach you:
 
@@ -89,11 +92,29 @@ It prints a one-time password. At first sign-in you choose your own password
 and set up an authenticator app (Google Authenticator, Microsoft
 Authenticator, Aegis, 2FAS…); every sign-in after that needs a code from it.
 Owners add more admins on the Admins page with one of three roles: **owner**
-(everything, manages admins, backups, admin activity), **support** (dashboard,
-user lookup, security and mail pages) and **viewer** (dashboard only). Every
+(everything: also gives premium, deletes accounts on request, manages admins,
+sees backups, logs and admin activity), **support** (looks accounts up,
+disables them, signs them out, re-checks purchases with Bazaar, security and
+mail pages) and **viewer** (dashboard and System page only). Every
 admin sign-in is emailed to `TARK_ALERT_EMAILS`, and every look at an account
 is recorded on the Activity page. The same addresses get a summary email every
 Monday at 05:00 UTC (08:30 in Tehran).
+
+**Numbers and logs.** The admin panel's System page shows requests per route
+with their error counts and response times, Bazaar and email calls, database
+connections and memory for the last hour. The API log is also written to the
+`logs` volume, one file per day, kept 30 days (`TARK_LOG_KEEP_DAYS`), because
+Docker keeps only its last 50 MB. Owners search it on the panel's Logs page;
+to copy a whole day to your computer:
+
+```sh
+ssh root@<server> "cd /opt/tark && bash remote.sh log-days"
+ssh root@<server> "cd /opt/tark && bash remote.sh log-day 2026-10-02" > tark-2026-10-02.log
+```
+
+The log never holds IP addresses, tokens or request bodies. For a Prometheus
+later on the same network, set `TARK_METRICS_ADDR` (for example `:9091`) to
+serve `/metrics`; it is never published outside the stack.
 
 **Server down? The server cannot tell you that itself.** Add one free outside
 check that emails you when `https://<your API domain>/readyz` stops answering

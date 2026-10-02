@@ -55,6 +55,10 @@ type Config struct {
 
 	Monitor MonitorConfig
 	Backup  BackupConfig
+	Log     LogConfig
+	// MetricsAddr serves /metrics (Prometheus text format) on its own
+	// listener. Empty: not served; the admin panel still shows them.
+	MetricsAddr string
 
 	Google GoogleConfig
 	Bazaar BazaarConfig
@@ -123,6 +127,17 @@ type MonitorConfig struct {
 	AlertEmails []string
 	// Names this server in alert subjects; defaults to TARK_DOMAIN.
 	ServerName string
+	// TLSAddr is where the HTTPS front end answers (caddy:443); empty skips
+	// the certificate check. TLSNames are the host names to check there,
+	// TARK_DOMAIN and TARK_ADMIN_DOMAIN by default.
+	TLSAddr  string
+	TLSNames []string
+}
+
+type LogConfig struct {
+	// Dir keeps the log on disk, one file per day. Empty: stdout only.
+	Dir      string
+	KeepDays int
 }
 
 type BackupConfig struct {
@@ -249,7 +264,14 @@ func Load() (*Config, error) {
 	c.Monitor = MonitorConfig{
 		AlertEmails: splitList(get("TARK_ALERT_EMAILS", "")),
 		ServerName:  get("TARK_ALERT_SERVER_NAME", get("TARK_DOMAIN", "")),
+		TLSAddr:     get("TARK_ALERT_TLS_ADDR", ""),
+		TLSNames:    splitList(get("TARK_ALERT_TLS_NAMES", strings.Join(splitList(get("TARK_DOMAIN", "")+","+get("TARK_ADMIN_DOMAIN", "")), ","))),
 	}
+	c.Log = LogConfig{
+		Dir:      get("TARK_LOG_DIR", ""),
+		KeepDays: integer("TARK_LOG_KEEP_DAYS", 30),
+	}
+	c.MetricsAddr = get("TARK_METRICS_ADDR", "")
 	c.Backup = BackupConfig{
 		Dir:      get("TARK_BACKUP_DIR", ""),
 		HourUTC:  integer("TARK_BACKUP_HOUR_UTC", 23),
@@ -380,6 +402,15 @@ func (c *Config) validate() []error {
 	}
 	if c.AdminAddr != "" && c.AdminAddr == c.HTTPAddr {
 		errs = append(errs, errors.New("TARK_ADMIN_ADDR must differ from TARK_HTTP_ADDR: the panel never shares the public API's listener"))
+	}
+	if c.MetricsAddr != "" && (c.MetricsAddr == c.HTTPAddr || c.MetricsAddr == c.AdminAddr) {
+		errs = append(errs, errors.New("TARK_METRICS_ADDR must differ from TARK_HTTP_ADDR and TARK_ADMIN_ADDR: metrics are never served to the public"))
+	}
+	if c.Monitor.TLSAddr != "" && len(c.Monitor.TLSNames) == 0 {
+		errs = append(errs, errors.New("TARK_ALERT_TLS_ADDR needs host names: set TARK_DOMAIN or TARK_ALERT_TLS_NAMES"))
+	}
+	if c.Log.KeepDays < 1 {
+		errs = append(errs, errors.New("TARK_LOG_KEEP_DAYS must be at least 1"))
 	}
 	if c.Backup.HourUTC < 0 || c.Backup.HourUTC > 23 {
 		errs = append(errs, errors.New("TARK_BACKUP_HOUR_UTC must be 0 to 23"))

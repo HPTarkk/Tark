@@ -944,3 +944,26 @@ func TestPremiumGrantAndAdminDeletion(t *testing.T) {
 	}
 	expect(t, p.do("GET", "/v1/subscription", nil), 401, "")
 }
+
+func TestRequestMetrics(t *testing.T) {
+	e := setup(t)
+	p := e.phone()
+	expect(t, p.do("POST", "/v1/auth/login", map[string]any{"email": "nobody@example.com", "password": "whatever123"}), 401, "invalid_credentials")
+	p.do("GET", "/wp-admin/setup.php", nil)
+	p.do("GET", "/also/not/here", nil)
+	p.do("BREW", "/v1/profile", nil)
+	routes := e.app.Metrics.Now().Routes
+	if r := routes["POST /v1/auth/login"]; r.ByClass[2] != 1 || r.Latency.N != 1 {
+		t.Fatalf("login: %+v", r)
+	}
+	// Unmatched paths and made-up methods share rows, so scanners cannot
+	// grow the table.
+	if r := routes["GET (no route)"]; r.Requests() != 2 {
+		t.Fatalf("no route: %+v", routes)
+	}
+	for k := range routes {
+		if strings.Contains(k, "wp-admin") || strings.Contains(k, "BREW") {
+			t.Fatalf("raw path or method recorded: %q", k)
+		}
+	}
+}
