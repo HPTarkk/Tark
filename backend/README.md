@@ -92,6 +92,10 @@ or malformed secret.
 | `TARK_CLIENT_IP_HEADER`, `TARK_TRUSTED_PROXIES` | Where the real client IP is, and which peers may set it (CIDRs). Needed behind ArvanCloud's CDN or load balancer. |
 | `TARK_POLICY_GRACE_HOURS`, `TARK_POLICY_REFRESH_DAYS`, `TARK_POLICY_SUSPICIOUS_OFFLINE_HOURS` | Offline policy signed into every entitlement (defaults 72, 5, 72) |
 | `TARK_ACCESS_TOKEN_TTL`, `TARK_REFRESH_TOKEN_TTL`, `TARK_SESSION_MAX_LIFETIME` | Defaults 15m, 180 days idle, 2 years |
+| `TARK_ALERT_EMAILS` | Comma-separated addresses for alert emails (internal errors, mail or Bazaar failing, attack signs, disk, backups). Empty: alerts only go to the log. `tarkd alert-test` sends a test. |
+| `TARK_ALERT_SERVER_NAME` | Names the server in alert subjects. Default `TARK_DOMAIN`. |
+| `TARK_BACKUP_DIR`, `TARK_BACKUP_KEY` | Directory for the nightly encrypted backups, and the 32-byte key (from `keygen`) that encrypts them. Empty directory: no backups. Keep the key off the server too. |
+| `TARK_BACKUP_HOUR_UTC`, `TARK_BACKUP_KEEP_DAYS` | When the nightly backup runs (default 23 UTC) and how many days of files are kept (default 14). |
 
 ## API documentation
 

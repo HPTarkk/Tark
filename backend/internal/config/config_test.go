@@ -113,3 +113,33 @@ func TestProductionRefusesPlaintextDatabaseOnPublicHost(t *testing.T) {
 		t.Fatalf("TLS must be accepted: %v", err)
 	}
 }
+
+func TestAlertAndBackupSettings(t *testing.T) {
+	c, err := loadWith(t, map[string]string{
+		"TARK_ALERT_EMAILS": "a@example.com, b@example.com",
+		"TARK_DOMAIN":       "api.tarkk.ir",
+		"TARK_BACKUP_DIR":   "/backups",
+		"TARK_BACKUP_KEY":   "BgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgY",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.Monitor.AlertEmails) != 2 || c.Monitor.ServerName != "api.tarkk.ir" ||
+		len(c.Backup.Key) != 32 || c.Backup.HourUTC != 23 || c.Backup.KeepDays != 14 {
+		t.Fatalf("got %+v %+v", c.Monitor, c.Backup)
+	}
+
+	for name, env := range map[string]map[string]string{
+		"placeholder recipient": {"TARK_ALERT_EMAILS": "CHANGE_ME@example.com"},
+		"not an address":        {"TARK_ALERT_EMAILS": "pedi"},
+		"header injection":      {"TARK_ALERT_EMAILS": "a@example.com\r\nBcc: x@evil.test"},
+		"backups without a key": {"TARK_BACKUP_DIR": "/backups"},
+		"short key":             {"TARK_BACKUP_DIR": "/backups", "TARK_BACKUP_KEY": "AQID"},
+		"hour out of range":     {"TARK_BACKUP_HOUR_UTC": "24"},
+		"keep nothing":          {"TARK_BACKUP_KEEP_DAYS": "0"},
+	} {
+		if _, err := loadWith(t, env); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+}

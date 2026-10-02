@@ -64,13 +64,64 @@ cannot.
 the stored Bazaar tokens unreadable, and changing `TARK_PASSWORD_PEPPER` locks
 every password account out.
 
-**Database backups** (run on the server, e.g. daily from cron):
+**Alerts.** Put the address(es) that should hear about trouble in
+`TARK_ALERT_EMAILS` (comma-separated). The server checks itself every minute
+and emails when the API returns internal errors, email stops going out,
+Bazaar checks fail, sign-in failures spike (a likely attack), the disk passes
+80%, or the nightly backup fails or is late. It emails again every 6 hours
+while a problem lasts and once more when it clears. Alerts hold counts only,
+never personal data. To check that they reach you:
 
 ```sh
-cd /opt/tark
-docker compose --env-file .env.production -f docker-compose.prod.yml exec -T db \
-  pg_dump -U tark tark | gzip > /var/backups/tark-$(date +%F).sql.gz
+cd /opt/tark && bash remote.sh alert-test
 ```
+
+**Server down? The server cannot tell you that itself.** Add one free outside
+check that emails you when `https://<your API domain>/readyz` stops answering
+(it also fails when the database is down). For example UptimeRobot's free
+plan: create an HTTP(s) monitor on that URL with a 5-minute interval and your
+email as the alert contact. Monitors abroad sometimes cannot reach servers in
+Iran for reasons that have nothing to do with the server (filtering, routing),
+so treat one short blip as noise and a lasting one as real.
+
+**Database backups** are automatic. Every night (23:00 UTC, about 02:30 in
+Tehran; `TARK_BACKUP_HOUR_UTC` changes it) the API writes an encrypted backup
+of the whole database into the `backups` volume, reads it back to prove it
+decrypts, and keeps 14 days (`TARK_BACKUP_KEEP_DAYS`). A server that was down
+at that hour catches up when it is back. The first deploy with this feature
+generates `TARK_BACKUP_KEY` and prints it once: **save it in your password
+manager.** Without it no backup can be restored, and losing the server loses
+the copy in `.env.production`.
+
+A backup that only lives on the server dies with the server, so copy them to
+your computer regularly (by hand, or daily from Windows Task Scheduler; see the
+script's help):
+
+```powershell
+.\backend\deploy\vps\fetch-backups.ps1 -Server deploy@203.0.113.10
+```
+
+On the server: `bash remote.sh backups` lists them and `bash remote.sh
+backup-now` makes one immediately.
+
+**Restoring** (onto a new server, or to test a backup). Restore only goes into
+an **empty** database and refuses one that has tables, so it can never
+overwrite live data.
+
+1. Deploy as usual with `-Init`, then put the old server's `.env.production`
+   values in place: at least `TARK_BACKUP_KEY` and `TARK_DATA_KEY`,
+   `TARK_LOOKUP_KEY`, `TARK_TOKEN_KEY`, `TARK_PASSWORD_PEPPER` and
+   `TARK_ENTITLEMENT_KEYS`/`TARK_ENTITLEMENT_ACTIVE_KID`. Without the old data
+   key the stored Bazaar tokens are unreadable; without the old pepper no
+   password works.
+2. Start only the database: `docker compose --env-file .env.production -f
+   docker-compose.prod.yml up -d db`.
+3. Copy the backup file to the server and load it:
+   ```sh
+   cd /opt/tark
+   docker compose --env-file .env.production -f docker-compose.prod.yml run --rm -T --no-deps api restore - < tark-YYYYMMDD-HHMMSS.tbk
+   ```
+4. Deploy normally. The API applies any newer migrations on start.
 
 **Behind the ArvanCloud CDN instead of facing the internet?** See the comment in
 `deploy/vps/Caddyfile` and the "Deploying on ArvanCloud" section of the README:

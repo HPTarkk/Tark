@@ -58,6 +58,39 @@ const migrationLock = 7342119001
 // Migrate applies every embedded migration not yet recorded, each in its
 // own transaction.
 func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
+	return migrate(ctx, pool, nil)
+}
+
+// MigrateOnly applies the named migrations and no later ones. A restore uses
+// it to rebuild the schema a backup was taken with before loading its rows.
+// Naming a version this binary does not have is an error.
+func MigrateOnly(ctx context.Context, pool *pgxpool.Pool, versions []string) error {
+	known := map[string]bool{}
+	for _, v := range Versions() {
+		known[v] = true
+	}
+	only := map[string]bool{}
+	for _, v := range versions {
+		if !known[v] {
+			return fmt.Errorf("store: migration %s is not part of this build (the backup is newer than this binary)", v)
+		}
+		only[v] = true
+	}
+	return migrate(ctx, pool, only)
+}
+
+// Versions lists the embedded migrations in the order they apply.
+func Versions() []string {
+	names, _ := fs.Glob(migrationFiles, "migrations/*.sql")
+	sort.Strings(names)
+	out := make([]string, len(names))
+	for i, name := range names {
+		out[i] = strings.TrimSuffix(strings.TrimPrefix(name, "migrations/"), ".sql")
+	}
+	return out
+}
+
+func migrate(ctx context.Context, pool *pgxpool.Pool, only map[string]bool) error {
 	conn, err := pool.Acquire(ctx)
 	if err != nil {
 		return err
@@ -75,13 +108,11 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 		return fmt.Errorf("store: migrations table: %w", err)
 	}
 
-	names, err := fs.Glob(migrationFiles, "migrations/*.sql")
-	if err != nil {
-		return err
-	}
-	sort.Strings(names)
-	for _, name := range names {
-		version := strings.TrimSuffix(strings.TrimPrefix(name, "migrations/"), ".sql")
+	for _, version := range Versions() {
+		if only != nil && !only[version] {
+			continue
+		}
+		name := "migrations/" + version + ".sql"
 		var exists bool
 		if err := conn.QueryRow(ctx, "SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE version = $1)", version).Scan(&exists); err != nil {
 			return err

@@ -51,6 +51,9 @@ type Config struct {
 
 	Keys Keys
 
+	Monitor MonitorConfig
+	Backup  BackupConfig
+
 	Google GoogleConfig
 	Bazaar BazaarConfig
 	Mail   MailConfig
@@ -111,6 +114,22 @@ type SMTPServer struct {
 	From     string
 	// "starttls" or "tls". There is no plaintext option.
 	Security string
+}
+
+type MonitorConfig struct {
+	// Who gets alert emails. Empty: alerts only go to the log.
+	AlertEmails []string
+	// Names this server in alert subjects; defaults to TARK_DOMAIN.
+	ServerName string
+}
+
+type BackupConfig struct {
+	// Dir enables daily backups into it. Empty: no backups.
+	Dir string
+	// Key encrypts backups (32 bytes). Required with Dir.
+	Key      []byte
+	HourUTC  int
+	KeepDays int
 }
 
 type EntitlementPolicy struct {
@@ -223,6 +242,19 @@ func Load() (*Config, error) {
 	}
 	c.Keys.EntitlementSeeds, c.Keys.EntitlementKID = parseEntitlementKeys(
 		secret("TARK_ENTITLEMENT_KEYS", true), get("TARK_ENTITLEMENT_ACTIVE_KID", ""), &errs)
+
+	c.Monitor = MonitorConfig{
+		AlertEmails: splitList(get("TARK_ALERT_EMAILS", "")),
+		ServerName:  get("TARK_ALERT_SERVER_NAME", get("TARK_DOMAIN", "")),
+	}
+	c.Backup = BackupConfig{
+		Dir:      get("TARK_BACKUP_DIR", ""),
+		HourUTC:  integer("TARK_BACKUP_HOUR_UTC", 23),
+		KeepDays: integer("TARK_BACKUP_KEEP_DAYS", 14),
+	}
+	if c.Backup.Dir != "" {
+		c.Backup.Key = key("TARK_BACKUP_KEY")
+	}
 
 	c.Google = GoogleConfig{
 		ClientIDs:    splitList(get("TARK_GOOGLE_CLIENT_IDS", "")),
@@ -337,6 +369,17 @@ func (c *Config) validate() []error {
 			errs = append(errs, fmt.Errorf("TARK_DATABASE_URL reaches %q without TLS; use sslmode=require (or verify-full), "+
 				"or set TARK_DATABASE_ALLOW_PLAINTEXT=true if that address is on a private network", host))
 		}
+	}
+	for _, e := range c.Monitor.AlertEmails {
+		if strings.Count(e, "@") != 1 || strings.ContainsAny(e, " <>\r\n") || strings.Contains(e, "CHANGE_ME") {
+			errs = append(errs, fmt.Errorf("TARK_ALERT_EMAILS: %q is not an email address", e))
+		}
+	}
+	if c.Backup.HourUTC < 0 || c.Backup.HourUTC > 23 {
+		errs = append(errs, errors.New("TARK_BACKUP_HOUR_UTC must be 0 to 23"))
+	}
+	if c.Backup.KeepDays < 1 {
+		errs = append(errs, errors.New("TARK_BACKUP_KEEP_DAYS must be at least 1"))
 	}
 	if c.ClientIPHeader != "" && len(c.TrustedProxies) == 0 {
 		errs = append(errs, errors.New("TARK_CLIENT_IP_HEADER needs TARK_TRUSTED_PROXIES, otherwise anyone can forge their IP"))

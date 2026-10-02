@@ -35,6 +35,9 @@ type Deps struct {
 	TrustedProxies []netip.Prefix
 	// Docs serves /docs (Swagger UI) and /openapi.yaml.
 	Docs bool
+	// OnServerError, if set, is called for every HTTP 500 (the monitor
+	// counts them).
+	OnServerError func()
 }
 
 type api struct {
@@ -146,6 +149,12 @@ func (a *api) ready(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (a *api) serverError() {
+	if a.OnServerError != nil {
+		a.OnServerError()
+	}
+}
+
 func (a *api) recoverer(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
@@ -154,6 +163,7 @@ func (a *api) recoverer(next http.Handler) http.Handler {
 					panic(v)
 				}
 				a.Log.ErrorContext(r.Context(), "panic", "value", v, "stack", string(debug.Stack()))
+				a.serverError()
 				writeError(w, r, a.Log, apperr.New(http.StatusInternalServerError, "internal_error", ""))
 			}
 		}()
@@ -180,6 +190,9 @@ func (a *api) accessLog(next http.Handler) http.Handler {
 		start := time.Now()
 		rec := &statusRecorder{ResponseWriter: w}
 		next.ServeHTTP(rec, r)
+		if rec.status == http.StatusInternalServerError {
+			a.serverError()
+		}
 		// Load balancers poll the health endpoints every few seconds; logging
 		// every success would bury the real traffic. Failures are still logged.
 		if (r.URL.Path == "/healthz" || r.URL.Path == "/readyz") && rec.status < 400 {

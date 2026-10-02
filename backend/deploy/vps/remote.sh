@@ -6,6 +6,10 @@
 #   bash remote.sh up    <image>    start or update the stack with <image>
 #   bash remote.sh rollback         go back to the previous image
 #   bash remote.sh status           show containers and recent API logs
+#   bash remote.sh backups          list the backups on the server
+#   bash remote.sh backup-now       make a backup now
+#   bash remote.sh backup-cat NAME  write one backup file to stdout (fetch-backups.ps1 uses it)
+#   bash remote.sh alert-test       email a test alert to TARK_ALERT_EMAILS
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -37,6 +41,33 @@ fill_from_example() {
   case "$example" in ''|*CHANGE_ME*) return 0 ;; esac
   case "$current" in ''|*CHANGE_ME*) set_kv "$key" "$example"; echo "Set $key from .env.production.example." ;; esac
 }
+
+# ensure_backup_key: servers set up before backups existed get a key now. It
+# is printed once so it can be kept off the server: without it no backup can
+# ever be restored.
+ensure_backup_key() {
+  local current
+  current=$(grep -E '^TARK_BACKUP_KEY=' "$ENV_FILE" | head -n1 | cut -d= -f2- || true)
+  [ -n "$current" ] && return 0
+  current=$(head -c 32 /dev/urandom | base64 | tr '+/' '-_' | tr -d '=\n')
+  set_kv TARK_BACKUP_KEY "$current"
+  echo
+  echo "Generated TARK_BACKUP_KEY for the daily encrypted backups:"
+  echo
+  echo "    $current"
+  echo
+  echo "SAVE IT NOW somewhere off this server (a password manager). Without it no backup can be restored."
+  echo
+}
+
+# ensure_alert_emails: ask for alert recipients on servers set up before alerts existed.
+ensure_alert_emails() {
+  grep -qE '^TARK_ALERT_EMAILS=' "$ENV_FILE" && return 0
+  set_kv TARK_ALERT_EMAILS "CHANGE_ME@example.com"
+  echo "Added TARK_ALERT_EMAILS to $ENV_FILE: put the address(es) that should get alert emails there."
+}
+
+api_exec() { "${COMPOSE[@]}" exec -T api /tarkd "$@"; }
 
 current_image() { grep -E '^TARK_IMAGE=' "$ENV_FILE" | head -n1 | cut -d= -f2-; }
 
@@ -85,6 +116,8 @@ case "$cmd" in
     need_docker
     [ -f "$ENV_FILE" ] || die "$ENV_FILE is missing. Run the first deploy with -Init." 2
     fill_from_example TARK_GOOGLE_CLIENT_IDS
+    ensure_backup_key
+    ensure_alert_emails
     if grep -n 'CHANGE_ME' "$ENV_FILE" >&2; then die "Fill in the CHANGE_ME values above in $ENV_FILE first." 3; fi
     prev=$(current_image || true)
     if [ -n "$prev" ] && [ "$prev" != "$image" ]; then echo "$prev" >> .deploy-history; fi
@@ -109,7 +142,24 @@ case "$cmd" in
     "${COMPOSE[@]}" ps
     "${COMPOSE[@]}" logs --tail 20 api
     ;;
+  backups)
+    need_docker
+    api_exec backup-list
+    ;;
+  backup-now)
+    need_docker
+    api_exec backup
+    ;;
+  backup-cat)
+    name=${2:?usage: remote.sh backup-cat <name>}
+    need_docker
+    api_exec backup-cat "$name"
+    ;;
+  alert-test)
+    need_docker
+    api_exec alert-test
+    ;;
   *)
-    die "usage: remote.sh init <image> | up <image> | rollback | status"
+    die "usage: remote.sh init <image> | up <image> | rollback | status | backups | backup-now | backup-cat <name> | alert-test"
     ;;
 esac
