@@ -177,6 +177,19 @@ func (s *Service) Submit(ctx context.Context, userID, installKey, sku, purchaseT
 		return Result{}, err
 	}
 
+	// Bazaar is asked before the transaction and its row lock begin: the call
+	// can take seconds, and a connection held that long starves the pool when
+	// Bazaar is slow. Whatever the answer, it is applied under the lock below.
+	var info Subscription
+	var askErr error
+	asked := false
+	if peek, err := scanPurchase(s.pool.QueryRow(ctx, `SELECT `+purchaseColumns+` FROM bazaar_purchases WHERE token_hash = $1`, tokenHash)); err != nil {
+		return Result{}, err
+	} else if peek.userID == userID && peek.sku == sku && peek.state != "invalid" && s.needsCheck(peek) {
+		info, askErr = s.ask(ctx, sku, purchaseToken)
+		asked = true
+	}
+
 	var result Result
 	var notYet bool
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
@@ -194,11 +207,14 @@ func (s *Service) Submit(ctx context.Context, userID, installKey, sku, purchaseT
 		if p.state == "invalid" {
 			return apperr.Unprocessable("purchase_invalid", "Bazaar does not recognise this purchase")
 		}
-		// A resubmission of a purchase checked moments ago needs no new call.
-		if p.state == "pending" || p.lastChecked == nil || s.now().Sub(*p.lastChecked) >= minRecheckGap {
-			ok, err := s.check(ctx, tx, p, purchaseToken, ip)
-			if err != nil {
-				return err
+		// Not stale any more means another request recorded an answer while
+		// this one waited for the lock: that answer is just as good.
+		if s.needsCheck(p) {
+			ok := false
+			if asked {
+				if ok, err = s.record(ctx, tx, p, info, askErr, ip); err != nil {
+					return err
+				}
 			}
 			if ok && p.state == "pending" {
 				// Bazaar doesn't know it yet; the attempt is committed and the
@@ -238,48 +254,77 @@ func (s *Service) Submit(ctx context.Context, userID, installKey, sku, purchaseT
 	return result, nil
 }
 
-// recheck locks one purchase and checks it again.
+// needsCheck says whether a stored purchase is due for a Bazaar answer.
+func (s *Service) needsCheck(p *purchase) bool {
+	return p.state == "pending" || p.lastChecked == nil || s.now().Sub(*p.lastChecked) >= minRecheckGap
+}
+
+// ask puts one question to Bazaar. Call it without holding a database
+// connection or a row lock.
+func (s *Service) ask(ctx context.Context, sku, token string) (Subscription, error) {
+	callCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
+	return s.bazaar.Subscription(callCtx, sku, token)
+}
+
+// recheck asks Bazaar about one purchase, then records the answer.
 func (s *Service) recheck(ctx context.Context, id, ip string) (bool, error) {
+	p, err := scanPurchase(s.pool.QueryRow(ctx, `SELECT `+purchaseColumns+` FROM bazaar_purchases WHERE id = $1`, id))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return true, nil // the account was deleted meanwhile
+	}
+	if err != nil {
+		return false, err
+	}
+	if !s.needsCheck(p) {
+		return true, nil
+	}
+	token, err := s.sealer.Open(p.tokenEnc, []byte("bazaar:"+p.id))
+	if err != nil {
+		s.log.ErrorContext(ctx, "purchase token could not be decrypted", "purchase", p.id)
+		return false, nil
+	}
+	info, askErr := s.ask(ctx, p.sku, string(token))
+	return s.apply(ctx, p.id, info, askErr, ip)
+}
+
+// apply locks a purchase and records an answer that was fetched without the
+// lock. If someone else recorded one in the meantime, theirs stands.
+func (s *Service) apply(ctx context.Context, id string, info Subscription, askErr error, ip string) (bool, error) {
 	var ok bool
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		p, err := scanPurchase(tx.QueryRow(ctx, `SELECT `+purchaseColumns+` FROM bazaar_purchases WHERE id = $1 FOR UPDATE`, id))
-		if err != nil {
-			return err
-		}
-		// Someone else checked it while we waited for the lock.
-		if p.lastChecked != nil && s.now().Sub(*p.lastChecked) < minRecheckGap {
+		if errors.Is(err, pgx.ErrNoRows) {
 			ok = true
 			return nil
 		}
-		token, err := s.sealer.Open(p.tokenEnc, []byte("bazaar:"+p.id))
 		if err != nil {
-			s.log.ErrorContext(ctx, "purchase token could not be decrypted", "purchase", p.id)
-			ok = false
+			return err
+		}
+		if !s.needsCheck(p) {
+			ok = true
 			return nil
 		}
-		ok, err = s.check(ctx, tx, p, string(token), ip)
+		ok, err = s.record(ctx, tx, p, info, askErr, ip)
 		return err
 	})
 	return ok, err
 }
 
-// check asks Bazaar about one locked purchase and applies the answer. It
+// record applies Bazaar's answer, or its failure, to a locked purchase. It
 // returns false when Bazaar gave no usable answer.
-func (s *Service) check(ctx context.Context, tx pgx.Tx, p *purchase, token, ip string) (bool, error) {
-	callCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
-	info, err := s.bazaar.Subscription(callCtx, p.sku, token)
-	cancel()
+func (s *Service) record(ctx context.Context, tx pgx.Tx, p *purchase, info Subscription, askErr error, ip string) (bool, error) {
 	now := s.now()
 
 	switch {
-	case errors.Is(err, ErrNotFound):
+	case errors.Is(askErr, ErrNotFound):
 		return true, s.applyMissing(ctx, tx, p, now, ip)
-	case err != nil:
+	case askErr != nil:
 		p.failures++
 		backoff := min(time.Duration(1<<min(p.failures, 8))*time.Minute, 6*time.Hour)
 		_, dbErr := tx.Exec(ctx, `UPDATE bazaar_purchases SET check_failures = check_failures + 1, next_check_at = $2, updated_at = now() WHERE id = $1`,
 			p.id, now.Add(backoff))
-		s.log.WarnContext(ctx, "bazaar check failed", "purchase", p.id, "err", err)
+		s.log.WarnContext(ctx, "bazaar check failed", "purchase", p.id, "err", askErr)
 		return false, dbErr
 	}
 	return true, s.applyAnswer(ctx, tx, p, info, now, ip)
@@ -509,35 +554,57 @@ func (s *Service) RunWorker(ctx context.Context) {
 func (s *Service) workBatch(ctx context.Context) (int, error) {
 	n := 0
 	for range 20 {
-		var done bool
-		err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-			p, err := scanPurchase(tx.QueryRow(ctx, `SELECT `+purchaseColumns+` FROM bazaar_purchases
-				WHERE next_check_at IS NOT NULL AND next_check_at <= now() ORDER BY next_check_at LIMIT 1 FOR UPDATE SKIP LOCKED`))
-			if errors.Is(err, pgx.ErrNoRows) {
-				done = true
-				return nil
-			}
-			if err != nil {
-				return err
-			}
-			token, err := s.sealer.Open(p.tokenEnc, []byte("bazaar:"+p.id))
-			if err != nil {
-				_, err := tx.Exec(ctx, `UPDATE bazaar_purchases SET next_check_at = NULL WHERE id = $1`, p.id)
-				s.log.ErrorContext(ctx, "purchase token could not be decrypted; background checks stopped", "purchase", p.id)
-				return err
-			}
-			_, err = s.check(ctx, tx, p, string(token), "")
-			return err
-		})
+		c, err := s.claim(ctx)
 		if err != nil {
 			return n, err
 		}
-		if done {
+		if c == nil {
 			break
 		}
 		n++
+		if c.token == "" {
+			continue // could not be decrypted; already parked
+		}
+		info, askErr := s.ask(ctx, c.sku, c.token)
+		if _, err := s.apply(ctx, c.id, info, askErr, ""); err != nil {
+			return n, err
+		}
 	}
 	return n, nil
+}
+
+type claim struct {
+	id, sku, token string
+}
+
+// claim leases the most overdue purchase: next_check_at moves two minutes
+// ahead, so no other instance takes it meanwhile and a worker that dies
+// before recording an answer only delays that purchase. The lease ends the
+// transaction before Bazaar is asked, so no connection or lock is held
+// during the call.
+func (s *Service) claim(ctx context.Context) (*claim, error) {
+	var out *claim
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		p, err := scanPurchase(tx.QueryRow(ctx, `SELECT `+purchaseColumns+` FROM bazaar_purchases
+			WHERE next_check_at IS NOT NULL AND next_check_at <= now() ORDER BY next_check_at LIMIT 1 FOR UPDATE SKIP LOCKED`))
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		token, err := s.sealer.Open(p.tokenEnc, []byte("bazaar:"+p.id))
+		if err != nil {
+			s.log.ErrorContext(ctx, "purchase token could not be decrypted; background checks stopped", "purchase", p.id)
+			out = &claim{id: p.id}
+			_, err := tx.Exec(ctx, `UPDATE bazaar_purchases SET next_check_at = NULL WHERE id = $1`, p.id)
+			return err
+		}
+		out = &claim{id: p.id, sku: p.sku, token: string(token)}
+		_, err = tx.Exec(ctx, `UPDATE bazaar_purchases SET next_check_at = now() + interval '2 minutes' WHERE id = $1`, p.id)
+		return err
+	})
+	return out, err
 }
 
 func nullTime(t time.Time) *time.Time {

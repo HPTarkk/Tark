@@ -22,9 +22,30 @@ info:
       key with a different body is refused with 422 `idempotency_mismatch`.
     - Times are Unix epoch milliseconds (int64), always from the server clock.
 servers:
+  # Relative: resolved against wherever this document is served from, so the
+  # interactive docs at /docs call the same server they were opened on (a
+  # developer's machine never reaches production by accident).
+  - url: /v1
+    description: The server serving this document
   - url: https://api.tarkk.ir/v1
+    description: Production
 security:
   - accessToken: []
+tags:
+  - name: Sign-up and sign-in
+    description: Email + password sign-up with a code or link, password login, and Google Sign-In with account linking.
+  - name: Sessions
+    description: Rotating refresh tokens and sign-out.
+  - name: Password
+    description: Reset (forgot password) and change.
+  - name: Email change
+    description: Verified change of the account's email address.
+  - name: Profile
+    description: The signed-in person's name and avatar.
+  - name: Account
+    description: Account deletion.
+  - name: Subscription
+    description: Cafe Bazaar purchase verification and the signed entitlement.
 
 paths:
   # ---- Accounts and sign-in ----------------------------------------------
@@ -47,6 +68,7 @@ paths:
   /auth/register:
     post:
       operationId: register
+      tags: [Sign-up and sign-in]
       summary: Start email + password sign-up.
       description: |
         Always 202 with the same shape. A new address gets a code; an
@@ -81,6 +103,7 @@ paths:
   /auth/register/resend:
     post:
       operationId: resendRegistrationCode
+      tags: [Sign-up and sign-in]
       summary: Send a new code and link. The previous code stops working.
       description: Allowed once per `resendAvailableAt`, at most 4 times per flow (then `resend_limit`).
       security: []
@@ -105,6 +128,7 @@ paths:
   /auth/register/verify:
     post:
       operationId: verifyRegistration
+      tags: [Sign-up and sign-in]
       summary: Verify the code or link; creates the account and signs in.
       description: |
         The app calls this as soon as the last digit is typed, or as soon
@@ -148,6 +172,7 @@ paths:
   /auth/login:
     post:
       operationId: login
+      tags: [Sign-up and sign-in]
       summary: Sign in with email and password.
       description: |
         Every failure is 401 `invalid_credentials`, whatever the reason.
@@ -179,6 +204,7 @@ paths:
   /auth/google/nonce:
     post:
       operationId: googleNonce
+      tags: [Sign-up and sign-in]
       summary: A one-time nonce to pass to the Google SDK before sign-in.
       description: |
         Google copies it into the ID token. The server accepts each nonce
@@ -198,6 +224,7 @@ paths:
   /auth/google:
     post:
       operationId: googleSignIn
+      tags: [Sign-up and sign-in]
       summary: Sign in or sign up with a Google ID token.
       description: |
         The server verifies the ID token itself (signature against Google's
@@ -253,6 +280,7 @@ paths:
   /auth/google/link:
     post:
       operationId: linkGoogle
+      tags: [Sign-up and sign-in]
       summary: Link Google to an existing password account, after its password.
       description: |
         Wrong password: 401 `invalid_credentials` with `attemptsLeft`. The
@@ -286,6 +314,7 @@ paths:
   /auth/google/complete:
     post:
       operationId: completeGoogleSignup
+      tags: [Sign-up and sign-in]
       summary: Finish a Google sign-up that needed a name.
       security: []
       parameters:
@@ -312,6 +341,7 @@ paths:
   /auth/token/refresh:
     post:
       operationId: refreshTokens
+      tags: [Sessions]
       summary: Swap a refresh token for a new pair.
       description: |
         Refresh tokens rotate: each works once. Repeating the same refresh
@@ -340,6 +370,7 @@ paths:
   /auth/logout:
     post:
       operationId: logout
+      tags: [Sessions]
       summary: End this session. Its access token stops working at once.
       responses:
         '204':
@@ -350,6 +381,7 @@ paths:
   /auth/logout-all:
     post:
       operationId: logoutAll
+      tags: [Sessions]
       summary: End every session of the account, this one included.
       responses:
         '204':
@@ -360,6 +392,7 @@ paths:
   /auth/password/forgot:
     post:
       operationId: forgotPassword
+      tags: [Password]
       summary: Start a password reset. Same answer for every address.
       description: Only an address with an account receives a code; others receive nothing.
       security: []
@@ -382,6 +415,7 @@ paths:
   /auth/password/forgot/resend:
     post:
       operationId: resendResetCode
+      tags: [Password]
       summary: Send a new reset code and link.
       security: []
       requestBody:
@@ -405,6 +439,7 @@ paths:
   /auth/password/forgot/verify:
     post:
       operationId: verifyReset
+      tags: [Password]
       summary: Verify the reset code or link; returns a ticket for the new password.
       description: Same failures as /auth/register/verify. Verifying again replaces the ticket.
       security: []
@@ -439,6 +474,7 @@ paths:
   /auth/password/reset:
     post:
       operationId: resetPassword
+      tags: [Password]
       summary: Set the new password and sign in. Every other session ends.
       description: |
         A Google-only account gains a password this way. The account's
@@ -468,6 +504,7 @@ paths:
   /auth/password/change:
     post:
       operationId: changePassword
+      tags: [Password]
       summary: Change the password, given the current one.
       description: |
         This session stays signed in; every other session ends. 401
@@ -495,6 +532,7 @@ paths:
   /auth/email-change:
     post:
       operationId: startEmailChange
+      tags: [Email change]
       summary: Start changing the account's email (not offered by the app yet).
       description: |
         Needs fresh proof: the current password, or for a Google-only
@@ -523,6 +561,7 @@ paths:
   /auth/email-change/resend:
     post:
       operationId: resendEmailChangeCode
+      tags: [Email change]
       summary: Send a new code to the new address.
       x-app-status: not used by the app yet
       requestBody:
@@ -542,6 +581,7 @@ paths:
   /auth/email-change/verify:
     post:
       operationId: confirmEmailChange
+      tags: [Email change]
       summary: Verify the new address; it becomes the account's email.
       description: |
         The old address is told; every other session ends. 409
@@ -576,6 +616,7 @@ paths:
   /profile:
     get:
       operationId: getProfile
+      tags: [Profile]
       summary: The signed-in account's profile.
       responses:
         '200':
@@ -592,6 +633,7 @@ paths:
           $ref: '#/components/responses/Problem'
     put:
       operationId: putProfile
+      tags: [Profile]
       summary: Replace the editable profile fields.
       description: |
         Editable: name and avatarId. Email is read-only here; any other
@@ -635,6 +677,7 @@ paths:
   /account/delete:
     post:
       operationId: deleteAccount
+      tags: [Account]
       summary: Delete the account and its data, at once and for good.
       description: |
         A "yes" is not enough. The request needs all of:
@@ -678,6 +721,7 @@ paths:
   /subscription:
     get:
       operationId: getSubscription
+      tags: [Subscription]
       summary: Current subscription state as a signed entitlement.
       description: |
         Returns the caller's subscription as the server knows it right now,
@@ -704,6 +748,7 @@ paths:
   /subscription/bazaar/purchases:
     post:
       operationId: submitBazaarPurchase
+      tags: [Subscription]
       summary: Hand a Cafe Bazaar purchase to the server for verification.
       description: |
         Called right after a purchase and on "restore". The server verifies

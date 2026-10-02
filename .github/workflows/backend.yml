@@ -42,7 +42,20 @@ jobs:
         run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
       - name: vet
         run: go vet ./...
+      - name: modules are untampered
+        run: go mod verify
+      - name: known vulnerabilities (govulncheck)
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
       - name: test
         env:
           TARK_TEST_DATABASE_URL: postgres://tark:tark@localhost:5432/tark_test?sslmode=disable
         run: go test -race -p 1 -count=1 ./...
+
+  docker:
+    name: image-builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: build the image
+        run: docker build -t tarkd:ci backend

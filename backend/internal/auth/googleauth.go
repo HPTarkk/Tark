@@ -298,15 +298,18 @@ func (s *Service) LinkGoogle(ctx context.Context, ticket, pw string, c Client) (
 			return apperr.New(http.StatusGone, "ticket_expired", "sign in with Google again")
 		}
 		userID, email = *t.userID, t.email
-		// The same failure counters as password sign-in, so the link step is
-		// not a side door for guessing passwords.
+		// The same failure counters as password sign-in, counted up front like
+		// there (see Login).
 		emailIP := email + "|" + c.IP
-		if err := s.limits.Peek(ctx, limitLoginEmailIP, emailIP); err != nil {
+		if err := s.reserveLoginAttempt(ctx, email, emailIP); err != nil {
 			return err
 		}
-		if err := s.limits.Peek(ctx, limitLoginEmail, email); err != nil {
-			return err
-		}
+		failed := false
+		defer func() {
+			if !failed {
+				s.refundLoginAttempt(ctx, email, emailIP)
+			}
+		}()
 		var hash, status string
 		err = tx.QueryRow(ctx, `
 			SELECT i.password_hash, u.status FROM auth_identities i JOIN users u ON u.id = i.user_id
@@ -324,12 +327,9 @@ func (s *Service) LinkGoogle(ctx context.Context, ticket, pw string, c Client) (
 			if _, err := tx.Exec(ctx, `UPDATE google_tickets SET attempts = attempts + 1 WHERE id = $1`, t.id); err != nil {
 				return err
 			}
+			failed = true
 			s.audit.Record(ctx, audit.GoogleLinkFailed, userID, c.IP, nil)
-			if lerr := s.loginFailed(ctx, email, emailIP, userID, c.IP); lerr != nil {
-				if ae, ok := apperr.As(lerr); ok && ae.Code == "rate_limited" {
-					return &committedError{ae}
-				}
-			}
+			s.audit.Record(ctx, audit.LoginFailed, userID, c.IP, map[string]any{"known": true})
 			left := maxTicketTries - t.attempts - 1
 			return &committedError{errInvalidCredentials.With("attemptsLeft", max(left, 0))}
 		}

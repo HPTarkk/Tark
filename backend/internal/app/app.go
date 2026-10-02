@@ -30,6 +30,10 @@ type Options struct {
 	Sender         mail.Sender
 	Bazaar         billing.Bazaar
 	PasswordParams *password.Params
+	// AuxPool carries audit and rate-limit writes (see config.DBAuxConns). Nil
+	// means they share the main pool, which is only safe with a pool larger
+	// than the number of concurrent requests.
+	AuxPool *pgxpool.Pool
 }
 
 type App struct {
@@ -94,8 +98,12 @@ func Build(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger, opts Option
 		}
 	}
 
-	limits := ratelimit.NewPG(pool, lookup)
-	aud := audit.New(pool, lookup, log)
+	aux := opts.AuxPool
+	if aux == nil {
+		aux = pool
+	}
+	limits := ratelimit.NewPG(aux, lookup)
+	aud := audit.New(aux, lookup, log)
 	gv := google.NewVerifier(cfg.Google.ClientIDs, cfg.Google.JWKSURL, nil)
 
 	authSvc := auth.NewService(pool, lookup, pw, limits, aud, outbox, gv, cfg.Keys.TokenKey, auth.Settings{
@@ -110,7 +118,7 @@ func Build(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger, opts Option
 	handler := httpapi.NewHandler(httpapi.Deps{
 		Pool: pool, Auth: authSvc, Profile: profileSvc, Billing: billingSvc,
 		Idempotency: idempotency.New(pool, sealer, lookup, 24*time.Hour),
-		Log:         log, ClientIPHeader: cfg.ClientIPHeader, TrustedProxies: cfg.TrustedProxies,
+		Log:         log, ClientIPHeader: cfg.ClientIPHeader, TrustedProxies: cfg.TrustedProxies, Docs: cfg.DocsEnabled,
 	})
 	return &App{Handler: handler, Outbox: outbox, Billing: billingSvc, Signer: signer}, nil
 }
