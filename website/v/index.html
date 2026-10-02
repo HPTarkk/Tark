@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>این لینک رو توی تَرک باز کن · Open this link in Tarkk</title>
+  <meta name="theme-color" content="#0B0E11">
+
+  <!-- ── What this page is ────────────────────────────────────────────
+       The fallback for the links in account emails:
+         https://tarkk.ir/v/register#<token>
+         https://tarkk.ir/v/reset#<token>
+         https://tarkk.ir/v/email#<token>
+       On a phone with Tark installed, Android App Links open the app
+       instead and this page is never seen (see AndroidManifest.xml and
+       /.well-known/assetlinks.json). Anywhere else, _redirects serves this
+       one file at all three paths, and it tells the reader what to do.
+
+       The token is in the fragment, which browsers never send to a server.
+       This page must keep it that way: NO scripts, no analytics, no
+       third-party requests (not even the web font), nothing that could
+       read location.hash and pass it on. The CSP below enforces that, and
+       _headers repeats it as a response header. Keep it static.
+
+       noindex: a page per email link is nothing a search engine should
+       list; it is also left out of sitemap.xml. -->
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'none'; style-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body class="vlink">
+
+  <main class="vlink-main">
+    <a class="wordmark" href="/fa/"><span class="wordmark-dot"></span>TARKK</a>
+
+    <section class="vlink-card" lang="fa" dir="rtl">
+      <p class="eyebrow">لینک ایمیل تَرک</p>
+      <h1>این لینک رو روی همون گوشی‌ای باز کن که ازش شروع کردی.</h1>
+      <p>لینک‌های ایمیل تَرک توی خود برنامه باز می‌شن. ایمیل رو روی گوشی‌ای باز کن که تَرک روش نصبه و ثبت‌نام، بازنشانی رمز عبور یا تغییر ایمیل رو از همون شروع کردی، و دوباره روی لینک بزن.</p>
+      <p><b>یا کد ۶ رقمی‌ای که توی همین ایمیل هست رو توی برنامه وارد کن.</b></p>
+      <p class="vlink-note">این صفحه هیچ چیزی رو جایی نمی‌فرسته؛ کدِ داخل لینک فقط توی مرورگر خودت می‌مونه.</p>
+    </section>
+
+    <section class="vlink-card" lang="en" dir="ltr">
+      <p class="eyebrow">TARKK EMAIL LINK</p>
+      <h1>Open this link on the phone where you started.</h1>
+      <p>Tark’s email links open in the app itself. Open the email on the phone that has Tark installed — the one where you started signing up, resetting your password or changing your email — and tap the link again.</p>
+      <p><b>Or type the 6-digit code from the same email into the app.</b></p>
+      <p class="vlink-note">This page sends nothing anywhere; the code in the link stays in your browser.</p>
+    </section>
+
+    <p class="vlink-links">
+      <a href="https://cafebazaar.ir/app/com.b1101.tark" rel="noopener">دریافت تَرک از کافه‌بازار · Get Tarkk on Cafe Bazaar</a>
+    </p>
+  </main>
+
+</body>
+
+</html>

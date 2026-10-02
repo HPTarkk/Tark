@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Three documents, each in two languages: the landing page, the privacy
-     policy and the terms. The nav targets inside each are in-page anchors,
+<!-- Four documents, each in two languages: the landing page, the privacy
+     policy, the terms and the account-deletion page. The email-link
+     fallback under /v/ is deliberately absent — it is noindex. The nav targets inside each are in-page anchors,
      so they are deliberately not listed as separate URLs — and neither are
      the numbered sections of the legal pages, for the same reason.
 
@@ -23,41 +24,55 @@
     <xhtml:link rel="alternate" hreflang="en" href="https://tarkk.ir/"/>
     <xhtml:link rel="alternate" hreflang="fa" href="https://tarkk.ir/fa/"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://tarkk.ir/fa/"/>
-    <lastmod>2026-08-02</lastmod>
+    <lastmod>2026-09-29</lastmod>
   </url>
   <url>
     <loc>https://tarkk.ir/fa/</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://tarkk.ir/"/>
     <xhtml:link rel="alternate" hreflang="fa" href="https://tarkk.ir/fa/"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://tarkk.ir/fa/"/>
-    <lastmod>2026-08-02</lastmod>
+    <lastmod>2026-09-29</lastmod>
   </url>
   <url>
     <loc>https://tarkk.ir/privacy.html</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://tarkk.ir/privacy.html"/>
     <xhtml:link rel="alternate" hreflang="fa" href="https://tarkk.ir/fa/privacy.html"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://tarkk.ir/fa/privacy.html"/>
-    <lastmod>2026-09-08</lastmod>
+    <lastmod>2026-09-29</lastmod>
   </url>
   <url>
     <loc>https://tarkk.ir/fa/privacy.html</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://tarkk.ir/privacy.html"/>
     <xhtml:link rel="alternate" hreflang="fa" href="https://tarkk.ir/fa/privacy.html"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://tarkk.ir/fa/privacy.html"/>
-    <lastmod>2026-09-08</lastmod>
+    <lastmod>2026-09-29</lastmod>
   </url>
   <url>
     <loc>https://tarkk.ir/terms.html</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://tarkk.ir/terms.html"/>
     <xhtml:link rel="alternate" hreflang="fa" href="https://tarkk.ir/fa/terms.html"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://tarkk.ir/fa/terms.html"/>
-    <lastmod>2026-09-08</lastmod>
+    <lastmod>2026-09-29</lastmod>
   </url>
   <url>
     <loc>https://tarkk.ir/fa/terms.html</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://tarkk.ir/terms.html"/>
     <xhtml:link rel="alternate" hreflang="fa" href="https://tarkk.ir/fa/terms.html"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://tarkk.ir/fa/terms.html"/>
-    <lastmod>2026-09-08</lastmod>
+    <lastmod>2026-09-29</lastmod>
+  </url>
+  <url>
+    <loc>https://tarkk.ir/delete-account.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://tarkk.ir/delete-account.html"/>
+    <xhtml:link rel="alternate" hreflang="fa" href="https://tarkk.ir/fa/delete-account.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://tarkk.ir/fa/delete-account.html"/>
+    <lastmod>2026-09-29</lastmod>
+  </url>
+  <url>
+    <loc>https://tarkk.ir/fa/delete-account.html</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://tarkk.ir/delete-account.html"/>
+    <xhtml:link rel="alternate" hreflang="fa" href="https://tarkk.ir/fa/delete-account.html"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://tarkk.ir/fa/delete-account.html"/>
+    <lastmod>2026-09-29</lastmod>
   </url>
 </urlset>

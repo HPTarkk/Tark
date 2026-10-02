@@ -33,7 +33,7 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U tark -d tark_test" --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
           go-version-file: backend/go.mod
@@ -56,6 +56,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: build the image
         run: docker build -t tarkd:ci backend

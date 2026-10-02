@@ -1,0 +1,15 @@
+# Cloudflare Pages redirects and rewrites. A status of 200 is a rewrite:
+# the URL in the address bar stays as it is and the target file is served.
+
+# Account-email links: https://tarkk.ir/v/<register|reset|email>#<token>.
+# On a phone with Tark these open the app (Android App Links, verified by
+# /.well-known/assetlinks.json) and never reach this host. Everywhere else
+# one static page answers all three: website/v/index.html. The token rides
+# in the #fragment, which a browser never sends in a request, so neither
+# this rule nor the host ever sees it — and the page itself runs no script.
+/v/register  /v/  200
+/v/reset     /v/  200
+/v/email     /v/  200
+/v/register/ /v/  200
+/v/reset/    /v/  200
+/v/email/    /v/  200
