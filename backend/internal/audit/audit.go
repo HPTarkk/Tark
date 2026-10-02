@@ -89,3 +89,8 @@ func (l *Logger) Record(ctx context.Context, kind, userID, ip string, details ma
 	}
 	l.log.InfoContext(ctx, "audit", attrs...)
 }
+
+// Sweep drops events older than the retention period (one year).
+func Sweep(ctx context.Context, db store.Querier) error {
+	return store.Sweep(ctx, db, store.SweepRule{Table: "audit_events", Where: `at < now() - interval '365 days'`})
+}

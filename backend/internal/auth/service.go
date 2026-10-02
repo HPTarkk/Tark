@@ -29,6 +29,7 @@ import (
 	"github.com/HPTarkk/Tark/backend/internal/password"
 	"github.com/HPTarkk/Tark/backend/internal/ratelimit"
 	"github.com/HPTarkk/Tark/backend/internal/secure"
+	"github.com/HPTarkk/Tark/backend/internal/store"
 )
 
 // Settings are the tunable numbers of the auth flows.
@@ -312,20 +313,18 @@ func minTime(a, b time.Time) time.Time {
 }
 
 // Sweep deletes expired auth rows. Run periodically by the worker.
+//
+// Rows go in batches and a failing table does not stop the others (see
+// store.Sweep), because every statement runs under the pool's statement
+// timeout.
 func Sweep(ctx context.Context, pool *pgxpool.Pool) error {
-	stmts := []string{
-		`DELETE FROM auth_flows WHERE expires_at < now() - interval '1 day'`,
-		`DELETE FROM google_tickets WHERE expires_at < now() - interval '1 day'`,
-		`DELETE FROM google_nonces WHERE expires_at < now()`,
-		`DELETE FROM google_seen_tokens WHERE expires_at < now()`,
-		`DELETE FROM refresh_tokens WHERE expires_at < now() - interval '1 day'`,
-		`DELETE FROM sessions WHERE (revoked_at IS NOT NULL AND revoked_at < now() - interval '30 days') OR expires_at < now() - interval '30 days'`,
-		`DELETE FROM idempotency_keys WHERE expires_at < now()`,
-	}
-	for _, q := range stmts {
-		if _, err := pool.Exec(ctx, q); err != nil {
-			return err
-		}
-	}
-	return nil
+	return store.Sweep(ctx, pool,
+		store.SweepRule{Table: "auth_flows", Where: `expires_at < now() - interval '1 day'`},
+		store.SweepRule{Table: "google_tickets", Where: `expires_at < now() - interval '1 day'`},
+		store.SweepRule{Table: "google_nonces", Where: `expires_at < now()`},
+		store.SweepRule{Table: "google_seen_tokens", Where: `expires_at < now()`},
+		store.SweepRule{Table: "refresh_tokens", Where: `expires_at < now() - interval '1 day'`},
+		store.SweepRule{Table: "sessions", Where: `(revoked_at IS NOT NULL AND revoked_at < now() - interval '30 days') OR expires_at < now() - interval '30 days'`},
+		store.SweepRule{Table: "idempotency_keys", Where: `expires_at < now()`},
+	)
 }

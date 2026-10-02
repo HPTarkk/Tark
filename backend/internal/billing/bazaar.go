@@ -170,6 +170,9 @@ type FakeBazaar struct {
 	Now    func() time.Time
 	Answer map[string]Subscription
 	Errors map[string]error
+	// OnCall, if set, runs at the start of every question (tests use it to
+	// look at what the caller is holding while Bazaar is being asked).
+	OnCall func()
 }
 
 func (f *FakeBazaar) Set(token string, s Subscription, err error) {
@@ -188,6 +191,9 @@ func (f *FakeBazaar) Set(token string, s Subscription, err error) {
 }
 
 func (f *FakeBazaar) Subscription(_ context.Context, _ string, token string) (Subscription, error) {
+	if f.OnCall != nil {
+		f.OnCall()
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if err, ok := f.Errors[token]; ok {

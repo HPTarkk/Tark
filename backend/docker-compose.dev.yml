@@ -1,0 +1,33 @@
+# Local PostgreSQL for development and tests. Used by setup-backend.ps1;
+# you can also run it by hand:
+#
+#   docker compose -f docker-compose.dev.yml up -d
+#   docker compose -f docker-compose.dev.yml down        # stop, keep the data
+#   docker compose -f docker-compose.dev.yml down -v     # stop and wipe the data
+#
+# Two databases are used: "tark" (the dev server) and "tark_test" (the test
+# suite, which wipes its public schema on every run, so keep them apart).
+name: tark-dev
+
+services:
+  db:
+    # Docker Hub can be unreachable from some networks; point this at a mirror
+    # you can reach, for example TARK_POSTGRES_IMAGE=registry.example.com/postgres:16-alpine
+    image: ${TARK_POSTGRES_IMAGE:-postgres:16-alpine}
+    environment:
+      POSTGRES_USER: tark
+      POSTGRES_PASSWORD: tark
+      POSTGRES_DB: tark
+    ports:
+      # Loopback only: this database has a well-known password.
+      - "127.0.0.1:${TARK_DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tark -d tark"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  pgdata:

@@ -33,6 +33,9 @@ type Limiter interface {
 	Peek(ctx context.Context, rule Rule, subject string) error
 	// Reset clears the counter, for example after a successful login.
 	Reset(ctx context.Context, rule Rule, subject string) error
+	// Refund gives one counted attempt back, for an attempt that turned out
+	// not to be a failure.
+	Refund(ctx context.Context, rule Rule, subject string) error
 }
 
 type PG struct {
@@ -94,6 +97,11 @@ func (l *PG) Reset(ctx context.Context, rule Rule, subject string) error {
 	return err
 }
 
+func (l *PG) Refund(ctx context.Context, rule Rule, subject string) error {
+	_, err := l.db.Exec(ctx, `UPDATE rate_limits SET hits = greatest(hits - 1, 0) WHERE key = $1`, l.key(rule, subject))
+	return err
+}
+
 func retryAfter(windowStart time.Time, window time.Duration, now time.Time) time.Duration {
 	d := windowStart.Add(window).Sub(now)
 	if d < time.Second {
@@ -104,6 +112,6 @@ func retryAfter(windowStart time.Time, window time.Duration, now time.Time) time
 
 // Sweep deletes counters whose window ended long ago.
 func Sweep(ctx context.Context, db store.Querier, olderThan time.Duration) error {
-	_, err := db.Exec(ctx, `DELETE FROM rate_limits WHERE window_start < now() - $1::interval`, olderThan)
-	return err
+	return store.Sweep(ctx, db, store.SweepRule{
+		Table: "rate_limits", Where: `window_start < now() - $1::interval`, Args: []any{olderThan}})
 }

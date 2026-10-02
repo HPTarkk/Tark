@@ -119,6 +119,18 @@ func (x ipResolver) isTrusted(a netip.Addr) bool {
 	return false
 }
 
+// canonical is the string every per-IP limit and log hash is keyed on. An
+// IPv6 address is reduced to its /64: a single subscriber or server is
+// normally handed a whole /64, so keying on the full address would give one
+// attacker 2^64 "different" IPs and make every per-IP limit meaningless.
+func canonical(a netip.Addr) string {
+	a = a.Unmap()
+	if a.Is6() {
+		return netip.PrefixFrom(a, 64).Masked().Addr().String() + "/64"
+	}
+	return a.String()
+}
+
 func (x ipResolver) resolve(r *http.Request) string {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
@@ -130,7 +142,7 @@ func (x ipResolver) resolve(r *http.Request) string {
 	}
 	peer = peer.Unmap()
 	if x.header == "" || !x.isTrusted(peer) {
-		return peer.String()
+		return canonical(peer)
 	}
 	// Walk the chain from the right: the first address that is not one of
 	// our proxies is the client.
@@ -142,10 +154,10 @@ func (x ipResolver) resolve(r *http.Request) string {
 		}
 		a = a.Unmap()
 		if !x.isTrusted(a) {
-			return a.String()
+			return canonical(a)
 		}
 	}
-	return peer.String()
+	return canonical(peer)
 }
 
 func newRequestID() string { return secure.RandomToken(9) }

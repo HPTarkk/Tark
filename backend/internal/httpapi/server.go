@@ -11,6 +11,7 @@ import (
 	"net/netip"
 	"runtime/debug"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -32,13 +33,40 @@ type Deps struct {
 	Log            *slog.Logger
 	ClientIPHeader string
 	TrustedProxies []netip.Prefix
+	// Docs serves /docs (Swagger UI) and /openapi.yaml.
+	Docs bool
 }
 
-type api struct{ Deps }
+type api struct {
+	Deps
+	readiness readyCache
+}
+
+// readyCache answers /readyz from a result at most two seconds old, and lets
+// only one caller at a time ping the database. The endpoint is public, so
+// without this anyone could make every call cost a database connection.
+type readyCache struct {
+	mu sync.Mutex
+	at time.Time
+	ok bool
+}
+
+const readyCacheFor = 2 * time.Second
+
+func (c *readyCache) check(ping func() bool) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.at.IsZero() && time.Since(c.at) < readyCacheFor {
+		return c.ok
+	}
+	c.ok = ping()
+	c.at = time.Now()
+	return c.ok
+}
 
 // NewHandler builds the whole HTTP surface.
 func NewHandler(d Deps) http.Handler {
-	a := &api{d}
+	a := &api{Deps: d}
 	ips := ipResolver{header: d.ClientIPHeader, trusted: d.TrustedProxies}
 
 	r := chi.NewRouter()
@@ -49,6 +77,10 @@ func NewHandler(d Deps) http.Handler {
 	r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, a.Log, apperr.New(http.StatusMethodNotAllowed, "method_not_allowed", ""))
 	})
+
+	if d.Docs {
+		mountDocs(r)
+	}
 
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNoContent) })
 	r.Get("/readyz", a.ready)
@@ -102,9 +134,12 @@ func NewHandler(d Deps) http.Handler {
 }
 
 func (a *api) ready(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
-	defer cancel()
-	if err := a.Pool.Ping(ctx); err != nil {
+	ok := a.readiness.check(func() bool {
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 2*time.Second)
+		defer cancel()
+		return a.Pool.Ping(ctx) == nil
+	})
+	if !ok {
 		writeError(w, r, a.Log, apperr.Unavailable("not_ready", "", time.Second))
 		return
 	}
@@ -145,6 +180,11 @@ func (a *api) accessLog(next http.Handler) http.Handler {
 		start := time.Now()
 		rec := &statusRecorder{ResponseWriter: w}
 		next.ServeHTTP(rec, r)
+		// Load balancers poll the health endpoints every few seconds; logging
+		// every success would bury the real traffic. Failures are still logged.
+		if (r.URL.Path == "/healthz" || r.URL.Path == "/readyz") && rec.status < 400 {
+			return
+		}
 		route := r.URL.Path
 		if rc := chi.RouteContext(r.Context()); rc != nil && rc.RoutePattern() != "" {
 			route = rc.RoutePattern()
@@ -176,8 +216,13 @@ func limitBody(next http.Handler) http.Handler {
 
 func (a *api) authenticated(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// The scheme name is case-insensitive (RFC 7235).
 		h := r.Header.Get("Authorization")
-		token, ok := strings.CutPrefix(h, "Bearer ")
+		token := ""
+		ok := len(h) > 7 && strings.EqualFold(h[:7], "Bearer ")
+		if ok {
+			token = strings.TrimSpace(h[7:])
+		}
 		if !ok || token == "" {
 			w.Header().Set("WWW-Authenticate", `Bearer`)
 			writeError(w, r, a.Log, apperr.Unauthorized("missing access token"))

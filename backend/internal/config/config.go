@@ -15,6 +15,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
+
 	"github.com/HPTarkk/Tark/backend/internal/secure"
 )
 
@@ -23,6 +25,19 @@ type Config struct {
 	HTTPAddr    string
 	DatabaseURL string
 	DBMaxConns  int32
+	// DBAuxConns sizes a second, small pool used only for single-statement side
+	// writes (audit events, rate-limit counters). They are issued while a
+	// request already holds a transaction connection; if they shared its pool,
+	// enough concurrent requests would each hold a connection while waiting
+	// for a second one, and nothing could ever proceed.
+	DBAuxConns int32
+	// DBAllowPlaintext lets production talk to a database over an unencrypted
+	// connection even when its address looks public. Only for a private network
+	// whose names look public (an FQDN pointing at a private address).
+	DBAllowPlaintext bool
+	// DocsEnabled serves the interactive API docs at /docs and the contract at
+	// /openapi.yaml. On by default in development only.
+	DocsEnabled bool
 	RunWorkers  bool
 
 	// Where email links point, e.g. https://tarkk.ir. Links are
@@ -172,14 +187,18 @@ func Load() (*Config, error) {
 		return d
 	}
 
+	env := get("TARK_ENV", "production")
 	c := &Config{
-		Env:            get("TARK_ENV", "production"),
-		HTTPAddr:       get("TARK_HTTP_ADDR", ":8080"),
-		DatabaseURL:    secret("TARK_DATABASE_URL", true),
-		DBMaxConns:     int32(integer("TARK_DB_MAX_CONNS", 20)),
-		RunWorkers:     boolean("TARK_RUN_WORKERS", true),
-		LinkBaseURL:    strings.TrimRight(get("TARK_LINK_BASE_URL", "https://tarkk.ir"), "/"),
-		ClientIPHeader: get("TARK_CLIENT_IP_HEADER", ""),
+		Env:              env,
+		DocsEnabled:      boolean("TARK_DOCS_ENABLED", env == "development"),
+		HTTPAddr:         get("TARK_HTTP_ADDR", ":8080"),
+		DatabaseURL:      secret("TARK_DATABASE_URL", true),
+		DBMaxConns:       int32(integer("TARK_DB_MAX_CONNS", 20)),
+		DBAuxConns:       int32(integer("TARK_DB_AUX_CONNS", 5)),
+		DBAllowPlaintext: boolean("TARK_DATABASE_ALLOW_PLAINTEXT", false),
+		RunWorkers:       boolean("TARK_RUN_WORKERS", true),
+		LinkBaseURL:      strings.TrimRight(get("TARK_LINK_BASE_URL", "https://tarkk.ir"), "/"),
+		ClientIPHeader:   get("TARK_CLIENT_IP_HEADER", ""),
 
 		AccessTokenTTL:     duration("TARK_ACCESS_TOKEN_TTL", 15*time.Minute),
 		RefreshTokenTTL:    duration("TARK_REFRESH_TOKEN_TTL", 180*24*time.Hour),
@@ -307,10 +326,58 @@ func (c *Config) validate() []error {
 		p.SuspiciousOfflineHrs < 1 || p.SuspiciousOfflineHrs > 720 {
 		errs = append(errs, errors.New("entitlement policy numbers are outside the bounds the app accepts"))
 	}
+	if c.DBMaxConns < 2 {
+		errs = append(errs, errors.New("TARK_DB_MAX_CONNS must be at least 2"))
+	}
+	if c.DBAuxConns < 1 {
+		errs = append(errs, errors.New("TARK_DB_AUX_CONNS must be at least 1"))
+	}
+	if !c.Development() && !c.DBAllowPlaintext {
+		if host := plaintextDatabaseHost(c.DatabaseURL); host != "" {
+			errs = append(errs, fmt.Errorf("TARK_DATABASE_URL reaches %q without TLS; use sslmode=require (or verify-full), "+
+				"or set TARK_DATABASE_ALLOW_PLAINTEXT=true if that address is on a private network", host))
+		}
+	}
 	if c.ClientIPHeader != "" && len(c.TrustedProxies) == 0 {
 		errs = append(errs, errors.New("TARK_CLIENT_IP_HEADER needs TARK_TRUSTED_PROXIES, otherwise anyone can forge their IP"))
 	}
 	return errs
+}
+
+// plaintextDatabaseHost returns the first database host the URL would connect
+// to without TLS, unless that host is clearly on a private network (a unix
+// socket, loopback, a private address, or a single-label name such as a
+// compose service). "" means nothing to report. A URL that does not parse is
+// left for store.Open to complain about.
+func plaintextDatabaseHost(url string) string {
+	pc, err := pgconn.ParseConfig(url)
+	if err != nil {
+		return ""
+	}
+	type target struct {
+		host string
+		tls  bool
+	}
+	targets := []target{{pc.Host, pc.TLSConfig != nil}}
+	for _, f := range pc.Fallbacks {
+		targets = append(targets, target{f.Host, f.TLSConfig != nil})
+	}
+	for _, t := range targets {
+		if !t.tls && !privateHost(t.host) {
+			return t.host
+		}
+	}
+	return ""
+}
+
+func privateHost(host string) bool {
+	if strings.HasPrefix(host, "/") || host == "localhost" {
+		return true
+	}
+	if ip, err := netip.ParseAddr(host); err == nil {
+		return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast()
+	}
+	return !strings.Contains(host, ".")
 }
 
 // parseEntitlementKeys reads "k1:<base64 seed>,k2:<base64 seed>".
