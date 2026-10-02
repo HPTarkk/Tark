@@ -12,12 +12,14 @@ import (
 
 	"github.com/HPTarkk/Tark/backend/internal/audit"
 	"github.com/HPTarkk/Tark/backend/internal/auth"
+	"github.com/HPTarkk/Tark/backend/internal/backup"
 	"github.com/HPTarkk/Tark/backend/internal/billing"
 	"github.com/HPTarkk/Tark/backend/internal/config"
 	"github.com/HPTarkk/Tark/backend/internal/google"
 	"github.com/HPTarkk/Tark/backend/internal/httpapi"
 	"github.com/HPTarkk/Tark/backend/internal/idempotency"
 	"github.com/HPTarkk/Tark/backend/internal/mail"
+	"github.com/HPTarkk/Tark/backend/internal/monitor"
 	"github.com/HPTarkk/Tark/backend/internal/password"
 	"github.com/HPTarkk/Tark/backend/internal/profile"
 	"github.com/HPTarkk/Tark/backend/internal/ratelimit"
@@ -41,6 +43,9 @@ type App struct {
 	Outbox  *mail.Outbox
 	Billing *billing.Service
 	Signer  *billing.Signer
+	Monitor *monitor.Monitor
+	// Backup is nil when TARK_BACKUP_DIR is not set.
+	Backup *backup.Service
 }
 
 func Build(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger, opts Options) (*App, error) {
@@ -115,10 +120,23 @@ func Build(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger, opts Option
 		GraceH: cfg.Policy.GraceHours, RefreshD: cfg.Policy.RefreshDays, SusOfflineH: cfg.Policy.SuspiciousOfflineHrs,
 	}, cfg.Bazaar.SKUs, log)
 
+	serverErrors := &monitor.Counter{}
+	var bk *backup.Service
+	if cfg.Backup.Dir != "" {
+		bk = backup.NewService(pool, backup.Settings{
+			Dir: cfg.Backup.Dir, Key: cfg.Backup.Key, HourUTC: cfg.Backup.HourUTC, KeepDays: cfg.Backup.KeepDays,
+		}, log)
+	}
+	mon := monitor.New(pool, outbox, serverErrors, monitor.Settings{
+		Recipients: cfg.Monitor.AlertEmails, Server: cfg.Monitor.ServerName,
+		DiskPath: cfg.Backup.Dir, Backups: bk != nil,
+	}, log)
+
 	handler := httpapi.NewHandler(httpapi.Deps{
 		Pool: pool, Auth: authSvc, Profile: profileSvc, Billing: billingSvc,
 		Idempotency: idempotency.New(pool, sealer, lookup, 24*time.Hour),
 		Log:         log, ClientIPHeader: cfg.ClientIPHeader, TrustedProxies: cfg.TrustedProxies, Docs: cfg.DocsEnabled,
+		OnServerError: serverErrors.Inc,
 	})
-	return &App{Handler: handler, Outbox: outbox, Billing: billingSvc, Signer: signer}, nil
+	return &App{Handler: handler, Outbox: outbox, Billing: billingSvc, Signer: signer, Monitor: mon, Backup: bk}, nil
 }

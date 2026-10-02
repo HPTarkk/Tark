@@ -105,3 +105,20 @@ func TestBearerSchemeIsCaseInsensitive(t *testing.T) {
 		t.Errorf("no header: %d", w.Code)
 	}
 }
+
+func TestServerErrorsAreCounted(t *testing.T) {
+	var n int
+	h := NewHandler(Deps{Log: slog.New(slog.NewTextHandler(io.Discard, nil)), OnServerError: func() { n++ }})
+	// The router has no route that panics, so wrap one the same way NewHandler does.
+	a := &api{Deps: Deps{Log: slog.New(slog.NewTextHandler(io.Discard, nil)), OnServerError: func() { n++ }}}
+	panics := a.recoverer(a.accessLog(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { panic("boom") })))
+	fails := a.recoverer(a.accessLog(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	})))
+	for _, handler := range []http.Handler{panics, fails, h} {
+		handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/nope", nil))
+	}
+	if n != 2 {
+		t.Fatalf("counted %d server errors, want 2 (a 404 is not one)", n)
+	}
+}

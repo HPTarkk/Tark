@@ -6,6 +6,12 @@
 //	tarkd keygen    print fresh secrets for a new environment
 //	tarkd pubkeys   print the entitlement public keys for the app build
 //	tarkd healthcheck  exit 0 if the local server answers /healthz (for container HEALTHCHECK)
+//	tarkd backup       make a backup now (needs TARK_BACKUP_DIR and TARK_BACKUP_KEY)
+//	tarkd backup-list  list the backups in TARK_BACKUP_DIR
+//	tarkd backup-verify <name>  decrypt and check a backup without touching the database
+//	tarkd backup-cat <name>     write a backup file to stdout (to download it)
+//	tarkd restore <name|->      load a backup (a name in TARK_BACKUP_DIR, or - for stdin) into an EMPTY database
+//	tarkd alert-test   email a test alert to TARK_ALERT_EMAILS
 package main
 
 import (
@@ -15,6 +21,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -30,6 +37,7 @@ import (
 	"github.com/HPTarkk/Tark/backend/internal/app"
 	"github.com/HPTarkk/Tark/backend/internal/audit"
 	"github.com/HPTarkk/Tark/backend/internal/auth"
+	"github.com/HPTarkk/Tark/backend/internal/backup"
 	"github.com/HPTarkk/Tark/backend/internal/billing"
 	"github.com/HPTarkk/Tark/backend/internal/config"
 	"github.com/HPTarkk/Tark/backend/internal/mail"
@@ -39,18 +47,22 @@ import (
 )
 
 func main() {
-	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	cmd := "serve"
 	if len(os.Args) > 1 {
 		cmd = os.Args[1]
 	}
+	logOut := os.Stdout
+	if cmd == "backup-cat" {
+		logOut = os.Stderr // stdout carries the file
+	}
+	log := slog.New(slog.NewJSONHandler(logOut, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	var err error
 	switch cmd {
 	case "keygen":
 		err = keygen()
 	case "healthcheck":
 		err = healthcheck()
-	case "serve", "worker", "migrate", "pubkeys":
+	case "serve", "worker", "migrate", "pubkeys", "backup", "backup-list", "backup-verify", "backup-cat", "restore", "alert-test":
 		err = run(cmd, log)
 	default:
 		err = fmt.Errorf("unknown command %q", cmd)
@@ -108,6 +120,8 @@ func keygen() error {
 	fmt.Println("TARK_PASSWORD_PEPPER=" + key())
 	fmt.Println("TARK_ENTITLEMENT_KEYS=" + kid + ":" + base64.RawURLEncoding.EncodeToString(seed))
 	fmt.Println("TARK_ENTITLEMENT_ACTIVE_KID=" + kid)
+	fmt.Println("# Encrypts database backups. Keep a copy OFF the server: without it no backup can be restored.")
+	fmt.Println("TARK_BACKUP_KEY=" + key())
 	fmt.Println()
 	fmt.Println("# Public half for the app build (billing.json). Safe to publish.")
 	fmt.Println(`"TARK_ENTITLEMENT_KEYS": "` + kid + ":" + base64.RawURLEncoding.EncodeToString(pub) + `"`)
@@ -141,11 +155,19 @@ func run(cmd string, log *slog.Logger) error {
 		return nil
 	}
 
+	switch cmd {
+	case "backup-list", "backup-verify", "backup-cat":
+		return backupFiles(cmd, cfg)
+	}
+
 	pool, err := store.Open(ctx, cfg.DatabaseURL, cfg.DBMaxConns)
 	if err != nil {
 		return err
 	}
 	defer pool.Close()
+	if cmd == "restore" {
+		return restore(ctx, pool, cfg, log)
+	}
 	auxPool, err := store.Open(ctx, cfg.DatabaseURL, cfg.DBAuxConns)
 	if err != nil {
 		return err
@@ -164,9 +186,32 @@ func run(cmd string, log *slog.Logger) error {
 		return err
 	}
 
+	switch cmd {
+	case "backup":
+		if a.Backup == nil {
+			return errors.New("TARK_BACKUP_DIR is not set")
+		}
+		res, err := a.Backup.Backup(ctx)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("%s  %d bytes  %d rows\n", res.File, res.Bytes, res.Summary.TotalRows())
+		return nil
+	case "alert-test":
+		if err := a.Monitor.SendTest(ctx); err != nil {
+			return err
+		}
+		fmt.Println("Test alert queued for", strings.Join(cfg.Monitor.AlertEmails, ", "), "- the running server sends it within seconds.")
+		return nil
+	}
+
 	if cmd == "worker" || cfg.RunWorkers {
 		go a.Outbox.Run(ctx)
 		go a.Billing.RunWorker(ctx)
+		go a.Monitor.Run(ctx)
+		if a.Backup != nil {
+			go a.Backup.Run(ctx)
+		}
 		go sweeper(ctx, pool, log)
 	}
 	if cmd == "worker" {
@@ -224,4 +269,67 @@ func sweeper(ctx context.Context, pool *pgxpool.Pool, log *slog.Logger) {
 		case <-t.C:
 		}
 	}
+}
+
+// backupFiles handles the commands that only read backup files.
+func backupFiles(cmd string, cfg *config.Config) error {
+	dir := cfg.Backup.Dir
+	if dir == "" {
+		return errors.New("TARK_BACKUP_DIR is not set")
+	}
+	if cmd == "backup-list" {
+		files, err := backup.List(dir)
+		if err != nil {
+			return err
+		}
+		for _, f := range files {
+			fmt.Printf("%s\t%d\t%s\n", f.Name, f.Bytes, f.ModTime.UTC().Format(time.RFC3339))
+		}
+		return nil
+	}
+	if len(os.Args) < 3 {
+		return fmt.Errorf("usage: tarkd %s <backup file name>", cmd)
+	}
+	f, err := backup.Open(dir, os.Args[2])
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if cmd == "backup-cat" {
+		_, err := io.Copy(os.Stdout, f)
+		return err
+	}
+	sum, err := backup.Verify(f, cfg.Backup.Key)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("OK: taken %s, schema %s, %d rows\n", sum.CreatedAt.Format(time.RFC3339),
+		sum.Migrations[len(sum.Migrations)-1], sum.TotalRows())
+	return nil
+}
+
+// restore loads a backup into an empty database. It runs before migrations,
+// so the schema is rebuilt exactly as the backup had it.
+func restore(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, log *slog.Logger) error {
+	if len(os.Args) < 3 {
+		return errors.New("usage: tarkd restore <backup file name in TARK_BACKUP_DIR | - for stdin>")
+	}
+	if len(cfg.Backup.Key) == 0 {
+		return errors.New("TARK_BACKUP_DIR and TARK_BACKUP_KEY must be set (the key the backup was made with)")
+	}
+	var in io.Reader = os.Stdin
+	if name := os.Args[2]; name != "-" {
+		f, err := backup.Open(cfg.Backup.Dir, name)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		in = f
+	}
+	sum, err := backup.Restore(ctx, pool, in, cfg.Backup.Key)
+	if err != nil {
+		return err
+	}
+	log.Info("backup restored", "taken", sum.CreatedAt, "rows", sum.TotalRows())
+	return nil
 }
