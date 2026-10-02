@@ -87,4 +87,7 @@ backend/.local/
 # Google OAuth client downloads. Matched by pattern, never by name: the file
 # name is the client ID itself.
 client_secret_*.json
+
+# Cafe Bazaar Pishkhan API token, read by scripts/bazaar-pishkhan.ps1. A real
+# secret: it can upload builds and send them to Bazaar for review.
 .PISHKHAN

@@ -26,6 +26,8 @@
 #   7. creates the GitHub release with Tarkk.apk and notes from the commits
 #   8. back to main: pulls it, merges the release branch in so main carries the
 #      new version, pushes main
+#   9. with a .PISHKHAN token, uploads the .aab + bin\ to Bazaar as a draft
+#      (bazaar-pishkhan.ps1); sending it for review stays a separate command
 #
 # If anything before the push fails, the version commit is undone and nothing
 # has left this machine. Signing passwords come from android\key.properties
@@ -41,6 +43,9 @@ $PSNativeCommandUseErrorActionPreference = $false
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $repoRoot
+
+# Pishkhan, Bazaar's release API: a release ends with a processed draft there.
+. (Join-Path $PSScriptRoot 'bazaar-pishkhan.ps1')
 
 # Baked into the invite QR. Must match where the guest web app is hosted.
 $guestUrl = 'https://app.tarkk.ir'
@@ -279,6 +284,27 @@ function Publish-GitHubRelease([string]$Tag, [string]$Apk) {
     if ($url) { return $url.Trim() }
 }
 
+# The release's .aab and bin\ as a draft on Bazaar, ready for
+# "bazaar-pishkhan.ps1 commit". Runs after the release is public, so a failure
+# warns with the command that retries it. Returns whether the draft is up.
+function Send-ReleaseToBazaar([string]$Name) {
+    Step 'Uploading to Bazaar as a draft'
+    if (-not (Test-PishkhanToken)) {
+        Write-Host '  No .PISHKHAN token — upload to Bazaar by hand.' -ForegroundColor DarkGray
+        return $false
+    }
+    $outDir = Join-Path $repoRoot "build\release\$Name"
+    try {
+        Publish-BazaarDraft (Join-Path $outDir 'Tarkk.aab') (Join-Path $outDir 'bin')
+        return $true
+    } catch {
+        Write-Host "  Bazaar upload did not finish: $_" -ForegroundColor Red
+        Write-Host '  Retry it without rebuilding:' -ForegroundColor Red
+        Write-Host "    .\scripts\bazaar-pishkhan.ps1 upload $Name" -ForegroundColor Yellow
+        return $false
+    }
+}
+
 # Everything after the tag is pushed: the GitHub release, then main brought up
 # to the shipped version. Invoke-Release ends with it, and it is the resume
 # point when that end fails:
@@ -466,10 +492,16 @@ function Invoke-Release {
         throw
     }
 
+    $onBazaar = Send-ReleaseToBazaar $name
+
     Write-Host ''
     Write-Host "  Tark $version released." -ForegroundColor Green
     if ($url) { Write-Host "  GitHub:      $url" -ForegroundColor Cyan }
-    Write-Host "  Bazaar:      upload $aab  $(Show-Size $aab)  with $binDir"
+    if ($onBazaar) {
+        Write-Host '  Bazaar:      draft uploaded; send it for review with .\scripts\bazaar-pishkhan.ps1 commit'
+    } else {
+        Write-Host "  Bazaar:      upload $aab  $(Show-Size $aab)  with $binDir"
+    }
     Write-Host "  ArvanCloud:  upload $apk  $(Show-Size $apk)"
     Write-Host "  Update feed: once Bazaar has published it, bump website\update.json"
     Invoke-Item $outDir
