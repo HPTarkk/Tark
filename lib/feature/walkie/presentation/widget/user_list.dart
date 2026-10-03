@@ -27,6 +27,27 @@ abstract final class RideMemberCount {
   }
 }
 
+/// Writes [avatarId] onto [memberId]'s row in [room], after the current
+/// frame and only when it differs from what the Room already has.
+///
+/// Best effort: a face is display metadata, so a failed write just leaves the
+/// lobby on the initial until the next ride.
+void _rememberRoomMemberAvatar(
+  SavedRoom room,
+  RoomMemberId memberId,
+  int avatarId,
+) {
+  if (!GetIt.instance.isRegistered<RoomRepository>()) return;
+  final rooms = GetIt.instance<RoomRepository>();
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(
+      rooms
+          .updateMember(room.room.id, memberId, avatarId: avatarId)
+          .then<void>((_) {}, onError: (_) {}),
+    );
+  });
+}
+
 /// Resolves the state shown for a durable Room member.
 ///
 /// A live transport, a matching display name, or a single visible peer is not
@@ -245,10 +266,26 @@ class _RoomMemberPresenceTileState extends State<_RoomMemberPresenceTile> {
   /// For an open code sheet: true again once this member is heard.
   final ValueNotifier<bool> _back = ValueNotifier(true);
 
+  /// The face last written to the Room for this member, so one sighting is
+  /// one write rather than one per rebuild.
+  int? _remembered;
+
   @override
   void dispose() {
     _back.dispose();
     super.dispose();
+  }
+
+  /// Keeps the face this member showed live on their Room row, so the lobby
+  /// and the Rooms list show it too while nobody is connected.
+  void _remember(int? avatarId) {
+    if (avatarId == null ||
+        avatarId == widget.member.avatarId ||
+        avatarId == _remembered) {
+      return;
+    }
+    _remembered = avatarId;
+    _rememberRoomMemberAvatar(widget.room, widget.member.id, avatarId);
   }
 
   bool _settled(RoomConnectionUiPhase phase) =>
@@ -298,14 +335,17 @@ class _RoomMemberPresenceTileState extends State<_RoomMemberPresenceTile> {
                   }
                   return null;
                 },
-                builder: (context, avatarId) => _RoomMemberTile(
-                  room: widget.room,
-                  member: widget.member,
-                  phase: shown,
-                  isTalking: isTalking,
-                  avatarId: avatarId,
-                  back: _back,
-                ),
+                builder: (context, avatarId) {
+                  _remember(avatarId);
+                  return _RoomMemberTile(
+                    room: widget.room,
+                    member: widget.member,
+                    phase: shown,
+                    isTalking: isTalking,
+                    avatarId: avatarId,
+                    back: _back,
+                  );
+                },
               ),
         );
       },

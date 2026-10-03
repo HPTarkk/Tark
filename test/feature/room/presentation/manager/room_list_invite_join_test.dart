@@ -334,6 +334,7 @@ final class _JoinRepository implements RoomRepository {
     RoomMemberId memberId, {
     String? displayName,
     bool? pending,
+    int? avatarId,
   }) => throw UnimplementedError();
 
   @override

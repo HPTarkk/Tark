@@ -30,7 +30,8 @@ class MemberAvatar extends StatelessWidget {
 
   /// The avatar this member announced in the live channel, when the Room is
   /// connected and their presence has been matched to them — see
-  /// [TintedAvatar.avatarId].
+  /// [TintedAvatar.avatarId]. Without one, the avatar remembered from their
+  /// last connection ([RoomMember.avatarId]) is shown.
   final int? avatarId;
 
   static Color tintFor(RoomMemberId id) => TintedAvatar.tintFor(id.value);
@@ -47,7 +48,7 @@ class MemberAvatar extends StatelessWidget {
       name: name,
       size: size,
       ring: ring,
-      avatarId: avatarId,
+      avatarId: avatarId ?? member.avatarId,
     );
   }
 }
@@ -89,10 +90,25 @@ class TintedAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final id = avatarId;
+    final picture = AvatarPicture.shows(id);
+    // A face that turns up (heard live, or remembered once the roster loads)
+    // fades in over the initial instead of popping.
+    return AnimatedSwitcher(
+      duration: AppMotion.card,
+      switchInCurve: AppMotion.easeOut,
+      switchOutCurve: AppMotion.leaving,
+      child: KeyedSubtree(
+        key: ValueKey<int?>(picture ? id : null),
+        child: _face(picture ? id : null),
+      ),
+    );
+  }
+
+  Widget _face(int? id) {
     final initial = name.trim().isEmpty ? '?' : name.trim().characters.first;
     final tint = tintFor(seed);
-    final id = avatarId;
-    if (AvatarPicture.shows(id)) {
+    if (id != null) {
       return Container(
         width: size,
         height: size,
@@ -109,7 +125,7 @@ class TintedAvatar extends StatelessWidget {
             ),
           ],
         ),
-        child: AvatarPicture(avatarId: id!, size: size),
+        child: AvatarPicture(avatarId: id, size: size),
       );
     }
     return Container(
