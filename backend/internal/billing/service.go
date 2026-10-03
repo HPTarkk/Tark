@@ -76,6 +76,10 @@ func NewService(pool *pgxpool.Pool, bz Bazaar, signer *Signer, sealer *secure.Se
 // Plans lists the plans on sale, in the order to show them.
 func (s *Service) Plans() []Plan { return slices.Clone(s.plans) }
 
+func (s *Service) sells(sku string) bool {
+	return slices.ContainsFunc(s.plans, func(p Plan) bool { return p.SKU == sku })
+}
+
 // Result is SubscriptionResponse.
 type Result struct {
 	Entitlement string
@@ -162,7 +166,10 @@ func (s *Service) Submit(ctx context.Context, userID, installKey, sku, purchaseT
 	// Any plan id is accepted, not only the ones on sale: a plan taken off
 	// sale still has subscribers whose renewals and restores must verify.
 	// Bazaar itself refuses an id that was never created in the panel.
-	if _, ok := ParsePlan(sku); !ok {
+	// The 5-minute test plan is the exception: only a server that sells it
+	// accepts it, so a test purchase never unlocks premium in production.
+	p, ok := ParsePlan(sku)
+	if !ok || (p.IsTest() && !s.sells(sku)) {
 		return Result{}, apperr.Validation("sku", "unknown product")
 	}
 	if purchaseToken == "" || len(purchaseToken) > 512 {

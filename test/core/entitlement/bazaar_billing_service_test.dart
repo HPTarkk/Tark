@@ -232,6 +232,7 @@ void main() {
         _purchase('tark_premium_1m', 'old', time: 100),
         _purchase('someone_else', 'foreign', time: 999),
         _purchase('tark_premium_6m', 'retired-plan', time: 50),
+        _purchase('TEST_SUB', 'test-plan', time: 10),
         _purchase('tark_premium_12m', 'new', time: 300),
         _purchase('tark_premium_12m', 'new', time: 300),
         _purchase('tark_premium_1m', '', time: 500),
@@ -243,6 +244,7 @@ void main() {
         'refunded',
         'old',
         'retired-plan',
+        'test-plan',
       ]);
       expect(owned.first.sku, 'tark_premium_12m');
     });

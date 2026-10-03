@@ -549,10 +549,11 @@ func newSubscriptionResponse(r *http.Request, res billing.Result) subscriptionRe
 }
 
 type planJSON struct {
-	SKU    string `json:"sku"`
-	Months int    `json:"months"`
-	Days   int    `json:"days"`
-	Title  string `json:"title"`
+	SKU     string `json:"sku"`
+	Months  int    `json:"months"`
+	Days    int    `json:"days"`
+	Minutes int    `json:"minutes,omitempty"`
+	Title   string `json:"title"`
 }
 
 // getPlans lists the plans on sale, in order, with titles in the request's
@@ -563,7 +564,7 @@ func (a *api) getPlans(w http.ResponseWriter, r *http.Request) {
 	plans := a.Billing.Plans()
 	out := make([]planJSON, 0, len(plans))
 	for _, p := range plans {
-		out = append(out, planJSON{SKU: p.SKU, Months: p.Months, Days: p.Days(), Title: p.Title(lang)})
+		out = append(out, planJSON{SKU: p.SKU, Months: p.Months, Days: p.Days(), Minutes: p.Minutes, Title: p.Title(lang)})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"plans": out})
 }

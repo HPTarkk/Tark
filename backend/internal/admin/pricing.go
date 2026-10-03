@@ -55,6 +55,18 @@ func defaultMultiplier(months int) float64 {
 	}
 }
 
+// pricedPlans leaves out the 5-minute test plan: its price is whatever the
+// tester set in the panel and has nothing to do with the monthly price.
+func pricedPlans(plans []billing.Plan) []billing.Plan {
+	out := make([]billing.Plan, 0, len(plans))
+	for _, p := range plans {
+		if !p.IsTest() {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
 func defaultInputs(plans []billing.Plan) PriceInputs {
 	in := PriceInputs{Adjustment: 1, RoundTo: 10000, Ending: 1000, Multipliers: map[string]float64{}}
 	for _, p := range plans {
@@ -78,6 +90,7 @@ func psychological(raw float64, roundTo, ending int64) int64 {
 
 // SuggestPrices works out every plan's price from the inputs.
 func SuggestPrices(in PriceInputs, plans []billing.Plan) []PriceRow {
+	plans = pricedPlans(plans)
 	rows := make([]PriceRow, 0, len(plans))
 	var monthly int64
 	for _, p := range plans {
@@ -136,7 +149,7 @@ func (s *Server) pricing(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) showPricing(w http.ResponseWriter, r *http.Request, status int, in PriceInputs, saved bool, notice, errText string) {
-	data := map[string]any{"In": in, "Saved": saved, "Notice": notice, "Error": errText, "Plans": s.Plans}
+	data := map[string]any{"In": in, "Saved": saved, "Notice": notice, "Error": errText, "Plans": pricedPlans(s.Plans)}
 	if in.BaseMonthly > 0 {
 		data["Rows"] = SuggestPrices(in, s.Plans)
 	}
@@ -187,7 +200,7 @@ func (s *Server) savePricing(w http.ResponseWriter, r *http.Request) {
 		bad("The overall multiplier must be between 0.1 and 100.")
 		return
 	}
-	for _, p := range s.Plans {
+	for _, p := range pricedPlans(s.Plans) {
 		m, err := parseFactor(r.PostFormValue("mult_" + p.SKU))
 		if err != nil || m < 0.1 || m > 100 {
 			bad(fmt.Sprintf("The multiplier for %s must be between 0.1 and 100.", p.Title("en")))

@@ -2572,8 +2572,8 @@ class AppLocalizationsEn extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count months',
-      one: '1 month',
+      other: 'Tark Premium, $count months',
+      one: 'Tark Premium, 1 month',
     );
     return '$_temp0';
   }
@@ -2583,8 +2583,8 @@ class AppLocalizationsEn extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count years',
-      one: '1 year',
+      other: 'Tark Premium, $count years',
+      one: 'Tark Premium, 1 year',
     );
     return '$_temp0';
   }

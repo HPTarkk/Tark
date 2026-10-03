@@ -1246,10 +1246,12 @@ components:
       properties:
         sku:
           type: string
-          pattern: '^tark_premium_[1-9][0-9]?m$'
+          pattern: '^(tark_premium_[1-9][0-9]?m|TEST_SUB)$'
           description: |
             A plan id. Any plan id is accepted, not only those on sale, so a
-            plan taken off sale still restores and renews.
+            plan taken off sale still restores and renews. The exception is
+            TEST_SUB, the 5-minute test product, which is accepted only by a
+            server whose TARK_BAZAAR_SKUS lists it.
         purchaseToken:
           type: string
           minLength: 1
@@ -1271,8 +1273,9 @@ components:
         planTitle:
           type: [string, 'null']
           description: |
-            The entitlement's plan named in the request's language ("3
-            months", or "Gift from Tark" for premium given by support).
+            The entitlement's plan named in the request's language ("Tark
+            Premium, 3 months", or "Gift from Tark" for premium given by
+            support).
             Display only; null when there is no plan.
 
     Plan:
@@ -1284,13 +1287,16 @@ components:
           examples: [tark_premium_3m]
         months:
           type: integer
-          description: Period length in months.
+          description: Period length in months; 0 for the test plan.
         days:
           type: integer
-          description: Period length as the Bazaar panel names it (30 days a month, 365 a year).
+          description: Period length as the Bazaar panel names it (30 days a month, 365 a year); 0 for the test plan.
+        minutes:
+          type: integer
+          description: Only on the 5-minute test plan (sku TEST_SUB), which test servers list.
         title:
           type: string
-          description: The plan's name in the request's language, e.g. "3 months" / "سه ماهه".
+          description: The plan's name in the request's language, e.g. "Tark Premium, 3 months" / "اشتراک سه ماهه تَرک".
 
     EntitlementPayload:
       type: object

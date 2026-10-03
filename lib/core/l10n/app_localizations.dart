@@ -4607,13 +4607,13 @@ abstract class AppLocalizations {
   /// No description provided for @mysub_plan_months.
   ///
   /// In fa, this message translates to:
-  /// **'{count} ماهه'**
+  /// **'اشتراک {count} ماهه تَرک'**
   String mysub_plan_months(num count);
 
   /// No description provided for @mysub_plan_years.
   ///
   /// In fa, this message translates to:
-  /// **'{count} ساله'**
+  /// **'اشتراک {count} ساله تَرک'**
   String mysub_plan_years(num count);
 
   /// No description provided for @signin_title.

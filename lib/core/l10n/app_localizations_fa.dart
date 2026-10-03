@@ -2559,12 +2559,12 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String mysub_plan_months(num count) {
-    return '$count ماهه';
+    return 'اشتراک $count ماهه تَرک';
   }
 
   @override
   String mysub_plan_years(num count) {
-    return '$count ساله';
+    return 'اشتراک $count ساله تَرک';
   }
 
   @override
