@@ -28,6 +28,7 @@ class ChangePasswordPage extends StatefulWidget {
 class _ChangePasswordPageState extends State<ChangePasswordPage> {
   final _current = TextEditingController();
   final _next = TextEditingController();
+  bool _saved = false;
 
   AccountFormCubit get _cubit => context.read<AccountFormCubit>();
 
@@ -49,10 +50,12 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
         newPassword: _next.text,
       ),
     );
-    if (result is AuthSuccess && mounted) {
-      showAuthToast(context, context.getString.change_password_done);
-      finishAuthFlow(context);
-    }
+    if (result is AuthSuccess && mounted) setState(() => _saved = true);
+  }
+
+  void _leave() {
+    showAuthToast(context, context.getString.change_password_done);
+    finishAuthFlow(context);
   }
 
   @override
@@ -68,33 +71,40 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
           icon: Icons.password_rounded,
           title: s.account_change_password,
           body: s.change_password_body,
+          busy: state.busy,
+          error: error,
+          success: _saved,
+          onSuccessShown: _leave,
           children: [
             AuthTextField(
               fieldKey: const ValueKey('change-current'),
               controller: _current,
               hint: s.auth_current_password_hint,
+              icon: Icons.lock_outline_rounded,
               obscure: true,
               ltr: true,
               autofillHints: const [AutofillHints.password],
-              enabled: !state.busy,
+              enabled: !state.busy && !_saved,
             ),
             AuthTextField(
               fieldKey: const ValueKey('change-new'),
               controller: _next,
               hint: s.auth_new_password_hint,
+              icon: Icons.key_rounded,
               obscure: true,
               ltr: true,
               maxLength: 128,
               autofillHints: const [AutofillHints.newPassword],
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _submit(),
-              enabled: !state.busy,
+              enabled: !state.busy && !_saved,
             ),
-            if (message != null) AuthMessage(message),
+            AuthMessageSlot(message),
             AuthPrimaryButton(
               buttonKey: const ValueKey('change-submit'),
               label: s.change_password_action,
               busy: state.busy,
+              done: _saved,
               onTap: _submit,
             ),
           ],

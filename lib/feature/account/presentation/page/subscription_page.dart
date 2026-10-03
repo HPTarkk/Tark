@@ -8,6 +8,7 @@ import '../../../../core/entitlement/signed_entitlement.dart';
 import '../../../../core/entitlement/subscription_gate_page.dart';
 import '../../../../core/entitlement/subscription_service.dart';
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/friendly_date.dart';
 import '../../../update/data/store_launcher.dart';
@@ -74,7 +75,11 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
       SubscriptionPage.bazaarListing,
     );
     if (!opened && mounted) {
-      showAuthToast(context, context.getString.auth_error_trouble);
+      showAuthToast(
+        context,
+        context.getString.auth_error_trouble,
+        positive: false,
+      );
     }
   }
 
@@ -88,31 +93,19 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
     final hasHistory = token != null && status != EntitlementStatus.none;
     final gift = token?.sku == 'comp';
 
-    return AuthScaffold(
-      icon: Icons.workspace_premium_rounded,
-      title: hasHistory ? s.mysub_title : s.mysub_none_title,
-      body: hasHistory ? null : s.mysub_none_body,
-      children: [
-        if (hasHistory) ...[
-          _PlanCard(
-            key: const ValueKey('subscription-card'),
-            title: _planTitle(context, token),
-            status: _statusLine(context, token, active),
-            paidVia: gift ? s.mysub_paid_gift : s.mysub_paid_bazaar,
-            active: active,
-            gift: gift,
-          ),
-          const SizedBox(height: 20),
-        ],
-        if (_reached == false) AuthMessage(s.mysub_offline),
-        if (active && !gift) ...[
+    final Widget actions;
+    if (active && !gift) {
+      actions = Column(
+        key: const ValueKey('manage'),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
           AuthSecondaryButton(
             buttonKey: const ValueKey('subscription-open-bazaar'),
             label: s.mysub_manage,
             icon: Icons.storefront_rounded,
             onTap: _openBazaar,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Text(
             s.mysub_manage_note,
             textAlign: TextAlign.center,
@@ -122,23 +115,61 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
               height: 1.6,
             ),
           ),
-        ] else if (!active)
-          AuthPrimaryButton(
-            buttonKey: const ValueKey('subscription-see-plans'),
-            label: hasHistory ? s.mysub_renew : s.mysub_see_plans,
-            onTap: _openPlans,
-          ),
-        if (token != null) ...[
-          const SizedBox(height: 18),
-          Text(
-            s.mysub_checked(FriendlyDate.format(context, token.issuedAt)),
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppColors.textSecondary.withAlpha(170),
-              fontSize: 11,
-            ),
-          ),
         ],
+      );
+    } else if (!active) {
+      actions = AuthPrimaryButton(
+        key: const ValueKey('plans'),
+        buttonKey: const ValueKey('subscription-see-plans'),
+        label: hasHistory ? s.mysub_renew : s.mysub_see_plans,
+        onTap: _openPlans,
+      );
+    } else {
+      actions = const SizedBox(key: ValueKey('gift'), width: double.infinity);
+    }
+
+    return AuthScaffold(
+      icon: Icons.workspace_premium_rounded,
+      title: hasHistory ? s.mysub_title : s.mysub_none_title,
+      body: hasHistory ? null : s.mysub_none_body,
+      busy: _reached == null,
+      children: [
+        AuthReveal(
+          visible: hasHistory,
+          child: hasHistory
+              ? Padding(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: _PlanCard(
+                    key: const ValueKey('subscription-card'),
+                    title: _planTitle(context, token),
+                    status: _statusLine(context, token, active),
+                    paidVia: gift ? s.mysub_paid_gift : s.mysub_paid_bazaar,
+                    active: active,
+                    gift: gift,
+                  ),
+                )
+              : const SizedBox.shrink(),
+        ),
+        AuthMessageSlot(_reached == false ? s.mysub_offline : null),
+        PhaseSwitcher(alignment: Alignment.center, child: actions),
+        AuthReveal(
+          visible: token != null,
+          child: token == null
+              ? const SizedBox.shrink()
+              : Padding(
+                  padding: const EdgeInsets.only(top: 18),
+                  child: Text(
+                    s.mysub_checked(
+                      FriendlyDate.format(context, token.issuedAt),
+                    ),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppColors.textSecondary.withValues(alpha: 0.7),
+                      fontSize: 11.5,
+                    ),
+                  ),
+                ),
+        ),
       ],
     );
   }
@@ -196,62 +227,103 @@ class _PlanCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = active ? AppColors.amber : AppColors.textSecondary;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+    final amber = AppColors.amber;
+    final accent = active ? amber : AppColors.textSecondary;
+    return AnimatedContainer(
+      duration: AppMotion.card,
+      curve: AppMotion.easeOut,
+      padding: const EdgeInsetsDirectional.fromSTEB(18, 18, 18, 16),
       decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          begin: AlignmentDirectional.topStart,
+          end: AlignmentDirectional.bottomEnd,
+          colors: [
+            active
+                ? Color.alphaBlend(
+                    amber.withValues(alpha: 0.16),
+                    AppColors.card,
+                  )
+                : AppColors.card,
+            AppColors.card,
+          ],
+        ),
         border: Border.all(
-          color: active ? AppColors.amber.withAlpha(120) : AppColors.border,
+          color: active ? amber.withValues(alpha: 0.5) : AppColors.border,
           width: active ? 1.5 : 1,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: amber.withValues(alpha: active ? 0.14 : 0),
+            blurRadius: 26,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (active)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.amber.withAlpha(30),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.star_rounded, size: 14, color: AppColors.amber),
-                  const SizedBox(width: 4),
-                  Text(
-                    context.getString.mysub_premium,
-                    style: TextStyle(
-                      color: AppColors.amber,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1.2,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (active) ...[
+                      _PremiumBadge(label: context.getString.mysub_premium),
+                      const SizedBox(height: 12),
+                    ],
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w900,
+                        height: 1.25,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          if (active) const SizedBox(height: 12),
-          Text(
-            title,
-            style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-            ),
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: accent.withValues(alpha: 0.14),
+                ),
+                child: Icon(
+                  gift
+                      ? Icons.card_giftcard_rounded
+                      : Icons.workspace_premium_rounded,
+                  color: accent,
+                  size: 24,
+                ),
+              ),
+            ],
           ),
           if (status.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(
-              status,
-              style: TextStyle(color: accent, fontSize: 14, height: 1.5),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(
+                  active ? Icons.autorenew_rounded : Icons.event_busy_rounded,
+                  size: 16,
+                  color: accent,
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    status,
+                    style: TextStyle(color: accent, fontSize: 14, height: 1.5),
+                  ),
+                ),
+              ],
             ),
           ],
-          const SizedBox(height: 14),
-          Divider(height: 1, color: AppColors.border),
+          const SizedBox(height: 16),
+          Container(height: 1, color: AppColors.border),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -271,6 +343,49 @@ class _PlanCard extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// PREMIUM, with a star, in an amber pill.
+class _PremiumBadge extends StatelessWidget {
+  const _PremiumBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final amber = AppColors.amber;
+    return Container(
+      padding: const EdgeInsetsDirectional.fromSTEB(8, 4, 10, 4),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: AlignmentDirectional.centerStart,
+          end: AlignmentDirectional.centerEnd,
+          colors: [
+            amber.withValues(alpha: 0.26),
+            amber.withValues(alpha: 0.12),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: amber.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.star_rounded, size: 14, color: amber),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: amber,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              letterSpacing: authLabelSpacing(context, 1.2),
+            ),
           ),
         ],
       ),

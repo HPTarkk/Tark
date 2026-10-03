@@ -77,6 +77,15 @@ abstract final class AppMotion {
   /// offering its action before anyone reaches for it again.
   static const Duration confirmHold = Duration(milliseconds: 2400);
 
+  /// How long a finished flow shows its success mark before the screen
+  /// leaves on its own.
+  ///
+  /// Shorter than [confirmHold]: that one waits for eyes that were elsewhere,
+  /// while here the person just pressed the button and is watching it. Long
+  /// enough for the check mark to land and be read, short enough that it
+  /// never feels like the app is making them wait.
+  static const Duration successBeat = Duration(milliseconds: 1100);
+
   /// Gap between neighbouring items in an entrance. Below ~30ms the stagger
   /// stops being legible; above ~80ms the last row feels left behind.
   static const Duration stagger = Duration(milliseconds: 45);

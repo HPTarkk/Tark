@@ -33,6 +33,7 @@ class GoogleLinkPage extends StatefulWidget {
 
 class _GoogleLinkPageState extends State<GoogleLinkPage> {
   final _password = TextEditingController();
+  bool _linked = false;
 
   AccountFormCubit get _cubit => context.read<AccountFormCubit>();
 
@@ -51,7 +52,7 @@ class _GoogleLinkPageState extends State<GoogleLinkPage> {
         password: _password.text,
       ),
     );
-    if (result is AuthSuccess && mounted) finishAuthFlow(context);
+    if (result is AuthSuccess && mounted) setState(() => _linked = true);
   }
 
   @override
@@ -71,19 +72,24 @@ class _GoogleLinkPageState extends State<GoogleLinkPage> {
           icon: Icons.link_rounded,
           title: s.google_link_title,
           body: s.google_link_body('\u2066${widget.maskedEmail}\u2069'),
+          busy: state.busy,
+          error: error,
+          success: _linked,
+          onSuccessShown: () => finishAuthFlow(context),
           children: [
             AuthTextField(
               fieldKey: const ValueKey('google-link-password'),
               controller: _password,
               hint: s.auth_password_hint,
+              icon: Icons.lock_outline_rounded,
               obscure: true,
               ltr: true,
               autofillHints: const [AutofillHints.password],
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _submit(),
-              enabled: !state.busy && !ticketGone,
+              enabled: !state.busy && !ticketGone && !_linked,
             ),
-            if (message != null) AuthMessage(message),
+            AuthMessageSlot(message),
             if (ticketGone)
               AuthPrimaryButton(
                 label: s.auth_close,
@@ -94,6 +100,7 @@ class _GoogleLinkPageState extends State<GoogleLinkPage> {
                 buttonKey: const ValueKey('google-link-submit'),
                 label: s.google_link_action,
                 busy: state.busy,
+                done: _linked,
                 onTap: _submit,
               ),
           ],
@@ -124,6 +131,7 @@ class GoogleNamePage extends StatefulWidget {
 
 class _GoogleNamePageState extends State<GoogleNamePage> {
   late final _name = TextEditingController(text: widget.suggestedName ?? '');
+  bool _named = false;
 
   AccountFormCubit get _cubit => context.read<AccountFormCubit>();
 
@@ -142,7 +150,7 @@ class _GoogleNamePageState extends State<GoogleNamePage> {
         name: _name.text,
       ),
     );
-    if (result is AuthSuccess && mounted) finishAuthFlow(context);
+    if (result is AuthSuccess && mounted) setState(() => _named = true);
   }
 
   @override
@@ -155,21 +163,27 @@ class _GoogleNamePageState extends State<GoogleNamePage> {
         return AuthScaffold(
           icon: Icons.badge_rounded,
           title: s.google_name_title,
+          busy: state.busy,
+          error: error,
+          success: _named,
+          onSuccessShown: () => finishAuthFlow(context),
           children: [
             AuthTextField(
               fieldKey: const ValueKey('google-name'),
               controller: _name,
               hint: s.auth_name_hint,
+              icon: Icons.badge_outlined,
               maxLength: 50,
               autofillHints: const [AutofillHints.name],
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _submit(),
-              enabled: !state.busy,
+              enabled: !state.busy && !_named,
             ),
-            if (message != null) AuthMessage(message),
+            AuthMessageSlot(message),
             AuthPrimaryButton(
               label: s.google_name_action,
               busy: state.busy,
+              done: _named,
               onTap: _submit,
             ),
           ],

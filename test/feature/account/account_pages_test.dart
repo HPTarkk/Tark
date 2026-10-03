@@ -340,4 +340,93 @@ void main() {
       expect(h.session.isSignedIn, isFalse);
     });
   });
+
+  group('Persian layout', () {
+    Future<void> pumpFa(WidgetTester tester, Widget page) async {
+      tester.view.physicalSize = const Size(420, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('fa'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: page,
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('an email field types left to right but sits right to left', (
+      tester,
+    ) async {
+      await pumpFa(tester, SignInPage.buildPage());
+      final email = find.byKey(const ValueKey('signin-email'));
+
+      // What is typed is an address, so it runs left to right…
+      expect(tester.widget<TextField>(email).textDirection, TextDirection.ltr);
+      // …while its icon and label follow the page, starting on the right.
+      final field = tester.getRect(email);
+      final icon = tester.getCenter(
+        find.descendant(
+          of: email,
+          matching: find.byIcon(Icons.alternate_email_rounded),
+        ),
+      );
+      expect(icon.dx, greaterThan(field.center.dx));
+      final label = tester.getCenter(
+        find.descendant(of: email, matching: find.text('آدرس ایمیل')),
+      );
+      expect(label.dx, greaterThan(field.center.dx));
+    });
+
+    testWidgets('the show-password button sits on the left', (tester) async {
+      await pumpFa(tester, SignInPage.buildPage());
+      final password = find.byKey(const ValueKey('signin-password'));
+      final eye = tester.getCenter(
+        find.descendant(
+          of: password,
+          matching: find.byIcon(Icons.visibility_outlined),
+        ),
+      );
+      expect(eye.dx, lessThan(tester.getRect(password).center.dx));
+    });
+
+    testWidgets('Persian button labels keep their letters joined', (
+      tester,
+    ) async {
+      await pumpFa(tester, SignInPage.buildPage());
+      final label = tester.widget<Text>(
+        find.descendant(
+          of: find.byKey(const ValueKey('signin-submit')),
+          matching: find.byType(Text),
+        ),
+      );
+      expect(label.style?.letterSpacing, 0);
+    });
+  });
+
+  testWidgets('signing in shows the check mark before the screen leaves', (
+    tester,
+  ) async {
+    h.client.handler = (_) async => ApiOk(200, sessionJson());
+    final results = await pump(tester, (_) => SignInPage.buildPage());
+    await tester.enterText(
+      find.byKey(const ValueKey('signin-email')),
+      'pedi@example.com',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('signin-password')),
+      'secret pass',
+    );
+    await tester.tap(find.byKey(const ValueKey('signin-submit')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.byIcon(Icons.check_rounded), findsWidgets);
+    expect(results, isEmpty);
+
+    await tester.pumpAndSettle();
+    expect(results, [true]);
+  });
 }

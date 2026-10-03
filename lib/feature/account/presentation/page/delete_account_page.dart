@@ -95,6 +95,8 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
           iconColor: AppColors.red,
           title: s.delete_title,
           body: s.delete_warning,
+          busy: state.busy,
+          error: error,
           children: [
             AuthMessage(s.delete_keeps, positive: true),
             _Label(s.delete_type_email('\u2066${widget.profile.email}\u2069')),
@@ -102,6 +104,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
               fieldKey: const ValueKey('delete-email'),
               controller: _email,
               hint: s.auth_email_hint,
+              icon: Icons.alternate_email_rounded,
               ltr: true,
               keyboardType: TextInputType.emailAddress,
               enabled: !state.busy,
@@ -113,21 +116,26 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                 fieldKey: const ValueKey('delete-password'),
                 controller: _password,
                 hint: s.auth_password_hint,
+                icon: Icons.lock_outline_rounded,
                 obscure: true,
                 ltr: true,
                 autofillHints: const [AutofillHints.password],
                 textInputAction: TextInputAction.done,
                 enabled: !state.busy,
               ),
-            if (state.subscriptionRunning)
-              _SubscriptionNotice(
+            // Learned from the server after the screen opens, so it opens
+            // its space rather than pushing the button down in one jump.
+            AuthReveal(
+              visible: state.subscriptionRunning,
+              child: _SubscriptionNotice(
                 autoRenewing: state.autoRenewing ?? true,
                 acknowledged: state.acknowledged,
                 onChanged: state.busy
                     ? null
                     : context.read<DeleteAccountCubit>().setAcknowledged,
               ),
-            if (message != null) AuthMessage(message),
+            ),
+            AuthMessageSlot(message),
             AuthPrimaryButton(
               buttonKey: const ValueKey('delete-submit'),
               label: _withGoogle ? s.delete_action_google : s.delete_action,
@@ -182,11 +190,11 @@ class _SubscriptionNotice extends StatelessWidget {
     return Container(
       key: const ValueKey('delete-subscription-notice'),
       margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.fromLTRB(14, 12, 6, 6),
+      padding: const EdgeInsetsDirectional.fromSTEB(14, 12, 6, 6),
       decoration: BoxDecoration(
         color: AppColors.card,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.amber.withAlpha(90)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.amber.withValues(alpha: 0.35)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
