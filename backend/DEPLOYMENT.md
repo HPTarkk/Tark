@@ -27,6 +27,18 @@ interactive API documentation. Options: `-Database docker|native|external`,
 `-SkipTests`, `-NoRun`, `-Reset`, `-HttpPort`, `-DbPort`, `-GoProxy`; see
 `Get-Help .\backend\setup-backend.ps1 -Full`.
 
+The admin panel runs too, at <http://localhost:8081> (this computer only;
+`-AdminPort` changes it). Create a login for it once:
+
+```powershell
+.\backend\scripts\admin-local.ps1 you@example.com
+```
+
+It prints a one-time password. Sign in with it, add the account to an
+authenticator app (on a computer, type the key the page shows; there is no QR code), enter the
+6-digit code, then choose your own password. Emails such as the sign-in notice
+are printed in the API's window instead of being sent.
+
 ## B. One server with Docker Compose
 
 **Server:** any Linux machine with Docker Engine + the Compose plugin, ports 80

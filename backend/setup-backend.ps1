@@ -38,6 +38,10 @@
 .PARAMETER HttpPort
   Port the API listens on (default 8080).
 
+.PARAMETER AdminPort
+  Port the admin panel listens on, on this computer only (default 8081).
+  Create a login for it with .\backend\scripts\admin-local.ps1.
+
 .PARAMETER GoProxy
   Value for GOPROXY if the default Go module proxy is not reachable from your network.
 
@@ -68,6 +72,7 @@ param(
     [string]$TestDatabaseUrl = '',
     [int]$DbPort = 5432,
     [int]$HttpPort = 8080,
+    [int]$AdminPort = 8081,
     [string]$GoProxy = '',
     [switch]$SkipTests,
     [switch]$NoRun,
@@ -362,6 +367,8 @@ function Initialize-EnvFile($db) {
 
     $lines = Set-EnvValue $lines 'TARK_DATABASE_URL' $db.Url
     $lines = Set-EnvValue $lines 'TARK_HTTP_ADDR' ":$HttpPort"
+    # The admin panel, reachable from this computer only.
+    $lines = Set-EnvValue $lines 'TARK_ADMIN_ADDR' "127.0.0.1:$AdminPort"
     [System.IO.File]::WriteAllLines($EnvFile, [string[]]$lines, $Utf8NoBom)
     Import-EnvFile
     Ok "database: $((Get-EnvValue $lines 'TARK_DATABASE_URL') -replace ':[^:@/]+@', ':***@')"
@@ -422,6 +429,7 @@ function Write-Summary($testsPassed) {
     Write-Host "  OpenAPI contract      : $base/openapi.yaml"
     Write-Host "  Health / readiness    : $base/healthz   $base/readyz"
     Write-Host "  API base URL          : $base/v1"
+    Write-Host "  Admin panel           : http://localhost:$AdminPort   (first login: .\backend\scripts\admin-local.ps1 you@example.com)"
     Write-Host '  Emails                : printed in this window (TARK_MAIL_DRIVER=log), with their codes'
     Write-Host '  Subscriptions         : fake Bazaar (a token starting with "invalid" is unknown, "down" simulates an outage)'
     if (-not $testsPassed) { Write-Host '  Tests                 : FAILED, see the output above' -ForegroundColor Yellow }
