@@ -37,6 +37,10 @@ class _SignInPageState extends State<SignInPage> {
   final _email = TextEditingController();
   final _password = TextEditingController();
 
+  /// Signed in: the check mark is playing and the screen leaves when it
+  /// lands.
+  bool _signedIn = false;
+
   AccountFormCubit get _cubit => context.read<AccountFormCubit>();
 
   @override
@@ -74,7 +78,7 @@ class _SignInPageState extends State<SignInPage> {
             maskedEmail: error.maskedEmail ?? '',
           ),
         );
-        if (linked && mounted) _done();
+        if (linked && mounted) _leave();
       case AuthFailure(:final error)
           when error.kind == AuthErrorKind.nameRequired && error.ticket != null:
         _cubit.clearError();
@@ -86,7 +90,7 @@ class _SignInPageState extends State<SignInPage> {
             suggestedName: error.suggestedName,
           ),
         );
-        if (named && mounted) _done();
+        if (named && mounted) _leave();
       case AuthFailure():
         break;
     }
@@ -98,7 +102,8 @@ class _SignInPageState extends State<SignInPage> {
       RegisterPage.routeName,
       (_) => RegisterPage.buildPage(email: _email.text),
     );
-    if (done && mounted) _done();
+    // The code screen already showed its check mark and said so.
+    if (done && mounted) finishAuthFlow(context);
   }
 
   Future<void> _forgot() async {
@@ -107,10 +112,15 @@ class _SignInPageState extends State<SignInPage> {
       ForgotPasswordPage.routeName,
       (_) => ForgotPasswordPage.buildPage(email: _email.text),
     );
-    if (done && mounted) _done();
+    if (done && mounted) finishAuthFlow(context);
   }
 
-  void _done() {
+  void _done() => setState(() => _signedIn = true);
+
+  /// Leaves once signed in. Screens further along the flow (Google's) have
+  /// already shown their own check mark, so they come straight here.
+
+  void _leave() {
     showAuthToast(context, context.getString.signin_done);
     finishAuthFlow(context);
   }
@@ -122,60 +132,68 @@ class _SignInPageState extends State<SignInPage> {
       builder: (context, state) {
         final error = state.error;
         final message = error == null ? null : authErrorText(context, error);
+        final locked = state.busy || _signedIn;
         return AuthScaffold(
-          icon: Icons.account_circle_outlined,
+          icon: Icons.person_rounded,
           title: s.signin_title,
           body: s.signin_subtitle,
+          busy: state.busy,
+          error: error,
+          success: _signedIn,
+          onSuccessShown: _leave,
           children: [
             AuthTextField(
               fieldKey: const ValueKey('signin-email'),
               controller: _email,
               hint: s.auth_email_hint,
+              icon: Icons.alternate_email_rounded,
               ltr: true,
               keyboardType: TextInputType.emailAddress,
               autofillHints: const [AutofillHints.email],
-              enabled: !state.busy,
+              enabled: !locked,
             ),
             AuthTextField(
               fieldKey: const ValueKey('signin-password'),
               controller: _password,
               hint: s.auth_password_hint,
+              icon: Icons.lock_outline_rounded,
               obscure: true,
               ltr: true,
               autofillHints: const [AutofillHints.password],
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _signIn(),
-              enabled: !state.busy,
-            ),
-            if (message != null) AuthMessage(message),
-            AuthPrimaryButton(
-              buttonKey: const ValueKey('signin-submit'),
-              label: s.signin_action,
-              busy: state.busy,
-              onTap: _signIn,
+              enabled: !locked,
             ),
             Align(
               alignment: AlignmentDirectional.centerEnd,
               child: AuthTextLink(
                 linkKey: const ValueKey('signin-forgot'),
                 label: s.signin_forgot,
-                onTap: state.busy ? null : _forgot,
+                onTap: locked ? null : _forgot,
               ),
             ),
+            const SizedBox(height: 6),
+            AuthMessageSlot(message),
+            AuthPrimaryButton(
+              buttonKey: const ValueKey('signin-submit'),
+              label: s.signin_action,
+              busy: state.busy,
+              done: _signedIn,
+              onTap: _signIn,
+            ),
             if (_cubit.repository.googleAvailable) ...[
-              _OrDivider(label: s.signin_or),
+              AuthOrDivider(label: s.signin_or),
               AuthSecondaryButton(
                 buttonKey: const ValueKey('signin-google'),
                 label: s.signin_google,
-                icon: Icons.g_mobiledata_rounded,
-                onTap: state.busy ? null : _google,
+                leading: const GoogleMark(),
+                onTap: locked ? null : _google,
               ),
             ],
-            const SizedBox(height: 18),
-            AuthTextLink(
-              linkKey: const ValueKey('signin-register'),
-              label: s.signin_create,
-              onTap: state.busy ? null : _register,
+            const SizedBox(height: 22),
+            _CreateAccount(
+              prompt: s.signin_create,
+              onTap: locked ? null : _register,
             ),
           ],
         );
@@ -184,26 +202,34 @@ class _SignInPageState extends State<SignInPage> {
   }
 }
 
-class _OrDivider extends StatelessWidget {
-  const _OrDivider({required this.label});
+/// The way to a new account, set apart in its own quiet card at the foot of
+/// the screen.
+class _CreateAccount extends StatelessWidget {
+  const _CreateAccount({required this.prompt, required this.onTap});
 
-  final String label;
+  final String prompt;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.7)),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Expanded(child: Divider(color: AppColors.border)),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Text(
-              label,
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+          Icon(Icons.person_add_alt_rounded, size: 18, color: AppColors.amber),
+          Flexible(
+            child: AuthTextLink(
+              linkKey: const ValueKey('signin-register'),
+              label: prompt,
+              onTap: onTap,
             ),
           ),
-          Expanded(child: Divider(color: AppColors.border)),
         ],
       ),
     );

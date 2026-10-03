@@ -66,11 +66,14 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           icon: Icons.lock_reset_rounded,
           title: s.forgot_title,
           body: s.forgot_body,
+          busy: state.busy,
+          error: error,
           children: [
             AuthTextField(
               fieldKey: const ValueKey('forgot-email'),
               controller: _email,
               hint: s.auth_email_hint,
+              icon: Icons.alternate_email_rounded,
               ltr: true,
               keyboardType: TextInputType.emailAddress,
               autofillHints: const [AutofillHints.email],
@@ -78,7 +81,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               onSubmitted: (_) => _submit(),
               enabled: !state.busy,
             ),
-            if (message != null) AuthMessage(message),
+            AuthMessageSlot(message),
             AuthPrimaryButton(
               buttonKey: const ValueKey('forgot-submit'),
               label: s.forgot_action,
@@ -112,6 +115,7 @@ class ResetPasswordPage extends StatefulWidget {
 
 class _ResetPasswordPageState extends State<ResetPasswordPage> {
   final _password = TextEditingController();
+  bool _saved = false;
 
   AccountFormCubit get _cubit => context.read<AccountFormCubit>();
 
@@ -119,6 +123,11 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
   void dispose() {
     _password.dispose();
     super.dispose();
+  }
+
+  void _leave() {
+    showAuthToast(context, context.getString.signin_done);
+    finishAuthFlow(context);
   }
 
   Future<void> _submit() async {
@@ -130,10 +139,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         newPassword: _password.text,
       ),
     );
-    if (result is AuthSuccess && mounted) {
-      showAuthToast(context, context.getString.signin_done);
-      finishAuthFlow(context);
-    }
+    if (result is AuthSuccess && mounted) setState(() => _saved = true);
   }
 
   @override
@@ -147,24 +153,30 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
           icon: Icons.password_rounded,
           title: s.reset_title,
           body: s.reset_body,
+          busy: state.busy,
+          error: error,
+          success: _saved,
+          onSuccessShown: _leave,
           children: [
             AuthTextField(
               fieldKey: const ValueKey('reset-password'),
               controller: _password,
               hint: s.auth_new_password_hint,
+              icon: Icons.lock_outline_rounded,
               obscure: true,
               ltr: true,
               maxLength: 128,
               autofillHints: const [AutofillHints.newPassword],
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _submit(),
-              enabled: !state.busy,
+              enabled: !state.busy && !_saved,
             ),
-            if (message != null) AuthMessage(message),
+            AuthMessageSlot(message),
             AuthPrimaryButton(
               buttonKey: const ValueKey('reset-submit'),
               label: s.reset_action,
               busy: state.busy,
+              done: _saved,
               onTap: _submit,
             ),
           ],

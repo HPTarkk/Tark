@@ -8,6 +8,7 @@ import '../../../../core/account/account_models.dart';
 import '../../../../core/account/auth_repository.dart';
 import '../../../../core/account/email_link.dart';
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
 import '../manager/code_entry_cubit.dart';
@@ -58,6 +59,10 @@ class _CodeEntryPageState extends State<CodeEntryPage> {
   final _code = TextEditingController();
   void Function()? _releaseLinks;
 
+  /// Sign-up finished: the check mark is playing and the screen leaves when
+  /// it lands.
+  bool _registered = false;
+
   CodeEntryCubit get _cubit => context.read<CodeEntryCubit>();
 
   @override
@@ -87,8 +92,7 @@ class _CodeEntryPageState extends State<CodeEntryPage> {
     if (state.phase != CodeEntryPhase.done) return;
     switch (widget.kind) {
       case FlowKind.register:
-        showAuthToast(context, context.getString.signin_done);
-        finishAuthFlow(context);
+        setState(() => _registered = true);
       case FlowKind.reset:
         final ticket = state.ticket;
         if (ticket == null) return;
@@ -101,6 +105,11 @@ class _CodeEntryPageState extends State<CodeEntryPage> {
     }
   }
 
+  void _leave() {
+    showAuthToast(context, context.getString.signin_done);
+    finishAuthFlow(context);
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
@@ -110,11 +119,14 @@ class _CodeEntryPageState extends State<CodeEntryPage> {
       builder: (context, state) {
         switch (state.phase) {
           case CodeEntryPhase.loading:
-            return Scaffold(
-              backgroundColor: AppColors.background,
-              body: Center(
-                child: CircularProgressIndicator(color: AppColors.amber),
-              ),
+            // The same frame the code arrives in, so the hero is already in
+            // place and only the fields arrive when the flow has loaded.
+            return AuthScaffold(
+              icon: Icons.mark_email_unread_outlined,
+              title: s.code_title,
+              busy: true,
+              contentKey: CodeEntryPhase.loading,
+              children: const [],
             );
           case CodeEntryPhase.noFlow:
             return const _NoFlowPage();
@@ -126,45 +138,73 @@ class _CodeEntryPageState extends State<CodeEntryPage> {
         final flow = state.flow!;
         final error = state.error;
         final message = error == null ? null : authErrorText(context, error);
-        final verifying = state.phase != CodeEntryPhase.entering;
+        final verifying = state.phase == CodeEntryPhase.verifying;
+        final done = state.phase == CodeEntryPhase.done;
         return AuthScaffold(
           icon: Icons.mark_email_unread_outlined,
           title: s.code_title,
           body: s.code_body('\u2066${flow.email}\u2069'),
+          busy: verifying,
+          error: error,
+          success: _registered,
+          onSuccessShown: _leave,
+          contentKey: CodeEntryPhase.entering,
           children: [
             CodeInput(
               controller: _code,
               length: flow.codeLength,
-              enabled: !verifying && !state.flowDead,
+              enabled:
+                  state.phase == CodeEntryPhase.entering && !state.flowDead,
+              error: error,
+              success: done,
               onCompleted: _cubit.submitCode,
             ),
-            const SizedBox(height: 18),
-            if (verifying)
-              Center(
-                child: Text(
-                  s.code_verifying,
-                  style: TextStyle(color: AppColors.textSecondary),
+            const SizedBox(height: 14),
+            AuthReveal(visible: verifying, child: const _Verifying()),
+            AuthMessageSlot(
+              state.linkRejected ? s.code_link_elsewhere_body : null,
+            ),
+            AuthMessageSlot(message),
+            AuthMessageSlot(
+              state.resent ? s.code_resent : null,
+              positive: true,
+            ),
+            PhaseSwitcher(
+              alignment: Alignment.center,
+              child: state.flowDead
+                  ? AuthPrimaryButton(
+                      key: const ValueKey('start-over'),
+                      buttonKey: const ValueKey('code-start-over'),
+                      label: s.code_start_over,
+                      onTap: () => finishAuthFlow(context, signedIn: false),
+                    )
+                  : _ResendRow(
+                      key: const ValueKey('resend'),
+                      state: state,
+                      onResend: _cubit.resend,
+                    ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.mark_email_read_outlined,
+                  size: 15,
+                  color: AppColors.textSecondary.withValues(alpha: 0.8),
                 ),
-              ),
-            if (state.linkRejected) AuthMessage(s.code_link_elsewhere_body),
-            if (message != null) AuthMessage(message),
-            if (state.resent) AuthMessage(s.code_resent, positive: true),
-            if (state.flowDead)
-              AuthPrimaryButton(
-                buttonKey: const ValueKey('code-start-over'),
-                label: s.code_start_over,
-                onTap: () => finishAuthFlow(context, signedIn: false),
-              )
-            else
-              _ResendRow(state: state, onResend: _cubit.resend),
-            const SizedBox(height: 8),
-            Text(
-              s.code_spam_hint,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppColors.textSecondary.withAlpha(200),
-                fontSize: 12,
-              ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    s.code_spam_hint,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppColors.textSecondary.withValues(alpha: 0.8),
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         );
@@ -173,8 +213,38 @@ class _CodeEntryPageState extends State<CodeEntryPage> {
   }
 }
 
+/// "Checking…" with a small spinner, under the code while it is verified.
+class _Verifying extends StatelessWidget {
+  const _Verifying();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppColors.amber,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            context.getString.code_verifying,
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ResendRow extends StatelessWidget {
-  const _ResendRow({required this.state, required this.onResend});
+  const _ResendRow({required this.state, required this.onResend, super.key});
 
   final CodeEntryState state;
   final VoidCallback onResend;
@@ -186,11 +256,30 @@ class _ResendRow extends StatelessWidget {
     if (left > Duration.zero) {
       final minutes = left.inMinutes;
       final seconds = (left.inSeconds % 60).toString().padLeft(2, '0');
-      return Center(
+      return Padding(
         key: const ValueKey('code-resend-wait'),
-        child: Text(
-          s.code_resend_in('$minutes:$seconds'.localized(context)),
-          style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.schedule_rounded,
+              size: 16,
+              color: AppColors.textSecondary,
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                s.code_resend_in('$minutes:$seconds'.localized(context)),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ),
+          ],
         ),
       );
     }
