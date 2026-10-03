@@ -27,22 +27,28 @@ abstract final class RideMemberCount {
   }
 }
 
-/// Writes [avatarId] onto [memberId]'s row in [room], after the current
-/// frame and only when it differs from what the Room already has.
+/// Writes [avatarId] and [premium] onto [memberId]'s row in [room], after the
+/// current frame. Null leaves that field as the Room already has it.
 ///
-/// Best effort: a face is display metadata, so a failed write just leaves the
-/// lobby on the initial until the next ride.
-void _rememberRoomMemberAvatar(
+/// Best effort: both are display metadata, so a failed write just leaves the
+/// lobby on what it showed before until the next ride.
+void _rememberRoomMemberProfile(
   SavedRoom room,
-  RoomMemberId memberId,
-  int avatarId,
-) {
+  RoomMemberId memberId, {
+  int? avatarId,
+  bool? premium,
+}) {
   if (!GetIt.instance.isRegistered<RoomRepository>()) return;
   final rooms = GetIt.instance<RoomRepository>();
   WidgetsBinding.instance.addPostFrameCallback((_) {
     unawaited(
       rooms
-          .updateMember(room.room.id, memberId, avatarId: avatarId)
+          .updateMember(
+            room.room.id,
+            memberId,
+            avatarId: avatarId,
+            premium: premium,
+          )
           .then<void>((_) {}, onError: (_) {}),
     );
   });
@@ -270,6 +276,9 @@ class _RoomMemberPresenceTileState extends State<_RoomMemberPresenceTile> {
   /// one write rather than one per rebuild.
   int? _remembered;
 
+  /// The same for the premium mark.
+  bool? _rememberedPremium;
+
   @override
   void dispose() {
     _back.dispose();
@@ -285,7 +294,22 @@ class _RoomMemberPresenceTileState extends State<_RoomMemberPresenceTile> {
       return;
     }
     _remembered = avatarId;
-    _rememberRoomMemberAvatar(widget.room, widget.member.id, avatarId);
+    _rememberRoomMemberProfile(
+      widget.room,
+      widget.member.id,
+      avatarId: avatarId,
+    );
+  }
+
+  /// Keeps whether this member was premium when last heard, for the lobby.
+  void _rememberPremium(bool? premium) {
+    if (premium == null ||
+        premium == widget.member.premium ||
+        premium == _rememberedPremium) {
+      return;
+    }
+    _rememberedPremium = premium;
+    _rememberRoomMemberProfile(widget.room, widget.member.id, premium: premium);
   }
 
   bool _settled(RoomConnectionUiPhase phase) =>
@@ -335,17 +359,29 @@ class _RoomMemberPresenceTileState extends State<_RoomMemberPresenceTile> {
                   }
                   return null;
                 },
-                builder: (context, avatarId) {
-                  _remember(avatarId);
-                  return _RoomMemberTile(
-                    room: widget.room,
-                    member: widget.member,
-                    phase: shown,
-                    isTalking: isTalking,
-                    avatarId: avatarId,
-                    back: _back,
-                  );
-                },
+                builder: (context, avatarId) =>
+                    BlocSelector<WalkieTalkieCubit, WalkieTalkieState, bool?>(
+                      selector: (state) {
+                        if (senderId == null) return null;
+                        for (final user in state.activeUsers) {
+                          if (user.id == senderId) return user.isPremium;
+                        }
+                        return null;
+                      },
+                      builder: (context, premium) {
+                        _remember(avatarId);
+                        _rememberPremium(premium);
+                        return _RoomMemberTile(
+                          room: widget.room,
+                          member: widget.member,
+                          phase: shown,
+                          isTalking: isTalking,
+                          avatarId: avatarId,
+                          premium: premium,
+                          back: _back,
+                        );
+                      },
+                    ),
               ),
         );
       },
@@ -361,6 +397,7 @@ class _RoomMemberTile extends StatelessWidget {
     required this.isTalking,
     required this.back,
     this.avatarId,
+    this.premium,
   });
 
   final SavedRoom room;
@@ -369,6 +406,9 @@ class _RoomMemberTile extends StatelessWidget {
   final bool isTalking;
   final ValueListenable<bool> back;
   final int? avatarId;
+
+  /// What the live channel says, or null for what the Room remembers.
+  final bool? premium;
 
   @override
   Widget build(BuildContext context) {
@@ -406,6 +446,7 @@ class _RoomMemberTile extends StatelessWidget {
                     member: member,
                     size: _kFaceSize,
                     avatarId: avatarId,
+                    premium: premium,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -589,6 +630,7 @@ class UserTile extends StatelessWidget {
               name: user.name,
               size: _kFaceSize,
               avatarId: user.avatarId,
+              premium: user.isPremium ?? false,
             ),
           ),
           const SizedBox(width: 12),

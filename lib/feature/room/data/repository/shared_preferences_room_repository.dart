@@ -241,6 +241,7 @@ class SharedPreferencesRoomRepository implements RoomRepository {
     String? displayName,
     bool? pending,
     int? avatarId,
+    bool? premium,
   }) async {
     final current = await _require(id);
     final members = current.room.members.toList(growable: true);
@@ -252,13 +253,15 @@ class SharedPreferencesRoomRepository implements RoomRepository {
         : _requiredText(displayName, 'display name');
     if ((cleanName == null || cleanName == existing.displayName) &&
         (pending == null || pending == existing.pending) &&
-        (avatarId == null || avatarId == existing.avatarId)) {
+        (avatarId == null || avatarId == existing.avatarId) &&
+        (premium == null || premium == existing.premium)) {
       return current;
     }
     members[index] = existing.copyWith(
       displayName: cleanName,
       pending: pending,
       avatarId: avatarId,
+      premium: premium,
       // Somebody is standing in it now, so it is not being held for anyone.
       // Leaving the hold behind would let a confirmed member's row expire.
       clearHeldUntil: pending == false,
@@ -312,6 +315,11 @@ class SharedPreferencesRoomRepository implements RoomRepository {
       for (final member in existing?.room.members ?? const <RoomMember>[])
         if (member.avatarId != null) member.id: member.avatarId!,
     };
+    // The same for the premium mark.
+    final knownPremium = <RoomMemberId>{
+      for (final member in existing?.room.members ?? const <RoomMember>[])
+        if (member.premium) member.id,
+    };
 
     final saved = SavedRoom(
       room: Room(
@@ -336,6 +344,7 @@ class SharedPreferencesRoomRepository implements RoomRepository {
                 // has no back-channel to be told later.
                 heldUntil: member.pending ? member.heldUntil?.toUtc() : null,
                 avatarId: knownAvatars[member.memberId],
+                premium: knownPremium.contains(member.memberId),
               ),
             )
             .toList(growable: false),
@@ -376,6 +385,7 @@ class SharedPreferencesRoomRepository implements RoomRepository {
                   kind: member.kind,
                   removedAt: member.removedAt ?? now,
                   avatarId: member.avatarId,
+                  premium: member.premium,
                 )
               : member,
         )
@@ -552,6 +562,8 @@ class SharedPreferencesRoomRepository implements RoomRepository {
       heldUntil: held is String ? DateTime.parse(held).toUtc() : null,
       // Absent until this member has been seen live with a picked avatar.
       avatarId: avatar is int ? avatar : null,
+      // Absent until this member has been seen live with a subscription.
+      premium: raw['premium'] == true,
     );
   }
 
@@ -578,6 +590,7 @@ class SharedPreferencesRoomRepository implements RoomRepository {
                 if (member.heldUntil != null)
                   'heldUntil': member.heldUntil!.toIso8601String(),
                 if (member.avatarId != null) 'avatarId': member.avatarId,
+                if (member.premium) 'premium': true,
               },
             )
             .toList(growable: false),

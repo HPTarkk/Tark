@@ -69,6 +69,7 @@ final class RoomMember {
     this.pending = false,
     this.heldUntil,
     this.avatarId,
+    this.premium = false,
   });
 
   final RoomMemberId id;
@@ -112,6 +113,11 @@ final class RoomMember {
   /// nobody is connected. It never identifies anybody.
   final int? avatarId;
 
+  /// Whether this member's subscription was running when they were last seen
+  /// on a live connection, remembered like [avatarId] so the lobby can show
+  /// the premium mark while nobody is connected. Display only.
+  final bool premium;
+
   bool get isActive => removedAt == null;
 
   /// A seat whose invite can no longer be redeemed, and which nobody arrived
@@ -131,6 +137,7 @@ final class RoomMember {
     DateTime? heldUntil,
     bool clearHeldUntil = false,
     int? avatarId,
+    bool? premium,
   }) => RoomMember(
     id: id,
     displayName: displayName ?? this.displayName,
@@ -140,6 +147,7 @@ final class RoomMember {
     pending: pending ?? this.pending,
     heldUntil: clearHeldUntil ? null : (heldUntil ?? this.heldUntil),
     avatarId: avatarId ?? this.avatarId,
+    premium: premium ?? this.premium,
   );
 }
 

@@ -54,12 +54,13 @@ class ChannelRoster {
       // Without this, every frame of someone talking would wipe the role they
       // announced two seconds ago and their badge would flicker.
       //
-      // The avatar is kept the same way, for the same reason: only presence
-      // carries it.
+      // The avatar and premium mark are kept the same way, for the same
+      // reason: only presence carries them.
       final previous = updated[idx];
       updated[idx] = user.copyWith(
         role: user.role == SessionRole.unknown ? previous.role : null,
         avatarId: user.avatarId ?? previous.avatarId,
+        isPremium: user.isPremium ?? previous.isPremium,
       );
       return RosterUpdate(
         updated,
@@ -86,8 +87,9 @@ class ChannelRoster {
   }
 
   /// Whether [a] and [b] would look the same on screen: the same people, in
-  /// the same order, with the same names, avatars, roles and talking flags. Ignores
-  /// `lastSeen`, which every packet refreshes and nothing displays.
+  /// the same order, with the same names, avatars, premium marks, roles and
+  /// talking flags. Ignores `lastSeen`, which every packet refreshes and
+  /// nothing displays.
   static bool sameForDisplay(List<ChannelUser> a, List<ChannelUser> b) {
     if (identical(a, b)) return true;
     if (a.length != b.length) return false;
@@ -98,7 +100,8 @@ class ChannelRoster {
           x.name != y.name ||
           x.isTalking != y.isTalking ||
           x.role != y.role ||
-          x.avatarId != y.avatarId) {
+          x.avatarId != y.avatarId ||
+          x.isPremium != y.isPremium) {
         return false;
       }
     }

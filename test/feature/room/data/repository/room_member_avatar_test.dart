@@ -89,4 +89,51 @@ void main() {
     );
     expect(again.room.members.singleWhere((m) => m.id == hostId).avatarId, 5);
   });
+
+  test('a remembered premium mark survives a reload and a rejoin', () async {
+    final room = await host.create(name: 'Night ride', localDisplayName: 'Me');
+    final (issued, joinerId) = await addRider(room);
+    await host.updateMember(issued.room.id, joinerId, premium: true);
+
+    final reloaded = await SharedPreferencesRoomRepository().get(room.room.id);
+    expect(
+      reloaded!.room.members.singleWhere((m) => m.id == joinerId).premium,
+      isTrue,
+    );
+
+    final snapshot = RoomAcceptedJoinSnapshot.decode(
+      RoomAcceptedJoinSnapshot.fromSavedRoom(
+        reloaded,
+        acceptedMemberId: joinerId,
+      ).encode(),
+    );
+    SharedPreferences.setMockInitialValues({});
+    final joiner = SharedPreferencesRoomRepository();
+    final mine = await joiner.importAcceptedJoin(
+      snapshot,
+      localMemberId: joinerId,
+    );
+    final hostId = mine.room.members.firstWhere((m) => m.id != joinerId).id;
+    expect(
+      mine.room.members.singleWhere((m) => m.id == hostId).premium,
+      isFalse,
+      reason: 'the snapshot carries no premium marks',
+    );
+    await joiner.updateMember(mine.room.id, hostId, premium: true);
+    final again = await joiner.importAcceptedJoin(
+      snapshot,
+      localMemberId: joinerId,
+    );
+    expect(
+      again.room.members.singleWhere((m) => m.id == hostId).premium,
+      isTrue,
+    );
+
+    await joiner.updateMember(mine.room.id, hostId, premium: false);
+    final cleared = await joiner.get(mine.room.id);
+    expect(
+      cleared!.room.members.singleWhere((m) => m.id == hostId).premium,
+      isFalse,
+    );
+  });
 }

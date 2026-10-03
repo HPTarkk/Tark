@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/l10n/extension.dart';
@@ -5,6 +7,7 @@ import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../core/widget/app_avatar.dart';
+import '../../../../core/widget/tark_mark.dart';
 import '../../domain/entity/room.dart';
 import '../room_member_display_name.dart';
 
@@ -21,12 +24,18 @@ class MemberAvatar extends StatelessWidget {
     this.size = 44,
     this.ring = false,
     this.avatarId,
+    this.premium,
     super.key,
   });
 
   final RoomMember member;
   final double size;
   final bool ring;
+
+  /// Whether to show the premium mark: what the live channel says about this
+  /// member, or null for what was remembered from their last connection
+  /// ([RoomMember.premium]).
+  final bool? premium;
 
   /// The avatar this member announced in the live channel, when the Room is
   /// connected and their presence has been matched to them — see
@@ -49,6 +58,7 @@ class MemberAvatar extends StatelessWidget {
       size: size,
       ring: ring,
       avatarId: avatarId ?? member.avatarId,
+      premium: premium ?? member.premium,
     );
   }
 }
@@ -66,6 +76,7 @@ class TintedAvatar extends StatelessWidget {
     this.size = 44,
     this.ring = false,
     this.avatarId,
+    this.premium = false,
     super.key,
   });
 
@@ -73,6 +84,9 @@ class TintedAvatar extends StatelessWidget {
   final String name;
   final double size;
   final bool ring;
+
+  /// Adds the premium mark: a small amber star on the face's bottom corner.
+  final bool premium;
 
   /// The person's picked avatar, or null (never picked, not known yet, or
   /// a phone too old to send one) for the tinted initial.
@@ -94,7 +108,7 @@ class TintedAvatar extends StatelessWidget {
     final picture = AvatarPicture.shows(id);
     // A face that turns up (heard live, or remembered once the roster loads)
     // fades in over the initial instead of popping.
-    return AnimatedSwitcher(
+    final face = AnimatedSwitcher(
       duration: AppMotion.card,
       switchInCurve: AppMotion.easeOut,
       switchOutCurve: AppMotion.leaving,
@@ -102,6 +116,18 @@ class TintedAvatar extends StatelessWidget {
         key: ValueKey<int?>(picture ? id : null),
         child: _face(picture ? id : null),
       ),
+    );
+    final mark = size * 0.5;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        face,
+        PositionedDirectional(
+          end: -mark * 0.16,
+          bottom: -mark * 0.16,
+          child: PremiumMark(visible: premium, size: mark),
+        ),
+      ],
     );
   }
 
@@ -163,6 +189,207 @@ class TintedAvatar extends StatelessWidget {
   }
 }
 
+/// The premium mark on a member's face: the Tarkk logo struck into a gold
+/// medallion, ringed in the page colour so it sits on top of the face.
+///
+/// Turns up with a small twist as it grows in, and a glint sweeps across it
+/// every few seconds while it shows. Under reduced motion it only fades and
+/// the glint stays still.
+class PremiumMark extends StatefulWidget {
+  const PremiumMark({required this.visible, this.size = 20, super.key});
+
+  final bool visible;
+  final double size;
+
+  /// The medallion's gold, light to deep, swept around its centre so the rim
+  /// catches light on one side like struck metal.
+  static const gold = [
+    Color(0xFFFFE6A3),
+    Color(0xFFF7B544),
+    Color(0xFFC9771A),
+    Color(0xFFF2A93B),
+    Color(0xFFFFD98A),
+    Color(0xFFFFE6A3),
+  ];
+
+  @override
+  State<PremiumMark> createState() => _PremiumMarkState();
+}
+
+class _PremiumMarkState extends State<PremiumMark>
+    with SingleTickerProviderStateMixin {
+  /// One glint pass in the first part of each cycle, then a rest.
+  late final AnimationController _glint = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 3600),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncGlint();
+  }
+
+  @override
+  void didUpdateWidget(PremiumMark oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.visible != widget.visible) _syncGlint();
+  }
+
+  /// Hidden marks keep no ticker running: a roster of free members costs
+  /// nothing.
+  void _syncGlint() {
+    if (widget.visible) {
+      _glint.loopUnlessReduced(context);
+    } else {
+      _glint
+        ..stop()
+        ..value = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _glint.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reduced = AppMotion.reduced(context);
+    final visible = widget.visible;
+    final size = widget.size;
+    return Semantics(
+      label: visible ? context.getString.premium_badge : null,
+      child: AnimatedOpacity(
+        opacity: visible ? 1 : 0,
+        duration: AppMotion.chip,
+        curve: AppMotion.easeOut,
+        child: AnimatedRotation(
+          turns: visible || reduced ? 0 : -0.12,
+          duration: reduced ? Duration.zero : AppMotion.sheet,
+          curve: visible ? AppMotion.easeOut : AppMotion.leaving,
+          child: AnimatedScale(
+            scale: visible || reduced ? 1 : 0.4,
+            duration: reduced ? Duration.zero : AppMotion.sheet,
+            curve: visible ? AppMotion.easeOut : AppMotion.leaving,
+            child: RepaintBoundary(
+              child: _Medallion(
+                key: const ValueKey('premium-mark'),
+                size: size,
+                glint: _glint,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Medallion extends StatelessWidget {
+  const _Medallion({required this.size, required this.glint, super.key});
+
+  final double size;
+  final Animation<double> glint;
+
+  @override
+  Widget build(BuildContext context) {
+    final rim = math.max(1.5, size * 0.09);
+    final logo = size * 0.54;
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: AppColors.background, width: rim),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFF7B544).withValues(alpha: 0.45),
+            blurRadius: size * 0.5,
+          ),
+        ],
+      ),
+      child: ClipOval(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: SweepGradient(
+                  colors: PremiumMark.gold,
+                  transform: GradientRotation(-math.pi / 3),
+                ),
+              ),
+            ),
+            // A thin inner bevel: light along the top, shade along the
+            // bottom, so the disc reads as raised rather than painted on.
+            DecoratedBox(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white.withValues(alpha: 0.38),
+                    Colors.transparent,
+                    const Color(0xFF7A3E00).withValues(alpha: 0.22),
+                  ],
+                  stops: const [0, 0.45, 1],
+                ),
+              ),
+            ),
+            Center(
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Struck into the gold: a deep copy just below the logo.
+                  Transform.translate(
+                    offset: Offset(0, size * 0.035),
+                    child: TarkMark(
+                      size: logo,
+                      color: const Color(0xFF8A4A06).withValues(alpha: 0.55),
+                    ),
+                  ),
+                  TarkMark(
+                    size: logo,
+                    color: Colors.white,
+                    colorDim: const Color(0xFFFFF0CC),
+                  ),
+                ],
+              ),
+            ),
+            AnimatedBuilder(
+              animation: glint,
+              builder: (context, _) {
+                // The pass takes the first quarter of the cycle; the band
+                // starts and ends outside the disc so it never pops in.
+                final t = (glint.value / 0.25).clamp(0.0, 1.0);
+                if (t == 0 || t == 1) return const SizedBox.shrink();
+                final x = -1.6 + 3.2 * Curves.easeInOut.transform(t);
+                return DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment(x - 0.5, -1),
+                      end: Alignment(x + 0.5, 1),
+                      colors: [
+                        Colors.white.withValues(alpha: 0),
+                        Colors.white.withValues(alpha: 0.75),
+                        Colors.white.withValues(alpha: 0),
+                      ],
+                      stops: const [0.3, 0.5, 0.7],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Up to [maxShown] overlapping faces, then "+N".
 class RoomFaces extends StatelessWidget {
   const RoomFaces({
@@ -202,7 +429,13 @@ class RoomFaces extends StatelessWidget {
             for (var i = 0; i < shown.length; i++)
               PositionedDirectional(
                 start: i * step,
-                child: MemberAvatar(member: shown[i], size: size, ring: true),
+                // No premium marks in a stack: they would sit on the next face.
+                child: MemberAvatar(
+                  member: shown[i],
+                  size: size,
+                  ring: true,
+                  premium: false,
+                ),
               ),
             if (extra > 0)
               PositionedDirectional(

@@ -88,8 +88,8 @@ abstract interface class RoomRepository {
   /// validity or transport identity. Used to put a joiner's own name on their
   /// row instead of the placeholder the host had to invent, and to mark an
   /// invite seat confirmed once its owner turns up, and to remember the
-  /// [avatarId] a member showed on a live connection so the lobby can show
-  /// their face while nobody is connected.
+  /// [avatarId] and [premium] mark a member showed on a live connection so
+  /// the lobby can show them while nobody is connected.
   ///
   /// Clearing [pending] also releases the seat's hold: a seat somebody is
   /// standing in is not being kept for anyone, and a hold left behind would
@@ -100,6 +100,7 @@ abstract interface class RoomRepository {
     String? displayName,
     bool? pending,
     int? avatarId,
+    bool? premium,
   });
 
   /// Withdraws a member from the roster, including an unused invite seat.

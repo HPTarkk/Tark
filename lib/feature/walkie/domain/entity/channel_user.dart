@@ -18,6 +18,10 @@ class ChannelUser extends Equatable {
   /// avatars.
   final int? avatarId;
 
+  /// Whether this member's presence says their subscription is running, or
+  /// null when nothing has said either way yet (audio carries no profile).
+  final bool? isPremium;
+
   const ChannelUser({
     required this.id,
     required this.name,
@@ -25,6 +29,7 @@ class ChannelUser extends Equatable {
     required this.lastSeen,
     this.role = SessionRole.unknown,
     this.avatarId,
+    this.isPremium,
   });
 
   ChannelUser copyWith({
@@ -34,6 +39,7 @@ class ChannelUser extends Equatable {
     DateTime? lastSeen,
     SessionRole? role,
     int? avatarId,
+    bool? isPremium,
   }) => ChannelUser(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -41,8 +47,17 @@ class ChannelUser extends Equatable {
     lastSeen: lastSeen ?? this.lastSeen,
     role: role ?? this.role,
     avatarId: avatarId ?? this.avatarId,
+    isPremium: isPremium ?? this.isPremium,
   );
 
   @override
-  List<Object?> get props => [id, name, isTalking, lastSeen, role, avatarId];
+  List<Object?> get props => [
+    id,
+    name,
+    isTalking,
+    lastSeen,
+    role,
+    avatarId,
+    isPremium,
+  ];
 }
