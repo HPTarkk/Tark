@@ -21,9 +21,16 @@ sealed class SubscriptionFetch {
 /// The server answered with a signed entitlement. It is still verified
 /// before anything trusts it.
 class FetchedEntitlement extends SubscriptionFetch {
-  const FetchedEntitlement(this.token, {required this.bazaarChecked});
+  const FetchedEntitlement(
+    this.token, {
+    required this.bazaarChecked,
+    this.planTitle,
+  });
 
   final String token;
+
+  /// The plan's name in the app's language, for display only.
+  final String? planTitle;
 
   /// False when the server could not reach Bazaar and answered with the
   /// last state it verified.

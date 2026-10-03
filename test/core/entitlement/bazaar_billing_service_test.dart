@@ -42,6 +42,23 @@ Map<String, Object?> _purchase(
   'purchaseTime': time,
 };
 
+const _monthly = BillingPlan(
+  sku: 'tark_premium_1m',
+  months: 1,
+  title: '1 month',
+);
+const _quarter = BillingPlan(
+  sku: 'tark_premium_3m',
+  months: 3,
+  title: '3 months',
+);
+const _yearly = BillingPlan(
+  sku: 'tark_premium_12m',
+  months: 12,
+  title: '1 year',
+);
+const _plans = [_monthly, _quarter, _yearly];
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -108,31 +125,38 @@ void main() {
   });
 
   group('offers', () {
-    test('Bazaar prices in plan order, unsold plans left out', () async {
-      bazaar.answers['skuDetails'] = (_) => [
-        {'sku': 'tark_premium_12m', 'price': '۴۰۰٬۰۰۰ ریال'},
-        {'sku': 'tark_premium_1m', 'price': '۵۰٬۰۰۰ ریال'},
-        {'sku': 'someone_else', 'price': '1'},
-      ];
-      final offers = await billing.offers();
-      expect(offers.map((o) => o.plan), [
-        BillingPlan.monthly,
-        BillingPlan.yearly,
-      ]);
-      expect(offers.first.price, '۵۰٬۰۰۰ ریال');
-      final asked = bazaar.calls.firstWhere((c) => c.method == 'skuDetails');
-      expect((asked.arguments as Map)['skus'], [
-        for (final plan in BillingPlan.values) plan.sku,
-      ]);
+    test(
+      'Bazaar prices in the server\'s order, unsold plans left out',
+      () async {
+        bazaar.answers['skuDetails'] = (_) => [
+          {'sku': 'tark_premium_12m', 'price': '۴۰۰٬۰۰۰ ریال'},
+          {'sku': 'tark_premium_1m', 'price': '۵۰٬۰۰۰ ریال'},
+          {'sku': 'someone_else', 'price': '1'},
+        ];
+        final offers = await billing.offers(_plans);
+        expect(offers.map((o) => o.plan), [_monthly, _yearly]);
+        expect(offers.first.price, '۵۰٬۰۰۰ ریال');
+        final asked = bazaar.calls.firstWhere((c) => c.method == 'skuDetails');
+        expect((asked.arguments as Map)['skus'], [
+          'tark_premium_1m',
+          'tark_premium_3m',
+          'tark_premium_12m',
+        ]);
+      },
+    );
+
+    test('nothing asked when there are no plans', () async {
+      expect(await billing.offers(const []), isEmpty);
+      expect(bazaar.calls, isEmpty);
     });
 
     test('empty when Bazaar is unavailable or the query fails', () async {
       bazaar.answers['skuDetails'] = (_) =>
           throw PlatformException(code: 'failed');
-      expect(await billing.offers(), isEmpty);
+      expect(await billing.offers(_plans), isEmpty);
 
       bazaar.answers['connect'] = (_) => false;
-      expect(await billing.offers(), isEmpty);
+      expect(await billing.offers(_plans), isEmpty);
     });
   });
 
@@ -140,32 +164,29 @@ void main() {
     test('success hands back the plan and token', () async {
       bazaar.answers['subscribe'] = (call) =>
           _purchase((call.arguments as Map)['sku'] as String, 'tok-1');
-      final result = await billing.purchase(BillingPlan.monthly);
+      final result = await billing.purchase(_monthly);
       expect(result, isA<PurchaseSuccess>());
       final purchase = (result as PurchaseSuccess).purchase;
-      expect(purchase.plan, BillingPlan.monthly);
+      expect(purchase.sku, 'tark_premium_1m');
       expect(purchase.purchaseToken, 'tok-1');
     });
 
     test('backing out is a cancel, not a failure', () async {
       bazaar.answers['subscribe'] = (_) =>
           throw PlatformException(code: 'cancelled');
-      expect(
-        await billing.purchase(BillingPlan.monthly),
-        isA<PurchaseCancelled>(),
-      );
+      expect(await billing.purchase(_monthly), isA<PurchaseCancelled>());
     });
 
     test('Bazaar errors surface as failures with their code', () async {
       bazaar.answers['subscribe'] = (_) =>
           throw PlatformException(code: 'flow_failed');
-      final result = await billing.purchase(BillingPlan.monthly);
+      final result = await billing.purchase(_monthly);
       expect((result as PurchaseFailed).message, 'flow_failed');
     });
 
     test('no checkout when Bazaar is unavailable', () async {
       bazaar.answers['connect'] = (_) => false;
-      final result = await billing.purchase(BillingPlan.monthly);
+      final result = await billing.purchase(_monthly);
       expect((result as PurchaseFailed).message, 'billing_unavailable');
       expect(bazaar.count('subscribe'), 0);
     });
@@ -175,16 +196,12 @@ void main() {
       () async {
         bazaar.answers['subscribe'] = (_) => _purchase('tark_premium_12m', 't');
         expect(
-          (await billing.purchase(BillingPlan.monthly) as PurchaseFailed)
-              .message,
+          (await billing.purchase(_monthly) as PurchaseFailed).message,
           'unexpected_purchase',
         );
 
         bazaar.answers['subscribe'] = (_) => _purchase('tark_premium_1m', '');
-        expect(
-          await billing.purchase(BillingPlan.monthly),
-          isA<PurchaseFailed>(),
-        );
+        expect(await billing.purchase(_monthly), isA<PurchaseFailed>());
       },
     );
 
@@ -193,9 +210,9 @@ void main() {
       () async {
         final checkout = Completer<Object?>();
         bazaar.answers['subscribe'] = (_) => checkout.future;
-        final first = billing.purchase(BillingPlan.monthly);
+        final first = billing.purchase(_monthly);
         await pumpEventQueue();
-        final second = await billing.purchase(BillingPlan.yearly);
+        final second = await billing.purchase(_yearly);
         expect((second as PurchaseFailed).message, 'purchase_in_progress');
         checkout.complete(_purchase('tark_premium_1m', 'tok'));
         expect(await first, isA<PurchaseSuccess>());
@@ -204,10 +221,7 @@ void main() {
         // And the lock is released afterwards.
         bazaar.answers['subscribe'] = (_) =>
             _purchase('tark_premium_12m', 't2');
-        expect(
-          await billing.purchase(BillingPlan.yearly),
-          isA<PurchaseSuccess>(),
-        );
+        expect(await billing.purchase(_yearly), isA<PurchaseSuccess>());
       },
     );
   });
@@ -217,14 +231,20 @@ void main() {
       bazaar.answers['subscribedProducts'] = (_) => [
         _purchase('tark_premium_1m', 'old', time: 100),
         _purchase('someone_else', 'foreign', time: 999),
+        _purchase('tark_premium_6m', 'retired-plan', time: 50),
         _purchase('tark_premium_12m', 'new', time: 300),
         _purchase('tark_premium_12m', 'new', time: 300),
         _purchase('tark_premium_1m', '', time: 500),
         _purchase('tark_premium_1m', 'refunded', time: 200, state: 'REFUNDED'),
       ];
       final owned = await billing.restore();
-      expect(owned.map((p) => p.purchaseToken), ['new', 'refunded', 'old']);
-      expect(owned.first.plan, BillingPlan.yearly);
+      expect(owned.map((p) => p.purchaseToken), [
+        'new',
+        'refunded',
+        'old',
+        'retired-plan',
+      ]);
+      expect(owned.first.sku, 'tark_premium_12m');
     });
 
     test('empty when Bazaar is unavailable or the query fails', () async {

@@ -4,8 +4,9 @@ import '../network/service_api.dart';
 
 /// Every way an account call can end, for screens to pick their words from.
 /// The server's `code` strings map onto these; anything unknown becomes
-/// [AuthErrorKind.unknown], which screens show as a gentle "something went
-/// wrong on our side" — never the server's `detail`.
+/// [AuthErrorKind.unknown], which screens show with the server's `message`
+/// (already in the app's language) or a gentle "something went wrong on our
+/// side" — never the server's `detail`.
 enum AuthErrorKind {
   /// The phone could not reach the server.
   offline,
@@ -67,6 +68,7 @@ class AuthError extends Equatable {
     this.suggestedName,
     this.autoRenewing,
     this.field,
+    this.message,
   });
 
   final AuthErrorKind kind;
@@ -92,6 +94,10 @@ class AuthError extends Equatable {
   /// [AuthErrorKind.invalidRequest] and the password codes.
   final String? field;
 
+  /// The server's own sentence for this failure, in the app's language.
+  /// Shown only for codes the app has no words of its own for.
+  final String? message;
+
   /// Maps any non-success [ApiResponse] onto an [AuthError].
   factory AuthError.from(ApiResponse response) => switch (response) {
     ApiTransportFailure(:final unreachable) => AuthError(
@@ -108,6 +114,7 @@ class AuthError extends Equatable {
       suggestedName: response.stringField('suggestedName'),
       autoRenewing: response.boolField('autoRenewing'),
       field: response.stringField('field'),
+      message: response.stringField('message'),
     ),
     ApiOk() => const AuthError(AuthErrorKind.serviceTrouble),
   };
@@ -170,6 +177,7 @@ class AuthError extends Equatable {
     suggestedName,
     autoRenewing,
     field,
+    message,
   ];
 
   @override

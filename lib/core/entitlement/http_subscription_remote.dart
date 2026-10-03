@@ -93,12 +93,15 @@ class HttpSubscriptionRemote implements SubscriptionRemote {
       body['entitlement'],
       body['bazaarChecked'],
     )) {
-      (final String token, final bool checked) when token.isNotEmpty =>
-        FetchedEntitlement(token, bazaarChecked: checked),
-      (final String token, _) when token.isNotEmpty => FetchedEntitlement(
-        token,
-        bazaarChecked: true,
-      ),
+      (final String token, final Object? checked) when token.isNotEmpty =>
+        FetchedEntitlement(
+          token,
+          bazaarChecked: checked is bool ? checked : true,
+          planTitle: switch (body['planTitle']) {
+            final String title when title.trim().isNotEmpty => title.trim(),
+            _ => null,
+          },
+        ),
       _ => const FetchServiceTrouble(),
     },
     ApiSignedOut() => const FetchSignedOut(),

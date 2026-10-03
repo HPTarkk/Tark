@@ -122,6 +122,12 @@ class SubscriptionService {
   /// The verified token, or null when there is none (or it did not verify).
   SignedEntitlement? get entitlement => _token;
 
+  /// The plan's name from the server's last answer, in the language the app
+  /// had then. Display only, not stored: after a restart the subscription
+  /// page names the plan from its id until the next refresh.
+  String? get planTitle => _planTitle;
+  String? _planTitle;
+
   /// Fires whenever access may have changed, so a screen showing a gated
   /// control can re-read [isPremiumActive].
   Stream<void> get changes => _changes.stream;
@@ -185,10 +191,18 @@ class SubscriptionService {
     return _outcomeFor(await _accept(fetch));
   }
 
+  /// Asks the server for the current state, e.g. when the subscription page
+  /// opens. True when the server answered.
+  Future<bool> refresh() async {
+    if (!_monetized) return false;
+    return await _refresh() is FetchedEntitlement;
+  }
+
   /// Drops local subscription state, e.g. on sign-out. The next paid tap
   /// checks with the server again.
   Future<void> clear() async {
     _token = null;
+    _planTitle = null;
     await _storage.delete(_storageKey);
     _notify();
   }
@@ -243,6 +257,7 @@ class SubscriptionService {
       return const FetchServiceTrouble();
     }
     _token = verified;
+    _planTitle = fetch.planTitle;
     final deviceMs = _clock().millisecondsSinceEpoch;
     final serverMs = verified.issuedAt.millisecondsSinceEpoch;
     _skewMs = serverMs - deviceMs;

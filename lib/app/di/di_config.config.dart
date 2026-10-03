@@ -23,6 +23,7 @@ import 'package:tark/core/account/profile_sync.dart' as _i594;
 import 'package:tark/core/entitlement/billing_service.dart' as _i547;
 import 'package:tark/core/entitlement/install_identity.dart' as _i987;
 import 'package:tark/core/entitlement/license_gate.dart' as _i52;
+import 'package:tark/core/entitlement/plan_catalog.dart' as _i347;
 import 'package:tark/core/entitlement/subscription_remote.dart' as _i1036;
 import 'package:tark/core/entitlement/subscription_service.dart' as _i428;
 import 'package:tark/core/home_widget/home_widget_service.dart' as _i590;
@@ -195,6 +196,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i699.AuthenticatedApiClient>(),
         gh<_i516.AccountStore>(),
       ),
+    );
+    gh.lazySingleton<_i347.PlanCatalog>(
+      () => accountModule.planCatalog(gh<_i184.TarkServiceClient>()),
     );
     gh.lazySingleton<_i293.SessionRoleStore>(
       () => _i1042.SessionRoleStoreImpl(),

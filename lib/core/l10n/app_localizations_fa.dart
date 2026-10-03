@@ -1358,12 +1358,6 @@ class AppLocalizationsFa extends AppLocalizations {
   String get paywall_close => 'بعداً';
 
   @override
-  String get paywall_plan_1m => 'یک ماهه';
-
-  @override
-  String get paywall_plan_12m => 'یک ساله';
-
-  @override
   String get sub_checking => 'داریم اشتراکت رو بررسی می‌کنیم…';
 
   @override
@@ -2495,6 +2489,83 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get account_delete => 'پاک کردن حساب';
+
+  @override
+  String get account_subscription => 'اشتراک';
+
+  @override
+  String get account_subscription_none => 'هنوز اشتراکی نداری';
+
+  @override
+  String get mysub_title => 'اشتراک تو';
+
+  @override
+  String get mysub_premium => 'نسخه ویژه';
+
+  @override
+  String mysub_renews(Object date) {
+    return 'روز $date تمدید می‌شه';
+  }
+
+  @override
+  String mysub_ends(Object date) {
+    return 'روز $date تموم می‌شه. تمدید خودکار خاموشه.';
+  }
+
+  @override
+  String mysub_ended(Object date) {
+    return 'روز $date تموم شد';
+  }
+
+  @override
+  String mysub_refunded(Object date) {
+    return 'روز $date زودتر تموم شد';
+  }
+
+  @override
+  String get mysub_paid_bazaar => 'پرداخت از طریق کافه‌بازار';
+
+  @override
+  String get mysub_paid_gift => 'هدیه از طرف تَرک';
+
+  @override
+  String get mysub_manage => 'باز کردن بازار';
+
+  @override
+  String get mysub_manage_note =>
+      'پرداخت با بازاره. برای لغو، یا روشن و خاموش کردن تمدید خودکار، اشتراک‌هات رو توی برنامه‌ی بازار باز کن.';
+
+  @override
+  String get mysub_none_title => 'هنوز اشتراکی نداری';
+
+  @override
+  String get mysub_none_body =>
+      'نسخه ویژه وای‌فای، هات‌اسپات و مهمان، بی‌صدا کردن خودت و پخش موسیقی رو باز می‌کنه. بلوتوث همیشه رایگانه.';
+
+  @override
+  String get mysub_see_plans => 'دیدن طرح‌ها';
+
+  @override
+  String get mysub_renew => 'تمدید';
+
+  @override
+  String mysub_checked(Object date) {
+    return 'آخرین بررسی: $date';
+  }
+
+  @override
+  String get mysub_offline =>
+      'الان به تَرک نرسیدیم، پس این آخرین چیزیه که می‌دونیم.';
+
+  @override
+  String mysub_plan_months(num count) {
+    return '$count ماهه';
+  }
+
+  @override
+  String mysub_plan_years(num count) {
+    return '$count ساله';
+  }
 
   @override
   String get signin_title => 'ورود به حساب';

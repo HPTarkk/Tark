@@ -113,7 +113,7 @@ func setupPools(t *testing.T, mainConns, auxConns int32) *env {
 		Keys: config.Keys{TokenKey: key(1), LookupKey: key(2), DataKey: key(3), Pepper: key(4),
 			EntitlementSeeds: map[string][]byte{"k1": key(5)}, EntitlementKID: "k1"},
 		Google:             config.GoogleConfig{ClientIDs: []string{googleAud}, RequireNonce: true, JWKSURL: g.Server.URL},
-		Bazaar:             config.BazaarConfig{SKUs: []string{"tark_premium_1m", "tark_premium_12m"}},
+		Bazaar:             config.BazaarConfig{SKUs: []string{"tark_premium_1m", "tark_premium_3m", "tark_premium_6m", "tark_premium_12m"}},
 		Policy:             config.EntitlementPolicy{GraceHours: 72, RefreshDays: 5, SuspiciousOfflineHrs: 72},
 		AccessTokenTTL:     15 * time.Minute,
 		RefreshTokenTTL:    180 * 24 * time.Hour,
@@ -596,6 +596,12 @@ func TestSubscription(t *testing.T) {
 	if m["st"] != "active" || m["ar"] != true || m["sus"] != false || m["sku"] != "tark_premium_1m" {
 		t.Fatalf("%v", m)
 	}
+	if r.str("planTitle") != "1 month" {
+		t.Fatalf("planTitle %q", r.str("planTitle"))
+	}
+	if fa := p.do("GET", "/v1/subscription", nil, "Accept-Language", "fa-IR"); fa.str("planTitle") != "یک ماهه" {
+		t.Fatalf("Persian planTitle %q", fa.str("planTitle"))
+	}
 	// Same key, same body: the first answer again.
 	rep := p.do("POST", "/v1/subscription/bazaar/purchases", body, "Idempotency-Key", idem)
 	if rep.header.Get("Idempotent-Replayed") != "true" || rep.str("entitlement") != r.str("entitlement") {
@@ -680,6 +686,54 @@ func TestSubscription(t *testing.T) {
 	fin := e.decodeEntitlement(p.do("GET", "/v1/subscription", nil).str("entitlement"), p.install)
 	if fin["st"] != "expired" || fin["sus"] != false {
 		t.Fatalf("clean period did not clear the mode: %v", fin)
+	}
+}
+
+func TestPlans(t *testing.T) {
+	e := setup(t)
+	check := func(lang string, want []string) {
+		t.Helper()
+		r := e.phone().do("GET", "/v1/subscription/plans", nil, "Accept-Language", lang)
+		expect(t, r, 200, "")
+		plans, _ := r.body["plans"].([]any)
+		if len(plans) != len(want) {
+			t.Fatalf("%s: %v", lang, r.body)
+		}
+		for i, raw := range plans {
+			p := raw.(map[string]any)
+			if p["title"] != want[i] {
+				t.Errorf("%s plan %d: title %v, want %s", lang, i, p["title"], want[i])
+			}
+		}
+		if r.header.Get("Content-Language") != lang[:2] {
+			t.Errorf("Content-Language %q", r.header.Get("Content-Language"))
+		}
+	}
+	check("en", []string{"1 month", "3 months", "6 months", "1 year"})
+	check("fa-IR,en;q=0.5", []string{"یک ماهه", "سه ماهه", "شش ماهه", "یک ساله"})
+
+	r := e.phone().do("GET", "/v1/subscription/plans", nil)
+	p := r.body["plans"].([]any)[1].(map[string]any)
+	if p["sku"] != "tark_premium_3m" || p["months"] != float64(3) || p["days"] != float64(90) {
+		t.Fatalf("%v", p)
+	}
+}
+
+func TestErrorsAreInTheCallersLanguage(t *testing.T) {
+	e := setup(t)
+	en := e.phone().do("GET", "/v1/subscription", nil)
+	expect(t, en, 401, "unauthorized")
+	if en.str("message") != "You've been signed out. Please sign in again." {
+		t.Fatalf("en message %q", en.str("message"))
+	}
+	fa := e.phone().do("GET", "/v1/subscription", nil, "Accept-Language", "fa")
+	if fa.str("message") != "از حسابت خارج شدی. لطفاً دوباره وارد شو." {
+		t.Fatalf("fa message %q", fa.str("message"))
+	}
+	nf := e.phone().do("GET", "/v1/nothing-here", nil, "Accept-Language", "fa")
+	expect(t, nf, 404, "not_found")
+	if nf.str("message") == "" || nf.header.Get("Content-Language") != "fa" {
+		t.Fatalf("404 not localized: %v %v", nf.body, nf.header)
 	}
 }
 

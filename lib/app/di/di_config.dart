@@ -14,10 +14,12 @@ import '../../core/entitlement/bazaar_billing_service.dart';
 import '../../core/entitlement/billing_service.dart';
 import '../../core/entitlement/install_identity.dart';
 import '../../core/entitlement/license_gate.dart';
+import '../../core/entitlement/plan_catalog.dart';
 import '../../core/entitlement/signed_entitlement.dart';
 import '../../core/entitlement/http_subscription_remote.dart';
 import '../../core/entitlement/subscription_remote.dart';
 import '../../core/entitlement/subscription_service.dart';
+import '../../core/locale/locale_service.dart';
 import '../../core/security/app_secure_storage.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/authenticated_api_client.dart';
@@ -144,7 +146,12 @@ abstract class AccountModule {
       HttpTarkServiceClient(
         commonHeaders: () async {
           final platform = AccountConfig.platformHeader;
-          final headers = <String, String>{'X-Tark-Platform': ?platform};
+          final headers = <String, String>{
+            'X-Tark-Platform': ?platform,
+            // Every people-facing word the server sends (error messages,
+            // plan names) follows the app's language, not the phone's.
+            'Accept-Language': LocaleService.currentLocale.languageCode,
+          };
           if (AccountConfig.enabled) {
             await identity.load();
             headers['X-Tark-Install-Key'] = identity.publicKey;
@@ -152,6 +159,10 @@ abstract class AccountModule {
           return headers;
         },
       );
+
+  @lazySingleton
+  PlanCatalog planCatalog(TarkServiceClient transport) =>
+      PlanCatalog(transport);
 
   @lazySingleton
   AuthenticatedApiClient authenticatedApiClient(

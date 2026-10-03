@@ -68,27 +68,26 @@ class BazaarBillingService implements BillingService {
   }
 
   @override
-  Future<List<BillingPlanOffer>> offers() async {
-    if (!await _connect()) return const [];
+  Future<List<BillingPlanOffer>> offers(List<BillingPlan> plans) async {
+    if (plans.isEmpty || !await _connect()) return const [];
     try {
       final raw = await _channel
           .invokeListMethod<Object?>('skuDetails', {
-            'skus': [for (final plan in BillingPlan.values) plan.sku],
+            'skus': [for (final plan in plans) plan.sku],
           })
           .timeout(queryTimeout);
-      final prices = <BillingPlan, String>{};
+      final prices = <String, String>{};
       for (final entry in raw ?? const []) {
         if (entry is! Map) continue;
-        final plan = BillingPlan.forSku('${entry['sku']}');
         final price = entry['price'];
-        if (plan == null || price is! String || price.isEmpty) continue;
-        prices[plan] = price;
+        if (price is! String || price.isEmpty) continue;
+        prices['${entry['sku']}'] = price;
       }
-      // Plan order, not Bazaar's order; a plan Bazaar does not sell is left
-      // out rather than shown without a price.
+      // The server's order, not Bazaar's; a plan Bazaar does not sell is
+      // left out rather than shown without a price.
       return [
-        for (final plan in BillingPlan.values)
-          if (prices[plan] case final price?)
+        for (final plan in plans)
+          if (prices[plan.sku] case final price?)
             BillingPlanOffer(plan: plan, price: price),
       ];
     } on Object catch (error) {
@@ -111,7 +110,7 @@ class BazaarBillingService implements BillingService {
       final purchase = raw == null ? null : _parse(raw);
       // Bazaar answered for something other than what was bought: hand
       // nothing to the server rather than the wrong plan.
-      if (purchase == null || purchase.plan != plan) {
+      if (purchase == null || purchase.sku != plan.sku) {
         return const PurchaseFailed('unexpected_purchase');
       }
       return PurchaseSuccess(purchase);
@@ -155,10 +154,12 @@ class BazaarBillingService implements BillingService {
   /// Bazaar's cache marks it refunded does not matter here: the server asks
   /// Bazaar itself.
   static StorePurchase? _parse(Map<Object?, Object?> raw) {
-    final plan = BillingPlan.forSku('${raw['productId']}');
+    final sku = '${raw['productId']}';
     final token = raw['purchaseToken'];
-    if (plan == null || token is! String || token.isEmpty) return null;
-    return StorePurchase(plan: plan, purchaseToken: token);
+    if (!BillingPlan.isPlanSku(sku) || token is! String || token.isEmpty) {
+      return null;
+    }
+    return StorePurchase(sku: sku, purchaseToken: token);
   }
 
   /// Error kind only. Platform messages can carry purchase details, and those

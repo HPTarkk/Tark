@@ -88,7 +88,8 @@ or malformed secret.
 | `TARK_MAIL_FROM`, `TARK_MAIL_FROM_NAME` | Sender address and name |
 | `TARK_SMTP2_HOST`, `TARK_SMTP2_PORT`, `TARK_SMTP2_USERNAME`, `TARK_SMTP2_PASSWORD`, `TARK_SMTP2_SECURITY`, `TARK_SMTP2_FROM` | Optional backup SMTP server, used when the first one fails. Meant for a provider inside Iran. |
 | `TARK_BAZAAR_CLIENT_ID`, `TARK_BAZAAR_CLIENT_SECRET`, `TARK_BAZAAR_REFRESH_TOKEN` | Bazaar developer API credentials |
-| `TARK_BAZAAR_PACKAGE`, `TARK_BAZAAR_SKUS`, `TARK_BAZAAR_BASE_URL` | Package name, accepted SKUs, API base |
+| `TARK_BAZAAR_PACKAGE`, `TARK_BAZAAR_BASE_URL` | Package name, API base |
+| `TARK_BAZAAR_SKUS` | Plans on sale, in display order (default `tark_premium_1m,tark_premium_3m,tark_premium_6m,tark_premium_12m`). Ids are `tark_premium_<months>m`; the app lists whatever is here (`GET /v1/subscription/plans`), so adding or removing a length needs only the Bazaar product and this setting. Purchases of a plan taken off the list still verify. Owners work out prices on the admin panel's Pricing page. |
 | `TARK_CLIENT_IP_HEADER`, `TARK_TRUSTED_PROXIES` | Where the real client IP is, and which peers may set it (CIDRs). Needed behind ArvanCloud's CDN or load balancer. |
 | `TARK_POLICY_GRACE_HOURS`, `TARK_POLICY_REFRESH_DAYS`, `TARK_POLICY_SUSPICIOUS_OFFLINE_HOURS` | Offline policy signed into every entitlement (defaults 72, 5, 72) |
 | `TARK_ACCESS_TOKEN_TTL`, `TARK_REFRESH_TOKEN_TTL`, `TARK_SESSION_MAX_LIFETIME` | Defaults 15m, 180 days idle, 2 years |

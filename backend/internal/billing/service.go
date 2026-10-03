@@ -62,20 +62,26 @@ type Service struct {
 	limits ratelimit.Limiter
 	audit  *audit.Logger
 	policy Policy
-	skus   []string
+	plans  []Plan
 	log    *slog.Logger
 	now    func() time.Time
 }
 
 func NewService(pool *pgxpool.Pool, bz Bazaar, signer *Signer, sealer *secure.Sealer, lookup *secure.Hasher,
-	limits ratelimit.Limiter, aud *audit.Logger, policy Policy, skus []string, log *slog.Logger) *Service {
+	limits ratelimit.Limiter, aud *audit.Logger, policy Policy, plans []Plan, log *slog.Logger) *Service {
 	return &Service{pool: pool, bazaar: bz, signer: signer, sealer: sealer, lookup: lookup, limits: limits,
-		audit: aud, policy: policy, skus: skus, log: log, now: time.Now}
+		audit: aud, policy: policy, plans: plans, log: log, now: time.Now}
 }
+
+// Plans lists the plans on sale, in the order to show them.
+func (s *Service) Plans() []Plan { return slices.Clone(s.plans) }
 
 // Result is SubscriptionResponse.
 type Result struct {
-	Entitlement   string
+	Entitlement string
+	// SKU is the product the entitlement is about ("" when none), so the
+	// response can name the plan in the caller's language.
+	SKU           string
 	BazaarChecked bool
 }
 
@@ -144,16 +150,19 @@ func (s *Service) Get(ctx context.Context, userID, installKey, ip string) (Resul
 		}
 		checked = checked && ok
 	}
-	token, err := s.issue(ctx, s.pool, userID, installKey)
+	token, sku, err := s.issue(ctx, s.pool, userID, installKey)
 	if err != nil {
 		return Result{}, err
 	}
-	return Result{Entitlement: token, BazaarChecked: checked}, nil
+	return Result{Entitlement: token, SKU: sku, BazaarChecked: checked}, nil
 }
 
 // Submit binds a purchase token to the caller and verifies it with Bazaar.
 func (s *Service) Submit(ctx context.Context, userID, installKey, sku, purchaseToken, ip string) (Result, error) {
-	if !slices.Contains(s.skus, sku) {
+	// Any plan id is accepted, not only the ones on sale: a plan taken off
+	// sale still has subscribers whose renewals and restores must verify.
+	// Bazaar itself refuses an id that was never created in the panel.
+	if _, ok := ParsePlan(sku); !ok {
 		return Result{}, apperr.Validation("sku", "unknown product")
 	}
 	if purchaseToken == "" || len(purchaseToken) > 512 {
@@ -237,8 +246,8 @@ func (s *Service) Submit(ctx context.Context, userID, installKey, sku, purchaseT
 			// Commit the invalid state, then report it.
 			return nil
 		}
-		token, err := s.issue(ctx, tx, userID, installKey)
-		result.Entitlement = token
+		token, sku, err := s.issue(ctx, tx, userID, installKey)
+		result.Entitlement, result.SKU = token, sku
 		return err
 	})
 	if err != nil {
@@ -485,12 +494,24 @@ type querier interface {
 }
 
 // issue signs the account's current standing for installKey.
-func (s *Service) issue(ctx context.Context, q querier, userID, installKey string) (string, error) {
+func (s *Service) issue(ctx context.Context, q querier, userID, installKey string) (token, sku string, err error) {
+	payload, err := s.entitlement(ctx, q, userID, installKey)
+	if err != nil {
+		return "", "", err
+	}
+	token, err = s.signer.Sign(payload)
+	if payload.SKU != nil {
+		sku = *payload.SKU
+	}
+	return token, sku, err
+}
+
+func (s *Service) entitlement(ctx context.Context, q querier, userID, installKey string) (Payload, error) {
 	now := s.now()
 	var suspicious bool
 	err := q.QueryRow(ctx, `SELECT suspicious_since IS NOT NULL FROM subscription_accounts WHERE user_id = $1`, userID).Scan(&suspicious)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-		return "", err
+		return Payload{}, err
 	}
 
 	payload := Payload{Sub: userID, IK: installKey, St: "none", Sus: suspicious, Iat: now.UnixMilli(), Pol: s.policy}
@@ -507,7 +528,7 @@ func (s *Service) issue(ctx context.Context, q querier, userID, installKey strin
 		ORDER BY (state = 'active') DESC, coalesce(refunded_at, valid_until) DESC
 		LIMIT 1`, userID).Scan(&state, &sku, &until, &ar, &refundedAt)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-		return "", err
+		return Payload{}, err
 	}
 	if err == nil {
 		payload.St = state
@@ -527,14 +548,14 @@ func (s *Service) issue(ctx context.Context, q querier, userID, installKey strin
 	if err := q.QueryRow(ctx, `
 		SELECT max(ends_at) FROM premium_grants
 		WHERE user_id = $1 AND revoked_at IS NULL AND starts_at <= $2 AND ends_at > $2`, userID, now).Scan(&grantEnd); err != nil {
-		return "", err
+		return Payload{}, err
 	}
 	if grantEnd != nil && (payload.St != "active" || payload.Until == nil || grantEnd.UnixMilli() > *payload.Until) {
 		ms := grantEnd.UnixMilli()
 		compSKU := CompSKU
 		payload.St, payload.SKU, payload.Until, payload.AR = "active", &compSKU, &ms, false
 	}
-	return s.signer.Sign(payload)
+	return payload, nil
 }
 
 func event(ctx context.Context, tx pgx.Tx, userID, purchaseID, kind string, details map[string]any) error {

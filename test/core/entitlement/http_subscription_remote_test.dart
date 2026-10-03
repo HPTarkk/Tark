@@ -51,6 +51,22 @@ void main() {
       },
     );
 
+    test('the plan title comes along when the server names it', () async {
+      server.handler = (_) async => const ApiOk(200, {
+        'entitlement': 'v1.k.p.s',
+        'bazaarChecked': true,
+        'planTitle': ' سه ماهه ',
+      });
+      final fetch = await remote.fetch(installKey: installKey);
+      expect((fetch as FetchedEntitlement).planTitle, 'سه ماهه');
+
+      server.handler = (_) async =>
+          const ApiOk(200, {'entitlement': 'v1.k.p.s', 'planTitle': null});
+      final bare = await remote.fetch(installKey: installKey);
+      expect((bare as FetchedEntitlement).planTitle, isNull);
+      expect(bare.bazaarChecked, isTrue);
+    });
+
     test('no account on this phone is signed out, without a request', () async {
       await api.forget();
       expect(await remote.fetch(installKey: installKey), isA<FetchSignedOut>());

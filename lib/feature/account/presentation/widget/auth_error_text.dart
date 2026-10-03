@@ -6,7 +6,8 @@ import '../../../../core/l10n/extension.dart';
 import '../../../../core/utils/extensions.dart';
 
 /// The words for an [AuthError]. Always a calm, specific sentence built from
-/// the stable `code`; the server's `detail` never reaches a screen. Null
+/// the stable `code`, or the server's `message` for a code this build does
+/// not know; the server's `detail` never reaches a screen. Null
 /// for outcomes that need no words (the person closed Google's picker).
 ///
 /// [passwordContext] is set where a wrong password is the only possible
@@ -70,7 +71,9 @@ String? authErrorText(
     AuthErrorKind.linkRequired ||
     AuthErrorKind.nameRequired ||
     AuthErrorKind.subscriptionActive => s.auth_error_trouble,
-    AuthErrorKind.serviceTrouble ||
-    AuthErrorKind.unknown => s.auth_error_trouble,
+    AuthErrorKind.serviceTrouble => s.auth_error_trouble,
+    // A code this build has no words for (a newer server): the server's
+    // own sentence, which follows the app's language.
+    AuthErrorKind.unknown => error.message ?? s.auth_error_trouble,
   };
 }

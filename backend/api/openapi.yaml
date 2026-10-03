@@ -16,7 +16,12 @@ info:
     Conventions
     - Every endpoint is HTTPS only and versioned under /v1.
     - Errors use one shape (Problem). `code` is stable and machine-readable;
-      the app never shows `detail` to people.
+      `message` is a sentence for people in the request's language; the app
+      never shows `detail` to people.
+    - Language: every response that carries people-facing text (error
+      messages, plan titles) follows the `Accept-Language` header. English
+      (`en`) and Persian (`fa`) exist; anything else gets English. The
+      chosen language comes back in `Content-Language`.
     - Writes that the app may retry carry an `Idempotency-Key` header. The
       same key with the same body returns the first response again; the same
       key with a different body is refused with 422 `idempotency_mismatch`.
@@ -745,6 +750,33 @@ paths:
         '429':
           $ref: '#/components/responses/Problem'
 
+  /subscription/plans:
+    get:
+      operationId: getPlans
+      tags: [Subscription]
+      summary: The plans on sale, in display order.
+      description: |
+        Public, so the paywall can list plans before sign-in. The list comes
+        from the server's TARK_BAZAAR_SKUS, so plans are added, removed or
+        reordered without an app update. Prices are not here: the app asks
+        Bazaar for each plan's price, because Bazaar is what charges.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/AcceptLanguage'
+      responses:
+        '200':
+          description: The plans on sale.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [plans]
+                properties:
+                  plans:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Plan'
+
   /subscription/bazaar/purchases:
     post:
       operationId: submitBazaarPurchase
@@ -800,6 +832,14 @@ components:
       description: Short-lived access token from the sign-in endpoints.
 
   parameters:
+    AcceptLanguage:
+      name: Accept-Language
+      in: header
+      required: false
+      description: Language of people-facing text in the response (en or fa). Accepted by every endpoint.
+      schema:
+        type: string
+        examples: [fa-IR, en]
     Platform:
       name: X-Tark-Platform
       in: header
@@ -1187,6 +1227,12 @@ components:
           type: string
           description: Stable machine-readable failure code.
           examples: [unauthorized, rate_limited, invalid_request, invalid_credentials, code_invalid, link_required, session_ended, purchase_owned_elsewhere, purchase_invalid]
+        message:
+          type: string
+          description: |
+            One sentence for people, in the request's language. Present on
+            every Problem. The app may show its own wording for codes it
+            knows and this message for any other.
         detail:
           type: string
           description: Developer-facing explanation. Never shown to people.
@@ -1200,7 +1246,10 @@ components:
       properties:
         sku:
           type: string
-          enum: [tark_premium_1m, tark_premium_12m]
+          pattern: '^tark_premium_[1-9][0-9]?m$'
+          description: |
+            A plan id. Any plan id is accepted, not only those on sale, so a
+            plan taken off sale still restores and renews.
         purchaseToken:
           type: string
           minLength: 1
@@ -1219,6 +1268,29 @@ components:
         bazaarChecked:
           type: boolean
           description: False when Bazaar could not be reached and the answer is the last verified state.
+        planTitle:
+          type: [string, 'null']
+          description: |
+            The entitlement's plan named in the request's language ("3
+            months", or "Gift from Tark" for premium given by support).
+            Display only; null when there is no plan.
+
+    Plan:
+      type: object
+      required: [sku, months, days, title]
+      properties:
+        sku:
+          type: string
+          examples: [tark_premium_3m]
+        months:
+          type: integer
+          description: Period length in months.
+        days:
+          type: integer
+          description: Period length as the Bazaar panel names it (30 days a month, 365 a year).
+        title:
+          type: string
+          description: The plan's name in the request's language, e.g. "3 months" / "سه ماهه".
 
     EntitlementPayload:
       type: object

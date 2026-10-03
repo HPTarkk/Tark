@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/HPTarkk/Tark/backend/internal/apperr"
+	"github.com/HPTarkk/Tark/backend/internal/i18n"
 	"github.com/HPTarkk/Tark/backend/internal/secure"
 )
 
@@ -38,7 +39,8 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 // writeError turns any error into a Problem. Only apperr values reach the
 // client with their code; everything else is logged and answered with a
-// bare internal_error.
+// bare internal_error. Every Problem carries a people-facing message in
+// the request's language (Accept-Language).
 func writeError(w http.ResponseWriter, r *http.Request, log *slog.Logger, err error) {
 	ae, ok := apperr.As(err)
 	if !ok {
@@ -49,7 +51,7 @@ func writeError(w http.ResponseWriter, r *http.Request, log *slog.Logger, err er
 			ae = apperr.New(http.StatusInternalServerError, "internal_error", "")
 		}
 	}
-	body := map[string]any{"code": ae.Code}
+	body := map[string]any{"code": ae.Code, "message": i18n.ErrorMessage(i18n.From(r.Context()), ae.Code, ae.Extra)}
 	if ae.Detail != "" {
 		body["detail"] = ae.Detail
 	}
