@@ -52,10 +52,11 @@
     </a>
     <div class="side-actions">
       <a class="lang" href="/lang/{{t "lang.otherCode"}}?next={{$.Here}}" lang="{{t "lang.otherCode"}}">{{icon "globe"}}<span>{{t "lang.other"}}</span></a>
-      <form method="post" action="/logout" class="logout"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="ghost">{{icon "signout"}}<span>{{t "signout"}}</span></button></form>
+      <button type="button" class="ghost signout" popovertarget="confirm-signout">{{icon "signout"}}<span>{{t "signout"}}</span></button>
     </div>
   </div>
 </div></aside>
+{{template "signout-dialog" $}}
 {{end}}{{else}}
 <a class="lang lang-corner" href="/lang/{{t "lang.otherCode"}}?next={{.Here}}" lang="{{t "lang.otherCode"}}">{{t "lang.other"}}</a>
 {{end}}
@@ -64,3 +65,15 @@
 </main>
 </body>
 </html>
+{{/* Sign out asks first. A popover needs no script, so it works under the CSP. */}}
+{{define "signout-dialog"}}
+<div id="confirm-signout" popover class="dialog" role="alertdialog" aria-labelledby="signout-q" aria-describedby="signout-x">
+  <span class="dialog-icon">{{icon "signout"}}</span>
+  <h2 id="signout-q">{{t "signout.q"}}</h2>
+  <p id="signout-x">{{t "signout.x"}}</p>
+  <div class="dialog-actions">
+    <button type="button" class="ghost" popovertarget="confirm-signout" popovertargetaction="hide" autofocus>{{t "btn.cancel"}}</button>
+    <form method="post" action="/logout"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="danger">{{t "signout"}}</button></form>
+  </div>
+</div>
+{{end}}
