@@ -83,7 +83,7 @@ func setup(t *testing.T) *env {
 	fm := &fakeMailer{}
 	fa, fb := &fakeAccounts{}, &fakeBilling{}
 	d := Deps{
-		Accounts: fa, Billing: fb,
+		Accounts: fa, Billing: fb, Plans: testPlans(),
 		Pool: pool, Passwords: pw, Lookup: lookup, Sealer: sealer, Limits: ratelimit.NewPG(pool, lookup), Mailer: fm,
 		AlertEmails: []string{"owner@example.com"}, ServerName: "api.test",
 		ClientIP: func(*http.Request) string { return "203.0.113.7" },
@@ -541,6 +541,9 @@ func TestSupportCannotDoOwnerActions(t *testing.T) {
 		if code, _ := sup.post("/users/"+uid+"/"+a, url.Values{"csrf": {csrf}, "reason": {"try it"}, "months": {"1"}}); code != http.StatusForbidden {
 			t.Fatalf("support %s: %d", a, code)
 		}
+	}
+	if code, _ := sup.post("/pricing", url.Values{"csrf": {csrf}, "base": {"99000"}}); code != http.StatusForbidden {
+		t.Fatalf("support pricing: %d", code)
 	}
 	if code, _ := sup.post("/users/"+uid+"/signout", url.Values{"csrf": {csrf}}); code != http.StatusOK {
 		t.Fatalf("support signout: %d", code)

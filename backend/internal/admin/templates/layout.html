@@ -15,7 +15,7 @@
     <a href="/">Dashboard</a>
     <a href="/system">System</a>
     {{if or (eq .Role "owner") (eq .Role "support")}}<a href="/users">Users</a><a href="/security">Security</a><a href="/mail">Mail</a>{{end}}
-    {{if eq .Role "owner"}}<a href="/backups">Backups</a><a href="/admins">Admins</a><a href="/activity">Activity</a><a href="/logs">Logs</a>{{end}}
+    {{if eq .Role "owner"}}<a href="/pricing">Pricing</a><a href="/backups">Backups</a><a href="/admins">Admins</a><a href="/activity">Activity</a><a href="/logs">Logs</a>{{end}}
     <a href="/account/password">Account</a>
   </nav>
   <form method="post" action="/logout" class="logout"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button>Sign out</button></form>

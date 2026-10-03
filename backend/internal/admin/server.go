@@ -29,6 +29,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/HPTarkk/Tark/backend/internal/billing"
 	"github.com/HPTarkk/Tark/backend/internal/mail"
 	"github.com/HPTarkk/Tark/backend/internal/metrics"
 	"github.com/HPTarkk/Tark/backend/internal/password"
@@ -55,6 +56,8 @@ type Deps struct {
 	Mailer    Mailer
 	Accounts  Accounts
 	Billing   Billing
+	// Plans on sale, for the price helper.
+	Plans []billing.Plan
 	// Metrics feed the System page; nil hides those numbers.
 	Metrics *metrics.Registry
 	// LogDir is TARK_LOG_DIR, searched by the Logs page; empty turns it off.
@@ -165,6 +168,8 @@ func (s *Server) Handler() http.Handler {
 				r.Post("/users/{id}/grant", s.act("premium.granted", true, s.grantPremium))
 				r.Post("/users/{id}/revoke-grant", s.act("premium.revoked", true, s.revokeGrant))
 				r.Post("/users/{id}/delete", s.act("user.deleted", true, s.deleteUser))
+				r.Get("/pricing", s.pricing)
+				r.Post("/pricing", s.savePricing)
 				r.Get("/backups", s.backups)
 				r.Get("/activity", s.activity)
 				r.Get("/logs", s.logs)

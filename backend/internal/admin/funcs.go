@@ -3,13 +3,21 @@ package admin
 import (
 	"fmt"
 	"html/template"
+	"math"
 	"reflect"
+	"strconv"
 	"time"
 
+	"github.com/HPTarkk/Tark/backend/internal/i18n"
 	"github.com/HPTarkk/Tark/backend/internal/metrics"
 )
 
 var funcs = template.FuncMap{
+	// money writes a whole amount with thousands separators: 1,250,000.
+	"money": func(n int64) string { return i18n.GroupedDigits(i18n.EN, n) },
+	// factor writes a multiplier without trailing zeros: 2.7, 1.15, 9.
+	"factor":  func(f float64) string { return strconv.FormatFloat(f, 'f', -1, 64) },
+	"round":   func(f float64) int64 { return int64(math.Round(f)) },
 	"latency": latency,
 	"list":    func(v ...int) []int { return v },
 	"p":       func(h metrics.Hist, q float64) string { return latency(h.Quantile(q)) },

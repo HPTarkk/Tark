@@ -156,7 +156,7 @@ func Build(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger, opts Option
 	})
 	adminDeps := admin.Deps{
 		Pool: pool, Passwords: pw, Lookup: lookup, Sealer: sealer, Limits: limits, Mailer: outbox,
-		Accounts: authSvc, Billing: billingSvc, Metrics: reg, LogDir: cfg.Log.Dir,
+		Accounts: authSvc, Billing: billingSvc, Plans: plans, Metrics: reg, LogDir: cfg.Log.Dir,
 		AlertEmails: cfg.Monitor.AlertEmails, ServerName: cfg.Monitor.ServerName,
 		ClientIP: httpapi.ClientIPResolver(cfg.ClientIPHeader, cfg.TrustedProxies),
 		Log:      log, Secure: !cfg.Development(),
