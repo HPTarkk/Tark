@@ -570,7 +570,10 @@ func (a *api) getPlans(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *api) getSubscription(w http.ResponseWriter, r *http.Request) {
-	res, err := a.Billing.Get(r.Context(), principal(r).UserID, r.Header.Get(installKeyHeader), clientIP(r.Context()))
+	// "Cache-Control: no-cache" asks for Bazaar's latest word rather than the
+	// stored one (the app sends it when the subscription page opens).
+	fresh := strings.Contains(strings.ToLower(r.Header.Get("Cache-Control")), "no-cache")
+	res, err := a.Billing.Get(r.Context(), principal(r).UserID, r.Header.Get(installKeyHeader), clientIP(r.Context()), fresh)
 	if err != nil {
 		writeError(w, r, a.Log, err)
 		return

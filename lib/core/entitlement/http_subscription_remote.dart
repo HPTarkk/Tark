@@ -39,11 +39,17 @@ class HttpSubscriptionRemote implements SubscriptionRemote {
   };
 
   @override
-  Future<SubscriptionFetch> fetch({required String installKey}) async {
+  Future<SubscriptionFetch> fetch({
+    required String installKey,
+    bool fresh = false,
+  }) async {
     final response = await _api.send(
       ApiRequest.get(
         '/subscription',
-        headers: {'X-Tark-Install-Key': installKey},
+        headers: {
+          'X-Tark-Install-Key': installKey,
+          if (fresh) 'Cache-Control': 'no-cache',
+        },
       ),
     );
     return _map(response);

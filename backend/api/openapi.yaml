@@ -731,6 +731,10 @@ paths:
       description: |
         Returns the caller's subscription as the server knows it right now,
         re-checking Cafe Bazaar first when the stored state is stale.
+        Sending `Cache-Control: no-cache` re-checks a running subscription
+        however recent the stored state is (at most once a minute per
+        purchase); the app does this when the subscription page opens, so a
+        renewal turned off in Bazaar shows at once.
 
         A Bazaar outage or timeout never downgrades anyone: the server answers
         with the last state it verified and sets `bazaarChecked: false`.

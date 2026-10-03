@@ -757,6 +757,19 @@ func TestTestPlan(t *testing.T) {
 	if r.str("planTitle") != "Tark Premium, 5-minute test" {
 		t.Fatalf("planTitle %q", r.str("planTitle"))
 	}
+
+	// Renewal turned off in Bazaar: an ordinary GET serves the stored answer,
+	// one that asks for no-cache (the subscription page) sees the change.
+	test.bazaar.Set("test-tok", billing.Subscription{InitiatedAt: time.Now(), ValidUntil: time.Now().Add(5 * time.Minute), AutoRenewing: false}, nil)
+	if _, err := test.pool.Exec(context.Background(), `UPDATE bazaar_purchases SET last_checked_at = now() - interval '2 minutes'`); err != nil {
+		t.Fatal(err)
+	}
+	if m := test.decodeEntitlement(q.do("GET", "/v1/subscription", nil).str("entitlement"), q.install); m["ar"] != true {
+		t.Fatalf("stored answer not served: %v", m)
+	}
+	if m := test.decodeEntitlement(q.do("GET", "/v1/subscription", nil, "Cache-Control", "no-cache").str("entitlement"), q.install); m["st"] != "active" || m["ar"] != false {
+		t.Fatalf("fresh check missed the cancelled renewal: %v", m)
+	}
 }
 
 func TestErrorsAreInTheCallersLanguage(t *testing.T) {

@@ -16,8 +16,10 @@ class _Remote implements SubscriptionRemote {
   SubscriptionFetch Function() answer;
 
   @override
-  Future<SubscriptionFetch> fetch({required String installKey}) async =>
-      answer();
+  Future<SubscriptionFetch> fetch({
+    required String installKey,
+    bool fresh = false,
+  }) async => answer();
 
   @override
   Future<SubscriptionFetch> submitBazaarPurchase({

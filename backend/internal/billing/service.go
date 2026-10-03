@@ -115,12 +115,19 @@ func scanPurchase(row pgx.Row) (*purchase, error) {
 }
 
 // Get returns the caller's entitlement, re-checking Bazaar first for any
-// purchase whose stored state is stale.
-func (s *Service) Get(ctx context.Context, userID, installKey, ip string) (Result, error) {
+// purchase whose stored state is stale. fresh asks for running purchases to
+// be re-checked however recent the last answer is (the subscription page
+// does this, so a renewal turned off in Bazaar shows at once); minRecheckGap
+// still applies.
+func (s *Service) Get(ctx context.Context, userID, installKey, ip string, fresh bool) (Result, error) {
 	if err := s.limits.Hit(ctx, limitSubscriptionGet, userID); err != nil {
 		return Result{}, err
 	}
 	now := s.now()
+	staleBefore := now.Add(-freshFor)
+	if fresh {
+		staleBefore = now
+	}
 	rows, err := s.pool.Query(ctx, `
 		SELECT id FROM bazaar_purchases
 		WHERE user_id = $1 AND (
@@ -128,7 +135,7 @@ func (s *Service) Get(ctx context.Context, userID, installKey, ip string) (Resul
 			OR (state = 'active' AND (last_checked_at IS NULL OR last_checked_at < $2 OR valid_until <= $3))
 			OR (state = 'expired' AND valid_until > $3 - $4::interval AND (last_checked_at IS NULL OR last_checked_at < $3 - interval '24 hours')))
 		AND (last_checked_at IS NULL OR last_checked_at < $3 - $5::interval)`,
-		userID, now.Add(-freshFor), now, expiredWatch, minRecheckGap)
+		userID, staleBefore, now, expiredWatch, minRecheckGap)
 	if err != nil {
 		return Result{}, err
 	}

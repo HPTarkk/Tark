@@ -48,6 +48,19 @@ void main() {
         expect(request.path, '/subscription');
         expect(request.headers['X-Tark-Install-Key'], installKey);
         expect(request.headers['Authorization'], 'Bearer access-1');
+        expect(request.headers.containsKey('Cache-Control'), isFalse);
+      },
+    );
+
+    test(
+      'a fresh fetch asks the server not to serve its stored answer',
+      () async {
+        server.handler = (_) async => const ApiOk(200, {
+          'entitlement': 'v1.k.p.s',
+          'bazaarChecked': true,
+        });
+        await remote.fetch(installKey: installKey, fresh: true);
+        expect(server.requests.single.headers['Cache-Control'], 'no-cache');
       },
     );
 
