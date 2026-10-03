@@ -56,6 +56,7 @@ var errGoogleRejected = apperr.New(http.StatusUnauthorized, "google_token_invali
 func (s *Service) verifyGoogle(ctx context.Context, idToken string) (*google.Claims, error) {
 	claims, err := s.google.Verify(ctx, idToken)
 	if errors.Is(err, google.ErrKeysUnset) {
+		s.log.WarnContext(ctx, "google keys unavailable", "reason", err.Error())
 		return nil, apperr.Unavailable("google_unavailable", "could not reach Google to check the sign-in", 30*time.Second)
 	}
 	if err != nil {
