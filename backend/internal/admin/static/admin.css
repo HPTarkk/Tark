@@ -161,6 +161,7 @@ main.content > :nth-child(6) { animation-delay: .2s; } main.content > :nth-child
 .dialog:popover-open::backdrop { animation: auth-fade .25s ease both; }
 .dialog-icon { display: grid; place-items: center; width: 60px; height: 60px; margin: 0 auto 14px; border-radius: 50%; color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, var(--surface)); box-shadow: 0 0 0 8px color-mix(in srgb, var(--bad) 6%, transparent); }
 .dialog-icon .i { width: 26px; height: 26px; }
+.dialog.calm .dialog-icon { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent) 6%, transparent); }
 .dialog h2 { margin: 0 0 6px; font-size: 1.2rem; font-weight: 800; }
 .dialog p { margin: 0 0 22px; color: var(--muted); font-size: .92rem; }
 .dialog-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }

@@ -58,6 +58,16 @@
   </div>
 </div></aside>
 {{template "signout-dialog" $}}
+{{/* Filled in by admin.js from the form's data-confirm attributes. */}}
+<div id="confirm-action" popover class="dialog" role="alertdialog" aria-labelledby="confirm-q" aria-describedby="confirm-x">
+  <span class="dialog-icon">{{icon "alert"}}</span>
+  <h2 id="confirm-q"></h2>
+  <p id="confirm-x"></p>
+  <div class="dialog-actions">
+    <button type="button" class="ghost" popovertarget="confirm-action" popovertargetaction="hide" autofocus>{{t "btn.cancel"}}</button>
+    <button type="button" id="confirm-ok"></button>
+  </div>
+</div>
 {{end}}{{else}}
 <a class="lang lang-corner" href="/lang/{{t "lang.otherCode"}}?next={{.Here}}" lang="{{t "lang.otherCode"}}">{{t "lang.other"}}</a>
 {{end}}
