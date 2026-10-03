@@ -1,26 +1,32 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{lang}}" dir="{{dir}}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>{{block "title" .}}Tarkk admin{{end}}</title>
+<title>{{block "title" .}}{{t "brand"}}{{end}}</title>
+<link rel="icon" href="/static/logo.png" type="image/png">
+<link rel="apple-touch-icon" href="/static/logo.png">
 <link rel="stylesheet" href="/static/admin.css">
 </head>
 <body>
-{{with .Admin}}{{if not .MustChangePassword}}
+{{$top := false}}{{with .Admin}}{{if not .MustChangePassword}}{{$top = true}}{{end}}{{end}}
+{{if $top}}{{with .Admin}}
 <header class="top">
-  <a class="brand" href="/">Tarkk admin</a>
+  <a class="brand" href="/"><img src="/static/logo.png" alt="" width="26" height="26">{{t "brand"}}</a>
   <nav>
-    <a href="/">Dashboard</a>
-    <a href="/system">System</a>
-    {{if or (eq .Role "owner") (eq .Role "support")}}<a href="/users">Users</a><a href="/security">Security</a><a href="/mail">Mail</a>{{end}}
-    {{if eq .Role "owner"}}<a href="/pricing">Pricing</a><a href="/backups">Backups</a><a href="/admins">Admins</a><a href="/activity">Activity</a><a href="/logs">Logs</a>{{end}}
-    <a href="/account/password">Account</a>
+    <a href="/">{{t "nav.dashboard"}}</a>
+    <a href="/system">{{t "nav.system"}}</a>
+    {{if or (eq .Role "owner") (eq .Role "support")}}<a href="/users">{{t "nav.users"}}</a><a href="/security">{{t "nav.security"}}</a><a href="/mail">{{t "nav.mail"}}</a>{{end}}
+    {{if eq .Role "owner"}}<a href="/pricing">{{t "nav.pricing"}}</a><a href="/backups">{{t "nav.backups"}}</a><a href="/admins">{{t "nav.admins"}}</a><a href="/activity">{{t "nav.activity"}}</a><a href="/logs">{{t "nav.logs"}}</a>{{end}}
+    <a href="/account/password">{{t "nav.account"}}</a>
   </nav>
-  <form method="post" action="/logout" class="logout"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button>Sign out</button></form>
+  <a class="lang" href="/lang/{{t "lang.otherCode"}}?next={{$.Here}}" lang="{{t "lang.otherCode"}}">{{t "lang.other"}}</a>
+  <form method="post" action="/logout" class="logout"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button>{{t "signout"}}</button></form>
 </header>
-{{end}}{{end}}
+{{end}}{{else}}
+<a class="lang lang-corner" href="/lang/{{t "lang.otherCode"}}?next={{.Here}}" lang="{{t "lang.otherCode"}}">{{t "lang.other"}}</a>
+{{end}}
 <main>
 {{block "main" .}}{{end}}
 </main>

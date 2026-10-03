@@ -198,19 +198,27 @@ func (s *Server) openTOTP(adminID string, sealed []byte) ([]byte, error) {
 // normalizeEmail is enough for admin addresses, which only owners type.
 func normalizeEmail(e string) string { return strings.ToLower(strings.TrimSpace(e)) }
 
+// Reasons CreateAdmin refuses; the panel shows them in the admin's language.
+var (
+	errBadRole     = errors.New("role must be owner, support or viewer")
+	errBadEmail    = errors.New("not an email address")
+	errBadName     = errors.New("name must be 1 to 64 characters")
+	errAdminExists = errors.New("an admin with that email already exists")
+)
+
 // CreateAdmin adds an admin with a one-time password, which is returned and
 // must be changed at first sign-in, together with enrolling TOTP.
 func CreateAdmin(ctx context.Context, d Deps, email, name string, role Role, createdBy string) (string, error) {
 	email = normalizeEmail(email)
 	if !role.Valid() {
-		return "", errors.New("role must be owner, support or viewer")
+		return "", errBadRole
 	}
 	if strings.Count(email, "@") != 1 || len(email) > 254 || strings.ContainsAny(email, " <>\r\n") {
-		return "", errors.New("not an email address")
+		return "", errBadEmail
 	}
 	name = strings.TrimSpace(name)
 	if name == "" || len([]rune(name)) > 64 {
-		return "", errors.New("name must be 1 to 64 characters")
+		return "", errBadName
 	}
 	temp := secure.RandomToken(12)
 	hash, err := d.Passwords.Hash(ctx, temp)
@@ -225,7 +233,7 @@ func CreateAdmin(ctx context.Context, d Deps, email, name string, role Role, cre
 		INSERT INTO admin_users (email, name, role, password_hash, created_by) VALUES ($1, $2, $3, $4, $5)`,
 		email, name, string(role), hash, by); err != nil {
 		if strings.Contains(err.Error(), "admin_users_email_key") {
-			return "", errors.New("an admin with that email already exists")
+			return "", errAdminExists
 		}
 		return "", err
 	}

@@ -1,6 +1,6 @@
-{{define "title"}}Activity · Tarkk admin{{end}}
+{{define "title"}}{{t "nav.activity"}} · {{t "brand"}}{{end}}
 {{define "main"}}
-<h1>Admin activity</h1>
-<table><tr><th>When</th><th>Admin</th><th>Action</th><th>Account</th><th>Details</th></tr>
-{{range .Events}}<tr><td>{{when .At}}</td><td>{{.Who}}</td><td>{{.Kind}}</td><td>{{with .Target}}<a href="/users/{{.}}">{{short .}}</a>{{end}}</td><td><code>{{.Detail}}</code></td></tr>{{end}}</table>
+<h1>{{t "activity.h"}}</h1>
+<table><tr><th>{{t "col.when"}}</th><th>{{t "col.admin"}}</th><th>{{t "col.action"}}</th><th>{{t "col.account"}}</th><th>{{t "col.details"}}</th></tr>
+{{range .Events}}<tr><td>{{when .At}}</td><td>{{.Who}}</td><td><code>{{.Kind}}</code></td><td>{{with .Target}}<a href="/users/{{.}}">{{short .}}</a>{{end}}</td><td><code>{{.Detail}}</code></td></tr>{{end}}</table>
 {{end}}

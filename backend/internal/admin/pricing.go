@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"math"
 	"net/http"
 	"strconv"
@@ -193,27 +192,27 @@ func (s *Server) savePricing(w http.ResponseWriter, r *http.Request) {
 	}
 	var err error
 	if in.BaseMonthly, err = parseAmount(r.PostFormValue("base")); err != nil || in.BaseMonthly < 1000 || in.BaseMonthly > 1_000_000_000 {
-		bad("The monthly price must be a whole number of Toman between 1,000 and 1,000,000,000.")
+		bad(T(ctx, "pricing.badBase"))
 		return
 	}
 	if in.Adjustment, err = parseFactor(r.PostFormValue("adjustment")); err != nil || in.Adjustment < 0.1 || in.Adjustment > 100 {
-		bad("The overall multiplier must be between 0.1 and 100.")
+		bad(T(ctx, "pricing.badAdj"))
 		return
 	}
 	for _, p := range pricedPlans(s.Plans) {
 		m, err := parseFactor(r.PostFormValue("mult_" + p.SKU))
 		if err != nil || m < 0.1 || m > 100 {
-			bad(fmt.Sprintf("The multiplier for %s must be between 0.1 and 100.", p.Title("en")))
+			bad(T(ctx, "pricing.badMult", p.Title(langFrom(ctx))))
 			return
 		}
 		in.Multipliers[p.SKU] = math.Round(m*10000) / 10000
 	}
 	if in.RoundTo, err = parseAmount(r.PostFormValue("round_to")); err != nil || in.RoundTo < 1 || in.RoundTo > 100_000_000 {
-		bad("Round to must be a whole number of Toman between 1 and 100,000,000.")
+		bad(T(ctx, "pricing.badRound"))
 		return
 	}
 	if in.Ending, err = parseAmount(r.PostFormValue("ending")); err != nil || in.Ending < 0 || in.Ending >= in.RoundTo {
-		bad("The ending must be at least 0 and less than Round to.")
+		bad(T(ctx, "pricing.badEnding"))
 		return
 	}
 	in.Adjustment = math.Round(in.Adjustment*10000) / 10000
@@ -247,5 +246,5 @@ func (s *Server) savePricing(w http.ResponseWriter, r *http.Request) {
 	s.record(ctx, a.ID, "pricing.updated", "", ipFrom(ctx), map[string]any{
 		"base": in.BaseMonthly, "adjustment": in.Adjustment, "multipliers": in.Multipliers, "roundTo": in.RoundTo, "ending": in.Ending,
 	})
-	s.showPricing(w, r, http.StatusOK, in, true, "Saved. Type the Rial prices below into the Bazaar panel.", "")
+	s.showPricing(w, r, http.StatusOK, in, true, T(ctx, "pricing.saved"), "")
 }

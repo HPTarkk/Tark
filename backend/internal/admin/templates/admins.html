@@ -1,26 +1,26 @@
-{{define "title"}}Admins · Tarkk admin{{end}}
+{{define "title"}}{{t "nav.admins"}} · {{t "brand"}}{{end}}
 {{define "main"}}
-<h1>Admins</h1>
+<h1>{{t "nav.admins"}}</h1>
 {{with .Error}}<p class="error">{{.}}</p>{{end}}
-{{with .Temp}}<div class="notice"><p>One-time password for <strong>{{$.TempFor}}</strong>:</p><p><code class="key">{{.}}</code></p>
-<p>It is shown only now. Give it to them privately; at first sign-in they choose their own password and set up their authenticator.</p></div>{{end}}
-<table><tr><th>Name</th><th>Email</th><th>Role</th><th>Authenticator</th><th>Last sign-in</th><th></th></tr>
-{{range .Admins}}<tr{{if .Disabled}} class="muted"{{end}}><td>{{.Name}}</td><td>{{.Email}}</td><td>{{.Role}}</td><td>{{if .TOTP}}set{{else}}not yet{{end}}</td><td>{{ago .LastLogin}}</td>
+{{with .Temp}}<div class="notice"><p>{{t "admins.tempFor"}} <strong class="ltr">{{$.TempFor}}</strong>:</p><p><code class="key">{{.}}</code></p>
+<p>{{t "admins.tempNote"}}</p></div>{{end}}
+<table><tr><th>{{t "col.name"}}</th><th>{{t "col.email"}}</th><th>{{t "col.role"}}</th><th>{{t "col.authenticator"}}</th><th>{{t "col.lastSignin"}}</th><th></th></tr>
+{{range .Admins}}<tr{{if .Disabled}} class="muted"{{end}}><td>{{.Name}}</td><td><span class="ltr">{{.Email}}</span></td><td>{{code "role" .Role}}</td><td>{{if .TOTP}}{{t "admins.set"}}{{else}}{{t "admins.notYet"}}{{end}}</td><td>{{ago .LastLogin}}</td>
 <td>{{if ne .ID $.Admin.ID}}
-  {{if .Disabled}}<form method="post" action="/admins/{{.ID}}/enable"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="link">Enable</button></form>
-  {{else}}<form method="post" action="/admins/{{.ID}}/disable"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="link">Disable</button></form>{{end}}
-  <form method="post" action="/admins/{{.ID}}/reset"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="link">New password</button></form>
-{{else}}you{{end}}</td></tr>{{end}}</table>
-<h2>Add an admin</h2>
+  {{if .Disabled}}<form method="post" action="/admins/{{.ID}}/enable"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="link">{{t "btn.enable"}}</button></form>
+  {{else}}<form method="post" action="/admins/{{.ID}}/disable"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="link">{{t "btn.disable"}}</button></form>{{end}}
+  <form method="post" action="/admins/{{.ID}}/reset"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="link">{{t "admins.newPw"}}</button></form>
+{{else}}{{t "admins.you"}}{{end}}</td></tr>{{end}}</table>
+<h2>{{t "admins.addH"}}</h2>
 <form method="post" action="/admins" class="stack narrow">
   <input type="hidden" name="csrf" value="{{.CSRF}}">
-  <label>Name <input name="name" required maxlength="64"></label>
-  <label>Email <input type="email" name="email" required maxlength="254"></label>
-  <label>Role <select name="role">
-    <option value="viewer">viewer: dashboard only</option>
-    <option value="support">support: dashboard, users, security, mail</option>
-    <option value="owner">owner: everything, manages admins</option>
+  <label>{{t "label.name"}} <input name="name" required maxlength="64"></label>
+  <label>{{t "label.email"}} <input type="email" name="email" required maxlength="254" dir="ltr"></label>
+  <label>{{t "label.role"}} <select name="role">
+    <option value="viewer">{{t "admins.optViewer"}}</option>
+    <option value="support">{{t "admins.optSupport"}}</option>
+    <option value="owner">{{t "admins.optOwner"}}</option>
   </select></label>
-  <button>Add</button>
+  <button>{{t "btn.add"}}</button>
 </form>
 {{end}}

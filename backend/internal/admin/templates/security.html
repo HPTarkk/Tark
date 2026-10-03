@@ -1,11 +1,11 @@
-{{define "title"}}Security · Tarkk admin{{end}}
+{{define "title"}}{{t "nav.security"}} · {{t "brand"}}{{end}}
 {{define "main"}}
-<h1>Security events</h1>
-<h2>Last 24 hours</h2>
-<table><tr><th>Event</th><th>Count</th></tr>
-{{range .Counts}}<tr><td>{{.Kind}}</td><td>{{.Count}}</td></tr>{{else}}<tr><td colspan="2">Nothing.</td></tr>{{end}}</table>
-<h2>Latest 100 (successful sign-ins left out)</h2>
-<p class="muted">"Source" is the first characters of a keyed hash of the IP address: equal values mean the same address, the address itself is never stored.</p>
-<table><tr><th>When</th><th>Event</th><th>Account</th><th>Source</th><th>Details</th></tr>
-{{range .Recent}}<tr><td>{{when .At}}</td><td>{{.Kind}}</td><td>{{with .UserID}}<a href="/users/{{.}}">{{short .}}</a>{{end}}</td><td><code>{{.IP}}</code></td><td><code>{{.Detail}}</code></td></tr>{{end}}</table>
+<h1>{{t "security.h"}}</h1>
+<h2>{{t "last24"}}</h2>
+<table><tr><th>{{t "col.event"}}</th><th>{{t "col.count"}}</th></tr>
+{{range .Counts}}<tr><td><code>{{.Kind}}</code></td><td>{{.Count}}</td></tr>{{else}}<tr><td colspan="2">{{t "nothing"}}</td></tr>{{end}}</table>
+<h2>{{t "security.latest"}}</h2>
+<p class="muted">{{t "security.source"}}</p>
+<table><tr><th>{{t "col.when"}}</th><th>{{t "col.event"}}</th><th>{{t "col.account"}}</th><th>{{t "col.source"}}</th><th>{{t "col.details"}}</th></tr>
+{{range .Recent}}<tr><td>{{when .At}}</td><td><code>{{.Kind}}</code></td><td>{{with .UserID}}<a href="/users/{{.}}">{{short .}}</a>{{end}}</td><td><code>{{.IP}}</code></td><td><code>{{.Detail}}</code></td></tr>{{end}}</table>
 {{end}}

@@ -104,7 +104,16 @@ type browser struct {
 	c *http.Client
 }
 
+// browser reads the panel in English, which the assertions below are
+// written in; persianBrowser keeps the default.
 func (e *env) browser() *browser {
+	b := e.persianBrowser()
+	u, _ := url.Parse(e.ts.URL)
+	b.c.Jar.SetCookies(u, []*http.Cookie{{Name: langCookie, Value: langEN}})
+	return b
+}
+
+func (e *env) persianBrowser() *browser {
 	jar, _ := cookiejar.New(nil)
 	return &browser{e: e, c: &http.Client{Jar: jar}}
 }

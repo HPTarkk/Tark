@@ -1,28 +1,28 @@
-{{define "title"}}Dashboard · Tarkk admin{{end}}
+{{define "title"}}{{t "nav.dashboard"}} · {{t "brand"}}{{end}}
 {{define "main"}}
 {{with .S}}
-{{if .AlertsFiring}}<p class="error">Alerts firing: {{range $i, $a := .AlertsFiring}}{{if $i}}, {{end}}{{$a}}{{end}}. Details are in the alert emails.</p>{{end}}
-<h1>Dashboard</h1>
+{{if .AlertsFiring}}<p class="error">{{t "dash.alerts"}} {{range $i, $a := .AlertsFiring}}{{if $i}}{{t "sep"}}{{end}}<code>{{$a}}</code>{{end}}. {{t "dash.alertsMore"}}</p>{{end}}
+<h1>{{t "nav.dashboard"}}</h1>
 <section class="cards">
-  <div class="card"><h2>Accounts</h2><p class="big">{{.UsersTotal}}</p>
-    <p>+{{.UsersNew7}} in 7 days, +{{.UsersNew30}} in 30 days</p>
-    <p>Last 30 days: {{.SignupsEmail30}} with email, {{.SignupsGoogle30}} with Google only</p>
-    <p>{{.Active7}} signed-in accounts used the app in 7 days</p>
-    <p>{{.Deleted30}} deleted in 30 days · {{.Disabled}} disabled</p></div>
-  <div class="card"><h2>Subscribers</h2><p class="big">{{.Subscribers}}</p>
-    <p>{{range .ByPlan}}{{.SKU}}: {{.Count}}<br>{{else}}No active plans{{end}}</p>
-    <p>{{.NewSubs30}} new purchases in 30 days · {{.SubsEnded30}} ended in 30 days</p>
-    <p>{{.RenewOff}} active with auto-renew off · {{.Expiring7}} of them end within 7 days</p>
-    <p>{{.Refunded30}} refunded in 30 days · {{.Suspicious}} accounts flagged suspicious</p>
-    <p>{{.Grants}} accounts have premium given by hand</p>
-    <p class="muted">Revenue is in the Bazaar developer console.</p></div>
-  <div class="card"><h2>Last 24 hours</h2>
-    <p>Email: {{.MailSent24}} sent, {{.MailFailed24}} dropped, {{.MailPending}} waiting</p>
-    <p>Failed sign-ins and codes: {{.FailedLogins}}</p>
-    <p>Lockouts: {{.Lockouts}} · Reused refresh tokens: {{.TokenReuse}}</p>
-    <p>Last good backup: {{ago .LastBackup}}{{if not .LastBackupOK}} <span class="error-text">(last attempt failed)</span>{{end}}</p></div>
+  <div class="card"><h2>{{t "dash.accounts"}}</h2><p class="big">{{.UsersTotal}}</p>
+    <p>{{t "dash.new" .UsersNew7 .UsersNew30}}</p>
+    <p>{{t "dash.signups" .SignupsEmail30 .SignupsGoogle30}}</p>
+    <p>{{t "dash.active" .Active7}}</p>
+    <p>{{t "dash.deleted" .Deleted30 .Disabled}}</p></div>
+  <div class="card"><h2>{{t "dash.subscribers"}}</h2><p class="big">{{.Subscribers}}</p>
+    <p>{{range .ByPlan}}<span class="ltr">{{.SKU}}: {{.Count}}</span><br>{{else}}{{t "dash.noPlans"}}{{end}}</p>
+    <p>{{t "dash.newSubs" .NewSubs30 .SubsEnded30}}</p>
+    <p>{{t "dash.renewOff" .RenewOff .Expiring7}}</p>
+    <p>{{t "dash.refunded" .Refunded30 .Suspicious}}</p>
+    <p>{{t "dash.grants" .Grants}}</p>
+    <p class="muted">{{t "dash.revenue"}}</p></div>
+  <div class="card"><h2>{{t "last24"}}</h2>
+    <p>{{t "dash.mail" .MailSent24 .MailFailed24 .MailPending}}</p>
+    <p>{{t "dash.failed" .FailedLogins}}</p>
+    <p>{{t "dash.lockouts" .Lockouts .TokenReuse}}</p>
+    <p>{{t "dash.backup" (ago .LastBackup)}}{{if not .LastBackupOK}} <span class="error-text">{{t "dash.backupFailed"}}</span>{{end}}</p></div>
 </section>
-<h2>New accounts per day (30 days)</h2>
+<h2>{{t "dash.perDay"}}</h2>
 <div class="bars">{{range .SignupsByDay}}<div class="bar"><span class="h{{bar .Count $.S.SignupDayMax}}" title="{{.Count}}"></span><small>{{day .Day}}</small><b>{{.Count}}</b></div>{{end}}</div>
 {{end}}
 {{end}}

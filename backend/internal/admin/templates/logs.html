@@ -1,17 +1,17 @@
-{{define "title"}}Logs · Tarkk admin{{end}}
+{{define "title"}}{{t "nav.logs"}} · {{t "brand"}}{{end}}
 {{define "main"}}
-<h1>Logs</h1>
-{{if .Off}}<p>Log files are off on this server (TARK_LOG_DIR is not set).</p>{{else}}
+<h1>{{t "nav.logs"}}</h1>
+{{if .Off}}<p>{{t "logs.off"}}</p>{{else}}
 <form method="get" action="/logs" class="row">
-  <input name="q" value="{{.Q}}" placeholder="Text to find, e.g. backup or a request id" maxlength="200">
-  <select name="level"><option value="" {{if eq .Level ""}}selected{{end}}>Everything</option><option value="WARN" {{if eq .Level "WARN"}}selected{{end}}>Warnings and errors</option><option value="ERROR" {{if eq .Level "ERROR"}}selected{{end}}>Errors only</option></select>
-  <select name="days">{{range $d := list 1 2 7 30}}<option value="{{$d}}" {{if eq $d $.Days}}selected{{end}}>{{if eq $d 1}}Today{{else}}Last {{$d}} days{{end}}</option>{{end}}</select>
-  <button>Search</button>
+  <input name="q" value="{{.Q}}" placeholder="{{t "logs.placeholder"}}" maxlength="200">
+  <select name="level"><option value="" {{if eq .Level ""}}selected{{end}}>{{t "logs.all"}}</option><option value="WARN" {{if eq .Level "WARN"}}selected{{end}}>{{t "logs.warn"}}</option><option value="ERROR" {{if eq .Level "ERROR"}}selected{{end}}>{{t "logs.errors"}}</option></select>
+  <select name="days">{{range $d := list 1 2 7 30}}<option value="{{$d}}" {{if eq $d $.Days}}selected{{end}}>{{if eq $d 1}}{{t "logs.today"}}{{else}}{{t "logs.lastDays" $d}}{{end}}</option>{{end}}</select>
+  <button>{{t "btn.search"}}</button>
 </form>
-<p class="muted">Newest first, at most {{.Max}} lines.{{if .Cut}} There are more; narrow the search.{{end}} Times are UTC. The log has no IP addresses or tokens.</p>
-<div class="log">{{range .Lines}}<code>{{.}}</code>{{else}}<p>Nothing matches.</p>{{end}}</div>
-<h2>Kept days</h2>
-<p class="muted">Download a whole day on your computer with: bash remote.sh log-day YYYY-MM-DD</p>
-<table><tr><th>Day (UTC)</th><th>Size on disk</th></tr>{{range .Kept}}<tr><td>{{.Date}}</td><td>{{mb .Bytes}}</td></tr>{{end}}</table>
+<p class="muted">{{t "logs.note" .Max}}{{if .Cut}} {{t "logs.cut"}}{{end}} {{t "logs.note2"}}</p>
+<div class="log">{{range .Lines}}<code>{{.}}</code>{{else}}<p>{{t "logs.none"}}</p>{{end}}</div>
+<h2>{{t "logs.kept"}}</h2>
+<p class="muted">{{t "logs.download"}}</p>
+<table><tr><th>{{t "col.dayUTC"}}</th><th>{{t "col.sizeDisk"}}</th></tr>{{range .Kept}}<tr><td>{{.Date}}</td><td>{{mb .Bytes}}</td></tr>{{end}}</table>
 {{end}}
 {{end}}

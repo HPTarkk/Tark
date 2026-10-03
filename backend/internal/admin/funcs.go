@@ -29,26 +29,10 @@ var funcs = template.FuncMap{
 		if !ok {
 			return "-"
 		}
-		return t.UTC().Format("2006-01-02 15:04")
+		// Isolated, so date and time keep their order inside Persian text.
+		return "\u2066" + t.UTC().Format("2006-01-02 15:04") + "\u2069"
 	},
 	"day": func(t time.Time) string { return t.UTC().Format("01-02") },
-	// ago is "3h ago", "5d ago".
-	"ago": func(v any) string {
-		t, ok := timeOf(v)
-		if !ok {
-			return "never"
-		}
-		d := time.Since(t)
-		switch {
-		case d < time.Minute:
-			return "just now"
-		case d < time.Hour:
-			return fmt.Sprintf("%dm ago", int(d.Minutes()))
-		case d < 48*time.Hour:
-			return fmt.Sprintf("%dh ago", int(d.Hours()))
-		}
-		return fmt.Sprintf("%dd ago", int(d.Hours()/24))
-	},
 	// bar maps a count to one of ten height classes for the CSS bar chart
 	// (the CSP forbids inline styles).
 	"bar": func(n, max int) int {
@@ -83,6 +67,49 @@ var funcs = template.FuncMap{
 		}
 		return fmt.Sprintf("%.1f MB", float64(rv.Int())/(1<<20))
 	},
+}
+
+// funcsFor adds the functions whose output depends on the language: t looks
+// up a text, ago says how long ago in words, and code names a stored code.
+func funcsFor(lang string) template.FuncMap {
+	m := template.FuncMap{}
+	for k, v := range funcs {
+		m[k] = v
+	}
+	dir := "ltr"
+	if lang == langFA {
+		dir = "rtl"
+	}
+	m["lang"] = func() string { return lang }
+	m["dir"] = func() string { return dir }
+	m["t"] = func(key string, args ...any) string { return tr(lang, key, args...) }
+	// code names a stored code (a role, a status) in words, or keeps it as
+	// it is when there is no text for it.
+	m["code"] = func(prefix string, v any) string {
+		c := fmt.Sprint(v)
+		if _, ok := texts[prefix+"."+c]; ok {
+			return tr(lang, prefix+"."+c)
+		}
+		return c
+	}
+	// ago is "3h ago", "5d ago".
+	m["ago"] = func(v any) string {
+		t, ok := timeOf(v)
+		if !ok {
+			return tr(lang, "never")
+		}
+		d := time.Since(t)
+		switch {
+		case d < time.Minute:
+			return tr(lang, "ago.now")
+		case d < time.Hour:
+			return tr(lang, "ago.m", int(d.Minutes()))
+		case d < 48*time.Hour:
+			return tr(lang, "ago.h", int(d.Hours()))
+		}
+		return tr(lang, "ago.d", int(d.Hours()/24))
+	}
+	return m
 }
 
 func timeOf(v any) (time.Time, bool) {

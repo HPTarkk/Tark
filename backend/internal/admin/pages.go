@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"regexp"
@@ -125,7 +126,7 @@ func (s *Server) showUser(w http.ResponseWriter, r *http.Request, revealedID, re
 	err := s.Pool.QueryRow(ctx, `SELECT name, status, avatar_id, created_at FROM users WHERE id = $1`, id).
 		Scan(&u.Name, &u.Status, &u.Avatar, &u.Created)
 	if errors.Is(err, pgx.ErrNoRows) {
-		s.render(w, r, http.StatusNotFound, "message", map[string]any{"Title": "No such account", "Text": "It may have been deleted."})
+		s.render(w, r, http.StatusNotFound, "message", map[string]any{"Title": T(r.Context(), "msg.noUserT"), "Text": T(r.Context(), "msg.noUserX")})
 		return
 	}
 	if err != nil {
@@ -249,7 +250,7 @@ func (s *Server) reveal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.Limits.Hit(ctx, ruleReveal, a.ID); err != nil {
-		http.Error(w, "Too many addresses revealed in the last hour.", http.StatusTooManyRequests)
+		http.Error(w, T(r.Context(), "msg.revealMany"), http.StatusTooManyRequests)
 		return
 	}
 	var addr string
@@ -452,11 +453,21 @@ func (s *Server) createAdmin(w http.ResponseWriter, r *http.Request) {
 	email, name, role := r.PostFormValue("email"), r.PostFormValue("name"), Role(r.PostFormValue("role"))
 	temp, err := CreateAdmin(ctx, s.Deps, email, name, role, a.ID)
 	if err != nil {
-		s.showAdmins(w, r, http.StatusBadRequest, map[string]any{"Error": err.Error()})
+		s.showAdmins(w, r, http.StatusBadRequest, map[string]any{"Error": createAdminProblem(ctx, err)})
 		return
 	}
 	s.record(ctx, a.ID, "admin.created", "", ipFrom(ctx), map[string]any{"email": normalizeEmail(email), "role": string(role)})
 	s.showAdmins(w, r, http.StatusOK, map[string]any{"Temp": temp, "TempFor": normalizeEmail(email)})
+}
+
+// createAdminProblem says why CreateAdmin refused, in the admin's language.
+func createAdminProblem(ctx context.Context, err error) string {
+	for e, key := range map[error]string{errBadRole: "admins.badRole", errBadEmail: "admins.badEmail", errBadName: "admins.badName", errAdminExists: "admins.exists"} {
+		if errors.Is(err, e) {
+			return T(ctx, key)
+		}
+	}
+	return err.Error()
 }
 
 func (s *Server) setAdminDisabled(disable bool) http.HandlerFunc {
@@ -468,7 +479,7 @@ func (s *Server) setAdminDisabled(disable bool) http.HandlerFunc {
 			return
 		}
 		if id == a.ID {
-			s.showAdmins(w, r, http.StatusBadRequest, map[string]any{"Error": "You cannot disable yourself."})
+			s.showAdmins(w, r, http.StatusBadRequest, map[string]any{"Error": T(ctx, "admins.selfDisable")})
 			return
 		}
 		err := pgx.BeginFunc(ctx, s.Pool, func(tx pgx.Tx) error {
@@ -505,7 +516,7 @@ func (s *Server) resetAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if id == a.ID {
-		s.showAdmins(w, r, http.StatusBadRequest, map[string]any{"Error": "Change your own password on the Account page."})
+		s.showAdmins(w, r, http.StatusBadRequest, map[string]any{"Error": T(ctx, "admins.selfReset")})
 		return
 	}
 	temp := randomToken()[:16]
