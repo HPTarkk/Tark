@@ -1,23 +1,31 @@
 {{define "title"}}{{t "nav.pricing"}} · {{t "brand"}}{{end}}
 {{define "main"}}
-<h1>{{t "pricing.h"}}</h1>
-<p>{{t "pricing.lead"}}</p>
-{{with .Error}}<p class="error">{{.}}</p>{{end}}
-{{with .Notice}}<p class="notice">{{.}}</p>{{end}}
+<header class="page-head">
+  <span class="page-icon">{{icon "pricing"}}</span>
+  <div><h1>{{t "pricing.h"}}</h1><p class="lead">{{t "pricing.lead"}}</p></div>
+</header>
+{{with .Error}}<div class="flash bad" role="alert">{{icon "alert"}}<p>{{.}}</p></div>{{end}}
+{{with .Notice}}<div class="flash ok" role="status">{{icon "check"}}<p>{{.}}</p></div>{{end}}
+<section class="panel">
 {{if .Rows}}
-<table><tr><th>{{t "col.plan"}}</th><th>{{t "col.sku"}}</th><th>{{t "col.multiplier"}}</th><th>{{t "col.exact"}}</th><th>{{t "col.toman"}}</th><th>{{t "col.rial"}}</th><th>{{t "col.perMonth"}}</th><th>{{t "col.saves"}}</th></tr>
-{{range .Rows}}<tr><td>{{.Plan.Title lang}}</td><td><code>{{.Plan.SKU}}</code></td><td><span class="ltr">×{{factor .Multiplier}}</span></td><td>{{money (round .Raw)}}</td><td><strong>{{money .Toman}}</strong></td><td><code>{{money .Rial}}</code></td><td>{{money .PerMonth}}</td><td>{{if .SavingPct}}{{.SavingPct}}%{{else}}-{{end}}</td></tr>{{end}}
-</table>
-{{else}}<p>{{t "pricing.empty"}}</p>{{end}}
-<h2>{{t "pricing.inputs"}}</h2>
-<form method="post" action="/pricing" class="stack narrow">
-  <input type="hidden" name="csrf" value="{{.CSRF}}">
-  <label>{{t "pricing.base"}} <input name="base" required inputmode="numeric" dir="ltr" value="{{if .In.BaseMonthly}}{{money .In.BaseMonthly}}{{end}}"></label>
-  <label>{{t "pricing.adj"}} <input name="adjustment" required inputmode="decimal" dir="ltr" value="{{factor .In.Adjustment}}"></label>
-  {{range .Plans}}<label>{{t "pricing.mult" (.Title lang)}} <input name="mult_{{.SKU}}" required inputmode="decimal" dir="ltr" value="{{factor (index $.In.Multipliers .SKU)}}"></label>
-  {{end}}
-  <label>{{t "pricing.round"}} <input name="round_to" required inputmode="numeric" dir="ltr" value="{{money .In.RoundTo}}"></label>
-  <label>{{t "pricing.ending"}} <input name="ending" required inputmode="numeric" dir="ltr" value="{{money .In.Ending}}"></label>
-  <button>{{t "pricing.save"}}</button>
-</form>
+  <div class="table-wrap"><table><thead><tr><th>{{t "col.plan"}}</th><th>{{t "col.sku"}}</th><th class="num">{{t "col.multiplier"}}</th><th class="num">{{t "col.exact"}}</th><th class="num">{{t "col.toman"}}</th><th class="num">{{t "col.rial"}}</th><th class="num">{{t "col.perMonth"}}</th><th class="num">{{t "col.saves"}}</th></tr></thead><tbody>
+  {{range .Rows}}<tr><td><b>{{.Plan.Title lang}}</b></td><td><code>{{.Plan.SKU}}</code></td><td class="num"><span class="ltr">×{{factor .Multiplier}}</span></td><td class="num muted">{{money (round .Raw)}}</td><td class="num"><strong class="price">{{money .Toman}}</strong></td><td class="num"><code>{{money .Rial}}</code></td><td class="num">{{money .PerMonth}}</td><td class="num">{{if .SavingPct}}<span class="chip good">{{.SavingPct}}%</span>{{else}}-{{end}}</td></tr>{{end}}
+  </tbody></table></div>
+{{else}}<p class="empty">{{t "pricing.empty"}}</p>{{end}}
+</section>
+<section class="panel">
+  <header class="panel-head"><h2>{{icon "zap"}}{{t "pricing.inputs"}}</h2></header>
+  <form method="post" action="/pricing" class="stack">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <div class="form-grid">
+    <label>{{t "pricing.base"}} <input name="base" required inputmode="numeric" dir="ltr" value="{{if .In.BaseMonthly}}{{money .In.BaseMonthly}}{{end}}"></label>
+    <label>{{t "pricing.adj"}} <input name="adjustment" required inputmode="decimal" dir="ltr" value="{{factor .In.Adjustment}}"></label>
+    {{range .Plans}}<label>{{t "pricing.mult" (.Title lang)}} <input name="mult_{{.SKU}}" required inputmode="decimal" dir="ltr" value="{{factor (index $.In.Multipliers .SKU)}}"></label>
+    {{end}}
+    <label>{{t "pricing.round"}} <input name="round_to" required inputmode="numeric" dir="ltr" value="{{money .In.RoundTo}}"></label>
+    <label>{{t "pricing.ending"}} <input name="ending" required inputmode="numeric" dir="ltr" value="{{money .In.Ending}}"></label>
+    </div>
+    <button>{{t "pricing.save"}}</button>
+  </form>
+</section>
 {{end}}

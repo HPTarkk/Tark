@@ -1,17 +1,23 @@
 {{define "title"}}{{t "nav.logs"}} · {{t "brand"}}{{end}}
 {{define "main"}}
-<h1>{{t "nav.logs"}}</h1>
-{{if .Off}}<p>{{t "logs.off"}}</p>{{else}}
-<form method="get" action="/logs" class="row">
-  <input name="q" value="{{.Q}}" placeholder="{{t "logs.placeholder"}}" maxlength="200">
-  <select name="level"><option value="" {{if eq .Level ""}}selected{{end}}>{{t "logs.all"}}</option><option value="WARN" {{if eq .Level "WARN"}}selected{{end}}>{{t "logs.warn"}}</option><option value="ERROR" {{if eq .Level "ERROR"}}selected{{end}}>{{t "logs.errors"}}</option></select>
-  <select name="days">{{range $d := list 1 2 7 30}}<option value="{{$d}}" {{if eq $d $.Days}}selected{{end}}>{{if eq $d 1}}{{t "logs.today"}}{{else}}{{t "logs.lastDays" $d}}{{end}}</option>{{end}}</select>
-  <button>{{t "btn.search"}}</button>
-</form>
-<p class="muted">{{t "logs.note" .Max}}{{if .Cut}} {{t "logs.cut"}}{{end}} {{t "logs.note2"}}</p>
-<div class="log">{{range .Lines}}<code>{{.}}</code>{{else}}<p>{{t "logs.none"}}</p>{{end}}</div>
-<h2>{{t "logs.kept"}}</h2>
-<p class="muted">{{t "logs.download"}}</p>
-<table><tr><th>{{t "col.dayUTC"}}</th><th>{{t "col.sizeDisk"}}</th></tr>{{range .Kept}}<tr><td>{{.Date}}</td><td>{{mb .Bytes}}</td></tr>{{end}}</table>
+<header class="page-head">
+  <span class="page-icon">{{icon "logs"}}</span>
+  <div><h1>{{t "nav.logs"}}</h1><p class="lead">{{t "lead.logs"}}</p></div>
+</header>
+{{if .Off}}<div class="flash">{{icon "info"}}<p>{{t "logs.off"}}</p></div>{{else}}
+<section class="panel">
+  <form method="get" action="/logs" class="toolbar">
+    <span class="search">{{icon "search"}}<input name="q" value="{{.Q}}" placeholder="{{t "logs.placeholder"}}" maxlength="200" aria-label="{{t "btn.search"}}"></span>
+    <select name="level" aria-label="{{t "col.kind"}}"><option value="" {{if eq .Level ""}}selected{{end}}>{{t "logs.all"}}</option><option value="WARN" {{if eq .Level "WARN"}}selected{{end}}>{{t "logs.warn"}}</option><option value="ERROR" {{if eq .Level "ERROR"}}selected{{end}}>{{t "logs.errors"}}</option></select>
+    <select name="days" aria-label="{{t "col.when"}}">{{range $d := list 1 2 7 30}}<option value="{{$d}}" {{if eq $d $.Days}}selected{{end}}>{{if eq $d 1}}{{t "logs.today"}}{{else}}{{t "logs.lastDays" $d}}{{end}}</option>{{end}}</select>
+    <button>{{t "btn.search"}}</button>
+  </form>
+  <p class="panel-note">{{icon "info"}}<span>{{t "logs.note" .Max}}{{if .Cut}} {{t "logs.cut"}}{{end}} {{t "logs.note2"}}</span></p>
+  <div class="log">{{range .Lines}}<code class="{{level .}}">{{.}}</code>{{else}}<p class="empty">{{t "logs.none"}}</p>{{end}}</div>
+</section>
+<section class="panel">
+  <header class="panel-head"><h2>{{icon "backups"}}{{t "logs.kept"}}</h2><p>{{t "logs.download"}}</p></header>
+  <div class="table-wrap"><table><thead><tr><th>{{t "col.dayUTC"}}</th><th class="num">{{t "col.sizeDisk"}}</th></tr></thead><tbody>{{range .Kept}}<tr><td>{{.Date}}</td><td class="num">{{mb .Bytes}}</td></tr>{{end}}</tbody></table></div>
+</section>
 {{end}}
 {{end}}

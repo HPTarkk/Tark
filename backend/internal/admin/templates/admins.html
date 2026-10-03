@@ -1,26 +1,39 @@
 {{define "title"}}{{t "nav.admins"}} · {{t "brand"}}{{end}}
 {{define "main"}}
-<h1>{{t "nav.admins"}}</h1>
-{{with .Error}}<p class="error">{{.}}</p>{{end}}
-{{with .Temp}}<div class="notice"><p>{{t "admins.tempFor"}} <strong class="ltr">{{$.TempFor}}</strong>:</p><p><code class="key">{{.}}</code></p>
-<p>{{t "admins.tempNote"}}</p></div>{{end}}
-<table><tr><th>{{t "col.name"}}</th><th>{{t "col.email"}}</th><th>{{t "col.role"}}</th><th>{{t "col.authenticator"}}</th><th>{{t "col.lastSignin"}}</th><th></th></tr>
-{{range .Admins}}<tr{{if .Disabled}} class="muted"{{end}}><td>{{.Name}}</td><td><span class="ltr">{{.Email}}</span></td><td>{{code "role" .Role}}</td><td>{{if .TOTP}}{{t "admins.set"}}{{else}}{{t "admins.notYet"}}{{end}}</td><td>{{ago .LastLogin}}</td>
-<td>{{if ne .ID $.Admin.ID}}
-  {{if .Disabled}}<form method="post" action="/admins/{{.ID}}/enable"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="link">{{t "btn.enable"}}</button></form>
-  {{else}}<form method="post" action="/admins/{{.ID}}/disable"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="link">{{t "btn.disable"}}</button></form>{{end}}
-  <form method="post" action="/admins/{{.ID}}/reset"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="link">{{t "admins.newPw"}}</button></form>
-{{else}}{{t "admins.you"}}{{end}}</td></tr>{{end}}</table>
-<h2>{{t "admins.addH"}}</h2>
-<form method="post" action="/admins" class="stack narrow">
-  <input type="hidden" name="csrf" value="{{.CSRF}}">
-  <label>{{t "label.name"}} <input name="name" required maxlength="64"></label>
-  <label>{{t "label.email"}} <input type="email" name="email" required maxlength="254" dir="ltr"></label>
-  <label>{{t "label.role"}} <select name="role">
-    <option value="viewer">{{t "admins.optViewer"}}</option>
-    <option value="support">{{t "admins.optSupport"}}</option>
-    <option value="owner">{{t "admins.optOwner"}}</option>
-  </select></label>
-  <button>{{t "btn.add"}}</button>
-</form>
+<header class="page-head">
+  <span class="page-icon">{{icon "admins"}}</span>
+  <div><h1>{{t "nav.admins"}}</h1><p class="lead">{{t "lead.admins"}}</p></div>
+</header>
+{{with .Error}}<div class="flash bad" role="alert">{{icon "alert"}}<p>{{.}}</p></div>{{end}}
+{{with .Temp}}<div class="flash ok secret" role="status">{{icon "lock"}}<div><p>{{t "admins.tempFor"}} <strong class="ltr">{{$.TempFor}}</strong>:</p><p><code class="key">{{.}}</code></p>
+<p class="muted">{{t "admins.tempNote"}}</p></div></div>{{end}}
+<div class="split">
+<section class="panel">
+  <div class="table-wrap"><table><thead><tr><th>{{t "col.name"}}</th><th>{{t "col.role"}}</th><th>{{t "col.authenticator"}}</th><th>{{t "col.lastSignin"}}</th><th></th></tr></thead><tbody>
+  {{range .Admins}}<tr{{if .Disabled}} class="muted"{{end}}>
+    <td><div class="who"><span class="avatar" aria-hidden="true">{{initial .Name}}</span><div><b>{{.Name}}</b><small class="ltr">{{.Email}}</small></div></div></td>
+    <td><span class="chip role-{{.Role}}">{{code "role" .Role}}</span>{{if .Disabled}} <span class="chip bad">{{code "status" "disabled"}}</span>{{end}}</td>
+    <td>{{if .TOTP}}<span class="chip good">{{icon "check"}}{{t "admins.set"}}</span>{{else}}<span class="chip warn">{{t "admins.notYet"}}</span>{{end}}</td><td>{{ago .LastLogin}}</td>
+    <td class="act">{{if ne .ID $.Admin.ID}}
+    {{if .Disabled}}<form method="post" action="/admins/{{.ID}}/enable"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="ghost sm">{{icon "check"}}<span>{{t "btn.enable"}}</span></button></form>
+    {{else}}<form method="post" action="/admins/{{.ID}}/disable"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="ghost sm">{{icon "ban"}}<span>{{t "btn.disable"}}</span></button></form>{{end}}
+    <form method="post" action="/admins/{{.ID}}/reset"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="ghost sm">{{icon "lock"}}<span>{{t "admins.newPw"}}</span></button></form>
+    {{else}}<span class="chip accent">{{t "admins.you"}}</span>{{end}}</td></tr>{{end}}
+  </tbody></table></div>
+</section>
+<section class="panel">
+  <header class="panel-head"><h2>{{icon "plus"}}{{t "admins.addH"}}</h2><p>{{t "admins.addLead"}}</p></header>
+  <form method="post" action="/admins" class="stack">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <label>{{t "label.name"}} <input name="name" required maxlength="64"></label>
+    <label>{{t "label.email"}} <input type="email" name="email" required maxlength="254" dir="ltr"></label>
+    <label>{{t "label.role"}} <select name="role">
+      <option value="viewer">{{t "admins.optViewer"}}</option>
+      <option value="support">{{t "admins.optSupport"}}</option>
+      <option value="owner">{{t "admins.optOwner"}}</option>
+    </select></label>
+    <button>{{t "btn.add"}}</button>
+  </form>
+</section>
+</div>
 {{end}}

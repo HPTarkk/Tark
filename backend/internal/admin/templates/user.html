@@ -1,73 +1,110 @@
 {{define "title"}}{{t "user.title"}} · {{t "brand"}}{{end}}
 {{define "main"}}
-{{with .Done}}<p class="notice">{{.}}</p>{{end}}
-{{with .Problem}}<p class="error">{{.}}</p>{{end}}
+{{with .Done}}<div class="flash ok" role="status">{{icon "check"}}<p>{{.}}</p></div>{{end}}
+{{with .Problem}}<div class="flash bad" role="alert">{{icon "alert"}}<p>{{.}}</p></div>{{end}}
 {{with .U}}
-<h1>{{.Name}}</h1>
-<p>{{t "user.account"}} <code>{{.ID}}</code> · {{code "status" .Status}} · {{t "user.created" (when .Created)}} · {{t "user.avatar" (deref .Avatar)}} · {{t "user.signsIn"}} {{range $i, $p := .Providers}}{{if $i}}{{t "sep"}}{{end}}{{$p}}{{end}}</p>
-<h2>{{t "user.emailH"}}</h2>
-<table><tr><th>{{t "col.address"}}</th><th>{{t "col.primary"}}</th><th>{{t "col.verified"}}</th><th>{{t "col.removed"}}</th><th></th></tr>
-{{range .Emails}}<tr>
-  <td><span class="ltr">{{if eq .ID $.U.RevealedEmailID}}<strong>{{$.U.RevealedEmail}}</strong>{{else}}{{.Masked}}{{end}}</span></td>
-  <td>{{if .Primary}}{{t "yes"}}{{end}}</td><td>{{when .Verified}}</td><td>{{when .Removed}}</td>
-  <td>{{if ne .ID $.U.RevealedEmailID}}<form method="post" action="/users/{{$.U.ID}}/reveal"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="email" value="{{.ID}}"><button class="link">{{t "user.reveal"}}</button></form>{{end}}</td>
-</tr>{{end}}</table>
-<h2>{{t "user.subH"}}</h2>
-{{with .Suspicious}}<p class="error">{{t "user.suspicious" (when .)}}</p>{{end}}
-<table><tr><th>{{t "col.plan"}}</th><th>{{t "col.state"}}</th><th>{{t "col.validUntil"}}</th><th>{{t "col.autoRenew"}}</th><th>{{t "col.refunded"}}</th><th>{{t "col.lastVerified"}}</th><th>{{t "col.failedChecks"}}</th><th>{{t "col.bought"}}</th><th></th></tr>
-{{range .Purchases}}<tr><td><code>{{.SKU}}</code></td><td>{{code "state" .State}}</td><td>{{when .ValidUntil}}</td><td>{{if .AutoRenew}}{{t "on"}}{{else}}{{t "off"}}{{end}}</td><td>{{when .Refunded}}</td><td>{{when .LastVerified}}</td><td>{{.CheckFailures}}</td><td>{{when .Created}}</td>
-<td><form method="post" action="/users/{{$.U.ID}}/recheck"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="purchase" value="{{.ID}}"><button class="link">{{t "user.recheck"}}</button></form></td></tr>
-{{else}}<tr><td colspan="9">{{t "user.noPurchases"}}</td></tr>{{end}}</table>
-<h2>{{t "user.grantsH"}}</h2>
-<table><tr><th>{{t "col.from"}}</th><th>{{t "col.until"}}</th><th>{{t "col.by"}}</th><th>{{t "col.reason"}}</th><th>{{t "col.state"}}</th></tr>
-{{range .Grants}}<tr><td>{{when .Starts}}</td><td>{{when .Ends}}</td><td>{{.By}}</td><td>{{.Reason}}</td><td>{{if .Revoked}}{{t "user.revokedAt" (when .Revoked)}}{{else if .Live}}{{t "user.running"}}{{else}}{{t "user.ended"}}{{end}}</td></tr>
-{{else}}<tr><td colspan="5">{{t "none"}}</td></tr>{{end}}</table>
-<h2>{{t "user.devicesH"}}</h2>
-<table><tr><th>{{t "col.platform"}}</th><th>{{t "col.signedIn"}}</th><th>{{t "col.lastUsed"}}</th><th>{{t "col.ended"}}</th></tr>
-{{range .Sessions}}<tr><td>{{deref .Platform}}</td><td>{{when .Created}}</td><td>{{ago .LastSeen}}</td><td>{{when .Revoked}} <code>{{deref .Reason}}</code></td></tr>
-{{else}}<tr><td colspan="4">{{t "none"}}</td></tr>{{end}}</table>
-<h2>{{t "user.historyH"}}</h2>
-<table><tr><th>{{t "col.when"}}</th><th>{{t "col.event"}}</th><th>{{t "col.details"}}</th></tr>
-{{range .SubEvents}}<tr><td>{{when .At}}</td><td><code>{{.Kind}}</code></td><td><code>{{.Details}}</code></td></tr>{{else}}<tr><td colspan="3">{{t "none"}}</td></tr>{{end}}</table>
-<h2>{{t "security.h"}}</h2>
-<table><tr><th>{{t "col.when"}}</th><th>{{t "col.event"}}</th><th>{{t "col.details"}}</th></tr>
-{{range .Audit}}<tr><td>{{when .At}}</td><td><code>{{.Kind}}</code></td><td><code>{{.Details}}</code></td></tr>{{else}}<tr><td colspan="3">{{t "none"}}</td></tr>{{end}}</table>
-<h2>{{t "user.actionsH"}}</h2>
-<p class="muted">{{t "user.actionsNote"}}</p>
+<section class="profile">
+  <span class="avatar xl" aria-hidden="true">{{initial .Name}}</span>
+  <div class="profile-main">
+    <h1>{{.Name}} <span class="chip {{if eq .Status "active"}}good{{else}}bad{{end}}">{{code "status" .Status}}</span>{{if .Suspicious}} <span class="chip warn">{{icon "flag"}}{{t "dash.r.suspicious"}}</span>{{end}}</h1>
+    <ul class="meta">
+      <li>{{t "user.account"}} <code>{{.ID}}</code></li>
+      <li>{{t "user.created" (when .Created)}}</li>
+      <li>{{t "user.avatar" (deref .Avatar)}}</li>
+      <li>{{t "user.signsIn"}} {{range $i, $p := .Providers}}{{if $i}}{{t "sep"}}{{end}}<span class="chip">{{$p}}</span>{{end}}</li>
+    </ul>
+  </div>
+</section>
+<section class="panel">
+  <header class="panel-head"><h2>{{icon "mail"}}{{t "user.emailH"}}</h2></header>
+  <div class="table-wrap"><table><thead><tr><th>{{t "col.address"}}</th><th>{{t "col.primary"}}</th><th>{{t "col.verified"}}</th><th>{{t "col.removed"}}</th><th></th></tr></thead><tbody>
+  {{range .Emails}}<tr>
+    <td><span class="ltr">{{if eq .ID $.U.RevealedEmailID}}<strong>{{$.U.RevealedEmail}}</strong>{{else}}{{.Masked}}{{end}}</span></td>
+    <td>{{if .Primary}}<span class="chip accent">{{t "yes"}}</span>{{end}}</td><td>{{when .Verified}}</td><td>{{when .Removed}}</td>
+    <td class="act">{{if ne .ID $.U.RevealedEmailID}}<form method="post" action="/users/{{$.U.ID}}/reveal"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="email" value="{{.ID}}"><button class="ghost sm">{{icon "eye"}}<span>{{t "user.reveal"}}</span></button></form>{{end}}</td>
+  </tr>{{end}}</tbody></table></div>
+</section>
+<section class="panel">
+  <header class="panel-head"><h2>{{icon "card"}}{{t "user.subH"}}</h2></header>
+  {{with .Suspicious}}<div class="flash bad">{{icon "flag"}}<p>{{t "user.suspicious" (when .)}}</p></div>{{end}}
+  <div class="table-wrap"><table><thead><tr><th>{{t "col.plan"}}</th><th>{{t "col.state"}}</th><th>{{t "col.validUntil"}}</th><th>{{t "col.autoRenew"}}</th><th>{{t "col.refunded"}}</th><th>{{t "col.lastVerified"}}</th><th class="num">{{t "col.failedChecks"}}</th><th>{{t "col.bought"}}</th><th></th></tr></thead><tbody>
+  {{range .Purchases}}<tr><td><code>{{.SKU}}</code></td><td><span class="chip st-{{.State}}">{{code "state" .State}}</span></td><td>{{when .ValidUntil}}</td><td>{{if .AutoRenew}}<span class="chip good">{{t "on"}}</span>{{else}}<span class="chip">{{t "off"}}</span>{{end}}</td><td>{{when .Refunded}}</td><td>{{when .LastVerified}}</td><td class="num">{{.CheckFailures}}</td><td>{{when .Created}}</td>
+  <td class="act"><form method="post" action="/users/{{$.U.ID}}/recheck"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="purchase" value="{{.ID}}"><button class="ghost sm">{{icon "refresh"}}<span>{{t "user.recheck"}}</span></button></form></td></tr>
+  {{else}}<tr><td colspan="9" class="empty">{{t "user.noPurchases"}}</td></tr>{{end}}</tbody></table></div>
+</section>
+<div class="grid-2">
+<section class="panel">
+  <header class="panel-head"><h2>{{icon "gift"}}{{t "user.grantsH"}}</h2></header>
+  <div class="table-wrap"><table><thead><tr><th>{{t "col.from"}}</th><th>{{t "col.until"}}</th><th>{{t "col.by"}}</th><th>{{t "col.reason"}}</th><th>{{t "col.state"}}</th></tr></thead><tbody>
+  {{range .Grants}}<tr><td>{{when .Starts}}</td><td>{{when .Ends}}</td><td>{{.By}}</td><td class="wrap">{{.Reason}}</td><td>{{if .Revoked}}<span class="chip bad">{{t "user.revokedAt" (when .Revoked)}}</span>{{else if .Live}}<span class="chip good">{{t "user.running"}}</span>{{else}}<span class="chip">{{t "user.ended"}}</span>{{end}}</td></tr>
+  {{else}}<tr><td colspan="5" class="empty">{{t "none"}}</td></tr>{{end}}</tbody></table></div>
+</section>
+<section class="panel">
+  <header class="panel-head"><h2>{{icon "phone"}}{{t "user.devicesH"}}</h2></header>
+  <div class="table-wrap"><table><thead><tr><th>{{t "col.platform"}}</th><th>{{t "col.signedIn"}}</th><th>{{t "col.lastUsed"}}</th><th>{{t "col.ended"}}</th></tr></thead><tbody>
+  {{range .Sessions}}<tr><td>{{deref .Platform}}</td><td>{{when .Created}}</td><td>{{ago .LastSeen}}</td><td>{{when .Revoked}} {{with deref .Reason}}<code>{{.}}</code>{{end}}</td></tr>
+  {{else}}<tr><td colspan="4" class="empty">{{t "none"}}</td></tr>{{end}}</tbody></table></div>
+</section>
+</div>
+<div class="grid-2">
+<section class="panel">
+  <header class="panel-head"><h2>{{icon "activity"}}{{t "user.historyH"}}</h2></header>
+  <div class="table-wrap"><table><thead><tr><th>{{t "col.when"}}</th><th>{{t "col.event"}}</th><th>{{t "col.details"}}</th></tr></thead><tbody>
+  {{range .SubEvents}}<tr><td>{{when .At}}</td><td><code class="kind">{{.Kind}}</code></td><td class="wrap"><code>{{.Details}}</code></td></tr>{{else}}<tr><td colspan="3" class="empty">{{t "none"}}</td></tr>{{end}}</tbody></table></div>
+</section>
+<section class="panel">
+  <header class="panel-head"><h2>{{icon "security"}}{{t "security.h"}}</h2></header>
+  <div class="table-wrap"><table><thead><tr><th>{{t "col.when"}}</th><th>{{t "col.event"}}</th><th>{{t "col.details"}}</th></tr></thead><tbody>
+  {{range .Audit}}<tr><td>{{when .At}}</td><td><code class="kind">{{.Kind}}</code></td><td class="wrap"><code>{{.Details}}</code></td></tr>{{else}}<tr><td colspan="3" class="empty">{{t "none"}}</td></tr>{{end}}</tbody></table></div>
+</section>
+</div>
+<section class="section">
+<header class="section-head"><h2>{{icon "zap"}}{{t "user.actionsH"}}</h2><p>{{t "user.actionsNote"}}</p></header>
 <div class="actions">
-<form method="post" action="/users/{{.ID}}/signout" class="stack"><input type="hidden" name="csrf" value="{{$.CSRF}}">
-  <h3>{{t "user.signoutH"}}</h3><p>{{t "user.signoutP"}}</p><button>{{t "user.signoutH"}}</button></form>
+<form method="post" action="/users/{{.ID}}/signout" class="action"><input type="hidden" name="csrf" value="{{$.CSRF}}">
+  <h3>{{icon "signout"}}{{t "user.signoutH"}}</h3><p>{{t "user.signoutP"}}</p><button>{{t "user.signoutH"}}</button></form>
 {{if eq .Status "active"}}
-<form method="post" action="/users/{{.ID}}/disable" class="stack"><input type="hidden" name="csrf" value="{{$.CSRF}}">
-  <h3>{{t "user.disableH"}}</h3><p>{{t "user.disableP"}}</p>
+<form method="post" action="/users/{{.ID}}/disable" class="action"><input type="hidden" name="csrf" value="{{$.CSRF}}">
+  <h3>{{icon "ban"}}{{t "user.disableH"}}</h3><p>{{t "user.disableP"}}</p>
   <label>{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500"></label><button>{{t "btn.disable"}}</button></form>
 {{else}}
-<form method="post" action="/users/{{.ID}}/enable" class="stack"><input type="hidden" name="csrf" value="{{$.CSRF}}">
-  <h3>{{t "user.enableH"}}</h3><label>{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500"></label><button>{{t "btn.enable"}}</button></form>
+<form method="post" action="/users/{{.ID}}/enable" class="action"><input type="hidden" name="csrf" value="{{$.CSRF}}">
+  <h3>{{icon "check"}}{{t "user.enableH"}}</h3><label>{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500"></label><button>{{t "btn.enable"}}</button></form>
 {{end}}
 {{if eq $.Admin.Role "owner"}}
-<form method="post" action="/users/{{.ID}}/grant" class="stack"><input type="hidden" name="csrf" value="{{$.CSRF}}">
-  <h3>{{t "user.grantH"}}</h3><p>{{t "user.grantP"}}</p>
+<form method="post" action="/users/{{.ID}}/grant" class="action"><input type="hidden" name="csrf" value="{{$.CSRF}}">
+  <h3>{{icon "gift"}}{{t "user.grantH"}}</h3><p>{{t "user.grantP"}}</p>
   <label>{{t "label.months"}} <select name="months"><option>1</option><option>3</option><option>6</option><option>12</option></select></label>
   <label>{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500" placeholder="{{t "user.grantHint"}}"></label><button>{{t "user.grantH"}}</button></form>
 {{range .Grants}}{{if .Live}}
-<form method="post" action="/users/{{$.U.ID}}/revoke-grant" class="stack"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="grant" value="{{.ID}}">
-  <h3>{{t "user.revokeH" (when .Ends)}}</h3><label>{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500"></label><button>{{t "btn.revoke"}}</button></form>
+<form method="post" action="/users/{{$.U.ID}}/revoke-grant" class="action"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="grant" value="{{.ID}}">
+  <h3>{{icon "close"}}{{t "user.revokeH" (when .Ends)}}</h3><label>{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500"></label><button>{{t "btn.revoke"}}</button></form>
 {{end}}{{end}}
 {{if .Suspicious}}
-<form method="post" action="/users/{{.ID}}/clear-suspicious" class="stack"><input type="hidden" name="csrf" value="{{$.CSRF}}">
-  <h3>{{t "user.clearH"}}</h3><p>{{t "user.clearP"}}</p>
+<form method="post" action="/users/{{.ID}}/clear-suspicious" class="action"><input type="hidden" name="csrf" value="{{$.CSRF}}">
+  <h3>{{icon "flag"}}{{t "user.clearH"}}</h3><p>{{t "user.clearP"}}</p>
   <label>{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500"></label><button>{{t "user.clearBtn"}}</button></form>
 {{end}}
-<form method="post" action="/users/{{.ID}}/delete" class="stack danger"><input type="hidden" name="csrf" value="{{$.CSRF}}">
-  <h3>{{t "user.deleteH"}}</h3><p>{{t "user.deleteP"}}</p>
-  <label>{{t "user.deleteType" .PrimaryMasked}} <input name="confirm" required autocomplete="off" dir="ltr"></label>
-  <label>{{t "user.deleteLang"}} <select name="locale"><option value="fa">{{t "user.langFA"}}</option><option value="en">{{t "user.langEN"}}</option></select></label>
-  <label>{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500" placeholder="{{t "user.deleteHint"}}"></label><button>{{t "user.deleteBtn"}}</button></form>
 {{end}}
 </div>
-<h2>{{t "user.adminH"}}</h2>
-<table><tr><th>{{t "col.when"}}</th><th>{{t "col.admin"}}</th><th>{{t "col.action"}}</th></tr>
-{{range .AdminEvents}}<tr><td>{{when .At}}</td><td>{{.Who}}</td><td><code>{{.Kind}}</code></td></tr>{{else}}<tr><td colspan="3">{{t "none"}}</td></tr>{{end}}</table>
+</section>
+{{if eq $.Admin.Role "owner"}}
+<section class="section danger-zone">
+<header class="section-head"><h2>{{icon "alert"}}{{t "user.dangerH"}}</h2></header>
+<form method="post" action="/users/{{.ID}}/delete" class="action danger"><input type="hidden" name="csrf" value="{{$.CSRF}}">
+  <h3>{{icon "trash"}}{{t "user.deleteH"}}</h3><p>{{t "user.deleteP"}}</p>
+  <div class="form-grid">
+  <label>{{t "user.deleteType" .PrimaryMasked}} <input name="confirm" required autocomplete="off" dir="ltr"></label>
+  <label>{{t "user.deleteLang"}} <select name="locale"><option value="fa">{{t "user.langFA"}}</option><option value="en">{{t "user.langEN"}}</option></select></label>
+  <label class="full">{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500" placeholder="{{t "user.deleteHint"}}"></label>
+  </div>
+  <button>{{t "user.deleteBtn"}}</button></form>
+</section>
+{{end}}
+<section class="panel">
+  <header class="panel-head"><h2>{{icon "admins"}}{{t "user.adminH"}}</h2></header>
+  <div class="table-wrap"><table><thead><tr><th>{{t "col.when"}}</th><th>{{t "col.admin"}}</th><th>{{t "col.action"}}</th></tr></thead><tbody>
+  {{range .AdminEvents}}<tr><td>{{when .At}}</td><td>{{.Who}}</td><td><code class="kind">{{.Kind}}</code></td></tr>{{else}}<tr><td colspan="3" class="empty">{{t "none"}}</td></tr>{{end}}</tbody></table></div>
+</section>
 {{end}}
 {{end}}

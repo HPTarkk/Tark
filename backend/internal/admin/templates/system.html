@@ -1,31 +1,39 @@
 {{define "title"}}{{t "nav.system"}} · {{t "brand"}}{{end}}
 {{define "main"}}
-<h1>{{t "nav.system"}}</h1>
-<h2>{{t "system.checks"}}</h2>
-<p class="muted">{{t "system.checksNote"}}</p>
-<ul class="checks">
-{{range .Alerts}}<li><b><code>{{.Key}}</code></b> {{if .Firing}}<span class="error-text">{{t "system.firing" (when .Since)}}</span>{{else}}<span class="muted">{{t "ok"}}</span>{{end}}<br><span class="ltr">{{.Detail}}</span> <span class="muted">({{ago .Updated}})</span></li>
-{{else}}<li>{{t "system.noChecks"}}</li>{{end}}</ul>
-{{with .M}}
-<section class="cards">
-  <div class="card"><h2>{{t "system.last5"}}</h2>
-    <p class="big">{{.Five.Requests}}</p><p>{{t "system.reqs" (index .Five.ByClass 3) .Five.Slow}}</p>
-    <p>{{t "system.typical" (p .Five.Latency 0.5) (p .Five.Latency 0.95)}}</p></div>
-  <div class="card"><h2>{{t "system.db"}}</h2>
-    <p class="big ltr">{{.Now.InUse}} / {{.Now.Max}}</p><p>{{t "system.inUse" .Now.Total}}</p>
-    <p>{{t "system.pool" .Pool.Acquires (dur .Pool.AvgWait) .Pool.Canceled}}</p></div>
-  <div class="card"><h2>{{t "system.outside"}}</h2>
-    <p>{{t "system.bazaar" .Hour.Bazaar.OK .Hour.Bazaar.Failed}}{{if .Hour.Bazaar.Latency.N}}{{t "system.slowest" (p .Hour.Bazaar.Latency 0.95)}}{{end}}</p>
-    <p>{{t "system.email" .Hour.Mail.OK .Hour.Mail.Failed}}{{if .Hour.Mail.Latency.N}}{{t "system.slowest" (p .Hour.Mail.Latency 0.95)}}{{end}}</p></div>
-  <div class="card"><h2>{{t "system.process"}}</h2>
-    <p>{{t "system.since" (when .Started) (ago .Started)}}</p>
-    <p>{{t "system.memory" (bytes .Runtime.HeapBytes) (bytes .Runtime.SysBytes)}}</p>
-    <p>{{t "system.goroutines" .Runtime.Goroutines}}</p></div>
+<header class="page-head">
+  <span class="page-icon">{{icon "system"}}</span>
+  <div><h1>{{t "nav.system"}}</h1><p class="lead">{{t "lead.system"}}</p></div>
+</header>
+<section class="panel">
+  <header class="panel-head"><h2>{{icon "check"}}{{t "system.checks"}}</h2><p>{{t "system.checksNote"}}</p></header>
+  <ul class="checks">
+  {{range .Alerts}}<li class="{{if .Firing}}firing{{else}}fine{{end}}"><span class="dot" aria-hidden="true"></span>
+    <div><p class="check-top"><code>{{.Key}}</code>{{if .Firing}}<span class="chip bad">{{t "system.firing" (when .Since)}}</span>{{else}}<span class="chip good">{{t "ok"}}</span>{{end}}</p>
+    <p class="muted"><span class="ltr">{{.Detail}}</span> · {{ago .Updated}}</p></div></li>
+  {{else}}<li class="empty">{{t "system.noChecks"}}</li>{{end}}
+  </ul>
 </section>
-<h2>{{t "system.byRoute"}}</h2>
-<p class="muted">{{if lt .Covered.Minutes 59.0}}{{t "system.partial" (ago .Started)}}{{end}}{{t "system.buckets"}}</p>
-<table><tr><th>{{t "col.route"}}</th><th>{{t "col.requests"}}</th><th>4xx</th><th>5xx</th><th>{{t "col.slow"}}</th><th>{{t "col.typical"}}</th><th>{{t "col.slowest"}}</th></tr>
-{{range .Hour.Sorted}}<tr><td><code class="route">{{.Method}} {{.Route}}</code></td><td>{{.Requests}}</td><td>{{index .ByClass 2}}</td><td>{{if index .ByClass 3}}<span class="error-text">{{index .ByClass 3}}</span>{{else}}0{{end}}</td><td>{{.Slow}}</td><td>{{p .Latency 0.5}}</td><td>{{p .Latency 0.95}}</td></tr>
-{{else}}<tr><td colspan="7">{{t "system.noReqs"}}</td></tr>{{end}}</table>
+{{with .M}}
+<section class="kpis wide">
+  <article class="kpi"><div class="kpi-head"><span class="kpi-icon">{{icon "zap"}}</span><h2>{{t "system.last5"}}</h2></div>
+    <p class="big">{{.Five.Requests}}</p><p class="kpi-sub">{{t "system.reqs" (index .Five.ByClass 3) .Five.Slow}}</p>
+    <p class="kpi-sub">{{t "system.typical" (p .Five.Latency 0.5) (p .Five.Latency 0.95)}}</p></article>
+  <article class="kpi"><div class="kpi-head"><span class="kpi-icon">{{icon "backups"}}</span><h2>{{t "system.db"}}</h2></div>
+    <p class="big ltr">{{.Now.InUse}} / {{.Now.Max}}</p><p class="kpi-sub">{{t "system.inUse" .Now.Total}}</p>
+    <p class="kpi-sub">{{t "system.pool" .Pool.Acquires (dur .Pool.AvgWait) .Pool.Canceled}}</p></article>
+  <article class="kpi"><div class="kpi-head"><span class="kpi-icon">{{icon "cloud"}}</span><h2>{{t "system.outside"}}</h2></div>
+    <p class="kpi-sub">{{t "system.bazaar" .Hour.Bazaar.OK .Hour.Bazaar.Failed}}{{if .Hour.Bazaar.Latency.N}}{{t "system.slowest" (p .Hour.Bazaar.Latency 0.95)}}{{end}}</p>
+    <p class="kpi-sub">{{t "system.email" .Hour.Mail.OK .Hour.Mail.Failed}}{{if .Hour.Mail.Latency.N}}{{t "system.slowest" (p .Hour.Mail.Latency 0.95)}}{{end}}</p></article>
+  <article class="kpi"><div class="kpi-head"><span class="kpi-icon">{{icon "server"}}</span><h2>{{t "system.process"}}</h2></div>
+    <p class="kpi-sub">{{t "system.since" (when .Started) (ago .Started)}}</p>
+    <p class="kpi-sub">{{t "system.memory" (bytes .Runtime.HeapBytes) (bytes .Runtime.SysBytes)}}</p>
+    <p class="kpi-sub">{{t "system.goroutines" .Runtime.Goroutines}}</p></article>
+</section>
+<section class="panel">
+  <header class="panel-head"><h2>{{icon "chart"}}{{t "system.byRoute"}}</h2><p>{{if lt .Covered.Minutes 59.0}}{{t "system.partial" (ago .Started)}}{{end}}{{t "system.buckets"}}</p></header>
+  <div class="table-wrap"><table><thead><tr><th>{{t "col.route"}}</th><th class="num">{{t "col.requests"}}</th><th class="num">4xx</th><th class="num">5xx</th><th class="num">{{t "col.slow"}}</th><th>{{t "col.typical"}}</th><th>{{t "col.slowest"}}</th></tr></thead><tbody>
+  {{range .Hour.Sorted}}<tr><td><code class="route">{{.Method}} {{.Route}}</code></td><td class="num">{{.Requests}}</td><td class="num">{{index .ByClass 2}}</td><td class="num">{{if index .ByClass 3}}<span class="chip bad">{{index .ByClass 3}}</span>{{else}}0{{end}}</td><td class="num">{{.Slow}}</td><td>{{p .Latency 0.5}}</td><td>{{p .Latency 0.95}}</td></tr>
+  {{else}}<tr><td colspan="7" class="empty">{{t "system.noReqs"}}</td></tr>{{end}}</tbody></table></div>
+</section>
 {{end}}
 {{end}}

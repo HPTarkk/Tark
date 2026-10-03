@@ -1,7 +1,11 @@
 {{define "title"}}{{t "nav.backups"}} · {{t "brand"}}{{end}}
 {{define "main"}}
-<h1>{{t "nav.backups"}}</h1>
-<p>{{t "backups.lead"}}</p>
-<table><tr><th>{{t "col.started"}}</th><th>{{t "col.result"}}</th><th>{{t "col.file"}}</th><th>{{t "col.size"}}</th><th>{{t "col.rows"}}</th></tr>
-{{range .Runs}}<tr><td>{{when .Started}}</td><td>{{if .OK}}{{t "backups.ok"}}{{else if .Finished}}<span class="error-text">{{t "backups.failed" (deref .Error)}}</span>{{else}}{{t "backups.running"}}{{end}}</td><td><code>{{deref .File}}</code></td><td>{{mb .Bytes}}</td><td>{{deref .Rows}}</td></tr>{{else}}<tr><td colspan="5">{{t "backups.none"}}</td></tr>{{end}}</table>
+<header class="page-head">
+  <span class="page-icon">{{icon "backups"}}</span>
+  <div><h1>{{t "nav.backups"}}</h1><p class="lead">{{t "backups.lead"}}</p></div>
+</header>
+<section class="panel">
+  <div class="table-wrap"><table><thead><tr><th>{{t "col.started"}}</th><th>{{t "col.result"}}</th><th>{{t "col.file"}}</th><th class="num">{{t "col.size"}}</th><th class="num">{{t "col.rows"}}</th></tr></thead><tbody>
+  {{range .Runs}}<tr><td>{{when .Started}}</td><td>{{if .OK}}<span class="chip good">{{icon "check"}}{{t "backups.ok"}}</span>{{else if .Finished}}<span class="chip bad">{{t "backups.failed" (deref .Error)}}</span>{{else}}<span class="chip warn live">{{t "backups.running"}}</span>{{end}}</td><td><code>{{deref .File}}</code></td><td class="num">{{mb .Bytes}}</td><td class="num">{{deref .Rows}}</td></tr>{{else}}<tr><td colspan="5" class="empty">{{t "backups.none"}}</td></tr>{{end}}</tbody></table></div>
+</section>
 {{end}}

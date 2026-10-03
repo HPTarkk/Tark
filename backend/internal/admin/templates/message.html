@@ -1,2 +1,6 @@
 {{define "title"}}{{.Title}} · {{t "brand"}}{{end}}
-{{define "main"}}<h1>{{.Title}}</h1><p>{{.Text}}</p><p><a href="/">{{t "back"}}</a></p>{{end}}
+{{define "main"}}<section class="empty-state">
+  <span class="hero-icon">{{icon "info"}}</span>
+  <h1>{{.Title}}</h1><p class="lead">{{.Text}}</p>
+  <p><a class="btn" href="/">{{icon "home"}}<span>{{t "back"}}</span></a></p>
+</section>{{end}}
