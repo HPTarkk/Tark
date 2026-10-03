@@ -18,8 +18,8 @@ class BillingPlan extends Equatable {
   /// 0 for the test plan, which is minutes long.
   final int months;
 
-  /// The plan's name in the language the server was asked for ("3 months",
-  /// "سه ماهه").
+  /// The plan's name in the language the server was asked for ("Tark Premium,
+  /// 3 months", "اشتراک سه ماهه تَرک").
   final String title;
 
   static final _skuPattern = RegExp(r'^tark_premium_([1-9][0-9]?)m$');

@@ -1273,8 +1273,9 @@ components:
         planTitle:
           type: [string, 'null']
           description: |
-            The entitlement's plan named in the request's language ("3
-            months", or "Gift from Tark" for premium given by support).
+            The entitlement's plan named in the request's language ("Tark
+            Premium, 3 months", or "Gift from Tark" for premium given by
+            support).
             Display only; null when there is no plan.
 
     Plan:
@@ -1295,7 +1296,7 @@ components:
           description: Only on the 5-minute test plan (sku TEST_SUB), which test servers list.
         title:
           type: string
-          description: The plan's name in the request's language, e.g. "3 months" / "سه ماهه".
+          description: The plan's name in the request's language, e.g. "Tark Premium, 3 months" / "اشتراک سه ماهه تَرک".
 
     EntitlementPayload:
       type: object

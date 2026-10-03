@@ -63,8 +63,17 @@ func (p Plan) Days() int {
 	return p.Months * 30
 }
 
-// Title names the plan for people: "1 month", "3 months", "1 year".
+// Title names the plan for people, the way the Bazaar panel names the
+// products: "Tark Premium, 3 months" / "اشتراک سه ماهه تَرک".
 func (p Plan) Title(lang string) string {
+	if lang == i18n.FA {
+		return fmt.Sprintf("اشتراک %s تَرک", p.length(lang))
+	}
+	return "Tark Premium, " + p.length(lang)
+}
+
+// length is the plan's period alone: "3 months", "یک ساله", "5-minute test".
+func (p Plan) length(lang string) string {
 	if p.IsTest() {
 		if lang == i18n.FA {
 			return fmt.Sprintf("تست %s دقیقه‌ای", i18n.Digits(i18n.FA, p.Minutes))

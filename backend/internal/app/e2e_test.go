@@ -599,10 +599,10 @@ func TestSubscription(t *testing.T) {
 	if m["st"] != "active" || m["ar"] != true || m["sus"] != false || m["sku"] != "tark_premium_1m" {
 		t.Fatalf("%v", m)
 	}
-	if r.str("planTitle") != "1 month" {
+	if r.str("planTitle") != "Tark Premium, 1 month" {
 		t.Fatalf("planTitle %q", r.str("planTitle"))
 	}
-	if fa := p.do("GET", "/v1/subscription", nil, "Accept-Language", "fa-IR"); fa.str("planTitle") != "یک ماهه" {
+	if fa := p.do("GET", "/v1/subscription", nil, "Accept-Language", "fa-IR"); fa.str("planTitle") != "اشتراک یک ماهه تَرک" {
 		t.Fatalf("Persian planTitle %q", fa.str("planTitle"))
 	}
 	// Same key, same body: the first answer again.
@@ -712,8 +712,8 @@ func TestPlans(t *testing.T) {
 			t.Errorf("Content-Language %q", r.header.Get("Content-Language"))
 		}
 	}
-	check("en", []string{"1 month", "3 months", "6 months", "1 year"})
-	check("fa-IR,en;q=0.5", []string{"یک ماهه", "سه ماهه", "شش ماهه", "یک ساله"})
+	check("en", []string{"Tark Premium, 1 month", "Tark Premium, 3 months", "Tark Premium, 6 months", "Tark Premium, 1 year"})
+	check("fa-IR,en;q=0.5", []string{"اشتراک یک ماهه تَرک", "اشتراک سه ماهه تَرک", "اشتراک شش ماهه تَرک", "اشتراک یک ساله تَرک"})
 
 	r := e.phone().do("GET", "/v1/subscription/plans", nil)
 	p := r.body["plans"].([]any)[1].(map[string]any)
@@ -745,7 +745,7 @@ func TestTestPlan(t *testing.T) {
 	q.register("tester@example.com", "a good passphrase", "T")
 	plans := q.do("GET", "/v1/subscription/plans", nil, "Accept-Language", "fa").body["plans"].([]any)
 	last := plans[len(plans)-1].(map[string]any)
-	if last["sku"] != billing.TestSKU || last["minutes"] != float64(5) || last["months"] != float64(0) || last["title"] != "تست ۵ دقیقه‌ای" {
+	if last["sku"] != billing.TestSKU || last["minutes"] != float64(5) || last["months"] != float64(0) || last["title"] != "اشتراک تست ۵ دقیقه‌ای تَرک" {
 		t.Fatalf("%v", last)
 	}
 	test.bazaar.Set("test-tok", billing.Subscription{InitiatedAt: time.Now(), ValidUntil: time.Now().Add(5 * time.Minute), AutoRenewing: true}, nil)
@@ -754,7 +754,7 @@ func TestTestPlan(t *testing.T) {
 	if m := test.decodeEntitlement(r.str("entitlement"), q.install); m["st"] != "active" || m["sku"] != billing.TestSKU {
 		t.Fatalf("%v", m)
 	}
-	if r.str("planTitle") != "5-minute test" {
+	if r.str("planTitle") != "Tark Premium, 5-minute test" {
 		t.Fatalf("planTitle %q", r.str("planTitle"))
 	}
 }
