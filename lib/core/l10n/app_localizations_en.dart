@@ -1373,6 +1373,41 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paywall_close => 'NOT NOW';
 
   @override
+  String paywall_months(String count) {
+    return '$count months';
+  }
+
+  @override
+  String get paywall_month => '1 month';
+
+  @override
+  String get paywall_year => '1 year';
+
+  @override
+  String paywall_per_month(String price) {
+    return '$price a month';
+  }
+
+  @override
+  String paywall_save(String percent) {
+    return 'SAVE $percent';
+  }
+
+  @override
+  String get paywall_best_value => 'BEST VALUE';
+
+  @override
+  String get paywall_cta => 'UNLOCK PREMIUM';
+
+  @override
+  String paywall_cta_plan(String plan, String price) {
+    return '$plan · $price';
+  }
+
+  @override
+  String get paywall_trust => 'Paid safely through Bazaar. Cancel anytime.';
+
+  @override
   String get sub_checking => 'Checking your subscription…';
 
   @override

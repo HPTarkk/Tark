@@ -79,77 +79,143 @@ class _SignedOut extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
-    final amber = AppColors.amber;
-    final radius = BorderRadius.circular(14);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
-      child: PressableScale(
-        key: const ValueKey('account-sign-in'),
+      child: _Spotlight(
+        tapKey: const ValueKey('account-sign-in'),
+        icon: Icons.login_rounded,
+        title: s.account_sign_in_row,
+        body: s.account_signed_out_body,
         onTap: onSignIn,
-        borderRadius: radius,
-        child: Container(
-          padding: const EdgeInsetsDirectional.fromSTEB(14, 14, 10, 14),
-          decoration: BoxDecoration(
-            borderRadius: radius,
-            gradient: LinearGradient(
-              begin: AlignmentDirectional.topStart,
-              end: AlignmentDirectional.bottomEnd,
-              colors: [
-                Color.alphaBlend(amber.withValues(alpha: 0.12), AppColors.card),
-                AppColors.card,
-              ],
+      ),
+    );
+  }
+}
+
+/// The subscription, lit up at the top of a signed-in account: what the
+/// person has now, one tap from the subscription page.
+class _SubscriptionSpotlight extends StatelessWidget {
+  const _SubscriptionSpotlight();
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    final subscription = GetIt.instance<SubscriptionService>();
+    return StreamBuilder<void>(
+      stream: subscription.changes,
+      builder: (context, _) {
+        final active = subscription.isPremiumActive;
+        return Padding(
+          padding: const EdgeInsets.only(top: 10, bottom: 4),
+          child: _Spotlight(
+            tapKey: const ValueKey('account-subscription'),
+            icon: active
+                ? Icons.workspace_premium_rounded
+                : Icons.star_outline_rounded,
+            title: s.account_subscription,
+            body: active ? s.mysub_premium : s.account_subscription_none,
+            bodyLit: active,
+            onTap: () => pushAuthPage(
+              context,
+              SubscriptionPage.routeName,
+              (_) => SubscriptionPage.buildPage(),
             ),
-            border: Border.all(color: amber.withValues(alpha: 0.35)),
           ),
-          child: Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: amber.withValues(alpha: 0.16),
-                ),
-                child: Icon(Icons.login_rounded, color: amber, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      s.account_sign_in_row,
-                      style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      s.account_signed_out_body,
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                        height: 1.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(shape: BoxShape.circle, color: amber),
-                child: Icon(
-                  Icons.chevron_right_rounded,
-                  color: AppColors.background,
-                  size: 20,
-                ),
-              ),
+        );
+      },
+    );
+  }
+}
+
+/// A warm, tappable card: icon, title, one line of why, and an arrow.
+class _Spotlight extends StatelessWidget {
+  const _Spotlight({
+    required this.tapKey,
+    required this.icon,
+    required this.title,
+    required this.body,
+    required this.onTap,
+    this.bodyLit = false,
+  });
+
+  final Key tapKey;
+  final IconData icon;
+  final String title;
+  final String body;
+  final bool bodyLit;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final amber = AppColors.amber;
+    final radius = BorderRadius.circular(14);
+    return PressableScale(
+      key: tapKey,
+      onTap: onTap,
+      borderRadius: radius,
+      child: Container(
+        padding: const EdgeInsetsDirectional.fromSTEB(14, 14, 10, 14),
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          gradient: LinearGradient(
+            begin: AlignmentDirectional.topStart,
+            end: AlignmentDirectional.bottomEnd,
+            colors: [
+              Color.alphaBlend(amber.withValues(alpha: 0.12), AppColors.card),
+              AppColors.card,
             ],
           ),
+          border: Border.all(color: amber.withValues(alpha: 0.35)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: amber.withValues(alpha: 0.16),
+              ),
+              child: Icon(icon, color: amber, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    body,
+                    style: TextStyle(
+                      color: bodyLit ? amber : AppColors.textSecondary,
+                      fontSize: 12,
+                      height: 1.5,
+                      fontWeight: bodyLit ? FontWeight.w800 : null,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: amber),
+              child: Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.background,
+                size: 20,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -172,6 +238,8 @@ class _SignedIn extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (GetIt.instance.isRegistered<SubscriptionService>())
+          const _SubscriptionSpotlight(),
         SettingsRow(
           key: const ValueKey('account-email'),
           icon: Icons.alternate_email_rounded,
@@ -183,18 +251,6 @@ class _SignedIn extends StatelessWidget {
             size: 20,
           ),
         ),
-        if (GetIt.instance.isRegistered<SubscriptionService>())
-          SettingsRow(
-            key: const ValueKey('account-subscription'),
-            icon: Icons.workspace_premium_rounded,
-            label: s.account_subscription,
-            trailing: chevron,
-            onTap: () => pushAuthPage(
-              context,
-              SubscriptionPage.routeName,
-              (_) => SubscriptionPage.buildPage(),
-            ),
-          ),
         if (profile.hasPassword)
           SettingsRow(
             key: const ValueKey('account-change-password'),

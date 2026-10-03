@@ -1367,6 +1367,41 @@ class AppLocalizationsFa extends AppLocalizations {
   String get paywall_close => 'بعداً';
 
   @override
+  String paywall_months(String count) {
+    return '$count ماه';
+  }
+
+  @override
+  String get paywall_month => 'یک ماه';
+
+  @override
+  String get paywall_year => 'یک سال';
+
+  @override
+  String paywall_per_month(String price) {
+    return 'ماهی $price';
+  }
+
+  @override
+  String paywall_save(String percent) {
+    return '$percent تخفیف';
+  }
+
+  @override
+  String get paywall_best_value => 'به‌صرفه‌ترین';
+
+  @override
+  String get paywall_cta => 'فعالش کن';
+
+  @override
+  String paywall_cta_plan(String plan, String price) {
+    return '$plan · $price';
+  }
+
+  @override
+  String get paywall_trust => 'پرداخت امن با بازار. هر وقت خواستی لغوش کن.';
+
+  @override
   String get sub_checking => 'داریم اشتراکت رو بررسی می‌کنیم…';
 
   @override

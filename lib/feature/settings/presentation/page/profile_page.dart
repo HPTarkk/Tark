@@ -15,11 +15,10 @@ import '../../../../core/widget/localized_counter.dart';
 import '../../../walkie/api/walkie_api.dart';
 import '../manager/settings_cubit.dart';
 import '../widget/account_section.dart';
-import '../widget/settings_category_card.dart';
 
-/// The person's profile: their face and radio name, both editable, with the
-/// face shown large at the top the way others will see it, and — on builds
-/// with sign-in — the optional account underneath.
+/// The person's profile: one card with their face and radio name, both
+/// editable in place (faces in a sideways row), and — on builds with
+/// sign-in — the account right under it, in view without scrolling.
 ///
 /// Like Advanced settings, [buildPage] takes the running [WalkieTalkieCubit]
 /// (if any) through go_router's `extra`, so a change made mid-channel reaches
@@ -64,28 +63,7 @@ class ProfilePage extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
             child: StaggeredEntrance(
               children: [
-                const _Hero(),
-                SettingsCategoryCard(
-                  icon: Icons.badge_rounded,
-                  title: s.profile_name_label,
-                  child: const _NameField(),
-                ),
-                SettingsCategoryCard(
-                  icon: Icons.face_rounded,
-                  title: s.profile_avatar_label,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                    child: BlocBuilder<SettingsCubit, SettingsState>(
-                      buildWhen: (p, c) => p.myAvatarId != c.myAvatarId,
-                      builder: (context, state) => AvatarPickerGrid(
-                        selectedId: state.myAvatarId,
-                        accent: AppColors.amber,
-                        idleRing: AppColors.border,
-                        onSelected: context.read<SettingsCubit>().setMyAvatarId,
-                      ),
-                    ),
-                  ),
-                ),
+                const _IdentityCard(),
                 if (AccountSection.visible) const AccountSection(),
               ],
               builder: (context, cards) => Column(
@@ -101,12 +79,95 @@ class ProfilePage extends StatelessWidget {
   }
 }
 
-/// The face, large, with the name under it: a preview of how this person
-/// appears to everyone else. Swaps with a small pop when the face changes.
-/// Sits in a glowing ring, and carries a PREMIUM badge while a subscription
-/// runs.
-class _Hero extends StatelessWidget {
-  const _Hero();
+/// Who this person is to everyone else: the face in a glowing ring beside
+/// the editable name (and a PREMIUM badge while a subscription runs), then
+/// the faces to choose from in one row. Compact on purpose, so the account
+/// card below stays in view.
+class _IdentityCard extends StatelessWidget {
+  const _IdentityCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    final amber = AppColors.amber;
+    final rtl = Directionality.of(context) == TextDirection.rtl;
+    TextStyle label() => TextStyle(
+      color: AppColors.textSecondary,
+      fontSize: 11,
+      fontWeight: FontWeight.w800,
+      // Persian is a joined script: spacing its letters pulls every word
+      // apart.
+      letterSpacing: rtl ? 0 : 1.6,
+    );
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.border),
+        gradient: LinearGradient(
+          begin: AlignmentDirectional.topStart,
+          end: AlignmentDirectional.bottomEnd,
+          colors: [
+            Color.alphaBlend(amber.withValues(alpha: 0.08), AppColors.card),
+            AppColors.card,
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: amber.withAlpha(14),
+            blurRadius: 26,
+            spreadRadius: -6,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(16, 18, 16, 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _Face(),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(s.profile_name_label, style: label()),
+                      const SizedBox(height: 6),
+                      const _NameField(),
+                      const _PremiumBadge(),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Divider(color: AppColors.border, height: 1),
+          Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(16, 14, 16, 8),
+            child: Text(s.profile_avatar_label, style: label()),
+          ),
+          BlocBuilder<SettingsCubit, SettingsState>(
+            buildWhen: (p, c) => p.myAvatarId != c.myAvatarId,
+            builder: (context, state) => AvatarPickerStrip(
+              selectedId: state.myAvatarId,
+              accent: amber,
+              idleRing: AppColors.border,
+              onSelected: context.read<SettingsCubit>().setMyAvatarId,
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
+}
+
+/// The chosen face in a glowing ring; swaps with a small pop when a new one
+/// is picked.
+class _Face extends StatelessWidget {
+  const _Face();
 
   @override
   Widget build(BuildContext context) {
@@ -114,67 +175,41 @@ class _Hero extends StatelessWidget {
     final amber = AppColors.amber;
     return BlocBuilder<SettingsCubit, SettingsState>(
       buildWhen: (p, c) => p.myAvatarId != c.myAvatarId || p.myName != c.myName,
-      builder: (context, state) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 18),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(5),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: amber.withValues(alpha: 0.55),
-                  width: 2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: amber.withValues(alpha: 0.2),
-                    blurRadius: 26,
-                    spreadRadius: 1,
-                  ),
-                ],
-              ),
-              child: AnimatedSwitcher(
-                duration: reduced ? Duration.zero : AppMotion.sheet,
-                switchInCurve: AppMotion.easeOut,
-                switchOutCurve: AppMotion.leaving,
-                transitionBuilder: (child, animation) => ScaleTransition(
-                  scale: Tween<double>(begin: 0.85, end: 1).animate(animation),
-                  child: FadeTransition(opacity: animation, child: child),
-                ),
-                child: AppAvatar(
-                  key: ValueKey(state.myAvatarId),
-                  name: state.myName,
-                  avatarId: state.myAvatarId,
-                  size: 112,
-                ),
-              ),
+      builder: (context, state) => Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: amber.withValues(alpha: 0.6), width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: amber.withValues(alpha: 0.22),
+              blurRadius: 20,
+              spreadRadius: 1,
             ),
-            const SizedBox(height: 14),
-            AnimatedSwitcher(
-              duration: AppMotion.chip,
-              switchInCurve: AppMotion.easeOut,
-              switchOutCurve: AppMotion.leaving,
-              child: Text(
-                state.myName.isEmpty ? '…' : state.myName,
-                key: ValueKey(state.myName),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 21,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-            const _PremiumBadge(),
           ],
+        ),
+        child: AnimatedSwitcher(
+          duration: reduced ? Duration.zero : AppMotion.sheet,
+          switchInCurve: AppMotion.easeOut,
+          switchOutCurve: AppMotion.leaving,
+          transitionBuilder: (child, animation) => ScaleTransition(
+            scale: Tween<double>(begin: 0.85, end: 1).animate(animation),
+            child: FadeTransition(opacity: animation, child: child),
+          ),
+          child: AppAvatar(
+            key: ValueKey(state.myAvatarId),
+            name: state.myName,
+            avatarId: state.myAvatarId,
+            size: _faceSize,
+          ),
         ),
       ),
     );
   }
 }
+
+/// The face's size in the identity card.
+const double _faceSize = 76;
 
 /// PREMIUM under the name while a subscription runs; nothing otherwise, or
 /// on builds that sell nothing. Follows the subscription as it changes.
@@ -195,10 +230,11 @@ class _PremiumBadge extends StatelessWidget {
         return AnimatedSize(
           duration: AppMotion.card,
           curve: AppMotion.easeOut,
+          alignment: AlignmentDirectional.topStart,
           child: !active
               ? const SizedBox(width: double.infinity)
               : Padding(
-                  padding: const EdgeInsets.only(top: 10),
+                  padding: const EdgeInsets.only(top: 8),
                   child: Container(
                     key: const ValueKey('profile-premium'),
                     padding: const EdgeInsetsDirectional.fromSTEB(8, 4, 10, 4),
@@ -286,45 +322,67 @@ class _NameFieldState extends State<_NameField> {
       listener: (_, state) {
         if (!_focus.hasFocus) _controller.text = state.myName;
       },
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-        child: TextField(
-          key: const ValueKey('profile-name-field'),
-          controller: _controller,
-          focusNode: _focus,
-          maxLength: 20,
-          textInputAction: TextInputAction.done,
-          buildCounter: localizedCounter(
+      child: TextField(
+        key: const ValueKey('profile-name-field'),
+        controller: _controller,
+        focusNode: _focus,
+        maxLength: 20,
+        textInputAction: TextInputAction.done,
+        // The count only matters while typing; hidden otherwise so the
+        // card stays short.
+        buildCounter: _counterWhileTyping(
+          localizedCounter(
             style: TextStyle(color: AppColors.textSecondary.withAlpha(120)),
           ),
-          style: TextStyle(color: AppColors.textPrimary),
-          decoration: InputDecoration(
-            hintText: s.name_hint,
-            hintStyle: TextStyle(color: AppColors.textSecondary.withAlpha(160)),
-            filled: true,
-            fillColor: AppColors.surface,
-            prefixIcon: const Icon(Icons.badge_outlined, size: 20),
-            prefixIconColor: WidgetStateColor.resolveWith(
-              (states) => states.contains(WidgetState.focused)
-                  ? AppColors.amber
-                  : AppColors.textSecondary,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: AppColors.border),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: AppColors.border),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: AppColors.amber, width: 1.6),
-            ),
-          ),
-          onSubmitted: (_) => _focus.unfocus(),
         ),
+        style: TextStyle(
+          color: AppColors.textPrimary,
+          fontSize: 17,
+          fontWeight: FontWeight.w800,
+        ),
+        decoration: InputDecoration(
+          hintText: s.name_hint,
+          hintStyle: TextStyle(color: AppColors.textSecondary.withAlpha(160)),
+          isDense: true,
+          contentPadding: const EdgeInsetsDirectional.fromSTEB(14, 12, 8, 12),
+          filled: true,
+          fillColor: AppColors.surface,
+          suffixIcon: const Icon(Icons.edit_rounded, size: 18),
+          suffixIconColor: WidgetStateColor.resolveWith(
+            (states) => states.contains(WidgetState.focused)
+                ? AppColors.amber
+                : AppColors.textSecondary,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: AppColors.border),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: AppColors.border),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: AppColors.amber, width: 1.6),
+          ),
+        ),
+        onSubmitted: (_) => _focus.unfocus(),
       ),
     );
   }
 }
+
+InputCounterWidgetBuilder _counterWhileTyping(InputCounterWidgetBuilder base) =>
+    (
+      BuildContext context, {
+      required int currentLength,
+      required int? maxLength,
+      required bool isFocused,
+    }) => isFocused
+    ? base(
+        context,
+        currentLength: currentLength,
+        maxLength: maxLength,
+        isFocused: isFocused,
+      )
+    : null;

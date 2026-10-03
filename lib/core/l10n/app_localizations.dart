@@ -2558,6 +2558,60 @@ abstract class AppLocalizations {
   /// **'بعداً'**
   String get paywall_close;
 
+  /// No description provided for @paywall_months.
+  ///
+  /// In fa, this message translates to:
+  /// **'{count} ماه'**
+  String paywall_months(String count);
+
+  /// No description provided for @paywall_month.
+  ///
+  /// In fa, this message translates to:
+  /// **'یک ماه'**
+  String get paywall_month;
+
+  /// No description provided for @paywall_year.
+  ///
+  /// In fa, this message translates to:
+  /// **'یک سال'**
+  String get paywall_year;
+
+  /// No description provided for @paywall_per_month.
+  ///
+  /// In fa, this message translates to:
+  /// **'ماهی {price}'**
+  String paywall_per_month(String price);
+
+  /// No description provided for @paywall_save.
+  ///
+  /// In fa, this message translates to:
+  /// **'{percent} تخفیف'**
+  String paywall_save(String percent);
+
+  /// No description provided for @paywall_best_value.
+  ///
+  /// In fa, this message translates to:
+  /// **'به‌صرفه‌ترین'**
+  String get paywall_best_value;
+
+  /// No description provided for @paywall_cta.
+  ///
+  /// In fa, this message translates to:
+  /// **'فعالش کن'**
+  String get paywall_cta;
+
+  /// No description provided for @paywall_cta_plan.
+  ///
+  /// In fa, this message translates to:
+  /// **'{plan} · {price}'**
+  String paywall_cta_plan(String plan, String price);
+
+  /// No description provided for @paywall_trust.
+  ///
+  /// In fa, this message translates to:
+  /// **'پرداخت امن با بازار. هر وقت خواستی لغوش کن.'**
+  String get paywall_trust;
+
   /// No description provided for @sub_checking.
   ///
   /// In fa, this message translates to:
