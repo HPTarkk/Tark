@@ -158,6 +158,39 @@ void main() {
     expect(sent, isFalse);
   });
 
+  test('allows plain http to a backend on the local network', () async {
+    Uri? seen;
+    final client = clientFor((request) async {
+      seen = request.url;
+      return http.Response('{}', 200);
+    }, baseUrl: Uri.parse('http://192.168.8.187:8080/v1'));
+    final response = await client.send(const ApiRequest.get('/profile'));
+    expect(response, isA<ApiOk>());
+    expect(seen.toString(), 'http://192.168.8.187:8080/v1/profile');
+  });
+
+  test('plain http is limited to loopback and private addresses', () {
+    for (final ok in [
+      'http://localhost:8080/v1',
+      'http://127.0.0.1:8080/v1',
+      'http://10.0.2.2:8080/v1',
+      'http://172.20.1.5/v1',
+      'http://192.168.1.10/v1',
+    ]) {
+      expect(allowsPlainHttp(Uri.parse(ok)), isTrue, reason: ok);
+    }
+    for (final no in [
+      'http://api.example.test/v1',
+      'http://8.8.8.8/v1',
+      'http://172.32.0.1/v1',
+      'http://192.169.0.1/v1',
+      'http://10.0.0.1.example.test/v1',
+      'https://192.168.1.10/v1',
+    ]) {
+      expect(allowsPlainHttp(Uri.parse(no)), isFalse, reason: no);
+    }
+  });
+
   test('idempotency keys are random version-4 UUIDs', () {
     final a = newIdempotencyKey();
     final b = newIdempotencyKey();

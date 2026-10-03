@@ -9,6 +9,10 @@ import 'api_failure.dart';
 /// used without touching code:
 ///
 ///   flutter run --dart-define=TARK_API_BASE=https://staging.example/v1
+///
+/// A backend on the local network may use plain http (see
+/// [allowsPlainHttp]); Android then also needs cleartext allowed for that
+/// build (`android:usesCleartextTraffic="true"`).
 abstract final class TarkApiConfig {
   static const baseUrl = String.fromEnvironment(
     'TARK_API_BASE',
@@ -22,6 +26,26 @@ abstract final class TarkApiConfig {
   /// Long enough for a slow mobile handshake, short enough that a sign-in
   /// button never spins for a minute.
   static const timeout = Duration(seconds: 20);
+}
+
+/// Whether [base] may be reached over plain `http`: only a backend on this
+/// machine or on a private network (`localhost`, 127/8, 10/8, 172.16/12,
+/// 192.168/16, which covers the emulator's 10.0.2.2), so a developer can
+/// sign in against a backend on their laptop. Anything reachable from the
+/// internet stays HTTPS only.
+bool allowsPlainHttp(Uri base) {
+  if (base.scheme != 'http') return false;
+  final host = base.host.toLowerCase();
+  if (host == 'localhost') return true;
+  final parts = host.split('.');
+  if (parts.length != 4) return false;
+  final octets = parts.map(int.tryParse).toList();
+  if (octets.any((o) => o == null || o < 0 || o > 255)) return false;
+  final a = octets[0]!, b = octets[1]!;
+  return a == 127 ||
+      a == 10 ||
+      (a == 172 && b >= 16 && b <= 31) ||
+      (a == 192 && b == 168);
 }
 
 enum ApiMethod { get, post, put }

@@ -8,8 +8,9 @@ import 'api_failure.dart';
 import 'service_api.dart';
 
 /// [TarkServiceClient] over `package:http`, with the same rules as
-/// [HttpApiClient]: HTTPS only, every exchange bounded in time and bytes,
-/// and nothing below this line throws.
+/// [HttpApiClient]: HTTPS only (except a backend on this machine or the
+/// local network, see [allowsPlainHttp]), every exchange bounded in time and
+/// bytes, and nothing below this line throws.
 ///
 /// Logs method, path and status only. Bodies carry passwords, codes and
 /// tokens, and none of that belongs in a diagnostic log.
@@ -36,7 +37,7 @@ class HttpTarkServiceClient implements TarkServiceClient {
   Future<ApiResponse> send(ApiRequest request) async {
     final method = request.method.name.toUpperCase();
     final label = '$method ${request.path}';
-    if (_base.scheme != 'https') {
+    if (_base.scheme != 'https' && !allowsPlainHttp(_base)) {
       return ApiTransportFailure(
         MalformedResponse('refusing non-https API base: ${_base.scheme}'),
       );
