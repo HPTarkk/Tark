@@ -133,6 +133,8 @@ var texts = map[string][2]string{
 	"nav.logs":       {"Logs", "لاگ‌ها"},
 	"nav.account":    {"Account", "حساب من"},
 	"signout":        {"Sign out", "خروج"},
+	"signout.q":      {"Sign out?", "از پنل خارج می‌شی؟"},
+	"signout.x":      {"To come back you'll need your password and a code from your authenticator.", "برای برگشتن، رمزت و یه کد از برنامه‌ی احراز هویت لازمه."},
 	"nav.gOverview":  {"Overview", "نمای کلی"},
 	"nav.gAccounts":  {"Accounts", "حساب‌ها"},
 	"nav.gManage":    {"Manage", "مدیریت"},

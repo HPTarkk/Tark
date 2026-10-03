@@ -92,15 +92,29 @@ body.app { display: grid; grid-template-columns: var(--side) minmax(0, 1fr); min
 .side-actions { display: flex; gap: 8px; }
 .side-actions > * { flex: 1 1 0; min-width: 0; }
 .side-actions .lang, .side-actions button { white-space: nowrap; }
-.side .lang, .side .logout button { width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 10px; border-radius: 10px; font-size: .85rem; }
-.side .lang .i, .side .logout .i { width: 16px; height: 16px; }
-[dir="rtl"] .logout .i { transform: scaleX(-1); }
+.side .lang, .side .signout { width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 10px; border-radius: 10px; font-size: .85rem; }
+.side .lang .i, .side .signout .i { width: 16px; height: 16px; }
+[dir="rtl"] .signout .i, [dir="rtl"] .dialog-icon .i { transform: scaleX(-1); }
 
 main.content { width: 100%; max-width: 1320px; margin: 0 auto; padding: 36px clamp(20px, 3.2vw, 48px) 72px; min-width: 0; }
 main.content > * { animation: rise .5s var(--ease) both; }
 main.content > :nth-child(2) { animation-delay: .04s; } main.content > :nth-child(3) { animation-delay: .08s; }
 main.content > :nth-child(4) { animation-delay: .12s; } main.content > :nth-child(5) { animation-delay: .16s; }
 main.content > :nth-child(6) { animation-delay: .2s; } main.content > :nth-child(n+7) { animation-delay: .24s; }
+
+/* Confirm dialog (a popover: top layer, Esc and outside click close it). */
+.dialog { width: min(calc(100vw - 32px), 380px); margin: auto; padding: 28px 24px 22px; border: 1px solid var(--line); border-radius: 22px; background: var(--surface); color: var(--fg); text-align: center; box-shadow: 0 30px 80px -24px rgba(0, 0, 0, .5); }
+.dialog::backdrop { background: rgba(8, 10, 14, .55); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+.dialog.dialog:popover-open { animation: dialog-in .34s var(--ease) both; }
+.dialog:popover-open::backdrop { animation: auth-fade .25s ease both; }
+.dialog-icon { display: grid; place-items: center; width: 60px; height: 60px; margin: 0 auto 14px; border-radius: 50%; color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, var(--surface)); box-shadow: 0 0 0 8px color-mix(in srgb, var(--bad) 6%, transparent); }
+.dialog-icon .i { width: 26px; height: 26px; }
+.dialog h2 { margin: 0 0 6px; font-size: 1.2rem; font-weight: 800; }
+.dialog p { margin: 0 0 22px; color: var(--muted); font-size: .92rem; }
+.dialog-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.dialog-actions button { width: 100%; padding-block: 11px; }
+button.danger { background: var(--bad); box-shadow: 0 8px 20px -12px var(--bad); }
+@keyframes dialog-in { from { opacity: 0; transform: translateY(14px) scale(.96); } to { opacity: 1; transform: none; } }
 
 /* ---- page parts --------------------------------------------------------- */
 .page-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 28px; }
@@ -366,6 +380,7 @@ td.empty, p.empty, li.empty { text-align: center; color: var(--muted); padding: 
   .bar, .nav a.on::before { animation: none; }
   .firing .dot, .chip.live::before { animation: none; }
   .side, .scrim { transition: none; }
+  .dialog:popover-open { animation-name: auth-fade; }
   .kpi:hover, .tile:hover, .kpi:hover::after, .nav a:hover .i { transform: none; }
   button:active, .btn:active, .nav a:active, .icon-btn:active { transform: none; }
 }

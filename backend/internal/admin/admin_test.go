@@ -253,6 +253,10 @@ func TestOwnerFlow(t *testing.T) {
 		}
 	}
 	_, body = b.get("/")
+	// Sign out asks first: the sidebar button only opens the dialog.
+	if !strings.Contains(body, `popovertarget="confirm-signout"`) || !strings.Contains(body, `id="confirm-signout" popover`) {
+		t.Fatal("sign out does not ask first")
+	}
 	for _, want := range []string{"<p class=\"big\">1</p>", "<code>tark_premium_12m</code></dt><dd>1</dd>", "Failed sign-ins and codes</dt><dd>1</dd>"} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("dashboard lacks %q:\n%s", want, body)
