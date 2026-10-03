@@ -96,9 +96,33 @@ void main() {
     final scale = tester.widget<AnimatedScale>(find.byType(AnimatedScale));
     expect(scale.scale, 1);
     final mid = tester.getSize(find.byKey(const ValueKey('premium-mark')));
-    await tester.pumpAndSettle();
+    // Bounded: the glint loops while the mark shows.
+    await tester.pump(const Duration(seconds: 1));
     final end = tester.getSize(find.byKey(const ValueKey('premium-mark')));
     expect(end.width, greaterThan(0));
     expect(mid, end, reason: 'layout size is fixed; only paint scales');
+  });
+
+  testWidgets('the glint only runs while the mark shows, and not under '
+      'reduced motion', (tester) async {
+    Widget face(bool premium, {bool reduced = false}) => app(
+      MediaQuery(
+        data: MediaQueryData(disableAnimations: reduced),
+        child: Center(
+          child: TintedAvatar(seed: 'a', name: 'A', premium: premium),
+        ),
+      ),
+    );
+    await tester.pumpWidget(face(false));
+    await tester.pump(const Duration(seconds: 1));
+    expect(tester.binding.transientCallbackCount, 0);
+
+    await tester.pumpWidget(face(true));
+    await tester.pump(const Duration(seconds: 1));
+    expect(tester.binding.transientCallbackCount, greaterThan(0));
+
+    await tester.pumpWidget(face(true, reduced: true));
+    await tester.pump(const Duration(seconds: 1));
+    expect(tester.binding.transientCallbackCount, 0);
   });
 }
