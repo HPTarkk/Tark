@@ -16,6 +16,7 @@ import com.b1101.tark.security.AppSecureStorageHandler
 import com.b1101.tark.security.RoomIdentitySecureStorageHandler
 import com.b1101.tark.update.StoreHandler
 import com.b1101.tark.widget.WidgetControlBridge
+import com.wearemobilefirst.audio_io.AudioIoDevices
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -188,6 +189,15 @@ class MainActivity : FlutterActivity() {
         keepAliveHandler?.stop()
         audioSessionHandler?.dispose()
         bazaarBillingHandler?.dispose()
+        // The engine and its Dart side go with this screen, but the sound
+        // device they opened lives in the native library and the process can
+        // outlast them (the app swiped away mid-call). Left open it keeps the
+        // microphone, and the session started when the app is reopened can't
+        // open its own: the other phone stops hearing this one. Off the main
+        // thread, since closing a device can block on the audio service.
+        if (!isChangingConfigurations) {
+            Thread { runCatching { AudioIoDevices.releaseAll() } }.start()
+        }
         super.onDestroy()
     }
 }

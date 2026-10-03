@@ -103,19 +103,37 @@ class AudioIoFFI {
   // [limitDeviceCall]). A stuck device is abandoned on its isolate and the
   // next start opens a fresh one.
 
-  /// Returns the device handle address, or 0 if the device could not start.
-  static Future<int> _createAndStartDevice(double frameDuration) {
+  /// Whether this engine has closed the devices an earlier one left open.
+  /// Done once, before its first device: until then nothing open in this
+  /// process can be this engine's.
+  static bool _leftoversReleased = false;
+
+  /// Returns the device handle address, or 0 if the device could not start,
+  /// and how many devices an earlier engine had left running.
+  ///
+  /// The native library lives as long as the process, which can outlast the
+  /// Flutter engine that loaded it: Android may destroy the app's screen and
+  /// keep the process (the app swiped away during a call, then reopened).
+  /// The old engine's device then keeps running with no Dart side, and keeps
+  /// the microphone, so this one could never open its own. Seen on a Galaxy
+  /// S8 (Android 9): every start after reopening failed until the app was
+  /// killed.
+  static Future<(int, int)> _createAndStartDevice(
+    double frameDuration, {
+    required bool releaseLeftovers,
+  }) {
     return Isolate.run(() {
       final bindings = AudioIoBindings();
+      final leftovers = releaseLeftovers ? bindings.releaseAll?.call() ?? 0 : 0;
       final handle = bindings.create();
-      if (handle == nullptr) return 0;
+      if (handle == nullptr) return (0, leftovers);
 
       bindings.setFrameDuration(handle, frameDuration);
       if (bindings.start(handle) != 0) {
         bindings.destroy(handle);
-        return 0;
+        return (0, leftovers);
       }
-      return handle.address;
+      return (handle.address, leftovers);
     });
   }
 
@@ -135,23 +153,34 @@ class AudioIoFFI {
   Future<void> _start() async {
     if (_isRunning) return;
 
-    final handleAddress = await limitDeviceCall(
-      _createAndStartDevice(_requestedFrameDuration),
+    final releaseLeftovers = !_leftoversReleased;
+    _leftoversReleased = true;
+    final (handleAddress, leftovers) = await limitDeviceCall(
+      _createAndStartDevice(
+        _requestedFrameDuration,
+        releaseLeftovers: releaseLeftovers,
+      ),
       limit: _kStartLimit,
       onTimeout: () {
         AudioIoDiagnostics.report(
           'audio_io: device start did not return in '
           '${_kStartLimit.inSeconds}s — abandoned it',
         );
-        return 0;
+        return (0, 0);
       },
       // Came up after we gave up on it: nobody holds this handle, so close it.
       onLate: (late) {
-        if (late != 0) {
-          unawaited(_stopAndDestroyDevice(late).catchError((Object _) {}));
+        if (late.$1 != 0) {
+          unawaited(_stopAndDestroyDevice(late.$1).catchError((Object _) {}));
         }
       },
     );
+    if (leftovers > 0) {
+      AudioIoDiagnostics.report(
+        'audio_io: closed $leftovers device(s) an earlier run of the app '
+        'left open',
+      );
+    }
     if (handleAddress == 0) {
       throw Exception('Failed to start audio device');
     }

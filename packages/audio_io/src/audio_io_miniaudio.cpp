@@ -3,6 +3,8 @@
 #include <cstring>
 #include <cstdlib>
 #include <atomic>
+#include <mutex>
+#include <unordered_set>
 
 #include "double_ring_buffer.h"
 #include "voice_playout.h"
@@ -11,6 +13,7 @@
 #include <android/log.h>
 #include <dlfcn.h>
 #include <cstdint>
+#include <jni.h>
 #endif
 
 const size_t RING_BUFFER_SIZE = 8192;  // power of two — see DoubleRingBuffer
@@ -32,6 +35,10 @@ struct AudioContext {
     std::atomic<bool> isRunning;
     std::atomic<bool> isDeviceInitialized;
     double frameDuration;  // Store requested frame duration
+    // Held across every open, start, stop and close of [device], so
+    // audio_io_release_all can close a device while its owner is shutting
+    // down without the two tearing it down at once.
+    std::mutex lifecycle;
 
     AudioContext()
         : inputRingBuffer(new DoubleRingBuffer(RING_BUFFER_SIZE)),
@@ -70,24 +77,81 @@ void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uin
     }
 }
 
+// Every context this process has created and not destroyed. The library
+// outlives the Flutter engine that loaded it: when Android destroys the app's
+// screen but keeps the process (the app swiped away during a call), the Dart
+// side that owned a device is gone while its streams keep running and keep
+// the microphone. The next engine in the same process then cannot open its
+// own device (seen on a Galaxy S8, Android 9: "Failed to start audio device"
+// on every retry after reopening the app). This list is how those devices
+// get closed. See audio_io_release_all.
+static std::mutex g_contextsLock;
+static std::unordered_set<AudioContext*> g_contexts;
+
+static AudioContext* track(AudioContext* context) {
+    std::lock_guard<std::mutex> guard(g_contextsLock);
+    g_contexts.insert(context);
+    return context;
+}
+
+// Stops and closes the device; the context itself stays valid, so a read,
+// write or stop that still arrives for it is harmless.
+static void close_device_locked(AudioContext* context) {
+    if (context->isRunning) {
+        ma_device_stop(&context->device);
+        context->isRunning = false;
+    }
+    if (context->isDeviceInitialized) {
+        ma_device_uninit(&context->device);
+        context->isDeviceInitialized = false;
+    }
+}
+
+static int init_device_locked(AudioContext* context);
+
 extern "C" {
 
 void* audio_io_create() {
-
-    AudioContext* context = new AudioContext();
-    return context;  // Don't initialize device yet, wait for set_frame_duration
+    // Don't initialize device yet, wait for set_frame_duration
+    return track(new AudioContext());
 }
 
 void* audio_io_create_with_latency(double frameDuration) {
     AudioContext* context = new AudioContext();
     context->frameDuration = frameDuration;
-    return context;
+    return track(context);
 }
 
 int audio_io_init_device(void* handle) {
     if (!handle) return -1;
-    
     AudioContext* context = (AudioContext*)handle;
+    std::lock_guard<std::mutex> guard(context->lifecycle);
+    return init_device_locked(context);
+}
+
+// Closes every device this process still has open, and returns how many
+// were running. For a new owner of the audio (a fresh Flutter engine) before
+// it opens its first device, and for the app's screen going away for good.
+// Contexts are not freed: whoever still holds a handle can keep calling into
+// it, and gets silence and failed starts rather than a crash.
+int audio_io_release_all() {
+    std::lock_guard<std::mutex> guard(g_contextsLock);
+    int closed = 0;
+    for (AudioContext* context : g_contexts) {
+        // One its owner is opening or closing right now is still owned, and
+        // that call can hang (see device_call_limit.dart): skipped rather
+        // than waited on.
+        std::unique_lock<std::mutex> device(context->lifecycle, std::try_to_lock);
+        if (!device.owns_lock()) continue;
+        if (context->isRunning) closed++;
+        close_device_locked(context);
+    }
+    return closed;
+}
+
+} // extern "C"
+
+static int init_device_locked(AudioContext* context) {
     
     // Calculate period size in frames based on frame duration
     ma_uint32 periodSizeInFrames = (ma_uint32)(context->frameDuration * SAMPLE_RATE);
@@ -148,17 +212,21 @@ int audio_io_init_device(void* handle) {
     return 0;
 }
 
+extern "C" {
+
 void audio_io_destroy(void* handle) {
     if (!handle) return;
     
     AudioContext* context = (AudioContext*)handle;
-    
-    if (context->isRunning) {
-        ma_device_stop(&context->device);
+    {
+        // Out of the list first, so audio_io_release_all can't reach it
+        // while it is being freed.
+        std::lock_guard<std::mutex> guard(g_contextsLock);
+        g_contexts.erase(context);
     }
-    
-    if (context->isDeviceInitialized) {
-        ma_device_uninit(&context->device);
+    {
+        std::lock_guard<std::mutex> guard(context->lifecycle);
+        close_device_locked(context);
     }
     delete context;
 }
@@ -167,12 +235,13 @@ int audio_io_start(void* handle) {
     if (!handle) return -1;
     
     AudioContext* context = (AudioContext*)handle;
+    std::lock_guard<std::mutex> guard(context->lifecycle);
     
     if (context->isRunning) return 0;
     
     // Initialize device if not already done
     if (!context->isDeviceInitialized) {
-        if (audio_io_init_device(handle) != 0) {
+        if (init_device_locked(context) != 0) {
             return -1;
         }
     }
@@ -189,6 +258,7 @@ int audio_io_stop(void* handle) {
     if (!handle) return -1;
     
     AudioContext* context = (AudioContext*)handle;
+    std::lock_guard<std::mutex> guard(context->lifecycle);
     
     if (!context->isRunning) return 0;
     
@@ -294,6 +364,7 @@ int audio_io_get_input_session_id(void* handle) {
 #if defined(__ANDROID__) && defined(MA_SUPPORT_AAUDIO)
     if (!handle) return -1;
     AudioContext* context = (AudioContext*)handle;
+    std::lock_guard<std::mutex> guard(context->lifecycle);
     if (!context->isDeviceInitialized) return -1;
     if (context->device.pContext == NULL ||
         context->device.pContext->backend != ma_backend_aaudio) {
@@ -347,6 +418,7 @@ int audio_io_set_frame_duration(void* handle, double duration) {
     if (!handle) return -1;
     
     AudioContext* context = (AudioContext*)handle;
+    std::lock_guard<std::mutex> guard(context->lifecycle);
     
     // Store the new frame duration
     context->frameDuration = duration;
@@ -364,7 +436,7 @@ int audio_io_set_frame_duration(void* handle, double duration) {
         }
         
         // Re-initialize with new settings
-        if (audio_io_init_device(handle) != 0) {
+        if (init_device_locked(context) != 0) {
             return -1;
         }
         
@@ -403,3 +475,13 @@ double audio_io_get_frame_duration(void* handle) {
 }
 
 } // extern "C"
+
+#ifdef __ANDROID__
+// For MainActivity.onDestroy, through AudioIoDevices.releaseAll: the screen
+// is gone for good, so is the Dart side that owned these devices, and the
+// microphone should not stay on in a process nobody can see.
+extern "C" JNIEXPORT jint JNICALL
+Java_com_wearemobilefirst_audio_1io_AudioIoDevices_releaseAll(JNIEnv*, jclass) {
+    return (jint)audio_io_release_all();
+}
+#endif
