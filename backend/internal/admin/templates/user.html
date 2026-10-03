@@ -10,7 +10,7 @@
     <ul class="meta">
       <li>{{t "user.account"}} <code>{{.ID}}</code></li>
       <li>{{t "user.created" (when .Created)}}</li>
-      <li>{{t "user.avatar" (deref .Avatar)}}</li>
+      {{with .Avatar}}<li>{{t "user.avatar" .}}</li>{{end}}
       <li>{{t "user.signsIn"}} {{range $i, $p := .Providers}}{{if $i}}{{t "sep"}}{{end}}<span class="chip">{{$p}}</span>{{end}}</li>
     </ul>
   </div>
