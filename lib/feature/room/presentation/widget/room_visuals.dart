@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/l10n/extension.dart';
@@ -21,12 +23,18 @@ class MemberAvatar extends StatelessWidget {
     this.size = 44,
     this.ring = false,
     this.avatarId,
+    this.premium,
     super.key,
   });
 
   final RoomMember member;
   final double size;
   final bool ring;
+
+  /// Whether to show the premium mark: what the live channel says about this
+  /// member, or null for what was remembered from their last connection
+  /// ([RoomMember.premium]).
+  final bool? premium;
 
   /// The avatar this member announced in the live channel, when the Room is
   /// connected and their presence has been matched to them — see
@@ -49,6 +57,7 @@ class MemberAvatar extends StatelessWidget {
       size: size,
       ring: ring,
       avatarId: avatarId ?? member.avatarId,
+      premium: premium ?? member.premium,
     );
   }
 }
@@ -66,6 +75,7 @@ class TintedAvatar extends StatelessWidget {
     this.size = 44,
     this.ring = false,
     this.avatarId,
+    this.premium = false,
     super.key,
   });
 
@@ -73,6 +83,9 @@ class TintedAvatar extends StatelessWidget {
   final String name;
   final double size;
   final bool ring;
+
+  /// Adds the premium mark: a small amber star on the face's bottom corner.
+  final bool premium;
 
   /// The person's picked avatar, or null (never picked, not known yet, or
   /// a phone too old to send one) for the tinted initial.
@@ -94,7 +107,7 @@ class TintedAvatar extends StatelessWidget {
     final picture = AvatarPicture.shows(id);
     // A face that turns up (heard live, or remembered once the roster loads)
     // fades in over the initial instead of popping.
-    return AnimatedSwitcher(
+    final face = AnimatedSwitcher(
       duration: AppMotion.card,
       switchInCurve: AppMotion.easeOut,
       switchOutCurve: AppMotion.leaving,
@@ -102,6 +115,18 @@ class TintedAvatar extends StatelessWidget {
         key: ValueKey<int?>(picture ? id : null),
         child: _face(picture ? id : null),
       ),
+    );
+    final mark = size * 0.4;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        face,
+        PositionedDirectional(
+          end: -mark * 0.12,
+          bottom: -mark * 0.12,
+          child: PremiumMark(visible: premium, size: mark),
+        ),
+      ],
     );
   }
 
@@ -163,6 +188,68 @@ class TintedAvatar extends StatelessWidget {
   }
 }
 
+/// The premium mark on a member's face: a white star in an amber disc,
+/// ringed in the page colour so it reads as sitting on top of the face.
+/// Grows in from its centre when it turns up, and shrinks away when it goes;
+/// under reduced motion it only fades.
+class PremiumMark extends StatelessWidget {
+  const PremiumMark({required this.visible, this.size = 18, super.key});
+
+  final bool visible;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final reduced = AppMotion.reduced(context);
+    final amber = AppColors.amber;
+    return Semantics(
+      label: visible ? context.getString.premium_badge : null,
+      child: AnimatedOpacity(
+        opacity: visible ? 1 : 0,
+        duration: AppMotion.chip,
+        curve: AppMotion.easeOut,
+        child: AnimatedScale(
+          scale: visible || reduced ? 1 : 0.4,
+          duration: reduced ? Duration.zero : AppMotion.card,
+          curve: visible ? AppMotion.easeOut : AppMotion.leaving,
+          child: Container(
+            key: const ValueKey('premium-mark'),
+            width: size,
+            height: size,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color.lerp(amber, Colors.white, 0.18)!,
+                  Color.lerp(amber, Colors.black, 0.12)!,
+                ],
+              ),
+              border: Border.all(
+                color: AppColors.background,
+                width: math.max(1.5, size * 0.1),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: amber.withValues(alpha: 0.35),
+                  blurRadius: size * 0.4,
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.star_rounded,
+              size: size * 0.62,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Up to [maxShown] overlapping faces, then "+N".
 class RoomFaces extends StatelessWidget {
   const RoomFaces({
@@ -202,7 +289,13 @@ class RoomFaces extends StatelessWidget {
             for (var i = 0; i < shown.length; i++)
               PositionedDirectional(
                 start: i * step,
-                child: MemberAvatar(member: shown[i], size: size, ring: true),
+                // No premium marks in a stack: they would sit on the next face.
+                child: MemberAvatar(
+                  member: shown[i],
+                  size: size,
+                  ring: true,
+                  premium: false,
+                ),
               ),
             if (extra > 0)
               PositionedDirectional(

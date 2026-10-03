@@ -13,6 +13,7 @@ import '../../core/account/profile_sync.dart';
 import '../../core/entitlement/bazaar_billing_service.dart';
 import '../../core/entitlement/billing_service.dart';
 import '../../core/entitlement/install_identity.dart';
+import '../../core/profile/local_profile.dart';
 import '../../core/entitlement/license_gate.dart';
 import '../../core/entitlement/plan_catalog.dart';
 import '../../core/entitlement/signed_entitlement.dart';
@@ -125,6 +126,7 @@ abstract class BillingModule {
       monetized: Monetization.active,
     );
     session.signedOut.listen((_) => service.clear());
+    LocalProfile.isPremium = () => service.isPremiumActive;
     return service;
   }
 

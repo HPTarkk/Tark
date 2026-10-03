@@ -98,6 +98,11 @@ final class PresencePacket extends WakiPacket {
   /// as is, so the roster can draw the "newer avatar" face for it.
   final int? avatarId;
 
+  /// The sender says its subscription is running, so rooms can show a
+  /// premium mark on it. False from a build that predates this field. Taken
+  /// on trust: it is decoration and never unlocks anything here.
+  final bool isPremium;
+
   const PresencePacket({
     required super.senderId,
     required super.senderName,
@@ -109,6 +114,7 @@ final class PresencePacket extends WakiPacket {
     this.capabilityBitmask = 0,
     this.isLeaving = false,
     this.avatarId,
+    this.isPremium = false,
   });
 
   @override
@@ -120,6 +126,7 @@ final class PresencePacket extends WakiPacket {
     capabilityBitmask,
     isLeaving,
     avatarId,
+    isPremium,
   ];
 }
 

@@ -9,6 +9,7 @@ ChannelUser user(
   DateTime? lastSeen,
   SessionRole role = SessionRole.unknown,
   int? avatarId,
+  bool? isPremium,
 }) => ChannelUser(
   id: id,
   name: 'User $id',
@@ -16,6 +17,7 @@ ChannelUser user(
   lastSeen: lastSeen ?? DateTime.now(),
   role: role,
   avatarId: avatarId,
+  isPremium: isPremium,
 );
 
 void main() {
@@ -27,6 +29,20 @@ void main() {
         user('a', avatarId: 5),
       ], user('a', isTalking: true));
       expect(update.users.single.avatarId, 5);
+    });
+
+    test('audio, which says nothing about premium, keeps the mark', () {
+      final update = roster.upsert([
+        user('a', isPremium: true),
+      ], user('a', isTalking: true));
+      expect(update.users.single.isPremium, isTrue);
+    });
+
+    test('presence that says not premium clears the mark', () {
+      final update = roster.upsert([
+        user('a', isPremium: true),
+      ], user('a', isPremium: false));
+      expect(update.users.single.isPremium, isFalse);
     });
 
     test('a new avatar in presence replaces the old one', () {
@@ -140,6 +156,16 @@ void main() {
   });
 
   group('ChannelRoster.sameForDisplay', () {
+    test('a changed premium mark is a visible change', () {
+      expect(
+        ChannelRoster.sameForDisplay(
+          [user('a', isPremium: false)],
+          [user('a', isPremium: true)],
+        ),
+        isFalse,
+      );
+    });
+
     test('a changed avatar is a visible change', () {
       expect(
         ChannelRoster.sameForDisplay(

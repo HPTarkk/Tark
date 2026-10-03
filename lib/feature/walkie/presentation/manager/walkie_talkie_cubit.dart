@@ -962,6 +962,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
           packet.isTalking,
           packet.role,
           avatarId: packet.avatarId,
+          isPremium: packet.isPremium,
         );
         _syncWireFormat();
       case AudioPacket():
@@ -1151,6 +1152,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     bool isTalking,
     SessionRole role, {
     int? avatarId,
+    bool? isPremium,
   }) {
     final update = _roster.upsert(
       _users,
@@ -1161,6 +1163,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
         lastSeen: DateTime.now(),
         role: role,
         avatarId: avatarId,
+        isPremium: isPremium,
       ),
     );
     switch (update.change) {

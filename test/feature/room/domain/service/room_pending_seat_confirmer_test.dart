@@ -321,6 +321,7 @@ class _CountingRooms implements RoomRepository {
     String? displayName,
     bool? pending,
     int? avatarId,
+    bool? premium,
   }) {
     writes++;
     return _inner.updateMember(
@@ -353,6 +354,7 @@ class _BrokenRooms implements RoomRepository {
     String? displayName,
     bool? pending,
     int? avatarId,
+    bool? premium,
   }) async => throw StateError('storage is gone');
 
   @override

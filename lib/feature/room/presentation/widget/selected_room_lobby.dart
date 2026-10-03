@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../../core/diagnostics/screen_log.dart';
+import '../../../../core/entitlement/subscription_service.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/settings/settings_repository.dart';
@@ -76,6 +77,7 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
   late SavedRoom _room = widget.room;
   StreamSubscription<void>? _changes;
   StreamSubscription<int>? _myAvatarChanges;
+  StreamSubscription<void>? _myPremiumChanges;
 
   RoomRepository? get _repository {
     if (widget.repository != null) return widget.repository;
@@ -94,6 +96,31 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
       if (mounted) unawaited(_reload());
     });
     unawaited(_syncMyAvatar());
+    _syncMyPremium();
+  }
+
+  /// Puts this phone's own premium mark on its row, here and in the Rooms
+  /// list, and keeps it in step with the subscription.
+  void _syncMyPremium() {
+    if (!GetIt.instance.isRegistered<SubscriptionService>()) return;
+    final subscription = GetIt.instance<SubscriptionService>();
+    _myPremiumChanges = subscription.changes.listen(
+      (_) => unawaited(_rememberMyPremium(subscription.isPremiumActive)),
+    );
+    unawaited(_rememberMyPremium(subscription.isPremiumActive));
+  }
+
+  Future<void> _rememberMyPremium(bool premium) async {
+    final repository = _repository;
+    if (repository == null || !mounted) return;
+    final me = _room.membership.localMemberId;
+    final current = _room.room.members.where((member) => member.id == me);
+    if (current.isEmpty || current.first.premium == premium) return;
+    try {
+      await repository.updateMember(_room.room.id, me, premium: premium);
+    } catch (_) {
+      // Display metadata only: the row keeps its previous mark.
+    }
   }
 
   /// Puts this phone's own picked avatar on its row, here and in the Rooms
@@ -137,6 +164,7 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
   void dispose() {
     unawaited(_changes?.cancel());
     unawaited(_myAvatarChanges?.cancel());
+    unawaited(_myPremiumChanges?.cancel());
     super.dispose();
   }
 

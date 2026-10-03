@@ -459,7 +459,8 @@ void main() {
           false,
           role: SessionRole.peer,
         );
-        expect(packet.last, 0);
+        // The avatar byte, just before the profile flags.
+        expect(packet[packet.length - 2], 0);
         final decoded = codec.decode(packet, '1.2.3.4')! as PresencePacket;
         expect(decoded.avatarId, isNull);
       });
@@ -473,8 +474,9 @@ void main() {
           role: SessionRole.peer,
           isLeaving: true,
         );
-        // Exactly what a build before avatars sends: it ends at isLeaving.
-        final old = Uint8List.sublistView(full, 0, full.length - 1);
+        // Exactly what a build before avatars sends: it ends at isLeaving,
+        // without the avatar or the profile flags after it.
+        final old = Uint8List.sublistView(full, 0, full.length - 2);
         final decoded = codec.decode(old, '1.2.3.4')! as PresencePacket;
         expect(decoded.avatarId, isNull);
         expect(decoded.isLeaving, isTrue);
@@ -497,13 +499,56 @@ void main() {
           role: SessionRole.host,
           heardIds: const ['abc123abc123'],
         );
-        // Identical up to the last byte: nothing an older decoder reads
+        // Identical up to the avatar byte: nothing an older decoder reads
         // moved.
         expect(
-          withAvatar.sublist(0, withAvatar.length - 1),
-          without.sublist(0, without.length - 1),
+          withAvatar.sublist(0, withAvatar.length - 2),
+          without.sublist(0, without.length - 2),
         );
-        expect(withAvatar.last, 3);
+        expect(withAvatar[withAvatar.length - 2], 3);
+      });
+    });
+
+    group('premium', () {
+      tearDown(() => LocalProfile.isPremium = () => false);
+
+      test('a running subscription round-trips as the premium flag', () {
+        LocalProfile.isPremium = () => true;
+        final packet = codec.encodePresence(
+          'Pedram',
+          false,
+          role: SessionRole.peer,
+        );
+        expect(packet.last, 0x01);
+        final decoded = codec.decode(packet, '1.2.3.4')! as PresencePacket;
+        expect(decoded.isPremium, isTrue);
+      });
+
+      test('no subscription is not premium', () {
+        final packet = codec.encodePresence(
+          'Pedram',
+          false,
+          role: SessionRole.peer,
+        );
+        expect(packet.last, 0);
+        final decoded = codec.decode(packet, '1.2.3.4')! as PresencePacket;
+        expect(decoded.isPremium, isFalse);
+      });
+
+      test('a packet from before the flags reads as not premium, and the '
+          'avatar is unaffected', () {
+        LocalProfile.isPremium = () => true;
+        LocalProfile.avatarId = 4;
+        addTearDown(() => LocalProfile.avatarId = null);
+        final full = codec.encodePresence(
+          'Pedram',
+          false,
+          role: SessionRole.peer,
+        );
+        final old = Uint8List.sublistView(full, 0, full.length - 1);
+        final decoded = codec.decode(old, '1.2.3.4')! as PresencePacket;
+        expect(decoded.isPremium, isFalse);
+        expect(decoded.avatarId, 4);
       });
     });
 
@@ -513,11 +558,11 @@ void main() {
         false,
         role: SessionRole.host,
       );
-      // Role is 5 bytes from the end now: after it come the heard-list
-      // no-opinion sentinel, the #28 capability byte, the leaving byte and
-      // the avatar byte (heardIds is null here) — a later build may put
-      // anything in the role byte itself.
-      packet[packet.length - 5] = 99;
+      // Role is 6 bytes from the end now: after it come the heard-list
+      // no-opinion sentinel, the #28 capability byte, the leaving byte, the
+      // avatar byte and the profile flags (heardIds is null here) — a later
+      // build may put anything in the role byte itself.
+      packet[packet.length - 6] = 99;
 
       final decoded = codec.decode(packet, '192.168.43.7');
       expect(decoded, isNotNull, reason: 'the packet is still perfectly good');
@@ -771,10 +816,10 @@ void main() {
   group('pre-role compatibility', () {
     test('a v2 presence without the role byte still decodes', () {
       // Byte-for-byte what a build from before roles puts on the wire: the
-      // v2 header, isTalking, and nothing after it. Strips 4 trailing bytes
+      // v2 header, isTalking, and nothing after it. Strips 6 trailing bytes
       // — role, the heard-list no-opinion sentinel, the #28 capability
-      // byte, and the leaving byte (heardIds is null here) — all of which
-      // postdate this format.
+      // byte, the leaving byte, the avatar byte and the profile flags
+      // (heardIds is null here) — all of which postdate this format.
       final withRole = codec.encodePresence(
         'Older',
         true,
@@ -783,7 +828,7 @@ void main() {
       final withoutRole = Uint8List.sublistView(
         withRole,
         0,
-        withRole.length - 5,
+        withRole.length - 6,
       );
 
       final packet = codec.decode(withoutRole, '192.168.43.7');
@@ -822,13 +867,13 @@ void main() {
 
     test('a truncated v3 packet is rejected at every prefix length', () {
       final full = codec.encodePresence('Pedram', true, role: SessionRole.host);
-      // Stops 5 bytes short (role, the heard-list sentinel, the #28
-      // capability byte, the leaving byte and the avatar byte, in that
-      // order — heardIds is null here): every one of those prefixes is not
-      // truncation but a legitimate older format that decodes on purpose
-      // (covered above and in the capability, leaving-flag and avatar
-      // groups).
-      for (var length = 1; length < full.length - 5; length++) {
+      // Stops 6 bytes short (role, the heard-list sentinel, the #28
+      // capability byte, the leaving byte, the avatar byte and the profile
+      // flags, in that order — heardIds is null here): every one of those
+      // prefixes is not truncation but a legitimate older format that
+      // decodes on purpose (covered above and in the capability,
+      // leaving-flag, avatar and premium groups).
+      for (var length = 1; length < full.length - 6; length++) {
         expect(
           codec.decode(Uint8List.sublistView(full, 0, length), 'x'),
           isNull,
@@ -965,8 +1010,8 @@ void main() {
       final live = inChannel(channel);
       addTearDown(live.release);
       final full = live.encodePresence('P', true, role: SessionRole.host);
-      // See the v3 version of this test for why the bound is 5, not 1.
-      for (var length = 1; length < full.length - 5; length++) {
+      // See the v3 version of this test for why the bound is 6, not 1.
+      for (var length = 1; length < full.length - 6; length++) {
         expect(
           live.decode(Uint8List.sublistView(full, 0, length), 'x'),
           isNull,

@@ -336,6 +336,9 @@ class WakiPacketCodec {
     builder.addByte(
       avatarId != null && avatarId >= 1 && avatarId <= 255 ? avatarId : 0,
     );
+    // Profile flags after the avatar, on the same terms. One byte of bits so
+    // the next flag needs no new field: bit 0 is a running subscription.
+    builder.addByte(LocalProfile.isPremium() ? _kFlagPremium : 0);
     return builder.toBytes();
   }
 
@@ -343,6 +346,9 @@ class WakiPacketCodec {
   /// walkie channel is for, and 12 × 13 bytes keeps presence comfortably
   /// inside one datagram on any link.
   static const _maxHeardIds = 12;
+
+  /// Bit 0 of the presence profile-flags byte.
+  static const _kFlagPremium = 0x01;
 
   /// Sentinel heard-id count meaning "no opinion" (a null [heardIds]) rather
   /// than a real, possibly-empty list. Any value above [_maxHeardIds] works —
@@ -545,6 +551,11 @@ class WakiPacketCodec {
       final avatarByte = hasCapability && avatarOffset < bytes.length
           ? bytes[avatarOffset]
           : 0;
+      // Then the profile flags, absent from every build before them.
+      final flagsOffset = avatarOffset + 1;
+      final flags = hasCapability && flagsOffset < bytes.length
+          ? bytes[flagsOffset]
+          : 0;
       return PresencePacket(
         senderId: senderId,
         senderName: name,
@@ -564,6 +575,7 @@ class WakiPacketCodec {
             leavingOffset < bytes.length &&
             bytes[leavingOffset] == 0x01,
         avatarId: avatarByte == 0 ? null : avatarByte,
+        isPremium: flags & _kFlagPremium != 0,
       );
     }
 
