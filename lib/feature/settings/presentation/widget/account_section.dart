@@ -298,16 +298,22 @@ class _SignedIn extends StatelessWidget {
     required bool everywhere,
   }) async {
     final s = context.getString;
-    if (everywhere) {
-      final confirmed = await showConfirmSheet(
-        context,
-        title: s.account_sign_out_everywhere,
-        body: s.account_sign_out_everywhere_body,
-        action: s.account_sign_out_everywhere,
-        icon: Icons.devices_other_rounded,
-      );
-      if (!confirmed) return;
-    }
+    final confirmed = everywhere
+        ? await showConfirmSheet(
+            context,
+            title: s.account_sign_out_everywhere,
+            body: s.account_sign_out_everywhere_body,
+            action: s.account_sign_out_everywhere,
+            icon: Icons.devices_other_rounded,
+          )
+        : await showConfirmSheet(
+            context,
+            title: s.account_sign_out,
+            body: s.account_sign_out_body,
+            action: s.account_sign_out,
+            icon: Icons.logout_rounded,
+          );
+    if (!confirmed) return;
     await session.signOut(everywhere: everywhere);
     if (context.mounted) showAuthToast(context, s.account_signed_out_toast);
   }
