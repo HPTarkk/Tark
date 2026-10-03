@@ -1670,11 +1670,17 @@ abstract class AppLocalizations {
   /// **'تنظیمات'**
   String get settings_title;
 
-  /// No description provided for @settings_section_identity.
+  /// No description provided for @settings_profile_hint.
   ///
   /// In fa, this message translates to:
-  /// **'درباره تو'**
-  String get settings_section_identity;
+  /// **'اسم و قیافه‌ات رو عوض کن'**
+  String get settings_profile_hint;
+
+  /// No description provided for @settings_profile_hint_account.
+  ///
+  /// In fa, this message translates to:
+  /// **'اسم، قیافه و حسابت'**
+  String get settings_profile_hint_account;
 
   /// No description provided for @settings_section_voice.
   ///

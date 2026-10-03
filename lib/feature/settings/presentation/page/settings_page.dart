@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/entitlement/subscription_service.dart';
 import '../../../../core/home_widget/home_widget_service.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
@@ -16,6 +17,7 @@ import '../../../../core/widget/language_toggle.dart';
 import '../../../../core/widget/theme_toggle.dart';
 import '../../../walkie/api/walkie_api.dart';
 import '../manager/settings_cubit.dart';
+import '../widget/account_section.dart';
 import '../widget/settings_category_card.dart';
 import '../widget/settings_row.dart';
 
@@ -100,79 +102,147 @@ class _SettingsPageState extends State<SettingsPage> {
 
 // ── Profile ──────────────────────────────────────────────────────────────────
 
+/// The way into Profile: the face, the name and what lives behind it, on a
+/// card that is one big button, the first thing on the page.
 class _ProfileCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final s = context.getString;
+    final amber = AppColors.amber;
+    final radius = BorderRadius.circular(20);
     return BlocBuilder<SettingsCubit, SettingsState>(
       buildWhen: (p, c) => p.myName != c.myName || p.myAvatarId != c.myAvatarId,
-      builder: (context, state) => SettingsCategoryCard(
-        icon: Icons.person_rounded,
-        title: s.settings_section_identity,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
+      builder: (context, state) => PressableScale(
+        key: const ValueKey('settings-profile'),
+        borderRadius: radius,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          context.pushNamed(
+            AppRoutes.profileName,
+            extra: context.read<SettingsCubit>().liveSession,
+          );
+        },
+        child: Container(
+          padding: const EdgeInsetsDirectional.fromSTEB(14, 14, 10, 14),
+          decoration: BoxDecoration(
+            borderRadius: radius,
+            border: Border.all(color: amber.withValues(alpha: 0.35)),
+            gradient: LinearGradient(
+              begin: AlignmentDirectional.topStart,
+              end: AlignmentDirectional.bottomEnd,
+              colors: [
+                Color.alphaBlend(amber.withValues(alpha: 0.12), AppColors.card),
+                AppColors.card,
+              ],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: amber.withAlpha(20),
+                blurRadius: 24,
+                spreadRadius: -6,
+              ),
+            ],
+          ),
           child: Row(
             children: [
-              AppAvatar(
-                name: state.myName,
-                avatarId: state.myAvatarId,
-                size: 48,
+              Container(
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: amber.withValues(alpha: 0.6),
+                    width: 2,
+                  ),
+                ),
+                child: AppAvatar(
+                  name: state.myName,
+                  avatarId: state.myAvatarId,
+                  size: 54,
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
-                child: Text(
-                  state.myName.isEmpty ? '…' : state.myName,
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
-                  overflow: TextOverflow.ellipsis,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      state.myName.isEmpty ? '…' : state.myName,
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    const _ProfileCardSubtitle(),
+                  ],
                 ),
               ),
-              GestureDetector(
-                // Name and face are edited together on the Profile page.
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  context.pushNamed(
-                    AppRoutes.profileName,
-                    extra: context.read<SettingsCubit>().liveSession,
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.border,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.edit_rounded,
-                        color: AppColors.amber,
-                        size: 14,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        s.edit_name,
-                        style: TextStyle(
-                          color: AppColors.amber,
-                          fontSize: 10,
-                          letterSpacing: 1,
-                        ),
-                      ),
-                    ],
-                  ),
+              const SizedBox(width: 8),
+              Container(
+                width: 32,
+                height: 32,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(color: amber, shape: BoxShape.circle),
+                child: Icon(
+                  Directionality.of(context) == TextDirection.rtl
+                      ? Icons.chevron_left_rounded
+                      : Icons.chevron_right_rounded,
+                  color: AppColors.background,
+                  size: 22,
                 ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Under the name: PREMIUM while a subscription runs, otherwise what the
+/// Profile page holds.
+class _ProfileCardSubtitle extends StatelessWidget {
+  const _ProfileCardSubtitle();
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    final hint = Text(
+      AccountSection.visible
+          ? s.settings_profile_hint_account
+          : s.settings_profile_hint,
+      style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+    if (!GetIt.instance.isRegistered<SubscriptionService>()) return hint;
+    final subscription = GetIt.instance<SubscriptionService>();
+    return StreamBuilder<void>(
+      stream: subscription.changes,
+      builder: (context, _) {
+        if (!subscription.isPremiumActive) return hint;
+        final amber = AppColors.amber;
+        return Row(
+          children: [
+            Icon(Icons.workspace_premium_rounded, color: amber, size: 15),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                s.mysub_premium,
+                style: TextStyle(
+                  color: amber,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

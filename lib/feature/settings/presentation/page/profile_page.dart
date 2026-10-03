@@ -81,8 +81,7 @@ class ProfilePage extends StatelessWidget {
 
 /// Who this person is to everyone else: the face in a glowing ring beside
 /// the editable name (and a PREMIUM badge while a subscription runs), then
-/// the faces to choose from in one row. Compact on purpose, so the account
-/// card below stays in view.
+/// every face to choose from.
 class _IdentityCard extends StatelessWidget {
   const _IdentityCard();
 
@@ -148,16 +147,21 @@ class _IdentityCard extends StatelessWidget {
             padding: const EdgeInsetsDirectional.fromSTEB(16, 14, 16, 8),
             child: Text(s.profile_avatar_label, style: label()),
           ),
-          BlocBuilder<SettingsCubit, SettingsState>(
-            buildWhen: (p, c) => p.myAvatarId != c.myAvatarId,
-            builder: (context, state) => AvatarPickerStrip(
-              selectedId: state.myAvatarId,
-              accent: amber,
-              idleRing: AppColors.border,
-              onSelected: context.read<SettingsCubit>().setMyAvatarId,
+          // Every face at once: a sideways row hid most of them.
+          Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(16, 2, 16, 16),
+            child: BlocBuilder<SettingsCubit, SettingsState>(
+              buildWhen: (p, c) => p.myAvatarId != c.myAvatarId,
+              builder: (context, state) => AvatarPickerGrid(
+                selectedId: state.myAvatarId,
+                accent: amber,
+                idleRing: AppColors.border,
+                columns: 5,
+                spacing: 10,
+                onSelected: context.read<SettingsCubit>().setMyAvatarId,
+              ),
             ),
           ),
-          const SizedBox(height: 12),
         ],
       ),
     );

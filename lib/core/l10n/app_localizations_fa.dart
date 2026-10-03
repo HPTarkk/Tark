@@ -878,7 +878,10 @@ class AppLocalizationsFa extends AppLocalizations {
   String get settings_title => 'تنظیمات';
 
   @override
-  String get settings_section_identity => 'درباره تو';
+  String get settings_profile_hint => 'اسم و قیافه‌ات رو عوض کن';
+
+  @override
+  String get settings_profile_hint_account => 'اسم، قیافه و حسابت';
 
   @override
   String get settings_section_voice => 'صدا و میکروفون';

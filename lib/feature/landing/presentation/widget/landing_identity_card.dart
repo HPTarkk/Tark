@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/app_avatar.dart';
 import '../../../../core/widget/ticker_text.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../manager/landing_cubit.dart';
 
-/// Identity card on the landing page: avatar, name, IP and edit button.
+/// Identity card on the landing page: avatar, name and readiness. Tapping
+/// anywhere on it opens Profile.
 class LandingIdentityCard extends StatelessWidget {
   final LandingState state;
   final VoidCallback onEdit;
@@ -43,69 +45,74 @@ class LandingIdentityCard extends StatelessWidget {
       TransferMode.wifi => Icons.wifi_rounded,
     };
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border, width: 1.5),
-      ),
-      child: Row(
-        children: [
-          AppAvatar(name: state.myName, avatarId: state.myAvatarId, size: 50),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  state.myName.isEmpty ? '…' : state.myName,
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      transitionBuilder: (child, anim) => ScaleTransition(
-                        scale: anim,
-                        child: FadeTransition(opacity: anim, child: child),
-                      ),
-                      child: Icon(
-                        ready ? transportIcon : Icons.wifi_off_rounded,
-                        key: ValueKey(ready ? state.transferMode : null),
-                        color: ready ? AppColors.textSecondary : AppColors.red,
-                        size: 13,
-                      ),
+    // The whole card opens Profile, not just the small edit chip on it.
+    return PressableScale(
+      key: const ValueKey('landing-identity'),
+      onTap: onEdit,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border, width: 1.5),
+        ),
+        child: Row(
+          children: [
+            AppAvatar(name: state.myName, avatarId: state.myAvatarId, size: 50),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    state.myName.isEmpty ? '…' : state.myName,
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
                     ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: TickerText(
-                        text: networkStatus,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      AnimatedSwitcher(
                         duration: const Duration(milliseconds: 300),
-                        style: TextStyle(
+                        transitionBuilder: (child, anim) => ScaleTransition(
+                          scale: anim,
+                          child: FadeTransition(opacity: anim, child: child),
+                        ),
+                        child: Icon(
+                          ready ? transportIcon : Icons.wifi_off_rounded,
+                          key: ValueKey(ready ? state.transferMode : null),
                           color: ready
                               ? AppColors.textSecondary
                               : AppColors.red,
-                          fontSize: 12,
+                          size: 13,
                         ),
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: TickerText(
+                          text: networkStatus,
+                          duration: const Duration(milliseconds: 300),
+                          style: TextStyle(
+                            color: ready
+                                ? AppColors.textSecondary
+                                : AppColors.red,
+                            fontSize: 12,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 10),
-          GestureDetector(
-            onTap: onEdit,
-            child: Container(
+            const SizedBox(width: 10),
+            Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: AppColors.border,
@@ -127,8 +134,8 @@ class LandingIdentityCard extends StatelessWidget {
                 ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
