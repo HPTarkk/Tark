@@ -306,6 +306,8 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, page
 	data["Admin"] = adminFrom(r.Context())
 	data["Here"] = s.here(r)
 	data["Page"] = page
+	// A form result is the same page again: it skips the entrance motion.
+	data["Posted"] = r.Method == http.MethodPost
 	if sess := sessionFrom(r.Context()); sess != nil {
 		data["CSRF"] = sess.csrf
 	}

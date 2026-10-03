@@ -20,6 +20,10 @@
 * { box-sizing: border-box; }
 @font-face { font-family: Vazirmatn; src: url(/static/Vazirmatn-Regular.ttf) format("truetype"); font-weight: 100 500; font-display: swap; }
 @font-face { font-family: Vazirmatn; src: url(/static/Vazirmatn-Bold.ttf) format("truetype"); font-weight: 600 900; font-display: swap; }
+/* Draws 0-9 as Persian digits on Persian pages while the text stays Latin,
+   so prices, ids and codes copy as they are (scripts/admin_digit_font.py). */
+@font-face { font-family: "Vazirmatn Digits"; src: url(/static/VazirmatnDigits-Regular.woff2) format("woff2"); font-weight: 100 500; font-display: swap; }
+@font-face { font-family: "Vazirmatn Digits"; src: url(/static/VazirmatnDigits-Bold.woff2) format("woff2"); font-weight: 600 900; font-display: swap; }
 html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
 main { padding: 16px; max-width: 1100px; margin: 0 auto; }
@@ -38,6 +42,12 @@ code.key { font-size: 1.1em; letter-spacing: .05em; }
 input, select, button { font: inherit; color: var(--fg); }
 input, select { padding: 11px 14px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--bg); transition: border-color .18s ease, box-shadow .18s ease; min-width: 0; }
 input::placeholder { color: color-mix(in srgb, var(--muted) 75%, transparent); }
+select { -webkit-appearance: none; appearance: none; cursor: pointer; padding-inline-end: 42px; font-weight: 500; background: url(/static/chevron.svg) no-repeat right 14px center / 16px, var(--bg); transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease; }
+[dir="rtl"] select { background-position: left 14px center, 0 0; }
+select:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line-2)); background-color: color-mix(in srgb, var(--accent) 4%, var(--bg)); }
+select option { background: var(--surface); color: var(--fg); }
+@media (prefers-color-scheme: dark) { select { background-image: url(/static/chevron-dark.svg); } }
+input:hover:not(:focus) { border-color: color-mix(in srgb, var(--fg) 22%, var(--line-2)); }
 input:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 20%, transparent); }
 label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: .875rem; }
 form { margin: 0; }
@@ -115,6 +125,17 @@ main.content > :nth-child(6) { animation-delay: .2s; } main.content > :nth-child
 .dialog-actions button { width: 100%; padding-block: 11px; }
 button.danger { background: var(--bad); box-shadow: 0 8px 20px -12px var(--bad); }
 @keyframes dialog-in { from { opacity: 0; transform: translateY(14px) scale(.96); } to { opacity: 1; transform: none; } }
+
+/* A form result is the same page again: no entrance replay, and the form
+   action's #section brings the page back to where the button was. */
+body.posted main.content > *, body.posted .page-icon, body.posted .avatar.xl, body.posted .kpi .big, body.posted .bar { animation: none; }
+[id] { scroll-margin-top: 24px; }
+/* The outcome of an action floats at the top, wherever the page is. */
+main.content > .flash.toast { position: fixed; z-index: 70; top: 18px; inset-inline: 0; width: max-content; max-width: min(calc(100vw - 32px), 560px); margin: 0 auto; box-shadow: 0 18px 50px -18px rgba(0, 0, 0, .45); animation: toast-in .45s var(--ease) both, toast-out .4s ease 7s forwards; }
+main.content > .flash.toast.bad { animation: toast-in .45s var(--ease) both, shake .42s .15s ease, toast-out .4s ease 10s forwards; }
+main.content > .flash.toast:hover { animation-play-state: paused; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(-16px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes toast-out { to { opacity: 0; transform: translateY(-12px); visibility: hidden; } }
 
 /* ---- page parts --------------------------------------------------------- */
 .page-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 28px; }
@@ -327,6 +348,8 @@ td.empty, p.empty, li.empty { text-align: center; color: var(--muted); padding: 
   .side { overflow: hidden; }
   .side-inner { position: static; height: 100%; }
   main.content { padding: 22px 16px 56px; }
+  [id] { scroll-margin-top: 80px; }
+  main.content > .flash.toast { top: 72px; }
   .split { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 640px) {
@@ -358,7 +381,8 @@ td.empty, p.empty, li.empty { text-align: center; color: var(--muted); padding: 
 }
 
 /* Persian: no capitals and no letter spacing, which break joined letters. */
-:root[lang="fa"] body { font-family: Vazirmatn, Tahoma, system-ui, sans-serif; }
+:root[lang="fa"] body { font-family: "Vazirmatn Digits", Vazirmatn, Tahoma, system-ui, sans-serif; }
+:root[lang="fa"] .email, :root[lang="fa"] input[type="email"], :root[lang="fa"] .lang[lang="en"] { font-family: Vazirmatn, Tahoma, system-ui, sans-serif; }
 :root[lang="fa"] input[dir="ltr"]::placeholder { direction: ltr; }
 :root[lang="fa"] th, :root[lang="fa"] .nav-group { text-transform: none; letter-spacing: 0; font-size: .8rem; }
 :root[lang="fa"] .page-head h1, :root[lang="fa"] .profile h1, :root[lang="fa"] .search-hero h1, :root[lang="fa"] .brand, :root[lang="fa"] .kpi .big { letter-spacing: 0; }
@@ -381,6 +405,7 @@ td.empty, p.empty, li.empty { text-align: center; color: var(--muted); padding: 
   .firing .dot, .chip.live::before { animation: none; }
   .side, .scrim { transition: none; }
   .dialog:popover-open { animation-name: auth-fade; }
+  main.content > .flash.toast, main.content > .flash.toast.bad { animation: auth-fade .3s both, toast-out .3s ease 8s forwards; }
   .kpi:hover, .tile:hover, .kpi:hover::after, .nav a:hover .i { transform: none; }
   button:active, .btn:active, .nav a:active, .icon-btn:active { transform: none; }
 }

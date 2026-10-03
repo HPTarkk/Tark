@@ -3,6 +3,7 @@ package admin
 import (
 	"fmt"
 	"html/template"
+	"io/fs"
 	"math"
 	"reflect"
 	"strconv"
@@ -26,16 +27,6 @@ var funcs = template.FuncMap{
 	"p":       func(h metrics.Hist, q float64) string { return latency(h.Quantile(q)) },
 	"bytes":   func(n uint64) string { return fmt.Sprintf("%.1f MB", float64(n)/(1<<20)) },
 	"dur":     func(d time.Duration) string { return d.Round(time.Millisecond).String() },
-	// when formats a time (or *time.Time) in UTC; nil and zero show a dash.
-	"when": func(v any) string {
-		t, ok := timeOf(v)
-		if !ok {
-			return "-"
-		}
-		// Isolated, so date and time keep their order inside Persian text.
-		return "\u2066" + t.UTC().Format("2006-01-02 15:04") + "\u2069"
-	},
-	"day": func(t time.Time) string { return t.UTC().Format("01-02") },
 	// bar maps a count to one of ten height classes for the CSS bar chart
 	// (the CSP forbids inline styles).
 	"bar": func(n, max int) int {
@@ -55,6 +46,23 @@ var funcs = template.FuncMap{
 		return v
 	},
 	"icon": icon,
+	// avatar is the picture of an app avatar id (one of the app's own
+	// avatars, copied into static/avatars), or "" for none or unknown.
+	"avatar": func(v any) string {
+		id, ok := v.(*string)
+		if !ok || id == nil {
+			return ""
+		}
+		n, err := strconv.Atoi(*id)
+		if err != nil || n < 1 {
+			return ""
+		}
+		name := "static/avatars/" + strconv.Itoa(n) + ".webp"
+		if _, err := fs.Stat(assets, name); err != nil {
+			return ""
+		}
+		return "/" + name
+	},
 	// initial is the first letter of a name, for the round avatars.
 	"initial": func(s string) string {
 		r, _ := utf8.DecodeRuneInString(strings.TrimSpace(s))
@@ -114,6 +122,16 @@ func funcsFor(lang string) template.FuncMap {
 		}
 		return c
 	}
+	// when is a time (or *time.Time) in Tehran time, in the page's
+	// calendar; nil and zero show a dash. day is a short chart label.
+	m["when"] = func(v any) string {
+		t, ok := timeOf(v)
+		if !ok {
+			return "-"
+		}
+		return formatWhen(lang, t)
+	}
+	m["day"] = func(t time.Time) string { return formatDay(lang, t) }
 	// ago is "3h ago", "5d ago".
 	m["ago"] = func(v any) string {
 		t, ok := timeOf(v)

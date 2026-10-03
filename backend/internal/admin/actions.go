@@ -195,7 +195,7 @@ func (s *Server) grantPremium(ctx context.Context, r *http.Request, userID, reas
 			userID, map[string]any{"grant": gid, "months": months, "until": end.UTC().Format(time.RFC3339), "by": a.Name, "reason": reason})
 		return err
 	})
-	return T(ctx, "act.granted", end.UTC().Format("2006-01-02")), err
+	return T(ctx, "act.granted", formatDate(langFrom(ctx), end)), err
 }
 
 func (s *Server) revokeGrant(ctx context.Context, r *http.Request, userID, reason string) (string, error) {

@@ -9,7 +9,7 @@
   <ul class="checks">
   {{range .Alerts}}<li class="{{if .Firing}}firing{{else}}fine{{end}}"><span class="dot" aria-hidden="true"></span>
     <div><p class="check-top"><code>{{.Key}}</code>{{if .Firing}}<span class="chip bad">{{t "system.firing" (when .Since)}}</span>{{else}}<span class="chip good">{{t "ok"}}</span>{{end}}</p>
-    <p class="muted"><span class="ltr">{{.Detail}}</span> · {{ago .Updated}}</p></div></li>
+    <p class="muted"><span class="ltr email">{{.Detail}}</span> · {{ago .Updated}}</p></div></li>
   {{else}}<li class="empty">{{t "system.noChecks"}}</li>{{end}}
   </ul>
 </section>

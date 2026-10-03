@@ -416,7 +416,7 @@ var texts = map[string][2]string{
 	"system.slowest":    {", slowest 5%% %v", "، کندترین 5%% %v"},
 	"system.email":      {"Email: %v sent, %v failed tries", "ایمیل: %v فرستاده‌شده، %v تلاش ناموفق"},
 	"system.process":    {"Server process", "فرایند سرور"},
-	"system.since":      {"Running since %v UTC (%v)", "در حال اجرا از %v UTC (%v)"},
+	"system.since":      {"Running since %v (%v)", "در حال اجرا از %v (%v)"},
 	"system.memory":     {"Memory: %v in use, %v from the system", "حافظه: %v در حال استفاده، %v از سیستم"},
 	"system.goroutines": {"%v goroutines", "%v گوروتین"},
 	"system.byRoute":    {"Requests by route, last hour", "درخواست‌ها بر اساس مسیر، یک ساعت اخیر"},
