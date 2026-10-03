@@ -185,10 +185,9 @@ class _ProfileCard extends StatelessWidget {
                 height: 32,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(color: amber, shape: BoxShape.circle),
+                // Mirrors itself in Persian, like every other row's arrow.
                 child: Icon(
-                  Directionality.of(context) == TextDirection.rtl
-                      ? Icons.chevron_left_rounded
-                      : Icons.chevron_right_rounded,
+                  Icons.chevron_right_rounded,
                   color: AppColors.background,
                   size: 22,
                 ),

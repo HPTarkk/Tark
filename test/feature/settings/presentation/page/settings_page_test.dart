@@ -80,6 +80,14 @@ void main() {
     expect(find.text('Pedi'), findsOneWidget);
     expect(find.text('Change your name and face'), findsOneWidget);
 
+    // The arrow is the one every row uses, which turns itself around in
+    // Persian; picking a direction by hand flips it the wrong way.
+    final arrow = tester.widget<Icon>(
+      find.descendant(of: card, matching: find.byType(Icon)).last,
+    );
+    expect(arrow.icon, Icons.chevron_right_rounded);
+    expect(arrow.icon!.matchTextDirection, isTrue);
+
     await tester.tap(card);
     await settle(tester);
     expect(find.text('PROFILE'), findsOneWidget);
