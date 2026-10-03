@@ -73,6 +73,9 @@ typedef AudioIoVoiceSetTarget = void Function(Pointer<Void> handle, int frames);
 typedef AudioIoVoiceResetNative = Void Function(Pointer<Void> handle);
 typedef AudioIoVoiceReset = void Function(Pointer<Void> handle);
 
+typedef AudioIoReleaseAllNative = Int32 Function();
+typedef AudioIoReleaseAll = int Function();
+
 typedef AudioIoVoiceStatNative = Int64 Function(
     Pointer<Void> handle, Int32 which);
 typedef AudioIoVoiceStat = int Function(Pointer<Void> handle, int which);
@@ -100,6 +103,9 @@ class AudioIoBindings {
   late final AudioIoVoiceSetTarget voiceSetTarget;
   late final AudioIoVoiceReset voiceReset;
   late final AudioIoVoiceStat voiceStat;
+
+  /// Null where the native library predates it.
+  late final AudioIoReleaseAll? releaseAll;
 
   AudioIoBindings() {
     _lib = _loadLibrary();
@@ -190,6 +196,12 @@ class AudioIoBindings {
     voiceStat = _lib
         .lookup<NativeFunction<AudioIoVoiceStatNative>>('audio_io_voice_stat')
         .asFunction();
+    releaseAll = _lib.providesSymbol('audio_io_release_all')
+        ? _lib
+            .lookup<NativeFunction<AudioIoReleaseAllNative>>(
+                'audio_io_release_all')
+            .asFunction()
+        : null;
   }
 
   static DynamicLibrary _loadLibrary() {
