@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/entitlement/subscription_service.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/settings/settings_repository.dart';
@@ -102,47 +103,133 @@ class ProfilePage extends StatelessWidget {
 
 /// The face, large, with the name under it: a preview of how this person
 /// appears to everyone else. Swaps with a small pop when the face changes.
+/// Sits in a glowing ring, and carries a PREMIUM badge while a subscription
+/// runs.
 class _Hero extends StatelessWidget {
   const _Hero();
 
   @override
   Widget build(BuildContext context) {
     final reduced = AppMotion.reduced(context);
+    final amber = AppColors.amber;
     return BlocBuilder<SettingsCubit, SettingsState>(
       buildWhen: (p, c) => p.myAvatarId != c.myAvatarId || p.myName != c.myName,
       builder: (context, state) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 18),
         child: Column(
           children: [
-            AnimatedSwitcher(
-              duration: reduced ? Duration.zero : AppMotion.sheet,
-              switchInCurve: Curves.easeOutBack,
-              transitionBuilder: (child, animation) => ScaleTransition(
-                scale: Tween<double>(begin: 0.8, end: 1).animate(animation),
-                child: FadeTransition(opacity: animation, child: child),
+            Container(
+              padding: const EdgeInsets.all(5),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: amber.withValues(alpha: 0.55),
+                  width: 2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: amber.withValues(alpha: 0.2),
+                    blurRadius: 26,
+                    spreadRadius: 1,
+                  ),
+                ],
               ),
-              child: AppAvatar(
-                key: ValueKey(state.myAvatarId),
-                name: state.myName,
-                avatarId: state.myAvatarId,
-                size: 112,
+              child: AnimatedSwitcher(
+                duration: reduced ? Duration.zero : AppMotion.sheet,
+                switchInCurve: AppMotion.easeOut,
+                switchOutCurve: AppMotion.leaving,
+                transitionBuilder: (child, animation) => ScaleTransition(
+                  scale: Tween<double>(begin: 0.85, end: 1).animate(animation),
+                  child: FadeTransition(opacity: animation, child: child),
+                ),
+                child: AppAvatar(
+                  key: ValueKey(state.myAvatarId),
+                  name: state.myName,
+                  avatarId: state.myAvatarId,
+                  size: 112,
+                ),
               ),
             ),
             const SizedBox(height: 14),
-            Text(
-              state.myName.isEmpty ? '…' : state.myName,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
+            AnimatedSwitcher(
+              duration: AppMotion.chip,
+              switchInCurve: AppMotion.easeOut,
+              switchOutCurve: AppMotion.leaving,
+              child: Text(
+                state.myName.isEmpty ? '…' : state.myName,
+                key: ValueKey(state.myName),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 21,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ),
+            const _PremiumBadge(),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// PREMIUM under the name while a subscription runs; nothing otherwise, or
+/// on builds that sell nothing. Follows the subscription as it changes.
+class _PremiumBadge extends StatelessWidget {
+  const _PremiumBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    if (!GetIt.instance.isRegistered<SubscriptionService>()) {
+      return const SizedBox.shrink();
+    }
+    final subscription = GetIt.instance<SubscriptionService>();
+    return StreamBuilder<void>(
+      stream: subscription.changes,
+      builder: (context, _) {
+        final active = subscription.isPremiumActive;
+        final amber = AppColors.amber;
+        return AnimatedSize(
+          duration: AppMotion.card,
+          curve: AppMotion.easeOut,
+          child: !active
+              ? const SizedBox(width: double.infinity)
+              : Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Container(
+                    key: const ValueKey('profile-premium'),
+                    padding: const EdgeInsetsDirectional.fromSTEB(8, 4, 10, 4),
+                    decoration: BoxDecoration(
+                      color: amber.withValues(alpha: 0.16),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: amber.withValues(alpha: 0.45)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.star_rounded, size: 14, color: amber),
+                        const SizedBox(width: 4),
+                        Text(
+                          context.getString.mysub_premium,
+                          style: TextStyle(
+                            color: amber,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing:
+                                Directionality.of(context) == TextDirection.rtl
+                                ? 0
+                                : 1.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+        );
+      },
     );
   }
 }
@@ -216,17 +303,23 @@ class _NameFieldState extends State<_NameField> {
             hintStyle: TextStyle(color: AppColors.textSecondary.withAlpha(160)),
             filled: true,
             fillColor: AppColors.surface,
+            prefixIcon: const Icon(Icons.badge_outlined, size: 20),
+            prefixIconColor: WidgetStateColor.resolveWith(
+              (states) => states.contains(WidgetState.focused)
+                  ? AppColors.amber
+                  : AppColors.textSecondary,
+            ),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(14),
               borderSide: BorderSide(color: AppColors.border),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(14),
               borderSide: BorderSide(color: AppColors.border),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(color: AppColors.amber),
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: AppColors.amber, width: 1.6),
             ),
           ),
           onSubmitted: (_) => _focus.unfocus(),

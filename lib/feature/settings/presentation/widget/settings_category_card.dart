@@ -56,7 +56,12 @@ class SettingsCategoryCard extends StatelessWidget {
                     color: AppColors.textSecondary,
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
-                    letterSpacing: 1.8,
+                    // Persian is a joined script: spacing its letters pulls
+                    // every word apart.
+                    letterSpacing:
+                        Directionality.of(context) == TextDirection.rtl
+                        ? 0
+                        : 1.8,
                   ),
                 ),
               ],

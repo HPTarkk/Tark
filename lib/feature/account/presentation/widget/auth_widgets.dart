@@ -6,9 +6,9 @@ import 'package:flutter/services.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
-import 'auth_hero.dart';
+import '../../../../core/widget/status_hero.dart';
 
-/// The frame every account screen shares: a back arrow, the [AuthHero], a
+/// The frame every account screen shares: a back arrow, the [StatusHero], a
 /// heading and a line of explanation, then the screen's own fields, all
 /// arriving in one stagger over a warm wash that cools to green once the
 /// flow is done. The same composition as the Wi-Fi page.
@@ -108,7 +108,7 @@ class AuthScaffold extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Center(
-                              child: AuthHero(
+                              child: StatusHero(
                                 icon: icon,
                                 color: color,
                                 busy: busy,

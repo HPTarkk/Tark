@@ -1345,6 +1345,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paywall_locked_music => 'Sharing music is premium';
 
   @override
+  String get paywall_perk_wifi => 'Wi-Fi, Hotspot and Guest';
+
+  @override
+  String get paywall_perk_mute => 'Mute yourself mid-talk';
+
+  @override
+  String get paywall_perk_music => 'Share music into the room';
+
+  @override
   String get paywall_free_note => 'Bluetooth stays free, always';
 
   @override
