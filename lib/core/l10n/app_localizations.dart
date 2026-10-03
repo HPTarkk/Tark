@@ -2504,6 +2504,24 @@ abstract class AppLocalizations {
   /// **'پخش آهنگ توی نسخه ویژه‌ست'**
   String get paywall_locked_music;
 
+  /// No description provided for @paywall_perk_wifi.
+  ///
+  /// In fa, this message translates to:
+  /// **'وای‌فای، هات‌اسپات و مهمان'**
+  String get paywall_perk_wifi;
+
+  /// No description provided for @paywall_perk_mute.
+  ///
+  /// In fa, this message translates to:
+  /// **'ساکت کردن خودت وسط حرف زدن'**
+  String get paywall_perk_mute;
+
+  /// No description provided for @paywall_perk_music.
+  ///
+  /// In fa, this message translates to:
+  /// **'پخش آهنگ برای بقیه‌ی اتاق'**
+  String get paywall_perk_music;
+
   /// No description provided for @paywall_free_note.
   ///
   /// In fa, this message translates to:

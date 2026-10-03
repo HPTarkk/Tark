@@ -1340,6 +1340,15 @@ class AppLocalizationsFa extends AppLocalizations {
   String get paywall_locked_music => 'پخش آهنگ توی نسخه ویژه‌ست';
 
   @override
+  String get paywall_perk_wifi => 'وای‌فای، هات‌اسپات و مهمان';
+
+  @override
+  String get paywall_perk_mute => 'ساکت کردن خودت وسط حرف زدن';
+
+  @override
+  String get paywall_perk_music => 'پخش آهنگ برای بقیه‌ی اتاق';
+
+  @override
   String get paywall_free_note => 'بلوتوث همیشه رایگان می‌مونه';
 
   @override

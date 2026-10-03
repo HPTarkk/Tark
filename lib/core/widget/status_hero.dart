@@ -3,11 +3,11 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../core/motion/app_motion.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../motion/app_motion.dart';
+import '../theme/app_colors.dart';
 
-/// The glyph at the top of every account screen, and the one place the
-/// screen's state shows at a glance.
+/// The glyph at the top of the account and subscription screens, and the one
+/// place the screen's state shows at a glance.
 ///
 /// - **Arriving:** scales up from just under full size while two rings leave
 ///   it, once, like the signal rings on the Wi-Fi page.
@@ -17,11 +17,14 @@ import '../../../../core/theme/app_colors.dart';
 ///   element allowed to overshoot) and a ring bursts out. [onSuccessShown]
 ///   fires once that beat has played, which is when the screen leaves.
 ///
+/// A new [icon] crossfades in place, so a screen that moves between states
+/// keeps one hero that changes its mark rather than a new one arriving.
+///
 /// Floor-device budget: one painter driven through `repaint:`, strokes only,
 /// no blur masks or clipping. The only repeating controller is the busy arc,
 /// and it runs only while a request is out and full motion is allowed.
-class AuthHero extends StatefulWidget {
-  const AuthHero({
+class StatusHero extends StatefulWidget {
+  const StatusHero({
     required this.icon,
     required this.color,
     this.busy = false,
@@ -44,10 +47,10 @@ class AuthHero extends StatefulWidget {
   static const double core = 76;
 
   @override
-  State<AuthHero> createState() => _AuthHeroState();
+  State<StatusHero> createState() => _StatusHeroState();
 }
 
-class _AuthHeroState extends State<AuthHero> with TickerProviderStateMixin {
+class _StatusHeroState extends State<StatusHero> with TickerProviderStateMixin {
   late final AnimationController _in = AnimationController(
     vsync: this,
     duration: AppMotion.sheet * 2.5,
@@ -89,7 +92,7 @@ class _AuthHeroState extends State<AuthHero> with TickerProviderStateMixin {
   }
 
   @override
-  void didUpdateWidget(AuthHero oldWidget) {
+  void didUpdateWidget(StatusHero oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.busy != oldWidget.busy) {
       if (widget.busy) {
@@ -147,8 +150,8 @@ class _AuthHeroState extends State<AuthHero> with TickerProviderStateMixin {
     final green = AppColors.green;
 
     Widget hero = SizedBox(
-      width: AuthHero.size,
-      height: AuthHero.size,
+      width: StatusHero.size,
+      height: StatusHero.size,
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -161,7 +164,7 @@ class _AuthHeroState extends State<AuthHero> with TickerProviderStateMixin {
                 success: _success,
                 color: widget.color,
                 green: green,
-                coreRadius: AuthHero.core / 2,
+                coreRadius: StatusHero.core / 2,
                 travel: !reduced,
               ),
             ),
@@ -171,8 +174,8 @@ class _AuthHeroState extends State<AuthHero> with TickerProviderStateMixin {
             builder: (context, child) {
               final c = Color.lerp(widget.color, green, done.value)!;
               return Container(
-                width: AuthHero.core,
-                height: AuthHero.core,
+                width: StatusHero.core,
+                height: StatusHero.core,
                 decoration: BoxDecoration(
                   color: AppColors.card,
                   shape: BoxShape.circle,
@@ -257,7 +260,19 @@ class _Glyph extends StatelessWidget {
           opacity: ReverseAnimation(out),
           child: ScaleTransition(
             scale: Tween<double>(begin: 1, end: 0.6).animate(out),
-            child: Icon(icon, color: color, size: 34),
+            child: AnimatedSwitcher(
+              duration: AppMotion.card,
+              switchInCurve: AppMotion.easeOut,
+              switchOutCurve: AppMotion.leaving,
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation,
+                child: ScaleTransition(
+                  scale: Tween<double>(begin: 0.7, end: 1).animate(animation),
+                  child: child,
+                ),
+              ),
+              child: Icon(icon, key: ValueKey(icon), color: color, size: 34),
+            ),
           ),
         ),
         FadeTransition(
