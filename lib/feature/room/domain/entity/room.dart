@@ -68,6 +68,7 @@ final class RoomMember {
     this.removedAt,
     this.pending = false,
     this.heldUntil,
+    this.avatarId,
   });
 
   final RoomMemberId id;
@@ -103,6 +104,14 @@ final class RoomMember {
   /// [RoomRepository.updateMember] drops it when the mark is cleared.
   final DateTime? heldUntil;
 
+  /// The avatar this member last showed on a live connection, or null when
+  /// they have never been seen with one.
+  ///
+  /// Remembered, not authoritative: it only lets the lobby and the Rooms list
+  /// show the face people saw in the ride, instead of an initial, while
+  /// nobody is connected. It never identifies anybody.
+  final int? avatarId;
+
   bool get isActive => removedAt == null;
 
   /// A seat whose invite can no longer be redeemed, and which nobody arrived
@@ -121,6 +130,7 @@ final class RoomMember {
     bool? pending,
     DateTime? heldUntil,
     bool clearHeldUntil = false,
+    int? avatarId,
   }) => RoomMember(
     id: id,
     displayName: displayName ?? this.displayName,
@@ -129,6 +139,7 @@ final class RoomMember {
     removedAt: removedAt ?? this.removedAt,
     pending: pending ?? this.pending,
     heldUntil: clearHeldUntil ? null : (heldUntil ?? this.heldUntil),
+    avatarId: avatarId ?? this.avatarId,
   );
 }
 

@@ -240,6 +240,7 @@ class SharedPreferencesRoomRepository implements RoomRepository {
     RoomMemberId memberId, {
     String? displayName,
     bool? pending,
+    int? avatarId,
   }) async {
     final current = await _require(id);
     final members = current.room.members.toList(growable: true);
@@ -250,12 +251,14 @@ class SharedPreferencesRoomRepository implements RoomRepository {
         ? null
         : _requiredText(displayName, 'display name');
     if ((cleanName == null || cleanName == existing.displayName) &&
-        (pending == null || pending == existing.pending)) {
+        (pending == null || pending == existing.pending) &&
+        (avatarId == null || avatarId == existing.avatarId)) {
       return current;
     }
     members[index] = existing.copyWith(
       displayName: cleanName,
       pending: pending,
+      avatarId: avatarId,
       // Somebody is standing in it now, so it is not being held for anyone.
       // Leaving the hold behind would let a confirmed member's row expire.
       clearHeldUntil: pending == false,
@@ -301,6 +304,15 @@ class SharedPreferencesRoomRepository implements RoomRepository {
       throw StateError('Accepted Room snapshot does not contain local member');
     }
 
+    final prefs = await _prefs();
+    final existing = _readRoom(prefs, snapshot.roomId);
+    // The snapshot carries no faces, so a rejoin would otherwise wipe the ones
+    // this phone remembered from earlier rides back to initials.
+    final knownAvatars = <RoomMemberId, int>{
+      for (final member in existing?.room.members ?? const <RoomMember>[])
+        if (member.avatarId != null) member.id: member.avatarId!,
+    };
+
     final saved = SavedRoom(
       room: Room(
         id: snapshot.roomId,
@@ -323,6 +335,7 @@ class SharedPreferencesRoomRepository implements RoomRepository {
                 // phones stop showing the seat at the same instant. This one
                 // has no back-channel to be told later.
                 heldUntil: member.pending ? member.heldUntil?.toUtc() : null,
+                avatarId: knownAvatars[member.memberId],
               ),
             )
             .toList(growable: false),
@@ -335,8 +348,6 @@ class SharedPreferencesRoomRepository implements RoomRepository {
       ),
     );
 
-    final prefs = await _prefs();
-    final existing = _readRoom(prefs, snapshot.roomId);
     if (existing != null &&
         existing.membership.localMemberId != localMemberId) {
       throw StateError('Room already belongs to another local membership');
@@ -364,6 +375,7 @@ class SharedPreferencesRoomRepository implements RoomRepository {
                   joinedAt: member.joinedAt,
                   kind: member.kind,
                   removedAt: member.removedAt ?? now,
+                  avatarId: member.avatarId,
                 )
               : member,
         )
@@ -521,6 +533,7 @@ class SharedPreferencesRoomRepository implements RoomRepository {
     }
     final removed = raw['removedAt'];
     final held = raw['heldUntil'];
+    final avatar = raw['avatarId'];
     return RoomMember(
       id: RoomMemberId(id),
       displayName: name.trim(),
@@ -537,6 +550,8 @@ class SharedPreferencesRoomRepository implements RoomRepository {
       // behaviour — held forever until the host takes them back by hand —
       // rather than being swept by a rule they were never given.
       heldUntil: held is String ? DateTime.parse(held).toUtc() : null,
+      // Absent until this member has been seen live with a picked avatar.
+      avatarId: avatar is int ? avatar : null,
     );
   }
 
@@ -562,6 +577,7 @@ class SharedPreferencesRoomRepository implements RoomRepository {
                 if (member.pending) 'pending': true,
                 if (member.heldUntil != null)
                   'heldUntil': member.heldUntil!.toIso8601String(),
+                if (member.avatarId != null) 'avatarId': member.avatarId,
               },
             )
             .toList(growable: false),

@@ -7,6 +7,7 @@ import 'package:get_it/get_it.dart';
 import '../../../../core/diagnostics/screen_log.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
+import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../transfer/api/transfer_api.dart';
@@ -74,6 +75,7 @@ class SelectedRoomLobby extends StatefulWidget {
 class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
   late SavedRoom _room = widget.room;
   StreamSubscription<void>? _changes;
+  StreamSubscription<int>? _myAvatarChanges;
 
   RoomRepository? get _repository {
     if (widget.repository != null) return widget.repository;
@@ -91,6 +93,36 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
     _changes = _repository?.changes.listen((_) {
       if (mounted) unawaited(_reload());
     });
+    unawaited(_syncMyAvatar());
+  }
+
+  /// Puts this phone's own picked avatar on its row, here and in the Rooms
+  /// list, and keeps it there when it is changed in the profile.
+  Future<void> _syncMyAvatar() async {
+    if (!GetIt.instance.isRegistered<SettingsRepository>()) return;
+    final settings = GetIt.instance<SettingsRepository>();
+    try {
+      _myAvatarChanges = settings.myAvatarIdChanges.listen(
+        (id) => unawaited(_rememberMyAvatar(id)),
+      );
+      final id = await settings.getMyAvatarId();
+      if (id != null && mounted) await _rememberMyAvatar(id);
+    } catch (_) {
+      // Display metadata only: the row keeps its initial.
+    }
+  }
+
+  Future<void> _rememberMyAvatar(int avatarId) async {
+    final repository = _repository;
+    if (repository == null) return;
+    final me = _room.membership.localMemberId;
+    final current = _room.room.members.where((member) => member.id == me);
+    if (current.isEmpty || current.first.avatarId == avatarId) return;
+    try {
+      await repository.updateMember(_room.room.id, me, avatarId: avatarId);
+    } catch (_) {
+      // Display metadata only: the row keeps its initial.
+    }
   }
 
   @override
@@ -104,6 +136,7 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
   @override
   void dispose() {
     unawaited(_changes?.cancel());
+    unawaited(_myAvatarChanges?.cancel());
     super.dispose();
   }
 

@@ -306,6 +306,7 @@ class _FakeRoomRepository implements RoomRepository {
     RoomMemberId memberId, {
     String? displayName,
     bool? pending,
+    int? avatarId,
   }) => throw UnimplementedError();
 
   @override
