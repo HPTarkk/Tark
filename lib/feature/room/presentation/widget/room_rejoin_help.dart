@@ -275,6 +275,14 @@ Future<void> showRoomRejoinCodeSheet(
   backgroundColor: Colors.transparent,
   isScrollControlled: true,
   barrierColor: Colors.black.withValues(alpha: 0.62),
+  // Spelled out because this sheet also closes itself: the slide down is
+  // the only thing that tells the user the code is no longer needed.
+  sheetAnimationStyle: const AnimationStyle(
+    duration: AppMotion.sheet,
+    reverseDuration: AppMotion.sheet,
+    curve: AppMotion.drawer,
+    reverseCurve: AppMotion.leaving,
+  ),
   builder: (_) => _RejoinCodeSheet(room: room, name: name, back: back),
 );
 
@@ -324,13 +332,21 @@ class _RejoinCodeSheetState extends State<_RejoinCodeSheet> {
     HapticFeedback.lightImpact();
     setState(() => _isBack = true);
     _closeTimer = Timer(_backHold, () {
-      if (mounted) Navigator.maybePop(context);
+      if (!mounted) return;
+      final route = ModalRoute.of(context);
+      // Only this sheet, and only while it is still the one on top: popping
+      // anything else would close a screen the user is looking at.
+      if (route != null && route.isCurrent) Navigator.of(context).pop();
     });
   }
 
   @override
   void dispose() {
-    widget.back.removeListener(_onBack);
+    // The row that owns [back] can be gone first (the roster rebuilt under
+    // the sheet); a disposed notifier has nothing left to unhook.
+    try {
+      widget.back.removeListener(_onBack);
+    } catch (_) {}
     _closeTimer?.cancel();
     unawaited(_changes?.cancel());
     super.dispose();
@@ -344,79 +360,90 @@ class _RejoinCodeSheetState extends State<_RejoinCodeSheet> {
       topFraction: 0.1,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 10, 20, 22),
-        child: PhaseSwitcher(
-          child: _isBack
-              ? _BackMark(
-                  key: const ValueKey('rejoin-code-back'),
-                  label: s.room_rejoin_code_back(widget.name),
-                )
-              : StaggeredEntrance(
-                  key: const ValueKey('rejoin-code'),
-                  builder: (context, children) => Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    mainAxisSize: MainAxisSize.min,
-                    children: children,
-                  ),
-                  children: [
-                    Text(
-                      s.room_rejoin_code_title(widget.name),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 19,
-                        fontWeight: FontWeight.w800,
+        // The sheet keeps its width and eases to the check mark's height,
+        // instead of snapping narrower and shorter when the code goes.
+        child: AnimatedSize(
+          duration: AppMotion.sheet,
+          curve: AppMotion.easeOut,
+          alignment: Alignment.bottomCenter,
+          child: SizedBox(
+            width: double.infinity,
+            child: PhaseSwitcher(
+              alignment: Alignment.center,
+              child: _isBack
+                  ? _BackMark(
+                      key: const ValueKey('rejoin-code-back'),
+                      label: s.room_rejoin_code_back(widget.name),
+                    )
+                  : StaggeredEntrance(
+                      key: const ValueKey('rejoin-code'),
+                      builder: (context, children) => Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisSize: MainAxisSize.min,
+                        children: children,
                       ),
-                    ),
-                    const SizedBox(height: 18),
-                    Center(
-                      child: AnimatedSwitcher(
-                        duration: AppMotion.card,
-                        switchInCurve: AppMotion.easeOut,
-                        switchOutCurve: AppMotion.leaving,
-                        child: credentials == null
-                            ? SizedBox(
-                                key: const ValueKey('rejoin-code-waiting'),
-                                width: 230,
-                                height: 230,
-                                child: Center(
-                                  child: Text(
-                                    s.reconnect_preparing,
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      color: AppColors.textSecondary,
-                                      fontSize: 13,
+                      children: [
+                        Text(
+                          s.room_rejoin_code_title(widget.name),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 19,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        Center(
+                          child: AnimatedSwitcher(
+                            duration: AppMotion.card,
+                            switchInCurve: AppMotion.easeOut,
+                            switchOutCurve: AppMotion.leaving,
+                            child: credentials == null
+                                ? SizedBox(
+                                    key: const ValueKey('rejoin-code-waiting'),
+                                    width: 230,
+                                    height: 230,
+                                    child: Center(
+                                      child: Text(
+                                        s.reconnect_preparing,
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          color: AppColors.textSecondary,
+                                          fontSize: 13,
+                                        ),
+                                      ),
                                     ),
+                                  )
+                                : GlowingQrCard(
+                                    key: ValueKey(
+                                      'rejoin-code-${credentials.ssid}',
+                                    ),
+                                    data: credentials.qrPayload(
+                                      channel: RoomPreLiveAnnouncer.channelFor(
+                                        widget.room.room.id,
+                                      ),
+                                    ),
+                                    size: 230,
+                                    branded: true,
                                   ),
-                                ),
-                              )
-                            : GlowingQrCard(
-                                key: ValueKey(
-                                  'rejoin-code-${credentials.ssid}',
-                                ),
-                                data: credentials.qrPayload(
-                                  channel: RoomPreLiveAnnouncer.channelFor(
-                                    widget.room.room.id,
-                                  ),
-                                ),
-                                size: 230,
-                                branded: true,
-                              ),
-                      ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        StepRow(
+                          index: 1,
+                          icon: Icons.touch_app_rounded,
+                          text: s.room_rejoin_code_step_open(widget.name),
+                        ),
+                        const SizedBox(height: 10),
+                        StepRow(
+                          index: 2,
+                          icon: Icons.qr_code_scanner_rounded,
+                          text: s.room_rejoin_code_step_scan,
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 20),
-                    StepRow(
-                      index: 1,
-                      icon: Icons.touch_app_rounded,
-                      text: s.room_rejoin_code_step_open(widget.name),
-                    ),
-                    const SizedBox(height: 10),
-                    StepRow(
-                      index: 2,
-                      icon: Icons.qr_code_scanner_rounded,
-                      text: s.room_rejoin_code_step_scan,
-                    ),
-                  ],
-                ),
+            ),
+          ),
         ),
       ),
     );
@@ -434,6 +461,7 @@ class _BackMark extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 36),
     child: Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
       children: [
         TweenAnimationBuilder<double>(
