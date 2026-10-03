@@ -24,7 +24,12 @@
    so prices, ids and codes copy as they are (scripts/admin_digit_font.py). */
 @font-face { font-family: "Vazirmatn Digits"; src: url(/static/VazirmatnDigits-Regular.woff2) format("woff2"); font-weight: 100 500; font-display: swap; }
 @font-face { font-family: "Vazirmatn Digits"; src: url(/static/VazirmatnDigits-Bold.woff2) format("woff2"); font-weight: 600 900; font-display: swap; }
-html { -webkit-text-size-adjust: 100%; }
+/* No page scrollbar: it looked out of place and made pages shift sideways
+   when one had it and the next didn't. Wheel, trackpad and keys still scroll. */
+html { -webkit-text-size-adjust: 100%; scrollbar-width: none; }
+html::-webkit-scrollbar { display: none; }
+/* Scrollbars inside tables, menus and logs are thin and match the theme. */
+* { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted) 45%, transparent) transparent; }
 body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
 main { padding: 16px; max-width: 1100px; margin: 0 auto; }
 a { color: var(--accent); text-underline-offset: 3px; }
@@ -47,6 +52,29 @@ select { -webkit-appearance: none; appearance: none; cursor: pointer; padding-in
 select:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line-2)); background-color: color-mix(in srgb, var(--accent) 4%, var(--bg)); }
 select option { background: var(--surface); color: var(--fg); }
 @media (prefers-color-scheme: dark) { select { background-image: url(/static/chevron-dark.svg); } }
+/* Where the browser allows it, the open list is ours too: a rounded card
+   with roomy rows, a hover tint and a check on the chosen one. */
+@supports (appearance: base-select) {
+  select, ::picker(select) { appearance: base-select; }
+  select { display: flex; align-items: center; gap: 10px; background-image: none; padding-inline-end: 14px; }
+  [dir="rtl"] select { background-position: 0 0; }
+  select::picker-icon { content: ""; width: 16px; height: 16px; margin-inline-start: auto; background: url(/static/chevron.svg) no-repeat center / 16px; transition: rotate .25s var(--ease); }
+  select:open::picker-icon { rotate: 180deg; }
+  select:open { border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent); }
+  ::picker(select) { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--fg); padding: 6px; margin-block: 6px; box-shadow: 0 18px 40px -16px rgba(16, 24, 40, .35), 0 2px 6px rgba(16, 24, 40, .06); max-height: min(320px, 60vh); overflow-y: auto; scrollbar-width: thin;
+    opacity: 0; translate: 0 -6px; scale: .98; transition: opacity .18s ease, translate .22s var(--ease), scale .22s var(--ease), overlay .22s allow-discrete, display .22s allow-discrete; }
+  select:open::picker(select) { opacity: 1; translate: 0 0; scale: 1; }
+  @starting-style { select:open::picker(select) { opacity: 0; translate: 0 -6px; scale: .98; } }
+  select option { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 9px; background: transparent; cursor: pointer; font-weight: 500; transition: background-color .12s ease, color .12s ease; }
+  select option:hover, select option:focus-visible { background: color-mix(in srgb, var(--accent) 10%, transparent); outline: none; }
+  select option:checked { color: var(--accent); font-weight: 600; }
+  select option::checkmark { order: 1; margin-inline-start: auto; content: "✓"; color: var(--accent); font-weight: 700; }
+  @media (prefers-color-scheme: dark) {
+    select::picker-icon { background-image: url(/static/chevron-dark.svg); }
+    ::picker(select) { box-shadow: 0 18px 44px -14px rgba(0, 0, 0, .75); border-color: var(--line-2); }
+  }
+  @media (prefers-reduced-motion: reduce) { ::picker(select), select::picker-icon { transition: opacity .15s ease; translate: none; scale: none; } }
+}
 input:hover:not(:focus) { border-color: color-mix(in srgb, var(--fg) 22%, var(--line-2)); }
 input:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 20%, transparent); }
 label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: .875rem; }
@@ -437,7 +465,12 @@ body:has(.auth) { background: radial-gradient(ellipse 80% 55% at 50% 0%, color-m
 .auth-alt { text-align: center; margin-top: 10px; }
 .steps { padding-inline-start: 1.2em; margin: 0 0 1.2rem; display: flex; flex-direction: column; gap: 10px; }
 .steps li::marker { color: var(--accent); font-weight: 700; }
-.steps code.key { display: inline-block; margin-top: 6px; padding: 6px 10px; background: var(--bg); border: 1px dashed var(--line); border-radius: 8px; }
+.steps code.key { display: inline-block; word-break: normal; word-spacing: .15em; margin-top: 6px; padding: 6px 10px; background: var(--bg); border: 1px dashed var(--line); border-radius: 8px; }
+.qr-box { margin: 12px 0 4px; width: 196px; max-width: 100%; padding: 8px; background: #fff; border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); animation: qr-in .5s var(--ease) .15s both; }
+.qr { display: block; width: 100%; height: auto; }
+.qr-alt { margin: 10px 0 0; color: var(--muted); font-size: .92em; }
+@keyframes qr-in { from { opacity: 0; scale: .94; } }
+@media (prefers-reduced-motion: reduce) { .qr-box { animation-name: auth-fade; } }
 @keyframes auth-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 @keyframes auth-pop { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: none; } }
 @keyframes auth-shake { 0%, 100% { transform: none; } 20% { transform: translateX(-6px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }

@@ -420,7 +420,12 @@ func (s *Server) showTOTP(w http.ResponseWriter, r *http.Request, status int, ms
 		}
 		data["Enroll"] = true
 		data["Key"] = groupKey(secret)
-		data["URL"] = template.URL(otpauthURL(secret, a.Email))
+		link := otpauthURL(secret, a.Email)
+		data["URL"] = template.URL(link)
+		if data["QR"], err = qrSVG(link); err != nil {
+			s.fail(w, r, err)
+			return
+		}
 	}
 	s.render(w, r, status, "totp", data)
 }

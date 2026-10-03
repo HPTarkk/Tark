@@ -7,7 +7,11 @@
 <h1>{{t "totp.enrollH"}}</h1>
 <p class="auth-lead">{{t "totp.enrollLead"}}</p>
 <ol class="steps">
-  <li>{{t "totp.step1a"}} <a href="{{.URL}}">{{t "totp.step1link"}}</a>{{t "totp.step1b"}}<br><code class="key">{{.Key}}</code></li>
+  <li>{{t "totp.scan"}}
+    <figure class="qr-box">{{.QR}}</figure>
+    <p class="qr-alt">{{t "totp.onPhone"}} <a href="{{.URL}}">{{t "totp.step1link"}}</a></p>
+    <p class="qr-alt">{{t "totp.byHand"}}<br><code class="key">{{.Key}}</code></p>
+  </li>
   <li>{{t "totp.step2"}}</li>
 </ol>
 {{else}}
