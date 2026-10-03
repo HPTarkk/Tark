@@ -47,3 +47,40 @@ p.notice { border-left: 4px solid var(--accent); }
 .checks { list-style: none; padding: 0; margin: 8px 0 16px; display: flex; flex-direction: column; gap: 8px; }
 .checks li { border-bottom: 1px solid var(--line); padding-bottom: 8px; }
 td code.route { white-space: nowrap; word-break: normal; }
+
+/* Sign-in, authenticator and password pages: one centred card that rises in,
+   a warm wash behind it, and a shake when a code or password is refused.
+   CSS only: the panel's CSP allows no scripts and no inline styles. */
+.auth { min-height: calc(100vh - 32px); display: grid; grid-template-columns: minmax(0, 420px); justify-content: center; align-content: center; padding: 24px 0; }
+body:has(.auth) { background: radial-gradient(ellipse 80% 55% at 50% 0%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%) var(--bg) no-repeat; }
+.auth-card { min-width: 0; overflow-wrap: anywhere; background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 28px 24px 22px; box-shadow: 0 20px 50px -24px color-mix(in srgb, var(--accent) 45%, transparent); animation: auth-rise .48s cubic-bezier(.23, 1, .32, 1) both; }
+.auth-card > * { animation: auth-rise .42s cubic-bezier(.23, 1, .32, 1) both; }
+.auth-card > :nth-child(2) { animation-delay: .05s; } .auth-card > :nth-child(3) { animation-delay: .1s; }
+.auth-card > :nth-child(4) { animation-delay: .15s; } .auth-card > :nth-child(5) { animation-delay: .2s; }
+.auth-card > :nth-child(n+6) { animation-delay: .25s; }
+.auth-mark { width: 64px; height: 64px; margin: 0 auto 14px; border-radius: 50%; display: grid; place-items: center; color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--card)); border: 2px solid color-mix(in srgb, var(--accent) 70%, transparent); box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent) 8%, transparent), 0 0 28px color-mix(in srgb, var(--accent) 35%, transparent); animation: auth-pop .6s cubic-bezier(.23, 1, .32, 1) both; }
+.auth h1 { text-align: center; margin: 0 0 .4rem; font-size: 1.45rem; }
+.auth-lead, .auth-who { text-align: center; color: var(--muted); margin: 0 0 1.2rem; }
+.auth-who { font-size: .9rem; }
+.auth .stack { gap: 14px; }
+.auth label { font-size: .9rem; }
+.auth input { padding: 12px 14px; border-radius: 12px; background: var(--bg); transition: border-color .18s ease, box-shadow .18s ease; }
+.auth input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent); }
+.auth input.otp { text-align: center; font: 600 1.6rem/1.2 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .45em; padding-left: calc(14px + .45em); }
+.auth input.otp::placeholder { color: color-mix(in srgb, var(--muted) 45%, transparent); }
+.auth button:not(.link) { margin-top: 4px; padding: 13px 14px; border-radius: 14px; border: none; background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 70%, #d9480f)); box-shadow: 0 8px 20px -10px var(--accent); transition: transform .12s cubic-bezier(.23, 1, .32, 1), box-shadow .18s ease, filter .18s ease; }
+.auth button:not(.link):hover { filter: brightness(1.06); box-shadow: 0 10px 24px -10px var(--accent); }
+.auth button:not(.link):active { transform: scale(.97); }
+.auth .error { border-radius: 12px; animation: auth-rise .3s cubic-bezier(.23, 1, .32, 1) both, auth-shake .42s .1s ease both; }
+.auth-alt { text-align: center; margin-top: 10px; }
+.steps { padding-left: 1.2em; margin: 0 0 1.2rem; display: flex; flex-direction: column; gap: 10px; }
+.steps li::marker { color: var(--accent); font-weight: 700; }
+.steps code.key { display: inline-block; margin-top: 6px; padding: 6px 10px; background: var(--bg); border: 1px dashed var(--line); border-radius: 8px; }
+@keyframes auth-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes auth-pop { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: none; } }
+@keyframes auth-shake { 0%, 100% { transform: none; } 20% { transform: translateX(-6px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
+@media (prefers-reduced-motion: reduce) {
+  .auth-card, .auth-card > *, .auth-mark, .auth .error { animation-name: auth-fade; }
+  .auth button:not(.link):active { transform: none; }
+}
+@keyframes auth-fade { from { opacity: 0; } to { opacity: 1; } }
