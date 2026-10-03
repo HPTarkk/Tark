@@ -126,9 +126,13 @@ func Build(cfg *config.Config, pool *pgxpool.Pool, log *slog.Logger, opts Option
 		LinkBaseURL: cfg.LinkBaseURL, GoogleRequireNonce: cfg.Google.RequireNonce,
 	}, log)
 	profileSvc := profile.NewService(pool, limits)
+	plans, err := billing.ParsePlans(cfg.Bazaar.SKUs)
+	if err != nil {
+		return nil, err
+	}
 	billingSvc := billing.NewService(pool, meteredBazaar{bz, reg}, signer, sealer, lookup, limits, aud, billing.Policy{
 		GraceH: cfg.Policy.GraceHours, RefreshD: cfg.Policy.RefreshDays, SusOfflineH: cfg.Policy.SuspiciousOfflineHrs,
-	}, cfg.Bazaar.SKUs, log)
+	}, plans, log)
 
 	serverErrors := &monitor.Counter{}
 	var bk *backup.Service

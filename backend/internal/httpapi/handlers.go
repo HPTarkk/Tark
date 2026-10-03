@@ -7,6 +7,8 @@ import (
 
 	"github.com/HPTarkk/Tark/backend/internal/apperr"
 	"github.com/HPTarkk/Tark/backend/internal/auth"
+	"github.com/HPTarkk/Tark/backend/internal/billing"
+	"github.com/HPTarkk/Tark/backend/internal/i18n"
 	"github.com/HPTarkk/Tark/backend/internal/mail"
 	"github.com/HPTarkk/Tark/backend/internal/profile"
 )
@@ -27,7 +29,7 @@ func (a *api) client(r *http.Request, bodyLocale string) (auth.Client, error) {
 	}
 	locale := bodyLocale
 	if locale == "" {
-		locale = r.Header.Get("Accept-Language")
+		locale = i18n.From(r.Context())
 	}
 	return auth.Client{IP: clientIP(r.Context()), Platform: platform, InstallKey: install, Locale: mail.Locale(locale)}, nil
 }
@@ -533,6 +535,37 @@ func (a *api) putProfile(w http.ResponseWriter, r *http.Request) {
 type subscriptionResponse struct {
 	Entitlement   string `json:"entitlement"`
 	BazaarChecked bool   `json:"bazaarChecked"`
+	// PlanTitle names the entitlement's plan in the request's language.
+	// Display only; the app keeps it next to the entitlement.
+	PlanTitle *string `json:"planTitle"`
+}
+
+func newSubscriptionResponse(r *http.Request, res billing.Result) subscriptionResponse {
+	out := subscriptionResponse{Entitlement: res.Entitlement, BazaarChecked: res.BazaarChecked}
+	if title, ok := billing.PlanTitle(res.SKU, i18n.From(r.Context())); ok {
+		out.PlanTitle = &title
+	}
+	return out
+}
+
+type planJSON struct {
+	SKU    string `json:"sku"`
+	Months int    `json:"months"`
+	Days   int    `json:"days"`
+	Title  string `json:"title"`
+}
+
+// getPlans lists the plans on sale, in order, with titles in the request's
+// language. Prices are not here: the app reads them from Bazaar, which is
+// what actually charges.
+func (a *api) getPlans(w http.ResponseWriter, r *http.Request) {
+	lang := i18n.From(r.Context())
+	plans := a.Billing.Plans()
+	out := make([]planJSON, 0, len(plans))
+	for _, p := range plans {
+		out = append(out, planJSON{SKU: p.SKU, Months: p.Months, Days: p.Days(), Title: p.Title(lang)})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"plans": out})
 }
 
 func (a *api) getSubscription(w http.ResponseWriter, r *http.Request) {
@@ -541,7 +574,7 @@ func (a *api) getSubscription(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, a.Log, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, subscriptionResponse{Entitlement: res.Entitlement, BazaarChecked: res.BazaarChecked})
+	writeJSON(w, http.StatusOK, newSubscriptionResponse(r, res))
 }
 
 func (a *api) submitPurchase(w http.ResponseWriter, r *http.Request) {
@@ -558,5 +591,5 @@ func (a *api) submitPurchase(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, a.Log, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, subscriptionResponse{Entitlement: res.Entitlement, BazaarChecked: res.BazaarChecked})
+	writeJSON(w, http.StatusOK, newSubscriptionResponse(r, res))
 }

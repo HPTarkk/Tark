@@ -20,6 +20,7 @@ import (
 	"github.com/HPTarkk/Tark/backend/internal/apperr"
 	"github.com/HPTarkk/Tark/backend/internal/auth"
 	"github.com/HPTarkk/Tark/backend/internal/billing"
+	"github.com/HPTarkk/Tark/backend/internal/i18n"
 	"github.com/HPTarkk/Tark/backend/internal/idempotency"
 	"github.com/HPTarkk/Tark/backend/internal/metrics"
 	"github.com/HPTarkk/Tark/backend/internal/profile"
@@ -76,7 +77,7 @@ func NewHandler(d Deps) http.Handler {
 	ips := ipResolver{header: d.ClientIPHeader, trusted: d.TrustedProxies}
 
 	r := chi.NewRouter()
-	r.Use(a.recoverer, a.requestContext(ips), securityHeaders, a.accessLog)
+	r.Use(i18n.Middleware, a.recoverer, a.requestContext(ips), securityHeaders, a.accessLog)
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, a.Log, apperr.NotFound("not_found", ""))
 	})
@@ -122,6 +123,9 @@ func NewHandler(d Deps) http.Handler {
 				r.Post("/email-change/verify", a.confirmEmailChange)
 			})
 		})
+
+		// Public: the paywall lists plans before anyone signs in.
+		r.Get("/subscription/plans", a.getPlans)
 
 		r.Group(func(r chi.Router) {
 			r.Use(a.authenticated)
