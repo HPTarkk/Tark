@@ -883,7 +883,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_title => 'Settings';
 
   @override
-  String get settings_section_identity => 'ABOUT YOU';
+  String get settings_profile_hint => 'Change your name and face';
+
+  @override
+  String get settings_profile_hint_account => 'Name, face and account';
 
   @override
   String get settings_section_voice => 'VOICE & SOUND';
