@@ -22,9 +22,15 @@ class _Remote implements SubscriptionRemote {
   int fetches = 0;
   Completer<void>? gate;
 
+  final freshAsks = <bool>[];
+
   @override
-  Future<SubscriptionFetch> fetch({required String installKey}) async {
+  Future<SubscriptionFetch> fetch({
+    required String installKey,
+    bool fresh = false,
+  }) async {
     fetches++;
+    freshAsks.add(fresh);
     await gate?.future;
     return answer();
   }
@@ -233,6 +239,26 @@ void main() {
     expect(await first, isA<GateGranted>());
     expect(await second, isA<GateGranted>());
     expect(remote.fetches, 1);
+  });
+
+  test(
+    'the subscription page asks for Bazaar\'s latest; a paid tap does not',
+    () async {
+      final s = await service();
+      await s.check();
+      await s.refresh();
+      expect(remote.freshAsks, [false, true]);
+    },
+  );
+
+  test('a page refresh landing on a running check asks again', () async {
+    final s = await service();
+    remote.gate = Completer<void>();
+    final tap = s.check();
+    final page = s.refresh();
+    remote.gate!.complete();
+    await Future.wait([tap, page]);
+    expect(remote.freshAsks, [false, true]);
   });
 
   test('signed out is its own outcome', () async {

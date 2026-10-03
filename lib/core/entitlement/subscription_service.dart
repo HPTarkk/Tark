@@ -118,6 +118,7 @@ class SubscriptionService {
   static const _persistStepMs = 60 * 60 * 1000;
 
   Future<SubscriptionFetch>? _inFlight;
+  bool _inFlightFresh = false;
 
   /// The verified token, or null when there is none (or it did not verify).
   SignedEntitlement? get entitlement => _token;
@@ -192,10 +193,11 @@ class SubscriptionService {
   }
 
   /// Asks the server for the current state, e.g. when the subscription page
-  /// opens. True when the server answered.
+  /// opens. The server checks with Bazaar first, so a renewal turned off
+  /// there shows here. True when the server answered.
   Future<bool> refresh() async {
     if (!_monetized) return false;
-    return await _refresh() is FetchedEntitlement;
+    return await _refresh(fresh: true) is FetchedEntitlement;
   }
 
   /// Drops local subscription state, e.g. on sign-out. The next paid tap
@@ -227,16 +229,28 @@ class SubscriptionService {
   }
 
   /// One request at a time: a launch refresh and a tap landing together
-  /// share the same answer instead of racing to write it.
-  Future<SubscriptionFetch> _refresh() {
-    return _inFlight ??= () async {
+  /// share the same answer instead of racing to write it. A [fresh] ask that
+  /// lands on an ordinary one waits for it, then asks again.
+  Future<SubscriptionFetch> _refresh({bool fresh = false}) async {
+    final running = _inFlight;
+    if (running != null) {
+      if (!fresh || _inFlightFresh) return running;
+      await running;
+      return _refresh(fresh: true);
+    }
+    _inFlightFresh = fresh;
+    final request = () async {
       try {
-        final fetch = await _remote.fetch(installKey: _identity.publicKey);
+        final fetch = await _remote.fetch(
+          installKey: _identity.publicKey,
+          fresh: fresh,
+        );
         return await _accept(fetch);
       } finally {
         _inFlight = null;
       }
     }();
+    return _inFlight = request;
   }
 
   Future<SubscriptionFetch> _accept(SubscriptionFetch fetch) async {

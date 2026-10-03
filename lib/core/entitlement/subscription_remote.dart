@@ -5,7 +5,12 @@
 /// Implementations never throw: every way a request can end is one of the
 /// [SubscriptionFetch] cases, because each one leads to a different screen.
 abstract interface class SubscriptionRemote {
-  Future<SubscriptionFetch> fetch({required String installKey});
+  /// [fresh] asks the server to check with Bazaar now instead of serving what
+  /// it last heard, e.g. so a renewal turned off in Bazaar shows at once.
+  Future<SubscriptionFetch> fetch({
+    required String installKey,
+    bool fresh = false,
+  });
 
   Future<SubscriptionFetch> submitBazaarPurchase({
     required String installKey,
@@ -68,8 +73,10 @@ class UnavailableSubscriptionRemote implements SubscriptionRemote {
   const UnavailableSubscriptionRemote();
 
   @override
-  Future<SubscriptionFetch> fetch({required String installKey}) async =>
-      const FetchServiceTrouble();
+  Future<SubscriptionFetch> fetch({
+    required String installKey,
+    bool fresh = false,
+  }) async => const FetchServiceTrouble();
 
   @override
   Future<SubscriptionFetch> submitBazaarPurchase({
