@@ -186,6 +186,8 @@ var texts = map[string][2]string{
 	"btn.search":        {"Search", "جستجو"},
 	"btn.save":          {"Save", "ذخیره کن"},
 	"btn.cancel":        {"Cancel", "انصراف"},
+	"btn.copy":          {"Copy", "کپی"},
+	"btn.copied":        {"Copied", "کپی شد"},
 	"btn.find":          {"Find", "پیدا کن"},
 	"btn.revoke":        {"Revoke", "لغو کن"},
 	"col.when":          {"When", "زمان"},
