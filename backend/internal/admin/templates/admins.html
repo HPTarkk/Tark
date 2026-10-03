@@ -16,8 +16,8 @@
     <td>{{if .TOTP}}<span class="chip good">{{icon "check"}}{{t "admins.set"}}</span>{{else}}<span class="chip warn">{{t "admins.notYet"}}</span>{{end}}</td><td>{{ago .LastLogin}}</td>
     <td class="act">{{if ne .ID $.Admin.ID}}
     {{if .Disabled}}<form method="post" action="/admins/{{.ID}}/enable#team"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="ghost sm">{{icon "check"}}<span>{{t "btn.enable"}}</span></button></form>
-    {{else}}<form method="post" action="/admins/{{.ID}}/disable#team"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="ghost sm">{{icon "ban"}}<span>{{t "btn.disable"}}</span></button></form>{{end}}
-    <form method="post" action="/admins/{{.ID}}/reset"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="ghost sm">{{icon "lock"}}<span>{{t "admins.newPw"}}</span></button></form>
+    {{else}}<form method="post" action="/admins/{{.ID}}/disable#team" data-confirm="{{t "confirm.adminDisable.q" .Name}}" data-confirm-x="{{t "confirm.adminDisable.x"}}" data-confirm-ok="{{t "btn.disable"}}" data-confirm-tone="danger"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="ghost sm">{{icon "ban"}}<span>{{t "btn.disable"}}</span></button></form>{{end}}
+    <form method="post" action="/admins/{{.ID}}/reset" data-confirm="{{t "confirm.adminReset.q" .Name}}" data-confirm-x="{{t "confirm.adminReset.x"}}" data-confirm-ok="{{t "admins.newPw"}}" data-confirm-tone="danger"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="ghost sm">{{icon "lock"}}<span>{{t "admins.newPw"}}</span></button></form>
     {{else}}<span class="chip accent">{{t "admins.you"}}</span>{{end}}</td></tr>{{end}}
   </tbody></table></div>
 </section>

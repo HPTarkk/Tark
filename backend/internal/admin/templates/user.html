@@ -60,10 +60,10 @@
 <section class="section" id="actions">
 <header class="section-head"><h2>{{icon "zap"}}{{t "user.actionsH"}}</h2><p>{{t "user.actionsNote"}}</p></header>
 <div class="actions">
-<form method="post" action="/users/{{.ID}}/signout#actions" class="action"><input type="hidden" name="csrf" value="{{$.CSRF}}">
+<form method="post" action="/users/{{.ID}}/signout#actions" class="action" data-confirm="{{t "confirm.userSignout.q" .Name}}" data-confirm-x="{{t "confirm.userSignout.x"}}" data-confirm-ok="{{t "user.signoutH"}}" data-confirm-tone="danger"><input type="hidden" name="csrf" value="{{$.CSRF}}">
   <h3>{{icon "signout"}}{{t "user.signoutH"}}</h3><p>{{t "user.signoutP"}}</p><button>{{t "user.signoutH"}}</button></form>
 {{if eq .Status "active"}}
-<form method="post" action="/users/{{.ID}}/disable#actions" class="action"><input type="hidden" name="csrf" value="{{$.CSRF}}">
+<form method="post" action="/users/{{.ID}}/disable#actions" class="action" data-confirm="{{t "confirm.userDisable.q" .Name}}" data-confirm-x="{{t "confirm.userDisable.x"}}" data-confirm-ok="{{t "btn.disable"}}" data-confirm-tone="danger"><input type="hidden" name="csrf" value="{{$.CSRF}}">
   <h3>{{icon "ban"}}{{t "user.disableH"}}</h3><p>{{t "user.disableP"}}</p>
   <label>{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500"></label><button>{{t "btn.disable"}}</button></form>
 {{else}}
@@ -71,16 +71,16 @@
   <h3>{{icon "check"}}{{t "user.enableH"}}</h3><label>{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500"></label><button>{{t "btn.enable"}}</button></form>
 {{end}}
 {{if eq $.Admin.Role "owner"}}
-<form method="post" action="/users/{{.ID}}/grant#actions" class="action"><input type="hidden" name="csrf" value="{{$.CSRF}}">
+<form method="post" action="/users/{{.ID}}/grant#actions" class="action" data-confirm="{{t "confirm.grant.q" .Name}}" data-confirm-x="{{t "confirm.grant.x"}}" data-confirm-ok="{{t "user.grantH"}}"><input type="hidden" name="csrf" value="{{$.CSRF}}">
   <h3>{{icon "gift"}}{{t "user.grantH"}}</h3><p>{{t "user.grantP"}}</p>
   <label>{{t "label.months"}} <select name="months"><option>1</option><option>3</option><option>6</option><option>12</option></select></label>
   <label>{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500" placeholder="{{t "user.grantHint"}}"></label><button>{{t "user.grantH"}}</button></form>
 {{range .Grants}}{{if .Live}}
-<form method="post" action="/users/{{$.U.ID}}/revoke-grant#actions" class="action"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="grant" value="{{.ID}}">
+<form method="post" action="/users/{{$.U.ID}}/revoke-grant#actions" class="action" data-confirm="{{t "confirm.revoke.q"}}" data-confirm-x="{{t "confirm.revoke.x"}}" data-confirm-ok="{{t "btn.revoke"}}" data-confirm-tone="danger"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="grant" value="{{.ID}}">
   <h3>{{icon "close"}}{{t "user.revokeH" (when .Ends)}}</h3><label>{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500"></label><button>{{t "btn.revoke"}}</button></form>
 {{end}}{{end}}
 {{if .Suspicious}}
-<form method="post" action="/users/{{.ID}}/clear-suspicious#actions" class="action"><input type="hidden" name="csrf" value="{{$.CSRF}}">
+<form method="post" action="/users/{{.ID}}/clear-suspicious#actions" class="action" data-confirm="{{t "confirm.clear.q"}}" data-confirm-x="{{t "confirm.clear.x"}}" data-confirm-ok="{{t "user.clearBtn"}}"><input type="hidden" name="csrf" value="{{$.CSRF}}">
   <h3>{{icon "flag"}}{{t "user.clearH"}}</h3><p>{{t "user.clearP"}}</p>
   <label>{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500"></label><button>{{t "user.clearBtn"}}</button></form>
 {{end}}
@@ -90,7 +90,7 @@
 {{if eq $.Admin.Role "owner"}}
 <section class="section danger-zone">
 <header class="section-head"><h2>{{icon "alert"}}{{t "user.dangerH"}}</h2></header>
-<form method="post" action="/users/{{.ID}}/delete" class="action danger"><input type="hidden" name="csrf" value="{{$.CSRF}}">
+<form method="post" action="/users/{{.ID}}/delete" class="action danger" data-confirm="{{t "confirm.delete.q" .Name}}" data-confirm-x="{{t "confirm.delete.x"}}" data-confirm-ok="{{t "user.deleteBtn"}}" data-confirm-tone="danger"><input type="hidden" name="csrf" value="{{$.CSRF}}">
   <h3>{{icon "trash"}}{{t "user.deleteH"}}</h3><p>{{t "user.deleteP"}}</p>
   <div class="form-grid">
   <label>{{t "user.deleteType" .PrimaryMasked}} <input name="confirm" required autocomplete="off" dir="ltr"></label>

@@ -60,3 +60,40 @@ for (const button of document.querySelectorAll("button.copy[data-copy]")) {
     }, 1800);
   });
 }
+
+// Forms with data-confirm ask first in the shared dialog. The browser has
+// already checked the fields when submit fires, so the question only comes
+// up for a form that is ready to send.
+const confirmBox = document.getElementById("confirm-action");
+if (confirmBox) {
+  const ok = document.getElementById("confirm-ok");
+  let pending = null;
+  for (const form of document.querySelectorAll("form[data-confirm]")) {
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      pending = form;
+      const danger = form.dataset.confirmTone === "danger";
+      document.getElementById("confirm-q").textContent = form.dataset.confirm;
+      document.getElementById("confirm-x").textContent = form.dataset.confirmX || "";
+      ok.textContent = form.dataset.confirmOk;
+      ok.className = danger ? "danger" : "";
+      confirmBox.classList.toggle("calm", !danger);
+      confirmBox.showPopover();
+    });
+  }
+  ok.addEventListener("click", () => {
+    if (!pending) return;
+    const form = pending;
+    pending = null;
+    ok.disabled = true;
+    form.submit();
+  });
+  // Coming back with the browser's Back button shows the page as it was.
+  window.addEventListener("pageshow", () => { ok.disabled = false; });
+  confirmBox.addEventListener("toggle", (event) => {
+    if (event.newState === "closed" && pending) {
+      pending.querySelector("button")?.focus();
+      pending = null;
+    }
+  });
+}
