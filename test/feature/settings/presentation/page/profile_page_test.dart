@@ -51,7 +51,7 @@ void main() {
 
   AppAvatar hero(WidgetTester tester) => tester
       .widgetList<AppAvatar>(find.byType(AppAvatar))
-      .firstWhere((a) => a.size == 112);
+      .firstWhere((a) => a.size == 76);
 
   testWidgets('shows the saved name and face', (tester) async {
     await pumpPage(tester);
@@ -64,7 +64,11 @@ void main() {
     tester,
   ) async {
     await pumpPage(tester);
-    await tester.tap(find.byKey(const ValueKey('avatar-8')));
+    // The faces scroll sideways, so bring this one into view first.
+    final face = find.byKey(const ValueKey('avatar-8'));
+    await tester.ensureVisible(face);
+    await tester.pumpAndSettle();
+    await tester.tap(face);
     await tester.pumpAndSettle();
 
     expect(hero(tester).avatarId, 8);

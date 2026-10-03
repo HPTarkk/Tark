@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -18,6 +19,7 @@ import '../utils/logger.dart';
 import 'billing_service.dart';
 import 'license_gate.dart';
 import 'plan_catalog.dart';
+import 'plan_pricing.dart';
 import 'premium_feature.dart';
 import 'subscription_policy.dart';
 import 'subscription_service.dart';
@@ -95,7 +97,8 @@ class _SubscriptionGatePageState extends State<SubscriptionGatePage> {
   final PlanCatalog _plans = GetIt.instance<PlanCatalog>();
 
   _View _view = const _Checking();
-  List<BillingPlanOffer> _offers = const [];
+  List<PlanPricing> _plansOnSale = const [];
+  String? _selected;
   bool _busy = false;
 
   /// Long enough that "checking" is read rather than flashed; a check that
@@ -120,12 +123,34 @@ class _SubscriptionGatePageState extends State<SubscriptionGatePage> {
 
   Future<void> _resolve(GateOutcome outcome) async {
     if (outcome is GateSubscribe) {
-      _offers = await _billing.offers(await _plans.load());
+      final offers = await _billing.offers(await _plans.load());
       if (!mounted) return;
+      _plansOnSale = PlanPricing.of(offers);
+      if (!_plansOnSale.any((p) => p.sku == _selected)) {
+        _selected = PlanPricing.preselect(_plansOnSale);
+      }
     }
     // A granted outcome leaves on its own once the hero's check mark has
     // landed (see [_heroFor]).
     setState(() => _view = _Resolved(outcome));
+  }
+
+  PlanPricing? get _selectedPlan {
+    for (final p in _plansOnSale) {
+      if (p.sku == _selected) return p;
+    }
+    return null;
+  }
+
+  void _select(String sku) {
+    if (_busy || sku == _selected) return;
+    unawaited(HapticFeedback.selectionClick());
+    setState(() => _selected = sku);
+  }
+
+  Future<void> _buySelected() async {
+    final plan = _selectedPlan?.offer.plan;
+    if (plan != null && !_busy) await _purchase(plan);
   }
 
   Future<void> _purchase(BillingPlan plan) async {
@@ -250,6 +275,9 @@ class _SubscriptionGatePageState extends State<SubscriptionGatePage> {
   Widget build(BuildContext context) {
     final view = _view;
     final granted = view is _Resolved && view.outcome is GateGranted;
+    final selected = _selectedPlan;
+    final checkout =
+        view is _Resolved && view.outcome is GateSubscribe && selected != null;
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Stack(
@@ -315,6 +343,41 @@ class _SubscriptionGatePageState extends State<SubscriptionGatePage> {
                     ),
                   ),
                 ),
+                // The buy button stays in reach however far the plans
+                // scroll; it rises in once there is something to buy.
+                AnimatedSwitcher(
+                  duration: AppMotion.reduced(context)
+                      ? Duration.zero
+                      : AppMotion.entrance,
+                  switchInCurve: AppMotion.easeOut,
+                  switchOutCurve: AppMotion.leaving,
+                  transitionBuilder: (child, animation) => SizeTransition(
+                    sizeFactor: animation,
+                    alignment: AlignmentDirectional.topCenter,
+                    child: FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0, 0.35),
+                          end: Offset.zero,
+                        ).animate(animation),
+                        child: child,
+                      ),
+                    ),
+                  ),
+                  child: checkout
+                      ? _CheckoutBar(
+                          key: const ValueKey('checkout'),
+                          plan: selected,
+                          busy: _busy,
+                          onBuy: _buySelected,
+                          onRestore: _restore,
+                        )
+                      : const SizedBox(
+                          key: ValueKey('no-checkout'),
+                          width: double.infinity,
+                        ),
+                ),
               ],
             ),
           ),
@@ -334,10 +397,10 @@ class _SubscriptionGatePageState extends State<SubscriptionGatePage> {
       GateSubscribe(:final endedAt) => _SubscribeState(
         feature: widget.feature,
         endedAt: endedAt,
-        offers: _offers,
+        plans: _plansOnSale,
+        selected: _selected,
         busy: _busy,
-        onPurchase: _purchase,
-        onRestore: _restore,
+        onSelect: _select,
       ),
       GateSignInRequired() => _MessageState(
         title: s.sub_signin_title,
@@ -449,18 +512,18 @@ class _SubscribeState extends StatelessWidget {
   const _SubscribeState({
     required this.feature,
     required this.endedAt,
-    required this.offers,
+    required this.plans,
+    required this.selected,
     required this.busy,
-    required this.onPurchase,
-    required this.onRestore,
+    required this.onSelect,
   });
 
   final PremiumFeature? feature;
   final DateTime? endedAt;
-  final List<BillingPlanOffer> offers;
+  final List<PlanPricing> plans;
+  final String? selected;
   final bool busy;
-  final ValueChanged<BillingPlan> onPurchase;
-  final VoidCallback onRestore;
+  final ValueChanged<String> onSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -482,19 +545,25 @@ class _SubscribeState extends StatelessWidget {
         _Perks(highlight: feature),
         const SizedBox(height: 20),
         // Only plans Bazaar has a price for: a plan shown without one could
-        // not be bought anyway.
-        for (final offer in offers) ...[
-          _PlanCard(
-            plan: offer.plan,
-            price: offer.price,
-            busy: busy,
-            onTap: busy ? null : () => onPurchase(offer.plan),
+        // not be bought anyway. Tapping a plan only selects it; the pinned
+        // button buys.
+        // The best value leads, preselected, so the plan the button buys is
+        // in view on any phone; the rest keep the server's order.
+        for (final plan in [
+          ...plans.where((p) => p.bestValue),
+          ...plans.where((p) => !p.bestValue),
+        ]) ...[
+          _PlanOption(
+            pricing: plan,
+            selected: plan.sku == selected,
+            enabled: !busy,
+            onTap: () => onSelect(plan.sku),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
         ],
-        if (offers.isEmpty)
+        if (plans.isEmpty)
           Padding(
-            padding: const EdgeInsets.only(top: 4),
+            padding: const EdgeInsets.only(top: 4, bottom: 12),
             child: Text(
               s.paywall_unavailable,
               textAlign: TextAlign.center,
@@ -505,39 +574,26 @@ class _SubscribeState extends StatelessWidget {
             ),
           ),
         const SizedBox(height: 6),
-        Center(
-          child: AnimatedOpacity(
-            duration: AppMotion.card,
-            curve: AppMotion.easeOut,
-            opacity: busy || offers.isEmpty ? 0.5 : 1,
-            child: TextButton.icon(
-              onPressed: busy || offers.isEmpty ? null : onRestore,
-              icon: Icon(
-                Icons.restore_rounded,
-                size: 18,
-                color: AppColors.textSecondary,
-              ),
-              label: Text(
-                s.paywall_restore,
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: _labelSpacing(context, 1.2),
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 6),
         _FreeNote(text: s.paywall_free_note),
       ],
     );
   }
 }
 
-/// What premium unlocks, one line each. The feature that was just tapped is
-/// lit, so the person sees the thing they reached for in the list.
+/// A plan's length in words: "3 months", "1 year", or the server's name for
+/// the test plan.
+String _planLength(BuildContext context, BillingPlan plan) {
+  final s = context.getString;
+  return switch (plan.months) {
+    0 => plan.title,
+    1 => s.paywall_month,
+    12 => s.paywall_year,
+    final m => s.paywall_months('$m'.localized(context)),
+  };
+}
+
+/// What premium unlocks, as three tiles side by side. The feature that was
+/// just tapped is lit, so the person sees the thing they reached for.
 class _Perks extends StatelessWidget {
   const _Perks({required this.highlight});
 
@@ -555,25 +611,28 @@ class _Perks extends StatelessWidget {
         s.paywall_perk_music,
       ),
     ];
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (final (feature, icon, label) in perks)
-            _PerkRow(icon: icon, label: label, lit: feature == highlight),
+          for (final (i, (feature, icon, label)) in perks.indexed) ...[
+            if (i > 0) const SizedBox(width: 10),
+            Expanded(
+              child: _PerkTile(
+                icon: icon,
+                label: label,
+                lit: feature == highlight,
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _PerkRow extends StatelessWidget {
-  const _PerkRow({required this.icon, required this.label, required this.lit});
+class _PerkTile extends StatelessWidget {
+  const _PerkTile({required this.icon, required this.label, required this.lit});
 
   final IconData icon;
   final String label;
@@ -582,34 +641,39 @@ class _PerkRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final amber = AppColors.amber;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
+    return Container(
+      padding: const EdgeInsets.fromLTRB(8, 12, 8, 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: lit
+            ? Color.alphaBlend(amber.withValues(alpha: 0.12), AppColors.card)
+            : AppColors.card,
+        border: Border.all(
+          color: lit ? amber.withValues(alpha: 0.7) : AppColors.border,
+        ),
+      ),
+      child: Column(
         children: [
           Container(
-            width: 34,
-            height: 34,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: amber.withValues(alpha: lit ? 0.24 : 0.12),
-              border: lit
-                  ? Border.all(color: amber.withValues(alpha: 0.6))
-                  : null,
+              color: amber.withValues(alpha: lit ? 0.26 : 0.14),
             ),
-            child: Icon(icon, size: 17, color: amber),
+            child: Icon(icon, size: 18, color: amber),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 14,
-                fontWeight: lit ? FontWeight.w800 : FontWeight.w600,
-              ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 11.5,
+              height: 1.45,
+              fontWeight: lit ? FontWeight.w800 : FontWeight.w600,
             ),
           ),
-          Icon(Icons.check_rounded, size: 18, color: AppColors.green),
         ],
       ),
     );
@@ -844,89 +908,91 @@ class _FreeNote extends StatelessWidget {
   }
 }
 
-/// One plan: its name, a calendar mark with its length, and the store's
-/// price. Tapping it starts the purchase.
-class _PlanCard extends StatelessWidget {
-  const _PlanCard({
-    required this.plan,
-    required this.price,
-    required this.busy,
-    this.onTap,
+/// One plan to pick: its length, the store's price, and for longer plans
+/// what a month comes to and how much that saves. The best value wears a
+/// ribbon. Selecting lights the border and fills the radio; it never buys.
+class _PlanOption extends StatelessWidget {
+  const _PlanOption({
+    required this.pricing,
+    required this.selected,
+    required this.enabled,
+    required this.onTap,
   });
 
-  final BillingPlan plan;
-  final String? price;
-  final bool busy;
-  final VoidCallback? onTap;
+  final PlanPricing pricing;
+  final bool selected;
+  final bool enabled;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final s = context.getString;
     final amber = AppColors.amber;
-    final radius = BorderRadius.circular(18);
-    final months = plan.months;
-    return AnimatedOpacity(
-      duration: AppMotion.card,
-      curve: AppMotion.easeOut,
-      opacity: busy ? 0.55 : 1,
+    final radius = BorderRadius.circular(20);
+    final duration = AppMotion.reduced(context)
+        ? Duration.zero
+        : AppMotion.card;
+    final perMonth = pricing.perMonth;
+    final saving = pricing.savingPercent;
+    final card = Semantics(
+      button: true,
+      selected: selected,
       child: PressableScale(
-        onTap: onTap,
+        key: ValueKey('plan-${pricing.sku}'),
+        onTap: enabled ? onTap : null,
         borderRadius: radius,
-        child: Container(
-          padding: const EdgeInsetsDirectional.fromSTEB(14, 14, 12, 14),
+        child: AnimatedContainer(
+          duration: duration,
+          curve: AppMotion.easeOut,
+          padding: EdgeInsetsDirectional.fromSTEB(
+            14,
+            pricing.bestValue ? 18 : 14,
+            16,
+            14,
+          ),
           decoration: BoxDecoration(
             borderRadius: radius,
-            gradient: LinearGradient(
-              begin: AlignmentDirectional.topStart,
-              end: AlignmentDirectional.bottomEnd,
-              colors: [
-                Color.alphaBlend(amber.withValues(alpha: 0.10), AppColors.card),
-                AppColors.card,
-              ],
+            color: selected
+                ? Color.alphaBlend(
+                    amber.withValues(alpha: 0.11),
+                    AppColors.card,
+                  )
+                : AppColors.card,
+            border: Border.all(
+              color: selected ? amber : AppColors.border,
+              width: 1.6,
             ),
-            border: Border.all(color: amber.withValues(alpha: 0.4)),
+            boxShadow: [
+              BoxShadow(
+                color: amber.withValues(alpha: selected ? 0.24 : 0),
+                blurRadius: 24,
+                spreadRadius: -6,
+              ),
+            ],
           ),
           child: Row(
             children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  color: amber.withValues(alpha: 0.16),
-                ),
-                alignment: Alignment.center,
-                child: months > 0
-                    ? Text(
-                        '$months'.localized(context),
-                        style: TextStyle(
-                          color: amber,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      )
-                    : Icon(Icons.timer_outlined, color: amber, size: 22),
-              ),
-              const SizedBox(width: 14),
+              _Radio(selected: selected),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      plan.title,
+                      _planLength(context, pricing.offer.plan),
                       style: TextStyle(
                         color: AppColors.textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
-                    if (price != null) ...[
-                      const SizedBox(height: 4),
+                    if (perMonth != null) ...[
+                      const SizedBox(height: 3),
                       Text(
-                        price!,
+                        s.paywall_per_month(perMonth),
                         style: TextStyle(
-                          color: amber,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
                         ),
                       ),
                     ],
@@ -934,19 +1000,317 @@ class _PlanCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(shape: BoxShape.circle, color: amber),
-                child: Icon(
-                  Icons.chevron_right_rounded,
-                  color: AppColors.background,
-                  size: 22,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  AnimatedDefaultTextStyle(
+                    duration: duration,
+                    curve: AppMotion.easeOut,
+                    style: DefaultTextStyle.of(context).style.copyWith(
+                      color: selected ? amber : AppColors.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                    ),
+                    child: Text(pricing.offer.price),
+                  ),
+                  if (saving != null) ...[
+                    const SizedBox(height: 5),
+                    _SaveChip(percent: saving),
+                  ],
+                ],
               ),
             ],
           ),
         ),
+      ),
+    );
+    if (!pricing.bestValue) return card;
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          card,
+          PositionedDirectional(
+            top: -10,
+            end: 18,
+            child: _Ribbon(text: s.paywall_best_value),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Radio extends StatelessWidget {
+  const _Radio({required this.selected});
+
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final amber = AppColors.amber;
+    final duration = AppMotion.reduced(context)
+        ? Duration.zero
+        : AppMotion.card;
+    return AnimatedContainer(
+      duration: duration,
+      curve: AppMotion.easeOut,
+      width: 24,
+      height: 24,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: selected ? amber : Colors.transparent,
+        border: Border.all(
+          color: selected
+              ? amber
+              : AppColors.textSecondary.withValues(alpha: 0.5),
+          width: 2,
+        ),
+      ),
+      child: AnimatedScale(
+        scale: selected ? 1 : 0,
+        duration: duration,
+        curve: AppMotion.easeOut,
+        child: Icon(Icons.check_rounded, size: 15, color: AppColors.background),
+      ),
+    );
+  }
+}
+
+class _SaveChip extends StatelessWidget {
+  const _SaveChip({required this.percent});
+
+  final int percent;
+
+  @override
+  Widget build(BuildContext context) {
+    final fa = Localizations.localeOf(context).languageCode == 'fa';
+    final value = fa ? '$percent٪'.localized(context) : '$percent%';
+    final green = AppColors.green;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: green.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        context.getString.paywall_save(value),
+        style: TextStyle(
+          color: green,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w900,
+          letterSpacing: _labelSpacing(context, 0.6),
+        ),
+      ),
+    );
+  }
+}
+
+class _Ribbon extends StatelessWidget {
+  const _Ribbon({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final amber = AppColors.amber;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        gradient: LinearGradient(
+          colors: [amber, Color.lerp(amber, Colors.deepOrange, 0.35)!],
+        ),
+        boxShadow: [
+          BoxShadow(color: amber.withValues(alpha: 0.35), blurRadius: 10),
+        ],
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: AppColors.background,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w900,
+          letterSpacing: _labelSpacing(context, 1),
+        ),
+      ),
+    );
+  }
+}
+
+/// Pinned under the plans: the one button that buys the selected plan, with
+/// its length and price on it, then the reassurance and "restore".
+class _CheckoutBar extends StatelessWidget {
+  const _CheckoutBar({
+    required this.plan,
+    required this.busy,
+    required this.onBuy,
+    required this.onRestore,
+    super.key,
+  });
+
+  final PlanPricing plan;
+  final bool busy;
+  final VoidCallback onBuy;
+  final VoidCallback onRestore;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    final radius = BorderRadius.circular(18);
+    final amber = AppColors.amber;
+    final duration = AppMotion.reduced(context)
+        ? Duration.zero
+        : AppMotion.card;
+    final detail = s.paywall_cta_plan(
+      _planLength(context, plan.offer.plan),
+      plan.offer.price,
+    );
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 4),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        border: Border(top: BorderSide(color: AppColors.border)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 24,
+            offset: const Offset(0, -8),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          PulseGlow(
+            enabled: !busy,
+            borderRadius: radius,
+            child: PressableScale(
+              key: const ValueKey('paywall-buy'),
+              onTap: busy ? null : onBuy,
+              borderRadius: radius,
+              child: AnimatedOpacity(
+                duration: duration,
+                opacity: busy ? 0.7 : 1,
+                child: Container(
+                  constraints: const BoxConstraints(minHeight: 60),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 10,
+                    horizontal: 16,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: radius,
+                    gradient: LinearGradient(
+                      begin: AlignmentDirectional.centerStart,
+                      end: AlignmentDirectional.centerEnd,
+                      colors: [
+                        amber,
+                        Color.lerp(amber, Colors.deepOrange, 0.35)!,
+                      ],
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: AnimatedSwitcher(
+                    duration: duration,
+                    switchInCurve: AppMotion.easeOut,
+                    switchOutCurve: AppMotion.leaving,
+                    child: busy
+                        ? SizedBox(
+                            key: const ValueKey('busy'),
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.6,
+                              color: AppColors.background,
+                            ),
+                          )
+                        : Column(
+                            key: const ValueKey('label'),
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                s.paywall_cta,
+                                style: TextStyle(
+                                  color: AppColors.background,
+                                  fontSize: 15.5,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: _labelSpacing(context, 1.2),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              // The plan on the button follows the
+                              // selection with a quick crossfade.
+                              AnimatedSwitcher(
+                                duration: duration,
+                                switchInCurve: AppMotion.easeOut,
+                                switchOutCurve: AppMotion.leaving,
+                                child: Text(
+                                  detail,
+                                  key: ValueKey(detail),
+                                  style: TextStyle(
+                                    color: AppColors.background.withValues(
+                                      alpha: 0.78,
+                                    ),
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.lock_rounded,
+                size: 13,
+                color: AppColors.textSecondary,
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  s.paywall_trust,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 11.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Center(
+            child: TextButton(
+              key: const ValueKey('paywall-restore'),
+              onPressed: busy ? null : onRestore,
+              style: TextButton.styleFrom(
+                minimumSize: const Size(0, 36),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+              ),
+              child: Text(
+                s.paywall_restore,
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  decoration: TextDecoration.underline,
+                  decorationColor: AppColors.textSecondary.withValues(
+                    alpha: 0.4,
+                  ),
+                  letterSpacing: _labelSpacing(context, 0.6),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -203,11 +203,13 @@ void main() {
     await pumpGate(tester);
 
     expect(find.text('Welcome back'), findsOneWidget);
-    // The server's plan names with Bazaar's prices; a plan Bazaar has no
-    // price for is not offered.
+    // Plans with Bazaar's prices; a plan Bazaar has no price for is not
+    // offered. The only plan is preselected, and the pinned button names it.
     expect(find.text('1 month'), findsOneWidget);
     expect(find.text('50,000 Rial'), findsOneWidget);
     expect(find.text('3 months'), findsNothing);
+    expect(find.byKey(const ValueKey('paywall-buy')), findsOneWidget);
+    expect(find.text('1 month · 50,000 Rial'), findsOneWidget);
     expect(find.text('TRY AGAIN'), findsNothing);
   });
 
