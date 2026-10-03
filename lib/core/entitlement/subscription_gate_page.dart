@@ -15,6 +15,7 @@ import '../utils/friendly_date.dart';
 import '../utils/logger.dart';
 import 'billing_service.dart';
 import 'license_gate.dart';
+import 'plan_catalog.dart';
 import 'premium_feature.dart';
 import 'subscription_policy.dart';
 import 'subscription_service.dart';
@@ -40,6 +41,19 @@ Future<bool> openSubscriptionGate(
   return granted ?? false;
 }
 
+/// The same screen opened from the subscription page rather than a locked
+/// feature: no feature to name, just the plans. True when premium is
+/// unlocked on it.
+Future<bool> openSubscriptionPlans(BuildContext context) async =>
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        settings: const RouteSettings(name: 'SubscriptionGate'),
+        fullscreenDialog: true,
+        builder: (_) => const SubscriptionGatePage(),
+      ),
+    ) ??
+    false;
+
 /// One screen, driven entirely by state: it opens on "checking", asks the
 /// server once, and becomes whichever answer came back — the plain renewal
 /// screen, or one of the three "couldn't check" screens. Each state morphs
@@ -50,9 +64,10 @@ Future<bool> openSubscriptionGate(
 /// could not do, and the one thing that would fix it — and free features are
 /// always a tap away.
 class SubscriptionGatePage extends StatefulWidget {
-  const SubscriptionGatePage({required this.feature, super.key});
+  const SubscriptionGatePage({this.feature, super.key});
 
-  final PremiumFeature feature;
+  /// The locked feature that was tapped; null when opened to see the plans.
+  final PremiumFeature? feature;
 
   @override
   State<SubscriptionGatePage> createState() => _SubscriptionGatePageState();
@@ -75,6 +90,7 @@ class _SubscriptionGatePageState extends State<SubscriptionGatePage> {
   final SubscriptionService _subscription =
       GetIt.instance<SubscriptionService>();
   final BillingService _billing = GetIt.instance<BillingService>();
+  final PlanCatalog _plans = GetIt.instance<PlanCatalog>();
 
   _View _view = const _Checking();
   List<BillingPlanOffer> _offers = const [];
@@ -102,7 +118,7 @@ class _SubscriptionGatePageState extends State<SubscriptionGatePage> {
 
   Future<void> _resolve(GateOutcome outcome) async {
     if (outcome is GateSubscribe) {
-      _offers = await _billing.offers();
+      _offers = await _billing.offers(await _plans.load());
       if (!mounted) return;
     }
     setState(() => _view = _Resolved(outcome));
@@ -120,7 +136,7 @@ class _SubscriptionGatePageState extends State<SubscriptionGatePage> {
       case PurchaseSuccess(:final purchase):
         setState(() => _view = const _Checking());
         final outcome = await _subscription.submitBazaarPurchase(
-          sku: purchase.plan.sku,
+          sku: purchase.sku,
           purchaseToken: purchase.purchaseToken,
         );
         if (!mounted) return;
@@ -148,7 +164,7 @@ class _SubscriptionGatePageState extends State<SubscriptionGatePage> {
     GateOutcome outcome = const GateSubscribe();
     for (final purchase in owned) {
       outcome = await _subscription.submitBazaarPurchase(
-        sku: purchase.plan.sku,
+        sku: purchase.sku,
         purchaseToken: purchase.purchaseToken,
       );
       if (outcome is GateGranted) break;
@@ -362,7 +378,7 @@ class _SubscribeState extends StatelessWidget {
     required this.onRestore,
   });
 
-  final PremiumFeature feature;
+  final PremiumFeature? feature;
   final DateTime? endedAt;
   final List<BillingPlanOffer> offers;
   final bool busy;
@@ -377,6 +393,7 @@ class _SubscribeState extends StatelessWidget {
       PremiumFeature.wifiTransport => s.paywall_locked_wifi,
       PremiumFeature.selfMute => s.paywall_locked_mute,
       PremiumFeature.musicPlayback => s.paywall_locked_music,
+      null => s.mysub_none_body,
     };
 
     return _StateLayout(
@@ -386,14 +403,13 @@ class _SubscribeState extends StatelessWidget {
           ? reason
           : s.sub_renew_body(FriendlyDate.format(context, ended)),
       footer: [
-        for (final plan in BillingPlan.values) ...[
+        // Only plans Bazaar has a price for: a plan shown without one could
+        // not be bought anyway.
+        for (final offer in offers) ...[
           _PlanRow(
-            label: switch (plan) {
-              BillingPlan.monthly => s.paywall_plan_1m,
-              BillingPlan.yearly => s.paywall_plan_12m,
-            },
-            price: _priceFor(plan),
-            onTap: offers.isEmpty || busy ? null : () => onPurchase(plan),
+            label: offer.plan.title,
+            price: offer.price,
+            onTap: busy ? null : () => onPurchase(offer.plan),
           ),
           const SizedBox(height: 8),
         ],
@@ -425,13 +441,6 @@ class _SubscribeState extends StatelessWidget {
         _FreeNote(text: s.paywall_free_note),
       ],
     );
-  }
-
-  String? _priceFor(BillingPlan plan) {
-    for (final offer in offers) {
-      if (offer.plan == plan) return offer.price;
-    }
-    return null;
   }
 }
 

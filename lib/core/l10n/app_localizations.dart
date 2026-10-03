@@ -2540,18 +2540,6 @@ abstract class AppLocalizations {
   /// **'بعداً'**
   String get paywall_close;
 
-  /// No description provided for @paywall_plan_1m.
-  ///
-  /// In fa, this message translates to:
-  /// **'یک ماهه'**
-  String get paywall_plan_1m;
-
-  /// No description provided for @paywall_plan_12m.
-  ///
-  /// In fa, this message translates to:
-  /// **'یک ساله'**
-  String get paywall_plan_12m;
-
   /// No description provided for @sub_checking.
   ///
   /// In fa, this message translates to:
@@ -4507,6 +4495,126 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'پاک کردن حساب'**
   String get account_delete;
+
+  /// No description provided for @account_subscription.
+  ///
+  /// In fa, this message translates to:
+  /// **'اشتراک'**
+  String get account_subscription;
+
+  /// No description provided for @account_subscription_none.
+  ///
+  /// In fa, this message translates to:
+  /// **'هنوز اشتراکی نداری'**
+  String get account_subscription_none;
+
+  /// No description provided for @mysub_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'اشتراک تو'**
+  String get mysub_title;
+
+  /// No description provided for @mysub_premium.
+  ///
+  /// In fa, this message translates to:
+  /// **'نسخه ویژه'**
+  String get mysub_premium;
+
+  /// No description provided for @mysub_renews.
+  ///
+  /// In fa, this message translates to:
+  /// **'روز {date} تمدید می‌شه'**
+  String mysub_renews(Object date);
+
+  /// No description provided for @mysub_ends.
+  ///
+  /// In fa, this message translates to:
+  /// **'روز {date} تموم می‌شه. تمدید خودکار خاموشه.'**
+  String mysub_ends(Object date);
+
+  /// No description provided for @mysub_ended.
+  ///
+  /// In fa, this message translates to:
+  /// **'روز {date} تموم شد'**
+  String mysub_ended(Object date);
+
+  /// No description provided for @mysub_refunded.
+  ///
+  /// In fa, this message translates to:
+  /// **'روز {date} زودتر تموم شد'**
+  String mysub_refunded(Object date);
+
+  /// No description provided for @mysub_paid_bazaar.
+  ///
+  /// In fa, this message translates to:
+  /// **'پرداخت از طریق کافه‌بازار'**
+  String get mysub_paid_bazaar;
+
+  /// No description provided for @mysub_paid_gift.
+  ///
+  /// In fa, this message translates to:
+  /// **'هدیه از طرف تَرک'**
+  String get mysub_paid_gift;
+
+  /// No description provided for @mysub_manage.
+  ///
+  /// In fa, this message translates to:
+  /// **'باز کردن بازار'**
+  String get mysub_manage;
+
+  /// No description provided for @mysub_manage_note.
+  ///
+  /// In fa, this message translates to:
+  /// **'پرداخت با بازاره. برای لغو، یا روشن و خاموش کردن تمدید خودکار، اشتراک‌هات رو توی برنامه‌ی بازار باز کن.'**
+  String get mysub_manage_note;
+
+  /// No description provided for @mysub_none_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'هنوز اشتراکی نداری'**
+  String get mysub_none_title;
+
+  /// No description provided for @mysub_none_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'نسخه ویژه وای‌فای، هات‌اسپات و مهمان، بی‌صدا کردن خودت و پخش موسیقی رو باز می‌کنه. بلوتوث همیشه رایگانه.'**
+  String get mysub_none_body;
+
+  /// No description provided for @mysub_see_plans.
+  ///
+  /// In fa, this message translates to:
+  /// **'دیدن طرح‌ها'**
+  String get mysub_see_plans;
+
+  /// No description provided for @mysub_renew.
+  ///
+  /// In fa, this message translates to:
+  /// **'تمدید'**
+  String get mysub_renew;
+
+  /// No description provided for @mysub_checked.
+  ///
+  /// In fa, this message translates to:
+  /// **'آخرین بررسی: {date}'**
+  String mysub_checked(Object date);
+
+  /// No description provided for @mysub_offline.
+  ///
+  /// In fa, this message translates to:
+  /// **'الان به تَرک نرسیدیم، پس این آخرین چیزیه که می‌دونیم.'**
+  String get mysub_offline;
+
+  /// No description provided for @mysub_plan_months.
+  ///
+  /// In fa, this message translates to:
+  /// **'{count} ماهه'**
+  String mysub_plan_months(num count);
+
+  /// No description provided for @mysub_plan_years.
+  ///
+  /// In fa, this message translates to:
+  /// **'{count} ساله'**
+  String mysub_plan_years(num count);
 
   /// No description provided for @signin_title.
   ///

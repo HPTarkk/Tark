@@ -1364,12 +1364,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paywall_close => 'NOT NOW';
 
   @override
-  String get paywall_plan_1m => '1 MONTH';
-
-  @override
-  String get paywall_plan_12m => '1 YEAR';
-
-  @override
   String get sub_checking => 'Checking your subscription…';
 
   @override
@@ -2505,6 +2499,95 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get account_delete => 'Delete account';
+
+  @override
+  String get account_subscription => 'Subscription';
+
+  @override
+  String get account_subscription_none => 'No subscription yet';
+
+  @override
+  String get mysub_title => 'Your subscription';
+
+  @override
+  String get mysub_premium => 'PREMIUM';
+
+  @override
+  String mysub_renews(Object date) {
+    return 'Renews on $date';
+  }
+
+  @override
+  String mysub_ends(Object date) {
+    return 'Ends on $date. Auto-renew is off.';
+  }
+
+  @override
+  String mysub_ended(Object date) {
+    return 'Ended on $date';
+  }
+
+  @override
+  String mysub_refunded(Object date) {
+    return 'Ended early on $date';
+  }
+
+  @override
+  String get mysub_paid_bazaar => 'Paid through Cafe Bazaar';
+
+  @override
+  String get mysub_paid_gift => 'Given by Tark';
+
+  @override
+  String get mysub_manage => 'OPEN BAZAAR';
+
+  @override
+  String get mysub_manage_note =>
+      'Bazaar handles payment. To cancel, or to turn auto-renew on or off, open your subscriptions in the Bazaar app.';
+
+  @override
+  String get mysub_none_title => 'No subscription yet';
+
+  @override
+  String get mysub_none_body =>
+      'Premium unlocks Wi-Fi, Hotspot and Guest, muting yourself, and sharing music. Bluetooth stays free, always.';
+
+  @override
+  String get mysub_see_plans => 'SEE PLANS';
+
+  @override
+  String get mysub_renew => 'RENEW';
+
+  @override
+  String mysub_checked(Object date) {
+    return 'Last checked $date';
+  }
+
+  @override
+  String get mysub_offline =>
+      'Couldn\'t reach Tark just now, so this is the latest we know.';
+
+  @override
+  String mysub_plan_months(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count months',
+      one: '1 month',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String mysub_plan_years(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count years',
+      one: '1 year',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get signin_title => 'Sign in';

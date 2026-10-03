@@ -5,6 +5,7 @@ import 'package:get_it/get_it.dart';
 
 import '../../../../core/account/account_models.dart';
 import '../../../../core/account/account_session.dart';
+import '../../../../core/entitlement/subscription_service.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/confirm_sheet.dart';
@@ -101,6 +102,18 @@ class _SignedIn extends StatelessWidget {
           subtitle: '\u2066${profile.email}\u2069',
           trailing: null,
         ),
+        if (GetIt.instance.isRegistered<SubscriptionService>())
+          SettingsRow(
+            key: const ValueKey('account-subscription'),
+            icon: Icons.workspace_premium_rounded,
+            label: s.account_subscription,
+            trailing: chevron,
+            onTap: () => pushAuthPage(
+              context,
+              SubscriptionPage.routeName,
+              (_) => SubscriptionPage.buildPage(),
+            ),
+          ),
         if (profile.hasPassword)
           SettingsRow(
             key: const ValueKey('account-change-password'),

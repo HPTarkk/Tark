@@ -5,6 +5,7 @@ import 'package:tark/core/account/account_session.dart';
 import 'package:tark/core/config/support_config.dart';
 import 'package:tark/core/entitlement/billing_service.dart';
 import 'package:tark/core/entitlement/install_identity.dart';
+import 'package:tark/core/entitlement/plan_catalog.dart';
 import 'package:tark/core/entitlement/premium_feature.dart';
 import 'package:tark/core/entitlement/signed_entitlement.dart';
 import 'package:tark/core/entitlement/subscription_gate_page.dart';
@@ -32,6 +33,25 @@ class _Remote implements SubscriptionRemote {
   }) async => answer();
 }
 
+class _Plans implements PlanCatalog {
+  @override
+  Future<List<BillingPlan>> load() async => const [
+    BillingPlan(sku: 'tark_premium_1m', months: 1, title: '1 month'),
+    BillingPlan(sku: 'tark_premium_3m', months: 3, title: '3 months'),
+  ];
+}
+
+/// Bazaar sells the plans it is asked about, except the 3-month one.
+class _Billing extends UnavailableBillingService {
+  const _Billing();
+
+  @override
+  Future<List<BillingPlanOffer>> offers(List<BillingPlan> plans) async => [
+    for (final plan in plans)
+      if (plan.months == 1) BillingPlanOffer(plan: plan, price: '50,000 Rial'),
+  ];
+}
+
 void main() {
   final issued = DateTime.utc(2026, 10, 1, 12);
   final until = DateTime.utc(2026, 10, 12, 12);
@@ -46,9 +66,8 @@ void main() {
     final identity = InstallIdentity(storage);
     await identity.load();
     installKey = identity.publicKey;
-    GetIt.instance.registerSingleton<BillingService>(
-      const UnavailableBillingService(),
-    );
+    GetIt.instance.registerSingleton<BillingService>(const _Billing());
+    GetIt.instance.registerSingleton<PlanCatalog>(_Plans());
   });
 
   tearDown(() => GetIt.instance.reset());
@@ -184,7 +203,11 @@ void main() {
     await pumpGate(tester);
 
     expect(find.text('Welcome back'), findsOneWidget);
-    expect(find.text('1 MONTH'), findsOneWidget);
+    // The server's plan names with Bazaar's prices; a plan Bazaar has no
+    // price for is not offered.
+    expect(find.text('1 month'), findsOneWidget);
+    expect(find.text('50,000 Rial'), findsOneWidget);
+    expect(find.text('3 months'), findsNothing);
     expect(find.text('TRY AGAIN'), findsNothing);
   });
 

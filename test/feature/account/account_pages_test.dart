@@ -99,6 +99,29 @@ void main() {
       expect(results, isEmpty);
     });
 
+    testWidgets('a code this build does not know shows the server\'s words', (
+      tester,
+    ) async {
+      h.client.handler = (_) async => const ApiProblem(
+        403,
+        'brand_new_code',
+        fields: {'message': 'Sign-in is paused for maintenance.'},
+      );
+      await pump(tester, (_) => SignInPage.buildPage());
+      await tester.enterText(
+        find.byKey(const ValueKey('signin-email')),
+        'pedi@example.com',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('signin-password')),
+        'secret pass',
+      );
+      await tester.tap(find.byKey(const ValueKey('signin-submit')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Sign-in is paused for maintenance.'), findsOneWidget);
+    });
+
     testWidgets('an incomplete address is caught before sending', (
       tester,
     ) async {

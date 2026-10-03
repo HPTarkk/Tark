@@ -1,22 +1,49 @@
-/// A purchasable plan. Monthly and yearly only: those are the subscription
-/// periods Bazaar offers. The [sku] values must match the product ids
-/// registered in each store's developer console before billing can ship.
-enum BillingPlan {
-  monthly(sku: 'tark_premium_1m', months: 1),
-  yearly(sku: 'tark_premium_12m', months: 12);
+import 'package:equatable/equatable.dart';
 
-  const BillingPlan({required this.sku, required this.months});
+/// A plan as the backend sells it (`GET /subscription/plans`). Which plans
+/// exist, their order and their names all come from the server, so a plan
+/// is added or retired there without an app update. The length is part of
+/// the product id (`tark_premium_<months>m`), which must match the Bazaar
+/// panel.
+class BillingPlan extends Equatable {
+  const BillingPlan({
+    required this.sku,
+    required this.months,
+    required this.title,
+  });
 
-  /// Also the `sku` enum in backend/api/openapi.yaml — change both together.
   final String sku;
   final int months;
 
-  static BillingPlan? forSku(String sku) {
-    for (final plan in BillingPlan.values) {
-      if (plan.sku == sku) return plan;
-    }
-    return null;
+  /// The plan's name in the language the server was asked for ("3 months",
+  /// "سه ماهه").
+  final String title;
+
+  static final _skuPattern = RegExp(r'^tark_premium_([1-9][0-9]?)m$');
+
+  /// Months in a plan id, or null for anything that is not one of ours.
+  static int? monthsOf(String sku) {
+    final match = _skuPattern.firstMatch(sku);
+    return match == null ? null : int.parse(match.group(1)!);
   }
+
+  static bool isPlanSku(String sku) => monthsOf(sku) != null;
+
+  /// A plan from one entry of the server's list, or null when malformed.
+  static BillingPlan? fromJson(Object? json) {
+    if (json is! Map) return null;
+    final sku = json['sku'];
+    final title = json['title'];
+    if (sku is! String || title is! String || title.trim().isEmpty) {
+      return null;
+    }
+    final months = monthsOf(sku);
+    if (months == null) return null;
+    return BillingPlan(sku: sku, months: months, title: title.trim());
+  }
+
+  @override
+  List<Object?> get props => [sku, months, title];
 }
 
 /// Outcome of a purchase attempt, kept deliberately coarse: the UI only ever
@@ -33,12 +60,13 @@ class PurchaseSuccess extends PurchaseResult {
   final StorePurchase purchase;
 }
 
-/// A purchase as the store reports it: which plan, and the token the server
-/// verifies it with.
+/// A purchase as the store reports it: which product, and the token the
+/// server verifies it with. [sku] may be a plan no longer on sale; the
+/// server still accepts it.
 class StorePurchase {
-  const StorePurchase({required this.plan, required this.purchaseToken});
+  const StorePurchase({required this.sku, required this.purchaseToken});
 
-  final BillingPlan plan;
+  final String sku;
   final String purchaseToken;
 }
 
@@ -75,10 +103,9 @@ abstract interface class BillingService {
   /// Whether a store SDK is present and connected in this build.
   Future<bool> isAvailable();
 
-  /// Live prices from the store, in plan order. Empty when billing is
-  /// unavailable — the paywall then shows plan names without prices rather
-  /// than inventing them.
-  Future<List<BillingPlanOffer>> offers();
+  /// Live prices from the store for [plans], in their order; a plan the
+  /// store does not sell is left out. Empty when billing is unavailable.
+  Future<List<BillingPlanOffer>> offers(List<BillingPlan> plans);
 
   Future<PurchaseResult> purchase(BillingPlan plan);
 
@@ -102,7 +129,8 @@ class UnavailableBillingService implements BillingService {
   Future<bool> isAvailable() async => false;
 
   @override
-  Future<List<BillingPlanOffer>> offers() async => const [];
+  Future<List<BillingPlanOffer>> offers(List<BillingPlan> plans) async =>
+      const [];
 
   @override
   Future<PurchaseResult> purchase(BillingPlan plan) async =>
