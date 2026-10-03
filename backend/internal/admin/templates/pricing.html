@@ -4,8 +4,8 @@
   <span class="page-icon">{{icon "pricing"}}</span>
   <div><h1>{{t "pricing.h"}}</h1><p class="lead">{{t "pricing.lead"}}</p></div>
 </header>
-{{with .Error}}<div class="flash bad" role="alert">{{icon "alert"}}<p>{{.}}</p></div>{{end}}
-{{with .Notice}}<div class="flash ok" role="status">{{icon "check"}}<p>{{.}}</p></div>{{end}}
+{{with .Error}}<div class="flash bad toast" role="alert">{{icon "alert"}}<p>{{.}}</p></div>{{end}}
+{{with .Notice}}<div class="flash ok toast" role="status">{{icon "check"}}<p>{{.}}</p></div>{{end}}
 <section class="panel">
 {{if .Rows}}
   <div class="table-wrap"><table><thead><tr><th>{{t "col.plan"}}</th><th>{{t "col.sku"}}</th><th class="num">{{t "col.multiplier"}}</th><th class="num">{{t "col.exact"}}</th><th class="num">{{t "col.toman"}}</th><th class="num">{{t "col.rial"}}</th><th class="num">{{t "col.perMonth"}}</th><th class="num">{{t "col.saves"}}</th></tr></thead><tbody>

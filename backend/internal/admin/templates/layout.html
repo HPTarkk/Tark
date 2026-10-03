@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="/static/admin.css">
 </head>
 {{$top := false}}{{with .Admin}}{{if not .MustChangePassword}}{{$top = true}}{{end}}{{end}}
-<body{{if $top}} class="app"{{end}}>
+<body class="{{if $top}}app{{end}}{{if .Posted}} posted{{end}}">
 {{if $top}}{{with .Admin}}
 {{/* The phone menu opens with this checkbox and its labels: the CSP allows no scripts. */}}
 <input type="checkbox" id="nav-open" class="nav-toggle" aria-label="{{t "menu"}}">

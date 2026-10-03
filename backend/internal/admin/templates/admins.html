@@ -4,19 +4,19 @@
   <span class="page-icon">{{icon "admins"}}</span>
   <div><h1>{{t "nav.admins"}}</h1><p class="lead">{{t "lead.admins"}}</p></div>
 </header>
-{{with .Error}}<div class="flash bad" role="alert">{{icon "alert"}}<p>{{.}}</p></div>{{end}}
-{{with .Temp}}<div class="flash ok secret" role="status">{{icon "lock"}}<div><p>{{t "admins.tempFor"}} <strong class="ltr">{{$.TempFor}}</strong>:</p><p><code class="key">{{.}}</code></p>
+{{with .Error}}<div class="flash bad toast" role="alert">{{icon "alert"}}<p>{{.}}</p></div>{{end}}
+{{with .Temp}}<div class="flash ok secret" role="status">{{icon "lock"}}<div><p>{{t "admins.tempFor"}} <strong class="ltr email">{{$.TempFor}}</strong>:</p><p><code class="key">{{.}}</code></p>
 <p class="muted">{{t "admins.tempNote"}}</p></div></div>{{end}}
 <div class="split">
-<section class="panel">
+<section class="panel" id="team">
   <div class="table-wrap"><table><thead><tr><th>{{t "col.name"}}</th><th>{{t "col.role"}}</th><th>{{t "col.authenticator"}}</th><th>{{t "col.lastSignin"}}</th><th></th></tr></thead><tbody>
   {{range .Admins}}<tr{{if .Disabled}} class="muted"{{end}}>
-    <td><div class="who"><span class="avatar" aria-hidden="true">{{initial .Name}}</span><div><b>{{.Name}}</b><small class="ltr">{{.Email}}</small></div></div></td>
+    <td><div class="who"><span class="avatar" aria-hidden="true">{{initial .Name}}</span><div><b>{{.Name}}</b><small class="ltr email">{{.Email}}</small></div></div></td>
     <td><span class="chip role-{{.Role}}">{{code "role" .Role}}</span>{{if .Disabled}} <span class="chip bad">{{code "status" "disabled"}}</span>{{end}}</td>
     <td>{{if .TOTP}}<span class="chip good">{{icon "check"}}{{t "admins.set"}}</span>{{else}}<span class="chip warn">{{t "admins.notYet"}}</span>{{end}}</td><td>{{ago .LastLogin}}</td>
     <td class="act">{{if ne .ID $.Admin.ID}}
-    {{if .Disabled}}<form method="post" action="/admins/{{.ID}}/enable"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="ghost sm">{{icon "check"}}<span>{{t "btn.enable"}}</span></button></form>
-    {{else}}<form method="post" action="/admins/{{.ID}}/disable"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="ghost sm">{{icon "ban"}}<span>{{t "btn.disable"}}</span></button></form>{{end}}
+    {{if .Disabled}}<form method="post" action="/admins/{{.ID}}/enable#team"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="ghost sm">{{icon "check"}}<span>{{t "btn.enable"}}</span></button></form>
+    {{else}}<form method="post" action="/admins/{{.ID}}/disable#team"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="ghost sm">{{icon "ban"}}<span>{{t "btn.disable"}}</span></button></form>{{end}}
     <form method="post" action="/admins/{{.ID}}/reset"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="ghost sm">{{icon "lock"}}<span>{{t "admins.newPw"}}</span></button></form>
     {{else}}<span class="chip accent">{{t "admins.you"}}</span>{{end}}</td></tr>{{end}}
   </tbody></table></div>
