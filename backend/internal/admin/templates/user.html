@@ -1,73 +1,73 @@
-{{define "title"}}Account · Tarkk admin{{end}}
+{{define "title"}}{{t "user.title"}} · {{t "brand"}}{{end}}
 {{define "main"}}
 {{with .Done}}<p class="notice">{{.}}</p>{{end}}
 {{with .Problem}}<p class="error">{{.}}</p>{{end}}
 {{with .U}}
 <h1>{{.Name}}</h1>
-<p>Account <code>{{.ID}}</code> · {{.Status}} · created {{when .Created}} · avatar {{deref .Avatar}} · signs in with {{range $i, $p := .Providers}}{{if $i}}, {{end}}{{$p}}{{end}}</p>
-<h2>Email</h2>
-<table><tr><th>Address</th><th>Primary</th><th>Verified</th><th>Removed</th><th></th></tr>
+<p>{{t "user.account"}} <code>{{.ID}}</code> · {{code "status" .Status}} · {{t "user.created" (when .Created)}} · {{t "user.avatar" (deref .Avatar)}} · {{t "user.signsIn"}} {{range $i, $p := .Providers}}{{if $i}}{{t "sep"}}{{end}}{{$p}}{{end}}</p>
+<h2>{{t "user.emailH"}}</h2>
+<table><tr><th>{{t "col.address"}}</th><th>{{t "col.primary"}}</th><th>{{t "col.verified"}}</th><th>{{t "col.removed"}}</th><th></th></tr>
 {{range .Emails}}<tr>
-  <td>{{if eq .ID $.U.RevealedEmailID}}<strong>{{$.U.RevealedEmail}}</strong>{{else}}{{.Masked}}{{end}}</td>
-  <td>{{if .Primary}}yes{{end}}</td><td>{{when .Verified}}</td><td>{{when .Removed}}</td>
-  <td>{{if ne .ID $.U.RevealedEmailID}}<form method="post" action="/users/{{$.U.ID}}/reveal"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="email" value="{{.ID}}"><button class="link">Show (recorded)</button></form>{{end}}</td>
+  <td><span class="ltr">{{if eq .ID $.U.RevealedEmailID}}<strong>{{$.U.RevealedEmail}}</strong>{{else}}{{.Masked}}{{end}}</span></td>
+  <td>{{if .Primary}}{{t "yes"}}{{end}}</td><td>{{when .Verified}}</td><td>{{when .Removed}}</td>
+  <td>{{if ne .ID $.U.RevealedEmailID}}<form method="post" action="/users/{{$.U.ID}}/reveal"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="email" value="{{.ID}}"><button class="link">{{t "user.reveal"}}</button></form>{{end}}</td>
 </tr>{{end}}</table>
-<h2>Subscription</h2>
-{{with .Suspicious}}<p class="error">Flagged suspicious since {{when .}} (a refund before expiry).</p>{{end}}
-<table><tr><th>Plan</th><th>State</th><th>Valid until</th><th>Auto-renew</th><th>Refunded</th><th>Last verified</th><th>Failed checks</th><th>Bought</th><th></th></tr>
-{{range .Purchases}}<tr><td>{{.SKU}}</td><td>{{.State}}</td><td>{{when .ValidUntil}}</td><td>{{if .AutoRenew}}on{{else}}off{{end}}</td><td>{{when .Refunded}}</td><td>{{when .LastVerified}}</td><td>{{.CheckFailures}}</td><td>{{when .Created}}</td>
-<td><form method="post" action="/users/{{$.U.ID}}/recheck"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="purchase" value="{{.ID}}"><button class="link">Check with Bazaar now</button></form></td></tr>
-{{else}}<tr><td colspan="9">No purchases.</td></tr>{{end}}</table>
-<h2>Premium given by hand</h2>
-<table><tr><th>From</th><th>Until</th><th>By</th><th>Reason</th><th>State</th></tr>
-{{range .Grants}}<tr><td>{{when .Starts}}</td><td>{{when .Ends}}</td><td>{{.By}}</td><td>{{.Reason}}</td><td>{{if .Revoked}}revoked {{when .Revoked}}{{else if .Live}}running{{else}}ended{{end}}</td></tr>
-{{else}}<tr><td colspan="5">None.</td></tr>{{end}}</table>
-<h2>Devices</h2>
-<table><tr><th>Platform</th><th>Signed in</th><th>Last used</th><th>Ended</th></tr>
-{{range .Sessions}}<tr><td>{{deref .Platform}}</td><td>{{when .Created}}</td><td>{{ago .LastSeen}}</td><td>{{when .Revoked}} {{deref .Reason}}</td></tr>
-{{else}}<tr><td colspan="4">None.</td></tr>{{end}}</table>
-<h2>Subscription history</h2>
-<table><tr><th>When</th><th>Event</th><th>Details</th></tr>
-{{range .SubEvents}}<tr><td>{{when .At}}</td><td>{{.Kind}}</td><td><code>{{.Details}}</code></td></tr>{{else}}<tr><td colspan="3">None.</td></tr>{{end}}</table>
-<h2>Security events</h2>
-<table><tr><th>When</th><th>Event</th><th>Details</th></tr>
-{{range .Audit}}<tr><td>{{when .At}}</td><td>{{.Kind}}</td><td><code>{{.Details}}</code></td></tr>{{else}}<tr><td colspan="3">None.</td></tr>{{end}}</table>
-<h2>Actions</h2>
-<p class="muted">Each action is recorded with your name and the reason.</p>
+<h2>{{t "user.subH"}}</h2>
+{{with .Suspicious}}<p class="error">{{t "user.suspicious" (when .)}}</p>{{end}}
+<table><tr><th>{{t "col.plan"}}</th><th>{{t "col.state"}}</th><th>{{t "col.validUntil"}}</th><th>{{t "col.autoRenew"}}</th><th>{{t "col.refunded"}}</th><th>{{t "col.lastVerified"}}</th><th>{{t "col.failedChecks"}}</th><th>{{t "col.bought"}}</th><th></th></tr>
+{{range .Purchases}}<tr><td><code>{{.SKU}}</code></td><td>{{code "state" .State}}</td><td>{{when .ValidUntil}}</td><td>{{if .AutoRenew}}{{t "on"}}{{else}}{{t "off"}}{{end}}</td><td>{{when .Refunded}}</td><td>{{when .LastVerified}}</td><td>{{.CheckFailures}}</td><td>{{when .Created}}</td>
+<td><form method="post" action="/users/{{$.U.ID}}/recheck"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="purchase" value="{{.ID}}"><button class="link">{{t "user.recheck"}}</button></form></td></tr>
+{{else}}<tr><td colspan="9">{{t "user.noPurchases"}}</td></tr>{{end}}</table>
+<h2>{{t "user.grantsH"}}</h2>
+<table><tr><th>{{t "col.from"}}</th><th>{{t "col.until"}}</th><th>{{t "col.by"}}</th><th>{{t "col.reason"}}</th><th>{{t "col.state"}}</th></tr>
+{{range .Grants}}<tr><td>{{when .Starts}}</td><td>{{when .Ends}}</td><td>{{.By}}</td><td>{{.Reason}}</td><td>{{if .Revoked}}{{t "user.revokedAt" (when .Revoked)}}{{else if .Live}}{{t "user.running"}}{{else}}{{t "user.ended"}}{{end}}</td></tr>
+{{else}}<tr><td colspan="5">{{t "none"}}</td></tr>{{end}}</table>
+<h2>{{t "user.devicesH"}}</h2>
+<table><tr><th>{{t "col.platform"}}</th><th>{{t "col.signedIn"}}</th><th>{{t "col.lastUsed"}}</th><th>{{t "col.ended"}}</th></tr>
+{{range .Sessions}}<tr><td>{{deref .Platform}}</td><td>{{when .Created}}</td><td>{{ago .LastSeen}}</td><td>{{when .Revoked}} <code>{{deref .Reason}}</code></td></tr>
+{{else}}<tr><td colspan="4">{{t "none"}}</td></tr>{{end}}</table>
+<h2>{{t "user.historyH"}}</h2>
+<table><tr><th>{{t "col.when"}}</th><th>{{t "col.event"}}</th><th>{{t "col.details"}}</th></tr>
+{{range .SubEvents}}<tr><td>{{when .At}}</td><td><code>{{.Kind}}</code></td><td><code>{{.Details}}</code></td></tr>{{else}}<tr><td colspan="3">{{t "none"}}</td></tr>{{end}}</table>
+<h2>{{t "security.h"}}</h2>
+<table><tr><th>{{t "col.when"}}</th><th>{{t "col.event"}}</th><th>{{t "col.details"}}</th></tr>
+{{range .Audit}}<tr><td>{{when .At}}</td><td><code>{{.Kind}}</code></td><td><code>{{.Details}}</code></td></tr>{{else}}<tr><td colspan="3">{{t "none"}}</td></tr>{{end}}</table>
+<h2>{{t "user.actionsH"}}</h2>
+<p class="muted">{{t "user.actionsNote"}}</p>
 <div class="actions">
 <form method="post" action="/users/{{.ID}}/signout" class="stack"><input type="hidden" name="csrf" value="{{$.CSRF}}">
-  <h3>Sign out everywhere</h3><p>Ends every session on every device. They can sign in again.</p><button>Sign out everywhere</button></form>
+  <h3>{{t "user.signoutH"}}</h3><p>{{t "user.signoutP"}}</p><button>{{t "user.signoutH"}}</button></form>
 {{if eq .Status "active"}}
 <form method="post" action="/users/{{.ID}}/disable" class="stack"><input type="hidden" name="csrf" value="{{$.CSRF}}">
-  <h3>Disable account</h3><p>Signs them out and blocks sign-in ("contact support") until enabled again.</p>
-  <label>Reason <input name="reason" required minlength="3" maxlength="500"></label><button>Disable</button></form>
+  <h3>{{t "user.disableH"}}</h3><p>{{t "user.disableP"}}</p>
+  <label>{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500"></label><button>{{t "btn.disable"}}</button></form>
 {{else}}
 <form method="post" action="/users/{{.ID}}/enable" class="stack"><input type="hidden" name="csrf" value="{{$.CSRF}}">
-  <h3>Enable account</h3><label>Reason <input name="reason" required minlength="3" maxlength="500"></label><button>Enable</button></form>
+  <h3>{{t "user.enableH"}}</h3><label>{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500"></label><button>{{t "btn.enable"}}</button></form>
 {{end}}
 {{if eq $.Admin.Role "owner"}}
 <form method="post" action="/users/{{.ID}}/grant" class="stack"><input type="hidden" name="csrf" value="{{$.CSRF}}">
-  <h3>Give premium</h3><p>Starts now, ends by itself, never renews. Shows in their subscription history.</p>
-  <label>Months <select name="months"><option>1</option><option>3</option><option>6</option><option>12</option></select></label>
-  <label>Reason <input name="reason" required minlength="3" maxlength="500" placeholder="tester, goodwill after a bug…"></label><button>Give premium</button></form>
+  <h3>{{t "user.grantH"}}</h3><p>{{t "user.grantP"}}</p>
+  <label>{{t "label.months"}} <select name="months"><option>1</option><option>3</option><option>6</option><option>12</option></select></label>
+  <label>{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500" placeholder="{{t "user.grantHint"}}"></label><button>{{t "user.grantH"}}</button></form>
 {{range .Grants}}{{if .Live}}
 <form method="post" action="/users/{{$.U.ID}}/revoke-grant" class="stack"><input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="grant" value="{{.ID}}">
-  <h3>Revoke premium until {{when .Ends}}</h3><label>Reason <input name="reason" required minlength="3" maxlength="500"></label><button>Revoke</button></form>
+  <h3>{{t "user.revokeH" (when .Ends)}}</h3><label>{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500"></label><button>{{t "btn.revoke"}}</button></form>
 {{end}}{{end}}
 {{if .Suspicious}}
 <form method="post" action="/users/{{.ID}}/clear-suspicious" class="stack"><input type="hidden" name="csrf" value="{{$.CSRF}}">
-  <h3>Clear suspicious flag</h3><p>Only after checking with Bazaar that the refund was a mistake.</p>
-  <label>Reason <input name="reason" required minlength="3" maxlength="500"></label><button>Clear flag</button></form>
+  <h3>{{t "user.clearH"}}</h3><p>{{t "user.clearP"}}</p>
+  <label>{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500"></label><button>{{t "user.clearBtn"}}</button></form>
 {{end}}
 <form method="post" action="/users/{{.ID}}/delete" class="stack danger"><input type="hidden" name="csrf" value="{{$.CSRF}}">
-  <h3>Delete account</h3><p>Only at the person's own written request. Deletes everything at once and for good; a running Bazaar subscription is not cancelled.</p>
-  <label>Type their email address ({{.PrimaryMasked}}) <input name="confirm" required autocomplete="off"></label>
-  <label>Confirmation email language <select name="locale"><option value="fa">Persian</option><option value="en">English</option></select></label>
-  <label>Reason <input name="reason" required minlength="3" maxlength="500" placeholder="request by email on …"></label><button>Delete for good</button></form>
+  <h3>{{t "user.deleteH"}}</h3><p>{{t "user.deleteP"}}</p>
+  <label>{{t "user.deleteType" .PrimaryMasked}} <input name="confirm" required autocomplete="off" dir="ltr"></label>
+  <label>{{t "user.deleteLang"}} <select name="locale"><option value="fa">{{t "user.langFA"}}</option><option value="en">{{t "user.langEN"}}</option></select></label>
+  <label>{{t "label.reason"}} <input name="reason" required minlength="3" maxlength="500" placeholder="{{t "user.deleteHint"}}"></label><button>{{t "user.deleteBtn"}}</button></form>
 {{end}}
 </div>
-<h2>Admin activity on this account</h2>
-<table><tr><th>When</th><th>Admin</th><th>Action</th></tr>
-{{range .AdminEvents}}<tr><td>{{when .At}}</td><td>{{.Who}}</td><td>{{.Kind}}</td></tr>{{else}}<tr><td colspan="3">None.</td></tr>{{end}}</table>
+<h2>{{t "user.adminH"}}</h2>
+<table><tr><th>{{t "col.when"}}</th><th>{{t "col.admin"}}</th><th>{{t "col.action"}}</th></tr>
+{{range .AdminEvents}}<tr><td>{{when .At}}</td><td>{{.Who}}</td><td><code>{{.Kind}}</code></td></tr>{{else}}<tr><td colspan="3">{{t "none"}}</td></tr>{{end}}</table>
 {{end}}
 {{end}}

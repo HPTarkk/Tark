@@ -1,31 +1,31 @@
-{{define "title"}}System · Tarkk admin{{end}}
+{{define "title"}}{{t "nav.system"}} · {{t "brand"}}{{end}}
 {{define "main"}}
-<h1>System</h1>
-<h2>Alert checks</h2>
-<p class="muted">Checked every minute. Firing alerts are emailed and repeated every 6 hours until they clear.</p>
+<h1>{{t "nav.system"}}</h1>
+<h2>{{t "system.checks"}}</h2>
+<p class="muted">{{t "system.checksNote"}}</p>
 <ul class="checks">
-{{range .Alerts}}<li><b>{{.Key}}</b> {{if .Firing}}<span class="error-text">firing since {{when .Since}}</span>{{else}}<span class="muted">ok</span>{{end}}<br>{{.Detail}} <span class="muted">({{ago .Updated}})</span></li>
-{{else}}<li>No checks have run yet. They run where the background workers run.</li>{{end}}</ul>
+{{range .Alerts}}<li><b><code>{{.Key}}</code></b> {{if .Firing}}<span class="error-text">{{t "system.firing" (when .Since)}}</span>{{else}}<span class="muted">{{t "ok"}}</span>{{end}}<br><span class="ltr">{{.Detail}}</span> <span class="muted">({{ago .Updated}})</span></li>
+{{else}}<li>{{t "system.noChecks"}}</li>{{end}}</ul>
 {{with .M}}
 <section class="cards">
-  <div class="card"><h2>Last 5 minutes</h2>
-    <p class="big">{{.Five.Requests}}</p><p>requests · {{index .Five.ByClass 3}} errors (5xx) · {{.Five.Slow}} slow (over 2 s)</p>
-    <p>Typical {{p .Five.Latency 0.5}}, slowest 5% {{p .Five.Latency 0.95}}</p></div>
-  <div class="card"><h2>Database connections</h2>
-    <p class="big">{{.Now.InUse}} / {{.Now.Max}}</p><p>in use now ({{.Now.Total}} open)</p>
-    <p>Last 5 minutes: {{.Pool.Acquires}} taken, average wait {{dur .Pool.AvgWait}}, {{.Pool.Canceled}} gave up waiting</p></div>
-  <div class="card"><h2>Outside services (last hour)</h2>
-    <p>Bazaar: {{.Hour.Bazaar.OK}} ok, {{.Hour.Bazaar.Failed}} failed{{if .Hour.Bazaar.Latency.N}}, slowest 5% {{p .Hour.Bazaar.Latency 0.95}}{{end}}</p>
-    <p>Email: {{.Hour.Mail.OK}} sent, {{.Hour.Mail.Failed}} failed tries{{if .Hour.Mail.Latency.N}}, slowest 5% {{p .Hour.Mail.Latency 0.95}}{{end}}</p></div>
-  <div class="card"><h2>Server process</h2>
-    <p>Running since {{when .Started}} UTC ({{ago .Started}})</p>
-    <p>Memory: {{bytes .Runtime.HeapBytes}} in use, {{bytes .Runtime.SysBytes}} from the system</p>
-    <p>{{.Runtime.Goroutines}} goroutines</p></div>
+  <div class="card"><h2>{{t "system.last5"}}</h2>
+    <p class="big">{{.Five.Requests}}</p><p>{{t "system.reqs" (index .Five.ByClass 3) .Five.Slow}}</p>
+    <p>{{t "system.typical" (p .Five.Latency 0.5) (p .Five.Latency 0.95)}}</p></div>
+  <div class="card"><h2>{{t "system.db"}}</h2>
+    <p class="big ltr">{{.Now.InUse}} / {{.Now.Max}}</p><p>{{t "system.inUse" .Now.Total}}</p>
+    <p>{{t "system.pool" .Pool.Acquires (dur .Pool.AvgWait) .Pool.Canceled}}</p></div>
+  <div class="card"><h2>{{t "system.outside"}}</h2>
+    <p>{{t "system.bazaar" .Hour.Bazaar.OK .Hour.Bazaar.Failed}}{{if .Hour.Bazaar.Latency.N}}{{t "system.slowest" (p .Hour.Bazaar.Latency 0.95)}}{{end}}</p>
+    <p>{{t "system.email" .Hour.Mail.OK .Hour.Mail.Failed}}{{if .Hour.Mail.Latency.N}}{{t "system.slowest" (p .Hour.Mail.Latency 0.95)}}{{end}}</p></div>
+  <div class="card"><h2>{{t "system.process"}}</h2>
+    <p>{{t "system.since" (when .Started) (ago .Started)}}</p>
+    <p>{{t "system.memory" (bytes .Runtime.HeapBytes) (bytes .Runtime.SysBytes)}}</p>
+    <p>{{t "system.goroutines" .Runtime.Goroutines}}</p></div>
 </section>
-<h2>Requests by route, last hour</h2>
-<p class="muted">{{if lt .Covered.Minutes 59.0}}The server started {{ago .Started}}, so this covers less than an hour. {{end}}Times are bucket limits: "≤ 250 ms" means at most 250 ms.</p>
-<table><tr><th>Route</th><th>Requests</th><th>4xx</th><th>5xx</th><th>Slow</th><th>Typical</th><th>Slowest 5%</th></tr>
+<h2>{{t "system.byRoute"}}</h2>
+<p class="muted">{{if lt .Covered.Minutes 59.0}}{{t "system.partial" (ago .Started)}}{{end}}{{t "system.buckets"}}</p>
+<table><tr><th>{{t "col.route"}}</th><th>{{t "col.requests"}}</th><th>4xx</th><th>5xx</th><th>{{t "col.slow"}}</th><th>{{t "col.typical"}}</th><th>{{t "col.slowest"}}</th></tr>
 {{range .Hour.Sorted}}<tr><td><code class="route">{{.Method}} {{.Route}}</code></td><td>{{.Requests}}</td><td>{{index .ByClass 2}}</td><td>{{if index .ByClass 3}}<span class="error-text">{{index .ByClass 3}}</span>{{else}}0{{end}}</td><td>{{.Slow}}</td><td>{{p .Latency 0.5}}</td><td>{{p .Latency 0.95}}</td></tr>
-{{else}}<tr><td colspan="7">No requests yet.</td></tr>{{end}}</table>
+{{else}}<tr><td colspan="7">{{t "system.noReqs"}}</td></tr>{{end}}</table>
 {{end}}
 {{end}}

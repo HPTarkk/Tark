@@ -1,23 +1,23 @@
-{{define "title"}}Pricing · Tarkk admin{{end}}
+{{define "title"}}{{t "nav.pricing"}} · {{t "brand"}}{{end}}
 {{define "main"}}
-<h1>Price helper</h1>
-<p>Works out a price for every plan on sale from the monthly price. It only suggests: Bazaar charges whatever you type in its panel, and the app shows Bazaar's price.</p>
+<h1>{{t "pricing.h"}}</h1>
+<p>{{t "pricing.lead"}}</p>
 {{with .Error}}<p class="error">{{.}}</p>{{end}}
 {{with .Notice}}<p class="notice">{{.}}</p>{{end}}
 {{if .Rows}}
-<table><tr><th>Plan</th><th>Product id</th><th>Multiplier</th><th>Exact</th><th>Price (Toman)</th><th>Type in Bazaar (Rial)</th><th>Per month</th><th>Saves</th></tr>
-{{range .Rows}}<tr><td>{{.Title}}</td><td><code>{{.Plan.SKU}}</code></td><td>×{{factor .Multiplier}}</td><td>{{money (round .Raw)}}</td><td><strong>{{money .Toman}}</strong></td><td><code>{{money .Rial}}</code></td><td>{{money .PerMonth}}</td><td>{{if .SavingPct}}{{.SavingPct}}%{{else}}-{{end}}</td></tr>{{end}}
+<table><tr><th>{{t "col.plan"}}</th><th>{{t "col.sku"}}</th><th>{{t "col.multiplier"}}</th><th>{{t "col.exact"}}</th><th>{{t "col.toman"}}</th><th>{{t "col.rial"}}</th><th>{{t "col.perMonth"}}</th><th>{{t "col.saves"}}</th></tr>
+{{range .Rows}}<tr><td>{{.Plan.Title lang}}</td><td><code>{{.Plan.SKU}}</code></td><td><span class="ltr">×{{factor .Multiplier}}</span></td><td>{{money (round .Raw)}}</td><td><strong>{{money .Toman}}</strong></td><td><code>{{money .Rial}}</code></td><td>{{money .PerMonth}}</td><td>{{if .SavingPct}}{{.SavingPct}}%{{else}}-{{end}}</td></tr>{{end}}
 </table>
-{{else}}<p>Nothing saved yet. Fill in the monthly price to see suggestions.</p>{{end}}
-<h2>Inputs</h2>
+{{else}}<p>{{t "pricing.empty"}}</p>{{end}}
+<h2>{{t "pricing.inputs"}}</h2>
 <form method="post" action="/pricing" class="stack narrow">
   <input type="hidden" name="csrf" value="{{.CSRF}}">
-  <label>Monthly price, Toman <input name="base" required inputmode="numeric" value="{{if .In.BaseMonthly}}{{money .In.BaseMonthly}}{{end}}"></label>
-  <label>Overall multiplier (raise it when inflation moves, e.g. 1.15) <input name="adjustment" required inputmode="decimal" value="{{factor .In.Adjustment}}"></label>
-  {{range .Plans}}<label>{{.Title "en"}} multiplier of the monthly price <input name="mult_{{.SKU}}" required inputmode="decimal" value="{{factor (index $.In.Multipliers .SKU)}}"></label>
+  <label>{{t "pricing.base"}} <input name="base" required inputmode="numeric" dir="ltr" value="{{if .In.BaseMonthly}}{{money .In.BaseMonthly}}{{end}}"></label>
+  <label>{{t "pricing.adj"}} <input name="adjustment" required inputmode="decimal" dir="ltr" value="{{factor .In.Adjustment}}"></label>
+  {{range .Plans}}<label>{{t "pricing.mult" (.Title lang)}} <input name="mult_{{.SKU}}" required inputmode="decimal" dir="ltr" value="{{factor (index $.In.Multipliers .SKU)}}"></label>
   {{end}}
-  <label>Round up to a multiple of, Toman <input name="round_to" required inputmode="numeric" value="{{money .In.RoundTo}}"></label>
-  <label>Then take off, Toman (1,000 turns 270,000 into 269,000) <input name="ending" required inputmode="numeric" value="{{money .In.Ending}}"></label>
-  <button>Save and work out</button>
+  <label>{{t "pricing.round"}} <input name="round_to" required inputmode="numeric" dir="ltr" value="{{money .In.RoundTo}}"></label>
+  <label>{{t "pricing.ending"}} <input name="ending" required inputmode="numeric" dir="ltr" value="{{money .In.Ending}}"></label>
+  <button>{{t "pricing.save"}}</button>
 </form>
 {{end}}

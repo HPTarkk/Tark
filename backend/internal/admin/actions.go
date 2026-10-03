@@ -40,7 +40,7 @@ func (s *Server) act(kind string, needsReason bool, fn func(ctx context.Context,
 		}
 		reason, ok := reasonOf(r)
 		if needsReason && !ok {
-			s.showUserMessage(w, r, http.StatusBadRequest, "", "Write a reason (3 to 500 characters); it is recorded with the action.")
+			s.showUserMessage(w, r, http.StatusBadRequest, "", T(ctx, "act.reason"))
 			return
 		}
 		msg, err := fn(ctx, r, userID, reason)
@@ -67,7 +67,7 @@ func (s *Server) act(kind string, needsReason bool, fn func(ctx context.Context,
 		}
 		s.record(ctx, a.ID, kind, target, ipFrom(ctx), details)
 		if kind == "user.deleted" {
-			s.render(w, r, http.StatusOK, "message", map[string]any{"Title": "Account deleted", "Text": msg})
+			s.render(w, r, http.StatusOK, "message", map[string]any{"Title": T(ctx, "act.deletedT"), "Text": msg})
 			return
 		}
 		s.showUserMessage(w, r, http.StatusOK, msg, "")
@@ -112,7 +112,7 @@ func (s *Server) disableUser(ctx context.Context, _ *http.Request, userID, _ str
 			WHERE user_id = $1 AND revoked_at IS NULL`, userID)
 		return err
 	})
-	return "Account disabled and signed out on every device. Sign-in now answers \"contact support\".", err
+	return T(ctx, "act.disabled"), err
 }
 
 func (s *Server) enableUser(ctx context.Context, _ *http.Request, userID, _ string) (string, error) {
@@ -120,7 +120,7 @@ func (s *Server) enableUser(ctx context.Context, _ *http.Request, userID, _ stri
 	if err == nil && tag.RowsAffected() == 0 {
 		err = pgx.ErrNoRows
 	}
-	return "Account enabled. They can sign in again.", err
+	return T(ctx, "act.enabled"), err
 }
 
 func (s *Server) signOutUser(ctx context.Context, _ *http.Request, userID, _ string) (string, error) {
@@ -129,7 +129,7 @@ func (s *Server) signOutUser(ctx context.Context, _ *http.Request, userID, _ str
 	if err != nil {
 		return "", err
 	}
-	return "Signed out on " + strconv.FormatInt(tag.RowsAffected(), 10) + " device(s).", nil
+	return T(ctx, "act.signedOut", tag.RowsAffected()), nil
 }
 
 func (s *Server) recheckPurchase(ctx context.Context, r *http.Request, userID, _ string) (string, error) {
@@ -152,9 +152,9 @@ func (s *Server) recheckPurchase(ctx context.Context, r *http.Request, userID, _
 		return "", err
 	}
 	if !answered {
-		return "", actionError{"Bazaar did not answer (or the purchase was checked in the last minute). The stored state is unchanged."}
+		return "", actionError{T(ctx, "act.noAnswer")}
 	}
-	return "Checked with Bazaar; the purchase below shows its answer.", nil
+	return T(ctx, "act.rechecked"), nil
 }
 
 func (s *Server) clearSuspicious(ctx context.Context, _ *http.Request, userID, _ string) (string, error) {
@@ -165,12 +165,12 @@ func (s *Server) clearSuspicious(ctx context.Context, _ *http.Request, userID, _
 			return err
 		}
 		if tag.RowsAffected() == 0 {
-			return actionError{"The account is not flagged."}
+			return actionError{T(ctx, "act.notFlagged")}
 		}
 		_, err = tx.Exec(ctx, `INSERT INTO subscription_events (user_id, kind, details) VALUES ($1, 'suspicious_cleared_by_admin', '{}')`, userID)
 		return err
 	})
-	return "Suspicious flag cleared. The app picks it up at its next subscription refresh.", err
+	return T(ctx, "act.cleared"), err
 }
 
 // Premium can be given for 1 to 12 months at a time.
@@ -179,7 +179,7 @@ const maxGrantMonths = 12
 func (s *Server) grantPremium(ctx context.Context, r *http.Request, userID, reason string) (string, error) {
 	months, err := strconv.Atoi(r.PostFormValue("months"))
 	if err != nil || months < 1 || months > maxGrantMonths {
-		return "", actionError{"Choose 1 to 12 months."}
+		return "", actionError{T(ctx, "act.months")}
 	}
 	a := adminFrom(ctx)
 	now := s.now()
@@ -195,7 +195,7 @@ func (s *Server) grantPremium(ctx context.Context, r *http.Request, userID, reas
 			userID, map[string]any{"grant": gid, "months": months, "until": end.UTC().Format(time.RFC3339), "by": a.Name, "reason": reason})
 		return err
 	})
-	return "Premium given until " + end.UTC().Format("2006-01-02") + ". The app shows it at its next subscription refresh (opening the subscription screen refreshes it).", err
+	return T(ctx, "act.granted", end.UTC().Format("2006-01-02")), err
 }
 
 func (s *Server) revokeGrant(ctx context.Context, r *http.Request, userID, reason string) (string, error) {
@@ -211,13 +211,13 @@ func (s *Server) revokeGrant(ctx context.Context, r *http.Request, userID, reaso
 			return err
 		}
 		if tag.RowsAffected() == 0 {
-			return actionError{"That grant is already revoked."}
+			return actionError{T(ctx, "act.alreadyRevoked")}
 		}
 		_, err = tx.Exec(ctx, `INSERT INTO subscription_events (user_id, kind, details) VALUES ($1, 'premium_revoked', $2)`,
 			userID, map[string]any{"grant": gid, "by": a.Name, "reason": reason})
 		return err
 	})
-	return "Grant revoked. An app that already holds it keeps premium until its next refresh, at most a few days.", err
+	return T(ctx, "act.revoked"), err
 }
 
 func (s *Server) deleteUser(ctx context.Context, r *http.Request, userID, _ string) (string, error) {
@@ -227,7 +227,7 @@ func (s *Server) deleteUser(ctx context.Context, r *http.Request, userID, _ stri
 		return "", err
 	}
 	if strings.ToLower(strings.TrimSpace(r.PostFormValue("confirm"))) != email {
-		return "", actionError{"Type the account's email address exactly to confirm the deletion."}
+		return "", actionError{T(ctx, "act.confirmEmail")}
 	}
 	locale := r.PostFormValue("locale")
 	if locale != "fa" {
@@ -239,8 +239,7 @@ func (s *Server) deleteUser(ctx context.Context, r *http.Request, userID, _ stri
 	if err := s.Accounts.DeleteByAdmin(ctx, userID, locale); err != nil {
 		return "", err
 	}
-	return "The account and everything tied to it are gone, and a confirmation email is on its way to the person. " +
-		"A running Bazaar subscription is not cancelled by this; they cancel it in Bazaar.", nil
+	return T(ctx, "act.deleted"), nil
 }
 
 // retryMail makes every waiting email due now (after fixing SMTP, say).

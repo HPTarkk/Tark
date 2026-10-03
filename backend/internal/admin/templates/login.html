@@ -1,16 +1,16 @@
-{{define "title"}}Sign in · Tarkk admin{{end}}
+{{define "title"}}{{t "login.title"}} · {{t "brand"}}{{end}}
 {{define "main"}}
 <section class="auth">
 <div class="auth-card">
-<div class="auth-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30"><path fill="currentColor" d="M12 1.5 4 5v6c0 5 3.4 9.6 8 10.9 4.6-1.3 8-5.9 8-10.9V5l-8-3.5Zm0 6a2.5 2.5 0 0 1 1 4.8V15h-2v-2.7a2.5 2.5 0 0 1 1-4.8Z"/></svg></div>
-<h1>Tarkk admin</h1>
-<p class="auth-lead">Sign in with your admin email and password.</p>
+<div class="auth-mark" aria-hidden="true"><img src="/static/logo.png" alt="" width="64" height="64"></div>
+<h1>{{t "brand"}}</h1>
+<p class="auth-lead">{{t "login.lead"}}</p>
 {{with .Error}}<p class="error" role="alert">{{.}}</p>{{end}}
 <form method="post" action="/login" class="stack">
   <input type="hidden" name="pre" value="{{.Pre}}">
-  <label>Email <input type="email" name="email" autocomplete="username" required maxlength="254" autofocus></label>
-  <label>Password <input type="password" name="password" autocomplete="current-password" required maxlength="1024"></label>
-  <button>Continue</button>
+  <label>{{t "label.email"}} <input type="email" name="email" autocomplete="username" required maxlength="254" autofocus dir="ltr"></label>
+  <label>{{t "label.password"}} <input type="password" name="password" autocomplete="current-password" required maxlength="1024" dir="ltr"></label>
+  <button>{{t "btn.continue"}}</button>
 </form>
 </div>
 </section>

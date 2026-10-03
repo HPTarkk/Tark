@@ -74,8 +74,10 @@ type Deps struct {
 
 type Server struct {
 	Deps
-	pages map[string]*template.Template
-	now   func() time.Time
+	// pages holds every page parsed once per language.
+	pages  map[string]map[string]*template.Template
+	router *chi.Mux
+	now    func() time.Time
 }
 
 var (
@@ -86,20 +88,24 @@ var (
 )
 
 func New(d Deps) (*Server, error) {
-	s := &Server{Deps: d, now: time.Now, pages: map[string]*template.Template{}}
+	s := &Server{Deps: d, now: time.Now, pages: map[string]map[string]*template.Template{}}
 	names, err := fs.Glob(assets, "templates/*.html")
 	if err != nil {
 		return nil, err
 	}
-	for _, n := range names {
-		if strings.HasSuffix(n, "/layout.html") {
-			continue
+	for _, lang := range []string{langFA, langEN} {
+		s.pages[lang] = map[string]*template.Template{}
+		fm := funcsFor(lang)
+		for _, n := range names {
+			if strings.HasSuffix(n, "/layout.html") {
+				continue
+			}
+			t, err := template.New("layout.html").Funcs(fm).ParseFS(assets, "templates/layout.html", n)
+			if err != nil {
+				return nil, fmt.Errorf("admin: template %s: %w", n, err)
+			}
+			s.pages[lang][strings.TrimSuffix(strings.TrimPrefix(n, "templates/"), ".html")] = t
 		}
-		t, err := template.New("layout.html").Funcs(funcs).ParseFS(assets, "templates/layout.html", n)
-		if err != nil {
-			return nil, fmt.Errorf("admin: template %s: %w", n, err)
-		}
-		s.pages[strings.TrimSuffix(strings.TrimPrefix(n, "templates/"), ".html")] = t
 	}
 	return s, nil
 }
@@ -122,10 +128,14 @@ func ipFrom(ctx context.Context) string { ip, _ := ctx.Value(keyIP).(string); re
 // Handler is the whole panel.
 func (s *Server) Handler() http.Handler {
 	r := chi.NewRouter()
-	r.Use(s.recoverer, headers, s.withIP)
+	s.router = r
+	r.Use(s.recoverer, headers, s.withIP, withLang)
 	static, _ := fs.Sub(assets, "static")
-	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(static))))
+	files := http.FileServer(http.FS(static))
+	r.Handle("/static/*", http.StripPrefix("/static/", files))
+	r.Get("/favicon.ico", files.ServeHTTP)
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
+	r.Get("/lang/{code}", s.setLang)
 
 	r.Get("/login", s.loginPage)
 	r.Post("/login", s.login)
@@ -177,7 +187,7 @@ func (s *Server) Handler() http.Handler {
 		})
 	})
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
-		s.render(w, r, http.StatusNotFound, "message", map[string]any{"Title": "Not found", "Text": "There is no such page."})
+		s.render(w, r, http.StatusNotFound, "message", map[string]any{"Title": T(r.Context(), "msg.notFoundT"), "Text": T(r.Context(), "msg.notFoundX")})
 	})
 	return r
 }
@@ -190,7 +200,7 @@ func headers(next http.Handler) http.Handler {
 		h.Set("X-Frame-Options", "DENY")
 		h.Set("Referrer-Policy", "no-referrer")
 		h.Set("Content-Security-Policy",
-			"default-src 'none'; style-src 'self'; img-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
+			"default-src 'none'; style-src 'self'; img-src 'self'; font-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
 		h.Set("Strict-Transport-Security", "max-age=31536000")
 		h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 		h.Set("X-Robots-Tag", "noindex, nofollow")
@@ -216,7 +226,7 @@ func (s *Server) recoverer(next http.Handler) http.Handler {
 					panic(v)
 				}
 				s.Log.ErrorContext(r.Context(), "admin panic", "value", v, "stack", string(debug.Stack()))
-				http.Error(w, "internal error", http.StatusInternalServerError)
+				http.Error(w, tr(langOf(r), "msg.fail"), http.StatusInternalServerError)
 			}
 		}()
 		next.ServeHTTP(w, r)
@@ -247,7 +257,7 @@ func (s *Server) requireStage(stage string) func(http.Handler) http.Handler {
 			}
 			if r.Method == http.MethodPost && !s.csrfOK(r, sess.csrf) {
 				s.render(w, r, http.StatusForbidden, "message", map[string]any{
-					"Title": "Form expired", "Text": "That form was too old or came from somewhere else. Go back, reload and try again."})
+					"Title": T(r.Context(), "msg.expiredT"), "Text": T(r.Context(), "msg.expiredX")})
 				return
 			}
 			ctx := context.WithValue(context.WithValue(r.Context(), keySession, sess), keyAdmin, a)
@@ -275,7 +285,7 @@ func requireRole(min Role) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if !adminFrom(r.Context()).Role.atLeast(min) {
-				http.Error(w, "Your role cannot open this page.", http.StatusForbidden)
+				http.Error(w, T(r.Context(), "msg.role"), http.StatusForbidden)
 				return
 			}
 			next.ServeHTTP(w, r)
@@ -284,7 +294,8 @@ func requireRole(min Role) func(http.Handler) http.Handler {
 }
 
 func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, page string, data map[string]any) {
-	t, ok := s.pages[page]
+	lang := langFrom(r.Context())
+	t, ok := s.pages[lang][page]
 	if !ok {
 		s.fail(w, r, fmt.Errorf("admin: no page %q", page))
 		return
@@ -293,6 +304,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, page
 		data = map[string]any{}
 	}
 	data["Admin"] = adminFrom(r.Context())
+	data["Here"] = s.here(r)
 	if sess := sessionFrom(r.Context()); sess != nil {
 		data["CSRF"] = sess.csrf
 	}
@@ -308,7 +320,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, page
 
 func (s *Server) fail(w http.ResponseWriter, r *http.Request, err error) {
 	s.Log.ErrorContext(r.Context(), "admin request failed", "path", r.URL.Path, "err", err)
-	http.Error(w, "Something went wrong. It has been logged.", http.StatusInternalServerError)
+	http.Error(w, T(r.Context(), "msg.fail"), http.StatusInternalServerError)
 }
 
 // ---- sign-in ----------------------------------------------------------------
@@ -340,24 +352,24 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	c, err := r.Cookie(preCookie)
 	if err != nil || c.Value == "" || subtle.ConstantTimeCompare([]byte(c.Value), []byte(r.PostFormValue("pre"))) != 1 {
-		s.showLogin(w, r, http.StatusForbidden, "The form expired. Try again.")
+		s.showLogin(w, r, http.StatusForbidden, T(ctx, "login.expired"))
 		return
 	}
 	ip := ipFrom(ctx)
 	email := normalizeEmail(r.PostFormValue("email"))
 	pw := r.PostFormValue("password")
 	if len(email) > 254 || len(pw) > 1024 {
-		s.showLogin(w, r, http.StatusBadRequest, "Wrong email or password.")
+		s.showLogin(w, r, http.StatusBadRequest, T(ctx, "login.wrong"))
 		return
 	}
 	if err := s.Limits.Hit(ctx, ruleLoginIP, ip); err != nil {
 		s.record(ctx, "", "admin.login_throttled", "", ip, nil)
-		s.showLogin(w, r, http.StatusTooManyRequests, "Too many attempts. Wait 15 minutes.")
+		s.showLogin(w, r, http.StatusTooManyRequests, T(ctx, "login.tooMany"))
 		return
 	}
 	if err := s.Limits.Hit(ctx, ruleLoginEmail, email); err != nil {
 		s.record(ctx, "", "admin.login_throttled", "", ip, nil)
-		s.showLogin(w, r, http.StatusTooManyRequests, "Too many attempts. Wait 15 minutes.")
+		s.showLogin(w, r, http.StatusTooManyRequests, T(ctx, "login.tooMany"))
 		return
 	}
 	var id, hash string
@@ -365,7 +377,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	if errors.Is(err, pgx.ErrNoRows) {
 		s.Passwords.VerifyDummy(ctx, pw) // same time as a real check
 		s.record(ctx, "", "admin.login_failed", "", ip, nil)
-		s.showLogin(w, r, http.StatusUnauthorized, "Wrong email or password.")
+		s.showLogin(w, r, http.StatusUnauthorized, T(ctx, "login.wrong"))
 		return
 	}
 	if err != nil {
@@ -374,7 +386,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, err := s.Passwords.Verify(ctx, pw, hash); err != nil {
 		s.record(ctx, id, "admin.login_failed", "", ip, nil)
-		s.showLogin(w, r, http.StatusUnauthorized, "Wrong email or password.")
+		s.showLogin(w, r, http.StatusUnauthorized, T(ctx, "login.wrong"))
 		return
 	}
 	if err := s.Limits.Reset(ctx, ruleLoginEmail, email); err != nil {
@@ -431,7 +443,7 @@ func (s *Server) totp(w http.ResponseWriter, r *http.Request) {
 	if err := s.Limits.Hit(ctx, ruleTOTP, a.ID); err != nil {
 		s.record(ctx, a.ID, "admin.totp_throttled", "", ip, nil)
 		s.endSession(ctx, w, sess)
-		s.showLogin(w, r, http.StatusTooManyRequests, "Too many wrong codes. Wait 15 minutes, then sign in again.")
+		s.showLogin(w, r, http.StatusTooManyRequests, T(ctx, "totp.tooMany"))
 		return
 	}
 	code := strings.ReplaceAll(strings.TrimSpace(r.PostFormValue("code")), " ", "")
@@ -455,7 +467,7 @@ func (s *Server) totp(w http.ResponseWriter, r *http.Request) {
 	step := verifyTOTP(secret, code, s.now(), lastStep)
 	if step == 0 {
 		s.record(ctx, a.ID, "admin.totp_failed", "", ip, nil)
-		s.showTOTP(w, r, http.StatusUnauthorized, "That code is not right. Check the time on your phone and try the newest code.")
+		s.showTOTP(w, r, http.StatusUnauthorized, T(ctx, "totp.wrong"))
 		return
 	}
 	err = pgx.BeginFunc(ctx, s.Pool, func(tx pgx.Tx) error {
@@ -479,7 +491,7 @@ func (s *Server) totp(w http.ResponseWriter, r *http.Request) {
 		return err
 	})
 	if errors.Is(err, errReplay) {
-		s.showTOTP(w, r, http.StatusUnauthorized, "That code was already used. Wait for the next one.")
+		s.showTOTP(w, r, http.StatusUnauthorized, T(ctx, "totp.used"))
 		return
 	}
 	if err != nil {
@@ -539,7 +551,7 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 	}
 	if sess != nil {
 		if !s.csrfOK(r, sess.csrf) {
-			http.Error(w, "Form expired.", http.StatusForbidden)
+			http.Error(w, T(ctx, "msg.expiredShort"), http.StatusForbidden)
 			return
 		}
 		s.record(ctx, a.ID, "admin.logout", "", ipFrom(ctx), nil)
@@ -568,15 +580,15 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, err := s.Passwords.Verify(ctx, current, hash); err != nil {
 		s.record(ctx, a.ID, "admin.password_change_failed", "", ip, nil)
-		show(http.StatusUnauthorized, "Your current password is not right.")
+		show(http.StatusUnauthorized, T(ctx, "pw.wrongCurrent"))
 		return
 	}
 	if next != again {
-		show(http.StatusBadRequest, "The two new passwords are different.")
+		show(http.StatusBadRequest, T(ctx, "pw.mismatch"))
 		return
 	}
 	if len([]rune(password.Normalize(next))) < adminMinPassword || password.Problem(next, a.Email) != "" || next == current {
-		show(http.StatusBadRequest, fmt.Sprintf("Choose a new password of at least %d characters that is not common and not your email.", adminMinPassword))
+		show(http.StatusBadRequest, T(ctx, "pw.weak", adminMinPassword))
 		return
 	}
 	newHash, err := s.Passwords.Hash(ctx, next)
