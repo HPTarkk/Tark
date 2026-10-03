@@ -1,8 +1,13 @@
 {{define "title"}}{{t "nav.mail"}} · {{t "brand"}}{{end}}
 {{define "main"}}
-<h1>{{t "mail.h"}}</h1>
-<table><tr><th>{{t "col.kind"}}</th><th>{{t "col.sent"}}</th><th>{{t "col.dropped"}}</th><th>{{t "col.waiting"}}</th><th>{{t "col.mostTries"}}</th></tr>
-{{range .Rows}}<tr><td><code>{{.Kind}}</code></td><td>{{.Sent}}</td><td>{{.Failed}}</td><td>{{.Pending}}</td><td>{{.Tries}}</td></tr>{{else}}<tr><td colspan="5">{{t "mail.none"}}</td></tr>{{end}}</table>
-<form method="post" action="/mail/retry"><input type="hidden" name="csrf" value="{{.CSRF}}"><button>{{t "mail.retry"}}</button></form>
-<p class="muted">{{t "mail.note"}}</p>
+<header class="page-head">
+  <span class="page-icon">{{icon "mail"}}</span>
+  <div><h1>{{t "mail.h"}}</h1><p class="lead">{{t "lead.mail"}}</p></div>
+  <form method="post" action="/mail/retry" class="page-tools"><input type="hidden" name="csrf" value="{{.CSRF}}"><button>{{icon "send"}}<span>{{t "mail.retry"}}</span></button></form>
+</header>
+<section class="panel">
+  <div class="table-wrap"><table><thead><tr><th>{{t "col.kind"}}</th><th class="num">{{t "col.sent"}}</th><th class="num">{{t "col.dropped"}}</th><th class="num">{{t "col.waiting"}}</th><th class="num">{{t "col.mostTries"}}</th></tr></thead><tbody>
+  {{range .Rows}}<tr><td><code class="kind">{{.Kind}}</code></td><td class="num">{{.Sent}}</td><td class="num">{{if .Failed}}<span class="chip bad">{{.Failed}}</span>{{else}}0{{end}}</td><td class="num">{{if .Pending}}<span class="chip warn">{{.Pending}}</span>{{else}}0{{end}}</td><td class="num">{{.Tries}}</td></tr>{{else}}<tr><td colspan="5" class="empty">{{t "mail.none"}}</td></tr>{{end}}</tbody></table></div>
+  <p class="panel-note">{{icon "info"}}{{t "mail.note"}}</p>
+</section>
 {{end}}

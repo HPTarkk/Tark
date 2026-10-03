@@ -253,7 +253,7 @@ func TestOwnerFlow(t *testing.T) {
 		}
 	}
 	_, body = b.get("/")
-	for _, want := range []string{"<p class=\"big\">1</p>", "tark_premium_12m: 1", "Failed sign-ins and codes: 1"} {
+	for _, want := range []string{"<p class=\"big\">1</p>", "<code>tark_premium_12m</code></dt><dd>1</dd>", "Failed sign-ins and codes</dt><dd>1</dd>"} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("dashboard lacks %q:\n%s", want, body)
 		}

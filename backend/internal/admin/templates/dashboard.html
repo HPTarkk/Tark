@@ -1,28 +1,61 @@
 {{define "title"}}{{t "nav.dashboard"}} · {{t "brand"}}{{end}}
 {{define "main"}}
 {{with .S}}
-{{if .AlertsFiring}}<p class="error">{{t "dash.alerts"}} {{range $i, $a := .AlertsFiring}}{{if $i}}{{t "sep"}}{{end}}<code>{{$a}}</code>{{end}}. {{t "dash.alertsMore"}}</p>{{end}}
-<h1>{{t "nav.dashboard"}}</h1>
-<section class="cards">
-  <div class="card"><h2>{{t "dash.accounts"}}</h2><p class="big">{{.UsersTotal}}</p>
-    <p>{{t "dash.new" .UsersNew7 .UsersNew30}}</p>
-    <p>{{t "dash.signups" .SignupsEmail30 .SignupsGoogle30}}</p>
-    <p>{{t "dash.active" .Active7}}</p>
-    <p>{{t "dash.deleted" .Deleted30 .Disabled}}</p></div>
-  <div class="card"><h2>{{t "dash.subscribers"}}</h2><p class="big">{{.Subscribers}}</p>
-    <p>{{range .ByPlan}}<span class="ltr">{{.SKU}}: {{.Count}}</span><br>{{else}}{{t "dash.noPlans"}}{{end}}</p>
-    <p>{{t "dash.newSubs" .NewSubs30 .SubsEnded30}}</p>
-    <p>{{t "dash.renewOff" .RenewOff .Expiring7}}</p>
-    <p>{{t "dash.refunded" .Refunded30 .Suspicious}}</p>
-    <p>{{t "dash.grants" .Grants}}</p>
-    <p class="muted">{{t "dash.revenue"}}</p></div>
-  <div class="card"><h2>{{t "last24"}}</h2>
-    <p>{{t "dash.mail" .MailSent24 .MailFailed24 .MailPending}}</p>
-    <p>{{t "dash.failed" .FailedLogins}}</p>
-    <p>{{t "dash.lockouts" .Lockouts .TokenReuse}}</p>
-    <p>{{t "dash.backup" (ago .LastBackup)}}{{if not .LastBackupOK}} <span class="error-text">{{t "dash.backupFailed"}}</span>{{end}}</p></div>
+<header class="page-head">
+  <span class="page-icon">{{icon "dashboard"}}</span>
+  <div><h1>{{t "nav.dashboard"}}</h1><p class="lead">{{t "lead.dashboard"}}</p></div>
+</header>
+{{if .AlertsFiring}}<div class="flash bad" role="alert">{{icon "alert"}}<p>{{t "dash.alerts"}} {{range $i, $a := .AlertsFiring}}{{if $i}}{{t "sep"}}{{end}}<code>{{$a}}</code>{{end}}. {{t "dash.alertsMore"}} <a href="/system">{{t "dash.seeSystem"}}</a></p></div>{{end}}
+<section class="kpis">
+  <article class="kpi"><div class="kpi-head"><span class="kpi-icon">{{icon "users"}}</span><h2>{{t "dash.accounts"}}</h2></div>
+    <p class="big">{{.UsersTotal}}</p><p class="kpi-sub"><span class="delta{{if .UsersNew7}} up{{end}}">{{t "dash.delta7" .UsersNew7}}</span></p></article>
+  <article class="kpi"><div class="kpi-head"><span class="kpi-icon">{{icon "crown"}}</span><h2>{{t "dash.subscribers"}}</h2></div>
+    <p class="big">{{.Subscribers}}</p><p class="kpi-sub"><span class="delta{{if .NewSubs30}} up{{end}}">{{t "dash.subsSub" .NewSubs30}}</span></p></article>
+  <article class="kpi"><div class="kpi-head"><span class="kpi-icon">{{icon "trend"}}</span><h2>{{t "dash.activeH"}}</h2></div>
+    <p class="big">{{.Active7}}</p><p class="kpi-sub">{{t "dash.activeSub"}}</p></article>
+  <article class="kpi{{if .FailedLogins}} warn{{end}}"><div class="kpi-head"><span class="kpi-icon">{{icon "lock"}}</span><h2>{{t "dash.failedH"}}</h2></div>
+    <p class="big">{{.FailedLogins}}</p><p class="kpi-sub">{{t "dash.failedSub"}}</p></article>
 </section>
-<h2>{{t "dash.perDay"}}</h2>
-<div class="bars">{{range .SignupsByDay}}<div class="bar"><span class="h{{bar .Count $.S.SignupDayMax}}" title="{{.Count}}"></span><small>{{day .Day}}</small><b>{{.Count}}</b></div>{{end}}</div>
+<section class="panel">
+  <header class="panel-head"><h2>{{icon "chart"}}{{t "dash.perDay"}}</h2></header>
+  <div class="chart">{{range .SignupsByDay}}<div class="col"><span class="bar h{{bar .Count $.S.SignupDayMax}}" data-n="{{day .Day}} · {{.Count}}"></span><small>{{day .Day}}</small></div>{{end}}</div>
+</section>
+<section class="grid-3">
+  <div class="panel">
+    <header class="panel-head"><h2>{{icon "users"}}{{t "dash.accounts"}}</h2></header>
+    <dl class="rows">
+      <div><dt>{{t "dash.r.new30"}}</dt><dd>{{.UsersNew30}}</dd></div>
+      <div><dt>{{t "dash.r.email30"}}</dt><dd>{{.SignupsEmail30}}</dd></div>
+      <div><dt>{{t "dash.r.google30"}}</dt><dd>{{.SignupsGoogle30}}</dd></div>
+      <div><dt>{{t "dash.r.deleted30"}}</dt><dd>{{.Deleted30}}</dd></div>
+      <div><dt>{{t "dash.r.disabled"}}</dt><dd>{{.Disabled}}</dd></div>
+    </dl>
+  </div>
+  <div class="panel">
+    <header class="panel-head"><h2>{{icon "card"}}{{t "dash.subscribers"}}</h2></header>
+    <dl class="rows">
+      {{range .ByPlan}}<div><dt><code>{{.SKU}}</code></dt><dd>{{.Count}}</dd></div>{{else}}<div><dt>{{t "dash.byPlan"}}</dt><dd class="muted">{{t "dash.noPlans"}}</dd></div>{{end}}
+      <div><dt>{{t "dash.r.ended30"}}</dt><dd>{{.SubsEnded30}}</dd></div>
+      <div><dt>{{t "dash.r.renewOff"}}</dt><dd>{{.RenewOff}}</dd></div>
+      <div><dt>{{t "dash.r.expiring7"}}</dt><dd{{if .Expiring7}} class="warn-text"{{end}}>{{.Expiring7}}</dd></div>
+      <div><dt>{{t "dash.r.refunded30"}}</dt><dd>{{.Refunded30}}</dd></div>
+      <div><dt>{{t "dash.r.suspicious"}}</dt><dd{{if .Suspicious}} class="error-text"{{end}}>{{.Suspicious}}</dd></div>
+      <div><dt>{{t "dash.r.grants"}}</dt><dd>{{.Grants}}</dd></div>
+    </dl>
+    <p class="panel-note">{{icon "info"}}{{t "dash.revenue"}}</p>
+  </div>
+  <div class="panel">
+    <header class="panel-head"><h2>{{icon "clock"}}{{t "last24"}}</h2></header>
+    <dl class="rows">
+      <div><dt>{{t "dash.r.mailSent"}}</dt><dd>{{.MailSent24}}</dd></div>
+      <div><dt>{{t "dash.r.mailFailed"}}</dt><dd{{if .MailFailed24}} class="error-text"{{end}}>{{.MailFailed24}}</dd></div>
+      <div><dt>{{t "dash.r.mailWait"}}</dt><dd>{{.MailPending}}</dd></div>
+      <div><dt>{{t "dash.r.failed"}}</dt><dd>{{.FailedLogins}}</dd></div>
+      <div><dt>{{t "dash.r.lockouts"}}</dt><dd{{if .Lockouts}} class="warn-text"{{end}}>{{.Lockouts}}</dd></div>
+      <div><dt>{{t "dash.r.reuse"}}</dt><dd{{if .TokenReuse}} class="error-text"{{end}}>{{.TokenReuse}}</dd></div>
+      <div><dt>{{t "dash.r.backup"}}</dt><dd>{{ago .LastBackup}}{{if not .LastBackupOK}} <span class="chip bad">{{t "dash.backupFailed"}}</span>{{end}}</dd></div>
+    </dl>
+  </div>
+</section>
 {{end}}
 {{end}}

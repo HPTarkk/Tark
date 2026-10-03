@@ -92,12 +92,12 @@ func TestPricingPage(t *testing.T) {
 		t.Fatalf("ending >= round_to: %d", code)
 	}
 	code, body = b.post("/pricing", form)
-	if code != http.StatusOK || !strings.Contains(body, "<code>2,690,000</code>") || !strings.Contains(body, "<strong>899,000</strong>") {
+	if code != http.StatusOK || !strings.Contains(body, "<code>2,690,000</code>") || !strings.Contains(body, `<strong class="price">899,000</strong>`) {
 		t.Fatalf("save: %d %s", code, body)
 	}
 	// Saved: a fresh load shows the same numbers.
 	_, body = b.get("/pricing")
-	if !strings.Contains(body, `value="2.7"`) || !strings.Contains(body, "<strong>269,000</strong>") {
+	if !strings.Contains(body, `value="2.7"`) || !strings.Contains(body, `<strong class="price">269,000</strong>`) {
 		t.Fatal("not saved")
 	}
 	var n int

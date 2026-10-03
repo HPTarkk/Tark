@@ -4,30 +4,62 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="light dark">
 <title>{{block "title" .}}{{t "brand"}}{{end}}</title>
 <link rel="icon" href="/static/logo.png" type="image/png">
 <link rel="apple-touch-icon" href="/static/logo.png">
 <link rel="stylesheet" href="/static/admin.css">
 </head>
-<body>
 {{$top := false}}{{with .Admin}}{{if not .MustChangePassword}}{{$top = true}}{{end}}{{end}}
+<body{{if $top}} class="app"{{end}}>
 {{if $top}}{{with .Admin}}
-<header class="top">
-  <a class="brand" href="/"><img src="/static/logo.png" alt="" width="26" height="26">{{t "brand"}}</a>
-  <nav>
-    <a href="/">{{t "nav.dashboard"}}</a>
-    <a href="/system">{{t "nav.system"}}</a>
-    {{if or (eq .Role "owner") (eq .Role "support")}}<a href="/users">{{t "nav.users"}}</a><a href="/security">{{t "nav.security"}}</a><a href="/mail">{{t "nav.mail"}}</a>{{end}}
-    {{if eq .Role "owner"}}<a href="/pricing">{{t "nav.pricing"}}</a><a href="/backups">{{t "nav.backups"}}</a><a href="/admins">{{t "nav.admins"}}</a><a href="/activity">{{t "nav.activity"}}</a><a href="/logs">{{t "nav.logs"}}</a>{{end}}
-    <a href="/account/password">{{t "nav.account"}}</a>
-  </nav>
-  <a class="lang" href="/lang/{{t "lang.otherCode"}}?next={{$.Here}}" lang="{{t "lang.otherCode"}}">{{t "lang.other"}}</a>
-  <form method="post" action="/logout" class="logout"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button>{{t "signout"}}</button></form>
+{{/* The phone menu opens with this checkbox and its labels: the CSP allows no scripts. */}}
+<input type="checkbox" id="nav-open" class="nav-toggle" aria-label="{{t "menu"}}">
+<header class="topbar">
+  <label for="nav-open" class="icon-btn" title="{{t "menu"}}">{{icon "menu"}}</label>
+  <a class="brand" href="/"><img src="/static/logo.png" alt="" width="28" height="28"><span>{{t "brand"}}</span></a>
+  <span class="avatar sm" aria-hidden="true">{{initial .Name}}</span>
 </header>
+<label for="nav-open" class="scrim" title="{{t "menuClose"}}"></label>
+<aside class="side"><div class="side-inner">
+  <div class="side-head">
+    <a class="brand" href="/"><img src="/static/logo.png" alt="" width="32" height="32"><span>{{t "brand"}}</span></a>
+    <label for="nav-open" class="icon-btn side-close" title="{{t "menuClose"}}">{{icon "close"}}</label>
+  </div>
+  <nav class="nav">
+    <p class="nav-group">{{t "nav.gOverview"}}</p>
+    <a href="/"{{if eq $.Page "dashboard"}} class="on" aria-current="page"{{end}}>{{icon "dashboard"}}<span>{{t "nav.dashboard"}}</span></a>
+    <a href="/system"{{if eq $.Page "system"}} class="on" aria-current="page"{{end}}>{{icon "system"}}<span>{{t "nav.system"}}</span></a>
+    {{if or (eq .Role "owner") (eq .Role "support")}}
+    <p class="nav-group">{{t "nav.gAccounts"}}</p>
+    <a href="/users"{{if or (eq $.Page "users") (eq $.Page "user")}} class="on" aria-current="page"{{end}}>{{icon "users"}}<span>{{t "nav.users"}}</span></a>
+    <a href="/security"{{if eq $.Page "security"}} class="on" aria-current="page"{{end}}>{{icon "security"}}<span>{{t "nav.security"}}</span></a>
+    <a href="/mail"{{if eq $.Page "mail"}} class="on" aria-current="page"{{end}}>{{icon "mail"}}<span>{{t "nav.mail"}}</span></a>
+    {{end}}
+    {{if eq .Role "owner"}}
+    <p class="nav-group">{{t "nav.gManage"}}</p>
+    <a href="/pricing"{{if eq $.Page "pricing"}} class="on" aria-current="page"{{end}}>{{icon "pricing"}}<span>{{t "nav.pricing"}}</span></a>
+    <a href="/backups"{{if eq $.Page "backups"}} class="on" aria-current="page"{{end}}>{{icon "backups"}}<span>{{t "nav.backups"}}</span></a>
+    <a href="/admins"{{if eq $.Page "admins"}} class="on" aria-current="page"{{end}}>{{icon "admins"}}<span>{{t "nav.admins"}}</span></a>
+    <a href="/activity"{{if eq $.Page "activity"}} class="on" aria-current="page"{{end}}>{{icon "activity"}}<span>{{t "nav.activity"}}</span></a>
+    <a href="/logs"{{if eq $.Page "logs"}} class="on" aria-current="page"{{end}}>{{icon "logs"}}<span>{{t "nav.logs"}}</span></a>
+    {{end}}
+  </nav>
+  <div class="side-foot">
+    <a class="me{{if eq $.Page "password"}} on{{end}}" href="/account/password" title="{{t "nav.account"}}">
+      <span class="avatar" aria-hidden="true">{{initial .Name}}</span>
+      <span class="me-text"><b>{{.Name}}</b><small>{{code "role" .Role}} · {{t "nav.account"}}</small></span>
+    </a>
+    <div class="side-actions">
+      <a class="lang" href="/lang/{{t "lang.otherCode"}}?next={{$.Here}}" lang="{{t "lang.otherCode"}}">{{icon "globe"}}<span>{{t "lang.other"}}</span></a>
+      <form method="post" action="/logout" class="logout"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="ghost">{{icon "signout"}}<span>{{t "signout"}}</span></button></form>
+    </div>
+  </div>
+</div></aside>
 {{end}}{{else}}
 <a class="lang lang-corner" href="/lang/{{t "lang.otherCode"}}?next={{.Here}}" lang="{{t "lang.otherCode"}}">{{t "lang.other"}}</a>
 {{end}}
-<main>
+<main{{if $top}} class="content"{{end}}>
 {{block "main" .}}{{end}}
 </main>
 </body>

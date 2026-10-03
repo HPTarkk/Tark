@@ -1,10 +1,14 @@
 {{define "title"}}{{t "nav.users"}} · {{t "brand"}}{{end}}
 {{define "main"}}
-<h1>{{t "users.h"}}</h1>
-<p>{{t "users.lead"}}</p>
-<form method="get" action="/users" class="row">
-  <input name="q" value="{{.Q}}" placeholder="email@example.com" required maxlength="254" autofocus dir="ltr">
-  <button>{{t "btn.find"}}</button>
-</form>
-{{if .NotFound}}<p class="error">{{t "users.notFound"}}</p>{{end}}
+<section class="search-hero">
+  <span class="hero-icon">{{icon "users"}}</span>
+  <h1>{{t "users.h"}}</h1>
+  <p class="lead">{{t "users.lead"}}</p>
+  <form method="get" action="/users" class="search">
+    {{icon "search"}}
+    <input name="q" value="{{.Q}}" placeholder="email@example.com" required maxlength="254" autofocus dir="ltr" aria-label="{{t "users.h"}}">
+    <button>{{t "btn.find"}}</button>
+  </form>
+  {{if .NotFound}}<div class="flash bad" role="alert">{{icon "alert"}}<p>{{t "users.notFound"}}</p></div>{{end}}
+</section>
 {{end}}

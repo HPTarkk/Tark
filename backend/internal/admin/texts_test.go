@@ -101,3 +101,23 @@ func TestLanguageSwitch(t *testing.T) {
 		t.Fatalf("refusal not in Persian:\n%s", body)
 	}
 }
+
+// Every icon a template draws has a drawing; an unknown name would render
+// an empty square.
+func TestEveryIconKnown(t *testing.T) {
+	re := regexp.MustCompile(`\bicon "([a-z]+)"`)
+	names, _ := fs.Glob(assets, "templates/*.html")
+	n := 0
+	for _, f := range names {
+		b, _ := fs.ReadFile(assets, f)
+		for _, m := range re.FindAllStringSubmatch(string(b), -1) {
+			n++
+			if _, ok := icons[m[1]]; !ok {
+				t.Errorf("%s: no icon %q", f, m[1])
+			}
+		}
+	}
+	if n < 30 {
+		t.Fatalf("found only %d icons in use; the pattern is broken", n)
+	}
+}
