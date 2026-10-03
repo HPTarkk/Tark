@@ -187,6 +187,7 @@ var icons = map[string]string{
 	"globe":     `<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 4 10 15 15 0 0 1-4 10 15 15 0 0 1-4-10 15 15 0 0 1 4-10z"/>`,
 	"alert":     `<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>`,
 	"check":     `<path d="M20 6 9 17l-5-5"/>`,
+	"copy":      `<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>`,
 	"trend":     `<path d="m22 7-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/>`,
 	"crown":     `<path d="m2 8 4 11h12l4-11-6 4-4-8-4 8z"/>`,
 	"zap":       `<path d="M13 2 3 14h9l-1 8 10-12h-9z"/>`,

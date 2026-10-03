@@ -9,7 +9,7 @@
 <section class="panel">
 {{if .Rows}}
   <div class="table-wrap"><table><thead><tr><th>{{t "col.plan"}}</th><th>{{t "col.sku"}}</th><th class="num">{{t "col.multiplier"}}</th><th class="num">{{t "col.exact"}}</th><th class="num">{{t "col.toman"}}</th><th class="num">{{t "col.rial"}}</th><th class="num">{{t "col.perMonth"}}</th><th class="num">{{t "col.saves"}}</th></tr></thead><tbody>
-  {{range .Rows}}<tr><td><b>{{.Plan.Title lang}}</b></td><td><code>{{.Plan.SKU}}</code></td><td class="num"><span class="ltr">×{{factor .Multiplier}}</span></td><td class="num muted">{{money (round .Raw)}}</td><td class="num"><strong class="price">{{money .Toman}}</strong></td><td class="num"><code>{{money .Rial}}</code></td><td class="num">{{money .PerMonth}}</td><td class="num">{{if .SavingPct}}<span class="chip good">{{.SavingPct}}%</span>{{else}}-{{end}}</td></tr>{{end}}
+  {{range .Rows}}<tr><td><b>{{.Plan.Title lang}}</b></td><td><code>{{.Plan.SKU}}</code></td><td class="num"><span class="ltr">×{{factor .Multiplier}}</span></td><td class="num muted">{{money (round .Raw)}}</td><td class="num"><strong class="price">{{money .Toman}}</strong></td><td class="num"><span class="copy-cell"><code class="rial">{{money .Rial}}</code><button type="button" class="copy" data-copy="{{.Rial}}" data-done="{{t "btn.copied"}}" title="{{t "btn.copy"}}" aria-label="{{t "btn.copy"}} {{money .Rial}}" hidden>{{icon "copy"}}{{icon "check"}}<span aria-live="polite">{{t "btn.copy"}}</span></button></span></td><td class="num">{{money .PerMonth}}</td><td class="num">{{if .SavingPct}}<span class="chip good">{{.SavingPct}}%</span>{{else}}-{{end}}</td></tr>{{end}}
   </tbody></table></div>
 {{else}}<p class="empty">{{t "pricing.empty"}}</p>{{end}}
 </section>
@@ -18,12 +18,12 @@
   <form method="post" action="/pricing" class="stack">
     <input type="hidden" name="csrf" value="{{.CSRF}}">
     <div class="form-grid">
-    <label>{{t "pricing.base"}} <input name="base" required inputmode="numeric" dir="ltr" value="{{if .In.BaseMonthly}}{{money .In.BaseMonthly}}{{end}}"></label>
+    <label>{{t "pricing.base"}} <input name="base" required inputmode="numeric" data-money dir="ltr" value="{{if .In.BaseMonthly}}{{money .In.BaseMonthly}}{{end}}"></label>
     <label>{{t "pricing.adj"}} <input name="adjustment" required inputmode="decimal" dir="ltr" value="{{factor .In.Adjustment}}"></label>
     {{range .Plans}}<label>{{t "pricing.mult" (.Title lang)}} <input name="mult_{{.SKU}}" required inputmode="decimal" dir="ltr" value="{{factor (index $.In.Multipliers .SKU)}}"></label>
     {{end}}
-    <label>{{t "pricing.round"}} <input name="round_to" required inputmode="numeric" dir="ltr" value="{{money .In.RoundTo}}"></label>
-    <label>{{t "pricing.ending"}} <input name="ending" required inputmode="numeric" dir="ltr" value="{{money .In.Ending}}"></label>
+    <label>{{t "pricing.round"}} <input name="round_to" required inputmode="numeric" data-money dir="ltr" value="{{money .In.RoundTo}}"></label>
+    <label>{{t "pricing.ending"}} <input name="ending" required inputmode="numeric" data-money dir="ltr" value="{{money .In.Ending}}"></label>
     </div>
     <button>{{t "pricing.save"}}</button>
   </form>

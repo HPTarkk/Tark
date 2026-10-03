@@ -89,6 +89,20 @@ button.sm { padding: 6px 11px; border-radius: 10px; font-size: .82rem; gap: 6px;
 button.sm .i { width: 15px; height: 15px; }
 button.link { background: none; border: none; color: var(--accent); padding: 4px 0; font-weight: 500; box-shadow: none; }
 button.link:hover { filter: none; box-shadow: none; text-decoration: underline; }
+/* Copy button next to a Bazaar price (admin.js shows it). */
+.copy-cell { display: inline-flex; align-items: center; gap: 8px; }
+code.rial { user-select: all; }
+button.copy { position: relative; padding: 6px; border-radius: 9px; background: var(--surface); color: var(--muted); border: 1px solid var(--line); box-shadow: none; }
+button.copy:hover { filter: none; box-shadow: none; color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
+button.copy .i { width: 15px; height: 15px; }
+/* The label is for screen readers; the icon turns into a check when copied. */
+button.copy span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+button.copy .i + .i { display: none; }
+button.copy.copied { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, var(--line)); background: color-mix(in srgb, var(--good) 8%, var(--surface)); }
+button.copy.copied .i { display: none; }
+button.copy.copied .i + .i { display: block; animation: pop .3s var(--ease) both; }
+/* The sign-in code was sent on its own; the button shows it is working. */
+form.sending > button { opacity: .7; cursor: progress; pointer-events: none; }
 .stack { display: flex; flex-direction: column; gap: 14px; }
 .stack > button { align-self: flex-start; }
 .auth .stack > button { align-self: stretch; }
