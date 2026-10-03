@@ -12,16 +12,31 @@ import (
 // the product id (tark_premium_<months>m), so adding a length only means
 // creating the product in the Bazaar panel and listing its id in
 // TARK_BAZAAR_SKUS; no code or app change.
+//
+// TestSKU is the one exception: a 5-minute product for trying purchases
+// and renewals on a test server. It has no months, only Minutes.
 type Plan struct {
-	SKU    string
-	Months int
+	SKU     string
+	Months  int
+	Minutes int
 }
+
+// TestSKU is the Bazaar product that renews every 5 minutes. It is only for
+// testing: it is sold or accepted only where TARK_BAZAAR_SKUS lists it, which
+// production's default list does not.
+const TestSKU = "TEST_SUB"
+
+// testMinutes is TestSKU's period as set in the Bazaar panel.
+const testMinutes = 5
 
 var planSKU = regexp.MustCompile(`^tark_premium_([1-9][0-9]?)m$`)
 
 // ParsePlan reads a product id. ok is false for anything that is not one of
 // our subscription ids.
 func ParsePlan(sku string) (Plan, bool) {
+	if sku == TestSKU {
+		return Plan{SKU: sku, Minutes: testMinutes}, true
+	}
 	m := planSKU.FindStringSubmatch(sku)
 	if m == nil {
 		return Plan{}, false
@@ -33,9 +48,15 @@ func ParsePlan(sku string) (Plan, bool) {
 	return Plan{SKU: sku, Months: months}, true
 }
 
+// IsTest reports whether this is the 5-minute test plan.
+func (p Plan) IsTest() bool { return p.SKU == TestSKU }
+
 // Days is the period length as the Bazaar panel names it: 30 days a month,
-// 365 a year.
+// 365 a year. The test plan is shorter than a day, so 0.
 func (p Plan) Days() int {
+	if p.IsTest() {
+		return 0
+	}
 	if p.Months%12 == 0 {
 		return p.Months / 12 * 365
 	}
@@ -44,6 +65,12 @@ func (p Plan) Days() int {
 
 // Title names the plan for people: "1 month", "3 months", "1 year".
 func (p Plan) Title(lang string) string {
+	if p.IsTest() {
+		if lang == i18n.FA {
+			return fmt.Sprintf("تست %s دقیقه‌ای", i18n.Digits(i18n.FA, p.Minutes))
+		}
+		return fmt.Sprintf("%d-minute test", p.Minutes)
+	}
 	if p.Months%12 == 0 {
 		years := p.Months / 12
 		if lang == i18n.FA {
@@ -81,7 +108,7 @@ func ParsePlans(skus []string) ([]Plan, error) {
 	for _, sku := range skus {
 		p, ok := ParsePlan(sku)
 		if !ok {
-			return nil, fmt.Errorf("TARK_BAZAAR_SKUS: %q is not a plan id (want tark_premium_<months>m)", sku)
+			return nil, fmt.Errorf("TARK_BAZAAR_SKUS: %q is not a plan id (want tark_premium_<months>m or %s)", sku, TestSKU)
 		}
 		if seen[sku] {
 			return nil, fmt.Errorf("TARK_BAZAAR_SKUS: %q is listed twice", sku)

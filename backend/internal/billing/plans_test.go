@@ -44,6 +44,27 @@ func TestPlanDaysAndTitles(t *testing.T) {
 	}
 }
 
+func TestTestPlan(t *testing.T) {
+	p, ok := ParsePlan(TestSKU)
+	if !ok || !p.IsTest() || p.Months != 0 || p.Minutes != 5 || p.Days() != 0 {
+		t.Fatalf("%+v %v", p, ok)
+	}
+	if p.Title("en") != "5-minute test" || p.Title("fa") != "تست ۵ دقیقه‌ای" {
+		t.Errorf("%q %q", p.Title("en"), p.Title("fa"))
+	}
+	if title, ok := PlanTitle(TestSKU, "en"); !ok || title != "5-minute test" {
+		t.Errorf("PlanTitle %q %v", title, ok)
+	}
+	for _, bad := range []string{"test_sub", "TEST_SUB ", "TEST_SUB2"} {
+		if _, ok := ParsePlan(bad); ok {
+			t.Errorf("ParsePlan(%q) accepted", bad)
+		}
+	}
+	if plans, err := ParsePlans([]string{"tark_premium_1m", TestSKU}); err != nil || len(plans) != 2 {
+		t.Errorf("%v %v", plans, err)
+	}
+}
+
 func TestParsePlans(t *testing.T) {
 	if _, err := ParsePlans([]string{"tark_premium_1m", "tark_premium_1m"}); err == nil {
 		t.Error("duplicate accepted")

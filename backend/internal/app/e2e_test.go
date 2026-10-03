@@ -84,7 +84,7 @@ func setup(t *testing.T) *env { t.Helper(); return setupPools(t, 10, 4) }
 
 // setupPools wires the app the way tarkd does: a main pool for requests and
 // a small auxiliary pool for audit and rate-limit writes.
-func setupPools(t *testing.T, mainConns, auxConns int32) *env {
+func setupPools(t *testing.T, mainConns, auxConns int32, tweaks ...func(*config.Config)) *env {
 	t.Helper()
 	url := os.Getenv("TARK_TEST_DATABASE_URL")
 	if url == "" {
@@ -119,6 +119,9 @@ func setupPools(t *testing.T, mainConns, auxConns int32) *env {
 		RefreshTokenTTL:    180 * 24 * time.Hour,
 		SessionMaxLifetime: 365 * 24 * time.Hour,
 		PasswordHashSlots:  4,
+	}
+	for _, tweak := range tweaks {
+		tweak(cfg)
 	}
 	sender := &captureSender{}
 	bz := &billing.FakeBazaar{}
@@ -716,6 +719,43 @@ func TestPlans(t *testing.T) {
 	p := r.body["plans"].([]any)[1].(map[string]any)
 	if p["sku"] != "tark_premium_3m" || p["months"] != float64(3) || p["days"] != float64(90) {
 		t.Fatalf("%v", p)
+	}
+}
+
+// The 5-minute test product is refused unless the server sells it, and
+// sold only where TARK_BAZAAR_SKUS lists it.
+func TestTestPlan(t *testing.T) {
+	body := map[string]any{"sku": billing.TestSKU, "purchaseToken": "test-tok"}
+	idem := "5c1d2e3f-4a5b-4c6d-8e7f-0a1b2c3d4e5f"
+
+	prod := setup(t)
+	p := prod.phone()
+	p.register("prod@example.com", "a good passphrase", "P")
+	expect(t, p.do("POST", "/v1/subscription/bazaar/purchases", body, "Idempotency-Key", idem), 400, "invalid_request")
+	for _, raw := range p.do("GET", "/v1/subscription/plans", nil).body["plans"].([]any) {
+		if raw.(map[string]any)["sku"] == billing.TestSKU {
+			t.Fatal("production lists the test plan")
+		}
+	}
+
+	test := setupPools(t, 10, 4, func(c *config.Config) {
+		c.Bazaar.SKUs = append(c.Bazaar.SKUs, billing.TestSKU)
+	})
+	q := test.phone()
+	q.register("tester@example.com", "a good passphrase", "T")
+	plans := q.do("GET", "/v1/subscription/plans", nil, "Accept-Language", "fa").body["plans"].([]any)
+	last := plans[len(plans)-1].(map[string]any)
+	if last["sku"] != billing.TestSKU || last["minutes"] != float64(5) || last["months"] != float64(0) || last["title"] != "تست ۵ دقیقه‌ای" {
+		t.Fatalf("%v", last)
+	}
+	test.bazaar.Set("test-tok", billing.Subscription{InitiatedAt: time.Now(), ValidUntil: time.Now().Add(5 * time.Minute), AutoRenewing: true}, nil)
+	r := q.do("POST", "/v1/subscription/bazaar/purchases", body, "Idempotency-Key", idem)
+	expect(t, r, 200, "")
+	if m := test.decodeEntitlement(r.str("entitlement"), q.install); m["st"] != "active" || m["sku"] != billing.TestSKU {
+		t.Fatalf("%v", m)
+	}
+	if r.str("planTitle") != "5-minute test" {
+		t.Fatalf("planTitle %q", r.str("planTitle"))
 	}
 }
 

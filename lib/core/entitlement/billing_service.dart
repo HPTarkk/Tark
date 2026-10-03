@@ -4,7 +4,8 @@ import 'package:equatable/equatable.dart';
 /// exist, their order and their names all come from the server, so a plan
 /// is added or retired there without an app update. The length is part of
 /// the product id (`tark_premium_<months>m`), which must match the Bazaar
-/// panel.
+/// panel. The one exception is [testSku], a 5-minute product that only a
+/// test server lists.
 class BillingPlan extends Equatable {
   const BillingPlan({
     required this.sku,
@@ -13,6 +14,8 @@ class BillingPlan extends Equatable {
   });
 
   final String sku;
+
+  /// 0 for the test plan, which is minutes long.
   final int months;
 
   /// The plan's name in the language the server was asked for ("3 months",
@@ -21,13 +24,18 @@ class BillingPlan extends Equatable {
 
   static final _skuPattern = RegExp(r'^tark_premium_([1-9][0-9]?)m$');
 
+  /// The Bazaar product that renews every 5 minutes, for trying purchases
+  /// and renewals. Shown only when the server's plan list includes it, and
+  /// the production server never lists it.
+  static const testSku = 'TEST_SUB';
+
   /// Months in a plan id, or null for anything that is not one of ours.
   static int? monthsOf(String sku) {
     final match = _skuPattern.firstMatch(sku);
     return match == null ? null : int.parse(match.group(1)!);
   }
 
-  static bool isPlanSku(String sku) => monthsOf(sku) != null;
+  static bool isPlanSku(String sku) => sku == testSku || monthsOf(sku) != null;
 
   /// A plan from one entry of the server's list, or null when malformed.
   static BillingPlan? fromJson(Object? json) {
@@ -37,7 +45,7 @@ class BillingPlan extends Equatable {
     if (sku is! String || title is! String || title.trim().isEmpty) {
       return null;
     }
-    final months = monthsOf(sku);
+    final months = sku == testSku ? 0 : monthsOf(sku);
     if (months == null) return null;
     return BillingPlan(sku: sku, months: months, title: title.trim());
   }

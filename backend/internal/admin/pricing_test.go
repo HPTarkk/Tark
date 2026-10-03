@@ -11,7 +11,7 @@ import (
 )
 
 func testPlans() []billing.Plan {
-	plans, err := billing.ParsePlans([]string{"tark_premium_1m", "tark_premium_3m", "tark_premium_6m", "tark_premium_12m"})
+	plans, err := billing.ParsePlans([]string{"tark_premium_1m", "tark_premium_3m", "tark_premium_6m", "tark_premium_12m", billing.TestSKU})
 	if err != nil {
 		panic(err)
 	}
@@ -44,6 +44,9 @@ func TestSuggestPrices(t *testing.T) {
 		Multipliers: map[string]float64{"tark_premium_1m": 1, "tark_premium_3m": 2.7, "tark_premium_6m": 5, "tark_premium_12m": 9}}
 	rows := SuggestPrices(in, testPlans())
 	want := []int64{99000, 269000, 499000, 899000}
+	if len(rows) != len(want) {
+		t.Fatalf("%d rows; the test plan must be left out", len(rows))
+	}
 	for i, r := range rows {
 		if r.Toman != want[i] || r.Rial != want[i]*10 {
 			t.Errorf("%s: %d Toman %d Rial, want %d", r.Plan.SKU, r.Toman, r.Rial, want[i])
@@ -74,7 +77,7 @@ func TestPricingPage(t *testing.T) {
 	e := setup(t)
 	b := e.owner("boss@example.com")
 	code, body := b.get("/pricing")
-	if code != http.StatusOK || !strings.Contains(body, "Nothing saved yet") || !strings.Contains(body, `name="mult_tark_premium_3m"`) {
+	if code != http.StatusOK || !strings.Contains(body, "Nothing saved yet") || !strings.Contains(body, `name="mult_tark_premium_3m"`) || strings.Contains(body, "mult_TEST_SUB") {
 		t.Fatalf("empty page: %d", code)
 	}
 	form := url.Values{"csrf": {field(t, body, "csrf")}, "base": {"99,000"}, "adjustment": {"1"},

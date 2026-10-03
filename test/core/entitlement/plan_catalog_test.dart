@@ -82,4 +82,14 @@ void main() {
     expect(BillingPlan.monthsOf('comp'), isNull);
     expect(BillingPlan.monthsOf('tark_premium_1y'), isNull);
   });
+
+  test('the 5-minute test product is a plan with no months', () {
+    expect(BillingPlan.isPlanSku('TEST_SUB'), isTrue);
+    expect(BillingPlan.isPlanSku('test_sub'), isFalse);
+    expect(BillingPlan.monthsOf('TEST_SUB'), isNull);
+    expect(
+      BillingPlan.fromJson({'sku': 'TEST_SUB', 'title': '5-minute test'}),
+      const BillingPlan(sku: 'TEST_SUB', months: 0, title: '5-minute test'),
+    );
+  });
 }
