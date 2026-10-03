@@ -4544,6 +4544,12 @@ abstract class AppLocalizations {
   /// **'خروج از حساب'**
   String get account_sign_out;
 
+  /// No description provided for @account_sign_out_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'از حسابت روی این گوشی خارج میشی. هر وقت خواستی دوباره وارد شو.'**
+  String get account_sign_out_body;
+
   /// No description provided for @account_sign_out_everywhere.
   ///
   /// In fa, this message translates to:

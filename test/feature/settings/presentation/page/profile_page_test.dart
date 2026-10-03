@@ -127,7 +127,17 @@ void main() {
       expect(find.byKey(const ValueKey('account-change-password')), findsOne);
       expect(find.byKey(const ValueKey('account-delete')), findsOneWidget);
 
+      // Signing out asks first; backing out keeps the account.
       await tester.tap(find.byKey(const ValueKey('account-sign-out')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('confirm-sheet-cancel')));
+      await tester.pumpAndSettle();
+      expect(account.client.paths, isEmpty);
+      expect(account.session.isSignedIn, isTrue);
+
+      await tester.tap(find.byKey(const ValueKey('account-sign-out')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('confirm-sheet-action')));
       await tester.pumpAndSettle();
 
       expect(account.client.paths, ['/auth/logout']);

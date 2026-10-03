@@ -742,6 +742,7 @@
     "account_email_label": "Email",
     "account_change_password": "Change password",
     "account_sign_out": "Sign out",
+    "account_sign_out_body": "You'll be signed out on this phone. You can sign back in anytime.",
     "account_sign_out_everywhere": "Sign out on all phones",
     "account_sign_out_everywhere_body": "Every phone signed in to this account, this one included, will need to sign in again.",
     "account_signed_out_toast": "You're signed out.",

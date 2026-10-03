@@ -2522,6 +2522,10 @@ class AppLocalizationsFa extends AppLocalizations {
   String get account_sign_out => 'خروج از حساب';
 
   @override
+  String get account_sign_out_body =>
+      'از حسابت روی این گوشی خارج میشی. هر وقت خواستی دوباره وارد شو.';
+
+  @override
   String get account_sign_out_everywhere => 'خروج از حساب روی همه‌ی گوشی‌ها';
 
   @override

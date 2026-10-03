@@ -765,6 +765,7 @@
     "account_email_label": "ایمیل",
     "account_change_password": "عوض کردن رمز",
     "account_sign_out": "خروج از حساب",
+    "account_sign_out_body": "از حسابت روی این گوشی خارج میشی. هر وقت خواستی دوباره وارد شو.",
     "account_sign_out_everywhere": "خروج از حساب روی همه‌ی گوشی‌ها",
     "account_sign_out_everywhere_body": "همه‌ی گوشی‌هایی که با این حساب وارد شدن، این یکی هم، باید دوباره وارد بشن.",
     "account_signed_out_toast": "از حسابت خارج شدی.",

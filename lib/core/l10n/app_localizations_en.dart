@@ -2532,6 +2532,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get account_sign_out => 'Sign out';
 
   @override
+  String get account_sign_out_body =>
+      'You\'ll be signed out on this phone. You can sign back in anytime.';
+
+  @override
   String get account_sign_out_everywhere => 'Sign out on all phones';
 
   @override
