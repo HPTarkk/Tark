@@ -1217,10 +1217,6 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         // Nothing to arrange (see _verifiedLiveFor). The link gate that runs
         // next refuses a phone that is on nothing at all.
         return null;
-      case RoomTransportKind.bluetooth:
-        return room.room.confirmedMembers.length == 2
-            ? null
-            : _EntryFailure.transportPlanMismatch;
       case RoomTransportKind.guest:
       case null:
         return _EntryFailure.transportPlanMismatch;
