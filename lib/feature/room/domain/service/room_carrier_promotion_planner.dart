@@ -175,15 +175,13 @@ abstract final class RoomCarrierPromotionPlanner {
   ///
   /// Plain Wi-Fi is the borrowed one: it means an access point that neither
   /// phone controls and neither phone can take with it. A hotspot is owned by
-  /// definition — somebody in the Room is the access point — and Bluetooth
-  /// involves no infrastructure at all. The guest link is a browser on the
+  /// definition — somebody in the Room is the access point. The guest link is a browser on the
   /// same LAN, so it inherits that LAN's fate and is borrowed too, but it is
   /// never promoted: a browser cannot follow a phone onto a hotspot, and
   /// moving would strand the very participant the mode exists for.
   static RoomCarrierDurability durabilityOf(RoomTransportKind? kind) =>
       switch (kind) {
         RoomTransportKind.hotspot => RoomCarrierDurability.owned,
-        RoomTransportKind.bluetooth => RoomCarrierDurability.owned,
         RoomTransportKind.sharedLan => RoomCarrierDurability.borrowed,
         RoomTransportKind.guest => RoomCarrierDurability.owned,
         null => RoomCarrierDurability.owned,
