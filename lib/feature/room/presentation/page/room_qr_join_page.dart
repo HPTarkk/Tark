@@ -9,7 +9,6 @@ import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/widget/qr_scanner_surface.dart';
 import '../../../transfer/api/hotspot_invite_api.dart';
 import '../../../transfer/api/transfer_api.dart';
-import '../../../transfer/api/pre_live_hotspot_bootstrap.dart';
 import '../../domain/entity/room_direct_join_bundle.dart';
 import '../manager/room_list_cubit.dart';
 
