@@ -9,6 +9,7 @@ import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/widget/qr_scanner_surface.dart';
 import '../../../transfer/api/hotspot_invite_api.dart';
 import '../../../transfer/api/transfer_api.dart';
+import '../../../transfer/api/pre_live_hotspot_bootstrap.dart';
 import '../../domain/entity/room_direct_join_bundle.dart';
 import '../manager/room_list_cubit.dart';
 
@@ -73,9 +74,25 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
       );
       if (!mounted) return false;
       if (joined) {
-        // Membership is durable now. Do not auto-start a transport: the Room
-        // lobby owns the explicit Start action, and Room transport is Wi-Fi.
-        context.go(AppRoutes.walkiePath);
+        final credentials = scanned?.credentials;
+        if (credentials != null) {
+          if (GetIt.instance.isRegistered<SessionRoleStore>()) {
+            GetIt.instance<SessionRoleStore>().setRole(SessionRole.joiner);
+          }
+          final result = await PreLiveHotspotBootstrap().joinHost(credentials);
+          if (!mounted) return false;
+          if (result != HotspotJoinResult.joined) {
+            setState(() => _error = context.getString.roomjoin_not_joined);
+            return false;
+          }
+          if (GetIt.instance.isRegistered<TransferModeStore>()) {
+            await GetIt.instance<TransferModeStore>().setMode(TransferMode.hotspot);
+          }
+          if (!mounted) return false;
+          context.go('\${AppRoutes.walkiePath}?ride=true&start=true');
+        } else {
+          context.go('\${AppRoutes.walkiePath}?start=true');
+        }
         return true;
       }
       setState(() => _error = context.getString.roomjoin_not_joined);
