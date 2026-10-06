@@ -139,8 +139,8 @@ void main() {
       epoch: 2,
       plan: RoomTransportPlan(
         epoch: 2,
-        kind: RoomTransportKind.bluetooth,
-        reason: RoomTransportPlanReason.bluetoothFallback,
+        kind: RoomTransportKind.sharedLan,
+        reason: RoomTransportPlanReason.usableSharedLan,
       ),
       reason: RoomFailoverReason.transportFailed,
       requiresUserRescan: false,
@@ -149,7 +149,7 @@ void main() {
 
     expect(adopted, isNotNull);
     expect(adopted!.decision.epoch, 2);
-    expect(room.state.attachment.kind, TransportKind.bluetooth);
+    expect(room.state.attachment.kind, TransportKind.wifi);
     expect(await runtime.adopt(remote), isNull);
     expect(
       runtime.failed(
