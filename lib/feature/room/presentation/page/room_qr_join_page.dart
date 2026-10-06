@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
@@ -8,26 +6,21 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/settings/settings_repository.dart';
-import '../../../../core/utils/logger.dart';
 import '../../../../core/widget/qr_scanner_surface.dart';
 import '../../../transfer/api/hotspot_invite_api.dart';
 import '../../../transfer/api/transfer_api.dart';
-import '../../../transfer/domain/entity/room_rendezvous_identity.dart';
-import '../../data/proximity/room_proximity_control_session_registry.dart';
-import '../../data/proximity/room_proximity_join_carrier.dart';
-import '../../domain/entity/room_invitation.dart';
-import '../../domain/service/room_invite_join_orchestrator.dart';
+import '../../domain/entity/room_direct_join_bundle.dart';
 import '../manager/room_list_cubit.dart';
-import '../room_bluetooth_permissions.dart';
 
+/// One-scan Room entry. Membership is persisted before transport setup.
+///
+/// A current host can carry its Wi-Fi bootstrap and the durable Room invite in
+/// the same standard `WIFI:` QR. Tark validates/persists the Room half first,
+/// then hands that exact already-scanned payload to the hotspot bridge. The
+/// camera never opens a second time and transport remains an implementation
+/// detail rather than a user decision.
 class RoomQrJoinPage extends StatefulWidget {
-  const RoomQrJoinPage({
-    required this.cubit,
-    this.permissionGate,
-    this.locationGate,
-    this.controlChannelFactory,
-    super.key,
-  });
+  const RoomQrJoinPage({required this.cubit, super.key});
 
   static Widget buildPage() => BlocProvider<RoomListCubit>(
     create: (_) => GetIt.instance<RoomListCubit>()..load(),
@@ -39,12 +32,6 @@ class RoomQrJoinPage extends StatefulWidget {
 
   final RoomListCubit cubit;
 
-  /// Seams for tests. Production asks for the Bluetooth permissions the
-  /// rendezvous needs and dials over a fresh control channel.
-  final RoomInvitePermissionGate? permissionGate;
-  final RoomScanLocationGate? locationGate;
-  final RoomProximityControlChannel Function()? controlChannelFactory;
-
   @override
   State<RoomQrJoinPage> createState() => _RoomQrJoinPageState();
 }
@@ -53,96 +40,42 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
   String? _error;
   bool _joining = false;
 
+  /// Accepts a scanned payload, returning whether this screen is leaving.
+  ///
+  /// The surface stays locked and green on true and re-arms on false, so a bad
+  /// code never strands the user on a dead camera — they simply point it at a
+  /// fresh one.
   Future<bool> _onCode(String raw) async {
     if (_joining) return false;
     _joining = true;
-    RoomProximityControlChannel? control;
-    RoomProximityJoinCarrier? carrier;
-    var registryOwnsControl = false;
     try {
-      final invitation = RoomInvitation.decode(raw);
-      if (invitation.isExpired) {
-        throw const FormatException('expired room invite');
-      }
-      final rendezvous = await RoomRendezvousIdentity.derive(
-        invitation.invitationId,
-      );
-      Logger.diagnostic(
-        'room_join: qr decoded correlation=${rendezvous.correlation}',
-      );
+      // A one-scan live invite is still a standards-compliant Wi-Fi QR; its
+      // Room token is an opaque Tark extension. Ordinary Room QR codes have no
+      // network wrapper, so the raw value remains the fallback.
+      final scanned = ScannedCode.parse(raw);
+      final roomRaw = scanned?.roomInvite ?? raw;
+      final bundle = RoomDirectJoinBundle.decode(roomRaw);
 
-      // The rendezvous below scans for the host and dials it over Bluetooth.
-      // Nothing on a clean install has asked for that yet, and without it the
-      // scan simply finds nobody — so ask here, where the person has just
-      // shown exactly the intent the prompt is about.
-      final permitted =
-          await (widget.permissionGate ??
-              ensureRoomInviteBluetoothPermissions)();
-      if (!mounted) return false;
-      if (!permitted) {
-        Logger.diagnostic(
-          'room_join: permissions denied correlation=${rendezvous.correlation}',
-        );
-        setState(
-          () => _error = context.getString.roomjoin_bluetooth_permission,
-        );
-        return false;
-      }
-      Logger.diagnostic(
-        'room_join: permissions ok correlation=${rendezvous.correlation}',
-      );
-      final locationReady =
-          await (widget.locationGate ?? roomScanLocationReady)();
-      if (!mounted) return false;
-      if (!locationReady) {
-        Logger.diagnostic(
-          'room_join: location off correlation=${rendezvous.correlation}',
-        );
-        setState(() => _error = context.getString.roomjoin_location_off);
-        return false;
-      }
-
-      var myName = 'Tark';
+      // Read before joining so the roster is right the first time it is drawn.
+      // A name that appears a beat later reads as the app correcting itself.
+      var myName = '';
       try {
-        final stored = await GetIt.instance<SettingsRepository>().getMyName();
-        if (stored.trim().isNotEmpty) myName = stored.trim();
-      } catch (_) {}
+        myName = await GetIt.instance<SettingsRepository>().getMyName();
+      } catch (_) {
+        // Joining offline must not depend on settings storage. Without a name
+        // the host's placeholder stands, which is survivable; being unable to
+        // join at all is not.
+      }
       if (!mounted) return false;
-
-      control =
-          (widget.controlChannelFactory ?? RoomProximityControlChannel.new)();
-      await control.connect(rendezvousToken: invitation.invitationId);
-      if (!mounted) return false;
-      carrier = RoomProximityJoinCarrier(
-        channel: control,
-        invitation: invitation,
-      );
-      final status = await widget.cubit.joinByInvite(
-        invitation: invitation,
-        displayName: myName,
-        carrier: carrier,
+      final joined = await widget.cubit.joinDirect(
+        bundle,
+        localDisplayName: myName,
       );
       if (!mounted) return false;
-      if (status == RoomInviteJoinAttemptStatus.accepted) {
-        Logger.diagnostic(
-          'room_join: membership confirmed correlation=${rendezvous.correlation}',
-        );
-        await RoomProximityControlSessionRegistry.instance.adopt(
-          roomId: invitation.roomId,
-          invitation: invitation,
-          channel: control,
-          disposeProtocol: carrier.dispose,
-        );
-        registryOwnsControl = true;
-        if (!mounted) return false;
-        // Straight on to connecting, over the socket that just carried the
-        // join. Scanning was this person's whole part; stopping at the lobby
-        // to ask "start?" would have two people coordinating a second tap
-        // across two phones.
-        context.goNamed(
-          AppRoutes.walkieName,
-          queryParameters: const {'start': 'true'},
-        );
+      if (joined) {
+        // Membership is durable now. Do not auto-start a transport: the Room
+        // lobby owns the explicit Start action, and Room transport is Wi-Fi.
+        context.go(AppRoutes.walkiePath);
         return true;
       }
       setState(() => _error = context.getString.roomjoin_not_joined);
@@ -150,90 +83,37 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
     } on FormatException {
       if (!mounted) return false;
       return _notAnInvite(raw);
-    } on RoomProximityException catch (error) {
-      Logger.diagnostic(
-        'room_join: proximity failed reason=${error.failure.name}',
-      );
-      if (!mounted) return false;
-      setState(() => _error = _proximityMessage(error.failure));
-      return false;
-    } catch (_) {
-      if (!mounted) return false;
-      setState(() => _error = context.getString.roomjoin_not_joined);
-      return false;
     } finally {
-      if (!registryOwnsControl) {
-        await carrier?.dispose();
-        await control?.dispose();
-      }
       _joining = false;
     }
   }
 
-  String _proximityMessage(RoomProximityFailure failure) {
-    final s = context.getString;
-    return switch (failure) {
-      RoomProximityFailure.bluetoothOff => s.roomjoin_bluetooth_off,
-      RoomProximityFailure.hostNotFound => s.roomjoin_host_not_found,
-      RoomProximityFailure.discoverabilityDenied ||
-      RoomProximityFailure.scanFailed ||
-      RoomProximityFailure.hostSetupFailed ||
-      RoomProximityFailure.advertisingUnsupported ||
-      RoomProximityFailure.dialFailed => s.roomjoin_not_joined,
-    };
-  }
-
+  /// What to do with a code that has no valid durable Room invite.
+  ///
+  /// Legacy/network-only Wi-Fi QR codes remain useful: they can still put the
+  /// rider on the host's link even though they cannot establish durable Room
+  /// membership. Current in-Room invites no longer need this fallback because
+  /// they carry both halves in the one scanned payload.
+  ///
+  /// The payload rides in `extra` rather than in the query string on purpose:
+  /// it contains the network's passphrase.
   bool _notAnInvite(String raw) {
     final network = ScannedCode.parse(raw);
     if (network != null) {
       context.push(ConnectRoute.forScannedNetwork(), extra: raw);
+      // Leaving, so the frame stays locked rather than re-arming a camera
+      // behind a page that is on its way out.
       return true;
     }
-
-    // A Room invite that is expired, damaged or from another app version is
-    // still a Tark invite. Calling it "not a Tarkk code" sent people looking
-    // for some other QR on the host's phone when the fix was a fresh invite
-    // or an update.
-    switch (_inviteShape(raw)) {
-      case _InviteShape.otherVersion:
-        setState(() => _error = context.getString.roomjoin_other_version);
-        return false;
-      case _InviteShape.invite:
-        setState(() => _error = context.getString.roomjoin_invalid);
-        return false;
-      case null:
-        break;
-    }
-
-    // Builds before the proximity-control migration minted direct Room QR
-    // payloads under this prefix. They are deliberately no longer imported as
-    // membership, but a damaged/expired one is still recognisably a Tark Room
-    // invite and should not be described as an unrelated QR code.
-    if (raw.trimLeft().toLowerCase().startsWith('tark-room:')) {
-      setState(() => _error = context.getString.roomjoin_invalid);
-      return false;
-    }
-
-    setState(() => _error = context.getString.roomjoin_not_our_code);
+    // Nothing left to do but say so — and say the right one. "Invalid or
+    // expired" is honest about a code that really is one of ours and a lie
+    // about a bus ticket.
+    setState(
+      () => _error = RoomDirectJoinBundle.looksLikeInvite(raw)
+          ? context.getString.roomjoin_invalid
+          : context.getString.roomjoin_not_our_code,
+    );
     return false;
-  }
-
-  /// Whether [raw] is shaped like a Room invite, without trusting any of it.
-  static _InviteShape? _inviteShape(String raw) {
-    try {
-      final value = jsonDecode(
-        utf8.decode(base64Url.decode(base64Url.normalize(raw.trim()))),
-      );
-      if (value is! Map<String, dynamic>) return null;
-      if (!value.containsKey('invitationId') || !value.containsKey('roomId')) {
-        return null;
-      }
-      return value['v'] == RoomInvitation.currentVersion
-          ? _InviteShape.invite
-          : _InviteShape.otherVersion;
-    } catch (_) {
-      return null;
-    }
   }
 
   @override
@@ -256,5 +136,3 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
     );
   }
 }
-
-enum _InviteShape { invite, otherVersion }

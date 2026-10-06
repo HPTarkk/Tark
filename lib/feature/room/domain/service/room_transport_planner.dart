@@ -1,12 +1,11 @@
 import '../entity/room.dart';
 
-enum RoomTransportKind { sharedLan, hotspot, bluetooth, guest }
+enum RoomTransportKind { sharedLan, hotspot, guest }
 
 enum RoomTransportPlanReason {
   usableSharedLan,
   deterministicHotspotHost,
   preferredHotspotHost,
-  bluetoothFallback,
   guestExplicit,
   noEligibleTransport,
 }
@@ -143,15 +142,6 @@ abstract final class RoomTransportPlanner {
       );
     }
 
-    if (environment.candidates.any(
-      (candidate) => candidate.bluetoothSupported,
-    )) {
-      return RoomTransportPlan(
-        epoch: environment.epoch,
-        kind: RoomTransportKind.bluetooth,
-        reason: RoomTransportPlanReason.bluetoothFallback,
-      );
-    }
 
     return RoomTransportPlan(
       epoch: environment.epoch,
