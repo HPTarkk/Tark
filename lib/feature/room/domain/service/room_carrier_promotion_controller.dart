@@ -250,7 +250,7 @@ final class RoomCarrierPromotionController implements RoomCarrierStatusSource {
   static RoomTransportKind? _kindFor(TransferMode mode) => switch (mode) {
     TransferMode.wifi => RoomTransportKind.sharedLan,
     TransferMode.hotspot => RoomTransportKind.hotspot,
-    TransferMode.bluetooth => RoomTransportKind.bluetooth,
+    TransferMode.bluetooth => null,
     TransferMode.guest => RoomTransportKind.guest,
   };
 
