@@ -106,7 +106,7 @@ void main() {
     expect(reversed.hotspotHost, forward.hotspotHost);
   });
 
-  test('Bluetooth is fallback only when no eligible hotspot host exists', () {
+  test('no hotspot falls through instead of using Bluetooth', () {
     final plan = RoomTransportPlanner.plan(
       RoomTransportEnvironment(
         sharedLanUsable: false,
@@ -118,8 +118,8 @@ void main() {
       ),
     );
 
-    expect(plan.kind, RoomTransportKind.bluetooth);
-    expect(plan.reason, RoomTransportPlanReason.bluetoothFallback);
+    expect(plan.isUsable, isFalse);
+    expect(plan.reason, RoomTransportPlanReason.noEligibleTransport);
   });
 
   test(
