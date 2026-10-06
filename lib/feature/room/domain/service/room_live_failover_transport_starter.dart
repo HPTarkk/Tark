@@ -72,8 +72,6 @@ final class RoomLiveFailoverTransportStarter {
             reason: 'failover_waiting_for_remote_hotspot_rejoin',
           );
         }
-      case RoomTransportKind.bluetooth:
-        await modeStore.setMode(TransferMode.bluetooth);
       case RoomTransportKind.guest:
         await modeStore.setMode(TransferMode.guest);
       case null:
