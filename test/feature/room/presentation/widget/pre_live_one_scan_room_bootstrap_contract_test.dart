@@ -14,9 +14,10 @@ void main() {
     expect(page, contains('scanned?.credentials'));
   });
 
-  test('scanning membership does not auto-start a Room', () async {
+  test('first Room scan auto-starts only through verified Room entry', () async {
     final page = await File('lib/feature/room/presentation/page/room_qr_join_page.dart').readAsString();
-    expect(page, contains('context.go(AppRoutes.walkiePath)'));
-    expect(page, isNot(contains("queryParameters: const {'start': 'true'}")));
+    expect(page, contains('?ride=true&start=true'));
+    expect(page, contains('PreLiveHotspotBootstrap().joinHost(credentials)'));
+    expect(page, isNot(contains('RoomProximity')));
   });
 }
