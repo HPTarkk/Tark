@@ -86,7 +86,9 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
             return false;
           }
           if (GetIt.instance.isRegistered<TransferModeStore>()) {
-            await GetIt.instance<TransferModeStore>().setMode(TransferMode.hotspot);
+            await GetIt.instance<TransferModeStore>().setMode(
+              TransferMode.hotspot,
+            );
           }
           if (!mounted) return false;
           context.go('${AppRoutes.walkiePath}?ride=true&start=true');
