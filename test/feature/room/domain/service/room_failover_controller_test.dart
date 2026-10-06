@@ -61,7 +61,7 @@ void main() {
     expect(first.plan.hotspotHost, const RoomMemberId('member-a'));
   });
 
-  test('no hotspot candidate falls back without inventing a host', () {
+  test('no hotspot candidate reports no eligible transport', () {
     final controller = RoomFailoverController();
 
     final decision = controller.failover(
@@ -70,7 +70,7 @@ void main() {
       reason: RoomFailoverReason.transportFailed,
     );
 
-    expect(decision!.plan.kind, RoomTransportKind.bluetooth);
+    expect(decision!.plan.isUsable, isFalse);
     expect(decision.plan.hotspotHost, isNull);
     expect(decision.requiresUserRescan, isFalse);
   });
