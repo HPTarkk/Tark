@@ -38,6 +38,7 @@ class RoomQrJoinPage extends StatefulWidget {
 
 class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
   String? _error;
+  bool _joining = false;
 
   /// Accepts a scanned payload, returning whether this screen is leaving.
   ///
@@ -45,6 +46,8 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
   /// code never strands the user on a dead camera — they simply point it at a
   /// fresh one.
   Future<bool> _onCode(String raw) async {
+    if (_joining) return false;
+    _joining = true;
     try {
       // A one-scan live invite is still a standards-compliant Wi-Fi QR; its
       // Room token is an opaque Tark extension. Ordinary Room QR codes have no
@@ -70,15 +73,9 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
       );
       if (!mounted) return false;
       if (joined) {
-        // Membership is now durable and selected. If this same scan also
-        // carried the active host's Wi-Fi credentials, spend them immediately
-        // instead of asking for another QR. `handedCode` on the bridge submits
-        // the payload after its first frame and never opens the scanner.
-        if (scanned?.credentials != null) {
-          context.go(ConnectRoute.forScannedNetwork(), extra: raw);
-        } else {
-          context.go(AppRoutes.walkiePath);
-        }
+        // Membership is durable now. Do not auto-start a transport: the Room
+        // lobby owns the explicit Start action, and Room transport is Wi-Fi.
+        context.go(AppRoutes.walkiePath);
         return true;
       }
       setState(() => _error = context.getString.roomjoin_not_joined);
@@ -86,6 +83,8 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
     } on FormatException {
       if (!mounted) return false;
       return _notAnInvite(raw);
+    } finally {
+      _joining = false;
     }
   }
 
