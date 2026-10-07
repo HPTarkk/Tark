@@ -73,7 +73,8 @@ class AudioIoNative implements AudioIoImpl {
   @override
   RealtimeResampler? createRealtimeResampler(double inRate, double outRate) =>
       usePlatformImpl
-          ? FfiRealtimeResampler.create(AudioIoFFI.instance.bindings, inRate, outRate)
+          ? FfiRealtimeResampler.create(
+              AudioIoFFI.instance.bindings, inRate, outRate)
           : null;
 
   @override
