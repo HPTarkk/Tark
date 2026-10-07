@@ -117,7 +117,8 @@ void main() {
     expect(find.byKey(const Key('hotspot-page')), findsNothing);
   });
 
-  String inviteShaped(int version) => 'tark-room:${base64Url\n      .encode(
+  String inviteShaped(int version) => 'tark-room:${base64Url
+      .encode(
         utf8.encode(
           jsonEncode({
             'v': version,
