@@ -8,6 +8,7 @@
 
 #include "double_ring_buffer.h"
 #include "voice_playout.h"
+#include "realtime_dsp.h"
 
 #ifdef __ANDROID__
 #include <android/log.h>
@@ -282,6 +283,62 @@ int audio_io_write(void* handle, const double* buffer, int frameCount) {
     
     AudioContext* context = (AudioContext*)handle;
     return context->outputRingBuffer->write(buffer, frameCount);
+}
+
+// ── Realtime DSP primitives ───────────────────────────────────────────────
+// These handles live on Dart's producer/control thread, not miniaudio's hard
+// realtime callback. Keeping their streaming state native removes per-sample
+// Dart work without putting allocation or locks on the device callback.
+
+void* audio_io_resampler_create(double inRate, double outRate) {
+    if (inRate <= 0.0 || outRate <= 0.0) return nullptr;
+    return new RealtimeResampler(inRate, outRate);
+}
+
+void audio_io_resampler_destroy(void* handle) {
+    delete static_cast<RealtimeResampler*>(handle);
+}
+
+int audio_io_resampler_output_capacity(void* handle, int inputFrames) {
+    if (!handle || inputFrames <= 0) return 0;
+    return static_cast<int>(
+        static_cast<RealtimeResampler*>(handle)->outputCapacity(
+            static_cast<size_t>(inputFrames)));
+}
+
+int audio_io_resampler_process(void* handle, const double* input,
+                               int inputFrames, double* output,
+                               int outputCapacity) {
+    if (!handle || !input || !output || inputFrames <= 0 ||
+        outputCapacity <= 0) return 0;
+    return static_cast<int>(
+        static_cast<RealtimeResampler*>(handle)->process(
+            input, static_cast<size_t>(inputFrames), output,
+            static_cast<size_t>(outputCapacity)));
+}
+
+void audio_io_resampler_reset(void* handle) {
+    if (handle) static_cast<RealtimeResampler*>(handle)->reset();
+}
+
+void* audio_io_low_pass_create(double sampleRate, double cutoffHz) {
+    if (sampleRate <= 0.0 || cutoffHz <= 0.0) return nullptr;
+    return new OnePoleLowPass(sampleRate, cutoffHz);
+}
+
+void audio_io_low_pass_destroy(void* handle) {
+    delete static_cast<OnePoleLowPass*>(handle);
+}
+
+void audio_io_low_pass_process(void* handle, const double* input,
+                               double* output, int frames) {
+    if (!handle || !input || !output || frames <= 0) return;
+    static_cast<OnePoleLowPass*>(handle)->process(
+        input, output, static_cast<size_t>(frames));
+}
+
+void audio_io_low_pass_reset(void* handle) {
+    if (handle) static_cast<OnePoleLowPass*>(handle)->reset();
 }
 
 // Cumulative frames of received voice the playback callback had to replace
