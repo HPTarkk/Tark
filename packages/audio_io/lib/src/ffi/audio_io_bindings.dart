@@ -80,6 +80,30 @@ typedef AudioIoVoiceStatNative = Int64 Function(
     Pointer<Void> handle, Int32 which);
 typedef AudioIoVoiceStat = int Function(Pointer<Void> handle, int which);
 
+
+typedef AudioIoDspCreateNative = Pointer<Void> Function(Double a, Double b);
+typedef AudioIoDspCreate = Pointer<Void> Function(double a, double b);
+typedef AudioIoDspDestroyNative = Void Function(Pointer<Void> handle);
+typedef AudioIoDspDestroy = void Function(Pointer<Void> handle);
+typedef AudioIoResamplerCapacityNative = Int32 Function(
+    Pointer<Void> handle, Int32 inputFrames);
+typedef AudioIoResamplerCapacity = int Function(
+    Pointer<Void> handle, int inputFrames);
+typedef AudioIoResamplerProcessNative = Int32 Function(
+    Pointer<Void> handle, Pointer<Double> input, Int32 inputFrames,
+    Pointer<Double> output, Int32 outputCapacity);
+typedef AudioIoResamplerProcess = int Function(
+    Pointer<Void> handle, Pointer<Double> input, int inputFrames,
+    Pointer<Double> output, int outputCapacity);
+typedef AudioIoDspResetNative = Void Function(Pointer<Void> handle);
+typedef AudioIoDspReset = void Function(Pointer<Void> handle);
+typedef AudioIoLowPassProcessNative = Void Function(
+    Pointer<Void> handle, Pointer<Double> input, Pointer<Double> output,
+    Int32 frames);
+typedef AudioIoLowPassProcess = void Function(
+    Pointer<Void> handle, Pointer<Double> input, Pointer<Double> output,
+    int frames);
+
 class AudioIoBindings {
   late final DynamicLibrary _lib;
 
@@ -103,6 +127,15 @@ class AudioIoBindings {
   late final AudioIoVoiceSetTarget voiceSetTarget;
   late final AudioIoVoiceReset voiceReset;
   late final AudioIoVoiceStat voiceStat;
+  late final AudioIoDspCreate resamplerCreate;
+  late final AudioIoDspDestroy resamplerDestroy;
+  late final AudioIoResamplerCapacity resamplerOutputCapacity;
+  late final AudioIoResamplerProcess resamplerProcess;
+  late final AudioIoDspReset resamplerReset;
+  late final AudioIoDspCreate lowPassCreate;
+  late final AudioIoDspDestroy lowPassDestroy;
+  late final AudioIoLowPassProcess lowPassProcess;
+  late final AudioIoDspReset lowPassReset;
 
   /// Null where the native library predates it.
   late final AudioIoReleaseAll? releaseAll;
@@ -195,6 +228,42 @@ class AudioIoBindings {
         .asFunction();
     voiceStat = _lib
         .lookup<NativeFunction<AudioIoVoiceStatNative>>('audio_io_voice_stat')
+        .asFunction();
+    resamplerCreate = _lib
+        .lookup<NativeFunction<AudioIoDspCreateNative>>(
+            'audio_io_resampler_create')
+        .asFunction();
+    resamplerDestroy = _lib
+        .lookup<NativeFunction<AudioIoDspDestroyNative>>(
+            'audio_io_resampler_destroy')
+        .asFunction();
+    resamplerOutputCapacity = _lib
+        .lookup<NativeFunction<AudioIoResamplerCapacityNative>>(
+            'audio_io_resampler_output_capacity')
+        .asFunction();
+    resamplerProcess = _lib
+        .lookup<NativeFunction<AudioIoResamplerProcessNative>>(
+            'audio_io_resampler_process')
+        .asFunction();
+    resamplerReset = _lib
+        .lookup<NativeFunction<AudioIoDspResetNative>>(
+            'audio_io_resampler_reset')
+        .asFunction();
+    lowPassCreate = _lib
+        .lookup<NativeFunction<AudioIoDspCreateNative>>(
+            'audio_io_low_pass_create')
+        .asFunction();
+    lowPassDestroy = _lib
+        .lookup<NativeFunction<AudioIoDspDestroyNative>>(
+            'audio_io_low_pass_destroy')
+        .asFunction();
+    lowPassProcess = _lib
+        .lookup<NativeFunction<AudioIoLowPassProcessNative>>(
+            'audio_io_low_pass_process')
+        .asFunction();
+    lowPassReset = _lib
+        .lookup<NativeFunction<AudioIoDspResetNative>>(
+            'audio_io_low_pass_reset')
         .asFunction();
     releaseAll = _lib.providesSymbol('audio_io_release_all')
         ? _lib
