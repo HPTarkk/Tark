@@ -13,14 +13,14 @@ void main() {
       expect(
         source,
         contains(
-          'return _verifiedLiveFor(current, linkEstablished: linkEstablished);',
+          'return _verifiedLiveFor(current, linkEstablished: true);',
         ),
       );
       expect(
         source,
         isNot(
           contains(
-            'return _verifiedLiveFor(room, linkEstablished: linkEstablished);',
+            'return _verifiedLiveFor(room, linkEstablished: true);',
           ),
         ),
       );
