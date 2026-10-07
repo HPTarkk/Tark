@@ -1,3 +1,4 @@
+import 'src/realtime_dsp.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
