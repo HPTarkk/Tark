@@ -9,6 +9,7 @@
 #include "double_ring_buffer.h"
 #include "voice_playout.h"
 #include "realtime_dsp.h"
+#include "spectral_suppressor.h"
 
 #ifdef __ANDROID__
 #include <android/log.h>
@@ -542,3 +543,31 @@ Java_com_wearemobilefirst_audio_1io_AudioIoDevices_releaseAll(JNIEnv*, jclass) {
     return (jint)audio_io_release_all();
 }
 #endif
+
+extern "C" {
+
+void* audio_io_spectral_create(int sampleRate) {
+    if (sampleRate <= 0) return nullptr;
+    return new SpectralSuppressor(sampleRate);
+}
+
+void audio_io_spectral_destroy(void* handle) {
+    delete static_cast<SpectralSuppressor*>(handle);
+}
+
+void audio_io_spectral_set_strength(void* handle, double strength) {
+    if (handle) static_cast<SpectralSuppressor*>(handle)->setStrength(strength);
+}
+
+void audio_io_spectral_process(void* handle, const double* input,
+                               double* output, int frames) {
+    if (!handle || !input || !output || frames <= 0) return;
+    static_cast<SpectralSuppressor*>(handle)->process(
+        input, static_cast<size_t>(frames), output);
+}
+
+void audio_io_spectral_reset(void* handle) {
+    if (handle) static_cast<SpectralSuppressor*>(handle)->reset();
+}
+
+}  // extern "C"
