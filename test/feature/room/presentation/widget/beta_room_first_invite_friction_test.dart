@@ -3,27 +3,32 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('cold first invite is direct membership before hotspot bootstrap', () async {
-    final sheet = await File(
-      'lib/feature/room/presentation/widget/one_scan_room_invite_sheet.dart',
-    ).readAsString();
+  test(
+    'cold first invite is direct membership before hotspot bootstrap',
+    () async {
+      final sheet = await File(
+        'lib/feature/room/presentation/widget/one_scan_room_invite_sheet.dart',
+      ).readAsString();
 
-    final bundle = sheet.indexOf('final bundle = RoomDirectJoinBundle(');
-    final encoded = sheet.indexOf('_roomInvite = bundle.encode();');
-    final credentials = sheet.indexOf('credentials.qrPayload(roomInvite: roomInvite)');
+      final bundle = sheet.indexOf('final bundle = RoomDirectJoinBundle(');
+      final encoded = sheet.indexOf('_roomInvite = bundle.encode();');
+      final credentials = sheet.indexOf(
+        'credentials.qrPayload(roomInvite: roomInvite)',
+      );
 
-    expect(bundle, greaterThanOrEqualTo(0));
-    expect(encoded, greaterThan(bundle));
-    expect(credentials, greaterThan(encoded));
+      expect(bundle, greaterThanOrEqualTo(0));
+      expect(encoded, greaterThan(bundle));
+      expect(credentials, greaterThan(encoded));
 
-    // Membership is self-contained in the signed QR. Bluetooth/proximity is
-    // not allowed back into Room bootstrap, and hotspot credentials only wrap
-    // the already-issued membership when this phone is currently the host.
-    expect(sheet, contains('RoomDirectJoinBundle'));
-    expect(sheet, isNot(contains('RoomProximityJoinIssuerSession')));
-    expect(sheet, isNot(contains('RoomProximityControl')));
-    expect(sheet, isNot(contains('.prepareHost()')));
-  });
+      // Membership is self-contained in the signed QR. Bluetooth/proximity is
+      // not allowed back into Room bootstrap, and hotspot credentials only wrap
+      // the already-issued membership when this phone is currently the host.
+      expect(sheet, contains('RoomDirectJoinBundle'));
+      expect(sheet, isNot(contains('RoomProximityJoinIssuerSession')));
+      expect(sheet, isNot(contains('RoomProximityControl')));
+      expect(sheet, isNot(contains('.prepareHost()')));
+    },
+  );
 
   test(
     'startup composition bypasses ConsentGate but keeps legal code',
