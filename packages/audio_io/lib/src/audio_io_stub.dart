@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'voice_queue.dart';
+import 'realtime_dsp.dart';
 
 /// Stub implementation for platform detection
 abstract class AudioIoImpl {
@@ -31,6 +32,9 @@ abstract class AudioIoImpl {
   /// The native received-voice queue, or null where playback is not driven
   /// by miniaudio (iOS, macOS, web).
   VoiceQueue? get voiceQueue;
+
+  RealtimeResampler? createRealtimeResampler(double inRate, double outRate);
+  RealtimeLowPass? createRealtimeLowPass(double sampleRate, double cutoffHz);
 }
 
 AudioIoImpl createAudioIoImpl() => throw UnsupportedError(
