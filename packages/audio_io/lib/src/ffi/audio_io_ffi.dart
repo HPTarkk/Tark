@@ -615,3 +615,76 @@ class FfiRealtimeLowPass implements RealtimeLowPass {
     _capacity = 0;
   }
 }
+
+class FfiRealtimeSpectralSuppressor implements RealtimeSpectralSuppressor {
+  FfiRealtimeSpectralSuppressor._(this._bindings, this._handle);
+
+  factory FfiRealtimeSpectralSuppressor.create(
+    AudioIoBindings bindings,
+    int sampleRate,
+  ) {
+    final handle = bindings.spectralCreate(sampleRate);
+    if (handle == nullptr) {
+      throw StateError('Failed to create native spectral suppressor');
+    }
+    return FfiRealtimeSpectralSuppressor._(bindings, handle);
+  }
+
+  final AudioIoBindings _bindings;
+  Pointer<Void> _handle;
+  Pointer<Double>? _input;
+  Pointer<Double>? _output;
+  int _capacity = 0;
+  double _strength = 0.0;
+
+  void _ensureCapacity(int frames) {
+    if (_capacity >= frames) return;
+    final input = _input;
+    if (input != null) malloc.free(input);
+    final output = _output;
+    if (output != null) malloc.free(output);
+    _input = malloc<Double>(frames);
+    _output = malloc<Double>(frames);
+    _capacity = frames;
+  }
+
+  @override
+  double get strength => _strength;
+
+  @override
+  set strength(double value) {
+    _strength = value.clamp(0.0, 1.0);
+    if (_handle != nullptr) {
+      _bindings.spectralSetStrength(_handle, _strength);
+    }
+  }
+
+  @override
+  Float64List process(List<double> samples) {
+    if (_handle == nullptr || samples.isEmpty) return Float64List(0);
+    _ensureCapacity(samples.length);
+    _input!.asTypedList(samples.length).setAll(0, samples);
+    _bindings.spectralProcess(_handle, _input!, _output!, samples.length);
+    return Float64List.fromList(_output!.asTypedList(samples.length));
+  }
+
+  @override
+  void reset() {
+    if (_handle != nullptr) _bindings.spectralReset(_handle);
+  }
+
+  @override
+  void dispose() {
+    if (_handle != nullptr) {
+      _bindings.spectralDestroy(_handle);
+      _handle = nullptr;
+    }
+    final input = _input;
+    if (input != null) malloc.free(input);
+    _input = null;
+    final output = _output;
+    if (output != null) malloc.free(output);
+    _output = null;
+    _capacity = 0;
+  }
+}
