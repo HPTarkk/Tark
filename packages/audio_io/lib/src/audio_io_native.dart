@@ -88,7 +88,7 @@ class AudioIoNative implements AudioIoImpl {
           : null;
 
   @override
-  RealtimeSpectralSuppressor? createRealtimeSpectralSuppressor(int sampleRate) =>
+  RealtimeSpectralSuppressor? createRealtimeSpectralSuppressor(\n          int sampleRate) =>
       usePlatformImpl
           ? FfiRealtimeSpectralSuppressor.create(
               AudioIoFFI.instance.bindings,
