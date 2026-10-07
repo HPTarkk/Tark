@@ -78,8 +78,11 @@ jobs:
       - name: Analyze
         run: flutter analyze
 
-      - name: Run Flutter tests
-        run: flutter test
+      - name: Run Flutter tests with coverage
+        run: flutter test --coverage
+
+      - name: Report Dart coverage baseline
+        run: python3 scripts/check_coverage.py coverage/lcov.info --minimum 0
 
       - name: Run Tark log analyzer tests
         run: python3 -m unittest discover -s scripts -p 'test_*.py'
@@ -107,6 +110,16 @@ jobs:
           fi
           printf 'Protocol gate files:\n%s\n' "${protocol_tests[*]}"
           flutter test "${protocol_tests[@]}"
+
+      - name: Native realtime core tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          cxx="${CXX:-g++}"
+          "$cxx" -std=c++14 -O2 -pthread packages/audio_io/test/double_ring_buffer_test.cpp -o /tmp/tark-drb-test
+          /tmp/tark-drb-test
+          "$cxx" -std=c++14 -O2 -pthread packages/audio_io/test/voice_playout_test.cpp -o /tmp/tark-voice-playout-test
+          /tmp/tark-voice-playout-test
 
       - name: Android debug compile check
         shell: bash
