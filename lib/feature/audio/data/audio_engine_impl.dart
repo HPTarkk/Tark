@@ -157,7 +157,7 @@ class AudioEngineImpl implements AudioEngine {
   // [_rxResampler] which is rebuilt per negotiated profile — so this only
   // ever needs rebuilding when [_outputRate] itself changes (i.e. alongside
   // [_openStreams], same as [_rxResampler]).
-  LinearResampler? _rxMediaResampler;
+  RealtimeResampler? _rxMediaResampler;
 
   Timer? _mediaCoordinatorTimer;
 
@@ -239,13 +239,13 @@ class AudioEngineImpl implements AudioEngine {
   // (~12 dB/octave) rolloff than a single stage, which matters here: a gentle
   // single-pole filter lets energy above the new Nyquist fold back as audible
   // hiss/noise when downsampling from 44.1/48 kHz to the wire rate.
-  OnePoleLowPass? _txLowPassA;
-  OnePoleLowPass? _txLowPassB;
-  LinearResampler? _txResampler;
+  RealtimeLowPass? _txLowPassA;
+  RealtimeLowPass? _txLowPassB;
+  RealtimeResampler? _txResampler;
   final Float64Fifo _txAccum = Float64Fifo();
 
   // RX path: network audio at _activeProfile's rate → device output rate.
-  LinearResampler? _rxResampler;
+  RealtimeResampler? _rxResampler;
 
   @override
   Stream<AudioFrame> get frames => _frameController.stream;
@@ -406,7 +406,8 @@ class AudioEngineImpl implements AudioEngine {
       // class and [_mediaCoordinatorTimer] for the stretches voice writes
       // nothing at all.
       _mediaBuffer = MediaReceiveBuffer(sampleRate: _outputRate.toInt());
-      _rxMediaResampler = LinearResampler(inRate: 48000, outRate: _outputRate);
+      _rxMediaResampler?.dispose();
+      _rxMediaResampler = _createResampler(48000, _outputRate);
       _buffer = AudioPlaybackBuffer(
         output: _MixingOutputSink(
           _audioIo.output,
@@ -479,24 +480,31 @@ class AudioEngineImpl implements AudioEngine {
     // re-probes native availability, so the plan can change here.
     _applySuppression();
 
+    _txLowPassA?.dispose();
+    _txLowPassB?.dispose();
+    _txResampler?.dispose();
+    _rxResampler?.dispose();
+
     if (_inputRate > profileRate) {
-      _txLowPassA = OnePoleLowPass(
-        sampleRate: _inputRate,
-        cutoffHz: profileRate * 0.45,
-      );
-      _txLowPassB = OnePoleLowPass(
-        sampleRate: _inputRate,
-        cutoffHz: profileRate * 0.45,
-      );
+      _txLowPassA = _createLowPass(_inputRate, profileRate * 0.45);
+      _txLowPassB = _createLowPass(_inputRate, profileRate * 0.45);
     } else {
       _txLowPassA = null;
       _txLowPassB = null;
     }
-    _txResampler = LinearResampler(inRate: _inputRate, outRate: profileRate);
+    _txResampler = _createResampler(_inputRate, profileRate);
     _txAccum.clear();
 
-    _rxResampler = LinearResampler(inRate: profileRate, outRate: _outputRate);
+    _rxResampler = _createResampler(profileRate, _outputRate);
   }
+
+  RealtimeResampler _createResampler(double inRate, double outRate) =>
+      _audioIo.createRealtimeResampler(inRate, outRate) ??
+      LinearResampler(inRate: inRate, outRate: outRate);
+
+  RealtimeLowPass _createLowPass(double sampleRate, double cutoffHz) =>
+      _audioIo.createRealtimeLowPass(sampleRate, cutoffHz) ??
+      OnePoleLowPass(sampleRate: sampleRate, cutoffHz: cutoffHz);
 
   // ── Internal ───────────────────────────────────────────────────────────────
 
