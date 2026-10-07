@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'src/voice_queue.dart';
 
 export 'src/voice_queue.dart';
+export 'src/realtime_dsp.dart';
 export 'src/device_call_limit.dart' show AudioIoDiagnostics;
 
 // Conditional imports for platform-specific implementations
@@ -189,6 +190,12 @@ class AudioIo {
   /// The native received-voice queue the audio callback plays from, or null
   /// where playback is not driven by miniaudio (iOS, macOS, web).
   VoiceQueue? get voiceQueue => _impl.voiceQueue;
+
+  RealtimeResampler? createRealtimeResampler(double inRate, double outRate) =>
+      _impl.createRealtimeResampler(inRate, outRate);
+
+  RealtimeLowPass? createRealtimeLowPass(double sampleRate, double cutoffHz) =>
+      _impl.createRealtimeLowPass(sampleRate, cutoffHz);
 
   Future<void> requestLatency(AudioIoLatency option) async {
     if (_impl.usePlatformImpl) {
