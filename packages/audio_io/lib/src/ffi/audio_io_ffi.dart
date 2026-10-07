@@ -7,6 +7,7 @@ import 'package:ffi/ffi.dart';
 
 import '../device_call_limit.dart';
 import '../voice_queue.dart';
+import '../realtime_dsp.dart';
 import 'audio_io_bindings.dart';
 
 /// Size of the persistent read scratch buffer, so a poll never needs to
@@ -451,4 +452,165 @@ class _FfiVoiceQueue implements VoiceQueue {
   int get jumps => _stat(6);
   @override
   int get deviceBurstFrames => _stat(7);
+}
+
+
+class FfiRealtimeResampler implements RealtimeResampler {
+  FfiRealtimeResampler._(this._bindings, this._handle);
+
+  factory FfiRealtimeResampler.create(
+    AudioIoBindings bindings,
+    double inRate,
+    double outRate,
+  ) {
+    final handle = bindings.resamplerCreate(inRate, outRate);
+    if (handle == nullptr) {
+      throw StateError('Failed to create native realtime resampler');
+    }
+    return FfiRealtimeResampler._(bindings, handle);
+  }
+
+  final AudioIoBindings _bindings;
+  Pointer<Void> _handle;
+  Pointer<Double>? _input;
+  Pointer<Double>? _output;
+  int _inputCapacity = 0;
+  int _outputCapacity = 0;
+
+  void _ensureInput(int frames) {
+    if (_inputCapacity >= frames) return;
+    final old = _input;
+    if (old != null) malloc.free(old);
+    _input = malloc<Double>(frames);
+    _inputCapacity = frames;
+  }
+
+  void _ensureOutput(int frames) {
+    if (_outputCapacity >= frames) return;
+    final old = _output;
+    if (old != null) malloc.free(old);
+    _output = malloc<Double>(frames);
+    _outputCapacity = frames;
+  }
+
+  @override
+  Float64List process(List<double> samples) {
+    if (_handle == nullptr || samples.isEmpty) return Float64List(0);
+    _ensureInput(samples.length);
+    final input = _input!;
+    final inView = input.asTypedList(samples.length);
+    if (samples is Float64List) {
+      inView.setAll(0, samples);
+    } else {
+      for (var i = 0; i < samples.length; i++) {
+        inView[i] = samples[i];
+      }
+    }
+
+    final capacity = _bindings.resamplerOutputCapacity(
+      _handle,
+      samples.length,
+    );
+    if (capacity <= 0) return Float64List(0);
+    _ensureOutput(capacity);
+    final written = _bindings.resamplerProcess(
+      _handle,
+      input,
+      samples.length,
+      _output!,
+      capacity,
+    );
+    if (written <= 0) return Float64List(0);
+    return Float64List.fromList(_output!.asTypedList(written));
+  }
+
+  @override
+  void reset() {
+    if (_handle != nullptr) _bindings.resamplerReset(_handle);
+  }
+
+  @override
+  void dispose() {
+    if (_handle != nullptr) {
+      _bindings.resamplerDestroy(_handle);
+      _handle = nullptr;
+    }
+    final input = _input;
+    if (input != null) malloc.free(input);
+    _input = null;
+    _inputCapacity = 0;
+    final output = _output;
+    if (output != null) malloc.free(output);
+    _output = null;
+    _outputCapacity = 0;
+  }
+}
+
+class FfiRealtimeLowPass implements RealtimeLowPass {
+  FfiRealtimeLowPass._(this._bindings, this._handle);
+
+  factory FfiRealtimeLowPass.create(
+    AudioIoBindings bindings,
+    double sampleRate,
+    double cutoffHz,
+  ) {
+    final handle = bindings.lowPassCreate(sampleRate, cutoffHz);
+    if (handle == nullptr) {
+      throw StateError('Failed to create native realtime low-pass');
+    }
+    return FfiRealtimeLowPass._(bindings, handle);
+  }
+
+  final AudioIoBindings _bindings;
+  Pointer<Void> _handle;
+  Pointer<Double>? _input;
+  Pointer<Double>? _output;
+  int _capacity = 0;
+
+  void _ensureCapacity(int frames) {
+    if (_capacity >= frames) return;
+    final input = _input;
+    if (input != null) malloc.free(input);
+    final output = _output;
+    if (output != null) malloc.free(output);
+    _input = malloc<Double>(frames);
+    _output = malloc<Double>(frames);
+    _capacity = frames;
+  }
+
+  @override
+  Float64List process(List<double> samples) {
+    if (_handle == nullptr || samples.isEmpty) return Float64List(0);
+    _ensureCapacity(samples.length);
+    final inView = _input!.asTypedList(samples.length);
+    if (samples is Float64List) {
+      inView.setAll(0, samples);
+    } else {
+      for (var i = 0; i < samples.length; i++) {
+        inView[i] = samples[i];
+      }
+    }
+    _bindings.lowPassProcess(_handle, _input!, _output!, samples.length);
+    return Float64List.fromList(_output!.asTypedList(samples.length));
+  }
+
+  @override
+  void reset() {
+    if (_handle != nullptr) _bindings.lowPassReset(_handle);
+  }
+
+  @override
+  void dispose() {
+    if (_handle != nullptr) {
+      _bindings.lowPassDestroy(_handle);
+      _handle = nullptr;
+    }
+    final input = _input;
+    if (input != null) malloc.free(input);
+    _input = null;
+    final output = _output;
+    if (output != null) malloc.free(output);
+    _output = null;
+    _capacity = 0;
+  }
 }
