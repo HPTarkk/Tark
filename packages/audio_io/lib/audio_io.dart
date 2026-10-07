@@ -198,7 +198,7 @@ class AudioIo {
   RealtimeLowPass? createRealtimeLowPass(double sampleRate, double cutoffHz) =>
       _impl.createRealtimeLowPass(sampleRate, cutoffHz);
 
-  RealtimeSpectralSuppressor? createRealtimeSpectralSuppressor(int sampleRate) =>
+  RealtimeSpectralSuppressor? createRealtimeSpectralSuppressor(\n          int sampleRate) =>
       _impl.createRealtimeSpectralSuppressor(sampleRate);
 
   Future<void> requestLatency(AudioIoLatency option) async {
