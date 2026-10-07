@@ -120,6 +120,8 @@ jobs:
           /tmp/tark-drb-test
           "$cxx" -std=c++14 -O2 -pthread packages/audio_io/test/voice_playout_test.cpp -o /tmp/tark-voice-playout-test
           /tmp/tark-voice-playout-test
+          "$cxx" -std=c++14 -O2 packages/audio_io/test/realtime_dsp_test.cpp -o /tmp/tark-realtime-dsp-test
+          /tmp/tark-realtime-dsp-test
 
       - name: Android debug compile check
         shell: bash
