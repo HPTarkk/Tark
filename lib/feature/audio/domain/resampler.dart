@@ -1,6 +1,5 @@
-import 'dart:typed_data';
-
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:audio_io/audio_io.dart';
 
@@ -25,7 +24,7 @@ class LinearResampler implements RealtimeResampler {
 
   @override
   Float64List process(List<double> input) {
-    if (input.isEmpty) return const [];
+    if (input.isEmpty) return Float64List(0);
     final samples = Float64List(_history.length + input.length);
     samples.setRange(0, _history.length, _history);
     for (var i = 0; i < input.length; i++) {
