@@ -272,6 +272,10 @@ class AudioIoWeb implements AudioIoImpl {
   @override
   RealtimeLowPass? createRealtimeLowPass(double sampleRate, double cutoffHz) =>
       null;
+
+  @override
+  RealtimeSpectralSuppressor? createRealtimeSpectralSuppressor(int sampleRate) =>
+      null;
 }
 
 AudioIoImpl createAudioIoImpl() => AudioIoWeb();
