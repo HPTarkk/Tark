@@ -12,16 +12,12 @@ void main() {
 
       expect(
         source,
-        contains(
-          'return _verifiedLiveFor(current, linkEstablished: linkEstablished);',
-        ),
+        contains('return _verifiedLiveFor(current, linkEstablished: true);'),
       );
       expect(
         source,
         isNot(
-          contains(
-            'return _verifiedLiveFor(room, linkEstablished: linkEstablished);',
-          ),
+          contains('return _verifiedLiveFor(room, linkEstablished: true);'),
         ),
       );
     },

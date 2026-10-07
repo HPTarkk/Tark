@@ -48,13 +48,9 @@ void main() {
       );
     });
 
-    test('a hotspot and Bluetooth are owned — they travel with the group', () {
+    test('a hotspot is owned — it travels with the group', () {
       expect(
         RoomCarrierPromotionPlanner.durabilityOf(RoomTransportKind.hotspot),
-        RoomCarrierDurability.owned,
-      );
-      expect(
-        RoomCarrierPromotionPlanner.durabilityOf(RoomTransportKind.bluetooth),
         RoomCarrierDurability.owned,
       );
     });

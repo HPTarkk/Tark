@@ -347,10 +347,22 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       await _modeStore?.setMode(TransferMode.wifi);
       return _verifiedLiveFor(current, linkEstablished: true);
     }
-    if (!linkEstablished && _guidedReconnectApplies(current)) {
-      return _reconnect(current);
+    // Before showing any reconnect QR, try the link that is already present.
+    // It is only accepted if RoomConnectionReadinessGate receives a signed,
+    // bidirectional proof from another member of this exact Room. Merely being
+    // on Wi-Fi (including home Wi-Fi) can never pass that gate.
+    if (!linkEstablished) {
+      final existing = await _verifiedLiveFor(
+        current,
+        linkEstablished: true,
+        readinessTimeout: const Duration(seconds: 4),
+      );
+      if (existing.live || !mounted) return existing;
+      if (existing.failure == _EntryFailure.staleAttempt) return existing;
+      if (_guidedReconnectApplies(current)) return _reconnect(current);
+      return existing;
     }
-    return _verifiedLiveFor(current, linkEstablished: linkEstablished);
+    return _verifiedLiveFor(current, linkEstablished: true);
   }
 
   /// Start with no proximity hand-off open: the phones have no link to each
@@ -956,10 +968,10 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         : null;
     final start = _coordinator.requestStart(
       requester: localMemberId,
-      // Non-proximity entry preserves the established recovery contract. A
-      // Room proximity hand-off has not yet established a LAN: Wi-Fi
-      // creation, association and the signed Room proof are still ahead of
-      // it, regardless of the `ride` route flag.
+      // This flag only permits an IP attachment attempt. It never declares
+      // the Room connected: RoomConnectionReadinessGate below still requires
+      // a signed bidirectional proof from an expected Room member on the same
+      // attachment generation.
       sharedLanUsable: !hasProximityHandoff,
       candidates: const [],
       bootstrapHotspotHost: issuer == null
@@ -1205,10 +1217,6 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         // Nothing to arrange (see _verifiedLiveFor). The link gate that runs
         // next refuses a phone that is on nothing at all.
         return null;
-      case RoomTransportKind.bluetooth:
-        return room.room.confirmedMembers.length == 2
-            ? null
-            : _EntryFailure.transportPlanMismatch;
       case RoomTransportKind.guest:
       case null:
         return _EntryFailure.transportPlanMismatch;
