@@ -133,7 +133,7 @@ void main() {
     expect(errorOn(tester), 'That invite is invalid or expired.');
   });
 
-  testWidgets('an invite from another app version says to update', (
+  testWidgets('a malformed direct-join version is called an invalid invite', (
     tester,
   ) async {
     final surface = await pumpScanner(tester);
@@ -141,7 +141,9 @@ void main() {
     expect(await surface.onCode(inviteShaped(2)), isFalse);
     await tester.pump();
 
-    expect(errorOn(tester), contains('different version of Tarkk'));
+    // DirectJoin v2/v3 are binary records. A JSON body carrying v=2 is not an
+    // invite from another app version; it is simply malformed DirectJoin data.
+    expect(errorOn(tester), 'That invite is invalid or expired.');
   });
 
   testWidgets('and something that was never ours says that instead', (
