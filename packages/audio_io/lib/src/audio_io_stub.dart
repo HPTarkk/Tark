@@ -35,6 +35,7 @@ abstract class AudioIoImpl {
 
   RealtimeResampler? createRealtimeResampler(double inRate, double outRate);
   RealtimeLowPass? createRealtimeLowPass(double sampleRate, double cutoffHz);
+  RealtimeSpectralSuppressor? createRealtimeSpectralSuppressor(int sampleRate);
 }
 
 AudioIoImpl createAudioIoImpl() => throw UnsupportedError(
