@@ -122,6 +122,8 @@ jobs:
           /tmp/tark-voice-playout-test
           "$cxx" -std=c++14 -O2 packages/audio_io/test/realtime_dsp_test.cpp -o /tmp/tark-realtime-dsp-test
           /tmp/tark-realtime-dsp-test
+          "$cxx" -std=c++14 -O2 packages/audio_io/test/spectral_suppressor_test.cpp -o /tmp/tark-spectral-test
+          /tmp/tark-spectral-test
 
       - name: Android debug compile check
         shell: bash
