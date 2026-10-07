@@ -531,7 +531,7 @@ class AudioEngineImpl implements AudioEngine {
     // reduced strength so the two don't compound). Which stages run and how
     // hard is decided by [SuppressionPlan], not here — see [_applySuppression].
     final plan = _suppressionPlan;
-    var suppressed = resampled;
+    List<double> suppressed = resampled;
     if (plan.useRnnoise) suppressed = _rnnoiseSuppressor.process(suppressed);
     if (plan.useSpectral) suppressed = _spectralSuppressor.process(suppressed);
     _txAccum.addAll(suppressed);
