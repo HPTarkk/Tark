@@ -456,7 +456,6 @@ class _FfiVoiceQueue implements VoiceQueue {
   int get deviceBurstFrames => _stat(7);
 }
 
-
 class FfiRealtimeResampler implements RealtimeResampler {
   FfiRealtimeResampler._(this._bindings, this._handle);
 
