@@ -13,7 +13,7 @@ void main() {
 
   test('Add person mints one signed direct Room QR', () async {
     final sheet = await File('lib/feature/room/presentation/widget/one_scan_room_invite_sheet.dart').readAsString();
-    expect(RegExp(r'GlowingQrCard\\(').allMatches(sheet), hasLength(1));
+    expect('GlowingQrCard('.allMatches(sheet), hasLength(1));
     expect(sheet, contains('RoomDirectJoinBundle('));
     expect(sheet, contains('_roomInvite = bundle.encode();'));
     expect(sheet, isNot(contains('RoomProximity')));
