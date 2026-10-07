@@ -94,9 +94,8 @@ class AudioEngineImpl implements AudioEngine {
   // doesn't need to rebuild anything. Reconstructed rather than reset by
   // [_rebuildForFormat] on a wire-format change: their internal sizing (the
   // spectral window, RNNoise's resample ratio) is fixed at construction.
-  SpectralNoiseSuppressor _spectralSuppressor = SpectralNoiseSuppressor(
-    sampleRateHz: AudioFormatProfile.legacy16k.sampleRateHz,
-  );
+  late RealtimeSpectralSuppressor _spectralSuppressor =
+      _createSpectralSuppressor(AudioFormatProfile.legacy16k.sampleRateHz);
   RnnoiseSuppressor _rnnoiseSuppressor = RnnoiseSuppressor(
     txRateHz: AudioFormatProfile.legacy16k.sampleRateHz,
   );
@@ -471,9 +470,8 @@ class AudioEngineImpl implements AudioEngine {
     // window, RNNoise's up/down resample ratio) is fixed at construction and
     // depends on this rate. The old RNNoise instance holds native denoiser
     // state that [reset] doesn't free — only [dispose] does.
-    _spectralSuppressor = SpectralNoiseSuppressor(
-      sampleRateHz: profile.sampleRateHz,
-    );
+    _spectralSuppressor.dispose();
+    _spectralSuppressor = _createSpectralSuppressor(profile.sampleRateHz);
     _rnnoiseSuppressor.dispose();
     _rnnoiseSuppressor = RnnoiseSuppressor(txRateHz: profile.sampleRateHz);
     // After the suppressors are rebuilt, not before: rnnoise's construction
@@ -505,6 +503,10 @@ class AudioEngineImpl implements AudioEngine {
   RealtimeLowPass _createLowPass(double sampleRate, double cutoffHz) =>
       _audioIo.createRealtimeLowPass(sampleRate, cutoffHz) ??
       OnePoleLowPass(sampleRate: sampleRate, cutoffHz: cutoffHz);
+
+  RealtimeSpectralSuppressor _createSpectralSuppressor(int sampleRate) =>
+      _audioIo.createRealtimeSpectralSuppressor(sampleRate) ??
+      SpectralNoiseSuppressor(sampleRateHz: sampleRate);
 
   // ── Internal ───────────────────────────────────────────────────────────────
 
@@ -979,6 +981,7 @@ class AudioEngineImpl implements AudioEngine {
     _txResampler = null;
     _rxResampler?.dispose();
     _rxResampler = null;
+    _spectralSuppressor.dispose();
     _rnnoiseSuppressor.dispose();
     // Epoch-guarded: if a newer session already claimed the engine (the
     // user re-entered the walkie page before this dispose chain finished),
