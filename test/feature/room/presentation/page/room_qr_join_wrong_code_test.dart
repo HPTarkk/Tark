@@ -117,8 +117,7 @@ void main() {
     expect(find.byKey(const Key('hotspot-page')), findsNothing);
   });
 
-  String inviteShaped(int version) => base64Url
-      .encode(
+  String inviteShaped(int version) => 'tark-room:${base64Url\n      .encode(
         utf8.encode(
           jsonEncode({
             'v': version,
@@ -128,7 +127,7 @@ void main() {
           }),
         ),
       )
-      .replaceAll('=', '');
+      .replaceAll('=', '')}';
 
   testWidgets('an expired or damaged Room invite is called an invite', (
     tester,
