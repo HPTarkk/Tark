@@ -80,7 +80,6 @@ typedef AudioIoVoiceStatNative = Int64 Function(
     Pointer<Void> handle, Int32 which);
 typedef AudioIoVoiceStat = int Function(Pointer<Void> handle, int which);
 
-
 typedef AudioIoDspCreateNative = Pointer<Void> Function(Double a, Double b);
 typedef AudioIoDspCreate = Pointer<Void> Function(double a, double b);
 typedef AudioIoDspDestroyNative = Void Function(Pointer<Void> handle);
@@ -90,19 +89,23 @@ typedef AudioIoResamplerCapacityNative = Int32 Function(
 typedef AudioIoResamplerCapacity = int Function(
     Pointer<Void> handle, int inputFrames);
 typedef AudioIoResamplerProcessNative = Int32 Function(
-    Pointer<Void> handle, Pointer<Double> input, Int32 inputFrames,
-    Pointer<Double> output, Int32 outputCapacity);
+    Pointer<Void> handle,
+    Pointer<Double> input,
+    Int32 inputFrames,
+    Pointer<Double> output,
+    Int32 outputCapacity);
 typedef AudioIoResamplerProcess = int Function(
-    Pointer<Void> handle, Pointer<Double> input, int inputFrames,
-    Pointer<Double> output, int outputCapacity);
+    Pointer<Void> handle,
+    Pointer<Double> input,
+    int inputFrames,
+    Pointer<Double> output,
+    int outputCapacity);
 typedef AudioIoDspResetNative = Void Function(Pointer<Void> handle);
 typedef AudioIoDspReset = void Function(Pointer<Void> handle);
-typedef AudioIoLowPassProcessNative = Void Function(
-    Pointer<Void> handle, Pointer<Double> input, Pointer<Double> output,
-    Int32 frames);
-typedef AudioIoLowPassProcess = void Function(
-    Pointer<Void> handle, Pointer<Double> input, Pointer<Double> output,
-    int frames);
+typedef AudioIoLowPassProcessNative = Void Function(Pointer<Void> handle,
+    Pointer<Double> input, Pointer<Double> output, Int32 frames);
+typedef AudioIoLowPassProcess = void Function(Pointer<Void> handle,
+    Pointer<Double> input, Pointer<Double> output, int frames);
 
 class AudioIoBindings {
   late final DynamicLibrary _lib;
