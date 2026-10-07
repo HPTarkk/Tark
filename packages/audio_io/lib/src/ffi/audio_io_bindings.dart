@@ -107,6 +107,14 @@ typedef AudioIoLowPassProcessNative = Void Function(Pointer<Void> handle,
 typedef AudioIoLowPassProcess = void Function(Pointer<Void> handle,
     Pointer<Double> input, Pointer<Double> output, int frames);
 
+
+typedef AudioIoSpectralCreateNative = Pointer<Void> Function(Int32 sampleRate);
+typedef AudioIoSpectralCreate = Pointer<Void> Function(int sampleRate);
+typedef AudioIoSpectralStrengthNative = Void Function(
+    Pointer<Void> handle, Double strength);
+typedef AudioIoSpectralStrength = void Function(
+    Pointer<Void> handle, double strength);
+
 class AudioIoBindings {
   late final DynamicLibrary _lib;
 
@@ -139,6 +147,11 @@ class AudioIoBindings {
   late final AudioIoDspDestroy lowPassDestroy;
   late final AudioIoLowPassProcess lowPassProcess;
   late final AudioIoDspReset lowPassReset;
+  late final AudioIoSpectralCreate spectralCreate;
+  late final AudioIoDspDestroy spectralDestroy;
+  late final AudioIoSpectralStrength spectralSetStrength;
+  late final AudioIoLowPassProcess spectralProcess;
+  late final AudioIoDspReset spectralReset;
 
   /// Null where the native library predates it.
   late final AudioIoReleaseAll? releaseAll;
@@ -267,6 +280,26 @@ class AudioIoBindings {
     lowPassReset = _lib
         .lookup<NativeFunction<AudioIoDspResetNative>>(
             'audio_io_low_pass_reset')
+        .asFunction();
+    spectralCreate = _lib
+        .lookup<NativeFunction<AudioIoSpectralCreateNative>>(
+            'audio_io_spectral_create')
+        .asFunction();
+    spectralDestroy = _lib
+        .lookup<NativeFunction<AudioIoDspDestroyNative>>(
+            'audio_io_spectral_destroy')
+        .asFunction();
+    spectralSetStrength = _lib
+        .lookup<NativeFunction<AudioIoSpectralStrengthNative>>(
+            'audio_io_spectral_set_strength')
+        .asFunction();
+    spectralProcess = _lib
+        .lookup<NativeFunction<AudioIoLowPassProcessNative>>(
+            'audio_io_spectral_process')
+        .asFunction();
+    spectralReset = _lib
+        .lookup<NativeFunction<AudioIoDspResetNative>>(
+            'audio_io_spectral_reset')
         .asFunction();
     releaseAll = _lib.providesSymbol('audio_io_release_all')
         ? _lib
