@@ -57,6 +57,8 @@ class AudioIoFFI {
     _bindings = AudioIoBindings();
   }
 
+  AudioIoBindings get bindings => _bindings;
+
   Stream<List<double>>? get inputAudioStream => _inputController?.stream;
   StreamSink<List<double>>? get outputAudioStream => _outputController?.sink;
 
