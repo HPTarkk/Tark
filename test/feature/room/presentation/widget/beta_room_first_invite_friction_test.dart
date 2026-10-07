@@ -3,28 +3,26 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('cold first invite is independent from hotspot bootstrap', () async {
+  test('cold first invite is direct membership before hotspot bootstrap', () async {
     final sheet = await File(
       'lib/feature/room/presentation/widget/one_scan_room_invite_sheet.dart',
     ).readAsString();
 
-    final listener = sheet.indexOf(
-      'final issuerSession = RoomProximityJoinIssuerSession(',
-    );
-    final retained = sheet.indexOf('_issuerSession = issuerSession;');
-    final proximityReady = sheet.indexOf('await _control.host(');
-    final qrReady = sheet.indexOf('_roomInvite = invite.encode();');
+    final bundle = sheet.indexOf('final bundle = RoomDirectJoinBundle(');
+    final encoded = sheet.indexOf('_roomInvite = bundle.encode();');
+    final credentials = sheet.indexOf('credentials.qrPayload(roomInvite: roomInvite)');
 
-    expect(listener, greaterThanOrEqualTo(0));
-    expect(retained, greaterThan(listener));
-    expect(proximityReady, greaterThan(retained));
-    expect(qrReady, greaterThan(proximityReady));
+    expect(bundle, greaterThanOrEqualTo(0));
+    expect(encoded, greaterThan(bundle));
+    expect(credentials, greaterThan(encoded));
 
-    // The membership QR is now a stable rendezvous token. LocalOnlyHotspot is
-    // a later transport-plane concern and must not delay or mutate this QR.
+    // Membership is self-contained in the signed QR. Bluetooth/proximity is
+    // not allowed back into Room bootstrap, and hotspot credentials only wrap
+    // the already-issued membership when this phone is currently the host.
+    expect(sheet, contains('RoomDirectJoinBundle'));
+    expect(sheet, isNot(contains('RoomProximityJoinIssuerSession')));
+    expect(sheet, isNot(contains('RoomProximityControl')));
     expect(sheet, isNot(contains('.prepareHost()')));
-    expect(sheet, isNot(contains('credentials.qrPayload')));
-    expect(sheet, isNot(contains('RoomDirectJoinBundle')));
   });
 
   test(
