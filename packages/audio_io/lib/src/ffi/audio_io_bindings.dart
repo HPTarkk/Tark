@@ -107,7 +107,6 @@ typedef AudioIoLowPassProcessNative = Void Function(Pointer<Void> handle,
 typedef AudioIoLowPassProcess = void Function(Pointer<Void> handle,
     Pointer<Double> input, Pointer<Double> output, int frames);
 
-
 typedef AudioIoSpectralCreateNative = Pointer<Void> Function(Int32 sampleRate);
 typedef AudioIoSpectralCreate = Pointer<Void> Function(int sampleRate);
 typedef AudioIoSpectralStrengthNative = Void Function(
