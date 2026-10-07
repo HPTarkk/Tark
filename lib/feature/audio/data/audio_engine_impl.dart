@@ -969,6 +969,16 @@ class AudioEngineImpl implements AudioEngine {
     _mediaCoordinatorTimer = null;
     _mediaBuffer?.dispose();
     _mediaBuffer = null;
+    _rxMediaResampler?.dispose();
+    _rxMediaResampler = null;
+    _txLowPassA?.dispose();
+    _txLowPassA = null;
+    _txLowPassB?.dispose();
+    _txLowPassB = null;
+    _txResampler?.dispose();
+    _txResampler = null;
+    _rxResampler?.dispose();
+    _rxResampler = null;
     _rnnoiseSuppressor.dispose();
     // Epoch-guarded: if a newer session already claimed the engine (the
     // user re-entered the walkie page before this dispose chain finished),
