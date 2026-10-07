@@ -17,7 +17,6 @@ abstract interface class RealtimeLowPass {
   void dispose();
 }
 
-
 /// Stateful streaming spectral suppressor owned by the platform realtime core.
 abstract interface class RealtimeSpectralSuppressor {
   double get strength;
