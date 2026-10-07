@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'audio_io_stub.dart';
 import 'voice_queue.dart';
+import 'realtime_dsp.dart';
 import 'ffi/audio_io_ffi.dart';
 
 class AudioIoNative implements AudioIoImpl {
@@ -68,6 +69,22 @@ class AudioIoNative implements AudioIoImpl {
   @override
   VoiceQueue? get voiceQueue =>
       usePlatformImpl ? AudioIoFFI.instance.voiceQueue : null;
+
+  @override
+  RealtimeResampler? createRealtimeResampler(double inRate, double outRate) =>
+      usePlatformImpl
+          ? FfiRealtimeResampler.create(AudioIoFFI.instance.bindings, inRate, outRate)
+          : null;
+
+  @override
+  RealtimeLowPass? createRealtimeLowPass(double sampleRate, double cutoffHz) =>
+      usePlatformImpl
+          ? FfiRealtimeLowPass.create(
+              AudioIoFFI.instance.bindings,
+              sampleRate,
+              cutoffHz,
+            )
+          : null;
 }
 
 AudioIoImpl createAudioIoImpl() => AudioIoNative();
