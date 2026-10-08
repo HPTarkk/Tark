@@ -1,7 +1,7 @@
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:audio_io/audio_io.dart';
+import 'package:audio_io/realtime_dsp.dart';
 
 /// Continuous linear-interpolation sample-rate converter.
 ///
@@ -74,9 +74,7 @@ class OnePoleLowPass implements RealtimeLowPass {
   double _y = 0.0;
 
   static double _computeAlpha(double sampleRate, double cutoffHz) {
-    final rc = 1.0 / (2 * pi * cutoffHz);
-    final dt = 1.0 / sampleRate;
-    return dt / (rc + dt);
+    return 1.0 / (1.0 + (sampleRate / cutoffHz) / (2 * pi));
   }
 
   @override

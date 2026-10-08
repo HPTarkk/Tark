@@ -757,6 +757,9 @@ class WifiTransferRepositoryImpl
               // our addresses (multi-interface), not just the one the cubit
               // filters on — drop them here where all of them are known.
               if (_localAddresses.contains(dg!.address.address)) continue;
+              // A legal UDP datagram can have no payload. It carries no wire
+              // type byte and must not throw out the live receive socket.
+              if (dg.data.isEmpty) continue;
               // Real traffic is flowing — the link is healthy, so the next
               // drop backs off from 4s again rather than from where we left,
               // and starts back at the quiet rung of the ladder rather than

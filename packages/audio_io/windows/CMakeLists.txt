@@ -19,6 +19,8 @@ add_library(audio_io SHARED
 target_include_directories(audio_io PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/../src"
 )
+# miniaudio includes Windows headers before the DSP headers use std::min/max.
+target_compile_definitions(audio_io PRIVATE NOMINMAX)
 
 # Apply standard settings
 apply_standard_settings(${PLUGIN_NAME})
@@ -38,6 +40,8 @@ set_target_properties(audio_io PROPERTIES
   CXX_STANDARD 14
   CXX_STANDARD_REQUIRED ON
   CXX_EXTENSIONS OFF
+  # Export the C device and DSP ABI that Dart loads with DynamicLibrary.
+  WINDOWS_EXPORT_ALL_SYMBOLS ON
 )
 
 # List of absolute paths to libraries that should be bundled with the plugin

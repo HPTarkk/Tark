@@ -10,3 +10,11 @@ abstract class RnnoiseImpl {
 }
 
 RnnoiseImpl? tryCreateRnnoiseImpl() => null;
+
+abstract class RnnoiseStreamImpl {
+  Float64List process(List<double> samples, double strength);
+  void reset();
+  void dispose();
+}
+
+RnnoiseStreamImpl? tryCreateRnnoiseStreamImpl(int sampleRateHz) => null;

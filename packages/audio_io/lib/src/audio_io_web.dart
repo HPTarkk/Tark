@@ -274,7 +274,8 @@ class AudioIoWeb implements AudioIoImpl {
       null;
 
   @override
-  RealtimeSpectralSuppressor? createRealtimeSpectralSuppressor(\n          int sampleRate) =>
+  RealtimeSpectralSuppressor? createRealtimeSpectralSuppressor(
+          int sampleRate) =>
       null;
 }
 

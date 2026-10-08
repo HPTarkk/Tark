@@ -31,11 +31,15 @@ class RnnoiseSuppressor {
   /// [txRateHz] defaults to [AudioFormatProfile.legacy16k]'s rate — not a
   /// compile-time constant default (field access on a const object isn't a
   /// constant expression in Dart), so it's resolved here rather than inline.
-  factory RnnoiseSuppressor({int? txRateHz}) => RnnoiseSuppressor._(
-    txRateHz ?? AudioFormatProfile.legacy16k.sampleRateHz,
-  );
+  factory RnnoiseSuppressor({int? txRateHz, bool preferNative = true}) {
+    final rate = txRateHz ?? AudioFormatProfile.legacy16k.sampleRateHz;
+    if (rate <= 0) {
+      throw ArgumentError.value(rate, 'txRateHz', 'must be positive');
+    }
+    return RnnoiseSuppressor._(rate, preferNative);
+  }
 
-  RnnoiseSuppressor._(int txRateHz)
+  RnnoiseSuppressor._(int txRateHz, bool preferNative)
     : _up = LinearResampler(
         inRate: txRateHz.toDouble(),
         outRate: _rnnRate.toDouble(),
@@ -43,7 +47,12 @@ class RnnoiseSuppressor {
       _down = LinearResampler(
         inRate: _rnnRate.toDouble(),
         outRate: txRateHz.toDouble(),
-      );
+      ) {
+    if (preferNative) {
+      _nativeStream = rnn.RnnoiseStream.tryCreate(sampleRateHz: txRateHz);
+    }
+    if (_nativeStream == null) _denoiser = rnn.RnnoiseDenoiser.tryCreate();
+  }
 
   static const int _rnnRate = 48000;
 
@@ -55,12 +64,17 @@ class RnnoiseSuppressor {
 
   double strength = 0.0;
 
-  rnn.RnnoiseDenoiser? _denoiser = rnn.RnnoiseDenoiser.tryCreate();
+  rnn.RnnoiseStream? _nativeStream;
+  rnn.RnnoiseDenoiser? _denoiser;
+  bool _disposed = false;
 
   /// False when the native library couldn't be loaded (e.g. this platform's
   /// build hasn't compiled it in yet) — callers should keep the spectral
   /// suppressor as the active engine in that case.
-  bool get isAvailable => _denoiser != null;
+  bool get isAvailable => _nativeStream != null || _denoiser != null;
+
+  /// False for older libraries exposing only the original RNNoise frame API.
+  bool get usesNativeOrchestration => _nativeStream != null;
 
   final LinearResampler _up;
   final LinearResampler _down;
@@ -77,6 +91,17 @@ class RnnoiseSuppressor {
 
   /// Process a block of any length; returns the same number of samples.
   List<double> process(List<double> samples) {
+    _checkAlive();
+    final native = _nativeStream;
+    if (native != null) {
+      if (strength <= 0.0) {
+        // Clear streaming history on bypass without copying a whole dry block.
+        native.process(const [], strength: 0.0);
+        return samples;
+      }
+      if (samples.isEmpty) return samples;
+      return native.process(samples, strength: strength);
+    }
     final denoiser = _denoiser;
     if (strength <= 0.0 || denoiser == null) {
       if (_rnnIn.isNotEmpty || _outTx.isNotEmpty || _dryTx.isNotEmpty) {
@@ -134,6 +159,12 @@ class RnnoiseSuppressor {
   /// to reset hidden state short of recreating it. Call when the audio
   /// session restarts.
   void reset() {
+    _checkAlive();
+    final native = _nativeStream;
+    if (native != null) {
+      native.reset();
+      return;
+    }
     _clearBuffers();
     _denoiser?.dispose();
     _denoiser = rnn.RnnoiseDenoiser.tryCreate();
@@ -141,7 +172,16 @@ class RnnoiseSuppressor {
 
   /// Frees the native RNN state. Call when the owning engine is disposed.
   void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    _nativeStream?.dispose();
+    _nativeStream = null;
     _denoiser?.dispose();
     _denoiser = null;
+    _clearBuffers();
+  }
+
+  void _checkAlive() {
+    if (_disposed) throw StateError('RNNoise suppressor is disposed');
   }
 }

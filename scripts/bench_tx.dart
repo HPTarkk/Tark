@@ -11,7 +11,12 @@
 // Run AOT-compiled — JIT numbers are not representative of a release build:
 //   dart compile exe scripts/bench_tx.dart -o build/bench_tx.exe && build/bench_tx.exe
 import 'dart:math';
+import 'dart:ffi';
 import 'dart:typed_data';
+
+import 'package:audio_io/realtime_dsp.dart';
+import 'package:audio_io/src/ffi/audio_io_bindings.dart';
+import 'package:audio_io/src/ffi/audio_io_ffi.dart';
 
 import '../lib/feature/audio/domain/resampler.dart';
 import '../lib/feature/audio/domain/spectral_noise_suppressor.dart';
@@ -68,14 +73,30 @@ Stats _stats(Float64List samples) {
   );
 }
 
-Stats _runChain({required bool boxed, required Float64List src}) {
-  final lpA = OnePoleLowPass(sampleRate: kInRate.toDouble(), cutoffHz: 7000);
-  final lpB = OnePoleLowPass(sampleRate: kInRate.toDouble(), cutoffHz: 7000);
-  final resampler = LinearResampler(
-    inRate: kInRate.toDouble(),
-    outRate: kOutRate.toDouble(),
-  );
-  final ns = SpectralNoiseSuppressor()..strength = 0.7;
+Stats _runChain({
+  required bool boxed,
+  required Float64List src,
+  AudioIoBindings? native,
+}) {
+  RealtimeLowPass makeLowPass() => native == null
+      ? OnePoleLowPass(sampleRate: kInRate.toDouble(), cutoffHz: 7000)
+      : FfiRealtimeLowPass.create(native, kInRate.toDouble(), 7000);
+  final lpA = makeLowPass();
+  final lpB = makeLowPass();
+  final RealtimeResampler resampler = native == null
+      ? LinearResampler(
+          inRate: kInRate.toDouble(),
+          outRate: kOutRate.toDouble(),
+        )
+      : FfiRealtimeResampler.create(
+          native,
+          kInRate.toDouble(),
+          kOutRate.toDouble(),
+        );
+  final RealtimeSpectralSuppressor ns = native == null
+      ? SpectralNoiseSuppressor()
+      : FfiRealtimeSpectralSuppressor.create(native, kOutRate);
+  ns.strength = 0.7;
 
   var sink = 0.0;
   final timings = Float64List(kPolls);
@@ -101,10 +122,14 @@ Stats _runChain({required bool boxed, required Float64List src}) {
     timings[p] = sw.elapsedTicks * 1e6 / sw.frequency;
   }
   if (sink.isNaN) print('unreachable');
+  lpA.dispose();
+  lpB.dispose();
+  resampler.dispose();
+  ns.dispose();
   return _stats(timings);
 }
 
-void main() {
+void main(List<String> args) {
   final src = _makeSource(kInRate * 4);
 
   // Warm up so we measure steady state, not first-call codegen.
@@ -121,13 +146,30 @@ void main() {
       'max ${s.max.toStringAsFixed(1).padLeft(8)}  '
       '>1ms ${s.overFrameBudget}';
 
-  print('TX chain, microseconds per 10 ms mic callback '
-      '(AOT, $kPolls polls each)');
+  print(
+    'TX chain, microseconds per 10 ms mic callback '
+    '(AOT, $kPolls polls each)',
+  );
   print(row('boxed List<double>', boxed));
   print(row('Float64List', typed));
   print('');
-  print('  mean speedup from unboxing: '
-      '${(boxed.mean / typed.mean).toStringAsFixed(2)}x   '
-      'p99 speedup: ${(boxed.p99 / typed.p99).toStringAsFixed(2)}x   '
-      'max speedup: ${(boxed.max / typed.max).toStringAsFixed(2)}x');
+  print(
+    '  mean speedup from unboxing: '
+    '${(boxed.mean / typed.mean).toStringAsFixed(2)}x   '
+    'p99 speedup: ${(boxed.p99 / typed.p99).toStringAsFixed(2)}x   '
+    'max speedup: ${(boxed.max / typed.max).toStringAsFixed(2)}x',
+  );
+  if (args.isNotEmpty) {
+    final bindings = AudioIoBindings.realtimeDsp(
+      DynamicLibrary.open(args.single),
+    );
+    _runChain(boxed: false, src: src, native: bindings);
+    final native = _runChain(boxed: false, src: src, native: bindings);
+    print(row('native FFI Float64List', native));
+    print(
+      '  native versus Dart typed mean speedup: '
+      '${(typed.mean / native.mean).toStringAsFixed(2)}x, '
+      'p99 speedup: ${(typed.p99 / native.p99).toStringAsFixed(2)}x',
+    );
+  }
 }

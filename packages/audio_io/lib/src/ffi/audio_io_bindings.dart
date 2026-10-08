@@ -137,26 +137,30 @@ class AudioIoBindings {
   late final AudioIoVoiceSetTarget voiceSetTarget;
   late final AudioIoVoiceReset voiceReset;
   late final AudioIoVoiceStat voiceStat;
-  late final AudioIoDspCreate resamplerCreate;
-  late final AudioIoDspDestroy resamplerDestroy;
-  late final AudioIoResamplerCapacity resamplerOutputCapacity;
-  late final AudioIoResamplerProcess resamplerProcess;
-  late final AudioIoDspReset resamplerReset;
-  late final AudioIoDspCreate lowPassCreate;
-  late final AudioIoDspDestroy lowPassDestroy;
-  late final AudioIoLowPassProcess lowPassProcess;
-  late final AudioIoDspReset lowPassReset;
-  late final AudioIoSpectralCreate spectralCreate;
-  late final AudioIoDspDestroy spectralDestroy;
-  late final AudioIoSpectralStrength spectralSetStrength;
-  late final AudioIoLowPassProcess spectralProcess;
-  late final AudioIoDspReset spectralReset;
+  late final AudioIoDspCreate? resamplerCreate;
+  late final AudioIoDspDestroy? resamplerDestroy;
+  late final AudioIoResamplerCapacity? resamplerOutputCapacity;
+  late final AudioIoResamplerProcess? resamplerProcess;
+  late final AudioIoDspReset? resamplerReset;
+  late final AudioIoDspCreate? lowPassCreate;
+  late final AudioIoDspDestroy? lowPassDestroy;
+  late final AudioIoLowPassProcess? lowPassProcess;
+  late final AudioIoDspReset? lowPassReset;
+  late final AudioIoSpectralCreate? spectralCreate;
+  late final AudioIoDspDestroy? spectralDestroy;
+  late final AudioIoSpectralStrength? spectralSetStrength;
+  late final AudioIoLowPassProcess? spectralProcess;
+  late final AudioIoDspReset? spectralReset;
+
+  bool get hasResampler => resamplerCreate != null;
+  bool get hasLowPass => lowPassCreate != null;
+  bool get hasSpectralSuppressor => spectralCreate != null;
 
   /// Null where the native library predates it.
   late final AudioIoReleaseAll? releaseAll;
 
-  AudioIoBindings() {
-    _lib = _loadLibrary();
+  AudioIoBindings({DynamicLibrary? library}) {
+    _lib = library ?? _loadLibrary();
 
     create = _lib
         .lookup<NativeFunction<AudioIoCreateNative>>('audio_io_create')
@@ -244,66 +248,128 @@ class AudioIoBindings {
     voiceStat = _lib
         .lookup<NativeFunction<AudioIoVoiceStatNative>>('audio_io_voice_stat')
         .asFunction();
-    resamplerCreate = _lib
-        .lookup<NativeFunction<AudioIoDspCreateNative>>(
-            'audio_io_resampler_create')
-        .asFunction();
-    resamplerDestroy = _lib
-        .lookup<NativeFunction<AudioIoDspDestroyNative>>(
-            'audio_io_resampler_destroy')
-        .asFunction();
-    resamplerOutputCapacity = _lib
-        .lookup<NativeFunction<AudioIoResamplerCapacityNative>>(
-            'audio_io_resampler_output_capacity')
-        .asFunction();
-    resamplerProcess = _lib
-        .lookup<NativeFunction<AudioIoResamplerProcessNative>>(
-            'audio_io_resampler_process')
-        .asFunction();
-    resamplerReset = _lib
-        .lookup<NativeFunction<AudioIoDspResetNative>>(
-            'audio_io_resampler_reset')
-        .asFunction();
-    lowPassCreate = _lib
-        .lookup<NativeFunction<AudioIoDspCreateNative>>(
-            'audio_io_low_pass_create')
-        .asFunction();
-    lowPassDestroy = _lib
-        .lookup<NativeFunction<AudioIoDspDestroyNative>>(
-            'audio_io_low_pass_destroy')
-        .asFunction();
-    lowPassProcess = _lib
-        .lookup<NativeFunction<AudioIoLowPassProcessNative>>(
-            'audio_io_low_pass_process')
-        .asFunction();
-    lowPassReset = _lib
-        .lookup<NativeFunction<AudioIoDspResetNative>>(
-            'audio_io_low_pass_reset')
-        .asFunction();
-    spectralCreate = _lib
-        .lookup<NativeFunction<AudioIoSpectralCreateNative>>(
-            'audio_io_spectral_create')
-        .asFunction();
-    spectralDestroy = _lib
-        .lookup<NativeFunction<AudioIoDspDestroyNative>>(
-            'audio_io_spectral_destroy')
-        .asFunction();
-    spectralSetStrength = _lib
-        .lookup<NativeFunction<AudioIoSpectralStrengthNative>>(
-            'audio_io_spectral_set_strength')
-        .asFunction();
-    spectralProcess = _lib
-        .lookup<NativeFunction<AudioIoLowPassProcessNative>>(
-            'audio_io_spectral_process')
-        .asFunction();
-    spectralReset = _lib
-        .lookup<NativeFunction<AudioIoDspResetNative>>(
-            'audio_io_spectral_reset')
-        .asFunction();
+    _loadRealtimeDsp();
     releaseAll = _lib.providesSymbol('audio_io_release_all')
         ? _lib
             .lookup<NativeFunction<AudioIoReleaseAllNative>>(
                 'audio_io_release_all')
+            .asFunction()
+        : null;
+  }
+
+  /// Loads the production DSP ABI without requiring an audio device backend.
+  /// Useful to verify DSP builds on machines without microphone access.
+  AudioIoBindings.realtimeDsp(DynamicLibrary library) {
+    _lib = library;
+    _loadRealtimeDsp();
+    releaseAll = null;
+  }
+
+  void _loadRealtimeDsp() {
+    // Load each complete ABI as a unit. Older libraries can omit one or more
+    // groups without disabling capture/playback or another supported DSP.
+    final resamplerAvailable = [
+      'audio_io_resampler_create',
+      'audio_io_resampler_destroy',
+      'audio_io_resampler_output_capacity',
+      'audio_io_resampler_process',
+      'audio_io_resampler_reset',
+    ].every(_lib.providesSymbol);
+    final lowPassAvailable = [
+      'audio_io_low_pass_create',
+      'audio_io_low_pass_destroy',
+      'audio_io_low_pass_process',
+      'audio_io_low_pass_reset',
+    ].every(_lib.providesSymbol);
+    final spectralAvailable = [
+      'audio_io_spectral_create',
+      'audio_io_spectral_destroy',
+      'audio_io_spectral_set_strength',
+      'audio_io_spectral_process',
+      'audio_io_spectral_reset',
+    ].every(_lib.providesSymbol);
+    resamplerCreate = resamplerAvailable
+        ? _lib
+            .lookup<NativeFunction<AudioIoDspCreateNative>>(
+                'audio_io_resampler_create')
+            .asFunction()
+        : null;
+    resamplerDestroy = resamplerAvailable
+        ? _lib
+            .lookup<NativeFunction<AudioIoDspDestroyNative>>(
+                'audio_io_resampler_destroy')
+            .asFunction()
+        : null;
+    resamplerOutputCapacity = resamplerAvailable
+        ? _lib
+            .lookup<NativeFunction<AudioIoResamplerCapacityNative>>(
+                'audio_io_resampler_output_capacity')
+            .asFunction()
+        : null;
+    resamplerProcess = resamplerAvailable
+        ? _lib
+            .lookup<NativeFunction<AudioIoResamplerProcessNative>>(
+                'audio_io_resampler_process')
+            .asFunction()
+        : null;
+    resamplerReset = resamplerAvailable
+        ? _lib
+            .lookup<NativeFunction<AudioIoDspResetNative>>(
+                'audio_io_resampler_reset')
+            .asFunction()
+        : null;
+    lowPassCreate = lowPassAvailable
+        ? _lib
+            .lookup<NativeFunction<AudioIoDspCreateNative>>(
+                'audio_io_low_pass_create')
+            .asFunction()
+        : null;
+    lowPassDestroy = lowPassAvailable
+        ? _lib
+            .lookup<NativeFunction<AudioIoDspDestroyNative>>(
+                'audio_io_low_pass_destroy')
+            .asFunction()
+        : null;
+    lowPassProcess = lowPassAvailable
+        ? _lib
+            .lookup<NativeFunction<AudioIoLowPassProcessNative>>(
+                'audio_io_low_pass_process')
+            .asFunction()
+        : null;
+    lowPassReset = lowPassAvailable
+        ? _lib
+            .lookup<NativeFunction<AudioIoDspResetNative>>(
+                'audio_io_low_pass_reset')
+            .asFunction()
+        : null;
+    spectralCreate = spectralAvailable
+        ? _lib
+            .lookup<NativeFunction<AudioIoSpectralCreateNative>>(
+                'audio_io_spectral_create')
+            .asFunction()
+        : null;
+    spectralDestroy = spectralAvailable
+        ? _lib
+            .lookup<NativeFunction<AudioIoDspDestroyNative>>(
+                'audio_io_spectral_destroy')
+            .asFunction()
+        : null;
+    spectralSetStrength = spectralAvailable
+        ? _lib
+            .lookup<NativeFunction<AudioIoSpectralStrengthNative>>(
+                'audio_io_spectral_set_strength')
+            .asFunction()
+        : null;
+    spectralProcess = spectralAvailable
+        ? _lib
+            .lookup<NativeFunction<AudioIoLowPassProcessNative>>(
+                'audio_io_spectral_process')
+            .asFunction()
+        : null;
+    spectralReset = spectralAvailable
+        ? _lib
+            .lookup<NativeFunction<AudioIoDspResetNative>>(
+                'audio_io_spectral_reset')
             .asFunction()
         : null;
   }

@@ -50,6 +50,9 @@ class SystemAudioHandler(
     private val mainHandler = Handler(Looper.getMainLooper())
     private var sink: EventChannel.EventSink? = null
     private var pendingStart: MethodChannel.Result? = null
+    // A cancelled consent dialog can still return an ActivityResult. Keep its
+    // request reserved until then so it cannot be mistaken for a newer owner.
+    private var captureRequestInFlight = false
 
     /** Sink for the #29 HD stream — separate object so its lifecycle
      *  (onListen/onCancel) is independent of the legacy [sink] above. */
@@ -90,20 +93,33 @@ class SystemAudioHandler(
                     result.success(false)
                     return
                 }
-                if (pendingStart != null) {
+                if (pendingStart != null || captureRequestInFlight) {
                     result.success(false)
                     return
                 }
                 pendingStart = result
-                val mpm = activity.getSystemService(Context.MEDIA_PROJECTION_SERVICE)
-                        as MediaProjectionManager
-                activity.startActivityForResult(
-                    mpm.createScreenCaptureIntent(),
-                    REQUEST_CAPTURE_CODE,
-                )
+                captureRequestInFlight = true
+                try {
+                    val mpm = activity.getSystemService(Context.MEDIA_PROJECTION_SERVICE)
+                            as MediaProjectionManager
+                    activity.startActivityForResult(
+                        mpm.createScreenCaptureIntent(),
+                        REQUEST_CAPTURE_CODE,
+                    )
+                } catch (error: Exception) {
+                    pendingStart = null
+                    captureRequestInFlight = false
+                    result.error("capture_consent_failed", error.message, null)
+                }
             }
 
             "stop" -> {
+                // Complete this Dart request once. The dialog itself belongs
+                // to Android; its later result will be consumed without
+                // launching a foreground service or completing another owner.
+                val cancelledStart = pendingStart
+                pendingStart = null
+                cancelledStart?.success(false)
                 val context = activityProvider()
                 SystemAudioCaptureService.frameListener = null
                 SystemAudioCaptureService.hdFrameListener = null
@@ -144,8 +160,11 @@ class SystemAudioHandler(
     /** Routed from MainActivity.onActivityResult; true when handled here. */
     fun handleActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
         if (requestCode != REQUEST_CAPTURE_CODE) return false
+        if (!captureRequestInFlight) return true
+        captureRequestInFlight = false
         val result = pendingStart
         pendingStart = null
+        if (result == null) return true
         val activity = activityProvider()
         if (resultCode == Activity.RESULT_OK && data != null && activity != null) {
             SystemAudioCaptureService.frameListener = { frame ->
@@ -173,10 +192,22 @@ class SystemAudioHandler(
             val intent = Intent(activity, SystemAudioCaptureService::class.java)
                 .putExtra(SystemAudioCaptureService.EXTRA_RESULT_CODE, resultCode)
                 .putExtra(SystemAudioCaptureService.EXTRA_RESULT_DATA, data)
-            activity.startForegroundService(intent)
-            result?.success(true)
+            try {
+                activity.startForegroundService(intent)
+            } catch (error: Exception) {
+                // The OS can reject a foreground launch even after consent.
+                // Finish the pending request and retire listeners installed
+                // for this failed launch so a later request owns fresh state.
+                SystemAudioCaptureService.frameListener = null
+                SystemAudioCaptureService.hdFrameListener = null
+                SystemAudioCaptureService.stalledListener = null
+                SystemAudioCaptureService.revokedListener = null
+                result.error("capture_start_failed", error.message, null)
+                return true
+            }
+            result.success(true)
         } else {
-            result?.success(false)
+            result.success(false)
         }
         return true
     }

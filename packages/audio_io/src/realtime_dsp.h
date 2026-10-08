@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <limits>
 #include <vector>
 
 // Stateful realtime DSP primitives. They own their history so arbitrary device
@@ -14,14 +15,18 @@ class RealtimeResampler {
 
   size_t process(const double* input, size_t count, double* output,
                  size_t capacity) {
-    if (!input || !output || count == 0 || capacity == 0) return 0;
+    if ((count != 0 && !input) || (capacity != 0 && !output)) return 0;
+    if (count == 0 && history_.empty()) return 0;
     scratch_.resize(history_.size() + count);
     std::copy(history_.begin(), history_.end(), scratch_.begin());
-    std::copy(input, input + count, scratch_.begin() + history_.size());
+    if (count != 0)
+      std::copy(input, input + count, scratch_.begin() + history_.size());
 
     size_t n = 0;
     double pos = phase_;
     while (n < capacity) {
+      if (scratch_.size() < 2 || pos >= static_cast<double>(scratch_.size() - 1))
+        break;
       const size_t i0 = static_cast<size_t>(std::floor(pos));
       const size_t i1 = i0 + 1;
       if (i1 >= scratch_.size()) break;
@@ -31,8 +36,15 @@ class RealtimeResampler {
     }
 
     const size_t max_consumed = scratch_.empty() ? 0 : scratch_.size() - 1;
-    const size_t consumed = std::min(static_cast<size_t>(std::floor(pos)),
-                                     max_consumed);
+    // When a caller caps output, preserve the original coordinate system
+    // until the backlog drains. Repeatedly subtracting an integer offset can
+    // otherwise round a final position just below an integer and emit a
+    // duplicate sample at fractional ratios such as 1/3.
+    const bool pending = scratch_.size() >= 2 &&
+        pos < static_cast<double>(scratch_.size() - 1);
+    const size_t consumed = pending ? 0 :
+        (pos >= static_cast<double>(max_consumed) ? max_consumed :
+          static_cast<size_t>(std::floor(pos)));
     history_.assign(scratch_.begin() + consumed, scratch_.end());
     phase_ = pos - static_cast<double>(consumed);
     return n;
@@ -40,10 +52,14 @@ class RealtimeResampler {
 
   size_t outputCapacity(size_t input_count) const {
     const size_t total = history_.size() + input_count;
-    if (total < 2) return 0;
-    return static_cast<size_t>(
-               std::ceil((static_cast<double>(total) - phase_) / ratio_)) +
-           1;
+    // After large downsampling steps phase may lie beyond several tiny input
+    // calls. Casting a negative estimate to size_t would request huge buffers.
+    if (total < 2 || phase_ >= static_cast<double>(total - 1)) return 0;
+    const double bound = std::ceil((static_cast<double>(total) - phase_) / ratio_);
+    if (!std::isfinite(bound) ||
+        bound >= static_cast<double>(std::numeric_limits<size_t>::max() - 1))
+      return std::numeric_limits<size_t>::max();
+    return static_cast<size_t>(bound) + 1;
   }
 
   void reset() {
@@ -77,9 +93,9 @@ class OnePoleLowPass {
  private:
   static double computeAlpha(double sample_rate, double cutoff_hz) {
     constexpr double kPi = 3.14159265358979323846;
-    const double rc = 1.0 / (2.0 * kPi * cutoff_hz);
-    const double dt = 1.0 / sample_rate;
-    return dt / (rc + dt);
+    // Algebraically dt / (rc + dt), avoiding reciprocal overflow for tiny
+    // positive rates and multiplication overflow for very large cutoffs.
+    return 1.0 / (1.0 + (sample_rate / cutoff_hz) / (2.0 * kPi));
   }
 
   double alpha_;

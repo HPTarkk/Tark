@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../../core/utils/logger.dart';
@@ -17,7 +18,10 @@ import '../domain/service/session_wake_lock.dart';
 abstract final class SessionKeepAlive {
   static const _channel = MethodChannel('tark/keepalive');
 
-  static bool get _supported => Platform.isAndroid;
+  @visibleForTesting
+  static bool? debugIsAndroid;
+
+  static bool get _supported => debugIsAndroid ?? Platform.isAndroid;
 
   /// Starts the foreground service + wake/Wi-Fi/multicast locks.
   ///

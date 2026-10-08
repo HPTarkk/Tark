@@ -1,9 +1,9 @@
-import 'src/realtime_dsp.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'src/voice_queue.dart';
+import 'src/realtime_dsp.dart';
 
 export 'src/voice_queue.dart';
 export 'src/realtime_dsp.dart';
@@ -198,7 +198,8 @@ class AudioIo {
   RealtimeLowPass? createRealtimeLowPass(double sampleRate, double cutoffHz) =>
       _impl.createRealtimeLowPass(sampleRate, cutoffHz);
 
-  RealtimeSpectralSuppressor? createRealtimeSpectralSuppressor(\n          int sampleRate) =>
+  RealtimeSpectralSuppressor? createRealtimeSpectralSuppressor(
+          int sampleRate) =>
       _impl.createRealtimeSpectralSuppressor(sampleRate);
 
   Future<void> requestLatency(AudioIoLatency option) async {
