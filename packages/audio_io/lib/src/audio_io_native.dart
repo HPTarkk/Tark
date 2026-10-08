@@ -3,10 +3,19 @@ import 'dart:io';
 
 import 'audio_io_stub.dart';
 import 'voice_queue.dart';
+import 'realtime_dsp.dart';
 import 'ffi/audio_io_ffi.dart';
+import 'ffi/audio_io_bindings.dart';
 
 class AudioIoNative implements AudioIoImpl {
+  AudioIoNative({AudioIoBindings? realtimeBindings})
+      : _realtimeBindings = realtimeBindings;
+
+  final AudioIoBindings? _realtimeBindings;
   AudioIoFFI? _ffi;
+
+  AudioIoBindings get _dspBindings =>
+      _realtimeBindings ?? AudioIoFFI.instance.bindings;
 
   @override
   bool get usePlatformImpl =>
@@ -68,6 +77,33 @@ class AudioIoNative implements AudioIoImpl {
   @override
   VoiceQueue? get voiceQueue =>
       usePlatformImpl ? AudioIoFFI.instance.voiceQueue : null;
+
+  @override
+  RealtimeResampler? createRealtimeResampler(double inRate, double outRate) {
+    if (!usePlatformImpl) return null;
+    final bindings = _dspBindings;
+    return bindings.hasResampler
+        ? FfiRealtimeResampler.create(bindings, inRate, outRate)
+        : null;
+  }
+
+  @override
+  RealtimeLowPass? createRealtimeLowPass(double sampleRate, double cutoffHz) {
+    if (!usePlatformImpl) return null;
+    final bindings = _dspBindings;
+    return bindings.hasLowPass
+        ? FfiRealtimeLowPass.create(bindings, sampleRate, cutoffHz)
+        : null;
+  }
+
+  @override
+  RealtimeSpectralSuppressor? createRealtimeSpectralSuppressor(int sampleRate) {
+    if (!usePlatformImpl) return null;
+    final bindings = _dspBindings;
+    return bindings.hasSpectralSuppressor
+        ? FfiRealtimeSpectralSuppressor.create(bindings, sampleRate)
+        : null;
+  }
 }
 
 AudioIoImpl createAudioIoImpl() => AudioIoNative();

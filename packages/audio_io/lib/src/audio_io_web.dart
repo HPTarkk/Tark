@@ -4,6 +4,7 @@ import 'dart:js_interop_unsafe';
 import 'package:web/web.dart' as web;
 
 import 'voice_queue.dart';
+import 'realtime_dsp.dart';
 import 'audio_io_stub.dart';
 
 @JS('window')
@@ -263,6 +264,19 @@ class AudioIoWeb implements AudioIoImpl {
 
   @override
   VoiceQueue? get voiceQueue => null;
+
+  @override
+  RealtimeResampler? createRealtimeResampler(double inRate, double outRate) =>
+      null;
+
+  @override
+  RealtimeLowPass? createRealtimeLowPass(double sampleRate, double cutoffHz) =>
+      null;
+
+  @override
+  RealtimeSpectralSuppressor? createRealtimeSpectralSuppressor(
+          int sampleRate) =>
+      null;
 }
 
 AudioIoImpl createAudioIoImpl() => AudioIoWeb();

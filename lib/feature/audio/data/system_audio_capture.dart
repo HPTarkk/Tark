@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../core/audio/audio_format_profile.dart';
 import '../../../core/utils/logger.dart';
@@ -17,6 +17,10 @@ import 'media_control.dart';
 /// transmit an endless empty Shared Music stream. Voice capture/routing is
 /// unrelated and remains untouched.
 abstract final class SystemAudioCapture {
+  @visibleForTesting
+  static bool? debugIsAndroid;
+
+  static bool get _isAndroid => debugIsAndroid ?? Platform.isAndroid;
   static const _methods = MethodChannel('tark/system_audio');
   static const _frameEvents = EventChannel('tark/system_audio/frames');
   static const _hdFrameEvents = EventChannel('tark/system_audio/hd_frames');
@@ -29,6 +33,9 @@ abstract final class SystemAudioCapture {
 
   static Timer? _healthTimer;
   static bool _healthTickRunning = false;
+  static int _healthGeneration = 0;
+  static int _requestGeneration = 0;
+  static bool _captureDesired = false;
   static bool _mediaPlayingKnown = false;
   static bool _externalMediaPlaying = false;
   static CaptureHealthSnapshot _latestHealth = const CaptureHealthSnapshot(
@@ -42,7 +49,7 @@ abstract final class SystemAudioCapture {
   static CaptureHealthSnapshot get healthSnapshot => _latestHealth;
 
   static Future<bool> get isSupported async {
-    if (!Platform.isAndroid) return false;
+    if (!_isAndroid) return false;
     try {
       return await _methods.invokeMethod<bool>('isSupported') ?? false;
     } catch (_) {
@@ -53,14 +60,19 @@ abstract final class SystemAudioCapture {
   /// Shows the system consent dialog and starts capturing on approval.
   /// Returns false when the user declines or capture is unavailable.
   static Future<bool> start() async {
+    final request = ++_requestGeneration;
+    _captureDesired = true;
+    _cancelHealthTimer();
     Logger.diagnostic('mediaProjection: consent requested');
     final supported = await isSupported;
+    if (request != _requestGeneration) return false;
     _monitor.reset();
     _monitor.start(DateTime.now(), supported: supported);
     _mediaPlayingKnown = false;
     _externalMediaPlaying = false;
 
     if (!supported) {
+      _captureDesired = false;
       _publishHealth(
         _monitor.snapshot(
           DateTime.now(),
@@ -82,6 +94,13 @@ abstract final class SystemAudioCapture {
 
     try {
       final started = await _methods.invokeMethod<bool>('start') ?? false;
+      if (request != _requestGeneration) {
+        // Older native binaries can finish consent after stop. Retire that
+        // capture only when no newer request has taken ownership. Dispatching
+        // stop here precedes any later request's native start on the channel.
+        if (started && !_captureDesired) await _stopNativeCapture();
+        return false;
+      }
       Logger.diagnostic(
         started
             ? 'mediaProjection: capture start accepted'
@@ -90,6 +109,7 @@ abstract final class SystemAudioCapture {
       if (started) {
         _startHealthTimer();
       } else {
+        _captureDesired = false;
         _monitor.stop();
         _publishHealth(
           const CaptureHealthSnapshot(
@@ -100,6 +120,8 @@ abstract final class SystemAudioCapture {
       }
       return started;
     } catch (e) {
+      if (request != _requestGeneration) return false;
+      _captureDesired = false;
       _monitor.stop();
       _publishHealth(
         const CaptureHealthSnapshot(
@@ -117,10 +139,10 @@ abstract final class SystemAudioCapture {
   }
 
   static Future<void> stop() async {
+    _requestGeneration++;
+    _captureDesired = false;
     Logger.diagnostic('mediaProjection: capture stop requested');
-    _healthTimer?.cancel();
-    _healthTimer = null;
-    _healthTickRunning = false;
+    _cancelHealthTimer();
     _monitor.stop();
     _publishHealth(
       _monitor.snapshot(
@@ -129,6 +151,10 @@ abstract final class SystemAudioCapture {
         externalMediaPlaying: _externalMediaPlaying,
       ),
     );
+    await _stopNativeCapture();
+  }
+
+  static Future<void> _stopNativeCapture() async {
     try {
       await _methods.invokeMethod<void>('stop');
       Logger.diagnostic('mediaProjection: capture stopped');
@@ -142,22 +168,32 @@ abstract final class SystemAudioCapture {
   }
 
   static void _startHealthTimer() {
-    _healthTimer?.cancel();
+    _cancelHealthTimer();
+    final generation = _healthGeneration;
     _healthTimer = Timer.periodic(
       const Duration(milliseconds: 500),
-      (_) => _refreshHealth(),
+      (_) => _refreshHealth(generation),
     );
-    unawaited(_refreshHealth());
+    unawaited(_refreshHealth(generation));
   }
 
-  static Future<void> _refreshHealth() async {
-    if (_healthTickRunning) return;
+  static void _cancelHealthTimer() {
+    _healthTimer?.cancel();
+    _healthTimer = null;
+    _healthTickRunning = false;
+    _healthGeneration++;
+  }
+
+  static Future<void> _refreshHealth(int generation) async {
+    if (generation != _healthGeneration || _healthTickRunning) return;
     _healthTickRunning = true;
     try {
       final hasAccess = await MediaControl.hasAccess();
+      if (generation != _healthGeneration) return;
       final playing = hasAccess
           ? await MediaControl.isOtherMediaPlaying()
           : false;
+      if (generation != _healthGeneration) return;
       _mediaPlayingKnown = hasAccess;
       _externalMediaPlaying = playing;
       _publishHealth(
@@ -168,7 +204,7 @@ abstract final class SystemAudioCapture {
         ),
       );
     } finally {
-      _healthTickRunning = false;
+      if (generation == _healthGeneration) _healthTickRunning = false;
     }
   }
 
@@ -181,6 +217,20 @@ abstract final class SystemAudioCapture {
     );
     _publishHealth(snapshot);
     return snapshot.mayTransmitMedia ? samples : null;
+  }
+
+  static List<double>? _decodeAndGuardFrame(Object? event, int channels) {
+    // Bad or empty callbacks are not evidence that capture is still alive.
+    // Infinity would otherwise produce an infinite RMS and appear audible.
+    if (event is! Float64List ||
+        event.isEmpty ||
+        event.length % channels != 0) {
+      return null;
+    }
+    for (final sample in event) {
+      if (!sample.isFinite) return null;
+    }
+    return _guardFrame(event.toList());
   }
 
   static void _publishHealth(CaptureHealthSnapshot snapshot) {
@@ -217,8 +267,7 @@ abstract final class SystemAudioCapture {
   /// only while capture health is [CaptureHealthState.audible].
   static Stream<List<double>> get frames => _frames ??= _frameEvents
       .receiveBroadcastStream()
-      .map((event) => (event as Float64List).toList())
-      .map(_guardFrame)
+      .map((event) => _decodeAndGuardFrame(event, 1))
       .where((frame) => frame != null)
       .cast<List<double>>();
 
@@ -227,8 +276,7 @@ abstract final class SystemAudioCapture {
   /// capture protection.
   static Stream<List<double>> get hdFrames => _hdFrames ??= _hdFrameEvents
       .receiveBroadcastStream()
-      .map((event) => (event as Float64List).toList())
-      .map(_guardFrame)
+      .map((event) => _decodeAndGuardFrame(event, hdFormat.channels))
       .where((frame) => frame != null)
       .cast<List<double>>();
 }

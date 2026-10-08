@@ -1,6 +1,8 @@
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:audio_io/realtime_dsp.dart';
+
 import '../../../core/audio/audio_format_profile.dart';
 import 'float64_fifo.dart';
 
@@ -27,7 +29,7 @@ import 'float64_fifo.dart';
 /// [strength] 0 disables (pure passthrough); 1 is maximum suppression
 /// (up to ~-30 dB on noise-only bins). The output is delayed by one hop
 /// relative to the input; output length always equals input length.
-class SpectralNoiseSuppressor {
+class SpectralNoiseSuppressor implements RealtimeSpectralSuppressor {
   /// [sampleRateHz] sizes the analysis window: the target is a 16 ms window
   /// (matching [AudioFormatProfile.legacy16k]'s exact 256-sample result),
   /// rounded UP to the FFT's required power-of-two — at 16 kHz that target is
@@ -77,6 +79,7 @@ class SpectralNoiseSuppressor {
 
   /// Suppression strength, 0..1. Mutable so the UI slider takes effect
   /// immediately; 0 bypasses processing entirely.
+  @override
   double strength = 0.0;
 
   late final _Fft _fft;
@@ -107,14 +110,15 @@ class SpectralNoiseSuppressor {
   }
 
   /// Process a block of any length; returns the same number of samples.
-  List<double> process(List<double> samples) {
+  @override
+  Float64List process(List<double> samples) {
     if (strength <= 0.0) {
       // Bypass. Drop any half-processed state so re-enabling starts clean
       // (tiny glitch when the slider crosses zero, inaudible in practice).
       if (_inFifo.isNotEmpty || _outFifo.isNotEmpty) reset();
-      return samples;
+      return samples is Float64List ? samples : Float64List.fromList(samples);
     }
-    if (samples.isEmpty) return samples;
+    if (samples.isEmpty) return Float64List(0);
 
     _inFifo.addAll(samples);
     while (_inFifo.length >= _win) {
@@ -228,6 +232,7 @@ class SpectralNoiseSuppressor {
   /// Clear all streaming state (keeps [strength]). Call when the audio
   /// session restarts so a stale noise profile from the previous session
   /// doesn't suppress the new one.
+  @override
   void reset() {
     _inFifo.clear();
     _outFifo.clear();
@@ -238,6 +243,9 @@ class SpectralNoiseSuppressor {
     _gainSm.fillRange(0, _bins + 1, 0.0);
     _hopsProcessed = 0;
   }
+
+  @override
+  void dispose() => reset();
 }
 
 // ── FFT ───────────────────────────────────────────────────────────────────────

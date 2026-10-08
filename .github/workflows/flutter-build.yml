@@ -18,6 +18,8 @@ jobs:
     name: format-analyze-test-protocol
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      TARK_REQUIRE_NATIVE_TESTS: "1"
 
     steps:
       - name: Checkout repository
@@ -78,8 +80,45 @@ jobs:
       - name: Analyze
         run: flutter analyze
 
-      - name: Run Flutter tests
-        run: flutter test
+      - name: Build and test native realtime core
+        shell: bash
+        run: |
+          set -euo pipefail
+          cxx="${CXX:-g++}"
+          mkdir -p build/native-tests
+          for test in double_ring_buffer voice_playout realtime_dsp spectral_suppressor; do
+            "$cxx" -std=c++17 -O2 -pthread "packages/audio_io/test/${test}_test.cpp" -o "build/native-tests/$test"
+            "build/native-tests/$test"
+          done
+          for test in realtime_dsp spectral_suppressor; do
+            "$cxx" -std=c++17 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer "packages/audio_io/test/${test}_test.cpp" -o "build/native-tests/${test}-sanitized"
+            "build/native-tests/${test}-sanitized"
+          done
+          # Keep the allocation fault injector local to each fixture on ELF.
+          "$cxx" -std=c++17 -O2 -shared -fPIC -Wl,-Bsymbolic-functions packages/audio_io/test/native_dsp_test_api.cpp -o build/native-tests/libnative_dsp_test_api.so
+          "$cxx" -std=c++17 -O2 -shared -fPIC -Wl,-Bsymbolic-functions -DAUDIO_IO_TEST_OMIT_SPECTRAL_RESET packages/audio_io/test/native_dsp_test_api.cpp -o build/native-tests/libnative_dsp_incomplete_test_api.so
+          cmake -S packages/rnnoise/test -B build/rnnoise_native -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/rnnoise_native --parallel 2
+          ctest --test-dir build/rnnoise_native --output-on-failure
+          echo "AUDIO_IO_TEST_LIBRARY=$PWD/build/native-tests/libnative_dsp_test_api.so" >> "$GITHUB_ENV"
+          echo "AUDIO_IO_TEST_INCOMPLETE_LIBRARY=$PWD/build/native-tests/libnative_dsp_incomplete_test_api.so" >> "$GITHUB_ENV"
+          echo "RNNOISE_LIBRARY_PATH=$PWD/build/rnnoise_native/librnnoise_host.so" >> "$GITHUB_ENV"
+          echo "RNNOISE_LEGACY_LIBRARY_PATH=$PWD/build/rnnoise_native/librnnoise_legacy_host.so" >> "$GITHUB_ENV"
+
+      - name: Run Flutter tests with coverage
+        run: flutter test --coverage
+
+      - name: Enforce Dart coverage
+        run: |
+          python3 scripts/check_coverage.py coverage/lcov.info --minimum 65
+          python3 scripts/check_coverage.py coverage/lcov.info --minimum 90 --include '*/feature/audio/domain/resampler.dart' --include '*/feature/audio/domain/spectral_noise_suppressor.dart' --include '*/feature/audio/domain/rnnoise_suppressor.dart'
+
+      - name: Save coverage report
+        uses: actions/upload-artifact@v7
+        with:
+          name: dart-coverage
+          path: coverage/lcov.info
+          if-no-files-found: error
 
       - name: Run Tark log analyzer tests
         run: python3 -m unittest discover -s scripts -p 'test_*.py'
@@ -107,6 +146,9 @@ jobs:
           fi
           printf 'Protocol gate files:\n%s\n' "${protocol_tests[*]}"
           flutter test "${protocol_tests[@]}"
+
+      - name: Web guest compile check
+        run: flutter build web --target lib/main_guest.dart
 
       - name: Android debug compile check
         shell: bash

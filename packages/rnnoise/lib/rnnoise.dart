@@ -40,3 +40,31 @@ class RnnoiseDenoiser {
   /// Frees the native RNN state. Safe to call more than once.
   void dispose() => _impl.dispose();
 }
+
+/// Native streaming orchestration around the same RNNoise frame inference.
+///
+/// Accepts normalized samples at the transmission rate. Resampling, 480-sample
+/// packing, PCM scaling and strength mixing happen in one native call per block.
+/// Available only when all optional stream symbols are present; callers can
+/// retain [RnnoiseDenoiser] and their existing orchestration as a fallback.
+class RnnoiseStream {
+  RnnoiseStream._(this._impl);
+
+  final impl.RnnoiseStreamImpl _impl;
+
+  static RnnoiseStream? tryCreate({required int sampleRateHz}) {
+    final created = impl.tryCreateRnnoiseStreamImpl(sampleRateHz);
+    return created == null ? null : RnnoiseStream._(created);
+  }
+
+  /// Returns exactly as many samples as supplied, including during startup.
+  Float64List process(List<double> samples, {required double strength}) =>
+      _impl.process(samples, strength);
+
+  /// Clears both converter/FIFO and recurrent model state.
+  void reset() => _impl.reset();
+
+  /// Releases native state and buffers. Repeated calls are harmless; subsequent
+  /// [process] and [reset] calls throw [StateError].
+  void dispose() => _impl.dispose();
+}

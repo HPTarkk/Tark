@@ -8,6 +8,7 @@
 
 #include "double_ring_buffer.h"
 #include "voice_playout.h"
+#include "realtime_dsp_api.h"
 
 #ifdef __ANDROID__
 #include <android/log.h>

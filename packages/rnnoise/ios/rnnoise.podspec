@@ -16,12 +16,15 @@ pod and called from Dart via dart:ffi.
   s.license          = { :file => '../LICENSE' }
   s.author           = { 'Xiph.Org Foundation' => 'https://xiph.org' }
   s.source           = { :path => '.' }
-  s.source_files     = 'Classes/**/*', '../src/**/*.{c,h}', '../include/**/*.h'
+  s.source_files     = 'Classes/**/*', '../src/**/*.{c,h,cpp}', '../include/**/*.h',
+                       '../../audio_io/src/realtime_dsp.h'
   s.public_header_files = '../include/**/*.h'
   s.dependency 'Flutter'
   s.platform = :ios, '13.0'
 
   s.pod_target_xcconfig = {
+    'CLANG_CXX_LANGUAGE_STANDARD' => 'c++14',
+    'CLANG_CXX_LIBRARY' => 'libc++',
     'DEFINES_MODULE' => 'YES',
     'VALID_ARCHS[sdk=iphonesimulator*]' => 'x86_64 arm64',
     'HEADER_SEARCH_PATHS' => '$(PODS_TARGET_SRCROOT)/../src $(PODS_TARGET_SRCROOT)/../include',

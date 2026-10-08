@@ -13,22 +13,36 @@ import 'rnnoise_bindings.dart';
 /// instance instead of malloc'd per frame, since this runs on every 10 ms
 /// tick of the mic path.
 class RnnoiseFFI {
-  RnnoiseFFI._(this._bindings, this._state, this.frameSize)
-    : _inBuf = malloc<Float>(frameSize),
-      _outBuf = malloc<Float>(frameSize);
+  RnnoiseFFI._(
+    this._bindings,
+    this._state,
+    this.frameSize,
+    this._inBuf,
+    this._outBuf,
+  );
 
   /// Creates a denoiser with the library's built-in default model, or `null`
   /// if the native library can't be loaded (unsupported platform, missing
   /// binary) or allocation fails — callers should treat this as best-effort
   /// and fall back to bypass/another suppressor.
   static RnnoiseFFI? tryCreate() {
+    RnnoiseBindings? bindings;
+    Pointer<DenoiseState> state = nullptr;
+    Pointer<Float> input = nullptr;
+    Pointer<Float> output = nullptr;
     try {
-      final bindings = RnnoiseBindings();
+      bindings = RnnoiseBindings();
       final frameSize = bindings.getFrameSize();
-      final state = bindings.create(nullptr);
+      if (frameSize <= 0) return null;
+      state = bindings.create(nullptr);
       if (state == nullptr) return null;
-      return RnnoiseFFI._(bindings, state, frameSize);
+      input = malloc<Float>(frameSize);
+      output = malloc<Float>(frameSize);
+      return RnnoiseFFI._(bindings, state, frameSize, input, output);
     } catch (_) {
+      if (state != nullptr) bindings?.destroy(state);
+      malloc.free(input);
+      malloc.free(output);
       return null;
     }
   }
@@ -49,7 +63,11 @@ class RnnoiseFFI {
   /// denoised frame and the frame's voice-activity-detection probability
   /// (0..1).
   (Float32List out, double vadProbability) processFrame(Float32List input) {
-    assert(input.length == frameSize);
+    if (_disposed) throw StateError('RNNoise denoiser is disposed');
+    if (input.length != frameSize) {
+      throw ArgumentError.value(
+          input.length, 'input.length', 'must be $frameSize');
+    }
     _inBuf.asTypedList(frameSize).setAll(0, input);
     final vad = _bindings.processFrame(_state, _outBuf, _inBuf);
     final out = Float32List.fromList(_outBuf.asTypedList(frameSize));

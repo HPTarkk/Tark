@@ -7,9 +7,17 @@ model — not the newer full-band rewrite, whose model table alone is tens of
 megabytes and unsuitable for a mobile app.
 
 RNNoise operates on 480-sample (10 ms) frames of 48 kHz mono float PCM. It has
-no runtime parameters beyond the frame in/out buffers; suppression strength in
-this package's Dart wrapper (`RnnoiseSuppressor` in the main app) is a wet/dry
-mix applied on top, not a native RNNoise concept.
+no runtime parameters beyond the frame in/out buffers. `RnnoiseStream` owns
+up/down resampling, FIFO, frame packing, PCM16 scaling and wet/dry mixing in the
+same native library. It calls the existing inference implementation directly.
+`RnnoiseSuppressor` in the main app selects this stream API when its optional
+symbols are available and retains the Dart orchestration for older binaries.
+Suppression strength is still a wet/dry mix, not a RNNoise model parameter.
+
+Host regression tests build these exact sources using `test/CMakeLists.txt`.
+Set `RNNOISE_LIBRARY_PATH` to that build's shared library to run the Flutter
+native/fallback parity tests. Application builds load the normal bundled library
+when this variable is absent.
 
 License: BSD (see LICENSE), copyright Mozilla / Jean-Marc Valin / Xiph.Org
 Foundation / Mark Borgerding.

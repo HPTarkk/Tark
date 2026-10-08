@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../core/utils/logger.dart';
 
@@ -13,10 +14,14 @@ import '../../../core/utils/logger.dart';
 /// an in-app permission dialog) — every method degrades to a silent no-op
 /// without it.
 abstract final class MediaControl {
+  @visibleForTesting
+  static bool? debugIsAndroid;
+
+  static bool get _isAndroid => debugIsAndroid ?? Platform.isAndroid;
   static const _methods = MethodChannel('tark/media_control');
 
   static Future<bool> hasAccess() async {
-    if (!Platform.isAndroid) return false;
+    if (!_isAndroid) return false;
     try {
       return await _methods.invokeMethod<bool>('hasNotificationAccess') ??
           false;
@@ -50,7 +55,7 @@ abstract final class MediaControl {
   /// way to ask — so this may only be used to *confirm* that something is
   /// playing, never to conclude that nothing is.
   static Future<bool> isOtherMediaPlaying() async {
-    if (!Platform.isAndroid) return false;
+    if (!_isAndroid) return false;
     try {
       return await _methods.invokeMethod<bool>('isOtherMediaPlaying') ?? false;
     } catch (e) {

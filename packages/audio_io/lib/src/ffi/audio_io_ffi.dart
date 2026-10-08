@@ -7,6 +7,7 @@ import 'package:ffi/ffi.dart';
 
 import '../device_call_limit.dart';
 import '../voice_queue.dart';
+import '../realtime_dsp.dart';
 import 'audio_io_bindings.dart';
 
 /// Size of the persistent read scratch buffer, so a poll never needs to
@@ -55,6 +56,8 @@ class AudioIoFFI {
   AudioIoFFI._() {
     _bindings = AudioIoBindings();
   }
+
+  AudioIoBindings get bindings => _bindings;
 
   Stream<List<double>>? get inputAudioStream => _inputController?.stream;
   StreamSink<List<double>>? get outputAudioStream => _outputController?.sink;
@@ -451,4 +454,300 @@ class _FfiVoiceQueue implements VoiceQueue {
   int get jumps => _stat(6);
   @override
   int get deviceBurstFrames => _stat(7);
+}
+
+class FfiRealtimeResampler implements RealtimeResampler {
+  FfiRealtimeResampler._(this._bindings, this._handle);
+
+  factory FfiRealtimeResampler.create(
+    AudioIoBindings bindings,
+    double inRate,
+    double outRate,
+  ) {
+    if (!inRate.isFinite || !outRate.isFinite || inRate <= 0 || outRate <= 0) {
+      throw ArgumentError('Sample rates must be finite and positive');
+    }
+    if (!bindings.hasResampler) {
+      throw UnsupportedError('Native realtime resampler is unavailable');
+    }
+    final handle = bindings.resamplerCreate!(inRate, outRate);
+    if (handle == nullptr) {
+      throw StateError('Failed to create native realtime resampler');
+    }
+    return FfiRealtimeResampler._(bindings, handle);
+  }
+
+  final AudioIoBindings _bindings;
+  Pointer<Void> _handle;
+  Pointer<Double>? _input;
+  Pointer<Double>? _output;
+  int _inputCapacity = 0;
+  int _outputCapacity = 0;
+
+  void _ensureInput(int frames) {
+    if (_inputCapacity >= frames) return;
+    final next = malloc<Double>(frames);
+    final old = _input;
+    if (old != null) malloc.free(old);
+    _input = next;
+    _inputCapacity = frames;
+  }
+
+  void _ensureOutput(int frames) {
+    if (_outputCapacity >= frames) return;
+    final next = malloc<Double>(frames);
+    final old = _output;
+    if (old != null) malloc.free(old);
+    _output = next;
+    _outputCapacity = frames;
+  }
+
+  @override
+  Float64List process(List<double> samples) {
+    _checkAlive();
+    if (samples.isEmpty) return Float64List(0);
+    _ensureInput(samples.length);
+    final input = _input!;
+    final inView = input.asTypedList(samples.length);
+    if (samples is Float64List) {
+      inView.setAll(0, samples);
+    } else {
+      for (var i = 0; i < samples.length; i++) {
+        inView[i] = samples[i];
+      }
+    }
+
+    final capacity = _bindings.resamplerOutputCapacity!(
+      _handle,
+      samples.length,
+    );
+    if (capacity < 0) {
+      throw StateError('Native resampler returned an invalid output capacity');
+    }
+    if (capacity > 0) _ensureOutput(capacity);
+    final written = _bindings.resamplerProcess!(
+      _handle,
+      input,
+      samples.length,
+      _output ?? nullptr,
+      capacity,
+    );
+    if (written < 0 || written > capacity) {
+      throw StateError('Native resampler returned an invalid output length');
+    }
+    if (written == 0) return Float64List(0);
+    return Float64List.fromList(_output!.asTypedList(written));
+  }
+
+  @override
+  void reset() {
+    _checkAlive();
+    _bindings.resamplerReset!(_handle);
+  }
+
+  void _checkAlive() {
+    if (_handle == nullptr) throw StateError('Realtime resampler is disposed');
+  }
+
+  @override
+  void dispose() {
+    if (_handle != nullptr) {
+      _bindings.resamplerDestroy!(_handle);
+      _handle = nullptr;
+    }
+    final input = _input;
+    if (input != null) malloc.free(input);
+    _input = null;
+    _inputCapacity = 0;
+    final output = _output;
+    if (output != null) malloc.free(output);
+    _output = null;
+    _outputCapacity = 0;
+  }
+}
+
+class FfiRealtimeLowPass implements RealtimeLowPass {
+  FfiRealtimeLowPass._(this._bindings, this._handle);
+
+  factory FfiRealtimeLowPass.create(
+    AudioIoBindings bindings,
+    double sampleRate,
+    double cutoffHz,
+  ) {
+    if (!sampleRate.isFinite ||
+        !cutoffHz.isFinite ||
+        sampleRate <= 0 ||
+        cutoffHz <= 0) {
+      throw ArgumentError('Sample rate and cutoff must be finite and positive');
+    }
+    if (!bindings.hasLowPass) {
+      throw UnsupportedError('Native realtime low-pass is unavailable');
+    }
+    final handle = bindings.lowPassCreate!(sampleRate, cutoffHz);
+    if (handle == nullptr) {
+      throw StateError('Failed to create native realtime low-pass');
+    }
+    return FfiRealtimeLowPass._(bindings, handle);
+  }
+
+  final AudioIoBindings _bindings;
+  Pointer<Void> _handle;
+  Pointer<Double>? _input;
+  Pointer<Double>? _output;
+  int _capacity = 0;
+
+  void _ensureCapacity(int frames) {
+    if (_capacity >= frames) return;
+    final nextInput = malloc<Double>(frames);
+    final Pointer<Double> nextOutput;
+    try {
+      nextOutput = malloc<Double>(frames);
+    } catch (_) {
+      malloc.free(nextInput);
+      rethrow;
+    }
+    final input = _input;
+    if (input != null) malloc.free(input);
+    final output = _output;
+    if (output != null) malloc.free(output);
+    _input = nextInput;
+    _output = nextOutput;
+    _capacity = frames;
+  }
+
+  @override
+  Float64List process(List<double> samples) {
+    _checkAlive();
+    if (samples.isEmpty) return Float64List(0);
+    _ensureCapacity(samples.length);
+    final inView = _input!.asTypedList(samples.length);
+    if (samples is Float64List) {
+      inView.setAll(0, samples);
+    } else {
+      for (var i = 0; i < samples.length; i++) {
+        inView[i] = samples[i];
+      }
+    }
+    _bindings.lowPassProcess!(_handle, _input!, _output!, samples.length);
+    return Float64List.fromList(_output!.asTypedList(samples.length));
+  }
+
+  @override
+  void reset() {
+    _checkAlive();
+    _bindings.lowPassReset!(_handle);
+  }
+
+  void _checkAlive() {
+    if (_handle == nullptr) throw StateError('Realtime low-pass is disposed');
+  }
+
+  @override
+  void dispose() {
+    if (_handle != nullptr) {
+      _bindings.lowPassDestroy!(_handle);
+      _handle = nullptr;
+    }
+    final input = _input;
+    if (input != null) malloc.free(input);
+    _input = null;
+    final output = _output;
+    if (output != null) malloc.free(output);
+    _output = null;
+    _capacity = 0;
+  }
+}
+
+class FfiRealtimeSpectralSuppressor implements RealtimeSpectralSuppressor {
+  FfiRealtimeSpectralSuppressor._(this._bindings, this._handle);
+
+  factory FfiRealtimeSpectralSuppressor.create(
+    AudioIoBindings bindings,
+    int sampleRate,
+  ) {
+    if (sampleRate <= 0) throw ArgumentError.value(sampleRate, 'sampleRate');
+    if (!bindings.hasSpectralSuppressor) {
+      throw UnsupportedError('Native spectral suppressor is unavailable');
+    }
+    final handle = bindings.spectralCreate!(sampleRate);
+    if (handle == nullptr) {
+      throw StateError('Failed to create native spectral suppressor');
+    }
+    return FfiRealtimeSpectralSuppressor._(bindings, handle);
+  }
+
+  final AudioIoBindings _bindings;
+  Pointer<Void> _handle;
+  Pointer<Double>? _input;
+  Pointer<Double>? _output;
+  int _capacity = 0;
+  double _strength = 0.0;
+
+  void _ensureCapacity(int frames) {
+    if (_capacity >= frames) return;
+    final nextInput = malloc<Double>(frames);
+    final Pointer<Double> nextOutput;
+    try {
+      nextOutput = malloc<Double>(frames);
+    } catch (_) {
+      malloc.free(nextInput);
+      rethrow;
+    }
+    final input = _input;
+    if (input != null) malloc.free(input);
+    final output = _output;
+    if (output != null) malloc.free(output);
+    _input = nextInput;
+    _output = nextOutput;
+    _capacity = frames;
+  }
+
+  @override
+  double get strength => _strength;
+
+  @override
+  set strength(double value) {
+    _checkAlive();
+    if (!value.isFinite) throw ArgumentError.value(value, 'strength');
+    _strength = value.clamp(0.0, 1.0);
+    _bindings.spectralSetStrength!(_handle, _strength);
+  }
+
+  @override
+  Float64List process(List<double> samples) {
+    _checkAlive();
+    if (samples.isEmpty) {
+      _bindings.spectralProcess!(_handle, nullptr, nullptr, 0);
+      return Float64List(0);
+    }
+    _ensureCapacity(samples.length);
+    _input!.asTypedList(samples.length).setAll(0, samples);
+    _bindings.spectralProcess!(_handle, _input!, _output!, samples.length);
+    return Float64List.fromList(_output!.asTypedList(samples.length));
+  }
+
+  @override
+  void reset() {
+    _checkAlive();
+    _bindings.spectralReset!(_handle);
+  }
+
+  void _checkAlive() {
+    if (_handle == nullptr) throw StateError('Spectral suppressor is disposed');
+  }
+
+  @override
+  void dispose() {
+    if (_handle != nullptr) {
+      _bindings.spectralDestroy!(_handle);
+      _handle = nullptr;
+    }
+    final input = _input;
+    if (input != null) malloc.free(input);
+    _input = null;
+    final output = _output;
+    if (output != null) malloc.free(output);
+    _output = null;
+    _capacity = 0;
+  }
 }

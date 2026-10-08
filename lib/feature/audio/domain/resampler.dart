@@ -1,6 +1,7 @@
+import 'dart:math';
 import 'dart:typed_data';
 
-import 'dart:math';
+import 'package:audio_io/realtime_dsp.dart';
 
 /// Continuous linear-interpolation sample-rate converter.
 ///
@@ -12,7 +13,7 @@ import 'dart:math';
 /// Works entirely in typed arrays: this runs on every mic callback, and
 /// growable `List<double>` output boxed each emitted sample, which at audio
 /// rate was a steady source of GC pressure (visible as UI pauses).
-class LinearResampler {
+class LinearResampler implements RealtimeResampler {
   LinearResampler({required this.inRate, required this.outRate});
 
   final double inRate;
@@ -21,8 +22,9 @@ class LinearResampler {
   double _phase = 0.0;
   Float64List _history = Float64List(0);
 
-  List<double> process(List<double> input) {
-    if (input.isEmpty) return const [];
+  @override
+  Float64List process(List<double> input) {
+    if (input.isEmpty) return Float64List(0);
     final samples = Float64List(_history.length + input.length);
     samples.setRange(0, _history.length, _history);
     for (var i = 0; i < input.length; i++) {
@@ -51,16 +53,20 @@ class LinearResampler {
     return Float64List.sublistView(out, 0, n);
   }
 
+  @override
   void reset() {
     _phase = 0.0;
     _history = Float64List(0);
   }
+
+  @override
+  void dispose() {}
 }
 
 /// Simple one-pole low-pass, used as an anti-aliasing filter before
 /// downsampling so energy above the new Nyquist frequency doesn't fold back
 /// into the voice band as noise.
-class OnePoleLowPass {
+class OnePoleLowPass implements RealtimeLowPass {
   OnePoleLowPass({required double sampleRate, required double cutoffHz})
     : _alpha = _computeAlpha(sampleRate, cutoffHz);
 
@@ -68,12 +74,11 @@ class OnePoleLowPass {
   double _y = 0.0;
 
   static double _computeAlpha(double sampleRate, double cutoffHz) {
-    final rc = 1.0 / (2 * pi * cutoffHz);
-    final dt = 1.0 / sampleRate;
-    return dt / (rc + dt);
+    return 1.0 / (1.0 + (sampleRate / cutoffHz) / (2 * pi));
   }
 
-  List<double> process(List<double> input) {
+  @override
+  Float64List process(List<double> input) {
     final out = Float64List(input.length);
     for (int i = 0; i < input.length; i++) {
       _y += _alpha * (input[i] - _y);
@@ -81,4 +86,12 @@ class OnePoleLowPass {
     }
     return out;
   }
+
+  @override
+  void reset() {
+    _y = 0.0;
+  }
+
+  @override
+  void dispose() {}
 }

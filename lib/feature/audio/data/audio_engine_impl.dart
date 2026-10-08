@@ -65,8 +65,11 @@ class AudioEngineImpl implements AudioEngine {
 
   Future<void> _stopEngineIfOwned() => _withEngineLock(() async {
     if (_engineEpoch != _myEpoch) return; // newer session owns the engine
-    await _audioIo.stop();
-    await VoiceAudioSession.release();
+    try {
+      await _audioIo.stop();
+    } finally {
+      await VoiceAudioSession.release();
+    }
   });
 
   // The wire-format contract this engine currently runs. Only ever changed by
@@ -94,12 +97,8 @@ class AudioEngineImpl implements AudioEngine {
   // doesn't need to rebuild anything. Reconstructed rather than reset by
   // [_rebuildForFormat] on a wire-format change: their internal sizing (the
   // spectral window, RNNoise's resample ratio) is fixed at construction.
-  SpectralNoiseSuppressor _spectralSuppressor = SpectralNoiseSuppressor(
-    sampleRateHz: AudioFormatProfile.legacy16k.sampleRateHz,
-  );
-  RnnoiseSuppressor _rnnoiseSuppressor = RnnoiseSuppressor(
-    txRateHz: AudioFormatProfile.legacy16k.sampleRateHz,
-  );
+  RealtimeSpectralSuppressor? _spectralSuppressor;
+  RnnoiseSuppressor? _rnnoiseSuppressor;
   NoiseSuppressionEngine _suppressionEngine = NoiseSuppressionEngine.spectral;
   double _suppressionStrength = 0.0;
 
@@ -107,7 +106,7 @@ class AudioEngineImpl implements AudioEngine {
   // [_applySuppression] whenever one of its three inputs changes — never per
   // callback, which is where this branching used to live. The initial value is
   // the resolution of the two fields above (spectral, silent) written out,
-  // since a field initialiser cannot read `_rnnoiseSuppressor`.
+  // until the device pipeline creates and probes `_rnnoiseSuppressor`.
   SuppressionPlan _suppressionPlan = const SuppressionPlan(
     useRnnoise: false,
     rnnoiseStrength: 0.0,
@@ -157,7 +156,7 @@ class AudioEngineImpl implements AudioEngine {
   // [_rxResampler] which is rebuilt per negotiated profile — so this only
   // ever needs rebuilding when [_outputRate] itself changes (i.e. alongside
   // [_openStreams], same as [_rxResampler]).
-  LinearResampler? _rxMediaResampler;
+  RealtimeResampler? _rxMediaResampler;
 
   Timer? _mediaCoordinatorTimer;
 
@@ -168,6 +167,13 @@ class AudioEngineImpl implements AudioEngine {
       StreamController<AudioFrame>.broadcast();
 
   bool _disposed = false;
+  Future<void>? _disposeFuture;
+
+  bool get _canUseDevice => !_disposed && _engineEpoch == _myEpoch;
+
+  void _checkAlive() {
+    if (_disposed) throw StateError('Audio engine is disposed');
+  }
 
   // ── Stall watchdog ─────────────────────────────────────────────────────
   // audio_io captures continuously (VOX is always recording), so mic frames
@@ -239,13 +245,13 @@ class AudioEngineImpl implements AudioEngine {
   // (~12 dB/octave) rolloff than a single stage, which matters here: a gentle
   // single-pole filter lets energy above the new Nyquist fold back as audible
   // hiss/noise when downsampling from 44.1/48 kHz to the wire rate.
-  OnePoleLowPass? _txLowPassA;
-  OnePoleLowPass? _txLowPassB;
-  LinearResampler? _txResampler;
+  RealtimeLowPass? _txLowPassA;
+  RealtimeLowPass? _txLowPassB;
+  RealtimeResampler? _txResampler;
   final Float64Fifo _txAccum = Float64Fifo();
 
   // RX path: network audio at _activeProfile's rate → device output rate.
-  LinearResampler? _rxResampler;
+  RealtimeResampler? _rxResampler;
 
   @override
   Stream<AudioFrame> get frames => _frameController.stream;
@@ -263,6 +269,7 @@ class AudioEngineImpl implements AudioEngine {
 
   @override
   Future<void> start() async {
+    _checkAlive();
     // Claim engine ownership synchronously, before the first await: any
     // stale dispose() that runs from here on sees a newer epoch and won't
     // stop the engine out from under this session.
@@ -296,8 +303,7 @@ class AudioEngineImpl implements AudioEngine {
       // Superseded by a newer session, or disposed while waiting for the
       // permission dialog / lock — the engine belongs to someone else now.
       if (_engineEpoch != _myEpoch || _disposed) return;
-      await _openStreams();
-      started = true;
+      started = await _openStreams();
     });
 
     if (_disposed) {
@@ -321,7 +327,8 @@ class AudioEngineImpl implements AudioEngine {
   /// [renegotiateRoute] discards the device the session already selected
   /// before choosing again; only a restart caused by a device appearing or
   /// disappearing needs it.
-  Future<void> _openStreams({bool renegotiateRoute = false}) async {
+  Future<bool> _openStreams({bool renegotiateRoute = false}) async {
+    var opened = false;
     try {
       // Before the device goes down, not after the new one comes up.
       //
@@ -334,13 +341,11 @@ class AudioEngineImpl implements AudioEngine {
       // Seen in the field on a Galaxy A53 (1.0.14+15), and for that whole
       // window received audio went nowhere: the buffer was still draining, but
       // into a sink that was gone.
-      _buffer?.dispose();
-      _buffer = null;
-      _mediaCoordinatorTimer?.cancel();
-      _mediaCoordinatorTimer = null;
-      _mediaBuffer?.dispose();
-      _mediaBuffer = null;
+      _disposeStreamResources();
+      await _inputSub?.cancel();
+      _inputSub = null;
       await _audioIo.stop();
+      if (!_canUseDevice) return false;
       // Android: bring the Bluetooth SCO route up — and confirmed — BEFORE
       // the engine opens its streams. Older devices don't re-route streams
       // that are already open (Galaxy S8 + AirPods went silent both ways).
@@ -351,27 +356,34 @@ class AudioEngineImpl implements AudioEngine {
       } else {
         await VoiceAudioSession.configure();
       }
+      if (!_canUseDevice) return false;
       await _audioIo.requestLatency(AudioIoLatency.Balanced);
+      if (!_canUseDevice) return false;
       try {
         await _audioIo.start();
       } catch (_) {
         // Re-opening the duplex device right after a teardown can fail
         // transiently on some Android devices — give it one more chance.
         await Future<void>.delayed(const Duration(milliseconds: 300));
+        if (!_canUseDevice) return false;
         await _audioIo.start();
       }
+      if (!_canUseDevice) return false;
       // iOS: re-assert the voiceChat category AFTER start — miniaudio
       // applies its own session config during start and last write wins.
       // On Android this second call is a no-op (already engaged).
       await VoiceAudioSession.configure();
+      if (!_canUseDevice) return false;
 
       // Android: attach the platform AEC/NS/AGC to the now-open capture
       // stream's audio session. -1 elsewhere (iOS/web/OpenSL) → no-op, and
       // those paths still get processing from the voice preset / voiceChat.
       final sessionId = await _audioIo.inputSessionId();
       await VoiceAudioSession.attachEffects(sessionId);
+      if (!_canUseDevice) return false;
 
       final fmt = await _audioIo.getFormat();
+      if (!_canUseDevice) return false;
       _inputRate =
           (fmt?['input']?['sampleRate'] as num?)?.toDouble() ?? 48000.0;
       _outputRate =
@@ -396,6 +408,7 @@ class AudioEngineImpl implements AudioEngine {
       // apply the preset to the VOX gate and the cleaner but not to the one
       // knob that decides whether a link between two moving bikes stutters.
       final profile = await _settingsRepository.getAudioProfile();
+      if (!_canUseDevice) return false;
       _playbackGain.gain = profile.playbackGain;
       // Already disposed at the top of this method, before the sink it writes
       // to was closed.
@@ -406,7 +419,8 @@ class AudioEngineImpl implements AudioEngine {
       // class and [_mediaCoordinatorTimer] for the stretches voice writes
       // nothing at all.
       _mediaBuffer = MediaReceiveBuffer(sampleRate: _outputRate.toInt());
-      _rxMediaResampler = LinearResampler(inRate: 48000, outRate: _outputRate);
+      _rxMediaResampler?.dispose();
+      _rxMediaResampler = _createResampler(48000, _outputRate);
       _buffer = AudioPlaybackBuffer(
         output: _MixingOutputSink(
           _audioIo.output,
@@ -425,21 +439,61 @@ class AudioEngineImpl implements AudioEngine {
         const Duration(milliseconds: 10),
         (_) => _mediaCoordinatorTick(),
       );
+      _inputSub = _audioIo.input.listen(
+        _onInput,
+        onError: (Object e) => Logger.log('AudioIo input error: $e'),
+      );
+      _lastInputAt = DateTime.now();
+      opened = true;
+      return true;
     } catch (e) {
       // Diagnostic: without it a reopen that fails looks, in the field log,
       // exactly like one that is still in progress.
       Logger.diagnostic('audio: device did not open — $e');
-      // Continue without crashing — processor stays default, buffer is null.
+      return false;
+    } finally {
+      if (!opened) {
+        _disposeStreamResources();
+        _disposePipeline();
+        try {
+          await _audioIo.stop();
+        } catch (e) {
+          Logger.diagnostic('audio: failed device cleanup — $e');
+        } finally {
+          await VoiceAudioSession.release();
+        }
+        _setStatus(
+          const AudioEngineStatus(hasPermission: true, isStarted: false),
+        );
+      }
     }
+  }
 
-    await _inputSub?.cancel();
-    _inputSub = _audioIo.input.listen(
-      _onInput,
-      onError: (Object e) => Logger.log('AudioIo input error: $e'),
-    );
-    // Fresh streams — reset the stall clock so the watchdog gives them time
-    // to start delivering before considering another restart.
-    _lastInputAt = DateTime.now();
+  void _disposeStreamResources() {
+    _buffer?.dispose();
+    _buffer = null;
+    _mediaCoordinatorTimer?.cancel();
+    _mediaCoordinatorTimer = null;
+    _mediaBuffer?.dispose();
+    _mediaBuffer = null;
+    _rxMediaResampler?.dispose();
+    _rxMediaResampler = null;
+  }
+
+  void _disposePipeline() {
+    _txLowPassA?.dispose();
+    _txLowPassA = null;
+    _txLowPassB?.dispose();
+    _txLowPassB = null;
+    _txResampler?.dispose();
+    _txResampler = null;
+    _rxResampler?.dispose();
+    _rxResampler = null;
+    _spectralSuppressor?.dispose();
+    _spectralSuppressor = null;
+    _rnnoiseSuppressor?.dispose();
+    _rnnoiseSuppressor = null;
+    _txAccum.clear();
   }
 
   /// Rebuilds everything downstream of the wire-format contract: the
@@ -465,43 +519,65 @@ class AudioEngineImpl implements AudioEngine {
       'playback ${_outputRate.toStringAsFixed(0)}Hz)',
     );
 
-    _processor = AudioProcessor(sampleRate: profileRate);
     // Reconstructed, not reset: each one's internal sizing (the spectral
     // window, RNNoise's up/down resample ratio) is fixed at construction and
     // depends on this rate. The old RNNoise instance holds native denoiser
     // state that [reset] doesn't free — only [dispose] does.
-    _spectralSuppressor = SpectralNoiseSuppressor(
-      sampleRateHz: profile.sampleRateHz,
-    );
-    _rnnoiseSuppressor.dispose();
-    _rnnoiseSuppressor = RnnoiseSuppressor(txRateHz: profile.sampleRateHz);
-    // After the suppressors are rebuilt, not before: rnnoise's construction
-    // re-probes native availability, so the plan can change here.
-    _applySuppression();
-
-    if (_inputRate > profileRate) {
-      _txLowPassA = OnePoleLowPass(
-        sampleRate: _inputRate,
-        cutoffHz: profileRate * 0.45,
-      );
-      _txLowPassB = OnePoleLowPass(
-        sampleRate: _inputRate,
-        cutoffHz: profileRate * 0.45,
-      );
-    } else {
-      _txLowPassA = null;
-      _txLowPassB = null;
+    final processor = AudioProcessor(sampleRate: profileRate);
+    RealtimeSpectralSuppressor? spectral;
+    RnnoiseSuppressor? rnnoise;
+    RealtimeLowPass? lowPassA;
+    RealtimeLowPass? lowPassB;
+    RealtimeResampler? txResampler;
+    RealtimeResampler? rxResampler;
+    try {
+      spectral = _createSpectralSuppressor(profile.sampleRateHz);
+      rnnoise = RnnoiseSuppressor(txRateHz: profile.sampleRateHz);
+      if (_inputRate > profileRate) {
+        lowPassA = _createLowPass(_inputRate, profileRate * 0.45);
+        lowPassB = _createLowPass(_inputRate, profileRate * 0.45);
+      }
+      txResampler = _createResampler(_inputRate, profileRate);
+      rxResampler = _createResampler(profileRate, _outputRate);
+    } catch (_) {
+      spectral?.dispose();
+      rnnoise?.dispose();
+      lowPassA?.dispose();
+      lowPassB?.dispose();
+      txResampler?.dispose();
+      rxResampler?.dispose();
+      rethrow;
     }
-    _txResampler = LinearResampler(inRate: _inputRate, outRate: profileRate);
-    _txAccum.clear();
 
-    _rxResampler = LinearResampler(inRate: profileRate, outRate: _outputRate);
+    // Publish only a complete pipeline: a failed allocation leaves the
+    // existing format and its native state usable by the current session.
+    _disposePipeline();
+    _processor = processor;
+    _spectralSuppressor = spectral;
+    _rnnoiseSuppressor = rnnoise;
+    _txLowPassA = lowPassA;
+    _txLowPassB = lowPassB;
+    _txResampler = txResampler;
+    _rxResampler = rxResampler;
+    _applySuppression();
   }
+
+  RealtimeResampler _createResampler(double inRate, double outRate) =>
+      _audioIo.createRealtimeResampler(inRate, outRate) ??
+      LinearResampler(inRate: inRate, outRate: outRate);
+
+  RealtimeLowPass _createLowPass(double sampleRate, double cutoffHz) =>
+      _audioIo.createRealtimeLowPass(sampleRate, cutoffHz) ??
+      OnePoleLowPass(sampleRate: sampleRate, cutoffHz: cutoffHz);
+
+  RealtimeSpectralSuppressor _createSpectralSuppressor(int sampleRate) =>
+      _audioIo.createRealtimeSpectralSuppressor(sampleRate) ??
+      SpectralNoiseSuppressor(sampleRateHz: sampleRate);
 
   // ── Internal ───────────────────────────────────────────────────────────────
 
   void _onInput(List<double> samples) {
-    if (_frameController.isClosed) return;
+    if (_disposed || _frameController.isClosed) return;
     // Liveness heartbeat for the watchdog — any callback counts, even an
     // (unlikely) empty buffer means the capture stream is still alive.
     _lastInputAt = DateTime.now();
@@ -523,9 +599,9 @@ class AudioEngineImpl implements AudioEngine {
     // reduced strength so the two don't compound). Which stages run and how
     // hard is decided by [SuppressionPlan], not here — see [_applySuppression].
     final plan = _suppressionPlan;
-    var suppressed = resampled;
-    if (plan.useRnnoise) suppressed = _rnnoiseSuppressor.process(suppressed);
-    if (plan.useSpectral) suppressed = _spectralSuppressor.process(suppressed);
+    List<double> suppressed = resampled;
+    if (plan.useRnnoise) suppressed = _rnnoiseSuppressor!.process(suppressed);
+    if (plan.useSpectral) suppressed = _spectralSuppressor!.process(suppressed);
     _txAccum.addAll(suppressed);
 
     final frameSamples = _activeProfile.frameSamples;
@@ -591,7 +667,7 @@ class AudioEngineImpl implements AudioEngine {
       'peakRms=${_capPeakRms.toStringAsFixed(4)} '
       'meanRms=${meanRms.toStringAsFixed(4)} '
       'cleaner=${_suppressionEngine.name}'
-      '${_rnnoiseSuppressor.isAvailable ? '' : ' (rnnoise unavailable)'}',
+      '${(_rnnoiseSuppressor?.isAvailable ?? false) ? '' : ' (rnnoise unavailable)'}',
     );
     _resetCaptureCounters();
   }
@@ -711,13 +787,15 @@ class AudioEngineImpl implements AudioEngine {
 
   @override
   void setWireFormat(AudioFormatProfile profile) {
+    _checkAlive();
     if (profile == _activeProfile) return;
-    _activeProfile = profile;
     _rebuildForFormat(profile);
+    _activeProfile = profile;
   }
 
   @override
   List<double> processForTransmit(List<double> samples, double voxLevel) {
+    _checkAlive();
     // Half the gate's own level, so the expander only trims residual noise
     // inside frames VOX has already decided are speech — it must never be the
     // thing deciding. Capped, because this level now follows the measured
@@ -729,6 +807,8 @@ class AudioEngineImpl implements AudioEngine {
 
   @override
   void setNoiseSuppression(double strength) {
+    _checkAlive();
+    if (!strength.isFinite) throw ArgumentError.value(strength, 'strength');
     _suppressionStrength = strength.clamp(0.0, 1.0);
     _applySuppression();
   }
@@ -745,11 +825,11 @@ class AudioEngineImpl implements AudioEngine {
     final plan = SuppressionPlan.resolve(
       engine: _suppressionEngine,
       strength: _suppressionStrength,
-      rnnoiseAvailable: _rnnoiseSuppressor.isAvailable,
+      rnnoiseAvailable: _rnnoiseSuppressor?.isAvailable ?? false,
     );
     _suppressionPlan = plan;
-    _spectralSuppressor.strength = plan.spectralStrength;
-    _rnnoiseSuppressor.strength = plan.rnnoiseStrength;
+    _spectralSuppressor?.strength = plan.spectralStrength;
+    _rnnoiseSuppressor?.strength = plan.rnnoiseStrength;
   }
 
   @override
@@ -803,6 +883,7 @@ class AudioEngineImpl implements AudioEngine {
 
   @override
   void setNoiseSuppressionEngine(NoiseSuppressionEngine engine) {
+    _checkAlive();
     if (engine == _suppressionEngine) return;
     _suppressionEngine = engine;
     // A suppressor that stops being called keeps whatever streaming state it
@@ -811,8 +892,8 @@ class AudioEngineImpl implements AudioEngine {
     // then start from that stale state and produce a burst of wrongly-gained
     // or out-of-order audio on the first frames, which is precisely what the
     // user is listening for when they change the setting to compare.
-    _spectralSuppressor.reset();
-    _rnnoiseSuppressor.reset();
+    _spectralSuppressor?.reset();
+    _rnnoiseSuppressor?.reset();
     _applySuppression();
   }
 
@@ -871,6 +952,7 @@ class AudioEngineImpl implements AudioEngine {
   static const _kNativeMediaCushionMs = 30;
 
   void _mediaCoordinatorTick() {
+    if (!_canUseDevice) return;
     final voiceQueue = _audioIo.voiceQueue;
     if (voiceQueue != null) {
       _mediaCoordinatorTickNative(voiceQueue);
@@ -942,30 +1024,44 @@ class AudioEngineImpl implements AudioEngine {
   // ── dispose ────────────────────────────────────────────────────────────────
 
   @override
-  Future<void> dispose() async {
+  Future<void> dispose() {
     // Flagged synchronously so an in-flight start() bails at its next
     // checkpoint instead of resurrecting the engine.
     _disposed = true;
+    return _disposeFuture ??= _dispose();
+  }
+
+  Future<void> _dispose() async {
     _watchdog?.cancel();
     _watchdog = null;
     _routeSettle?.cancel();
     _routeSettle = null;
-    await _routeSub?.cancel();
-    _routeSub = null;
-    await _inputSub?.cancel();
-    await _frameController.close();
-    await _receivedFrameController.close();
-    await _statusController.close();
     _buffer?.dispose();
     _mediaCoordinatorTimer?.cancel();
-    _mediaCoordinatorTimer = null;
-    _mediaBuffer?.dispose();
-    _mediaBuffer = null;
-    _rnnoiseSuppressor.dispose();
-    // Epoch-guarded: if a newer session already claimed the engine (the
-    // user re-entered the walkie page before this dispose chain finished),
-    // leave it running for them instead of killing their session.
-    await _stopEngineIfOwned();
+    await _routeSub?.cancel();
+    _routeSub = null;
+    // Wait for an in-flight reopen before freeing DSP. It may be suspended
+    // after creating a new pipeline and must not publish resources after
+    // this disposal has already freed the previous ones.
+    try {
+      await _withEngineLock(() async {
+        await _inputSub?.cancel();
+        _inputSub = null;
+        _disposeStreamResources();
+        _disposePipeline();
+        // A newer session may already have claimed the process-wide device.
+        if (_engineEpoch != _myEpoch) return;
+        try {
+          await _audioIo.stop();
+        } finally {
+          await VoiceAudioSession.release();
+        }
+      });
+    } finally {
+      await _frameController.close();
+      await _receivedFrameController.close();
+      await _statusController.close();
+    }
   }
 }
 
