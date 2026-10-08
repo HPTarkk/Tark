@@ -217,6 +217,42 @@ void main() {
     expect(find.byKey(const Key('room-reconnect-switch')), findsOneWidget);
   });
 
+  testWidgets('a failed network join releases the scan for retry', (
+    tester,
+  ) async {
+    final joiner = _FailingJoiner();
+    getIt.registerSingleton<HotspotJoiner>(joiner);
+    await pumpEntry(tester, lastHost: peerId);
+    await tapStart(tester);
+    const credentials = HotspotCredentials(
+      ssid: 'TARK',
+      passphrase: 'password',
+    );
+    final surface = tester.widget<QrScannerSurface>(
+      find.byType(QrScannerSurface),
+    );
+    bool? accepted;
+    final scan = surface.onCode(credentials.qrPayload());
+    unawaited(
+      scan.then((result) {
+        accepted = result;
+      }),
+    );
+    await settle(tester);
+
+    expect(accepted, isFalse);
+    expect(joiner.attempts, 1);
+    final retry = surface.onCode(credentials.qrPayload());
+    await settle(tester);
+    expect(await retry, isFalse);
+    expect(joiner.attempts, 2);
+    expect(
+      tester.widget<QrScannerSurface>(find.byType(QrScannerSurface)).errorText,
+      isNotNull,
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   group('Wi-Fi off', () {
     testWidgets('the scanning phone asks for Wi-Fi before the camera', (
       tester,
@@ -347,6 +383,21 @@ class _FakeTransfer implements TransferRepository {
 
   @override
   Stream<ConnectionHealth> connect() => _health.stream;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(invocation.memberName.toString());
+}
+
+class _FailingJoiner implements HotspotJoiner {
+  int attempts = 0;
+
+  @override
+  Future<HotspotJoinResult> join(HotspotCredentials credentials) async {
+    attempts++;
+    if (attempts == 1) throw StateError('Network join failed');
+    return HotspotJoinResult.declined;
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) =>

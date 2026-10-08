@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/settings/settings_repository.dart';
+import '../../../../core/utils/logger.dart';
 import '../../../../core/widget/qr_scanner_surface.dart';
 import '../../../transfer/api/hotspot_invite_api.dart';
 import '../../../transfer/api/transfer_api.dart';
@@ -101,6 +102,12 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
     } on FormatException {
       if (!mounted) return false;
       return _notAnInvite(raw);
+    } catch (error) {
+      Logger.log('Room QR join failed: $error');
+      if (mounted) {
+        setState(() => _error = context.getString.roomjoin_not_joined);
+      }
+      return false;
     } finally {
       _joining = false;
     }

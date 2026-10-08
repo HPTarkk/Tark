@@ -231,6 +231,8 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   StreamSubscription<WakiPacket>? _peerSub;
   StreamSubscription<void>? _stoppedSub;
   StreamSubscription<void>? _lostSub;
+  Timer? _peerPresence;
+  int _peerDiscoveryGeneration = 0;
 
   /// Whether our own AP has already been dropped for the join now in progress.
   /// See [_dropOwnApBeforeJoining]; reset wherever an AP can come back up.
@@ -304,6 +306,7 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   }
 
   Future<void> chooseRole(HotspotRole role) async {
+    _stopPeerPresence();
     // Hosting means there is a channel to be in, and its code has to exist
     // before the QR is drawn. `createIfNone` rather than `create` because the
     // landing page's "start a channel" has usually made one already, and
@@ -489,6 +492,7 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   /// Host flow: request the Wi-Fi/location permissions LocalOnlyHotspot needs,
   /// start the hotspot, then listen for the peer.
   Future<void> startHost() async {
+    _stopPeerPresence();
     emit(state.copyWith(phase: HotspotPhase.starting, errorCode: null));
 
     // Asked before the AP goes up, not after. On a single-radio phone the
@@ -694,6 +698,7 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   /// iOS, NEHotspotConfiguration. Either way the UI falls back to a manual join
   /// if the OS won't do it for us.
   Future<void> joinNetwork(HotspotCredentials creds) async {
+    _stopPeerPresence();
     emit(
       state.copyWith(
         credentials: creds,
@@ -799,6 +804,7 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
     _lostSub = _joiner.onLost.listen((_) {
       if (isClosed || state.peerConnected) return;
       Logger.log('Hotspot link lost — offering rejoin');
+      _stopPeerPresence();
       _peerSub?.cancel();
       _peerSub = null;
       emit(state.copyWith(joinPhase: JoinPhase.lost));
@@ -807,21 +813,65 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   }
 
   /// Back to the scanner after an invalid code or a lost link.
-  void resetJoin() => emit(state.copyWith(joinPhase: JoinPhase.idle));
+  void resetJoin() {
+    _stopPeerPresence();
+    emit(state.copyWith(joinPhase: JoinPhase.idle));
+  }
 
   // ----------------------------------------------------------------- shared
 
   void _listenForPeer() {
+    _stopPeerPresence();
+    final generation = _peerDiscoveryGeneration;
     _peerSub?.cancel();
     // Any packet on the shared LAN means the other side is in the channel. The
     // Wi-Fi repo's generation counter makes it safe for the walkie screen to
     // call startListening() again after we navigate.
     _peerSub = _wifi.startListening().listen((_) {
-      if (!isClosed && !state.peerConnected) {
+      if (!isClosed &&
+          generation == _peerDiscoveryGeneration &&
+          !state.peerConnected) {
+        // Answer before the screen hands the link to the call. The other
+        // phone also needs to hear us, even if our first announce preceded
+        // its socket bind and navigation retires the next timer tick.
+        _announcePeerPresence(generation);
         emit(state.copyWith(peerConnected: true));
         _sfx.play(SfxEvent.peerJoin);
       }
     }, onError: (Object e) => Logger.log('Hotspot peer listen error: $e'));
+    // Both phones used to bind UDP and wait without sending anything. A
+    // transport only pings peers it has already heard, so neither could
+    // discover the other until someone manually opened the call first.
+    // Setup presence uses the scanned channel and never starts microphone
+    // capture. The live session takes over after this cubit closes.
+    _announcePeerPresence(generation);
+    _peerPresence = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => _announcePeerPresence(generation),
+    );
+  }
+
+  void _announcePeerPresence(int generation) {
+    if (isClosed ||
+        generation != _peerDiscoveryGeneration ||
+        _peerSub == null) {
+      return;
+    }
+    // Keep transient discovery/send failures off the UI path, including a
+    // transport that throws before it returns its Future.
+    unawaited(
+      Future<void>.sync(() async {
+        await _wifi.sendPresence('', false);
+      }).catchError((Object e) {
+        Logger.log('Hotspot setup presence failed: $e');
+      }),
+    );
+  }
+
+  void _stopPeerPresence() {
+    _peerDiscoveryGeneration++;
+    _peerPresence?.cancel();
+    _peerPresence = null;
   }
 
   /// Tears the bridge down — call this only when the user backs out WITHOUT
@@ -852,6 +902,7 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   }
 
   Future<void> _teardownSubscriptions() async {
+    _stopPeerPresence();
     await _peerSub?.cancel();
     _peerSub = null;
     await _stoppedSub?.cancel();
@@ -862,6 +913,7 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
 
   @override
   Future<void> close() async {
+    _stopPeerPresence();
     // Intentionally does NOT stop the hotspot, release the joined network OR
     // stop the keep-alive: navigating into the walkie session disposes this
     // cubit while the link — and the foreground service guarding it — must stay

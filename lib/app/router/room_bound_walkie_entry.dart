@@ -595,7 +595,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       if (!mounted || token != _reconnectToken || credentials == null) {
         return _EntryState.lobby(room);
       }
-      var joined = await PreLiveHotspotBootstrap().joinHost(credentials);
+      var joined = await _joinScannedNetwork(credentials);
       if (!mounted || token != _reconnectToken) return _EntryState.lobby(room);
       if (joined == HotspotJoinResult.wifiOff) {
         // Switched off after the camera opened. The code is already in hand,
@@ -603,7 +603,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         // second scan.
         _completeScan(false);
         if (!await _awaitWifiForScan(token)) return _EntryState.lobby(room);
-        joined = await PreLiveHotspotBootstrap().joinHost(credentials);
+        joined = await _joinScannedNetwork(credentials);
         if (!mounted || token != _reconnectToken) {
           return _EntryState.lobby(room);
         }
@@ -639,6 +639,17 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       showCode: false,
       message: context.getString.reconnect_join_failed,
     );
+  }
+
+  Future<HotspotJoinResult> _joinScannedNetwork(
+    HotspotCredentials credentials,
+  ) async {
+    try {
+      return await PreLiveHotspotBootstrap().joinHost(credentials);
+    } catch (error) {
+      Logger.log('Room network scan join failed: $error');
+      return HotspotJoinResult.declined;
+    }
   }
 
   /// The longest this phone spends bringing its hotspot up before it says it
