@@ -44,11 +44,15 @@ class InstallIdentity {
         // right now. A key for this run only keeps the app working; writing
         // it would throw away a key that reads fine next launch.
         persist = false;
-        Logger.log('InstallIdentity: secure storage busy, one-run key ($error)');
+        Logger.log(
+          'InstallIdentity: secure storage busy, one-run key ($error)',
+        );
       } else {
         // Unreadable is treated as absent: a fresh key only costs one online
         // check, while trusting a half-read key could cost the entitlement.
-        Logger.log('InstallIdentity: stored key unreadable, replacing ($error)');
+        Logger.log(
+          'InstallIdentity: stored key unreadable, replacing ($error)',
+        );
       }
     }
 

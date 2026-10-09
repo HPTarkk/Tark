@@ -11,8 +11,7 @@ final class _FailingReads implements AppSecureStorage {
   final Map<String, String> writes = {};
 
   @override
-  Future<String?> read(String key) async =>
-      throw PlatformException(code: code);
+  Future<String?> read(String key) async => throw PlatformException(code: code);
 
   @override
   Future<void> write(String key, String value) async => writes[key] = value;
