@@ -480,9 +480,10 @@ BoxDecoration roomCardDecoration({
   required BorderRadius radius,
 }) {
   final amber = AppColors.amber;
+  final base = AppColors.fieldBackground;
   return BoxDecoration(
     borderRadius: radius,
-    color: AppColors.surface,
+    color: base,
     border: Border.all(
       color: lit ? amber.withValues(alpha: 0.45) : AppColors.border,
       width: lit ? 1.5 : 1,
@@ -491,8 +492,8 @@ BoxDecoration roomCardDecoration({
       center: const Alignment(0, -0.9),
       radius: 1.3,
       colors: [
-        amber.withValues(alpha: lit ? 0.18 : 0.0),
-        AppColors.surface.withValues(alpha: 0.0),
+        Color.alphaBlend(amber.withValues(alpha: lit ? 0.18 : 0.0), base),
+        base,
       ],
     ),
     boxShadow: [

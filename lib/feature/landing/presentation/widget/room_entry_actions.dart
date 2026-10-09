@@ -205,7 +205,9 @@ class _RoomEntryActionState extends State<RoomEntryAction>
   Widget _shell(BuildContext context, {required double pulse, Widget? child}) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: _hero ? AppColors.amber.withValues(alpha: 0.10) : AppColors.card,
+        color: _hero
+            ? AppColors.amber.withValues(alpha: 0.10)
+            : AppColors.fieldCard,
         borderRadius: _radius,
         border: Border.all(
           color: _hero

@@ -1,6 +1,14 @@
+import 'dart:io';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tark/core/l10n/app_localizations.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tark/core/theme/app_theme.dart';
+import 'package:tark/core/theme/theme_service.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tark/core/router/routes.dart';
@@ -14,6 +22,16 @@ import 'package:tark/feature/room/presentation/page/room_list_page.dart';
 
 void main() {
   final getIt = GetIt.instance;
+
+  setUpAll(() async {
+    final fonts = FontLoader('Vazirmatn')
+      ..addFont(rootBundle.load('assets/fonts/Vazirmatn-Regular.ttf'))
+      ..addFont(rootBundle.load('assets/fonts/Vazirmatn-Bold.ttf'));
+    await fonts.load();
+    await (FontLoader(
+      'MaterialIcons',
+    )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
+  });
 
   tearDown(() async {
     await getIt.reset();
@@ -114,7 +132,119 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  for (final mode in AppThemeMode.values) {
+    for (final lang in ['fa', 'en']) {
+      testWidgets(
+        '$lang ${mode.name} room management stays separate from opening a room',
+        (tester) async {
+          const previewDir = String.fromEnvironment('ROOM_PREVIEW_DIR');
+          final preview = previewDir.isNotEmpty;
+          tester.view.physicalSize = preview
+              ? const Size(390, 844)
+              : const Size(320, 568);
+          tester.view.devicePixelRatio = 1;
+          addTearDown(tester.view.resetPhysicalSize);
+          addTearDown(tester.view.resetDevicePixelRatio);
+          final semantics = tester.ensureSemantics();
+          SharedPreferences.setMockInitialValues({'app_theme': mode.name});
+          ThemeService.initialize(await SharedPreferences.getInstance());
+          await ThemeService.setMode(mode);
+          final first = _savedRoom(
+            'c' * 32,
+            lang == 'fa' ? 'جادهٔ شمال' : 'Northbound',
+            memberCount: 2,
+          );
+          final second = _savedRoom(
+            'd' * 32,
+            lang == 'fa' ? 'جمعه با رفقا' : 'Friday crew',
+            memberCount: 3,
+          );
+          final repository = _FakeRoomRepository(
+            rooms: [first, second],
+            selected: second.room.id,
+          );
+          getIt.registerFactory<RoomListCubit>(() => RoomListCubit(repository));
+          final boundary = GlobalKey();
+          await tester.pumpWidget(
+            MaterialApp(
+              debugShowCheckedModeBanner: false,
+              theme: buildAppTheme(),
+              locale: Locale(lang),
+              supportedLocales: AppLocalizations.supportedLocales,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              builder: (context, child) => RepaintBoundary(
+                key: boundary,
+                child: MediaQuery(
+                  data: MediaQuery.of(context).copyWith(
+                    disableAnimations: true,
+                    textScaler: TextScaler.linear(preview ? 1 : 1.5),
+                  ),
+                  child: child!,
+                ),
+              ),
+              home: RoomListPage.buildPage(),
+            ),
+          );
+          await tester.pumpAndSettle();
+          if (preview) {
+            await _capture(
+              tester,
+              boundary,
+              '$previewDir/rooms-${mode.name}-$lang.png',
+            );
+          }
+          final menu = find.byKey(Key('room-menu-${first.room.id.value}'));
+          expect(
+            tester.getSemantics(menu).getSemanticsData().tooltip,
+            contains(lang == 'fa' ? 'مدیریت' : 'Manage'),
+          );
+          await tester.tap(menu);
+          await tester.pumpAndSettle();
+          expect(find.byKey(const Key('room-actions-sheet')), findsOneWidget);
+          expect(repository.selected, second.room.id);
+          expect(repository.transportStarts, 0);
+          for (final action in ['rename', 'archive', 'leave', 'delete']) {
+            final row = find.byKey(Key('room-action-$action'));
+            await tester.ensureVisible(row);
+            expect(tester.getSize(row).height, greaterThanOrEqualTo(48));
+          }
+          expect(
+            Directionality.of(
+              tester.element(find.byKey(const Key('room-actions-sheet'))),
+            ),
+            lang == 'fa' ? TextDirection.rtl : TextDirection.ltr,
+          );
+          expect(tester.takeException(), isNull);
+          if (preview) {
+            await _capture(
+              tester,
+              boundary,
+              '$previewDir/room-menu-${mode.name}-$lang.png',
+            );
+          }
+          await tester.tap(find.byKey(const Key('room-actions-close')));
+          await tester.pumpAndSettle();
+          expect(find.byKey(const Key('room-actions-sheet')), findsNothing);
+          expect(repository.selected, second.room.id);
+          expect(tester.takeException(), isNull);
+          await tester.pumpWidget(const SizedBox());
+          semantics.dispose();
+        },
+      );
+    }
+  }
 }
+
+Future<void> _capture(WidgetTester tester, GlobalKey boundary, String path) =>
+    tester.runAsync(() async {
+      final render =
+          boundary.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+      final image = await render.toImage(pixelRatio: 2);
+      final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+      await File(path).writeAsBytes(bytes!.buffer.asUint8List());
+      image.dispose();
+    });
 
 Widget _app(Locale locale, Widget child) => MaterialApp(
   locale: locale,

@@ -84,6 +84,17 @@ abstract final class AppColors {
   static Color get textPrimary => palette.textPrimary;
   static Color get textSecondary => palette.textSecondary;
 
+  // A faint wash from the website's forest palette, reserved for Room surfaces.
+  // Primary orange and the brighter connection/status green keep their roles.
+  static Color get _fieldTint =>
+      ThemeService.isLight ? const Color(0xFFCDD7C6) : const Color(0xFF304538);
+  static Color get fieldSurface =>
+      Color.alphaBlend(_fieldTint.withValues(alpha: 0.16), surface);
+  static Color get fieldCard =>
+      Color.alphaBlend(_fieldTint.withValues(alpha: 0.10), card);
+  static Color get fieldBackground =>
+      Color.alphaBlend(_fieldTint.withValues(alpha: 0.10), background);
+
   /// Status/navigation bar chrome matching the active palette.
   static SystemUiOverlayStyle get systemOverlayStyle {
     final icons = ThemeService.isLight ? Brightness.dark : Brightness.light;
