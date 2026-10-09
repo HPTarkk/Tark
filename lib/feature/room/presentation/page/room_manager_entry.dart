@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'room_list_page.dart';
+import 'room_create_page.dart';
 
-/// Production entry for durable Room management.
-///
-/// Landing owns Create and Join; this route owns saved-Room management only.
+/// Saved-Room management, or direct creation when Landing requests it.
 class RoomManagerEntry extends StatelessWidget {
   const RoomManagerEntry({this.createOnOpen = false, super.key});
 
@@ -14,9 +13,8 @@ class RoomManagerEntry extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // One screen, one purpose: manage saved Rooms.  The landing screen owns
-    // the two entry actions (create / scan), so this page must not duplicate
-    // either of them as a second, competing CTA.
-    return RoomListPage.buildPage(createOnOpen: createOnOpen);
+    // Select the destination before its first frame. Pushing creation from a
+    // list's post-frame callback briefly exposed the list on every arrival.
+    return createOnOpen ? RoomCreatePage.buildPage() : RoomListPage.buildPage();
   }
 }

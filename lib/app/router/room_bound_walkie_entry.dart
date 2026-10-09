@@ -1773,11 +1773,26 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       }
       final state = snapshot.data ?? const _EntryState.invalidSelection();
       if (state.live) {
-        final livePage = CarrierStatusScope(
+        Widget livePage = CarrierStatusScope(
           controller: _binding?.carrierPromotion,
           child: WalkieTalkiePage.buildPage(),
         );
         final room = state.room;
+        final mode = _modeStore?.mode;
+        // Legacy setup pages already acknowledge their network. Room-first
+        // entry reaches this point only after the signed peer proof is verified.
+        if (room != null &&
+            !widget.ride &&
+            (mode == TransferMode.wifi || mode == TransferMode.hotspot)) {
+          livePage = NetworkConnectionArrival(
+            key: ValueKey(
+              'network-arrival-${room.room.id.value}-$_readinessEpoch',
+            ),
+            mode: mode!,
+            roomName: room.room.name,
+            child: livePage,
+          );
+        }
         final binding = _binding;
         final runtime = binding?.runtime;
         if (room != null && binding != null && runtime != null) {

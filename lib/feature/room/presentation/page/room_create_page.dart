@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/entitlement/license_gate.dart';
 import '../../../../core/entitlement/premium_feature.dart';
 import '../../../../core/entitlement/room_access_policy.dart';
@@ -10,6 +11,8 @@ import '../../../../core/entitlement/subscription_gate_page.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/motion/route_arrival.dart';
+import '../../../../core/router/route_exit.dart';
+import '../../../../core/router/routes.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/localized_counter.dart';
@@ -20,7 +23,23 @@ import '../widget/room_formation.dart';
 import '../widget/room_visuals.dart';
 
 class RoomCreatePage extends StatefulWidget {
-  const RoomCreatePage({super.key});
+  const RoomCreatePage({super.key, this.onCreated, this.onExit});
+
+  /// Landing's create action renders this page on its first route frame.
+  /// Creation from the saved-room list still uses the list's existing cubit
+  /// and returns the result to that caller.
+  static Widget buildPage() => BlocProvider<RoomListCubit>(
+    create: (_) => GetIt.instance<RoomListCubit>()..load(),
+    child: Builder(
+      builder: (context) => RoomCreatePage(
+        onCreated: (_) => context.go(AppRoutes.walkiePath),
+        onExit: () => exitRouteTo(context, AppRoutes.landingPath),
+      ),
+    ),
+  );
+
+  final ValueChanged<SavedRoom>? onCreated;
+  final VoidCallback? onExit;
   @override
   State<RoomCreatePage> createState() => _RoomCreatePageState();
 }
@@ -60,6 +79,7 @@ class _RoomCreatePageState extends State<RoomCreatePage>
   Future<void> _create() async {
     if (_busy || _ready || _name.text.trim().isEmpty) return;
     final cubit = context.read<RoomListCubit>();
+    if (cubit.state.loading) return;
     setState(() {
       _busy = true;
       _error = null;
@@ -100,7 +120,13 @@ class _RoomCreatePageState extends State<RoomCreatePage>
             ? const Duration(milliseconds: 500)
             : const Duration(milliseconds: 1000),
       );
-      if (mounted) Navigator.of(context).pop<SavedRoom>(created);
+      if (mounted) {
+        if (widget.onCreated case final onCreated?) {
+          onCreated(created);
+        } else {
+          Navigator.of(context).pop<SavedRoom>(created);
+        }
+      }
     } catch (_) {
       if (mounted) {
         setState(() => _error = context.getString.room_create_failed);
@@ -137,8 +163,12 @@ class _RoomCreatePageState extends State<RoomCreatePage>
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
+    final loadingRooms = context.watch<RoomListCubit>().state.loading;
     return PopScope(
-      canPop: !_busy && !_ready,
+      canPop: widget.onExit == null && !_busy && !_ready,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && !_busy && !_ready) widget.onExit?.call();
+      },
       child: Scaffold(
         backgroundColor: AppColors.background,
         body: Stack(
@@ -154,7 +184,8 @@ class _RoomCreatePageState extends State<RoomCreatePage>
                         IconButton(
                           onPressed: _busy || _ready
                               ? null
-                              : () => Navigator.of(context).pop(),
+                              : widget.onExit ??
+                                    () => Navigator.of(context).pop(),
                           tooltip: MaterialLocalizations.of(
                             context,
                           ).backButtonTooltip,
@@ -310,7 +341,11 @@ class _RoomCreatePageState extends State<RoomCreatePage>
                               : _locked
                               ? Icons.workspace_premium_rounded
                               : Icons.add_rounded,
-                          onTap: _busy || _ready || _name.text.trim().isEmpty
+                          onTap:
+                              _busy ||
+                                  _ready ||
+                                  loadingRooms ||
+                                  _name.text.trim().isEmpty
                               ? null
                               : () => unawaited(_create()),
                         ),

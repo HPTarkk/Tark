@@ -143,7 +143,7 @@ void main() {
     for (final quiet in [join, create]) {
       expect(quiet.border!.top.width, 1);
       expect(quiet.boxShadow, isNull);
-      expect(quiet.color, AppColors.card);
+      expect(quiet.color, AppColors.fieldCard);
     }
     // And the pair are drawn identically, because they really are peers —
     // which is exactly what the third tier is for saying about MY ROOMS.

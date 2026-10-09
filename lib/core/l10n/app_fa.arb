@@ -937,5 +937,9 @@
     "room_create_ready": "اتاقت آماده‌ست",
     "room_create_failed": "اتاق ساخته نشد. اسمش را نگه داشتیم؛ دوباره امتحان کن.",
     "bt_signal_search_hint": "دنبال گوشی‌ای می‌گردیم که آمادهٔ اتصال باشد.",
-    "bt_signal_link_hint": "گوشی پیدا شد؛ داریم ارتباط را برقرار می‌کنیم."
+    "bt_signal_link_hint": "گوشی پیدا شد؛ داریم ارتباط را برقرار می‌کنیم.",
+    "network_link_wifi_title": "اتصال وای‌فای آماده‌ست",
+    "network_link_wifi_detail": "صداتون روی همین شبکه، بین گوشی‌ها می‌ره.",
+    "network_link_hotspot_title": "اتصال هات‌اسپات آماده‌ست",
+    "network_link_hotspot_detail": "یک گوشی شبکه رو می‌سازه. صداتون از همون مسیر می‌ره."
 }

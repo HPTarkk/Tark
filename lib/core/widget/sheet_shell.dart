@@ -10,9 +10,15 @@ import '../theme/app_colors.dart';
 /// drifting apart — one with a different radius, one with a different scrim —
 /// and the drift is only ever visible when two of them are opened in a row.
 class SheetShell extends StatelessWidget {
-  const SheetShell({required this.child, this.topFraction = 0.08, super.key});
+  const SheetShell({
+    required this.child,
+    this.topFraction = 0.08,
+    this.surfaceColor,
+    super.key,
+  });
 
   final Widget child;
+  final Color? surfaceColor;
 
   /// How much of the screen stays uncovered above the sheet. A sheet that
   /// reaches the status bar has stopped being a sheet and become a page that
@@ -30,7 +36,7 @@ class SheetShell extends StatelessWidget {
       ),
       child: Container(
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: surfaceColor ?? AppColors.surface,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: AppColors.amber.withValues(alpha: 0.22)),
           boxShadow: [

@@ -914,5 +914,9 @@
     "room_create_ready": "Your room is ready",
     "room_create_failed": "Couldn't create the room. Your name is saved here; try again.",
     "bt_signal_search_hint": "Looking for a phone that is ready to connect.",
-    "bt_signal_link_hint": "Phone found. Establishing your connection."
+    "bt_signal_link_hint": "Phone found. Establishing your connection.",
+    "network_link_wifi_title": "Your Wi-Fi link is ready",
+    "network_link_wifi_detail": "Your voices travel between phones on the shared network.",
+    "network_link_hotspot_title": "Your hotspot link is ready",
+    "network_link_hotspot_detail": "One phone makes the network. Your voices travel over it."
 }

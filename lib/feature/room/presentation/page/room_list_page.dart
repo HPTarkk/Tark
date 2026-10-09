@@ -17,6 +17,7 @@ import '../../../../core/widget/confirm_sheet.dart';
 import '../../domain/entity/room.dart';
 import '../manager/room_list_cubit.dart';
 import '../widget/room_archive_sheet.dart';
+import '../widget/room_actions_sheet.dart';
 import '../widget/room_visuals.dart';
 import 'room_create_page.dart';
 
@@ -27,34 +28,18 @@ import 'room_create_page.dart';
 /// only when the user presses the explicit Start Ride action for the selected
 /// durable Room.
 class RoomListPage extends StatefulWidget {
-  static Widget buildPage({bool createOnOpen = false}) =>
-      BlocProvider<RoomListCubit>(
-        create: (_) => GetIt.instance<RoomListCubit>()..load(),
-        child: RoomListPage._(createOnOpen: createOnOpen),
-      );
+  static Widget buildPage() => BlocProvider<RoomListCubit>(
+    create: (_) => GetIt.instance<RoomListCubit>()..load(),
+    child: const RoomListPage._(),
+  );
 
-  final bool createOnOpen;
-
-  const RoomListPage._({this.createOnOpen = false});
+  const RoomListPage._();
 
   @override
   State<RoomListPage> createState() => _RoomListPageState();
 }
 
 class _RoomListPageState extends State<RoomListPage> {
-  bool _autoCreateStarted = false;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (widget.createOnOpen && !_autoCreateStarted) {
-      _autoCreateStarted = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _createRoom(context);
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return RouteExitScope(
@@ -215,10 +200,10 @@ class _RoomListPageState extends State<RoomListPage> {
         transitionsBuilder: (_, animation, _, child) => FadeTransition(
           opacity: animation,
           child: SlideTransition(
-            position: Tween(begin: const Offset(0, 0.08), end: Offset.zero)
-                .animate(
-                  animation.drive(CurveTween(curve: AppMotion.drawer)),
-                ),
+            position: Tween(
+              begin: const Offset(0, 0.08),
+              end: Offset.zero,
+            ).animate(animation.drive(CurveTween(curve: AppMotion.drawer))),
             child: child,
           ),
         ),
@@ -369,7 +354,7 @@ class _RoomCard extends StatelessWidget {
       selected: selected,
       button: !archived,
       label: _roomSemantics(context, saved.room.name, members, selected),
-      excludeSemantics: true,
+      explicitChildNodes: true,
       child: PressableScale(
         key: Key('room-${saved.room.id.value}'),
         // The card is the control: one tap opens this Room's lobby.
@@ -589,55 +574,42 @@ class _RoomMenu extends StatelessWidget {
   final VoidCallback onDelete;
 
   @override
-  Widget build(BuildContext context) => PopupMenuButton<_RoomAction>(
+  Widget build(BuildContext context) => IconButton(
     key: Key('room-menu-${saved.room.id.value}'),
-    enabled: !busy,
     tooltip: context.getString.rooms_manage,
-    iconColor: AppColors.textSecondary,
-    iconSize: 20,
-    position: PopupMenuPosition.under,
-    routeSettings: const RouteSettings(name: 'RoomMenu'),
-    onSelected: (action) {
-      ScreenLog.tap('RoomMenu ${action.name}');
-      switch (action) {
-        case _RoomAction.rename:
-          onRename();
-        case _RoomAction.archive:
-          onArchive();
-        case _RoomAction.leave:
-          onLeave();
-        case _RoomAction.delete:
-          onDelete();
-      }
-    },
-    itemBuilder: (_) => [
-      PopupMenuItem(
-        value: _RoomAction.rename,
-        child: Text(context.getString.rooms_rename),
+    style: IconButton.styleFrom(
+      foregroundColor: AppColors.textSecondary,
+      backgroundColor: AppColors.fieldCard.withValues(alpha: 0.72),
+      minimumSize: const Size(44, 44),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: AppColors.border.withValues(alpha: 0.65)),
       ),
-      if (!archived)
-        PopupMenuItem(
-          value: _RoomAction.archive,
-          child: Text(context.getString.rooms_archive),
-        ),
-      PopupMenuItem(
-        value: _RoomAction.leave,
-        child: Text(context.getString.rooms_leave),
-      ),
-      // Last, and the only coloured item: archive and leave are both
-      // recoverable, and this one is not.
-      PopupMenuItem(
-        value: _RoomAction.delete,
-        child: Text(
-          context.getString.rooms_delete,
-          style: TextStyle(color: AppColors.red, fontWeight: FontWeight.w700),
-        ),
-      ),
-    ],
+    ),
+    icon: const Icon(Icons.more_horiz_rounded, size: 20),
+    onPressed: busy
+        ? null
+        : () async {
+            final action = await showRoomActionsSheet(
+              context,
+              roomName: saved.room.name,
+              archived: archived,
+            );
+            if (!context.mounted || action == null) return;
+            ScreenLog.tap('RoomMenu ${action.name}');
+            switch (action) {
+              case RoomAction.rename:
+                onRename();
+              case RoomAction.archive:
+                onArchive();
+              case RoomAction.leave:
+                onLeave();
+              case RoomAction.delete:
+                onDelete();
+            }
+          },
   );
 }
-
-enum _RoomAction { rename, archive, leave, delete }
 
 /// Way into the archive, carrying how much is in it.
 ///

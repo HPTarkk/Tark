@@ -5485,6 +5485,30 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'گوشی پیدا شد؛ داریم ارتباط را برقرار می‌کنیم.'**
   String get bt_signal_link_hint;
+
+  /// No description provided for @network_link_wifi_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتصال وای‌فای آماده‌ست'**
+  String get network_link_wifi_title;
+
+  /// No description provided for @network_link_wifi_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'صداتون روی همین شبکه، بین گوشی‌ها می‌ره.'**
+  String get network_link_wifi_detail;
+
+  /// No description provided for @network_link_hotspot_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتصال هات‌اسپات آماده‌ست'**
+  String get network_link_hotspot_title;
+
+  /// No description provided for @network_link_hotspot_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'یک گوشی شبکه رو می‌سازه. صداتون از همون مسیر می‌ره.'**
+  String get network_link_hotspot_detail;
 }
 
 class _AppLocalizationsDelegate
