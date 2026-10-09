@@ -27,34 +27,18 @@ import 'room_create_page.dart';
 /// only when the user presses the explicit Start Ride action for the selected
 /// durable Room.
 class RoomListPage extends StatefulWidget {
-  static Widget buildPage({bool createOnOpen = false}) =>
-      BlocProvider<RoomListCubit>(
-        create: (_) => GetIt.instance<RoomListCubit>()..load(),
-        child: RoomListPage._(createOnOpen: createOnOpen),
-      );
+  static Widget buildPage() => BlocProvider<RoomListCubit>(
+    create: (_) => GetIt.instance<RoomListCubit>()..load(),
+    child: const RoomListPage._(),
+  );
 
-  final bool createOnOpen;
-
-  const RoomListPage._({this.createOnOpen = false});
+  const RoomListPage._();
 
   @override
   State<RoomListPage> createState() => _RoomListPageState();
 }
 
 class _RoomListPageState extends State<RoomListPage> {
-  bool _autoCreateStarted = false;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (widget.createOnOpen && !_autoCreateStarted) {
-      _autoCreateStarted = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _createRoom(context);
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return RouteExitScope(
@@ -215,10 +199,10 @@ class _RoomListPageState extends State<RoomListPage> {
         transitionsBuilder: (_, animation, _, child) => FadeTransition(
           opacity: animation,
           child: SlideTransition(
-            position: Tween(begin: const Offset(0, 0.08), end: Offset.zero)
-                .animate(
-                  animation.drive(CurveTween(curve: AppMotion.drawer)),
-                ),
+            position: Tween(
+              begin: const Offset(0, 0.08),
+              end: Offset.zero,
+            ).animate(animation.drive(CurveTween(curve: AppMotion.drawer))),
             child: child,
           ),
         ),
