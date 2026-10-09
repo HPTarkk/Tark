@@ -345,11 +345,29 @@ class AudioIoFFI {
     };
   }
 
-  Future<void> requestFrameDuration(double duration) async {
+  /// Remembered for the next start. A device that is already running is
+  /// rebuilt for the new period — stop, uninit, init, start: the same
+  /// blocking calls [start] keeps off this thread, so they run on a helper
+  /// isolate too, time-limited, and serialized with [start]/[stop] so the
+  /// handle cannot be torn down underneath them.
+  Future<void> requestFrameDuration(double duration) {
     _requestedFrameDuration = duration;
-    if (_handle != null) {
-      _bindings.setFrameDuration(_handle!, duration);
-    }
+    return _serializeLifecycle(() async {
+      final handle = _handle;
+      if (handle == null) return;
+      final address = handle.address;
+      await limitDeviceCall<void>(
+        Isolate.run(() {
+          AudioIoBindings()
+              .setFrameDuration(Pointer<Void>.fromAddress(address), duration);
+        }),
+        limit: _kStartLimit,
+        onTimeout: () => AudioIoDiagnostics.report(
+          'audio_io: frame duration change did not return in '
+          '${_kStartLimit.inSeconds}s — left it running',
+        ),
+      );
+    });
   }
 
   Future<double> getFrameDuration() async {

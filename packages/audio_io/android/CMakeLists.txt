@@ -25,3 +25,13 @@ set_target_properties(audio_io PROPERTIES
     CXX_STANDARD 14
     CXX_STANDARD_REQUIRED ON
 )
+
+# 16 KB page alignment, required to load on devices with 16 KB memory pages
+# (and by Google Play for apps targeting Android 15+). NDK r28 does this by
+# default; NDK r27, which this project pins, does not.
+# The version script keeps everything but the FFI/JNI entry points local.
+target_link_options(audio_io PRIVATE
+    "-Wl,-z,max-page-size=16384"
+    "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/audio_io.map"
+)
+set_property(TARGET audio_io APPEND PROPERTY LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/audio_io.map")

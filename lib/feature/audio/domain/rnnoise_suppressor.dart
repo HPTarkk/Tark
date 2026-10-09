@@ -87,7 +87,8 @@ class RnnoiseSuppressor {
   final Float64Fifo _outTx =
       Float64Fifo(); // denoised at txRateHz, awaiting emission
   final Float64Fifo _dryTx =
-      Float64Fifo(); // dry at txRateHz, paired with _outTx
+      Float64Fifo(); // dry at txRateHz, passed through during startup
+  Float64List _prevDry48 = Float64List(0); // 48 kHz frame RNNoise answers next
 
   /// Process a block of any length; returns the same number of samples.
   List<double> process(List<double> samples) {
@@ -113,21 +114,32 @@ class RnnoiseSuppressor {
 
     _dryTx.addAll(samples);
 
+    final mix = min(strength, 1.0);
     _rnnIn.addAll(_up.process(samples));
     final frameSize = denoiser.frameSize;
+    if (_prevDry48.length != frameSize) _prevDry48 = Float64List(frameSize);
     while (_rnnIn.length >= frameSize) {
       final frame = Float32List(frameSize);
+      final dry = Float64List(frameSize);
       for (var i = 0; i < frameSize; i++) {
-        frame[i] = _rnnIn[i] * _pcmScale;
+        dry[i] = _rnnIn[i];
+        frame[i] = dry[i] * _pcmScale;
       }
       _rnnIn.discardFirst(frameSize);
 
       final (wetFrame, _) = denoiser.process(frame);
-      final wetScaled = Float64List(frameSize);
+      // RNNoise answers each frame with the denoised PREVIOUS frame, so that
+      // frame's dry share is mixed in here, before the shared downsampler —
+      // keeping dry and wet sample-aligned. Mixing the current dry block with
+      // the delayed wet output instead comb-filters the voice.
+      final mixed = Float64List(frameSize);
       for (var i = 0; i < frameSize; i++) {
-        wetScaled[i] = wetFrame[i] / _pcmScale;
+        final wet = wetFrame[i] / _pcmScale;
+        final previous = _prevDry48[i];
+        mixed[i] = previous + (wet - previous) * mix;
       }
-      _outTx.addAll(_down.process(wetScaled));
+      _prevDry48 = dry;
+      _outTx.addAll(_down.process(mixed));
     }
 
     final take = min(_outTx.length, samples.length);
@@ -135,11 +147,10 @@ class RnnoiseSuppressor {
     final total = offset + take;
     final out = Float64List(samples.length);
     for (var i = 0; i < offset; i++) {
-      out[i] = _dryTx[i]; // wet path hasn't produced output yet
+      out[i] = _dryTx[i]; // the pipeline hasn't produced output yet
     }
     for (var i = 0; i < take; i++) {
-      final dry = _dryTx[offset + i];
-      out[offset + i] = dry + (_outTx[i] - dry) * strength;
+      out[offset + i] = _outTx[i]; // already the dry/wet mix
     }
     _dryTx.discardFirst(total);
     _outTx.discardFirst(take);
@@ -152,6 +163,7 @@ class RnnoiseSuppressor {
     _rnnIn.clear();
     _outTx.clear();
     _dryTx.clear();
+    _prevDry48 = Float64List(0);
   }
 
   /// Clears all streaming state, including the RNN's internal history —

@@ -56,7 +56,8 @@ class RnnoiseStream {
   explicit RnnoiseStream(int sample_rate)
       : up_(sample_rate, 48000), down_(48000, sample_rate),
         state_(rnnoise_create(nullptr)), frame_size_(rnnoise_get_frame_size()),
-        frame_in_(frame_size_), frame_out_(frame_size_), scaled_(frame_size_) {
+        frame_in_(frame_size_), frame_out_(frame_size_), scaled_(frame_size_),
+        dry_frame_(frame_size_, 0.0), prev_dry_frame_(frame_size_, 0.0) {
     if (!state_) throw std::bad_alloc();
   }
 
@@ -68,6 +69,7 @@ class RnnoiseStream {
       return;
     }
     if (count == 0) return;
+    strength = std::min(strength, 1.0);
     dry_input_.append(input, count);
     // A capacity of one also lets the converter retain the very first sample
     // when there is no pair available for interpolation yet.
@@ -78,13 +80,23 @@ class RnnoiseStream {
 
     while (rnn_input_.size() >= frame_size_) {
       for (size_t i = 0; i < frame_size_; ++i) {
-        frame_in_[i] = static_cast<float>(rnn_input_[i] * 32768.0);
+        dry_frame_[i] = rnn_input_[i];
+        frame_in_[i] = static_cast<float>(dry_frame_[i] * 32768.0);
       }
       rnn_input_.discard(frame_size_);
       rnnoise_process_frame(state_.get(), frame_out_.data(), frame_in_.data());
+      // RNNoise answers each frame with the denoised PREVIOUS frame (its
+      // overlap-add synthesis is one frame behind), so the dry share is mixed
+      // in here from that same frame. Blending here, before the shared
+      // downsampler, keeps dry and wet sample-aligned at every rate; mixing
+      // the current dry block with delayed wet output instead comb-filters
+      // the voice at partial strength.
       for (size_t i = 0; i < frame_size_; ++i) {
-        scaled_[i] = static_cast<double>(frame_out_[i]) / 32768.0;
+        const double wet = static_cast<double>(frame_out_[i]) / 32768.0;
+        const double dry = prev_dry_frame_[i];
+        scaled_[i] = dry + (wet - dry) * strength;
       }
+      prev_dry_frame_.swap(dry_frame_);
       down_output_.resize(std::max<size_t>(1, down_.outputCapacity(frame_size_)));
       const size_t down_count = down_.process(scaled_.data(), frame_size_,
                                               down_output_.data(),
@@ -92,13 +104,12 @@ class RnnoiseStream {
       wet_output_.append(down_output_.data(), down_count);
     }
 
+    // wet_output_ is already the dry/wet mix. Until the pipeline has
+    // produced anything (stream start) the input passes through.
     const size_t take = std::min(wet_output_.size(), count);
     const size_t offset = count - take;
     for (size_t i = 0; i < offset; ++i) output[i] = dry_input_[i];
-    for (size_t i = 0; i < take; ++i) {
-      const double dry = dry_input_[offset + i];
-      output[offset + i] = dry + (wet_output_[i] - dry) * strength;
-    }
+    for (size_t i = 0; i < take; ++i) output[offset + i] = wet_output_[i];
     dry_input_.discard(count);
     wet_output_.discard(take);
   }
@@ -117,6 +128,7 @@ class RnnoiseStream {
     rnn_input_.clear();
     wet_output_.clear();
     dry_input_.clear();
+    std::fill(prev_dry_frame_.begin(), prev_dry_frame_.end(), 0.0);
   }
 
   RealtimeResampler up_;
@@ -129,6 +141,8 @@ class RnnoiseStream {
   std::vector<float> frame_in_;
   std::vector<float> frame_out_;
   std::vector<double> scaled_;
+  std::vector<double> dry_frame_;       // the 48 kHz frame just sent in
+  std::vector<double> prev_dry_frame_;  // the one RNNoise is answering now
   std::vector<double> up_output_;
   std::vector<double> down_output_;
 };
