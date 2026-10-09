@@ -15,6 +15,7 @@ import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
+import com.b1101.tark.R
 import com.b1101.tark.hotspot.HotspotHandler
 
 /**
@@ -48,6 +49,8 @@ class SessionKeepAliveService : Service() {
         private const val TAG = "SessionKeepAlive"
         private const val NOTIFICATION_ID = 2110
         private const val CHANNEL_ID = "tark_session_keepalive"
+        private const val INTERRUPTED_NOTIFICATION_ID = 2111
+        private const val INTERRUPTED_CHANNEL_ID = "tark_session_interrupted"
         private const val WAKE_TAG = "tark:session"
         private const val WIFI_TAG = "tark:wifi"
         private const val MULTICAST_TAG = "tark:multicast"
@@ -88,6 +91,18 @@ class SessionKeepAliveService : Service() {
 
         /** True while a parked stop is still waiting on a start. */
         val isStopPending: Boolean get() = stopQueued
+
+        /**
+         * Whether a Flutter engine — and so a session that can use this
+         * service — lives in this process. Set by [KeepAliveHandler] for the
+         * engine's lifetime. False after Android killed the process and
+         * brought only this service back (START_STICKY): the call died with
+         * the process, and holding locks then keeps nothing connected.
+         */
+        @Volatile
+        var sessionOwner: Any? = null
+
+        val sessionOwnerAttached: Boolean get() = sessionOwner != null
 
         /** Records that a start was just handed to the OS. */
         fun onStartIssued() {
@@ -161,6 +176,20 @@ class SessionKeepAliveService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent == null && !sessionOwnerAttached) {
+            // A START_STICKY restart into a fresh process: Android killed the
+            // app mid-session and brought back only this service. The session
+            // lived in that process and cannot be resumed from here (Android
+            // does not let a background service open the app), so holding
+            // locks and an "active" notification would keep nothing alive.
+            // Instead tell the rider, audibly, that the link dropped; one tap
+            // on the alert reopens the app, which offers the rejoin.
+            notifyInterrupted()
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        // A session (re)starting supersedes an earlier "disconnected" alert.
+        cancelInterruptedNotice()
         createNotificationChannel()
         // Default to microphone: the plain in-channel session (and any restart
         // via START_STICKY, where intent is null) records the mic.
@@ -342,7 +371,7 @@ class SessionKeepAliveService : Service() {
         )
     }
 
-    private fun buildNotification(): Notification {
+    private fun launchIntent(): PendingIntent? {
         val launch = packageManager.getLaunchIntentForPackage(packageName)?.apply {
             addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
         }
@@ -351,9 +380,47 @@ class SessionKeepAliveService : Service() {
         } else {
             PendingIntent.FLAG_UPDATE_CURRENT
         }
-        val contentIntent = launch?.let {
-            PendingIntent.getActivity(this, 0, it, flags)
+        return launch?.let { PendingIntent.getActivity(this, 0, it, flags) }
+    }
+
+    /**
+     * The "link dropped" alert. Its own channel at high importance, so it
+     * sounds and pops up even with the phone in a pocket or a mount — the
+     * rider hears it in the headset and knows to reconnect at the next stop.
+     * Best effort: without the notification permission it simply isn't shown.
+     */
+    private fun notifyInterrupted() {
+        runCatching {
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            manager.createNotificationChannel(
+                NotificationChannel(
+                    INTERRUPTED_CHANNEL_ID,
+                    getString(R.string.session_interrupted_channel),
+                    NotificationManager.IMPORTANCE_HIGH,
+                ),
+            )
+            val notification = Notification.Builder(this, INTERRUPTED_CHANNEL_ID)
+                .setContentTitle(getString(R.string.session_interrupted_title))
+                .setContentText(getString(R.string.session_interrupted_text))
+                .setSmallIcon(applicationInfo.icon)
+                .setCategory(Notification.CATEGORY_ERROR)
+                .setAutoCancel(true)
+                .apply { launchIntent()?.let { setContentIntent(it) } }
+                .build()
+            manager.notify(INTERRUPTED_NOTIFICATION_ID, notification)
+            Log.w(TAG, "restarted without a session (process was killed) — told the user")
+        }.onFailure { Log.w(TAG, "could not post the interrupted notice", it) }
+    }
+
+    private fun cancelInterruptedNotice() {
+        runCatching {
+            (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+                .cancel(INTERRUPTED_NOTIFICATION_ID)
         }
+    }
+
+    private fun buildNotification(): Notification {
+        val contentIntent = launchIntent()
         return Notification.Builder(this, CHANNEL_ID)
             .setContentTitle("Tark")
             .setContentText("Channel active — keeping the link alive")

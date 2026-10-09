@@ -35,12 +35,21 @@ class InstallIdentity {
   Future<void> load() async {
     if (_keyPair != null) return;
     String? stored;
+    var persist = true;
     try {
       stored = await _storage.read(_storageKey);
     } catch (error) {
-      // Unreadable is treated as absent: a fresh key only costs one online
-      // check, while trusting a half-read key could cost the entitlement.
-      Logger.log('InstallIdentity: stored key unreadable, replacing ($error)');
+      if (isSecureStorageUnavailable(error)) {
+        // The stored key is still there, the Keystore just could not open it
+        // right now. A key for this run only keeps the app working; writing
+        // it would throw away a key that reads fine next launch.
+        persist = false;
+        Logger.log('InstallIdentity: secure storage busy, one-run key ($error)');
+      } else {
+        // Unreadable is treated as absent: a fresh key only costs one online
+        // check, while trusting a half-read key could cost the entitlement.
+        Logger.log('InstallIdentity: stored key unreadable, replacing ($error)');
+      }
     }
 
     SimpleKeyPair? pair;
@@ -56,8 +65,10 @@ class InstallIdentity {
     }
     if (pair == null) {
       pair = await _algorithm.newKeyPair();
-      final seed = await pair.extractPrivateKeyBytes();
-      await _storage.write(_storageKey, _encode(seed));
+      if (persist) {
+        final seed = await pair.extractPrivateKeyBytes();
+        await _storage.write(_storageKey, _encode(seed));
+      }
     }
     final publicKey = await pair.extractPublicKey();
     _keyPair = pair;

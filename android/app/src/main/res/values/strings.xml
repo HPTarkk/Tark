@@ -18,4 +18,11 @@
          before the first publish lands. -->
     <string name="widget_status_placeholder">Tap to go live</string>
     <string name="widget_action_placeholder">GO LIVE</string>
+
+    <!-- Posted when Android killed the app mid-session and restarted only
+         its keep-alive service (see SessionKeepAliveService). The app is not
+         running then, so these come from resources, in the system language. -->
+    <string name="session_interrupted_channel">Session interrupted</string>
+    <string name="session_interrupted_title">Tarkk disconnected</string>
+    <string name="session_interrupted_text">Android closed the app during your session. Tap to reconnect.</string>
 </resources>

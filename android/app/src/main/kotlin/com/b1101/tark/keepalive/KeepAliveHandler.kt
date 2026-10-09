@@ -50,6 +50,22 @@ class KeepAliveHandler(
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
+    init {
+        // This engine owns the session from here until [detach].
+        SessionKeepAliveService.sessionOwner = this
+    }
+
+    /**
+     * The engine is going away with its screen (MainActivity.onDestroy). A
+     * later engine in the same process registers its own handler, so only
+     * clear the mark if it is still this one's.
+     */
+    fun detach() {
+        if (SessionKeepAliveService.sessionOwner === this) {
+            SessionKeepAliveService.sessionOwner = null
+        }
+    }
+
     private val stopWatchdog = Runnable {
         if (!SessionKeepAliveService.isStopPending) return@Runnable
         SessionKeepAliveService.abandonPendingStart()

@@ -3,6 +3,7 @@ package com.b1101.tark.billing
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.os.SystemClock
 import androidx.activity.ComponentActivity
 import io.flutter.plugin.common.MethodChannel
 import ir.cafebazaar.poolakey.Payment
@@ -71,9 +72,18 @@ class BazaarPaymentActivity : ComponentActivity() {
         val result: MethodChannel.Result,
     ) {
         var owner: BazaarPaymentActivity? = null
+        val startedAt: Long = SystemClock.elapsedRealtime()
     }
 
     companion object {
+        /**
+         * How long a requested checkout screen may take to appear. Normally a
+         * frame or two; if it never does (the launch was dropped), the
+         * request is abandoned rather than answering "busy" to every later
+         * purchase until the app restarts.
+         */
+        private const val LAUNCH_TIMEOUT_MS = 10_000L
+
         private var pending: Pending? = null
 
         /** False when a purchase is already open; the caller answers "busy". */
@@ -83,6 +93,14 @@ class BazaarPaymentActivity : ComponentActivity() {
             sku: String,
             result: MethodChannel.Result,
         ): Boolean {
+            val open = pending
+            if (open != null && open.owner == null &&
+                SystemClock.elapsedRealtime() - open.startedAt > LAUNCH_TIMEOUT_MS
+            ) {
+                // Its screen never came up, so nothing will ever answer it.
+                pending = null
+                runCatching { open.result.error(BazaarBillingHandler.ERROR_FAILED, "interrupted", null) }
+            }
             if (pending != null) return false
             val request = Pending(payment, sku, result)
             pending = request
