@@ -1,1159 +1,879 @@
-<!DOCTYPE html>
-<html lang="en" dir="ltr">
+<!doctype html>
+<html lang="en" dir="ltr" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+<!-- LOADER-FONT-START -->
 
-<head>
-  <meta charset="UTF-8">
-  <!-- viewport-fit=cover: the page paints into the notch/home-indicator
-       area instead of leaving black bars, and env(safe-area-inset-*) starts
-       reporting real values so the nav and footer can keep clear of them.
-
-       Note for anyone chasing the iOS status-bar colour: this does NOT let
-       the page paint that strip. Measured on an iPhone (Safari 26.5.2),
-       safe-area-inset-top is 0 even with `cover` — Safari insets the web
-       viewport below the status bar rather than running it underneath, so
-       there is no inset to fill. theme-color does not reach it either; it
-       colours Safari's bottom toolbar. Safari derives the strip from the
-       top of the page itself. -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Tarkk — Walkie-talkie app with no internet needed</title>
-  <meta name="description"
-    content="Tarkk is a walkie-talkie app that connects you directly to people nearby using WiFi or Bluetooth. No internet needed, and your voice never touches a server.">
-  <!-- Colours the browser chrome on Android, and Safari's bottom toolbar on
-       iOS. It does NOT reach the iOS status bar (see the viewport note
-       above). Same value as --bg so they read as one surface. -->
-  <meta name="theme-color" content="#0B0E11">
-
-  <!-- ── Search ───────────────────────────────────────────────────────
-       Each language is its own URL: English here, Persian at /fa/, which
-       is generated from this file by scripts/build-website-i18n.mjs. Both
-       carry the same hreflang set (each page names itself and its sibling)
-       and a canonical pointing at itself, so the two rank separately
-       instead of competing. x-default is the Persian page — Tarkk is built
-       for an Iranian audience, so Persian is what a visitor whose language
-       we cannot guess should get, and it has to name the same URL the head
-       script below actually sends them to.
-
-       Do not hand-edit fa/index.html; edit the data-fa attributes below
-       and re-run the generator. -->
-  <link rel="canonical" href="https://tarkk.ir/">
-  <link rel="alternate" hreflang="en" href="https://tarkk.ir/">
-  <link rel="alternate" hreflang="fa" href="https://tarkk.ir/fa/">
-  <link rel="alternate" hreflang="x-default" href="https://tarkk.ir/fa/">
-  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
-  <link rel="icon" href="favicon.ico" sizes="any">
-  <link rel="apple-touch-icon" href="logo.png">
-
-  <!-- ── Link previews ───────────────────────────────────────────────── -->
-  <meta property="og:type" content="website">
-  <meta property="og:site_name" content="Tarkk">
-  <meta property="og:url" content="https://tarkk.ir/">
-  <meta property="og:title" content="Tarkk — Walkie-talkie app with no internet needed">
-  <meta property="og:description"
-    content="Tarkk is a walkie-talkie app that connects you directly to people nearby using WiFi or Bluetooth. No internet needed, and your voice never touches a server.">
-  <meta property="og:image" content="https://tarkk.ir/og-image.png">
-  <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="Tarkk — talk instantly, no cell towers, no internet needed.">
-  <meta property="og:locale" content="en_US">
-  <meta property="og:locale:alternate" content="fa_IR">
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Tarkk — Walkie-talkie app with no internet needed">
-  <meta name="twitter:description"
-    content="Talk to people nearby over WiFi or Bluetooth. No internet, nothing recorded, free over Bluetooth.">
-  <meta name="twitter:image" content="https://tarkk.ir/og-image.png">
-
-  <!-- ── Inline scripts ───────────────────────────────────────────────
-       These two run before the stylesheet links below, and the order is
-       load-bearing rather than cosmetic. An inline script has to wait for
-       every stylesheet already requested above it to finish, and the parser
-       in turn waits for the script — so putting these after the jsdelivr
-       link hands a third-party CDN the power to stall parsing of the entire
-       document. Measured while jsdelivr was slow: three seconds in,
-       readyState was still "loading" and document.body did not exist yet.
-       Above the links, both run immediately and the redirect fires before
-       the visitor is looking at anything. -->
-
-  <!-- iOS gets a native-style navigation bar (styles.css, "iOS: a real
-       navigation bar"). The flag is set here rather than in app.js so the
-       bar is never painted in its desktop form for a frame first.
-       `-webkit-touch-callout` is an iOS-only property — desktop Safari does
-       not support it — so this identifies the platform without sniffing the
-       user-agent string, and it covers every browser on the device, all of
-       which are WebKit underneath. -->
-  <script>
-    if (window.CSS && CSS.supports && CSS.supports('-webkit-touch-callout', 'none')) {
-      document.documentElement.classList.add('is-ios');
-    }
-  </script>
-
-  <!-- ── Language routing ─────────────────────────────────────────────
-       Persian is the site. Everyone who lands on / goes to /fa/; the only
-       way to stay here is to have asked for English with the toggle, which
-       writes tark_lang. The browser's language list is deliberately not
-       consulted — an Iranian visitor whose phone is set to English is still
-       an Iranian visitor, and reading navigator.languages sent most of them
-       to the English page. This sits in the head, before any content is
-       parsed, so nobody sees a frame of English on the way past.
-
-       The guard is `!== 'en'` rather than `=== 'fa'` so an absent or
-       corrupted tark_lang lands on the default rather than on English.
-
-       It only ever runs on the English document — the generated Persian
-       page has lang="fa", so the guard is false there and no loop is
-       possible even if the two URLs are misconfigured.
-
-       What this costs, so nobody has to rediscover it: Googlebot renders
-       JS and crawls as en-US, so it is redirected along with everyone else
-       and this page stops being indexable at its own URL. English search
-       presence is being traded for a Persian front door — a deliberate
-       call for an Iranian-market app. The hreflang set below still names
-       this URL for English; if the English page is ever meant to rank
-       again, the fix is to serve Persian from / directly and move English
-       to /en/ rather than to soften this redirect.
-
-       replace() rather than assign() so Back leaves the site instead of
-       landing on a page that immediately redirects again. -->
-  <script>
-    (function () {
-      if (document.documentElement.lang !== 'en') return;
-      var want = null;
-      try { want = localStorage.getItem('tark_lang'); } catch (_) {}
-      if (want !== 'en') window.location.replace('/fa/');
+<!-- LOADER-FONT-END -->
+<!-- STARTUP-START -->
+<script>
+    (() => {
+      const root = document.documentElement;
+      let requested = new URLSearchParams(location.search).get('lang');
+      let preference = null;
+      try {
+        if (requested === 'en' || requested === 'fa') localStorage.setItem('tark_lang', requested);
+        preference = localStorage.getItem('tark_lang');
+      } catch {}
+      // A fresh crawler/visitor receives the actual URL's complete language.
+      // Only an explicit remembered Persian choice can redirect English URLs.
+      if (root.lang === 'en' && preference === 'fa') {
+        location.replace("/fa/" + location.search + location.hash);
+        return;
+      }
+      history.scrollRestoration = 'manual';
+      // Keep incoming cross-page anchors. A plain reload still starts at the top.
+      const reload = performance.getEntriesByType('navigation')[0]?.type === 'reload';
+      if (reload && location.hash) history.replaceState(null, '', location.pathname + location.search);
+      window.scrollTo(0, 0);
+      root.classList.add('is-enhanced', 'is-booting');
+      // Content must remain accessible if an optional motion script fails.
+      setTimeout(() => {
+        if (!root.classList.contains('page-loaded')) {
+          root.classList.remove('is-booting'); root.classList.add('page-loaded');
+          document.getElementById('pageLoader')?.remove();
+        }
+      }, 10000);
     })();
   </script>
-
-  <!-- The font CSS and the woff2 files it points at both come from
-       jsdelivr, so opening the connection early saves the DNS + TLS
-       round-trip that would otherwise sit in front of first paint. The
-       crossorigin form is the one that gets reused for the font fetches
-       (fonts are always requested in CORS mode). -->
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vazirmatn@33.0.3/Vazirmatn-font-face.css">
-  <link rel="stylesheet" href="styles.css">
-
-  <!-- ── Structured data ──────────────────────────────────────────────
-       Describes the app and mirrors the FAQ section below, so Google can
-       read both without having to infer them from the markup.
-
-       The questions and answers here must quote #faq verbatim — a rich
-       result that shows text the page does not contain is a violation.
-       scripts/build-website-i18n.mjs checks that on every build and fails
-       if the two drift, so edit them together. (The Persian page's copy is
-       generated from the markup and needs no such care.) -->
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "Organization",
-        "@id": "https://tarkk.ir/#org",
-        "name": "Tarkk",
-        "alternateName": ["Tark", "تَرک"],
-        "url": "https://tarkk.ir/",
-        "logo": {
-          "@type": "ImageObject",
-          "url": "https://tarkk.ir/logo.png",
-          "width": 512,
-          "height": 512
-        },
-        "sameAs": [
-          "https://github.com/HPTarkk/Tark"
-        ]
-      },
-      {
-        "@type": "WebSite",
-        "@id": "https://tarkk.ir/#website",
-        "url": "https://tarkk.ir/",
-        "name": "Tarkk",
-        "alternateName": ["Tarkk app", "تَرک"],
-        "inLanguage": ["en", "fa"],
-        "description": "Walkie-talkie app that connects phones nearby over WiFi or Bluetooth, with no internet needed.",
-        "publisher": { "@id": "https://tarkk.ir/#org" }
-      },
-      {
-        "@type": "MobileApplication",
-        "@id": "https://tarkk.ir/#app",
-        "name": "Tarkk",
-        "url": "https://tarkk.ir/",
-        "applicationCategory": "CommunicationApplication",
-        "operatingSystem": "Android",
-        "image": "https://tarkk.ir/og-image.png",
-        "description": "Tarkk is a walkie-talkie app that connects you directly to people nearby using WiFi or Bluetooth. No internet needed, and nothing you say is stored or uploaded.",
-        "featureList": [
-          "Push-to-talk over WiFi Direct or Bluetooth",
-          "Works with no cell signal and no internet",
-          "Background operation with the screen locked",
-          "Automatic reconnection when peers come back in range",
-          "Noise suppression",
-          "Browser access with no install",
-          "Plain-language troubleshooting that tells you which part isn't working"
-        ],
-        "offers": {
-          "@type": "Offer",
-          "price": "0",
-          "priceCurrency": "USD"
-        },
-        "downloadUrl": "https://cafebazaar.ir/app/com.b1101.tark",
-        "publisher": { "@id": "https://tarkk.ir/#org" },
-        "isPartOf": { "@id": "https://tarkk.ir/#website" }
-      },
-      {
-        "@type": "FAQPage",
-        "@id": "https://tarkk.ir/#faq",
-        "isPartOf": { "@id": "https://tarkk.ir/#website" },
-        "mainEntity": [
-          {
-            "@type": "Question",
-            "name": "Two groups of us are on the same WiFi. Will we hear each other?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Not if each group starts its own channel. Starting one gives it a short code, and Tarkk ignores anyone on a different code — so two groups on one café router stay two conversations. The code travels inside the same QR the other phone already scans, and it is short enough to read out loud if the camera is not handy. Worth knowing: it keeps channels apart, it does not lock them. Anyone who has the code can use it, so treat it as a channel number rather than a password."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "Which connection should I pick?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "You don't have to pick one. Tarkk asks a single question — are you starting a channel, or joining one? — and works out the rest from what your phone can see: the WiFi you're already on, otherwise a hotspot one phone makes and the other scans, and Bluetooth where neither is possible. Each button tells you which way it's about to go, so nothing happens that the screen didn't say first. If you'd rather choose yourself, you still can, in Settings → Advanced settings."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "Do I have to set the connection up before I open a room?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "No. Scanning the invite is the setup: the two phones find each other over Bluetooth, the phone that showed the code brings a hotspot up, the other joins it, and both go on air by themselves — nobody has to decide who hosts. If Android asks the joining phone whether to connect to a network, say yes. A room only counts as connected once another member has answered a signed challenge over the link the call is actually using, so being on WiFi — even the same WiFi — never counts on its own. With no scan to work from, Start tries whatever link the phone already has; if that doesn't reach anyone, it says so and offers to connect the phones by hand."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "Do I need an account or an internet connection?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Not to talk. Tarkk goes straight between phones over WiFi or Bluetooth — no internet, no data plan. An account is only needed to subscribe to the paid features; talking over Bluetooth is free and needs none."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "Does Tarkk collect my data?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Your voice never leaves the link between the phones — no server ever carries it, ours included. The app sends no analytics or usage stats, and its diagnostic log stays on your phone unless you choose to share it. If you make an account to subscribe, our server keeps your email, name, avatar and subscription; the Privacy Policy lists all of it."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "What if I lock my phone while talking?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "The app stays awake in the background. Lock the screen or stuff your phone in a pocket — you're still on."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "What happens if the connection drops?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Tarkk keeps trying in the background and picks the call back up the second your friend is close enough again."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "Can iPhone and Android users talk to each other?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Yep! One phone makes the hotspot, the other scans its code right inside the app — you never have to leave Tarkk. Or just send a link and they hop in from a browser."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "Does it work with absolutely no cell network?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Yes. Two Android phones link up straight over Bluetooth — no internet, no router, no signal at all."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "Is my voice clear and high quality?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Yep. Your voice gets shrunk down in a clever way that keeps it crystal clear, and the smart cleaner wipes out wind, traffic and background noise before it ever leaves your phone. If a piece goes missing on the way — normal on any wireless link — the next one carries a spare copy, so the gap gets filled instead of chopping a word in half. The app keeps adjusting to the link as you ride, so you never have to touch a setting."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "My hotspot keeps dropping. Why?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Almost always because Wi-Fi is still on. A phone can't do Wi-Fi and a hotspot properly at the same time, so sooner or later one of them gives way — usually your hotspot, right in the middle of a ride. Tarkk spots this and offers you a one-tap switch while you're still on the code screen. Turning Wi-Fi off won't cut you off from anyone: the channel doesn't need Wi-Fi to work."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "I'm on a motorbike. Is there anything I should switch on?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "One switch. Settings → Riding mode aims the whole thing at the road: the mic waits for you to actually talk instead of sending wind and engine noise the entire ride, the cleaner runs at a level that keeps words crisp rather than scrubbing them thin, the app holds a bit more sound in reserve so a connection on the move doesn't chop, and everyone else comes through a touch louder. Your own settings stay exactly where you left them, and come straight back the moment you switch it off."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "What if nobody can hear me?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Tarkk tells you, in plain words, with the fix right there — whether the mic is switched off, the phone isn't on a network, or something else has grabbed the microphone. It quietly retries a few times first, so a hiccup that sorts itself out never interrupts you. And there's a “Something wrong?” button on the channel screen that shows you exactly which part isn't working."
-            }
-          }
-        ]
+<!-- STARTUP-END -->
+    <style>
+      .is-booting {
+        overflow: hidden;
       }
-    ]
-  }
-  </script>
-</head>
-
-<body>
-
-  <!-- ── Nav ─────────────────────────────────────────────────────────── -->
-  <nav id="nav">
-    <div class="nav-inner">
-      <a class="wordmark" href="#top">
-        <span class="wordmark-dot"></span>TARKK
-      </a>
-      <!-- Below 860px this same element becomes the drop-down menu panel
-           rather than being hidden. Reusing it (instead of a second copy of
-           the links for mobile) keeps the scrollspy in app.js, which tracks
-           `.nav-links a`, pointed at one set of nodes. -->
-      <div class="nav-links" id="navLinks">
-        <a href="#features" data-en="Features" data-fa="ویژگی‌ها">Features</a>
-        <a href="#handshake" data-en="How it works" data-fa="چطور کار میکنه؟">How it works</a>
-        <a href="#music" data-en="Music" data-fa="پخش آهنگ">Music</a>
-        <a href="#tech" data-en="Details" data-fa="جزئیات بیشتر">Details</a>
-        <a href="#download" data-en="Download" data-fa="دریافت">Download</a>
+      .page-loader {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        background: #0d1913;
+        color: #f2f3e9;
+        display: grid;
+        place-items: center;
+      }
+      .page-loader ~ header {
+        opacity: 0;
+      }
+    </style>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+<!-- SEO-START -->
+    <title>Tarkk — Walkie-talkie app, even off-grid</title>
+    <meta name="description" content="Tarkk turns your phone into a walkie-talkie. Talk over Bluetooth, Wi-Fi or a hotspot—no internet for local calls, and no conversation recording." data-meta-fa="تَرک، بیسیم بدون اینترنت روی گوشی شما. با بلوتوث، وای‌فای یا هات‌اسپات مستقیم با اطرافیانت حرف بزن؛ ارتباط محلی، بدون ضبط مکالمه." data-meta-en="Tarkk turns your phone into a walkie-talkie. Talk over Bluetooth, Wi-Fi or a hotspot—no internet for local calls, and no conversation recording.">
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
+    <meta name="theme-color" content="#0D1913">
+    <link rel="canonical" href="https://tarkk.ir/">
+    <link rel="alternate" hreflang="en" href="https://tarkk.ir/">
+    <link rel="alternate" hreflang="fa" href="https://tarkk.ir/fa/">
+    <link rel="alternate" hreflang="x-default" href="https://tarkk.ir/fa/">
+    <link rel="apple-touch-icon" href="/logo.png">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Tarkk">
+    <meta property="og:url" content="https://tarkk.ir/">
+    <meta property="og:title" content="Tarkk — Walkie-talkie app, even off-grid" data-meta-fa="تَرک — بیسیم بدون اینترنت، کنار هم در مسیر" data-meta-en="Tarkk — Walkie-talkie app, even off-grid">
+    <meta property="og:description" content="Tarkk turns your phone into a walkie-talkie. Talk over Bluetooth, Wi-Fi or a hotspot—no internet for local calls, and no conversation recording." data-meta-fa="تَرک، بیسیم بدون اینترنت روی گوشی شما. با بلوتوث، وای‌فای یا هات‌اسپات مستقیم با اطرافیانت حرف بزن؛ ارتباط محلی، بدون ضبط مکالمه." data-meta-en="Tarkk turns your phone into a walkie-talkie. Talk over Bluetooth, Wi-Fi or a hotspot—no internet for local calls, and no conversation recording.">
+    <meta property="og:image" content="https://tarkk.ir/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Tarkk — direct voice between phones, even off-grid." data-meta-fa="تَرک — ارتباط صوتی مستقیم بین گوشی‌ها، حتی بدون آنتن." data-meta-en="Tarkk — direct voice between phones, even off-grid.">
+    <meta property="og:locale" content="en_US" data-meta-fa="fa_IR" data-meta-en="en_US">
+    <meta property="og:locale:alternate" content="fa_IR" data-meta-fa="en_US" data-meta-en="fa_IR">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Tarkk — Walkie-talkie app, even off-grid" data-meta-fa="تَرک — بیسیم بدون اینترنت، کنار هم در مسیر" data-meta-en="Tarkk — Walkie-talkie app, even off-grid">
+    <meta name="twitter:description" content="Tarkk turns your phone into a walkie-talkie. Talk over Bluetooth, Wi-Fi or a hotspot—no internet for local calls, and no conversation recording." data-meta-fa="تَرک، بیسیم بدون اینترنت روی گوشی شما. با بلوتوث، وای‌فای یا هات‌اسپات مستقیم با اطرافیانت حرف بزن؛ ارتباط محلی، بدون ضبط مکالمه." data-meta-en="Tarkk turns your phone into a walkie-talkie. Talk over Bluetooth, Wi-Fi or a hotspot—no internet for local calls, and no conversation recording.">
+    <meta name="twitter:image" content="https://tarkk.ir/og-image.png">
+    <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://tarkk.ir/#organization","name":"Tarkk","url":"https://tarkk.ir","logo":"https://tarkk.ir/logo.png","sameAs":["https://github.com/HPTarkk/Tark"]},{"@type":"WebSite","@id":"https://tarkk.ir/#website","url":"https://tarkk.ir/","name":"Tarkk","inLanguage":"en","description":"Tarkk turns your phone into a walkie-talkie. Talk over Bluetooth, Wi-Fi or a hotspot—no internet for local calls, and no conversation recording.","publisher":{"@id":"https://tarkk.ir/#organization"}},{"@type":"MobileApplication","@id":"https://tarkk.ir/#app","name":"Tarkk","operatingSystem":"Android","applicationCategory":"CommunicationApplication","url":"https://tarkk.ir/","downloadUrl":"https://cafebazaar.ir/app/com.b1101.tark","description":"Tarkk turns your phone into a walkie-talkie. Talk over Bluetooth, Wi-Fi or a hotspot—no internet for local calls, and no conversation recording.","inLanguage":"en","publisher":{"@id":"https://tarkk.ir/#organization"}},{"@type":"FAQPage","@id":"https://tarkk.ir/#faq","inLanguage":"en","mainEntity":[{"@type":"Question","name":"Two groups of us are on the same WiFi. Will we hear each other?","acceptedAnswer":{"@type":"Answer","text":"Not if each group starts its own channel. Starting one gives it a short code, and Tarkk ignores anyone on a different code — so two groups on one café router stay two conversations. The code travels inside the same QR the other phone already scans, and it is short enough to read out loud if the camera is not handy. Worth knowing: it keeps channels apart, it does not lock them. Anyone who has the code can use it, so treat it as a channel number rather than a password."}},{"@type":"Question","name":"Which connection should I pick?","acceptedAnswer":{"@type":"Answer","text":"You don't have to pick one. Tarkk asks a single question — are you starting a channel, or joining one? — and works out the rest from what your phone can see: the WiFi you're already on, otherwise a hotspot one phone makes and the other scans, and Bluetooth where neither is possible. Each button tells you which way it's about to go, so nothing happens that the screen didn't say first. If you'd rather choose yourself, you still can, in Settings → Advanced settings."}},{"@type":"Question","name":"Do I have to set the connection up before I open a room?","acceptedAnswer":{"@type":"Answer","text":"No. Scanning the invite is the setup: the two phones find each other over Bluetooth, the phone that showed the code brings a hotspot up, the other joins it, and both go on air by themselves — nobody has to decide who hosts. If Android asks the joining phone whether to connect to a network, say yes. A room only counts as connected once another member has answered a signed challenge over the link the call is actually using, so being on WiFi — even the same WiFi — never counts on its own. With no scan to work from, Start tries whatever link the phone already has; if that doesn't reach anyone, it says so and offers to connect the phones by hand."}},{"@type":"Question","name":"Do I need an account or an internet connection?","acceptedAnswer":{"@type":"Answer","text":"Not to talk. Tarkk goes straight between phones over WiFi or Bluetooth — no internet, no data plan. An account is only needed to subscribe to the paid features; talking over Bluetooth is free and needs none."}},{"@type":"Question","name":"Does Tarkk collect my data?","acceptedAnswer":{"@type":"Answer","text":"Your voice never leaves the link between the phones — no server ever carries it, ours included. The app sends no analytics or usage stats, and its diagnostic log stays on your phone unless you choose to share it. If you make an account to subscribe, our server keeps your email, name, avatar and subscription; the Privacy Policy lists all of it."}},{"@type":"Question","name":"What if I lock my phone while talking?","acceptedAnswer":{"@type":"Answer","text":"The app stays awake in the background. Lock the screen or stuff your phone in a pocket — you're still on."}},{"@type":"Question","name":"What happens if the connection drops?","acceptedAnswer":{"@type":"Answer","text":"Tarkk keeps trying in the background and picks the call back up the second your friend is close enough again."}},{"@type":"Question","name":"Can iPhone and Android users talk to each other?","acceptedAnswer":{"@type":"Answer","text":"Yep! One phone makes the hotspot, the other scans its code right inside the app — you never have to leave Tarkk. Or just send a link and they hop in from a browser."}},{"@type":"Question","name":"Does it work with absolutely no cell network?","acceptedAnswer":{"@type":"Answer","text":"Yes. Two Android phones link up straight over Bluetooth — no internet, no router, no signal at all."}},{"@type":"Question","name":"Is my voice clear and high quality?","acceptedAnswer":{"@type":"Answer","text":"Yep. Your voice gets shrunk down in a clever way that keeps it crystal clear, and the smart cleaner wipes out wind, traffic and background noise before it ever leaves your phone. If a piece goes missing on the way — normal on any wireless link — the next one carries a spare copy, so the gap gets filled instead of chopping a word in half. The app keeps adjusting to the link as you ride, so you never have to touch a setting."}},{"@type":"Question","name":"My hotspot keeps dropping. Why?","acceptedAnswer":{"@type":"Answer","text":"Almost always because Wi-Fi is still on. A phone can't do Wi-Fi and a hotspot properly at the same time, so sooner or later one of them gives way — usually your hotspot, right in the middle of a ride. Tarkk spots this and offers you a one-tap switch while you're still on the code screen. Turning Wi-Fi off won't cut you off from anyone: the channel doesn't need Wi-Fi to work."}},{"@type":"Question","name":"I'm on a motorbike. Is there anything I should switch on?","acceptedAnswer":{"@type":"Answer","text":"One switch. Settings → Riding mode aims the whole thing at the road: the mic waits for you to actually talk instead of sending wind and engine noise the entire ride, the cleaner runs at a level that keeps words crisp rather than scrubbing them thin, the app holds a bit more sound in reserve so a connection on the move doesn't chop, and everyone else comes through a touch louder. Your own settings stay exactly where you left them, and come straight back the moment you switch it off."}},{"@type":"Question","name":"What if nobody can hear me?","acceptedAnswer":{"@type":"Answer","text":"Tarkk tells you, in plain words, with the fix right there — whether the mic is switched off, the phone isn't on a network, or something else has grabbed the microphone. It quietly retries a few times first, so a hiccup that sorts itself out never interrupts you. And there's a “Something wrong?” button on the channel screen that shows you exactly which part isn't working."}}]}]}</script>
+    <!-- SEO-END -->
+    <link
+      rel="preload"
+      href="/assets/tarkk-ride.webp"
+      as="image"
+      fetchpriority="high"
+    />
+    <link rel="icon" href="/favicon.ico" />
+    <link
+      rel="preload"
+      href="/assets/Vazirmatn-ExtraBold.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="stylesheet" href="/icons.css" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/app-ui.css?v=site-1" />
+    <link rel="stylesheet" href="/scene.css?v=site-1" />
+    <link rel="stylesheet" href="/polish.css?v=site-1" />
+    <script defer src="/vendor/gsap.min.js"></script>
+    <script defer src="/vendor/ScrollTrigger.min.js"></script>
+    <script type="module" src="/app.js?v=site-1"></script>
+    <script type="module" src="/scene.js?v=site-1"></script>
+    <script type="module" src="/page-transitions.js?v=site-1"></script>
+  </head>
+  <body>
+    <div class="page-loader" id="pageLoader" role="status" aria-live="polite">
+      <div class="loader-panels" aria-hidden="true">
+        <div class="loader-panel"></div>
+        <div class="loader-panel"></div>
       </div>
-      <!-- A link, not a button: the two languages are two URLs, so this has
-           to be something a crawler can follow and a user can open in a new
-           tab. hreflang/lang tell both of them that the target — and this
-           element's own label — are in the other language. -->
-      <a id="langToggle" class="lang-toggle" href="/fa/" hreflang="fa" lang="fa"
-        aria-label="نمایش به فارسی">فارسی</a>
-      <!-- The label is a [data-en] span rather than an aria-label because the
-           Persian build only translates element text, so a label hidden in an
-           attribute would ship untranslated. It cannot go on the button
-           itself either — that would replace the icon. -->
-      <button id="menuToggle" class="menu-toggle" aria-expanded="false" aria-controls="navLinks">
-        <span class="menu-icon" aria-hidden="true"></span>
-        <span class="sr-only" data-en="Menu" data-fa="منو">Menu</span>
-      </button>
-    </div>
-  </nav>
-
-  <!-- ── Hero ────────────────────────────────────────────────────────── -->
-  <header class="hero" id="top">
-    <canvas id="heroMesh" class="hero-mesh" aria-hidden="true"></canvas>
-
-    <div class="hero-content">
-      <p class="hero-eyebrow reveal-up" data-en="NEARBY WALKIE-TALKIE" data-fa="بیسیم جیبی برای ارتباط با اطرافیان">
-        NEARBY WALKIE-TALKIE</p>
-      <h1 class="hero-title">
-        <span class="line reveal-up d1" data-en="Talk instantly." data-fa="فوری حرف بزنید.">Talk instantly.</span>
-        <span class="line reveal-up d2" data-en="No cell towers." data-fa="بدون نیاز به آنتن.">No cell towers.</span>
-        <span class="line amber reveal-up d3" data-en="No internet needed." data-fa="بدون نیاز به اینترنت.">
-          No internet needed.</span>
-      </h1>
-      <p class="hero-sub reveal-up d4"
-        data-en="Tarkk hooks up phones nearby so you can chat away over WiFi or Bluetooth. Whatever you say stays between you — it never leaves the area."
-        data-fa="تَرک گوشی‌های نزدیک رو مستقیم به هم وصل می‌کنه تا با وای‌فای یا بلوتوث حرف بزنید. حرفاتون بین خودتون می‌مونه و هیچ‌جا ذخیره یا پخش نمی‌شه.">
-        Tarkk hooks up phones nearby so you can chat away over WiFi or Bluetooth. Whatever you say stays between you — it never
-        leaves the area.</p>
-      <div class="hero-ctas reveal-up d5">
-        <a class="btn btn-primary" href="#download" data-en="Get the app" data-fa="دریافت برنامه">Get the app</a>
-        <a class="btn btn-ghost" href="https://app.tarkk.ir" data-en="Join from browser ↗"
-          data-fa="ورود بدون نصب برنامه ↗">Join from browser ↗</a>
+      <div
+        class="loader-kicker"
+        data-fa="ارتباط مستقیم. گوشی به گوشی."
+        data-en="Direct voice. Phone to phone."
+      >Direct voice. Phone to phone.</div>
+      <div class="loader-center">
+        <img src="/assets/logo.png" alt="" width="80" height="80" /><strong
+          data-fa="تَرک"
+          data-en="TARKK"
+          >TARKK</strong><span
+          data-fa="داریم مسیر رو آماده می‌کنیم"
+          data-en="Preparing your connection"
+          >Preparing your connection</span>
+        <div class="loader-route">
+          <span class="loader-endpoint"
+            ><span
+              class="icon"
+              data-icon="device-mobile"
+              aria-hidden="true"
+            ></span
+          ></span>
+          <div class="load-track" id="loadProgress"><i></i></div>
+          <span class="loader-endpoint"
+            ><span
+              class="icon"
+              data-icon="device-mobile"
+              aria-hidden="true"
+            ></span
+          ></span>
+        </div>
+        <output id="loadPercent">0%</output>
       </div>
     </div>
-
-    <!-- CSS phone mockup -->
-    <div class="hero-phone reveal-up d3" aria-hidden="true">
-      <div class="phone">
-        <div class="phone-notch"></div>
-        <div class="phone-screen">
-          <div class="mock-header">
-            <span class="mock-live"><i></i><b data-en="LIVE" data-fa="زنده">LIVE</b></span>
-            <span class="mock-title">TARKK</span>
-          </div>
-          <div class="mock-user">
-            <div class="mock-avatar">P</div>
-            <div class="mock-user-lines"><b></b><i></i></div>
-          </div>
-          <!-- The app's audio dial, in CSS: bars radiate outward from the
-               hub, each with its own envelope, mirrored about the vertical
-               axis. app.js gives every ray its own timing; the rotation is
-               static per ray and only the bar inside it scales, so the
-               whole ring animates on the compositor. -->
-          <div class="mock-eq">
-            <div class="mock-ring">
-              <div class="mock-rays">
-                <span style="--i:0"><i></i></span><span style="--i:1"><i></i></span>
-                <span style="--i:2"><i></i></span><span style="--i:3"><i></i></span>
-                <span style="--i:4"><i></i></span><span style="--i:5"><i></i></span>
-                <span style="--i:6"><i></i></span><span style="--i:7"><i></i></span>
-                <span style="--i:8"><i></i></span><span style="--i:9"><i></i></span>
-                <span style="--i:10"><i></i></span><span style="--i:11"><i></i></span>
-                <span style="--i:12"><i></i></span><span style="--i:13"><i></i></span>
-                <span style="--i:14"><i></i></span><span style="--i:15"><i></i></span>
-                <span style="--i:16"><i></i></span><span style="--i:17"><i></i></span>
-                <span style="--i:18"><i></i></span><span style="--i:19"><i></i></span>
-                <span style="--i:20"><i></i></span><span style="--i:21"><i></i></span>
-                <span style="--i:22"><i></i></span><span style="--i:23"><i></i></span>
+    <div class="language-curtain" aria-hidden="true">
+      <div class="language-panel"></div>
+      <div class="language-panel"></div>
+    </div>
+    <a
+      class="skip"
+      href="#main"
+      data-fa="رفتن به محتوا"
+      data-en="Skip to content"
+      >Skip to content</a>
+    <header class="site-header">
+      <nav class="nav wrap" aria-label="Main navigation">
+        <a class="brand" href="#top" aria-label="Tarkk"
+          ><img src="/assets/logo.png" alt="" width="34" height="34" /><span
+            data-fa="تَرک"
+            data-en="TARKK"
+            >TARKK</span></a
+        >
+        <div class="nav-links" id="navLinks">
+          <a href="#handshake" data-fa="چطور کار می‌کند؟" data-en="How it works">How it works</a>
+          <a href="#features" data-fa="ویژگی‌ها" data-en="Features">Features</a>
+          <a href="#music" data-fa="پخش آهنگ" data-en="Music">Music</a>
+          <a href="#tech" data-fa="جزئیات بیشتر" data-en="Details">Details</a>
+        </div>
+        <div class="nav-tools">
+          <button id="langToggle" class="language-button">Persian</button
+          ><a class="nav-download" href="#download"
+            ><span data-fa="دریافت تَرک" data-en="Get Tarkk">Get Tarkk</span><span
+              class="icon"
+              data-icon="arrow-down"
+              aria-hidden="true"
+            ></span></a
+          ><button
+            class="icon-button menu-button"
+            id="menuToggle"
+            aria-expanded="false"
+            aria-controls="navLinks"
+            aria-label="Menu"
+          >
+            <span class="icon" data-icon="list" aria-hidden="true"></span>
+          </button>
+        </div>
+      </nav>
+    </header>
+    <main id="main">
+      <section class="ride-hero" id="top">
+        <div class="ride-stage" id="rideStage">
+          <div class="scene-viewport">
+          <div
+            class="scene-fit"
+            id="sceneFit"
+            aria-label="Tarkk phone alongside riding gear"
+          >
+            <div class="scene-intro" id="sceneIntro">
+              <div class="scene-camera" id="sceneCamera">
+                <div class="scene-drift" id="sceneDrift">
+                  <img
+                    class="scene-photo"
+                    src="/assets/tarkk-ride.webp"
+                    width="1672"
+                    height="941"
+                    alt="A phone, helmet and riding gloves on a travel preparation table"
+                    fetchpriority="high"
+                  />
+                  <div class="scene-screen" id="heroSelf"></div>
+                </div>
               </div>
-              <b></b>
             </div>
           </div>
-          <div class="mock-chips">
-            <span class="mock-chip tx"><i></i><b data-en="TALKING" data-fa="صحبت">TALKING</b></span>
-            <span class="mock-chip rx"><i></i><b data-en="INCOMING" data-fa="ورودی">INCOMING</b></span>
           </div>
-          <div class="mock-slider"><i></i></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="scroll-hint" aria-hidden="true"><span></span></div>
-  </header>
-
-  <!-- ── Ticker ──────────────────────────────────────────────────────── -->
-  <div class="ticker" aria-hidden="true">
-    <div class="ticker-track">
-      <span data-en="CLEAR AUDIO" data-fa="صدای شفاف">CLEAR AUDIO</span><i>•</i>
-      <span data-en="DIRECT CONNECTION" data-fa="اتصال مستقیم">DIRECT CONNECTION</span><i>•</i>
-      <span data-en="HANDS-FREE" data-fa="بدون نیاز به دست">HANDS-FREE</span><i>•</i>
-      <span data-en="BLUETOOTH" data-fa="بلوتوث">BLUETOOTH</span><i>•</i>
-      <span data-en="EASY HOTSPOT" data-fa="هات‌اسپات راحت">EASY HOTSPOT</span><i>•</i>
-      <span data-en="SHARE MUSIC" data-fa="پخش همزمان آهنگ">SHARE MUSIC</span><i>•</i>
-      <span data-en="BROWSER GUEST" data-fa="اتصال با مرورگر">BROWSER GUEST</span><i>•</i>
-      <span data-en="FREE ON BLUETOOTH" data-fa="بلوتوث رایگان">FREE ON BLUETOOTH</span><i>•</i>
-      <span data-en="NO INTERNET" data-fa="بدون اینترنت">NO INTERNET</span><i>•</i>
-      <span data-en="CLEAR AUDIO" data-fa="صدای شفاف">CLEAR AUDIO</span><i>•</i>
-      <span data-en="DIRECT CONNECTION" data-fa="اتصال مستقیم">DIRECT CONNECTION</span><i>•</i>
-      <span data-en="HANDS-FREE" data-fa="بدون نیاز به دست">HANDS-FREE</span><i>•</i>
-      <span data-en="BLUETOOTH" data-fa="بلوتوث">BLUETOOTH</span><i>•</i>
-      <span data-en="EASY HOTSPOT" data-fa="هات‌اسپات راحت">EASY HOTSPOT</span><i>•</i>
-      <span data-en="SHARE MUSIC" data-fa="پخش همزمان آهنگ">SHARE MUSIC</span><i>•</i>
-      <span data-en="BROWSER GUEST" data-fa="اتصال با مرورگر">BROWSER GUEST</span><i>•</i>
-      <span data-en="FREE ON BLUETOOTH" data-fa="بلوتوث رایگان">FREE ON BLUETOOTH</span><i>•</i>
-      <span data-en="NO INTERNET" data-fa="بدون اینترنت">NO INTERNET</span><i>•</i>
-    </div>
-  </div>
-
-  <!-- ── Features ────────────────────────────────────────────────────── -->
-  <section class="section" id="features">
-    <p class="eyebrow reveal" data-en="FOUR WAYS TO CONNECT" data-fa="۴ روش راحت برای وصل شدن">FOUR WAYS TO CONNECT</p>
-    <h2 class="reveal" data-en="Hook up however you like." data-fa="هر جوری دوست دارید وصل بشید.">Hook up however you like.</h2>
-
-    <div class="cards">
-      <article class="card reveal">
-        <div class="card-icon">
-          <svg viewBox="0 0 24 24">
-            <path d="M12 20.5a1.7 1.7 0 1 0 0-3.4 1.7 1.7 0 0 0 0 3.4Z" fill="currentColor" />
-            <path d="M6.3 14.2a8 8 0 0 1 11.4 0M2.8 10.4a13 13 0 0 1 18.4 0" fill="none" stroke="currentColor"
-              stroke-width="1.8" stroke-linecap="round" />
-          </svg>
-        </div>
-        <h3 data-en="Personal Hotspot" data-fa="هات‌اسپات">Personal Hotspot</h3>
-        <p data-en="One phone hosts, everyone else scans its code in the app — no settings, no password. Then just talk, hands-free."
-          data-fa="یه گوشی میزبان می‌شه، بقیه کدش رو تو برنامه اسکن می‌کنن — بدون تنظیمات و رمز. بعد فقط حرف بزنید، بدون دست.">
-          One phone hosts, everyone else scans its code in the app — no settings, no password. Then just talk, hands-free.</p>
-      </article>
-
-      <article class="card reveal">
-        <div class="card-icon">
-          <svg viewBox="0 0 24 24">
-            <path d="m7 7 10 10-5 4V3l5 4L7 17" fill="none" stroke="currentColor" stroke-width="1.8"
-              stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </div>
-        <h3 data-en="Bluetooth Link" data-fa="بلوتوث">Bluetooth Link</h3>
-        <p data-en="No signal? Link two phones straight over Bluetooth. Your friend shows up by name, connects on its own, and reconnects next time you open the app."
-          data-fa="آنتن ندارید؟ دو تا گوشی رو مستقیم با بلوتوث وصل کنید. دوستتون با اسمش میاد، خودش وصل می‌شه و دفعه بعد دوباره می‌رسونتتون به هم.">
-          No signal? Link two phones straight over Bluetooth. Your friend shows up by name, connects on its own, and reconnects next time you open the app.</p>
-      </article>
-
-      <article class="card reveal">
-        <div class="card-icon">
-          <svg viewBox="0 0 24 24">
-            <rect x="8.5" y="3" width="7" height="18" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.8" />
-            <path d="M4 9a5 5 0 0 0 0 6M20 9a5 5 0 0 1 0 6" fill="none" stroke="currentColor" stroke-width="1.8"
-              stroke-linecap="round" />
-          </svg>
-        </div>
-        <h3 data-en="Android & iPhone" data-fa="آیفون و اندروید">Android &amp; iPhone</h3>
-        <p data-en="Different phones? One Android shares the connection, the iPhone joins with a quick scan. Clear voice the whole way."
-          data-fa="گوشیاتون فرق داره؟ یه اندروید اتصال رو روشن می‌کنه و آیفون با یه اسکن می‌پره وسط. صدا هم تا آخر تمیزه.">
-          Different phones? One Android shares the connection, the iPhone joins with a quick scan. Clear voice the whole way.</p>
-      </article>
-
-      <article class="card reveal">
-        <div class="card-icon">
-          <svg viewBox="0 0 24 24">
-            <rect x="3" y="3" width="7" height="7" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.8" />
-            <rect x="14" y="3" width="7" height="7" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.8" />
-            <rect x="3" y="14" width="7" height="7" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.8" />
-            <path d="M14 14h3v3h-3zM18 18h3v3h-3z" fill="currentColor" />
-          </svg>
-        </div>
-        <h3 data-en="Join via Browser" data-fa="ورود با مرورگر">Join via Browser</h3>
-        <p data-en="No app? Friends jump in from Safari or Chrome. Send a link or let them scan your code — even over the internet."
-          data-fa="برنامه رو ندارن؟ با مرورگر (کروم یا سافاری) می‌پرن تو. یه لینک بفرستید یا کد رو اسکن کنن — حتی از راه دور با اینترنت.">
-          No app? Friends jump in from Safari or Chrome. Send a link or let them scan your code — even over the internet.</p>
-      </article>
-    </div>
-  </section>
-
-  <!-- ── Sound-wave divider ──────────────────── -->
-  <div class="signal-divider" aria-hidden="true"></div>
-
-  <!-- ── Pinned handshake scene ──────────────────────────────────────── -->
-  <section class="handshake" id="handshake">
-    <div class="handshake-sticky">
-      <p class="eyebrow" data-en="QUICK CONNECT" data-fa="اتصال سریع">QUICK CONNECT</p>
-      <h2 data-en="Two scans and you’re talking." data-fa="دو تا اسکن و تمام — بدون هیچ حساب کاربری.">
-        Two scans and you’re talking.</h2>
-
-      <div class="hs-progress" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
-
-      <div class="hs-stage">
-        <div class="hs-phone hs-host">
-          <div class="hs-screen">
-            <div class="hs-qr" aria-hidden="true">
-              <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
-              <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
-              <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+          <div class="scene-scrim" aria-hidden="true"></div>
+          <div class="ride-hero-copy wrap">
+            <p class="eyebrow">
+              <span class="icon" data-icon="broadcast" aria-hidden="true"></span
+              ><span
+                data-fa="گوشی توی جیب. رفیق توی گوش."
+                data-en="Phone in your pocket. Your people in your ear."
+                >Phone in your pocket. Your people in your ear.</span>
+            </p>
+            <h1>
+              <span data-fa="هم‌مسیر،" data-en="Same road.">Same road.</span><span class="accent" data-fa="هم‌صدا." data-en="Stay close."
+                >Stay close.</span>
+            </h1>
+            <p
+              class="ride-description"
+              data-fa="صدای هم‌مسیرت، مستقیم توی گوش. با بلوتوث، وای‌فای یا هات‌اسپات؛ حتی جایی که آنتن نداری."
+              data-en="Tarkk sends your voice straight to your travel companion’s phone. Bluetooth, Wi-Fi or a hotspot—even off the grid."
+            >Tarkk sends your voice straight to your travel companion’s phone. Bluetooth, Wi-Fi or a hotspot—even off the grid.</p>
+            <div class="hero-actions">
+              <a
+                class="button primary"
+                href="https://cafebazaar.ir/app/com.b1101.tark"
+                target="_blank"
+                rel="noopener"
+                ><span data-fa="دریافت تَرک" data-en="Get Tarkk"
+                  >Get Tarkk</span><span
+                  class="icon"
+                  data-icon="arrow-up-right"
+                  aria-hidden="true"
+                ></span></a
+              ><a class="button text-button" href="#handshake"
+                ><span data-fa="اتصال رو ببین" data-en="See the connection"
+                  >See the connection</span><span
+                  class="icon"
+                  data-icon="arrow-down"
+                  aria-hidden="true"
+                ></span
+              ></a>
             </div>
-            <b class="hs-label" data-en="HOST" data-fa="گروه اول">HOST</b>
-          </div>
-        </div>
-
-        <div class="hs-beam" aria-hidden="true"></div>
-        <div class="hs-wave" aria-hidden="true">
-          <span></span><span></span><span></span>
-          <div class="hs-check"><svg viewBox="0 0 24 24">
-              <path d="M5 13l5 5L19 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"
-                stroke-linejoin="round" />
-            </svg></div>
-        </div>
-
-        <div class="hs-phone hs-guest">
-          <div class="hs-screen">
-            <div class="hs-camera" aria-hidden="true"><i></i></div>
-            <div class="hs-qr hs-qr-reply" aria-hidden="true">
-              <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
-              <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
-              <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
-            </div>
-            <b class="hs-label" data-en="GUEST" data-fa="گروه دوم">GUEST</b>
-          </div>
-        </div>
-      </div>
-
-      <div class="hs-steps">
-        <div class="hs-step" data-step="1">
-          <b>1</b>
-          <p data-en="One of you pulls up an invite code on screen."
-            data-fa="یکیتون کد دعوت رو رو صفحه گوشیش باز می‌کنه.">
-            One of you pulls up an invite code on screen.</p>
-        </div>
-        <div class="hs-step" data-step="2">
-          <b>2</b>
-          <p data-en="The other points their camera at it."
-            data-fa="اون یکی دوربینش رو می‌گیره روش.">
-            The other points their camera at it.</p>
-        </div>
-        <div class="hs-step" data-step="3">
-          <b>3</b>
-          <p data-en="One last scan back, and you're talking phone to phone — just the two of you."
-            data-fa="یه اسکن آخر و صداتون مستقیم بین دو تا گوشی وصله — فقط خودتون.">
-            One last scan back, and you're talking phone to phone — just the two of you.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── Music cast ──────────────────────────────────────────────────── -->
-  <section class="section music" id="music">
-    <div class="music-grid">
-      <div class="music-copy">
-        <p class="eyebrow reveal" data-en="MUSIC SHARING" data-fa="پخش همزمان آهنگ">MUSIC SHARING</p>
-        <h2 class="reveal" data-en="One of you puts a song on. Everyone rides to it."
-          data-fa="یکیتون آهنگ می‌ذاره، بقیه تو مسیر باهاش می‌رن.">One of you puts a song on. Everyone rides to it.
-        </h2>
-        <p class="reveal"
-          data-en="Send music straight from your phone into the channel. Your voice rides smoothly over the top of it, and everyone gets their own slider to set how loud the music sits behind the talking."
-          data-fa="آهنگ گوشیتون رو مستقیم بفرستید تو کانال. صداتون نرم می‌شینه روش و هر کسی خودش تنظیم می‌کنه آهنگ چقدر پشت حرفا باشه.">
-          Send music straight from your phone into the channel. Your voice rides smoothly over the top of it, and everyone gets
-          their own slider to set how loud the music sits behind the talking.</p>
-      </div>
-      <div class="music-eq reveal" aria-hidden="true">
-        <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
-        <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
-        <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── Under the hood ──────────────────────────────────────────────── -->
-  <section class="section tech" id="tech">
-    <div class="tech-grid" aria-hidden="true"></div>
-    <p class="eyebrow reveal" data-en="THE ACTUAL NUMBERS" data-fa="عدد و رقم واقعی">THE ACTUAL NUMBERS</p>
-    <h2 class="reveal" data-en="What you actually get, way by way."
-      data-fa="دقیقاً چی گیرتون میاد، روش به روش.">What you actually get, way by way.</h2>
-    <p class="tech-deck reveal"
-      data-en="No slogans. How many people fit, how far it reaches, what each way needs — and everything the app asks for, next to everything it never will. The app chooses between these for you; this is what it's choosing between."
-      data-fa="بدون شعار. هر روش چند نفر رو جا می‌ده، تا کجا می‌رسه، چی لازم داره — و برنامه چه چیزهایی ازتون می‌خواد و چه چیزهایی رو هیچ‌وقت نمی‌خواد. برنامه خودش بین این‌ها انتخاب می‌کنه؛ این‌ها همون‌هایی‌ان که بینشون انتخاب می‌کنه.">
-      No slogans. How many people fit, how far it reaches, what each way needs — and everything the app asks for, next
-      to everything it never will. The app chooses between these for you; this is what it's choosing between.</p>
-
-    <div class="pick-grid">
-      <article class="pick reveal">
-        <div class="pick-head">
-          <div class="pick-icon" aria-hidden="true"><svg viewBox="0 0 24 24">
-              <path d="M12 20.5a1.7 1.7 0 1 0 0-3.4 1.7 1.7 0 0 0 0 3.4Z" fill="currentColor" />
-              <path d="M6.3 14.2a8 8 0 0 1 11.4 0M2.8 10.4a13 13 0 0 1 18.4 0" fill="none" stroke="currentColor"
-                stroke-width="1.8" stroke-linecap="round" />
-            </svg></div>
-          <h3 class="pick-name" data-en="Same Wi-Fi" data-fa="وای‌فای مشترک">Same Wi-Fi</h3>
-        </div>
-        <p class="pick-when" data-en="When everyone's already on one network"
-          data-fa="وقتی همه از قبل روی یه شبکه‌این">When everyone's already on one network</p>
-        <dl class="pick-facts">
-          <div class="fact">
-            <dt class="fact-k" data-en="PEOPLE" data-fa="چند نفر">PEOPLE</dt>
-            <dd class="fact-v" data-en="As many as you like — the app sets no limit"
-              data-fa="هر چند نفر که باشید — برنامه سقفی نذاشته">As many as you like — the app sets no limit</dd>
-          </div>
-          <div class="fact">
-            <dt class="fact-k" data-en="RANGE" data-fa="تا کجا">RANGE</dt>
-            <dd class="fact-v"
-              data-en="Wherever the router reaches — and when you leave, Tarkk moves everyone onto a connection of their own before it runs out"
-              data-fa="تا هر جا که مودم می‌رسه — و وقتی راه می‌افتید، «ترک» قبل از اینکه تموم بشه همه رو می‌بره روی یه ارتباط مستقل">
-              Wherever the router reaches — and when you leave, Tarkk moves everyone onto a connection of their own before it runs out</dd>
-          </div>
-          <div class="fact">
-            <dt class="fact-k" data-en="NEEDS" data-fa="چی لازمه">NEEDS</dt>
-            <dd class="fact-v" data-en="One shared network. No internet needed."
-              data-fa="فقط یه شبکه مشترک. اینترنت لازم نیست.">One shared network. No internet needed.</dd>
-          </div>
-        </dl>
-      </article>
-
-      <article class="pick reveal">
-        <div class="pick-head">
-          <div class="pick-icon" aria-hidden="true"><svg viewBox="0 0 24 24">
-              <rect x="8" y="8" width="8" height="13" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.8" />
-              <path d="M6.5 6a7 7 0 0 1 11 0M4 3a11 11 0 0 1 16 0" fill="none" stroke="currentColor" stroke-width="1.6"
-                stroke-linecap="round" />
-            </svg></div>
-          <h3 class="pick-name" data-en="Hotspot bridge" data-fa="هات‌اسپات">Hotspot bridge</h3>
-        </div>
-        <p class="pick-when" data-en="When there's no network at all, on any mix of phones"
-          data-fa="وقتی هیچ شبکه‌ای نیست، با هر ترکیبی از گوشی‌ها">When there's no network at all, on any mix of phones
-        </p>
-        <dl class="pick-facts">
-          <div class="fact">
-            <dt class="fact-k" data-en="PEOPLE" data-fa="چند نفر">PEOPLE</dt>
-            <dd class="fact-v" data-en="The host, plus everyone its hotspot allows — usually a handful"
-              data-fa="میزبان، به‌علاوه هر تعداد که هات‌اسپاتش اجازه بده — معمولاً چند نفر">
-              The host, plus everyone its hotspot allows — usually a handful</dd>
-          </div>
-          <div class="fact">
-            <dt class="fact-k" data-en="RANGE" data-fa="تا کجا">RANGE</dt>
-            <dd class="fact-v" data-en="Wi-Fi range from the host phone; walls cut it down"
-              data-fa="به اندازه برد وای‌فای گوشی میزبان؛ دیوار کمش می‌کنه">
-              Wi-Fi range from the host phone; walls cut it down</dd>
-          </div>
-          <div class="fact">
-            <dt class="fact-k" data-en="NEEDS" data-fa="چی لازمه">NEEDS</dt>
-            <dd class="fact-v" data-en="One Android to host, one scan on every other phone"
-              data-fa="یه اندروید که میزبان بشه و یه اسکن روی بقیه گوشی‌ها">
-              One Android to host, one scan on every other phone</dd>
-          </div>
-        </dl>
-      </article>
-
-      <article class="pick reveal">
-        <div class="pick-head">
-          <div class="pick-icon" aria-hidden="true"><svg viewBox="0 0 24 24">
-              <path d="m7 7 10 10-5 4V3l5 4L7 17" fill="none" stroke="currentColor" stroke-width="1.8"
-                stroke-linecap="round" stroke-linejoin="round" />
-            </svg></div>
-          <h3 class="pick-name" data-en="Bluetooth" data-fa="بلوتوث">Bluetooth</h3>
-        </div>
-        <p class="pick-when" data-en="When it's just the two of you and nothing else around"
-          data-fa="وقتی فقط دو نفرید و هیچی دور و برتون نیست">When it's just the two of you and nothing else around</p>
-        <dl class="pick-facts">
-          <div class="fact">
-            <dt class="fact-k" data-en="PEOPLE" data-fa="چند نفر">PEOPLE</dt>
-            <dd class="fact-v" data-en="Two phones — this link is one-to-one"
-              data-fa="دو تا گوشی — این اتصال یک‌به‌یکه">Two phones — this link is one-to-one</dd>
-          </div>
-          <div class="fact">
-            <dt class="fact-k" data-en="RANGE" data-fa="تا کجا">RANGE</dt>
-            <dd class="fact-v" data-en="Around ten metres in the open, less through walls"
-              data-fa="حدود ده متر توی فضای باز، پشت دیوار کمتر">Around ten metres in the open, less through walls</dd>
-          </div>
-          <div class="fact">
-            <dt class="fact-k" data-en="NEEDS" data-fa="چی لازمه">NEEDS</dt>
-            <dd class="fact-v" data-en="Nothing but the two phones — no network, no pairing screen"
-              data-fa="فقط همون دو تا گوشی — نه شبکه‌ای، نه صفحه جفت‌شدن">
-              Nothing but the two phones — no network, no pairing screen</dd>
-          </div>
-        </dl>
-      </article>
-
-      <article class="pick reveal">
-        <div class="pick-head">
-          <div class="pick-icon" aria-hidden="true"><svg viewBox="0 0 24 24">
-              <rect x="3" y="3" width="7" height="7" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.8" />
-              <rect x="14" y="3" width="7" height="7" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.8" />
-              <rect x="3" y="14" width="7" height="7" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.8" />
-              <path d="M14 14h3v3h-3zM18 18h3v3h-3z" fill="currentColor" />
-            </svg></div>
-          <h3 class="pick-name" data-en="Browser guest" data-fa="مهمان با مرورگر">Browser guest</h3>
-        </div>
-        <p class="pick-when" data-en="When someone doesn't have the app — even far away"
-          data-fa="وقتی یکی برنامه رو نداره — حتی از راه دور">When someone doesn't have the app — even far away</p>
-        <dl class="pick-facts">
-          <div class="fact">
-            <dt class="fact-k" data-en="PEOPLE" data-fa="چند نفر">PEOPLE</dt>
-            <dd class="fact-v" data-en="One guest at a time" data-fa="هر بار یک مهمان">One guest at a time</dd>
-          </div>
-          <div class="fact">
-            <dt class="fact-k" data-en="RANGE" data-fa="تا کجا">RANGE</dt>
-            <dd class="fact-v" data-en="Anywhere with an internet connection" data-fa="هر جایی که اینترنت باشه">
-              Anywhere with an internet connection</dd>
-          </div>
-          <div class="fact">
-            <dt class="fact-k" data-en="NEEDS" data-fa="چی لازمه">NEEDS</dt>
-            <dd class="fact-v" data-en="A link or a code, and any normal browser — the guest installs nothing"
-              data-fa="یه لینک یا کد و یه مرورگر معمولی — مهمان چیزی نصب نمی‌کنه">
-              A link or a code, and any normal browser — the guest installs nothing</dd>
-          </div>
-        </dl>
-      </article>
-    </div>
-
-    <ul class="figures">
-      <li class="figure reveal">
-        <span class="figure-num" data-en="16 kHz" data-fa="۱۶ کیلوهرتز">16 kHz</span>
-        <span class="figure-cap" data-en="voice, Opus-coded — a small packet every 20 ms"
-          data-fa="صدا با کدک اوپوس — هر ۲۰ میلی‌ثانیه یک بسته کوچیک">voice, Opus-coded — a small packet every 20
-          ms</span>
-      </li>
-      <li class="figure reveal">
-        <span class="figure-num" data-en="~3 KB/s" data-fa="۳ کیلوبایت/ثانیه">~3 KB/s</span>
-        <span class="figure-cap" data-en="while you're actually talking — silence sends nothing"
-          data-fa="فقط وقتی داری حرف می‌زنی — سکوت چیزی نمی‌فرسته">while you're actually talking — silence sends
-          nothing</span>
-      </li>
-      <li class="figure reveal">
-        <span class="figure-num" data-en="100 ms" data-fa="۱۰۰ میلی‌ثانیه">100 ms</span>
-        <span class="figure-cap" data-en="of playback cushion by default — tune it in Settings"
-          data-fa="تأخیر پیش‌فرض پخش — توی تنظیمات قابل تغییره">of playback cushion by default — tune it in
-          Settings</span>
-      </li>
-      <li class="figure reveal">
-        <span class="figure-num" data-en="0" data-fa="صفر">0</span>
-        <span class="figure-cap" data-en="servers carrying your voice — or hearing it"
-          data-fa="سروری که صداتون رو جابه‌جا کنه — یا بشنوه">servers carrying your voice — or hearing
-          it</span>
-      </li>
-    </ul>
-
-    <div class="ledger">
-      <div class="ledger-col reveal">
-        <p class="ledger-title" data-en="WHAT IT ASKS FOR" data-fa="چیزهایی که ازتون می‌خواد">WHAT IT ASKS FOR</p>
-        <ul class="ledger-list asks">
-          <li data-en="The microphone. That one's the whole point." data-fa="میکروفون. خب این که اصل کاره.">
-            The microphone. That one's the whole point.</li>
-          <li data-en="Nearby devices — only when you use Bluetooth or the hotspot bridge."
-            data-fa="دستگاه‌های اطراف — فقط وقتی از بلوتوث یا هات‌اسپات استفاده می‌کنید.">
-            Nearby devices — only when you use Bluetooth or the hotspot bridge.</li>
-          <li data-en="Location on older Androids, because Android won't scan for Wi-Fi or Bluetooth without it."
-            data-fa="موقعیت مکانی روی اندرویدهای قدیمی‌تر، چون اندروید بدون اون اجازه اسکن وای‌فای و بلوتوث نمی‌ده.">
-            Location on older Androids, because Android won't scan for Wi-Fi or Bluetooth without it.</li>
-          <li data-en="Notifications, so the channel keeps running with the screen off and the phone in a pocket."
-            data-fa="اعلان‌ها، تا کانال با صفحه خاموش و گوشی توی جیب هم روشن بمونه.">
-            Notifications, so the channel keeps running with the screen off and the phone in a pocket.</li>
-        </ul>
-      </div>
-      <div class="ledger-col reveal">
-        <p class="ledger-title" data-en="WHAT IT NEVER ASKS FOR" data-fa="چیزهایی که هیچ‌وقت نمی‌خواد">
-          WHAT IT NEVER ASKS FOR</p>
-        <ul class="ledger-list nevers">
-          <li data-en="Your phone number, ever. And an account only if you subscribe — talking over Bluetooth needs none."
-            data-fa="شماره تلفنتون، هیچ‌وقت. حساب کاربری هم فقط اگه اشتراک بخرید — حرف زدن با بلوتوث حساب نمی‌خواد.">
-            Your phone number, ever. And an account only if you subscribe — talking over Bluetooth needs none.</li>
-          <li data-en="A server in the middle. Voice goes phone to phone; a browser guest only borrows a public STUN server to find you, never to carry the audio."
-            data-fa="سروری وسط راه. صدا مستقیم بین گوشی‌هاست؛ مهمان مرورگری فقط از یه سرور عمومی برای پیدا کردن شما کمک می‌گیره، نه برای رد و بدل صدا.">
-            A server in the middle. Voice goes phone to phone; a browser guest only borrows a public STUN server to find
-            you, never to carry the audio.</li>
-          <li
-            data-en="Ads, trackers or usage stats, of any kind. Nothing about how you use the app is sent anywhere."
-            data-fa="تبلیغات، ردیاب یا آمار استفاده، از هر نوعی. هیچ چیزی از نحوه‌ی استفاده‌ت از برنامه جایی فرستاده نمی‌شه.">
-            Ads, trackers or usage stats, of any kind. Nothing about how you use the app is sent anywhere.</li>
-          <li data-en="Storage for your voice. Audio is played and gone — nothing is recorded."
-            data-fa="جایی برای ذخیره صداتون. صدا پخش می‌شه و تموم — چیزی ضبط نمی‌شه.">
-            Storage for your voice. Audio is played and gone — nothing is recorded.</li>
-        </ul>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── Preflight ───────────────────────────────────────────────────── -->
-  <section class="section" id="preflight">
-    <div class="preflight-grid">
-      <div class="preflight-copy">
-        <p class="eyebrow reveal" data-en="BEFORE YOU RIDE" data-fa="قبل از حرکت">BEFORE YOU RIDE</p>
-        <h2 class="reveal" data-en="Know it's ready before the helmet goes on."
-          data-fa="قبل از اینکه کلاه رو سرتون بره، مطمئن می‌شید همه چی آماده‌ست.">
-          Know it's ready before the helmet goes on.</h2>
-        <p class="reveal"
-          data-en="A quick check right when you're about to ride: your mic is actually picking up sound, not just switched on. You're routed through your helmet, not the phone speaker. The connection's healthy. And your phone won't get killed in your pocket. Anything that needs attention says so, with the fix right there — never a surprise five minutes down the road."
-          data-fa="درست قبل از حرکت، «ترک» یه بررسی سریع انجام می‌ده: میکروفون واقعاً صدا می‌گیره، نه فقط روشنه؛ صدا از هدستتون پخش می‌شه نه بلندگوی گوشی؛ اتصال سالمه؛ و گوشی تو جیبتون خاموش نمی‌شه. اگه یه جایی مشکلی باشه، همون‌جا بهتون می‌گه و راه‌حلش هم دستتونه — نه یه غافلگیری بعد از پنج دقیقه تو جاده.">
-          A quick check right when you're about to ride: your mic is actually picking up sound, not just switched on.
-          You're routed through your helmet, not the phone speaker. The connection's healthy. And your phone won't get
-          killed in your pocket. Anything that needs attention says so, with the fix right there — never a surprise
-          five minutes down the road.</p>
-      </div>
-
-      <div class="preflight-phone-wrap">
-        <div class="preflight-phone reveal" aria-hidden="true">
-          <div class="phone">
-            <div class="phone-notch"></div>
-            <div class="phone-screen">
-              <div class="pf-header">
-                <span class="pf-title" data-en="PREFLIGHT" data-fa="بررسی">PREFLIGHT</span>
+            <p class="hero-free">
+              <span class="icon" data-icon="bluetooth" aria-hidden="true"></span
+              ><span
+                data-fa="بلوتوث رایگان، بدون حساب کاربری"
+                data-en="Free Bluetooth. No account needed."
+                >Free Bluetooth. No account needed.</span>
+            </p>
+            <div class="voice-demo">
+              <span
+                class="demo-heading"
+                data-fa="حالا با گوشی روی میز امتحان کن"
+                data-en="Try the phone on the table"
+                >Try the phone on the table</span>
+              <div class="voice-options" role="group" aria-label="Conversation demo">
+                <button data-voice="self" aria-pressed="false">
+                  <span data-fa="من حرف می‌زنم" data-en="I’m speaking"
+                    >I’m speaking</span></button
+                ><button data-voice="peer" aria-pressed="true">
+                  <span
+                    data-fa="نازنین حرف می‌زنه"
+                    data-en="Nazanin is speaking"
+                    >Nazanin is speaking</span></button
+                ><button data-voice="idle" aria-pressed="false">
+                  <span data-fa="سکوت" data-en="Quiet">Quiet</span>
+                </button>
               </div>
-              <div class="pf-rows">
-                <div class="pf-row pf-row1"><i class="pf-dot"></i><b data-en="Microphone" data-fa="میکروفون">Microphone</b></div>
-                <div class="pf-row pf-row2"><i class="pf-dot"></i><b data-en="Headset" data-fa="هدست">Headset</b></div>
-                <div class="pf-row pf-row3"><i class="pf-dot"></i><b data-en="Connection" data-fa="اتصال">Connection</b></div>
-                <div class="pf-row pf-row4"><i class="pf-dot"></i><b data-en="Background mode" data-fa="پس‌زمینه">Background mode</b></div>
-                <div class="pf-row pf-row5"><i class="pf-dot"></i><b data-en="HD Voice" data-fa="صدای باکیفیت">HD Voice</b></div>
-              </div>
-              <div class="pf-cta" data-en="ENTER CHANNEL" data-fa="ورود به کانال">ENTER CHANNEL</div>
+              <p
+                class="demo-note"
+                data-fa="رابط روی گوشی تعاملی است. این دمو میکروفن شما را فعال نمی‌کند."
+                data-en="The phone interface is interactive. This demo does not use your microphone."
+              >The phone interface is interactive. This demo does not use your microphone.</p>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── Sound-wave divider ──────────────────── -->
-  <div class="signal-divider sd-alt" aria-hidden="true"></div>
-
-  <!-- ── FAQ ──────────────────────────────────────────────────────────── -->
-  <section class="section faq-section" id="faq">
-    <p class="eyebrow reveal" data-en="QUESTIONS" data-fa="سوالات شما">QUESTIONS</p>
-    <h2 class="reveal" data-en="Stuff people ask." data-fa="چیزایی که معمولاً می‌پرسن.">Stuff people ask.</h2>
-
-    <div class="faq reveal">
-      <div class="faq-item">
-        <button class="faq-q" aria-expanded="false">
-          <span data-en="Two groups of us are on the same WiFi. Will we hear each other?"
-            data-fa="دو گروهیم روی یه وای‌فای. صدای همدیگه رو می‌شنویم؟">
-            Two groups of us are on the same WiFi. Will we hear each other?</span>
-          <i class="faq-icon" aria-hidden="true"></i>
-        </button>
-        <div class="faq-a">
-          <div class="faq-a-inner">
-            <p data-en="Not if each group starts its own channel. Starting one gives it a short code, and Tarkk ignores anyone on a different code — so two groups on one café router stay two conversations. The code travels inside the same QR the other phone already scans, and it is short enough to read out loud if the camera is not handy. Worth knowing: it keeps channels apart, it does not lock them. Anyone who has the code can use it, so treat it as a channel number rather than a password."
-              data-fa="نه، اگه هر گروه کانال خودش رو بسازه. وقتی کانال می‌سازی یه کد کوتاه می‌گیره و «ترک» هر کسی رو که روی کد دیگه‌ایه نادیده می‌گیره — پس دو گروه روی یه مودم کافه، دو تا گفت‌وگوی جدا می‌مونن. این کد داخل همون QR ی می‌ره که گوشی مقابل به‌هرحال اسکن می‌کنه، و اون‌قدر کوتاه هست که اگه دوربین دم دست نبود بشه بلند خوندش. اینم بدون: کانال‌ها رو از هم جدا می‌کنه، ولی قفلشون نمی‌کنه. هر کسی کد رو داشته باشه می‌تونه ازش استفاده کنه، پس مثل شماره کانال بهش نگاه کن، نه رمز."
+          <div class="scene-live">
+            <img src="/assets/woman-rider.webp" alt="" width="32" height="32" />
+            <div>
+              <span
+                data-fa="طرف دیگر کانال"
+                data-en="The other end of the channel"
+                >The other end of the channel</span><strong id="scenePeerStatus" data-fa="نازنین روی آنتن است" data-en="Nazanin is on air">Nazanin is on air</strong>
+            </div>
+            <span class="scene-live-dot"></span>
+          </div>
+          <div class="hero-footer">
+            <div class="hero-footer-inner wrap">
+              <p
+                class="hero-footer-intro"
+                data-fa="از یک اتاق، تا یک مسیر مشترک."
+                data-en="From one room to your next ride."
+              >From one room to your next ride.</p>
+              <a class="ride-scroll" href="#handshake"
+                ><span
+                  class="icon"
+                  data-icon="arrow-down"
+                  aria-hidden="true"
+                ></span
+                ><span data-fa="مسیر را شروع کن" data-en="Start the journey"
+                  >Start the journey</span><span class="ride-scroll-line" aria-hidden="true"></span
+                ><small>01 / 03</small></a
               >
-              Not if each group starts its own channel. Starting one gives it a short code, and Tarkk ignores anyone on
-              a different code — so two groups on one café router stay two conversations. The code travels inside the
-              same QR the other phone already scans, and it is short enough to read out loud if the camera is not handy.
-              Worth knowing: it keeps channels apart, it does not lock them. Anyone who has the code can use it, so
-              treat it as a channel number rather than a password.</p>
+            </div>
           </div>
+          <div id="heroPair" hidden></div>
+          <div id="heroPeer" hidden aria-hidden="true"></div>
         </div>
-      </div>
-      <div class="faq-item">
-        <button class="faq-q" aria-expanded="false">
-          <span data-en="Which connection should I pick?"
-            data-fa="کدوم نوع اتصال رو انتخاب کنم؟">
-            Which connection should I pick?</span>
-          <i class="faq-icon" aria-hidden="true"></i>
-        </button>
-        <div class="faq-a">
-          <div class="faq-a-inner">
-            <p data-en="You don't have to pick one. Tarkk asks a single question — are you starting a channel, or joining one? — and works out the rest from what your phone can see: the WiFi you're already on, otherwise a hotspot one phone makes and the other scans, and Bluetooth where neither is possible. Each button tells you which way it's about to go, so nothing happens that the screen didn't say first. If you'd rather choose yourself, you still can, in Settings → Advanced settings."
-              data-fa="لازم نیست خودت انتخاب کنی. «ترک» فقط یه سؤال می‌پرسه — داری کانال می‌سازی یا وارد یکی می‌شی؟ — و بقیه‌ش رو از روی چیزی که گوشیت می‌بینه تشخیص می‌ده: وای‌فایی که روش هستی، وگرنه هات‌اسپاتی که یه گوشی می‌سازه و اون یکی کدش رو اسکن می‌کنه، و بلوتوث وقتی هیچ‌کدوم ممکن نیست. هر دکمه خودش می‌گه از کدوم راه می‌ره، پس هیچ اتفاقی نمی‌افته که صفحه از قبل نگفته باشه. اگه ترجیح می‌دی خودت انتخاب کنی، هنوز هم می‌تونی: تنظیمات ← تنظیمات پیشرفته.">
-              You don't have to pick one. Tarkk asks a single question — are you starting a channel, or joining one? — and
-              works out the rest from what your phone can see: the WiFi you're already on, otherwise a hotspot one
-              phone makes and the other scans, and Bluetooth where neither is possible. Each button tells you which way
-              it's about to go, so nothing happens that the screen didn't say first. If you'd rather choose yourself,
-              you still can, in Settings → Advanced settings.</p>
-          </div>
-        </div>
-      </div>
-      <div class="faq-item">
-        <button class="faq-q" aria-expanded="false">
-          <span data-en="Do I have to set the connection up before I open a room?"
-            data-fa="قبل از باز کردن اتاق باید اتصال رو خودم برقرار کنم؟">
-            Do I have to set the connection up before I open a room?</span>
-          <i class="faq-icon" aria-hidden="true"></i>
-        </button>
-        <div class="faq-a">
-          <div class="faq-a-inner">
-            <p data-en="No. Scanning the invite is the setup: the two phones find each other over Bluetooth, the phone that showed the code brings a hotspot up, the other joins it, and both go on air by themselves — nobody has to decide who hosts. If Android asks the joining phone whether to connect to a network, say yes. A room only counts as connected once another member has answered a signed challenge over the link the call is actually using, so being on WiFi — even the same WiFi — never counts on its own. With no scan to work from, Start tries whatever link the phone already has; if that doesn't reach anyone, it says so and offers to connect the phones by hand."
-              data-fa="نه. اسکن کد دعوت یعنی همه‌ی کار: دو گوشی با بلوتوث همدیگر را پیدا می‌کنند، گوشی‌ای که کد را نشان داده هات‌اسپات را روشن می‌کند، آن یکی به آن وصل می‌شود و هر دو خودشان وارد ارتباط می‌شوند — لازم نیست کسی تصمیم بگیرد میزبان کیست. اگر اندروید روی گوشی دوم پرسید به شبکه وصل شود یا نه، «اتصال» را بزنید. اتاق فقط وقتی «وصل» حساب می‌شود که یکی دیگر از اعضا روی همان مسیری که صدا از آن می‌رود به یک چالش امضاشده جواب داده باشد؛ پس روی وای‌فای بودن — حتی همان وای‌فای — به‌تنهایی حساب نیست. اگر اسکنی در کار نباشد، «شروع ارتباط» همان اتصالی را که گوشی دارد امتحان می‌کند، و اگر به کسی نرسید همین را می‌گوید و پیشنهاد می‌دهد گوشی‌ها را دستی به هم وصل کنید.">
-              No. Scanning the invite is the setup: the two phones find each other over Bluetooth, the phone that showed the code brings a hotspot up, the other joins it, and both go on air by themselves — nobody has to decide who hosts. If Android asks the joining phone whether to connect to a network, say yes. A room only counts as connected once another member has answered a signed challenge over the link the call is actually using, so being on WiFi — even the same WiFi — never counts on its own. With no scan to work from, Start tries whatever link the phone already has; if that doesn't reach anyone, it says so and offers to connect the phones by hand.</p>
-          </div>
-        </div>
-      </div>
-      <div class="faq-item">
-        <button class="faq-q" aria-expanded="false">
-          <span data-en="Do I need an account or an internet connection?"
-            data-fa="آیا به ساختن حساب یا اینترنت نیاز دارم؟">
-            Do I need an account or an internet connection?</span>
-          <i class="faq-icon" aria-hidden="true"></i>
-        </button>
-        <div class="faq-a">
-          <div class="faq-a-inner">
-            <p data-en="Not to talk. Tarkk goes straight between phones over WiFi or Bluetooth — no internet, no data plan. An account is only needed to subscribe to the paid features; talking over Bluetooth is free and needs none."
-              data-fa="برای حرف زدن، نه. تَرک مستقیم با وای‌فای یا بلوتوث گوشی‌ها رو به هم وصل می‌کنه — نه اینترنت می‌خواد، نه بسته‌ی اینترنت. حساب فقط برای خرید اشتراک قابلیت‌های پولی لازمه؛ حرف زدن با بلوتوث رایگانه و حساب نمی‌خواد.">
-              Not to talk. Tarkk goes straight between phones over WiFi or Bluetooth — no internet, no data plan. An account is only needed to subscribe to the paid features; talking over Bluetooth is free and needs none.</p>
-          </div>
-        </div>
-      </div>
-      <div class="faq-item">
-        <button class="faq-q" aria-expanded="false">
-          <span data-en="Does Tarkk collect my data?"
-            data-fa="آیا «ترک» اطلاعات من رو جمع می‌کنه؟">
-            Does Tarkk collect my data?</span>
-          <i class="faq-icon" aria-hidden="true"></i>
-        </button>
-        <div class="faq-a">
-          <div class="faq-a-inner">
-            <p data-en="Your voice never leaves the link between the phones — no server ever carries it, ours included. The app sends no analytics or usage stats, and its diagnostic log stays on your phone unless you choose to share it. If you make an account to subscribe, our server keeps your email, name, avatar and subscription; the Privacy Policy lists all of it."
-              data-fa="صدای شما هیچ‌وقت از بین خود گوشی‌ها بیرون نمی‌ره — هیچ سروری، حتی سرور خود ما، اون رو جابه‌جا نمی‌کنه. برنامه هیچ آمار یا تحلیلی از استفاده نمی‌فرسته و لاگ عیب‌یابی‌ش روی گوشی خودت می‌مونه، مگر اینکه خودت بخوای به اشتراکش بذاری. اگه برای خرید اشتراک حساب بسازی، سرور ما ایمیل، اسم، آواتار و اشتراکت رو نگه می‌داره؛ فهرست کاملش توی سیاست حریم خصوصی هست.">
-              Your voice never leaves the link between the phones — no server ever carries it, ours included. The app sends no analytics or usage stats, and its diagnostic log stays on your phone unless you choose to share it. If you make an account to subscribe, our server keeps your email, name, avatar and subscription; the Privacy Policy lists all of it.</p>
-          </div>
-        </div>
-      </div>
-      <div class="faq-item">
-        <button class="faq-q" aria-expanded="false">
-          <span data-en="What if I lock my phone while talking?"
-            data-fa="اگه صفحه گوشیمو قفل کنم قطع میشم؟">What if I lock my phone while talking?</span>
-          <i class="faq-icon" aria-hidden="true"></i>
-        </button>
-        <div class="faq-a">
-          <div class="faq-a-inner">
-            <p data-en="The app stays awake in the background. Lock the screen or stuff your phone in a pocket — you're still on."
-              data-fa="نه، برنامه پشت صحنه بیداره. صفحه رو قفل کن یا گوشی رو بذار تو جیب — هنوز وصلی.">
-              The app stays awake in the background. Lock the screen or stuff your phone in a pocket — you're still on.</p>
-          </div>
-        </div>
-      </div>
-      <div class="faq-item">
-        <button class="faq-q" aria-expanded="false">
-          <span data-en="What happens if the connection drops?"
-            data-fa="اگه ارتباط وسط راه برای لحظه‌ای قطع بشه چی؟">What happens if the connection drops?</span>
-          <i class="faq-icon" aria-hidden="true"></i>
-        </button>
-        <div class="faq-a">
-          <div class="faq-a-inner">
-            <p data-en="Tarkk keeps trying in the background and picks the call back up the second your friend is close enough again."
-              data-fa="تَرک پشت صحنه تلاشش رو می‌کنه و همین که دوباره به دوستتون نزدیک شدید، تماس رو برمی‌گردونه.">
-              Tarkk keeps trying in the background and picks the call back up the second your friend is close enough again.</p>
-          </div>
-        </div>
-      </div>
-      <div class="faq-item">
-        <button class="faq-q" aria-expanded="false">
-          <span data-en="Can iPhone and Android users talk to each other?"
-            data-fa="آیا آیفون و اندروید میتونن با هم صحبت کنن؟">
-            Can iPhone and Android users talk to each other?</span>
-          <i class="faq-icon" aria-hidden="true"></i>
-        </button>
-        <div class="faq-a">
-          <div class="faq-a-inner">
-            <p data-en="Yep! One phone makes the hotspot, the other scans its code right inside the app — you never have to leave Tarkk. Or just send a link and they hop in from a browser."
-              data-fa="آره! یه گوشی هات‌اسپات رو می‌سازه و اون یکی کدش رو با کدخوان خود برنامه می‌خونه — اصلاً لازم نیست از «ترک» بیای بیرون. یا یه پیوند ساده بفرست تا از مرورگر بپرن تو.">
-              Yep! One phone makes the hotspot, the other scans its code right inside the app — you never have to leave Tarkk.
-              Or just send a link and they hop in from a browser.</p>
-          </div>
-        </div>
-      </div>
-      <div class="faq-item">
-        <button class="faq-q" aria-expanded="false">
-          <span data-en="Does it work with absolutely no cell network?"
-            data-fa="آیا جاهایی که اصلاً گوشی آنتن نداره هم کار میکنه؟">Does it work with absolutely no cell network?</span>
-          <i class="faq-icon" aria-hidden="true"></i>
-        </button>
-        <div class="faq-a">
-          <div class="faq-a-inner">
-            <p data-en="Yes. Two Android phones link up straight over Bluetooth — no internet, no router, no signal at all."
-              data-fa="آره. دو تا گوشی اندروید مستقیم با بلوتوث به هم وصل می‌شن؛ نه مودم می‌خواد، نه اینترنت، نه حتی سیم‌کارت.">
-              Yes. Two Android phones link up straight over Bluetooth — no internet, no router, no signal at all.</p>
-          </div>
-        </div>
-      </div>
-      <div class="faq-item">
-        <button class="faq-q" aria-expanded="false">
-          <span data-en="Is my voice clear and high quality?" data-fa="آیا کیفیت صدا خوب و واضح هست؟">
-            Is my voice clear and high quality?</span>
-          <i class="faq-icon" aria-hidden="true"></i>
-        </button>
-        <div class="faq-a">
-          <div class="faq-a-inner">
-            <p data-en="Yep. Your voice gets shrunk down in a clever way that keeps it crystal clear, and the smart cleaner wipes out wind, traffic and background noise before it ever leaves your phone. If a piece goes missing on the way — normal on any wireless link — the next one carries a spare copy, so the gap gets filled instead of chopping a word in half. The app keeps adjusting to the link as you ride, so you never have to touch a setting."
-              data-fa="آره. صدا طوری کوچیک می‌شه که شفاف بمونه، و پاک‌کن هوشمند صدای باد و ترافیک و سروصدای اطراف رو قبل از اینکه از گوشی بره بیرون پاک می‌کنه. اگه تیکه‌ای از صدا تو راه گم بشه — که تو هر اتصال بی‌سیمی عادیه — تیکه بعدی یه نسخه یدک ازش همراه داره، پس جای خالی پر می‌شه به‌جای اینکه وسط کلمه بریده بشه. برنامه هم همین‌طور که تو راهید خودش رو با شرایط تنظیم می‌کنه، پس لازم نیست دست به هیچ تنظیمی بزنید.">
-              Yep. Your voice gets shrunk down in a clever way that keeps it crystal clear, and the smart cleaner wipes out
-              wind, traffic and background noise before it ever leaves your phone. If a piece goes missing on the way —
-              normal on any wireless link — the next one carries a spare copy, so the gap gets filled instead of chopping
-              a word in half. The app keeps adjusting to the link as you ride, so you never have to touch a setting.</p>
-          </div>
-        </div>
-      </div>
-      <div class="faq-item">
-        <button class="faq-q" aria-expanded="false">
-          <span data-en="My hotspot keeps dropping. Why?" data-fa="هات‌اسپاتم مدام قطع می‌شه. چرا؟">
-            My hotspot keeps dropping. Why?</span>
-          <i class="faq-icon" aria-hidden="true"></i>
-        </button>
-        <div class="faq-a">
-          <div class="faq-a-inner">
-            <p data-en="Almost always because Wi-Fi is still on. A phone can't do Wi-Fi and a hotspot properly at the same time, so sooner or later one of them gives way — usually your hotspot, right in the middle of a ride. Tarkk spots this and offers you a one-tap switch while you're still on the code screen. Turning Wi-Fi off won't cut you off from anyone: the channel doesn't need Wi-Fi to work."
-              data-fa="تقریباً همیشه به این خاطر که وای‌فای هنوز روشنه. گوشی نمی‌تونه همزمان هم وای‌فای وصل باشه هم هات‌اسپات درست بده، پس دیر یا زود یکیشون کوتاه میاد — معمولاً هات‌اسپاتت، درست وسط راه. «ترک» این رو تشخیص می‌ده و همون موقع که هنوز تو صفحه‌ی کد هستی یه کلید یک‌ضربه‌ای بهت می‌ده. خاموش کردن وای‌فای ارتباطت با کسی رو قطع نمی‌کنه: کانال برای کار کردن به وای‌فای احتیاجی نداره.">
-              Almost always because Wi-Fi is still on. A phone can't do Wi-Fi and a hotspot properly at the same time,
-              so sooner or later one of them gives way — usually your hotspot, right in the middle of a ride. Tarkk
-              spots this and offers you a one-tap switch while you're still on the code screen. Turning Wi-Fi off
-              won't cut you off from anyone: the channel doesn't need Wi-Fi to work.</p>
-          </div>
-        </div>
-      </div>
-      <div class="faq-item">
-        <button class="faq-q" aria-expanded="false">
-          <span data-en="I'm on a motorbike. Is there anything I should switch on?"
-            data-fa="موتورسوارم. چیزی هست که باید روشن کنم؟">
-            I'm on a motorbike. Is there anything I should switch on?</span>
-          <i class="faq-icon" aria-hidden="true"></i>
-        </button>
-        <div class="faq-a">
-          <div class="faq-a-inner">
-            <p data-en="One switch. Settings → Riding mode aims the whole thing at the road: the mic waits for you to actually talk instead of sending wind and engine noise the entire ride, the cleaner runs at a level that keeps words crisp rather than scrubbing them thin, the app holds a bit more sound in reserve so a connection on the move doesn't chop, and everyone else comes through a touch louder. Your own settings stay exactly where you left them, and come straight back the moment you switch it off."
-              data-fa="فقط یه سوییچ. تنظیمات ← حالت موتورسواری همه‌چی رو می‌چرخونه سمت جاده: میکروفون صبر می‌کنه تا واقعاً حرف بزنی، به‌جای اینکه کل مسیر صدای باد و موتور رو بفرسته؛ پاک‌کن اون‌قدری کار می‌کنه که کلمه‌ها واضح بمونن، نه اینکه نازک و بی‌جون بشن؛ برنامه یه کم صدای بیشتری ذخیره نگه می‌داره تا ارتباطِ در حال حرکت بریده‌بریده نشه؛ و صدای بقیه یه کم بلندتر می‌رسه. تنظیمات خودت هم دقیقاً سر جاش می‌مونه و همین که خاموشش کنی برمی‌گرده.">
-              One switch. Settings → Riding mode aims the whole thing at the road: the mic waits for you to actually
-              talk instead of sending wind and engine noise the entire ride, the cleaner runs at a level that keeps
-              words crisp rather than scrubbing them thin, the app holds a bit more sound in reserve so a connection on
-              the move doesn't chop, and everyone else comes through a touch louder. Your own settings stay exactly
-              where you left them, and come straight back the moment you switch it off.</p>
-          </div>
-        </div>
-      </div>
-      <div class="faq-item">
-        <button class="faq-q" aria-expanded="false">
-          <span data-en="What if nobody can hear me?" data-fa="اگه کسی صدامو نشنوه چی؟">
-            What if nobody can hear me?</span>
-          <i class="faq-icon" aria-hidden="true"></i>
-        </button>
-        <div class="faq-a">
-          <div class="faq-a-inner">
-            <p data-en="Tarkk tells you, in plain words, with the fix right there — whether the mic is switched off, the phone isn't on a network, or something else has grabbed the microphone. It quietly retries a few times first, so a hiccup that sorts itself out never interrupts you. And there's a “Something wrong?” button on the channel screen that shows you exactly which part isn't working."
-              data-fa="«ترک» با زبون ساده بهت می‌گه، و راه حلش هم همون‌جاست — چه میکروفون خاموش باشه، چه گوشی به شبکه‌ای وصل نباشه، چه یه برنامه دیگه میکروفون رو گرفته باشه. اول چند بار بی‌سروصدا خودش تلاش می‌کنه، تا یه گیر موقتی که خودش درست می‌شه اصلاً مزاحمت نشه. یه دکمه «مشکلی هست؟» هم توی صفحه کانال هست که دقیقاً نشونت می‌ده کدوم قسمت کار نمی‌کنه.">
-              Tarkk tells you, in plain words, with the fix right there — whether the mic is switched off, the phone isn't
-              on a network, or something else has grabbed the microphone. It quietly retries a few times first, so a
-              hiccup that sorts itself out never interrupts you. And there's a “Something wrong?” button on the channel
-              screen that shows you exactly which part isn't working.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
+      </section>
 
-  <!-- ── Privacy statement ───────────────────────────────────────────── -->
-  <section class="privacy">
-    <div class="privacy-rings" aria-hidden="true">
-      <span></span><span></span><span></span>
-      <i class="radar-sweep"></i>
-      <b class="radar-blip rb1"></b><b class="radar-blip rb2"></b><b class="radar-blip rb3"></b>
-    </div>
-    <h2 class="reveal" data-en="Your voice never goes to the internet."
-      data-fa="صدای شما هرگز وارد اینترنت نمیشه.">
-      Your voice never goes to the internet.</h2>
-    <p class="reveal"
-      data-en="Nothing recorded. No tracking. No server in between. Every word you say stays between the phones that are connected — account or not, that’s the whole point."
-      data-fa="نه چیزی ضبط می‌شه، نه ردیابی‌ای در کاره، نه سروری وسط راهه. هر چی بگید بین گوشی‌های خودتون می‌مونه — چه حساب داشته باشید چه نه، کل ماجرا همینه.">
-      Nothing recorded. No tracking. No server in between. Every word you say stays between the phones that are connected —
-      account or not, that’s the whole point.</p>
-  </section>
+      <section class="route-bridge" id="routeBridge">
+        <a class="route-invitation wrap" href="#handshake"
+          ><div class="route-invitation-copy">
+            <span
+              data-fa="ادامهٔ مسیر با یک اسکرول"
+              data-en="Your next connection is a scroll away"
+              >Your next connection is a scroll away</span><strong data-fa="بیا وصل شیم." data-en="Let’s connect."
+              >Let’s connect.</strong>
+          </div>
+          <div class="route-track" aria-hidden="true">
+            <i></i><i></i><i></i><span></span>
+          </div>
+          <span class="route-beacon"
+            ><span
+              class="icon"
+              data-icon="arrow-down"
+              aria-hidden="true"
+            ></span></span
+        ></a>
+        <div class="principles wrap">
+          <span
+            ><span
+              class="icon"
+              data-icon="device-mobile"
+              aria-hidden="true"
+            ></span
+            ><span data-fa="گوشی به گوشی" data-en="Phone to phone"
+              >Phone to phone</span></span
+          ><span
+            ><span class="icon" data-icon="microphone" aria-hidden="true"></span
+            ><span data-fa="بدون ضبط مکالمه" data-en="No conversation recording"
+              >No conversation recording</span></span
+          ><span
+            ><span class="icon" data-icon="wifi" aria-hidden="true"></span
+            ><span
+              data-fa="اتصال محلی بدون اینترنت"
+              data-en="Local connection without internet"
+              >Local connection without internet</span></span
+          ><a href="https://app.tarkk.ir" target="_blank" rel="noopener"
+            ><span data-fa="ورود با مرورگر" data-en="Join in your browser"
+              >Join in your browser</span><span
+              class="icon"
+              data-icon="arrow-up-right"
+              aria-hidden="true"
+            ></span
+          ></a>
+        </div>
+      </section>
 
-  <!-- ── Night road divider ──────────────────────────────────────────── -->
-  <div class="road" aria-hidden="true">
-    <div class="road-line"></div>
-    <span class="road-rider"></span>
-    <span class="road-oncoming"></span>
-  </div>
+      <section
+        class="journey paper"
+        id="handshake"
+        aria-label="How it works"
+      >
+        <div class="journey-stage" id="journeyStage">
+          <div class="journey-inner wrap">
+            <div class="journey-copy">
+              <h2 id="journeyTitle" data-fa="یه اتاق برای خودتون بساز." data-en="Make a room for your people.">Make a room for your people.</h2>
+              <p id="journeyDescription" data-fa="اسمش رو انتخاب کن. اینجا جمعِ شما شکل می‌گیره." data-en="Choose a name. This is where your group comes together.">Choose a name. This is where your group comes together.</p>
+              <div class="journey-steps" role="group" aria-label="Connection steps">
+                <button data-step="0" aria-pressed="true">
+                  <span class="step-number">01</span
+                  ><span data-fa="اتاق شما" data-en="Your room">Your room</span><span
+                    class="icon"
+                    data-icon="plus"
+                    aria-hidden="true"
+                  ></span></button
+                ><button data-step="1" aria-pressed="false">
+                  <span class="step-number">02</span
+                  ><span
+                    data-fa="یک اسکن برای دعوت"
+                    data-en="One scan to invite"
+                    >One scan to invite</span><span
+                    class="icon"
+                    data-icon="qr-code"
+                    aria-hidden="true"
+                  ></span></button
+                ><button data-step="2" aria-pressed="false">
+                  <span class="step-number">03</span
+                  ><span data-fa="وقت حرف زدنه" data-en="Time to talk"
+                    >Time to talk</span><span
+                    class="icon"
+                    data-icon="microphone"
+                    aria-hidden="true"
+                  ></span>
+                </button>
+              </div>
+              <p
+                class="journey-note"
+                data-fa="نمایش مراحل داخل اپ؛ کد دعوت این پیش‌نمایش برای اتصال واقعی نیست."
+                data-en="A walkthrough of the app. This preview QR does not create a real connection."
+              >A walkthrough of the app. This preview QR does not create a real connection.</p>
+            </div>
+            <div class="journey-product" id="journeyProduct" data-stage="0">
+              <div class="journey-counter" aria-hidden="true">
+                <span id="journeyCount">01</span><small>/ 03</small>
+              </div>
+              <div class="phone journey-phone">
+                <div class="phone-camera"></div>
+                <div class="phone-screen" id="journeyApp"></div>
+              </div>
+              <div class="joined-person">
+                <img
+                  src="/assets/woman-rider.webp"
+                  alt=""
+                  width="42"
+                  height="42"
+                /><span
+                  data-fa="نازنین به اتاق پیوست"
+                  data-en="Nazanin joined the room"
+                  >Nazanin joined the room</span><span class="icon" data-icon="check" aria-hidden="true"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-  <!-- ── Download ────────────────────────────────────────────────────── -->
-  <section class="section download" id="download">
-    <p class="eyebrow reveal" data-en="GET TARKK" data-fa="دریافت تَرک">GET TARKK</p>
-    <h2 class="reveal" data-en="Put a radio in your pocket." data-fa="یه بیسیم واقعی توی جیب شما.">
-      Put a radio in your pocket.</h2>
-    <div class="dl-buttons reveal">
-      <a class="btn btn-primary" href="https://cafebazaar.ir/app/com.b1101.tark" data-en="Get it on Cafe Bazaar"
-        data-fa="دریافت از کافه‌بازار">Get it on Cafe Bazaar</a>
-      <!-- Not a link while there is nothing to link to: href="#" is a real
-           navigation to the top of the page, and crawlers follow it. -->
-      <span class="btn btn-ghost is-disabled" aria-disabled="true" data-en="iOS — coming soon"
-        data-fa="نسخه آیفون — به‌زودی">iOS — coming soon</span>
-      <a class="btn btn-ghost" href="https://app.tarkk.ir" data-en="Join via Web ↗" data-fa="ورود از طریق مرورگر ↗">
-        Join via Web ↗</a>
-    </div>
-  </section>
+      <section class="connections section wrap" id="features">
+        <div class="section-head">
+          <h2 data-fa="نزدیکید؟ وصلید." data-en="Nearby? Connected.">Nearby? Connected.</h2>
+          <p
+            data-fa="از ارتباط دوتاییِ بلوتوث تا جمعی که روی وای‌فای حرف می‌زنن. روش‌ها رو اینجا مقایسه کن."
+            data-en="From two people on Bluetooth to a group on Wi-Fi. Compare the ways to connect."
+          >From two people on Bluetooth to a group on Wi-Fi. Compare the ways to connect.</p>
+        </div>
+        <div class="connection-layout">
+          <div
+            class="connection-tabs"
+            role="tablist"
+            aria-label="Connection methods"
+          >
+            <button
+              role="tab"
+              id="tab-bluetooth"
+              data-mode="bluetooth"
+              aria-selected="true"
+              aria-controls="connectionPanel"
+            >
+              <span class="icon" data-icon="bluetooth" aria-hidden="true"></span
+              ><span data-fa="بلوتوث" data-en="Bluetooth">Bluetooth</span><small data-fa="رایگان" data-en="Free">Free</small></button
+            ><button
+              role="tab"
+              id="tab-hotspot"
+              data-mode="hotspot"
+              aria-selected="false"
+              aria-controls="connectionPanel"
+            >
+              <span class="icon" data-icon="broadcast" aria-hidden="true"></span
+              ><span data-fa="هات‌اسپات" data-en="Hotspot">Hotspot</span><small data-fa="اشتراک" data-en="Subscription"
+                >Subscription</small></button
+            ><button
+              role="tab"
+              id="tab-wifi"
+              data-mode="wifi"
+              aria-selected="false"
+              aria-controls="connectionPanel"
+            >
+              <span class="icon" data-icon="wifi" aria-hidden="true"></span
+              ><span data-fa="وای‌فای مشترک" data-en="Shared Wi-Fi"
+                >Shared Wi-Fi</span><small data-fa="اشتراک" data-en="Subscription"
+                >Subscription</small></button
+            ><button
+              role="tab"
+              id="tab-browser"
+              data-mode="browser"
+              aria-selected="false"
+              aria-controls="connectionPanel"
+            >
+              <span class="icon" data-icon="globe" aria-hidden="true"></span
+              ><span data-fa="مهمان مرورگری" data-en="Browser guest"
+                >Browser guest</span><small data-fa="اشتراک میزبان" data-en="Host subscription"
+                >Host subscription</small>
+            </button>
+          </div>
+          <div
+            class="connection-panel"
+            id="connectionPanel"
+            role="tabpanel"
+            aria-labelledby="tab-bluetooth"
+          >
+            <div class="connection-heading">
+              <span
+                class="connection-number"
+                id="connectionNumber"
+                aria-hidden="true"
+                >01</span
+              ><span
+                class="icon"
+                id="connectionIcon"
+                data-icon="bluetooth"
+                aria-hidden="true"
+              ></span>
+            </div>
+            <h3 id="connectionTitle" data-fa="دو نفر. دو گوشی. همین." data-en="Two people. Two phones. That is it.">Two people. Two phones. That is it.</h3>
+            <p id="connectionDescription"></p>
+            <dl class="connection-facts">
+              <div>
+                <dt data-fa="تعداد" data-en="People">People</dt>
+                <dd id="modePeople"></dd>
+              </div>
+              <div>
+                <dt data-fa="محدوده" data-en="Range">Range</dt>
+                <dd id="modeRange"></dd>
+              </div>
+              <div>
+                <dt data-fa="اینترنت" data-en="Internet">Internet</dt>
+                <dd id="modeInternet"></dd>
+              </div>
+            </dl>
+            <p class="mode-caveat" id="modeCaveat"></p>
+          </div>
+        </div>
+      </section>
 
-  <!-- ── Pricing and support ─────────────────────────────────────────────
-       Deliberately quieter than the download block above it and placed
-       after it: what is free and what a subscription adds, said once and
-       plainly, then the optional donation. Ghost button, no
-       eyebrow-to-CTA build-up. ──────────────────────────────────────── -->
-  <section class="section support" id="support">
-    <h2 class="reveal" data-en="Bluetooth is free. The rest is a subscription."
-      data-fa="بلوتوث رایگانه. بقیه‌ش با اشتراک.">
-      Bluetooth is free. The rest is a subscription.</h2>
-    <p class="reveal"
-      data-en="Talking over Bluetooth costs nothing and needs no account. A monthly or annual subscription through Cafe Bazaar adds Wi-Fi, hotspot and browser-guest connections, muting yourself and sharing music. There’s no free trial and no lifetime plan; if you cancel in Bazaar, everything stays on until the period you paid for ends. And if you’d like to help with test phones and hosting on top of that, donations are welcome."
-      data-fa="حرف زدن با بلوتوث هزینه‌ای نداره و حساب کاربری نمی‌خواد. اشتراک ماهانه یا سالانه از کافه‌بازار، اتصال وای‌فای، هات‌اسپات و مهمان مرورگری، بی‌صدا کردن خودتون و پخش آهنگ رو اضافه می‌کنه. دوره‌ی آزمایشی رایگان و طرح مادام‌العمر نداریم؛ اگه توی بازار لغوش کنید، همه‌چیز تا آخر دوره‌ای که پولش رو دادید باز می‌مونه. اگه دوست دارید جدا از این توی هزینه‌ی گوشی‌های تست و سرور کمک کنید، حمایت مالی‌تون باعث خوشحالیه.">
-      Talking over Bluetooth costs nothing and needs no account. A monthly or annual subscription through Cafe Bazaar adds
-      Wi-Fi, hotspot and browser-guest connections, muting yourself and sharing music. There’s no free trial and no lifetime
-      plan; if you cancel in Bazaar, everything stays on until the period you paid for ends. And if you’d like to help with
-      test phones and hosting on top of that, donations are welcome.</p>
-    <div class="support-cta reveal">
-      <a class="btn btn-ghost" href="https://reymit.ir/tark" rel="noopener" data-en="Support on Reymit ↗"
-        data-fa="حمایت از طریق ری‌میت ↗">Support on Reymit ↗</a>
-    </div>
-  </section>
+      <section class="ride paper section" id="preflight">
+        <div class="ride-layout wrap">
+          <div class="ride-copy">
+            <p class="eyebrow">
+              <span
+                class="icon"
+                data-icon="motorcycle"
+                aria-hidden="true"
+              ></span
+              ><span
+                data-fa="برای مسیر آماده شو"
+                data-en="Get ready for the road"
+                >Get ready for the road</span>
+            </p>
+            <h2
+              data-fa="گوشی توی جیب. صدای رفیق توی گوش."
+              data-en="Phone in your pocket. Your people in your ear."
+            >Phone in your pocket. Your people in your ear.</h2>
+            <p
+              data-fa="حالت موتورسواری، صدا رو برای مسیر آماده می‌کنه: ارسال خودکار با حرف زدن، نویز کمتر و پخش واضح‌تر از هدست."
+              data-en="Riding mode prepares your audio for the road: voice activation, less noise, and clearer headset playback."
+            >Riding mode prepares your audio for the road: voice activation, less noise, and clearer headset playback.</p>
+            <p
+              class="ride-note"
+              data-fa="قبل از حرکت، تَرک میکروفن، هدست و اجرای پس‌زمینه رو بررسی می‌کنه و اگر مشکلی باشه راه‌حلش رو نشون می‌ده."
+              data-en="Before you set off, Tarkk checks the microphone, headset and background operation, and shows a fix if needed."
+            >Before you set off, Tarkk checks the microphone, headset and background operation, and shows a fix if needed.</p>
+          </div>
+          <div class="ride-settings" id="rideSettings">
+            <div class="settings-heading">
+              <span class="icon" data-icon="gear" aria-hidden="true"></span
+              ><span data-fa="آماده‌سازی صدا" data-en="Audio setup"
+                >Audio setup</span><small data-fa="دموی تنظیمات" data-en="Settings demo"
+                >Settings demo</small>
+            </div>
+            <button
+              id="rideToggle"
+              class="ride-switch"
+              role="switch"
+              aria-checked="false"
+            >
+              <span
+                ><span
+                  class="icon"
+                  data-icon="motorcycle"
+                  aria-hidden="true"
+                ></span
+                ><span data-fa="حالت موتورسواری" data-en="Riding mode"
+                  >Riding mode</span></span
+              ><span class="switch-track" aria-hidden="true"><i></i></span>
+            </button>
+            <div class="ride-checks">
+              <div>
+                <span
+                  class="icon"
+                  data-icon="microphone"
+                  aria-hidden="true"
+                ></span
+                ><span data-fa="ارسال با حرف زدن" data-en="Voice activation"
+                  >Voice activation</span><span class="check-state" data-fa="خاموش" data-en="Off"
+                  >Off</span>
+              </div>
+              <div>
+                <span
+                  class="icon"
+                  data-icon="speaker-slash"
+                  aria-hidden="true"
+                ></span
+                ><span data-fa="پاک‌سازی نویز" data-en="Noise cleaning"
+                  >Noise cleaning</span><span class="check-state" data-fa="معمولی" data-en="Standard"
+                  >Standard</span>
+              </div>
+              <div>
+                <span
+                  class="icon"
+                  data-icon="headphones"
+                  aria-hidden="true"
+                ></span
+                ><span data-fa="پخش از هدست" data-en="Headset playback"
+                  >Headset playback</span><span class="check-state" data-fa="معمولی" data-en="Standard"
+                  >Standard</span>
+              </div>
+            </div>
+            <p class="settings-foot" id="rideStatus" role="status"></p>
+          </div>
+        </div>
+      </section>
 
-  <footer>
-    <span class="wordmark"><span class="wordmark-dot"></span>TARKK</span>
-    <div class="footer-links">
-      <a href="#features" data-en="Features" data-fa="ویژگی‌ها">Features</a>
-      <a href="#tech" data-en="Details" data-fa="جزئیات بیشتر">Details</a>
-      <a href="#faq" data-en="FAQ" data-fa="سوالات شما">FAQ</a>
-      <a href="#download" data-en="Download" data-fa="دریافت">Download</a>
-      <a href="#support" data-en="Pricing" data-fa="قیمت‌ها">Pricing</a>
-      <a href="privacy.html" data-en="Privacy" data-fa="حریم خصوصی">Privacy</a>
-      <a href="terms.html" data-en="Terms" data-fa="شرایط">Terms</a>
-      <a href="delete-account.html" data-en="Delete account" data-fa="پاک کردن حساب">Delete account</a>
-    </div>
-    <p data-en="Made for riders. Easy for everybody." data-fa="طراحی شده برای موتورسوارها، راحت برای استفاده همه.">
-      Made for riders. Easy for everybody.</p>
-  </footer>
+      <section class="music section wrap" id="music">
+        <div class="music-copy">
+          <h2
+            data-fa="آهنگ شما، توی گوش همه."
+            data-en="Your music. Everyone’s ride."
+          >Your music. Everyone’s ride.</h2>
+          <p
+            data-fa="آهنگ گوشی رو روی کانال بفرست و کنار مکالمه نگهش دار. بلندی آهنگ رو هم خودت تنظیم کن."
+            data-en="Cast your phone’s music into the channel alongside the conversation. Set the volume your way."
+          >Cast your phone’s music into the channel alongside the conversation. Set the volume your way.</p>
+          <p
+            class="feature-note"
+            data-fa="با اشتراک، از اندروید ۱۰ به بالا"
+            data-en="With a subscription, on Android 10+"
+          >With a subscription, on Android 10+</p>
+        </div>
+        <div class="music-demo">
+          <div class="music-title">
+            <span
+              class="icon"
+              data-icon="speaker-high"
+              aria-hidden="true"
+            ></span
+            ><span data-fa="پخش آهنگ در کانال" data-en="Music in the channel"
+              >Music in the channel</span><button id="musicPlay" class="music-play" aria-pressed="false">
+              <span class="icon" data-icon="play" aria-hidden="true"></span
+              ><span id="musicPlayLabel" data-fa="پخش دمو" data-en="Play demo">Play demo</span>
+            </button>
+          </div>
+          <div class="equalizer" id="equalizer" aria-hidden="true"></div>
+          <div class="music-slider">
+            <label for="musicMix" data-fa="بلندی آهنگ" data-en="Music volume"
+              >Music volume</label><output id="mixValue" for="musicMix">35%</output
+            ><input id="musicMix" type="range" min="0" max="100" value="35" />
+          </div>
+          <p
+            class="demo-note"
+            data-fa="این آهنگ فقط برای دمو، همین‌جا ساخته می‌شود."
+            data-en="This track is synthesized here for the demo."
+          >This track is synthesized here for the demo.</p>
+        </div>
+      </section>
 
-  <script src="app.js"></script>
-</body>
+      <section class="details section wrap" id="tech">
+        <div class="section-head">
+          <h2 class="privacy-headline">
+            <span
+              class="headline-phrase"
+              data-fa="صدا عبور می‌کنه."
+              data-en="Your voice travels."
+              >Your voice travels.</span>
+            <span
+              class="headline-phrase"
+              data-fa="ذخیره نمی‌شه."
+              data-en="It isn’t stored."
+              >It isn’t stored.</span>
+          </h2>
+          <p
+            data-fa="صدا مستقیم بین دستگاه‌ها می‌رود؛ نه ضبط می‌شود، نه از سرور صوتی عبور می‌کند."
+            data-en="Audio travels directly between devices. It is neither recorded nor relayed by a voice server."
+          >Audio travels directly between devices. It is neither recorded nor relayed by a voice server.</p>
+        </div>
+        <div class="tech-numbers">
+          <div>
+            <strong
+              ><span data-fa="۱۶" data-en="16">16</span>
+              <small data-fa="کیلوهرتز" data-en="kHz">kHz</small></strong
+            ><span data-fa="صدا با کدک اُپوس" data-en="Opus-coded voice"
+              >Opus-coded voice</span>
+          </div>
+          <div>
+            <strong
+              ><span data-fa="حدود ۳" data-en="~3">~3</span>
+              <small data-fa="کیلوبایت بر ثانیه" data-en="KB/s"
+                >KB/s</small></strong
+            ><span data-fa="فقط موقع صحبت" data-en="Only while speaking"
+              >Only while speaking</span>
+          </div>
+          <div>
+            <strong
+              ><span data-fa="۱۰۰" data-en="100">100</span>
+              <small data-fa="میلی‌ثانیه" data-en="ms"
+                >ms</small></strong
+            ><span
+              data-fa="بافر پیش‌فرض، نه تأخیر کل"
+              data-en="Default buffer, not total latency"
+              >Default buffer, not total latency</span>
+          </div>
+        </div>
+        <div class="privacy-note">
+          <span class="icon" data-icon="shield-check" aria-hidden="true"></span>
+          <p
+            data-fa="برای اشتراک، اطلاعات حساب مثل ایمیل، نام و آواتار روی سرور نگه داشته می‌شود. لاگ عیب‌یابی روی گوشی می‌ماند، مگر خودتان به اشتراک بگذارید."
+            data-en="Subscription accounts store details such as email, name and avatar. Diagnostic logs stay on your phone unless you share them."
+          >Subscription accounts store details such as email, name and avatar. Diagnostic logs stay on your phone unless you share them.</p>
+          <a data-legal="privacy" href="/privacy"
+            ><span data-fa="جزئیات حریم خصوصی" data-en="Privacy details"
+              >Privacy details</span><span
+              class="icon"
+              data-icon="arrow-up-right"
+              aria-hidden="true"
+            ></span
+          ></a>
+        </div>
+      </section>
 
+      <section class="faq section paper" id="faq">
+        <div class="faq-layout wrap">
+          <div class="section-head">
+            <p
+              class="eyebrow"
+              data-fa="قبل از اولین «الو»"
+              data-en="Before your first hello"
+            >Before your first hello</p>
+            <h2 data-fa="چیزی توی ذهنته؟" data-en="Something on your mind?">Something on your mind?</h2>
+          </div>
+          <div id="faqList" class="faq-list"><!-- FAQ-START -->
+<details class="faq-item"><summary><span class="faq-arrow" aria-hidden="true"></span>Two groups of us are on the same WiFi. Will we hear each other?</summary><p>Not if each group starts its own channel. Starting one gives it a short code, and Tarkk ignores anyone on a different code — so two groups on one café router stay two conversations. The code travels inside the same QR the other phone already scans, and it is short enough to read out loud if the camera is not handy. Worth knowing: it keeps channels apart, it does not lock them. Anyone who has the code can use it, so treat it as a channel number rather than a password.</p></details>
+<details class="faq-item"><summary><span class="faq-arrow" aria-hidden="true"></span>Which connection should I pick?</summary><p>You don't have to pick one. Tarkk asks a single question — are you starting a channel, or joining one? — and works out the rest from what your phone can see: the WiFi you're already on, otherwise a hotspot one phone makes and the other scans, and Bluetooth where neither is possible. Each button tells you which way it's about to go, so nothing happens that the screen didn't say first. If you'd rather choose yourself, you still can, in Settings → Advanced settings.</p></details>
+<details class="faq-item"><summary><span class="faq-arrow" aria-hidden="true"></span>Do I have to set the connection up before I open a room?</summary><p>No. Scanning the invite is the setup: the two phones find each other over Bluetooth, the phone that showed the code brings a hotspot up, the other joins it, and both go on air by themselves — nobody has to decide who hosts. If Android asks the joining phone whether to connect to a network, say yes. A room only counts as connected once another member has answered a signed challenge over the link the call is actually using, so being on WiFi — even the same WiFi — never counts on its own. With no scan to work from, Start tries whatever link the phone already has; if that doesn't reach anyone, it says so and offers to connect the phones by hand.</p></details>
+<details class="faq-item"><summary><span class="faq-arrow" aria-hidden="true"></span>Do I need an account or an internet connection?</summary><p>Not to talk. Tarkk goes straight between phones over WiFi or Bluetooth — no internet, no data plan. An account is only needed to subscribe to the paid features; talking over Bluetooth is free and needs none.</p></details>
+<details class="faq-item"><summary><span class="faq-arrow" aria-hidden="true"></span>Does Tarkk collect my data?</summary><p>Your voice never leaves the link between the phones — no server ever carries it, ours included. The app sends no analytics or usage stats, and its diagnostic log stays on your phone unless you choose to share it. If you make an account to subscribe, our server keeps your email, name, avatar and subscription; the Privacy Policy lists all of it.</p></details>
+<details class="faq-item"><summary><span class="faq-arrow" aria-hidden="true"></span>What if I lock my phone while talking?</summary><p>The app stays awake in the background. Lock the screen or stuff your phone in a pocket — you're still on.</p></details>
+<details class="faq-item"><summary><span class="faq-arrow" aria-hidden="true"></span>What happens if the connection drops?</summary><p>Tarkk keeps trying in the background and picks the call back up the second your friend is close enough again.</p></details>
+<details class="faq-item"><summary><span class="faq-arrow" aria-hidden="true"></span>Can iPhone and Android users talk to each other?</summary><p>Yep! One phone makes the hotspot, the other scans its code right inside the app — you never have to leave Tarkk. Or just send a link and they hop in from a browser.</p></details>
+<details class="faq-item"><summary><span class="faq-arrow" aria-hidden="true"></span>Does it work with absolutely no cell network?</summary><p>Yes. Two Android phones link up straight over Bluetooth — no internet, no router, no signal at all.</p></details>
+<details class="faq-item"><summary><span class="faq-arrow" aria-hidden="true"></span>Is my voice clear and high quality?</summary><p>Yep. Your voice gets shrunk down in a clever way that keeps it crystal clear, and the smart cleaner wipes out wind, traffic and background noise before it ever leaves your phone. If a piece goes missing on the way — normal on any wireless link — the next one carries a spare copy, so the gap gets filled instead of chopping a word in half. The app keeps adjusting to the link as you ride, so you never have to touch a setting.</p></details>
+<details class="faq-item"><summary><span class="faq-arrow" aria-hidden="true"></span>My hotspot keeps dropping. Why?</summary><p>Almost always because Wi-Fi is still on. A phone can't do Wi-Fi and a hotspot properly at the same time, so sooner or later one of them gives way — usually your hotspot, right in the middle of a ride. Tarkk spots this and offers you a one-tap switch while you're still on the code screen. Turning Wi-Fi off won't cut you off from anyone: the channel doesn't need Wi-Fi to work.</p></details>
+<details class="faq-item"><summary><span class="faq-arrow" aria-hidden="true"></span>I'm on a motorbike. Is there anything I should switch on?</summary><p>One switch. Settings → Riding mode aims the whole thing at the road: the mic waits for you to actually talk instead of sending wind and engine noise the entire ride, the cleaner runs at a level that keeps words crisp rather than scrubbing them thin, the app holds a bit more sound in reserve so a connection on the move doesn't chop, and everyone else comes through a touch louder. Your own settings stay exactly where you left them, and come straight back the moment you switch it off.</p></details>
+<details class="faq-item"><summary><span class="faq-arrow" aria-hidden="true"></span>What if nobody can hear me?</summary><p>Tarkk tells you, in plain words, with the fix right there — whether the mic is switched off, the phone isn't on a network, or something else has grabbed the microphone. It quietly retries a few times first, so a hiccup that sorts itself out never interrupts you. And there's a “Something wrong?” button on the channel screen that shows you exactly which part isn't working.</p></details>
+<!-- FAQ-END --></div>
+        </div>
+      </section>
+      <section class="support section wrap" id="support">
+        <div class="section-head">
+          <h2
+            data-fa="بلوتوث رایگانه. امکانات بیشتر، با اشتراک."
+            data-en="Bluetooth is free. More with a subscription."
+          >Bluetooth is free. More with a subscription.</h2>
+        </div>
+        <div class="plans">
+          <article>
+            <span
+              class="plan-type"
+              data-fa="برای حرف زدن دوتایی"
+              data-en="For the two of you"
+              >For the two of you</span>
+            <h3 data-fa="رایگان" data-en="Free">Free</h3>
+            <p
+              data-fa="ارتباط بلوتوث، بدون حساب کاربری. فقط نصبش کن و وصل شو."
+              data-en="Bluetooth communication, without an account. Just install and connect."
+            >Bluetooth communication, without an account. Just install and connect.</p>
+          </article>
+          <article>
+            <span
+              class="plan-type"
+              data-fa="برای امکانات بیشتر"
+              data-en="For more ways to connect"
+              >For more ways to connect</span>
+            <h3 data-fa="اشتراک تَرک" data-en="Tarkk subscription">Tarkk subscription</h3>
+            <p
+              data-fa="وای‌فای، هات‌اسپات، مهمان مرورگری، ساکت‌کردن میکروفن و پخش آهنگ. ماهانه یا سالانه در کافه‌بازار."
+              data-en="Wi-Fi, hotspot, browser guests, microphone muting and music casting. Monthly or yearly through Cafe Bazaar."
+            >Wi-Fi, hotspot, browser guests, microphone muting and music casting. Monthly or yearly through Cafe Bazaar.</p>
+          </article>
+        </div>
+        <p
+          class="pricing-note"
+          data-fa="دورهٔ آزمایشی رایگان و طرح مادام‌العمر نداریم. با لغو در بازار، امکانات تا پایان دورهٔ پرداخت‌شده باز می‌ماند."
+          data-en="There is no free trial or lifetime plan. If you cancel in Bazaar, access remains until the paid period ends."
+        >There is no free trial or lifetime plan. If you cancel in Bazaar, access remains until the paid period ends.</p>
+      </section>
+      <section class="download paper section" id="download">
+        <div class="wrap">
+          <h2
+            data-fa="ارتباط رو با خودت ببر."
+            data-en="Take the connection with you."
+          >Take the connection with you.</h2>
+          <div class="download-actions">
+            <a
+              class="button primary"
+              href="https://cafebazaar.ir/app/com.b1101.tark"
+              target="_blank"
+              rel="noopener"
+              ><span
+                data-fa="دریافت از کافه‌بازار"
+                data-en="Get it on Cafe Bazaar"
+                >Get it on Cafe Bazaar</span><span
+                class="icon"
+                data-icon="arrow-up-right"
+                aria-hidden="true"
+              ></span></a
+            ><a
+              class="button outline"
+              href="https://app.tarkk.ir"
+              target="_blank"
+              rel="noopener"
+              ><span data-fa="ورود از مرورگر" data-en="Open the browser app"
+                >Open the browser app</span><span class="icon" data-icon="globe" aria-hidden="true"></span
+            ></a>
+          </div>
+          <p
+            class="download-note"
+            data-fa="نسخهٔ بومی آیفون: به‌زودی. مهمان مرورگری با دعوت وارد می‌شود و به اینترنت نیاز دارد."
+            data-en="Native iPhone app: coming soon. Browser guests join with an invite and need internet."
+          >Native iPhone app: coming soon. Browser guests join with an invite and need internet.</p>
+          <div class="footer-wordmark" aria-hidden="true">
+            <span data-fa="تَرک" data-en="TARKK">TARKK</span><span>.</span>
+          </div>
+        </div>
+      </section>
+    </main>
+    <footer class="footer wrap">
+      <span
+        data-fa="برای موتورسوارها، راحت برای همه."
+        data-en="Made for riders. Easy for everyone."
+        >Made for riders. Easy for everyone.</span>
+      <div>
+        <a
+          data-legal="privacy"
+          href="/privacy"
+          data-fa="حریم خصوصی"
+          data-en="Privacy"
+          >Privacy</a><a
+          data-legal="terms"
+          href="/terms"
+          data-fa="شرایط"
+          data-en="Terms"
+          >Terms</a><a
+          data-legal="delete-account"
+          href="/delete-account"
+          data-fa="پاک کردن حساب"
+          data-en="Delete account"
+          >Delete account</a><a
+          href="https://github.com/HPTarkk/Tark"
+          target="_blank"
+          rel="noopener"
+          data-fa="گیت‌هاب"
+          data-en="GitHub"
+          >GitHub</a><a
+          href="https://reymit.ir/tark"
+          target="_blank"
+          rel="noopener"
+          data-fa="حمایت از توسعه"
+          data-en="Support development"
+          >Support development</a>
+      </div>
+    </footer>
+  </body>
 </html>

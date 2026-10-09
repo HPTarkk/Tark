@@ -1,0 +1,13 @@
+# Tarkk ride photo concept v1
+
+Generated with the built-in imagegen tool. Preview asset only; not integrated into the main project or landing page. UI supporting input: `assets/screens/channel-fa.jpg`.
+
+## Final prompt
+
++Use case: product-mockup / ads-marketing.
+Create one exceptionally art-directed photorealistic landscape product photograph for Tarkk, an Android phone-to-phone voice communication app used by motorcyclists and travel companions. This is a tangible, business-relevant website asset, not a website screenshot or design board.
+Supporting input: the supplied image is an HTML reconstruction of the app channel. Use its actual dark channel UI as the display insert on the main smartphone. Preserve its organization, orange TARKK branding, green circular voice visualizer, mic control and member list. The companion's Persian name is exactly "نازنین" (Nazanin). Do not copy the little source-note below the app screen.
+Scene: an intimate pre-ride gear preparation table, warm natural wood with a worn muted forest-green canvas tool roll. One modern unbranded black Android smartphone is the main subject, shown nearly top-down, large and clear, portrait orientation, lying on the canvas. A matte charcoal motorcycle helmet is partially cropped at the upper-left edge; a pair of believable black riding gloves with small burnt-orange stitching sits at the lower-left edge. An understated wired helmet audio earpiece and a small coiled cable rest naturally beside the phone. Props stay subordinate; thoughtful asymmetric spacing.
+Composition: horizontal 16:9, premium editorial product photography, the phone around the left-center occupying approximately one third of the image width, usable quiet wood/canvas negative space on the right for real HTML typography later. The display faces camera with only a slight natural perspective so the app remains recognizable. One continuous real scene, not multiple panels.
+Light and material: warm low-angle afternoon daylight from the upper right, broad soft shadows, subtle contact shadows, realistic microtexture in timber grain, woven canvas, glass reflections and helmet rubber. Restrained warm amber, forest green, charcoal and the actual app's orange/green. Crisp premium commercial photography with natural imperfection, not glossy neon sci-fi.
+Constraints: no humans, no invented radio hardware, no floating objects, no abstract sculptures, no neon trails or signal rings outside the actual app UI, no headlines or advertising words baked into the image, no watermark, no Oryzo/Lusion branding, no invented extra app screens. Generate a fresh photograph inspired by material-rich product art direction, without copying any reference website's composition.

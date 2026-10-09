@@ -135,6 +135,9 @@ jobs:
       - name: Verify legal documents and app assets are in step
         run: node scripts/build-legal-pages.mjs --check
 
+      - name: Verify website routes, SEO and local assets
+        run: node scripts/check-website.mjs
+
       - name: Protocol compatibility tests
         shell: bash
         run: |

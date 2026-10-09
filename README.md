@@ -151,12 +151,19 @@ Deployed at [app.tarkk.ir](https://app.tarkk.ir), which is `GUEST_APP_URL`'s def
 
 `website/` is the static marketing site at [tarkk.ir](https://tarkk.ir) — plain HTML/CSS/JS, deployed as-is, in two languages (English at `/`, Persian at `/fa/`).
 
-**Edit `website/index.html` only** — `website/fa/index.html` is generated from it (every translatable element carries a `data-fa` attribute; Persian `<title>`/meta/social copy live in the `FA` block at the top of the build script).
+**Edit `website/index.html` for layout** — `website/fa/index.html` is generated from its bilingual attributes. FAQ copy lives in `website/content.js`; titles, meta tags and social copy live in `scripts/website-shared.mjs`. The generator also synchronizes the English FAQ/SEO regions, so the visible answers and structured data stay identical. Both languages are complete static documents; JavaScript adds the interactive app demo and motion.
 
 ```sh
 node scripts/build-website-i18n.mjs           # regenerate website/fa/index.html
 node scripts/build-website-i18n.mjs --check    # verify it's current; exits 1 if not
+node scripts/build-legal-pages.mjs           # regenerate the six legal pages
+node scripts/check-website.mjs              # localization, SEO, assets and script-free email routes
+node scripts/serve-website.mjs              # local preview at http://127.0.0.1:4183/fa/
 ```
+
+The existing assets-only Cloudflare Worker is configured in `wrangler.website.jsonc`. Preview the upload with `wrangler deploy --config wrangler.website.jsonc --dry-run`; deploy with the same command without `--dry-run`. Keep the entire `website/` directory, including `update.json`, `legal/`, `.well-known/`, `_headers` and `_redirects`. The browser guest app is hosted separately and is not part of this upload.
+
+The forest palette and application handoff are documented in `docs/website-design.md`. Local font files, icons and GSAP include their licenses. Internal document links share the cinematic curtain transition; same-page anchors retain smooth scrolling. Email-token fallback routes use CSS-only entrance motion.
 
 Account-email links (`https://tarkk.ir/v/<register|reset|email>#<token>`) open the app through Android App Links, verified by `website/.well-known/assetlinks.json`, which lists the release signing key's SHA-256 (`keytool -list -v -keystore <release keystore>`). Without the app they land on `website/v/index.html`, served at all three paths by `website/_redirects`: a static, script-free, `noindex` page that never reads or sends the fragment.
 

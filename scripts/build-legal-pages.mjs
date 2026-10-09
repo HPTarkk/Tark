@@ -41,6 +41,7 @@
 // makes a missing translation impossible to ship: there is one structure, and
 // a language is either present at every node or the build stops.
 
+import { startup, loaderMarkup, loaderFontCss } from './website-shared.mjs';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -68,11 +69,10 @@ const OG_IMAGE_ALT = {
 
 /** The bar's links, which live on the landing page rather than here. */
 const NAV = [
+  ['#handshake', { en: 'How it works', fa: 'چطور کار می‌کند؟' }],
   ['#features', { en: 'Features', fa: 'ویژگی‌ها' }],
-  ['#handshake', { en: 'How it works', fa: 'چطور کار میکنه؟' }],
+  ['#music', { en: 'Music', fa: 'پخش آهنگ' }],
   ['#tech', { en: 'Details', fa: 'جزئیات بیشتر' }],
-  ['#faq', { en: 'FAQ', fa: 'سوالات شما' }],
-  ['#download', { en: 'Download', fa: 'دریافت' }],
 ];
 
 const FOOTER = [
@@ -133,9 +133,9 @@ const attr = (s) => esc(s).replace(/"/g, '&quot;');
  * English one.
  */
 function localHref(href, lang) {
-  if (lang !== 'fa' || !href.startsWith(`${ORIGIN}/`)) return href;
+  if (!href.startsWith(`${ORIGIN}/`)) return href;
   const path = href.slice(ORIGIN.length);
-  return path.startsWith('/fa/') ? href : `${ORIGIN}/fa${path}`;
+  return lang === 'fa' && !path.startsWith('/fa/') ? `/fa${path}` : path;
 }
 
 // ── Blocks ───────────────────────────────────────────────────────────
@@ -208,19 +208,21 @@ function renderBlock(block, lang, where) {
 
 function renderHead(doc, lang) {
   const other = lang === 'en' ? 'fa' : 'en';
-  const self = ORIGIN + doc.webPath[lang];
+  // Workers' existing HTML handling serves .html URLs at extensionless URLs.
+  // Canonicals and hreflang must point directly at the final 200 response.
+  const self = ORIGIN + doc.webPath[lang].replace(/\.html$/, '');
   const rel = lang === 'fa' ? '../' : '';
-  const faUrl = ORIGIN + doc.webPath.fa;
+  const faUrl = ORIGIN + doc.webPath.fa.replace(/\.html$/, '');
 
   return `<!DOCTYPE html>
-<html lang="${lang}" dir="${lang === 'fa' ? 'rtl' : 'ltr'}">
+<html lang="${lang}" dir="${lang === 'fa' ? 'rtl' : 'ltr'}" data-theme="dark">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>${esc(t(doc.meta.title, lang, 'meta.title'))}</title>
   <meta name="description" content="${attr(t(doc.meta.description, lang, 'meta.description'))}">
-  <meta name="theme-color" content="#0B0E11">
+  <meta name="theme-color" content="#0D1913">
 
   <!-- ── Search ───────────────────────────────────────────────────────
        Each language is its own URL, carrying the same hreflang set (each
@@ -229,7 +231,7 @@ function renderHead(doc, lang) {
        is the Persian page, for the reason index.html spells out: Tarkk is
        built for an Iranian audience. -->
   <link rel="canonical" href="${self}">
-  <link rel="alternate" hreflang="en" href="${ORIGIN}${doc.webPath.en}">
+  <link rel="alternate" hreflang="en" href="${ORIGIN}${doc.webPath.en.replace(/\.html$/, '')}">
   <link rel="alternate" hreflang="fa" href="${faUrl}">
   <link rel="alternate" hreflang="x-default" href="${faUrl}">
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
@@ -253,77 +255,33 @@ function renderHead(doc, lang) {
   <meta name="twitter:description" content="${attr(t(doc.meta.twitterDescription, lang, 'meta.twitterDescription'))}">
   <meta name="twitter:image" content="${ORIGIN}/og-image.png">
 
-  <!-- ── Inline scripts ───────────────────────────────────────────────
-       Above the stylesheet links for the reason spelled out in index.html:
-       an inline script waits for every sheet requested before it, so
-       putting these after the jsdelivr link hands a third-party CDN the
-       power to stall parsing of the whole document. -->
-
-  <!-- iOS gets a native-style navigation bar (styles.css). Set here rather
-       than in app.js so the bar is never painted in its desktop form for a
-       frame first. -->
-  <script>
-    if (window.CSS && CSS.supports && CSS.supports('-webkit-touch-callout', 'none')) {
-      document.documentElement.classList.add('is-ios');
-    }
-  </script>
-${
-  lang === 'en'
-    ? `
-  <!-- ── Language routing ─────────────────────────────────────────────
-       The same rule as the landing page, pointed at this document's
-       Persian twin: Persian is the site, and the only way to stay on the
-       English copy is to have asked for English with the toggle, which
-       writes tark_lang. See index.html for the full reasoning, including
-       what this costs in English search presence. Only rendered into the
-       English document, so no loop is possible. -->
-  <script>
-    (function () {
-      if (document.documentElement.lang !== 'en') return;
-      var want = null;
-      try { want = localStorage.getItem('tark_lang'); } catch (_) {}
-      if (want !== 'en') location.replace('${doc.webPath.fa}');
-    })();
-  </script>
-`
-    : ''
-}
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vazirmatn@33.0.3/Vazirmatn-font-face.css">
-  <link rel="stylesheet" href="${rel}styles.css">
+${loaderFontCss(lang)}
+  ${startup(lang, doc.webPath.fa)}
+  <link rel="preload" href="/assets/Vazirmatn-Medium.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/icons.css?v=site-1">
+  <link rel="stylesheet" href="/styles.css?v=site-1">
+  <link rel="stylesheet" href="/scene.css?v=site-1">
+  <link rel="stylesheet" href="/polish.css?v=site-1">
+  <link rel="stylesheet" href="/legal.css?v=site-1">
 </head>`;
 }
 
 function renderNav(doc, lang) {
   const home = lang === 'fa' ? '/fa/' : '/';
-  const toggle =
-    lang === 'en'
-      ? { href: doc.webPath.fa, lang: 'fa', ...UI.toPersian }
-      : { href: doc.webPath.en, lang: 'en', ...UI.toEnglish };
-
-  return `  <!-- ── Nav ─────────────────────────────────────────────────────────
-       The same bar as the landing page, with its links pointed back at it.
-       app.js is shared across the site and skips the blocks whose elements
-       are not on this page. -->
-  <nav id="nav">
-    <div class="nav-inner">
-      <a class="wordmark" href="${home}">
-        <span class="wordmark-dot"></span>TARKK
-      </a>
+  const other = lang === 'fa' ? 'en' : 'fa';
+  return `<header class="site-header has-scrolled">
+    <nav class="nav wrap" aria-label="${lang === 'fa' ? 'منوی اصلی' : 'Main navigation'}">
+      <a class="brand" href="${home}" aria-label="${lang === 'fa' ? 'تَرک' : 'Tarkk'}"><img src="/assets/logo.png" alt="" width="34" height="34"><span>${lang === 'fa' ? 'تَرک' : 'TARKK'}</span></a>
       <div class="nav-links" id="navLinks">
-${NAV.map(
-  ([hash, label]) =>
-    `        <a href="${home}${hash}">${esc(label[lang])}</a>`
-).join('\n')}
+        ${NAV.map(([hash, label]) => `<a href="${home}${hash}">${esc(label[lang])}</a>`).join('\n')}
       </div>
-      <a id="langToggle" class="lang-toggle" href="${toggle.href}" hreflang="${toggle.lang}"
-        lang="${toggle.lang}" aria-label="${attr(toggle.aria)}">${esc(toggle.label)}</a>
-      <button id="menuToggle" class="menu-toggle" aria-expanded="false" aria-controls="navLinks">
-        <span class="menu-icon" aria-hidden="true"></span>
-        <span class="sr-only">${esc(UI.menu[lang])}</span>
-      </button>
-    </div>
-  </nav>`;
+      <div class="nav-tools">
+        <a id="langToggle" class="language-button" href="${doc.webPath[other]}" hreflang="${other}" aria-label="${lang === 'fa' ? 'نمایش به انگلیسی' : 'View in Persian'}">${lang === 'fa' ? 'انگلیسی' : 'Persian'}</a>
+        <a class="nav-download" href="${home}#download"><span>${lang === 'fa' ? 'دریافت تَرک' : 'Get Tarkk'}</span><span class="icon" data-icon="arrow-down" aria-hidden="true"></span></a>
+        <button id="menuToggle" class="icon-button menu-button" aria-expanded="false" aria-controls="navLinks" aria-label="${lang === 'fa' ? 'منو' : 'Menu'}"><span class="icon" data-icon="list" aria-hidden="true"></span></button>
+      </div>
+    </nav>
+  </header>`;
 }
 
 function renderBody(doc, lang) {
@@ -344,7 +302,9 @@ ${sec.blocks.map((b, j) => renderBlock(b, lang, `${where} block ${j + 1}`)).join
     })
     .join('\n\n');
 
-  return `<body>
+  return `<body class="legal-page">
+${loaderMarkup(lang)}
+<a class="skip" href="#legalContent">${lang === 'fa' ? 'رفتن به محتوا' : 'Skip to content'}</a>
 
 ${renderNav(doc, lang)}
 
@@ -389,7 +349,7 @@ ${doc.sections
       </ol>
     </aside>
 
-    <main class="legal-main">
+    <main class="legal-main" id="legalContent">
 
       <!-- ── The short version ────────────────────────────────────────
            The landing page's ledger, reused: it is answering the same
@@ -432,8 +392,8 @@ ${doc.cross
     </main>
   </div>
 
-  <footer>
-    <span class="wordmark"><span class="wordmark-dot"></span>TARKK</span>
+  <footer class="footer wrap">
+    <span class="wordmark">${lang === 'fa' ? 'تَرک' : 'TARKK'}</span>
     <div class="footer-links">
 ${FOOTER.map(
   ([hash, label]) => `      <a href="${home}${hash}">${esc(label[lang])}</a>`
@@ -445,7 +405,7 @@ ${FOOTER.map(
     <p>${esc(UI.tagline[lang])}</p>
   </footer>
 
-  <script src="${lang === 'fa' ? '../' : ''}app.js"></script>
+  <script type="module" src="/legal-page.js?v=site-1"></script>
 </body>
 
 </html>
@@ -457,8 +417,8 @@ const banner = (id) =>
   `       Do not edit this file — change the JSON and rebuild. -->\n`;
 
 function renderDocument(doc, lang) {
-  const body = renderBody(doc, lang).replace('<body>\n', `<body>\n${banner(doc.id)}`);
-  return `${renderHead(doc, lang)}\n\n${body}`;
+  const body = renderBody(doc, lang).replace('<body class="legal-page">', `<body class="legal-page">\n${banner(doc.id)}`);
+  return `${renderHead(doc, lang)}\n\n${body}`.replace(/href="((?:\/fa\/|\/)?(?:privacy|terms|delete-account))\.html"/g, 'href="$1"');
 }
 
 // ── Validation ───────────────────────────────────────────────────────

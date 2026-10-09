@@ -1,0 +1,619 @@
+/* Fixed-height scenes, real Persian type, and consistent motion geometry. */
+/* The motion shell also serves legal documents; no-JS readers see content. */
+.page-loader {position:fixed;inset:0;z-index:100;color:var(--text);display:grid;place-items:center}
+:root:not(.is-enhanced) .page-loader {display:none}
+:root:not(.is-enhanced) .site-header {opacity:1}
+.is-booting {overflow:hidden}
+.is-page-leaving {pointer-events:none}
+.departure-loader {pointer-events:all}
+.language-button {display:inline-flex;align-items:center;justify-content:center}
+/* Opaque overlap prevents fractional compositor seams below the pinned hero. */
+.ride-stage {background:#17271d}
+.scene-viewport {position:absolute;inset:0;overflow:hidden;clip-path:inset(0 0 var(--hero-footer-height) 0);z-index:0}
+.hero-footer::after {content:"";position:absolute;inset:auto 0 -2px;height:4px;background:#17271d;pointer-events:none}
+html[lang="fa"] body {font-weight:500}
+html[lang="fa"] :is(.nav-links,.language-button,.hero-footer-intro,.ride-description,.journey-copy p,.connection-copy p,.music-copy p,.download-note,.pricing-note,.footer,.faq-item p) {font-weight:500}
+html[lang="fa"] :is(.nav-links,.language-button,.hero-footer-intro,.download-note,.pricing-note,.footer) {font-size:14px}
+html[lang="fa"] .faq-item summary {font-weight:600}
+:root {
+  --font-ui: Vazirmatn, Arial, sans-serif;
+}
+html[lang="en"] {
+  --font-ui: Arial, sans-serif;
+}
+html {
+  scroll-behavior: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #71826d #0d1913;
+}
+/* Keep native scrolling, with a quiet forest rail and an orange drag handle. */
+@supports selector(::-webkit-scrollbar) {
+  html {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+  html::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+  html::-webkit-scrollbar-track {
+    background: #0d1913;
+    border-inline-start: 1px solid #304538;
+  }
+  html::-webkit-scrollbar-thumb {
+    background: #71826d;
+    background-clip: padding-box;
+    border: 3px solid transparent;
+    border-radius: 999px;
+    min-height: 48px;
+  }
+  html::-webkit-scrollbar-thumb:hover {
+    background-color: #f5853f;
+  }
+  html::-webkit-scrollbar-thumb:active {
+    background-color: #ffad70;
+  }
+  html::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+  html::-webkit-scrollbar-corner {
+    background: #0d1913;
+  }
+}
+/* Persian supporting copy needs more optical weight than Latin at this scale. */
+html[lang="fa"] :is(.hero-free,.demo-note,.journey-note,.mode-caveat,.ride-note,.settings-foot,.feature-note,.music-slider label,.privacy-note) {font-size:13px!important;font-weight:500;line-height:2}
+html[lang="fa"] :is(.tech-numbers strong small,.tech-numbers > div > span,.hero-footer small,.journey-counter small,.ride-settings small) {font-weight:500}
+html[lang="fa"] .connection-tabs small {font-size:11px;font-weight:500}
+html[lang="fa"] .connection-copy > p {font-size:15px}
+html[lang="fa"] .ride-hero-copy > .eyebrow {font-size:13px}
+html[lang="fa"] .skip {z-index:110}
+@media(max-width:767px) {
+  html[lang="fa"] .journey-steps button {font-size:12px;white-space:normal;min-height:54px;padding:9px 7px;line-height:1.7;font-weight:500}
+  html[lang="fa"] .journey-steps button[aria-pressed="true"] {font-weight:700}
+  html[lang="fa"] .journey-steps .step-number {font-size:10px}
+}
+body {
+  font-family: var(--font-ui);
+}
+html[lang="fa"] body *,
+html[lang="fa"] .journey-counter > span,
+html[lang="fa"] .journey-counter small {
+  font-family: Vazirmatn, Arial, sans-serif;
+}
+html[lang="fa"] h1,
+html[lang="fa"] h2,
+html[lang="fa"] h3,
+html[lang="fa"] .route-invitation-copy strong {
+  letter-spacing: 0;
+}
+.ride-stage {
+  --hero-footer-height: 96px;
+  height: 100svh;
+  min-height: 650px;
+  max-height: none;
+}
+.scene-fit {
+  top: calc((100% - var(--hero-footer-height)) / 2);
+}
+.scene-scrim {
+  bottom: var(--hero-footer-height);
+}
+.ride-hero-copy {
+  top: calc((100% - var(--hero-footer-height) + 82px) / 2);
+  transform: translateY(-50%);
+}
+.scene-live {
+  bottom: calc(var(--hero-footer-height) + 22px);
+}
+.hero-footer {
+  position: absolute;
+  inset: auto 0 0;
+  height: var(--hero-footer-height);
+  background: #17271d;
+  border-top: 1px solid #304538;
+  z-index: 3;
+}
+.hero-footer-inner {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 30px;
+}
+.hero-footer-intro {
+  font-size: 13px;
+  color: #a7b3a8;
+}
+.hero-footer .ride-scroll {
+  position: static;
+  font-size: 15px;
+  gap: 22px;
+  color: #f2f3e9;
+}
+.hero-footer .ride-scroll .icon {
+  color: #f5853f;
+  width: 26px;
+  height: 26px;
+}
+.hero-footer .ride-scroll small {
+  font-size: 13px;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+}
+.hero-footer .ride-scroll-line {
+  width: 80px;
+  background: #7d947955;
+}
+.journey-stage {
+  height: calc(100svh - 82px);
+  max-height: none;
+}
+.journey-copy h2 {
+  text-wrap: balance;
+}
+@media (max-width: 767px) {
+  html[lang="en"] .details .section-head h2 {
+    font-size: clamp(26px, 8vw, 34px);
+  }
+}
+@media (min-width: 1024px) and (min-height: 640px) and (prefers-reduced-motion: no-preference) {
+  #handshake {
+    height: calc(265svh - 82px);
+  }
+  #journeyStage {
+    position: sticky;
+    top: 82px;
+    min-height: 0;
+  }
+}
+.footer-wordmark {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  direction: inherit;
+}
+.footer-wordmark > span {
+  unicode-bidi: isolate;
+}
+html[lang="fa"] .footer-wordmark {
+  letter-spacing: 0;
+  gap: 0.025em;
+  line-height: 1.35;
+}
+.journey-phone {
+  height: min(680px, calc(100svh - 132px));
+  width: min(338px, calc((100svh - 132px) * 0.495));
+}
+.route-bridge {
+  padding-top: 42px;
+  padding-bottom: 22px;
+}
+.route-track {
+  height: 18px;
+  background: none;
+  overflow: hidden;
+}
+.route-track:before {
+  content: "";
+  position: absolute;
+  inset: calc(50% - 0.5px) 0 auto;
+  height: 1px;
+  background: #ffffff22;
+}
+.route-track span {
+  top: calc(50% - 1px);
+}
+.route-track i {
+  box-shadow: 0 0 0 5px #0d1913;
+  flex-shrink: 0;
+}
+@keyframes route-packet {
+  0% {
+    transform: translateX(0);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(350%);
+    opacity: 0;
+  }
+}
+.loader-panel {
+  border: 0 !important;
+}
+.loader-kicker {
+  position: absolute;
+  top: 36px;
+  inset-inline-start: 40px;
+  color: #a7b3a8;
+  font-size: 12px;
+}
+.loader-center {
+  width: min(680px, calc(100vw - 64px));
+  gap: 24px;
+}
+.loader-center > img {
+  height: 80px;
+  width: 80px;
+  border-radius: 20px;
+}
+.loader-center > strong {
+  font-size: clamp(84px, 12vw, 160px);
+  line-height: 1.2;
+  letter-spacing: -5px;
+}
+html[lang="fa"] .loader-center > strong {
+  letter-spacing: 0;
+  font-size: clamp(100px, 14vw, 180px);
+}
+.loader-center > span {
+  font-size: 15px;
+  margin-top: 8px;
+}
+.loader-route {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  width: min(420px, 100%);
+  margin-top: 20px;
+}
+.loader-endpoint {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 56px;
+  flex-shrink: 0;
+  border: 1px solid #304538;
+  border-radius: 9px;
+  background: #17271d;
+  color: #f5853f;
+}
+.loader-endpoint .icon {
+  width: 24px;
+  height: 24px;
+}
+.loader-route .load-track {
+  margin: 0;
+  flex: 1;
+  height: 3px;
+}
+.loader-center output {
+  font-size: 24px;
+  line-height: 1.5;
+  font-weight: 500;
+  color: #f2f3e9;
+}
+.equalizer i,
+.equalizer.playing i {
+  height: 100%;
+  transform: scaleY(var(--idle, 0.2));
+  animation: none !important;
+  transition:
+    background-color 0.45s,
+    opacity 0.45s;
+  will-change: transform;
+}
+.equalizer {
+  height: 180px;
+  padding-block: 28px;
+}
+.faq-layout {
+  grid-template-columns: minmax(300px, 0.75fr) minmax(0, 1.25fr);
+  gap: 72px;
+}
+.faq h2 {
+  max-width: none;
+  font-size: clamp(34px, 3.2vw, 48px);
+  line-height: 1.5;
+}
+html[lang="fa"] .faq h2 {
+  white-space: nowrap;
+}
+.faq-item summary {
+  list-style: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding-inline-end: 0;
+  font-size: 14px;
+}
+.faq-item summary::-webkit-details-marker {
+  display: none;
+}
+.faq-arrow {
+  display: block;
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-inline-start: 6px solid currentColor;
+  flex-shrink: 0;
+  margin-top: 10px;
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.faq-item[data-expanded="true"] .faq-arrow {
+  transform: rotate(-90deg);
+}
+html[dir="ltr"] .faq-item[data-expanded="true"] .faq-arrow {
+  transform: rotate(90deg);
+}
+.faq-item p {
+  padding-inline-start: 19px;
+  font-size: 14px;
+  line-height: 2.1;
+}
+.details .section-head {
+  max-width: none;
+  margin-bottom: 40px;
+}
+.details .section-head h2 {
+  font-size: clamp(36px, 4vw, 62px);
+  line-height: 1.55;
+}
+.headline-phrase {
+  white-space: nowrap;
+  display: inline-block;
+}
+.details .section-head > p {
+  font-size: 14px;
+  max-width: 65ch;
+}
+.tech-numbers {
+  gap: 32px;
+  padding-block: 32px 34px;
+}
+.tech-numbers strong {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  font-family: var(--font-ui);
+  font-size: clamp(42px, 5vw, 68px);
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: 0;
+  direction: inherit;
+}
+.tech-numbers strong > span {
+  font-size: inherit;
+  line-height: inherit;
+  font-weight: inherit;
+  color: var(--text);
+}
+.tech-numbers strong small {
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--muted);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.tech-numbers > div > span {
+  display: block;
+  font-size: 13px;
+  margin-top: 12px;
+}
+.privacy-note {
+  margin-top: 20px;
+  font-size: 12px;
+  gap: 18px;
+  padding-top: 30px;
+}
+.privacy-note > p {
+  max-width: 70ch;
+}
+.journey-counter > span {
+  font-family: var(--font-ui);
+  letter-spacing: -3px;
+}
+.journey-counter small,
+.step-number,
+.connection-number {
+  font-family: var(--font-ui);
+  letter-spacing: 0;
+  font-size: 12px;
+}
+@media (min-width: 1024px) and (max-height: 760px) {
+  .ride-hero-copy h1 {
+    font-size: 58px;
+    line-height: 1.35;
+  }
+  .ride-hero-copy .voice-demo {
+    margin-top: 16px;
+  }
+  .ride-hero-copy .hero-actions {
+    margin-top: 17px;
+  }
+  .ride-hero-copy .hero-free {
+    margin-top: 10px;
+  }
+  .ride-hero-copy .demo-note {
+    font-size: 9px;
+  }
+  .ride-hero-copy .eyebrow {
+    margin-bottom: 8px;
+  }
+  html[dir="ltr"] .ride-hero-copy h1 {
+    font-size: 57px;
+  }
+}
+@media (min-width: 1800px) {
+  .ride-hero-copy h1 {
+    font-size: 94px;
+  }
+  .ride-hero-copy {
+    max-width: 720px;
+  }
+  .ride-description {
+    font-size: 16px;
+    max-width: 470px;
+  }
+  .ride-hero-copy .voice-options button {
+    font-size: 13px;
+    padding: 11px 17px;
+  }
+  .ride-hero-copy .demo-note {
+    font-size: 11px;
+  }
+  .ride-hero-copy .demo-heading {
+    font-size: 13px;
+  }
+  .hero-footer .ride-scroll {
+    font-size: 17px;
+  }
+}
+@media (max-width: 1023px) {
+  .ride-stage {
+    min-height: 0;
+    height: auto;
+  }
+  .ride-hero-copy {
+    top: auto;
+    transform: none;
+  }
+  .scene-fit {
+    top: calc(100% - var(--hero-footer-height) - 310px);
+  }
+  .scene-scrim {
+    display: none;
+  }
+  .hero-footer {
+    position: relative;
+    height: 96px;
+    order: 2;
+    flex-shrink: 0;
+  }
+  .scene-live {
+    bottom: calc(var(--hero-footer-height) + 22px);
+  }
+  .journey-phone {
+    height: 584px;
+    width: 294px;
+  }
+  .journey-stage {
+    height: auto;
+    min-height: 600px;
+  }
+  .faq-layout {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  .faq .section-head {
+    position: static;
+    margin-bottom: 0;
+  }
+  .faq h2 {
+    max-width: none;
+  }
+  .privacy-note {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 767px) {
+  .scene-fit {
+    top: calc(100% - var(--hero-footer-height) - 290px);
+  }
+  .hero-footer-intro {
+    display: none;
+  }
+  .hero-footer-inner {
+    justify-content: center;
+  }
+  .hero-footer .ride-scroll > span:not(.icon) {
+    display: block;
+  }
+  .hero-footer .ride-scroll-line {
+    display: none !important;
+  }
+  .hero-footer .ride-scroll {
+    font-size: 14px;
+    gap: 16px;
+  }
+  .hero-footer .ride-scroll small {
+    font-size: 12px;
+  }
+  .loader-kicker {
+    top: 24px;
+    inset-inline-start: 24px;
+    font-size: 10px;
+  }
+  .loader-center {
+    gap: 20px;
+  }
+  .loader-center > img {
+    height: 64px;
+    width: 64px;
+  }
+  .loader-center > span {
+    font-size: 12px;
+  }
+  .loader-center > strong {
+    font-size: 76px;
+  }
+  html[lang="fa"] .loader-center > strong {
+    font-size: 108px;
+  }
+  .loader-route {
+    gap: 16px;
+    margin-top: 12px;
+  }
+  .loader-endpoint {
+    width: 34px;
+    height: 48px;
+  }
+  .loader-center output {
+    font-size: 20px;
+  }
+  .journey-phone {
+    height: 545px;
+    width: 270px;
+  }
+  .journey-counter > span {
+    font-size: 84px;
+  }
+  .tech-numbers {
+    gap: 24px;
+  }
+  .tech-numbers strong {
+    font-size: 40px;
+  }
+  .tech-numbers strong small {
+    font-size: 12px;
+  }
+  .tech-numbers > div > span {
+    font-size: 12px;
+  }
+  .details .section-head h2 {
+    font-size: 34px;
+  }
+  .faq-item summary {
+    font-size: 13px;
+  }
+  .faq-item p {
+    font-size: 13px;
+  }
+  .faq h2 {
+    font-size: 34px;
+  }
+  .route-invitation-copy strong {
+    font-size: 34px;
+  }
+  .equalizer {
+    height: 155px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .faq-arrow {
+    transition: none;
+  }
+  .equalizer i {
+    will-change: auto;
+  }
+}

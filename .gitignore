@@ -91,3 +91,6 @@ client_secret_*.json
 # Cafe Bazaar Pishkhan API token, read by scripts/bazaar-pishkhan.ps1. A real
 # secret: it can upload builds and send them to Bazaar for review.
 .PISHKHAN
+
+# Local Cloudflare deployment state.
+.wrangler/

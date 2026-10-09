@@ -1,0 +1,1034 @@
+:root {
+  --bg: #0d1913;
+  --surface: #17271d;
+  --card: #213529;
+  --text: #f2f3e9;
+  --muted: #a7b3a8;
+  --line: #304538;
+  --paper: #edf0e6;
+  --ink: #1b2d21;
+  --paper-muted: #647062;
+  --paper-line: #cdd7c6;
+}
+.site-header {
+  position: fixed;
+  inset: 0 0 auto;
+  background: transparent;
+  border-color: #fff3;
+  color: #fff7e9;
+  z-index: 60;
+  transition:
+    background 0.3s,
+    color 0.3s,
+    box-shadow 0.3s;
+}
+.site-header.has-scrolled {
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: 0 5px 25px #0b1a1415;
+  border-color: var(--line);
+}
+.ride-hero {
+  position: relative;
+  color: #fff7e9;
+  background: #17221a;
+  isolation: isolate;
+}
+.ride-stage {
+  position: relative;
+  height: 100dvh;
+  min-height: 700px;
+  max-height: 1050px;
+  overflow: clip;
+  isolation: isolate;
+}
+.scene-fit {
+  position: absolute;
+  width: 1672px;
+  height: 941px;
+  left: calc(50% + var(--scene-offset, 0px));
+  top: 50%;
+  transform: translate(-50%, -50%) scale(var(--scene-fit, 1));
+  transform-origin: center;
+  z-index: 0;
+}
+.scene-camera,
+.scene-drift {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-origin: 640px 450px;
+  will-change: transform;
+}
+.scene-photo {
+  position: absolute;
+  inset: 0;
+  width: 1672px;
+  height: 941px;
+  max-width: none;
+  pointer-events: none;
+  user-select: none;
+}
+.scene-screen {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 360px;
+  height: 690px;
+  transform-origin: 0 0;
+  border-radius: 22px;
+  overflow: hidden;
+  transform: matrix3d(
+    0.9248028579505027,
+    -0.13045832480432012,
+    0,
+    -0.00003350683783177862,
+    0.05418222549397292,
+    0.8807429077811302,
+    0,
+    -0.0001525051142294455,
+    0,
+    0,
+    1,
+    0,
+    410,
+    126,
+    0,
+    1
+  );
+  box-shadow: 0 0 0 1.5px #080b0e;
+  pointer-events: auto;
+}
+.scene-screen .app-screen {
+  padding-top: 16px;
+}
+.scene-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    270deg,
+    #10190fe8 0%,
+    #10190fbd 24%,
+    #10190f40 43%,
+    transparent 56%
+  );
+  z-index: 1;
+  pointer-events: none;
+}
+.ride-hero-copy {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  right: 0;
+  transform: translateY(-45%);
+  width: 46%;
+  max-width: 620px;
+  pointer-events: none;
+}
+.ride-hero-copy .eyebrow {
+  color: #ffb674;
+  font-size: 11px;
+  margin-bottom: 22px;
+}
+.ride-hero-copy h1 {
+  font-size: clamp(58px, 6.1vw, 94px);
+  line-height: 1.45;
+  letter-spacing: -2.8px;
+  font-weight: 900;
+}
+.ride-hero-copy h1 > span {
+  display: block;
+}
+.ride-hero-copy .accent {
+  color: #ff9652;
+}
+.ride-description {
+  font-size: 14px;
+  line-height: 2.15;
+  max-width: 410px;
+  color: #e3e6d7;
+  margin-top: 20px;
+}
+.ride-hero-copy .hero-actions {
+  margin-top: 26px;
+  gap: 23px;
+  pointer-events: auto;
+}
+.ride-hero-copy .primary {
+  background: #f5853f;
+  color: #0c1912;
+}
+.ride-hero-copy .text-button {
+  color: #fff7e9;
+}
+.ride-hero-copy .hero-free {
+  color: #cdd5c5;
+  font-size: 10px;
+}
+.ride-hero-copy .voice-demo {
+  pointer-events: auto;
+  margin-top: 30px;
+  border-color: #fff3;
+  padding-top: 15px;
+}
+.ride-hero-copy .demo-heading {
+  color: #e3e6d7;
+  font-size: 11px;
+}
+.ride-hero-copy .voice-options button {
+  border-color: #ffffff42;
+  background: #15211680;
+  color: #fff7e9;
+  font-size: 10px;
+  padding: 9px 13px;
+  backdrop-filter: blur(8px);
+}
+.ride-hero-copy .voice-options button[aria-pressed="true"] {
+  background: #fff7e9;
+  color: #182518;
+  border-color: #fff7e9;
+}
+.ride-hero-copy .demo-note {
+  color: #cdd5c5;
+  font-size: 9px;
+  max-width: 410px;
+}
+.scene-live {
+  position: absolute;
+  left: max(32px, 4vw);
+  bottom: 32px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 12px 16px;
+  background: #152216c9;
+  backdrop-filter: blur(14px);
+  border: 1px solid #ffffff38;
+  border-radius: 12px;
+  box-shadow: 0 12px 30px #0b120d24;
+  direction: rtl;
+  font-size: 10px;
+}
+.scene-live img {
+  border-radius: 50%;
+  width: 33px;
+  height: 33px;
+}
+.scene-live div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.scene-live span:not(.scene-live-dot) {
+  color: #cdd5c5;
+  font-size: 9px;
+}
+.scene-live strong {
+  font-weight: 500;
+}
+.scene-live-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #7ed077;
+  margin-inline-start: 12px;
+}
+.scene-live[data-speaking="false"] .scene-live-dot {
+  background: #bcc5b6;
+}
+.ride-scroll {
+  position: absolute;
+  bottom: 33px;
+  right: max(32px, 4vw);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #eff0e3;
+  font-size: 10px;
+}
+.ride-scroll .icon {
+  width: 18px;
+  height: 18px;
+}
+.ride-scroll-line {
+  height: 1px;
+  width: 68px;
+  background: #ffffff55;
+}
+.ride-scroll small {
+  font:
+    9px Arial,
+    sans-serif;
+  letter-spacing: 2px;
+}
+.principles {
+  margin-top: 0;
+  padding-top: 30px;
+  border-top: 0;
+  margin-bottom: 70px;
+}
+.journey-copy h2 {
+  max-width: 17ch;
+}
+.journey-stage {
+  background: #edf0e6;
+}
+.journey-phone {
+  box-shadow:
+    inset 0 0 0 1px #777b80,
+    inset 0 0 0 4px #272a2e,
+    0 24px 45px #1c321f30;
+}
+.connections .section-head h2,
+.details .section-head h2 {
+  font-size: clamp(40px, 4.7vw, 66px);
+}
+.connection-panel {
+  background: var(--surface);
+  border-radius: 12px;
+}
+.ride-settings,
+.music-demo {
+  border-radius: 12px;
+}
+.footer-wordmark {
+  color: var(--accent);
+}
+html[dir="ltr"] .ride-hero-copy {
+  left: auto;
+  right: 0;
+}
+html[dir="ltr"] .ride-hero-copy h1 {
+  line-height: 1.07;
+  letter-spacing: -4px;
+  font-size: clamp(58px, 6.2vw, 93px);
+}
+html[dir="ltr"] .ride-description {
+  line-height: 1.85;
+  margin-top: 28px;
+}
+html[dir="ltr"] .scene-live {
+  direction: ltr;
+}
+@media (min-width: 1024px) and (max-height: 760px) {
+  .ride-stage {
+    min-height: 650px;
+  }
+  .ride-hero-copy {
+    transform: translateY(-43%);
+  }
+  .ride-hero-copy h1 {
+    font-size: 68px;
+  }
+  .ride-hero-copy .eyebrow {
+    margin-bottom: 10px;
+  }
+  .ride-description {
+    margin-top: 14px;
+    font-size: 12px;
+  }
+  .ride-hero-copy .hero-actions {
+    margin-top: 20px;
+  }
+  .ride-hero-copy .voice-demo {
+    margin-top: 20px;
+  }
+  .ride-hero-copy .hero-free {
+    margin-top: 13px;
+  }
+  .ride-hero-copy .demo-note {
+    font-size: 8px;
+  }
+  .scene-live {
+    bottom: 20px;
+  }
+  .ride-scroll {
+    bottom: 23px;
+  }
+  html[dir="ltr"] .ride-hero-copy h1 {
+    font-size: 65px;
+  }
+  html[dir="ltr"] .ride-description {
+    margin-top: 20px;
+  }
+}
+@media (max-width: 1250px) and (min-width: 1024px) {
+  .ride-hero-copy {
+    width: 47%;
+  }
+  .ride-hero-copy h1 {
+    font-size: 70px;
+  }
+  .ride-description {
+    font-size: 12px;
+  }
+  .ride-hero-copy .voice-options button {
+    font-size: 9px;
+    padding: 8px 10px;
+  }
+}
+@media (max-width: 1023px) {
+  .ride-stage {
+    height: auto;
+    max-height: none;
+    min-height: 0;
+    padding-bottom: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .ride-hero-copy {
+    position: relative;
+    top: auto;
+    right: auto;
+    width: 100%;
+    max-width: none;
+    transform: none;
+    order: 0;
+    padding-top: 125px;
+    padding-bottom: 30px;
+    background: #122118;
+    pointer-events: auto;
+  }
+  .ride-hero-copy h1 {
+    font-size: 64px;
+    line-height: 1.35;
+    letter-spacing: -2px;
+  }
+  .ride-hero-copy .eyebrow {
+    margin-bottom: 13px;
+  }
+  .ride-description {
+    max-width: 520px;
+    font-size: 14px;
+    margin-top: 18px;
+  }
+  .ride-hero-copy .voice-demo {
+    max-width: 520px;
+    margin-top: 25px;
+  }
+  .scene-fit {
+    top: calc(100% - 310px);
+    --scene-offset: 0px;
+    z-index: 1;
+  }
+  .scene-scrim {
+    display: none;
+  }
+  .ride-stage::after {
+    content: "";
+    height: 620px;
+    order: 1;
+    display: block;
+    pointer-events: none;
+  }
+  .scene-live {
+    bottom: 24px;
+    left: 24px;
+    font-size: 9px;
+  }
+  .ride-scroll {
+    bottom: 26px;
+    right: 25px;
+  }
+  .ride-scroll > span:not(.icon) {
+    display: none;
+  }
+  .ride-scroll-line {
+    width: 35px;
+  }
+  .scene-live img {
+    width: 28px;
+    height: 28px;
+  }
+  .principles {
+    margin-bottom: 45px;
+  }
+  .scene-camera,
+  .scene-drift {
+    will-change: auto;
+  }
+  html[dir="ltr"] .ride-hero-copy {
+    left: auto;
+    right: auto;
+  }
+  html[dir="ltr"] .ride-hero-copy h1 {
+    font-size: 65px;
+    letter-spacing: -3px;
+  }
+  html[dir="ltr"] .ride-description {
+    margin-top: 17px;
+  }
+}
+@media (max-width: 767px) {
+  .ride-hero-copy {
+    padding-top: 105px;
+    padding-bottom: 28px;
+  }
+  .ride-hero-copy h1 {
+    font-size: 55px;
+  }
+  .ride-hero-copy .eyebrow {
+    font-size: 10px;
+  }
+  .ride-description {
+    font-size: 12px;
+    line-height: 2;
+    max-width: 400px;
+  }
+  .ride-hero-copy .voice-options {
+    gap: 5px;
+  }
+  .ride-hero-copy .voice-options button {
+    font-size: 9px;
+    padding: 8px 10px;
+  }
+  .ride-hero-copy .demo-note {
+    font-size: 8px;
+  }
+  .ride-hero-copy .hero-free {
+    font-size: 9px;
+  }
+  .ride-hero-copy .hero-actions {
+    gap: 20px;
+  }
+  .ride-stage::after {
+    height: 580px;
+  }
+  .scene-fit {
+    top: calc(100% - 290px);
+  }
+  .scene-live {
+    bottom: 20px;
+    left: 20px;
+    padding: 10px 12px;
+  }
+  .ride-scroll {
+    right: 20px;
+    bottom: 23px;
+  }
+  .ride-scroll-line {
+    display: none;
+  }
+  .ride-scroll small {
+    font-size: 8px;
+  }
+  .principles {
+    padding-top: 25px;
+  }
+  .scene-screen {
+    box-shadow: 0 0 0 2px #080b0e;
+  }
+  html[dir="ltr"] .ride-hero-copy h1 {
+    font-size: 57px;
+    letter-spacing: -2px;
+  }
+}
+@media (max-width: 350px) {
+  .ride-hero-copy h1 {
+    font-size: 47px;
+  }
+  .ride-hero-copy .voice-options button {
+    font-size: 8px;
+    padding-inline: 8px;
+  }
+  .ride-hero-copy .hero-actions {
+    gap: 15px;
+  }
+  .ride-hero-copy .hero-free {
+    font-size: 8px;
+  }
+  .scene-live {
+    left: 14px;
+    padding: 9px;
+    gap: 8px;
+  }
+  .scene-live-dot {
+    margin-inline-start: 5px;
+  }
+  .ride-scroll {
+    right: 16px;
+  }
+  html[dir="ltr"] .ride-hero-copy h1 {
+    font-size: 48px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scene-camera,
+  .scene-drift {
+    will-change: auto;
+  }
+  .site-header {
+    transition: none;
+  }
+}
+
+/* Entry, language and app state transitions share one restrained travel palette. */
+html {
+  overflow-anchor: none;
+}
+.scene-intro {
+  width: 100%;
+  height: 100%;
+  transform-origin: 640px 450px;
+}
+html[dir="ltr"] .scene-photo {
+  transform: scaleX(-1);
+}
+html[dir="ltr"] .scene-screen {
+  transform: matrix3d(
+    0.9928019259325038,
+    0.13205118718149844,
+    0,
+    0.00003391594764857696,
+    -0.3129456716387178,
+    0.8914965507079077,
+    0,
+    -0.00015436716219877005,
+    0,
+    0,
+    1,
+    0,
+    920,
+    80,
+    0,
+    1
+  );
+}
+html[dir="ltr"] .scene-camera,
+html[dir="ltr"] .scene-drift,
+html[dir="ltr"] .scene-intro {
+  transform-origin: 1032px 450px;
+}
+html[dir="ltr"] .scene-scrim {
+  background: linear-gradient(
+    90deg,
+    #10190fe8 0%,
+    #10190fbd 24%,
+    #10190f40 43%,
+    transparent 56%
+  );
+}
+html[dir="ltr"] .ride-hero-copy {
+  left: 0;
+  right: auto;
+  padding-inline-start: max(32px, 4vw);
+  padding-inline-end: 0;
+}
+html[dir="ltr"] .scene-live {
+  right: max(32px, 4vw);
+  left: auto;
+}
+html[dir="ltr"] .ride-scroll {
+  left: max(32px, 4vw);
+  right: auto;
+}
+.page-loader {
+  background: none;
+  overflow: hidden;
+}
+.loader-panels {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+}
+.loader-panel {
+  background: #0d1913;
+  position: relative;
+}
+.loader-panel:first-child {
+  border-bottom: 1px solid #f5853f33;
+}
+.loader-panel:last-child {
+  border-top: 1px solid #f5853f33;
+}
+.loader-center {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 17px;
+  width: 240px;
+}
+.loader-center img {
+  border-radius: 16px;
+}
+.loader-center strong {
+  font-size: 52px;
+  font-weight: 900;
+  letter-spacing: -1px;
+}
+.loader-center > span {
+  font-size: 12px;
+  color: #bac7b7;
+}
+.loader-center output {
+  font-size: 11px;
+  color: #f5853f;
+  font-variant-numeric: tabular-nums;
+}
+.load-track {
+  width: 100%;
+  height: 2px;
+  background: #ffffff20;
+  margin-top: 12px;
+  overflow: hidden;
+}
+.load-track i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #f5853f;
+  transform: scaleX(var(--load-progress, 0));
+  transform-origin: right;
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+html[dir="ltr"] .load-track i {
+  transform-origin: left;
+}
+.language-curtain {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  visibility: hidden;
+  pointer-events: none;
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  overflow: hidden;
+}
+.language-panel {
+  background: #17271d;
+  position: relative;
+}
+.language-panel:first-child {
+  background: #0d1913;
+  border-bottom: 1px solid #f5853f;
+}
+.language-panel:last-child {
+  border-top: 1px solid #f5853f33;
+}
+.is-language-changing #langToggle {
+  pointer-events: none;
+}
+.voice-options button,
+.app-mic-control,
+.app-member-status,
+.app-scope,
+.connection-tabs button,
+.music-play,
+.check-state {
+  transition:
+    background-color 0.45s,
+    border-color 0.45s,
+    color 0.45s,
+    box-shadow 0.45s,
+    transform 0.45s;
+}
+.voice-options button:active,
+.connection-tabs button:active,
+.music-play:active {
+  transform: scale(0.97);
+}
+.app-screen-outgoing {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: var(--app-bg);
+  pointer-events: none;
+}
+.app-mic-badge,
+.app-readout-glyph,
+.app-member-status i {
+  transition:
+    background-color 0.5s,
+    color 0.5s;
+}
+.connection-panel {
+  position: relative;
+  min-height: 460px;
+  overflow: hidden;
+}
+.motion-snapshot {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100%;
+  height: 100%;
+  margin: 0 !important;
+  z-index: 4;
+  pointer-events: none;
+  overflow: hidden;
+  min-height: 0 !important;
+}
+.journey-counter,
+.connection-number,
+.step-number,
+.ride-scroll small,
+.tech-numbers strong {
+  font-family: inherit;
+}
+.tech-numbers strong small {
+  font-size: clamp(10px, 1.1vw, 16px);
+  letter-spacing: 0;
+  display: inline-block;
+}
+.journey-copy h2 {
+  height: 160px;
+  min-height: 160px;
+  overflow: visible;
+}
+#journeyDescription {
+  height: 82px;
+  min-height: 82px;
+}
+.route-bridge {
+  padding: 50px 0 20px;
+  background: #0d1913;
+  overflow: hidden;
+}
+.route-invitation {
+  display: flex;
+  align-items: center;
+  gap: 55px;
+  padding-block: 15px 45px;
+  color: var(--text);
+}
+.route-invitation-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  white-space: nowrap;
+}
+.route-invitation-copy > span {
+  font-size: 11px;
+  color: #a7b3a8;
+}
+.route-invitation-copy strong {
+  font-size: clamp(35px, 4.5vw, 64px);
+  font-weight: 800;
+  letter-spacing: -1.5px;
+}
+.route-track {
+  position: relative;
+  flex: 1;
+  height: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff22;
+  direction: ltr;
+}
+.route-track i {
+  height: 7px;
+  width: 7px;
+  background: #41563d;
+  border-radius: 50%;
+  z-index: 1;
+  box-shadow: 0 0 0 6px #0d1913;
+}
+.route-track span {
+  position: absolute;
+  height: 2px;
+  width: 22%;
+  background: #f5853f;
+  inset-inline-start: 0;
+}
+.route-beacon {
+  width: 65px;
+  height: 65px;
+  flex-shrink: 0;
+  border: 1px solid #f5853f66;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #f5853f;
+  position: relative;
+}
+.route-beacon:before,
+.route-beacon:after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid #f5853f77;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.route-beacon .icon {
+  width: 26px;
+  height: 26px;
+}
+.route-bridge .principles {
+  margin: 0 auto;
+  padding-top: 25px;
+  padding-bottom: 12px;
+  border-top: 1px solid #ffffff17;
+  background: none;
+}
+.route-invitation:hover .route-beacon {
+  background: #f5853f;
+  color: #0d1913;
+  transition:
+    background 0.4s,
+    color 0.4s;
+}
+.ride-scroll .icon {
+  animation: scroll-arrow 2s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .route-track span {
+    animation: route-packet 3s cubic-bezier(0.55, 0, 0.35, 1) infinite;
+  }
+  .route-beacon:before {
+    animation: route-ring 3s ease-out infinite;
+  }
+  .route-beacon:after {
+    animation: route-ring 3s ease-out 1.5s infinite;
+  }
+  .route-beacon .icon {
+    animation: scroll-arrow 2s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  }
+}
+@keyframes route-packet {
+  0% {
+    transform: translateX(-120%);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(550%);
+    opacity: 0;
+  }
+}
+@keyframes route-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+@keyframes scroll-arrow {
+  0%,
+  100% {
+    transform: translateY(-3px);
+  }
+  50% {
+    transform: translateY(4px);
+  }
+}
+@media (max-width: 1023px) {
+  html[dir="ltr"] .ride-hero-copy {
+    left: auto;
+    right: auto;
+    padding-inline: 24px;
+  }
+  html[dir="ltr"] .scene-live {
+    right: 24px;
+  }
+  html[dir="ltr"] .ride-scroll {
+    left: 24px;
+  }
+  .route-invitation {
+    gap: 35px;
+  }
+  .journey-copy h2 {
+    height: 145px;
+    min-height: 145px;
+  }
+}
+@media (max-width: 767px) {
+  html[dir="ltr"] .ride-hero-copy {
+    padding-inline: 20px;
+  }
+  html[dir="ltr"] .scene-live {
+    right: 20px;
+  }
+  .route-bridge {
+    padding-top: 30px;
+  }
+  .route-invitation {
+    gap: 22px;
+    padding-block: 15px 35px;
+    flex-wrap: wrap;
+  }
+  .route-invitation-copy {
+    white-space: normal;
+    flex: 1;
+  }
+  .route-invitation-copy > span {
+    font-size: 10px;
+  }
+  .route-invitation-copy strong {
+    font-size: 36px;
+  }
+  .route-track {
+    display: none;
+  }
+  .route-beacon {
+    height: 52px;
+    width: 52px;
+  }
+  .route-bridge .principles {
+    padding-top: 25px;
+    gap: 25px;
+  }
+  .connection-panel {
+    min-height: 475px;
+  }
+  .journey-copy h2 {
+    height: auto;
+    min-height: 104px;
+  }
+  #journeyDescription {
+    height: 95px;
+    min-height: 95px;
+  }
+  .tech-numbers strong small {
+    display: block;
+    font-size: 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ride-scroll .icon {
+    animation: none;
+  }
+  .voice-options button,
+  .app-mic-control,
+  .app-member-status,
+  .app-scope,
+  .connection-tabs button,
+  .music-play,
+  .check-state {
+    transition: none;
+  }
+}
+html[lang="fa"] .app-brand-copy b {
+  letter-spacing: 0;
+  font-size: 21px;
+}
+.language-button {
+  white-space: nowrap;
+}
+.faq-item summary {
+  transition: color 0.4s;
+}
+.switch-track,
+.switch-track i {
+  transition:
+    background 0.5s,
+    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ride-scroll small {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+html{scrollbar-gutter:stable;overflow-x:clip}
+body{overflow-x:clip}

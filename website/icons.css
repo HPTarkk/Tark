@@ -1,0 +1,115 @@
+.icon {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  background: currentColor;
+  mask: var(--icon) center/contain no-repeat;
+  -webkit-mask: var(--icon) center/contain no-repeat;
+  vertical-align: middle;
+}
+.icon[data-icon="arrow-down"] {
+  --icon: url("assets/icons/arrow-down.svg");
+}
+.icon[data-icon="arrow-left"] {
+  --icon: url("assets/icons/arrow-left.svg");
+}
+.icon[data-icon="arrow-right"] {
+  --icon: url("assets/icons/arrow-right.svg");
+}
+.icon[data-icon="arrow-up-right"] {
+  --icon: url("assets/icons/arrow-up-right.svg");
+}
+.icon[data-icon="battery-full"] {
+  --icon: url("assets/icons/battery-full.svg");
+}
+.icon[data-icon="bluetooth"] {
+  --icon: url("assets/icons/bluetooth.svg");
+}
+.icon[data-icon="broadcast"] {
+  --icon: url("assets/icons/broadcast.svg");
+}
+.icon[data-icon="camera"] {
+  --icon: url("assets/icons/camera.svg");
+}
+.icon[data-icon="cell-signal-full"] {
+  --icon: url("assets/icons/cell-signal-full.svg");
+}
+.icon[data-icon="check"] {
+  --icon: url("assets/icons/check.svg");
+}
+.icon[data-icon="device-mobile"] {
+  --icon: url("assets/icons/device-mobile.svg");
+}
+.icon[data-icon="gear"] {
+  --icon: url("assets/icons/gear.svg");
+}
+.icon[data-icon="globe"] {
+  --icon: url("assets/icons/globe.svg");
+}
+.icon[data-icon="headphones"] {
+  --icon: url("assets/icons/headphones.svg");
+}
+.icon[data-icon="link"] {
+  --icon: url("assets/icons/link.svg");
+}
+.icon[data-icon="list"] {
+  --icon: url("assets/icons/list.svg");
+}
+.icon[data-icon="microphone-slash"] {
+  --icon: url("assets/icons/microphone-slash.svg");
+}
+.icon[data-icon="microphone"] {
+  --icon: url("assets/icons/microphone.svg");
+}
+.icon[data-icon="moon"] {
+  --icon: url("assets/icons/moon.svg");
+}
+.icon[data-icon="motorcycle"] {
+  --icon: url("assets/icons/motorcycle.svg");
+}
+.icon[data-icon="paper-plane-tilt"] {
+  --icon: url("assets/icons/paper-plane-tilt.svg");
+}
+.icon[data-icon="pause"] {
+  --icon: url("assets/icons/pause.svg");
+}
+.icon[data-icon="play"] {
+  --icon: url("assets/icons/play.svg");
+}
+.icon[data-icon="plus"] {
+  --icon: url("assets/icons/plus.svg");
+}
+.icon[data-icon="qr-code"] {
+  --icon: url("assets/icons/qr-code.svg");
+}
+.icon[data-icon="scan"] {
+  --icon: url("assets/icons/scan.svg");
+}
+.icon[data-icon="shield-check"] {
+  --icon: url("assets/icons/shield-check.svg");
+}
+.icon[data-icon="sign-out"] {
+  --icon: url("assets/icons/sign-out.svg");
+}
+.icon[data-icon="speaker-high"] {
+  --icon: url("assets/icons/speaker-high.svg");
+}
+.icon[data-icon="speaker-slash"] {
+  --icon: url("assets/icons/speaker-slash.svg");
+}
+.icon[data-icon="sun"] {
+  --icon: url("assets/icons/sun.svg");
+}
+.icon[data-icon="users"] {
+  --icon: url("assets/icons/users.svg");
+}
+.icon[data-icon="wifi-high"] {
+  --icon: url("assets/icons/wifi-high.svg");
+}
+.icon[data-icon="wifi"] {
+  --icon: url("assets/icons/wifi.svg");
+}
+.icon[data-icon="x"] {
+  --icon: url("assets/icons/x.svg");
+}

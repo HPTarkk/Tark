@@ -1,0 +1,14 @@
+// Existing assets-only Worker serving tarkk.ir. The guest app has its own Worker.
+{
+  "name": "delicate-fire-3b34",
+  "account_id": "4d404b6ca85f65ed20cd6d738741fe57",
+  "compatibility_date": "2026-10-02",
+  "workers_dev": false,
+  "preview_urls": true,
+  "routes": [{"pattern": "tarkk.ir", "custom_domain": true}],
+  "assets": {
+    "directory": "./website",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "none"
+  }
+}

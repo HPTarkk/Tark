@@ -1,0 +1,23 @@
+/* Account-link fallback: local CSS only. No script, font fetch or hash reader. */
+:root {color-scheme:dark;--bg:#0d1913;--surface:#17271d;--text:#f2f3e9;--muted:#a7b3a8;--line:#304538;--accent:#f5853f}
+* {box-sizing:border-box}
+body {margin:0;background:var(--bg);color:var(--text);font:500 16px/1.9 Tahoma,Arial,sans-serif}
+a {color:inherit;text-decoration:none}
+a:focus-visible {outline:2px solid var(--accent);outline-offset:5px}
+.vlink-main {max-width:800px;margin:auto;padding:60px 24px 80px;animation:content-enter 1s .5s both}
+.wordmark {display:inline-flex;gap:12px;align-items:center;font:bold 28px/1.5 Arial,sans-serif;letter-spacing:1px;margin-bottom:36px}
+.wordmark-dot {height:8px;width:8px;background:var(--accent);border-radius:50%}
+.vlink-card {padding:28px 32px;border:1px solid var(--line);background:var(--surface);margin-bottom:24px;border-radius:12px}
+.vlink-card h1 {font-size:clamp(23px,4vw,30px);line-height:1.6;margin:0}
+.vlink-card p {color:var(--muted);margin:18px 0 0}
+.vlink-card b {color:var(--text)}
+.vlink-card .eyebrow {color:var(--accent);font-size:12px;margin:0 0 14px}
+.vlink-note {font-size:14px}
+.vlink-links {text-align:center;font-size:14px}
+.vlink-links a {color:var(--accent)}
+body::before,body::after {content:"";position:fixed;inset-inline:0;height:calc(50% + 1px);background:var(--bg);z-index:10;pointer-events:none;animation:panel-open 1.15s .3s cubic-bezier(.65,0,.25,1) both}
+body::before {top:0;--exit:-102%}body::after {bottom:0;--exit:102%}
+@keyframes panel-open {to {transform:translateY(var(--exit))}}
+@keyframes content-enter {from {opacity:0;transform:translateY(20px)}to {opacity:1;transform:none}}
+@media(max-width:600px) {.vlink-main {padding:36px 18px 52px}.vlink-card {padding:22px}}
+@media(prefers-reduced-motion:reduce) {body::before,body::after {display:none}.vlink-main {animation:none}}

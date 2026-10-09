@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
+<html lang="en" dir="ltr" data-theme="dark">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Terms &amp; Conditions — Tarkk</title>
   <meta name="description" content="What you can expect from Tarkk and what it cannot promise. Bluetooth is free; a subscription adds Wi-Fi, hotspot and guest connections, self-mute and music. Open source under the AGPL-3.0.">
-  <meta name="theme-color" content="#0B0E11">
+  <meta name="theme-color" content="#0D1913">
 
   <!-- ── Search ───────────────────────────────────────────────────────
        Each language is its own URL, carrying the same hreflang set (each
@@ -14,10 +14,10 @@
        itself, so the two rank separately instead of competing. x-default
        is the Persian page, for the reason index.html spells out: Tarkk is
        built for an Iranian audience. -->
-  <link rel="canonical" href="https://tarkk.ir/terms.html">
-  <link rel="alternate" hreflang="en" href="https://tarkk.ir/terms.html">
-  <link rel="alternate" hreflang="fa" href="https://tarkk.ir/fa/terms.html">
-  <link rel="alternate" hreflang="x-default" href="https://tarkk.ir/fa/terms.html">
+  <link rel="canonical" href="https://tarkk.ir/terms">
+  <link rel="alternate" hreflang="en" href="https://tarkk.ir/terms">
+  <link rel="alternate" hreflang="fa" href="https://tarkk.ir/fa/terms">
+  <link rel="alternate" hreflang="x-default" href="https://tarkk.ir/fa/terms">
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
   <link rel="icon" href="favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="logo.png">
@@ -25,7 +25,7 @@
   <!-- ── Link previews ───────────────────────────────────────────────── -->
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Tarkk">
-  <meta property="og:url" content="https://tarkk.ir/terms.html">
+  <meta property="og:url" content="https://tarkk.ir/terms">
   <meta property="og:title" content="Terms &amp; Conditions — Tarkk">
   <meta property="og:description" content="What you can expect from Tarkk and what it cannot promise. Bluetooth is free; a subscription adds Wi-Fi, hotspot and guest connections, self-mute and music. Open source under the AGPL-3.0.">
   <meta property="og:image" content="https://tarkk.ir/og-image.png">
@@ -39,71 +39,107 @@
   <meta name="twitter:description" content="Bluetooth stays free; the rest is a monthly or annual subscription through Cafe Bazaar. Here is what that does and does not entitle you to, in words worth reading.">
   <meta name="twitter:image" content="https://tarkk.ir/og-image.png">
 
-  <!-- ── Inline scripts ───────────────────────────────────────────────
-       Above the stylesheet links for the reason spelled out in index.html:
-       an inline script waits for every sheet requested before it, so
-       putting these after the jsdelivr link hands a third-party CDN the
-       power to stall parsing of the whole document. -->
 
-  <!-- iOS gets a native-style navigation bar (styles.css). Set here rather
-       than in app.js so the bar is never painted in its desktop form for a
-       frame first. -->
   <script>
-    if (window.CSS && CSS.supports && CSS.supports('-webkit-touch-callout', 'none')) {
-      document.documentElement.classList.add('is-ios');
-    }
-  </script>
-
-  <!-- ── Language routing ─────────────────────────────────────────────
-       The same rule as the landing page, pointed at this document's
-       Persian twin: Persian is the site, and the only way to stay on the
-       English copy is to have asked for English with the toggle, which
-       writes tark_lang. See index.html for the full reasoning, including
-       what this costs in English search presence. Only rendered into the
-       English document, so no loop is possible. -->
-  <script>
-    (function () {
-      if (document.documentElement.lang !== 'en') return;
-      var want = null;
-      try { want = localStorage.getItem('tark_lang'); } catch (_) {}
-      if (want !== 'en') location.replace('/fa/terms.html');
+    (() => {
+      const root = document.documentElement;
+      let requested = new URLSearchParams(location.search).get('lang');
+      let preference = null;
+      try {
+        if (requested === 'en' || requested === 'fa') localStorage.setItem('tark_lang', requested);
+        preference = localStorage.getItem('tark_lang');
+      } catch {}
+      // A fresh crawler/visitor receives the actual URL's complete language.
+      // Only an explicit remembered Persian choice can redirect English URLs.
+      if (root.lang === 'en' && preference === 'fa') {
+        location.replace("/fa/terms.html" + location.search + location.hash);
+        return;
+      }
+      history.scrollRestoration = 'manual';
+      // Keep incoming cross-page anchors. A plain reload still starts at the top.
+      const reload = performance.getEntriesByType('navigation')[0]?.type === 'reload';
+      if (reload && location.hash) history.replaceState(null, '', location.pathname + location.search);
+      window.scrollTo(0, 0);
+      root.classList.add('is-enhanced', 'is-booting');
+      // Content must remain accessible if an optional motion script fails.
+      setTimeout(() => {
+        if (!root.classList.contains('page-loaded')) {
+          root.classList.remove('is-booting'); root.classList.add('page-loaded');
+          document.getElementById('pageLoader')?.remove();
+        }
+      }, 10000);
     })();
   </script>
-
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vazirmatn@33.0.3/Vazirmatn-font-face.css">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="preload" href="/assets/Vazirmatn-Medium.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/icons.css?v=site-1">
+  <link rel="stylesheet" href="/styles.css?v=site-1">
+  <link rel="stylesheet" href="/scene.css?v=site-1">
+  <link rel="stylesheet" href="/polish.css?v=site-1">
+  <link rel="stylesheet" href="/legal.css?v=site-1">
 </head>
 
-<body>
+<body class="legal-page">
 
   <!-- Generated from website/legal/terms.json by scripts/build-legal-pages.mjs.
        Do not edit this file — change the JSON and rebuild. -->
 
-  <!-- ── Nav ─────────────────────────────────────────────────────────
-       The same bar as the landing page, with its links pointed back at it.
-       app.js is shared across the site and skips the blocks whose elements
-       are not on this page. -->
-  <nav id="nav">
-    <div class="nav-inner">
-      <a class="wordmark" href="/">
-        <span class="wordmark-dot"></span>TARKK
-      </a>
-      <div class="nav-links" id="navLinks">
-        <a href="/#features">Features</a>
-        <a href="/#handshake">How it works</a>
-        <a href="/#tech">Details</a>
-        <a href="/#faq">FAQ</a>
-        <a href="/#download">Download</a>
+    <div class="page-loader" id="pageLoader" role="status" aria-live="polite">
+      <div class="loader-panels" aria-hidden="true">
+        <div class="loader-panel"></div>
+        <div class="loader-panel"></div>
       </div>
-      <a id="langToggle" class="lang-toggle" href="/fa/terms.html" hreflang="fa"
-        lang="fa" aria-label="نمایش به فارسی">فارسی</a>
-      <button id="menuToggle" class="menu-toggle" aria-expanded="false" aria-controls="navLinks">
-        <span class="menu-icon" aria-hidden="true"></span>
-        <span class="sr-only">Menu</span>
-      </button>
+      <div
+        class="loader-kicker"
+        data-fa="ارتباط مستقیم. گوشی به گوشی."
+        data-en="Direct voice. Phone to phone."
+      >Direct voice. Phone to phone.</div>
+      <div class="loader-center">
+        <img src="/assets/logo.png" alt="" width="80" height="80" /><strong
+          data-fa="تَرک"
+          data-en="TARKK"
+          >TARKK</strong><span
+          data-fa="داریم مسیر رو آماده می‌کنیم"
+          data-en="Preparing your connection"
+          >Preparing your connection</span>
+        <div class="loader-route">
+          <span class="loader-endpoint"
+            ><span
+              class="icon"
+              data-icon="device-mobile"
+              aria-hidden="true"
+            ></span
+          ></span>
+          <div class="load-track" id="loadProgress"><i></i></div>
+          <span class="loader-endpoint"
+            ><span
+              class="icon"
+              data-icon="device-mobile"
+              aria-hidden="true"
+            ></span
+          ></span>
+        </div>
+        <output id="loadPercent">0%</output>
+      </div>
     </div>
-  </nav>
+
+<a class="skip" href="#legalContent">Skip to content</a>
+
+<header class="site-header has-scrolled">
+    <nav class="nav wrap" aria-label="Main navigation">
+      <a class="brand" href="/" aria-label="Tarkk"><img src="/assets/logo.png" alt="" width="34" height="34"><span>TARKK</span></a>
+      <div class="nav-links" id="navLinks">
+        <a href="/#handshake">How it works</a>
+<a href="/#features">Features</a>
+<a href="/#music">Music</a>
+<a href="/#tech">Details</a>
+      </div>
+      <div class="nav-tools">
+        <a id="langToggle" class="language-button" href="/fa/terms" hreflang="fa" aria-label="View in Persian">Persian</a>
+        <a class="nav-download" href="/#download"><span>Get Tarkk</span><span class="icon" data-icon="arrow-down" aria-hidden="true"></span></a>
+        <button id="menuToggle" class="icon-button menu-button" aria-expanded="false" aria-controls="navLinks" aria-label="Menu"><span class="icon" data-icon="list" aria-hidden="true"></span></button>
+      </div>
+    </nav>
+  </header>
 
   <!-- ── Hero ────────────────────────────────────────────────────────── -->
   <header class="legal-hero">
@@ -118,7 +154,7 @@
           <span>In effect since</span>
           <b><time datetime="2027-06-02">2 June 2027</time></b>
         </span>
-        <a class="legal-swap" href="privacy.html">Read the Privacy Policy →</a>
+        <a class="legal-swap" href="privacy">Read the Privacy Policy →</a>
       </div>
     </div>
   </header>
@@ -148,7 +184,7 @@
       </ol>
     </aside>
 
-    <main class="legal-main">
+    <main class="legal-main" id="legalContent">
 
       <!-- ── The short version ────────────────────────────────────────
            The landing page's ledger, reused: it is answering the same
@@ -347,7 +383,7 @@
 
       <!-- ── The other document ──────────────────────────────────────── -->
       <div class="legal-cross reveal">
-        <a href="privacy.html">
+        <a href="privacy">
           <span class="legal-cross-kicker">ALSO</span>
           <span class="legal-cross-title">Privacy Policy</span>
           <span class="legal-cross-sub">What leaves your phone, what never does, and what an account holds.</span>
@@ -362,21 +398,21 @@
     </main>
   </div>
 
-  <footer>
-    <span class="wordmark"><span class="wordmark-dot"></span>TARKK</span>
+  <footer class="footer wrap">
+    <span class="wordmark">TARKK</span>
     <div class="footer-links">
       <a href="/#features">Features</a>
       <a href="/#tech">Details</a>
       <a href="/#faq">FAQ</a>
       <a href="/#download">Download</a>
-      <a href="privacy.html">Privacy</a>
-      <a href="terms.html">Terms</a>
-      <a href="delete-account.html">Delete account</a>
+      <a href="privacy">Privacy</a>
+      <a href="terms">Terms</a>
+      <a href="delete-account">Delete account</a>
     </div>
     <p>Made for riders. Easy for everybody.</p>
   </footer>
 
-  <script src="app.js"></script>
+  <script type="module" src="/legal-page.js?v=site-1"></script>
 </body>
 
 </html>
