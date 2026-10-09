@@ -93,6 +93,8 @@ func TestSpecMatchesRoutes(t *testing.T) {
 	method := regexp.MustCompile(`^    (get|post|put|patch|delete):\s*$`)
 	inPaths := false
 	for _, line := range strings.Split(string(apispec.Spec), "\n") {
+		// A Windows checkout may carry CRLF line endings.
+		line = strings.TrimSuffix(line, "\r")
 		switch {
 		case line == "paths:":
 			inPaths = true

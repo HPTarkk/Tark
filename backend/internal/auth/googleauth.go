@@ -288,51 +288,80 @@ func (s *Service) LinkGoogle(ctx context.Context, ticket, pw string, c Client) (
 	if err := s.limits.Hit(ctx, limitGoogleIP, c.IP); err != nil {
 		return SignedIn{}, err
 	}
-	var out SignedIn
-	var email, userID string
-	err := s.runTx(ctx, func(tx pgx.Tx) error {
-		t, err := s.loadGoogleTicket(ctx, tx, ticket, "link")
-		if err != nil {
+	// Phase 1, without locks held: find the account and check the password.
+	// A hash takes tens of milliseconds and can queue for a hashing slot;
+	// holding a pool connection and the ticket's row lock across it lets a
+	// burst of sign-ins starve the pool. Phase 2 re-reads both under lock.
+	var t *googleTicket
+	var hash string
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		var err error
+		if t, err = s.loadGoogleTicket(ctx, tx, ticket, "link"); err != nil {
 			return err
 		}
 		if t.userID == nil {
 			return apperr.New(http.StatusGone, "ticket_expired", "sign in with Google again")
 		}
-		userID, email = *t.userID, t.email
-		// The same failure counters as password sign-in, counted up front like
-		// there (see Login).
-		emailIP := email + "|" + c.IP
-		if err := s.reserveLoginAttempt(ctx, email, emailIP); err != nil {
+		err = tx.QueryRow(ctx, `SELECT password_hash FROM auth_identities WHERE user_id = $1 AND provider = 'password'`,
+			*t.userID).Scan(&hash)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return apperr.New(http.StatusGone, "ticket_expired", "sign in with Google again")
+		}
+		return err
+	})
+	if err != nil {
+		return SignedIn{}, err
+	}
+	userID, email := *t.userID, t.email
+
+	// The same failure counters as password sign-in, counted up front like
+	// there (see Login).
+	emailIP := email + "|" + c.IP
+	if err := s.reserveLoginAttempt(ctx, email, emailIP, false); err != nil {
+		return SignedIn{}, err
+	}
+	failed := false
+	defer func() {
+		if !failed {
+			s.refundLoginAttempt(ctx, email, emailIP, false)
+		}
+	}()
+	if _, err := s.pw.Verify(ctx, pw, hash); err != nil {
+		if !errors.Is(err, password.ErrMismatch) {
+			return SignedIn{}, err
+		}
+		failed = true
+		var attempts int
+		if err := s.pool.QueryRow(ctx, `UPDATE google_tickets SET attempts = attempts + 1 WHERE id = $1 RETURNING attempts`, t.id).
+			Scan(&attempts); err != nil {
+			return SignedIn{}, err
+		}
+		s.audit.Record(ctx, audit.GoogleLinkFailed, userID, c.IP, nil)
+		s.audit.Record(ctx, audit.LoginFailed, userID, c.IP, map[string]any{"known": true})
+		return SignedIn{}, errInvalidCredentials.With("attemptsLeft", max(maxTicketTries-attempts, 0))
+	}
+
+	// Phase 2, under lock: the ticket must still be the one checked above and
+	// the password unchanged since, then the link is made.
+	var out SignedIn
+	err = s.runTx(ctx, func(tx pgx.Tx) error {
+		locked, err := s.loadGoogleTicket(ctx, tx, ticket, "link")
+		if err != nil {
 			return err
 		}
-		failed := false
-		defer func() {
-			if !failed {
-				s.refundLoginAttempt(ctx, email, emailIP)
-			}
-		}()
-		var hash, status string
+		if locked.id != t.id || locked.userID == nil || *locked.userID != userID {
+			return apperr.New(http.StatusGone, "ticket_expired", "sign in with Google again")
+		}
+		var current, status string
 		err = tx.QueryRow(ctx, `
 			SELECT i.password_hash, u.status FROM auth_identities i JOIN users u ON u.id = i.user_id
-			WHERE i.user_id = $1 AND i.provider = 'password'`, userID).Scan(&hash, &status)
-		if errors.Is(err, pgx.ErrNoRows) {
+			WHERE i.user_id = $1 AND i.provider = 'password'
+			FOR UPDATE OF i`, userID).Scan(&current, &status)
+		if errors.Is(err, pgx.ErrNoRows) || (err == nil && current != hash) {
 			return apperr.New(http.StatusGone, "ticket_expired", "sign in with Google again")
 		}
 		if err != nil {
 			return err
-		}
-		if _, err := s.pw.Verify(ctx, pw, hash); err != nil {
-			if !errors.Is(err, password.ErrMismatch) {
-				return err
-			}
-			if _, err := tx.Exec(ctx, `UPDATE google_tickets SET attempts = attempts + 1 WHERE id = $1`, t.id); err != nil {
-				return err
-			}
-			failed = true
-			s.audit.Record(ctx, audit.GoogleLinkFailed, userID, c.IP, nil)
-			s.audit.Record(ctx, audit.LoginFailed, userID, c.IP, map[string]any{"known": true})
-			left := maxTicketTries - t.attempts - 1
-			return &committedError{errInvalidCredentials.With("attemptsLeft", max(left, 0))}
 		}
 		if status != "active" {
 			return apperr.New(http.StatusForbidden, "account_disabled", "contact support")

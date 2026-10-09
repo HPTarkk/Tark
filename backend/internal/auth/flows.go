@@ -182,7 +182,22 @@ func (s *Service) checkProof(ctx context.Context, tx pgx.Tx, f *flowRow, p Proof
 	if f.attempts >= maxCodeAttempts {
 		return false, apperr.New(http.StatusLocked, "code_locked", "too many wrong codes; request a new one")
 	}
+	// Each code allows a few guesses and every resend or new flow brings a
+	// fresh code, so without a cap across flows an attacker could keep
+	// guessing one address's codes indefinitely. The cap counts only wrong
+	// codes and sits far above anything a person mistyping does; the link in
+	// the email is unguessable and is never held back by it.
+	if p.Code != "" {
+		if err := s.limits.Peek(ctx, limitCodeFailEmail, f.email); err != nil {
+			return false, err
+		}
+	}
 	if !s.proofMatches(f, p) {
+		if p.Code != "" {
+			if err := s.limits.Hit(ctx, limitCodeFailEmail, f.email); err != nil && !isRateLimited(err) {
+				return false, err
+			}
+		}
 		f.attempts++
 		if _, err := tx.Exec(ctx, `UPDATE auth_flows SET attempts = attempts + 1 WHERE id = $1`, f.id); err != nil {
 			return false, err
@@ -547,32 +562,55 @@ func (s *Service) ResetPassword(ctx context.Context, ticket, newPassword string,
 	if len(ticket) < 20 || len(ticket) > 128 {
 		return SignedIn{}, apperr.New(http.StatusGone, "ticket_expired", "start again")
 	}
-	var out SignedIn
+	// The ticket is looked up once without a lock to check and hash the new
+	// password, so the slow hash never runs while a connection and the
+	// flow's row lock are held; the transaction below checks it again.
+	ticketHash := s.hash("reset-ticket", ticket)
 	var email, locale string
-	err := s.runTx(ctx, func(tx pgx.Tx) error {
+	{
+		var userID *string
+		var ticketEnd, completed *time.Time
+		err := s.pool.QueryRow(ctx, `
+			SELECT user_id, email, ticket_expires_at, completed_at FROM auth_flows
+			WHERE ticket_hash = $1 AND purpose = 'password_reset'`, ticketHash).
+			Scan(&userID, &email, &ticketEnd, &completed)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return SignedIn{}, apperr.New(http.StatusGone, "ticket_expired", "start again")
+		}
+		if err != nil {
+			return SignedIn{}, err
+		}
+		if completed != nil || userID == nil || ticketEnd == nil || !s.now().Before(*ticketEnd) {
+			return SignedIn{}, apperr.New(http.StatusGone, "ticket_expired", "start again")
+		}
+	}
+	if problem := password.Problem(newPassword, email); problem != "" {
+		return SignedIn{}, apperr.Unprocessable(problem, "choose a different password").With("field", "newPassword")
+	}
+	hash, err := s.pw.Hash(ctx, newPassword)
+	if err != nil {
+		return SignedIn{}, err
+	}
+
+	var out SignedIn
+	err = s.runTx(ctx, func(tx pgx.Tx) error {
 		var flowID string
 		var userID *string
 		var ticketEnd *time.Time
 		var completed *time.Time
+		var lockedEmail string
 		err := tx.QueryRow(ctx, `
 			SELECT id, user_id, email, locale, ticket_expires_at, completed_at FROM auth_flows
-			WHERE ticket_hash = $1 AND purpose = 'password_reset' FOR UPDATE`, s.hash("reset-ticket", ticket)).
-			Scan(&flowID, &userID, &email, &locale, &ticketEnd, &completed)
+			WHERE ticket_hash = $1 AND purpose = 'password_reset' FOR UPDATE`, ticketHash).
+			Scan(&flowID, &userID, &lockedEmail, &locale, &ticketEnd, &completed)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return apperr.New(http.StatusGone, "ticket_expired", "start again")
 		}
 		if err != nil {
 			return err
 		}
-		if completed != nil || userID == nil || ticketEnd == nil || !s.now().Before(*ticketEnd) {
+		if completed != nil || userID == nil || ticketEnd == nil || !s.now().Before(*ticketEnd) || lockedEmail != email {
 			return apperr.New(http.StatusGone, "ticket_expired", "start again")
-		}
-		if problem := password.Problem(newPassword, email); problem != "" {
-			return apperr.Unprocessable(problem, "choose a different password").With("field", "newPassword")
-		}
-		hash, err := s.pw.Hash(ctx, newPassword)
-		if err != nil {
-			return err
 		}
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO auth_identities (user_id, provider, password_hash) VALUES ($1, 'password', $2)
@@ -611,4 +649,11 @@ func deref(p *string) string {
 		return ""
 	}
 	return *p
+}
+
+// isRateLimited reports whether err is a limiter's rate_limited refusal, as
+// opposed to the limiter failing to count.
+func isRateLimited(err error) bool {
+	ae, ok := apperr.As(err)
+	return ok && ae.Code == "rate_limited"
 }

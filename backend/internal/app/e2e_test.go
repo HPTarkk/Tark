@@ -389,6 +389,30 @@ func TestLoginThrottle(t *testing.T) {
 	e.phone().signedIn(e.phone().do("POST", "/v1/auth/login", map[string]any{"email": "throttle@example.com", "password": "a good passphrase"}))
 }
 
+// Wrong passwords from many places fill the address-wide counter, which
+// would otherwise lock the owner out too. A phone that has signed in to the
+// account before is not held back by that counter.
+func TestKnownDeviceIsNotLockedOutByOthers(t *testing.T) {
+	e := setup(t)
+	owner := e.phone()
+	owner.register("owner@example.com", "a good passphrase", "O")
+	for attacker := 0; attacker < 4; attacker++ {
+		q := e.phone()
+		for i := 0; i < 5; i++ {
+			expect(t, q.do("POST", "/v1/auth/login", map[string]any{"email": "owner@example.com", "password": "nope nope"}), 401, "invalid_credentials")
+		}
+	}
+	// A phone never seen on this account is held back, even with the right password.
+	expect(t, e.phone().do("POST", "/v1/auth/login", map[string]any{"email": "owner@example.com", "password": "a good passphrase"}), 429, "rate_limited")
+	// The owner's own phone still gets in.
+	owner.signedIn(owner.do("POST", "/v1/auth/login", map[string]any{"email": "owner@example.com", "password": "a good passphrase"}))
+	// And it still has its own per-device limit.
+	for i := 0; i < 5; i++ {
+		expect(t, owner.do("POST", "/v1/auth/login", map[string]any{"email": "owner@example.com", "password": "nope nope"}), 401, "invalid_credentials")
+	}
+	expect(t, owner.do("POST", "/v1/auth/login", map[string]any{"email": "owner@example.com", "password": "a good passphrase"}), 429, "rate_limited")
+}
+
 func TestForgotAndChangePassword(t *testing.T) {
 	e := setup(t)
 	p := e.phone()
@@ -427,6 +451,43 @@ func TestForgotAndChangePassword(t *testing.T) {
 	expect(t, q.do("GET", "/v1/profile", nil), 200, "")
 	expect(t, second.do("GET", "/v1/profile", nil), 401, "")
 	expect(t, e.phone().do("POST", "/v1/auth/login", map[string]any{"email": "reset@example.com", "password": "a brand new phrase"}), 401, "invalid_credentials")
+}
+
+// Each reset flow allows a few wrong codes and a new flow brings a new code,
+// so wrong codes are also capped per address across flows. Hitting the cap
+// never strands the owner: the link in the email still works.
+func TestWrongCodesAreCappedAcrossFlows(t *testing.T) {
+	e := setup(t)
+	e.phone().register("target@example.com", "a good passphrase", "T")
+
+	start := func() (*caller, string) {
+		q := e.phone()
+		f := q.do("POST", "/v1/auth/password/forgot", map[string]any{"email": "target@example.com"})
+		expect(t, f, 202, "")
+		return q, f.str("flowId")
+	}
+	// Four flows of five wrong codes each use up the daily cap of 20.
+	for flow := 0; flow < 4; flow++ {
+		q, id := start()
+		good, _ := codeOf(t, e.lastMail("target@example.com"))
+		for i := 0; i < 4; i++ {
+			expect(t, q.do("POST", "/v1/auth/password/forgot/verify", map[string]any{"flowId": id, "code": wrong(good)}), 422, "code_invalid")
+		}
+		expect(t, q.do("POST", "/v1/auth/password/forgot/verify", map[string]any{"flowId": id, "code": wrong(good)}), 423, "code_locked")
+	}
+
+	// A fifth flow: codes are refused now, even the right one...
+	q, id := start()
+	good, link := codeOf(t, e.lastMail("target@example.com"))
+	expect(t, q.do("POST", "/v1/auth/password/forgot/verify", map[string]any{"flowId": id, "code": good}), 429, "rate_limited")
+	// ...but the link still lets the owner in.
+	expect(t, q.do("POST", "/v1/auth/password/forgot/verify", map[string]any{"flowId": id, "linkToken": link}), 200, "")
+
+	// Other addresses are unaffected.
+	other := e.phone()
+	r := other.do("POST", "/v1/auth/register", map[string]any{"email": "bystander@example.com", "password": "a good passphrase", "name": "B"})
+	code, _ := codeOf(t, e.lastMail("bystander@example.com"))
+	other.signedIn(other.do("POST", "/v1/auth/register/verify", map[string]any{"flowId": r.str("flowId"), "code": code}))
 }
 
 func (c *caller) googleToken(sub, email, name string) string {

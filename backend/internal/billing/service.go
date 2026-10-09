@@ -35,6 +35,9 @@ const (
 	freshFor = 6 * time.Hour
 	// Two answers closer together than this for one purchase are wasteful.
 	minRecheckGap = time.Minute
+	// How long a subscription request may spend re-checking purchases with
+	// Bazaar before answering from stored state.
+	recheckBudget = 5 * time.Second
 	// A token Bazaar used to know but now reports missing is only treated
 	// as revoked after this many consecutive definitive answers, so one
 	// inconsistent response cannot take anyone's subscription away.
@@ -153,8 +156,17 @@ func (s *Service) Get(ctx context.Context, userID, installKey, ip string, fresh 
 		return Result{}, err
 	}
 
+	// Each question can take up to 8 s while Bazaar is slow. Past the budget
+	// the rest are left to the worker and the answer goes out from what is
+	// stored, marked unchecked, so one account's backlog never holds a
+	// request (and its connection) for a long run of Bazaar timeouts.
 	checked := true
+	budgetEnd := s.now().Add(recheckBudget)
 	for _, id := range stale {
+		if !s.now().Before(budgetEnd) {
+			checked = false
+			break
+		}
 		ok, err := s.recheck(ctx, id, ip)
 		if err != nil {
 			return Result{}, err

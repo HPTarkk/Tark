@@ -38,14 +38,22 @@ func (s *Service) Login(ctx context.Context, rawEmail, pw string, c Client) (Sig
 	// pass the check before any of them was counted. A locked-out address
 	// costs no hashing at all.
 	emailIP := email + "|" + c.IP
-	if err := s.reserveLoginAttempt(ctx, email, emailIP); err != nil {
+	// The address-wide counter stops guessing spread over many IPs, but
+	// anyone can fill it and lock the owner out. A phone that has signed in
+	// to this account before (its install key is on one of the account's
+	// sessions) is not held back by it; its own per-IP counter still applies.
+	knownDevice, err := s.knownInstall(ctx, email, c.InstallKey)
+	if err != nil {
+		return SignedIn{}, err
+	}
+	if err := s.reserveLoginAttempt(ctx, email, emailIP, knownDevice); err != nil {
 		s.audit.Record(ctx, audit.LoginThrottled, "", c.IP, nil)
 		return SignedIn{}, err
 	}
 	failed := false
 	defer func() {
 		if !failed {
-			s.refundLoginAttempt(ctx, email, emailIP)
+			s.refundLoginAttempt(ctx, email, emailIP, knownDevice)
 		}
 	}()
 
@@ -77,13 +85,19 @@ func (s *Service) Login(ctx context.Context, rawEmail, pw string, c Client) (Sig
 		return SignedIn{}, apperr.New(http.StatusForbidden, "account_disabled", "contact support")
 	}
 
+	// Hashed before the transaction, so no connection waits on the hasher.
+	var newHash string
+	if needsRehash {
+		if h, err := s.pw.Hash(ctx, pw); err == nil {
+			newHash = h
+		}
+	}
 	var out SignedIn
 	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		if needsRehash {
-			if newHash, err := s.pw.Hash(ctx, pw); err == nil {
-				if _, err := tx.Exec(ctx, `UPDATE auth_identities SET password_hash = $2, updated_at = now() WHERE user_id = $1 AND provider = 'password'`, userID, newHash); err != nil {
-					return err
-				}
+		if newHash != "" {
+			// Only over the hash just verified: a password changed meanwhile wins.
+			if _, err := tx.Exec(ctx, `UPDATE auth_identities SET password_hash = $3, updated_at = now() WHERE user_id = $1 AND provider = 'password' AND password_hash = $2`, userID, hash, newHash); err != nil {
+				return err
 			}
 		}
 		tokens, err := s.startSession(ctx, tx, userID, c)
@@ -111,10 +125,28 @@ func loginRules(email, emailIP string) []struct {
 	}{{limitLoginEmailIP, emailIP}, {limitLoginEmail, email}}
 }
 
-// reserveLoginAttempt counts one attempt against both failure counters and
-// refuses it when either is over its limit.
-func (s *Service) reserveLoginAttempt(ctx context.Context, email, emailIP string) error {
+// knownInstall reports whether installKey has been used to sign in to the
+// account behind email (any session, live or ended).
+func (s *Service) knownInstall(ctx context.Context, email, installKey string) (bool, error) {
+	if installKey == "" {
+		return false, nil
+	}
+	var known bool
+	err := s.pool.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM user_emails e JOIN sessions s ON s.user_id = e.user_id
+			WHERE e.email = $1 AND e.removed_at IS NULL AND s.install_key = $2)`, email, installKey).Scan(&known)
+	return known, err
+}
+
+// reserveLoginAttempt counts one attempt against the failure counters and
+// refuses it when one is over its limit. A known device skips the
+// address-wide counter (see Login).
+func (s *Service) reserveLoginAttempt(ctx context.Context, email, emailIP string, knownDevice bool) error {
 	for _, rule := range loginRules(email, emailIP) {
+		if knownDevice && rule.r.Name == limitLoginEmail.Name {
+			continue
+		}
 		if err := s.limits.Hit(ctx, rule.r, rule.subject); err != nil {
 			return err
 		}
@@ -124,8 +156,11 @@ func (s *Service) reserveLoginAttempt(ctx context.Context, email, emailIP string
 
 // refundLoginAttempt gives back an attempt that was not a wrong guess (the
 // password was right, or the request failed for another reason).
-func (s *Service) refundLoginAttempt(ctx context.Context, email, emailIP string) {
+func (s *Service) refundLoginAttempt(ctx context.Context, email, emailIP string, knownDevice bool) {
 	for _, rule := range loginRules(email, emailIP) {
+		if knownDevice && rule.r.Name == limitLoginEmail.Name {
+			continue
+		}
 		if err := s.limits.Refund(ctx, rule.r, rule.subject); err != nil {
 			s.log.WarnContext(ctx, "login counter refund failed", "err", err)
 		}

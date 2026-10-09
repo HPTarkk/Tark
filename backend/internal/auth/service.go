@@ -76,6 +76,8 @@ var (
 	limitGoogleIP      = ratelimit.Rule{Name: "google_ip", Max: 30, Window: 15 * time.Minute}
 	limitRefreshIP     = ratelimit.Rule{Name: "refresh_ip", Max: 120, Window: 15 * time.Minute}
 	limitUserSensitive = ratelimit.Rule{Name: "user_sensitive", Max: 10, Window: 15 * time.Minute}
+	// Wrong verification codes for one address, across all of its flows.
+	limitCodeFailEmail = ratelimit.Rule{Name: "code_fail_email", Max: 20, Window: 24 * time.Hour}
 )
 
 // Client describes who is calling, as far as the server can tell.

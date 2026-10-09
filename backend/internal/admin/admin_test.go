@@ -544,7 +544,7 @@ func TestSupportCannotDoOwnerActions(t *testing.T) {
 	temp := regexp.MustCompile(`<code class="key">([A-Za-z0-9_-]+)</code>`).FindStringSubmatch(body)[1]
 	sup := e.browser()
 	body, _ = sup.signIn("sup@example.com", temp, nil)
-	_, body = sup.post("/account/password", url.Values{"csrf": {field(t, body, "csrf")}, "current": {temp}, "new": {"support-passphrase-1"}, "again": {"support-passphrase-1"}})
+	_, _ = sup.post("/account/password", url.Values{"csrf": {field(t, body, "csrf")}, "current": {temp}, "new": {"support-passphrase-1"}, "again": {"support-passphrase-1"}})
 	_, body = sup.get("/users/" + uid)
 	if strings.Contains(body, "Give premium") || strings.Contains(body, "Delete account") {
 		t.Fatal("support sees owner actions")
