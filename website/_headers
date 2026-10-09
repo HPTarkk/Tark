@@ -1,4 +1,4 @@
-# Cloudflare Pages response headers.
+# Cloudflare static asset response headers.
 #
 # The app checks /update.json at launch. It already adds a cache-busting
 # query, so this is for everything else in between — browsers, proxies, a
@@ -6,6 +6,10 @@
 /update.json
   Cache-Control: no-cache, no-store, must-revalidate
   Access-Control-Allow-Origin: *
+
+# The marketing site's release marker is independent of /update.json.
+/site-version.json
+  Cache-Control: no-cache, no-store, must-revalidate
 
 # Android App Links verification. Google fetches this file directly and
 # requires JSON with no redirect; say the type explicitly rather than rely
