@@ -3085,4 +3085,18 @@ class AppLocalizationsFa extends AppLocalizations {
   @override
   String get bt_signal_link_hint =>
       'گوشی پیدا شد؛ داریم ارتباط را برقرار می‌کنیم.';
+
+  @override
+  String get network_link_wifi_title => 'اتصال وای‌فای آماده‌ست';
+
+  @override
+  String get network_link_wifi_detail =>
+      'صداتون روی همین شبکه، بین گوشی‌ها می‌ره.';
+
+  @override
+  String get network_link_hotspot_title => 'اتصال هات‌اسپات آماده‌ست';
+
+  @override
+  String get network_link_hotspot_detail =>
+      'یک گوشی شبکه رو می‌سازه. صداتون از همون مسیر می‌ره.';
 }

@@ -12,7 +12,6 @@ import '../../../../core/router/routes.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/logger.dart';
-import '../../../../core/widget/link_established.dart';
 import '../../../preflight/presentation/widget/silent_preflight_guard.dart';
 import '../../domain/entity/channel_intent.dart';
 import '../../domain/entity/hotspot_credentials.dart';
@@ -27,6 +26,7 @@ import '../widget/hotspot_role_picker.dart';
 import '../widget/hotspot_segmented_control.dart';
 import '../widget/hotspot_shared_widgets.dart';
 import '../widget/hotspot_wifi_only_flow.dart';
+import '../widget/network_link_established.dart';
 import 'hotspot_wifi_off_page.dart';
 
 /// Whether a bridge update is enough to leave transport setup and enter the
@@ -272,7 +272,9 @@ class _WifiHotspotPageState extends State<WifiHotspotPage>
         WifiHotspotSegment.wifi) {
       context.read<WifiHotspotCubit>().recordSharedNetwork();
     }
-    await Future<void>.delayed(LinkEstablished.hold);
+    await WidgetsBinding.instance.endOfFrame;
+    if (!context.mounted) return;
+    await Future<void>.delayed(NetworkLinkEstablished.hold);
     if (!context.mounted) return;
     try {
       // Leave the hotspot up — and the joined network bound — if one was set
@@ -380,7 +382,7 @@ class _WifiHotspotPageState extends State<WifiHotspotPage>
               return PhaseSwitcher(
                 child: HotspotConnectedFlash(
                   key: const ValueKey('connected'),
-                  label: s.bt_connected,
+                  hotspot: true,
                 ),
               );
             }
@@ -475,7 +477,8 @@ class _WifiHotspotPageState extends State<WifiHotspotPage>
                     child: _navigating || state.peerConnected
                         ? HotspotConnectedFlash(
                             key: const ValueKey('connected'),
-                            label: s.bt_connected,
+                            hotspot:
+                                state.segment == WifiHotspotSegment.hotspot,
                           )
                         : state.segment == WifiHotspotSegment.wifi
                         ? WifiOnlyFlow(

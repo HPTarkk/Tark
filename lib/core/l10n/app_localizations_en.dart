@@ -3114,4 +3114,18 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get bt_signal_link_hint =>
       'Phone found. Establishing your connection.';
+
+  @override
+  String get network_link_wifi_title => 'Your Wi-Fi link is ready';
+
+  @override
+  String get network_link_wifi_detail =>
+      'Your voices travel between phones on the shared network.';
+
+  @override
+  String get network_link_hotspot_title => 'Your hotspot link is ready';
+
+  @override
+  String get network_link_hotspot_detail =>
+      'One phone makes the network. Your voices travel over it.';
 }

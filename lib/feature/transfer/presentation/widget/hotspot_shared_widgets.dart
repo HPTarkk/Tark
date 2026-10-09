@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/copy_chip.dart';
-import '../../../../core/widget/link_established.dart';
+import 'network_link_established.dart';
 
 /// Small shared pieces of the WiFi/Hotspot page family — entrance animation,
 /// buttons, notes, spinners, and the status screens the page switches to.
@@ -185,12 +185,13 @@ class HotspotPreparing extends StatelessWidget {
 }
 
 class HotspotConnectedFlash extends StatelessWidget {
-  final String label;
+  final bool hotspot;
 
-  const HotspotConnectedFlash({super.key, required this.label});
+  const HotspotConnectedFlash({super.key, required this.hotspot});
 
   @override
-  Widget build(BuildContext context) => LinkEstablished(label: label);
+  Widget build(BuildContext context) =>
+      NetworkLinkEstablished(hotspot: hotspot);
 }
 
 class HotspotErrorCard extends StatelessWidget {
