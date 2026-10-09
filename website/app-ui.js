@@ -199,10 +199,10 @@ export function mountApp(
     `<button type="button" class="app-action ${className}" data-app-action="${action}" ${label ? `aria-label="${label}"` : ""} ${interactive && localActions.has(action) ? "" : "disabled"}>${content}</button>`;
 
   function header(t, back = false) {
-    return `<header class="app-header">${back ? button(icon("arrow-left"), "back", "app-square app-back", t.back) : `<div class="app-brand-mark"><img src="/assets/logo.png" alt=""></div>`}<div class="app-brand-copy"><b>${t.brand}</b><span>${state.screen === "home" ? t.ready : t.room}</span></div><div class="app-header-controls"><span class="app-link-glyph">${icon("bluetooth")}</span>${button(icon("gear"), "settings", "app-square app-settings", t.settings)}</div></header>`;
+    return `<header class="app-header">${back ? button(icon("arrow-left"), "back", "app-square app-back", t.back) : `<div class="app-brand-mark"><img src="/assets/logo.png" alt=""></div>`}<div class="app-brand-copy"><span class="app-room-title">${state.screen === "home" ? t.ready : t.room}</span><b class="app-wordmark">${t.brand}</b></div><div class="app-header-controls"><span class="app-link-glyph">${icon("bluetooth")}</span>${button(icon("gear"), "settings", "app-square app-settings", t.settings)}</div></header>`;
   }
   function identity(t, home = false) {
-    return `<section class="app-identity app-card">${avatar(state.person)}<div class="app-person-copy"><div class="app-person-title"><strong>${t[state.person]}</strong><span class="app-edit">${t.edit}</span></div><span class="app-person-role">${home ? t.ready : state.person === "pedram" ? t.host : t.member}</span></div>${home ? `<span class="app-auto">${t.auto}</span>` : ""}</section>`;
+    return `<section class="app-identity app-card">${avatar(state.person)}<div class="app-person-copy"><div class="app-person-title"><strong>${t[state.person]}</strong><span class="app-identity-controls"><span class="app-edit">${t.edit}</span>${home ? `<span class="app-auto">${t.auto}</span>` : ""}</span></div><span class="app-person-role">${home ? t.ready : state.person === "pedram" ? t.host : t.member}</span></div></section>`;
   }
   function roster(t, lobby = false) {
     const people =
@@ -217,7 +217,7 @@ export function mountApp(
             : String(people.length),
         )
       : t.people;
-    return `<section class="app-roster"><div class="app-section-heading"><span>${heading}</span>${icon("users")}</div><div class="app-roster-card app-card">${people.map((p) => `<div class="app-member" data-app-person="${p}">${avatar(p)}<div class="app-member-copy"><strong>${t[p]} ${p === state.person ? `<span class="app-you">${t.you}</span>` : ""}</strong><span>${p === "pedram" ? t.host : t.member}</span></div><span class="app-member-status"><i></i><span>${t.connected}</span></span></div>`).join("")}</div></section>`;
+    return `<section class="app-roster"><div class="app-section-heading"><span>${heading}</span>${icon("users")}</div><div class="app-roster-card app-card">${people.map((p) => `<div class="app-member" data-app-person="${p}">${avatar(p)}<div class="app-member-copy"><strong><span class="app-member-name">${t[p]}</span>${p === state.person ? `<span class="app-you">${t.you}</span>` : ""}</strong><span>${p === "pedram" ? t.host : t.member}</span></div><span class="app-member-status"><i></i><span>${t.connected}</span></span></div>`).join("")}</div></section>`;
   }
   function channel(t) {
     return `${header(t)}${identity(t)}<section class="app-scope" aria-label="${t.listening}"><div class="app-scope-recess"><canvas class="app-dial" aria-hidden="true"></canvas><div class="app-readout" aria-live="polite"><span class="app-readout-glyph"></span><strong class="app-readout-label"></strong></div></div></section><section class="app-mic-section"><div class="app-section-heading"><span>${t.mic}</span></div>${button(`<span class="app-mic-badge"></span><span class="app-mic-copy"><strong></strong><span></span></span><span class="app-mic-chip"></span>`, "mic", "app-mic-control")}</section>${roster(t)}${button(`${icon("sign-out")}<span>${t.leave}</span>`, "leave", "app-leave")}`;

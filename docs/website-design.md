@@ -36,4 +36,4 @@ Edit layout and bilingual attributes in `website/index.html`; run `node scripts/
 
 English and Persian have independent static content, canonical URLs, hreflang and localized metadata. A fresh visitor receives the language of the requested URL; an explicit stored Persian choice can redirect English URLs. Legal canonicals use the existing host's final extensionless URLs. The site uses no analytics, tracking cookies or third-party font requests.
 
-Deploy the full `website/` directory using `wrangler.website.jsonc`. Do not omit the update feed, legal manifest or Android App Links files. The guest web app has a separate host and deployment.
+Publish with `scripts/release-website.ps1` (`-DryRun` for a local Wrangler preview, `-Bump minor|major` or `-Version X.Y.Z` for version selection). It regenerates and checks the site, tags the Wrangler version, and verifies the public `/site-version.json` marker. Website versions are independent of app updates. The full `website/` directory is deployed using `wrangler.website.jsonc`, including the update feed, legal manifest and Android App Links files. The guest web app has a separate host and deployment.

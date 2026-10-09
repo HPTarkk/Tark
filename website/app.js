@@ -169,6 +169,17 @@ function chooseChapter(index) {
   journeyScreen = chapters[index].screen;
   updateJourney(true);
 }
+function syncChapterScroll(index) {
+  if (!storyTrigger) return;
+  anchorTween?.kill();
+  document.documentElement.dataset.anchorScrolling = "false";
+  const { start, end } = storyTrigger;
+  const progress = index / (chapters.length - 1);
+  const destination = Math.max(start + 1, Math.min(end - 1, start + (end - start) * progress));
+  manualChapterY = destination;
+  scrollTo({ top: destination, behavior: "instant" });
+  window.ScrollTrigger?.update();
+}
 $("#journeyApp").addEventListener("app-preview-action", (event) => {
   const { action, screen } = event.detail;
   if (["create", "invite", "start", "done", "back", "leave"].includes(action)) {
@@ -178,15 +189,16 @@ $("#journeyApp").addEventListener("app-preview-action", (event) => {
     journeyScreen = screen;
     updateJourney(true, false);
     if (screen === "channel") journey.setVoice("peer");
+    syncChapterScroll(chapter);
   }
 });
 document.querySelectorAll("button[data-step]").forEach((button) =>
   button.addEventListener("click", () => {
     const index = Number(button.dataset.step);
-    if (index === chapter) return;
     manualChapter = true;
     manualChapterY = scrollY;
-    chooseChapter(index);
+    if (index !== chapter) chooseChapter(index);
+    syncChapterScroll(index);
   }),
 );
 

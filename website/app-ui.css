@@ -19,6 +19,7 @@
   text-align: start;
   font-size: 12px;
   font-weight: 500;
+  line-height: 1.5;
   isolation: isolate;
 }
 .app-view * {
@@ -41,6 +42,7 @@
   color: inherit;
   cursor: pointer;
   text-align: inherit;
+  line-height: 1.4;
 }
 .app-view button:disabled {
   cursor: default;
@@ -87,19 +89,28 @@
 }
 .app-brand-copy {
   display: flex;
-  flex-direction: column;
-  gap: 1px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   flex: 1;
   min-width: 0;
 }
-.app-brand-copy b {
-  font-size: 16px;
-  font-weight: 850;
-  letter-spacing: 1.8px;
-  line-height: 1.2;
+.app-wordmark {
+  flex: 0 0 auto;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  line-height: 1.4;
 }
-.app-brand-copy > span {
-  font-size: 10px;
+.app-view[lang="fa"] .app-wordmark {
+  font-size: 16px;
+  letter-spacing: 0;
+}
+.app-room-title {
+  min-width: 0;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
   color: var(--app-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -109,6 +120,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
+  flex: 0 0 auto;
 }
 .app-view .app-icon {
   display: inline-block;
@@ -181,6 +193,9 @@
 .app-person-copy {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 .app-person-title {
   display: flex;
@@ -189,15 +204,26 @@
   justify-content: space-between;
 }
 .app-person-title strong {
+  min-width: 0;
   font-size: 14px;
-  line-height: 1.55;
+  line-height: 1.4;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.app-identity-controls {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
+}
 .app-edit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
   font-size: 8px;
-  line-height: 1.3;
+  line-height: 1.5;
   white-space: nowrap;
   color: var(--app-orange);
   border-radius: 5px;
@@ -208,10 +234,15 @@
   font-size: 10px;
   color: var(--app-secondary);
   display: block;
-  line-height: 1.55;
+  line-height: 1.4;
 }
 .app-auto {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 9px;
+  line-height: 1.5;
+  white-space: nowrap;
   color: var(--app-orange);
   border: 1px solid #f5853f40;
   padding: 4px 6px;
@@ -410,6 +441,10 @@
   line-height: 1.5;
 }
 .app-mic-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
   padding: 6px 7px;
   border: 1px solid color-mix(in srgb, var(--app-mic) 42%, transparent);
   background: color-mix(in srgb, var(--app-mic) 7%, transparent);
@@ -418,6 +453,7 @@
   font-size: 9px;
   white-space: nowrap;
   font-weight: 800;
+  line-height: 1.4;
 }
 .app-roster {
   flex-shrink: 0;
@@ -447,21 +483,31 @@
   gap: 1px;
 }
 .app-member-copy strong {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
   font-size: 10px;
   line-height: 1.4;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.app-member-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .app-member-copy > span {
   color: var(--app-secondary);
   font-size: 8px;
+  line-height: 1.4;
 }
 .app-you {
   font-size: 8px;
   font-weight: 500;
   color: var(--app-secondary);
-  margin-inline-start: 3px;
+  flex: 0 0 auto;
+  line-height: inherit;
 }
 .app-member-status {
   display: flex;
@@ -470,8 +516,11 @@
   font-size: 8px;
   color: var(--app-green);
   white-space: nowrap;
+  flex: 0 0 auto;
+  line-height: 1.4;
 }
 .app-member-status > i {
+  flex: 0 0 auto;
   width: 4px;
   height: 4px;
   background: currentColor;
@@ -496,6 +545,7 @@
   flex-shrink: 0;
   font-size: 10px !important;
   font-weight: 750 !important;
+  line-height: 1.4;
 }
 .app-leave .app-icon {
   width: 15px;
@@ -733,6 +783,25 @@
   }
   .app-screen-channel .app-scope {
     min-height: 130px;
+  }
+  .app-screen-lobby {
+    gap: 10px;
+  }
+  .app-lobby-hero {
+    padding: 16px 12px;
+  }
+}
+@container tark-app (max-width:300px) {
+  .app-wordmark {
+    display: none;
+  }
+  .app-person-title,
+  .app-identity-controls {
+    gap: 5px;
+  }
+  .app-edit,
+  .app-auto {
+    padding-inline: 4px;
   }
 }
 @container tark-app (max-height:510px) {

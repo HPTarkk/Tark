@@ -1010,10 +1010,6 @@ html[dir="ltr"] .load-track i {
     transition: none;
   }
 }
-html[lang="fa"] .app-brand-copy b {
-  letter-spacing: 0;
-  font-size: 21px;
-}
 .language-button {
   white-space: nowrap;
 }

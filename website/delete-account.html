@@ -56,6 +56,26 @@
         return;
       }
       history.scrollRestoration = 'manual';
+      // The branded loading screen belongs only to the first visit in this tab.
+      // Subsequent documents use the same horizontal curtain as the language switch.
+      let returning = false;
+      let direction = root.lang === 'fa' ? -1 : 1;
+      try {
+        returning = sessionStorage.getItem('tark_intro_seen') === '1';
+        sessionStorage.setItem('tark_intro_seen', '1');
+        const handoff = JSON.parse(sessionStorage.getItem('tark_page_transition') || 'null');
+        sessionStorage.removeItem('tark_page_transition');
+        const normalize = path => path.replace(/\.html$/, '').replace(/\/$/, '') || '/';
+        if (handoff && Date.now() - handoff.at < 30000 && normalize(handoff.path) === normalize(location.pathname)) {
+          returning = true;
+          direction = handoff.direction === -1 ? -1 : 1;
+        }
+      } catch {
+        // Same-site navigation remains unbranded when browser storage is unavailable.
+        try { returning = new URL(document.referrer).origin === location.origin; } catch {}
+      }
+      root.dataset.pageEntry = returning ? 'curtain' : 'intro';
+      root.dataset.curtainDirection = direction;
       // Keep incoming cross-page anchors. A plain reload still starts at the top.
       const reload = performance.getEntriesByType('navigation')[0]?.type === 'reload';
       if (reload && location.hash) history.replaceState(null, '', location.pathname + location.search);
@@ -70,6 +90,14 @@
       }, 10000);
     })();
   </script>
+  <style id="pageEntryCss">
+    html[data-page-entry="curtain"] #pageLoader {background:none}
+    html[data-page-entry="curtain"] #pageLoader :is(.loader-center,.loader-kicker) {display:none}
+    html[data-page-entry="curtain"] #pageLoader .loader-panels {position:absolute;inset:0;display:grid;grid-template-rows:1fr 1fr}
+    html[data-page-entry="curtain"] #pageLoader .loader-panel {background:#17271d}
+    html[data-page-entry="curtain"] #pageLoader .loader-panel:first-child {background:#0d1913;border-bottom:1px solid #f5853f!important}
+    html[data-page-entry="curtain"] #pageLoader .loader-panel:last-child {border-top:1px solid #f5853f33!important}
+  </style>
   <link rel="preload" href="/assets/Vazirmatn-Medium.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/icons.css?v=site-1">
   <link rel="stylesheet" href="/styles.css?v=site-1">

@@ -1,5 +1,5 @@
 import { replaceText } from "./motion.js?v=site-1";
-import { restoreArrivalAnchor } from "./page-transitions.js?v=site-1";
+import { animateCurtain, restoreArrivalAnchor, revealCurtain } from "./page-transitions.js?v=site-1";
 const $ = (selector) => document.querySelector(selector);
 const stage = $("#rideStage"),
   fit = $("#sceneFit"),
@@ -121,7 +121,7 @@ if (gsap && ScrollTrigger) {
 }
 
 // The texture is mirrored; the independent live screen projection keeps text readable.
-window.transitionPreviewLanguage = (commit) => {
+window.transitionPreviewLanguage = async (commit) => {
   const root = document.documentElement;
   if (root.classList.contains("is-language-changing")) return;
   const y = scrollY,
@@ -144,56 +144,34 @@ window.transitionPreviewLanguage = (commit) => {
     root.classList.remove("is-language-changing");
     $("#langToggle").removeAttribute("aria-busy");
   };
-  if (reduced.matches || !gsap) {
+  if (reduced.matches) {
     apply();
     finish();
     return;
   }
   const direction = root.lang === "fa" ? -1 : 1;
-  gsap.set(".language-curtain", { visibility: "visible" });
-  gsap.set(".language-panel", { xPercent: direction * 102 });
-  languageTimeline = gsap.timeline({
-    onComplete: () => {
-      gsap.set(".language-curtain", { visibility: "hidden" });
-      gsap.set(".ride-hero-copy>*", { clearProps: "transform,opacity" });
-      gsap.set("#sceneIntro", { clearProps: "transform,opacity" });
-      finish();
-    },
-  });
-  languageTimeline
-    .to(
-      ".language-panel",
-      { xPercent: 0, duration: 0.58, stagger: 0.055, ease: "power3.inOut" },
-      0,
-    )
-    .to(
-      ".ride-hero-copy>*",
-      { x: direction * 32, opacity: 0, duration: 0.3, stagger: 0.025 },
-      0,
-    )
-    .call(apply, [], 0.69)
-    .set("#sceneIntro", { scale: 1.07, opacity: 0.5 }, 0.7)
-    .set(".ride-hero-copy>*", { x: -direction * 40, opacity: 0 }, 0.7)
-    .to(
-      ".language-panel",
-      {
-        xPercent: -direction * 102,
-        duration: 0.72,
-        stagger: 0.05,
-        ease: "power3.inOut",
-      },
-      0.77,
-    )
-    .to(
-      "#sceneIntro",
-      { scale: 1, opacity: 1, duration: 1, ease: "power3.out" },
-      0.85,
-    )
-    .to(
-      ".ride-hero-copy>*",
-      { x: 0, opacity: 1, duration: 0.72, stagger: 0.055, ease: "power3.out" },
-      1.02,
-    );
+  const curtain = $(".language-curtain");
+  try {
+    languageTimeline = gsap?.timeline().to(".ride-hero-copy>*", {
+      x: direction * 32, opacity: 0, duration: 0.3, stagger: 0.025,
+    });
+    await animateCurtain(curtain, direction, "cover");
+    languageTimeline?.kill();
+    apply();
+    const contentFinished = gsap ? new Promise(resolve => {
+      languageTimeline = gsap.timeline({ onComplete: resolve, onInterrupt: resolve })
+        .set("#sceneIntro", { scale: 1.07, opacity: 0.5 })
+        .set(".ride-hero-copy>*", { x: -direction * 40, opacity: 0 })
+        .to("#sceneIntro", { scale: 1, opacity: 1, duration: 1, ease: "power3.out" }, 0.08)
+        .to(".ride-hero-copy>*", { x: 0, opacity: 1, duration: 0.72, stagger: 0.055, ease: "power3.out" }, 0.33);
+    }) : Promise.resolve();
+    await Promise.all([animateCurtain(curtain, direction, "open", 80), contentFinished]);
+  } finally {
+    if (curtain) curtain.style.visibility = "hidden";
+    gsap?.set(".ride-hero-copy>*", { clearProps: "transform,opacity" });
+    gsap?.set("#sceneIntro", { clearProps: "transform,opacity" });
+    finish();
+  }
 };
 
 async function revealPage() {
@@ -237,8 +215,12 @@ async function revealPage() {
   fitScene();
   ScrollTrigger?.refresh();
   scrollTo({ top: 0, behavior: "instant" });
-  if (reduced.matches || !gsap) {
-    loader.remove();
+  if (document.documentElement.dataset.pageEntry === "curtain") {
+    await revealCurtain();
+    return;
+  }
+  if (!loader || reduced.matches || !gsap) {
+    loader?.remove();
     restoreArrivalAnchor();
     document.documentElement.classList.add("intro-complete");
     return;

@@ -65,3 +65,45 @@ The real Tarkk app is an open voice channel with a mic toggle, not a hold-to-tal
 In the phone's existing microphone control row below the green circular visualizer, replace "Tap to Speak" with "MIC LIVE"; replace "Hold to talk on this channel" with "The channel can hear you". Keep the microphone icon and row dimensions as they are.
 In the Nazanin member row below, replace the gray dot and "Offline" with a GREEN dot and "Talking", matching the fact that Nazanin is active in the green visualizer. Keep "Nazanin", "Pedram", the other row and avatars.
 Do not re-layout the advertisement, do not flip anything, do not add any new UI or copy, keep every other part of the image. Target landscape 1200:630 aspect ratio.
+
+
+## App alignment correction (October 2026)
+
+The social previews use the corrected live `mountApp` channel as their screen reference: 360 × 690, Persian RTL and English LTR, Pedram with Nazanin speaking. Capture after fonts and the voice animation settle. Header logo, room title, wordmark and controls share one row; names, status dots and chips retain their own explicit line heights.
+
+### Persian screen replacement prompt
+
+Use case: compositing
+Asset type: corrected Persian Tarkk social preview, landscape 1200:630.
+Input images: Image 1 is the existing advertisement/edit target. Image 2 is an exact flat screenshot of the newly corrected real Persian app UI, the screen insert.
+Primary request: replace ONLY the lit phone display contents in Image 1 with Image 2, preserving the screenshot's exact layout, icon/text alignment, joined Persian lettering and correct right-to-left direction. Project the screenshot naturally onto the existing tilted phone glass with realistic perspective. The top room title "جاده‌ی شمال" and orange logo must share the same horizontal center line, as in Image 2. Preserve all app text, avatar rows, green visualizer, green mic toggle, mic chip and red leave button in the reference; do not invent labels or remove controls.
+Invariants: keep the phone body and position, camera, helmet, gloves, wire, canvas, timber, forest-green scrim, orange/ivory colors, lighting, brand lockup and ALL advertisement text unchanged. Exact headline "هم‌مسیر،" / "هم‌صدا."; supporting copy "بیسیم گوشی به گوشی، حتی بدون اینترنت."; footer "Bluetooth · Wi-Fi · Hotspot" and "tarkk.ir". Only screen contents change. No extra symbols, no mirrored logo/text, no English app text. Maintain original image edges and landscape framing.
+
+### English screen replacement prompt
+
+Use case: compositing
+Asset type: corrected English Tarkk social preview, landscape 1200:630.
+Input images: Image 1 is the existing advertisement/edit target. Image 2 is an exact flat screenshot of the newly corrected real English app UI, the screen insert.
+Primary request: replace ONLY the lit phone display contents in Image 1 with Image 2, preserving the screenshot's exact layout, icon/text alignment and left-to-right direction. Project the screenshot naturally onto the existing tilted phone glass with realistic perspective. Logo, "Northbound", TARKK and header icons share a single horizontal center line as in Image 2. Include the identity row Pedram / Host, green voice dial Nazanin, YOUR MIC / MIC LIVE / The channel can hear you / MUTE, WHO'S HERE, Pedram connected and Nazanin talking, red LEAVE CHANNEL button. Copy the reference layout exactly; remove old invented "Main Channel" and "Team Chat".
+Invariants: keep phone body and position, camera, helmet, gloves, wire, canvas, timber, forest-green scrim, orange/ivory colors, lighting, brand lockup and ALL advertisement text unchanged. Exact headline "Same road." / "Stay close."; supporting "Phone-to-phone voice." / "Even off-grid."; footer "Bluetooth · Wi-Fi · Hotspot" and "tarkk.ir". Only screen contents change. No Persian app text, no mirroring text or logo, no invented controls. Maintain original edges/framing.
+
+### Hero underlay cleanup prompt
+
+Use case: precise-object-edit
+Asset type: existing Tarkk website hero photographic underlay, landscape 1672 x 941.
+Input image: existing hero photograph, edit target.
+Primary request: erase ONLY the baked-in app graphics within the phone's illuminated screen area. Replace the app graphics with a clean, blank, uniform nearly-black charcoal glass display #0b0e11, with very subtle realistic reflection. The website places the real interactive UI on top of this display; therefore no letters, logos, avatars, rings, buttons or interface can remain baked into the glass.
+Strict invariants: preserve the exact original phone silhouette, every corner position, camera, bezel, position, size and perspective. Preserve entire helmet, glove, cable, earpiece, fabric, buttons, timber grain, lighting, shadows and framing unchanged. Do NOT move/reshape the phone or objects. Change only screen pixels, preserving the black glass surrounding it. Keep landscape aspect ratio 1672:941 and all image edges.
+
+The hero photograph intentionally has a blank display. `website/app-ui.js` and `website/app-ui.css` render the localized interactive display on top; do not bake UI labels into this asset again.
+
+### Persian final microcopy correction
+
+Use case: precise-object-edit
+Edit target: Image 1, the corrected Persian Tarkk social card.
+Supporting reference: Image 2, exact Persian app screen.
+Make only three tiny text corrections inside the phone display; preserve the newly aligned header, every control, all photo pixels, all large advertisement typography, all colors and positions.
+1. The short caption below "میکروفن روشنه" must read exactly "همه صدات رو می‌شنون" (all can hear YOUR voice). Correct joined Persian lettering in RTL.
+2. Nazanin's secondary role label in the lower member row must read exactly "عضو اتاق", not "عضو عادی".
+3. The green dial center name must read exactly "نازنین".
+Keep the existing flat reference layout and correct horizontal alignment. Header "جاده‌ی شمال" remains next to the logo on the same center line. Keep EVERYTHING else unchanged; no new labels, no shifted or enlarged objects. Landscape 1200:630.

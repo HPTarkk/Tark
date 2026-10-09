@@ -1,11 +1,31 @@
-// Document navigation shares the landing page's two-panel opening.
+// The first visit has a branded intro; later documents and language changes
+// share one horizontal two-panel curtain, including direction and timing.
 // Same-page anchors, downloads, external links and modified clicks stay native.
 const root = document.documentElement;
 const reduced = matchMedia('(prefers-reduced-motion: reduce)');
-const loaderTemplate = document.querySelector('#pageLoader')?.cloneNode(true);
 let leaving = false;
 let arrivalDone = false;
 const ease = 'cubic-bezier(.65,0,.25,1)';
+export async function animateCurtain(curtain, direction, phase, delay = 0) {
+  if (!curtain || reduced.matches) return;
+  curtain.style.visibility = 'visible';
+  const cover = phase === 'cover';
+  const from = cover ? direction * 102 : 0;
+  const to = cover ? 0 : -direction * 102;
+  // Sample GSAP's power3.inOut so legal pages need no GSAP dependency.
+  // The language switch uses this same animation rather than a second approximation.
+  const frames = Array.from({ length: 51 }, (_, i) => {
+    const p = i / 50;
+    const progress = p < .5 ? 8 * p ** 4 : 1 - ((-2 * p + 2) ** 4) / 2;
+    return { offset: p, transform: `translateX(${from + (to - from) * progress}%)` };
+  });
+  const jobs = [...curtain.querySelectorAll('.language-panel')].map((panel, i) => panel.animate(
+    frames, { duration: cover ? 580 : 720, delay: delay + i * (cover ? 55 : 50), easing: 'linear', fill: 'both' },
+  ));
+  await Promise.allSettled(jobs.map(animation => animation.finished));
+  if (!cover) curtain.style.visibility = 'hidden';
+  jobs.forEach(animation => animation.cancel());
+}
 export function restoreArrivalAnchor() {
   if (arrivalDone) return;
   arrivalDone = true;
@@ -21,10 +41,26 @@ function markReady() {
   root.classList.remove('is-booting');
   root.classList.add('page-loaded');
 }
+export async function revealCurtain() {
+  const loader = document.querySelector('#pageLoader');
+  markReady();
+  restoreArrivalAnchor();
+  if (loader) {
+    loader.removeAttribute('role');
+    loader.removeAttribute('aria-live');
+    loader.setAttribute('aria-hidden', 'true');
+    loader.querySelectorAll('.loader-center,.loader-kicker').forEach(node => node.remove());
+    loader.querySelectorAll('.loader-panel').forEach(node => { node.className = 'language-panel'; });
+    await animateCurtain(loader, Number(root.dataset.curtainDirection) === -1 ? -1 : 1, 'open');
+    loader.remove();
+  }
+  root.classList.add('intro-complete');
+}
 export async function openDocument() {
   const loader = document.querySelector('#pageLoader');
   const fonts = document.fonts.ready;
   await Promise.race([fonts, new Promise(resolve => setTimeout(resolve, 4000))]);
+  if (root.dataset.pageEntry === 'curtain') { await revealCurtain(); return; }
   markReady();
   restoreArrivalAnchor();
   if (!loader || reduced.matches) {
@@ -55,20 +91,16 @@ async function navigate(link, url) {
   if (link.id === 'langToggle') {
     try { localStorage.setItem('tark_lang', link.hreflang); } catch {}
   }
-  if (reduced.matches || !loaderTemplate) { location.assign(url.href); return; }
-  const loader = loaderTemplate.cloneNode(true);
+  const direction = root.lang === 'fa' ? -1 : 1;
+  try { sessionStorage.setItem('tark_page_transition', JSON.stringify({ path: url.pathname, direction, at: Date.now() })); } catch {}
+  if (reduced.matches) { location.assign(url.href); return; }
+  const loader = document.createElement('div');
   loader.id = 'departureLoader';
-  loader.removeAttribute('role'); loader.setAttribute('aria-hidden', 'true');
-  // Avoid duplicate IDs while the initial reveal is finishing.
-  loader.querySelectorAll('[id]').forEach(node => node.removeAttribute('id'));
-  loader.classList.add('departure-loader');
-  for (const node of loader.querySelectorAll('.loader-center,.loader-kicker')) node.style.opacity = '0';
+  loader.setAttribute('aria-hidden', 'true');
+  loader.className = 'language-curtain departure-loader';
+  loader.innerHTML = '<div class="language-panel"></div><div class="language-panel"></div>';
   document.body.append(loader);
-  const jobs = [...loader.querySelectorAll('.loader-panel')].map((panel, i) => panel.animate(
-    [{ transform: `translateY(${i ? 102 : -102}%)` }, { transform: 'translateY(0)' }],
-    { duration: 620, easing: ease, fill: 'forwards' },
-  ));
-  await Promise.allSettled(jobs.map(animation => animation.finished));
+  await animateCurtain(loader, direction, 'cover');
   location.assign(url.href);
 }
 document.addEventListener('click', event => {
@@ -88,6 +120,9 @@ window.addEventListener('pageshow', event => {
   root.classList.remove('is-page-leaving', 'is-booting', 'is-language-changing');
   document.querySelector('#departureLoader')?.remove();
   document.querySelector('#pageLoader')?.remove();
+  const curtain = document.querySelector('.language-curtain:not(.departure-loader)');
+  curtain?.getAnimations({ subtree: true }).forEach(animation => animation.cancel());
+  if (curtain) curtain.style.visibility = 'hidden';
   document.querySelector('#langToggle')?.removeAttribute('aria-busy');
   root.classList.add('page-loaded', 'intro-complete');
 });

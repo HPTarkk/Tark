@@ -161,9 +161,18 @@ node scripts/check-website.mjs              # localization, SEO, assets and scri
 node scripts/serve-website.mjs              # local preview at http://127.0.0.1:4183/fa/
 ```
 
-The existing assets-only Cloudflare Worker is configured in `wrangler.website.jsonc`. Preview the upload with `wrangler deploy --config wrangler.website.jsonc --dry-run`; deploy with the same command without `--dry-run`. Keep the entire `website/` directory, including `update.json`, `legal/`, `.well-known/`, `_headers` and `_redirects`. The browser guest app is hosted separately and is not part of this upload.
+The existing assets-only Cloudflare Worker is configured in `wrangler.website.jsonc`. Use PowerShell to version, validate and publish it:
 
-The forest palette and application handoff are documented in `docs/website-design.md`. Local font files, icons and GSAP include their licenses. Internal document links share the cinematic curtain transition; same-page anchors retain smooth scrolling. Email-token fallback routes use CSS-only entrance motion.
+```powershell
+./scripts/release-website.ps1 -DryRun               # validate the next patch without uploading or saving a version bump
+./scripts/release-website.ps1                       # bump patch, generate, check, deploy and verify tarkk.ir
+./scripts/release-website.ps1 -Bump minor            # or major
+./scripts/release-website.ps1 -Version 2.0.0 -Message 'Website redesign'
+```
+
+Node.js, Git and an authenticated Wrangler installation are required. `website/package.json` holds the website's version, independent of the Android version. Each successful release has a `website-vX.Y.Z` Wrangler version tag and a public `/site-version.json` marker with the source commit, working-tree state and build time. Commit the updated version files after publishing. A dry run or failed upload restores those files; a published release retains them even if the public verification fails. This script does not create Git tags or releases. It uploads the entire `website/` directory, including `update.json`, `legal/`, `.well-known/`, `_headers` and `_redirects`. The browser guest app is hosted separately and is not part of this upload.
+
+The forest palette and application handoff are documented in `docs/website-design.md`. Local font files, icons and GSAP include their licenses. The branded loading sequence runs on the first visit in a tab; subsequent document navigation shares the horizontal curtain used for language changes. Same-page anchors retain smooth scrolling. Email-token fallback routes use CSS-only entrance motion.
 
 Account-email links (`https://tarkk.ir/v/<register|reset|email>#<token>`) open the app through Android App Links, verified by `website/.well-known/assetlinks.json`, which lists the release signing key's SHA-256 (`keytool -list -v -keystore <release keystore>`). Without the app they land on `website/v/index.html`, served at all three paths by `website/_redirects`: a static, script-free, `noindex` page that never reads or sends the fragment.
 
