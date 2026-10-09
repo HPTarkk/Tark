@@ -20,6 +20,7 @@ import com.wearemobilefirst.audio_io.AudioIoDevices
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import io.flutter.plugin.common.StandardMethodCodec
 
 class MainActivity : FlutterActivity() {
     private var bluetoothServerHandler: BluetoothServerHandler? = null
@@ -100,14 +101,22 @@ class MainActivity : FlutterActivity() {
             TransportCapabilityHandler.METHOD_CHANNEL,
         ).setMethodCallHandler(TransportCapabilityHandler(applicationContext))
 
+        // Keystore calls and file I/O, so off the UI thread: each secure store
+        // gets its own background task queue (serial, so its key is created
+        // once and its writes land in order).
+        val messenger = flutterEngine.dartExecutor.binaryMessenger
         MethodChannel(
-            flutterEngine.dartExecutor.binaryMessenger,
+            messenger,
             RoomIdentitySecureStorageHandler.METHOD_CHANNEL,
+            StandardMethodCodec.INSTANCE,
+            messenger.makeBackgroundTaskQueue(),
         ).setMethodCallHandler(RoomIdentitySecureStorageHandler(applicationContext))
 
         MethodChannel(
-            flutterEngine.dartExecutor.binaryMessenger,
+            messenger,
             AppSecureStorageHandler.METHOD_CHANNEL,
+            StandardMethodCodec.INSTANCE,
+            messenger.makeBackgroundTaskQueue(),
         ).setMethodCallHandler(AppSecureStorageHandler(applicationContext))
 
         val keepAlive = KeepAliveHandler(
@@ -187,6 +196,7 @@ class MainActivity : FlutterActivity() {
         wifiJoinHandler?.leave()
         networkBindingHandler?.dispose()
         keepAliveHandler?.stop()
+        keepAliveHandler?.detach()
         audioSessionHandler?.dispose()
         bazaarBillingHandler?.dispose()
         // The engine and its Dart side go with this screen, but the sound

@@ -1,5 +1,6 @@
 #define MINIAUDIO_IMPLEMENTATION
 #include "miniaudio.h"
+#include <cmath>
 #include <cstring>
 #include <cstdlib>
 #include <atomic>
@@ -35,7 +36,9 @@ struct AudioContext {
     VoicePlayout* voice;
     std::atomic<bool> isRunning;
     std::atomic<bool> isDeviceInitialized;
-    double frameDuration;  // Store requested frame duration
+    // Requested frame duration. Written under [lifecycle], but read without
+    // it by audio_io_get_frame_duration's fallback, hence atomic.
+    std::atomic<double> frameDuration;
     // Held across every open, start, stop and close of [device], so
     // audio_io_release_all can close a device while its owner is shutting
     // down without the two tearing it down at once.
@@ -154,12 +157,13 @@ int audio_io_release_all() {
 
 static int init_device_locked(AudioContext* context) {
     
-    // Calculate period size in frames based on frame duration
-    ma_uint32 periodSizeInFrames = (ma_uint32)(context->frameDuration * SAMPLE_RATE);
-    
-    // Clamp to reasonable values (64 to 4096 frames)
-    if (periodSizeInFrames < 64) periodSizeInFrames = 64;
-    if (periodSizeInFrames > 4096) periodSizeInFrames = 4096;
+    // Period size in frames from the frame duration, clamped to 64..4096
+    // while still a double: converting NaN, a negative or a huge value to an
+    // unsigned integer is undefined behaviour, not a clamp.
+    double periodFrames = context->frameDuration * SAMPLE_RATE;
+    if (!std::isfinite(periodFrames) || periodFrames < 64.0) periodFrames = 64.0;
+    if (periodFrames > 4096.0) periodFrames = 4096.0;
+    ma_uint32 periodSizeInFrames = (ma_uint32)periodFrames;
     
 
     
@@ -373,15 +377,16 @@ int audio_io_get_input_session_id(void* handle) {
     }
     typedef int32_t (*PFN_AAudioStream_getSessionId)(void*);
     static PFN_AAudioStream_getSessionId pGetSessionId = NULL;
-    static bool resolved = false;
-    if (!resolved) {
-        resolved = true;
+    // Once per process: two devices asking at once (each under only its own
+    // lifecycle lock) must not race on the lookup.
+    static std::once_flag resolved;
+    std::call_once(resolved, [] {
         void* lib = dlopen("libaaudio.so", RTLD_NOW | RTLD_NOLOAD);
         if (lib == NULL) lib = dlopen("libaaudio.so", RTLD_NOW);
         if (lib != NULL) {
             pGetSessionId = (PFN_AAudioStream_getSessionId)dlsym(lib, "AAudioStream_getSessionId");
         }
-    }
+    });
     if (pGetSessionId == NULL) return -1;
 
     // Under the reroute lock: the AAudio job thread closes and frees the
@@ -461,17 +466,18 @@ double audio_io_get_frame_duration(void* handle) {
     if (!handle) return 0.003;  // Return default if handle is null
     
     AudioContext* context = (AudioContext*)handle;
-    
-    // If device is initialized, return actual period size
-    if (context->isDeviceInitialized && context->isRunning) {
-        // Get actual buffer size from device
+
+    // The device is only read under its lifecycle lock (a restart may be
+    // rebuilding it). try_lock, because the caller can be the UI isolate and
+    // a start or stop elsewhere can take a while: answering with the
+    // configured value then beats freezing the UI.
+    std::unique_lock<std::mutex> guard(context->lifecycle, std::try_to_lock);
+    if (guard.owns_lock() && context->isDeviceInitialized && context->isRunning) {
         ma_uint32 actualBufferSize = context->device.playback.internalPeriodSizeInFrames;
-        if (actualBufferSize > 0) {
+        if (actualBufferSize > 0 && context->device.sampleRate > 0) {
             return (double)actualBufferSize / (double)context->device.sampleRate;
         }
     }
-    
-    // Return configured value
     return context->frameDuration;
 }
 

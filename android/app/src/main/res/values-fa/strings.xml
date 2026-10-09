@@ -10,4 +10,11 @@
 
     <string name="widget_status_placeholder">بزن تا زنده بشی</string>
     <string name="widget_action_placeholder">شروع</string>
+
+    <!-- Posted when Android killed the app mid-session and restarted only
+         its keep-alive service (see SessionKeepAliveService). The app is not
+         running then, so these come from resources, in the system language. -->
+    <string name="session_interrupted_channel">قطع شدن تماس</string>
+    <string name="session_interrupted_title">تَرک قطع شد</string>
+    <string name="session_interrupted_text">اندروید وسط تماس برنامه رو بست. بزن تا دوباره وصل شی.</string>
 </resources>

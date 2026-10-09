@@ -1,0 +1,8 @@
+/* Exported symbols of librnnoise.so on Android: the rnnoise_* C API that
+ * Dart's FFI bindings look up. Everything else stays local. */
+{
+  global:
+    rnnoise_*;
+  local:
+    *;
+};

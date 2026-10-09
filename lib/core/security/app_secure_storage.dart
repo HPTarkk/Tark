@@ -3,9 +3,19 @@ import 'package:flutter/services.dart';
 /// String storage for app secrets — never SharedPreferences, never plaintext
 /// on disk. Keys are short lowercase identifiers (`[a-z][a-z0-9_]*`).
 ///
-/// Reads that fail (a corrupt entry, a Keystore that refuses) throw: callers
-/// decide what "unreadable" means for their data, and for everything stored
-/// here the safe answer is "treat it as absent", never "fall back to a copy".
+/// Reads that fail throw: callers decide what "unreadable" means for their
+/// data. A corrupt entry is removed and is safe to treat as absent, never
+/// "fall back to a copy"; a temporarily unavailable store (see
+/// [isSecureStorageUnavailable]) still holds the entry, so nothing should be
+/// written over it.
+/// Whether [error] from an [AppSecureStorage] call means "temporarily
+/// unavailable" (the Keystore busy or not ready yet, a disk hiccup): the
+/// entry is still stored and may read fine on the next try, so callers must
+/// not replace it. Any other failure means the entry was unreadable and is
+/// gone.
+bool isSecureStorageUnavailable(Object error) =>
+    error is PlatformException && error.code == 'secure_storage_unavailable';
+
 abstract interface class AppSecureStorage {
   Future<String?> read(String key);
   Future<void> write(String key, String value);

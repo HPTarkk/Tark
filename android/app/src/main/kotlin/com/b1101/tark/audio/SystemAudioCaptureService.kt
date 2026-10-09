@@ -60,6 +60,7 @@ class SystemAudioCaptureService : Service() {
         private const val CAPTURE_RATE = 48000
         private const val DECIMATION = 3 // 48 kHz -> 16 kHz
         private const val STALL_TIMEOUT_MS = 4000L
+        private const val READ_ERROR_BACKOFF_MS = 20L
 
         /** Set by [SystemAudioHandler]; invoked on the main thread. */
         @Volatile
@@ -209,6 +210,15 @@ class SystemAudioCaptureService : Service() {
                             "TarkSysAudio",
                             "AudioRecord.read returned $read (errors=$diagErrors)",
                         )
+                    }
+                    // A failing read returns at once (e.g. ERROR_DEAD_OBJECT
+                    // after an audio-server restart); without a pause this
+                    // loop spins a core flat out until the stall watchdog
+                    // ends the cast.
+                    try {
+                        Thread.sleep(READ_ERROR_BACKOFF_MS)
+                    } catch (_: InterruptedException) {
+                        break
                     }
                     continue
                 }

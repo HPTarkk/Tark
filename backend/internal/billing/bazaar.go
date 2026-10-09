@@ -62,6 +62,11 @@ type BazaarHTTP struct {
 	mu          sync.Mutex
 	accessToken string
 	accessUntil time.Time
+	// refreshing is closed when the refresh in flight ends (nil when none);
+	// refreshErr is how it ended. One refresh serves every caller waiting,
+	// and none of them holds mu while Bazaar answers.
+	refreshing chan struct{}
+	refreshErr error
 }
 
 func (b *BazaarHTTP) client() *http.Client {
@@ -71,12 +76,55 @@ func (b *BazaarHTTP) client() *http.Client {
 	return &http.Client{Timeout: 8 * time.Second}
 }
 
-func (b *BazaarHTTP) token(ctx context.Context, force bool) (string, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if !force && b.accessToken != "" && time.Now().Before(b.accessUntil) {
-		return b.accessToken, nil
+// token returns a live access token. rejected is a token Bazaar just
+// refused; it is never handed out again, which forces a refresh unless
+// another caller has already replaced it.
+func (b *BazaarHTTP) token(ctx context.Context, rejected string) (string, error) {
+	for {
+		b.mu.Lock()
+		if b.accessToken != "" && b.accessToken != rejected && time.Now().Before(b.accessUntil) {
+			token := b.accessToken
+			b.mu.Unlock()
+			return token, nil
+		}
+		if wait := b.refreshing; wait != nil {
+			b.mu.Unlock()
+			select {
+			case <-wait:
+				b.mu.Lock()
+				err := b.refreshErr
+				b.mu.Unlock()
+				if err != nil {
+					return "", err
+				}
+				continue
+			case <-ctx.Done():
+				return "", fmt.Errorf("%w: %v", ErrUnavailable, ctx.Err())
+			}
+		}
+		done := make(chan struct{})
+		b.refreshing = done
+		b.mu.Unlock()
+
+		// Not tied to this caller's request: others may be waiting on it.
+		fetchCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 8*time.Second)
+		token, until, err := b.fetchToken(fetchCtx)
+		cancel()
+
+		b.mu.Lock()
+		if err == nil {
+			b.accessToken, b.accessUntil = token, until
+		}
+		b.refreshErr = err
+		b.refreshing = nil
+		close(done)
+		b.mu.Unlock()
+		return token, err
 	}
+}
+
+// fetchToken trades the long-lived refresh token for an access token.
+func (b *BazaarHTTP) fetchToken(ctx context.Context) (string, time.Time, error) {
 	form := url.Values{
 		"grant_type":    {"refresh_token"},
 		"client_id":     {b.ClientID},
@@ -85,39 +133,38 @@ func (b *BazaarHTTP) token(ctx context.Context, force bool) (string, error) {
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, b.BaseURL+"/auth/token/", strings.NewReader(form.Encode()))
 	if err != nil {
-		return "", err
+		return "", time.Time{}, err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	resp, err := b.client().Do(req)
 	if err != nil {
-		return "", fmt.Errorf("%w: token: %v", ErrUnavailable, err)
+		return "", time.Time{}, fmt.Errorf("%w: token: %v", ErrUnavailable, err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		// Every verification stops until this is fixed (possibly by redoing
 		// the one-time authorisation by hand), so the error names it.
-		return "", fmt.Errorf("%w: bazaar oauth refresh failed with status %d; check the developer API credentials", ErrUnavailable, resp.StatusCode)
+		return "", time.Time{}, fmt.Errorf("%w: bazaar oauth refresh failed with status %d; check the developer API credentials", ErrUnavailable, resp.StatusCode)
 	}
 	var body struct {
 		AccessToken string `json:"access_token"`
 		ExpiresIn   int64  `json:"expires_in"`
 	}
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&body); err != nil || body.AccessToken == "" {
-		return "", fmt.Errorf("%w: token response unreadable", ErrUnavailable)
+		return "", time.Time{}, fmt.Errorf("%w: token response unreadable", ErrUnavailable)
 	}
 	life := time.Duration(body.ExpiresIn) * time.Second
 	if life <= 0 {
 		life = 30 * time.Minute
 	}
-	b.accessToken = body.AccessToken
 	// Renew a minute early so a request never races the expiry.
-	b.accessUntil = time.Now().Add(life - time.Minute)
-	return b.accessToken, nil
+	return body.AccessToken, time.Now().Add(life - time.Minute), nil
 }
 
 func (b *BazaarHTTP) Subscription(ctx context.Context, sku, purchaseToken string) (Subscription, error) {
+	rejected := ""
 	for attempt := 0; attempt < 2; attempt++ {
-		access, err := b.token(ctx, attempt > 0)
+		access, err := b.token(ctx, rejected)
 		if err != nil {
 			return Subscription{}, err
 		}
@@ -138,6 +185,7 @@ func (b *BazaarHTTP) Subscription(ctx context.Context, sku, purchaseToken string
 		resp.Body.Close()
 		switch {
 		case resp.StatusCode == http.StatusUnauthorized && attempt == 0:
+			rejected = access
 			continue // access token revoked early; get a new one once
 		case resp.StatusCode == http.StatusNotFound:
 			return Subscription{}, ErrNotFound

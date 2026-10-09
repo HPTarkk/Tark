@@ -1,0 +1,11 @@
+/* Exported symbols of libaudio_io.so on Android. Everything else (all of
+ * miniaudio) stays local: smaller library, faster load, nothing for another
+ * library to interpose. Dart's FFI lookups are all audio_io_*; Java_* is the
+ * JNI entry used by AudioIoDevices.releaseAll. */
+{
+  global:
+    audio_io_*;
+    Java_*;
+  local:
+    *;
+};

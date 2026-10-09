@@ -32,7 +32,7 @@ void main() {
 
   group('real RNNoise native/fallback parity', () {
     for (final rate in [16000, 24000]) {
-      for (final strength in [0.0, 0.25, 1.0]) {
+      for (final strength in [0.0, 0.25, 0.5, 1.0]) {
         test('$rate Hz strength $strength random chunks, bypass and reset', () {
           final native = RnnoiseSuppressor(txRateHz: rate)..strength = strength;
           final fallback = RnnoiseSuppressor(

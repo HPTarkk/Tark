@@ -595,12 +595,16 @@ class WifiJoinHandler(
         val netId: Int
         try {
             if (!wifiManager.isWifiEnabled) wifiManager.isWifiEnabled = true
+            // Hotspots from earlier sessions (each has its own name and
+            // password) that a killed app never got to remove.
+            forgetLegacyNetworks(keepSsid = ssid)
             netId = wifiManager.addNetwork(config)
             if (netId == -1) {
                 result.success(false)
                 return
             }
             legacyNetId = netId
+            rememberLegacyNetwork(netId, ssid)
             wifiManager.disconnect()
             wifiManager.enableNetwork(netId, true)
             wifiManager.reconnect()
@@ -755,10 +759,74 @@ class WifiJoinHandler(
         releaseSpecifier()
         stopKeeper()
         removeSuggestions()
+        forgetLegacyNetworks(keepSsid = null)
         joinedSsid = null
         legacyNetId = -1
         boundNetwork = null
         runCatching { connectivity.bindProcessToNetwork(null) }
+    }
+
+    // ---- Saved networks created by joinLegacy (Android 9 and older) --------
+    //
+    // addNetwork saves the host's hotspot — name and password — in the phone's
+    // own Wi-Fi list, and enableNetwork(id, true) may leave the user's other
+    // networks disabled on older releases. The ids are kept in preferences, so
+    // they are cleaned up even when the process died mid-session: on the next
+    // deliberate leave, or the next join of a different hotspot. While the
+    // app is gone the entry stays, deliberately — it is what lets Android get
+    // back onto the host's hotspot by itself.
+
+    private val legacyPrefs by lazy {
+        context.applicationContext.getSharedPreferences(LEGACY_PREFS, Context.MODE_PRIVATE)
+    }
+
+    private fun rememberLegacyNetwork(netId: Int, ssid: String) {
+        runCatching {
+            val entries = legacyPrefs.getStringSet(LEGACY_KEY, emptySet()).orEmpty()
+                .filterNot { it.substringBefore(':') == netId.toString() }
+                .toMutableSet()
+            entries += "$netId:$ssid"
+            legacyPrefs.edit().putStringSet(LEGACY_KEY, entries).apply()
+        }
+    }
+
+    /**
+     * Removes the saved networks this app created, except those named
+     * [keepSsid] (null removes all). Only networks this app added can be
+     * removed — Android refuses anything else — so the user's own are safe.
+     */
+    @Suppress("DEPRECATION")
+    private fun forgetLegacyNetworks(keepSsid: String?) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) return
+        val entries = runCatching {
+            legacyPrefs.getStringSet(LEGACY_KEY, emptySet()).orEmpty().toSet()
+        }.getOrDefault(emptySet())
+        if (entries.isEmpty()) return
+        val connected = connectedNetId()
+        var removedConnected = false
+        val kept = mutableSetOf<String>()
+        for (entry in entries) {
+            val id = entry.substringBefore(':').toIntOrNull() ?: continue
+            if (keepSsid != null && entry.substringAfter(':') == keepSsid) {
+                kept += entry
+                continue
+            }
+            if (runCatching { wifiManager.removeNetwork(id) }.getOrDefault(false)) {
+                Log.i(TAG, "legacy: removed saved network $id")
+                if (id == connected) removedConnected = true
+            }
+        }
+        runCatching { legacyPrefs.edit().putStringSet(LEGACY_KEY, kept).apply() }
+        runCatching { wifiManager.saveConfiguration() }
+        if (removedConnected && Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            // Android 7 and older really disable the other networks for
+            // enableNetwork(id, true); give them back so the phone returns to
+            // the user's own Wi-Fi. Newer releases rejoin on their own.
+            runCatching {
+                wifiManager.configuredNetworks?.forEach { wifiManager.enableNetwork(it.networkId, false) }
+                wifiManager.reconnect()
+            }
+        }
     }
 
     @Suppress("DEPRECATION")
@@ -798,6 +866,8 @@ class WifiJoinHandler(
 
     companion object {
         private const val TAG = "TarkWifiJoin"
+        private const val LEGACY_PREFS = "tark_wifi_join"
+        private const val LEGACY_KEY = "legacy_networks"
         private const val JOIN_TIMEOUT_MS = 40_000
         private const val LOST_GRACE_MS = 15_000L
         private const val ASSOCIATION_PROBE_INTERVAL_MS = 500L

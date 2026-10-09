@@ -454,21 +454,36 @@ class BluetoothServerHandler(
     }
 
     private fun startAcceptLoop() {
+        val server = serverSocket
         acceptThread = Thread {
             try {
-                val socket = serverSocket?.accept() ?: return@Thread
-                acceptedSocket = socket
+                val socket = server?.accept() ?: return@Thread
                 val peerHash = safePeerHash(socket.remoteDevice?.address ?: "unknown")
                 diagnostic("accepted proximity peer=$peerHash")
                 try {
-                    serverSocket?.close()
+                    server.close()
                 } catch (_: IOException) {
                 }
-                emitConnectionEvent(
-                    mapOf("event" to "connected", "address" to (socket.remoteDevice?.address ?: ""))
-                )
-                startReadLoop(socket)
-                startWriterLoop(socket)
+                // Session state is only ever changed on the main thread, so a
+                // stop or a dial racing this accept sees one consistent order.
+                mainHandler.post {
+                    if (serverSocket !== server || acceptedSocket != null) {
+                        // Hosting was stopped (or another session won) while
+                        // this accept was landing: nobody wants this link.
+                        Log.i(TAG, "accept landed after hosting stopped — closing it")
+                        try {
+                            socket.close()
+                        } catch (_: IOException) {
+                        }
+                        return@post
+                    }
+                    acceptedSocket = socket
+                    emitConnectionEvent(
+                        mapOf("event" to "connected", "address" to (socket.remoteDevice?.address ?: ""))
+                    )
+                    startReadLoop(socket)
+                    startWriterLoop(socket)
+                }
             } catch (e: IOException) {
                 if (serverSocket != null) {
                     Log.w(TAG, "accept failed: ${e.message}")
@@ -563,8 +578,13 @@ class BluetoothServerHandler(
             val input = try {
                 socket.inputStream
             } catch (e: IOException) {
-                endSession("input stream failed: ${e.message}")
-                emitConnectionEvent(mapOf("event" to "error", "message" to (e.message ?: "input stream failed")))
+                val message = e.message ?: "input stream failed"
+                mainHandler.post {
+                    if (acceptedSocket === socket) {
+                        emitConnectionEvent(mapOf("event" to "error", "message" to message))
+                    }
+                    endSession(socket, "input stream failed: $message", announceClosed = false)
+                }
                 return@Thread
             }
             var reason = "EOF"
@@ -577,10 +597,10 @@ class BluetoothServerHandler(
                 }
                 if (readCount <= 0) break
                 val chunk = buffer.copyOf(readCount)
-                mainHandler.post { readSink?.success(chunk) }
+                mainHandler.post { if (acceptedSocket === socket) readSink?.success(chunk) }
             }
-            endSession(reason)
-            emitConnectionEvent(mapOf("event" to "closed"))
+            val ended = reason
+            mainHandler.post { endSession(socket, ended) }
         }.also { it.start() }
     }
 
@@ -588,9 +608,23 @@ class BluetoothServerHandler(
     // dead socket. Releasing it here is what lets the Dart side's re-host
     // actually re-listen: startHosting() refuses to run while a session looks
     // live, so a stale reference here would strand the host offline for good.
-    private fun endSession(reason: String) {
+    //
+    // Main thread only, and only for [socket]'s own session: a read loop that
+    // outlives its link (it unblocks a moment after its socket is closed) must
+    // not tear down — or report as closed — a newer session started since.
+    private fun endSession(socket: BluetoothSocket, reason: String, announceClosed: Boolean = true) {
         Log.i(TAG, "session closed ($reason)")
-        closeAcceptedSocketOnly()
+        when {
+            acceptedSocket === socket -> closeAcceptedSocketOnly()
+            acceptedSocket != null -> {
+                try {
+                    socket.close()
+                } catch (_: IOException) {
+                }
+                return
+            }
+        }
+        if (announceClosed) emitConnectionEvent(mapOf("event" to "closed"))
     }
 
     // The blocking socket write happens on [writerThread], never on the
