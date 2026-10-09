@@ -41,7 +41,7 @@
 // makes a missing translation impossible to ship: there is one structure, and
 // a language is either present at every node or the build stops.
 
-import { startup, loaderMarkup, loaderFontCss } from './website-shared.mjs';
+import { startup, loaderMarkup, loaderFontCss, SITE_META } from './website-shared.mjs';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -60,12 +60,6 @@ const DOCS = ['privacy', 'terms'];
  *  gate — so they may also use the web-only block types (see renderBlock). */
 const PAGES = ['delete-account'];
 const LANGS = ['en', 'fa'];
-
-/** Shared with the landing page: one social image for the whole site. */
-const OG_IMAGE_ALT = {
-  en: 'Tarkk — talk instantly, no cell towers, no internet needed.',
-  fa: 'تَرک — فوری حرف بزنید، بدون آنتن و بدون اینترنت.',
-};
 
 /** The bar's links, which live on the landing page rather than here. */
 const NAV = [
@@ -244,16 +238,16 @@ function renderHead(doc, lang) {
   <meta property="og:url" content="${self}">
   <meta property="og:title" content="${attr(t(doc.meta.title, lang, 'meta.title'))}">
   <meta property="og:description" content="${attr(t(doc.meta.description, lang, 'meta.description'))}">
-  <meta property="og:image" content="${ORIGIN}/og-image.png">
+  <meta property="og:image" content="${attr(SITE_META[lang].image)}">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="${attr(OG_IMAGE_ALT[lang])}">
+  <meta property="og:image:alt" content="${attr(SITE_META[lang].imageAlt)}">
   <meta property="og:locale" content="${lang === 'fa' ? 'fa_IR' : 'en_US'}">
   <meta property="og:locale:alternate" content="${lang === 'fa' ? 'en_US' : 'fa_IR'}">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="${attr(t(doc.meta.title, lang, 'meta.title'))}">
   <meta name="twitter:description" content="${attr(t(doc.meta.twitterDescription, lang, 'meta.twitterDescription'))}">
-  <meta name="twitter:image" content="${ORIGIN}/og-image.png">
+  <meta name="twitter:image" content="${attr(SITE_META[lang].image)}">
 
 ${loaderFontCss(lang)}
   ${startup(lang, doc.webPath.fa)}

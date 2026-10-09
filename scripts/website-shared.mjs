@@ -56,8 +56,8 @@ html[lang="fa"] .page-loader .loader-center>strong{font-weight:900}
 </style>`;
 }
 export const SITE_META = {
-  en: { title: 'Tarkk — Walkie-talkie app, even off-grid', description: 'Tarkk turns your phone into a walkie-talkie. Talk over Bluetooth, Wi-Fi or a hotspot—no internet for local calls, and no conversation recording.', imageAlt: 'Tarkk — direct voice between phones, even off-grid.' },
-  fa: { title: 'تَرک — بیسیم بدون اینترنت، کنار هم در مسیر', description: 'تَرک، بیسیم بدون اینترنت روی گوشی شما. با بلوتوث، وای‌فای یا هات‌اسپات مستقیم با اطرافیانت حرف بزن؛ ارتباط محلی، بدون ضبط مکالمه.', imageAlt: 'تَرک — ارتباط صوتی مستقیم بین گوشی‌ها، حتی بدون آنتن.' },
+  en: { title: 'Tarkk — Walkie-talkie app, even off-grid', description: 'Tarkk turns your phone into a walkie-talkie. Talk over Bluetooth, Wi-Fi or a hotspot—no internet for local calls, and no conversation recording.', image: `${ORIGIN}/og-image-en.png`, imageAlt: 'Tarkk phone beside motorcycle gear, with the message “Same road. Stay close.”' },
+  fa: { title: 'تَرک — بیسیم بدون اینترنت، کنار هم در مسیر', description: 'تَرک، بیسیم بدون اینترنت روی گوشی شما. با بلوتوث، وای‌فای یا هات‌اسپات مستقیم با اطرافیانت حرف بزن؛ ارتباط محلی، بدون ضبط مکالمه.', image: `${ORIGIN}/og-image.png`, imageAlt: 'گوشی تَرک کنار تجهیزات موتورسواری با شعار «هم‌مسیر، هم‌صدا.»' },
 };
 export function landingSeo(lang, faqItems) {
   const m = SITE_META[lang], other = lang === 'fa' ? 'en' : 'fa';
@@ -84,7 +84,7 @@ export function landingSeo(lang, faqItems) {
     <meta property="og:url" content="${url}">
     ${meta('og:title', 'title', true)}
     ${meta('og:description', 'description', true)}
-    <meta property="og:image" content="${ORIGIN}/og-image.png">
+    ${meta('og:image', 'image', true)}
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     ${meta('og:image:alt', 'imageAlt', true)}
@@ -93,7 +93,7 @@ export function landingSeo(lang, faqItems) {
     <meta name="twitter:card" content="summary_large_image">
     ${meta('twitter:title', 'title')}
     ${meta('twitter:description', 'description')}
-    <meta name="twitter:image" content="${ORIGIN}/og-image.png">
+    ${meta('twitter:image', 'image')}
     <script type="application/ld+json">${JSON.stringify({ '@context': 'https://schema.org', '@graph': graph }).replace(/</g, '\\u003c')}</script>
     <!-- SEO-END -->`;
 }
