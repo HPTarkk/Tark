@@ -20,18 +20,17 @@ class ReadyStep extends StatelessWidget {
 
   const ReadyStep({super.key, required this.reveal, required this.shimmer});
 
-  /// Null is automatic — the beat's default, so it is also the commonest thing
-  /// this card reports.
+  /// Legacy empty preferences use the Wi-Fi/Hotspot default.
   String _modeLabel(AppLocalizations s, TransferMode? mode) => switch (mode) {
-    null => s.transport_automatic,
-    TransferMode.wifi || TransferMode.hotspot => s.transport_wifi_hotspot,
+    null ||
+    TransferMode.wifi ||
+    TransferMode.hotspot => s.transport_wifi_hotspot,
     TransferMode.bluetooth => s.transport_bluetooth,
     TransferMode.guest => s.transport_guest,
   };
 
   IconData _modeIcon(TransferMode? mode) => switch (mode) {
-    null => Icons.auto_awesome_rounded,
-    TransferMode.wifi || TransferMode.hotspot => Icons.wifi_rounded,
+    null || TransferMode.wifi || TransferMode.hotspot => Icons.wifi_rounded,
     TransferMode.bluetooth => Icons.bluetooth_rounded,
     TransferMode.guest => Icons.qr_code_rounded,
   };

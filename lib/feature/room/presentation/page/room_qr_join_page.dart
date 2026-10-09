@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/entitlement/license_gate.dart';
 import '../../../../core/entitlement/premium_feature.dart';
+import '../../../../core/entitlement/room_access_policy.dart';
 import '../../../../core/entitlement/subscription_gate_page.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
@@ -59,6 +60,23 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
       final scanned = ScannedCode.parse(raw);
       final roomRaw = scanned?.roomInvite ?? raw;
       final bundle = RoomDirectJoinBundle.decode(roomRaw);
+      if (await widget.cubit.needsMoreRoomsAccess(
+            existingRoom: bundle.snapshot.roomId,
+          ) &&
+          mounted &&
+          !await openSubscriptionGate(context, PremiumFeature.extraRooms)) {
+        return false;
+      }
+      if (!mounted) return false;
+      final confirmed = bundle.snapshot.members
+          .where((member) => !member.pending)
+          .length;
+      if (RoomAccessPolicy.requiresPremium(confirmed) &&
+          GetIt.instance.isRegistered<LicenseGate>() &&
+          !await openSubscriptionGate(context, PremiumFeature.groupRooms)) {
+        return false;
+      }
+      if (!mounted) return false;
 
       // Read before joining so the roster is right the first time it is drawn.
       // A name that appears a beat later reads as the app correcting itself.

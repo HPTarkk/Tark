@@ -9,8 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/diagnostics/screen_log.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
-import '../../../../core/settings/app_settings.dart';
-import '../../../../core/settings/settings_keys.dart';
+import '../../../../core/settings/connection_history.dart';
 import '../../../../core/widget/confirm_sheet.dart';
 import '../../../room/api/room_api.dart';
 import '../../../transfer/api/transfer_api.dart';
@@ -23,9 +22,6 @@ import '../../../transfer/api/transfer_api.dart';
 /// "Not now" forgets the call for good.
 abstract final class RoomRejoinPrompt {
   static bool _asked = false;
-
-  /// Lets Landing's own entrance finish before a sheet rises over it.
-  static const _settle = Duration(milliseconds: 900);
 
   static Future<void> maybeAsk(
     BuildContext context, {
@@ -62,7 +58,6 @@ abstract final class RoomRejoinPrompt {
       // very call; a second question would be asking twice.
       return;
     }
-    await Future<void>.delayed(_settle);
     if (!context.mounted) return;
     final s = context.getString;
     final local = saved.membership.localMemberId;
@@ -113,10 +108,9 @@ abstract final class RoomRejoinPrompt {
     if (!Platform.isAndroid) return false;
     try {
       final prefs = await SharedPreferences.getInstance();
-      final autoReconnect =
-          prefs.getBool(SettingsKeys.autoReconnectEnabled) ??
-          AppSettings.defaults().autoReconnectEnabled;
-      return autoReconnect && prefs.getString(SettingsKeys.btLastRole) != null;
+      return ConnectionHistory(
+        prefs,
+      ).shouldResumeClassicBluetooth(isAndroid: Platform.isAndroid);
     } catch (_) {
       return false;
     }

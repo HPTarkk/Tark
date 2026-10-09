@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -10,6 +9,7 @@ import '../../../../core/recovery/bounded_retry.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entity/bluetooth_peer.dart';
 import '../manager/bluetooth_connect_cubit.dart';
+import 'bluetooth_signal_scene.dart';
 
 /// Joiner screen: rotating radar sweep with discovered peers as blips, plus
 /// the tappable peer list below it.
@@ -23,12 +23,7 @@ class BluetoothJoinerRadar extends StatefulWidget {
 }
 
 class _BluetoothJoinerRadarState extends State<BluetoothJoinerRadar>
-    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
-  late final AnimationController _sweep = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 3600),
-  );
-
+    with WidgetsBindingObserver {
   /// How long the list stays honestly blank before it says so. The scan only
   /// surfaces Tark hosts, so a room full of headsets now looks identical to an
   /// empty room — and an empty panel under a sweeping radar reads as broken
@@ -49,16 +44,9 @@ class _BluetoothJoinerRadarState extends State<BluetoothJoinerRadar>
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _sweep.loopUnlessReduced(context);
-  }
-
-  @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _emptyHintTimer?.cancel();
-    _sweep.dispose();
     super.dispose();
   }
 
@@ -79,104 +67,130 @@ class _BluetoothJoinerRadarState extends State<BluetoothJoinerRadar>
         ? state.peers.where((p) => p.id == state.connectingPeerId).firstOrNull
         : null;
 
-    return Align(
-      alignment: AlignmentDirectional.topCenter,
-      child: Column(
-        children: [
-          const SizedBox(height: 8),
-          SizedBox(
-            width: 210,
-            height: 210,
-            child: AnimatedBuilder(
-              animation: _sweep,
-              builder: (context, _) => CustomPaint(
-                painter: _RadarPainter(
-                  sweep: _sweep.value,
-                  peers: state.peers,
-                  amber: AppColors.amber,
-                  grid: AppColors.border,
-                  green: AppColors.green,
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Column(
+            children: [
+              const SizedBox(height: 8),
+              SizedBox(
+                height: (MediaQuery.sizeOf(context).height * .3).clamp(
+                  150,
+                  240,
+                ),
+                child: BluetoothSignalScene(
+                  phase: connecting
+                      ? BluetoothSignalPhase.connecting
+                      : BluetoothSignalPhase.searching,
+                  peers: state.peers.length,
                 ),
               ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            connecting
-                // A nameless peer just drops off the end — better a bare
-                // "Hooking up..." than one trailed by an address. Once the
-                // automatic re-dials have been going a while the lead-in
-                // softens, so a slow connect stops looking like a frozen one.
-                ? '${state.dialRetry == RetryPhase.stillTrying ? s.bt_still_trying : s.bt_connecting} '
-                          '${connectingPeer?.name ?? state.lastPeer?.name ?? ''}'
-                      .trimRight()
-                : s.bt_scanning,
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
-          ),
-          // Escape hatch, mainly for the hands-free auto-reconnect: one tap
-          // back to role selection for users who meant to host or pick a
-          // different peer this time.
-          if (connecting)
-            TextButton(
-              onPressed: () =>
-                  context.read<BluetoothConnectCubit>().backToRoleSelection(),
-              child: Text(
-                s.cancel,
+              const SizedBox(height: 14),
+              Text(
+                connecting
+                    // A nameless peer just drops off the end — better a bare
+                    // "Hooking up..." than one trailed by an address. Once the
+                    // automatic re-dials have been going a while the lead-in
+                    // softens, so a slow connect stops looking like a frozen one.
+                    ? '${state.dialRetry == RetryPhase.stillTrying ? s.bt_still_trying : s.bt_connecting} '
+                              '${connectingPeer?.name ?? state.lastPeer?.name ?? ''}'
+                          .trimRight()
+                    : s.bt_scanning,
+                textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 11,
+                  color: AppColors.textPrimary,
+                  fontSize: 18,
                   fontWeight: FontWeight.w700,
-                  letterSpacing: 1.5,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 28),
+                child: AnimatedSwitcher(
+                  duration: AppMotion.card,
+                  child: Text(
+                    connecting
+                        ? s.bt_signal_link_hint
+                        : s.bt_signal_search_hint,
+                    key: ValueKey(connecting),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                      height: 1.6,
+                    ),
+                  ),
+                ),
+              ),
+              // Escape hatch, mainly for the hands-free auto-reconnect: one tap
+              // back to role selection for users who meant to host or pick a
+              // different peer this time.
+              if (connecting)
+                TextButton(
+                  onPressed: () => context
+                      .read<BluetoothConnectCubit>()
+                      .backToRoleSelection(),
+                  child: Text(
+                    s.cancel,
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 14),
+            ],
+          ),
+        ),
+        if (state.locationOff)
+          SliverToBoxAdapter(
+            child: _LocationOffNote(
+              message: s.bt_location_off,
+              actionLabel: s.hotspot_enable_location,
+              onAction: () => unawaited(
+                context.read<BluetoothConnectCubit>().openLocationSettings(),
+              ),
+            ),
+          )
+        else if (state.peers.isEmpty)
+          SliverToBoxAdapter(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 400),
+                opacity: _searchedAWhile && !connecting ? 1 : 0,
+                child: Text(
+                  s.bt_no_devices_found,
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                  ),
                 ),
               ),
             ),
-          const SizedBox(height: 14),
-          Expanded(
-            child: state.locationOff
-                ? _LocationOffNote(
-                    message: s.bt_location_off,
-                    actionLabel: s.hotspot_enable_location,
-                    onAction: () => unawaited(
-                      context
-                          .read<BluetoothConnectCubit>()
-                          .openLocationSettings(),
-                    ),
-                  )
-                : state.peers.isEmpty
-                ? Align(
-                    alignment: Alignment.topCenter,
-                    child: AnimatedOpacity(
-                      duration: const Duration(milliseconds: 400),
-                      opacity: _searchedAWhile && !connecting ? 1 : 0,
-                      child: Text(
-                        s.bt_no_devices_found,
-                        style: TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    itemCount: state.peers.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      final peer = state.peers[index];
-                      return _PeerTile(
-                        peer: peer,
-                        isConnecting: state.connectingPeerId == peer.id,
-                        enabled: !connecting,
-                        connectingLabel: s.bt_connecting,
-                        onTap: () => context
-                            .read<BluetoothConnectCubit>()
-                            .connectTo(peer),
-                      );
-                    },
-                  ),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            sliver: SliverList.separated(
+              itemCount: state.peers.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final peer = state.peers[index];
+                return _PeerTile(
+                  peer: peer,
+                  isConnecting: state.connectingPeerId == peer.id,
+                  enabled: !connecting,
+                  connectingLabel: s.bt_connecting,
+                  onTap: () =>
+                      context.read<BluetoothConnectCubit>().connectTo(peer),
+                );
+              },
+            ),
           ),
-        ],
-      ),
+      ],
     );
   }
 }
@@ -230,152 +244,6 @@ class _LocationOffNote extends StatelessWidget {
   }
 }
 
-// Blip lifetime, as fractions of one full sweep rotation: full brightness
-// while the beam is on it, then a fade that ends with a dark gap before the
-// beam returns.
-const double _blipHold = 0.03;
-const double _blipFade = 0.55;
-const double _blipPing = 0.10;
-
-class _RadarPainter extends CustomPainter {
-  final double sweep;
-  final List<BluetoothPeer> peers;
-  final Color amber;
-  final Color grid;
-  final Color green;
-
-  _RadarPainter({
-    required this.sweep,
-    required this.peers,
-    required this.amber,
-    required this.grid,
-    required this.green,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = size.center(Offset.zero);
-    final radius = size.shortestSide / 2;
-
-    // Grid: three rings + cross hairs.
-    final gridPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1
-      ..color = grid;
-    for (final f in [1.0, 0.66, 0.33]) {
-      canvas.drawCircle(center, radius * f, gridPaint);
-    }
-    canvas.drawLine(
-      center.translate(-radius, 0),
-      center.translate(radius, 0),
-      gridPaint,
-    );
-    canvas.drawLine(
-      center.translate(0, -radius),
-      center.translate(0, radius),
-      gridPaint,
-    );
-
-    // Rotating sweep wedge with a fading tail.
-    final angle = sweep * 2 * pi;
-    final rect = Rect.fromCircle(center: center, radius: radius);
-    canvas.save();
-    canvas.translate(center.dx, center.dy);
-    canvas.rotate(angle);
-    canvas.translate(-center.dx, -center.dy);
-    final wedge = Paint()
-      ..shader = SweepGradient(
-        center: Alignment.center,
-        startAngle: 0,
-        endAngle: pi / 2,
-        colors: [amber.withAlpha(0), amber.withAlpha(70)],
-      ).createShader(rect);
-    canvas.drawPath(
-      Path()
-        ..moveTo(center.dx, center.dy)
-        ..arcTo(rect, 0, pi / 2, false)
-        ..close(),
-      wedge,
-    );
-    canvas.restore();
-
-    // Leading edge of the sweep.
-    final edge = Offset(
-      center.dx + cos(angle + pi / 2) * radius,
-      center.dy + sin(angle + pi / 2) * radius,
-    );
-    canvas.drawLine(
-      center,
-      edge,
-      Paint()
-        ..strokeWidth = 1.6
-        ..color = amber.withAlpha(150),
-    );
-
-    // Peers as glowing blips: bearing from the id (stable), distance from
-    // signal strength (stronger = closer to center).
-    //
-    // A blip only exists because the beam just hit it — it lights up as the
-    // leading edge crosses its bearing, then decays like radar phosphor and
-    // goes dark until the next pass. A permanently lit dot reads as a static
-    // list drawn on a circle, not a scan.
-    final edgeAngle = angle + pi / 2;
-    for (final peer in peers) {
-      final bearing = (peer.id.hashCode % 360) * pi / 180;
-      final rssi = peer.rssi ?? -78;
-      final dist = (((-rssi) - 45) / 50).clamp(0.18, 0.92);
-      final pos = Offset(
-        center.dx + cos(bearing) * radius * dist,
-        center.dy + sin(bearing) * radius * dist,
-      );
-
-      // Rotations-fraction since the edge last swept this bearing: 0 = being
-      // painted right now, ~1 = about to be painted again.
-      final age = ((edgeAngle - bearing) % (2 * pi)) / (2 * pi);
-      // Hold at full for the instant of contact, then quadratic fade to dark
-      // well before the beam comes back around.
-      final linear = age < _blipHold
-          ? 1.0
-          : (1 - (age - _blipHold) / _blipFade).clamp(0.0, 1.0);
-      if (linear <= 0) continue;
-      final glow = linear * linear;
-
-      final color = peer.isBle ? amber : green;
-      // Contact flash: a ring expanding out of the blip for the first slice
-      // of its life, so a fresh detection reads differently from a decaying
-      // one even when both are near full brightness.
-      if (age < _blipPing) {
-        final t = age / _blipPing;
-        canvas.drawCircle(
-          pos,
-          4 + t * 11,
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1.2
-            ..color = color.withAlpha(((1 - t) * 120).round()),
-        );
-      }
-      canvas.drawCircle(
-        pos,
-        7,
-        Paint()..color = color.withAlpha((glow * 60).round()),
-      );
-      canvas.drawCircle(
-        pos,
-        3.4,
-        Paint()..color = color.withAlpha((glow * 255).round()),
-      );
-    }
-
-    // Center dot: us.
-    canvas.drawCircle(center, 4, Paint()..color = amber);
-  }
-
-  @override
-  bool shouldRepaint(_RadarPainter old) =>
-      old.sweep != sweep || old.peers != peers;
-}
-
 class _PeerTile extends StatelessWidget {
   final BluetoothPeer peer;
   final bool isConnecting;
@@ -393,69 +261,78 @@ class _PeerTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: enabled ? onTap : null,
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 200),
-        opacity: !enabled && !isConnecting ? 0.4 : 1.0,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isConnecting ? AppColors.amber : AppColors.border,
-            ),
-          ),
-          child: Row(
-            children: [
-              if (isConnecting)
-                SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    color: AppColors.amber,
-                    strokeWidth: 2,
-                  ),
-                )
-              else
-                // Amber marks a device hosting from inside the app, which is
-                // all the list normally holds — the cubit drops everything a
-                // classic inquiry sweeps up. A reconnect target waiting on a
-                // stale adapter name is the one entry that lands here muted.
-                Icon(
-                  Icons.bluetooth_rounded,
-                  color: peer.isAppHost
-                      ? AppColors.amber
-                      : AppColors.textSecondary,
-                  size: 20,
-                ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  peer.name.isEmpty
-                      ? context.getString.bt_unnamed_device
-                      : peer.name,
-                  style: TextStyle(color: AppColors.textPrimary, fontSize: 14),
-                  overflow: TextOverflow.ellipsis,
-                ),
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      child: GestureDetector(
+        onTap: enabled ? onTap : null,
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 200),
+          opacity: !enabled && !isConnecting ? 0.4 : 1.0,
+          child: AnimatedContainer(
+            duration: AppMotion.card,
+            curve: AppMotion.easeOut,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isConnecting ? AppColors.amber : AppColors.border,
               ),
-              const SizedBox(width: 8),
-              _TransportBadge(isBle: peer.isBle),
-              const SizedBox(width: 10),
-              _SignalBars(bars: peer.signalBars),
-              if (isConnecting) ...[
-                const SizedBox(width: 10),
-                Text(
-                  connectingLabel,
-                  style: TextStyle(
+            ),
+            child: Row(
+              children: [
+                if (isConnecting)
+                  Icon(
+                    Icons.bluetooth_searching_rounded,
                     color: AppColors.amber,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
+                    size: 20,
+                  )
+                else
+                  // Amber marks a device hosting from inside the app, which is
+                  // all the list normally holds — the cubit drops everything a
+                  // classic inquiry sweeps up. A reconnect target waiting on a
+                  // stale adapter name is the one entry that lands here muted.
+                  Icon(
+                    Icons.bluetooth_rounded,
+                    color: peer.isAppHost
+                        ? AppColors.amber
+                        : AppColors.textSecondary,
+                    size: 20,
+                  ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        peer.name.isEmpty
+                            ? context.getString.bt_unnamed_device
+                            : peer.name,
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 14,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (isConnecting)
+                        Text(
+                          connectingLabel,
+                          style: TextStyle(
+                            color: AppColors.amber,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                    ],
                   ),
                 ),
+                const SizedBox(width: 8),
+                _TransportBadge(isBle: peer.isBle),
+                const SizedBox(width: 10),
+                _SignalBars(bars: peer.signalBars),
               ],
-            ],
+            ),
           ),
         ),
       ),

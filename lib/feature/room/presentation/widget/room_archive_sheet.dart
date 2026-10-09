@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/entitlement/premium_feature.dart';
+import '../../../../core/entitlement/subscription_gate_page.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
@@ -228,6 +230,13 @@ class _ArchivedRoomCard extends StatelessWidget {
   }
 
   Future<void> _restore(BuildContext context, SavedRoom saved) async {
+    final cubit = context.read<RoomListCubit>();
+    if (await cubit.needsMoreRoomsAccess(existingRoom: saved.room.id) &&
+        context.mounted &&
+        !await openSubscriptionGate(context, PremiumFeature.extraRooms)) {
+      return;
+    }
+    if (!context.mounted) return;
     HapticFeedback.selectionClick();
     await context.read<RoomListCubit>().unarchive(saved.room.id);
   }

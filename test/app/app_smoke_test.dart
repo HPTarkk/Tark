@@ -22,6 +22,7 @@ import 'package:tark/core/theme/theme_service.dart';
 import 'package:tark/feature/settings/presentation/page/profile_page.dart';
 import 'package:tark/feature/settings/presentation/page/advanced_settings_page.dart';
 import 'package:tark/feature/transfer/domain/service/transfer_mode_store.dart';
+import 'package:tark/feature/transfer/domain/entity/transfer_mode.dart';
 
 class _AudioDevice extends AudioIo {
   int disposals = 0;
@@ -150,10 +151,11 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     expect(prefs.getString(SettingsKeys.transportPin), 'bluetooth');
-    await tester.tap(find.text('AUTOMATIC'));
+    expect(find.text('AUTOMATIC'), findsNothing);
+    await tester.tap(find.text('WI-FI / HOTSPOT'));
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
-    expect(GetIt.instance<TransferModeStore>().pinnedMode, isNull);
+    expect(GetIt.instance<TransferModeStore>().pinnedMode, TransferMode.wifi);
 
     final vox = find.byType(Slider).first;
     await tester.ensureVisible(vox);

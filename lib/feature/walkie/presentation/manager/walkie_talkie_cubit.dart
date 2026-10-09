@@ -17,6 +17,7 @@ import '../../../../core/home_widget/home_widget_snapshot.dart';
 import '../../../../core/home_widget/widget_control_channel.dart';
 import '../../../../core/settings/noise_suppression_engine.dart';
 import '../../../../core/settings/settings_repository.dart';
+import '../../../../core/settings/connection_history.dart';
 import '../../../../core/settings/vox_margin.dart';
 import '../../../../core/sfx/sfx_event.dart';
 import '../../../../core/sfx/sfx_player.dart';
@@ -68,6 +69,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
   StreamSubscription<WidgetControlAction>? _widgetControlSub;
   Timer? _presenceTimer;
   Timer? _cleanupTimer;
+  String? _rememberedTransport;
 
   /// Registry for the eight subscriptions/timers above, keyed by name.
   /// [DisposeBag.register] cancels whatever was previously registered under
@@ -935,6 +937,13 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     await _settingsRepository.setMusicGain(state.musicGain);
   }
 
+  void _rememberConnectedTransport() {
+    final transport = _modeStore.mode.key;
+    if (_rememberedTransport == transport) return;
+    _rememberedTransport = transport;
+    unawaited(ConnectionHistory.registered?.remember(transport));
+  }
+
   void _onPacketReceived(WakiPacket packet) {
     // Self-filter: needed for WiFi (broadcast loops our own packets back to
     // us). Harmless no-op for point-to-point Bluetooth, where a peer's id
@@ -956,6 +965,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
           return;
         }
         _noteAudibility(packet);
+        _rememberConnectedTransport();
         _updateUser(
           packet.senderId,
           packet.senderName,
@@ -966,6 +976,7 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
         );
         _syncWireFormat();
       case AudioPacket():
+        _rememberConnectedTransport();
         // Audio carries no role — the roster keeps whatever this peer last
         // announced (see [ChannelRoster.upsert]).
         _updateUser(

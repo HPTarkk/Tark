@@ -6,8 +6,7 @@ import '../../core/config/onboarding_config.dart';
 import '../../core/config/quick_access_config.dart';
 import '../../core/home_widget/home_widget_launch.dart';
 import '../../core/router/routes.dart';
-import '../../core/settings/app_settings.dart';
-import '../../core/settings/settings_keys.dart';
+import '../../core/settings/connection_history.dart';
 import '../../feature/transfer/api/transfer_api.dart';
 
 /// Decides where the app lands on cold start.
@@ -26,7 +25,7 @@ import '../../feature/transfer/api/transfer_api.dart';
 ///
 /// The one exception is a Bluetooth call: when the last call ran over
 /// Bluetooth, cold start opens the resume screen, which reconnects to that
-/// phone and asks before entering the channel (see [shouldResumeBluetooth]).
+/// phone, shows the result, then returns home (see [shouldResumeBluetooth]).
 abstract final class QuickAccess {
   static String resolveStartLocation(
     SharedPreferences prefs, {
@@ -49,31 +48,18 @@ abstract final class QuickAccess {
   /// - Android only — the hands-free resume is built on Classic RFCOMM, which
   ///   is what makes a cold dial by address possible.
   /// - The Auto-reconnect setting is on.
-  /// - The last call ran over Bluetooth: the transport mode is written from
-  ///   the link a channel actually opens on, so any later Wi-Fi or hotspot
-  ///   call replaces it.
-  /// - A Bluetooth call has really connected before — only that writes the
-  ///   remembered role, and a joiner also needs the phone it dialed.
+  /// - Bluetooth is still selected and the last verified connection used
+  ///   Classic Bluetooth. Changing settings alone is not connection history.
+  /// - The remembered role is usable; a joiner also needs the phone it dialed.
   ///
   /// Permissions and the radio are checked by the screen itself, since they
   /// need platform calls; when either is missing it steps aside to Landing.
   static bool shouldResumeBluetooth(
     SharedPreferences prefs, {
     bool? isAndroid,
-  }) {
-    if (!(isAndroid ?? Platform.isAndroid)) return false;
-    final autoReconnect =
-        prefs.getBool(SettingsKeys.autoReconnectEnabled) ??
-        AppSettings.defaults().autoReconnectEnabled;
-    if (!autoReconnect) return false;
-    final mode = prefs.getString(SettingsKeys.transportMode);
-    if (mode != TransferMode.bluetooth.key) return false;
-    return switch (prefs.getString(SettingsKeys.btLastRole)) {
-      'host' => true,
-      'joiner' => prefs.getString(SettingsKeys.btLastPeerId) != null,
-      _ => false,
-    };
-  }
+  }) => ConnectionHistory(
+    prefs,
+  ).shouldResumeClassicBluetooth(isAndroid: isAndroid ?? Platform.isAndroid);
 
   /// The page that puts the user on air fastest for [mode] — used by the
   /// home-screen widget's GO LIVE button, an explicit request to skip

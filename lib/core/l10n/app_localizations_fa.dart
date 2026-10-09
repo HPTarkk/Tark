@@ -900,7 +900,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get settings_transport_desc =>
-      '«تَرک» خودش مناسب‌ترین راه ارتباط رو با توجه به جایی که هستی انتخاب می‌کنه. فقط اگه دلیلی داری یکی رو ثابت کن.';
+      'وای‌فای/هات‌اسپات مسیر اصلی اتصاله. برای اتصال رایگان، خودت می‌تونی بلوتوث رو انتخاب کنی.';
 
   @override
   String get settings_section_startup => 'وقتی برنامه باز می‌شه';
@@ -1091,7 +1091,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get onboarding_mode_help =>
-      'روی خودکار بذارش تا «تَرک» هر بار خودش تصمیم بگیره. بعداً از تنظیمات پیشرفته می‌تونی یکی رو ثابت کنی.';
+      'وای‌فای/هات‌اسپات برای اتصال پیشنهاد می‌شه. بلوتوث هم گزینهٔ رایگانه؛ بعداً می‌تونی روش اتصال رو عوض کنی.';
 
   @override
   String get onboarding_mode_auto_desc =>
@@ -1352,7 +1352,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get paywall_perk_music => 'پخش آهنگ برای بقیه‌ی اتاق';
 
   @override
-  String get paywall_free_note => 'بلوتوث همیشه رایگان می‌مونه';
+  String get paywall_free_note => 'گفتگوی دو نفره با بلوتوث رایگان است';
 
   @override
   String get paywall_unavailable => 'فعلاً امکان خرید توی این نسخه نیست';
@@ -1782,6 +1782,33 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get lobby_start_ride => 'شروع ارتباط';
+
+  @override
+  String get lobby_unlock_premium => 'فعال‌کردن پرمیوم';
+
+  @override
+  String get lobby_premium_heading => 'اتصال با پرمیوم';
+
+  @override
+  String get lobby_premium_hint =>
+      'برای اتصال گوشی‌ها و شروع گفتگو، پرمیوم را فعال کن.';
+
+  @override
+  String get lobby_free_bluetooth => 'یا رایگان با بلوتوث وصل شو';
+
+  @override
+  String get lobby_group_premium_heading => 'گفتگوی گروهی با پرمیوم';
+
+  @override
+  String get lobby_group_premium_hint =>
+      'برای روم‌های بیشتر از دو نفر، هر نفر باید پرمیوم فعال داشته باشد.';
+
+  @override
+  String get paywall_locked_group =>
+      'با پرمیوم، بیشتر از دو نفر در یک روم گفتگو کنید';
+
+  @override
+  String get paywall_perk_group => 'روم‌های بیشتر از دو نفر';
 
   @override
   String get lobby_unlinked_heading => 'هنوز وصل نیستی';
@@ -2422,6 +2449,9 @@ class AppLocalizationsFa extends AppLocalizations {
   String get bt_resume_title => 'اتصال دوباره با بلوتوث';
 
   @override
+  String get bt_resume_not_connected => 'این بار وصل نشدیم';
+
+  @override
   String bt_resume_looking_for(String name) {
     return 'دنبال $name می‌گردیم…';
   }
@@ -3012,4 +3042,47 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get alone_leave_now => 'همین الان خارج شو';
+
+  @override
+  String get paywall_locked_rooms =>
+      'برای داشتن بیشتر از دو اتاق فعال، پرمیوم را فعال کن. با بایگانی یک اتاق هم می‌توانی رایگان ادامه بدهی.';
+
+  @override
+  String get paywall_perk_rooms => 'بیشتر از دو اتاق فعال';
+
+  @override
+  String get room_create_title => 'جای گفت‌وگوی شما';
+
+  @override
+  String get room_create_hint =>
+      'یک اسم انتخاب کن. بعد، آدم‌های خودت را دعوت کن و هر بار به همین اتاق برگرد.';
+
+  @override
+  String get room_create_name_example => 'مثلاً مسیر صبحگاهی';
+
+  @override
+  String get room_create_private_hint =>
+      'اتاق روی گوشی تو ذخیره می‌شود. ورود دیگران فقط با دعوت توست.';
+
+  @override
+  String get room_create_limit_hint =>
+      'دو اتاق فعال رایگان داری. برای اتاق بعدی پرمیوم را فعال کن، یا یکی از اتاق‌های قبلی را بایگانی کن.';
+
+  @override
+  String get room_create_working => 'داریم اتاقت را می‌سازیم';
+
+  @override
+  String get room_create_ready => 'اتاقت آماده‌ست';
+
+  @override
+  String get room_create_failed =>
+      'اتاق ساخته نشد. اسمش را نگه داشتیم؛ دوباره امتحان کن.';
+
+  @override
+  String get bt_signal_search_hint =>
+      'دنبال گوشی‌ای می‌گردیم که آمادهٔ اتصال باشد.';
+
+  @override
+  String get bt_signal_link_hint =>
+      'گوشی پیدا شد؛ داریم ارتباط را برقرار می‌کنیم.';
 }

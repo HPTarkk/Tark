@@ -263,9 +263,20 @@ class _IdleBody extends StatelessWidget {
         GestureDetector(
           onTap: starting
               ? null
-              : () {
+              : () async {
                   if (locked) {
-                    openSubscriptionGate(context, PremiumFeature.musicPlayback);
+                    if (!await openSubscriptionGate(
+                      context,
+                      PremiumFeature.musicPlayback,
+                    )) {
+                      return;
+                    }
+                  }
+                  if (!context.mounted) return;
+                  if (context
+                      .read<WalkieTalkieCubit>()
+                      .state
+                      .isSharingSystemAudio) {
                     return;
                   }
                   context.read<WalkieTalkieCubit>().toggleShareSystemAudio();

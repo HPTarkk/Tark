@@ -22,8 +22,9 @@ Future<void> _switchToHotspot(BuildContext context) async {
   // hotspot page with the Bluetooth transport underneath it, and their
   // Bluetooth session already dropped.
   if (!GetIt.instance<LicenseGate>().allows(PremiumFeature.wifiTransport)) {
-    await openSubscriptionGate(context, PremiumFeature.wifiTransport);
-    return;
+    if (!await openSubscriptionGate(context, PremiumFeature.wifiTransport)) {
+      return;
+    }
   }
   if (!context.mounted) return;
   context.read<BluetoothConnectCubit>().backToRoleSelection();

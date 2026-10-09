@@ -1,9 +1,13 @@
+import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/account/email_link.dart';
 import '../../core/diagnostics/screen_log.dart';
+import '../../core/entitlement/feature_access_guard.dart';
+import '../../core/entitlement/premium_feature.dart';
+import '../../core/router/route_exit.dart';
 import '../../core/home_widget/home_widget_launch.dart';
 import '../../core/router/routes.dart';
 import '../../feature/account/api/account_api.dart';
@@ -20,6 +24,13 @@ import 'room_bound_walkie_entry.dart';
 /// different features are wired together. Features themselves navigate by
 /// [AppRoutes] names and never import each other's pages.
 class AppRouter {
+  static Widget _ipAccess(BuildContext context, WidgetBuilder builder) =>
+      FeatureAccessGuard(
+        feature: PremiumFeature.wifiTransport,
+        builder: builder,
+        onDenied: () => exitRouteTo(context, AppRoutes.roomsPath),
+      );
+
   static GoRouter? _router;
 
   /// Where the app lands on cold start — [AppRoutes.landingPath] by default,
@@ -51,7 +62,7 @@ class AppRouter {
       if (launch == null) return null;
       return QuickAccess.locationForLaunch(
         launch,
-        GetIt.instance<TransferModeStore>().mode,
+        GetIt.instance<TransferModeStore>().connectionChoice,
       );
     },
     routes: [
@@ -91,12 +102,14 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.roomQrJoinPath,
         name: AppRoutes.roomQrJoinName,
-        builder: (context, state) => RoomQrJoinPage.buildPage(),
+        builder: (context, state) =>
+            _ipAccess(context, (_) => RoomQrJoinPage.buildPage()),
       ),
       GoRoute(
         path: AppRoutes.roomQrJoinIssuerPath,
         name: AppRoutes.roomQrJoinIssuerName,
-        builder: (context, state) => RoomQrJoinIssuerPage.buildPage(),
+        builder: (context, state) =>
+            _ipAccess(context, (_) => RoomQrJoinIssuerPage.buildPage()),
       ),
       GoRoute(
         path: AppRoutes.walkiePath,
@@ -143,18 +156,22 @@ class AppRouter {
         // invite. Deliberately not a query parameter: the payload contains
         // the network's passphrase, and a URL is the one place it must never
         // be written.
-        builder: (context, state) => WifiHotspotPage.buildPage(
-          initialSegment: state.uri.queryParameters['mode'] == 'hotspot'
-              ? WifiHotspotSegment.hotspot
-              : WifiHotspotSegment.wifi,
-          intent: ChannelIntent.fromKey(state.uri.queryParameters['intent']),
-          handedCode: state.extra is String ? state.extra! as String : null,
+        builder: (context, state) => _ipAccess(
+          context,
+          (_) => WifiHotspotPage.buildPage(
+            initialSegment: state.uri.queryParameters['mode'] == 'hotspot'
+                ? WifiHotspotSegment.hotspot
+                : WifiHotspotSegment.wifi,
+            intent: ChannelIntent.fromKey(state.uri.queryParameters['intent']),
+            handedCode: state.extra is String ? state.extra! as String : null,
+          ),
         ),
       ),
       GoRoute(
         path: AppRoutes.guestLinkPath,
         name: AppRoutes.guestLinkName,
-        builder: (context, state) => GuestLinkPage.buildPage(),
+        builder: (context, state) =>
+            _ipAccess(context, (_) => GuestLinkPage.buildPage()),
       ),
       GoRoute(
         path: AppRoutes.settingsPath,

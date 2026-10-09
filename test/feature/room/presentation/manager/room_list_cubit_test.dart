@@ -1,4 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
+import 'package:tark/core/entitlement/license_gate.dart';
+import 'package:tark/core/entitlement/premium_feature.dart';
 import 'package:tark/feature/room/data/security/room_transport_identity_secure_store.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
 import 'package:tark/feature/room/domain/entity/room_accepted_join_snapshot.dart';
@@ -9,8 +12,77 @@ import 'package:tark/feature/room/domain/service/room_invitation_ledger.dart';
 import 'package:tark/feature/room/presentation/manager/room_list_cubit.dart';
 
 void main() {
+  tearDown(() => GetIt.instance.reset());
   RoomListCubit cubitFor(_FakeRoomRepository repository) =>
       RoomListCubit(repository, identityStore: _MemoryIdentityStore());
+
+  test('the free third room is blocked before persistence', () async {
+    GetIt.instance.registerSingleton<LicenseGate>(_RoomCountGate(false));
+    final repository = _FakeRoomRepository()
+      ..seed('First')
+      ..seed('Second');
+    final cubit = cubitFor(repository);
+    expect(
+      await cubit.createRoom(name: 'Third', localDisplayName: 'Me'),
+      isNull,
+    );
+    expect(cubit.state.error, isA<RoomLimitReached>());
+    expect(await repository.list(), hasLength(2));
+    expect(repository.selected, isNull);
+    await cubit.close();
+  });
+
+  test(
+    'archiving frees a slot, restoring a third room needs Premium',
+    () async {
+      GetIt.instance.registerSingleton<LicenseGate>(_RoomCountGate(false));
+      final repository = _FakeRoomRepository();
+      final first = repository.seed('First');
+      repository.seed('Second');
+      final cubit = cubitFor(repository);
+      await cubit.load();
+      await cubit.archive(first.room.id);
+      expect(await cubit.needsMoreRoomsAccess(), false);
+      expect(
+        await cubit.createRoom(name: 'Replacement', localDisplayName: 'Me'),
+        isNotNull,
+      );
+      expect(cubit.state.archived.map((room) => room.room.id), [first.room.id]);
+      await cubit.unarchive(first.room.id);
+      expect(cubit.state.error, isA<RoomLimitReached>());
+      expect((await repository.get(first.room.id))!.room.archived, true);
+      expect(await repository.list(), hasLength(2));
+      await cubit.close();
+    },
+  );
+
+  test('an existing room does not consume another slot', () async {
+    GetIt.instance.registerSingleton<LicenseGate>(_RoomCountGate(false));
+    final repository = _FakeRoomRepository();
+    final first = repository.seed('First');
+    repository.seed('Second');
+    final cubit = cubitFor(repository);
+    expect(
+      await cubit.needsMoreRoomsAccess(existingRoom: first.room.id),
+      false,
+    );
+    expect(await cubit.needsMoreRoomsAccess(), true);
+    await cubit.close();
+  });
+
+  test('Premium permits more than two active rooms', () async {
+    GetIt.instance.registerSingleton<LicenseGate>(_RoomCountGate(true));
+    final repository = _FakeRoomRepository()
+      ..seed('First')
+      ..seed('Second');
+    final cubit = cubitFor(repository);
+    expect(
+      await cubit.createRoom(name: 'Third', localDisplayName: 'Me'),
+      isNotNull,
+    );
+    expect(await repository.list(), hasLength(3));
+    await cubit.close();
+  });
 
   test('load preserves a selected durable room that still exists', () async {
     final repository = _FakeRoomRepository();
@@ -157,6 +229,17 @@ void main() {
     expect(repository.selected, isNull);
     await cubit.close();
   });
+}
+
+class _RoomCountGate implements LicenseGate {
+  _RoomCountGate(this.allowed);
+  final bool allowed;
+  @override
+  bool allows(PremiumFeature feature) => allowed;
+  @override
+  bool get canPurchase => true;
+  @override
+  Stream<void> get changes => const Stream.empty();
 }
 
 final class _MemoryIdentityStore implements RoomTransportIdentitySecureStore {

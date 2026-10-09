@@ -1715,7 +1715,7 @@ abstract class AppLocalizations {
   /// No description provided for @settings_transport_desc.
   ///
   /// In fa, this message translates to:
-  /// **'«تَرک» خودش مناسب‌ترین راه ارتباط رو با توجه به جایی که هستی انتخاب می‌کنه. فقط اگه دلیلی داری یکی رو ثابت کن.'**
+  /// **'وای‌فای/هات‌اسپات مسیر اصلی اتصاله. برای اتصال رایگان، خودت می‌تونی بلوتوث رو انتخاب کنی.'**
   String get settings_transport_desc;
 
   /// No description provided for @settings_section_startup.
@@ -2057,7 +2057,7 @@ abstract class AppLocalizations {
   /// No description provided for @onboarding_mode_help.
   ///
   /// In fa, this message translates to:
-  /// **'روی خودکار بذارش تا «تَرک» هر بار خودش تصمیم بگیره. بعداً از تنظیمات پیشرفته می‌تونی یکی رو ثابت کنی.'**
+  /// **'وای‌فای/هات‌اسپات برای اتصال پیشنهاد می‌شه. بلوتوث هم گزینهٔ رایگانه؛ بعداً می‌تونی روش اتصال رو عوض کنی.'**
   String get onboarding_mode_help;
 
   /// No description provided for @onboarding_mode_auto_desc.
@@ -2531,7 +2531,7 @@ abstract class AppLocalizations {
   /// No description provided for @paywall_free_note.
   ///
   /// In fa, this message translates to:
-  /// **'بلوتوث همیشه رایگان می‌مونه'**
+  /// **'گفتگوی دو نفره با بلوتوث رایگان است'**
   String get paywall_free_note;
 
   /// No description provided for @paywall_unavailable.
@@ -3289,6 +3289,54 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'شروع ارتباط'**
   String get lobby_start_ride;
+
+  /// No description provided for @lobby_unlock_premium.
+  ///
+  /// In fa, this message translates to:
+  /// **'فعال‌کردن پرمیوم'**
+  String get lobby_unlock_premium;
+
+  /// No description provided for @lobby_premium_heading.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتصال با پرمیوم'**
+  String get lobby_premium_heading;
+
+  /// No description provided for @lobby_premium_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'برای اتصال گوشی‌ها و شروع گفتگو، پرمیوم را فعال کن.'**
+  String get lobby_premium_hint;
+
+  /// No description provided for @lobby_free_bluetooth.
+  ///
+  /// In fa, this message translates to:
+  /// **'یا رایگان با بلوتوث وصل شو'**
+  String get lobby_free_bluetooth;
+
+  /// No description provided for @lobby_group_premium_heading.
+  ///
+  /// In fa, this message translates to:
+  /// **'گفتگوی گروهی با پرمیوم'**
+  String get lobby_group_premium_heading;
+
+  /// No description provided for @lobby_group_premium_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'برای روم‌های بیشتر از دو نفر، هر نفر باید پرمیوم فعال داشته باشد.'**
+  String get lobby_group_premium_hint;
+
+  /// No description provided for @paywall_locked_group.
+  ///
+  /// In fa, this message translates to:
+  /// **'با پرمیوم، بیشتر از دو نفر در یک روم گفتگو کنید'**
+  String get paywall_locked_group;
+
+  /// No description provided for @paywall_perk_group.
+  ///
+  /// In fa, this message translates to:
+  /// **'روم‌های بیشتر از دو نفر'**
+  String get paywall_perk_group;
 
   /// No description provided for @lobby_unlinked_heading.
   ///
@@ -4376,6 +4424,12 @@ abstract class AppLocalizations {
   /// **'اتصال دوباره با بلوتوث'**
   String get bt_resume_title;
 
+  /// No description provided for @bt_resume_not_connected.
+  ///
+  /// In fa, this message translates to:
+  /// **'این بار وصل نشدیم'**
+  String get bt_resume_not_connected;
+
   /// No description provided for @bt_resume_looking_for.
   ///
   /// In fa, this message translates to:
@@ -5359,6 +5413,78 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'همین الان خارج شو'**
   String get alone_leave_now;
+
+  /// No description provided for @paywall_locked_rooms.
+  ///
+  /// In fa, this message translates to:
+  /// **'برای داشتن بیشتر از دو اتاق فعال، پرمیوم را فعال کن. با بایگانی یک اتاق هم می‌توانی رایگان ادامه بدهی.'**
+  String get paywall_locked_rooms;
+
+  /// No description provided for @paywall_perk_rooms.
+  ///
+  /// In fa, this message translates to:
+  /// **'بیشتر از دو اتاق فعال'**
+  String get paywall_perk_rooms;
+
+  /// No description provided for @room_create_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'جای گفت‌وگوی شما'**
+  String get room_create_title;
+
+  /// No description provided for @room_create_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'یک اسم انتخاب کن. بعد، آدم‌های خودت را دعوت کن و هر بار به همین اتاق برگرد.'**
+  String get room_create_hint;
+
+  /// No description provided for @room_create_name_example.
+  ///
+  /// In fa, this message translates to:
+  /// **'مثلاً مسیر صبحگاهی'**
+  String get room_create_name_example;
+
+  /// No description provided for @room_create_private_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتاق روی گوشی تو ذخیره می‌شود. ورود دیگران فقط با دعوت توست.'**
+  String get room_create_private_hint;
+
+  /// No description provided for @room_create_limit_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'دو اتاق فعال رایگان داری. برای اتاق بعدی پرمیوم را فعال کن، یا یکی از اتاق‌های قبلی را بایگانی کن.'**
+  String get room_create_limit_hint;
+
+  /// No description provided for @room_create_working.
+  ///
+  /// In fa, this message translates to:
+  /// **'داریم اتاقت را می‌سازیم'**
+  String get room_create_working;
+
+  /// No description provided for @room_create_ready.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتاقت آماده‌ست'**
+  String get room_create_ready;
+
+  /// No description provided for @room_create_failed.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتاق ساخته نشد. اسمش را نگه داشتیم؛ دوباره امتحان کن.'**
+  String get room_create_failed;
+
+  /// No description provided for @bt_signal_search_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'دنبال گوشی‌ای می‌گردیم که آمادهٔ اتصال باشد.'**
+  String get bt_signal_search_hint;
+
+  /// No description provided for @bt_signal_link_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'گوشی پیدا شد؛ داریم ارتباط را برقرار می‌کنیم.'**
+  String get bt_signal_link_hint;
 }
 
 class _AppLocalizationsDelegate

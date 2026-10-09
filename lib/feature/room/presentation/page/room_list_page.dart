@@ -10,7 +10,6 @@ import '../../../../core/motion/app_motion.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../core/router/route_exit.dart';
 import '../../../../core/router/routes.dart';
-import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/localized_counter.dart';
 import '../../../../core/widget/monogram_mark.dart';
@@ -19,6 +18,7 @@ import '../../domain/entity/room.dart';
 import '../manager/room_list_cubit.dart';
 import '../widget/room_archive_sheet.dart';
 import '../widget/room_visuals.dart';
+import 'room_create_page.dart';
 
 /// Offline-first manager for durable Rooms.
 ///
@@ -202,28 +202,27 @@ class _RoomListPageState extends State<RoomListPage> {
 
   Future<void> _createRoom(BuildContext context) async {
     ScreenLog.tap('NewRoom');
-    final name = await _nameDialog(
-      context,
-      title: context.getString.rooms_create,
-      action: context.getString.rooms_create,
-      hint: context.getString.rooms_name_hint,
-    );
-    if (name == null || !context.mounted) return;
-
-    var localDisplayName = '';
-    try {
-      localDisplayName = await GetIt.instance<SettingsRepository>().getMyName();
-    } catch (_) {
-      // Room creation remains available offline even if settings storage is
-      // temporarily unavailable. This fallback is local display metadata,
-      // never identity or authorization.
-    }
-    if (!context.mounted) return;
-    final created = await context.read<RoomListCubit>().createRoom(
-      name: name,
-      localDisplayName: localDisplayName.trim().isEmpty
-          ? context.getString.rooms_fallback_member_name
-          : localDisplayName.trim(),
+    final cubit = context.read<RoomListCubit>();
+    final created = await Navigator.of(context).push<SavedRoom>(
+      PageRouteBuilder(
+        settings: const RouteSettings(name: 'RoomCreatePage'),
+        transitionDuration: AppMotion.reduced(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 520),
+        reverseTransitionDuration: AppMotion.sheet,
+        pageBuilder: (_, _, _) =>
+            BlocProvider.value(value: cubit, child: const RoomCreatePage()),
+        transitionsBuilder: (_, animation, _, child) => FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween(begin: const Offset(0, 0.08), end: Offset.zero)
+                .animate(
+                  animation.drive(CurveTween(curve: AppMotion.drawer)),
+                ),
+            child: child,
+          ),
+        ),
+      ),
     );
     if (created != null && context.mounted) {
       context.go(AppRoutes.walkiePath);

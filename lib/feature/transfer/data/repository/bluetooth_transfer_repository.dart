@@ -10,6 +10,7 @@ import '../../../../core/audio/audio_format_profile.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/identity/device_identity.dart';
 import '../../../../core/identity/session_epoch.dart';
+import '../../../../core/settings/connection_history.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/utils/android_sdk.dart';
 import '../../../../core/utils/exponential_backoff.dart';
@@ -557,6 +558,7 @@ class BluetoothTransferRepository
   }
 
   void _onPeerConnected(String engine, String peerId) {
+    unawaited(ConnectionHistory.registered?.rememberBluetoothEngine(engine));
     _activeEngine = engine;
     _connectedPeerId = peerId;
     _armPhantomSessionWatchdog(engine);

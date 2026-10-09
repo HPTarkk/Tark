@@ -10,19 +10,8 @@ import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../transfer/api/transfer_api.dart';
 
-/// Pins a transport by hand, or leaves it automatic.
-///
-/// **Demoted here from the main Settings page (P2 §1).** It used to be the
-/// first control under CONNECTION, and before that it was on the landing page
-/// itself — which made choosing a transport a prerequisite for making a call,
-/// and left the answer sitting in a preference long after the situation that
-/// produced it had gone. `TransportAdvisor` now derives it from what the phone
-/// can actually see, every time, so this control's job shrank to the case that
-/// derivation gets wrong.
-///
-/// Hence AUTOMATIC as a first-class, default option rather than an absent one.
-/// Without it the picker would have no way to express "stop deciding for me"
-/// and every visit here would leave a pin behind.
+/// Chooses a transport explicitly. Old automatic preferences display as
+/// Wi-Fi/Hotspot, which is now the default; Bluetooth remains opt-in.
 ///
 /// WiFi and Guest carry a lock without entitlement: tapping one opens the
 /// paywall instead of switching, so the transport gate is never a dead end.
@@ -31,7 +20,7 @@ class TransportModePicker extends StatelessWidget {
   const TransportModePicker({super.key});
 
   bool _isWifiGroup(TransferMode? mode) =>
-      mode == TransferMode.wifi || mode == TransferMode.hotspot;
+      mode == null || mode == TransferMode.wifi || mode == TransferMode.hotspot;
 
   @override
   Widget build(BuildContext context) {
@@ -49,17 +38,23 @@ class TransportModePicker extends StatelessWidget {
           initialData: store.pinnedMode,
           stream: store.pinChanges,
           builder: (context, snapshot) {
-            // `snapshot.data` is null both for "automatic" and for "nothing
-            // has arrived yet", and here those mean the same thing, so the
-            // ambiguity is harmless — unlike in the store, where it is not.
             final pinned = snapshot.data;
-            void select(TransferMode? target) {
-              ScreenLog.tap('Transport ${target?.name ?? 'auto'}');
-              if (target != null && target.requiresPremium && !unlocked) {
-                openSubscriptionGate(context, PremiumFeature.wifiTransport);
-                return;
+            Future<void> select(TransferMode target) async {
+              ScreenLog.tap('Transport ${target.name}');
+              if (target.requiresPremium && !unlocked) {
+                if (!await openSubscriptionGate(
+                  context,
+                  PremiumFeature.wifiTransport,
+                  onFreeAlternative: () async {
+                    if (context.mounted) {
+                      await store.setPinnedMode(TransferMode.bluetooth);
+                    }
+                  },
+                )) {
+                  return;
+                }
               }
-              store.setPinnedMode(target);
+              if (context.mounted) await store.setPinnedMode(target);
             }
 
             return Column(
@@ -75,13 +70,6 @@ class TransportModePicker extends StatelessWidget {
                   child: Row(
                     children: [
                       _ModeButton(
-                        label: s.transport_automatic,
-                        icon: Icons.auto_awesome_rounded,
-                        selected: pinned == null,
-                        locked: false,
-                        onTap: () => select(null),
-                      ),
-                      _ModeButton(
                         label: s.transport_wifi_hotspot,
                         icon: Icons.wifi_rounded,
                         selected: _isWifiGroup(pinned),
@@ -89,7 +77,9 @@ class TransportModePicker extends StatelessWidget {
                         // Leave an existing hotspot pin alone — only switch to
                         // plain WiFi when coming from a different group.
                         onTap: () => select(
-                          _isWifiGroup(pinned) ? pinned : TransferMode.wifi,
+                          _isWifiGroup(pinned)
+                              ? pinned ?? TransferMode.wifi
+                              : TransferMode.wifi,
                         ),
                       ),
                       _ModeButton(

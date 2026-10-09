@@ -905,7 +905,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settings_transport_desc =>
-      'Tarkk picks the link that suits wherever you are. Pin one only if you have a reason to.';
+      'Wi-Fi/Hotspot is the main connection path. You can explicitly choose Bluetooth for a free connection.';
 
   @override
   String get settings_section_startup => 'WHEN THE APP OPENS';
@@ -1097,7 +1097,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get onboarding_mode_help =>
-      'Leave it automatic and Tarkk works this out each time. You can pin one later in Advanced settings.';
+      'Wi-Fi/Hotspot is recommended. Bluetooth is the free option; you can change the connection method later.';
 
   @override
   String get onboarding_mode_auto_desc =>
@@ -1357,7 +1357,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paywall_perk_music => 'Share music into the room';
 
   @override
-  String get paywall_free_note => 'Bluetooth stays free, always';
+  String get paywall_free_note =>
+      'Two-person conversations with Bluetooth are free';
 
   @override
   String get paywall_unavailable =>
@@ -1788,6 +1789,33 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get lobby_start_ride => 'Start ride';
+
+  @override
+  String get lobby_unlock_premium => 'Unlock Premium';
+
+  @override
+  String get lobby_premium_heading => 'Connect with Premium';
+
+  @override
+  String get lobby_premium_hint =>
+      'Unlock Premium to connect the phones and start talking.';
+
+  @override
+  String get lobby_free_bluetooth => 'Or connect free with Bluetooth';
+
+  @override
+  String get lobby_group_premium_heading => 'Group conversations with Premium';
+
+  @override
+  String get lobby_group_premium_hint =>
+      'For rooms with more than two people, each person needs active Premium.';
+
+  @override
+  String get paywall_locked_group =>
+      'Talk with more than two people in a room with Premium';
+
+  @override
+  String get paywall_perk_group => 'Rooms with more than two people';
 
   @override
   String get lobby_unlinked_heading => 'Not connected yet';
@@ -2432,6 +2460,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bt_resume_title => 'Reconnecting over Bluetooth';
 
   @override
+  String get bt_resume_not_connected => 'We couldn\'t reconnect this time';
+
+  @override
   String bt_resume_looking_for(String name) {
     return 'Looking for $name…';
   }
@@ -3040,4 +3071,47 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get alone_leave_now => 'Leave now';
+
+  @override
+  String get paywall_locked_rooms =>
+      'Activate Premium for more than two active rooms. You can also archive a room to continue for free.';
+
+  @override
+  String get paywall_perk_rooms => 'More than two active rooms';
+
+  @override
+  String get room_create_title => 'A place for your people';
+
+  @override
+  String get room_create_hint =>
+      'Give it a name, invite your people, and come back to the same room whenever you want.';
+
+  @override
+  String get room_create_name_example => 'For example, Morning ride';
+
+  @override
+  String get room_create_private_hint =>
+      'Your room is saved on this phone. Others can enter only with your invitation.';
+
+  @override
+  String get room_create_limit_hint =>
+      'Two active rooms are free. Activate Premium for the next one, or archive an existing room.';
+
+  @override
+  String get room_create_working => 'Creating your room';
+
+  @override
+  String get room_create_ready => 'Your room is ready';
+
+  @override
+  String get room_create_failed =>
+      'Couldn\'t create the room. Your name is saved here; try again.';
+
+  @override
+  String get bt_signal_search_hint =>
+      'Looking for a phone that is ready to connect.';
+
+  @override
+  String get bt_signal_link_hint =>
+      'Phone found. Establishing your connection.';
 }

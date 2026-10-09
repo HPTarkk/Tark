@@ -619,11 +619,15 @@ class RoomConnectButton extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.busy = false,
+    this.icon = Icons.power_settings_new_rounded,
+    this.compact = false,
     super.key,
   });
 
   final String label;
   final bool busy;
+  final IconData icon;
+  final bool compact;
   final VoidCallback? onTap;
 
   static const _size = 84.0;
@@ -631,6 +635,25 @@ class RoomConnectButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final amber = AppColors.amber;
+    if (compact) {
+      return FilledButton.icon(
+        onPressed: busy ? null : onTap,
+        style: FilledButton.styleFrom(
+          backgroundColor: amber,
+          foregroundColor: Colors.black,
+          minimumSize: const Size(double.infinity, 56),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        ),
+        icon: busy
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Icon(icon),
+        label: Text(label, textAlign: TextAlign.center),
+      );
+    }
     final radius = BorderRadius.circular(_size);
     return Semantics(
       button: true,
@@ -679,8 +702,8 @@ class RoomConnectButton extends StatelessWidget {
                             color: amber,
                           ),
                         )
-                      : const Icon(
-                          Icons.power_settings_new_rounded,
+                      : Icon(
+                          icon,
                           key: ValueKey('idle'),
                           color: Colors.black,
                           size: 38,

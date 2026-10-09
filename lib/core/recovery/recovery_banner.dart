@@ -127,22 +127,44 @@ class RecoveryActionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+    if (actions.isEmpty) return const SizedBox.shrink();
+    final preferred = actions.indexWhere((action) => action.isPrimary);
+    final primary = preferred < 0 ? 0 : preferred;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final action in actions)
-          _ActionChip(action: action, accent: accent),
+        _ActionChip(action: actions[primary], accent: accent, primary: true),
+        if (actions.length > 1) ...[
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              for (var index = 0; index < actions.length; index++)
+                if (index != primary)
+                  _ActionChip(
+                    action: actions[index],
+                    accent: accent,
+                    primary: false,
+                  ),
+            ],
+          ),
+        ],
       ],
     );
   }
 }
 
 class _ActionChip extends StatefulWidget {
-  const _ActionChip({required this.action, required this.accent});
+  const _ActionChip({
+    required this.action,
+    required this.accent,
+    required this.primary,
+  });
 
   final RecoveryAction action;
   final Color accent;
+  final bool primary;
 
   @override
   State<_ActionChip> createState() => _ActionChipState();
@@ -167,7 +189,7 @@ class _ActionChipState extends State<_ActionChip> {
 
   @override
   Widget build(BuildContext context) {
-    final filled = widget.action.isPrimary;
+    final filled = widget.primary;
     final accent = widget.accent;
     return GestureDetector(
       onTap: _run,
@@ -180,11 +202,12 @@ class _ActionChipState extends State<_ActionChip> {
         curve: Curves.easeOut,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
+          constraints: const BoxConstraints(minHeight: 48),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
           decoration: BoxDecoration(
             color: filled ? accent.withAlpha(30) : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: accent.withAlpha(filled ? 140 : 90)),
+            border: Border.all(color: accent.withAlpha(filled ? 140 : 0)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -203,10 +226,12 @@ class _ActionChipState extends State<_ActionChip> {
               Text(
                 widget.action.label,
                 style: TextStyle(
-                  color: accent,
+                  color: filled ? accent : AppColors.textSecondary,
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
-                  letterSpacing: 1.2,
+                  letterSpacing: Directionality.of(context) == TextDirection.rtl
+                      ? 0
+                      : 1.2,
                 ),
               ),
             ],

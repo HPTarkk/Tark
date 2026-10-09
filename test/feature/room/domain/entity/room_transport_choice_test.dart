@@ -3,31 +3,38 @@ import 'package:tark/feature/room/domain/entity/room_transport_choice.dart';
 import 'package:tark/feature/transfer/domain/entity/transfer_mode.dart';
 
 void main() {
-  test('the settings pin maps onto three Room choices', () {
-    expect(
-      RoomTransportChoice.fromPin(TransferMode.bluetooth),
-      RoomTransportChoice.bluetooth,
-    );
-    expect(
-      RoomTransportChoice.fromPin(TransferMode.wifi),
-      RoomTransportChoice.hotspot,
-    );
-    expect(
-      RoomTransportChoice.fromPin(TransferMode.hotspot),
-      RoomTransportChoice.hotspot,
-    );
-    // Guest is a browser that only connects and talks: automatic for Rooms.
-    expect(
-      RoomTransportChoice.fromPin(TransferMode.guest),
-      RoomTransportChoice.automatic,
-    );
-    expect(RoomTransportChoice.fromPin(null), RoomTransportChoice.automatic);
-    expect(RoomTransportChoice.roomPin(TransferMode.guest), isNull);
-    expect(
-      RoomTransportChoice.roomPin(TransferMode.bluetooth),
-      TransferMode.bluetooth,
-    );
-  });
+  test(
+    'the settings pin uses Wi-Fi by default and Bluetooth only explicitly',
+    () {
+      expect(
+        RoomTransportChoice.fromPin(TransferMode.bluetooth),
+        RoomTransportChoice.bluetooth,
+      );
+      expect(
+        RoomTransportChoice.fromPin(TransferMode.wifi),
+        RoomTransportChoice.hotspot,
+      );
+      expect(
+        RoomTransportChoice.fromPin(TransferMode.hotspot),
+        RoomTransportChoice.hotspot,
+      );
+      // Legacy automatic and Guest preferences use Wi-Fi for Rooms.
+      expect(
+        RoomTransportChoice.fromPin(TransferMode.guest),
+        RoomTransportChoice.hotspot,
+      );
+      expect(RoomTransportChoice.fromPin(null), RoomTransportChoice.hotspot);
+      expect(
+        RoomTransportChoice.roomPin(TransferMode.guest),
+        TransferMode.wifi,
+      );
+      expect(RoomTransportChoice.roomPin(null), TransferMode.wifi);
+      expect(
+        RoomTransportChoice.roomPin(TransferMode.bluetooth),
+        TransferMode.bluetooth,
+      );
+    },
+  );
 
   test('Wi-Fi/Hotspot wins, then Bluetooth, then the default hotspot', () {
     const a = RoomTransportChoice.automatic;

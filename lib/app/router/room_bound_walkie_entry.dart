@@ -6,17 +6,21 @@ import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/entitlement/license_gate.dart';
+import '../../core/entitlement/feature_access_guard.dart';
 import '../../core/entitlement/premium_feature.dart';
+import '../../core/entitlement/room_access_policy.dart';
 import '../../core/entitlement/subscription_gate_page.dart';
 import '../../core/identity/channel_membership.dart';
 import '../../core/l10n/extension.dart';
 import '../../core/motion/app_motion.dart';
 import '../../core/router/route_exit.dart';
 import '../../core/router/routes.dart';
+import '../../core/settings/connection_history.dart';
 import '../../core/utils/android_sdk.dart';
 import '../../core/utils/logger.dart';
 import '../../feature/room/api/room_api.dart';
 import '../../feature/room/presentation/widget/carrier_status_scope.dart';
+import '../../feature/room/presentation/widget/room_group_access_guard.dart';
 import '../../feature/transfer/api/hotspot_invite_api.dart';
 import '../../feature/transfer/api/transfer_api.dart';
 import '../../feature/walkie/api/walkie_api.dart';
@@ -97,6 +101,8 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   final RoomConnectionCoordinator _coordinator = RoomConnectionCoordinator();
   Future<_EntryState>? _activeStart;
   int _readinessEpoch = 0;
+  bool _askingToStart = false;
+  bool _openingBluetooth = false;
 
   /// The pre-live Wi-Fi presence of the attempt in flight, if it has one.
   RoomPreLiveAnnouncer? _announcer;
@@ -204,10 +210,12 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   TransferMode? get _roomPin =>
       RoomTransportChoice.roomPin(_modeStore?.pinnedMode);
 
+  bool get _needsWifiAccess => _roomPin != TransferMode.bluetooth;
+
   // The mode store rejects paid IP transports without entitlement. Ask before
   // association/readiness, otherwise the network joins but the Room still
   // listens on Bluetooth and eventually reports a misleading bind timeout.
-  Future<bool> _ensureWifiAccess() async {
+  Future<bool> _ensureWifiAccess({SavedRoom? room}) async {
     final getIt = GetIt.instance;
     if (!getIt.isRegistered<LicenseGate>()) return true;
     final gate = getIt<LicenseGate>();
@@ -216,8 +224,26 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     final granted = await openSubscriptionGate(
       context,
       PremiumFeature.wifiTransport,
+      onFreeAlternative:
+          room != null &&
+              !RoomAccessPolicy.requiresPremium(
+                room.room.confirmedMembers.length,
+              )
+          ? () => _connectWithBluetooth(room)
+          : null,
     );
     return mounted && granted && gate.allows(PremiumFeature.wifiTransport);
+  }
+
+  Future<bool> _ensureGroupAccess(SavedRoom room) async {
+    if (!RoomAccessPolicy.requiresPremium(room.room.confirmedMembers.length)) {
+      return true;
+    }
+    final getIt = GetIt.instance;
+    if (!getIt.isRegistered<LicenseGate>()) return true;
+    if (!mounted) return false;
+    return await openSubscriptionGate(context, PremiumFeature.groupRooms) &&
+        mounted;
   }
 
   Future<bool> _openLinkGate({bool honourPin = true}) async {
@@ -336,7 +362,9 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     bool linkEstablished, {
     bool useHomeWifi = false,
   }) async {
-    if (_roomPin != TransferMode.bluetooth && !await _ensureWifiAccess()) {
+    if (!await _ensureGroupAccess(room)) return _EntryState.lobby(room);
+    if ((useHomeWifi || _needsWifiAccess) &&
+        !await _ensureWifiAccess(room: room)) {
       return _EntryState.lobby(room);
     }
     final rooms = _rooms;
@@ -427,9 +455,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   ///
   /// A transport picked in settings since then still wins over the ticket.
   Future<_EntryState> _rejoinSelectedRoom(SavedRoom room) async {
-    if (_roomPin != TransferMode.bluetooth && !await _ensureWifiAccess()) {
-      return _EntryState.lobby(room);
-    }
+    if (!await _ensureGroupAccess(room)) return _EntryState.lobby(room);
     final ticket = await _rejoinTickets.read();
     if (ticket == null ||
         ticket.roomId != room.room.id ||
@@ -445,6 +471,9 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     if (pin == TransferMode.bluetooth &&
         ticket.mode != TransferMode.bluetooth) {
       return _startSelectedRoom(room);
+    }
+    if (ticket.mode.requiresPremium && !await _ensureWifiAccess(room: room)) {
+      return _EntryState.lobby(room);
     }
     switch (ticket.mode) {
       case TransferMode.wifi:
@@ -969,6 +998,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     required bool linkEstablished,
     Duration? readinessTimeout,
   }) async {
+    if (!await _ensureGroupAccess(room)) return _EntryState.lobby(room);
     final binding = _binding;
     if (binding == null) {
       Logger.diagnostic('room: readiness stage=binding_unavailable');
@@ -1106,6 +1136,10 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       if (identical(_announcer, announcer)) _announcer = null;
       unawaited(_recordHotspotHost(room, readiness.peerProof));
       unawaited(_saveRejoinTicket(room));
+      final transport = _modeStore?.mode.key;
+      if (transport != null) {
+        unawaited(ConnectionHistory.registered?.remember(transport));
+      }
       Logger.diagnostic(
         'room: readiness epoch=$readinessEpoch stage=connected',
       );
@@ -1509,10 +1543,73 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     }
   }
 
-  void _startRide(SavedRoom room, {bool useHomeWifi = false}) {
+  Future<void> _startRide(SavedRoom room, {bool useHomeWifi = false}) async {
+    if (_askingToStart || _activeStart != null) return;
+    _askingToStart = true;
+    try {
+      final current = await _roomForAction(room);
+      if (current == null || !mounted || !await _ensureGroupAccess(current)) {
+        return;
+      }
+      if ((useHomeWifi || _needsWifiAccess) &&
+          !await _ensureWifiAccess(room: current)) {
+        return;
+      }
+      if (!mounted) return;
+      setState(() {
+        _attemptRoom = current;
+        _entry = _startSelectedRoom(current, useHomeWifi: useHomeWifi);
+      });
+    } finally {
+      _askingToStart = false;
+    }
+  }
+
+  Future<void> _connectWithBluetooth(SavedRoom room) async {
+    if (_openingBluetooth) return;
+    _openingBluetooth = true;
+    try {
+      final current = await _roomForAction(room);
+      if (current == null || !mounted || !await _ensureGroupAccess(current)) {
+        return;
+      }
+      final store = _modeStore;
+      if (store == null) return;
+      // This is an explicit free-transport choice, so honour it after pairing
+      // and when the Bluetooth screen opens a fresh Room entry.
+      await store.setPinnedMode(TransferMode.bluetooth);
+      if (!mounted) return;
+      setState(() {});
+      final intent = _bootstrapIntent(current);
+      await context.push(
+        '${AppRoutes.bluetoothConnectPath}?intent=${intent.key}',
+      );
+    } finally {
+      _openingBluetooth = false;
+    }
+  }
+
+  Future<SavedRoom?> _roomForAction(SavedRoom room) async {
+    try {
+      return await _rooms?.get(room.room.id) ?? room;
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _entry = Future.value(
+            _EntryState.lobby(room, failure: _EntryFailure.selectionReadFailed),
+          ),
+        );
+      }
+      return null;
+    }
+  }
+
+  void _stopGroupSession(SavedRoom room) {
+    _abandonReconnectAttempt();
+    unawaited(_releaseOwnHotspot());
     setState(() {
-      _attemptRoom = room;
-      _entry = _startSelectedRoom(room, useHomeWifi: useHomeWifi);
+      _attemptRoom = null;
+      _entry = Future.value(_EntryState.lobby(room));
     });
   }
 
@@ -1545,34 +1642,6 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     return members.first.id == room.membership.localMemberId
         ? ChannelIntent.create
         : ChannelIntent.join;
-  }
-
-  void _connect(BuildContext context, SavedRoom room) {
-    final links = _links ?? LiveLinkSnapshot.none;
-    final intent = _bootstrapIntent(room);
-    if (links.isUp) {
-      final route = ConnectRoute.forStrandedRoom(
-        intent: intent,
-        pinned: _roomPin,
-      );
-      Logger.diagnostic('room: connect stranded intent=${intent.key}');
-      context.push(route);
-      return;
-    }
-    final plan = TransportAdvisor.plan(
-      intent,
-      LinkConditions(
-        hasWifi: links.wifi,
-        canHostHotspot: Platform.isAndroid,
-        canJoinHotspot: Platform.isAndroid || Platform.isIOS,
-        bluetoothSupported: Platform.isAndroid || Platform.isIOS,
-        pinned: _roomPin,
-      ),
-    );
-    Logger.diagnostic(
-      'room: connect via ${plan.mode.key} intent=${intent.key}',
-    );
-    context.push(ConnectRoute.forPlan(plan));
   }
 
   String _newRoomSessionId(SavedRoom room, int epoch) =>
@@ -1645,18 +1714,23 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   Widget _resolved(BuildContext context) {
     final reconnect = _reconnectModel;
     if (reconnect != null) {
-      return RoomReconnectView(
-        key: const ValueKey('room-reconnect'),
-        model: reconnect,
-        onScan: _onReconnectScan,
-        onSwitch: () => _restartReconnect(
-          showCode: reconnect.side == RoomReconnectSide.scan,
+      return FeatureAccessGuard(
+        feature: PremiumFeature.wifiTransport,
+        onDenied: _cancelReconnect,
+        onAccessLost: _cancelReconnect,
+        builder: (_) => RoomReconnectView(
+          key: const ValueKey('room-reconnect'),
+          model: reconnect,
+          onScan: _onReconnectScan,
+          onSwitch: () => _restartReconnect(
+            showCode: reconnect.side == RoomReconnectSide.scan,
+          ),
+          onRetry: () => _restartReconnect(
+            showCode: reconnect.side == RoomReconnectSide.show,
+          ),
+          onBack: _cancelReconnect,
+          onTurnOnWifi: _turnOnWifi,
         ),
-        onRetry: () => _restartReconnect(
-          showCode: reconnect.side == RoomReconnectSide.show,
-        ),
-        onBack: _cancelReconnect,
-        onTurnOnWifi: _turnOnWifi,
       );
     }
     return _resolvedEntry(context);
@@ -1673,6 +1747,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
             child: SelectedRoomLobby(
               room: room,
               connectionPhase: RoomConnectionUiPhase.connecting,
+              requiresPremium: _needsWifiAccess,
               link: _resolvedLink,
               mode: _modeStore?.mode,
               onStartRide: () {},
@@ -1706,14 +1781,19 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         final binding = _binding;
         final runtime = binding?.runtime;
         if (room != null && binding != null && runtime != null) {
-          return RoomLiveRejoinScope(
-            onScanPeerCode: () => _scanPeerCodeFromLive(room),
-            child: RoomConnectionStatusScope(
-              room: room,
-              runtime: runtime,
-              peerProofs: binding.verifiedPeerProofs,
-              initialPeerProofs: binding.verifiedPeerProofSnapshot,
-              child: livePage,
+          return RoomGroupAccessGuard(
+            room: room,
+            repository: _rooms,
+            onBlocked: _stopGroupSession,
+            builder: (_) => RoomLiveRejoinScope(
+              onScanPeerCode: () => _scanPeerCodeFromLive(room),
+              child: RoomConnectionStatusScope(
+                room: room,
+                runtime: runtime,
+                peerProofs: binding.verifiedPeerProofs,
+                initialPeerProofs: binding.verifiedPeerProofSnapshot,
+                child: livePage,
+              ),
             ),
           );
         }
@@ -1728,6 +1808,8 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
             link: _resolvedLink,
             mode: _modeStore?.mode,
             failureMessage: _failureMessage(context, state.failure),
+            requiresPremium: _needsWifiAccess,
+            onUseBluetooth: () => unawaited(_connectWithBluetooth(room)),
             onRetry: state.failure == null ? null : () => _startRide(room),
             onStartRide: () => _startRide(room),
             // Only when this phone is on a Wi-Fi network, and only on request:
@@ -1740,11 +1822,22 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
             // channel.  Its recovery stays inside that Room hand-off; the
             // generic channel setup has a second QR and must not replace it.
             onConnect:
-                _offersConnect(state.failure) &&
+                (_roomPin == TransferMode.bluetooth
+                        ? !(_links?.bluetooth ?? false) ||
+                              _offersConnect(state.failure)
+                        : _resolvedLink != LiveLink.bluetooth ||
+                              _offersConnect(state.failure)) &&
                     !RoomProximityControlSessionRegistry.instance.hasRoom(
                       room.room.id,
                     )
-                ? () => _connect(context, room)
+                ? () {
+                    if (_roomPin == TransferMode.bluetooth ||
+                        _resolvedLink == LiveLink.bluetooth) {
+                      unawaited(_connectWithBluetooth(room));
+                    } else {
+                      unawaited(_startRide(room));
+                    }
+                  }
                 : null,
             onBack: () => leaveRoomEntry(context),
           ),

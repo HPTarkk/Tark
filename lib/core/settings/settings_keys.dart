@@ -68,6 +68,8 @@ abstract final class SettingsKeys {
   static const btLastPeerId = 'bt_last_peer_id';
   static const btLastPeerName = 'bt_last_peer_name';
   static const btLastRole = 'bt_last_role';
+  static const lastConnectedTransport = 'last_connected_transport';
+  static const btLastConnectedEngine = 'bt_last_connected_engine';
   static const musicCastNotifHintDismissed = 'music_cast_notif_hint_dismissed';
   static const sfxEnabled = 'sfx_enabled';
 

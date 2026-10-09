@@ -8,6 +8,7 @@ import 'package:injectable/injectable.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../core/recovery/bounded_retry.dart';
+import '../../../../core/settings/connection_history.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/sfx/sfx_event.dart';
 import '../../../../core/sfx/sfx_player.dart';
@@ -43,7 +44,8 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
   /// How long the scan is given to turn up a SECOND Tark host before the
   /// first one is joined automatically. Short enough to feel instant, long
   /// enough that two friends hosting at once still get a choice.
-  static const _soloJoinSettle = Duration(seconds: 2);
+  static const _soloJoinSettle = Duration(milliseconds: 800);
+  String? _soloJoinTargetId;
 
   /// True while a background auto-reconnect (started by the cubit itself,
   /// not a user tap) is in flight — its failures must fall back to role
@@ -91,11 +93,8 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
   @visibleForTesting
   Future<bool> Function() scanLocationReady = bluetoothScanLocationReady;
 
-  BluetoothConnectCubit(
-    this._transport,
-    this._settingsRepository,
-    this._sfx,
-  ) : super(BluetoothConnectState.initial()) {
+  BluetoothConnectCubit(this._transport, this._settingsRepository, this._sfx)
+    : super(BluetoothConnectState.initial()) {
     _connectionSub = _transport.connectionState.listen((s) {
       if (s == BluetoothConnectionState.connected) {
         _autoAttempt = false;
@@ -220,6 +219,8 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
   /// run at all.
   Future<String?> _autoReconnectRole() async {
     if (isClosed || state.role != null) return null;
+    final history = ConnectionHistory.registered;
+    if (history != null && !history.canResumeClassicBluetooth) return null;
     if (!await _settingsRepository.getAutoReconnectEnabled()) return null;
     // Role first: what this device is about to do decides which permissions
     // have to already be in hand for it to do it silently.
@@ -584,11 +585,25 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
   /// host arriving a moment later cancels the auto-join and hands the choice
   /// back to the user, who can also always Cancel out of the radar.
   void _considerSoloAutoJoin() {
-    _soloJoinTimer?.cancel();
-    if (state.connectingPeerId != null) return;
+    if (state.connectingPeerId != null) {
+      _soloJoinTimer?.cancel();
+      _soloJoinTargetId = null;
+      return;
+    }
     final hosts = state.peers.where((p) => p.isAppHost).toList();
-    if (hosts.length != 1) return;
+    if (hosts.length != 1) {
+      _soloJoinTimer?.cancel();
+      _soloJoinTargetId = null;
+      return;
+    }
     final only = hosts.single;
+    // RSSI updates for the same phone are not new choices. Restarting this
+    // timer on each scan event could postpone connecting indefinitely.
+    if (_soloJoinTimer?.isActive == true && _soloJoinTargetId == only.id) {
+      return;
+    }
+    _soloJoinTimer?.cancel();
+    _soloJoinTargetId = only.id;
     _soloJoinTimer = Timer(_soloJoinSettle, () {
       if (isClosed || state.connectingPeerId != null) return;
       if (state.connectionState != BluetoothConnectionState.scanning) return;

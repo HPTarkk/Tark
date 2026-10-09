@@ -31,18 +31,29 @@ import 'subscription_service.dart';
 /// are checked in the UI before the cubit rather than only inside it.
 Future<bool> openSubscriptionGate(
   BuildContext context,
-  PremiumFeature feature,
-) async {
+  PremiumFeature feature, {
+  Future<void> Function()? onFreeAlternative,
+}) async {
   final gate = GetIt.instance<LicenseGate>();
   if (gate.allows(feature)) return true;
+  var choseFree = false;
   final granted = await Navigator.of(context).push<bool>(
     MaterialPageRoute(
       settings: const RouteSettings(name: 'SubscriptionGate'),
       fullscreenDialog: true,
-      builder: (_) => SubscriptionGatePage(feature: feature),
+      builder: (_) => SubscriptionGatePage(
+        feature: feature,
+        onFreeAlternative: onFreeAlternative == null
+            ? null
+            : () {
+                choseFree = true;
+                Navigator.of(context).pop(false);
+              },
+      ),
     ),
   );
-  return granted ?? false;
+  if (choseFree && context.mounted) await onFreeAlternative!();
+  return granted == true && gate.allows(feature);
 }
 
 /// The same screen opened from the subscription page rather than a locked
@@ -68,10 +79,11 @@ Future<bool> openSubscriptionPlans(BuildContext context) async =>
 /// could not do, and the one thing that would fix it — and free features are
 /// always a tap away.
 class SubscriptionGatePage extends StatefulWidget {
-  const SubscriptionGatePage({this.feature, super.key});
+  const SubscriptionGatePage({this.feature, this.onFreeAlternative, super.key});
 
   /// The locked feature that was tapped; null when opened to see the plans.
   final PremiumFeature? feature;
+  final VoidCallback? onFreeAlternative;
 
   @override
   State<SubscriptionGatePage> createState() => _SubscriptionGatePageState();
@@ -328,21 +340,42 @@ class _SubscriptionGatePageState extends State<SubscriptionGatePage> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Center(child: _heroFor(view)),
-                        PhaseSwitcher(
-                          child: switch (view) {
-                            _Checking() => const _CheckingState(
-                              key: ValueKey('checking'),
-                            ),
-                            _Resolved(:final outcome) => KeyedSubtree(
-                              key: ValueKey(outcome.runtimeType),
-                              child: _buildOutcome(context, outcome),
-                            ),
-                          },
+                        AnimatedSize(
+                          duration: AppMotion.reduced(context)
+                              ? Duration.zero
+                              : AppMotion.entrance,
+                          curve: AppMotion.easeOut,
+                          alignment: Alignment.topCenter,
+                          child: PhaseSwitcher(
+                            child: switch (view) {
+                              _Checking() => const _CheckingState(
+                                key: ValueKey('checking'),
+                              ),
+                              _Resolved(:final outcome) => KeyedSubtree(
+                                key: ValueKey(outcome.runtimeType),
+                                child: _buildOutcome(context, outcome),
+                              ),
+                            },
+                          ),
                         ),
                       ],
                     ),
                   ),
                 ),
+                if (widget.onFreeAlternative != null)
+                  TextButton.icon(
+                    key: const Key('paywall-free-bluetooth'),
+                    onPressed: _busy ? null : widget.onFreeAlternative,
+                    icon: const Icon(Icons.bluetooth_rounded, size: 16),
+                    label: Text(context.getString.lobby_free_bluetooth),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.textSecondary,
+                      textStyle: Theme.of(
+                        context,
+                      ).textTheme.labelLarge?.copyWith(fontSize: 12),
+                      minimumSize: const Size(48, 48),
+                    ),
+                  ),
                 // The buy button stays in reach however far the plans
                 // scroll; it rises in once there is something to buy.
                 AnimatedSwitcher(
@@ -531,6 +564,8 @@ class _SubscribeState extends StatelessWidget {
     final ended = endedAt;
     final reason = switch (feature) {
       PremiumFeature.wifiTransport => s.paywall_locked_wifi,
+      PremiumFeature.groupRooms => s.paywall_locked_group,
+      PremiumFeature.extraRooms => s.paywall_locked_rooms,
       PremiumFeature.selfMute => s.paywall_locked_mute,
       PremiumFeature.musicPlayback => s.paywall_locked_music,
       null => s.mysub_none_body,
@@ -604,6 +639,12 @@ class _Perks extends StatelessWidget {
     final s = context.getString;
     final perks = [
       (PremiumFeature.wifiTransport, Icons.wifi_rounded, s.paywall_perk_wifi),
+      (PremiumFeature.groupRooms, Icons.groups_rounded, s.paywall_perk_group),
+      (
+        PremiumFeature.extraRooms,
+        Icons.meeting_room_rounded,
+        s.paywall_perk_rooms,
+      ),
       (PremiumFeature.selfMute, Icons.mic_off_rounded, s.paywall_perk_mute),
       (
         PremiumFeature.musicPlayback,
@@ -611,20 +652,32 @@ class _Perks extends StatelessWidget {
         s.paywall_perk_music,
       ),
     ];
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+    return StaggeredEntrance(
+      beginOffset: const Offset(0, 0.4),
+      children: [
+        for (final (feature, icon, label) in perks)
+          _PerkTile(icon: icon, label: label, lit: feature == highlight),
+      ],
+      builder: (context, children) => Column(
         children: [
-          for (final (i, (feature, icon, label)) in perks.indexed) ...[
-            if (i > 0) const SizedBox(width: 10),
-            Expanded(
-              child: _PerkTile(
-                icon: icon,
-                label: label,
-                lit: feature == highlight,
+          for (var i = 0; i < children.length; i += 2)
+            Padding(
+              padding: EdgeInsets.only(top: i == 0 ? 0 : 10),
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(child: children[i]),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: i + 1 < children.length
+                          ? children[i + 1]
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ],
         ],
       ),
     );
@@ -641,7 +694,9 @@ class _PerkTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final amber = AppColors.amber;
-    return Container(
+    return AnimatedContainer(
+      duration: AppMotion.reduced(context) ? Duration.zero : AppMotion.card,
+      curve: AppMotion.easeOut,
       padding: const EdgeInsets.fromLTRB(8, 12, 8, 12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),

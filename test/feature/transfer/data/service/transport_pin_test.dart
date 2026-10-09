@@ -9,6 +9,7 @@ import 'package:tark/feature/transfer/data/service/transfer_mode_store_impl.dart
 import 'package:tark/feature/transfer/domain/entity/session_role.dart';
 import 'package:tark/feature/transfer/domain/entity/transfer_mode.dart';
 import 'package:tark/feature/transfer/domain/service/session_role_store.dart';
+import 'package:tark/feature/transfer/domain/service/transfer_mode_store.dart';
 
 class _FakeRoleStore implements SessionRoleStore {
   SessionRole? _role;
@@ -62,6 +63,20 @@ void main() {
 
   Future<Object?> readKey(String key) async =>
       (await SharedPreferences.getInstance()).getString(key);
+
+  test(
+    'legacy automatic does not select a Bluetooth repository fallback for navigation',
+    () async {
+      final s = await store({
+        SettingsKeys.transportMode: 'bluetooth',
+        SettingsKeys.transportPin: 'auto',
+      });
+      expect(s.mode, TransferMode.bluetooth);
+      expect(s.connectionChoice, TransferMode.wifi);
+      await s.setPinnedMode(TransferMode.bluetooth);
+      expect(s.connectionChoice, TransferMode.bluetooth);
+    },
+  );
 
   group('automatic is the default, and stays the default', () {
     // The single most important case: everything that shipped before the pin
@@ -164,18 +179,17 @@ void main() {
   });
 
   group('entitlement', () {
-    // Demoted to automatic rather than to Bluetooth. Leaving a paid pin in
-    // place would have the advisor keep short-circuiting to a transport
-    // setMode then refuses — a button that visibly does nothing — while
-    // rewriting it to Bluetooth would put a hand-picked value in a slot the
-    // user never touched, so a later purchase would restore nothing.
-    test('a paid pin falls back to automatic when unentitled', () async {
-      final s = await store({
-        SettingsKeys.transportPin: 'wifi',
-      }, unlocked: false);
-      expect(s.pinnedMode, isNull);
-      expect(await readKey(SettingsKeys.transportPin), 'auto');
-    });
+    test(
+      'expiry preserves the selected Wi-Fi route for its upgrade gate',
+      () async {
+        final s = await store({
+          SettingsKeys.transportPin: 'wifi',
+        }, unlocked: false);
+        expect(s.pinnedMode, TransferMode.wifi);
+        expect(s.connectionChoice, TransferMode.wifi);
+        expect(await readKey(SettingsKeys.transportPin), 'wifi');
+      },
+    );
 
     test('a free pin is untouched', () async {
       final s = await store({

@@ -24,8 +24,8 @@ class LinkConditions {
 
   final bool bluetoothSupported;
 
-  /// A transport chosen by hand in Advanced settings, or null for automatic —
-  /// which is the default and what almost every install runs.
+  /// An explicit transport preference. Empty legacy preferences use the
+  /// Wi-Fi/Hotspot path and never opt into Bluetooth.
   final TransferMode? pinned;
 
   const LinkConditions({
@@ -83,9 +83,7 @@ class ChannelPlan {
     required this.pinned,
   });
 
-  /// This plan cannot be walked. Only ever true for a pinned Wi-Fi with no
-  /// network — automatic never produces it, because it would have moved to
-  /// the hotspot or Bluetooth rung instead.
+  /// Wi-Fi needs a network when this device cannot arrange a hotspot.
   bool get blocked => reason == ChannelPlanReason.noNetwork;
 
   /// Guest is a host-only transport: the other end is a browser, not another
@@ -149,7 +147,7 @@ abstract final class TransportAdvisor {
         pinned: true,
       );
     }
-    final mode = _automatic(intent, conditions);
+    final mode = _wifiOrHotspot(intent, conditions);
     return ChannelPlan(
       intent: intent,
       mode: mode,
@@ -171,20 +169,18 @@ abstract final class TransportAdvisor {
   /// two phones make between themselves works whether they stay put or leave,
   /// so it is the default and shared-Wi-Fi is the opt-in (see
   /// [ChannelPlan.canFallBackToWifi]) rather than the other way around.
-  /// Bluetooth comes after, needing no network at all but paying for it in
-  /// range and bandwidth. Wi-Fi is the floor rather than the ceiling: on a
+  /// Bluetooth requires an explicit pin. Wi-Fi is the floor: on a
   /// device that can do none of the above (desktop, web, an iPhone hosting) it
   /// is the only transport left that still binds a socket, and a plan that
   /// goes nowhere reports itself as [ChannelPlan.blocked] rather than
   /// pretending.
-  static TransferMode _automatic(ChannelIntent intent, LinkConditions c) {
+  static TransferMode _wifiOrHotspot(ChannelIntent intent, LinkConditions c) {
     final canBridge = switch (intent) {
       ChannelIntent.create => c.canHostHotspot,
       ChannelIntent.join => c.canJoinHotspot,
     };
     if (canBridge) return TransferMode.hotspot;
     if (c.hasWifi) return TransferMode.wifi;
-    if (c.bluetoothSupported) return TransferMode.bluetooth;
     return TransferMode.wifi;
   }
 

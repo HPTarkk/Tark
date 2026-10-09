@@ -4,18 +4,10 @@ import '../entity/transfer_mode.dart';
 /// complete before [runApp] so [mode] can be read synchronously by the DI
 /// factory that selects which TransferRepository implementation to inject.
 ///
-/// Two values, not one, and the distinction is the point:
-///
-///  * [mode] is what the app is *using*. Something always is, so it is never
-///    null, and every path that commits to a transport writes it — including
-///    the landing page's automatic choice.
-///  * [pinnedMode] is what the user *asked for*, and is null for almost
-///    everyone, because automatic is the default. Only Advanced settings
-///    writes it.
-///
-/// Collapsing them would mean automatic had to store a transport to be
-/// automatic about, which is how "I picked Wi-Fi once, in a building, in
-/// March" becomes a permanent instruction.
+/// [mode] chooses the active repository; [pinnedMode] preserves the user's
+/// connection preference. Empty legacy preferences mean Wi-Fi/Hotspot.
+/// Navigation uses [TransferModePreference.connectionChoice] so a free idle
+/// repository after subscription expiry does not change the requested route.
 abstract interface class TransferModeStore {
   TransferMode get mode;
 
@@ -24,21 +16,19 @@ abstract interface class TransferModeStore {
   /// change made elsewhere without polling.
   Stream<TransferMode> get modeChanges;
 
-  /// The transport pinned by hand, or null for automatic. Read by
-  /// `TransportAdvisor` as the one input that short-circuits its ladder.
+  /// The explicit preference, or an empty legacy Wi-Fi/Hotspot default.
   TransferMode? get pinnedMode;
 
   /// Emits on every [setPinnedMode], null included. Separate from
-  /// [modeChanges] because they answer different questions and change at
-  /// different rates: under automatic the effective mode moves whenever the
-  /// user walks between networks, while the pin does not move at all.
+  /// [modeChanges] because a connection preference and its active carrier
+  /// answer different questions.
   Stream<TransferMode?> get pinChanges;
 
   Future<void> initialize();
 
   Future<void> setMode(TransferMode mode);
 
-  /// Pins a transport, or passes null to go back to automatic.
+  /// Pins a transport. Null remains accepted for legacy Wi-Fi/Hotspot callers.
   ///
   /// Pinning also puts the mode into effect immediately — a picker that
   /// selected a transport the app then went on not to use would be a lie.
@@ -46,4 +36,10 @@ abstract interface class TransferModeStore {
   /// *to* until the next tap on the landing page names an intent, and
   /// rewriting it here would guess at that.
   Future<void> setPinnedMode(TransferMode? mode);
+}
+
+/// User-facing routing follows the connection preference. A free internal
+/// repository fallback after subscription expiry must not choose Bluetooth.
+extension TransferModePreference on TransferModeStore {
+  TransferMode get connectionChoice => pinnedMode ?? TransferMode.wifi;
 }

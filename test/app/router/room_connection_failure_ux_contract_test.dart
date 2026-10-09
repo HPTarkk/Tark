@@ -69,7 +69,7 @@ void main() {
         'lib/feature/room/presentation/widget/selected_room_lobby.dart',
       ).readAsStringSync();
 
-      expect(lobby, contains("context.getString.retry"));
+      expect(lobby, contains('s.retry'));
       expect(lobby, contains("key: const Key('selected-room-start-failure')"));
       expect(lobby, isNot(contains('SSID')));
       expect(lobby, isNot(contains('IP address')));

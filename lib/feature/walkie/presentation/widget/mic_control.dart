@@ -54,14 +54,18 @@ class _MicControlState extends State<MicControl> {
   bool _lockedFor(bool muted) =>
       !muted && !_gate.allows(PremiumFeature.selfMute);
 
-  void _toggle(BuildContext context) {
+  Future<void> _toggle(BuildContext context) async {
     final muted = context.read<WalkieTalkieCubit>().state.isSelfMuted;
     if (_lockedFor(muted)) {
-      openSubscriptionGate(context, PremiumFeature.selfMute);
-      return;
+      if (!await openSubscriptionGate(context, PremiumFeature.selfMute)) return;
     }
+    if (!context.mounted) return;
+    final cubit = context.read<WalkieTalkieCubit>();
+    // Preserve the requested direction if another control changed mute while
+    // the subscription page was open.
+    if (cubit.state.isSelfMuted != muted) return;
     HapticFeedback.selectionClick();
-    context.read<WalkieTalkieCubit>().toggleSelfMute();
+    cubit.toggleSelfMute();
   }
 
   @override

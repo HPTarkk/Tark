@@ -33,7 +33,7 @@ final class RoomProximityControlSessionRegistry {
   static RoomTransportChoice _settingsChoice() {
     final getIt = GetIt.instance;
     if (!getIt.isRegistered<TransferModeStore>()) {
-      return RoomTransportChoice.automatic;
+      return RoomTransportChoice.hotspot;
     }
     return RoomTransportChoice.fromPin(getIt<TransferModeStore>().pinnedMode);
   }

@@ -52,24 +52,14 @@ class TransferModeStoreImpl implements TransferModeStore {
     // Fall back to the free transport and persist it, so the demotion is
     // decided exactly once rather than re-evaluated on every read.
     if (_mode.requiresPremium && !_gate.allows(PremiumFeature.wifiTransport)) {
-      Logger.log('TransferMode: ${_mode.key} not entitled, falling back to BT');
+      Logger.log(
+        'TransferMode: ${_mode.key} not entitled, using free idle repository; keeping connection preference',
+      );
       _mode = TransferMode.bluetooth;
       await _prefs.setString(SettingsKeys.transportMode, _mode.key);
     }
-    // The pin is demoted separately, and to automatic rather than to
-    // Bluetooth. Leaving a paid pin in place would have the advisor keep
-    // short-circuiting to a transport [setMode] then refuses, which reads on
-    // screen as a button that does nothing; and rewriting it to Bluetooth
-    // would put a hand-picked value in a slot the user never touched, so that
-    // a later purchase restores nothing.
-    final pinned = _pinned;
-    if (pinned != null &&
-        pinned.requiresPremium &&
-        !_gate.allows(PremiumFeature.wifiTransport)) {
-      Logger.log('TransferMode: pin ${pinned.key} not entitled, back to auto');
-      _pinned = null;
-      await _prefs.setString(SettingsKeys.transportPin, _autoKey);
-    }
+    // Keep the user's preference. Connection entry points offer the upgrade
+    // and a quiet free alternative, rather than silently routing into BT.
   }
 
   /// `fromKey` cannot be used here: it answers an absent/unknown key with

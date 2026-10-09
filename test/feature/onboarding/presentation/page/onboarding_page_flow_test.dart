@@ -219,25 +219,29 @@ void main() {
         expect(journey.cubit(tester).state.mode, choice.$2);
         expect(journey.modes.pinnedMode, isNull);
       }
-      await tester.tap(find.text(strings.transport_automatic));
+      expect(find.text(strings.transport_automatic), findsNothing);
+      await tester.tap(find.text(strings.transport_wifi_hotspot));
       await tester.pump();
       await _advance(tester);
       expect(find.byType(ReadyStep), findsOneWidget);
-      expect(journey.cubit(tester).state.mode, isNull);
+      expect(journey.cubit(tester).state.mode, TransferMode.wifi);
       expect(
         tester.widget<HudActionKey>(find.byType(HudActionKey)).label,
-        strings.onboarding_finish,
+        strings.join_channel,
       );
       expect(journey.prefs.getBool(OnboardingPrefs.completed), isNull);
-      await _advance(tester);
+      await tester.tap(
+        find.text('‹ ${strings.onboarding_explore} ›'.toUpperCase()),
+      );
+      await _transition(tester);
       expect(find.text('Lobby reached'), findsOneWidget);
       expect(journey.prefs.getString(SettingsKeys.userName), 'Trail rider');
       expect(journey.prefs.getInt(SettingsKeys.avatarId), 5);
-      expect(journey.prefs.getString(SettingsKeys.transportPin), 'auto');
+      expect(journey.prefs.getString(SettingsKeys.transportPin), 'wifi');
       expect(journey.prefs.getBool(OnboardingPrefs.completed), isTrue);
       expect(
         journey.prefs.getBool(QuickAccessPrefs.hasLaunchedBefore) ?? false,
-        isTrue,
+        isFalse,
       );
     },
   );

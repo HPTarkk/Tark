@@ -109,6 +109,11 @@ void main() {
     final lobby = find.byKey(const Key('selected-room-lobby'));
     expect(lobby, findsOneWidget);
     expect(Directionality.of(tester.element(lobby)), TextDirection.rtl);
+    await tester.scrollUntilVisible(
+      find.text('اعضای اتاق (۲)'),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('اعضای اتاق (۲)'), findsOneWidget);
     expect(find.text('جای خالی'), findsNothing);
     expect(

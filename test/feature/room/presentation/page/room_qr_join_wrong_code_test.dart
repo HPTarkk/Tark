@@ -226,6 +226,8 @@ abstract final class ClientChannel {
 
 class _FakeRoomList implements RoomListCubit {
   @override
+  Future<bool> needsMoreRoomsAccess({RoomId? existingRoom}) async => false;
+  @override
   Future<bool> joinDirect(
     RoomDirectJoinBundle bundle, {
     String? localDisplayName,

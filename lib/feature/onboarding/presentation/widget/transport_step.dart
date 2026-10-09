@@ -14,23 +14,14 @@ import '../manager/onboarding_cubit.dart';
 import 'hud.dart';
 import 'onboarding_palette.dart';
 
-/// Beat 4 — how peers connect, as a "network link" channel scan: four console
-/// rows, the first of which hands the decision back to the app.
-///
-/// **AUTOMATIC leads and is pre-selected (P2 §1).** The beat used to open with
-/// Wi-Fi already lit, which meant every first run ended by writing a transport
-/// preference the user had not so much chosen as walked past — and a
-/// preference beats the advisor by definition, so automatic would have been
-/// dead on arrival for every new install. Leading with it inverts that: doing
-/// nothing here is doing the right thing, and the three rows below stay for
-/// the person who knows they want one.
+/// Beat 4 — explicit transport choice, led by Wi-Fi/Hotspot.
 class TransportStep extends StatelessWidget {
   final Animation<double> reveal;
 
   const TransportStep({super.key, required this.reveal});
 
   static bool _isWifiGroup(TransferMode? mode) =>
-      mode == TransferMode.wifi || mode == TransferMode.hotspot;
+      mode == null || mode == TransferMode.wifi || mode == TransferMode.hotspot;
 
   @override
   Widget build(BuildContext context) {
@@ -60,14 +51,6 @@ class TransportStep extends StatelessWidget {
                 ),
                 const SizedBox(height: 14),
                 HudOption(
-                  icon: Icons.auto_awesome_rounded,
-                  label: s.transport_automatic,
-                  sublabel: s.onboarding_mode_auto_desc,
-                  selected: state.mode == null,
-                  onTap: () => _select(context, cubit, null),
-                ),
-                const SizedBox(height: 10),
-                HudOption(
                   icon: Icons.wifi_rounded,
                   label: s.transport_wifi_hotspot,
                   sublabel: s.onboarding_mode_wifi_desc,
@@ -75,7 +58,9 @@ class TransportStep extends StatelessWidget {
                   onTap: () => _select(
                     context,
                     cubit,
-                    _isWifiGroup(state.mode) ? state.mode : TransferMode.wifi,
+                    _isWifiGroup(state.mode)
+                        ? state.mode ?? TransferMode.wifi
+                        : TransferMode.wifi,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -102,24 +87,27 @@ class TransportStep extends StatelessWidget {
     );
   }
 
-  void _select(
+  Future<void> _select(
     BuildContext context,
     OnboardingCubit cubit,
     TransferMode? mode,
-  ) {
-    // Reachable in practice only after a trial has lapsed — a first run is
-    // always inside the trial, so onboarding normally sees everything
-    // unlocked. Gated anyway: the cubit persists this choice through
-    // TransferModeStore.setPinnedMode at launch, which would silently refuse
-    // it and leave a lit row that never took effect. Automatic is never
-    // gated: it is the absence of a pin, and the advisor's own ladder ends on
-    // free Bluetooth when nothing else is entitled.
+  ) async {
+    // Keep the same entitlement gate as Settings and offer Bluetooth only
+    // through the user's explicit choice in the upgrade screen.
     if (mode != null &&
         mode.requiresPremium &&
         !GetIt.instance<LicenseGate>().allows(PremiumFeature.wifiTransport)) {
-      openSubscriptionGate(context, PremiumFeature.wifiTransport);
-      return;
+      if (!await openSubscriptionGate(
+        context,
+        PremiumFeature.wifiTransport,
+        onFreeAlternative: () async {
+          if (context.mounted) cubit.selectMode(TransferMode.bluetooth);
+        },
+      )) {
+        return;
+      }
     }
+    if (!context.mounted) return;
     HapticFeedback.selectionClick();
     Sfx.play(SfxEvent.toggle);
     cubit.selectMode(mode);

@@ -2,93 +2,40 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/l10n/extension.dart';
-import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../manager/bluetooth_connect_cubit.dart';
+import 'bluetooth_signal_scene.dart';
 import 'bluetooth_wifi_bridge_hint.dart';
 
 /// Host waiting screen: pulsing beacon ripples while advertising for a peer.
-class BluetoothHostBeacon extends StatefulWidget {
-  final BluetoothConnectState state;
-
+class BluetoothHostBeacon extends StatelessWidget {
   const BluetoothHostBeacon({super.key, required this.state});
-
-  @override
-  State<BluetoothHostBeacon> createState() => _BluetoothHostBeaconState();
-}
-
-class _BluetoothHostBeaconState extends State<BluetoothHostBeacon>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ripple = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 2400),
-  );
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _ripple.loopUnlessReduced(context);
-  }
-
-  @override
-  void dispose() {
-    _ripple.dispose();
-    super.dispose();
-  }
+  final BluetoothConnectState state;
 
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
     return Align(
       alignment: AlignmentDirectional.topCenter,
-      child: Column(
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
         children: [
-          const Spacer(),
-          SizedBox(
-            width: 240,
-            height: 240,
-            child: AnimatedBuilder(
-              animation: _ripple,
-              builder: (context, _) => CustomPaint(
-                painter: _BeaconPainter(
-                  t: _ripple.value,
-                  color: AppColors.amber,
-                ),
-                child: Center(
-                  child: Container(
-                    width: 76,
-                    height: 76,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AppColors.amber.withAlpha(30),
-                      border: Border.all(color: AppColors.amber.withAlpha(170)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.amber.withAlpha(70),
-                          blurRadius: 24,
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      Icons.podcasts_rounded,
-                      color: AppColors.amber,
-                      size: 34,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
+          const SizedBox(height: 12),
+          const BluetoothSignalScene(phase: BluetoothSignalPhase.hosting),
           const SizedBox(height: 28),
           Text(
             s.bt_waiting_for_peer,
             textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           // Discoverability is a timed grant on Android: once it lapses the
           // beacon still pulses but no scanning phone can see it. Offer the
           // re-arm here rather than popping the system dialog unprompted.
-          if (!widget.state.hostDiscoverable) ...[
+          if (!state.hostDiscoverable) ...[
             const SizedBox(height: 18),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -98,7 +45,7 @@ class _BluetoothHostBeaconState extends State<BluetoothHostBeacon>
               ),
             ),
           ],
-          if (widget.state.bleUnavailable) ...[
+          if (state.bleUnavailable) ...[
             const SizedBox(height: 18),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -106,7 +53,7 @@ class _BluetoothHostBeaconState extends State<BluetoothHostBeacon>
             ),
           ],
           const SizedBox(height: 18),
-          if (widget.state.myName.isNotEmpty)
+          if (state.myName.isNotEmpty)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
               decoration: BoxDecoration(
@@ -114,8 +61,8 @@ class _BluetoothHostBeaconState extends State<BluetoothHostBeacon>
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: AppColors.border),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     s.bt_visible_as,
@@ -126,9 +73,11 @@ class _BluetoothHostBeaconState extends State<BluetoothHostBeacon>
                       letterSpacing: 1.5,
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(height: 6),
                   Text(
-                    widget.state.myName,
+                    state.myName,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: AppColors.amber,
                       fontSize: 13,
@@ -138,7 +87,7 @@ class _BluetoothHostBeaconState extends State<BluetoothHostBeacon>
                 ],
               ),
             ),
-          const Spacer(),
+          const SizedBox(height: 12),
         ],
       ),
     );
@@ -226,33 +175,4 @@ class _DiscoverableAgainCard extends StatelessWidget {
       ),
     );
   }
-}
-
-class _BeaconPainter extends CustomPainter {
-  final double t;
-  final Color color;
-
-  _BeaconPainter({required this.t, required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = size.center(Offset.zero);
-    final maxRadius = size.shortestSide / 2;
-    for (var k = 0; k < 3; k++) {
-      final phase = (t + k / 3) % 1.0;
-      final radius = 40 + phase * (maxRadius - 40);
-      final alpha = ((1 - phase) * 110).toInt();
-      canvas.drawCircle(
-        center,
-        radius,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.6
-          ..color = color.withAlpha(alpha),
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_BeaconPainter old) => old.t != t;
 }

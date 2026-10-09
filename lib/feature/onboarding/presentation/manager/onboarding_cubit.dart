@@ -99,9 +99,9 @@ class OnboardingCubit extends Cubit<OnboardingState> {
 
   void selectAvatar(int id) => emit(state.copyWith(avatarId: id));
 
-  /// Null is "automatic", and is a real selection here rather than the absence
-  /// of one — see [OnboardingState.mode].
-  void selectMode(TransferMode? mode) => emit(state.withMode(mode));
+  /// Empty legacy preferences use Wi-Fi/Hotspot.
+  void selectMode(TransferMode? mode) =>
+      emit(state.withMode(mode ?? TransferMode.wifi));
 
   /// Records the theme preference (previewed live as the sky's time of day);
   /// the real [ThemeService] switch is deferred to [finish] so the flow stays
@@ -116,11 +116,7 @@ class OnboardingCubit extends Cubit<OnboardingState> {
     if (name.isNotEmpty) await _settingsRepository.setMyName(name);
     final avatarId = state.avatarId;
     if (avatarId != null) await _settingsRepository.setMyAvatarId(avatarId);
-    // A *pin*, not the effective mode. The beat is pre-selected on AUTOMATIC,
-    // so walking past it without touching anything leaves the advisor free to
-    // choose — which is the whole of P2 §1, and would be undone on the very
-    // first run if onboarding wrote a transport on the way out.
-    await _modeStore.setPinnedMode(state.mode);
+    await _modeStore.setPinnedMode(state.mode ?? TransferMode.wifi);
     // Apply the deferred theme choice now, on the way out — the global re-key
     // it triggers is harmless here since we're leaving the flow.
     if (ThemeService.currentMode != state.themePref) {
@@ -165,9 +161,7 @@ class OnboardingState extends Equatable {
   /// the default rather than blocking on a choice.
   final int? avatarId;
 
-  /// The transport the user pinned on beat 4, or null for automatic — which
-  /// is where the beat starts and where the overwhelming majority of runs
-  /// leave it.
+  /// The transport selected on beat 4. Wi-Fi/Hotspot is the initial choice.
   final TransferMode? mode;
 
   /// The theme the user has chosen on the tune beat. Held here (not pushed to

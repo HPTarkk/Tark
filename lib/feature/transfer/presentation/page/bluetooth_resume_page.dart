@@ -8,18 +8,19 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
+import '../../../../core/motion/route_arrival.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../../core/widget/link_established.dart';
+import '../../../../core/widget/link_unavailable.dart';
 import '../../../../core/widget/mesh_background.dart';
 import '../../domain/entity/bluetooth_connection_state.dart';
 import '../../domain/entity/bluetooth_role.dart';
 import '../manager/bluetooth_connect_cubit.dart';
 import '../widget/bluetooth_resume_beacon.dart';
-import '../widget/hotspot_shared_widgets.dart';
 
-/// Cold start after a Bluetooth call: find the same phone again, then ask.
+/// Cold start after a Classic Bluetooth call: find the same phone again.
 ///
 /// Opened instead of Landing when the last call ran over Bluetooth (see
 /// `QuickAccess.shouldResumeBluetooth`). It reuses the Bluetooth page's own
@@ -27,10 +28,9 @@ import '../widget/hotspot_shared_widgets.dart';
 /// phone — and only adds the frame around it:
 ///
 /// - one animated screen with a Cancel, instead of the host/join screens;
-/// - a hard [_giveUpAfter] limit, after which it drops back to Landing with a
-///   short note rather than searching forever for a phone that is not coming;
-/// - once linked, a question — the channel only opens when the user says so,
-///   and "Not now" closes the link rather than leaving it open unseen.
+/// - a hard [_giveUpAfter] limit, followed by an animated failure result;
+/// - an animated success result when linked, then Home with the link ready.
+///   Starting a conversation remains an explicit action from Home.
 ///
 /// When the cubit decides not to resume at all (a permission missing, the
 /// radio off), the screen steps aside to Landing without a word: nothing was
@@ -47,10 +47,10 @@ class BluetoothResumePage extends StatefulWidget {
   State<BluetoothResumePage> createState() => _BluetoothResumePageState();
 }
 
-enum _Phase { starting, searching, connected, leaving }
+enum _Phase { starting, searching, connected, failed, leaving }
 
 class _BluetoothResumePageState extends State<BluetoothResumePage>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, RouteArrival<BluetoothResumePage> {
   static const _giveUpAfter = Duration(seconds: 30);
 
   late final AnimationController _countdown = AnimationController(
@@ -60,15 +60,14 @@ class _BluetoothResumePageState extends State<BluetoothResumePage>
 
   _Phase _phase = _Phase.starting;
   Timer? _giveUp;
+  Timer? _successHold;
 
   /// Whether the link came up. Kept apart from [_phase] so the success view
   /// stays put while leaving, instead of flashing back to the search as the
   /// cubit resets underneath the route transition.
   bool _linked = false;
-
-  /// Set once the success animation has had its moment, so the question
-  /// arrives after the link visibly lands rather than on top of it.
-  bool _askReady = false;
+  bool _failed = false;
+  bool _routeArrived = false;
 
   @override
   void initState() {
@@ -86,21 +85,37 @@ class _BluetoothResumePageState extends State<BluetoothResumePage>
     setState(() => _phase = _Phase.searching);
     _countdown.forward();
     _giveUp = Timer(_giveUpAfter, () => _leave(failed: true));
+    final current = context.read<BluetoothConnectCubit>().state;
+    if (current.connectionState == BluetoothConnectionState.connected) {
+      _onState(context, current);
+    }
+  }
+
+  @override
+  void onRouteArrived() {
+    _routeArrived = true;
+    final current = context.read<BluetoothConnectCubit>().state;
+    if (_phase == _Phase.searching &&
+        current.connectionState == BluetoothConnectionState.connected) {
+      _onState(context, current);
+    }
   }
 
   @override
   void dispose() {
     _giveUp?.cancel();
+    _successHold?.cancel();
     _countdown.dispose();
     super.dispose();
   }
 
   void _onState(BuildContext context, BluetoothConnectState state) {
     switch (_phase) {
-      case _Phase.starting || _Phase.leaving:
+      case _Phase.starting || _Phase.failed || _Phase.leaving:
         return;
       case _Phase.searching:
         if (state.connectionState == BluetoothConnectionState.connected) {
+          if (!_routeArrived) return;
           _giveUp?.cancel();
           _countdown.stop();
           HapticFeedback.mediumImpact();
@@ -108,18 +123,17 @@ class _BluetoothResumePageState extends State<BluetoothResumePage>
             _phase = _Phase.connected;
             _linked = true;
           });
-          Future<void>.delayed(LinkEstablished.hold, () {
-            if (mounted && _phase == _Phase.connected) {
-              setState(() => _askReady = true);
-            }
-          });
+          _successHold = Timer(
+            LinkEstablished.hold + AppMotion.sheet,
+            _finishSuccess,
+          );
         } else if (state.role == null) {
           // The cubit gave up on its own (hosting refused to start, or a
           // one-shot attempt timed out) — same outcome as running out of time.
           _leave(failed: true);
         }
       case _Phase.connected:
-        // The link fell apart while the question was up.
+        // The link fell apart while the success result was up.
         if (state.role == null ||
             state.connectionState == BluetoothConnectionState.error ||
             state.connectionState == BluetoothConnectionState.disconnected) {
@@ -131,36 +145,45 @@ class _BluetoothResumePageState extends State<BluetoothResumePage>
   /// Back to Landing, closing whatever link or attempt is in flight.
   void _leave({bool failed = false}) {
     if (_phase == _Phase.leaving || !mounted) return;
+    if (failed) {
+      if (_phase == _Phase.failed) return;
+      setState(() {
+        _phase = _Phase.failed;
+        _failed = true;
+      });
+      _giveUp?.cancel();
+      _successHold?.cancel();
+      _countdown.stop();
+      context.read<BluetoothConnectCubit>().backToRoleSelection();
+      return;
+    }
     setState(() => _phase = _Phase.leaving);
     _giveUp?.cancel();
     _countdown.stop();
-    context.read<BluetoothConnectCubit>().backToRoleSelection();
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    final note = context.getString.bt_resume_failed;
+    if (!_failed) context.read<BluetoothConnectCubit>().backToRoleSelection();
     context.goNamed(AppRoutes.landingName);
-    if (failed) {
-      messenger?.showSnackBar(
-        SnackBar(
-          content: Text(note),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 5),
-        ),
-      );
-    }
   }
 
-  void _enterChannel() {
+  void _finishFailure() {
+    if (!mounted || _phase != _Phase.failed) return;
+    setState(() => _phase = _Phase.leaving);
+    context.goNamed(AppRoutes.landingName);
+  }
+
+  void _finishSuccess() {
     if (_phase != _Phase.connected) return;
+    if (context.read<BluetoothConnectCubit>().state.connectionState !=
+        BluetoothConnectionState.connected) {
+      _leave(failed: true);
+      return;
+    }
     setState(() => _phase = _Phase.leaving);
     try {
-      // Same hand-off as the Bluetooth page: the link was just established
-      // here, so a selected Room goes live rather than back to its lobby.
-      context.goNamed(
-        AppRoutes.walkieName,
-        queryParameters: const {'ride': 'true'},
-      );
+      // Keep the established link ready; Home is an explicit pause before
+      // anyone starts a conversation or opens a microphone.
+      context.goNamed(AppRoutes.landingName);
     } catch (e) {
-      Logger.log('Walkie navigation failed: $e');
+      Logger.log('Resume navigation failed: $e');
       if (mounted) setState(() => _phase = _Phase.connected);
     }
   }
@@ -188,16 +211,25 @@ class _BluetoothResumePageState extends State<BluetoothResumePage>
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 28),
                     child: AnimatedSwitcher(
-                      duration: AppMotion.sheet,
+                      duration: AppMotion.reduced(context)
+                          ? Duration.zero
+                          : AppMotion.sheet,
                       switchInCurve: AppMotion.easeOut,
                       switchOutCurve: AppMotion.leaving,
-                      child: _linked
+                      child: _failed
+                          ? Center(
+                              child: LinkUnavailable(
+                                key: const ValueKey('resume-failed'),
+                                label:
+                                    context.getString.bt_resume_not_connected,
+                                detail: context.getString.bt_resume_failed,
+                                onFinished: _finishFailure,
+                              ),
+                            )
+                          : _linked
                           ? _Connected(
                               key: const ValueKey('connected'),
                               state: state,
-                              askReady: _askReady,
-                              onEnter: _enterChannel,
-                              onNotNow: _leave,
                             )
                           : _Searching(
                               key: const ValueKey('searching'),
@@ -280,18 +312,9 @@ class _Searching extends StatelessWidget {
 }
 
 class _Connected extends StatelessWidget {
-  const _Connected({
-    super.key,
-    required this.state,
-    required this.askReady,
-    required this.onEnter,
-    required this.onNotNow,
-  });
+  const _Connected({super.key, required this.state});
 
   final BluetoothConnectState state;
-  final bool askReady;
-  final VoidCallback onEnter;
-  final VoidCallback onNotNow;
 
   @override
   Widget build(BuildContext context) {
@@ -300,47 +323,8 @@ class _Connected extends StatelessWidget {
     final detail = state.role == BluetoothRole.joiner && peerName.isNotEmpty
         ? s.bt_resume_connected_to(peerName)
         : s.bt_resume_connected;
-    return Column(
-      children: [
-        const Spacer(flex: 3),
-        LinkEstablished(label: s.bt_connected, detail: detail),
-        const Spacer(flex: 2),
-        AnimatedOpacity(
-          opacity: askReady ? 1 : 0,
-          duration: AppMotion.entrance,
-          curve: AppMotion.easeOut,
-          child: AnimatedSlide(
-            offset: askReady ? Offset.zero : const Offset(0, 0.15),
-            duration: AppMotion.entrance,
-            curve: AppMotion.easeOut,
-            child: IgnorePointer(
-              ignoring: !askReady,
-              child: Column(
-                children: [
-                  Text(
-                    s.bt_resume_ask,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  HotspotPrimaryButton(
-                    icon: Icons.podcasts_rounded,
-                    label: s.hotspot_enter_channel,
-                    onTap: onEnter,
-                  ),
-                  const SizedBox(height: 10),
-                  _GhostButton(label: s.bt_resume_not_now, onTap: onNotNow),
-                ],
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 20),
-      ],
+    return Center(
+      child: LinkEstablished(label: s.bt_connected, detail: detail),
     );
   }
 }

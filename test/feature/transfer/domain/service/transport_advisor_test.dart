@@ -27,14 +27,13 @@ void main() {
   );
 
   /// Desktop/web: a socket and nothing else.
-  LinkConditions bare({bool wifi = false, TransferMode? pin}) =>
-      LinkConditions(
-        hasWifi: wifi,
-        canHostHotspot: false,
-        canJoinHotspot: false,
-        bluetoothSupported: false,
-        pinned: pin,
-      );
+  LinkConditions bare({bool wifi = false, TransferMode? pin}) => LinkConditions(
+    hasWifi: wifi,
+    canHostHotspot: false,
+    canJoinHotspot: false,
+    bluetoothSupported: false,
+    pinned: pin,
+  );
 
   group('the automatic ladder', () {
     // Home Wi-Fi is the least trustworthy moment to read "shared network" —
@@ -75,7 +74,7 @@ void main() {
       );
       expect(
         TransportAdvisor.plan(ChannelIntent.create, ios()).mode,
-        TransferMode.bluetooth,
+        TransferMode.wifi,
       );
     });
 
@@ -90,7 +89,7 @@ void main() {
       );
     });
 
-    test('Bluetooth catches what the hotspot rung cannot', () {
+    test('Bluetooth is never a fallback when Wi-Fi/Hotspot is unavailable', () {
       final plan = TransportAdvisor.plan(
         ChannelIntent.create,
         LinkConditions(
@@ -100,30 +99,40 @@ void main() {
           bluetoothSupported: true,
         ),
       );
-      expect(plan.mode, TransferMode.bluetooth);
-      expect(plan.reason, ChannelPlanReason.bluetoothLink);
+      expect(plan.mode, TransferMode.wifi);
+      expect(plan.reason, ChannelPlanReason.noNetwork);
     });
 
     // The property that makes the primary screen safe to tap: automatic is
     // only ever allowed to report a dead end on a device that genuinely has
     // one, never as a consequence of its own ordering.
-    test('automatic never blocks while any rung is available', () {
-      for (final intent in ChannelIntent.values) {
-        for (final wifi in [true, false]) {
-          expect(TransportAdvisor.plan(intent, android(wifi: wifi)).blocked,
-              isFalse);
-          expect(
-              TransportAdvisor.plan(intent, ios(wifi: wifi)).blocked, isFalse);
+    test(
+      'Wi-Fi/Hotspot availability determines whether the default is blocked',
+      () {
+        for (final intent in ChannelIntent.values) {
+          for (final wifi in [true, false]) {
+            expect(
+              TransportAdvisor.plan(intent, android(wifi: wifi)).blocked,
+              isFalse,
+            );
+            expect(
+              TransportAdvisor.plan(intent, ios(wifi: wifi)).blocked,
+              intent == ChannelIntent.create && !wifi,
+            );
+          }
         }
-      }
-    });
+      },
+    );
 
-    test('a device with no transport at all says so rather than pretending', () {
-      final plan = TransportAdvisor.plan(ChannelIntent.create, bare());
-      expect(plan.mode, TransferMode.wifi);
-      expect(plan.reason, ChannelPlanReason.noNetwork);
-      expect(plan.blocked, isTrue);
-    });
+    test(
+      'a device with no transport at all says so rather than pretending',
+      () {
+        final plan = TransportAdvisor.plan(ChannelIntent.create, bare());
+        expect(plan.mode, TransferMode.wifi);
+        expect(plan.reason, ChannelPlanReason.noNetwork);
+        expect(plan.blocked, isTrue);
+      },
+    );
 
     test('that same device is fine once it is on a network', () {
       expect(
@@ -196,7 +205,10 @@ void main() {
       for (final mode in TransferMode.values) {
         if (mode == TransferMode.guest) continue;
         expect(
-          TransportAdvisor.plan(ChannelIntent.join, android(pin: mode)).hostOnly,
+          TransportAdvisor.plan(
+            ChannelIntent.join,
+            android(pin: mode),
+          ).hostOnly,
           isFalse,
           reason: '$mode should have a join side',
         );
@@ -208,13 +220,17 @@ void main() {
     // exactly where the plan assumed it, and nowhere else.
     test('the different-network way out appears only on a Wi-Fi plan', () {
       expect(
-        TransportAdvisor.plan(ChannelIntent.create, ios(wifi: true))
-            .canFallBackToHotspot,
+        TransportAdvisor.plan(
+          ChannelIntent.create,
+          ios(wifi: true),
+        ).canFallBackToHotspot,
         isTrue,
       );
       expect(
-        TransportAdvisor.plan(ChannelIntent.create, android(wifi: true))
-            .canFallBackToHotspot,
+        TransportAdvisor.plan(
+          ChannelIntent.create,
+          android(wifi: true),
+        ).canFallBackToHotspot,
         isFalse,
       );
       expect(
@@ -230,13 +246,17 @@ void main() {
     // and only makes sense while it's the plan on screen.
     test('the same-wifi way out appears only on a hotspot plan', () {
       expect(
-        TransportAdvisor.plan(ChannelIntent.create, android(wifi: true))
-            .canFallBackToWifi,
+        TransportAdvisor.plan(
+          ChannelIntent.create,
+          android(wifi: true),
+        ).canFallBackToWifi,
         isTrue,
       );
       expect(
-        TransportAdvisor.plan(ChannelIntent.create, ios(wifi: true))
-            .canFallBackToWifi,
+        TransportAdvisor.plan(
+          ChannelIntent.create,
+          ios(wifi: true),
+        ).canFallBackToWifi,
         isFalse,
       );
       expect(

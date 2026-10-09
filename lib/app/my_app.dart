@@ -48,7 +48,7 @@ class _MyAppState extends State<MyApp> {
       AppRouter.router.go(
         QuickAccess.locationForLaunch(
           launch,
-          GetIt.instance<TransferModeStore>().mode,
+          GetIt.instance<TransferModeStore>().connectionChoice,
         ),
       );
     });

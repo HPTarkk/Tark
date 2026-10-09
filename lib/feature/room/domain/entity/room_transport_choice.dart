@@ -3,9 +3,8 @@ import '../../../transfer/domain/entity/transfer_mode.dart';
 /// What a phone chose in settings, as far as a Room is concerned.
 ///
 /// Rooms connect phones running the app, so the settings picker reduces to
-/// three answers. Guest is a link to a web browser that can only connect and
-/// talk; it says nothing about how two phones should reach each other, so a
-/// Room treats it the same as Automatic.
+/// two current answers. Automatic remains a wire value for older peers.
+/// Guest and absent preferences use Wi-Fi/Hotspot for app-to-app Rooms.
 enum RoomTransportChoice {
   automatic,
   bluetooth,
@@ -16,12 +15,14 @@ enum RoomTransportChoice {
   static RoomTransportChoice fromPin(TransferMode? pinned) => switch (pinned) {
     TransferMode.bluetooth => RoomTransportChoice.bluetooth,
     TransferMode.wifi || TransferMode.hotspot => RoomTransportChoice.hotspot,
-    TransferMode.guest || null => RoomTransportChoice.automatic,
+    TransferMode.guest || null => RoomTransportChoice.hotspot,
   };
 
-  /// The pin a Room should honour: the settings pin, minus Guest.
+  /// The pin a Room should honour, with legacy/Guest preferences using Wi-Fi.
   static TransferMode? roomPin(TransferMode? pinned) =>
-      pinned == TransferMode.guest ? null : pinned;
+      pinned == null || pinned == TransferMode.guest
+      ? TransferMode.wifi
+      : pinned;
 
   static RoomTransportChoice? fromKey(Object? key) => switch (key) {
     'automatic' => RoomTransportChoice.automatic,

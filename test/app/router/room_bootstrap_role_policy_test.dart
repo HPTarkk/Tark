@@ -8,7 +8,7 @@ void main() {
       'lib/app/router/room_bound_walkie_entry.dart',
     ).readAsStringSync();
     final start = entry.indexOf('  ChannelIntent _bootstrapIntent(');
-    final end = entry.indexOf('\n  void _connect(', start);
+    final end = entry.indexOf('\n  String _newRoomSessionId(', start);
 
     expect(start, greaterThanOrEqualTo(0));
     expect(end, greaterThan(start));

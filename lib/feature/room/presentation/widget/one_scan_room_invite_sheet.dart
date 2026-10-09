@@ -4,6 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 
+import '../../../../core/entitlement/license_gate.dart';
+import '../../../../core/entitlement/premium_feature.dart';
+import '../../../../core/entitlement/room_access_policy.dart';
+import '../../../../core/entitlement/subscription_gate_page.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/qr_widgets.dart';
@@ -33,22 +37,54 @@ Future<bool> showOneScanRoomInviteSheet(
   RoomTransportIdentityLifecycle? identityLifecycle,
   HotspotLinkKeeper? hotspotLinkKeeper,
   TransferRepository? transferRepository,
-}) async =>
-    await showModalBottomSheet<bool>(
-      context: context,
-      routeSettings: const RouteSettings(name: 'RoomInviteSheet'),
-      backgroundColor: Colors.transparent,
-  isScrollControlled: true,
-  barrierColor: Colors.black.withValues(alpha: 0.62),
-      builder: (_) => OneScanRoomInviteSheet(
-    repository: repository,
-    identityLifecycle: identityLifecycle,
-    hotspotLinkKeeper: hotspotLinkKeeper,
-    transferRepository: transferRepository,
-
-      ),
-    ) ??
-    false;
+}) async {
+  final rooms =
+      repository ??
+      (GetIt.instance.isRegistered<RoomRepository>()
+          ? GetIt.instance<RoomRepository>()
+          : null);
+  SavedRoom? saved;
+  try {
+    final selected = await rooms?.selectedRoomId();
+    saved = selected == null ? null : await rooms?.get(selected);
+  } catch (_) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.getString.room_start_failed)),
+      );
+    }
+    return false;
+  }
+  if (!context.mounted) return false;
+  if (saved != null &&
+      GetIt.instance.isRegistered<LicenseGate>() &&
+      RoomAccessPolicy.inviteRequiresPremium(
+        saved.room.confirmedMembers.length,
+      ) &&
+      !await openSubscriptionGate(context, PremiumFeature.groupRooms)) {
+    return false;
+  }
+  if (!context.mounted) return false;
+  if (GetIt.instance.isRegistered<LicenseGate>() &&
+      !await openSubscriptionGate(context, PremiumFeature.wifiTransport)) {
+    return false;
+  }
+  if (!context.mounted) return false;
+  return await showModalBottomSheet<bool>(
+        context: context,
+        routeSettings: const RouteSettings(name: 'RoomInviteSheet'),
+        backgroundColor: Colors.transparent,
+        isScrollControlled: true,
+        barrierColor: Colors.black.withValues(alpha: 0.62),
+        builder: (_) => OneScanRoomInviteSheet(
+          repository: repository,
+          identityLifecycle: identityLifecycle,
+          hotspotLinkKeeper: hotspotLinkKeeper,
+          transferRepository: transferRepository,
+        ),
+      ) ??
+      false;
+}
 
 class OneScanRoomInviteSheet extends StatefulWidget {
   const OneScanRoomInviteSheet({
@@ -149,6 +185,16 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
         return;
       }
 
+      if (!mounted) return;
+      if (RoomAccessPolicy.inviteRequiresPremium(
+            saved.room.confirmedMembers.length,
+          ) &&
+          GetIt.instance.isRegistered<LicenseGate>() &&
+          !await openSubscriptionGate(context, PremiumFeature.groupRooms)) {
+        if (mounted) Navigator.of(context).pop(false);
+        return;
+      }
+      if (!mounted) return;
       final invite = await _repository.issueInvite(
         saved.room.id,
         kind: RoomInvitationKind.trustedMembership,

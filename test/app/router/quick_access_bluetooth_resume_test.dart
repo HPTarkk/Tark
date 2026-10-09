@@ -17,6 +17,8 @@ void main() {
   const lastBluetoothHost = {
     SettingsKeys.transportMode: 'bluetooth',
     SettingsKeys.btLastRole: 'host',
+    SettingsKeys.lastConnectedTransport: 'bluetooth',
+    SettingsKeys.btLastConnectedEngine: 'classic',
   };
 
   test('a last Bluetooth call as host opens the resume screen', () async {
@@ -29,14 +31,14 @@ void main() {
 
   test('a joiner resumes only when it remembers who it dialed', () async {
     final withPeer = await prefs({
-      SettingsKeys.transportMode: 'bluetooth',
+      ...lastBluetoothHost,
       SettingsKeys.btLastRole: 'joiner',
       SettingsKeys.btLastPeerId: 'AA:BB:CC:DD:EE:FF',
     });
     expect(QuickAccess.shouldResumeBluetooth(withPeer, isAndroid: true), true);
 
     final withoutPeer = await prefs({
-      SettingsKeys.transportMode: 'bluetooth',
+      ...lastBluetoothHost,
       SettingsKeys.btLastRole: 'joiner',
     });
     expect(
@@ -62,6 +64,43 @@ void main() {
       QuickAccess.resolveStartLocation(p, isAndroid: true),
       AppRoutes.landingPath,
     );
+  });
+
+  test(
+    'selecting Bluetooth after a Wi-Fi call cannot resume stale history',
+    () async {
+      final p = await prefs({
+        ...lastBluetoothHost,
+        SettingsKeys.lastConnectedTransport: 'wifi',
+      });
+      expect(QuickAccess.shouldResumeBluetooth(p, isAndroid: true), false);
+    },
+  );
+
+  test('legacy or BLE connections cannot trigger Classic reconnect', () async {
+    for (final history in [
+      <String, Object>{},
+      {
+        SettingsKeys.lastConnectedTransport: 'bluetooth',
+        SettingsKeys.btLastConnectedEngine: 'ble',
+      },
+    ]) {
+      final p = await prefs({
+        SettingsKeys.transportMode: 'bluetooth',
+        SettingsKeys.btLastRole: 'host',
+        ...history,
+      });
+      expect(QuickAccess.shouldResumeBluetooth(p, isAndroid: true), false);
+    }
+  });
+
+  test('a blank peer is not a recoverable joiner connection', () async {
+    final p = await prefs({
+      ...lastBluetoothHost,
+      SettingsKeys.btLastRole: 'joiner',
+      SettingsKeys.btLastPeerId: '  ',
+    });
+    expect(QuickAccess.shouldResumeBluetooth(p, isAndroid: true), false);
   });
 
   test('the Auto-reconnect switch turns it off', () async {

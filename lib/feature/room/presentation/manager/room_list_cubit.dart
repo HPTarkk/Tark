@@ -3,6 +3,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../../../core/entitlement/license_gate.dart';
+import '../../../../core/entitlement/premium_feature.dart';
+import '../../../../core/entitlement/room_access_policy.dart';
+
 import '../../../transfer/api/transfer_api.dart';
 import '../../data/security/room_transport_identity_lifecycle.dart';
 import '../../data/security/room_transport_identity_secure_store.dart';
@@ -137,9 +141,11 @@ class RoomListCubit extends Cubit<RoomListState> {
     required String name,
     required String localDisplayName,
   }) async {
+    if (state.loading) return null;
     emit(state.copyWith(loading: true, clearError: true));
     SavedRoom? created;
     try {
+      if (await needsMoreRoomsAccess()) throw const RoomLimitReached();
       created = await _repository.create(
         name: name,
         localDisplayName: localDisplayName,
@@ -155,8 +161,14 @@ class RoomListCubit extends Cubit<RoomListState> {
       // immediate one-scan bootstrap. This hint lives only for the current app
       // session; it does not survive a restart or become Room ownership.
       _bootstrapRoleStore?.setRole(SessionRole.host);
-      final rooms = await _repository.list();
-      emit(RoomListState(rooms: rooms, selectedRoomId: created.room.id));
+      final (rooms, archived) = await _partitioned();
+      emit(
+        RoomListState(
+          rooms: rooms,
+          archived: archived,
+          selectedRoomId: created.room.id,
+        ),
+      );
       return created;
     } catch (error) {
       emit(state.copyWith(loading: false, error: error));
@@ -172,6 +184,10 @@ class RoomListCubit extends Cubit<RoomListState> {
     if (state.loading) return RoomInviteJoinAttemptStatus.cancelled;
     emit(state.copyWith(loading: true, clearError: true));
     try {
+      if (await needsMoreRoomsAccess(existingRoom: invitation.roomId)) {
+        emit(state.copyWith(loading: false, clearError: true));
+        return RoomInviteJoinAttemptStatus.rejected;
+      }
       final result = await _joinOrchestrator.join(
         invitation: invitation,
         displayName: displayName,
@@ -186,13 +202,25 @@ class RoomListCubit extends Cubit<RoomListState> {
         return result.status;
       }
 
+      if (!_allowsGroupSize(
+        grant.snapshot.members.where((member) => !member.pending).length,
+      )) {
+        emit(state.copyWith(loading: false, clearError: true));
+        return RoomInviteJoinAttemptStatus.rejected;
+      }
       final saved = await _joinImporter.importGrant(
         grant,
         memberKeyPair: memberKeyPair,
       );
       _bootstrapRoleStore?.setRole(SessionRole.joiner);
-      final rooms = await _repository.list();
-      emit(RoomListState(rooms: rooms, selectedRoomId: saved.room.id));
+      final (rooms, archived) = await _partitioned();
+      emit(
+        RoomListState(
+          rooms: rooms,
+          archived: archived,
+          selectedRoomId: saved.room.id,
+        ),
+      );
       return RoomInviteJoinAttemptStatus.accepted;
     } catch (error) {
       emit(state.copyWith(loading: false, error: error));
@@ -214,8 +242,17 @@ class RoomListCubit extends Cubit<RoomListState> {
     String? localDisplayName,
   }) async {
     if (state.loading || bundle.isExpired) return false;
+    if (!_allowsGroupSize(
+      bundle.snapshot.members.where((member) => !member.pending).length,
+    )) {
+      return false;
+    }
     emit(state.copyWith(loading: true, clearError: true));
     try {
+      if (await needsMoreRoomsAccess(existingRoom: bundle.snapshot.roomId)) {
+        emit(state.copyWith(loading: false, clearError: true));
+        return false;
+      }
       final grant = RoomInviteJoinGrant(
         roomId: bundle.snapshot.roomId,
         memberId: bundle.memberId,
@@ -244,8 +281,14 @@ class RoomListCubit extends Cubit<RoomListState> {
       // that fact separate from whatever durable invite rights the QR grants;
       // granting Add Person must never turn this phone into a second hotspot.
       _bootstrapRoleStore?.setRole(SessionRole.joiner);
-      final rooms = await _repository.list();
-      emit(RoomListState(rooms: rooms, selectedRoomId: saved.room.id));
+      final (rooms, archived) = await _partitioned();
+      emit(
+        RoomListState(
+          rooms: rooms,
+          archived: archived,
+          selectedRoomId: saved.room.id,
+        ),
+      );
       return true;
     } catch (error) {
       emit(state.copyWith(loading: false, error: error));
@@ -255,6 +298,27 @@ class RoomListCubit extends Cubit<RoomListState> {
 
   void cancelInviteJoin() {
     _joinOrchestrator.cancel();
+  }
+
+  bool _allowsGroupSize(int confirmedMembers) =>
+      !RoomAccessPolicy.requiresPremium(confirmedMembers) ||
+      !GetIt.instance.isRegistered<LicenseGate>() ||
+      GetIt.instance<LicenseGate>().allows(PremiumFeature.groupRooms);
+
+  /// Durable active-room count, also used before a UI opens the upgrade flow.
+  /// Rejoining an existing active Room never consumes an extra slot.
+  Future<bool> needsMoreRoomsAccess({RoomId? existingRoom}) async {
+    if (!GetIt.instance.isRegistered<LicenseGate>() ||
+        GetIt.instance<LicenseGate>().allows(PremiumFeature.extraRooms)) {
+      return false;
+    }
+    final rooms = await _repository.list();
+    final active = rooms.where((saved) => !saved.room.archived).toList();
+    if (existingRoom != null &&
+        active.any((saved) => saved.room.id == existingRoom)) {
+      return false;
+    }
+    return RoomAccessPolicy.additionalRoomRequiresPremium(active.length);
   }
 
   Future<void> select(RoomId roomId) async {
@@ -308,6 +372,9 @@ class RoomListCubit extends Cubit<RoomListState> {
   Future<void> unarchive(RoomId roomId) async {
     emit(state.copyWith(loading: true, clearError: true));
     try {
+      if (await needsMoreRoomsAccess(existingRoom: roomId)) {
+        throw const RoomLimitReached();
+      }
       await _repository.setArchived(roomId, false);
       await _reloadKeepingSelection();
     } catch (error) {
@@ -384,4 +451,8 @@ class RoomListCubit extends Cubit<RoomListState> {
       ],
     );
   }
+}
+
+final class RoomLimitReached implements Exception {
+  const RoomLimitReached();
 }

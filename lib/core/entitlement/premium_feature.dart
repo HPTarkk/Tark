@@ -9,6 +9,12 @@ enum PremiumFeature {
   /// it is the permanently free acquisition hook and must never appear here.
   wifiTransport,
 
+  /// Participating in a Room with more than two confirmed members.
+  groupRooms,
+
+  /// Keeping more than two active Rooms on this phone.
+  extraRooms,
+
   /// Muting your own mic mid-session (walkie page + the Android home widget).
   selfMute,
 

@@ -5,6 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../../core/diagnostics/screen_log.dart';
+import '../../../../core/entitlement/license_gate.dart';
+import '../../../../core/entitlement/premium_feature.dart';
+import '../../../../core/entitlement/room_access_policy.dart';
 import '../../../../core/entitlement/subscription_service.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
@@ -41,6 +44,8 @@ class SelectedRoomLobby extends StatefulWidget {
     this.onConnect,
     this.onUseHomeWifi,
     this.repository,
+    this.requiresPremium = true,
+    this.onUseBluetooth,
     super.key,
   });
 
@@ -68,6 +73,8 @@ class SelectedRoomLobby extends StatefulWidget {
   /// router is never used unless somebody asks for it here.
   final VoidCallback? onUseHomeWifi;
   final RoomRepository? repository;
+  final bool requiresPremium;
+  final VoidCallback? onUseBluetooth;
 
   @override
   State<SelectedRoomLobby> createState() => _SelectedRoomLobbyState();
@@ -78,6 +85,11 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
   StreamSubscription<void>? _changes;
   StreamSubscription<int>? _myAvatarChanges;
   StreamSubscription<void>? _myPremiumChanges;
+  StreamSubscription<void>? _accessChanges;
+
+  LicenseGate? get _gate => GetIt.instance.isRegistered<LicenseGate>()
+      ? GetIt.instance<LicenseGate>()
+      : null;
 
   RoomRepository? get _repository {
     if (widget.repository != null) return widget.repository;
@@ -97,6 +109,9 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
     });
     unawaited(_syncMyAvatar());
     _syncMyPremium();
+    _accessChanges = _gate?.changes.listen((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   /// Puts this phone's own premium mark on its row, here and in the Rooms
@@ -155,7 +170,7 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
   @override
   void didUpdateWidget(SelectedRoomLobby oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.room.room.id != widget.room.room.id) {
+    if (oldWidget.room != widget.room) {
       _room = widget.room;
     }
   }
@@ -165,6 +180,7 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
     unawaited(_changes?.cancel());
     unawaited(_myAvatarChanges?.cancel());
     unawaited(_myPremiumChanges?.cancel());
+    unawaited(_accessChanges?.cancel());
     super.dispose();
   }
 
@@ -222,11 +238,91 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
     // Only confirmed membership can make this Room stop looking solo.
     final alone = confirmedMembers.length <= 1;
     final failureMessage = widget.failureMessage?.trim();
+    final needsGroupPremium =
+        RoomAccessPolicy.requiresPremium(confirmedMembers.length) &&
+        !(_gate?.allows(PremiumFeature.groupRooms) ?? true);
+    final needsPremium =
+        needsGroupPremium ||
+        widget.requiresPremium &&
+            !(_gate?.allows(PremiumFeature.wifiTransport) ?? true);
     final showFailure =
-        !_connecting && failureMessage != null && failureMessage.isNotEmpty;
+        !_connecting &&
+        !needsPremium &&
+        failureMessage != null &&
+        failureMessage.isNotEmpty;
+    final connectFirst = widget.onConnect != null;
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      bottomNavigationBar: alone
+          ? null
+          : SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                child: Center(
+                  heightFactor: 1,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      RoomConnectButton(
+                        key: const Key('selected-room-start-ride'),
+                        compact: true,
+                        label: _connecting
+                            ? s.connecting
+                            : needsPremium
+                            ? s.lobby_unlock_premium
+                            : connectFirst
+                            ? s.room_start_connect
+                            : showFailure
+                            ? s.retry
+                            : s.lobby_start_ride,
+                        busy: _connecting,
+                        icon: needsPremium
+                            ? Icons.workspace_premium_rounded
+                            : connectFirst
+                            ? Icons.link_rounded
+                            : showFailure
+                            ? Icons.refresh_rounded
+                            : Icons.power_settings_new_rounded,
+                        onTap: () {
+                          ScreenLog.tap('Start');
+                          if (needsPremium) {
+                            _startRide();
+                          } else if (connectFirst) {
+                            widget.onConnect!();
+                          } else if (showFailure && widget.onRetry != null) {
+                            widget.onRetry!();
+                          } else {
+                            _startRide();
+                          }
+                        },
+                      ),
+                      if (needsPremium &&
+                          !needsGroupPremium &&
+                          !RoomAccessPolicy.requiresPremium(
+                            confirmedMembers.length,
+                          ) &&
+                          widget.onUseBluetooth != null &&
+                          !_connecting)
+                        TextButton.icon(
+                          key: const Key('selected-room-free-bluetooth'),
+                          onPressed: widget.onUseBluetooth,
+                          icon: const Icon(Icons.bluetooth_rounded, size: 16),
+                          label: Text(s.lobby_free_bluetooth),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.textSecondary,
+                            textStyle: Theme.of(
+                              context,
+                            ).textTheme.labelLarge?.copyWith(fontSize: 12),
+                            minimumSize: const Size(48, 48),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
       body: SafeArea(
         child: StaggeredEntrance(
           builder: (context, children) => ListView(
@@ -248,9 +344,17 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
                   ? s.connecting
                   : alone
                   ? s.lobby_alone_heading
+                  : needsPremium
+                  ? needsGroupPremium
+                        ? s.lobby_group_premium_heading
+                        : s.lobby_premium_heading
                   : s.lobby_heading,
               hint: _connecting
                   ? s.lobby_connecting_hint
+                  : needsPremium && !alone
+                  ? needsGroupPremium
+                        ? s.lobby_group_premium_hint
+                        : s.lobby_premium_hint
                   : s.lobby_nothing_started,
               members: confirmedMembers,
               connecting: _connecting,
@@ -273,11 +377,7 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
                   ? Padding(
                       key: ValueKey(failureMessage),
                       padding: const EdgeInsets.only(top: 14),
-                      child: _FailureCallout(
-                        message: failureMessage,
-                        onRetry: widget.onRetry,
-                        onConnect: widget.onConnect,
-                      ),
+                      child: _FailureCallout(message: failureMessage),
                     )
                   : const SizedBox(width: double.infinity),
             ),
@@ -315,21 +415,10 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
                   height: 1.5,
                 ),
               ),
-            // Start needs somebody to start with. Offering it to a Room of one
-            // only ever produced a failure explaining that nobody answered.
-            if (!alone)
-              Center(
-                child: RoomConnectButton(
-                  key: const Key('selected-room-start-ride'),
-                  label: _connecting ? s.connecting : s.lobby_start_ride,
-                  busy: _connecting,
-                  onTap: () {
-                    ScreenLog.tap('Start');
-                    _startRide();
-                  },
-                ),
-              ),
-            if (!alone && !_connecting && widget.onUseHomeWifi != null)
+            if (!alone &&
+                !_connecting &&
+                !needsPremium &&
+                widget.onUseHomeWifi != null)
               Padding(
                 padding: const EdgeInsets.only(top: 6),
                 child: Center(
@@ -419,6 +508,7 @@ class _LobbyHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final amber = AppColors.amber;
     return Container(
+      key: const Key('selected-room-hero'),
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 22),
       // The signal rings ripple out to the card's edge and stop there.
@@ -436,47 +526,85 @@ class _LobbyHero extends StatelessWidget {
         ),
         color: AppColors.surface,
       ),
-      child: Column(
-        children: [
-          SizedBox(
-            height: 92,
-            child: _SignalRings(
-              active: connecting,
-              child: RoomFaces(members: members),
-            ),
-          ),
-          const SizedBox(height: 18),
-          AnimatedSwitcher(
-            duration: AppMotion.card,
-            switchInCurve: AppMotion.easeOut,
-            switchOutCurve: AppMotion.leaving,
-            child: Text(
-              heading,
-              key: ValueKey(heading),
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
+      child: AnimatedSize(
+        duration: AppMotion.reduced(context)
+            ? Duration.zero
+            : AppMotion.entrance,
+        curve: AppMotion.easeOut,
+        alignment: Alignment.topCenter,
+        child: Column(
+          children: [
+            SizedBox(
+              height: 92,
+              child: _SignalRings(
+                active: connecting,
+                child: RoomFaces(members: members),
               ),
             ),
-          ),
-          const SizedBox(height: 8),
-          AnimatedSwitcher(
-            duration: AppMotion.card,
-            switchInCurve: AppMotion.easeOut,
-            switchOutCurve: AppMotion.leaving,
-            child: Text(
-              hint,
-              key: ValueKey(hint),
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 13,
-                height: 1.5,
+            const SizedBox(height: 18),
+            AnimatedSwitcher(
+              duration: AppMotion.reduced(context)
+                  ? Duration.zero
+                  : AppMotion.entrance,
+              switchInCurve: AppMotion.easeOut,
+              switchOutCurve: AppMotion.leaving,
+              layoutBuilder: (current, previous) => Stack(
+                alignment: Alignment.topCenter,
+                children: [
+                  for (final old in previous)
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: ExcludeSemantics(
+                          child: OverflowBox(
+                            minHeight: 0,
+                            maxHeight: double.infinity,
+                            alignment: Alignment.topCenter,
+                            child: old,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ?current,
+                ],
+              ),
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation,
+                child: AppMotion.reduced(context)
+                    ? child
+                    : SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0, 0.04),
+                          end: Offset.zero,
+                        ).animate(animation),
+                        child: child,
+                      ),
+              ),
+              child: Column(
+                key: ValueKey((heading, hint)),
+                children: [
+                  Text(
+                    heading,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    hint,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -586,16 +714,12 @@ class _RingsPainter extends CustomPainter {
 }
 
 class _FailureCallout extends StatelessWidget {
-  const _FailureCallout({required this.message, this.onRetry, this.onConnect});
+  const _FailureCallout({required this.message});
 
   final String message;
-  final VoidCallback? onRetry;
-  final VoidCallback? onConnect;
 
   @override
   Widget build(BuildContext context) {
-    final retry = onRetry;
-    final connect = onConnect;
     return Semantics(
       container: true,
       liveRegion: true,
@@ -625,28 +749,6 @@ class _FailureCallout extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  if (retry != null || connect != null) ...[
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 4,
-                      children: [
-                        if (retry != null)
-                          TextButton.icon(
-                            key: const Key('selected-room-retry'),
-                            onPressed: retry,
-                            icon: const Icon(Icons.refresh_rounded, size: 18),
-                            label: Text(context.getString.retry),
-                          ),
-                        if (connect != null)
-                          TextButton.icon(
-                            key: const Key('selected-room-connect-phones'),
-                            onPressed: connect,
-                            icon: const Icon(Icons.link_rounded, size: 18),
-                            label: Text(context.getString.room_start_connect),
-                          ),
-                      ],
-                    ),
-                  ],
                 ],
               ),
             ),

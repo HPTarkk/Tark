@@ -137,7 +137,7 @@ void main() async {
   // instead of replaying the normal cold-start decision.
   final launch = await homeWidget.takeInitialLaunch();
   AppRouter.startLocation = switch (launch) {
-    final l? => QuickAccess.locationForLaunch(l, modeStore.mode),
+    final l? => QuickAccess.locationForLaunch(l, modeStore.connectionChoice),
     _ when skipSplash => QuickAccess.resolveStartLocation(prefs),
     _ => AppRoutes.splashPath,
   };
@@ -149,7 +149,7 @@ void main() async {
     homeWidget.publish(
       (prefs.getBool(OnboardingPrefs.completed) ?? false)
           ? HomeWidgetSnapshot.idle(
-              modeKey: modeStore.mode.key,
+              modeKey: modeStore.connectionChoice.key,
               callsign: await GetIt.instance<SettingsRepository>().getMyName(),
             )
           : const HomeWidgetSnapshot.setup(),

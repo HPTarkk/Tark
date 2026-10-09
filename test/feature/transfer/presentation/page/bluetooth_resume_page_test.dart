@@ -8,6 +8,8 @@ import 'package:tark/core/l10n/app_localizations.dart';
 import 'package:tark/core/router/routes.dart';
 import 'package:tark/core/settings/settings_repository.dart';
 import 'package:tark/core/sfx/sfx_player.dart';
+import 'package:tark/core/widget/link_established.dart';
+import 'package:tark/core/widget/link_unavailable.dart';
 import 'package:tark/feature/transfer/domain/entity/bluetooth_connection_state.dart';
 import 'package:tark/feature/transfer/domain/entity/bluetooth_peer.dart';
 import 'package:tark/feature/transfer/domain/entity/bluetooth_role.dart';
@@ -85,6 +87,12 @@ void main() {
 
   tearDown(() => getIt.reset());
 
+  Future<void> frames(WidgetTester tester, int milliseconds) async {
+    for (var elapsed = 0; elapsed < milliseconds; elapsed += 10) {
+      await tester.pump(const Duration(milliseconds: 10));
+    }
+  }
+
   Future<void> pumpPage(WidgetTester tester) async {
     // Created inside the test body so its completion runs in the fake-async
     // zone that `pump` drives.
@@ -137,7 +145,7 @@ void main() {
     expect(find.byType(SnackBar), findsNothing);
   });
 
-  testWidgets('connects, then asks before entering the channel', (
+  testWidgets('shows success before returning Home with the link ready', (
     tester,
   ) async {
     await pumpPage(tester);
@@ -151,19 +159,22 @@ void main() {
       joining().copyWith(connectionState: BluetoothConnectionState.connected),
     );
     await tester.pump();
-    await tester.pump(const Duration(seconds: 2));
+    await tester.pump(const Duration(milliseconds: 1100));
     expect(find.text('Connected to Sara'), findsOneWidget);
-    expect(find.text('Go to the channel now?'), findsOneWidget);
+    expect(find.byType(LinkEstablished), findsOneWidget);
+    expect(find.text('LANDING'), findsNothing);
     expect(find.text('WALKIE ride=true'), findsNothing);
 
-    await tester.tap(find.text('ENTER CHANNEL'));
-    await tester.pump();
     await tester.pump(const Duration(seconds: 1));
-    expect(find.text('WALKIE ride=true'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('LANDING'), findsOneWidget);
+    expect(find.text('WALKIE ride=true'), findsNothing);
     expect(cubit.resets, 0);
   });
 
-  testWidgets('Not now closes the link and goes to Landing', (tester) async {
+  testWidgets('a lost link replaces success with failure before Home', (
+    tester,
+  ) async {
     await pumpPage(tester);
     cubit.push(joining());
     started.complete(true);
@@ -172,13 +183,39 @@ void main() {
       joining().copyWith(connectionState: BluetoothConnectionState.connected),
     );
     await tester.pump();
-    await tester.pump(const Duration(seconds: 2));
+    await tester.pump(const Duration(milliseconds: 400));
 
-    await tester.tap(find.text('NOT NOW'));
+    cubit.push(
+      joining().copyWith(
+        connectionState: BluetoothConnectionState.disconnected,
+      ),
+    );
     await tester.pump();
+    await frames(tester, 1200);
+    expect(find.byType(LinkUnavailable), findsOneWidget);
+    expect(find.text('LANDING'), findsNothing);
+    await frames(tester, 1900);
     await tester.pump(const Duration(seconds: 1));
     expect(find.text('LANDING'), findsOneWidget);
     expect(cubit.resets, 1);
+    expect(find.byType(SnackBar), findsNothing);
+  });
+
+  testWidgets('connection completed during startup is still shown', (
+    tester,
+  ) async {
+    await pumpPage(tester);
+    cubit.push(
+      joining().copyWith(connectionState: BluetoothConnectionState.connected),
+    );
+    started.complete(true);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 900));
+    expect(find.byType(LinkEstablished), findsOneWidget);
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('LANDING'), findsOneWidget);
+    expect(cubit.resets, 0);
   });
 
   testWidgets('Cancel stops the search and goes to Landing', (tester) async {
@@ -196,22 +233,50 @@ void main() {
     expect(cubit.resets, 1);
   });
 
-  testWidgets('gives up after 30 seconds with a note', (tester) async {
+  testWidgets(
+    'timeout shows an animated result on its own page, with no toast',
+    (tester) async {
+      await pumpPage(tester);
+      cubit.push(joining());
+      started.complete(true);
+      await tester.pump();
+
+      await tester.pump(const Duration(seconds: 29));
+      expect(find.text('LANDING'), findsNothing);
+
+      await tester.pump(const Duration(seconds: 2));
+      await frames(tester, 1200);
+      expect(find.text('LANDING'), findsNothing);
+      expect(find.byType(LinkUnavailable), findsOneWidget);
+      expect(
+        find.textContaining("Couldn't reach the other phone"),
+        findsOneWidget,
+      );
+      expect(find.byType(SnackBar), findsNothing);
+      await frames(tester, 1500);
+      expect(find.text('LANDING'), findsNothing);
+      await frames(tester, 400);
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text('LANDING'), findsOneWidget);
+      expect(find.byType(SnackBar), findsNothing);
+      expect(cubit.resets, 1);
+    },
+  );
+
+  testWidgets('back during a failure cancels its delayed navigation', (
+    tester,
+  ) async {
     await pumpPage(tester);
     cubit.push(joining());
     started.complete(true);
     await tester.pump();
-
-    await tester.pump(const Duration(seconds: 29));
-    expect(find.text('LANDING'), findsNothing);
-
-    await tester.pump(const Duration(seconds: 2));
-    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 31));
+    expect(find.byType(LinkUnavailable), findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 4));
     expect(find.text('LANDING'), findsOneWidget);
-    expect(
-      find.textContaining("Couldn't reach the other phone"),
-      findsOneWidget,
-    );
     expect(cubit.resets, 1);
+    expect(tester.takeException(), isNull);
   });
 }
