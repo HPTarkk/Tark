@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/entitlement/license_gate.dart';
+import '../../core/entitlement/premium_feature.dart';
+import '../../core/entitlement/subscription_gate_page.dart';
 import '../../core/identity/channel_membership.dart';
 import '../../core/l10n/extension.dart';
 import '../../core/motion/app_motion.dart';
@@ -201,6 +204,22 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   TransferMode? get _roomPin =>
       RoomTransportChoice.roomPin(_modeStore?.pinnedMode);
 
+  // The mode store rejects paid IP transports without entitlement. Ask before
+  // association/readiness, otherwise the network joins but the Room still
+  // listens on Bluetooth and eventually reports a misleading bind timeout.
+  Future<bool> _ensureWifiAccess() async {
+    final getIt = GetIt.instance;
+    if (!getIt.isRegistered<LicenseGate>()) return true;
+    final gate = getIt<LicenseGate>();
+    if (gate.allows(PremiumFeature.wifiTransport)) return true;
+    Logger.diagnostic('room: Wi-Fi access requires subscription');
+    final granted = await openSubscriptionGate(
+      context,
+      PremiumFeature.wifiTransport,
+    );
+    return mounted && granted && gate.allows(PremiumFeature.wifiTransport);
+  }
+
   Future<bool> _openLinkGate({bool honourPin = true}) async {
     final probe = _probe;
     final modeStore = _modeStore;
@@ -228,6 +247,10 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         'room: readiness transport_mode=${modeStore.mode.key}->${mode.key}',
       );
       await modeStore.setMode(mode);
+      if (modeStore.mode != mode) {
+        Logger.diagnostic('room: readiness transport selection rejected');
+        return false;
+      }
     }
     return true;
   }
@@ -313,6 +336,9 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     bool linkEstablished, {
     bool useHomeWifi = false,
   }) async {
+    if (_roomPin != TransferMode.bluetooth && !await _ensureWifiAccess()) {
+      return _EntryState.lobby(room);
+    }
     final rooms = _rooms;
     if (rooms == null) {
       return _EntryState.lobby(
@@ -401,6 +427,9 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   ///
   /// A transport picked in settings since then still wins over the ticket.
   Future<_EntryState> _rejoinSelectedRoom(SavedRoom room) async {
+    if (_roomPin != TransferMode.bluetooth && !await _ensureWifiAccess()) {
+      return _EntryState.lobby(room);
+    }
     final ticket = await _rejoinTickets.read();
     if (ticket == null ||
         ticket.roomId != room.room.id ||
@@ -509,6 +538,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     bool? showCode,
     String? message,
   }) async {
+    if (!await _ensureWifiAccess()) return _EntryState.lobby(room);
     final token = ++_reconnectToken;
     final local = room.membership.localMemberId;
     final canHost = await _canHostHotspot() && !Platform.isIOS;
@@ -595,7 +625,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       if (!mounted || token != _reconnectToken || credentials == null) {
         return _EntryState.lobby(room);
       }
-      var joined = await PreLiveHotspotBootstrap().joinHost(credentials);
+      var joined = await _joinScannedNetwork(credentials);
       if (!mounted || token != _reconnectToken) return _EntryState.lobby(room);
       if (joined == HotspotJoinResult.wifiOff) {
         // Switched off after the camera opened. The code is already in hand,
@@ -603,7 +633,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         // second scan.
         _completeScan(false);
         if (!await _awaitWifiForScan(token)) return _EntryState.lobby(room);
-        joined = await PreLiveHotspotBootstrap().joinHost(credentials);
+        joined = await _joinScannedNetwork(credentials);
         if (!mounted || token != _reconnectToken) {
           return _EntryState.lobby(room);
         }
@@ -639,6 +669,17 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       showCode: false,
       message: context.getString.reconnect_join_failed,
     );
+  }
+
+  Future<HotspotJoinResult> _joinScannedNetwork(
+    HotspotCredentials credentials,
+  ) async {
+    try {
+      return await PreLiveHotspotBootstrap().joinHost(credentials);
+    } catch (error) {
+      Logger.log('Room network scan join failed: $error');
+      return HotspotJoinResult.declined;
+    }
   }
 
   /// The longest this phone spends bringing its hotspot up before it says it

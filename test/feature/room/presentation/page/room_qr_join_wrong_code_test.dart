@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tark/core/identity/channel_id.dart';
 import 'package:tark/core/l10n/app_localizations.dart';
@@ -9,7 +10,12 @@ import 'package:tark/core/router/routes.dart';
 import 'package:tark/core/widget/qr_scanner_surface.dart';
 import 'package:tark/feature/room/presentation/manager/room_list_cubit.dart';
 import 'package:tark/feature/room/presentation/page/room_qr_join_page.dart';
+import 'package:tark/feature/room/domain/entity/room.dart';
+import 'package:tark/feature/room/domain/entity/room_accepted_join_snapshot.dart';
+import 'package:tark/feature/room/domain/entity/room_direct_join_bundle.dart';
+import 'package:tark/feature/room/domain/service/room_member_transport_identity.dart';
 import 'package:tark/feature/transfer/domain/entity/hotspot_credentials.dart';
+import 'package:tark/feature/transfer/domain/service/hotspot_control.dart';
 
 /// What the Room's one-scan scanner does with a code that is not a Room
 /// invite.
@@ -27,6 +33,8 @@ void main() {
 
   late List<Object?> handed;
   late List<String> visited;
+
+  tearDown(() => GetIt.instance.reset());
 
   Future<QrScannerSurface> pumpScanner(WidgetTester tester) async {
     handed = [];
@@ -66,6 +74,55 @@ void main() {
 
   String? errorOn(WidgetTester tester) =>
       tester.widget<QrScannerSurface>(find.byType(QrScannerSurface)).errorText;
+
+  testWidgets('network setup errors reject the scan and allow another try', (
+    tester,
+  ) async {
+    final joiner = _FailingJoiner();
+    GetIt.instance.registerSingleton<HotspotJoiner>(joiner);
+    final surface = await pumpScanner(tester);
+    const roomId = RoomId('0123456789abcdef0123456789abcdef');
+    final memberId = RoomMemberId('111111111111111111111111');
+    final now = DateTime.now().toUtc();
+    final key = List<int>.filled(32, 1);
+    final bundle = RoomDirectJoinBundle(
+      memberId: memberId,
+      snapshot: RoomAcceptedJoinSnapshot(
+        roomId: roomId,
+        roomName: 'Ride',
+        roomCreatedAt: now,
+        roomUpdatedAt: now,
+        members: [
+          RoomAcceptedJoinMember(
+            memberId: memberId,
+            kind: RoomMemberKind.member,
+            joinedAt: now,
+            displayName: 'Rider',
+          ),
+        ],
+      ),
+      memberKeyPair: RoomMemberTransportKeyPair(
+        privateKey: key,
+        publicKey: key,
+      ),
+      certificate: RoomMemberTransportCertificate(
+        roomId: roomId,
+        memberId: memberId,
+        memberPublicKey: key,
+        issuerPublicKey: key,
+        issuerSignature: List<int>.filled(64, 2),
+      ),
+      expiresAt: now.add(const Duration(hours: 1)),
+    );
+    final payload = host.qrPayload(roomInvite: bundle.encode());
+
+    expect(await surface.onCode(payload), isFalse);
+    await tester.pump();
+    expect(errorOn(tester), isNotNull);
+    expect(await surface.onCode(payload), isFalse);
+    expect(joiner.attempts, 2);
+    expect(find.byKey(const Key('hotspot-page')), findsNothing);
+  });
 
   testWidgets('the host hotspot code is followed, not blamed', (tester) async {
     final surface = await pumpScanner(tester);
@@ -168,6 +225,27 @@ abstract final class ClientChannel {
 }
 
 class _FakeRoomList implements RoomListCubit {
+  @override
+  Future<bool> joinDirect(
+    RoomDirectJoinBundle bundle, {
+    String? localDisplayName,
+  }) async => true;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(invocation.memberName.toString());
+}
+
+class _FailingJoiner implements HotspotJoiner {
+  int attempts = 0;
+
+  @override
+  Future<HotspotJoinResult> join(HotspotCredentials credentials) async {
+    attempts++;
+    if (attempts == 1) throw StateError('Native network setup failed');
+    return HotspotJoinResult.declined;
+  }
+
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnimplementedError(invocation.memberName.toString());

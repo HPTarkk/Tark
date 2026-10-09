@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:tark/core/widget/qr_scanner_surface.dart';
 
 /// The scanner's HUD, guarded against the failure that took two of its parts
@@ -17,19 +20,61 @@ import 'package:tark/core/widget/qr_scanner_surface.dart';
 /// worth more than looking at the screen: the two builds fail differently and
 /// only one of them looks like a bug.
 void main() {
-  Widget scanner({String? errorText}) => MaterialApp(
-    home: QrScannerSurface(
-      title: 'Scan',
-      hint: 'Point at the code',
-      searchingLabel: 'Searching',
-      lockedLabel: 'Got it',
-      cameraDeniedLabel: 'Camera denied',
-      cameraFailedLabel: 'Camera failed',
-      openSettingsLabel: 'Settings',
-      errorText: errorText,
-      onCode: (_) async => true,
-    ),
-  );
+  Widget scanner({String? errorText, Future<bool> Function(String)? onCode}) =>
+      MaterialApp(
+        home: QrScannerSurface(
+          title: 'Scan',
+          hint: 'Point at the code',
+          searchingLabel: 'Searching',
+          lockedLabel: 'Got it',
+          cameraDeniedLabel: 'Camera denied',
+          cameraFailedLabel: 'Camera failed',
+          openSettingsLabel: 'Settings',
+          errorText: errorText,
+          onCode: onCode ?? (_) async => true,
+        ),
+      );
+
+  testWidgets('a failed handler releases the camera for another scan', (
+    tester,
+  ) async {
+    var attempts = 0;
+    await tester.pumpWidget(
+      scanner(
+        onCode: (_) async {
+          attempts++;
+          if (attempts == 1) throw StateError('Network setup failed');
+          return true;
+        },
+      ),
+    );
+    await tester.pump();
+    final detect = tester
+        .widget<MobileScanner>(find.byType(MobileScanner))
+        .onDetect!;
+    final capture = BarcodeCapture(
+      barcodes: [Barcode(rawValue: 'WIFI:S:TARK;P:password;;')],
+    );
+    Object? error;
+    final first = (detect as dynamic)(capture) as Future<void>;
+    unawaited(
+      first.catchError((Object failure) {
+        error = failure;
+      }),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    final second = (detect as dynamic)(capture) as Future<void>;
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    await second;
+
+    expect(attempts, 2);
+    expect(error, isNull);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('the HUD mounts whole, with nothing thrown behind it', (
     tester,

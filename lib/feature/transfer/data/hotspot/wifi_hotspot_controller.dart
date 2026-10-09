@@ -250,6 +250,20 @@ class NeHotspotJoiner implements HotspotJoiner {
 /// how that round trip reaches Dart.
 @injectable
 class AndroidWifiJoiner implements HotspotJoiner {
+  AndroidWifiJoiner({
+    @ignoreParam this.joinTimeout = const Duration(seconds: 50),
+    @ignoreParam this.releaseTimeout = const Duration(seconds: 3),
+  }) : assert(joinTimeout > Duration.zero),
+       assert(releaseTimeout > Duration.zero);
+
+  /// Android allows its network consent/association request 40 seconds. Leave
+  /// that window intact, then recover even if the framework misses its reply.
+  final Duration joinTimeout;
+
+  /// Cleanup is best-effort: a second missing native reply must not keep the
+  /// scanner waiting after the association deadline has already expired.
+  final Duration releaseTimeout;
+
   static const _channel = MethodChannel('tark/wifi_join');
   static const _events = EventChannel('tark/wifi_join/events');
 
@@ -262,6 +276,7 @@ class AndroidWifiJoiner implements HotspotJoiner {
   static HotspotCredentials? _activeCredentials;
   static HotspotCredentials? _joiningCredentials;
   static Future<HotspotJoinResult>? _joiningFuture;
+  static Future<void>? _releaseFuture;
   static int _joinEpoch = 0;
 
   /// One underlying subscription for both event kinds. `receiveBroadcastStream`
@@ -316,35 +331,52 @@ class AndroidWifiJoiner implements HotspotJoiner {
 
   @override
   Future<HotspotJoinResult> join(HotspotCredentials credentials) async {
-    if (_activeCredentials == credentials) {
-      Logger.diagnostic(
-        'network: duplicate hotspot join suppressed state=joined',
-      );
-      return HotspotJoinResult.joined;
-    }
+    while (true) {
+      final pending = _joiningFuture;
+      if (pending != null) {
+        if (_joiningCredentials == credentials) {
+          Logger.diagnostic(
+            'network: duplicate hotspot join coalesced state=joining',
+          );
+          return pending;
+        }
+        await pending;
+        // Another waiting invite may have claimed the network while this
+        // await completed. Recheck ownership before releasing or starting it.
+        continue;
+      }
 
-    final pending = _joiningFuture;
-    if (pending != null && _joiningCredentials == credentials) {
-      Logger.diagnostic(
-        'network: duplicate hotspot join coalesced state=joining',
-      );
-      return pending;
-    }
+      final releasing = _releaseFuture;
+      if (releasing != null) {
+        await releasing;
+        continue;
+      }
+      if (_activeCredentials == credentials) {
+        Logger.diagnostic(
+          'network: duplicate hotspot join suppressed state=joined',
+        );
+        return HotspotJoinResult.joined;
+      }
+      if (_activeCredentials != null) {
+        await leave();
+        continue;
+      }
 
-    // A different invite arriving while an older native request is still in
-    // flight must not race it. Android only has one selected process network;
-    // serialize the hand-off, release a completed old selection, then let the
-    // newer credentials own the next epoch.
-    if (pending != null) {
-      await pending;
-      if (_activeCredentials != null) await leave();
+      final epoch = ++_joinEpoch;
+      // Cache the ownership check too: every coalesced caller must observe a
+      // cancellation, rather than receiving the raw native result after Leave.
+      final future = _completeJoin(credentials, epoch);
+      _joiningCredentials = credentials;
+      _joiningFuture = future;
+      return future;
     }
+  }
 
-    final epoch = ++_joinEpoch;
-    final future = _performJoin(credentials);
-    _joiningCredentials = credentials;
-    _joiningFuture = future;
-    final result = await future;
+  Future<HotspotJoinResult> _completeJoin(
+    HotspotCredentials credentials,
+    int epoch,
+  ) async {
+    final result = await _performJoin(credentials, epoch);
     if (epoch == _joinEpoch) {
       _joiningCredentials = null;
       _joiningFuture = null;
@@ -353,18 +385,24 @@ class AndroidWifiJoiner implements HotspotJoiner {
           : null;
     } else {
       Logger.diagnostic('network: stale hotspot join completion ignored');
+      return HotspotJoinResult.declined;
     }
     return result;
   }
 
-  Future<HotspotJoinResult> _performJoin(HotspotCredentials credentials) async {
+  Future<HotspotJoinResult> _performJoin(
+    HotspotCredentials credentials,
+    int epoch,
+  ) async {
     Logger.diagnostic('network: hotspot join requested');
     try {
-      final ok = await _channel.invokeMethod<bool>('join', {
-        'ssid': credentials.ssid,
-        'passphrase': credentials.passphrase,
-        'security': credentials.security,
-      });
+      final ok = await _channel
+          .invokeMethod<bool>('join', {
+            'ssid': credentials.ssid,
+            'passphrase': credentials.passphrase,
+            'security': credentials.security,
+          })
+          .timeout(joinTimeout);
       if (ok != true) {
         Logger.diagnostic('network: hotspot join declined');
         Logger.log('Wi-Fi join declined by the framework (see TarkWifiJoin)');
@@ -372,6 +410,13 @@ class AndroidWifiJoiner implements HotspotJoiner {
         Logger.diagnostic('network: hotspot join accepted');
       }
       return ok == true ? HotspotJoinResult.joined : HotspotJoinResult.declined;
+    } on TimeoutException {
+      Logger.diagnostic('network: hotspot join failed reason=timeout');
+      // A superseded request must not release the network its replacement now
+      // owns. Keep the pending future leased through cleanup so a retry waits
+      // for this release instead of racing it with a fresh native request.
+      if (epoch == _joinEpoch) await _releaseSelection();
+      return HotspotJoinResult.declined;
     } on PlatformException catch (e) {
       // `wifi_off`, `foreground_required`, `no_ssid`, `failed`. Only the first
       // has a fix the user can act on from here; the rest land on the manual
@@ -386,6 +431,14 @@ class AndroidWifiJoiner implements HotspotJoiner {
     } on MissingPluginException {
       Logger.diagnostic('network: hotspot join failed reason=missing_plugin');
       Logger.log('Wi-Fi join unavailable: tark/wifi_join not registered');
+      return HotspotJoinResult.declined;
+    } on Object catch (error) {
+      Logger.diagnostic(
+        'network: hotspot join failed reason=unexpected_${error.runtimeType}',
+      );
+      // Malformed channel responses and unexpected bridge errors must not
+      // poison the process-wide pending lease or leave the scanner busy.
+      if (epoch == _joinEpoch) await _releaseSelection();
       return HotspotJoinResult.declined;
     }
   }
@@ -445,9 +498,26 @@ class AndroidWifiJoiner implements HotspotJoiner {
     _joiningCredentials = null;
     _joiningFuture = null;
     Logger.diagnostic('network: selected wifi release requested');
+    await _releaseSelection();
+  }
+
+  Future<void> _releaseSelection() {
+    final releasing = _releaseFuture;
+    if (releasing != null) return releasing;
+    late final Future<void> future;
+    future = _releaseNativeSelection().whenComplete(() {
+      if (identical(_releaseFuture, future)) _releaseFuture = null;
+    });
+    _releaseFuture = future;
+    return future;
+  }
+
+  Future<void> _releaseNativeSelection() async {
     try {
-      await _channel.invokeMethod<void>('leave');
+      await _channel.invokeMethod<void>('leave').timeout(releaseTimeout);
       Logger.diagnostic('network: selected wifi released');
+    } on TimeoutException {
+      Logger.diagnostic('network: selected wifi release failed reason=timeout');
     } on PlatformException catch (e) {
       Logger.diagnostic(
         'network: selected wifi release failed reason=${e.code}',
@@ -458,6 +528,11 @@ class AndroidWifiJoiner implements HotspotJoiner {
         'network: selected wifi release failed reason=missing_plugin',
       );
       // Not Android.
+    } on Object catch (error) {
+      Logger.diagnostic(
+        'network: selected wifi release failed '
+        'reason=unexpected_${error.runtimeType}',
+      );
     }
   }
 }

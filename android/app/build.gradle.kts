@@ -1,4 +1,5 @@
 import java.util.Properties
+import java.util.Base64
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 
@@ -24,8 +25,29 @@ val releaseKeyAlias = keystoreProperties.getProperty("keyAlias") ?: System.geten
 val releaseStoreFile = keystoreProperties.getProperty("storeFile") ?: "../upload-keystore.jks"
 val isDeviceTestBuild = providers.gradleProperty("tarkDeviceTest").orNull == "true"
 
+// Flutter forwards --dart-define and --dart-define-from-file as Base64 entries.
+// Match Dart's Monetization flags so unlocked builds have no billing permission.
+val dartDefines = providers.gradleProperty("dart-defines").orNull
+    .orEmpty().split(',').filter { it.isNotEmpty() }.associate { encoded ->
+        val entry = String(Base64.getDecoder().decode(encoded), Charsets.UTF_8)
+        val separator = entry.indexOf('=')
+        require(separator > 0) { "Invalid Flutter dart-define" }
+        entry.substring(0, separator) to entry.substring(separator + 1)
+    }
+val bazaarBillingEnabled = dartDefines["TARK_MONETIZED"] == "true" ||
+    dartDefines["TARK_LOCK_PREMIUM"] == "true"
+
 
 android {
+    if (!bazaarBillingEnabled) {
+        // Debug/profile overlays only repeat INTERNET, which main already has.
+        // Use this higher-priority overlay for every unlocked Android build.
+        sourceSets.configureEach {
+            if (name in setOf("debug", "profile", "release")) {
+                manifest.srcFile("src/unmonetized/AndroidManifest.xml")
+            }
+        }
+    }
     namespace = "com.b1101.tark"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion

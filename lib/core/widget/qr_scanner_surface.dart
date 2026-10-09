@@ -7,6 +7,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../motion/app_motion.dart';
 import '../theme/app_colors.dart';
+import '../utils/logger.dart';
 import 'qr_widgets.dart';
 
 /// The app's one camera surface for reading a QR code.
@@ -165,7 +166,13 @@ class _QrScannerSurfaceState extends State<QrScannerSurface>
       if (!mounted) return;
       setState(() {});
 
-      final accepted = await widget.onCode(value);
+      var accepted = false;
+      try {
+        accepted = await widget.onCode(value);
+      } catch (error) {
+        Logger.log('QR scan handler failed: $error');
+        if (mounted) _fail.forward(from: 0);
+      }
       if (!mounted) return;
 
       if (accepted) {

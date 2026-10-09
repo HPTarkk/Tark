@@ -1,18 +1,52 @@
 import 'dart:async';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tark/core/identity/session_epoch.dart';
+import 'package:tark/feature/room/data/security/room_transport_identity_lifecycle.dart';
 import 'package:tark/feature/room/data/security/room_transport_identity_secure_store.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
 import 'package:tark/feature/room/domain/entity/room_session.dart';
 import 'package:tark/feature/room/domain/entity/transport_attachment.dart';
 import 'package:tark/feature/room/domain/repository/room_repository.dart';
+import 'package:tark/feature/room/domain/service/room_connection_readiness_gate.dart';
+import 'package:tark/feature/room/domain/service/room_member_transport_identity.dart';
 import 'package:tark/feature/room/domain/service/selected_room_live_session_binding.dart';
 import 'package:tark/feature/transfer/api/transfer_api.dart';
+import 'package:tark/feature/transfer/data/codec/transport_capability_control_codec.dart';
+import 'package:tark/feature/transfer/data/codec/transport_capability_heartbeat_runtime.dart';
+import 'package:tark/feature/transfer/data/codec/waki_packet_codec.dart';
 
 void main() {
+  final messenger =
+      TestWidgetsFlutterBinding.ensureInitialized().defaultBinaryMessenger;
+  const identityChannel = MethodChannel('tark/room_identity_secure_storage');
   final roomId = RoomId('a' * 32);
   final memberId = RoomMemberId('b' * 24);
   final now = DateTime.utc(2026, 8, 26, 10);
+
+  // Only the Android encrypted-file boundary is replaced. The production
+  // platform store still serializes and restores the signed key material.
+  setUp(() {
+    final storage = <String, Object?>{};
+    messenger.setMockMethodCallHandler(identityChannel, (call) async {
+      final args = call.arguments as Map;
+      final key = '${args['roomId']}:${args['memberId']}';
+      switch (call.method) {
+        case 'write':
+          storage[key] = args['material'];
+          return null;
+        case 'read':
+          return storage[key];
+        case 'delete':
+          storage.remove(key);
+          return null;
+        default:
+          throw MissingPluginException();
+      }
+    });
+  });
+  tearDown(() => messenger.setMockMethodCallHandler(identityChannel, null));
 
   SavedRoom savedRoom() => SavedRoom(
     room: Room(
@@ -83,6 +117,70 @@ void main() {
 
       await binding.close();
       await transfer.health.close();
+    },
+  );
+
+  test(
+    'associated host and joiner open only after signed peer exchange',
+    () async {
+      final peers = await _associatedPeers(roomId: roomId, now: now);
+      addTearDown(peers.close);
+      const gate = RoomConnectionReadinessGate(timeout: Duration(seconds: 2));
+      final hostReady = peers.wait(gate, host: true);
+      final joinerReady = peers.wait(gate, host: false);
+
+      // OS association/socket health is already green. It cannot manufacture
+      // the application hello/ack required to open either phone's call screen.
+      expect(peers.host.runtime!.state.phase, RoomSessionPhase.live);
+      expect(peers.joiner.runtime!.state.phase, RoomSessionPhase.live);
+      expect(peers.host.verifiedPeerProofSnapshot, isEmpty);
+      expect(peers.joiner.verifiedPeerProofSnapshot, isEmpty);
+
+      // Both responders use the providers installed by the real Room binding.
+      // Production Ping/Pong codecs carry their certificates and signatures.
+      await peers.hostTransfer.challenge(peers.joinerTransfer);
+      await peers.joinerTransfer.challenge(peers.hostTransfer);
+
+      expect((await hostReady).isReady, isTrue);
+      expect((await joinerReady).isReady, isTrue);
+      expect(
+        peers.host.verifiedPeerProofSnapshot.single.memberId,
+        peers.joinerId,
+      );
+      expect(
+        peers.joiner.verifiedPeerProofSnapshot.single.memberId,
+        peers.hostId,
+      );
+    },
+  );
+
+  test(
+    'association and a forged peer proof cannot open Room readiness',
+    () async {
+      final peers = await _associatedPeers(roomId: roomId, now: now);
+      addTearDown(peers.close);
+      const gate = RoomConnectionReadinessGate(
+        timeout: Duration(milliseconds: 100),
+      );
+
+      final withoutProof = await peers.wait(gate, host: true);
+      expect(withoutProof.transportReady, isTrue);
+      expect(withoutProof.isReady, isFalse);
+      expect(
+        withoutProof.failure,
+        RoomConnectionReadinessFailureStage.peerProofMissing,
+      );
+
+      final withForgery = peers.wait(gate, host: true);
+      await peers.hostTransfer.challenge(peers.joinerTransfer, forge: true);
+      final rejected = await withForgery;
+      expect(rejected.transportReady, isTrue);
+      expect(rejected.isReady, isFalse);
+      expect(
+        rejected.failure,
+        RoomConnectionReadinessFailureStage.peerProofMissing,
+      );
+      expect(peers.host.verifiedPeerProofSnapshot, isEmpty);
     },
   );
 
@@ -192,6 +290,197 @@ void main() {
 Future<void> _flush() async {
   await Future<void>.delayed(Duration.zero);
   await Future<void>.delayed(Duration.zero);
+}
+
+Future<_AssociatedPeers> _associatedPeers({
+  required RoomId roomId,
+  required DateTime now,
+}) async {
+  const hostId = RoomMemberId('111111111111111111111111');
+  const joinerId = RoomMemberId('222222222222222222222222');
+  final room = Room(
+    id: roomId,
+    name: 'Riders',
+    createdAt: now,
+    updatedAt: now,
+    members: [
+      RoomMember(id: hostId, displayName: 'Host', joinedAt: now),
+      RoomMember(id: joinerId, displayName: 'Joiner', joinedAt: now),
+    ],
+  );
+  final hostRoom = SavedRoom(
+    room: room,
+    membership: const RoomMembership(
+      localMemberId: hostId,
+      canManageInvites: true,
+    ),
+  );
+  final joinerRoom = SavedRoom(
+    room: room,
+    membership: const RoomMembership(
+      localMemberId: joinerId,
+      canManageInvites: false,
+    ),
+  );
+  final store = PlatformRoomTransportIdentitySecureStore();
+  final identity = RoomTransportIdentityLifecycle(store: store);
+  await identity.ensureLocalIdentity(hostRoom);
+  final joinerKey = await identity.createPendingMemberKeyPair();
+  final certificate = await identity.issueMemberCertificate(
+    issuerRoom: hostRoom,
+    memberId: joinerId,
+    memberPublicKey: joinerKey.publicKey,
+  );
+  await identity.persistJoinedIdentity(
+    saved: joinerRoom,
+    memberKeyPair: joinerKey,
+    certificate: certificate,
+  );
+
+  final hostTransfer = _ProofTransfer(SessionRole.host, '192.168.43.1', 7);
+  final joinerTransfer = _ProofTransfer(SessionRole.joiner, '192.168.43.2', 11);
+  SelectedRoomLiveSessionBinding binding(
+    SavedRoom saved,
+    _ProofTransfer transfer,
+  ) => SelectedRoomLiveSessionBinding(
+    rooms: _RoomRepository(selected: roomId, saved: saved),
+    transfer: transfer,
+    modeStore: _ModeStore(TransferMode.hotspot),
+    hotspotHost: _HotspotHost(),
+    hotspotLinkKeeper: _HotspotLinkKeeper(),
+    identityStore: store,
+    localCapabilityReader: () async => null,
+  );
+
+  final host = binding(hostRoom, hostTransfer);
+  final joiner = binding(joinerRoom, joinerTransfer);
+  await host.open(sessionId: 'host-after-association');
+  await joiner.open(sessionId: 'joiner-after-association');
+  return _AssociatedPeers(host, joiner, hostTransfer, joinerTransfer);
+}
+
+class _AssociatedPeers {
+  _AssociatedPeers(
+    this.host,
+    this.joiner,
+    this.hostTransfer,
+    this.joinerTransfer,
+  );
+
+  final SelectedRoomLiveSessionBinding host;
+  final SelectedRoomLiveSessionBinding joiner;
+  final _ProofTransfer hostTransfer;
+  final _ProofTransfer joinerTransfer;
+  RoomMemberId get hostId => RoomMemberId(host.runtime!.state.localMemberId);
+  RoomMemberId get joinerId =>
+      RoomMemberId(joiner.runtime!.state.localMemberId);
+
+  Future<RoomConnectionReadinessResult> wait(
+    RoomConnectionReadinessGate gate, {
+    required bool host,
+  }) {
+    final binding = host ? this.host : joiner;
+    return gate.wait(
+      runtime: binding.runtime!,
+      peerProofs: binding.verifiedPeerProofs,
+      initialPeerProofs: binding.verifiedPeerProofSnapshot,
+      expectedPeers: {host ? joinerId : hostId},
+      epoch: 1,
+      currentEpoch: () => 1,
+    );
+  }
+
+  Future<void> close() async {
+    await host.close();
+    await joiner.close();
+    await hostTransfer.heartbeat.dispose();
+    await joinerTransfer.heartbeat.dispose();
+    await hostTransfer.health.close();
+    await joinerTransfer.health.close();
+  }
+}
+
+/// The associated network is the only fake: deliver wire bytes directly instead
+/// of through Android UDP. Encoding, signing, storage, proof verification and
+/// the Room readiness gate all use the production implementations.
+class _ProofTransfer extends _TransferRepository
+    implements
+        TransportRouteProofExchange,
+        TransportCapabilityObservationSource {
+  _ProofTransfer(SessionRole role, this.address, int epoch)
+    : epoch = SessionEpoch.startingAt(epoch),
+      super(role: role, currentHealth: const ConnectionHealth.healthy()) {
+    heartbeat = TransportCapabilityHeartbeatRuntime(
+      codec: TransportCapabilityControlCodec(
+        WakiPacketCodec(address, this.epoch),
+      ),
+      readLocalCapability: () async => null,
+    );
+  }
+
+  final String address;
+  final SessionEpoch epoch;
+  late final TransportCapabilityHeartbeatRuntime heartbeat;
+  int _token = 0;
+
+  @override
+  Stream<TransportCapabilityObservation> get transportCapabilityObservations =>
+      heartbeat.transportCapabilityObservations;
+
+  @override
+  Stream<TransportRouteProofObservation> get routeProofObservations =>
+      heartbeat.routeProofObservations;
+
+  @override
+  void setRouteProofProvider(TransportRouteProofProvider? provider) =>
+      heartbeat.setRouteProofProvider(provider);
+
+  Future<void> challenge(_ProofTransfer peer, {bool forge = false}) async {
+    final token = ++_token;
+    final ping = await heartbeat.encodePing(
+      token: token,
+      lastTxSeq: 0,
+      lastRxSeq: 0,
+      audioRxPackets: 0,
+    );
+    final decodedPing = peer.heartbeat.decodeControl(ping, address)!;
+    var pong = await peer.heartbeat.encodePong(
+      token: decodedPing.packet.token,
+      lastTxSeq: 0,
+      lastRxSeq: 0,
+      audioRxPackets: 0,
+      challengeEpoch: decodedPing.packet.sessionEpoch,
+    );
+    if (forge) {
+      final genuine = RoomMemberTransportProof.decode(
+        heartbeat.decodeControl(pong, peer.address)!.routeProof!,
+      );
+      final signature = [...genuine.memberSignature];
+      signature[0] ^= 1;
+      final forged = RoomMemberTransportProof(
+        certificate: genuine.certificate,
+        token: genuine.token,
+        sessionEpoch: genuine.sessionEpoch,
+        memberSignature: signature,
+        name: genuine.name,
+      );
+      pong = peer.heartbeat.codec.encodePong(
+        token: token,
+        lastTxSeq: 0,
+        lastRxSeq: 0,
+        audioRxPackets: 0,
+        routeProof: forged.encode(),
+      );
+    }
+    final decodedPong = heartbeat.decodeControl(pong, peer.address)!;
+    expect(decodedPong.packet.token, token);
+    heartbeat.observeMatchedPong(
+      decoded: decodedPong,
+      peerKey: peer.address,
+      observedAt: DateTime.now(),
+      challengeEpoch: epoch.value,
+    );
+  }
 }
 
 class _RoomRepository implements RoomRepository {
