@@ -8,6 +8,12 @@ import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tark/app/router/room_bound_walkie_entry.dart';
 import 'package:tark/core/error/failure.dart';
+import 'package:tark/core/entitlement/billing_service.dart';
+import 'package:tark/core/entitlement/license_gate.dart';
+import 'package:tark/core/entitlement/plan_catalog.dart';
+import 'package:tark/core/entitlement/premium_feature.dart';
+import 'package:tark/core/entitlement/subscription_gate_page.dart';
+import 'package:tark/core/entitlement/subscription_service.dart';
 import 'package:tark/core/identity/channel_id.dart';
 import 'package:tark/core/identity/channel_membership.dart';
 import 'package:tark/core/l10n/app_localizations.dart';
@@ -65,100 +71,160 @@ void main() {
     );
   }
 
-  testWidgets('Start announces on Wi-Fi while waiting for peer proof, then '
-      'releases the socket when nobody answers', (tester) async {
-    // No secure identity on this device: the binding opens without failover,
-    // which is all the gate needs to run.
-    const identityChannel = MethodChannel('tark/room_identity_secure_storage');
-    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-      identityChannel,
-      (_) async => throw PlatformException(code: 'unavailable'),
-    );
-    addTearDown(
-      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        identityChannel,
-        null,
-      ),
-    );
-    final wifi = _FakeWifi();
-    // Left over from an earlier session, as the scanning phone's would be.
-    final membership = ChannelMembership()..join(const ChannelId(0x00ABCD));
-    getIt.registerLazySingleton<RoomRepository>(
-      () => _FakeRoomRepository(room()),
-    );
-    getIt.registerLazySingleton<LiveLinkProbe>(
-      () => _FakeProbe(
-        const LiveLinkSnapshot(
-          wifi: true,
-          hostingHotspot: false,
-          bluetooth: false,
-        ),
-      ),
-    );
-    getIt.registerLazySingleton<TransferModeStore>(
-      () => _FakeModeStore(TransferMode.wifi),
-    );
-    getIt.registerLazySingleton<TransferRepository>(_FakeTransfer.new);
-    getIt.registerLazySingleton<WifiTransferRepository>(() => wifi);
-    getIt.registerLazySingleton<ChannelMembership>(() => membership);
-    getIt.registerLazySingleton<HotspotHost>(_FakeHotspotHost.new);
-    getIt.registerLazySingleton<HotspotLinkKeeper>(_FakeKeeper.new);
+  for (final entitled in [true, false]) {
+    testWidgets(
+      entitled
+          ? 'Start announces on Wi-Fi and releases the socket when nobody answers'
+          : 'Start requests subscription before Wi-Fi and cancellation stays in lobby',
+      (tester) async {
+        // No secure identity on this device: the binding opens without failover,
+        // which is all the gate needs to run.
+        const identityChannel = MethodChannel(
+          'tark/room_identity_secure_storage',
+        );
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          identityChannel,
+          (_) async => throw PlatformException(code: 'unavailable'),
+        );
+        addTearDown(
+          () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+            identityChannel,
+            null,
+          ),
+        );
+        final wifi = _FakeWifi();
+        getIt.registerSingleton<LicenseGate>(_Gate(entitled));
+        if (!entitled) {
+          getIt.registerSingleton<SubscriptionService>(_LockedSubscription());
+          getIt.registerSingleton<BillingService>(
+            const UnavailableBillingService(),
+          );
+          getIt.registerSingleton<PlanCatalog>(_Plans());
+        }
+        // Left over from an earlier session, as the scanning phone's would be.
+        final membership = ChannelMembership()..join(const ChannelId(0x00ABCD));
+        getIt.registerLazySingleton<RoomRepository>(
+          () => _FakeRoomRepository(room()),
+        );
+        getIt.registerLazySingleton<LiveLinkProbe>(
+          () => _FakeProbe(
+            const LiveLinkSnapshot(
+              wifi: true,
+              hostingHotspot: false,
+              bluetooth: false,
+            ),
+          ),
+        );
+        getIt.registerLazySingleton<TransferModeStore>(
+          () => _FakeModeStore(TransferMode.wifi),
+        );
+        getIt.registerLazySingleton<TransferRepository>(_FakeTransfer.new);
+        getIt.registerLazySingleton<WifiTransferRepository>(() => wifi);
+        getIt.registerLazySingleton<ChannelMembership>(() => membership);
+        getIt.registerLazySingleton<HotspotHost>(_FakeHotspotHost.new);
+        getIt.registerLazySingleton<HotspotLinkKeeper>(_FakeKeeper.new);
 
-    final router = GoRouter(
-      initialLocation: AppRoutes.walkiePath,
-      routes: [
-        GoRoute(path: AppRoutes.roomsPath, builder: (_, _) => const Scaffold()),
-        GoRoute(
-          path: AppRoutes.walkiePath,
-          builder: (_, _) => RoomBoundWalkieEntry.buildPage(),
-        ),
-      ],
-    );
-    addTearDown(router.dispose);
+        final router = GoRouter(
+          initialLocation: AppRoutes.walkiePath,
+          routes: [
+            GoRoute(
+              path: AppRoutes.roomsPath,
+              builder: (_, _) => const Scaffold(),
+            ),
+            GoRoute(
+              path: AppRoutes.walkiePath,
+              builder: (_, _) => RoomBoundWalkieEntry.buildPage(),
+            ),
+          ],
+        );
+        addTearDown(router.dispose);
 
-    await tester.pumpWidget(
-      MaterialApp.router(
-        locale: const Locale('en'),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        routerConfig: router,
-      ),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 1));
-    expect(wifi.listens, 0, reason: 'opening the lobby starts nothing');
+        await tester.pumpWidget(
+          MaterialApp.router(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            routerConfig: router,
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 1));
+        expect(wifi.listens, 0, reason: 'opening the lobby starts nothing');
 
-    // Start sits below Invite and can be under the fold.
-    await tester.ensureVisible(
-      find.byKey(const Key('selected-room-start-ride')),
-    );
-    await tester.pump();
-    await tester.tap(find.byKey(const Key('selected-room-start-ride')));
-    for (var i = 0; i < 20; i++) {
-      await tester.pump(const Duration(milliseconds: 100));
-    }
+        // Start sits below Invite and can be under the fold.
+        await tester.ensureVisible(
+          find.byKey(const Key('selected-room-start-ride')),
+        );
+        await tester.pump();
+        await tester.tap(find.byKey(const Key('selected-room-start-ride')));
+        for (var i = 0; i < 20; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
 
-    // Every member lands on the Room's own channel, whatever a previous
-    // session left behind.
-    expect(
-      membership.current.value,
-      RoomPreLiveAnnouncer.channelFor(room().room.id).value,
-    );
-    expect(wifi.listens, 1);
-    expect(wifi.presences, isNotEmpty);
-    expect(wifi.presences.first, 'Rider one');
-    expect(wifi.stops, 0);
+        if (!entitled) {
+          expect(find.byType(SubscriptionGatePage), findsOneWidget);
+          expect(wifi.listens, 0);
+          expect(wifi.presences, isEmpty);
+          Navigator.of(
+            tester.element(find.byType(SubscriptionGatePage)),
+          ).pop(false);
+          await tester.pumpAndSettle();
+          expect(find.byKey(const Key('selected-room-lobby')), findsOneWidget);
+          expect(wifi.listens, 0);
+          expect(wifi.stops, 0);
+          return;
+        }
 
-    // Nobody answers: the gate times out and the attempt gives the socket
-    // back instead of leaving it pinging an empty network.
-    await tester.pump(const Duration(seconds: 31));
-    await tester.pump();
-    final sent = wifi.presences.length;
-    expect(wifi.stops, 1);
-    await tester.pump(const Duration(seconds: 3));
-    expect(wifi.presences.length, sent);
-    expect(find.byKey(const Key('selected-room-lobby')), findsOneWidget);
-  });
+        // Every member lands on the Room's own channel, whatever a previous
+        // session left behind.
+        expect(
+          membership.current.value,
+          RoomPreLiveAnnouncer.channelFor(room().room.id).value,
+        );
+        expect(wifi.listens, 1);
+        expect(wifi.presences, isNotEmpty);
+        expect(wifi.presences.first, 'Rider one');
+        expect(wifi.stops, 0);
+
+        // Nobody answers: the gate times out and the attempt gives the socket
+        // back instead of leaving it pinging an empty network.
+        await tester.pump(const Duration(seconds: 31));
+        await tester.pump();
+        final sent = wifi.presences.length;
+        expect(wifi.stops, 1);
+        await tester.pump(const Duration(seconds: 3));
+        expect(wifi.presences.length, sent);
+        expect(find.byKey(const Key('selected-room-lobby')), findsOneWidget);
+      },
+    );
+  }
+}
+
+class _Gate implements LicenseGate {
+  _Gate(this.entitled);
+  final bool entitled;
+  @override
+  bool allows(PremiumFeature feature) => entitled;
+  @override
+  bool get canPurchase => true;
+  @override
+  Stream<void> get changes => const Stream.empty();
+}
+
+class _LockedSubscription implements SubscriptionService {
+  @override
+  Stream<void> get changes => const Stream.empty();
+  @override
+  bool get isPremiumActive => false;
+  @override
+  Future<GateOutcome> check() async => const GateSignInRequired();
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _Plans implements PlanCatalog {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _FakeWifi implements WifiTransferRepository {
