@@ -1103,9 +1103,15 @@ summary {
   max-width: 840px;
 }
 .download {
+  display: flex;
+  align-items: center;
+  min-height: calc(100svh - var(--ending-chrome-height, 164px) + 2px);
   text-align: center;
-  padding-bottom: 0;
+  padding-block: 48px 24px;
   overflow: hidden;
+}
+.download > .wrap {
+  width: 100%;
 }
 .download .eyebrow {
   justify-content: center;
@@ -1153,6 +1159,11 @@ summary {
 }
 .footer a:hover {
   color: var(--text);
+}
+.landing-footer {
+  max-width: none;
+  padding-inline: max(52px, calc((100% - 1336px) / 2));
+  border-top: 1px solid var(--paper-line);
 }
 .reveal {
   opacity: 1;
@@ -1453,6 +1464,24 @@ html[dir="ltr"] .joined-person {
   }
   .joined-person {
     bottom: 25px;
+  }
+}
+@media (min-width: 768px) and (max-height: 800px) {
+  .download {
+    padding-block: 24px;
+  }
+  .download h2 {
+    font-size: clamp(30px, 5.5svh, 44px);
+  }
+  .download-actions {
+    margin-top: 20px;
+  }
+  .download-note {
+    margin-top: 14px;
+  }
+  .download .footer-wordmark {
+    font-size: clamp(80px, 16svh, 128px);
+    margin-top: 20px;
   }
 }
 @media (max-width: 767px) {
@@ -1931,6 +1960,9 @@ html[dir="ltr"] .joined-person {
   }
   .footer > div {
     gap: 13px 20px;
+  }
+  .landing-footer {
+    padding-inline: 24px;
   }
   html[dir="ltr"] .hero h1 {
     font-size: 53px;

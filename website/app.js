@@ -39,6 +39,22 @@ let voice = "peer",
   motionContext;
 let journeyScreen = "home";
 const reduced = matchMedia("(prefers-reduced-motion: reduce)");
+// Keep the final section and its wrapping footer together below the fixed nav.
+// Their heights can change when language, font size or viewport width changes.
+const endingFooter = $(".landing-footer");
+const endingHeader = $(".site-header");
+const endingLayout = new ResizeObserver(() => {
+  const chromeHeight = Math.ceil(
+    endingHeader.getBoundingClientRect().height +
+      endingFooter.getBoundingClientRect().height,
+  );
+  document.documentElement.style.setProperty(
+    "--ending-chrome-height",
+    `${chromeHeight}px`,
+  );
+});
+endingLayout.observe(endingHeader);
+endingLayout.observe(endingFooter);
 const t = (fa, en) => (language === "fa" ? fa : en);
 const digits = (value) =>
   language === "fa"
@@ -821,6 +837,7 @@ window.addEventListener("pagehide", (event) => {
     motionContext?.revert();
     apps.forEach((app) => app.destroy());
     reveal.disconnect();
+    endingLayout.disconnect();
     audioContext?.close();
     equalizerController?.destroy();
   }
