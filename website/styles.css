@@ -1466,6 +1466,24 @@ html[dir="ltr"] .joined-person {
     bottom: 25px;
   }
 }
+@media (min-width: 768px) and (max-height: 800px) {
+  .download {
+    padding-block: 24px;
+  }
+  .download h2 {
+    font-size: clamp(30px, 5.5svh, 44px);
+  }
+  .download-actions {
+    margin-top: 20px;
+  }
+  .download-note {
+    margin-top: 14px;
+  }
+  .download .footer-wordmark {
+    font-size: clamp(80px, 16svh, 128px);
+    margin-top: 20px;
+  }
+}
 @media (max-width: 767px) {
   .wrap {
     padding-inline: 24px;
