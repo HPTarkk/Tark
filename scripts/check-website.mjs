@@ -56,9 +56,20 @@ for (const file of files) {
   }
 }
 const navOrder = ['handshake', 'features', 'music', 'tech'];
+async function verifySocialImage(html, lang) {
+  const filename = lang === 'fa' ? 'og-image.png' : 'og-image-en.png';
+  const url = `https://tarkk.ir/${filename}`;
+  assert.equal(html.match(/<meta property="og:image" content="([^"]+)"/)?.[1], url, `Wrong ${lang} Open Graph image`);
+  assert.equal(html.match(/<meta name="twitter:image" content="([^"]+)"/)?.[1], url, `Wrong ${lang} Twitter image`);
+  const png = await readFile(resolve(site, filename));
+  assert.equal(png.subarray(0, 8).toString('hex'), '89504e470d0a1a0a', `Invalid ${lang} social PNG`);
+  assert.equal(png.readUInt32BE(16), 1200, `Wrong ${lang} social image width`);
+  assert.equal(png.readUInt32BE(20), 630, `Wrong ${lang} social image height`);
+}
 for (const lang of ['en', 'fa']) {
   const prefix = lang === 'fa' ? 'fa/' : '';
   const html = await readFile(resolve(site, prefix, 'index.html'), 'utf8');
+  await verifySocialImage(html, lang);
   assert(html.includes(`<html lang="${lang}" dir="${lang === 'fa' ? 'rtl' : 'ltr'}"`));
   assert(html.includes(`rel="canonical" href="https://tarkk.ir/${prefix}"`));
   assert(!html.includes('noindex'), 'Production landing must be indexable');
@@ -74,6 +85,7 @@ for (const lang of ['en', 'fa']) {
   if (lang === 'en') assert(!/[\u0600-\u06ff]/.test(bodyText), 'English static body has untranslated Persian text');
   for (const page of ['privacy', 'terms', 'delete-account']) {
     const legal = await readFile(resolve(site, prefix, page + '.html'), 'utf8');
+    await verifySocialImage(legal, lang);
     assert(legal.includes(`rel="canonical" href="https://tarkk.ir/${prefix}${page}"`));
     assert(legal.includes('/legal-page.js?v=site-1'));
     const legalNav = legal.match(/<div class="nav-links" id="navLinks">([\s\S]*?)<\/div>/)[1];
