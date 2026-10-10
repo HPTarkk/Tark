@@ -177,6 +177,14 @@ final class RoomProximityControlChannel {
     Logger.diagnostic('room_proximity: host ready');
   }
 
+  /// On the hosting side, completes when the phone that scanned the invite
+  /// has dialed in, or throws [TimeoutException] after [within].
+  Future<void> waitForPeer({required Duration within}) async {
+    if (_disposed) throw StateError('proximity control channel is disposed');
+    await _engine.onPeerConnected.first.timeout(within);
+    Logger.diagnostic('room_proximity: peer dialed in');
+  }
+
   /// Finds the phone advertising [rendezvousToken] and dials it.
   ///
   /// Both halves are bounded. Before they were, a joiner that missed the

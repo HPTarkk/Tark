@@ -1,3 +1,4 @@
+import '../../../../core/utils/logger.dart';
 import '../../domain/entity/room.dart';
 import '../../domain/service/room_member_transport_identity.dart';
 import 'room_transport_identity_secure_store.dart';
@@ -32,6 +33,20 @@ final class RoomTransportIdentityLifecycle {
       throw StateError('Room transport identity is unavailable');
     }
 
+    // Minting a fresh Room key is right for a Room nobody else has joined.
+    // With other members it is still the only way this phone can invite again,
+    // but every certificate it signed before stops verifying: those people
+    // will hear this phone and never connect until they are invited again.
+    // Silent, that looked like a Room that simply "stopped working".
+    final others = saved.room.confirmedMembers
+        .where((member) => member.id != memberId)
+        .length;
+    if (others > 0) {
+      Logger.diagnostic(
+        'room: identity missing on the Room owner; minting a new Room key — '
+        '$others existing member(s) must be invited again',
+      );
+    }
     final issuer = await _crypto.generateKeyPair();
     final member = await _crypto.generateKeyPair();
     final certificate = await _crypto.issueCertificate(

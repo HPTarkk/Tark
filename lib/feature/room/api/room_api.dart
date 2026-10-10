@@ -11,6 +11,7 @@ export '../data/repository/room_rejoin_ticket_store.dart'
     show RoomRejoinTicket, RoomRejoinTicketStore;
 export '../domain/entity/held_seat_name.dart' show isHeldSeatPlaceholder;
 export '../domain/entity/room.dart' show RoomMember, RoomMemberId, SavedRoom;
+export '../domain/entity/room_invite_link.dart';
 export '../domain/entity/room_transport_choice.dart';
 export '../domain/repository/room_repository.dart' show RoomRepository;
 export '../domain/service/room_connection_coordinator.dart'
@@ -35,6 +36,9 @@ export '../presentation/page/room_manager_entry.dart' show RoomManagerEntry;
 export '../presentation/page/room_qr_join_issuer_page.dart'
     show RoomQrJoinIssuerPage;
 export '../presentation/page/room_qr_join_page.dart' show RoomQrJoinPage;
+export '../presentation/bluetooth_invite_host.dart' show BluetoothInviteHost;
+export '../presentation/room_bluetooth_permissions.dart'
+    show ensureRoomInviteBluetoothPermissions;
 export '../presentation/room_member_display_name.dart'
     show roomMemberDisplayName;
 export '../presentation/widget/in_room_people_action.dart'

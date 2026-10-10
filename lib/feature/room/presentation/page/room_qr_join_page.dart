@@ -15,6 +15,8 @@ import '../../../../core/widget/qr_scanner_surface.dart';
 import '../../../transfer/api/hotspot_invite_api.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../../domain/entity/room_direct_join_bundle.dart';
+import '../../domain/entity/room_invite_link.dart';
+import '../bluetooth_invite_joiner.dart';
 import '../manager/room_list_cubit.dart';
 
 /// One-scan Room entry. Membership is persisted before transport setup.
@@ -25,7 +27,7 @@ import '../manager/room_list_cubit.dart';
 /// camera never opens a second time and transport remains an implementation
 /// detail rather than a user decision.
 class RoomQrJoinPage extends StatefulWidget {
-  const RoomQrJoinPage({required this.cubit, super.key});
+  const RoomQrJoinPage({required this.cubit, this.bluetoothJoiner, super.key});
 
   static Widget buildPage() => BlocProvider<RoomListCubit>(
     create: (_) => GetIt.instance<RoomListCubit>()..load(),
@@ -36,6 +38,10 @@ class RoomQrJoinPage extends StatefulWidget {
   );
 
   final RoomListCubit cubit;
+
+  /// Reaches the host of a Bluetooth invite. A seam for tests; the default
+  /// uses the phone's radio.
+  final BluetoothInviteJoiner? bluetoothJoiner;
 
   @override
   State<RoomQrJoinPage> createState() => _RoomQrJoinPageState();
@@ -58,7 +64,8 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
       // Room token is an opaque Tark extension. Ordinary Room QR codes have no
       // network wrapper, so the raw value remains the fallback.
       final scanned = ScannedCode.parse(raw);
-      final roomRaw = scanned?.roomInvite ?? raw;
+      final bluetooth = BluetoothInviteLink.tryParse(raw);
+      final roomRaw = scanned?.roomInvite ?? bluetooth?.roomInvite ?? raw;
       final bundle = RoomDirectJoinBundle.decode(roomRaw);
       if (await widget.cubit.needsMoreRoomsAccess(
             existingRoom: bundle.snapshot.roomId,
@@ -96,7 +103,15 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
       if (!mounted) return false;
       if (joined) {
         final credentials = scanned?.credentials;
-        if (credentials != null) {
+        if (bluetooth != null) {
+          final problem = await _joinOverBluetooth(bluetooth.link);
+          if (!mounted) return false;
+          if (problem != null) {
+            setState(() => _error = problem);
+            return false;
+          }
+          context.go('${AppRoutes.walkiePath}?ride=true&start=true');
+        } else if (credentials != null) {
           if (GetIt.instance.isRegistered<LicenseGate>() &&
               !await openSubscriptionGate(
                 context,
@@ -115,9 +130,13 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
             return false;
           }
           if (GetIt.instance.isRegistered<TransferModeStore>()) {
-            await GetIt.instance<TransferModeStore>().setMode(
-              TransferMode.hotspot,
-            );
+            final modes = GetIt.instance<TransferModeStore>();
+            // Same reasoning as Bluetooth: a Bluetooth preference on this
+            // phone would refuse the hotspot it was just handed.
+            if (modes.pinnedMode == TransferMode.bluetooth) {
+              await modes.setPinnedMode(null);
+            }
+            await modes.setMode(TransferMode.hotspot);
           }
           if (!mounted) return false;
           context.go('${AppRoutes.walkiePath}?ride=true&start=true');
@@ -140,6 +159,29 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
     } finally {
       _joining = false;
     }
+  }
+
+  /// The Bluetooth half of a one-scan invite, in words the rider can act on.
+  /// Null once the audio link is up.
+  ///
+  /// Membership is already saved by now, so a failure here leaves a member
+  /// who can simply scan again; nothing is half-joined.
+  Future<String?> _joinOverBluetooth(BluetoothInviteLink link) async {
+    if (GetIt.instance.isRegistered<SessionRoleStore>()) {
+      GetIt.instance<SessionRoleStore>().setRole(SessionRole.joiner);
+    }
+    final result = await (widget.bluetoothJoiner ?? BluetoothInviteJoiner())
+        .join(link);
+    if (!mounted) return null;
+    final s = context.getString;
+    return switch (result) {
+      BluetoothInviteJoinResult.joined => null,
+      BluetoothInviteJoinResult.permissionDenied =>
+        s.roomjoin_bluetooth_permission,
+      BluetoothInviteJoinResult.locationOff => s.roomjoin_location_off,
+      BluetoothInviteJoinResult.bluetoothOff => s.roomjoin_bluetooth_off,
+      BluetoothInviteJoinResult.notFound => s.roomjoin_host_not_found,
+    };
   }
 
   /// What to do with a code that has no valid durable Room invite.

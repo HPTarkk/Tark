@@ -4052,6 +4052,12 @@ abstract class AppLocalizations {
   /// **'وصل نشد. گوشی‌ها رو نزدیک هم نگه دار و دوباره اسکن کن.'**
   String get reconnect_join_failed;
 
+  /// No description provided for @invite_host_failed.
+  ///
+  /// In fa, this message translates to:
+  /// **'این گوشی نتونست اتصالش رو به اشتراک بذاره، پس هنوز کدی برای اسکن نیست. این رو ببند و دوباره امتحان کن.'**
+  String get invite_host_failed;
+
   /// No description provided for @reconnect_host_failed.
   ///
   /// In fa, this message translates to:

@@ -658,6 +658,7 @@
     "reconnect_wifi_off": "Turn on Wi-Fi on this phone, then scan again.",
     "reconnect_location_off": "Turn on Location on this phone, then scan again.",
     "reconnect_join_failed": "Couldn't connect. Keep the phones close and scan again.",
+    "invite_host_failed": "This phone couldn't start sharing its connection, so there's no code to scan yet. Close this and try again.",
     "reconnect_host_failed": "This phone couldn't start sharing. Try again, or tap “Scan their code instead”.",
     "reconnect_retry": "Try again",
     "lobby_use_home_wifi": "On the same Wi-Fi? Connect through it",

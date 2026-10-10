@@ -272,6 +272,79 @@ void main() {
       expect(keeper.state, HotspotLinkState.up);
     });
 
+    test(
+      'adopting a new network stops retrying the old one (2026-10-05 field log)',
+      () async {
+        // The old Room's hotspot is gone: every rejoin of it is declined, so
+        // the loop sits in its backoff when the next Room's network arrives.
+        keeper = buildKeeper();
+        joiner.results = [HotspotJoinResult.declined];
+        keeper.adopt(_creds);
+        joiner.drop();
+        await pumpEventQueue();
+        expect(joiner.joins, isNotEmpty);
+        expect(keeper.state, HotspotLinkState.recovering);
+
+        const next = HotspotCredentials(
+          ssid: 'AndroidShare_2024',
+          passphrase: 'new',
+        );
+        keeper.adopt(next);
+        final before = joiner.joins.length;
+        await Future<void>.delayed(const Duration(milliseconds: 40));
+
+        expect(
+          joiner.joins.skip(before),
+          isEmpty,
+          reason: 'joining the old network again would drop the new one',
+        );
+        expect(keeper.state, HotspotLinkState.up);
+        expect(keeper.credentials, next);
+      },
+    );
+
+    test('a drop of the new network recovers the new network only', () async {
+      joiner.results = [HotspotJoinResult.declined];
+      keeper.adopt(_creds);
+      joiner.drop();
+      await pumpEventQueue();
+
+      const next = HotspotCredentials(
+        ssid: 'AndroidShare_2024',
+        passphrase: 'n',
+      );
+      keeper.adopt(next);
+      joiner.results = [HotspotJoinResult.joined];
+      final before = joiner.joins.length;
+      joiner.drop();
+      await Future<void>.delayed(const Duration(milliseconds: 40));
+
+      expect(joiner.joins.skip(before), everyElement(next));
+      expect(joiner.joins.skip(before), isNotEmpty);
+      expect(keeper.state, HotspotLinkState.up);
+    });
+
+    test(
+      'release then a new adopt during backoff never revives the old loop',
+      () async {
+        joiner.results = [HotspotJoinResult.declined];
+        keeper.adopt(_creds);
+        joiner.drop();
+        await pumpEventQueue();
+
+        await keeper.release();
+        const next = HotspotCredentials(
+          ssid: 'AndroidShare_2024',
+          passphrase: 'n',
+        );
+        keeper.adopt(next);
+        final before = joiner.joins.length;
+        await Future<void>.delayed(const Duration(milliseconds: 40));
+
+        expect(joiner.joins.skip(before), isEmpty);
+      },
+    );
+
     test('drop after release is ignored', () async {
       keeper.adopt(_creds);
       await keeper.release();

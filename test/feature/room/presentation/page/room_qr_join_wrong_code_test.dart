@@ -9,10 +9,12 @@ import 'package:tark/core/l10n/app_localizations.dart';
 import 'package:tark/core/router/routes.dart';
 import 'package:tark/core/widget/qr_scanner_surface.dart';
 import 'package:tark/feature/room/presentation/manager/room_list_cubit.dart';
+import 'package:tark/feature/room/presentation/bluetooth_invite_joiner.dart';
 import 'package:tark/feature/room/presentation/page/room_qr_join_page.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
 import 'package:tark/feature/room/domain/entity/room_accepted_join_snapshot.dart';
 import 'package:tark/feature/room/domain/entity/room_direct_join_bundle.dart';
+import 'package:tark/feature/room/domain/entity/room_invite_link.dart';
 import 'package:tark/feature/room/domain/service/room_member_transport_identity.dart';
 import 'package:tark/feature/transfer/domain/entity/hotspot_credentials.dart';
 import 'package:tark/feature/transfer/domain/service/hotspot_control.dart';
@@ -36,7 +38,10 @@ void main() {
 
   tearDown(() => GetIt.instance.reset());
 
-  Future<QrScannerSurface> pumpScanner(WidgetTester tester) async {
+  Future<QrScannerSurface> pumpScanner(
+    WidgetTester tester, {
+    BluetoothInviteJoiner? bluetoothJoiner,
+  }) async {
     handed = [];
     visited = [];
     final router = GoRouter(
@@ -44,7 +49,17 @@ void main() {
       routes: [
         GoRoute(
           path: AppRoutes.roomQrJoinPath,
-          builder: (_, _) => RoomQrJoinPage(cubit: _FakeRoomList()),
+          builder: (_, _) => RoomQrJoinPage(
+            cubit: _FakeRoomList(),
+            bluetoothJoiner: bluetoothJoiner,
+          ),
+        ),
+        GoRoute(
+          path: AppRoutes.walkiePath,
+          builder: (_, state) {
+            visited.add(state.uri.toString());
+            return const Scaffold(key: Key('walkie-page'));
+          },
         ),
         GoRoute(
           path: AppRoutes.wifiHotspotPath,
@@ -122,6 +137,46 @@ void main() {
     expect(await surface.onCode(payload), isFalse);
     expect(joiner.attempts, 2);
     expect(find.byKey(const Key('hotspot-page')), findsNothing);
+  });
+
+  testWidgets(
+    'a Bluetooth invite saves membership, then looks for the host by radio',
+    (tester) async {
+      final joiner = _FakeBluetoothJoiner(BluetoothInviteJoinResult.notFound);
+      final surface = await pumpScanner(tester, bluetoothJoiner: joiner);
+      final room = _FakeRoomList.instance;
+      final link = BluetoothInviteLink.fresh();
+      final payload = link.payload(_bundle().encode());
+
+      // No phone is advertising in this harness, so the find fails — and
+      // says so in the words a rider can act on, with membership already
+      // saved so a second scan only has to find the phone.
+      expect(await tester.runAsync(() => surface.onCode(payload)), isFalse);
+      await tester.pump();
+      expect(room.joined, 1);
+      expect(
+        errorOn(tester),
+        "Couldn't find their phone. Keep the invite open on it, stay close, "
+        'and scan again.',
+      );
+      expect(find.byKey(const Key('hotspot-page')), findsNothing);
+      expect(joiner.tokens, [link.token]);
+    },
+  );
+
+  testWidgets('a Bluetooth invite that links goes straight into the call', (
+    tester,
+  ) async {
+    final joiner = _FakeBluetoothJoiner(BluetoothInviteJoinResult.joined);
+    final surface = await pumpScanner(tester, bluetoothJoiner: joiner);
+    final payload = BluetoothInviteLink.fresh().payload(_bundle().encode());
+
+    expect(await tester.runAsync(() => surface.onCode(payload)), isTrue);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(find.byKey(const Key('walkie-page')), findsOneWidget);
+    expect(visited.last, '${AppRoutes.walkiePath}?ride=true&start=true');
   });
 
   testWidgets('the host hotspot code is followed, not blamed', (tester) async {
@@ -225,17 +280,75 @@ abstract final class ClientChannel {
 }
 
 class _FakeRoomList implements RoomListCubit {
+  _FakeRoomList() {
+    instance = this;
+  }
+
+  /// The one the page under test was built with.
+  static late _FakeRoomList instance;
+
+  int joined = 0;
+
   @override
   Future<bool> needsMoreRoomsAccess({RoomId? existingRoom}) async => false;
   @override
   Future<bool> joinDirect(
     RoomDirectJoinBundle bundle, {
     String? localDisplayName,
-  }) async => true;
+  }) async {
+    joined++;
+    return true;
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnimplementedError(invocation.memberName.toString());
+}
+
+class _FakeBluetoothJoiner implements BluetoothInviteJoiner {
+  _FakeBluetoothJoiner(this.result);
+
+  final BluetoothInviteJoinResult result;
+  final tokens = <String>[];
+
+  @override
+  Future<BluetoothInviteJoinResult> join(BluetoothInviteLink link) async {
+    tokens.add(link.token);
+    return result;
+  }
+}
+
+RoomDirectJoinBundle _bundle() {
+  const roomId = RoomId('0123456789abcdef0123456789abcdef');
+  final memberId = RoomMemberId('111111111111111111111111');
+  final now = DateTime.now().toUtc();
+  final key = List<int>.filled(32, 1);
+  return RoomDirectJoinBundle(
+    memberId: memberId,
+    snapshot: RoomAcceptedJoinSnapshot(
+      roomId: roomId,
+      roomName: 'Ride',
+      roomCreatedAt: now,
+      roomUpdatedAt: now,
+      members: [
+        RoomAcceptedJoinMember(
+          memberId: memberId,
+          kind: RoomMemberKind.member,
+          joinedAt: now,
+          displayName: 'Rider',
+        ),
+      ],
+    ),
+    memberKeyPair: RoomMemberTransportKeyPair(privateKey: key, publicKey: key),
+    certificate: RoomMemberTransportCertificate(
+      roomId: roomId,
+      memberId: memberId,
+      memberPublicKey: key,
+      issuerPublicKey: key,
+      issuerSignature: List<int>.filled(64, 2),
+    ),
+    expiresAt: now.add(const Duration(hours: 1)),
+  );
 }
 
 class _FailingJoiner implements HotspotJoiner {

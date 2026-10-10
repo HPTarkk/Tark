@@ -1,3 +1,4 @@
+import '../../../../core/utils/logger.dart';
 import '../entity/room.dart';
 import 'room_member_transport_identity.dart';
 import 'room_peer_member_binding_registry.dart';
@@ -139,7 +140,10 @@ final class RoomMemberTransportProofBindingAuthority {
       expectedToken: pending.token,
       expectedSessionEpoch: pending.sessionEpoch,
     );
-    if (!verified) return null;
+    if (!verified) {
+      _reportRejected(proof, attachmentGeneration);
+      return null;
+    }
 
     final memberId = proof.certificate.memberId;
     final bound = bindings.bind(
@@ -171,6 +175,46 @@ final class RoomMemberTransportProofBindingAuthority {
     return verified ? name.name : null;
   }
 
+  /// Members whose rejected proof has already been logged on this attachment.
+  final Set<String> _reportedRejections = {};
+
+  /// Says, once per member and attachment, why a proof did not bind.
+  ///
+  /// Every rejection used to be silent, and the one that matters most looks
+  /// exactly like nothing at all: two phones on the same hotspot, hearing each
+  /// other's packets within a second, and the Room never connecting
+  /// (2026-10-05 field log, an existing Room the morning after it worked). A
+  /// certificate signed by a different Room key than this phone holds can
+  /// only be fixed by inviting that person again, so the log has to say which
+  /// case it is. Key fingerprints are the first four bytes of a *public* key —
+  /// enough to tell two keys apart, nothing that grants anything.
+  void _reportRejected(RoomMemberTransportProof proof, int attachment) {
+    final member = proof.certificate.memberId.value;
+    if (!_reportedRejections.add('$attachment:$member')) return;
+    final issuer = proof.certificate.issuerPublicKey;
+    final sameIssuer = _sameBytes(issuer, expectedIssuerPublicKey);
+    Logger.diagnostic(
+      'room: peer proof rejected '
+      'reason=${sameIssuer ? 'signature_or_challenge' : 'issuer_mismatch'} '
+      'member=${member.substring(0, 8)} '
+      'issuer=${fingerprint(issuer)} expected=${fingerprint(expectedIssuerPublicKey)}',
+    );
+  }
+
+  /// First four bytes of a public key, hex — for logs only.
+  static String fingerprint(List<int> publicKey) => publicKey
+      .take(4)
+      .map((byte) => (byte & 0xff).toRadixString(16).padLeft(2, '0'))
+      .join();
+
+  static bool _sameBytes(List<int> a, List<int> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
   /// Advances the attachment floor and drops every challenge observed on an old
   /// transport. Delayed packets from a previous host/route therefore cannot
   /// bind identity after failover.
@@ -178,6 +222,7 @@ final class RoomMemberTransportProofBindingAuthority {
     _ensureOpen();
     if (attachmentGeneration < _minimumAttachmentGeneration) return;
     _minimumAttachmentGeneration = attachmentGeneration;
+    _reportedRejections.clear();
     _pending.removeWhere(
       (_, value) => value.attachmentGeneration < attachmentGeneration,
     );
@@ -193,6 +238,7 @@ final class RoomMemberTransportProofBindingAuthority {
   void reset() {
     _ensureOpen();
     _pending.clear();
+    _reportedRejections.clear();
     bindings.reset();
   }
 

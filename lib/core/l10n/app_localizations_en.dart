@@ -2245,6 +2245,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Couldn\'t connect. Keep the phones close and scan again.';
 
   @override
+  String get invite_host_failed =>
+      'This phone couldn\'t start sharing its connection, so there\'s no code to scan yet. Close this and try again.';
+
+  @override
   String get reconnect_host_failed =>
       'This phone couldn\'t start sharing. Try again, or tap “Scan their code instead”.';
 

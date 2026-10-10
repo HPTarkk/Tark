@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../../../../core/utils/logger.dart';
 import '../../../transfer/api/transfer_api.dart';
 import '../../data/security/room_transport_identity_lifecycle.dart';
 import '../../data/security/room_transport_identity_secure_store.dart';
@@ -137,8 +138,15 @@ final class SelectedRoomLiveSessionBinding {
           store: _identityStore,
           crypto: _identityCrypto,
         ).ensureLocalIdentity(saved);
-      } on Object {
+      } on Object catch (error) {
         identity = null;
+        // Without it this phone sends no Room proof at all, so the other phone
+        // waits on a proof that is never coming — on the screen that is just
+        // "connecting" while both phones plainly hear each other. Say so.
+        Logger.diagnostic(
+          'room: identity unavailable — no Room proof will be sent '
+          'reason=${error.runtimeType}',
+        );
       }
 
       if (generation != _generation) {

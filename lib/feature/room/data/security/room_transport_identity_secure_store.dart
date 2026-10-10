@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 
+import '../../../../core/utils/logger.dart';
 import '../../domain/entity/room.dart';
 import '../../domain/service/room_member_transport_identity.dart';
 
@@ -142,10 +143,19 @@ final class PlatformRoomTransportIdentitySecureStore
     required RoomId roomId,
     required RoomMemberId memberId,
   }) async {
-    final raw = await _channel.invokeMethod<Object?>('read', {
-      'roomId': roomId.value,
-      'memberId': memberId.value,
-    });
+    final Object? raw;
+    try {
+      raw = await _channel.invokeMethod<Object?>('read', {
+        'roomId': roomId.value,
+        'memberId': memberId.value,
+      });
+    } on PlatformException catch (error) {
+      // `secure_storage_unavailable` is a Keystore hiccup and the entry is
+      // kept; `secure_storage_failed` means it could never be opened and is
+      // gone. Only the code: the message is the platform's, not ours.
+      Logger.diagnostic('room: identity read failed reason=${error.code}');
+      rethrow;
+    }
     if (raw == null) return null;
     if (raw is! Map) {
       throw const FormatException('invalid secure Room identity payload');

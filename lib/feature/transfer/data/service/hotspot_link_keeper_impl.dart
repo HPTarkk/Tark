@@ -73,6 +73,18 @@ class HotspotLinkKeeperImpl implements HotspotLinkKeeper {
   /// Guards against duplicate native callbacks starting concurrent recovery.
   bool _recovering = false;
 
+  /// Which attachment a recovery loop belongs to. [adopt] and [release] move
+  /// it on, and every loop re-checks it after each await.
+  ///
+  /// `_recovering` alone cannot tell two loops apart. A joiner whose old
+  /// hotspot vanished kept retrying it for the whole [recoveryTimeout]; when a
+  /// new Room's hotspot was adopted meanwhile, the old loop saw
+  /// `_recovering == true`, woke from its backoff, and asked Android to join
+  /// the *old* network again — which drops the new one (field log
+  /// 2026-10-05 09:30:18: a fresh call lost its link 10 s after connecting,
+  /// then "hotspot join requested/declined" every minute for ten minutes).
+  int _attachment = 0;
+
   final _states = StreamController<HotspotLinkState>.broadcast();
   HotspotLinkState _state = HotspotLinkState.idle;
 
@@ -84,6 +96,9 @@ class HotspotLinkKeeperImpl implements HotspotLinkKeeper {
 
   @override
   void adopt(HotspotCredentials credentials) {
+    // A new attachment supersedes any recovery of the previous one: its
+    // credentials are no longer the network this phone should be on.
+    _cancelRecovery();
     _credentials = credentials;
     _credentialRevision++;
     _hostRecovery = HostHotspotRecoveryMachine();
@@ -139,15 +154,17 @@ class HotspotLinkKeeperImpl implements HotspotLinkKeeper {
     final creds = _credentials;
     if (creds == null) return;
 
+    final attachment = _attachment;
+    bool current() => _recovering && attachment == _attachment;
     _recovering = true;
     _recoveryStartedAt = DateTime.now();
     _emit(HotspotLinkState.recovering);
     Logger.diagnostic('link: joiner attachment lost; bounded rejoin started');
 
     final backoff = backoffFactory();
-    while (_recovering) {
+    while (current()) {
       final result = await _joiner.join(creds);
-      if (!_recovering) return;
+      if (!current()) return;
       if (result == HotspotJoinResult.joined) {
         _recovering = false;
         Logger.diagnostic(
@@ -174,6 +191,16 @@ class HotspotLinkKeeperImpl implements HotspotLinkKeeper {
     }
   }
 
+  /// Stops whatever recovery loop or evidence watch is running, so nothing
+  /// keeps acting on an attachment this keeper no longer owns.
+  void _cancelRecovery() {
+    _attachment++;
+    _recovering = false;
+    _hostEvidenceTimer?.cancel();
+    _hostEvidenceTimer = null;
+    _recoveryStartedAt = null;
+  }
+
   /// Re-creates a LocalOnlyHotspot without pretending that re-host success is
   /// equivalent to a restored group. Android mints fresh credentials, which
   /// are published atomically through [credentialChanges] for #39's in-room
@@ -182,6 +209,8 @@ class HotspotLinkKeeperImpl implements HotspotLinkKeeper {
   Future<void> _recoverHost() async {
     if (_recovering) return;
 
+    final attachment = _attachment;
+    bool current() => _recovering && attachment == _attachment;
     _hostEvidenceTimer?.cancel();
     _hostEvidenceTimer = null;
     _hostApAvailable = false;
@@ -199,7 +228,7 @@ class HotspotLinkKeeperImpl implements HotspotLinkKeeper {
     );
 
     final backoff = backoffFactory();
-    while (_recovering) {
+    while (current()) {
       final rehosting = _hostRecovery.beginRehost();
       if (rehosting.phase == HostHotspotRecoveryPhase.failed) {
         _recovering = false;
@@ -209,7 +238,7 @@ class HotspotLinkKeeperImpl implements HotspotLinkKeeper {
 
       try {
         final fresh = await _hotspot.start();
-        if (!_recovering) return;
+        if (!current()) return;
 
         _credentialRevision++;
         final changed = _hostRecovery.rehosted(
@@ -246,6 +275,7 @@ class HotspotLinkKeeperImpl implements HotspotLinkKeeper {
         _startHostEvidenceWatch(rehosting.generation);
         return;
       } catch (error) {
+        if (!current()) return;
         final failed = _hostRecovery.rehostFailed(
           generation: rehosting.generation,
           reason: 'rehost_failed',
@@ -314,12 +344,9 @@ class HotspotLinkKeeperImpl implements HotspotLinkKeeper {
 
   @override
   Future<void> release() async {
-    _recovering = false;
-    _hostEvidenceTimer?.cancel();
-    _hostEvidenceTimer = null;
+    _cancelRecovery();
     _hostRecovery.cancel();
     _credentials = null;
-    _recoveryStartedAt = null;
     _expectedHostPeers = 0;
     _hostApAvailable = false;
     await _lostSub?.cancel();

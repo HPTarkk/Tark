@@ -20,6 +20,7 @@ import '../../core/utils/android_sdk.dart';
 import '../../core/utils/logger.dart';
 import '../../feature/room/api/room_api.dart';
 import '../../feature/room/presentation/widget/carrier_status_scope.dart';
+import '../../feature/room/presentation/widget/one_scan_room_invite_sheet.dart';
 import '../../feature/room/presentation/widget/room_group_access_guard.dart';
 import '../../feature/transfer/api/hotspot_invite_api.dart';
 import '../../feature/transfer/api/transfer_api.dart';
@@ -555,6 +556,186 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       _attemptRoom = room;
       _entry = _reconnect(room, showCode: false);
     });
+  }
+
+  // ------------------------------------------------------------ one-scan invite
+
+  /// Which invite is current. Bumped when one ends, so a late callback from
+  /// an older sheet or wait acts on nothing.
+  int _inviteToken = 0;
+  bool _inviting = false;
+  Timer? _inviteGrace;
+
+  /// How long this phone keeps its link up after the invite sheet is closed
+  /// with nobody connected yet. "They scanned — Done" is the usual way the
+  /// sheet closes, and the other phone may still be inside Android's join
+  /// prompt (8–18 s in the 2026-10-05 logs) when it does.
+  static const _inviteGraceAfterClose = Duration(seconds: 45);
+
+  /// Pause before listening again after an attempt ended with nobody there.
+  static const _inviteRetryGap = Duration(seconds: 2);
+
+  /// Invite from the lobby, before the Room is live: one scan has to be all
+  /// it takes.
+  ///
+  /// A QR made here used to carry membership and nothing else — no network
+  /// is up before a Room goes live — so the person who scanned joined the
+  /// Room with no way to reach this phone, and this phone never learned that
+  /// anybody had scanned (2026-10-05: "it took too long", then nothing). Now
+  /// this phone brings its selected link up first and the code carries it:
+  /// the hotspot by default, Bluetooth when that is the Room's transport. The
+  /// moment a code people can use is on screen, this phone starts waiting for
+  /// the newcomer's signed proof; when it arrives the sheet closes and both
+  /// phones are in the call.
+  Future<void> _inviteFromLobby(SavedRoom room) async {
+    if (_inviting || !mounted) return;
+    _inviting = true;
+    try {
+      final current = await _roomForAction(room);
+      if (current == null || !mounted) return;
+      final bluetooth = _roomPin == TransferMode.bluetooth;
+      final enabled = widget.guidedReconnect ?? Platform.isAndroid;
+      // Hosting either link is Android-only. Elsewhere the code carries
+      // membership alone, as it always has.
+      if (!enabled ||
+          (!bluetooth && !await _canHostHotspot()) ||
+          !(bluetooth || _hotspotHost != null)) {
+        if (!mounted) return;
+        await showOneScanRoomInviteSheet(context, repository: _rooms);
+        return;
+      }
+      if (!bluetooth && !await _ensureWifiAccess(room: current)) return;
+      if (!mounted) return;
+
+      _endInvite();
+      _abandonReconnectAttempt();
+      final token = ++_inviteToken;
+      final dismiss = Completer<void>();
+      var waiting = false;
+      final Future<RoomInviteLink?> link;
+      BluetoothInviteHost? bluetoothHost;
+      if (bluetooth) {
+        bluetoothHost = BluetoothInviteHost();
+        link = bluetoothHost.start();
+      } else {
+        _roleStore?.setRole(SessionRole.host);
+        // Asked before the sheet: it is a page of its own, and the hotspot
+        // that held in the field is the one raised with Wi-Fi already off.
+        await _offerWifiOff();
+        if (!mounted || token != _inviteToken) return;
+        link = _prepareHost().then(
+          (credentials) =>
+              credentials == null ? null : HotspotInviteLink(credentials),
+        );
+      }
+      Logger.diagnostic(
+        'room_invite: link=${bluetooth ? 'bluetooth' : 'hotspot'} preparing',
+      );
+      final arrived = await showOneScanRoomInviteSheet(
+        context,
+        repository: _rooms,
+        link: link,
+        dismissWhen: dismiss.future,
+        onShown: () {
+          if (token != _inviteToken) return;
+          waiting = true;
+          Logger.diagnostic('room_invite: code shown, waiting for scan');
+          unawaited(
+            _awaitInvitee(
+              current,
+              token: token,
+              dismiss: dismiss,
+              bluetoothHost: bluetoothHost,
+            ),
+          );
+        },
+      );
+      if (!mounted || token != _inviteToken || arrived) return;
+      if (!waiting) {
+        // No usable code was ever shown: nothing to wait for.
+        _endInvite(release: true, bluetoothHost: bluetoothHost);
+        return;
+      }
+      _inviteGrace?.cancel();
+      _inviteGrace = Timer(_inviteGraceAfterClose, () {
+        if (token != _inviteToken) return;
+        Logger.diagnostic(
+          'room_invite: nobody connected after the sheet closed',
+        );
+        _endInvite(release: true, bluetoothHost: bluetoothHost);
+      });
+    } finally {
+      _inviting = false;
+    }
+  }
+
+  /// Waits, behind the invite sheet, for the person who scans to connect.
+  Future<void> _awaitInvitee(
+    SavedRoom room, {
+    required int token,
+    required Completer<void> dismiss,
+    BluetoothInviteHost? bluetoothHost,
+  }) async {
+    // The sheet has just opened the newcomer's seat; the proof they send is
+    // signed for that seat, so the roster read here has to include it.
+    final fresh = await _roomForAction(room);
+    if (fresh == null || !mounted || token != _inviteToken) return;
+    if (bluetoothHost != null) {
+      final linked = await bluetoothHost.awaitJoiner(within: _showCodeTimeout);
+      if (!mounted || token != _inviteToken) return;
+      if (!linked) {
+        _endInvite(release: true, bluetoothHost: bluetoothHost);
+        if (!dismiss.isCompleted) dismiss.complete();
+        return;
+      }
+      await _modeStore?.setMode(TransferMode.bluetooth);
+    }
+    // One attempt can end early without anybody having scanned — the link
+    // probe has not caught up with the new hotspot yet, a socket bind races
+    // it. The code is still on screen and still good, so keep listening
+    // until the code's own deadline rather than closing it on them.
+    final deadline = DateTime.now().add(_showCodeTimeout);
+    late _EntryState outcome;
+    while (true) {
+      final remaining = deadline.difference(DateTime.now());
+      final attempt = _verifiedLiveFor(
+        fresh,
+        linkEstablished: true,
+        readinessTimeout: remaining,
+      );
+      _activeStart = attempt;
+      outcome = await attempt;
+      if (identical(_activeStart, attempt)) _activeStart = null;
+      if (!mounted || token != _inviteToken) return;
+      if (outcome.live || !DateTime.now().isBefore(deadline)) break;
+      await Future<void>.delayed(_inviteRetryGap);
+      if (!mounted || token != _inviteToken) return;
+    }
+    _inviteToken++;
+    _inviteGrace?.cancel();
+    if (!dismiss.isCompleted) dismiss.complete();
+    if (outcome.live) {
+      Logger.diagnostic('room_invite: newcomer connected');
+      setState(() {
+        _attemptRoom = fresh;
+        _entry = Future.value(outcome);
+      });
+      return;
+    }
+    await bluetoothHost?.dispose();
+    unawaited(_releaseOwnHotspot());
+  }
+
+  /// Ends the current invite: a wait still running is abandoned and, with
+  /// [release], the link raised for it goes back down.
+  void _endInvite({bool release = false, BluetoothInviteHost? bluetoothHost}) {
+    _inviteGrace?.cancel();
+    _inviteGrace = null;
+    if (!release) return;
+    _inviteToken++;
+    _abandonReconnectAttempt();
+    unawaited(bluetoothHost?.dispose() ?? Future<void>.value());
+    unawaited(_releaseOwnHotspot());
   }
 
   // ------------------------------------------------------ guided reconnect
@@ -1686,6 +1867,8 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   void dispose() {
     _readinessEpoch++;
     _reconnectToken++;
+    _inviteToken++;
+    _inviteGrace?.cancel();
     _handoffCodeTimer?.cancel();
     final waiter = _scanWaiter;
     if (waiter != null && !waiter.isCompleted) waiter.complete(null);
@@ -1854,6 +2037,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
                     }
                   }
                 : null,
+            onInvite: () => _inviteFromLobby(room),
             onBack: () => leaveRoomEntry(context),
           ),
         );

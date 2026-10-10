@@ -42,6 +42,7 @@ class SelectedRoomLobby extends StatefulWidget {
     this.link,
     this.mode,
     this.onConnect,
+    this.onInvite,
     this.onUseHomeWifi,
     this.repository,
     this.requiresPremium = true,
@@ -67,6 +68,11 @@ class SelectedRoomLobby extends StatefulWidget {
   /// Connecting the phones by hand. Shown only inside the failure callout,
   /// and only for failures the caller says it can help with.
   final VoidCallback? onConnect;
+
+  /// Replaces the plain invite sheet. The Room entry passes one so an invite
+  /// made before the Room is live brings this phone's link up behind the QR,
+  /// and takes both phones into the call from that one scan.
+  final Future<void> Function()? onInvite;
 
   /// Start over the Wi-Fi network this phone is already on, instead of the
   /// phones' own connection. Offered only when the caller sees one: a home
@@ -201,6 +207,11 @@ class _SelectedRoomLobbyState extends State<SelectedRoomLobby> {
 
   Future<void> _invite() async {
     HapticFeedback.selectionClick();
+    final onInvite = widget.onInvite;
+    if (onInvite != null) {
+      await onInvite();
+      return;
+    }
     final before = {
       for (final member in _room.room.confirmedMembers) member.id,
     };

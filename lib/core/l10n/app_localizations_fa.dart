@@ -2236,6 +2236,10 @@ class AppLocalizationsFa extends AppLocalizations {
       'وصل نشد. گوشی‌ها رو نزدیک هم نگه دار و دوباره اسکن کن.';
 
   @override
+  String get invite_host_failed =>
+      'این گوشی نتونست اتصالش رو به اشتراک بذاره، پس هنوز کدی برای اسکن نیست. این رو ببند و دوباره امتحان کن.';
+
+  @override
   String get reconnect_host_failed =>
       'این گوشی نتونست اشتراک‌گذاری رو شروع کنه. دوباره امتحان کن، یا «به‌جاش کد اون رو اسکن کن» رو بزن.';
 

@@ -12,9 +12,9 @@ void main() {
 
       final bundle = sheet.indexOf('final bundle = RoomDirectJoinBundle(');
       final encoded = sheet.indexOf('_roomInvite = bundle.encode();');
-      final credentials = sheet.indexOf(
-        'credentials.qrPayload(roomInvite: roomInvite)',
-      );
+      // The network half (hotspot or Bluetooth) only wraps the
+      // already-issued membership.
+      final credentials = sheet.indexOf('link.payload(roomInvite)');
 
       expect(bundle, greaterThanOrEqualTo(0));
       expect(encoded, greaterThan(bundle));

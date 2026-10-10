@@ -21,6 +21,7 @@ import '../../domain/entity/room.dart';
 import '../../domain/entity/room_accepted_join_snapshot.dart';
 import '../../domain/entity/room_direct_join_bundle.dart';
 import '../../domain/entity/room_invitation.dart';
+import '../../domain/entity/room_invite_link.dart';
 import '../../domain/repository/room_repository.dart';
 
 /// Opens the low-distraction Add person flow used from an active Room.
@@ -31,12 +32,25 @@ import '../../domain/repository/room_repository.dart';
 /// The scanning phone therefore saves membership first and joins the network
 /// from the same scan. SSID/password and a second Wi-Fi QR stay out of the
 /// primary interaction entirely.
+///
+/// Before a Room is live nothing is hosting yet, so a QR made then would carry
+/// membership and no network: the scanning phone joined the Room with no way
+/// to reach this one, and this phone never learned anybody had scanned. The
+/// Room entry therefore brings this phone's link up itself (hotspot or
+/// Bluetooth, whichever is selected) and passes it as [link]: the sheet waits
+/// for it, never shows a code without it, and reports through [onShown] the
+/// moment a code people can actually use is on screen.
+/// [dismissWhen] closes the sheet from outside — when the person who scanned
+/// has proven themselves and the call is opening.
 Future<bool> showOneScanRoomInviteSheet(
   BuildContext context, {
   RoomRepository? repository,
   RoomTransportIdentityLifecycle? identityLifecycle,
   HotspotLinkKeeper? hotspotLinkKeeper,
   TransferRepository? transferRepository,
+  Future<RoomInviteLink?>? link,
+  VoidCallback? onShown,
+  Future<void>? dismissWhen,
 }) async {
   final rooms =
       repository ??
@@ -81,6 +95,9 @@ Future<bool> showOneScanRoomInviteSheet(
           identityLifecycle: identityLifecycle,
           hotspotLinkKeeper: hotspotLinkKeeper,
           transferRepository: transferRepository,
+          link: link,
+          onShown: onShown,
+          dismissWhen: dismissWhen,
         ),
       ) ??
       false;
@@ -93,12 +110,27 @@ class OneScanRoomInviteSheet extends StatefulWidget {
     this.identityLifecycle,
     this.hotspotLinkKeeper,
     this.transferRepository,
+    this.link,
+    this.onShown,
+    this.dismissWhen,
   });
 
   final RoomRepository? repository;
   final RoomTransportIdentityLifecycle? identityLifecycle;
   final HotspotLinkKeeper? hotspotLinkKeeper;
   final TransferRepository? transferRepository;
+
+  /// This phone's link, being brought up for this invite. While it is
+  /// pending the sheet says it is getting ready; null from it is a failure,
+  /// and the sheet then shows no code at all rather than one that cannot
+  /// connect.
+  final Future<RoomInviteLink?>? link;
+
+  /// Called once, when the code on screen carries a network to join.
+  final VoidCallback? onShown;
+
+  /// Completes when the sheet should close on its own (the call is opening).
+  final Future<void>? dismissWhen;
 
   @override
   State<OneScanRoomInviteSheet> createState() => _OneScanRoomInviteSheetState();
@@ -126,6 +158,12 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
   bool _hostRecovering = false;
   bool _loading = true;
   String? _error;
+
+  /// The link [OneScanRoomInviteSheet.link] brought up.
+  RoomInviteLink? _hosted;
+  bool _hostingPending = false;
+  bool _hostingFailed = false;
+  bool _shownReported = false;
   StreamSubscription<HotspotLinkState>? _stateSub;
   StreamSubscription<HotspotCredentials>? _credentialsSub;
 
@@ -149,7 +187,57 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
         });
       });
     }
+    final link = widget.link;
+    if (link != null) {
+      _hostingPending = true;
+      unawaited(_awaitHosting(link));
+    }
+    widget.dismissWhen?.then((_) => _dismiss());
     unawaited(_issue());
+  }
+
+  Future<void> _awaitHosting(Future<RoomInviteLink?> pending) async {
+    RoomInviteLink? link;
+    try {
+      link = await pending;
+    } catch (_) {
+      link = null;
+    }
+    if (!mounted) return;
+    setState(() {
+      _hostingPending = false;
+      _hosted = link;
+      _hostingFailed = link == null;
+    });
+    _reportShown();
+  }
+
+  /// Tells the opener, once, that a code carrying a network is on screen.
+  void _reportShown() {
+    if (_shownReported || widget.onShown == null) return;
+    if (_roomInvite == null || _networkLink == null) return;
+    _shownReported = true;
+    widget.onShown!();
+  }
+
+  /// Closes this sheet, and only this sheet: something else may have been
+  /// pushed over it meanwhile, and a plain pop would close that instead.
+  void _dismiss() {
+    if (!mounted) return;
+    final route = ModalRoute.of(context);
+    if (route == null || !route.isActive) return;
+    if (route.isCurrent) {
+      Navigator.of(context).pop(true);
+    } else {
+      Navigator.of(context).removeRoute(route);
+    }
+  }
+
+  /// A live call's hotspot (which can be re-hosted with fresh credentials)
+  /// wins over the link raised for this sheet.
+  RoomInviteLink? get _networkLink {
+    final live = _credentials;
+    return live != null ? HotspotInviteLink(live) : _hosted;
   }
 
   void _syncKeeper(HotspotLinkKeeper keeper) {
@@ -248,6 +336,7 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
         _loading = false;
         _error = null;
       });
+      _reportShown();
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -260,10 +349,11 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
   String? get _payload {
     final roomInvite = _roomInvite;
     if (roomInvite == null) return null;
-    final credentials = _credentials;
-    return credentials == null
-        ? roomInvite
-        : credentials.qrPayload(roomInvite: roomInvite);
+    final link = _networkLink;
+    // Asked for a link and none came up: a membership-only code would let
+    // them into the Room and leave them with no way to reach this phone.
+    if (widget.link != null && link == null) return null;
+    return link == null ? roomInvite : link.payload(roomInvite);
   }
 
   @override
@@ -277,6 +367,24 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
   }
 
   Widget _body(BuildContext context) {
+    if (_hostingPending && _error == null) {
+      return SizedBox(
+        key: const Key('one-scan-room-invite-preparing'),
+        height: 300,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 18),
+            Text(
+              context.getString.reconnect_preparing,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ],
+        ),
+      );
+    }
     if (_loading || (_hostRecovering && _roomInvite != null)) {
       return const SizedBox(
         height: 300,
@@ -286,10 +394,14 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
     final payload = _payload;
     if (payload == null) {
       return SizedBox(
+        key: const Key('one-scan-room-invite-unavailable'),
         height: 220,
         child: Center(
           child: Text(
-            _error ?? context.getString.people_issue_error,
+            _error ??
+                (_hostingFailed
+                    ? context.getString.invite_host_failed
+                    : context.getString.people_issue_error),
             textAlign: TextAlign.center,
             style: TextStyle(color: AppColors.textSecondary),
           ),

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tark/core/utils/logger.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
 import 'package:tark/feature/room/domain/service/room_member_transport_identity.dart';
 import 'package:tark/feature/room/domain/service/room_member_transport_proof_binding_authority.dart';
@@ -272,4 +273,59 @@ void main() {
     );
     expect(bindings.length, 0);
   });
+
+  test(
+    'a certificate from another Room key is logged as issuer_mismatch, once',
+    () async {
+      // The morning-after case: this phone's Room key was re-minted, so the
+      // peer's certificate verifies against a key this phone no longer holds.
+      final peer = await identity();
+      final reminted = await crypto.generateKeyPair();
+      final bindings = RoomPeerMemberBindingRegistry(members: const [memberId]);
+      final authority = RoomMemberTransportProofBindingAuthority(
+        roomId: roomId,
+        bindings: bindings,
+        expectedIssuerPublicKey: reminted.publicKey,
+      );
+      final lines = <String>[];
+      final previous = Logger.sink;
+      Logger.sink = lines.add;
+      addTearDown(() => Logger.sink = previous);
+
+      for (final token in [7, 8]) {
+        authority.observeChallenge(
+          peerKey: 'udp:10.0.0.2:41111',
+          token: token,
+          sessionEpoch: 9,
+          attachmentGeneration: 3,
+          at: at,
+        );
+        final proof = await crypto.signProof(
+          certificate: peer.certificate,
+          member: peer.member,
+          token: token,
+          sessionEpoch: 9,
+        );
+        expect(
+          await authority.verifyAndBind(
+            peerKey: 'udp:10.0.0.2:41111',
+            encodedProof: proof.encode(),
+            attachmentGeneration: 3,
+            at: at,
+          ),
+          isNull,
+        );
+      }
+
+      final rejected = lines.where((l) => l.contains('peer proof rejected'));
+      expect(rejected, hasLength(1), reason: 'once per member per attachment');
+      expect(rejected.single, contains('reason=issuer_mismatch'));
+      expect(
+        rejected.single,
+        contains(
+          'expected=${RoomMemberTransportProofBindingAuthority.fingerprint(reminted.publicKey)}',
+        ),
+      );
+    },
+  );
 }
