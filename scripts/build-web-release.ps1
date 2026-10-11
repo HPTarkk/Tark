@@ -1,7 +1,7 @@
 #requires -Version 7.0
-# Build the Flutter guest app, then optionally publish it with Wrangler.
+# Clean, build and publish the Flutter guest app with Wrangler by default.
 # Examples: ./scripts/build-web-release.ps1
-#           ./scripts/build-web-release.ps1 -Deploy
+#           ./scripts/build-web-release.ps1 -BuildOnly
 [CmdletBinding()]
 param(
     [switch]$Auto,
@@ -23,6 +23,9 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $utf8 = [Text.UTF8Encoding]::new($false)
 if ($Auto) { $Deploy = $true; $NonInteractive = $true }
 if ($BuildOnly -and ($Deploy -or $DryRun)) { throw '-BuildOnly cannot be combined with -Deploy or -DryRun.' }
+if (-not $BuildOnly -and -not $DryRun -and -not $PSBoundParameters.ContainsKey('Deploy')) {
+    $Deploy = $true
+}
 $savedCi = $env:CI
 
 function Ask([string]$Question, [string]$Default) {

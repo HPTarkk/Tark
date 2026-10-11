@@ -148,10 +148,11 @@ flutter build web --release -t lib/main_guest.dart
 Deployed at [app.tarkk.ir](https://app.tarkk.ir), which is `GUEST_APP_URL`'s default.
 
 The PowerShell build script can publish the Flutter output to its own Cloudflare
-Worker after the build. Plain execution cleans and builds web with no prompts:
+Worker after the build. Plain execution cleans, builds, publishes and verifies
+the live web app with no prompts:
 
 ```powershell
-./scripts/build-web-release.ps1               # clean and build web; no questions or publishing
+./scripts/build-web-release.ps1               # clean, build, publish, verify; no questions
 ./scripts/build-web-release.ps1 -Deploy       # clean, build, publish, verify; no questions
 ./scripts/build-web-release.ps1 -DryRun       # build and validate Wrangler without publishing
 ./scripts/build-web-release.ps1 -BuildOnly    # clean/build without publishing
