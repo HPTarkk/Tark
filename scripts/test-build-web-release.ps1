@@ -117,6 +117,13 @@ exit 0
     $webTestProbe.RejectPrompts = $true
     $autoPromptCount = $webTestProbe.PromptCount
     $autoOriginalCi = $env:CI
+    & $fixtureRelease
+    Assert-Release (-not (Test-Path -LiteralPath (Join-Path $fixtureRoot 'wrangler-args.json'))) 'plain execution only builds, without publishing'
+    Assert-Release ($webTestProbe.FetchCount -eq 0 -and $webTestProbe.PromptCount -eq $autoPromptCount) 'plain execution needs no switches or answers'
+    $defaultCalls = @(Get-Content -LiteralPath (Join-Path $fixtureRoot 'flutter-calls.jsonl') | ForEach-Object { ,@($_ | ConvertFrom-Json) })
+    Assert-Release ($defaultCalls.Count -eq 2 -and $defaultCalls[0][0] -eq 'clean' -and $defaultCalls[1][1] -eq 'web') 'plain execution cleans and builds Flutter web'
+    Assert-Release ($env:CI -ceq $autoOriginalCi) 'plain execution restores caller CI environment'
+    Reset-Calls
     & $fixtureRelease -Auto
     $webTestProbe.RejectPrompts = $false
     $upload = Get-Content -Raw -LiteralPath (Join-Path $fixtureRoot 'wrangler-args.json') | ConvertFrom-Json
@@ -131,7 +138,7 @@ exit 0
 
     Reset-Calls
     $interactive = $options.Clone()
-    $interactive.Remove('NonInteractive')
+    $interactive.NonInteractive = $false
     & $fixtureRelease @interactive
     Assert-Release (Test-Path -LiteralPath (Join-Path $fixtureRoot 'wrangler-args.json')) 'interactive publishing offered after building'
 

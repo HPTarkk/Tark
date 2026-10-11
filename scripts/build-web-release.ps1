@@ -1,14 +1,14 @@
 #requires -Version 7.0
 # Build the Flutter guest app, then optionally publish it with Wrangler.
-# Examples: ./scripts/build-web-release.ps1 -Auto
-#           ./scripts/build-web-release.ps1 -DryRun -NonInteractive
+# Examples: ./scripts/build-web-release.ps1
+#           ./scripts/build-web-release.ps1 -Deploy
 [CmdletBinding()]
 param(
     [switch]$Auto,
     [switch]$Deploy,
     [switch]$DryRun,
     [switch]$BuildOnly,
-    [switch]$NonInteractive,
+    [switch]$NonInteractive = $true,
     [string]$WorkerName,
     [string]$WranglerConfig = 'wrangler.guest.jsonc',
     [string]$GuestUrl = 'https://app.tarkk.ir',
