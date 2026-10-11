@@ -7,6 +7,7 @@ import '../../core/account/email_link.dart';
 import '../../core/diagnostics/screen_log.dart';
 import '../../core/entitlement/feature_access_guard.dart';
 import '../../core/entitlement/premium_feature.dart';
+import '../../core/motion/solid_sheet_route.dart';
 import '../../core/router/route_exit.dart';
 import '../../core/home_widget/home_widget_launch.dart';
 import '../../core/router/routes.dart';
@@ -95,9 +96,33 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.roomsPath,
         name: AppRoutes.roomsName,
-        builder: (context, state) => RoomManagerEntry.buildPage(
-          createOnOpen: state.uri.queryParameters['create'] == 'true',
-        ),
+        // Creation arrives and leaves as a solid sheet over the screen that
+        // opened it, which recedes behind it — never a crossfade of the two.
+        // The saved-room list keeps the app-wide page transition.
+        pageBuilder: (context, state) {
+          final create = state.uri.queryParameters['create'] == 'true';
+          final child = RoomManagerEntry.buildPage(createOnOpen: create);
+          final name = state.name ?? state.path;
+          final arguments = {
+            ...state.pathParameters,
+            ...state.uri.queryParameters,
+          };
+          return create
+              ? SolidSheetPage<void>(
+                  key: state.pageKey,
+                  name: name,
+                  arguments: arguments,
+                  restorationId: state.pageKey.value,
+                  child: child,
+                )
+              : MaterialPage<void>(
+                  key: state.pageKey,
+                  name: name,
+                  arguments: arguments,
+                  restorationId: state.pageKey.value,
+                  child: child,
+                );
+        },
       ),
       GoRoute(
         path: AppRoutes.roomQrJoinPath,
