@@ -72,7 +72,7 @@ class _ConsoleHeader extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Text(
-          'TARK',
+          context.getString.app_name,
           style: TextStyle(
             color: AppColors.textPrimary,
             fontSize: 15,

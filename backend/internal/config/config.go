@@ -310,7 +310,7 @@ func Load() (*Config, error) {
 	}
 	c.Mail = MailConfig{
 		Driver:   get("TARK_MAIL_DRIVER", "smtp"),
-		FromName: get("TARK_MAIL_FROM_NAME", "Tark"),
+		FromName: get("TARK_MAIL_FROM_NAME", "Tarkk"),
 		Servers:  []SMTPServer{smtpServer("primary", "TARK_SMTP", "TARK_MAIL_FROM")},
 	}
 	if backup := smtpServer("backup", "TARK_SMTP2", "TARK_SMTP2_FROM"); backup.Host != "" {

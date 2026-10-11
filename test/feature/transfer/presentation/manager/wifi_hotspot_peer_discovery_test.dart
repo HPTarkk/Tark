@@ -270,7 +270,7 @@ class _PipeWifi implements WifiTransferRepository {
 
 class _Host implements HotspotHost {
   static const credentials = HotspotCredentials(
-    ssid: 'Tark;Ride:01',
+    ssid: 'Tarkk;Ride:01',
     passphrase: r'p;ass:word\x',
   );
   final stopped = StreamController<void>.broadcast();

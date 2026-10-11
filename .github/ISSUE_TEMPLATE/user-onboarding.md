@@ -7,7 +7,7 @@ assignees: ["P-B1101"]
 ---
 
 ## 🎯 Objective
-Create a smooth, intuitive first-time user experience that guides new users through Tark setup and helps them choose the right connection mode.
+Create a smooth, intuitive first-time user experience that guides new users through Tarkk setup and helps them choose the right connection mode.
 
 ## 📋 Requirements
 

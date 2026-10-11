@@ -138,7 +138,7 @@ abstract final class DiagnosticLog {
       // A missing package_info is not worth a failed log.
     }
     _append(
-      'app: tark $_appVersion on ${_platformName()} '
+      'app: Tarkk $_appVersion on ${_platformName()} '
       '(${Platform.operatingSystemVersion})',
     );
     _append(

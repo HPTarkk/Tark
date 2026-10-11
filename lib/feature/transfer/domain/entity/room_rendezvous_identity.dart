@@ -6,7 +6,7 @@ import 'package:cryptography/cryptography.dart';
 /// Privacy-safe BLE selector derived from a Room invitation id.
 ///
 /// This is NOT authentication. It only lets the joiner choose the right nearby
-/// Tark advertiser before the signed Room challenge/receipt protocol runs over
+/// Tarkk advertiser before the signed Room challenge/receipt protocol runs over
 /// RFCOMM. Only this short one-way digest goes over BLE/native channels.
 final class RoomRendezvousIdentity {
   const RoomRendezvousIdentity({

@@ -1,6 +1,6 @@
 // widget_loop_animation.dart
 //
-// Seamless looping home-screen-widget animation — the Tark dial sitting on a
+// Seamless looping home-screen-widget animation — the Tarkk dial sitting on a
 // phone's home screen, alive: gauge swinging, level bars bouncing, signal
 // radiating. Pure visual metaphor, no text.
 //

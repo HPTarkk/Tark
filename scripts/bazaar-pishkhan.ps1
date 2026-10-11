@@ -197,7 +197,7 @@ function New-BazaarRelease { (Invoke-Pishkhan POST 'apps/releases/').release }
 
 function Remove-BazaarRelease { [void](Invoke-Pishkhan DELETE 'apps/releases/') }
 
-# The plain-APK route; Tark ships an AAB, but the endpoint is here for
+# The plain-APK route; Tarkk ships an AAB, but the endpoint is here for
 # completeness. Architecture is all, armeabi-v7a or arm64-v8a.
 function Add-BazaarApk([string]$Apk, [ValidateSet('all', 'armeabi-v7a', 'arm64-v8a')][string]$Architecture = 'all') {
     (Invoke-Pishkhan POST 'apps/releases/upload/' -Files @{ apk = $Apk } -Fields @{ architecture = $Architecture } `

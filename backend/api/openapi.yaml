@@ -1,9 +1,9 @@
 openapi: 3.1.0
 info:
-  title: Tark API
+  title: Tarkk API
   version: 1.0.0
   description: |
-    The contract between the Tark app and the Tark backend (Go, PostgreSQL,
+    The contract between the Tarkk app and the Tarkk backend (Go, PostgreSQL,
     hosted on ArvanCloud). Both sides are written against this file; neither
     one is the source of truth on its own.
 
@@ -1277,8 +1277,8 @@ components:
         planTitle:
           type: [string, 'null']
           description: |
-            The entitlement's plan named in the request's language ("Tark
-            Premium, 3 months", or "Gift from Tark" for premium given by
+            The entitlement's plan named in the request's language ("Tarkk
+            Premium, 3 months", or "Gift from Tarkk" for premium given by
             support).
             Display only; null when there is no plan.
 
@@ -1300,7 +1300,7 @@ components:
           description: Only on the 5-minute test plan (sku TEST_SUB), which test servers list.
         title:
           type: string
-          description: The plan's name in the request's language, e.g. "Tark Premium, 3 months" / "اشتراک سه ماهه تَرک".
+          description: The plan's name in the request's language, e.g. "Tarkk Premium, 3 months" / "اشتراک سه ماهه تَرک".
 
     EntitlementPayload:
       type: object

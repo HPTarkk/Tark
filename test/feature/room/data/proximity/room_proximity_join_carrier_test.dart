@@ -352,7 +352,7 @@ final class _LinkedCarrierEngine extends ClassicBluetoothEngine {
   Stream<void> get onClosed => closed.stream;
 
   @override
-  Future<void> startHosting({String name = 'tark'}) async {}
+  Future<void> startHosting({String name = 'Tarkk'}) async {}
 
   @override
   Future<bool> requestDiscoverable({int durationSeconds = 300}) async => true;
@@ -414,7 +414,7 @@ final class _CarrierFakeEngine extends ClassicBluetoothEngine {
   Stream<void> get onClosed => closed.stream;
 
   @override
-  Future<void> startHosting({String name = 'tark'}) async {}
+  Future<void> startHosting({String name = 'Tarkk'}) async {}
 
   @override
   Future<bool> requestDiscoverable({int durationSeconds = 300}) async => true;

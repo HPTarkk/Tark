@@ -40,7 +40,7 @@
       "fa": "صدای شما هیچ‌وقت به سرور نمی‌رسه. این هم چیزهایی که می‌رسه."
     },
     "lede": {
-      "en": "Tark connects phones straight to each other. What you say in a channel travels over that local link and nowhere else — no server of ours hears it, and no copy of a conversation is kept anywhere. An account is optional and only needed to subscribe; if you make one, this page says exactly what it holds. This is the whole account of what leaves your phone, and what never does.",
+      "en": "Tarkk connects phones straight to each other. What you say in a channel travels over that local link and nowhere else — no server of ours hears it, and no copy of a conversation is kept anywhere. An account is optional and only needed to subscribe; if you make one, this page says exactly what it holds. This is the whole account of what leaves your phone, and what never does.",
       "fa": "تَرک گوشی‌ها رو مستقیم به هم وصل می‌کنه. هر چی توی کانال می‌گید فقط از روی همون اتصال محلی رد می‌شه و جای دیگه‌ای نمی‌ره — هیچ سروری از ما اون رو نمی‌شنوه و هیچ نسخه‌ای از گفت‌وگو جایی نگه داشته نمی‌شه. حساب کاربری اختیاریه و فقط برای خرید اشتراک لازمه؛ اگه بسازی، این صفحه دقیقاً می‌گه چی توش نگه داشته می‌شه. این کل حسابِ چیزیه که از گوشیت بیرون می‌ره، و چیزی که هیچ‌وقت بیرون نمی‌ره."
     },
     "inEffectSince": {
@@ -102,7 +102,7 @@
             "fa": "اتفاق‌هایی که توی کانال می‌افته: کی توشه، کی حرف می‌زنی و چی گفته می‌شه. حضور و محتوای کانال روی همون اتصال محلی می‌مونه؛ اسم آدمای دور و برت، شبکه‌ای که روشی و نشانی‌های گوشیت هم همین‌طور."
           },
           {
-            "en": "Your location. Older versions of Android demand the permission before they will scan for radios; Tark never reads a position out of it.",
+            "en": "Your location. Older versions of Android demand the permission before they will scan for radios; Tarkk never reads a position out of it.",
             "fa": "موقعیت مکانی‌ت. اندرویدهای قدیمی‌تر بدون این دسترسی اجازه‌ی اسکن رادیویی نمی‌دن؛ تَرک هیچ‌وقت موقعیتی ازش نمی‌خونه."
           },
           {
@@ -110,7 +110,7 @@
             "fa": "پروفایلی از خودت. حساب کاربری فقط چیزهایی رو نگه می‌داره که این صفحه فهرست کرده — هیچی درباره‌ی اینکه کجا می‌ری، با کی حرف می‌زنی یا چطور از برنامه استفاده می‌کنی."
           },
           {
-            "en": "Usage stats. Tark sends no analytics of any kind, to us or to anyone else.",
+            "en": "Usage stats. Tarkk sends no analytics of any kind, to us or to anyone else.",
             "fa": "آمار استفاده. تَرک هیچ نوع آماری، نه برای ما و نه برای هیچ‌کس دیگه، نمی‌فرسته."
           }
         ]
@@ -132,14 +132,14 @@
         {
           "type": "p",
           "text": {
-            "en": "Tark (تَرک) is an independent project, not a company. This policy covers four things: the Android app, the optional Tark account and the server behind it, the browser guest at app.tarkk.ir, and this website.",
+            "en": "Tarkk (تَرک) is an independent project, not a company. This policy covers four things: the Android app, the optional Tarkk account and the server behind it, the browser guest at app.tarkk.ir, and this website.",
             "fa": "تَرک یه پروژه‌ی مستقله، نه یه شرکت. این سیاست چهار چیز رو پوشش می‌ده: اپلیکیشن اندروید، حساب کاربری اختیاری تَرک و سروری که پشتشه، مهمانِ مرورگری روی app.tarkk.ir، و همین وب‌سایت."
           }
         },
         {
           "type": "p",
           "text": {
-            "en": "Every claim on this page is checkable. Tark is open source under the AGPL-3.0, so the code that does — or does not — collect something is public, and you are welcome to read it instead of taking our word for any of this.",
+            "en": "Every claim on this page is checkable. Tarkk is open source under the AGPL-3.0, so the code that does — or does not — collect something is public, and you are welcome to read it instead of taking our word for any of this.",
             "fa": "هر ادعایی توی این صفحه قابل بررسیه. تَرک متن‌بازه و با پروانه‌ی AGPL-3.0 منتشر شده، پس کدی که چیزی رو جمع می‌کنه — یا نمی‌کنه — عمومیه و می‌تونی به‌جای اعتماد به حرف ما، خودت بخونیش."
           }
         }
@@ -184,7 +184,7 @@
             "fa": "خوبه که بدونی"
           },
           "text": {
-            "en": "Tark does not add its own encryption on top of the link. On Wi-Fi your audio inherits whatever the network already protects it with; the Bluetooth link is opened without pairing, so that two phones that have never met can still talk. The short channel code keeps groups apart — it is not a password and it does not lock anything. Treat a Tark channel the way you would treat a radio channel: anyone with the right access to the same network, or the code, can listen. It is the wrong tool for a conversation that has to stay confidential.",
+            "en": "Tarkk does not add its own encryption on top of the link. On Wi-Fi your audio inherits whatever the network already protects it with; the Bluetooth link is opened without pairing, so that two phones that have never met can still talk. The short channel code keeps groups apart — it is not a password and it does not lock anything. Treat a Tarkk channel the way you would treat a radio channel: anyone with the right access to the same network, or the code, can listen. It is the wrong tool for a conversation that has to stay confidential.",
             "fa": "تَرک رمزنگاری خودش رو روی این مسیر اضافه نمی‌کنه. روی وای‌فای، صدات همون حفاظتی رو داره که خودِ شبکه براش فراهم می‌کنه؛ اتصال بلوتوث هم بدون جفت‌شدن باز می‌شه تا دو گوشی که تا حالا همدیگه رو ندیدن بتونن حرف بزنن. کد کوتاه کانال فقط گروه‌ها رو از هم جدا نگه می‌داره — رمز عبور نیست و چیزی رو قفل نمی‌کنه. با یه کانال تَرک همون‌طور رفتار کن که با یه کانال بیسیم رفتار می‌کنی: هر کسی که دسترسی درست به همون شبکه، یا خودِ کد رو داشته باشه، می‌تونه گوش بده. برای گفت‌وگویی که باید محرمانه بمونه ابزار درستی نیست."
           }
         }
@@ -204,7 +204,7 @@
         {
           "type": "p",
           "text": {
-            "en": "You do not need an account to use Tark. An account is needed for one thing: a subscription belongs to an account, so it can follow you to another phone. You can make one with an email and a password, or — on Android — with Google sign-in.",
+            "en": "You do not need an account to use Tarkk. An account is needed for one thing: a subscription belongs to an account, so it can follow you to another phone. You can make one with an email and a password, or — on Android — with Google sign-in.",
             "fa": "برای استفاده از تَرک به حساب کاربری نیازی نیست. حساب فقط برای یه کار لازمه: اشتراک به حساب وصله، تا بتونه همراهت به گوشی دیگه بیاد. می‌تونی با ایمیل و رمز عبور حساب بسازی، یا — روی اندروید — با ورود از طریق گوگل."
           }
         },
@@ -244,7 +244,7 @@
                 "fa": "شناسه‌ی حساب گوگل"
               },
               "text": {
-                "en": "For a Google account, the identifier Google gives your account, so the same Google account always opens the same Tark account. We never see your Google password.",
+                "en": "For a Google account, the identifier Google gives your account, so the same Google account always opens the same Tarkk account. We never see your Google password.",
                 "fa": "برای حسابی که با گوگل ساخته شده، شناسه‌ای که گوگل به حسابت داده، تا همون حساب گوگل همیشه همون حساب تَرک رو باز کنه. رمز عبور گوگلت رو هیچ‌وقت نمی‌بینیم."
               }
             },
@@ -254,7 +254,7 @@
                 "fa": "اسم و آواتار"
               },
               "text": {
-                "en": "The display name you choose, and the number of the avatar you picked from Tark’s fixed set. There are no photo uploads. The same name and avatar are shown to the people in a channel with you, over the local link, as they always have been.",
+                "en": "The display name you choose, and the number of the avatar you picked from Tarkk’s fixed set. There are no photo uploads. The same name and avatar are shown to the people in a channel with you, over the local link, as they always have been.",
                 "fa": "اسمی که برای نمایش انتخاب می‌کنی، و شماره‌ی آواتاری که از مجموعه‌ی ثابت تَرک برداشتی. عکسی آپلود نمی‌شه. همین اسم و آواتار، مثل همیشه، از روی اتصال محلی به آدمایی که باهات توی کانالن نشون داده می‌شه."
               }
             },
@@ -347,7 +347,7 @@
         {
           "type": "p",
           "text": {
-            "en": "Tark keeps a small amount of state so it can behave sensibly the second time you open it. All of it lives in the app’s own storage on your device, and uninstalling the app removes the lot. Apart from the account details described above, none of it syncs anywhere.",
+            "en": "Tarkk keeps a small amount of state so it can behave sensibly the second time you open it. All of it lives in the app’s own storage on your device, and uninstalling the app removes the lot. Apart from the account details described above, none of it syncs anywhere.",
             "fa": "تَرک یه مقدار کمی وضعیت رو نگه می‌داره تا بار دومی که بازش می‌کنی درست رفتار کنه. همه‌ش توی حافظه‌ی خود برنامه روی دستگاه شماست و با حذف برنامه، همه‌ش پاک می‌شه. جز جزئیات حسابی که بالاتر گفتیم، هیچ‌کدومش جایی هم‌گام نمی‌شه."
           }
         },
@@ -422,7 +422,7 @@
         {
           "type": "p",
           "text": {
-            "en": "Android names some permissions much more broadly than the use they are being granted for. Here is the whole list, and what Tark actually does with each.",
+            "en": "Android names some permissions much more broadly than the use they are being granted for. Here is the whole list, and what Tarkk actually does with each.",
             "fa": "اندروید اسم بعضی دسترسی‌ها رو خیلی کلی‌تر از کاری که براش داده می‌شن گذاشته. این فهرست کامله، و اینکه تَرک واقعاً با هرکدوم چی‌کار می‌کنه."
           }
         },
@@ -451,7 +451,7 @@
             },
             {
               "text": {
-                "en": "Older versions of Android refuse to scan for Wi-Fi or Bluetooth at all unless an app holds this. Tark asks for it for that reason alone and never reads a position; on Android 13 and newer it is not requested.",
+                "en": "Older versions of Android refuse to scan for Wi-Fi or Bluetooth at all unless an app holds this. Tarkk asks for it for that reason alone and never reads a position; on Android 13 and newer it is not requested.",
                 "fa": "اندرویدهای قدیمی‌تر بدون داشتن این دسترسی اصلاً اجازه‌ی اسکن وای‌فای یا بلوتوث نمی‌دن. تَرک فقط به همین دلیل ازش می‌خواد و هیچ‌وقت موقعیتی نمی‌خونه؛ روی اندروید ۱۳ و بالاتر اصلاً درخواستش نمی‌شه."
               },
               "name": {
@@ -534,7 +534,7 @@
         {
           "type": "p",
           "text": {
-            "en": "The connection itself is WebRTC, which browsers encrypt end-to-end by default — so a browser guest’s audio is in fact better protected in transit than the app-to-app Wi-Fi link. To let two devices that are not on the same network find each other, it asks a public STUN server run by Google what your public address looks like from the outside. That server sees your IP address and nothing else; it is not part of the audio path. Tark runs no relay server, which means audio never passes through any third party — and also means a strict corporate or carrier NAT can leave a browser guest unable to connect at all, with no fallback.",
+            "en": "The connection itself is WebRTC, which browsers encrypt end-to-end by default — so a browser guest’s audio is in fact better protected in transit than the app-to-app Wi-Fi link. To let two devices that are not on the same network find each other, it asks a public STUN server run by Google what your public address looks like from the outside. That server sees your IP address and nothing else; it is not part of the audio path. Tarkk runs no relay server, which means audio never passes through any third party — and also means a strict corporate or carrier NAT can leave a browser guest unable to connect at all, with no fallback.",
             "fa": "خود اتصال با WebRTC انجام می‌شه که مرورگرها به‌صورت پیش‌فرض سرتاسری رمزنگاریش می‌کنن — پس صدای مهمان مرورگری در مسیر، در واقع بهتر از لینک وای‌فای بین دو برنامه محافظت می‌شه. برای اینکه دو دستگاهی که روی یه شبکه نیستن همدیگه رو پیدا کنن، از یه سرور عمومی STUN که گوگل اجراش می‌کنه می‌پرسه نشانی عمومی شما از بیرون چه شکلیه. اون سرور فقط IP شما رو می‌بینه و هیچ چیز دیگه؛ بخشی از مسیر صدا نیست. تَرک هیچ سرور بازپخشی نداره، یعنی صدا هیچ‌وقت از هیچ واسطه‌ای رد نمی‌شه — و همین یعنی یه NAT سخت‌گیر شرکتی یا اپراتوری می‌تونه مهمان مرورگری رو کلاً بی‌اتصال بذاره، بدون هیچ راه جایگزینی."
           }
         }
@@ -575,7 +575,7 @@
         {
           "type": "p",
           "text": {
-            "en": "Links in account emails point to tarkk.ir/v/. On a phone with Tark installed they open the app directly. If one opens in a browser instead, the page only tells you what to do next: the code in the link stays in your browser, and the page runs no scripts and sends it nowhere.",
+            "en": "Links in account emails point to tarkk.ir/v/. On a phone with Tarkk installed they open the app directly. If one opens in a browser instead, the page only tells you what to do next: the code in the link stays in your browser, and the page runs no scripts and sends it nowhere.",
             "fa": "لینک‌های داخل ایمیل‌های حساب به tarkk.ir/v/ اشاره می‌کنن. روی گوشی‌ای که تَرک نصبه، مستقیم برنامه رو باز می‌کنن. اگه یکیشون به‌جاش توی مرورگر باز بشه، صفحه فقط می‌گه قدم بعدی چیه: کدِ داخل لینک توی مرورگرت می‌مونه، و صفحه هیچ اسکریپتی اجرا نمی‌کنه و اون کد رو جایی نمی‌فرسته."
           }
         }
@@ -595,7 +595,7 @@
         {
           "type": "p",
           "text": {
-            "en": "The complete list of third parties any part of Tark touches. Each has its own privacy policy, which governs what it does with what it sees.",
+            "en": "The complete list of third parties any part of Tarkk touches. Each has its own privacy policy, which governs what it does with what it sees.",
             "fa": "فهرست کامل واسطه‌هایی که هر بخشی از تَرک باهاشون سر و کار داره. هرکدوم سیاست حریم خصوصی خودشون رو دارن که تعیین می‌کنه با چیزی که می‌بینن چی‌کار می‌کنن."
           }
         },
@@ -649,7 +649,7 @@
             },
             {
               "text": {
-                "en": "Hosts the Android download, and the Tark account server and its database, inside Iran. Sees the requests made to them, as any host does, and stores the account data described above.",
+                "en": "Hosts the Android download, and the Tarkk account server and its database, inside Iran. Sees the requests made to them, as any host does, and stores the account data described above.",
                 "fa": "میزبان فایل دانلود اندروید، و سرور حساب تَرک و پایگاه داده‌ش، داخل ایران. مثل هر میزبانی، درخواست‌هایی که بهشون می‌رسه رو می‌بینه و داده‌های حسابی که بالاتر گفتیم رو نگه می‌داره."
               },
               "name": "ArvanCloud",
@@ -658,7 +658,7 @@
             },
             {
               "text": {
-                "en": "Handles donations, only if you choose to make one. That happens entirely on their site; no payment detail ever passes through Tark.",
+                "en": "Handles donations, only if you choose to make one. That happens entirely on their site; no payment detail ever passes through Tarkk.",
                 "fa": "حمایت‌های مالی رو مدیریت می‌کنه، فقط اگه خودت بخوای حمایت کنی. این کار کاملاً روی سایت خودشون انجام می‌شه؛ هیچ اطلاعات پرداختی از تَرک رد نمی‌شه."
               },
               "name": "Reymit",
@@ -683,7 +683,7 @@
         {
           "type": "p",
           "text": {
-            "en": "Tark is not built for or aimed at children under 13. The app works without an account, and the optional account asks for an email and a name but never an age, so there is no way for us to tell how old anyone is. If you are a parent and believe your child has made an account, write to us and we will delete it.",
+            "en": "Tarkk is not built for or aimed at children under 13. The app works without an account, and the optional account asks for an email and a name but never an age, so there is no way for us to tell how old anyone is. If you are a parent and believe your child has made an account, write to us and we will delete it.",
             "fa": "تَرک برای بچه‌های زیر ۱۳ سال ساخته نشده و مخاطبش اون‌ها نیستن. برنامه بدون حساب کاربری کار می‌کنه، و حساب اختیاری هم ایمیل و اسم می‌خواد ولی هیچ‌وقت سن نمی‌پرسه، پس ما راهی نداریم که سن کسی رو بفهمیم. اگه پدر یا مادری و فکر می‌کنی فرزندت حساب ساخته، برامون بنویس تا پاکش کنیم."
           }
         }
@@ -799,7 +799,7 @@
         {
           "type": "p",
           "text": {
-            "en": "If what Tark collects ever changes, this page changes with it and the date at the top moves. A change that widens what is collected will be called out in the app’s release notes rather than left for you to spot here.",
+            "en": "If what Tarkk collects ever changes, this page changes with it and the date at the top moves. A change that widens what is collected will be called out in the app’s release notes rather than left for you to spot here.",
             "fa": "اگه چیزی که تَرک جمع می‌کنه عوض بشه، این صفحه هم باهاش عوض می‌شه و تاریخ بالای صفحه جلو می‌ره. تغییری که دامنه‌ی جمع‌آوری رو بازتر کنه، توی یادداشت‌های انتشار برنامه اعلام می‌شه، نه اینکه بذاریمش پای اینکه خودت اینجا پیداش کنی."
           }
         },
@@ -865,7 +865,7 @@
     {
       "href": "/#download",
       "kicker": {
-        "en": "GET TARKK",
+        "en": "GET Tarkk",
         "fa": "دریافت تَرک"
       },
       "title": {

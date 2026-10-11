@@ -1,6 +1,6 @@
-# Tark backend
+# Tarkk backend
 
-Go + PostgreSQL service behind the Tark app: accounts and sign-in, the
+Go + PostgreSQL service behind the Tarkk app: accounts and sign-in, the
 profile, and Cafe Bazaar subscription verification with the signed
 entitlement the app checks offline. It is planned to run on ArvanCloud.
 

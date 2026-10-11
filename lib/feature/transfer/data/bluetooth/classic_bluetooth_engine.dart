@@ -184,7 +184,7 @@ class ClassicBluetoothEngine {
   /// by classic inquiry on the tagged name (and iPhones through the BLE
   /// engine's own advertisement), so the listener alone is ready. Requiring a
   /// token here made that screen fail the instant Start was tapped.
-  Future<void> startHosting({String name = 'tark'}) async {
+  Future<void> startHosting({String name = kTarkHostBrand}) async {
     await _reclaimSession();
     final token = _rendezvousToken;
     final identity = token == null

@@ -13,10 +13,11 @@ void main() {
   test('a nameless host broadcasts the bare brand and reads back as one', () {
     expect(encodeHostName(''), 'Tark');
     expect(encodeHostName('   '), 'Tark');
-    // Already the brand — no doubling into "Tark · Tark".
-    expect(encodeHostName('Tark'), 'Tark');
-    expect(isTarkHostName('Tark'), isTrue);
-    expect(decodeHostName('Tark'), 'Tark');
+    // The stable radio tag is decoded into the current display brand.
+    expect(encodeHostName('Tarkk'), 'Tark');
+    expect(decodeHostName(encodeHostName('')), 'Tarkk');
+    expect(isTarkHostName('Tarkk'), isTrue);
+    expect(decodeHostName('Tarkk'), 'Tarkk');
   });
 
   test('unrelated devices in the scan are not mistaken for hosts', () {
@@ -27,9 +28,29 @@ void main() {
     }
   });
 
+  test('older Tark host labels are still discoverable and readable', () {
+    expect(isTarkHostName('Tark'), isTrue);
+    expect(isTarkHostName('Tark · Pedram'), isTrue);
+    expect(decodeHostName('Tark'), 'Tarkk');
+    expect(decodeHostName('Tark · Pedram'), 'Pedram');
+    expect(decodeHostName('Tark · '), 'Tarkk');
+    expect(encodeHostName('Tark'), 'Tark');
+  });
+
+  test('new spelling is readable without breaking older classic scanners', () {
+    expect(isTarkHostName('Tarkk · Pedram'), isTrue);
+    expect(decodeHostName('Tarkk · Pedram'), 'Pedram');
+    expect(decodeHostName('Tarkk · '), 'Tarkk');
+    // This predicate is the exact discovery rule used by previous builds.
+    for (final name in ['', 'Tarkk', 'Pedram', 'پدرام']) {
+      final wireName = encodeHostName(name);
+      expect(wireName == 'Tark' || wireName.startsWith('Tark · '), isTrue);
+    }
+  });
+
   test('a name that itself looks like the tag survives the round-trip', () {
-    final encoded = encodeHostName('Tark · Pedram');
-    expect(decodeHostName(encoded), 'Tark · Pedram');
+    final encoded = encodeHostName('Tarkk · Pedram');
+    expect(decodeHostName(encoded), 'Tarkk · Pedram');
   });
 
   group('broadcast name fits the radio', () {
@@ -38,7 +59,10 @@ void main() {
     // to be abbreviated here rather than dropped out there.
     test('a normal name is broadcast whole', () {
       expect(encodeHostName('Pedram'), 'Tark · Pedram');
-      expect(utf8.encode(encodeHostName('Pedram')).length, lessThan(kMaxHostNameBytes));
+      expect(
+        utf8.encode(encodeHostName('Pedram')).length,
+        lessThan(kMaxHostNameBytes),
+      );
     });
 
     test('Persian names are broadcast whole and read back intact', () {

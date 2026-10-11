@@ -144,7 +144,7 @@ func newOpenReader(r io.Reader, key []byte) (*openReader, error) {
 		return nil, ErrCorrupt
 	}
 	if string(head[:len(magic)]) != magic {
-		return nil, fmt.Errorf("backup: not a Tark backup file")
+		return nil, fmt.Errorf("backup: not a Tarkk backup file")
 	}
 	aead, err := fileCipher(key, head[len(magic):])
 	if err != nil {

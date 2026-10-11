@@ -181,7 +181,7 @@ class _LinkPainter extends CustomPainter {
   final Color accent;
 
   /// The two peers before they became one link. Amber is the app's own
-  /// colour, so the sequence reads as Tark's two radios closing on each other
+  /// colour, so the sequence reads as Tarkk's two radios closing on each other
   /// and *becoming* the green of a working link.
   final Color peer;
 

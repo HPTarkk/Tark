@@ -28,7 +28,7 @@ import '../../domain/repository/room_repository.dart';
 ///
 /// The normal path deliberately has exactly one actionable QR. When this
 /// phone is the current hotspot host, that QR remains a standards-compliant
-/// Wi-Fi payload but carries the durable Room invite as a Tark extension.
+/// Wi-Fi payload but carries the durable Room invite as a Tarkk extension.
 /// The scanning phone therefore saves membership first and joins the network
 /// from the same scan. SSID/password and a second Wi-Fi QR stay out of the
 /// primary interaction entirely.

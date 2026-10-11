@@ -16,7 +16,7 @@ import 'register_page.dart';
 /// Sign in with email and password, or Google. Also the door to creating an
 /// account and to resetting a password. Pops true once signed in.
 ///
-/// Signing in is optional in Tark: it exists only so a subscription can
+/// Signing in is optional in Tarkk: it exists only so a subscription can
 /// belong to an account. The page is reached from Profile and from the
 /// subscription screen, never forced.
 class SignInPage extends StatefulWidget {

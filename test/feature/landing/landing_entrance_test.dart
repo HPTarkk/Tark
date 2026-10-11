@@ -30,7 +30,7 @@ void main() {
   setUp(() {
     GetIt.instance.registerFactory<LandingCubit>(_Landing.new);
     PackageInfo.setMockInitialValues(
-      appName: 'Tark',
+      appName: 'Tarkk',
       packageName: 'tark',
       version: '1.1.0',
       buildNumber: '1',

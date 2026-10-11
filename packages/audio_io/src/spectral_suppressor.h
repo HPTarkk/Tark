@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <vector>
 
-// Native streaming spectral suppressor matching Tark's Dart STFT contract.
+// Native streaming spectral suppressor matching Tarkk's Dart STFT contract.
 // The object is stream-owned and never shared between capture sessions.
 class SpectralSuppressor {
  public:

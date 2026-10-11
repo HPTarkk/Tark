@@ -1,6 +1,6 @@
 // widget_loop_animation_light.dart
 //
-// Light-palette twin of widget_loop_animation.dart — the Tark dial sitting on
+// Light-palette twin of widget_loop_animation.dart — the Tarkk dial sitting on
 // a phone's home screen, alive. Only the colors differ, so the geometry is
 // reused from WidgetLoopPainter rather than copy-edited (the older loop
 // animations in this folder predate that and duplicate their painters).

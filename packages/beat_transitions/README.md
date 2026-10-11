@@ -2,7 +2,7 @@
 
 Step-to-step transitions for linear flows — onboarding, product tours, wizards.
 
-Zero dependencies beyond the Flutter SDK. Extracted from Tark's onboarding
+Zero dependencies beyond the Flutter SDK. Extracted from Tarkk's onboarding
 journey so the same motion can be reused in other projects; nothing in here
 knows about a palette, a theme, a cubit or a router.
 

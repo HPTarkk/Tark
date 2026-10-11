@@ -101,7 +101,7 @@ abstract class AppLocalizations {
   /// No description provided for @app_name.
   ///
   /// In fa, this message translates to:
-  /// **'تــرک'**
+  /// **'تَرک'**
   String get app_name;
 
   /// No description provided for @app_subtitle.

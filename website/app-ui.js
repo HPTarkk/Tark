@@ -46,7 +46,7 @@ const TEXT = {
     qr: "نمونه‌ی کد دعوت",
   },
   en: {
-    brand: "TARKK",
+    brand: "Tarkk",
     room: "Northbound",
     nazanin: "Nazanin",
     pedram: "Pedram",

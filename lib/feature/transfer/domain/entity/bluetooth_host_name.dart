@@ -8,10 +8,15 @@ library;
 import 'dart:convert';
 
 /// Bare brand name, used when the host has no display name of its own.
-const kTarkHostBrand = 'Tark';
+const kTarkHostBrand = 'Tarkk';
+
+/// Stable wire tag: older classic scanners recognize this exact spelling.
+/// Keep advertising it while showing the current brand in the UI.
+const _legacyHostBrand = 'Tark';
+const _currentHostPrefix = '$kTarkHostBrand · ';
 
 /// Marker used by legacy/classic discovery paths.
-const kTarkHostPrefix = '$kTarkHostBrand · ';
+const kTarkHostPrefix = '$_legacyHostBrand · ';
 
 /// Longest adapter name we intentionally apply while hosting.
 ///
@@ -19,7 +24,7 @@ const kTarkHostPrefix = '$kTarkHostBrand · ';
 /// Room rendezvous itself is carried separately in BLE service-data.
 const kMaxHostNameBytes = 29;
 
-/// Stable human-readable rendezvous label used only inside Tark after a BLE
+/// Stable human-readable rendezvous label used only inside Tarkk after a BLE
 /// service-data match. It is NOT trusted as the discovery identity.
 String rendezvousHostName(String token) {
   final clean = token.trim().toLowerCase();
@@ -33,7 +38,9 @@ String rendezvousHostName(String token) {
 /// character boundary if it doesn't fit [kMaxHostNameBytes].
 String encodeHostName(String myName) {
   final name = myName.trim();
-  if (name.isEmpty || name == kTarkHostBrand) return kTarkHostBrand;
+  if (name.isEmpty || name == kTarkHostBrand || name == _legacyHostBrand) {
+    return _legacyHostBrand;
+  }
   final budget = kMaxHostNameBytes - utf8.encode(kTarkHostPrefix).length;
   return '$kTarkHostPrefix${_truncateUtf8(name, budget)}';
 }
@@ -49,16 +56,33 @@ String _truncateUtf8(String value, int maxBytes) {
   return utf8.decode(bytes.sublist(0, end), allowMalformed: true).trimRight();
 }
 
-/// Whether [advertisedName] belongs to a legacy/classic Tark host.
+/// Whether [advertisedName] belongs to a legacy/classic Tarkk host.
 bool isTarkHostName(String advertisedName) {
   final name = advertisedName.trim();
-  return name == kTarkHostBrand || name.startsWith(kTarkHostPrefix);
+  return name == kTarkHostBrand ||
+      name.startsWith(kTarkHostPrefix) ||
+      name == kTarkHostPrefix.trimRight() ||
+      name == _legacyHostBrand ||
+      name == _currentHostPrefix.trimRight() ||
+      name.startsWith(_currentHostPrefix);
 }
 
 /// The display name to show for a legacy/classic peer.
 String decodeHostName(String advertisedName) {
   final name = advertisedName.trim();
-  if (!name.startsWith(kTarkHostPrefix)) return name;
-  final stripped = name.substring(kTarkHostPrefix.length).trim();
+  if (name == _legacyHostBrand ||
+      name == kTarkHostPrefix.trimRight() ||
+      name == _currentHostPrefix.trimRight()) {
+    return kTarkHostBrand;
+  }
+  final String prefix;
+  if (name.startsWith(kTarkHostPrefix)) {
+    prefix = kTarkHostPrefix;
+  } else if (name.startsWith(_currentHostPrefix)) {
+    prefix = _currentHostPrefix;
+  } else {
+    return name;
+  }
+  final stripped = name.substring(prefix.length).trim();
   return stripped.isEmpty ? kTarkHostBrand : stripped;
 }

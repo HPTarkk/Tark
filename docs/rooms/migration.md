@@ -1,6 +1,6 @@
 # Saved Room migration and compatibility
 
-Tark's existing `ChannelId` remains a session/wire compatibility alias. It is a
+Tarkk's existing `ChannelId` remains a session/wire compatibility alias. It is a
 six-character, 24-bit value that is explicitly not a secret and is not durable
 room identity. `ChannelMembership` also remains session-scoped so existing
 quick channel, hotspot, Bluetooth and guest entry paths keep their current wire

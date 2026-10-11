@@ -24,11 +24,11 @@ func TestPlanDaysAndTitles(t *testing.T) {
 		days   int
 		en, fa string
 	}{
-		{1, 30, "Tark Premium, 1 month", "اشتراک یک ماهه تَرک"},
-		{3, 90, "Tark Premium, 3 months", "اشتراک سه ماهه تَرک"},
-		{6, 180, "Tark Premium, 6 months", "اشتراک شش ماهه تَرک"},
-		{12, 365, "Tark Premium, 1 year", "اشتراک یک ساله تَرک"},
-		{24, 730, "Tark Premium, 2 years", "اشتراک دو ساله تَرک"},
+		{1, 30, "Tarkk Premium, 1 month", "اشتراک یک ماهه تَرک"},
+		{3, 90, "Tarkk Premium, 3 months", "اشتراک سه ماهه تَرک"},
+		{6, 180, "Tarkk Premium, 6 months", "اشتراک شش ماهه تَرک"},
+		{12, 365, "Tarkk Premium, 1 year", "اشتراک یک ساله تَرک"},
+		{24, 730, "Tarkk Premium, 2 years", "اشتراک دو ساله تَرک"},
 	}
 	for _, c := range cases {
 		p := Plan{Months: c.months}
@@ -36,7 +36,7 @@ func TestPlanDaysAndTitles(t *testing.T) {
 			t.Errorf("%d months: %d %q %q", c.months, p.Days(), p.Title("en"), p.Title("fa"))
 		}
 	}
-	if title, ok := PlanTitle(CompSKU, "en"); !ok || title != "Gift from Tark" {
+	if title, ok := PlanTitle(CompSKU, "en"); !ok || title != "Gift from Tarkk" {
 		t.Errorf("comp title %q", title)
 	}
 	if _, ok := PlanTitle("", "en"); ok {
@@ -49,10 +49,10 @@ func TestTestPlan(t *testing.T) {
 	if !ok || !p.IsTest() || p.Months != 0 || p.Minutes != 5 || p.Days() != 0 {
 		t.Fatalf("%+v %v", p, ok)
 	}
-	if p.Title("en") != "Tark Premium, 5-minute test" || p.Title("fa") != "اشتراک تست ۵ دقیقه‌ای تَرک" {
+	if p.Title("en") != "Tarkk Premium, 5-minute test" || p.Title("fa") != "اشتراک تست ۵ دقیقه‌ای تَرک" {
 		t.Errorf("%q %q", p.Title("en"), p.Title("fa"))
 	}
-	if title, ok := PlanTitle(TestSKU, "en"); !ok || title != "Tark Premium, 5-minute test" {
+	if title, ok := PlanTitle(TestSKU, "en"); !ok || title != "Tarkk Premium, 5-minute test" {
 		t.Errorf("PlanTitle %q %v", title, ok)
 	}
 	for _, bad := range []string{"test_sub", "TEST_SUB ", "TEST_SUB2"} {

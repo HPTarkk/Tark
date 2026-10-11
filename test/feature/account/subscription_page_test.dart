@@ -133,7 +133,7 @@ void main() {
     await pumpPage(tester);
 
     // No title from the server: named from the plan id.
-    expect(find.text('Tark Premium, 3 months'), findsOneWidget);
+    expect(find.text('Tarkk Premium, 3 months'), findsOneWidget);
     expect(
       find.text('Ends on 30 December 2026. Auto-renew is off.'),
       findsOneWidget,
@@ -155,7 +155,7 @@ void main() {
     );
     await pumpPage(tester);
 
-    expect(find.text('Tark Premium, 1 year'), findsOneWidget);
+    expect(find.text('Tarkk Premium, 1 year'), findsOneWidget);
     expect(find.text('Ended on 20 September 2026'), findsOneWidget);
     expect(find.text('RENEW'), findsOneWidget);
     expect(find.text('PREMIUM'), findsNothing);
@@ -184,7 +184,9 @@ void main() {
     await pumpPage(tester);
 
     expect(
-      find.text("Couldn't reach Tark just now, so this is the latest we know."),
+      find.text(
+        "Couldn't reach Tarkk just now, so this is the latest we know.",
+      ),
       findsOneWidget,
     );
   });

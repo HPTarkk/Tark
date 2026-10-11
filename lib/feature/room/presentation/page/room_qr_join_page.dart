@@ -22,7 +22,7 @@ import '../manager/room_list_cubit.dart';
 /// One-scan Room entry. Membership is persisted before transport setup.
 ///
 /// A current host can carry its Wi-Fi bootstrap and the durable Room invite in
-/// the same standard `WIFI:` QR. Tark validates/persists the Room half first,
+/// the same standard `WIFI:` QR. Tarkk validates/persists the Room half first,
 /// then hands that exact already-scanned payload to the hotspot bridge. The
 /// camera never opens a second time and transport remains an implementation
 /// detail rather than a user decision.
@@ -61,7 +61,7 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
     _joining = true;
     try {
       // A one-scan live invite is still a standards-compliant Wi-Fi QR; its
-      // Room token is an opaque Tark extension. Ordinary Room QR codes have no
+      // Room token is an opaque Tarkk extension. Ordinary Room QR codes have no
       // network wrapper, so the raw value remains the fallback.
       final scanned = ScannedCode.parse(raw);
       final bluetooth = BluetoothInviteLink.tryParse(raw);

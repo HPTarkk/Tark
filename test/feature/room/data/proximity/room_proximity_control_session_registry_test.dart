@@ -426,7 +426,7 @@ class _RegistryFakeClassicBluetoothEngine extends ClassicBluetoothEngine {
   Future<bool> requestDiscoverable({int durationSeconds = 300}) async => true;
 
   @override
-  Future<void> startHosting({String name = 'tark'}) async {}
+  Future<void> startHosting({String name = 'Tarkk'}) async {}
 
   @override
   Stream<BluetoothPeer> scanForHosts() => const Stream.empty();

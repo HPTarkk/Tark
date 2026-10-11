@@ -9,7 +9,7 @@ import 'subscription_service.dart';
 /// Whether this build sells anything at all. One place, read by the gate and
 /// by DI (which skips the subscription machinery entirely when it is off).
 abstract final class Monetization {
-  /// Monetization is **parked**: Tark ships unlocked until the release that
+  /// Monetization is **parked**: Tarkk ships unlocked until the release that
   /// starts charging, which flips this at build time:
   ///
   ///   flutter build appbundle --release --dart-define=TARK_MONETIZED=true

@@ -6,7 +6,7 @@ import 'api_failure.dart';
 ///
 /// ## Why this exists at all, in an app that is proud of having no backend
 ///
-/// Tark's whole promise is that a conversation never leaves the local link,
+/// Tarkk's whole promise is that a conversation never leaves the local link,
 /// and that is still true: nothing here carries voice, presence, peers or
 /// anything a user said. This client fetches **published documents** — the
 /// privacy policy and the terms, from the same static files the website

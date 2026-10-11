@@ -6,7 +6,7 @@ import '../../../../core/l10n/extension.dart';
 import 'hud.dart';
 import 'onboarding_palette.dart';
 
-/// Beat 1 — what Wakitaki is, as a console "field brief": a headline and three
+/// Beat 1 — what Tarkk is, as a console "field brief": a headline and three
 /// capability lines. The VOX line keeps a live waveform glyph so the panel has
 /// one moving element of its own.
 class WelcomeStep extends StatelessWidget {

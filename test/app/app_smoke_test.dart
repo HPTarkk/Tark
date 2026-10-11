@@ -73,7 +73,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     PackageInfo.setMockInitialValues(
-      appName: 'Tark',
+      appName: 'Tarkk',
       packageName: 'com.b1101.tark',
       version: '1.1.0',
       buildNumber: '32',

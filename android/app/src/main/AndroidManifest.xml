@@ -150,7 +150,7 @@
             </intent-filter>
             <!-- Verification links in the account emails:
                  https://tarkk.ir/v/<register|reset|email>#<linkToken>.
-                 Verified App Links (autoVerify), so they open Tark directly
+                 Verified App Links (autoVerify), so they open Tarkk directly
                  instead of a chooser; that needs
                  https://tarkk.ir/.well-known/assetlinks.json to list this
                  app's signing-key SHA-256. Handled by app_links in

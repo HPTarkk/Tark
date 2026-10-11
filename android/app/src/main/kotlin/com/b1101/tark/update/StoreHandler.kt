@@ -8,7 +8,7 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 
 /**
- * Opens Tark's store listing for the update prompt.
+ * Opens Tarkk's store listing for the update prompt.
  *
  * Tries the Cafe Bazaar app first — it goes straight to the Update button —
  * and falls back to the listing URL Dart passes in, which any browser opens.

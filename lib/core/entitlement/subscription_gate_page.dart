@@ -212,7 +212,7 @@ class _SubscriptionGatePageState extends State<SubscriptionGatePage> {
   }
 
   /// A subscription belongs to an account: sign in (optional everywhere
-  /// else in Tark), then ask the server again.
+  /// else in Tarkk), then ask the server again.
   Future<void> _signIn() async {
     final router = GoRouter.maybeOf(context);
     if (router == null) return;

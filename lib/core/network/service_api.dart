@@ -2,7 +2,7 @@ import 'dart:math';
 
 import 'api_failure.dart';
 
-/// The Tark backend's own API (backend/api/openapi.yaml), as opposed to the
+/// The Tarkk backend's own API (backend/api/openapi.yaml), as opposed to the
 /// static published documents [ApiClient] fetches.
 ///
 /// Where the backend lives. Overridable per build so a staging server can be

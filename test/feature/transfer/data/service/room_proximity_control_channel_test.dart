@@ -431,7 +431,7 @@ class _FakeClassicBluetoothEngine extends ClassicBluetoothEngine {
   }
 
   @override
-  Future<void> startHosting({String name = 'tark'}) async {
+  Future<void> startHosting({String name = 'Tarkk'}) async {
     events.add('host');
     hosted = true;
     if (hostingError != null) throw hostingError!;

@@ -28,7 +28,7 @@ class SubscriptionPage extends StatefulWidget {
 
   static Widget buildPage() => const SubscriptionPage._();
 
-  /// Tark's page in Bazaar; the website when the Bazaar app is missing.
+  /// Tarkk's page in Bazaar; the website when the Bazaar app is missing.
   static final bazaarListing = Uri.parse(
     'https://cafebazaar.ir/app/com.b1101.tark',
   );

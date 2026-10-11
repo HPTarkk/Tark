@@ -1,4 +1,4 @@
-name: Build Tark Android Device-Test APK
+name: Build Tarkk Android Device-Test APK
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ on:
       - ".github/workflows/android-device-test.yml"
       - "docs/android-device-test-from-phone.md"
   workflow_run:
-    workflows: ["Tark beta quality gate"]
+    workflows: ["Tarkk beta quality gate"]
     types: [completed]
 
 permissions:
@@ -137,5 +137,5 @@ jobs:
 
           Download the `tark-device-test-*` artifact from this run, unzip it on Android, and install the APK.
 
-          Because the package is `com.b1101.tark.dev`, it installs beside the production Tark app and never replaces the production package.
+          Because the package is `com.b1101.tark.dev`, it installs beside the production Tarkk app and never replaces the production package.
           EOF

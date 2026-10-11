@@ -25,7 +25,7 @@ class BluetoothJoinerRadar extends StatefulWidget {
 class _BluetoothJoinerRadarState extends State<BluetoothJoinerRadar>
     with WidgetsBindingObserver {
   /// How long the list stays honestly blank before it says so. The scan only
-  /// surfaces Tark hosts, so a room full of headsets now looks identical to an
+  /// surfaces Tarkk hosts, so a room full of headsets now looks identical to an
   /// empty room — and an empty panel under a sweeping radar reads as broken
   /// rather than as "nobody is hosting yet". Long enough that a host coming up
   /// at the same moment lands first.

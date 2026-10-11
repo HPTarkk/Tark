@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  One command to get the Tark backend running on your machine for testing.
+  One command to get the Tarkk backend running on your machine for testing.
 
 .DESCRIPTION
   Run it from anywhere:  .\backend\setup-backend.ps1
@@ -423,7 +423,7 @@ function Write-Summary($testsPassed) {
     $base = "http://localhost:$HttpPort"
     Write-Host ''
     Write-Host '------------------------------------------------------------' -ForegroundColor Green
-    Write-Host ' Tark backend is ready' -ForegroundColor Green
+    Write-Host ' Tarkk backend is ready' -ForegroundColor Green
     Write-Host '------------------------------------------------------------' -ForegroundColor Green
     Write-Host "  API docs (Swagger UI) : $base/docs/"
     Write-Host "  OpenAPI contract      : $base/openapi.yaml"

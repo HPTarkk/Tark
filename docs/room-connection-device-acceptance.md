@@ -24,7 +24,7 @@ The same durable Room produces the same `corr=rc-...` on each phone without logg
 
 ## A55 ↔ A53 five-run gate
 
-Perform **five clean runs**. Start each run from no active Tark Room transport. Normal users must never manually choose Host, Join, SSID, IP, or scan a second QR.
+Perform **five clean runs**. Start each run from no active Tarkk Room transport. Normal users must never manually choose Host, Join, SSID, IP, or scan a second QR.
 
 1. On phone A, create a Room.
 2. On phone B, join that Room through the nearby Bluetooth join flow.

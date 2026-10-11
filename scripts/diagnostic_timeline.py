@@ -1,4 +1,4 @@
-"""Privacy-safe provenance and transition extraction for Tark field reports.
+"""Privacy-safe provenance and transition extraction for Tarkk field reports.
 
 Kept separate from the binary .tarklog decoder so this parser can be tested
 with tiny synthetic sessions. Only explicitly allow-listed diagnostic markers

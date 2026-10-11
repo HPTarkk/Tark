@@ -14,7 +14,7 @@
 /// is computed in *milliseconds* (`_packetDuration`, and `_estimateLoss` which
 /// returns it unchanged). For this app's 20 ms frames that passes 20 where
 /// libopus needs 320, so every FEC decode returns `OPUS_BUFFER_TOO_SMALL` and
-/// the package turns it into a throw. The bug is latent for Tark today only
+/// the package turns it into a throw. The bug is latent for Tarkk today only
 /// because nothing has ever asked it to conceal a packet.
 ///
 /// FEC is the item the reliability roadmap calls the highest-value one for

@@ -1,4 +1,4 @@
-# Tark beta release gate
+# Tarkk beta release gate
 
 This checklist separates automated repository health from physical beta acceptance. A green GitHub Actions run is required for merge, but it is never evidence that hotspot, Bluetooth, headset, screen-off, or motorcycle behavior passed on real hardware.
 
@@ -23,12 +23,12 @@ The CI workflow additionally discovers and runs protocol/packet/codec compatibil
 
 ## What CI proves
 
-The required `Tark beta quality gate` checks:
+The required `Tarkk beta quality gate` checks:
 
 - changed Dart files conform to the pinned formatter;
 - static analysis is clean;
 - Flutter unit/widget tests pass;
-- Tark log analyzer tests pass;
+- Tarkk log analyzer tests pass;
 - website localization output is current;
 - protocol compatibility tests exist and pass;
 - the Android debug application compiles with CI build provenance;

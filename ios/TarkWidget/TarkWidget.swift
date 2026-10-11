@@ -311,7 +311,7 @@ struct MediumFace: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
-                    Text(state.callsign.isEmpty ? "Tark" : state.callsign)
+                    Text(state.callsign.isEmpty ? (state.isRtl ? "تَرک" : "Tarkk") : state.callsign)
                         .font(Vazir.bold(15))
                         .foregroundColor(palette.textPrimary)
                         .lineLimit(1)
@@ -444,7 +444,7 @@ struct TarkWidget: Widget {
         StaticConfiguration(kind: kind, provider: Provider()) { entry in
             TarkWidgetEntryView(entry: entry)
         }
-        .configurationDisplayName("Tark Channel")
+        .configurationDisplayName("Tarkk Channel")
         .description("Jump straight into your channel, and see who's on air.")
         .supportedFamilies([.systemSmall, .systemMedium])
         // Content margins are deliberately left at their defaults. Turning

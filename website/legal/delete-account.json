@@ -20,11 +20,11 @@
       "fa": "پاک کردن حساب کاربری — تَرک"
     },
     "description": {
-      "en": "How to delete your Tark account: in the app, or by an email request. What is deleted, what may be kept and why, and what happens to a subscription.",
+      "en": "How to delete your Tarkk account: in the app, or by an email request. What is deleted, what may be kept and why, and what happens to a subscription.",
       "fa": "چطور حساب تَرکت رو پاک کنی: از داخل برنامه، یا با درخواست ایمیلی. چی پاک می‌شه، چی ممکنه نگه داشته بشه و چرا، و اشتراکت چی می‌شه."
     },
     "twitterDescription": {
-      "en": "Delete your Tark account in the app, or ask by email. What is deleted, and what may be kept.",
+      "en": "Delete your Tarkk account in the app, or ask by email. What is deleted, and what may be kept.",
       "fa": "حساب تَرکت رو از داخل برنامه پاک کن، یا با ایمیل درخواست بده. چی پاک می‌شه و چی ممکنه بمونه."
     }
   },
@@ -34,7 +34,7 @@
       "fa": "پاک کردن حساب"
     },
     "heading": {
-      "en": "How to delete your Tark account.",
+      "en": "How to delete your Tarkk account.",
       "fa": "چطور حساب تَرکت رو پاک کنی."
     },
     "lede": {
@@ -96,7 +96,7 @@
             "fa": "اشتراکی که توی بازار داری تا وقتی همون‌جا لغوش نکنی ادامه داره. پاک کردن حساب، نه لغوش می‌کنه نه پولش رو برمی‌گردونه."
           },
           {
-            "en": "What’s on your phone. Tark keeps working without an account, with your channels, name and settings.",
+            "en": "What’s on your phone. Tarkk keeps working without an account, with your channels, name and settings.",
             "fa": "چیزهایی که روی گوشیته. تَرک بدون حساب هم کار می‌کنه، با همون کانال‌ها، اسم و تنظیماتت."
           }
         ]
@@ -126,7 +126,7 @@
           "type": "list",
           "items": [
             {
-              "en": "Open Tark and go to Profile.",
+              "en": "Open Tarkk and go to Profile.",
               "fa": "تَرک رو باز کن و برو به پروفایل."
             },
             {
@@ -181,7 +181,7 @@
         {
           "type": "button",
           "href": {
-            "en": "mailto:tarkk.hp@gmail.com?subject=Delete%20my%20Tark%20account&body=Please%20delete%20the%20Tark%20account%20that%20uses%20this%20email%20address.",
+            "en": "mailto:tarkk.hp@gmail.com?subject=Delete%20my%20Tarkk%20account&body=Please%20delete%20the%20Tarkk%20account%20that%20uses%20this%20email%20address.",
             "fa": "mailto:tarkk.hp@gmail.com?subject=%D8%AF%D8%B1%D8%AE%D9%88%D8%A7%D8%B3%D8%AA%20%D9%BE%D8%A7%DA%A9%20%DA%A9%D8%B1%D8%AF%D9%86%20%D8%AD%D8%B3%D8%A7%D8%A8%20%D8%AA%D9%8E%D8%B1%DA%A9&body=%D9%84%D8%B7%D9%81%D8%A7%D9%8B%20%D8%AD%D8%B3%D8%A7%D8%A8%20%D8%AA%D9%8E%D8%B1%DA%A9%DB%8C%20%DA%A9%D9%87%20%D8%A8%D8%A7%20%D9%87%D9%85%DB%8C%D9%86%20%D9%86%D8%B4%D8%A7%D9%86%DB%8C%20%D8%A7%DB%8C%D9%85%DB%8C%D9%84%20%D8%B3%D8%A7%D8%AE%D8%AA%D9%87%20%D8%B4%D8%AF%D9%87%20%D8%B1%D9%88%20%D9%BE%D8%A7%DA%A9%20%DA%A9%D9%86%DB%8C%D8%AF."
           },
           "label": {
@@ -192,7 +192,7 @@
         {
           "type": "p",
           "text": {
-            "en": "If the button doesn’t open your email app, write to tarkk.hp@gmail.com with the subject “Delete my Tark account”. We may reply to that address to confirm the request before deleting anything, and we’ll let you know once it’s done.",
+            "en": "If the button doesn’t open your email app, write to tarkk.hp@gmail.com with the subject “Delete my Tarkk account”. We may reply to that address to confirm the request before deleting anything, and we’ll let you know once it’s done.",
             "fa": "اگه دکمه برنامه‌ی ایمیلت رو باز نکرد، به tarkk.hp@gmail.com با موضوع «درخواست پاک کردن حساب تَرک» ایمیل بزن. ممکنه قبل از پاک کردن، برای تأیید درخواست به همون نشانی جواب بدیم، و وقتی کار انجام شد خبرت می‌کنیم."
           }
         }
@@ -254,7 +254,7 @@
         {
           "type": "p",
           "text": {
-            "en": "What the app keeps on your phone stays there — Tark keeps working without an account. Uninstalling the app removes it.",
+            "en": "What the app keeps on your phone stays there — Tarkk keeps working without an account. Uninstalling the app removes it.",
             "fa": "چیزی که برنامه روی گوشیت نگه داشته همون‌جا می‌مونه — تَرک بدون حساب هم کار می‌کنه. با حذف برنامه، اون‌ها هم پاک می‌شن."
           }
         }

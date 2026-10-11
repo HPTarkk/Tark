@@ -104,7 +104,7 @@ func (c content) html() string {
 	d := layoutData{
 		C: c, Lang: "en", Dir: "ltr", Align: "left",
 		Font:  template.CSS(`-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif`),
-		Brand: "Tark", Logo: LogoURL, Support: SupportEmail, SupportLabel: "Support:",
+		Brand: "Tarkk", Logo: LogoURL, Support: SupportEmail, SupportLabel: "Support:",
 	}
 	if c.Locale == "fa" {
 		d.Lang, d.Dir, d.Align = "fa", "rtl", "right"

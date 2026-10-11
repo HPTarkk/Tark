@@ -34,13 +34,13 @@ class HotspotCredentials extends Equatable {
   /// [channel], when named, rides along as a `TARK1:` field **inside the same
   /// payload** rather than as a second code on screen. [roomInvite], when
   /// supplied, does the same for the durable Room handoff under `TARKROOM1:`.
-  /// This is #186's one-scan late-join path: Tark's scanner persists Room
+  /// This is #186's one-scan late-join path: Tarkk's scanner persists Room
   /// membership first and then hands this *same already-scanned payload* to
   /// the hotspot joiner, so nobody has to scan a second Wi-Fi QR.
   ///
   /// Both extensions are ignored by ordinary system Wi-Fi scanners. That is
   /// deliberate compatibility: the payload stays a normal `WIFI:` code, so a
-  /// non-Tark scanner can still join the network while Tark gets the extra
+  /// non-Tarkk scanner can still join the network while Tarkk gets the extra
   /// local metadata it understands.
   ///
   /// The version lives in each key (`TARK1`, `TARKROOM1`) rather than in the
@@ -122,7 +122,7 @@ class HotspotCredentials extends Equatable {
 ///
 /// The network/channel halves remain independent. A Room invite is another
 /// optional extension rather than a replacement transport format: it exists
-/// only when the QR was minted from an active Room hotspot and lets Tark turn
+/// only when the QR was minted from an active Room hotspot and lets Tarkk turn
 /// one camera scan into durable membership + transport attachment.
 class ScannedCode {
   const ScannedCode({
@@ -134,7 +134,7 @@ class ScannedCode {
   final HotspotCredentials? credentials;
   final ChannelId channel;
 
-  /// Opaque durable Room invite carried by a Tark-aware Wi-Fi QR.
+  /// Opaque durable Room invite carried by a Tarkk-aware Wi-Fi QR.
   final String? roomInvite;
 
   static ScannedCode? parse(String raw) {

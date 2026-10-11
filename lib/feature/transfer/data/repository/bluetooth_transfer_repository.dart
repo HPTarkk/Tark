@@ -317,7 +317,7 @@ class BluetoothTransferRepository
     // Advertise the user's display name so the joiner sees who they're
     // connecting to, not a generic hostname.
     final storedName = await _settingsRepository.getMyName();
-    final deviceName = storedName.isEmpty ? 'Tark' : storedName;
+    final deviceName = storedName.isEmpty ? 'Tarkk' : storedName;
 
     if (_classicSupported) {
       // Classic first: its discoverable dialog is also what prompts the
@@ -338,7 +338,7 @@ class BluetoothTransferRepository
       // listening before it was answered raced that.
       await classic.requestDiscoverable();
       // Classic broadcasts the TAGGED name: it renames the adapter, and the
-      // tag is the only thing that marks this device as a Tark host in a
+      // tag is the only thing that marks this device as a Tarkk host in a
       // joiner's inquiry results. BLE needs no tag (joiners filter on the
       // service UUID) and its 31-byte advertisement has no room to spare.
       await classic.startHosting(name: encodeHostName(deviceName));
@@ -673,7 +673,7 @@ class BluetoothTransferRepository
   /// harmlessly on arrival if the peer hasn't opened its channel yet.
   Future<void> _sendHello() async {
     final storedName = await _settingsRepository.getMyName();
-    await sendPresence(storedName.isEmpty ? 'Tark' : storedName, false);
+    await sendPresence(storedName.isEmpty ? 'Tarkk' : storedName, false);
   }
 
   /// See [_sessionWatchdog]. Host role only: a joiner reaches "connected"
@@ -758,7 +758,7 @@ class BluetoothTransferRepository
       try {
         if (role == 'host') {
           final storedName = await _settingsRepository.getMyName();
-          final deviceName = storedName.isEmpty ? 'Tark' : storedName;
+          final deviceName = storedName.isEmpty ? 'Tarkk' : storedName;
           // No discoverable dialog here: the joiner reconnects by address,
           // which only needs the RFCOMM server / BLE advertising back up.
           if (_classicSupported) {

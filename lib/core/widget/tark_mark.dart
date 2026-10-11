@@ -2,7 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
-/// The TARK brand mark — two swept wing pieces forming a "T", split by a
+/// The Tarkk brand mark — two swept wing pieces forming a "T", split by a
 /// diagonal gap — traced 1:1 from the vector logo (473x409 viewBox,
 /// borderless). Pure vector (no image assets), so it stays crisp at any size
 /// and costs nothing to load.

@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Build the Tark backend image and push it to a container registry, ready for
+  Build the Tarkk backend image and push it to a container registry, ready for
   ArvanCloud's container hosting (or any platform that pulls from a registry).
 
 .DESCRIPTION

@@ -1,4 +1,4 @@
-# Tark (تَرک) — Off-Grid Walkie-Talkie
+# Tarkk (تَرک) — Off-Grid Walkie-Talkie
 
 Real-time, push-to-talk voice between two or more phones — **no internet, no server, no account.** Wi-Fi, Bluetooth, or a phone-hosted hotspot carry the audio directly, phone to phone. Built for the field: two riders on motorcycles, handsfree headsets, a shared hotspot link, and nothing else around.
 
@@ -322,7 +322,7 @@ anything newer exists.
 
 The rules, which are pinned by `test/feature/legal/presentation/manager/legal_consent_test.dart`:
 
-- A failed, slow or absent refresh **changes nothing**. Tark is for talking
+- A failed, slow or absent refresh **changes nothing**. Tarkk is for talking
   when there is no internet; it must never refuse to work because a web server
   was unreachable.
 - The network can only ever reveal that something *newer* exists. It is never
@@ -398,7 +398,7 @@ Format defined in [`tark_log_format.dart`](lib/core/diagnostics/tark_log_format.
 
 Every feature is unlocked — Bluetooth, Wi-Fi, hotspot, music cast, all of it. Nothing in the app asks you for money.
 
-Development still costs something: test devices for radio bugs that only show up on one specific phone, a domain, hosting for [app.tarkk.ir](https://app.tarkk.ir). If Tark's useful to you:
+Development still costs something: test devices for radio bugs that only show up on one specific phone, a domain, hosting for [app.tarkk.ir](https://app.tarkk.ir). If Tarkk's useful to you:
 
 **[reymit.ir/tark](https://reymit.ir/tark)**
 

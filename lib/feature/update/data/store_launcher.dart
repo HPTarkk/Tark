@@ -3,7 +3,7 @@ import 'package:injectable/injectable.dart';
 
 import '../../../core/utils/logger.dart';
 
-/// Opens Tark's page in Cafe Bazaar — the store app when it is installed, the
+/// Opens Tarkk's page in Cafe Bazaar — the store app when it is installed, the
 /// website ([fallback]) when it is not. Backed by `StoreHandler` on Android.
 @lazySingleton
 class StoreLauncher {

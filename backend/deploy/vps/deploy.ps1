@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Deploy the Tark backend to a single Linux server (PostgreSQL + API + Caddy HTTPS).
+  Deploy the Tarkk backend to a single Linux server (PostgreSQL + API + Caddy HTTPS).
 
 .DESCRIPTION
   Builds the Docker image on this machine, ships it to the server over SSH, and

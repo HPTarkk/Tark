@@ -10,7 +10,7 @@ import com.b1101.tark.R
 import es.antonborri.home_widget.HomeWidgetProvider
 
 /**
- * The Tark home-screen widget.
+ * The Tarkk home-screen widget.
  *
  * Renders whatever the app last published (see `HomeWidgetService.publish` on
  * the Dart side) — a widget can't run Flutter, so it is a pure view over that

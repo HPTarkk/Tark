@@ -1,4 +1,4 @@
-name: Tark beta quality gate
+name: Tarkk beta quality gate
 
 on:
   pull_request:
@@ -40,7 +40,7 @@ jobs:
           channel: stable
           cache: true
 
-      # .metadata pins Tark's project baseline to Flutter 3.41.9 / Dart 3.11.5.
+      # .metadata pins Tarkk's project baseline to Flutter 3.41.9 / Dart 3.11.5.
       # The committed lockfile has since been touched by a newer SDK and carries
       # SDK-pinned transitive versions that 3.41.9 cannot reproduce byte-for-byte,
       # so CI resolves from the committed pubspec constraints instead of silently
@@ -120,7 +120,7 @@ jobs:
           path: coverage/lcov.info
           if-no-files-found: error
 
-      - name: Run Tark log analyzer tests
+      - name: Run Tarkk log analyzer tests
         run: python3 -m unittest discover -s scripts -p 'test_*.py'
 
       - name: Verify website localization output
@@ -137,6 +137,9 @@ jobs:
 
       - name: Verify website routes, SEO and local assets
         run: node scripts/check-website.mjs
+
+      - name: Verify public app naming
+        run: node scripts/check-branding.mjs
 
       - name: Protocol compatibility tests
         shell: bash

@@ -265,7 +265,7 @@ function renderNav(doc, lang) {
   const other = lang === 'fa' ? 'en' : 'fa';
   return `<header class="site-header has-scrolled">
     <nav class="nav wrap" aria-label="${lang === 'fa' ? 'منوی اصلی' : 'Main navigation'}">
-      <a class="brand" href="${home}" aria-label="${lang === 'fa' ? 'تَرک' : 'Tarkk'}"><img src="/assets/logo.png" alt="" width="34" height="34"><span>${lang === 'fa' ? 'تَرک' : 'TARKK'}</span></a>
+      <a class="brand" href="${home}" aria-label="${lang === 'fa' ? 'تَرک' : 'Tarkk'}"><img src="/assets/logo.png" alt="" width="34" height="34"><span>${lang === 'fa' ? 'تَرک' : 'Tarkk'}</span></a>
       <div class="nav-links" id="navLinks">
         ${NAV.map(([hash, label]) => `<a href="${home}${hash}">${esc(label[lang])}</a>`).join('\n')}
       </div>
@@ -387,7 +387,7 @@ ${doc.cross
   </div>
 
   <footer class="footer wrap">
-    <span class="wordmark">${lang === 'fa' ? 'تَرک' : 'TARKK'}</span>
+    <span class="wordmark">${lang === 'fa' ? 'تَرک' : 'Tarkk'}</span>
     <div class="footer-links">
 ${FOOTER.map(
   ([hash, label]) => `      <a href="${home}${hash}">${esc(label[lang])}</a>`

@@ -1,4 +1,4 @@
-# Deploying the Tark backend
+# Deploying the Tarkk backend
 
 The backend is one static binary (`tarkd`) in a small Docker image, plus
 PostgreSQL. Three ways to run it, from least to most work for you:

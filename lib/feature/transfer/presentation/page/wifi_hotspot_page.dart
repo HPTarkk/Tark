@@ -125,7 +125,7 @@ class _WifiHotspotPageState extends State<WifiHotspotPage>
   /// for that); the next time this screen hosts, it does.
   bool _wifiOffOffered = false;
 
-  /// True only for Tark's combined durable-Room + Wi-Fi payload.
+  /// True only for Tarkk's combined durable-Room + Wi-Fi payload.
   ///
   /// Merely having [WifiHotspotPage.handedCode] is not enough: old standalone
   /// Wi-Fi QR handoffs use that seam as well and retain their original

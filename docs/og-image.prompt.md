@@ -2,6 +2,24 @@
 
 Generated with the built-in imagegen tool. Both images are delivered at 1200 × 630 pixels.
 
+The canonical English name is `Tarkk`, with two final k letters. `TARKK` is
+also permitted for visually styled titles and wordmarks. The existing previews
+are retained; uppercase styling alone does not require an image edit.
+
+Brand appearance pass (11 October 2026): the built-in imagegen tool rendered the
+large English wordmarks and the English phone header with the spelling
+`Tarkk`. The selected images were exported back to the existing paths at
+1200 × 630. The discarded variants are not used by the site.
+
+Final English edit prompt: replace only the two existing uppercase brand
+wordmarks with `Tarkk`; keep the phone header in the order logo, `Northbound`,
+`Tarkk`, Bluetooth and settings; preserve the screen, all advertising copy,
+photography, palette and framing.
+
+Final Persian edit prompt: replace only the top-right English brand wordmark
+with `Tarkk`; preserve all Persian copy, phone layout, logo, photography,
+palette and framing, including the mic caption `همه صدات رو می‌شنون`.
+
 - Persian: `website/og-image.png`, right-aligned Persian text and photography on the left.
 - English: `website/og-image-en.png`, left-aligned English text and photography on the right. The phone interface and logo retain their correct orientation.
 
@@ -17,11 +35,11 @@ Asset type: one finished landscape Open Graph / social link-preview image for Ta
 Primary request: redesign the previous generic orange radio-rings share image into a premium, warm, forest-green photographic brand image that visually belongs to the new Tarkk landing page.
 Input images: Image 1 is the current hero photograph, a scene/material/composition reference. Image 2 is the actual Tarkk orange logo, a logo identity reference. Make a fresh complete advertising image; do not reproduce a website screenshot or browser chrome.
 
-Scene/backdrop: believable pre-ride preparation tabletop, worn olive/forest-green canvas and warm natural timber. A large black Android phone rests slightly diagonally in portrait orientation on the LEFT half, a cropped matte black motorcycle helmet at upper left, black riding gloves with restrained orange stitching at lower left, and a subtle wired helmet audio earpiece beside the phone. Keep props and the phone natural, grounded and physically coherent, inspired by the supplied hero photo. Phone display should resemble the real supplied Tarkk UI: charcoal screen, small TARKK branding, green circular voice activity visualizer, restrained member rows and microphone control; crisp recognizable display but no busy tiny invented text. No human figures.
+Scene/backdrop: believable pre-ride preparation tabletop, worn olive/forest-green canvas and warm natural timber. A large black Android phone rests slightly diagonally in portrait orientation on the LEFT half, a cropped matte black motorcycle helmet at upper left, black riding gloves with restrained orange stitching at lower left, and a subtle wired helmet audio earpiece beside the phone. Keep props and the phone natural, grounded and physically coherent, inspired by the supplied hero photo. Phone display should resemble the real supplied Tarkk UI: charcoal screen, small Tarkk branding, green circular voice activity visualizer, restrained member rows and microphone control; crisp recognizable display but no busy tiny invented text. No human figures.
 
 Composition: the full left 52% is photographic product scene. On the right, let the same continuous photo fall naturally into a deep forest-green shadow/scrim, #0D1913 / #17271D, leaving generous quiet room for clean Persian editorial typography. Seamless transition, not two boxed panels. All branding and important text are within a safe 55px equivalent inset from all image edges. Use sparse, bold typesetting with ample breathing room. Avoid poster density or extra UI components. The phone and scene should remain large and recognizable in a small social preview.
 
-Typography and exact text: Persian letters MUST be correctly shaped, joined and right-to-left, as in Vazirmatn ExtraBold; no calligraphic styling. Top-right brand lockup: the reference's exact orange angular T logo beside the word "TARKK" in small bold warm ivory sans serif. Main headline on the right, large and right aligned, exactly two stacked lines:
+Typography and exact text: Persian letters MUST be correctly shaped, joined and right-to-left, as in Vazirmatn ExtraBold; no calligraphic styling. Top-right brand lockup: the reference's exact orange angular T logo beside the word "Tarkk" in small bold warm ivory sans serif. Main headline on the right, large and right aligned, exactly two stacked lines:
 "هم‌مسیر،"
 "هم‌صدا."
 First headline line warm ivory #F2F3E9, second line orange #F5853F / #FF9652. The comma and full stop are required. Under the headline, one comfortably readable short supporting Persian line or two if needed, verbatim:
@@ -43,7 +61,7 @@ Primary request: create a coordinated English version of Image 1 with the COMPOS
 
 Composition: landscape aspect ratio 1200:630, approximately 1.90476:1. LEFT 48% is calm dark forest green (#0D1913 / #17271D) typography zone; RIGHT 52% is the photograph. Re-stage the gear to the right: large slightly angled portrait Android phone on olive canvas, cropped helmet at the upper-right and gloves with orange stitching at the lower-right, wired helmet earpiece naturally beside phone, tactile warm wood linking the full scene. Keep the phone physically believable and sharply defined. NOT a blind horizontal mirror of any letters, logo or UI. All lettering and the logo must remain correctly oriented. No fake signal rings or sci-fi effects. No people.
 
-Typography: clean English Arial-like heavy sans serif, LEFT ALIGNED throughout. Match the scale and restraint of the supplied Persian card. Top LEFT brand lockup: exact reference's orange angular T logo followed by "TARKK" in warm ivory. Do not mirror the orange logo.
+Typography: clean English Arial-like heavy sans serif, LEFT ALIGNED throughout. Match the scale and restraint of the supplied Persian card. Top LEFT brand lockup: exact reference's orange angular T logo followed by "Tarkk" in warm ivory. Do not mirror the orange logo.
 Large headline on left in TWO lines, verbatim:
 "Same road."
 "Stay close."
@@ -53,7 +71,7 @@ Under headline, smaller comfortably readable supporting text, exactly:
 "Even off-grid."
 Bottom of left typography zone, the exact label "Bluetooth · Wi-Fi · Hotspot", and exact address "tarkk.ir". Keep all main content within 50px equivalent safe inset. No Persian or Arabic text anywhere in this English image.
 
-Phone UI: charcoal Tarkk channel screen adapted to ENGLISH left-to-right display, with normal correctly oriented small "TARKK", familiar green circular voice visualizer, microphone row and two member rows. Use "Pedram" and "Nazanin" for member names if legible. The green center may say "Nazanin". Do not mirror any UI text; do not reflect the logo. Keep UI subordinate and visually consistent with the actual app in the supplied target.
+Phone UI: charcoal Tarkk channel screen adapted to ENGLISH left-to-right display, with normal correctly oriented small "Tarkk", familiar green circular voice visualizer, microphone row and two member rows. Use "Pedram" and "Nazanin" for member names if legible. The green center may say "Nazanin". Do not mirror any UI text; do not reflect the logo. Keep UI subordinate and visually consistent with the actual app in the supplied target.
 Constraints: preserve the same photographic style, materials, lighting and palette as Image 1. Keep real logo geometry. Only language and composition direction change. No additional ads, copy, browser chrome, CTA buttons, watermarks, QR codes, borders, extra panels or arbitrary symbols. Deliver one polished finished horizontal English social image, target 1200 x 630 pixels.
 
 ### English UI correction prompt
@@ -84,7 +102,7 @@ Invariants: keep the phone body and position, camera, helmet, gloves, wire, canv
 Use case: compositing
 Asset type: corrected English Tarkk social preview, landscape 1200:630.
 Input images: Image 1 is the existing advertisement/edit target. Image 2 is an exact flat screenshot of the newly corrected real English app UI, the screen insert.
-Primary request: replace ONLY the lit phone display contents in Image 1 with Image 2, preserving the screenshot's exact layout, icon/text alignment and left-to-right direction. Project the screenshot naturally onto the existing tilted phone glass with realistic perspective. Logo, "Northbound", TARKK and header icons share a single horizontal center line as in Image 2. Include the identity row Pedram / Host, green voice dial Nazanin, YOUR MIC / MIC LIVE / The channel can hear you / MUTE, WHO'S HERE, Pedram connected and Nazanin talking, red LEAVE CHANNEL button. Copy the reference layout exactly; remove old invented "Main Channel" and "Team Chat".
+Primary request: replace ONLY the lit phone display contents in Image 1 with Image 2, preserving the screenshot's exact layout, icon/text alignment and left-to-right direction. Project the screenshot naturally onto the existing tilted phone glass with realistic perspective. Logo, "Northbound", Tarkk and header icons share a single horizontal center line as in Image 2. Include the identity row Pedram / Host, green voice dial Nazanin, YOUR MIC / MIC LIVE / The channel can hear you / MUTE, WHO'S HERE, Pedram connected and Nazanin talking, red LEAVE CHANNEL button. Copy the reference layout exactly; remove old invented "Main Channel" and "Team Chat".
 Invariants: keep phone body and position, camera, helmet, gloves, wire, canvas, timber, forest-green scrim, orange/ivory colors, lighting, brand lockup and ALL advertisement text unchanged. Exact headline "Same road." / "Stay close."; supporting "Phone-to-phone voice." / "Even off-grid."; footer "Bluetooth · Wi-Fi · Hotspot" and "tarkk.ir". Only screen contents change. No Persian app text, no mirroring text or logo, no invented controls. Maintain original edges/framing.
 
 ### Hero underlay cleanup prompt

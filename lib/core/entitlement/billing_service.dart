@@ -18,7 +18,7 @@ class BillingPlan extends Equatable {
   /// 0 for the test plan, which is minutes long.
   final int months;
 
-  /// The plan's name in the language the server was asked for ("Tark Premium,
+  /// The plan's name in the language the server was asked for ("Tarkk Premium,
   /// 3 months", "اشتراک سه ماهه تَرک").
   final String title;
 

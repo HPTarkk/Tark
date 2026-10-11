@@ -18,6 +18,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import com.b1101.tark.R
 
 /**
  * Foreground service that captures other apps' playback (music, navigation
@@ -326,7 +327,7 @@ class SystemAudioCaptureService : Service() {
 
     private fun buildNotification(): Notification =
         Notification.Builder(this, CHANNEL_ID)
-            .setContentTitle("Tark")
+            .setContentTitle(getString(R.string.app_name))
             .setContentText("Sharing device audio to the channel")
             .setSmallIcon(applicationInfo.icon)
             .setOngoing(true)

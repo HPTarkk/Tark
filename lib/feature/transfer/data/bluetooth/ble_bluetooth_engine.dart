@@ -9,8 +9,8 @@ import '../../domain/entity/bluetooth_host_name.dart';
 import '../../domain/entity/bluetooth_peer.dart';
 import 'length_prefixed_framer.dart';
 
-/// Tark's custom GATT service. The host (peripheral) advertises this
-/// service; joiners (centrals) filter scans on it so only Tark hosts
+/// Tarkk's custom GATT service. The host (peripheral) advertises this
+/// service; joiners (centrals) filter scans on it so only Tarkk hosts
 /// show up.
 final kWakiServiceUuid = UUID.fromString(
   'C0DE0001-57A1-4B1E-9A0B-2D6577616B69',
@@ -288,7 +288,7 @@ class BleBluetoothEngine {
         await _ready(manager);
         _clientSubs.add(
           manager.discovered.listen((e) {
-            // Match the Tark service ourselves rather than trusting the scan
+            // Match the Tarkk service ourselves rather than trusting the scan
             // filter: some Android chipsets ignore the serviceUUIDs filter and
             // would otherwise never surface a valid host. Our hosts always
             // advertise the service UUID (even in the name-dropped fallback).
@@ -313,7 +313,7 @@ class BleBluetoothEngine {
                 // kMaxHostNameBytes); the UI supplies the wording.
                 name: name?.isNotEmpty == true ? decodeHostName(name!) : '',
                 rssi: e.rssi,
-                // Reaching here means the peer advertised the Tark service
+                // Reaching here means the peer advertised the Tarkk service
                 // UUID, so it is by definition hosting from inside the app.
                 isAppHost: true,
               ),
@@ -408,7 +408,7 @@ class BleBluetoothEngine {
           .timeout(_gattStepTimeout);
       final service = services.firstWhere(
         (s) => s.uuid == kWakiServiceUuid,
-        orElse: () => throw StateError('Tark service not found on host'),
+        orElse: () => throw StateError('Tarkk service not found on host'),
       );
       final txChar = service.characteristics.firstWhere(
         (c) => c.uuid == kWakiTxCharUuid,

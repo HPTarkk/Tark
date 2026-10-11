@@ -1,5 +1,5 @@
 name: tark
-description: "Tark — an off-grid, push-to-talk voice walkie-talkie. Phones talk directly over Wi-Fi, Bluetooth, or a hosted hotspot, with no internet and no server."
+description: "Tarkk — an off-grid, push-to-talk voice walkie-talkie. Phones talk directly over Wi-Fi, Bluetooth, or a hosted hotspot, with no internet and no server."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -55,7 +55,7 @@ dependencies:
   permission_handler: ^12.0.1
   shared_preferences: ^2.3.0
   package_info_plus: ^9.0.1
-  # 0.1.1 migrated the plugin to AGP built-in Kotlin. Tark's current Flutter
+  # 0.1.1 migrated the plugin to AGP built-in Kotlin. Tarkk's current Flutter
   # 3.41.9 / legacy-KGP Android baseline cannot compile that plugin class.
   # Keep the API-compatible 0.1.0 until the app toolchain is deliberately
   # migrated to Flutter's built-in-Kotlin support.
@@ -95,7 +95,7 @@ dependencies:
   # server nonce; see PlatformGoogleIdTokenSource.
   google_sign_in: ^7.2.0
   google_sign_in_platform_interface: ^3.1.0
-  # 7.2.12 migrated the plugin to AGP built-in Kotlin, which Tark's
+  # 7.2.12 migrated the plugin to AGP built-in Kotlin, which Tarkk's
   # legacy-KGP Android baseline (android.builtInKotlin=false) cannot compile
   # — same story as flutter_blue_classic above. 7.2.11 is the last release
   # that applies kotlin-android itself. Unpin together with that migration.

@@ -1,4 +1,4 @@
-# The whole Tark release, shared by the three entry points. Dot-source it and
+# The whole Tarkk release, shared by the three entry points. Dot-source it and
 # call Invoke-Release; don't run it directly:
 #
 #   .\scripts\release-patch.ps1    1.0.21 -> 1.0.22   tag on release/1.0.0
@@ -269,7 +269,7 @@ function Publish-GitHubRelease([string]$Tag, [string]$Apk) {
         $code = (Get-VersionAt $Tag).Code
         $notesFile = Write-TempUtf8 "$(Get-ReleaseNotes $Tag)`n`nversionCode $code."
         try {
-            Run 'gh' @('release', 'create', $Tag, '--title', "Tark $($Tag.TrimStart('v'))", '--notes-file', $notesFile, $Apk) 'gh release create'
+            Run 'gh' @('release', 'create', $Tag, '--title', "Tarkk $($Tag.TrimStart('v'))", '--notes-file', $notesFile, $Apk) 'gh release create'
         } finally {
             Remove-Item $notesFile -Force -ErrorAction SilentlyContinue
         }
@@ -333,7 +333,7 @@ function Invoke-Release {
     param([Parameter(Mandatory)][ValidateSet('patch', 'minor', 'major')][string]$Bump)
 
     Write-Host ''
-    Write-Host "  TARK — $Bump release" -ForegroundColor Yellow
+    Write-Host "  Tarkk — $Bump release" -ForegroundColor Yellow
 
     # 1. Everything that could fail cheaply, before anything changes.
     Step 'Checking tools, signing files and working tree'
@@ -462,7 +462,7 @@ function Invoke-Release {
         Invoke-BazaarSigning $signer.FullName $signing $aab $binDir
 
         Step "Tagging $tag"
-        $msgFile = Write-TempUtf8 "Tark $name`n`n$(Get-ReleaseNotes $tag)"
+        $msgFile = Write-TempUtf8 "Tarkk $name`n`n$(Get-ReleaseNotes $tag)"
         try { Run 'git' @('tag', '-a', $tag, '-F', $msgFile) 'git tag' }
         finally { Remove-Item $msgFile -Force -ErrorAction SilentlyContinue }
 
@@ -495,7 +495,7 @@ function Invoke-Release {
     $onBazaar = Send-ReleaseToBazaar $name
 
     Write-Host ''
-    Write-Host "  Tark $version released." -ForegroundColor Green
+    Write-Host "  Tarkk $version released." -ForegroundColor Green
     if ($url) { Write-Host "  GitHub:      $url" -ForegroundColor Cyan }
     if ($onBazaar) {
         Write-Host '  Bazaar:      draft uploaded; send it for review with .\scripts\bazaar-pishkhan.ps1 commit'

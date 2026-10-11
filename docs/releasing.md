@@ -1,4 +1,4 @@
-# Releasing Tark
+# Releasing Tarkk
 
 ## Cutting a release
 

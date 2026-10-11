@@ -1,12 +1,12 @@
 # Room-first automatic transport policy
 
-Tark's primary user model is a durable Room, not a network setup flow. Normal users should never need to decide whether a phone is a hotspot host, joiner, Wi-Fi peer, or Bluetooth peer.
+Tarkk's primary user model is a durable Room, not a network setup flow. Normal users should never need to decide whether a phone is a hotspot host, joiner, Wi-Fi peer, or Bluetooth peer.
 
 ## Primary behavior
 
 1. Join the durable Room first.
 2. Prefer an already-proven shared LAN when bidirectional peer reachability is confirmed.
-3. If shared LAN cannot be proven quickly, fall back automatically to Tark-managed hotspot transport.
+3. If shared LAN cannot be proven quickly, fall back automatically to Tarkk-managed hotspot transport.
 4. For the first hotspot of a proximity hand-off, the phone that showed the QR raises it and the scanning phone joins. Both ends of the Bluetooth socket know which side they are on, so they agree without an election — and unlike "the Room creator", the choice is always one of the two phones actually standing there. This is a transport hint, never Room ownership.
 5. If that candidate is unavailable, use the deterministic Room transport election to choose the next eligible member.
 6. Keep a healthy attachment sticky. Do not switch transport merely because another network later becomes visible.

@@ -29,7 +29,7 @@ final class SourcedManifest {
 /// ## The rule this whole feature is built around
 ///
 /// **Nothing here may ever stop the app working because a request failed.**
-/// Tark is for talking to people when there is no internet; an app that
+/// Tarkk is for talking to people when there is no internet; an app that
 /// refuses to open a channel because it could not reach a web server would
 /// be broken in exactly the situation it exists for. So:
 ///

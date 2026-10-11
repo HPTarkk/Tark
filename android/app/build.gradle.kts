@@ -86,7 +86,7 @@ android {
         getByName("debug") {
             // Device-test APKs are intentionally a separate app so they can be
             // installed from GitHub Actions without the production signing key
-            // and without replacing/deleting the user's installed Tark build.
+            // and without replacing/deleting the user's installed Tarkk build.
             if (isDeviceTestBuild) {
                 applicationIdSuffix = ".dev"
                 versionNameSuffix = "-device-test"

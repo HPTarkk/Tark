@@ -67,7 +67,7 @@ struct TarkState {
     /// state to read and prompting setup is the useful thing to do.
     static let placeholder = TarkState(
         session: .setup,
-        callsign: "Tark",
+        callsign: "Tarkk",
         peerCount: 0,
         modeLabel: "",
         statusLine: "",

@@ -37,11 +37,11 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
   /// (see [_watchDiscoverability]).
   Timer? _discoverableTimer;
 
-  /// Pending hands-free join of the only Tark host in range (see
+  /// Pending hands-free join of the only Tarkk host in range (see
   /// [_considerSoloAutoJoin]).
   Timer? _soloJoinTimer;
 
-  /// How long the scan is given to turn up a SECOND Tark host before the
+  /// How long the scan is given to turn up a SECOND Tarkk host before the
   /// first one is joined automatically. Short enough to feel instant, long
   /// enough that two friends hosting at once still get a choice.
   static const _soloJoinSettle = Duration(milliseconds: 800);
@@ -178,7 +178,7 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
     if (isClosed) return;
     emit(
       state.copyWith(
-        myName: myName.isEmpty ? 'Tark' : myName,
+        myName: myName.isEmpty ? 'Tarkk' : myName,
         lastPeer: lastId != null
             // A remembered peer is one we've already had a session with, so
             // it's an app host by definition — even before this scan proves
@@ -526,7 +526,7 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
             'tarkHost=${peer.isAppHost}',
           );
         }
-        // Only Tark hosts reach the list — everything else a classic inquiry
+        // Only Tarkk hosts reach the list — everything else a classic inquiry
         // sweeps up is somebody's headset or TV, and unjoinable (see
         // [isVisibleHost] for the reconnect-target exception).
         if (!isVisibleHost(peer, reconnectTargetId: autoConnectId)) return;
@@ -543,7 +543,7 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
         // duplicate read as two people — which also blocked the hands-free solo
         // join, since that refuses to guess between two hosts.
         final deduped = mergeHostFaces(peers);
-        // Tark hosts first — everything here is one, bar the reconnect target
+        // Tarkk hosts first — everything here is one, bar the reconnect target
         // let through above — then strongest signal.
         deduped.sort((a, b) {
           if (a.isAppHost != b.isAppHost) return a.isAppHost ? -1 : 1;
@@ -577,7 +577,7 @@ class BluetoothConnectCubit extends Cubit<BluetoothConnectState> {
     _scanSub = sub;
   }
 
-  /// Joins hands-free when the scan finds exactly one Tark host: with a
+  /// Joins hands-free when the scan finds exactly one Tarkk host: with a
   /// single obvious peer, tapping it is pure ceremony. Still keyed on
   /// [BluetoothPeer.isAppHost] rather than the list length, since a targeted
   /// rescan can park an unconfirmed reconnect target alongside the hosts.

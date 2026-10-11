@@ -49,7 +49,7 @@ final class RoomProximityException extends StateError {
 /// A small, persistent RFCOMM control plane used before any high-bandwidth
 /// Room transport is planned.
 ///
-/// This deliberately reuses Tark's proven Android Bluetooth native bridge, but
+/// This deliberately reuses Tarkk's proven Android Bluetooth native bridge, but
 /// owns a separate Dart lifecycle from the audio transport. The socket carries
 /// only bounded UTF-8 control envelopes (membership request/grant/receipt now;
 /// transport plan/credentials later). Wi-Fi is therefore never a prerequisite

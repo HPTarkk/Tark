@@ -40,7 +40,7 @@
       "fa": "چیزی که می‌تونی انتظار داشته باشی، و چیزی که نمی‌تونیم قولش رو بدیم."
     },
     "lede": {
-      "en": "Tark is open source, talking over Bluetooth is free, and the rest is a subscription. It talks over radios that do not always cooperate. These terms say what you get, what it asks of you, and — the part most terms skip — where the app can genuinely let you down.",
+      "en": "Tarkk is open source, talking over Bluetooth is free, and the rest is a subscription. It talks over radios that do not always cooperate. These terms say what you get, what it asks of you, and — the part most terms skip — where the app can genuinely let you down.",
       "fa": "تَرک متن‌بازه، حرف زدن با بلوتوث رایگانه و بقیه‌ش با اشتراکه. از روی رادیوهایی حرف می‌زنه که همیشه همکاری نمی‌کنن. این شرایط می‌گه چی می‌گیری، چی ازت می‌خواد، و — همون بخشی که بیشتر شرایط‌ها ازش رد می‌شن — کجا برنامه واقعاً ممکنه تنهات بذاره."
     },
     "inEffectSince": {
@@ -120,14 +120,14 @@
         {
           "type": "p",
           "text": {
-            "en": "Using Tark — the Android app, the optional Tark account, the browser guest at app.tarkk.ir, or this website — means these terms apply to you. If you do not accept them, do not use it, or uninstall it; if you made an account, you can delete it too (see “Your account” below).",
+            "en": "Using Tarkk — the Android app, the optional Tarkk account, the browser guest at app.tarkk.ir, or this website — means these terms apply to you. If you do not accept them, do not use it, or uninstall it; if you made an account, you can delete it too (see “Your account” below).",
             "fa": "استفاده از تَرک — اپلیکیشن اندروید، حساب کاربری اختیاری تَرک، مهمان مرورگری روی app.tarkk.ir، یا همین وب‌سایت — یعنی این شرایط شامل تو هم می‌شه. اگه قبولشون نداری، استفاده نکن یا برنامه رو حذف کن؛ اگه حساب ساختی، می‌تونی اون رو هم پاک کنی (بخش «حساب کاربری» رو پایین‌تر ببین)."
           }
         },
         {
           "type": "p",
           "text": {
-            "en": "These terms cover how you use Tark. They are not the licence for the code — that is the AGPL-3.0, and it says what it says regardless of anything written here.",
+            "en": "These terms cover how you use Tarkk. They are not the licence for the code — that is the AGPL-3.0, and it says what it says regardless of anything written here.",
             "fa": "این شرایط به نحوه‌ی استفاده‌ی تو از تَرک مربوطه. پروانه‌ی کد نیستن — پروانه AGPL-3.0 هست و هر چیزی که اینجا نوشته شده، حرف اون رو عوض نمی‌کنه."
           }
         }
@@ -136,18 +136,18 @@
     {
       "id": "what",
       "tocTitle": {
-        "en": "What Tark is",
+        "en": "What Tarkk is",
         "fa": "تَرک چیه"
       },
       "title": {
-        "en": "What Tark is",
+        "en": "What Tarkk is",
         "fa": "تَرک چیه"
       },
       "blocks": [
         {
           "type": "p",
           "text": {
-            "en": "Tark is a walkie-talkie for phones that are near each other. It connects them directly over Wi-Fi, a hotspot one of them hosts, or Bluetooth, and carries live voice between them. Talking needs no internet connection and no mobile signal. An account is needed only to subscribe.",
+            "en": "Tarkk is a walkie-talkie for phones that are near each other. It connects them directly over Wi-Fi, a hotspot one of them hosts, or Bluetooth, and carries live voice between them. Talking needs no internet connection and no mobile signal. An account is needed only to subscribe.",
             "fa": "تَرک یه بیسیمه برای گوشی‌هایی که نزدیک همدیگه‌ن. مستقیم از طریق وای‌فای، هات‌اسپاتی که یکیشون بالا میاره، یا بلوتوث بهمشون وصل می‌کنه و صدای زنده رو بینشون جابه‌جا می‌کنه. برای حرف زدن نه اینترنت لازمه، نه آنتن. حساب کاربری فقط برای خرید اشتراک لازمه."
           }
         },
@@ -174,21 +174,21 @@
         {
           "type": "p",
           "text": {
-            "en": "Tark’s source code is published under the GNU Affero General Public License, version 3. In short: you may read it, run it, modify it and redistribute it, provided anything you distribute — including anything you run as a network service — carries the same freedoms and the same licence.",
+            "en": "Tarkk’s source code is published under the GNU Affero General Public License, version 3. In short: you may read it, run it, modify it and redistribute it, provided anything you distribute — including anything you run as a network service — carries the same freedoms and the same licence.",
             "fa": "کد منبع تَرک با پروانه‌ی GNU Affero General Public License نسخه‌ی ۳ منتشر شده. خلاصه‌ش: می‌تونی بخونیش، اجراش کنی، تغییرش بدی و بازنشرش کنی، به شرطی که هر چیزی که منتشر می‌کنی — از جمله هر چیزی که به‌عنوان سرویس شبکه‌ای اجرا می‌کنی — همون آزادی‌ها و همون پروانه رو با خودش ببره."
           }
         },
         {
           "type": "p",
           "text": {
-            "en": "The licence text itself is the authority here, not this summary. If you want Tark inside a closed-source product, or the AGPL’s terms do not suit you, a negotiated commercial licence is available — write to the address at the bottom of this page.",
+            "en": "The licence text itself is the authority here, not this summary. If you want Tarkk inside a closed-source product, or the AGPL’s terms do not suit you, a negotiated commercial licence is available — write to the address at the bottom of this page.",
             "fa": "متن خود پروانه مرجعه، نه این خلاصه. اگه می‌خوای تَرک رو داخل یه محصول بسته استفاده کنی، یا شرایط AGPL به کارت نمی‌خوره، پروانه‌ی تجاری توافقی هم هست — به نشانی پایین همین صفحه بنویس."
           }
         },
         {
           "type": "p",
           "text": {
-            "en": "The name Tark, the wordmark and the logo are not covered by that licence. A fork is welcome; a fork that presents itself as the original is not.",
+            "en": "The name Tarkk, the wordmark and the logo are not covered by that licence. A fork is welcome; a fork that presents itself as the original is not.",
             "fa": "اسم تَرک، نشانِ نوشتاری و لوگو مشمول اون پروانه نیستن. فورک کردن مشکلی نداره؛ فورکی که خودش رو جای نسخه‌ی اصلی جا بزنه، چرا."
           }
         }
@@ -222,7 +222,7 @@
         {
           "type": "p",
           "text": {
-            "en": "Subscriptions are sold only through Cafe Bazaar and paid with Iranian payment methods inside Bazaar. A subscription belongs to your Tark account: you sign in to buy one, and signing in on another phone brings it with you.",
+            "en": "Subscriptions are sold only through Cafe Bazaar and paid with Iranian payment methods inside Bazaar. A subscription belongs to your Tarkk account: you sign in to buy one, and signing in on another phone brings it with you.",
             "fa": "اشتراک فقط از طریق کافه‌بازار فروخته می‌شه و پرداختش با روش‌های پرداخت ایرانی داخل خود بازار انجام می‌شه. اشتراک به حساب تَرکت وصله: برای خریدش وارد حساب می‌شی، و با ورود روی گوشی دیگه، اشتراک هم همراهت میاد."
           }
         },
@@ -250,7 +250,7 @@
         {
           "type": "p",
           "text": {
-            "en": "If you used Tark before subscriptions existed, the same rules now apply to you as to anyone new: Bluetooth stays free, and the other features need a subscription. Thank you for being here early.",
+            "en": "If you used Tarkk before subscriptions existed, the same rules now apply to you as to anyone new: Bluetooth stays free, and the other features need a subscription. Thank you for being here early.",
             "fa": "اگه قبل از اومدن اشتراک از تَرک استفاده می‌کردی، الان همون قواعدی شامل حالت می‌شه که برای هر کاربر تازه‌ای هست: بلوتوث رایگان می‌مونه و بقیه‌ی قابلیت‌ها اشتراک لازم دارن. ممنون که از اول همراه بودی."
           }
         },
@@ -321,18 +321,18 @@
     {
       "id": "use",
       "tocTitle": {
-        "en": "Using Tark responsibly",
+        "en": "Using Tarkk responsibly",
         "fa": "استفاده‌ی مسئولانه"
       },
       "title": {
-        "en": "Using Tark responsibly",
+        "en": "Using Tarkk responsibly",
         "fa": "استفاده‌ی مسئولانه از تَرک"
       },
       "blocks": [
         {
           "type": "p",
           "text": {
-            "en": "What you say over a channel is yours, and so is the responsibility for it. Do not use Tark to:",
+            "en": "What you say over a channel is yours, and so is the responsibility for it. Do not use Tarkk to:",
             "fa": "چیزی که توی کانال می‌گی مال خودته، و مسئولیتش هم همین‌طور. از تَرک برای این کارها استفاده نکن:"
           }
         },
@@ -392,7 +392,7 @@
             "fa": "این یکی رو بخون"
           },
           "text": {
-            "en": "The short code a channel gets keeps groups on one network from hearing each other. It is not a password, it does not encrypt anything, and Tark adds no encryption of its own over the Wi-Fi or Bluetooth link. Anyone with the code, or with the right access to the same network, can hear the channel. Treat it as a radio channel — because that is what it is — and do not use Tark for a conversation that has to stay confidential.",
+            "en": "The short code a channel gets keeps groups on one network from hearing each other. It is not a password, it does not encrypt anything, and Tarkk adds no encryption of its own over the Wi-Fi or Bluetooth link. Anyone with the code, or with the right access to the same network, can hear the channel. Treat it as a radio channel — because that is what it is — and do not use Tarkk for a conversation that has to stay confidential.",
             "fa": "کد کوتاهی که هر کانال می‌گیره فقط جلوی این رو می‌گیره که گروه‌های روی یه شبکه صدای همدیگه رو بشنون. رمز عبور نیست، چیزی رو رمزنگاری نمی‌کنه، و تَرک هم روی لینک وای‌فای یا بلوتوث رمزنگاری خودش رو اضافه نمی‌کنه. هر کسی که کد رو داشته باشه، یا دسترسی درست به همون شبکه رو داشته باشه، می‌تونه کانال رو بشنوه. مثل یه کانال بیسیم باهاش رفتار کن — چون دقیقاً همینه — و از تَرک برای گفت‌وگویی که باید محرمانه بمونه استفاده نکن."
           }
         },
@@ -419,7 +419,7 @@
         {
           "type": "p",
           "text": {
-            "en": "Tark was built with riders in mind, which makes this worth saying rather than assuming. Set the app up before you move. Do not look at your phone while riding or driving, and obey whatever your local law says about headsets, earpieces and phones on the road — those rules vary, and they are yours to know.",
+            "en": "Tarkk was built with riders in mind, which makes this worth saying rather than assuming. Set the app up before you move. Do not look at your phone while riding or driving, and obey whatever your local law says about headsets, earpieces and phones on the road — those rules vary, and they are yours to know.",
             "fa": "تَرک با موتورسوارها توی ذهن ساخته شده، برای همین این رو می‌گیم به‌جای اینکه فرض کنیم معلومه. برنامه رو قبل از حرکت تنظیم کن. موقع موتورسواری یا رانندگی به گوشیت نگاه نکن، و هر چی قانون محلی‌ت درباره‌ی هدست، هندزفری و گوشی توی جاده می‌گه رعایت کن — این قوانین فرق می‌کنن و دونستنشون با خودته."
           }
         },
@@ -446,7 +446,7 @@
         {
           "type": "p",
           "text": {
-            "en": "Tark is provided as it is, with no warranty of any kind — not of fitness for a particular purpose, not of merchantability, and not of uninterrupted or error-free operation. That is the AGPL’s position too, and it is stated here in the same words a court would expect rather than hidden in a licence file.",
+            "en": "Tarkk is provided as it is, with no warranty of any kind — not of fitness for a particular purpose, not of merchantability, and not of uninterrupted or error-free operation. That is the AGPL’s position too, and it is stated here in the same words a court would expect rather than hidden in a licence file.",
             "fa": "تَرک همون‌طور که هست ارائه می‌شه، بدون هیچ‌گونه ضمانتی — نه ضمانت مناسب بودن برای یه هدف خاص، نه قابلیت فروش، و نه کارکرد بی‌وقفه یا بدون خطا. موضع AGPL هم همینه، و اینجا با همون عباراتی گفته شده که یه دادگاه انتظارش رو داره، به‌جای اینکه لای یه فایل پروانه پنهون بمونه."
           }
         },
@@ -480,7 +480,7 @@
         {
           "type": "p",
           "text": {
-            "en": "To the fullest extent the law allows, Tark and the people behind it are not liable for loss or damage arising from your use of it — including a message that did not arrive, a connection that dropped at a bad moment, a conversation somebody overheard, or anything that happened while you were paying attention to a channel instead of to the road.",
+            "en": "To the fullest extent the law allows, Tarkk and the people behind it are not liable for loss or damage arising from your use of it — including a message that did not arrive, a connection that dropped at a bad moment, a conversation somebody overheard, or anything that happened while you were paying attention to a channel instead of to the road.",
             "fa": "تا جایی که قانون اجازه می‌ده، تَرک و آدمای پشتش مسئول ضرر یا خسارتی که از استفاده‌ی تو ازش ناشی می‌شه نیستن — از جمله پیامی که نرسیده، اتصالی که سر بدترین لحظه قطع شده، گفت‌وگویی که کسی شنیده، یا هر اتفاقی که وقتی حواست به کانال بوده و نه به جاده افتاده."
           }
         },
@@ -507,7 +507,7 @@
         {
           "type": "p",
           "text": {
-            "en": "A few things Tark leans on belong to other people: Cafe Bazaar, which sells and bills the subscriptions; the host of the Android download and of the account server; Google, which delivers account emails and offers Google sign-in; the platform that handles donations; and the public STUN server a browser guest uses to find its way. Each has its own terms and its own privacy policy, and none of them is ours to guarantee.",
+            "en": "A few things Tarkk leans on belong to other people: Cafe Bazaar, which sells and bills the subscriptions; the host of the Android download and of the account server; Google, which delivers account emails and offers Google sign-in; the platform that handles donations; and the public STUN server a browser guest uses to find its way. Each has its own terms and its own privacy policy, and none of them is ours to guarantee.",
             "fa": "چند چیزی که تَرک بهشون تکیه می‌کنه مال آدمای دیگه‌ست: کافه‌بازار، که اشتراک‌ها رو می‌فروشه و پولشون رو می‌گیره؛ میزبان فایل دانلود اندروید و سرور حساب؛ گوگل، که ایمیل‌های حساب رو می‌رسونه و ورود با گوگل رو فراهم می‌کنه؛ پلتفرمی که حمایت‌های مالی رو مدیریت می‌کنه؛ و سرور عمومی STUN که مهمان مرورگری برای پیدا کردن راهش ازش استفاده می‌کنه. هرکدوم شرایط و سیاست حریم خصوصی خودشون رو دارن و هیچ‌کدومشون چیزی نیست که ما بتونیم ضمانتش کنیم."
           }
         },
@@ -627,7 +627,7 @@
     {
       "href": "/#download",
       "kicker": {
-        "en": "GET TARKK",
+        "en": "GET Tarkk",
         "fa": "دریافت تَرک"
       },
       "title": {

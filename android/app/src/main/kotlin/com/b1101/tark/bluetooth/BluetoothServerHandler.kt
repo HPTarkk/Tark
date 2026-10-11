@@ -155,7 +155,7 @@ class BluetoothServerHandler(
                 requestDiscoverable(seconds, result)
             }
             "startHosting" -> {
-                val name = call.argument<String>("name") ?: "tark"
+                val name = call.argument<String>("name") ?: "Tarkk"
                 val rendezvousData = call.argument<ByteArray>("rendezvousData")
                 val correlation = call.argument<String>("correlation")
                 // No rendezvous at all is the plain Bluetooth screen: joiners

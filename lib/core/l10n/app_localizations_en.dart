@@ -9,7 +9,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get app_name => 'TARKK';
+  String get app_name => 'Tarkk';
 
   @override
   String get app_subtitle => 'WALKIE TALKIE';
@@ -621,7 +621,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Scan the code on the phone that made the network.';
 
   @override
-  String get hotspot_host_badge => 'TARKK HOTSPOT • ON AIR';
+  String get hotspot_host_badge => 'Tarkk HOTSPOT • ON AIR';
 
   @override
   String get hotspot_show_credentials =>
@@ -1000,7 +1000,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_skip_splash_desc => 'Jump straight into the app';
 
   @override
-  String get usage_tips_title => 'Get the most out of TarkK';
+  String get usage_tips_title => 'Get the most out of Tarkk';
 
   @override
   String get usage_tips_1_title => 'Wear a headset that blocks out noise';
@@ -1431,7 +1431,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sub_support_prompt => 'Something not right? We\'re glad to help:';
 
   @override
-  String get sub_email_subject => 'Tark subscription';
+  String get sub_email_subject => 'Tarkk subscription';
 
   @override
   String get sub_nodata_title => 'Let\'s check your subscription';
@@ -1490,7 +1490,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sub_owned_body =>
-      'This Bazaar purchase is already linked to a different Tark account. Sign in with that account to use it, or write to us and we\'ll sort it out together.';
+      'This Bazaar purchase is already linked to a different Tarkk account. Sign in with that account to use it, or write to us and we\'ll sort it out together.';
 
   @override
   String get settings_section_diagnostics => 'DIAGNOSTICS';
@@ -2520,7 +2520,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String update_title(String version) {
-    return 'Tark $version is on the air';
+    return 'Tarkk $version is on the air';
   }
 
   @override
@@ -2535,7 +2535,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String update_required_body(String version) {
-    return 'Update to Tark $version to keep talking. Everything you set up stays as it is.';
+    return 'Update to Tarkk $version to keep talking. Everything you set up stays as it is.';
   }
 
   @override
@@ -2555,7 +2555,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get account_signed_out_body =>
-      'An account is only needed for a subscription. Everything else in Tark works without one.';
+      'An account is only needed for a subscription. Everything else in Tarkk works without one.';
 
   @override
   String get account_sign_in_row => 'Sign in or create an account';
@@ -2622,7 +2622,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mysub_paid_bazaar => 'Paid through Cafe Bazaar';
 
   @override
-  String get mysub_paid_gift => 'Given by Tark';
+  String get mysub_paid_gift => 'Given by Tarkk';
 
   @override
   String get mysub_manage => 'OPEN BAZAAR';
@@ -2651,15 +2651,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mysub_offline =>
-      'Couldn\'t reach Tark just now, so this is the latest we know.';
+      'Couldn\'t reach Tarkk just now, so this is the latest we know.';
 
   @override
   String mysub_plan_months(num count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Tark Premium, $count months',
-      one: 'Tark Premium, 1 month',
+      other: 'Tarkk Premium, $count months',
+      one: 'Tarkk Premium, 1 month',
     );
     return '$_temp0';
   }
@@ -2669,8 +2669,8 @@ class AppLocalizationsEn extends AppLocalizations {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: 'Tark Premium, $count years',
-      one: 'Tark Premium, 1 year',
+      other: 'Tarkk Premium, $count years',
+      one: 'Tarkk Premium, 1 year',
     );
     return '$_temp0';
   }
@@ -2805,7 +2805,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String google_link_body(String email) {
-    return '$email already has a Tark account with a password. Type that password once to add Google sign-in to it.';
+    return '$email already has a Tarkk account with a password. Type that password once to add Google sign-in to it.';
   }
 
   @override
@@ -2826,7 +2826,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get delete_keeps =>
-      'Tark itself keeps working on this phone: your rooms, name and settings stay here.';
+      'Tarkk itself keeps working on this phone: your rooms, name and settings stay here.';
 
   @override
   String delete_type_email(String email) {
@@ -2869,7 +2869,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get auth_error_offline =>
-      'Couldn\'t reach Tark. Check that this phone is online, then try again.';
+      'Couldn\'t reach Tarkk. Check that this phone is online, then try again.';
 
   @override
   String get auth_error_trouble =>
@@ -2973,7 +2973,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get auth_error_google_unsupported =>
-      'This Google account\'s email can\'t be used with Tark. Try another account, or email and password.';
+      'This Google account\'s email can\'t be used with Tarkk. Try another account, or email and password.';
 
   @override
   String get auth_error_account_conflict =>

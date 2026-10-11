@@ -18,7 +18,7 @@ sealed class RoomInviteLink {
 
 /// The issuer is hosting a hotspot. The payload stays a standard `WIFI:` code
 /// (any camera app can still join the network), with the Room invite as a
-/// Tark field inside it.
+/// Tarkk field inside it.
 final class HotspotInviteLink extends RoomInviteLink {
   const HotspotInviteLink(this.credentials);
 

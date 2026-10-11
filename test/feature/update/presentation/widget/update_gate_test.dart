@@ -114,7 +114,7 @@ void main() {
     final checker = await pumpGate(tester, _offer(UpdateUrgency.optional));
     await settle(tester);
 
-    expect(find.text('Tark 1.0.22 is on the air'), findsOneWidget);
+    expect(find.text('Tarkk 1.0.22 is on the air'), findsOneWidget);
     expect(find.text('Faster join'), findsOneWidget);
     expect(find.text('app'), findsOneWidget);
 

@@ -64,12 +64,12 @@ func (p Plan) Days() int {
 }
 
 // Title names the plan for people, the way the Bazaar panel names the
-// products: "Tark Premium, 3 months" / "اشتراک سه ماهه تَرک".
+// products: "Tarkk Premium, 3 months" / "اشتراک سه ماهه تَرک".
 func (p Plan) Title(lang string) string {
 	if lang == i18n.FA {
 		return fmt.Sprintf("اشتراک %s تَرک", p.length(lang))
 	}
-	return "Tark Premium, " + p.length(lang)
+	return "Tarkk Premium, " + p.length(lang)
 }
 
 // length is the plan's period alone: "3 months", "یک ساله", "5-minute test".
@@ -132,14 +132,14 @@ func ParsePlans(skus []string) ([]Plan, error) {
 }
 
 // PlanTitle names whatever product an entitlement carries: a plan's length,
-// or "Gift from Tark" for premium given from the admin panel. ok is false
+// or "Gift from Tarkk" for premium given from the admin panel. ok is false
 // for an empty or unknown id.
 func PlanTitle(sku, lang string) (title string, ok bool) {
 	if sku == CompSKU {
 		if lang == i18n.FA {
 			return "هدیه‌ی تَرک", true
 		}
-		return "Gift from Tark", true
+		return "Gift from Tarkk", true
 	}
 	p, ok := ParsePlan(sku)
 	if !ok {

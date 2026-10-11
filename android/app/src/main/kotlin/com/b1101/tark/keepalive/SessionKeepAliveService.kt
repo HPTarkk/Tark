@@ -422,7 +422,7 @@ class SessionKeepAliveService : Service() {
     private fun buildNotification(): Notification {
         val contentIntent = launchIntent()
         return Notification.Builder(this, CHANNEL_ID)
-            .setContentTitle("Tark")
+            .setContentTitle(getString(R.string.app_name))
             .setContentText("Channel active — keeping the link alive")
             .setSmallIcon(applicationInfo.icon)
             .setOngoing(true)

@@ -1,11 +1,11 @@
 {
-    "name": "Tark Guest",
-    "short_name": "Tark",
+    "name": "Tarkk Guest",
+    "short_name": "Tarkk",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0B0E11",
     "theme_color": "#F5853F",
-    "description": "Join a Tark walkie-talkie channel from your browser — pure LAN, no server.",
+    "description": "Join a Tarkk walkie-talkie channel from your browser — pure LAN, no server.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

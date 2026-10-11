@@ -49,7 +49,7 @@ func parts(t *testing.T, raw []byte) map[string]string {
 	}
 }
 
-var sender = &SMTPSender{From: "no-reply@tarkk.ir", FromName: "Tark"}
+var sender = &SMTPSender{From: "no-reply@tarkk.ir", FromName: "Tarkk"}
 
 func TestRenderMultipart(t *testing.T) {
 	m := RegisterCode("en", "a@example.com", CodeMail{Code: "123456", Link: "https://tarkk.ir/v/register#tok_1", Minutes: 15})

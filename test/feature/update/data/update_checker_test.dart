@@ -44,7 +44,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     prefs = await SharedPreferences.getInstance();
     PackageInfo.setMockInitialValues(
-      appName: 'Tark',
+      appName: 'Tarkk',
       packageName: 'com.b1101.tark',
       version: '1.0.21',
       buildNumber: '31',
@@ -70,7 +70,10 @@ void main() {
   });
 
   test('offers what the feed and the installed build decide', () async {
-    final optional = await UpdateChecker(_FakeApi(Right(_feed())), prefs).check();
+    final optional = await UpdateChecker(
+      _FakeApi(Right(_feed())),
+      prefs,
+    ).check();
     expect(optional?.urgency, UpdateUrgency.optional);
     expect(optional?.installedVersion, '1.0.21');
 
@@ -87,23 +90,29 @@ void main() {
     expect(current, isNull);
   });
 
-  test('no signal, a bad status or a malformed file all mean nothing', () async {
-    for (final failure in <ApiFailure>[
-      const NetworkUnreachable('offline'),
-      const RequestTimedOut('slow'),
-      const BadStatus(404, 'gone'),
-      const MalformedResponse('not json'),
-    ]) {
-      expect(await UpdateChecker(_FakeApi(Left(failure)), prefs).check(), isNull);
-    }
-    expect(
-      await UpdateChecker(
-        _FakeApi(const Right({'android': 'nope'})),
-        prefs,
-      ).check(),
-      isNull,
-    );
-  });
+  test(
+    'no signal, a bad status or a malformed file all mean nothing',
+    () async {
+      for (final failure in <ApiFailure>[
+        const NetworkUnreachable('offline'),
+        const RequestTimedOut('slow'),
+        const BadStatus(404, 'gone'),
+        const MalformedResponse('not json'),
+      ]) {
+        expect(
+          await UpdateChecker(_FakeApi(Left(failure)), prefs).check(),
+          isNull,
+        );
+      }
+      expect(
+        await UpdateChecker(
+          _FakeApi(const Right({'android': 'nope'})),
+          prefs,
+        ).check(),
+        isNull,
+      );
+    },
+  );
 
   test('snoozing silences that build on the next check', () async {
     final checker = UpdateChecker(_FakeApi(Right(_feed())), prefs);

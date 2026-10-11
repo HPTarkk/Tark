@@ -11,7 +11,7 @@ import '../domain/service/hotspot_link_keeper.dart';
 import '../domain/service/session_role_store.dart';
 import '../presentation/manager/wifi_hotspot_cubit.dart';
 
-/// Prepares Tark's temporary hotspot for a Room invite without exposing the
+/// Prepares Tarkk's temporary hotspot for a Room invite without exposing the
 /// host/join bridge UI to the user.
 ///
 /// This is deliberately a transfer-feature API rather than Room code reaching

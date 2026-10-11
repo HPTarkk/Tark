@@ -92,7 +92,7 @@ func signature(locale string) string {
 	if locale == "fa" {
 		return "— ترک"
 	}
-	return "— Tark"
+	return "— Tarkk"
 }
 
 func ignoreFooter(locale string) string {
@@ -120,7 +120,7 @@ func buttonHint(locale string) string {
 	if locale == "fa" {
 		return "دکمه فقط روی گوشی‌ای کار می‌کند که کد را در آن خواسته‌اید. در جای دیگر، کد بالا را در ترک وارد کنید."
 	}
-	return "The button only works on the phone where you asked for the code. Anywhere else, type the code into Tark."
+	return "The button only works on the phone where you asked for the code. Anywhere else, type the code into Tarkk."
 }
 
 func codeContent(locale string, d CodeMail) content {
@@ -144,11 +144,11 @@ func RegisterCode(locale, to string, d CodeMail) Message {
 		c.LinkIntro = "یا روی این پیوند در همان گوشی بزنید تا ترک باز شود و ثبت‌نام کامل شود:"
 		c.ButtonLabel = "تکمیل ثبت‌نام"
 	} else {
-		c.Subject = fmt.Sprintf("Your Tark code: %s", d.Code)
-		c.Preheader = "Enter this code in Tark to finish signing up."
-		c.Heading = "Welcome to Tark"
+		c.Subject = fmt.Sprintf("Your Tarkk code: %s", d.Code)
+		c.Preheader = "Enter this code in Tarkk to finish signing up."
+		c.Heading = "Welcome to Tarkk"
 		c.Intro = []string{"Your email verification code:"}
-		c.LinkIntro = "Or tap this link on the same phone to open Tark and finish signing up:"
+		c.LinkIntro = "Or tap this link on the same phone to open Tarkk and finish signing up:"
 		c.ButtonLabel = "Finish signing up"
 	}
 	return c.message(to)
@@ -169,12 +169,12 @@ func RegisterExisting(locale, to string) Message {
 		}
 		c.Footer = "اگر شما این درخواست را نداده‌اید، این ایمیل را نادیده بگیرید؛ حساب شما تغییری نکرده است."
 	} else {
-		c.Subject = "You already have a Tark account"
-		c.Preheader = "This email already has a Tark account."
+		c.Subject = "You already have a Tarkk account"
+		c.Preheader = "This email already has a Tarkk account."
 		c.Heading = "You already have an account"
 		c.Intro = []string{
-			"Someone (probably you) tried to sign up for Tark with this email, but it already has an account.",
-			"To get in, choose \"Sign in\" in Tark. If you don't remember your password, choose \"Forgot password\" on the sign-in screen.",
+			"Someone (probably you) tried to sign up for Tarkk with this email, but it already has an account.",
+			"To get in, choose \"Sign in\" in Tarkk. If you don't remember your password, choose \"Forgot password\" on the sign-in screen.",
 		}
 		c.Footer = "If you didn't ask for this, you can ignore this email. Your account has not changed."
 	}
@@ -191,8 +191,8 @@ func ResetCode(locale, to string, d CodeMail) Message {
 		c.LinkIntro = "یا روی این پیوند در همان گوشی بزنید:"
 		c.ButtonLabel = "انتخاب رمز تازه"
 	} else {
-		c.Subject = fmt.Sprintf("Your Tark password reset code: %s", d.Code)
-		c.Preheader = "Enter this code in Tark to choose a new password."
+		c.Subject = fmt.Sprintf("Your Tarkk password reset code: %s", d.Code)
+		c.Preheader = "Enter this code in Tarkk to choose a new password."
 		c.Heading = "Reset your password"
 		c.Intro = []string{"Your password reset code:"}
 		c.LinkIntro = "Or tap this link on the same phone:"
@@ -211,10 +211,10 @@ func EmailChangeCode(locale, to string, d CodeMail) Message {
 		c.LinkIntro = "یا روی این پیوند در همان گوشی بزنید:"
 		c.ButtonLabel = "تأیید ایمیل"
 	} else {
-		c.Subject = fmt.Sprintf("Confirm your new Tark email: %s", d.Code)
-		c.Preheader = "Enter this code in Tark to confirm your new email."
+		c.Subject = fmt.Sprintf("Confirm your new Tarkk email: %s", d.Code)
+		c.Preheader = "Enter this code in Tarkk to confirm your new email."
 		c.Heading = "Confirm your new email"
-		c.Intro = []string{"To make this the email of your Tark account, enter this code:"}
+		c.Intro = []string{"To make this the email of your Tarkk account, enter this code:"}
 		c.LinkIntro = "Or tap this link on the same phone:"
 		c.ButtonLabel = "Confirm email"
 	}
@@ -231,10 +231,10 @@ func EmailChanged(locale, to, newMasked string) Message {
 		c.Heading = "ایمیل حساب تغییر کرد"
 		c.Intro = []string{fmt.Sprintf("ایمیل حساب ترک شما به %s تغییر کرد. از این پس ایمیل‌های حساب به آن نشانی فرستاده می‌شود.", newMasked)}
 	} else {
-		c.Subject = "Your Tark email was changed"
+		c.Subject = "Your Tarkk email was changed"
 		c.Preheader = "Your account email is now " + newMasked + "."
 		c.Heading = "Your email was changed"
-		c.Intro = []string{fmt.Sprintf("The email on your Tark account was changed to %s. Account emails now go to that address.", newMasked)}
+		c.Intro = []string{fmt.Sprintf("The email on your Tarkk account was changed to %s. Account emails now go to that address.", newMasked)}
 	}
 	return c.message(to)
 }
@@ -247,10 +247,10 @@ func PasswordChanged(locale, to string) Message {
 		c.Heading = "رمز شما تغییر کرد"
 		c.Intro = []string{"رمز حساب ترک شما همین حالا تغییر کرد و از دستگاه‌های دیگر خارج شدید."}
 	} else {
-		c.Subject = "Your Tark password was changed"
+		c.Subject = "Your Tarkk password was changed"
 		c.Preheader = "Your password was changed and other devices were signed out."
 		c.Heading = "Your password was changed"
-		c.Intro = []string{"Your Tark password was just changed, and your other devices were signed out."}
+		c.Intro = []string{"Your Tarkk password was just changed, and your other devices were signed out."}
 	}
 	return c.message(to)
 }
@@ -263,10 +263,10 @@ func GoogleLinked(locale, to string) Message {
 		c.Heading = "ورود با گوگل اضافه شد"
 		c.Intro = []string{"از این پس می‌توانید با حساب گوگل هم وارد حساب ترک خود شوید. ورود با ایمیل و رمز هم مثل قبل کار می‌کند."}
 	} else {
-		c.Subject = "Google sign-in was added to your Tark account"
+		c.Subject = "Google sign-in was added to your Tarkk account"
 		c.Preheader = "You can now also sign in with Google."
 		c.Heading = "Google sign-in was added"
-		c.Intro = []string{"You can now also sign in to your Tark account with Google. Signing in with your email and password works as before."}
+		c.Intro = []string{"You can now also sign in to your Tarkk account with Google. Signing in with your email and password works as before."}
 	}
 	return c.message(to)
 }
@@ -285,11 +285,11 @@ func AccountDeleted(locale, to string) Message {
 		}
 		c.Footer = "اگر این کار را شما انجام نداده‌اید، همین حالا به ما خبر دهید."
 	} else {
-		c.Subject = "Your Tark account was deleted"
+		c.Subject = "Your Tarkk account was deleted"
 		c.Preheader = "Your account and its data were deleted at your request."
 		c.Heading = "Your account was deleted"
 		c.Intro = []string{
-			"Your Tark account and its data were deleted at your request, and every device was signed out.",
+			"Your Tarkk account and its data were deleted at your request, and every device was signed out.",
 			"A Cafe Bazaar subscription is managed in Bazaar. If you haven't cancelled it, cancel it there. If you create a new account, you can restore your purchase in it.",
 		}
 		c.Footer = "If this wasn't you, let us know right away."

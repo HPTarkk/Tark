@@ -1,4 +1,4 @@
-# Builds the Tark web guest app for release, interactively.
+# Builds the Tarkk web guest app for release, interactively.
 #
 #   .\scripts\build-web-release.ps1
 #
@@ -24,7 +24,7 @@ function AskYesNo([string]$Question, [bool]$Default) {
 }
 
 Write-Host ''
-Write-Host '  TARK — web guest release build' -ForegroundColor Yellow
+Write-Host '  Tarkk — web guest release build' -ForegroundColor Yellow
 Write-Host '  ------------------------------' -ForegroundColor DarkYellow
 Write-Host ''
 

@@ -1,6 +1,6 @@
-# Tark beta physical regression matrix
+# Tarkk beta physical regression matrix
 
-This matrix is the repeatable physical acceptance record for Epic #34. CI proves software invariants; it never substitutes for the device/headset evidence below. Create one completed copy per beta candidate and record the exact Tark semantic version **and Git commit SHA** for every device.
+This matrix is the repeatable physical acceptance record for Epic #34. CI proves software invariants; it never substitutes for the device/headset evidence below. Create one completed copy per beta candidate and record the exact Tarkk semantic version **and Git commit SHA** for every device.
 
 ## Run metadata
 
@@ -32,7 +32,7 @@ Use only `PASS`, `FAIL`, `UNSUPPORTED`, or `NOT RUN`. A green CI run is not a ph
 | HOTSPOT-3-LATE | Three-person hotspot + late join | Start with two riders; use in-room invite to add a third; talk pairwise; explicitly leave and rejoin one rider. | Third rider joins without participant-count limit; invite remains reachable; explicit leave is prompt and rejoin does not duplicate roster identity. | NOT RUN | |
 | ROOM-5-SOAK | Five-person room soak | Join five devices where available; run voice/presence for 30–60 min; include screen-off periods. | No hard-coded two/three-person limit, unbounded queue growth, repeated recovery loop, or duplicate member rows. | NOT RUN | |
 | HOST-LOSS | Forced hotspot-host loss | With >=3 devices connected, force the current hotspot transport to disappear; keep logical room open; follow recovery/failover UI. | Room/membership survive. Recovery is honest; no false Live before bidirectional peer evidence. If Android rotates credentials, rescan/action is clearly requested. | NOT RUN | |
-| VPN-HOST | VPN enabled on hotspot host | Establish hotspot room, then enable VPN on host and exercise screen off/on/rebind. | Tark continues selecting the local Wi-Fi/hotspot path; VPN/tunnel is not chosen for room UDP traffic; voice stays bidirectional. | NOT RUN | |
+| VPN-HOST | VPN enabled on hotspot host | Establish hotspot room, then enable VPN on host and exercise screen off/on/rebind. | Tarkk continues selecting the local Wi-Fi/hotspot path; VPN/tunnel is not chosen for room UDP traffic; voice stays bidirectional. | NOT RUN | |
 | VPN-JOINER | VPN enabled on joiner | Repeat VPN test on joiner. | Selected local Wi-Fi generation wins over VPN; no one-way/sticky route after rebound. | NOT RUN | |
 | MUSIC-START-STOP | Shared Music start/stop | Start two-way voice; start system-audio sharing; speak over music; stop/restart sharing twice. | Voice remains higher priority and live; media start/stop never reconnects the room; ducking returns to base gain after speech. | NOT RUN | |
 | MUSIC-BLOCKED | Playback capture blocked | On a device/OEM where AudioPlaybackCapture is blocked while media is confirmed playing, start sharing. | UI reports blocked/unsupported honestly; empty media is not transmitted indefinitely; voice remains usable. | NOT RUN | |

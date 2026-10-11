@@ -1,4 +1,4 @@
-// Command tarkd is the Tark backend.
+// Command tarkd is the Tarkk backend.
 //
 //	tarkd serve     run the API (and, unless TARK_RUN_WORKERS=false, the workers)
 //	tarkd worker    run only the background workers

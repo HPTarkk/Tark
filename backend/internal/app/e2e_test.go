@@ -660,7 +660,7 @@ func TestSubscription(t *testing.T) {
 	if m["st"] != "active" || m["ar"] != true || m["sus"] != false || m["sku"] != "tark_premium_1m" {
 		t.Fatalf("%v", m)
 	}
-	if r.str("planTitle") != "Tark Premium, 1 month" {
+	if r.str("planTitle") != "Tarkk Premium, 1 month" {
 		t.Fatalf("planTitle %q", r.str("planTitle"))
 	}
 	if fa := p.do("GET", "/v1/subscription", nil, "Accept-Language", "fa-IR"); fa.str("planTitle") != "اشتراک یک ماهه تَرک" {
@@ -773,7 +773,7 @@ func TestPlans(t *testing.T) {
 			t.Errorf("Content-Language %q", r.header.Get("Content-Language"))
 		}
 	}
-	check("en", []string{"Tark Premium, 1 month", "Tark Premium, 3 months", "Tark Premium, 6 months", "Tark Premium, 1 year"})
+	check("en", []string{"Tarkk Premium, 1 month", "Tarkk Premium, 3 months", "Tarkk Premium, 6 months", "Tarkk Premium, 1 year"})
 	check("fa-IR,en;q=0.5", []string{"اشتراک یک ماهه تَرک", "اشتراک سه ماهه تَرک", "اشتراک شش ماهه تَرک", "اشتراک یک ساله تَرک"})
 
 	r := e.phone().do("GET", "/v1/subscription/plans", nil)
@@ -815,7 +815,7 @@ func TestTestPlan(t *testing.T) {
 	if m := test.decodeEntitlement(r.str("entitlement"), q.install); m["st"] != "active" || m["sku"] != billing.TestSKU {
 		t.Fatalf("%v", m)
 	}
-	if r.str("planTitle") != "Tark Premium, 5-minute test" {
+	if r.str("planTitle") != "Tarkk Premium, 5-minute test" {
 		t.Fatalf("planTitle %q", r.str("planTitle"))
 	}
 
@@ -903,7 +903,7 @@ func TestAccountDeletion(t *testing.T) {
 
 	ok["subscriptionAcknowledged"] = true
 	expect(t, p.do("POST", "/v1/account/delete", ok), 204, "")
-	if m := e.lastMail("gone@example.com"); m.Subject != "Your Tark account was deleted" {
+	if m := e.lastMail("gone@example.com"); m.Subject != "Your Tarkk account was deleted" {
 		t.Fatalf("last mail %q", m.Subject)
 	}
 

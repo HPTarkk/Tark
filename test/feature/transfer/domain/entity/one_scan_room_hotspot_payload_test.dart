@@ -5,7 +5,7 @@ void main() {
   group('one-scan Room hotspot payload', () {
     test('round-trips network credentials and opaque Room invite', () {
       const credentials = HotspotCredentials(
-        ssid: 'Tark;Ride:01',
+        ssid: 'Tarkk;Ride:01',
         passphrase: r'p;ass:word\x',
         security: 'WPA',
       );
