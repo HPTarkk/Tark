@@ -1,0 +1,13 @@
+{
+  "name": "rapid-paper-9072",
+  "account_id": "4d404b6ca85f65ed20cd6d738741fe57",
+  "compatibility_date": "2026-10-11",
+  "workers_dev": false,
+  "preview_urls": true,
+  "routes": [{"pattern": "app.tarkk.ir", "custom_domain": true}],
+  "assets": {
+    "directory": "./build/web",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "single-page-application"
+  }
+}

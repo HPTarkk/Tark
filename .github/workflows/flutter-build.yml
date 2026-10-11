@@ -141,6 +141,10 @@ jobs:
       - name: Verify public app naming
         run: node scripts/check-branding.mjs
 
+      - name: Test guest web release script
+        shell: pwsh
+        run: ./scripts/test-build-web-release.ps1
+
       - name: Protocol compatibility tests
         shell: bash
         run: |

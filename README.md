@@ -147,6 +147,29 @@ flutter build web --release -t lib/main_guest.dart
 
 Deployed at [app.tarkk.ir](https://app.tarkk.ir), which is `GUEST_APP_URL`'s default.
 
+The PowerShell build script can publish the Flutter output to its own Cloudflare
+Worker after the build. Plain execution keeps the interactive build options and
+offers Wrangler publishing at the end:
+
+```powershell
+./scripts/build-web-release.ps1 -Deploy       # build, publish, verify the live build
+./scripts/build-web-release.ps1 -DryRun       # build and validate Wrangler without publishing
+./scripts/build-web-release.ps1 -BuildOnly    # build/ZIP without a publishing prompt
+```
+
+`wrangler.guest.jsonc` serves `build/web` on `app.tarkk.ir` with SPA routing and
+targets its existing Worker, `rapid-paper-9072`. Override the **existing guest
+Worker name** with `-WorkerName` or update `name` in that configuration when the
+hosting target changes. Use PowerShell 7 and an installed,
+authenticated Wrangler. For unattended builds, add `-NonInteractive`; use `-MakeZip:$false` and
+`-IncludeLanding:$false` if only the Flutter output is needed. Publishing checks
+the public `/web-release.json` marker against the app version, source commit and
+build time. It does not bump the Android version or publish the marketing site.
+The marketing Worker's name is rejected as a guest deployment target.
+Deployment regressions run in CI with mocked tools and HTTP; run them locally
+with `pwsh -File scripts/test-build-web-release.ps1`. Asset routing follows
+[Cloudflare's SPA configuration](https://developers.cloudflare.com/workers/static-assets/routing/single-page-application/).
+
 ### Landing site
 
 `website/` is the static marketing site at [tarkk.ir](https://tarkk.ir) — plain HTML/CSS/JS, deployed as-is, in two languages (English at `/`, Persian at `/fa/`).
