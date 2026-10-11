@@ -1,0 +1,44 @@
+[
+  {
+    "file": "01-offline.jpg",
+    "width": 1080,
+    "height": 1920,
+    "bytes": 185697,
+    "quality": 94
+  },
+  {
+    "file": "02-voice.jpg",
+    "width": 1080,
+    "height": 1920,
+    "bytes": 247574,
+    "quality": 94
+  },
+  {
+    "file": "03-rooms.jpg",
+    "width": 1080,
+    "height": 1920,
+    "bytes": 215869,
+    "quality": 94
+  },
+  {
+    "file": "04-connect.jpg",
+    "width": 1080,
+    "height": 1920,
+    "bytes": 231879,
+    "quality": 94
+  },
+  {
+    "file": "05-riding.jpg",
+    "width": 1080,
+    "height": 1920,
+    "bytes": 238788,
+    "quality": 94
+  },
+  {
+    "file": "06-light.jpg",
+    "width": 1080,
+    "height": 1920,
+    "bytes": 186520,
+    "quality": 94
+  }
+]
