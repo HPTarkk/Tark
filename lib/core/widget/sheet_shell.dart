@@ -34,7 +34,14 @@ class SheetShell extends StatelessWidget {
         bottom: 12,
         top: MediaQuery.sizeOf(context).height * topFraction,
       ),
+      // Always the full width it is given. A Container only shrink-wraps its
+      // child, so a body with a narrow phase — a short status line while the
+      // code is still on its way — used to pull the whole panel in to the
+      // width of that line, and the sheet visibly widened again when the real
+      // content arrived. The panel is chrome; its width is the screen's, not
+      // whatever happens to be inside it this frame.
       child: Container(
+        width: double.infinity,
         decoration: BoxDecoration(
           color: surfaceColor ?? AppColors.surface,
           borderRadius: BorderRadius.circular(24),

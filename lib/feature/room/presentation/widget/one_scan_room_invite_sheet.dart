@@ -89,6 +89,11 @@ Future<bool> showOneScanRoomInviteSheet(
         routeSettings: const RouteSettings(name: 'RoomInviteSheet'),
         backgroundColor: Colors.transparent,
         isScrollControlled: true,
+        // Material 3 caps a bottom sheet at 640 wide, which leaves this one
+        // floating in the middle of a landscape phone or a tablet. The code is
+        // the whole point of the sheet; it gets all the width there is, the
+        // same edge-to-edge panel (less the shell's margin) as on a phone.
+        constraints: const BoxConstraints(),
         barrierColor: Colors.black.withValues(alpha: 0.62),
         builder: (_) => OneScanRoomInviteSheet(
           repository: repository,
