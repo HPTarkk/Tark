@@ -488,14 +488,14 @@ class AppLocalizationsFa extends AppLocalizations {
       'چون پایین‌تر هیچ پاک‌کنی انتخاب نشده، این خاموشه.';
 
   @override
-  String get settings_advanced_row => 'تنظیمات ریزتر';
+  String get settings_advanced_row => 'تنظیمات پیشرفته';
 
   @override
   String get settings_advanced_row_desc =>
       'چیزهای اضافه برای ور رفتن — بیشتر آدم‌ها اصلاً بهشون کار ندارن';
 
   @override
-  String get settings_advanced_title => 'تنظیمات ریزتر';
+  String get settings_advanced_title => 'تنظیمات پیشرفته';
 
   @override
   String get noise_cleaner_section => 'حذف صداهای مزاحم';

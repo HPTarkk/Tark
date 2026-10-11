@@ -1007,7 +1007,7 @@ abstract class AppLocalizations {
   /// No description provided for @settings_advanced_row.
   ///
   /// In fa, this message translates to:
-  /// **'تنظیمات ریزتر'**
+  /// **'تنظیمات پیشرفته'**
   String get settings_advanced_row;
 
   /// No description provided for @settings_advanced_row_desc.
@@ -1019,7 +1019,7 @@ abstract class AppLocalizations {
   /// No description provided for @settings_advanced_title.
   ///
   /// In fa, this message translates to:
-  /// **'تنظیمات ریزتر'**
+  /// **'تنظیمات پیشرفته'**
   String get settings_advanced_title;
 
   /// No description provided for @noise_cleaner_section.
