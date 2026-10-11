@@ -26,6 +26,7 @@ import '../manager/walkie_talkie_cubit.dart';
 import '../widget/background_permission_banner.dart';
 import '../widget/channel_recovery.dart';
 import '../widget/connection_health_banner.dart';
+import '../widget/edit_profile_chip.dart';
 import '../widget/mic_control.dart';
 import '../widget/music_cast_section.dart';
 import '../widget/peer_departure_banner.dart';
@@ -268,41 +269,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage> {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        GestureDetector(
-                          onTap: () => context.pushNamed(
-                            AppRoutes.settingsName,
-                            extra: context.read<WalkieTalkieCubit>(),
-                          ),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.border,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.edit_rounded,
-                                  color: AppColors.amber,
-                                  size: 12,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  s.edit_name,
-                                  style: TextStyle(
-                                    color: AppColors.amber,
-                                    fontSize: 10,
-                                    letterSpacing: 1,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                        const EditProfileChip(),
                       ],
                     ),
                     const SizedBox(height: 4),
