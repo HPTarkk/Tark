@@ -5,7 +5,7 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $fixtureRoot = Join-Path $repoRoot ('build/guest-release-test-' + [Guid]::NewGuid().ToString('N'))
 $savedPath = $env:PATH
 $utf8 = [Text.UTF8Encoding]::new($false)
-$webTestProbe = @{ FetchCount = 0 }
+$webTestProbe = @{ FetchCount = 0; PromptCount = 0; RejectPrompts = $false }
 function Assert-Release($Condition, [string]$Description) {
     if (-not $Condition) { throw "Guest release regression: $Description" }
 }
@@ -20,12 +20,14 @@ function Invoke-RestMethod {
 function Start-Sleep { param($Seconds) }
 function Read-Host {
     param($Prompt)
+    $webTestProbe.PromptCount++
+    if ($webTestProbe.RejectPrompts) { throw 'Auto mode must not ask questions.' }
     if ($Prompt.StartsWith('Publish this guest app')) { return 'y' }
     return ''
 }
 function Reset-Calls {
     $webTestProbe.FetchCount = 0
-    foreach ($name in @('flutter-args.json', 'wrangler-args.json')) {
+    foreach ($name in @('flutter-args.json', 'flutter-calls.jsonl', 'wrangler-args.json')) {
         $path = Join-Path $fixtureRoot $name
         if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path }
     }
@@ -40,7 +42,7 @@ function Expect-Failure([hashtable]$Options, [string]$Reason) {
     Assert-Release ((Get-Location).Path -eq $originalLocation) 'restore caller directory on failure'
 }
 try {
-    foreach ($dir in @('scripts', 'website', 'bin')) {
+    foreach ($dir in @('scripts', 'bin')) {
         New-Item -ItemType Directory -Path (Join-Path $fixtureRoot $dir) -Force | Out-Null
     }
     $fixtureRelease = Join-Path $fixtureRoot 'scripts/build-web-release.ps1'
@@ -55,6 +57,7 @@ try {
     [IO.File]::WriteAllText((Join-Path $fixtureRoot 'bin/flutter.ps1'), @'
 $root = Split-Path -Parent $PSScriptRoot
 $args | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $root 'flutter-args.json')
+$args | ConvertTo-Json -Compress | Add-Content -LiteralPath (Join-Path $root 'flutter-calls.jsonl')
 if (Test-Path -LiteralPath (Join-Path $root 'fail-build')) { exit 7 }
 $out = Join-Path $root 'build/web'
 New-Item -ItemType Directory -Path $out -Force | Out-Null
@@ -65,6 +68,7 @@ exit 0
     [IO.File]::WriteAllText((Join-Path $fixtureRoot 'bin/wrangler.ps1'), @'
 $root = Split-Path -Parent $PSScriptRoot
 $args | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $root 'wrangler-args.json')
+Set-Content -LiteralPath (Join-Path $root 'wrangler-ci.txt') -Value $env:CI
 if (Test-Path -LiteralPath (Join-Path $root 'fail-upload')) { exit 9 }
 exit 0
 '@, $utf8)
@@ -80,7 +84,7 @@ exit 0
     }
     $env:PATH = (Join-Path $fixtureRoot 'bin') + [IO.Path]::PathSeparator + $savedPath
     $originalLocation = (Get-Location).Path
-    $options = @{ NonInteractive = $true; WorkerName = 'guest-test'; MakeZip = $false; IncludeLanding = $false }
+    $options = @{ NonInteractive = $true; WorkerName = 'guest-test'; MakeZip = $false }
 
     & $fixtureRelease @options -BuildOnly
     Assert-Release (-not (Test-Path -LiteralPath (Join-Path $fixtureRoot 'wrangler-args.json'))) 'build-only must not upload'
@@ -110,6 +114,22 @@ exit 0
     Assert-Release ($webTestProbe.FetchCount -eq 1) 'successful release verifies its public marker'
 
     Reset-Calls
+    $webTestProbe.RejectPrompts = $true
+    $autoPromptCount = $webTestProbe.PromptCount
+    $autoOriginalCi = $env:CI
+    & $fixtureRelease -Auto
+    $webTestProbe.RejectPrompts = $false
+    $upload = Get-Content -Raw -LiteralPath (Join-Path $fixtureRoot 'wrangler-args.json') | ConvertFrom-Json
+    Assert-Release ($upload -contains 'guest-config-test' -and $upload -notcontains '--dry-run') 'auto publishes to the configured guest Worker'
+    Assert-Release ($webTestProbe.FetchCount -eq 1 -and $webTestProbe.PromptCount -eq $autoPromptCount) 'auto builds, publishes and verifies without prompts'
+    Assert-Release (-not (Test-Path -LiteralPath (Join-Path $fixtureRoot 'build/web/landing'))) 'guest releases only contain the Flutter web app'
+    Assert-Release (@(Get-ChildItem -LiteralPath (Join-Path $fixtureRoot 'build') -Filter 'tark-web-*.zip').Count -eq 0) 'auto skips ZIP packaging by default'
+    $autoCalls = @(Get-Content -LiteralPath (Join-Path $fixtureRoot 'flutter-calls.jsonl') | ForEach-Object { ,@($_ | ConvertFrom-Json) })
+    Assert-Release ($autoCalls.Count -eq 2 -and $autoCalls[0][0] -eq 'clean' -and $autoCalls[1][0] -eq 'build' -and $autoCalls[1][1] -eq 'web') 'auto cleans first and only builds Flutter web, without an APK'
+    Assert-Release ((Get-Content -Raw -LiteralPath (Join-Path $fixtureRoot 'wrangler-ci.txt')).Trim() -eq 'true') 'Wrangler also runs without interactive prompts'
+    Assert-Release ($env:CI -ceq $autoOriginalCi) 'restore caller CI environment'
+
+    Reset-Calls
     $interactive = $options.Clone()
     $interactive.Remove('NonInteractive')
     & $fixtureRelease @interactive
@@ -118,6 +138,7 @@ exit 0
     Reset-Calls
     New-Item -ItemType File -Path (Join-Path $fixtureRoot 'fail-build') | Out-Null
     Expect-Failure ($options + @{ Deploy = $true }) 'exit 7'
+    Assert-Release ($env:CI -ceq $autoOriginalCi) 'restore caller CI environment after a failure'
     Assert-Release (-not (Test-Path -LiteralPath (Join-Path $fixtureRoot 'wrangler-args.json'))) 'failed build must not publish stale output'
     Remove-Item -LiteralPath (Join-Path $fixtureRoot 'fail-build')
 

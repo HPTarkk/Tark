@@ -1,9 +1,10 @@
 #requires -Version 7.0
 # Build the Flutter guest app, then optionally publish it with Wrangler.
-# Examples: ./scripts/build-web-release.ps1 -Deploy
+# Examples: ./scripts/build-web-release.ps1 -Auto
 #           ./scripts/build-web-release.ps1 -DryRun -NonInteractive
 [CmdletBinding()]
 param(
+    [switch]$Auto,
     [switch]$Deploy,
     [switch]$DryRun,
     [switch]$BuildOnly,
@@ -12,17 +13,17 @@ param(
     [string]$WranglerConfig = 'wrangler.guest.jsonc',
     [string]$GuestUrl = 'https://app.tarkk.ir',
     [string]$BaseHref,
-    [bool]$IncludeLanding = $true,
-    [bool]$IncludeApk = $false,
-    [bool]$MakeZip = $true,
-    [bool]$CleanFirst = $false,
+    [bool]$MakeZip = $false,
+    [bool]$CleanFirst = $true,
     [string]$Message
 )
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $utf8 = [Text.UTF8Encoding]::new($false)
+if ($Auto) { $Deploy = $true; $NonInteractive = $true }
 if ($BuildOnly -and ($Deploy -or $DryRun)) { throw '-BuildOnly cannot be combined with -Deploy or -DryRun.' }
+$savedCi = $env:CI
 
 function Ask([string]$Question, [string]$Default) {
     if ($NonInteractive) { return $Default }
@@ -83,8 +84,10 @@ function Read-DeploymentSettings {
 
 Push-Location -LiteralPath $repoRoot
 try {
+    # Prevent native tools, including Wrangler login, from opening prompts.
+    if ($NonInteractive) { $env:CI = 'true' }
     Write-Host ''
-    Write-Host '  Tarkk — web guest release' -ForegroundColor Yellow
+    Write-Host '  TARKK — web guest release' -ForegroundColor Yellow
     $flutterCommand = (Get-Command flutter -ErrorAction Stop).Source
     $guestUrl = (Ask 'Guest app URL (must match the mobile invite URL)' $GuestUrl).TrimEnd('/')
     $guestUri = [Uri]$guestUrl
@@ -96,8 +99,6 @@ try {
     $baseHref = Ask 'Base href (must start and end with /)' $BaseHref
     if (-not $baseHref.StartsWith('/')) { $baseHref = "/$baseHref" }
     if (-not $baseHref.EndsWith('/')) { $baseHref = "$baseHref/" }
-    $includeLanding = AskYesNo 'Bundle the static landing page at /landing/?' $IncludeLanding
-    $includeApk = AskYesNo 'Also build and include the Android APK with the same guest URL?' $IncludeApk
     $makeZip = AskYesNo 'Zip the output for upload?' $MakeZip
     $cleanFirst = AskYesNo 'Run flutter clean first?' $CleanFirst
 
@@ -128,19 +129,6 @@ try {
         if (-not (Test-Path -LiteralPath (Join-Path $outDir $file) -PathType Leaf)) {
             throw "Flutter output is incomplete: $file is missing."
         }
-    }
-    if ($includeLanding) {
-        $landingSrc = Join-Path $repoRoot 'website'
-        if (-not (Test-Path -LiteralPath $landingSrc -PathType Container)) { throw 'website/ was not found.' }
-        $landingDst = Join-Path $outDir 'landing'
-        New-Item -ItemType Directory -Force $landingDst | Out-Null
-        Copy-Item (Join-Path $landingSrc '*') $landingDst -Recurse -Force
-    }
-    if ($includeApk) {
-        Invoke-CheckedCommand $flutterCommand @('build', 'apk', '--release', "--dart-define=GUEST_APP_URL=$guestUrl")
-        $apkSrc = Join-Path $repoRoot 'build/app/outputs/flutter-apk/app-release.apk'
-        if (-not (Test-Path -LiteralPath $apkSrc -PathType Leaf)) { throw "APK not found at $apkSrc." }
-        Copy-Item -LiteralPath $apkSrc -Destination (Join-Path $outDir 'tark-release.apk') -Force
     }
     $release = [ordered]@{
         version = $appVersion
@@ -196,9 +184,8 @@ try {
     } else {
         Write-Host "Output is ready for hosting at $guestUrl/."
     }
-    if (-not $includeApk) {
-        Write-Host "Mobile invite URLs must also use GUEST_APP_URL=$guestUrl."
-    }
+    Write-Host "Mobile invite URLs must also use GUEST_APP_URL=$guestUrl."
 } finally {
+    $env:CI = $savedCi
     Pop-Location
 }

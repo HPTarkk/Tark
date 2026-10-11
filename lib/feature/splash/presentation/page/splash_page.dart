@@ -16,7 +16,7 @@ import '../../../../core/widget/version_badge.dart';
 /// curve/duration changes later.
 ///
 /// Visual concept: "first transmission" — a slow aurora of warm light drifts
-/// behind a frosted-glass emblem disc carrying the Tarkk mark. A luminous halo
+/// behind a frosted-glass emblem disc carrying the TARKK mark. A luminous halo
 /// ring draws itself around the disc with a small comet orbiting it, and thin
 /// broadcast ripples radiate outward like a keyed-up transmitter. The wordmark
 /// rises out of a mask with a gloss sweep, and a hairline progress bar at the
@@ -256,7 +256,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
                   children: [
                     _buildEmblem(),
                     const SizedBox(height: 10),
-                    _buildWordmark(s.app_name),
+                    _buildWordmark(s.app_name.toUpperCase()),
                     const SizedBox(height: 16),
                     _buildSubtitle(s.app_subtitle),
                   ],

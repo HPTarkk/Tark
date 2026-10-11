@@ -148,21 +148,27 @@ flutter build web --release -t lib/main_guest.dart
 Deployed at [app.tarkk.ir](https://app.tarkk.ir), which is `GUEST_APP_URL`'s default.
 
 The PowerShell build script can publish the Flutter output to its own Cloudflare
-Worker after the build. Plain execution keeps the interactive build options and
-offers Wrangler publishing at the end:
+Worker after the build. Use `-Auto` for a complete release with no prompts:
 
 ```powershell
+./scripts/build-web-release.ps1 -Auto         # clean, build web, publish, verify; no questions
 ./scripts/build-web-release.ps1 -Deploy       # build, publish, verify the live build
 ./scripts/build-web-release.ps1 -DryRun       # build and validate Wrangler without publishing
-./scripts/build-web-release.ps1 -BuildOnly    # build/ZIP without a publishing prompt
+./scripts/build-web-release.ps1 -BuildOnly    # clean/build without publishing
 ```
 
 `wrangler.guest.jsonc` serves `build/web` on `app.tarkk.ir` with SPA routing and
 targets its existing Worker, `rapid-paper-9072`. Override the **existing guest
 Worker name** with `-WorkerName` or update `name` in that configuration when the
 hosting target changes. Use PowerShell 7 and an installed,
-authenticated Wrangler. For unattended builds, add `-NonInteractive`; use `-MakeZip:$false` and
-`-IncludeLanding:$false` if only the Flutter output is needed. Publishing checks
+authenticated Wrangler. `-Auto` combines `-Deploy` and `-NonInteractive`, uses
+the configured URL/Worker and the build defaults below, and restores the caller's
+`CI` environment afterward. Plain execution retains the interactive options.
+This script builds only the Flutter guest web app; APK and landing-site builds
+use their separate release scripts. Defaults: `https://app.tarkk.ir`, base href
+`/`, `flutter clean` first, and no ZIP. Override the latter options with
+`-CleanFirst:$false` or `-MakeZip:$true` as needed.
+For other unattended modes, add `-NonInteractive`. Publishing checks
 the public `/web-release.json` marker against the app version, source commit and
 build time. It does not bump the Android version or publish the marketing site.
 The marketing Worker's name is rejected as a guest deployment target.

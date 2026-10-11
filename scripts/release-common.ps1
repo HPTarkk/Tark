@@ -333,7 +333,7 @@ function Invoke-Release {
     param([Parameter(Mandatory)][ValidateSet('patch', 'minor', 'major')][string]$Bump)
 
     Write-Host ''
-    Write-Host "  Tarkk — $Bump release" -ForegroundColor Yellow
+    Write-Host "  TARKK — $Bump release" -ForegroundColor Yellow
 
     # 1. Everything that could fail cheaply, before anything changes.
     Step 'Checking tools, signing files and working tree'

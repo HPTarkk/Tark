@@ -163,7 +163,7 @@ class _LandingLogoState extends State<LandingLogo>
           child: Column(
             children: [
               Text(
-                s.app_name,
+                s.app_name.toUpperCase(),
                 style: TextStyle(
                   color: AppColors.amber,
                   fontSize: 30,
