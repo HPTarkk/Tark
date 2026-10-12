@@ -74,6 +74,42 @@ void main() {
       });
     });
 
+    test('reports other phones heard on the channel, at most twice a '
+        'second, and goes quiet once finished', () {
+      fakeAsync((async) {
+        final transport = _RecordingTransport();
+        final announcer = RoomPreLiveAnnouncer(
+          transport: transport,
+          name: 'Rider one',
+          clock: () => DateTime(2026).add(async.elapsed),
+        )..start();
+        var heard = 0;
+        announcer.heard.listen((_) => heard++);
+        const packet = PresencePacket(
+          senderId: 'peer',
+          senderName: 'Rider two',
+          isTalking: false,
+        );
+
+        transport.deliver(packet);
+        async.flushMicrotasks();
+        transport.deliver(packet);
+        async.flushMicrotasks();
+        expect(heard, 1);
+
+        async.elapse(const Duration(milliseconds: 600));
+        transport.deliver(packet);
+        async.flushMicrotasks();
+        expect(heard, 2);
+
+        announcer.handOff();
+        async.elapse(const Duration(seconds: 1));
+        transport.deliver(packet);
+        async.flushMicrotasks();
+        expect(heard, 2);
+      });
+    });
+
     test('stop before start touches nothing', () {
       final transport = _RecordingTransport();
       RoomPreLiveAnnouncer(transport: transport, name: '').stop();
@@ -133,6 +169,8 @@ class _RecordingTransport implements TransferRepository {
     presences.add(senderName);
     return const Right(null);
   }
+
+  void deliver(WakiPacket packet) => _packets.add(packet);
 
   @override
   void stopConnection() => stops++;

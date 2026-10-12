@@ -122,4 +122,52 @@ void main() {
     expect(find.byType(ErrorWidget), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('an accepted code that fails further on re-arms the camera', (
+    tester,
+  ) async {
+    // 2026-10-12: the code was read and the join went through, then the
+    // connection itself timed out and the screen said so — around a camera
+    // that had locked for good on the accept and would never read again.
+    var reads = 0;
+    Future<bool> onCode(String _) async {
+      reads++;
+      return true;
+    }
+
+    await tester.pumpWidget(scanner(onCode: onCode));
+    await tester.pump();
+    final capture = BarcodeCapture(
+      barcodes: [Barcode(rawValue: 'WIFI:S:TARK;P:password;;')],
+    );
+    Future<void> detect() async {
+      final handler = tester
+          .widget<MobileScanner>(find.byType(MobileScanner))
+          .onDetect!;
+      final read = (handler as dynamic)(capture) as Future<void>;
+      // The lock ring animates before the handler is asked; its ticker only
+      // starts on the next frame.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump(const Duration(milliseconds: 500));
+      await read;
+    }
+
+    await detect();
+    expect(reads, 1);
+
+    // Locked: another read is ignored.
+    await detect();
+    expect(reads, 1);
+
+    await tester.pumpWidget(
+      scanner(onCode: onCode, errorText: 'Could not connect. Scan again.'),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    await detect();
+    expect(reads, 2);
+    expect(tester.takeException(), isNull);
+  });
 }

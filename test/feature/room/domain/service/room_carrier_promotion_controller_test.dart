@@ -150,6 +150,86 @@ void main() {
     });
   });
 
+  group('a host that would lose the shared network by hosting', () {
+    // Raising an AP on a phone that cannot run Wi-Fi alongside it drops the
+    // very network the credentials have to be announced over, splitting the
+    // group. Such a phone stays on the shared network instead.
+    test('stays put, and does not try again every tick', () async {
+      final modeStore = _FakeModeStore(TransferMode.wifi);
+      final host = _FakeHotspotHost()
+        ..advice = const HotspotWifiAdvice(
+          wifiEnabled: true,
+          concurrent: false,
+          canPanel: true,
+        );
+      final keeper = _FakeLinkKeeper();
+      final exchange = _FakeHandoverExchange();
+      var now = DateTime.utc(2026, 10, 12, 0, 20);
+
+      final controller = build(
+        localMemberId: hostMember,
+        identity: hostIdentity,
+        modeStore: modeStore,
+        hotspotHost: host,
+        keeper: keeper,
+        exchange: exchange,
+        candidates: () => [
+          candidate(hostMember, batteryPercent: 95),
+          candidate(followerMember, batteryPercent: 30),
+        ],
+        clock: () => now,
+      );
+      addTearDown(controller.dispose);
+
+      controller.start();
+      for (var i = 0; i < 4; i++) {
+        now = now.add(const Duration(seconds: 30));
+        controller.evaluate();
+        await pumpEventQueue();
+      }
+
+      expect(host.starts, 0);
+      expect(modeStore.mode, TransferMode.wifi);
+      expect(controller.status.stage, RoomCarrierStage.settled);
+    });
+
+    test('a phone that can run both still moves the group', () async {
+      final modeStore = _FakeModeStore(TransferMode.wifi);
+      final host = _FakeHotspotHost()
+        ..advice = const HotspotWifiAdvice(
+          wifiEnabled: true,
+          concurrent: true,
+          canPanel: true,
+        );
+      final keeper = _FakeLinkKeeper();
+      final exchange = _FakeHandoverExchange();
+      var now = DateTime.utc(2026, 10, 12, 0, 20);
+
+      final controller = build(
+        localMemberId: hostMember,
+        identity: hostIdentity,
+        modeStore: modeStore,
+        hotspotHost: host,
+        keeper: keeper,
+        exchange: exchange,
+        candidates: () => [
+          candidate(hostMember, batteryPercent: 95),
+          candidate(followerMember, batteryPercent: 30),
+        ],
+        clock: () => now,
+      );
+      addTearDown(controller.dispose);
+
+      controller.start();
+      now = now.add(const Duration(seconds: 30));
+      controller.evaluate();
+      await pumpEventQueue();
+
+      expect(host.starts, 1);
+      expect(modeStore.mode, TransferMode.hotspot);
+    });
+  });
+
   group('the host side', () {
     test('raises an access point and announces it over the old link', () async {
       final modeStore = _FakeModeStore(TransferMode.wifi);
@@ -832,8 +912,13 @@ class _FakeHotspotHost implements HotspotHost {
   @override
   Future<void> openFixSettings(String errorCode) async {}
 
+  /// Null keeps the old fake's behaviour (unreadable), which the controller
+  /// treats as "go ahead".
+  HotspotWifiAdvice? advice;
+
   @override
-  Future<HotspotWifiAdvice> wifiAdvice() async => throw UnimplementedError();
+  Future<HotspotWifiAdvice> wifiAdvice() async =>
+      advice ?? (throw UnimplementedError());
 
   @override
   Future<bool> openWifiPanel() async => false;

@@ -86,6 +86,25 @@ class PreLiveHotspotBootstrap {
   Future<HotspotJoinResult> joinHost(HotspotCredentials credentials) =>
       _joiner(credentials);
 
+  /// The credentials of an access point that can be shown again as it is,
+  /// or null when a fresh one has to be raised.
+  ///
+  /// The keeper's "up" is the last thing it was told, not a reading of the
+  /// radio. Switching Wi-Fi back on takes a single-radio phone's AP down
+  /// without the keeper hearing about it, and reusing its credentials then
+  /// put a code on screen for a network that no longer existed: the other
+  /// phone scanned it and Android declined the join, twice, until the app was
+  /// restarted (2026-10-12 logs, role switch). Only an AP this process still
+  /// holds is reused.
+  static HotspotCredentials? reusableCredentials({
+    required HotspotLinkState keeperState,
+    required HotspotCredentials? remembered,
+    required bool hosting,
+  }) {
+    if (keeperState != HotspotLinkState.up || remembered == null) return null;
+    return hosting ? remembered : null;
+  }
+
   static Future<HotspotCredentials?> _startWithTransferBridge() async {
     final getIt = GetIt.instance;
     if (!getIt.isRegistered<SessionRoleStore>() ||
@@ -98,9 +117,20 @@ class PreLiveHotspotBootstrap {
     if (roleStore.role != SessionRole.host) return null;
 
     final keeper = getIt<HotspotLinkKeeper>();
-    final existing = keeper.credentials;
-    if (keeper.state == HotspotLinkState.up && existing != null) {
-      return existing;
+    final hosting =
+        !getIt.isRegistered<HotspotHost>() || getIt<HotspotHost>().isHosting;
+    final reusable = reusableCredentials(
+      keeperState: keeper.state,
+      remembered: keeper.credentials,
+      hosting: hosting,
+    );
+    if (reusable != null) return reusable;
+    if (keeper.state == HotspotLinkState.up && keeper.credentials != null) {
+      Logger.diagnostic(
+        'room_transport: remembered hotspot is no longer on the air — '
+        'raising a fresh one',
+      );
+      await keeper.release();
     }
 
     final bridge = getIt<WifiHotspotCubit>();

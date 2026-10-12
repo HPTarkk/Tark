@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../l10n/extension.dart';
 import '../motion/app_motion.dart';
 import '../theme/app_colors.dart';
 import '../utils/logger.dart';
@@ -73,12 +75,39 @@ class QrScannerSurface extends StatefulWidget {
 }
 
 class _QrScannerSurfaceState extends State<QrScannerSurface>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   final MobileScannerController _controller = MobileScannerController(
     // Every code this app reads is a QR. Skipping the other symbologies keeps
     // the detector from chewing frames on formats that cannot appear here.
     formats: const [BarcodeFormat.qrCode],
+    // Started by [_startCamera], never by the widget mounting: the camera is
+    // one device, and it must be handed over rather than grabbed. See
+    // [_cameraReleased].
+    autoStart: false,
   );
+
+  /// Completes once the last scanner to leave the screen has let go of the
+  /// camera.
+  ///
+  /// Switching sides on the reconnect screen takes one scanner down and puts
+  /// another up within a frame or two. Each owned its own controller and
+  /// started on mount, so the new one asked for the camera while the old one
+  /// was still closing it — and Android answered "camera in use", which the
+  /// surface showed as "another app is using the camera" with no way out
+  /// short of restarting the app (2026-10-12 role switch). Now the newcomer
+  /// waits for the old session to be released first.
+  static Future<void> _cameraReleased = Future<void>.value();
+
+  /// Starts that failed for a reason other than permission, retried with a
+  /// growing pause before the error is left on screen.
+  static const _retryDelays = [
+    Duration(milliseconds: 350),
+    Duration(milliseconds: 900),
+    Duration(milliseconds: 1800),
+  ];
+  int _retries = 0;
+  Timer? _retryTimer;
+  bool _starting = false;
 
   /// Scanline crossing the window, same cadence as the QR card's own sweep.
   late final AnimationController _sweep = AnimationController(
@@ -120,13 +149,104 @@ class _QrScannerSurfaceState extends State<QrScannerSurface>
   bool _settled = false;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _controller.addListener(_onCameraState);
+    // After the first frame: MobileScanner attaches the controller in its own
+    // initState, and a start before that waits on an attach timer.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _startCamera());
+  }
+
+  @override
   void didUpdateWidget(QrScannerSurface old) {
     super.didUpdateWidget(old);
     // A new error is a new event even if the text is identical — the user may
     // have scanned the same expired code twice — so it always re-rings.
     if (widget.errorText != null && widget.errorText != old.errorText) {
       _fail.forward(from: 0);
+      // A code that was accepted and then failed further on (the network
+      // join, the signed hello) comes back here as an error. The surface had
+      // already locked for good on the accept, which left a red frame around
+      // a camera that would never read anything again (2026-10-12: "the
+      // scanner becomes unusable"). An error after the lock re-arms it.
+      if (_settled) _rearm();
     }
+  }
+
+  void _rearm() {
+    _settled = false;
+    _handling = false;
+    unawaited(_lock.reverse());
+    _sweep.loopUnlessReduced(context, reverse: true);
+    unawaited(_startCamera());
+    setState(() {});
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.resumed:
+        // Coming back from the Wi-Fi panel or the permission screen. A start
+        // made while the app was behind them is refused by Android as a
+        // camera in use; this is the moment it can actually succeed.
+        if (!_settled) unawaited(_startCamera());
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+        // Not on `inactive`: that is also what the camera permission prompt
+        // itself does to the app, and stopping then would cancel the very
+        // start that asked.
+        unawaited(_controller.stop().catchError((Object _) {}));
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.detached:
+        break;
+    }
+  }
+
+  Future<void> _startCamera() async {
+    if (!mounted || _starting || _settled) return;
+    _starting = true;
+    try {
+      await _cameraReleased;
+      if (!mounted || _settled) return;
+      if (_controller.value.isRunning) return;
+      await _controller.start();
+    } catch (error) {
+      // Reported through the controller's state too; the listener decides
+      // whether to try again.
+      Logger.log('QR camera start failed: $error');
+    } finally {
+      _starting = false;
+    }
+  }
+
+  void _onCameraState() {
+    final error = _controller.value.error;
+    if (error == null) {
+      if (_controller.value.isRunning) _retries = 0;
+      return;
+    }
+    if (error.errorCode == MobileScannerErrorCode.permissionDenied) return;
+    if (_retries >= _retryDelays.length || _retryTimer != null) return;
+    final delay = _retryDelays[_retries++];
+    Logger.diagnostic(
+      'qr: camera did not start (${error.errorCode.name}) — '
+      'trying again in ${delay.inMilliseconds}ms',
+    );
+    _retryTimer = Timer(delay, () {
+      _retryTimer = null;
+      unawaited(_restartCamera());
+    });
+  }
+
+  /// Gives the camera back and asks for it again: the way out of a start that
+  /// failed, whether retried automatically or tapped.
+  Future<void> _restartCamera() async {
+    if (!mounted) return;
+    try {
+      await _controller.stop();
+    } catch (_) {}
+    await _startCamera();
   }
 
   @override
@@ -141,13 +261,31 @@ class _QrScannerSurfaceState extends State<QrScannerSurface>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _retryTimer?.cancel();
+    _controller.removeListener(_onCameraState);
     _sweep.dispose();
     _pulse.dispose();
     _orbit.dispose();
     _lock.dispose();
     _fail.dispose();
-    _controller.dispose();
+    _cameraReleased = _release(_cameraReleased, _controller);
     super.dispose();
+  }
+
+  /// Stops and disposes [controller] after whatever release was already in
+  /// progress, so releases and starts form one queue.
+  static Future<void> _release(
+    Future<void> previous,
+    MobileScannerController controller,
+  ) async {
+    await previous;
+    try {
+      await controller.stop();
+    } catch (_) {}
+    try {
+      await controller.dispose();
+    } catch (_) {}
   }
 
   Future<void> _onDetect(BarcodeCapture capture) async {
@@ -177,6 +315,10 @@ class _QrScannerSurfaceState extends State<QrScannerSurface>
 
       if (accepted) {
         setState(() => _settled = true);
+        // Nothing more to read. Keeping the preview running behind whatever
+        // comes next only costs battery and heat, and the camera is free the
+        // moment another scanner — or the next attempt's — wants it.
+        unawaited(_controller.stop().catchError((Object _) {}));
         return;
       }
       // Rejected: give the camera back. The sweep restarting is the clearest
@@ -238,19 +380,30 @@ class _QrScannerSurfaceState extends State<QrScannerSurface>
                   // hand's length away is exactly what autofocus hunts on.
                   // Taps get through because the HUD above ignores pointers.
                   tapToFocus: true,
-                  errorBuilder: (context, error) => ScannerErrorPanel(
-                    message:
+                  errorBuilder: (context, error) {
+                    final denied =
                         error.errorCode ==
-                            MobileScannerErrorCode.permissionDenied
-                        ? widget.cameraDeniedLabel
-                        : widget.cameraFailedLabel,
-                    actionLabel:
-                        error.errorCode ==
-                            MobileScannerErrorCode.permissionDenied
-                        ? widget.openSettingsLabel
-                        : null,
-                    onAction: openAppSettings,
-                  ),
+                        MobileScannerErrorCode.permissionDenied;
+                    return ScannerErrorPanel(
+                      key: const Key('qr-scanner-camera-error'),
+                      message: denied
+                          ? widget.cameraDeniedLabel
+                          : widget.cameraFailedLabel,
+                      // A camera that would not start is almost always one
+                      // still being let go of — by another scanner, or by an
+                      // app that has since closed. Trying again is the fix,
+                      // so it is offered rather than a dead end.
+                      actionLabel: denied
+                          ? widget.openSettingsLabel
+                          : context.getString.retry,
+                      onAction: denied
+                          ? openAppSettings
+                          : () {
+                              _retries = 0;
+                              unawaited(_restartCamera());
+                            },
+                    );
+                  },
                 ),
                 // The HUD is a sibling here rather than MobileScanner's
                 // overlayBuilder. That builder only runs once the camera

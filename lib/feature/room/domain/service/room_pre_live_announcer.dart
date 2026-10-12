@@ -28,9 +28,13 @@ final class RoomPreLiveAnnouncer {
     required TransferRepository transport,
     required String name,
     Duration interval = const Duration(seconds: 1),
+    DateTime Function()? clock,
   }) : _transport = transport,
        _name = name,
-       _interval = interval;
+       _interval = interval,
+       _clock = clock ?? DateTime.now;
+
+  final DateTime Function() _clock;
 
   final TransferRepository _transport;
   final String _name;
@@ -41,13 +45,34 @@ final class RoomPreLiveAnnouncer {
   bool _started = false;
   bool _finished = false;
 
+  final StreamController<void> _heard = StreamController<void>.broadcast();
+  DateTime? _lastHeardAt;
+
+  /// Fires when another phone's traffic arrives on this Room's channel — at
+  /// most twice a second. The transport has already dropped other channels
+  /// and our own echo, so anything here is somebody in (or joining) this
+  /// Room. The readiness gate uses it to tell "nobody is there" apart from
+  /// "somebody is there and the signed hello is still finishing".
+  Stream<void> get heard => _heard.stream;
+
+  void _noteHeard() {
+    if (_finished) return;
+    final now = _clock();
+    final last = _lastHeardAt;
+    if (last != null && now.difference(last) < _heardSpacing) return;
+    _lastHeardAt = now;
+    if (!_heard.isClosed) _heard.add(null);
+  }
+
+  static const _heardSpacing = Duration(milliseconds: 500);
+
   /// Binds the socket and starts announcing. Idempotent.
   void start() {
     if (_started || _finished) return;
     _started = true;
     Logger.diagnostic('room: pre-live announce start');
     _packets = _transport.startListening().listen(
-      (_) {},
+      (_) => _noteHeard(),
       onError: (Object _) {},
     );
     _announce();
@@ -72,6 +97,7 @@ final class RoomPreLiveAnnouncer {
     _finished = true;
     _presence?.cancel();
     _presence = null;
+    unawaited(_heard.close());
     Logger.diagnostic('room: pre-live announce handed off');
   }
 
@@ -82,6 +108,7 @@ final class RoomPreLiveAnnouncer {
     _finished = true;
     _presence?.cancel();
     _presence = null;
+    unawaited(_heard.close());
     if (!_started) return;
     // Not awaited: an async* listener only honours a cancel at its next
     // yield, and nothing may be arriving. stopConnection() below is what

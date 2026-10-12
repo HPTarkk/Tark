@@ -39,6 +39,7 @@ final class SelectedRoomLiveSessionBinding {
     this.hotspotHost,
     this.hotspotLinkKeeper,
     this.localCapabilityReader,
+    this.prefersHotspotHost,
     RoomTransportIdentitySecureStore? identityStore,
     RoomMemberTransportIdentityCrypto? identityCrypto,
   }) : _identityStore =
@@ -55,6 +56,16 @@ final class SelectedRoomLiveSessionBinding {
   final HotspotLinkKeeper? hotspotLinkKeeper;
   final Future<TransportCapabilityAdvertisement?> Function()?
   localCapabilityReader;
+
+  /// Whether this phone should put itself forward to host the Room's hotspot
+  /// — in production, "it hosted the last time this Room went live".
+  ///
+  /// Advertised inside the signed capability evidence, so every member runs
+  /// the election on the same inputs and picks the same phone: the one the
+  /// group last rode on, then the fullest battery, then a stable tiebreak.
+  /// Each phone only ever speaks for itself here, which is what keeps two
+  /// phones with different histories from both deciding to host.
+  final Future<bool> Function(SavedRoom saved)? prefersHotspotHost;
   final RoomTransportIdentitySecureStore _identityStore;
   final RoomMemberTransportIdentityCrypto _identityCrypto;
 
@@ -203,7 +214,10 @@ final class SelectedRoomLiveSessionBinding {
           // A verified route proof settles it without anyone tapping anything.
           seats: RoomPendingSeatConfirmer(rooms: rooms, roomId: saved.room.id),
           readLocalCapability:
-              localCapabilityReader ?? TransportCapabilityReader.current,
+              localCapabilityReader ??
+              () async => TransportCapabilityReader.current(
+                prefersHotspotHost: await _prefersHosting(saved),
+              ),
           localProofProvider:
               ({required int token, required int challengeEpoch}) async {
                 final proof = await _identityCrypto.signProof(
@@ -272,6 +286,16 @@ final class SelectedRoomLiveSessionBinding {
     _failover = failover;
     _carrierPromotion = carrierPromotion;
     return runtime;
+  }
+
+  Future<bool> _prefersHosting(SavedRoom saved) async {
+    final prefers = prefersHotspotHost;
+    if (prefers == null) return false;
+    try {
+      return await prefers(saved);
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> close() async {

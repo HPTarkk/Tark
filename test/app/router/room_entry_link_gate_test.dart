@@ -14,6 +14,7 @@ import 'package:tark/core/l10n/app_localizations.dart';
 import 'package:tark/core/router/routes.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
 import 'package:tark/feature/room/domain/repository/room_repository.dart';
+import 'package:tark/feature/transfer/domain/entity/hotspot_credentials.dart';
 import 'package:tark/feature/transfer/domain/entity/live_link.dart';
 import 'package:tark/feature/transfer/domain/entity/session_role.dart';
 import 'package:tark/feature/transfer/domain/entity/transfer_mode.dart';
@@ -296,6 +297,37 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('Bluetooth create'), findsOneWidget);
   });
+
+  testWidgets('a home router is not taken for a hotspot left over from the '
+      'last ride', (tester) async {
+    // 2026-10-12: both phones restarted at home, still recorded as "hotspot",
+    // and connected over the router. Recorded that way the Room believed it
+    // owned the network and never moved onto a hotspot of its own. With no
+    // hotspot held or joined, the Wi-Fi is the router: Start records it as
+    // Wi-Fi so the carrier promotion can move the group.
+    final modeStore = await pumpEntry(
+      tester,
+      links: const LiveLinkSnapshot(
+        wifi: true,
+        hostingHotspot: false,
+        bluetooth: false,
+      ),
+      mode: TransferMode.hotspot,
+    );
+
+    await tester.ensureVisible(
+      find.byKey(const Key('selected-room-start-ride')),
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('selected-room-start-ride')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(modeStore.writes, contains(TransferMode.wifi));
+    expect(modeStore.mode, TransferMode.wifi);
+    // Let the short existing-link check finish so no timer outlives the test.
+    await tester.pump(const Duration(seconds: 5));
+  });
 }
 
 class _FakeTransfer implements TransferRepository {
@@ -317,6 +349,12 @@ class _FakeHotspotHost implements HotspotHost {
 }
 
 class _FakeKeeper implements HotspotLinkKeeper {
+  @override
+  HotspotCredentials? get credentials => null;
+
+  @override
+  HotspotLinkState get state => HotspotLinkState.idle;
+
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnimplementedError(invocation.memberName.toString());

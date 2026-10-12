@@ -110,6 +110,15 @@ class WifiTransferRepositoryImpl
   DateTime _targetsResolvedAt = DateTime.fromMillisecondsSinceEpoch(0);
   static const _targetsMaxAge = Duration(seconds: 10);
 
+  /// Re-resolve every second while this phone has no address at all: that is
+  /// a joiner between "joined" and its DHCP lease, and every second spent on
+  /// the dead pre-lease socket is a second of the readiness wait nobody can
+  /// hear. Once an address is known the ordinary pace applies.
+  static const _targetsMaxAgeWithoutAddress = Duration(seconds: 1);
+
+  Duration get _targetsAgeLimit =>
+      _localAddresses.isEmpty ? _targetsMaxAgeWithoutAddress : _targetsMaxAge;
+
   // Private /24 prefixes ("a.b.c") we sit on, used for the unicast discovery
   // sweep, and our own addresses, used to ignore our broadcast echo.
   List<String> _sweepSubnets = const [];
@@ -615,7 +624,7 @@ class WifiTransferRepositoryImpl
     // send happen inside this call rather than on a later microtask.
     if (_sendSocket != null &&
         _broadcastTargets.isNotEmpty &&
-        DateTime.now().difference(_targetsResolvedAt) <= _targetsMaxAge) {
+        DateTime.now().difference(_targetsResolvedAt) <= _targetsAgeLimit) {
       return Future.value(
         _sendPresenceNow(senderName, isTalking, isLeaving: isLeaving),
       );
@@ -1332,7 +1341,7 @@ class WifiTransferRepositoryImpl
     // without leaving and rejoining the channel.
     final now = DateTime.now();
     if (_broadcastTargets.isEmpty ||
-        now.difference(_targetsResolvedAt) > _targetsMaxAge) {
+        now.difference(_targetsResolvedAt) > _targetsAgeLimit) {
       await _resolveNetwork();
       _targetsResolvedAt = now;
     }
@@ -1391,6 +1400,8 @@ class WifiTransferRepositoryImpl
     // Audio skips this leg entirely while the unicasts already cover every
     // known peer, which after narrowing they always do — see
     // [needsBroadcastLeg] for the doubled-delivery this ends.
+    var broadcasts = 0;
+    var broadcastsBlocked = 0;
     if (needsBroadcastLeg(
       isAudio: isAudio,
       hasLivePeers: _peers.isNotEmpty,
@@ -1398,7 +1409,10 @@ class WifiTransferRepositoryImpl
       unicastUnconfirmed: _unicastUnconfirmed,
     )) {
       for (final target in _broadcastsFor(unicast)) {
-        _trySend(packet, target);
+        broadcasts++;
+        if (!_trySend(packet, target) && _lastSendWouldBlock) {
+          broadcastsBlocked++;
+        }
       }
     }
 
@@ -1408,7 +1422,21 @@ class WifiTransferRepositoryImpl
     }
 
     _packetsOut++;
-    _gradeSendPath(attempted: unicast.length, failed: failed, now: now);
+    if (unicast.isNotEmpty) {
+      _gradeSendPath(attempted: unicast.length, failed: failed, now: now);
+    } else {
+      // Nobody heard yet, so there is no unicast to grade by — which is
+      // exactly when a dead socket costs the most: discovery itself is mute,
+      // so nobody ever will be heard. Broadcasts are graded instead, but only
+      // on "would block" (the datagram never left), never on a thrown error:
+      // iOS throws EHOSTUNREACH for every broadcast as a matter of course,
+      // whereas a socket that accepts nothing at all is broken everywhere.
+      _gradeSendPath(
+        attempted: broadcasts,
+        failed: broadcastsBlocked,
+        now: now,
+      );
+    }
   }
 
   /// Which broadcast addresses this packet goes to, given where the peers are.
@@ -1980,15 +2008,21 @@ class WifiTransferRepositoryImpl
   // say; every other stage of the path can be observed, this one could not.
   /// Returns whether the datagram actually left the device, so the caller can
   /// tell one dead target apart from a dead socket (see [_gradeSendPath]).
+  /// Whether the last [_trySend] failed by the socket refusing the datagram
+  /// (a return of 0) rather than by a thrown error. See [_sendToAllTargets].
+  bool _lastSendWouldBlock = false;
+
   bool _trySend(List<int> packet, InternetAddress target) {
     // Read once into a local: a rebuild can null the field between targets in
     // the same loop, and a `!` here turned that into an exception per target
     // rather than a skipped packet.
+    _lastSendWouldBlock = false;
     final socket = _sendSocket;
     if (socket == null) return false;
     try {
       final sent = socket.send(packet, target, kBroadcastPort);
       if (sent == 0) {
+        _lastSendWouldBlock = true;
         _drops.blocked();
         if (_failingTargets.add(target.address) &&
             _mayLogTarget(target.address, DateTime.now())) {
@@ -2079,8 +2113,20 @@ class WifiTransferRepositoryImpl
       // leaves every send failing against a route that no longer exists,
       // silently, while the phone looks perfectly connected on the new one.
       // Dropping it here makes the next send build a fresh one.
-      if (_localAddresses.isNotEmpty && _sendSocket != null) {
-        Logger.diagnostic('wifi: network changed — rebuilding the send socket');
+      //
+      // Arriving from no address at all counts too. A joiner binds the moment
+      // Android reports the hotspot joined, which is before DHCP has handed it
+      // an address; a socket made then would-blocks every send for good, and
+      // with no peer heard yet the send-path grading has no unicast to notice
+      // it by. The 2026-10-12 logs show exactly that: the address arrived
+      // eleven seconds later, the socket was kept, and the phone sat mute for
+      // the rest of the attempt while the readiness gate timed out.
+      if (_sendSocket != null) {
+        Logger.diagnostic(
+          _localAddresses.isEmpty
+              ? 'wifi: first address arrived — rebuilding the send socket'
+              : 'wifi: network changed — rebuilding the send socket',
+        );
         _sendSocket?.close();
         _sendSocket = null;
       }

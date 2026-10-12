@@ -82,9 +82,29 @@ final class RoomConnectionReadinessResult {
 final class RoomConnectionReadinessGate {
   const RoomConnectionReadinessGate({
     this.timeout = const Duration(seconds: 12),
+    this.activityGrace = const Duration(seconds: 10),
+    this.activityCeiling = const Duration(seconds: 30),
   });
 
+  /// How long the wait lasts when nothing at all is heard from the others.
   final Duration timeout;
+
+  /// How long after the latest sign of another phone the wait keeps going.
+  ///
+  /// [timeout] answers "is anybody there?", which is quick to answer when
+  /// nobody is. Once somebody demonstrably is — their traffic is arriving on
+  /// this link — the question becomes "has the signed hello finished?", and
+  /// that takes as long as both ends' sockets take to settle. A fixed four
+  /// seconds gave up 0.4 s after first hearing the other phone, while that
+  /// phone finished the same exchange and went live three seconds later: two
+  /// phones in one Room, one in the call and one back at a scanner
+  /// (2026-10-12 logs). Traffic now buys the exchange time to finish.
+  final Duration activityGrace;
+
+  /// The most that heard traffic can add on top of [timeout]. A peer that is
+  /// audible but never completes the proof (a different build, a broken
+  /// identity) must still end in a failure the user can act on.
+  final Duration activityCeiling;
 
   Future<RoomConnectionReadinessResult> wait({
     required RoomSessionRuntime runtime,
@@ -93,12 +113,19 @@ final class RoomConnectionReadinessGate {
     required Set<RoomMemberId> expectedPeers,
     required int epoch,
     required int Function() currentEpoch,
+    Stream<void>? peerActivity,
+    Future<void>? abandoned,
   }) async {
     final completer = Completer<RoomConnectionReadinessResult>();
     final proofGenerationByMember = <RoomMemberId, int>{};
     StreamSubscription<RoomSession>? runtimeSubscription;
     StreamSubscription<RoomPeerProofEvidence>? proofSubscription;
+    StreamSubscription<void>? activitySubscription;
     Timer? timer;
+    final startedAt = DateTime.now();
+    var deadline = startedAt.add(timeout);
+    final ceiling = deadline.add(activityCeiling);
+    var activityTraced = false;
 
     final roomId = runtime.state.roomId;
     bool transportReady = _isTransportReady(runtime.state);
@@ -151,6 +178,7 @@ final class RoomConnectionReadinessGate {
       timer?.cancel();
       await runtimeSubscription?.cancel();
       await proofSubscription?.cancel();
+      await activitySubscription?.cancel();
     }
 
     void failStale() {
@@ -217,7 +245,7 @@ final class RoomConnectionReadinessGate {
       settleIfReady();
     }, onError: (Object _) {});
 
-    timer = Timer(timeout, () {
+    void onDeadline() {
       if (completer.isCompleted) return;
       if (currentEpoch() != epoch) {
         failStale();
@@ -244,7 +272,39 @@ final class RoomConnectionReadinessGate {
           ),
         ),
       );
-    });
+    }
+
+    timer = Timer(timeout, onDeadline);
+
+    activitySubscription = peerActivity?.listen((_) {
+      if (completer.isCompleted) return;
+      final now = DateTime.now();
+      var extended = now.add(activityGrace);
+      if (extended.isAfter(ceiling)) extended = ceiling;
+      if (!extended.isAfter(deadline)) return;
+      deadline = extended;
+      if (!activityTraced) {
+        activityTraced = true;
+        RoomConnectionTrace.stage(
+          roomId: roomId,
+          attempt: epoch,
+          stage: 'peer_heard',
+          attachmentGeneration: runtime.attachmentGeneration,
+        );
+      }
+      timer?.cancel();
+      timer = Timer(deadline.difference(now), onDeadline);
+    }, onError: (Object _) {});
+
+    // An attempt the caller has walked away from (a scan arrived, the user
+    // switched sides) ends now rather than whenever its next event or the
+    // deadline happens to land — which, for a passive listener, could be
+    // minutes of a subscription nobody is reading.
+    unawaited(
+      abandoned?.then<void>((_) {
+        if (!completer.isCompleted) failStale();
+      }),
+    );
 
     settleIfReady();
     return completer.future;

@@ -187,4 +187,157 @@ void main() {
     );
     await subject.leave();
   });
+
+  group('heard traffic', () {
+    // 2026-10-12: the existing-link check gave up 0.4 s after first hearing
+    // the other phone, which then went live on the same exchange three
+    // seconds later. Traffic on the link must buy the hello time to finish.
+    test('extends the wait so a slow signed hello still lands', () async {
+      final subject = runtime();
+      final proofs = StreamController<RoomPeerProofEvidence>.broadcast(
+        sync: true,
+      );
+      final heard = StreamController<void>.broadcast(sync: true);
+      final generation = await subject.attach(kind: TransportKind.hotspot);
+      subject.ready(generation: generation);
+      const epoch = 1;
+      final waiting =
+          const RoomConnectionReadinessGate(
+            timeout: Duration(milliseconds: 60),
+            activityGrace: Duration(milliseconds: 200),
+            activityCeiling: Duration(milliseconds: 400),
+          ).wait(
+            runtime: subject,
+            peerProofs: proofs.stream,
+            initialPeerProofs: const [],
+            expectedPeers: {peer},
+            epoch: epoch,
+            currentEpoch: () => epoch,
+            peerActivity: heard.stream,
+          );
+
+      await Future<void>.delayed(const Duration(milliseconds: 40));
+      heard.add(null);
+      // Past the bare timeout, inside the grace the traffic bought.
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+      proofs.add(
+        RoomPeerProofEvidence(memberId: peer, attachmentGeneration: generation),
+      );
+
+      final result = await waiting;
+      expect(result.isReady, isTrue);
+      await proofs.close();
+      await heard.close();
+      await subject.leave();
+    });
+
+    test('cannot keep an unanswered wait open past the ceiling', () async {
+      final subject = runtime();
+      final proofs = StreamController<RoomPeerProofEvidence>.broadcast(
+        sync: true,
+      );
+      final heard = StreamController<void>.broadcast(sync: true);
+      final generation = await subject.attach(kind: TransportKind.hotspot);
+      subject.ready(generation: generation);
+      const epoch = 1;
+      final started = DateTime.now();
+      final ticker = Timer.periodic(
+        const Duration(milliseconds: 20),
+        (_) => heard.add(null),
+      );
+      final result =
+          await const RoomConnectionReadinessGate(
+            timeout: Duration(milliseconds: 50),
+            activityGrace: Duration(milliseconds: 100),
+            activityCeiling: Duration(milliseconds: 150),
+          ).wait(
+            runtime: subject,
+            peerProofs: proofs.stream,
+            initialPeerProofs: const [],
+            expectedPeers: {peer},
+            epoch: epoch,
+            currentEpoch: () => epoch,
+            peerActivity: heard.stream,
+          );
+      ticker.cancel();
+
+      expect(result.isReady, isFalse);
+      expect(
+        result.failure,
+        RoomConnectionReadinessFailureStage.peerProofMissing,
+      );
+      final took = DateTime.now().difference(started);
+      expect(took, greaterThanOrEqualTo(const Duration(milliseconds: 190)));
+      expect(took, lessThan(const Duration(seconds: 2)));
+      await proofs.close();
+      await heard.close();
+      await subject.leave();
+    });
+
+    test('silence still fails at the bare timeout', () async {
+      final subject = runtime();
+      final proofs = StreamController<RoomPeerProofEvidence>.broadcast(
+        sync: true,
+      );
+      final heard = StreamController<void>.broadcast(sync: true);
+      final generation = await subject.attach(kind: TransportKind.hotspot);
+      subject.ready(generation: generation);
+      const epoch = 1;
+      final started = DateTime.now();
+      final result =
+          await const RoomConnectionReadinessGate(
+            timeout: Duration(milliseconds: 50),
+            activityGrace: Duration(seconds: 5),
+            activityCeiling: Duration(seconds: 5),
+          ).wait(
+            runtime: subject,
+            peerProofs: proofs.stream,
+            initialPeerProofs: const [],
+            expectedPeers: {peer},
+            epoch: epoch,
+            currentEpoch: () => epoch,
+            peerActivity: heard.stream,
+          );
+
+      expect(result.isReady, isFalse);
+      expect(
+        DateTime.now().difference(started),
+        lessThan(const Duration(seconds: 2)),
+      );
+      await proofs.close();
+      await heard.close();
+      await subject.leave();
+    });
+  });
+
+  test('an abandoned wait ends at once as stale', () async {
+    final subject = runtime();
+    final proofs = StreamController<RoomPeerProofEvidence>.broadcast(
+      sync: true,
+    );
+    final abandon = Completer<void>();
+    await subject.attach(kind: TransportKind.hotspot);
+    const epoch = 1;
+    final started = DateTime.now();
+    final waiting =
+        const RoomConnectionReadinessGate(timeout: Duration(minutes: 3)).wait(
+          runtime: subject,
+          peerProofs: proofs.stream,
+          initialPeerProofs: const [],
+          expectedPeers: {peer},
+          epoch: epoch,
+          currentEpoch: () => epoch,
+          abandoned: abandon.future,
+        );
+    abandon.complete();
+
+    final result = await waiting;
+    expect(result.failure, RoomConnectionReadinessFailureStage.staleEpoch);
+    expect(
+      DateTime.now().difference(started),
+      lessThan(const Duration(seconds: 2)),
+    );
+    await proofs.close();
+    await subject.leave();
+  });
 }

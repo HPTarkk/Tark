@@ -163,6 +163,10 @@ final class RoomCarrierPromotionController implements RoomCarrierStatusSource {
 
   int _generation = 0;
   int? _plannedGeneration;
+
+  /// Set once this phone has found it cannot host without losing the network
+  /// the announcement has to travel over. See [_raiseAndAnnounce].
+  bool _hostingUnsafe = false;
   String? _announcement;
   bool _disposed = false;
 
@@ -306,6 +310,7 @@ final class RoomCarrierPromotionController implements RoomCarrierStatusSource {
     // plan, and without this a slow radio could be asked to start a second
     // access point while the first call is still outstanding.
     if (_raising) return;
+    if (_hostingUnsafe && decision.localIsHost(localMemberId)) return;
 
     _plannedGeneration = decision.generation;
     _handoverSince = _clock();
@@ -373,6 +378,23 @@ final class RoomCarrierPromotionController implements RoomCarrierStatusSource {
     }
     _raising = true;
     try {
+      // The announcement travels over the borrowed network, so that network
+      // has to survive the access point coming up. On a phone that cannot run
+      // Wi-Fi and a hotspot at once, raising the AP drops its Wi-Fi first and
+      // the credentials never reach anyone: the group splits, which is the
+      // one outcome this controller exists to prevent. Such a phone stays
+      // put for the rest of the session — the borrowed network still works,
+      // and if it goes, the reactive failover takes over as before.
+      if (!await _canAnnounceWhileHosting()) {
+        Logger.diagnostic(
+          'carrier: elected host cannot keep Wi-Fi up while hosting — '
+          'staying on the shared network',
+        );
+        _hostingUnsafe = true;
+        _abandonHandover();
+        if (!_disposed) _publish(_settled(_durability));
+        return;
+      }
       final credentials = await hotspotHost.start();
       if (_disposed) return;
       final issuedAt = _clock().toUtc();
@@ -421,6 +443,16 @@ final class RoomCarrierPromotionController implements RoomCarrierStatusSource {
       if (!_disposed) _publish(_settled(_durability));
     } finally {
       _raising = false;
+    }
+  }
+
+  Future<bool> _canAnnounceWhileHosting() async {
+    try {
+      final advice = await hotspotHost.wifiAdvice();
+      return !advice.wifiEnabled || advice.concurrent;
+    } catch (_) {
+      // Unreadable: the old behaviour, which raised regardless.
+      return true;
     }
   }
 

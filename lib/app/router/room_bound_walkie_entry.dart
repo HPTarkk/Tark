@@ -108,6 +108,17 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   /// The pre-live Wi-Fi presence of the attempt in flight, if it has one.
   RoomPreLiveAnnouncer? _announcer;
 
+  /// Completed when every readiness wait in flight should stop at once —
+  /// the user switched sides, a scan arrived, the screen went away. Waits
+  /// otherwise only notice they are stale at their next event, and a quiet
+  /// listener may not get one for minutes.
+  Completer<void> _abandonWaits = Completer<void>();
+
+  void _abandonReadinessWaits() {
+    if (!_abandonWaits.isCompleted) _abandonWaits.complete();
+    _abandonWaits = Completer<void>();
+  }
+
   /// How long a phone showing its code waits for the other person to walk
   /// over, open the Room and scan it.
   static const _showCodeTimeout = Duration(minutes: 3);
@@ -145,6 +156,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         modeStore: GetIt.instance<TransferModeStore>(),
         hotspotHost: GetIt.instance<HotspotHost>(),
         hotspotLinkKeeper: GetIt.instance<HotspotLinkKeeper>(),
+        prefersHotspotHost: _prefersHostingFor,
       );
       _rooms = rooms;
       _transfer = transfer;
@@ -154,6 +166,21 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       Logger.log('Room-bound walkie entry could not compose: $e');
       return false;
     }
+  }
+
+  /// What this phone advertises as "I should host": it can keep Wi-Fi up
+  /// while hosting (so a move off a shared network can be announced over
+  /// that network), and it hosted this Room last time or nobody has yet.
+  /// Every phone answers only for itself, so all of them elect the same one.
+  Future<bool> _prefersHostingFor(SavedRoom saved) async {
+    final host = GetIt.instance.isRegistered<HotspotHost>()
+        ? GetIt.instance<HotspotHost>()
+        : null;
+    if (host == null) return false;
+    final advice = await host.wifiAdvice();
+    if (!advice.concurrent) return false;
+    final last = await _hotspotHistory.lastHost(saved.room.id);
+    return last == null || last == saved.membership.localMemberId;
   }
 
   void _composeLinkProbe() {
@@ -268,7 +295,21 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       );
       return false;
     }
-    final mode = link.modeFor(modeStore.mode);
+    var mode = link.modeFor(modeStore.mode);
+    if (link == LiveLink.wifi &&
+        mode == TransferMode.hotspot &&
+        !_onArrangedHotspot) {
+      // "Wi-Fi" carries a hotspot mode because a joined hotspot *is* Wi-Fi.
+      // But this phone is not on one Tarkk arranged: nothing is holding a
+      // joined hotspot, so the network is whatever router it is on — the
+      // mode is just left over from the last ride. Recorded as hotspot, the
+      // Room took the home router for a network it owns and never moved off
+      // it (2026-10-12: both phones "connected" at home with no hotspot).
+      // Recorded as Wi-Fi, the carrier promotion sees a borrowed network and
+      // moves the group onto a hotspot while the router can still carry the
+      // announcement.
+      mode = TransferMode.wifi;
+    }
     if (mode != modeStore.mode) {
       Logger.diagnostic(
         'room: readiness transport_mode=${modeStore.mode.key}->${mode.key}',
@@ -280,6 +321,24 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       }
     }
     return true;
+  }
+
+  /// Whether the Wi-Fi this phone is on is a hotspot a Tarkk hand-off
+  /// joined (or this phone's own), rather than some router it found itself on.
+  bool get _onArrangedHotspot {
+    final getIt = GetIt.instance;
+    try {
+      if (getIt.isRegistered<HotspotHost>() && getIt<HotspotHost>().isHosting) {
+        return true;
+      }
+      if (!getIt.isRegistered<HotspotLinkKeeper>()) return true;
+      final keeper = getIt<HotspotLinkKeeper>();
+      return keeper.credentials != null &&
+          keeper.state != HotspotLinkState.idle;
+    } catch (_) {
+      // Unreadable: leave the mode as it was, which is what this did before.
+      return true;
+    }
   }
 
   Future<_EntryState> _resolveInitialEntry() async {
@@ -758,12 +817,19 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     if (!mounted || token != _reconnectToken) return _EntryState.lobby(room);
     final wantsShow = showCode ?? electedHost == local;
     final show = wantsShow && canHost;
+    // Read before the screen goes up, so a phone with Wi-Fi off goes straight
+    // to the card asking for it. Setting the model first mounted the camera
+    // for one frame and tore it straight down again — and a camera closed
+    // while it is still opening is how Android ends up reporting it "in use".
+    final wifiOff = !show && !await _wifiOnForScan();
+    if (!mounted || token != _reconnectToken) return _EntryState.lobby(room);
     final peer = _peerFor(room, electedHost: electedHost);
     final peerName = _memberName(peer);
     Logger.diagnostic(
       'room: reconnect side=${show ? 'show' : 'scan'} '
       'elected=${wantsShow ? 'self' : 'peer'} canHost=$canHost',
     );
+    if (wifiOff) Logger.diagnostic('room: reconnect waiting for wifi');
     final s = context.getString;
     _setReconnect(
       room,
@@ -772,6 +838,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         peerName: peerName,
         phase: show ? RoomReconnectPhase.preparing : RoomReconnectPhase.waiting,
         canSwitch: show || canHost,
+        wifiOff: wifiOff,
         message:
             message ??
             (wantsShow && !canHost ? s.reconnect_cannot_host(peerName) : null),
@@ -824,17 +891,32 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   }
 
   Future<_EntryState> _reconnectScanning(SavedRoom room, int token) async {
+    // Switching from showing the code to scanning one: the hotspot this phone
+    // was holding up has to go, or it stays on the air beside the one being
+    // joined and the keeper keeps vouching for credentials nobody will use.
+    await _releaseOwnHotspot();
+    if (!mounted || token != _reconnectToken) return _EntryState.lobby(room);
     _roleStore?.setRole(SessionRole.joiner);
     // Joining the other phone's connection needs Wi-Fi on. Asked for before
     // the camera opens, not after a scan fails on it.
     if (!await _awaitWifiForScan(token)) return _EntryState.lobby(room);
+    _listenWhileScanning(room, token);
     while (true) {
       final waiter = Completer<HotspotCredentials?>();
       _scanWaiter = waiter;
       final credentials = await waiter.future;
+      final passive = _passiveLive;
+      if (mounted && token == _reconnectToken && passive != null) {
+        _passiveLive = null;
+        Logger.diagnostic('room: reconnect settled by the link already up');
+        return _leaveReconnect(passive);
+      }
       if (!mounted || token != _reconnectToken || credentials == null) {
         return _EntryState.lobby(room);
       }
+      // The code wins from here: whatever the passive listener was doing on
+      // the old network stops before this phone leaves it.
+      _stopListeningWhileScanning();
       var joined = await _joinScannedNetwork(credentials);
       if (!mounted || token != _reconnectToken) return _EntryState.lobby(room);
       if (joined == HotspotJoinResult.wifiOff) {
@@ -879,6 +961,54 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       showCode: false,
       message: context.getString.reconnect_join_failed,
     );
+  }
+
+  /// A live outcome the passive listener reached while the camera was up.
+  _EntryState? _passiveLive;
+  bool _passiveListening = false;
+
+  /// How long the scan side keeps listening on the link it already has.
+  static const _passiveListenWindow = Duration(minutes: 3);
+
+  /// Keeps listening on whatever link this phone still has while the camera
+  /// waits for a code.
+  ///
+  /// The scan side is where a phone lands after its own attempt gave up — but
+  /// "gave up" is only this phone's opinion. The other phone may be a second
+  /// away from finishing the same signed hello, still on the same hotspot,
+  /// and go live without anybody scanning anything (2026-10-12: one phone in
+  /// the call, the other at a camera, until the code was scanned from inside
+  /// the call). While this runs, a proof from any Room member on the current
+  /// link takes this phone straight into the call, camera and all abandoned.
+  void _listenWhileScanning(SavedRoom room, int token) {
+    if (_passiveListening) return;
+    _passiveListening = true;
+    unawaited(() async {
+      try {
+        final outcome = await _verifiedLiveAttempt(
+          room,
+          linkEstablished: true,
+          readinessTimeout: _passiveListenWindow,
+        );
+        if (!mounted || token != _reconnectToken || !outcome.live) return;
+        _passiveLive = outcome;
+        final waiter = _scanWaiter;
+        if (waiter != null && !waiter.isCompleted) waiter.complete(null);
+      } finally {
+        _passiveListening = false;
+      }
+    }());
+  }
+
+  void _stopListeningWhileScanning() {
+    if (!_passiveListening) return;
+    _readinessEpoch++;
+    _abandonReadinessWaits();
+    _announcer?.stop();
+    _announcer = null;
+    final epoch = _coordinator.state.epoch;
+    if (_coordinator.state.isActive) _coordinator.cancel(epoch: epoch);
+    unawaited(_binding?.close() ?? Future<void>.value());
   }
 
   Future<HotspotJoinResult> _joinScannedNetwork(
@@ -946,6 +1076,16 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   /// How often the Wi-Fi card looks at the radio while it waits for it.
   static const _wifiPoll = Duration(seconds: 1);
 
+  Future<bool> _wifiOnForScan() async {
+    final host = _hotspotHost;
+    if (host == null) return true;
+    try {
+      return (await host.wifiAdvice()).wifiEnabled;
+    } catch (_) {
+      return true;
+    }
+  }
+
   /// Holds the scan side on the "turn on Wi-Fi" card until the radio is on.
   ///
   /// Returns false when the attempt was abandoned meanwhile (back, switch,
@@ -954,7 +1094,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   Future<bool> _awaitWifiForScan(int token) async {
     final host = _hotspotHost;
     if (host == null) return true;
-    var shown = false;
+    var shown = _reconnectModel?.wifiOff ?? false;
     while (true) {
       if (!mounted || token != _reconnectToken) return false;
       bool on;
@@ -1049,6 +1189,8 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   void _abandonReconnectAttempt() {
     _reconnectToken++;
     _readinessEpoch++;
+    _abandonReadinessWaits();
+    _passiveLive = null;
     _handoffFallback = false;
     _handoffCodeTimer?.cancel();
     // The abandoned attempt may still be unwinding; a later Start must plan
@@ -1237,6 +1379,8 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         failure: _EntryFailure.transportPlanMismatch,
       );
     }
+    _abandonReadinessWaits();
+    final abandoned = _abandonWaits.future;
     final readinessEpoch = ++_readinessEpoch;
     _joinRoomChannel(room);
     RoomPreLiveAnnouncer? announcer;
@@ -1278,6 +1422,8 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
             expectedPeers: expectedPeers,
             epoch: readinessEpoch,
             currentEpoch: () => _readinessEpoch,
+            peerActivity: announcer?.heard,
+            abandoned: abandoned,
           );
       if (!readiness.isReady || readinessEpoch != _readinessEpoch) {
         final stage = readiness.failure?.name ?? 'peerProofMissing';
@@ -1796,6 +1942,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
 
   void _retryInitial() {
     _readinessEpoch++;
+    _abandonReadinessWaits();
     _reconnectToken++;
     _reconnectModel = null;
     _reconnectRoom = null;
@@ -1866,6 +2013,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   @override
   void dispose() {
     _readinessEpoch++;
+    if (!_abandonWaits.isCompleted) _abandonWaits.complete();
     _reconnectToken++;
     _inviteToken++;
     _inviteGrace?.cancel();
