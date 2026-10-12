@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../domain/entity/held_seat_name.dart';
 import '../../domain/entity/room.dart';
 import '../../domain/entity/room_accepted_join_snapshot.dart';
 import '../../domain/entity/room_invitation.dart';
@@ -17,7 +18,8 @@ import '../../domain/service/room_invitation_ledger.dart';
 /// index contains only durable RoomIds; transport handles, hotspot credentials,
 /// IP addresses and session state are never stored here.
 @LazySingleton(as: RoomRepository)
-class SharedPreferencesRoomRepository implements RoomRepository {
+class SharedPreferencesRoomRepository
+    implements RoomRepository, RoomVerifiedMemberAdmission {
   static const _indexKey = 'rooms.v1.index';
   static const _selectedKey = 'rooms.v1.selected';
   static const _roomPrefix = 'rooms.v1.room.';
@@ -92,6 +94,7 @@ class SharedPreferencesRoomRepository implements RoomRepository {
       membership: RoomMembership(
         localMemberId: memberId,
         canManageInvites: true,
+        ownsRoomKey: true,
       ),
     );
     final prefs = await _prefs();
@@ -277,6 +280,45 @@ class SharedPreferencesRoomRepository implements RoomRepository {
   }
 
   @override
+  Future<bool> admitVerifiedMember(
+    RoomId roomId,
+    RoomMemberId memberId, {
+    String? displayName,
+    required DateTime at,
+  }) async {
+    final current = await get(roomId);
+    if (current == null || !current.membership.active) return false;
+    final existing = current.room.members.where(
+      (member) => member.id == memberId,
+    );
+    if (existing.isNotEmpty) return existing.first.isActive;
+    if (current.room.activeMembers.length >=
+        RoomAcceptedJoinSnapshot.maxMembers) {
+      // A roster this phone could no longer hand on in an invite is full.
+      return false;
+    }
+    final name = displayName?.trim() ?? '';
+    final now = at.toUtc();
+    final next = current.copyWith(
+      room: current.room.copyWith(
+        members: [
+          ...current.room.members,
+          RoomMember(
+            id: memberId,
+            // Never empty — a nameless member makes the whole record unreadable.
+            // The placeholder is the one name a later signed name may replace.
+            displayName: name.isEmpty ? heldSeatNameFor(fa: false) : name,
+            joinedAt: now,
+          ),
+        ],
+        updatedAt: now,
+      ),
+    );
+    await _save(next);
+    return true;
+  }
+
+  @override
   Future<SavedRoom> removeMember(RoomId id, RoomMemberId memberId) async {
     final current = await _require(id);
     // The local membership is left through `leave`, which also tears down the
@@ -354,6 +396,9 @@ class SharedPreferencesRoomRepository implements RoomRepository {
         // Still never inferred from the act of joining — only from a grant the
         // host wrote into the code this phone scanned.
         canManageInvites: snapshot.grantsInviteManagement,
+        // A joiner never holds the Room root key, granted or not: its right
+        // to invite is a delegation signed by somebody who did.
+        ownsRoomKey: false,
       ),
     );
 
@@ -527,6 +572,11 @@ class SharedPreferencesRoomRepository implements RoomRepository {
           localMemberId: RoomMemberId(localIdRaw),
           canManageInvites: membershipRaw['canManageInvites'] as bool? ?? false,
           active: membershipRaw['active'] as bool? ?? true,
+          // Absent on every record written before invite delegation. Those
+          // keep their old meaning: an invite manager was a key holder.
+          ownsRoomKey: membershipRaw['ownsRoomKey'] is bool
+              ? membershipRaw['ownsRoomKey'] as bool
+              : null,
         ),
       );
     } catch (_) {
@@ -598,6 +648,7 @@ class SharedPreferencesRoomRepository implements RoomRepository {
           'localMemberId': saved.membership.localMemberId.value,
           'canManageInvites': saved.membership.canManageInvites,
           'active': saved.membership.active,
+          'ownsRoomKey': saved.membership.ownsRoomKey,
         },
       }),
     );

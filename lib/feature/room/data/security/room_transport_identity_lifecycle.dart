@@ -29,7 +29,13 @@ final class RoomTransportIdentityLifecycle {
       memberId: memberId,
     );
     if (existing != null) return existing;
-    if (!saved.membership.active || !saved.membership.canManageInvites) {
+    // Only the phone that holds the Room root key may mint one. A delegate
+    // with a right to invite but no identity would otherwise found a second,
+    // unrelated Room key and every member it then invited would be a stranger
+    // to everybody else.
+    if (!saved.membership.active ||
+        !saved.membership.canManageInvites ||
+        !saved.membership.ownsRoomKey) {
       throw StateError('Room transport identity is unavailable');
     }
 
@@ -71,26 +77,74 @@ final class RoomTransportIdentityLifecycle {
   Future<RoomMemberTransportKeyPair> createPendingMemberKeyPair() =>
       _crypto.generateKeyPair();
 
+  /// Signs the certificate an invite hands to [memberId].
+  ///
+  /// The Room key holder signs with the root key. A member who was granted the
+  /// right to invite signs with its own member key, carrying its own
+  /// certificate as the delegation link everybody else will walk back to the
+  /// root — so what this phone can hand out is bounded by what it was given.
+  /// [grantInvite] passes the right on, and is refused when this phone could
+  /// not itself pass it on.
   Future<RoomMemberTransportCertificate> issueMemberCertificate({
     required SavedRoom issuerRoom,
     required RoomMemberId memberId,
     required List<int> memberPublicKey,
+    bool grantInvite = false,
   }) async {
     if (!issuerRoom.membership.active ||
         !issuerRoom.membership.canManageInvites) {
       throw StateError('Local Room membership cannot issue certificates');
     }
-    final issuerMaterial = await ensureLocalIdentity(issuerRoom);
-    final issuer = issuerMaterial.issuerKeyPair;
-    if (issuer == null) {
+    final material = await ensureLocalIdentity(issuerRoom);
+    final issuer = material.issuerKeyPair;
+    if (issuer != null) {
+      return _crypto.issueCertificate(
+        roomId: issuerRoom.room.id,
+        memberId: memberId,
+        memberPublicKey: memberPublicKey,
+        issuer: issuer,
+        grantInvite: grantInvite,
+      );
+    }
+    final own = material.certificate;
+    if (!own.canIssue) {
       throw StateError('Room issuer key is unavailable');
+    }
+    // Re-checked here, not trusted from import: a chain that no longer walks
+    // back to this Room's key would only produce members nobody accepts.
+    if (!await _crypto.verifyCertificate(
+      certificate: own,
+      expectedIssuerPublicKey: own.rootIssuerPublicKey,
+    )) {
+      throw StateError('Room invite delegation does not verify');
     }
     return _crypto.issueCertificate(
       roomId: issuerRoom.room.id,
       memberId: memberId,
       memberPublicKey: memberPublicKey,
-      issuer: issuer,
+      issuer: material.memberKeyPair,
+      issuerCertificate: own,
+      grantInvite: grantInvite,
     );
+  }
+
+  /// Whether an invite from this phone may also carry the right to invite.
+  ///
+  /// Always for the Room key holder; for a delegate only while the chain has
+  /// room for one more generation that can itself invite. Answers false
+  /// rather than throwing when the identity cannot be read, which hides the
+  /// choice instead of offering one that would fail.
+  Future<bool> canGrantInvites(SavedRoom saved) async {
+    if (!saved.membership.active || !saved.membership.canManageInvites) {
+      return false;
+    }
+    try {
+      final material = await ensureLocalIdentity(saved);
+      if (material.issuerKeyPair != null) return true;
+      return material.certificate.canGrantOnward;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> persistJoinedIdentity({
@@ -106,9 +160,12 @@ final class RoomTransportIdentityLifecycle {
     if (!_sameBytes(certificate.memberPublicKey, memberKeyPair.publicKey)) {
       throw const FormatException('joined Room transport identity key');
     }
+    // The whole chain, back to the Room key the invite names: a delegated
+    // certificate whose issuer was never allowed to invite, or whose grant was
+    // tampered with, fails here and the join is rolled back.
     final verified = await _crypto.verifyCertificate(
       certificate: certificate,
-      expectedIssuerPublicKey: certificate.issuerPublicKey,
+      expectedIssuerPublicKey: certificate.rootIssuerPublicKey,
     );
     if (!verified) {
       throw const FormatException(

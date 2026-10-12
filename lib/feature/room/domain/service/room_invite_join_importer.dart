@@ -57,8 +57,16 @@ final class RoomInviteJoinImporter {
       throw const FormatException('secure Room join identity is incomplete');
     }
 
+    // The right to invite comes from the signed certificate and nothing else.
+    // The snapshot's own flag is unsigned — a code minted before grants were
+    // signed could set it with nothing behind it — so it is overwritten here,
+    // and [persistIdentity] below verifies the grant chain back to the Room
+    // key, rolling the whole join back if it does not hold. Without an
+    // identity to verify against there is no grant at all.
+    final granted =
+        persistIdentity != null && (certificate?.canInvite ?? false);
     final saved = await _repository.importAcceptedJoin(
-      grant.snapshot,
+      grant.snapshot.withInviteGrant(granted),
       localMemberId: grant.memberId,
     );
     try {

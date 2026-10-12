@@ -16,6 +16,7 @@ import 'room_failover_runtime.dart';
 import 'room_failover_transport_orchestrator.dart';
 import 'room_live_failover_transport_starter.dart';
 import 'room_member_transport_identity.dart';
+import 'room_member_transport_proof_binding_authority.dart';
 import 'room_pending_seat_confirmer.dart';
 import 'room_session_factory.dart';
 import 'room_session_runtime.dart';
@@ -190,7 +191,9 @@ final class SelectedRoomLiveSessionBinding {
         );
         final verified = RoomVerifiedTransportCapabilityRuntime(
           capability: capabilities,
-          expectedIssuerPublicKey: identityMaterial.certificate.issuerPublicKey,
+          expectedIssuerPublicKey:
+              identityMaterial.certificate.rootIssuerPublicKey,
+          admitVerifiedMember: _admitter(saved.room.id),
         );
         failover = _LiveFailoverSession(
           verified: verified,
@@ -239,7 +242,7 @@ final class SelectedRoomLiveSessionBinding {
           final promotion = RoomCarrierPromotionController(
             localMemberId: saved.membership.localMemberId,
             roomId: saved.room.id,
-            issuerPublicKey: identityMaterial.certificate.issuerPublicKey,
+            issuerPublicKey: identityMaterial.certificate.rootIssuerPublicKey,
             modeStore: modeStore,
             hotspotHost: host,
             hotspotLinkKeeper: keeper,
@@ -293,6 +296,31 @@ final class SelectedRoomLiveSessionBinding {
     await promotion?.dispose();
     await failover?.dispose();
     if (current != null && !current.hasLeft) await current.leave();
+  }
+
+  /// How a verified stranger becomes a member here.
+  ///
+  /// Somebody invited by another member — or by the host after this phone
+  /// joined — is on nobody's roster but the inviter's: the joining phone never
+  /// talks back, and there is no other channel. Their route proof is the one
+  /// announcement that does reach everyone, and by the time this runs its
+  /// certificate has verified all the way back to the Room key, through
+  /// members who were each granted the right to invite. That is the same check
+  /// the joining phone ran before it saved the Room at all.
+  RoomVerifiedMemberAdmitter? _admitter(RoomId roomId) {
+    final admission = rooms is RoomVerifiedMemberAdmission
+        ? rooms as RoomVerifiedMemberAdmission
+        : null;
+    if (admission == null) return null;
+    return (certificate, verifiedName) {
+      if (certificate.roomId != roomId) return Future.value(false);
+      return admission.admitVerifiedMember(
+        roomId,
+        certificate.memberId,
+        displayName: verifiedName,
+        at: DateTime.now(),
+      );
+    };
   }
 
   /// What this phone calls itself in [saved], or empty when it has no name of

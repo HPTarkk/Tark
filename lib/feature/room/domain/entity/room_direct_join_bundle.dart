@@ -14,10 +14,11 @@ import '../service/room_member_transport_identity.dart';
 ///
 /// ## Wire format
 ///
-/// `tark-room:` followed by unpadded base64url. Versions 2 and 3 pack a
-/// compact binary record; version 1 packed a JSON envelope. All three are
-/// still read so a code minted by an older build keeps working. Only v3 is
-/// ever written.
+/// `tark-room:` followed by unpadded base64url. Versions 2, 3 and 4 pack a
+/// compact binary record; version 1 packed a JSON envelope. All four are
+/// still read so a code minted by an older build keeps working. Only v3 (an
+/// invite that grants nothing) and v4 (one that carries a signed invite right
+/// or delegation chain) are ever written.
 ///
 /// ### Why v1 was replaced
 ///
@@ -84,6 +85,34 @@ import '../service/room_member_transport_identity.dart';
 /// as an unknown kind and, worse, the extra varint would desynchronise every
 /// field after it. A version byte is exactly what this format has for that.
 ///
+/// ### What v4 adds
+///
+/// The right to invite other people, *signed* (ITEM 10). v2/v3 carried it as
+/// flag bit 0 and nothing else, which any byte editor could flip; and a joiner
+/// it was granted to still could not invite, because the right was never
+/// backed by a key. v4 carries the certificate's invite grant signature and,
+/// for a member invited by another member rather than by the Room's creator,
+/// the delegation chain that proves the inviter was allowed to:
+///
+/// | bytes | field |
+/// | ---: | :--- |
+/// | 1 | version (`4`) |
+/// | 1 | flags — bit 0 an invite grant follows, bit 1 a chain follows |
+/// | 16, 12, 32, 32 | room id, member id, member private key, public key |
+/// | 32 | the Room *root* key (the leaf issuer when there is no chain) |
+/// | 64 | issuer signature over the certificate |
+/// | 64 | invite grant signature (bit 0 only) |
+/// | 1 + 172 each | chain links (bit 1 only), see the certificate's own v2 |
+/// | … | then exactly v3, from the expiry onwards |
+///
+/// Bit 0 is not trusted on its own: it says a grant *follows*, and whether
+/// that grant is genuine is decided by verifying it against the Room key
+/// before anything is saved. Unknown flag bits are refused, unlike v3.
+///
+/// v4 is written only when there is a grant or a chain to carry. An invite
+/// that grants nothing still goes out as v3, byte for byte, so every older
+/// build can keep scanning it.
+///
 /// The certificate's own room and member ids are not written: [encode] already
 /// refuses a bundle whose certificate disagrees with the envelope, so a second
 /// copy could only ever be redundant or a contradiction. Same for the
@@ -97,8 +126,13 @@ final class RoomDirectJoinBundle {
     required this.expiresAt,
   });
 
-  /// The layout this build writes.
+  /// The layout this build writes for an invite that grants nothing — the
+  /// same one the previous build wrote, so it can still scan it.
   static const currentVersion = 3;
+
+  /// The layout this build writes when the certificate carries a signed
+  /// invite grant or a delegation chain.
+  static const delegatedVersion = 4;
 
   /// The first binary layout. Read, never written: it cannot say that a seat
   /// is held, so a code minted by that build arrives with the host's open
@@ -140,7 +174,7 @@ final class RoomDirectJoinBundle {
 
   String encode() {
     _assertConsistent();
-    final encoded = base64Url.encode(_writeV3(this)).replaceAll('=', '');
+    final encoded = base64Url.encode(_writeBinary(this)).replaceAll('=', '');
     if (encoded.length > maxEncodedLength) {
       throw const FormatException('direct Room join QR too large');
     }
@@ -170,6 +204,11 @@ final class RoomDirectJoinBundle {
       // v1 is JSON, so its first byte is always `{`. No binary layout can be
       // confused for it, or for another, by that leading byte.
       final bundle = switch (bytes.isEmpty ? -1 : bytes.first) {
+        delegatedVersion => _readBinary(
+          Uint8List.fromList(bytes),
+          seats: true,
+          delegated: true,
+        ),
         currentVersion => _readBinary(Uint8List.fromList(bytes), seats: true),
         binaryVersionWithoutSeats => _readBinary(
           Uint8List.fromList(bytes),
@@ -209,6 +248,9 @@ final class RoomDirectJoinBundle {
 
 const _flagGrantsInviteManagement = 0x01;
 
+/// v4 only: a delegation chain follows the grant.
+const _flagDelegationChain = 0x02;
+
 /// The member byte: kind in the low nibble, seat facts above it.
 const _memberKindMask = 0x0F;
 const _memberFlagPending = 0x10;
@@ -232,17 +274,53 @@ const _maxVarintValue = 0x1FFFFFFFFFFFF;
 /// every character costs four bytes.
 const _maxTextBytes = 512;
 
-Uint8List _writeV3(RoomDirectJoinBundle bundle) {
+/// Writes v3, or v4 when the certificate has a grant or a chain to carry.
+Uint8List _writeBinary(RoomDirectJoinBundle bundle) {
   final snapshot = bundle.snapshot;
-  final out = _ByteWriter()
-    ..u8(RoomDirectJoinBundle.currentVersion)
-    ..u8(snapshot.grantsInviteManagement ? _flagGrantsInviteManagement : 0)
+  final certificate = bundle.certificate;
+  final grant = certificate.inviteGrant;
+  final chain = certificate.issuerChain;
+  final delegated = grant != null || chain.isNotEmpty;
+  final out = _ByteWriter();
+  if (delegated) {
+    // The unsigned roster flag must say what the signed certificate says. A
+    // bundle that disagrees with itself is refused rather than written.
+    if (snapshot.grantsInviteManagement != (grant != null)) {
+      throw const FormatException('direct Room join grant mismatch');
+    }
+    out
+      ..u8(RoomDirectJoinBundle.delegatedVersion)
+      ..u8(
+        (grant != null ? _flagGrantsInviteManagement : 0) |
+            (chain.isNotEmpty ? _flagDelegationChain : 0),
+      );
+  } else {
+    out
+      ..u8(RoomDirectJoinBundle.currentVersion)
+      ..u8(snapshot.grantsInviteManagement ? _flagGrantsInviteManagement : 0);
+  }
+  out
     ..hex(snapshot.roomId.value, _roomIdBytes)
     ..hex(bundle.memberId.value, _memberIdBytes)
     ..fixed(bundle.memberKeyPair.privateKey, _keyBytes)
     ..fixed(bundle.memberKeyPair.publicKey, _keyBytes)
-    ..fixed(bundle.certificate.issuerPublicKey, _keyBytes)
-    ..fixed(bundle.certificate.issuerSignature, _signatureBytes)
+    ..fixed(certificate.rootIssuerPublicKey, _keyBytes)
+    ..fixed(certificate.issuerSignature, _signatureBytes);
+  if (grant != null) out.fixed(grant, _signatureBytes);
+  if (chain.isNotEmpty) {
+    if (chain.length > RoomMemberTransportCertificate.maxIssuerChain) {
+      throw const FormatException('direct Room join chain length');
+    }
+    out.u8(chain.length);
+    for (final link in chain) {
+      out
+        ..hex(link.memberId.value, _memberIdBytes)
+        ..fixed(link.memberPublicKey, _keyBytes)
+        ..fixed(link.issuerSignature, _signatureBytes)
+        ..fixed(link.inviteGrant, _signatureBytes);
+    }
+  }
+  out
     ..timestamp(bundle.expiresAt)
     ..timestamp(snapshot.roomCreatedAt)
     ..timestamp(snapshot.roomUpdatedAt)
@@ -266,28 +344,67 @@ Uint8List _writeV3(RoomDirectJoinBundle bundle) {
   return out.take();
 }
 
-/// Reads either binary layout.
+/// Reads every binary layout.
 ///
 /// [seats] says whether the member flags exist, which is the only thing v3
-/// added. Sharing the reader rather than copying it keeps the two from
-/// drifting: everything before the roster is byte-identical, and a bug fixed
-/// in one would otherwise have to be remembered in the other.
-RoomDirectJoinBundle _readBinary(Uint8List bytes, {required bool seats}) {
+/// added; [delegated] says whether the v4 certificate extension does. Sharing
+/// the reader rather than copying it keeps them from drifting: everything
+/// else is byte-identical, and a bug fixed in one would otherwise have to be
+/// remembered in the others.
+RoomDirectJoinBundle _readBinary(
+  Uint8List bytes, {
+  required bool seats,
+  bool delegated = false,
+}) {
   final input = _ByteReader(bytes);
   input.u8(); // Version, already matched by the caller.
   final flags = input.u8();
+  if (delegated &&
+      flags & ~(_flagGrantsInviteManagement | _flagDelegationChain) != 0) {
+    throw const FormatException('direct Room join flags');
+  }
   final roomId = RoomId(input.hex(_roomIdBytes));
   final memberId = RoomMemberId(input.hex(_memberIdBytes));
   final keyPair = RoomMemberTransportKeyPair(
     privateKey: input.fixed(_keyBytes),
     publicKey: input.fixed(_keyBytes),
   );
+  final rootKey = input.fixed(_keyBytes);
+  final signature = input.fixed(_signatureBytes);
+  final grant = delegated && flags & _flagGrantsInviteManagement != 0
+      ? input.fixed(_signatureBytes)
+      : null;
+  final chain = <RoomInviteDelegation>[];
+  if (delegated && flags & _flagDelegationChain != 0) {
+    final links = input.u8();
+    if (links < 1 || links > RoomMemberTransportCertificate.maxIssuerChain) {
+      throw const FormatException('direct Room join chain length');
+    }
+    for (var index = 0; index < links; index += 1) {
+      chain.add(
+        RoomInviteDelegation(
+          memberId: RoomMemberId(input.hex(_memberIdBytes)),
+          memberPublicKey: input.fixed(_keyBytes),
+          issuerSignature: input.fixed(_signatureBytes),
+          inviteGrant: input.fixed(_signatureBytes),
+        ),
+      );
+    }
+  }
+  if (delegated && grant == null && chain.isEmpty) {
+    // v4 exists only to carry one of the two. A record claiming neither is not
+    // something this build writes.
+    throw const FormatException('direct Room join empty delegation');
+  }
   final certificate = RoomMemberTransportCertificate(
     roomId: roomId,
     memberId: memberId,
     memberPublicKey: keyPair.publicKey,
-    issuerPublicKey: input.fixed(_keyBytes),
-    issuerSignature: input.fixed(_signatureBytes),
+    issuerPublicKey: chain.isEmpty ? rootKey : chain.last.memberPublicKey,
+    issuerSignature: signature,
+    inviteGrant: grant,
+    issuerChain: List.unmodifiable(chain),
+    chainRootPublicKey: chain.isEmpty ? null : rootKey,
   );
   final expiresAt = input.timestamp();
   final roomCreatedAt = input.timestamp();
@@ -311,6 +428,10 @@ RoomDirectJoinBundle _readBinary(Uint8List bytes, {required bool seats}) {
       roomCreatedAt: roomCreatedAt,
       roomUpdatedAt: roomUpdatedAt,
       members: members,
+      // v2/v3 carried this unsigned; it is read for what it says and
+      // decided by nothing. The importer takes the right from the
+      // certificate alone. In v4 it is the grant's presence, which the
+      // certificate check then verifies.
       grantsInviteManagement: flags & _flagGrantsInviteManagement != 0,
     ),
     memberKeyPair: keyPair,

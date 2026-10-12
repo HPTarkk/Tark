@@ -157,17 +157,36 @@ final class RoomMembership {
     required this.localMemberId,
     required this.canManageInvites,
     this.active = true,
-  });
+    bool? ownsRoomKey,
+  }) : ownsRoomKey = ownsRoomKey ?? canManageInvites;
 
   final RoomMemberId localMemberId;
+
+  /// Whether this phone may invite people into the Room.
+  ///
+  /// True for the phone that created the Room, and for a joiner only when the
+  /// certificate it scanned carried an invite grant that verified against the
+  /// Room key. It is a *local* convenience for the UI — every other phone
+  /// re-verifies the signed grant chain before trusting anyone this phone
+  /// invites, so flipping it in storage buys nothing.
   final bool canManageInvites;
   final bool active;
+
+  /// Whether this phone holds the Room's root signing key (it created the
+  /// Room), as opposed to a delegated right to invite.
+  ///
+  /// Only the root holder may mint a fresh Room key when its secure identity
+  /// is missing; a delegate that did so would silently found a second, foreign
+  /// Room. Records written before invite delegation existed carry no such
+  /// field and default to [canManageInvites], which is exactly what they did.
+  final bool ownsRoomKey;
 
   RoomMembership copyWith({bool? canManageInvites, bool? active}) =>
       RoomMembership(
         localMemberId: localMemberId,
         canManageInvites: canManageInvites ?? this.canManageInvites,
         active: active ?? this.active,
+        ownsRoomKey: ownsRoomKey,
       );
 }
 
