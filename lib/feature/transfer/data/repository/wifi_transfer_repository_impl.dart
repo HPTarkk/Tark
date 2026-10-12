@@ -695,6 +695,10 @@ class WifiTransferRepositoryImpl
     // after a bind) so an isolated drop doesn't inherit a long stale delay.
     final backoff = ExponentialBackoff();
 
+    // The first bind of a session is the session starting; every later one in
+    // this loop is the session repairing itself. See the health below.
+    var rebinding = false;
+
     while (_generation == myGen) {
       try {
         _receiveSocket?.close();
@@ -738,7 +742,21 @@ class WifiTransferRepositoryImpl
         // on the rebind" indistinguishable in the log.
         _seenSenderRoutes.clear();
         _failingTargets.clear();
-        _setHealth(const ConnectionHealth.healthy());
+        // A bind is not a recovery. Once this session has heard somebody, the
+        // only thing that proves the link is back is that somebody again —
+        // reporting "healthy" on the bind alone is what made the channel's
+        // status bar cycle "reconnecting" → "Connected" → gone every twenty
+        // seconds while the other phone was not there at all (2026-10-12,
+        // home Wi-Fi: one rebind per liveness timeout, each one celebrated).
+        // The first datagram from a peer reports it instead; see
+        // [_rememberPeer].
+        if (!rebinding || _lastPeerAt == null) {
+          _awaitingPeerTraffic = false;
+          _setHealth(const ConnectionHealth.healthy());
+        } else {
+          _awaitingPeerTraffic = true;
+        }
+        rebinding = true;
         _lastPacketAt = DateTime.now();
         // Consumed here as well as in the backoff block below: a rebind asked
         // for while the loop was already sleeping between attempts gets served
@@ -1094,8 +1112,20 @@ class WifiTransferRepositoryImpl
       if (lastPeer == null) return;
       final now = DateTime.now();
       // …and stops once they've been gone long enough to be gone rather than
-      // unreachable, so a solo channel doesn't rebind forever.
-      if (now.difference(lastPeer) > _watchdogGrace) return;
+      // unreachable, so a solo channel doesn't rebind forever. The recovery
+      // ends with it, quietly: a phone left alone is not reconnecting to
+      // anything, and "degraded" is the rung the status bar does not show.
+      if (now.difference(lastPeer) > _watchdogGrace) {
+        if (_awaitingPeerTraffic) {
+          _awaitingPeerTraffic = false;
+          Logger.diagnostic(
+            'wifi: nobody heard for ${_watchdogGrace.inMinutes} min — '
+            'standing the recovery down',
+          );
+          _setHealth(const ConnectionHealth.degraded());
+        }
+        return;
+      }
       if (now.difference(_lastPacketAt) > _livenessTimeout) {
         Logger.diagnostic(
           'wifi: liveness timeout (gen $myGen) — forcing rebind',
@@ -1219,6 +1249,7 @@ class WifiTransferRepositoryImpl
     // A new session starts with no history of having heard anyone, so the
     // watchdog stays quiet until this one has a peer of its own.
     _lastPeerAt = null;
+    _awaitingPeerTraffic = false;
     // …and on the bottom rung of the recovery ladder, so its first hiccup is
     // repaired quietly rather than inheriting the escalation of the session
     // that just ended.
@@ -1969,7 +2000,16 @@ class WifiTransferRepositoryImpl
     _peers[address] = now;
     _recoveryPeers[address] = now;
     _lastPeerAt = now;
+    if (_awaitingPeerTraffic) {
+      _awaitingPeerTraffic = false;
+      _setHealth(const ConnectionHealth.healthy());
+    }
   }
+
+  /// Set by a rebind after this session has already heard a peer, and cleared
+  /// by the first datagram from one. While it is set the link is still being
+  /// recovered, whatever the socket says.
+  bool _awaitingPeerTraffic = false;
 
   /// Minimum spacing between transition lines for one target.
   ///

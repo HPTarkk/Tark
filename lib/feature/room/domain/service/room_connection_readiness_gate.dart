@@ -17,6 +17,7 @@ final class RoomPeerProofEvidence {
     required this.memberId,
     required this.attachmentGeneration,
     this.transportSenderId,
+    this.carrierRoute,
   });
 
   final RoomMemberId memberId;
@@ -30,6 +31,12 @@ final class RoomPeerProofEvidence {
   /// transport cannot safely provide that projection and therefore fails closed
   /// for speaking UI without affecting readiness.
   final String? transportSenderId;
+
+  /// The opaque carrier route this proof arrived on (on Wi-Fi, the source
+  /// address). Never identity, like [transportSenderId]: it exists so a move
+  /// between networks can be confirmed by the member *proving* itself on the
+  /// new one, rather than by the move merely having been asked for.
+  final String? carrierRoute;
 }
 
 /// Safe, credential-free failure stages for pre-live diagnostics.

@@ -3243,4 +3243,102 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get linkprep_code_detail => 'داریم کد دعوت رو امضا می‌کنیم.';
+
+  @override
+  String carriermove_found_title(String name) {
+    return '$name رو روی همین وای‌فای پیدا کردیم';
+  }
+
+  @override
+  String get carriermove_found_detail =>
+      'گوشی‌هاتون از طریق مودم صدای هم رو می‌شنون. قبل از حرکت، می‌بریمتون روی اتصال خودتون.';
+
+  @override
+  String get carriermove_electing_title =>
+      'داریم انتخاب می‌کنیم کدوم گوشی میزبان باشه';
+
+  @override
+  String get carriermove_electing_detail =>
+      'هر دو گوشی یکی رو انتخاب می‌کنن: اونی که قبلاً میزبان بوده، بعد اونی که باتری بیشتری داره.';
+
+  @override
+  String get carriermove_preparing_host_title =>
+      'داریم وای‌فای خود این گوشی رو روشن می‌کنیم';
+
+  @override
+  String carriermove_preparing_joiner_title(String name) {
+    return 'گوشی $name داره وای‌فای خودش رو روشن می‌کنه';
+  }
+
+  @override
+  String get carriermove_preparing_detail =>
+      'وقتی راه بیفتید مودم جا می‌مونه، برای همین گوشی‌هاتون بهش تکیه نمی‌کنن.';
+
+  @override
+  String carriermove_moving_host_title(String name) {
+    return 'منتظریم $name وصل بشه';
+  }
+
+  @override
+  String get carriermove_moving_host_detail =>
+      'ممکنه گوشیش بپرسه وصل بشه یا نه؛ باید «اتصال» رو بزنه.';
+
+  @override
+  String carriermove_moving_joiner_title(String name) {
+    return 'داریم به گوشی $name وصل می‌شیم';
+  }
+
+  @override
+  String get carriermove_moving_joiner_detail =>
+      'اگه گوشیت پرسید وصل بشه یا نه، «اتصال» رو بزن.';
+
+  @override
+  String get carriermove_verifying_title =>
+      'داریم اتصال جدید رو امتحان می‌کنیم';
+
+  @override
+  String get carriermove_verifying_detail =>
+      'مطمئن می‌شیم پایداره، بعد کانال باز می‌شه.';
+
+  @override
+  String get carriermove_established_title => 'مستقیم وصل شدید';
+
+  @override
+  String get carriermove_established_detail => 'دیگه به مودم نیازی ندارید.';
+
+  @override
+  String get carriermove_step_found => 'پیدا شد';
+
+  @override
+  String get carriermove_step_electing => 'میزبان';
+
+  @override
+  String get carriermove_step_preparing => 'هات‌اسپات';
+
+  @override
+  String get carriermove_step_moving => 'انتقال';
+
+  @override
+  String get carriermove_step_verifying => 'بررسی';
+
+  @override
+  String get carriermove_step_established => 'آماده';
+
+  @override
+  String get carriermove_stay => 'به‌جاش روی همین وای‌فای بمون';
+
+  @override
+  String carriermove_guided_show(String name) {
+    return 'خودکار منتقل نشد. بذار $name این کد رو اسکن کنه.';
+  }
+
+  @override
+  String carriermove_guided_scan(String name) {
+    return 'خودکار منتقل نشد. کد روی گوشی $name رو اسکن کن.';
+  }
+
+  @override
+  String carriermove_guided_declined(String name) {
+    return 'درخواست اتصال بسته شد. برای وصل شدن، کد روی گوشی $name رو اسکن کن.';
+  }
 }

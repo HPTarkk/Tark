@@ -3,6 +3,7 @@ import 'dart:async';
 import '../../../../core/utils/logger.dart';
 import '../../../transfer/domain/entity/carrier_handover_observation.dart';
 import '../../../transfer/domain/entity/hotspot_credentials.dart';
+import '../../../transfer/domain/entity/session_role.dart';
 import '../../../transfer/domain/entity/transfer_mode.dart';
 import '../../../transfer/domain/repository/carrier_handover_exchange.dart';
 import '../../../transfer/domain/service/hotspot_control.dart';
@@ -33,6 +34,31 @@ enum RoomCarrierStage {
   moving,
 }
 
+/// Why a decided move did not happen. Carried on the settled status that
+/// ends it, so whoever is watching can say what went wrong instead of only
+/// noticing that the spinner stopped.
+enum RoomCarrierMoveFailure {
+  /// This phone was elected but could not bring its access point up.
+  raiseFailed,
+
+  /// This phone was elected but holds no signing identity to announce with.
+  noIdentity,
+
+  /// The announcement arrived, but Android would not join the host's network
+  /// (the system prompt was dismissed, or the network never appeared).
+  joinDeclined,
+
+  /// The announcement arrived, but this phone's Wi-Fi is off.
+  wifiOff,
+
+  /// The announcement arrived, but Location is off, which stops the join.
+  locationOff,
+
+  /// Nothing came of the decision within [RoomCarrierPromotionController
+  /// .handoverDeadline].
+  timedOut,
+}
+
 /// A live view of the carrier, for the UI to explain without using the word
 /// "network".
 final class RoomCarrierStatus {
@@ -42,6 +68,7 @@ final class RoomCarrierStatus {
     required this.generation,
     this.hostMemberId,
     this.localIsHost = false,
+    this.failure,
   });
 
   final RoomCarrierStage stage;
@@ -49,6 +76,9 @@ final class RoomCarrierStatus {
   final int generation;
   final RoomMemberId? hostMemberId;
   final bool localIsHost;
+
+  /// Set only on the settled status that ends a move which did not happen.
+  final RoomCarrierMoveFailure? failure;
 
   /// Whether the group is currently being moved. The one state worth saying
   /// out loud, because the host's phone is about to leave the internet.
@@ -70,6 +100,36 @@ abstract interface class RoomCarrierStatusSource {
   RoomCarrierStatus get status;
 
   Stream<RoomCarrierStatus> get statusChanges;
+}
+
+/// The half of [RoomCarrierPromotionController] a pre-channel move drives.
+/// Split out so that whole state machine can run in a test without a radio.
+abstract interface class RoomCarrierMover implements RoomCarrierStatusSource {
+  Future<RoomCarrierPromotionStart> promoteNow();
+
+  void standDown();
+}
+
+/// What [RoomCarrierPromotionController.promoteNow] found it could do.
+enum RoomCarrierPromotionStart {
+  /// A move was decided and this phone is raising the access point.
+  hosting,
+
+  /// A move was decided and this phone is waiting for the elected host.
+  following,
+
+  /// A move is already under way — usually because the other phone decided
+  /// first and its announcement has already arrived.
+  alreadyMoving,
+
+  /// The Room is already on a network one of its members owns.
+  notNeeded,
+
+  /// Nobody present can raise an access point. Staying is the right answer.
+  noEligibleHost,
+
+  /// The other members' capabilities never arrived, so no election could run.
+  noPeers,
 }
 
 /// Moves a Room off a borrowed network *before* the network is gone.
@@ -99,7 +159,7 @@ abstract interface class RoomCarrierStatusSource {
 /// a borrowed network that works beats moving to no network at all. And it
 /// makes exactly one attempt per generation: a controller that retried on
 /// every capability heartbeat would restart the handover continuously.
-final class RoomCarrierPromotionController implements RoomCarrierStatusSource {
+final class RoomCarrierPromotionController implements RoomCarrierMover {
   RoomCarrierPromotionController({
     required this.localMemberId,
     required this.roomId,
@@ -110,6 +170,8 @@ final class RoomCarrierPromotionController implements RoomCarrierStatusSource {
     required this.handoverExchange,
     required this.candidates,
     this.identity,
+    this.followHost,
+    this.setSessionRole,
     RoomMemberTransportIdentityCrypto? crypto,
     DateTime Function()? clock,
   }) : _crypto = crypto ?? RoomMemberTransportIdentityCrypto(),
@@ -135,6 +197,22 @@ final class RoomCarrierPromotionController implements RoomCarrierStatusSource {
   /// This device's own signing material. Null on a device that has none, which
   /// simply means it can never be elected host — it still follows.
   final RoomTransportIdentityMaterial? identity;
+
+  /// Joins the elected host's access point and moves this phone's sockets onto
+  /// it, returning how the join ended.
+  ///
+  /// The follower half used to stop at *remembering* the credentials and
+  /// writing "hotspot" down as the mode: nothing ever asked Android to join
+  /// the network, so the move was only ever on paper, and the link keeper —
+  /// which only rejoins a network it has *lost* — had nothing to lose. Null
+  /// keeps that old behaviour for compositions without a radio.
+  final Future<HotspotJoinResult> Function(HotspotCredentials credentials)?
+  followHost;
+
+  /// Records which side of the hotspot this phone is now on, so the link
+  /// keeper watches the right half (an AP that stops, or a network that is
+  /// lost) after the move.
+  final void Function(SessionRole role)? setSessionRole;
 
   final RoomMemberTransportIdentityCrypto _crypto;
   final DateTime Function() _clock;
@@ -169,6 +247,19 @@ final class RoomCarrierPromotionController implements RoomCarrierStatusSource {
   bool _hostingUnsafe = false;
   String? _announcement;
   bool _disposed = false;
+
+  /// Set by [promoteNow]: the Room is being moved before its channel opens,
+  /// so the settle window does not apply and the phones move at once.
+  bool _eager = false;
+
+  /// Set by [standDown]: this session stays on the network it has.
+  bool _stoodDown = false;
+
+  /// Whether [followHost] is still running. A join takes seconds — Android
+  /// may be showing its own prompt — and the mode only changes once it
+  /// lands, so without this a tick in between saw a borrowed network with a
+  /// peer on it and decided to move the Room a second time.
+  bool _following = false;
 
   RoomCarrierStatus _status = const RoomCarrierStatus(
     stage: RoomCarrierStage.settled,
@@ -247,7 +338,18 @@ final class RoomCarrierPromotionController implements RoomCarrierStatusSource {
   /// whatever the mode says. Promoting from there would elect a host for a
   /// network that already has one — this phone — and the group would watch a
   /// spinner while nothing happened.
-  RoomCarrierDurability get _durability => hotspotHost.isHosting
+  ///
+  /// Except before the channel opens, on a Room the entry has just proven
+  /// over plain Wi-Fi ([promoteNow]). There the mode is not stale — the entry
+  /// wrote it a moment ago — and an access point that is up anyway is a
+  /// leftover, raised for an earlier invite and never taken down, while the
+  /// phones talk over the router beside it. Calling that "owned" is how two
+  /// phones on a home router never moved at all (2026-10-12: one phone still
+  /// holding the AP from an earlier invite, both calling over the house
+  /// Wi-Fi, no promotion ever attempted). The leftover is put to use instead:
+  /// see [_leftoverAccessPoint].
+  RoomCarrierDurability get _durability =>
+      hotspotHost.isHosting && !(_eager && modeStore.mode == TransferMode.wifi)
       ? RoomCarrierDurability.owned
       : RoomCarrierPromotionPlanner.durabilityOf(_kindFor(modeStore.mode));
 
@@ -266,19 +368,12 @@ final class RoomCarrierPromotionController implements RoomCarrierStatusSource {
   void evaluate() {
     if (_disposed) return;
     final durability = _durability;
-    final upSince = _carrierUpSince ?? _clock();
-    final decision = RoomCarrierPromotionPlanner.decide(
-      RoomCarrierPromotionEnvironment(
-        durability: durability,
-        candidates: candidates(),
-        currentGeneration: _generation,
-        carrierUpFor: _clock().difference(upSince),
-        peersPresent: candidates()
-            .where((candidate) => candidate.memberId != localMemberId)
-            .length,
-        promotionPlannedForGeneration: _plannedGeneration,
-      ),
-    );
+    if (_stoodDown) {
+      if (!_status.isHandingOver) _publish(_settled(durability));
+      return;
+    }
+    if (_following) return;
+    final decision = _decide(durability);
 
     if (!decision.shouldPromote) {
       // The wait ran out. Nothing arrived, nobody is working on it here, and
@@ -291,7 +386,9 @@ final class RoomCarrierPromotionController implements RoomCarrierStatusSource {
           'borrowed carrier',
         );
         _abandonHandover();
-        _publish(_settled(durability));
+        _publish(
+          _settled(durability, failure: RoomCarrierMoveFailure.timedOut),
+        );
         return;
       }
       // A handover in flight is not reset by a tick that happens to land
@@ -310,7 +407,9 @@ final class RoomCarrierPromotionController implements RoomCarrierStatusSource {
     // plan, and without this a slow radio could be asked to start a second
     // access point while the first call is still outstanding.
     if (_raising) return;
-    if (_hostingUnsafe && decision.localIsHost(localMemberId)) return;
+    if (_hostingUnsafe && !_eager && decision.localIsHost(localMemberId)) {
+      return;
+    }
 
     _plannedGeneration = decision.generation;
     _handoverSince = _clock();
@@ -331,6 +430,112 @@ final class RoomCarrierPromotionController implements RoomCarrierStatusSource {
       ),
     );
     if (localIsHost) unawaited(_raiseAndAnnounce(decision.generation));
+  }
+
+  RoomCarrierPromotionDecision _decide(RoomCarrierDurability durability) {
+    final upSince = _carrierUpSince ?? _clock();
+    final present = candidates();
+    return RoomCarrierPromotionPlanner.decide(
+      RoomCarrierPromotionEnvironment(
+        durability: durability,
+        candidates: present,
+        currentGeneration: _generation,
+        // Before the channel opens there is nothing to settle: both phones
+        // are standing next to each other, waiting for exactly this.
+        carrierUpFor: _eager
+            ? RoomCarrierPromotionPlanner.settleWindow
+            : _clock().difference(upSince),
+        peersPresent: present
+            .where((candidate) => candidate.memberId != localMemberId)
+            .length,
+        promotionPlannedForGeneration: _plannedGeneration,
+      ),
+    );
+  }
+
+  /// How often [promoteNow] looks again while the other phone's capabilities
+  /// are still on their way.
+  static const _eagerPoll = Duration(milliseconds: 300);
+
+  /// Moves the Room off a borrowed network now, before its channel opens.
+  ///
+  /// The in-channel promotion waits out a settle window and then moves people
+  /// who are already talking, which is how a call that worked on the house
+  /// Wi-Fi turned into a status bar flickering mid-conversation. Before the
+  /// channel there is nobody to interrupt and the two phones are a metre
+  /// apart, so the election runs as soon as both sides' signed capabilities
+  /// are in, and the move starts at once.
+  ///
+  /// An elected host that cannot promise to keep its Wi-Fi up while hosting
+  /// still raises here: the alternative is never moving, and whether the
+  /// announcement got through is checked by the caller on the new network
+  /// rather than predicted from a capability flag that is known to be wrong
+  /// on older phones (an Android 9 phone that reports no concurrency kept its
+  /// Wi-Fi up while hosting in the 2026-10-12 logs).
+  ///
+  /// Returns as soon as the outcome of the *decision* is known; the move
+  /// itself is followed on [statusChanges].
+  @override
+  Future<RoomCarrierPromotionStart> promoteNow({
+    Duration rosterWait = const Duration(seconds: 8),
+  }) async {
+    if (_disposed) return RoomCarrierPromotionStart.noPeers;
+    _eager = true;
+    _stoodDown = false;
+    final deadline = _clock().add(rosterWait);
+    while (!_disposed) {
+      if (_status.isHandingOver) {
+        return _status.stage == RoomCarrierStage.raising
+            ? RoomCarrierPromotionStart.hosting
+            : _status.stage == RoomCarrierStage.awaitingHost
+            ? RoomCarrierPromotionStart.following
+            : RoomCarrierPromotionStart.alreadyMoving;
+      }
+      final durability = _durability;
+      final decision = _decide(durability);
+      switch (decision.reason) {
+        case RoomCarrierPromotionReason.borrowedCarrier:
+          evaluate();
+          if (_status.isHandingOver) continue;
+          // Declined to start — only the no-identity case gets here, and it
+          // has already published why.
+          return RoomCarrierPromotionStart.noEligibleHost;
+        case RoomCarrierPromotionReason.alreadyOwned:
+          return _generation > 0
+              ? RoomCarrierPromotionStart.alreadyMoving
+              : RoomCarrierPromotionStart.notNeeded;
+        case RoomCarrierPromotionReason.alreadyPlanned:
+          return RoomCarrierPromotionStart.alreadyMoving;
+        case RoomCarrierPromotionReason.noEligibleHost:
+        case RoomCarrierPromotionReason.waitingForPeers:
+        case RoomCarrierPromotionReason.settling:
+          // The other phone's capabilities may not be in yet: an election run
+          // on half the roster could pick a different host than the other
+          // phone picks, and two access points is worse than none.
+          if (!_clock().isBefore(deadline)) {
+            return decision.reason == RoomCarrierPromotionReason.noEligibleHost
+                ? RoomCarrierPromotionStart.noEligibleHost
+                : RoomCarrierPromotionStart.noPeers;
+          }
+      }
+      await Future<void>.delayed(_eagerPoll);
+    }
+    return RoomCarrierPromotionStart.noPeers;
+  }
+
+  /// Stays on the current network for the rest of this session.
+  ///
+  /// For when the move was tried and the people chose, or were left with, the
+  /// network they have: a promotion that kept retrying behind an open channel
+  /// would put the handover spinner back on screen every settle window.
+  @override
+  void standDown() {
+    if (_disposed) return;
+    _stoodDown = true;
+    _eager = false;
+    _abandonHandover();
+    _announcement = null;
+    _publish(_settled(_durability));
   }
 
   /// Whether a decided handover has been sitting there long enough to give up
@@ -373,7 +578,11 @@ final class RoomCarrierPromotionController implements RoomCarrierStatusSource {
       // "handing over, still borrowed" and declined to correct it.
       Logger.log('carrier: elected host has no signing identity; staying put');
       _abandonHandover();
-      if (!_disposed) _publish(_settled(_durability));
+      if (!_disposed) {
+        _publish(
+          _settled(_durability, failure: RoomCarrierMoveFailure.noIdentity),
+        );
+      }
       return;
     }
     _raising = true;
@@ -386,16 +595,23 @@ final class RoomCarrierPromotionController implements RoomCarrierStatusSource {
       // put for the rest of the session — the borrowed network still works,
       // and if it goes, the reactive failover takes over as before.
       if (!await _canAnnounceWhileHosting()) {
+        if (!_eager) {
+          Logger.diagnostic(
+            'carrier: elected host cannot keep Wi-Fi up while hosting — '
+            'staying on the shared network',
+          );
+          _hostingUnsafe = true;
+          _abandonHandover();
+          if (!_disposed) _publish(_settled(_durability));
+          return;
+        }
         Logger.diagnostic(
-          'carrier: elected host cannot keep Wi-Fi up while hosting — '
-          'staying on the shared network',
+          'carrier: elected host may lose Wi-Fi while hosting — raising '
+          'anyway, the move is checked on the new network',
         );
-        _hostingUnsafe = true;
-        _abandonHandover();
-        if (!_disposed) _publish(_settled(_durability));
-        return;
       }
-      final credentials = await hotspotHost.start();
+      setSessionRole?.call(SessionRole.host);
+      final credentials = _leftoverAccessPoint() ?? await hotspotHost.start();
       if (_disposed) return;
       final issuedAt = _clock().toUtc();
       final signature = await _crypto.signCarrierHandover(
@@ -440,10 +656,30 @@ final class RoomCarrierPromotionController implements RoomCarrierStatusSource {
       Logger.log('carrier: could not raise the access point: $error');
       // Let the next tick try again — the phone may simply have been busy.
       _abandonHandover();
-      if (!_disposed) _publish(_settled(_durability));
+      if (!_disposed) {
+        _publish(
+          _settled(_durability, failure: RoomCarrierMoveFailure.raiseFailed),
+        );
+      }
     } finally {
       _raising = false;
     }
+  }
+
+  /// The credentials of an access point this phone is already holding up,
+  /// when the link keeper can vouch for them.
+  ///
+  /// Raising a second one tears the first down and makes the group wait for
+  /// a radio that was already on the air; the leftover from an earlier invite
+  /// is exactly the network to move to.
+  HotspotCredentials? _leftoverAccessPoint() {
+    if (!hotspotHost.isHosting) return null;
+    if (hotspotLinkKeeper.state != HotspotLinkState.up) return null;
+    final credentials = hotspotLinkKeeper.credentials;
+    if (credentials != null) {
+      Logger.diagnostic('carrier: reusing the access point already up');
+    }
+    return credentials;
   }
 
   Future<bool> _canAnnounceWhileHosting() async {
@@ -554,6 +790,8 @@ final class RoomCarrierPromotionController implements RoomCarrierStatusSource {
     // signature was being verified.
     if (handover.generation <= _generation) return false;
 
+    if (_stoodDown) return false;
+
     Logger.diagnostic(
       'carrier: following generation ${handover.generation} to the host',
     );
@@ -568,9 +806,48 @@ final class RoomCarrierPromotionController implements RoomCarrierStatusSource {
         hostMemberId: handover.hostMemberId,
       ),
     );
-    hotspotLinkKeeper.adopt(
-      HotspotCredentials(ssid: handover.ssid, passphrase: handover.passphrase),
+    final credentials = HotspotCredentials(
+      ssid: handover.ssid,
+      passphrase: handover.passphrase,
     );
+    setSessionRole?.call(SessionRole.joiner);
+    final follow = followHost;
+    if (follow != null) {
+      HotspotJoinResult joined;
+      _following = true;
+      try {
+        joined = await follow(credentials);
+      } catch (error) {
+        Logger.log('carrier: joining the host failed: $error');
+        joined = HotspotJoinResult.declined;
+      } finally {
+        _following = false;
+      }
+      if (_disposed) return false;
+      if (joined != HotspotJoinResult.joined) {
+        Logger.diagnostic(
+          'carrier: could not join the host (${joined.name}) — staying on '
+          'the shared network',
+        );
+        // Not retried on the next ping: the host keeps announcing the same
+        // generation, and asking Android again every second would put its
+        // "connect to this network?" prompt back up every second.
+        _stoodDown = !_eager;
+        _publish(
+          _settled(
+            _durability,
+            failure: switch (joined) {
+              HotspotJoinResult.wifiOff => RoomCarrierMoveFailure.wifiOff,
+              HotspotJoinResult.locationOff =>
+                RoomCarrierMoveFailure.locationOff,
+              _ => RoomCarrierMoveFailure.joinDeclined,
+            },
+          ),
+        );
+        return false;
+      }
+    }
+    hotspotLinkKeeper.adopt(credentials);
     await modeStore.setMode(TransferMode.hotspot);
     onCarrierChanged();
     return true;
@@ -583,14 +860,17 @@ final class RoomCarrierPromotionController implements RoomCarrierStatusSource {
   /// finished — it is the one thing about all of this the user genuinely needs
   /// told, so it has to survive into the resting state rather than flashing
   /// past during the handover.
-  RoomCarrierStatus _settled(RoomCarrierDurability durability) =>
-      RoomCarrierStatus(
-        stage: RoomCarrierStage.settled,
-        durability: durability,
-        generation: _generation,
-        hostMemberId: _generation > 0 ? _status.hostMemberId : null,
-        localIsHost: _generation > 0 && _status.localIsHost,
-      );
+  RoomCarrierStatus _settled(
+    RoomCarrierDurability durability, {
+    RoomCarrierMoveFailure? failure,
+  }) => RoomCarrierStatus(
+    stage: RoomCarrierStage.settled,
+    durability: durability,
+    generation: _generation,
+    hostMemberId: _generation > 0 ? _status.hostMemberId : null,
+    localIsHost: _generation > 0 && _status.localIsHost,
+    failure: failure,
+  );
 
   void _publish(RoomCarrierStatus status) {
     _status = status;

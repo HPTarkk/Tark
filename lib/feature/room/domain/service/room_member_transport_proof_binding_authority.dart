@@ -189,6 +189,10 @@ final class RoomMemberTransportProofBindingAuthority {
       peerKey: peerKey,
       memberId: memberId,
       attachmentGeneration: attachmentGeneration,
+      // The proof answers a token sent to this route alone, signed by the
+      // member's own key, so it cannot have been carried here from the old
+      // one. A member that has moved networks is allowed to say so.
+      moveWithinAttachment: true,
     );
     if (!bound) return null;
     return ProvenRoomMember(

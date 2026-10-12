@@ -3273,4 +3273,101 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get linkprep_code_detail => 'Signing your invite code.';
+
+  @override
+  String carriermove_found_title(String name) {
+    return 'Found $name on this Wi-Fi';
+  }
+
+  @override
+  String get carriermove_found_detail =>
+      'Your phones can hear each other through the router. Moving you onto your own connection before the ride.';
+
+  @override
+  String get carriermove_electing_title => 'Choosing whose phone leads';
+
+  @override
+  String get carriermove_electing_detail =>
+      'Both phones pick the same one: the one that has led before, then the fullest battery.';
+
+  @override
+  String get carriermove_preparing_host_title =>
+      'Starting this phone\'s own Wi-Fi';
+
+  @override
+  String carriermove_preparing_joiner_title(String name) {
+    return '$name\'s phone is starting its own Wi-Fi';
+  }
+
+  @override
+  String get carriermove_preparing_detail =>
+      'The router stays behind when you ride off, so your phones won\'t rely on it.';
+
+  @override
+  String carriermove_moving_host_title(String name) {
+    return 'Waiting for $name to join';
+  }
+
+  @override
+  String get carriermove_moving_host_detail =>
+      'Their phone may ask them to tap Connect.';
+
+  @override
+  String carriermove_moving_joiner_title(String name) {
+    return 'Joining $name\'s phone';
+  }
+
+  @override
+  String get carriermove_moving_joiner_detail =>
+      'If your phone asks to connect, tap Connect.';
+
+  @override
+  String get carriermove_verifying_title => 'Checking the new connection';
+
+  @override
+  String get carriermove_verifying_detail =>
+      'Making sure it holds before the channel opens.';
+
+  @override
+  String get carriermove_established_title => 'Connected directly';
+
+  @override
+  String get carriermove_established_detail =>
+      'You can leave the router behind.';
+
+  @override
+  String get carriermove_step_found => 'Found';
+
+  @override
+  String get carriermove_step_electing => 'Leader';
+
+  @override
+  String get carriermove_step_preparing => 'Hotspot';
+
+  @override
+  String get carriermove_step_moving => 'Move';
+
+  @override
+  String get carriermove_step_verifying => 'Check';
+
+  @override
+  String get carriermove_step_established => 'Ready';
+
+  @override
+  String get carriermove_stay => 'Stay on this Wi-Fi instead';
+
+  @override
+  String carriermove_guided_show(String name) {
+    return 'Couldn\'t move over on its own. Let $name scan this code.';
+  }
+
+  @override
+  String carriermove_guided_scan(String name) {
+    return 'Couldn\'t move over on its own. Scan the code on $name\'s phone.';
+  }
+
+  @override
+  String carriermove_guided_declined(String name) {
+    return 'The connection request was closed. Scan the code on $name\'s phone to connect.';
+  }
 }

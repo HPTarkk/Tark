@@ -41,10 +41,19 @@ final class RoomPeerMemberBindingRegistry {
   /// attachment generation; same-generation route changes fail closed. This
   /// makes transport replacement explicit and prevents replayed join evidence
   /// from stealing identity inside a live attachment.
+  ///
+  /// [moveWithinAttachment] relaxes that one rule for a caller whose evidence
+  /// cannot be replayed: a signed answer to a challenge that was sent to
+  /// [peerKey] and nowhere else. That is what a member moving between
+  /// networks without the attachment being replaced looks like — the Room
+  /// leaving a home router for one member's hotspot — and refusing it left the
+  /// moved member unprovable on its new route for the rest of the attachment.
+  /// An older generation still never wins.
   bool bind({
     required String peerKey,
     required RoomMemberId memberId,
     required int attachmentGeneration,
+    bool moveWithinAttachment = false,
   }) {
     _ensureOpen();
     if (peerKey.isEmpty ||
@@ -63,7 +72,10 @@ final class RoomPeerMemberBindingRegistry {
     if (currentPeerForMember != null && currentPeerForMember != peerKey) {
       final currentForMember = _byPeer[currentPeerForMember];
       if (currentForMember != null &&
-          attachmentGeneration <= currentForMember.attachmentGeneration) {
+          (moveWithinAttachment
+              ? attachmentGeneration < currentForMember.attachmentGeneration
+              : attachmentGeneration <=
+                    currentForMember.attachmentGeneration)) {
         return false;
       }
       _removePeer(currentPeerForMember);

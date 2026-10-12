@@ -41,6 +41,8 @@ final class SelectedRoomLiveSessionBinding {
     this.hotspotLinkKeeper,
     this.localCapabilityReader,
     this.prefersHotspotHost,
+    this.followHotspotHost,
+    this.setSessionRole,
     RoomTransportIdentitySecureStore? identityStore,
     RoomMemberTransportIdentityCrypto? identityCrypto,
   }) : _identityStore =
@@ -67,6 +69,14 @@ final class SelectedRoomLiveSessionBinding {
   /// Each phone only ever speaks for itself here, which is what keeps two
   /// phones with different histories from both deciding to host.
   final Future<bool> Function(SavedRoom saved)? prefersHotspotHost;
+
+  /// Joins an elected host's access point mid-session and moves the sockets
+  /// onto it. See [RoomCarrierPromotionController.followHost].
+  final Future<HotspotJoinResult> Function(HotspotCredentials credentials)?
+  followHotspotHost;
+
+  /// Records which side of a hotspot this phone is on after a carrier move.
+  final void Function(SessionRole role)? setSessionRole;
   final RoomTransportIdentitySecureStore _identityStore;
   final RoomMemberTransportIdentityCrypto _identityCrypto;
 
@@ -232,12 +242,13 @@ final class SelectedRoomLiveSessionBinding {
                 );
                 return proof.encode();
               },
-          onMemberProven: (memberId, transportSenderId) {
+          onMemberProven: (memberId, transportSenderId, carrierRoute) {
             if (generation != _generation || runtime.hasLeft) return;
             final evidence = RoomPeerProofEvidence(
               memberId: memberId,
               attachmentGeneration: runtime.attachmentGeneration,
               transportSenderId: transportSenderId,
+              carrierRoute: carrierRoute,
             );
             _verifiedPeerProofByMember[memberId] = evidence;
             _verifiedPeerProofs.add(evidence);
@@ -262,6 +273,8 @@ final class SelectedRoomLiveSessionBinding {
             hotspotLinkKeeper: keeper,
             handoverExchange: handoverExchange,
             identity: identityMaterial,
+            followHost: followHotspotHost,
+            setSessionRole: setSessionRole,
             crypto: _identityCrypto,
             // Only peers whose capability evidence has been cryptographically
             // bound to a durable member reach the election. An unverified
@@ -394,7 +407,11 @@ final class _LiveFailoverSession {
   final Future<TransportCapabilityAdvertisement?> Function()
   readLocalCapability;
   final TransportRouteProofProvider localProofProvider;
-  final void Function(RoomMemberId memberId, String? transportSenderId)
+  final void Function(
+    RoomMemberId memberId,
+    String? transportSenderId,
+    String carrierRoute,
+  )
   onMemberProven;
 
   RoomVerifiedTransportEvidenceBridge? _evidenceBridge;
@@ -436,8 +453,8 @@ final class _LiveFailoverSession {
         // Readiness/presence is published synchronously from the already-
         // verified route proof so storage latency cannot delay the security
         // gate or cause talking state to bind through display metadata.
-        onMemberPresenceProven: (member, transportSenderId) {
-          onMemberProven(member.memberId, transportSenderId);
+        onMemberPresenceProven: (member, transportSenderId, carrierRoute) {
+          onMemberProven(member.memberId, transportSenderId, carrierRoute);
         },
       );
     }

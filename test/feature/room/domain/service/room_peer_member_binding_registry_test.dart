@@ -85,6 +85,43 @@ void main() {
     expect(registry.length, 1);
   });
 
+  test('same-generation route change fails closed unless asked for', () {
+    final registry = RoomPeerMemberBindingRegistry(members: [member('peer-a')]);
+    registry.bind(
+      peerKey: 'old-route',
+      memberId: member('peer-a'),
+      attachmentGeneration: 2,
+    );
+    expect(
+      registry.bind(
+        peerKey: 'new-route',
+        memberId: member('peer-a'),
+        attachmentGeneration: 2,
+      ),
+      isFalse,
+    );
+    expect(
+      registry.bind(
+        peerKey: 'new-route',
+        memberId: member('peer-a'),
+        attachmentGeneration: 2,
+        moveWithinAttachment: true,
+      ),
+      isTrue,
+    );
+    expect(registry.resolve('old-route', attachmentGeneration: 2), isNull);
+    // Never backwards, even when moving is allowed.
+    expect(
+      registry.bind(
+        peerKey: 'older-route',
+        memberId: member('peer-a'),
+        attachmentGeneration: 1,
+        moveWithinAttachment: true,
+      ),
+      isFalse,
+    );
+  });
+
   test('attachment replacement invalidates stale transport identity', () {
     final registry = RoomPeerMemberBindingRegistry(members: [member('peer-a')]);
     registry.bind(

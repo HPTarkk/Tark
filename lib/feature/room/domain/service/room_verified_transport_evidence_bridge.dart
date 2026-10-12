@@ -62,7 +62,17 @@ final class RoomVerifiedTransportEvidenceBridge {
   /// use this only to join ephemeral state (for example `isTalking`) to that
   /// already-proven member. Older transports may provide null and therefore
   /// fail closed for presence projection without losing the verified binding.
-  final void Function(ProvenRoomMember member, String? transportSenderId)?
+  ///
+  /// [carrierRoute] is the opaque route the proof arrived on — on Wi-Fi, the
+  /// source address. Like the sender id it is never identity; it only lets a
+  /// caller tell that an already-proven member is now reaching this phone over
+  /// a different network than before, which is how a move between networks is
+  /// confirmed rather than assumed.
+  final void Function(
+    ProvenRoomMember member,
+    String? transportSenderId,
+    String carrierRoute,
+  )?
   onMemberPresenceProven;
 
   final TransportRouteProofExchange _proofExchange;
@@ -137,7 +147,11 @@ final class RoomVerifiedTransportEvidenceBridge {
     // merely invited — and, when the peer signed one, to put a name on it
     // instead of the placeholder the host had to invent.
     onMemberProven(member);
-    onMemberPresenceProven?.call(member, observation.transportSenderId);
+    onMemberPresenceProven?.call(
+      member,
+      observation.transportSenderId,
+      observation.peerKey,
+    );
 
     final pending = _pendingCapabilities.remove(observation.peerKey);
     if (pending != null) _admitCapability(pending);

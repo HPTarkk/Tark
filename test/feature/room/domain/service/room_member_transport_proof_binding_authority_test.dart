@@ -71,6 +71,51 @@ void main() {
     );
   });
 
+  test('a member that moved networks proves itself on the new route without '
+      'the attachment being replaced', () async {
+    // Two phones leave a home router for one phone's hotspot. The member
+    // was bound to its router address; its signed answer to a challenge
+    // sent to the hotspot address must move the binding there, or the
+    // moved member stays unprovable for the rest of the attachment.
+    final value = await identity();
+    final bindings = RoomPeerMemberBindingRegistry(members: const [memberId]);
+    final authority = RoomMemberTransportProofBindingAuthority(
+      roomId: roomId,
+      bindings: bindings,
+      expectedIssuerPublicKey: value.issuer.publicKey,
+    );
+    Future<RoomMemberId?> prove(String route, int token) async {
+      authority.observeChallenge(
+        peerKey: route,
+        token: token,
+        sessionEpoch: 9,
+        attachmentGeneration: 3,
+        at: at,
+      );
+      final proof = await crypto.signProof(
+        certificate: value.certificate,
+        member: value.member,
+        token: token,
+        sessionEpoch: 9,
+      );
+      return (await authority.verifyAndBind(
+        peerKey: route,
+        encodedProof: proof.encode(),
+        attachmentGeneration: 3,
+        at: at,
+      ))?.memberId;
+    }
+
+    expect(await prove('192.168.8.107', 1), memberId);
+    expect(await prove('192.168.43.20', 2), memberId);
+    expect(
+      bindings.resolve('192.168.43.20', attachmentGeneration: 3),
+      memberId,
+    );
+    expect(bindings.resolve('192.168.8.107', attachmentGeneration: 3), isNull);
+    expect(bindings.length, 1);
+  });
+
   test('other route cannot steal challenge', () async {
     final value = await identity();
     final bindings = RoomPeerMemberBindingRegistry(members: const [memberId]);

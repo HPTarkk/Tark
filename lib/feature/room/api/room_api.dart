@@ -22,6 +22,9 @@ export '../domain/service/room_connection_readiness_gate.dart'
         RoomConnectionReadinessGate,
         RoomConnectionReadinessResult,
         RoomPeerProofEvidence;
+export '../domain/service/room_carrier_migration.dart';
+export '../domain/service/room_carrier_promotion_controller.dart'
+    show RoomCarrierMoveFailure;
 export '../domain/service/room_connection_trace.dart' show RoomConnectionTrace;
 export '../domain/service/room_pre_live_announcer.dart'
     show RoomPreLiveAnnouncer;

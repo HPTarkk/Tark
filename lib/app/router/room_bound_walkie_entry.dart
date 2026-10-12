@@ -24,6 +24,7 @@ import '../../core/utils/logger.dart';
 import '../../feature/room/api/room_api.dart';
 import '../../feature/room/presentation/widget/carrier_status_scope.dart';
 import '../../feature/room/presentation/widget/one_scan_room_invite_sheet.dart';
+import '../../feature/room/presentation/widget/room_carrier_migration_view.dart';
 import '../../feature/room/presentation/widget/room_group_access_guard.dart';
 import '../../feature/transfer/api/hotspot_invite_api.dart';
 import '../../feature/transfer/api/transfer_api.dart';
@@ -45,6 +46,7 @@ class RoomBoundWalkieEntry extends StatefulWidget {
     this.guidedReconnect,
     this.wifiCheck,
     this.prepareHost,
+    this.moveOffRouter,
   });
 
   /// Arrived from a screen whose job was establishing a link — the hotspot
@@ -72,6 +74,11 @@ class RoomBoundWalkieEntry extends StatefulWidget {
 
   /// Brings this phone's hotspot up. Null uses the real bridge; tests set it.
   final Future<HotspotCredentials?> Function()? prepareHost;
+
+  /// Whether two phones that met on a shared router move onto one phone's
+  /// own hotspot before the channel opens. Null follows the platform (Android
+  /// and iOS); tests set it.
+  final bool? moveOffRouter;
 
   static Widget buildPage({
     bool ride = false,
@@ -160,6 +167,8 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         hotspotHost: GetIt.instance<HotspotHost>(),
         hotspotLinkKeeper: GetIt.instance<HotspotLinkKeeper>(),
         prefersHotspotHost: _prefersHostingFor,
+        followHotspotHost: _followHotspotHost,
+        setSessionRole: (role) => _roleStore?.setRole(role),
       );
       _rooms = rooms;
       _transfer = transfer;
@@ -185,6 +194,44 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     final last = await _hotspotHistory.lastHost(saved.room.id);
     return last == null || last == saved.membership.localMemberId;
   }
+
+  /// Joins the elected host's access point in the middle of a live session.
+  ///
+  /// Not through the hotspot bridge: its join ends by stopping the Wi-Fi
+  /// transport so the channel can bind afresh, which is right before a
+  /// channel and fatal inside one. This asks Android to join, then moves the
+  /// running sockets onto the new network — the same two steps the link
+  /// keeper takes when it rejoins a lost hotspot.
+  Future<HotspotJoinResult> _followHotspotHost(
+    HotspotCredentials credentials,
+  ) async {
+    final getIt = GetIt.instance;
+    if (!getIt.isRegistered<HotspotJoiner>()) return HotspotJoinResult.declined;
+    // Ours goes down before theirs comes up: two Wi-Fi networks of our own
+    // make the native bind refuse to pick either.
+    if (getIt.isRegistered<HotspotHost>() && getIt<HotspotHost>().isHosting) {
+      Logger.diagnostic('carrier: dropping this phone\'s own AP to follow');
+      if (getIt.isRegistered<HotspotLinkKeeper>()) {
+        await getIt<HotspotLinkKeeper>().release();
+      }
+      await getIt<HotspotHost>().stop();
+    }
+    final joined = await getIt<HotspotJoiner>()
+        .join(credentials)
+        .timeout(
+          _followJoinTimeout,
+          onTimeout: () => HotspotJoinResult.declined,
+        );
+    Logger.diagnostic('carrier: follow join=${joined.name}');
+    if (joined == HotspotJoinResult.joined &&
+        getIt.isRegistered<WifiTransferRepository>()) {
+      getIt<WifiTransferRepository>().rebindSockets();
+    }
+    return joined;
+  }
+
+  /// Covers Android's "connect to this network?" prompt waiting on a person.
+  static const _followJoinTimeout = Duration(seconds: 45);
 
   void _composeLinkProbe() {
     if (_probe != null) return;
@@ -462,7 +509,11 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       // recorded as plain Wi-Fi rather than the phones' own connection.
       Logger.diagnostic('room: start over home Wi-Fi requested');
       await _modeStore?.setMode(TransferMode.wifi);
-      return _verifiedLiveFor(current, linkEstablished: true);
+      return _verifiedLiveFor(
+        current,
+        linkEstablished: true,
+        moveOffRouter: false,
+      );
     }
     // Before showing any reconnect QR, try the link that is already present.
     // It is only accepted if RoomConnectionReadinessGate receives a signed,
@@ -991,7 +1042,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   /// the call). While this runs, a proof from any Room member on the current
   /// link takes this phone straight into the call, camera and all abandoned.
   void _listenWhileScanning(SavedRoom room, int token) {
-    if (_passiveListening) return;
+    if (_passiveListening || _codeOnly) return;
     _passiveListening = true;
     unawaited(() async {
       try {
@@ -1316,14 +1367,153 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     SavedRoom room, {
     required bool linkEstablished,
     Duration? readinessTimeout,
+    bool moveOffRouter = true,
   }) async {
-    final outcome = await _verifiedLiveAttempt(
+    _arrivedByMove = false;
+    var outcome = await _verifiedLiveAttempt(
       room,
       linkEstablished: linkEstablished,
       readinessTimeout: readinessTimeout,
     );
+    if (moveOffRouter && outcome.live) {
+      outcome = await _moveOffRouter(room, outcome);
+    }
     // A no-op unless a slow hand-off put the code or camera up meanwhile.
     return _settleHandoffFallback(room, outcome);
+  }
+
+  // ------------------------------------------------- moving off the router
+
+  /// The move in progress, while its screen is up.
+  RoomMigrationProgress? _migrationProgress;
+  SavedRoom? _migrationRoom;
+  String _migrationPeerName = '';
+  Completer<void>? _migrationLanded;
+  Completer<void>? _migrationStay;
+
+  /// The channel is opening out of the move's own "connected" beat, so the
+  /// generic arrival animation would only say it a second time.
+  bool _arrivedByMove = false;
+
+  /// A guided step after a move that did not finish connects by its code
+  /// alone. Listening on the old link meanwhile would put both phones in the
+  /// channel over the very router they were trying to leave.
+  bool _codeOnly = false;
+
+  bool get _movesOffRouter =>
+      widget.moveOffRouter ?? (Platform.isAndroid || Platform.isIOS);
+
+  /// Takes two phones that have just proven themselves over a shared router
+  /// onto one phone's own hotspot, and only then lets the channel open.
+  ///
+  /// [live] is what the router alone achieved. It is returned as it is when
+  /// there is nothing better to move to, and replaced by the guided step when
+  /// the move was tried and did not finish. See [RoomCarrierMigration].
+  Future<_EntryState> _moveOffRouter(SavedRoom room, _EntryState live) async {
+    if (!_movesOffRouter || !mounted) return live;
+    if (_modeStore?.mode != TransferMode.wifi) return live;
+    final binding = _binding;
+    final mover = binding?.carrierPromotion;
+    if (binding == null || mover == null) return live;
+    final local = room.membership.localMemberId;
+    final proven = <RoomMemberId, RoomPeerProofEvidence>{
+      for (final proof in binding.verifiedPeerProofSnapshot)
+        if (proof.memberId != local) proof.memberId: proof,
+    };
+    // Two phones is the ride this is for. A bigger group keeps the
+    // in-channel move, which waits for everyone to arrive first.
+    if (proven.length != 1) return live;
+    final peer = proven.values.single;
+    final abandoned = _abandonWaits.future;
+    final migration = RoomCarrierMigration(
+      mover: mover,
+      peer: peer.memberId,
+      proofs: binding.verifiedPeerProofs,
+      previousRoute: peer.carrierRoute,
+    );
+    final landed = Completer<void>();
+    final stay = Completer<void>();
+    final peerMember = room.room.members
+        .where((member) => member.id == peer.memberId)
+        .firstOrNull;
+    setState(() {
+      _migrationRoom = room;
+      _migrationProgress = migration.progress;
+      _migrationPeerName = _memberName(peerMember);
+      _migrationLanded = landed;
+      _migrationStay = stay;
+    });
+    final progress = migration.progressChanges.listen((step) {
+      if (mounted && identical(_migrationLanded, landed)) {
+        setState(() => _migrationProgress = step);
+      }
+    });
+    final outcome = await migration.run(
+      abandoned: Future.any([abandoned, stay.future]),
+    );
+    await progress.cancel();
+    await migration.dispose();
+    void clear() {
+      if (!mounted || !identical(_migrationLanded, landed)) return;
+      setState(() {
+        _migrationProgress = null;
+        _migrationRoom = null;
+        _migrationLanded = null;
+        _migrationStay = null;
+      });
+    }
+
+    switch (outcome.result) {
+      case RoomMigrationResult.moved:
+        // The channel opens out of the scene's own landing.
+        await landed.future.timeout(
+          const Duration(seconds: 3),
+          onTimeout: () {},
+        );
+        unawaited(_recordHotspotHost(room, {peer.memberId}));
+        unawaited(_saveRejoinTicket(room));
+        unawaited(
+          ConnectionHistory.registered?.remember(TransferMode.hotspot.key),
+        );
+        _arrivedByMove = true;
+        clear();
+        return live;
+      case RoomMigrationResult.stay:
+        clear();
+        return live;
+      case RoomMigrationResult.abandoned:
+        if (stay.isCompleted && mounted) {
+          Logger.diagnostic('carrier_move: staying on the router by request');
+          mover.standDown();
+          clear();
+          return live;
+        }
+        clear();
+        return _EntryState.lobby(room, failure: _EntryFailure.staleAttempt);
+      case RoomMigrationResult.needsGuidance:
+        if (!mounted) return _EntryState.lobby(room);
+        final s = context.getString;
+        final name = _migrationPeerName;
+        final showCode = outcome.side == RoomMigrationSide.host;
+        final message = outcome.failure == RoomCarrierMoveFailure.joinDeclined
+            ? s.carriermove_guided_declined(name)
+            : showCode
+            ? s.carriermove_guided_show(name)
+            : s.carriermove_guided_scan(name);
+        final epoch = _coordinator.state.epoch;
+        if (_coordinator.state.isActive) _coordinator.cancel(epoch: epoch);
+        await binding.close();
+        if (!mounted) return _EntryState.lobby(room);
+        _codeOnly = true;
+        // The move's screen stays up until the guided one replaces it.
+        final guided = await _reconnect(
+          room,
+          showCode: showCode,
+          message: message,
+        );
+        clear();
+        return guided;
+    }
   }
 
   Future<_EntryState> _verifiedLiveAttempt(
@@ -1889,6 +2079,8 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         return;
       }
       if (!mounted) return;
+      _codeOnly = false;
+      _arrivedByMove = false;
       setState(() {
         _attemptRoom = current;
         _entry = _startSelectedRoom(current, useHomeWifi: useHomeWifi);
@@ -1947,6 +2139,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   }
 
   void _retryInitial() {
+    _codeOnly = false;
     _readinessEpoch++;
     _abandonReadinessWaits();
     _reconnectToken++;
@@ -2070,6 +2263,32 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         ),
       );
     }
+    final moving = _migrationProgress;
+    final movingRoom = _migrationRoom;
+    if (moving != null && movingRoom != null) {
+      final landed = _migrationLanded;
+      final stay = _migrationStay;
+      return RouteExitScope(
+        key: const ValueKey('room-carrier-migration'),
+        onExit: () => leaveRoomEntry(context),
+        child: Scaffold(
+          backgroundColor: AppColors.background,
+          body: SafeArea(
+            child: RoomCarrierMigrationView(
+              progress: moving,
+              peerName: _migrationPeerName,
+              caption: movingRoom.room.name,
+              onEstablished: () {
+                if (landed != null && !landed.isCompleted) landed.complete();
+              },
+              onStay: () {
+                if (stay != null && !stay.isCompleted) stay.complete();
+              },
+            ),
+          ),
+        ),
+      );
+    }
     return _resolvedEntry(context);
   }
 
@@ -2172,6 +2391,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         // A scan's own journey ends here too: the link it showed being made
         // locks in before the channel opens out of it.
         if (room != null &&
+            !_arrivedByMove &&
             (!widget.ride || _tellsJourney) &&
             (mode == TransferMode.wifi ||
                 mode == TransferMode.hotspot ||

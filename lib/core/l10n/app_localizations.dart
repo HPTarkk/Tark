@@ -5761,6 +5761,156 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'داریم کد دعوت رو امضا می‌کنیم.'**
   String get linkprep_code_detail;
+
+  /// No description provided for @carriermove_found_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'{name} رو روی همین وای‌فای پیدا کردیم'**
+  String carriermove_found_title(String name);
+
+  /// No description provided for @carriermove_found_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'گوشی‌هاتون از طریق مودم صدای هم رو می‌شنون. قبل از حرکت، می‌بریمتون روی اتصال خودتون.'**
+  String get carriermove_found_detail;
+
+  /// No description provided for @carriermove_electing_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'داریم انتخاب می‌کنیم کدوم گوشی میزبان باشه'**
+  String get carriermove_electing_title;
+
+  /// No description provided for @carriermove_electing_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'هر دو گوشی یکی رو انتخاب می‌کنن: اونی که قبلاً میزبان بوده، بعد اونی که باتری بیشتری داره.'**
+  String get carriermove_electing_detail;
+
+  /// No description provided for @carriermove_preparing_host_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'داریم وای‌فای خود این گوشی رو روشن می‌کنیم'**
+  String get carriermove_preparing_host_title;
+
+  /// No description provided for @carriermove_preparing_joiner_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'گوشی {name} داره وای‌فای خودش رو روشن می‌کنه'**
+  String carriermove_preparing_joiner_title(String name);
+
+  /// No description provided for @carriermove_preparing_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'وقتی راه بیفتید مودم جا می‌مونه، برای همین گوشی‌هاتون بهش تکیه نمی‌کنن.'**
+  String get carriermove_preparing_detail;
+
+  /// No description provided for @carriermove_moving_host_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'منتظریم {name} وصل بشه'**
+  String carriermove_moving_host_title(String name);
+
+  /// No description provided for @carriermove_moving_host_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'ممکنه گوشیش بپرسه وصل بشه یا نه؛ باید «اتصال» رو بزنه.'**
+  String get carriermove_moving_host_detail;
+
+  /// No description provided for @carriermove_moving_joiner_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'داریم به گوشی {name} وصل می‌شیم'**
+  String carriermove_moving_joiner_title(String name);
+
+  /// No description provided for @carriermove_moving_joiner_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'اگه گوشیت پرسید وصل بشه یا نه، «اتصال» رو بزن.'**
+  String get carriermove_moving_joiner_detail;
+
+  /// No description provided for @carriermove_verifying_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'داریم اتصال جدید رو امتحان می‌کنیم'**
+  String get carriermove_verifying_title;
+
+  /// No description provided for @carriermove_verifying_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'مطمئن می‌شیم پایداره، بعد کانال باز می‌شه.'**
+  String get carriermove_verifying_detail;
+
+  /// No description provided for @carriermove_established_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'مستقیم وصل شدید'**
+  String get carriermove_established_title;
+
+  /// No description provided for @carriermove_established_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'دیگه به مودم نیازی ندارید.'**
+  String get carriermove_established_detail;
+
+  /// No description provided for @carriermove_step_found.
+  ///
+  /// In fa, this message translates to:
+  /// **'پیدا شد'**
+  String get carriermove_step_found;
+
+  /// No description provided for @carriermove_step_electing.
+  ///
+  /// In fa, this message translates to:
+  /// **'میزبان'**
+  String get carriermove_step_electing;
+
+  /// No description provided for @carriermove_step_preparing.
+  ///
+  /// In fa, this message translates to:
+  /// **'هات‌اسپات'**
+  String get carriermove_step_preparing;
+
+  /// No description provided for @carriermove_step_moving.
+  ///
+  /// In fa, this message translates to:
+  /// **'انتقال'**
+  String get carriermove_step_moving;
+
+  /// No description provided for @carriermove_step_verifying.
+  ///
+  /// In fa, this message translates to:
+  /// **'بررسی'**
+  String get carriermove_step_verifying;
+
+  /// No description provided for @carriermove_step_established.
+  ///
+  /// In fa, this message translates to:
+  /// **'آماده'**
+  String get carriermove_step_established;
+
+  /// No description provided for @carriermove_stay.
+  ///
+  /// In fa, this message translates to:
+  /// **'به‌جاش روی همین وای‌فای بمون'**
+  String get carriermove_stay;
+
+  /// No description provided for @carriermove_guided_show.
+  ///
+  /// In fa, this message translates to:
+  /// **'خودکار منتقل نشد. بذار {name} این کد رو اسکن کنه.'**
+  String carriermove_guided_show(String name);
+
+  /// No description provided for @carriermove_guided_scan.
+  ///
+  /// In fa, this message translates to:
+  /// **'خودکار منتقل نشد. کد روی گوشی {name} رو اسکن کن.'**
+  String carriermove_guided_scan(String name);
+
+  /// No description provided for @carriermove_guided_declined.
+  ///
+  /// In fa, this message translates to:
+  /// **'درخواست اتصال بسته شد. برای وصل شدن، کد روی گوشی {name} رو اسکن کن.'**
+  String carriermove_guided_declined(String name);
 }
 
 class _AppLocalizationsDelegate

@@ -123,12 +123,25 @@ void main() {
       ]);
       expect(repository.stats.staleEpochDrops, 1);
 
-      final rebound = healthEvents.stream
-          .firstWhere((event) => event.isHealthy)
+      // A rebind is not a recovery: with a peer already heard, the link only
+      // counts as healthy again once that peer is heard again. Reporting it on
+      // the bind alone is what made the channel's status bar flash
+      // "Connected" every liveness cycle while nobody was there.
+      final reconnecting = healthEvents.stream
+          .firstWhere((event) => !event.isHealthy)
           .timeout(const Duration(seconds: 5));
       repository.rebindSockets();
-      await rebound;
+      await reconnecting;
+      final healthyEventsBefore = health.where((e) => e.isHealthy).length;
+      // Give the rebind time to bind; it must stay quiet about health.
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      expect(repository.currentConnectionHealth?.isHealthy, isFalse);
+      expect(health.where((e) => e.isHealthy).length, healthyEventsBefore);
+      final recovered = healthEvents.stream
+          .firstWhere((event) => event.isHealthy)
+          .timeout(const Duration(seconds: 5));
       await sendAudio(6);
+      await recovered;
       expect(
         epoch.value,
         initialEpoch,
