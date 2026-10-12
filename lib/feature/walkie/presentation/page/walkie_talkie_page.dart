@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/beta/beta_badge.dart';
 import '../../../../core/diagnostics/screen_log.dart';
 import '../../../../core/identity/device_identity.dart';
 import '../../../../core/l10n/extension.dart';
@@ -26,6 +27,7 @@ import '../manager/walkie_talkie_cubit.dart';
 import '../widget/background_permission_banner.dart';
 import '../widget/channel_recovery.dart';
 import '../widget/connection_health_banner.dart';
+import '../widget/edit_profile_chip.dart';
 import '../widget/mic_control.dart';
 import '../widget/music_cast_section.dart';
 import '../widget/peer_departure_banner.dart';
@@ -213,6 +215,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage> {
           p.myAvatarId != c.myAvatarId ||
           p.isReady != c.isReady ||
           p.myRole != c.myRole ||
+          p.transferMode != c.transferMode ||
           p.connectionHealth.isLive != c.connectionHealth.isLive,
       builder: (context, state) {
         final s = context.getString;
@@ -268,41 +271,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage> {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        GestureDetector(
-                          onTap: () => context.pushNamed(
-                            AppRoutes.settingsName,
-                            extra: context.read<WalkieTalkieCubit>(),
-                          ),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.border,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.edit_rounded,
-                                  color: AppColors.amber,
-                                  size: 12,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  s.edit_name,
-                                  style: TextStyle(
-                                    color: AppColors.amber,
-                                    fontSize: 10,
-                                    letterSpacing: 1,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                        const EditProfileChip(),
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -336,6 +305,12 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage> {
                           Expanded(
                             child: RoleBadge(role: state.myRole, fontSize: 12),
                           ),
+                        ],
+                        // Riding on a beta transport is said here, quietly,
+                        // for as long as the channel is open.
+                        if (state.transferMode.betaFeature != null) ...[
+                          const SizedBox(width: 6),
+                          const BetaPill(),
                         ],
                       ],
                     ),

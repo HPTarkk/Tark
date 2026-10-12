@@ -1,3 +1,4 @@
+import '../beta/beta_feature.dart';
 import '../diagnostics/log_detail.dart';
 import 'app_settings.dart';
 import 'audio_profile.dart';
@@ -119,6 +120,11 @@ abstract interface class SettingsRepository {
 
   Future<bool> getMusicCastNotifHintDismissed();
   Future<void> setMusicCastNotifHintDismissed(bool value);
+
+  /// Whether the one-time "this is a beta" intro for [feature] has been
+  /// acknowledged on this install. See `BetaIntroGate`.
+  Future<bool> getBetaIntroSeen(BetaFeature feature);
+  Future<void> setBetaIntroSeen(BetaFeature feature, bool value);
 
   /// Cold-start flow flags (see QuickAccess.resolveStartLocation): "has
   /// completed a Join before" gates quick access, "onboarding completed"

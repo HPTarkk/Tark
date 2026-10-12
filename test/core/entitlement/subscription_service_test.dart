@@ -267,10 +267,10 @@ void main() {
     expect(await s.check(), isA<GateSignInRequired>());
   });
 
-  test('Bluetooth is free and every other transport is not', () {
+  test('Wi-Fi and Hotspot are paid; Bluetooth and beta Guest are free', () {
     expect(TransferMode.bluetooth.requiresPremium, isFalse);
     expect(TransferMode.wifi.requiresPremium, isTrue);
     expect(TransferMode.hotspot.requiresPremium, isTrue);
-    expect(TransferMode.guest.requiresPremium, isTrue);
+    expect(TransferMode.guest.requiresPremium, isFalse);
   });
 }

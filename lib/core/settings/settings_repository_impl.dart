@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../beta/beta_feature.dart';
 import '../config/onboarding_config.dart';
 import '../config/quick_access_config.dart';
 import '../diagnostics/log_budget.dart';
@@ -289,6 +290,14 @@ class SettingsRepositoryImpl implements SettingsRepository {
   @override
   Future<void> setMusicCastNotifHintDismissed(bool value) =>
       _prefs.setBool(SettingsKeys.musicCastNotifHintDismissed, value);
+
+  @override
+  Future<bool> getBetaIntroSeen(BetaFeature feature) async =>
+      _prefs.getBool(SettingsKeys.betaIntroSeenPrefix + feature.key) ?? false;
+
+  @override
+  Future<void> setBetaIntroSeen(BetaFeature feature, bool value) =>
+      _prefs.setBool(SettingsKeys.betaIntroSeenPrefix + feature.key, value);
 
   @override
   Future<void> setHasLaunchedBefore(bool value) =>

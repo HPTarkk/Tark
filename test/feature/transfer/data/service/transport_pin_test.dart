@@ -202,10 +202,27 @@ void main() {
       'pinning a paid transport unentitled is refused, not half-applied',
       () async {
         final s = await store({}, unlocked: false);
-        await s.setPinnedMode(TransferMode.guest);
+        await s.setPinnedMode(TransferMode.hotspot);
         expect(s.pinnedMode, isNull);
-        expect(s.mode, isNot(TransferMode.guest));
+        expect(s.mode, isNot(TransferMode.hotspot));
       },
     );
+
+    test('Guest is a free beta: it pins and switches unentitled', () async {
+      final s = await store({}, unlocked: false);
+      await s.setPinnedMode(TransferMode.guest);
+      expect(s.pinnedMode, TransferMode.guest);
+      expect(s.mode, TransferMode.guest);
+      expect(await readKey(SettingsKeys.transportPin), 'guest');
+    });
+
+    test('a guest pin survives a lapsed subscription at cold start', () async {
+      final s = await store({
+        SettingsKeys.transportPin: 'guest',
+        SettingsKeys.transportMode: 'guest',
+      }, unlocked: false);
+      expect(s.pinnedMode, TransferMode.guest);
+      expect(s.mode, TransferMode.guest);
+    });
   });
 }

@@ -73,6 +73,11 @@ abstract final class SettingsKeys {
   static const musicCastNotifHintDismissed = 'music_cast_notif_hint_dismissed';
   static const sfxEnabled = 'sfx_enabled';
 
+  /// Prefix for "this install has seen the beta intro for feature X", one
+  /// key per `BetaFeature.key`. Present (true) means the friendly
+  /// "this is still in beta" sheet has been read and is not shown again.
+  static const betaIntroSeenPrefix = 'beta_intro_seen_';
+
   // Owned by EntitlementStore (see core/entitlement/). Never write these
   // from anywhere else — the paid boundary has exactly one writer.
   static const entitlementSource = 'entitlement_source';

@@ -14,11 +14,16 @@ class SheetShell extends StatelessWidget {
     required this.child,
     this.topFraction = 0.08,
     this.surfaceColor,
+    this.borderColor,
     super.key,
   });
 
   final Widget child;
   final Color? surfaceColor;
+
+  /// Overrides the amber hairline, for a sheet that belongs to another part
+  /// of the design system — the beta intro, say.
+  final Color? borderColor;
 
   /// How much of the screen stays uncovered above the sheet. A sheet that
   /// reaches the status bar has stopped being a sheet and become a page that
@@ -38,7 +43,9 @@ class SheetShell extends StatelessWidget {
         decoration: BoxDecoration(
           color: surfaceColor ?? AppColors.surface,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppColors.amber.withValues(alpha: 0.22)),
+          border: Border.all(
+            color: borderColor ?? AppColors.amber.withValues(alpha: 0.22),
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.45),

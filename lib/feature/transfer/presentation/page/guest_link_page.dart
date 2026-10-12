@@ -4,6 +4,8 @@ import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../../../../core/beta/beta_badge.dart';
+import '../../../../core/beta/beta_intro.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/widget/copy_chip.dart';
 import '../../../../core/widget/link_established.dart';
@@ -94,9 +96,20 @@ class _GuestLinkPageState extends State<GuestLinkPage>
           icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
           onPressed: () => _back(context),
         ),
-        title: Text(
-          s.guest_invite_title,
-          style: TextStyle(color: AppColors.textPrimary, fontSize: 16),
+        // The headline Beta mark: this whole screen is the beta feature.
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                s.guest_invite_title,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: AppColors.textPrimary, fontSize: 16),
+              ),
+            ),
+            const SizedBox(width: 10),
+            const BetaBadge(),
+          ],
         ),
       ),
       body: SafeArea(
@@ -269,6 +282,14 @@ class _InviteBody extends StatelessWidget {
               fontSize: 10.5,
               height: 1.5,
             ),
+          ),
+        ),
+        const SizedBox(height: 18),
+        _Entrance(
+          delayMs: 360,
+          child: BetaNotice(
+            feature: TransferMode.guest.betaFeature!,
+            message: s.beta_guest_notice,
           ),
         ),
       ],

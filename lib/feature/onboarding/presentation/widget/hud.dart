@@ -135,6 +135,9 @@ class HudOption extends StatelessWidget {
   /// Compact = a centered pill for side-by-side rows (no SET tag, tighter).
   final bool compact;
 
+  /// A small classification mark set beside the label — the Beta pill, say.
+  final Widget? tag;
+
   const HudOption({
     super.key,
     required this.selected,
@@ -144,6 +147,7 @@ class HudOption extends StatelessWidget {
     this.icon,
     this.glow = 0.5,
     this.compact = false,
+    this.tag,
   });
 
   @override
@@ -213,21 +217,35 @@ class HudOption extends StatelessWidget {
     );
   }
 
+  Widget _labelLine() {
+    final text = Text(
+      label,
+      style: TextStyle(
+        color: selected ? Onb.text : Onb.textDim,
+        fontSize: 14,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.5,
+      ),
+    );
+    final mark = tag;
+    if (mark == null) return text;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(child: text),
+        const SizedBox(width: 8),
+        mark,
+      ],
+    );
+  }
+
   Widget _labelBlock({required bool centered}) => Column(
     crossAxisAlignment: centered
         ? CrossAxisAlignment.center
         : CrossAxisAlignment.start,
     mainAxisSize: MainAxisSize.min,
     children: [
-      Text(
-        label,
-        style: TextStyle(
-          color: selected ? Onb.text : Onb.textDim,
-          fontSize: 14,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 0.5,
-        ),
-      ),
+      _labelLine(),
       if (sublabel != null)
         Padding(
           padding: const EdgeInsets.only(top: 3),

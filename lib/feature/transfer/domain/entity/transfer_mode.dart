@@ -1,3 +1,5 @@
+import '../../../../core/beta/beta_feature.dart';
+
 enum TransferMode {
   wifi,
   bluetooth,
@@ -28,10 +30,22 @@ enum TransferMode {
 
   /// Whether picking this transport needs [PremiumFeature.wifiTransport].
   ///
-  /// Written as "anything that isn't Bluetooth" rather than a list of the
-  /// three paid modes on purpose: a transport added later is then paid by
-  /// default, and shipping a new premium transport for free is the more
-  /// expensive mistake of the two. Bluetooth is the free acquisition hook
-  /// (business plan §2A) and must stay on this side of the line.
-  bool get requiresPremium => this != TransferMode.bluetooth;
+  /// An exhaustive switch rather than a default on purpose: a transport added
+  /// later does not compile until someone decides which side of the paid line
+  /// it sits on. Bluetooth is the free acquisition hook (business plan §2A)
+  /// and must stay free. Guest is free too — it ships as a [BetaFeature]
+  /// (see [betaFeature]), and charging for something we openly call
+  /// experimental would be the wrong promise.
+  bool get requiresPremium => switch (this) {
+    TransferMode.wifi || TransferMode.hotspot => true,
+    TransferMode.bluetooth || TransferMode.guest => false,
+  };
+
+  /// The beta classification this transport ships under, or null when it is
+  /// a finished, production path. Every surface that offers or names a
+  /// transport asks this, so the Beta mark appears wherever Guest does.
+  BetaFeature? get betaFeature => switch (this) {
+    TransferMode.guest => BetaFeature.guestConnection,
+    TransferMode.wifi || TransferMode.hotspot || TransferMode.bluetooth => null,
+  };
 }

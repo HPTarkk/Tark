@@ -488,14 +488,14 @@ class AppLocalizationsFa extends AppLocalizations {
       'چون پایین‌تر هیچ پاک‌کنی انتخاب نشده، این خاموشه.';
 
   @override
-  String get settings_advanced_row => 'تنظیمات ریزتر';
+  String get settings_advanced_row => 'تنظیمات پیشرفته';
 
   @override
   String get settings_advanced_row_desc =>
       'چیزهای اضافه برای ور رفتن — بیشتر آدم‌ها اصلاً بهشون کار ندارن';
 
   @override
-  String get settings_advanced_title => 'تنظیمات ریزتر';
+  String get settings_advanced_title => 'تنظیمات پیشرفته';
 
   @override
   String get noise_cleaner_section => 'حذف صداهای مزاحم';
@@ -1333,8 +1333,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get paywall_title => 'نسخه ویژه';
 
   @override
-  String get paywall_locked_wifi =>
-      'وای‌فای، هات‌اسپات و مهمان توی نسخه ویژه‌ان';
+  String get paywall_locked_wifi => 'وای‌فای و هات‌اسپات توی نسخه ویژه‌ان';
 
   @override
   String get paywall_locked_mute => 'ساکت کردن خودت توی نسخه ویژه‌ست';
@@ -1343,7 +1342,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get paywall_locked_music => 'پخش آهنگ توی نسخه ویژه‌ست';
 
   @override
-  String get paywall_perk_wifi => 'وای‌فای، هات‌اسپات و مهمان';
+  String get paywall_perk_wifi => 'وای‌فای و هات‌اسپات';
 
   @override
   String get paywall_perk_mute => 'ساکت کردن خودت وسط حرف زدن';
@@ -2625,7 +2624,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get mysub_none_body =>
-      'نسخه ویژه وای‌فای، هات‌اسپات و مهمان، بی‌صدا کردن خودت و پخش موسیقی رو باز می‌کنه. بلوتوث همیشه رایگانه.';
+      'نسخه ویژه وای‌فای و هات‌اسپات، بی‌صدا کردن خودت و پخش موسیقی رو باز می‌کنه. بلوتوث همیشه رایگانه.';
 
   @override
   String get mysub_see_plans => 'دیدن طرح‌ها';
@@ -3103,4 +3102,49 @@ class AppLocalizationsFa extends AppLocalizations {
   @override
   String get network_link_hotspot_detail =>
       'یک گوشی شبکه رو می‌سازه. صداتون از همون مسیر می‌ره.';
+
+  @override
+  String get beta_label => 'بتا';
+
+  @override
+  String get beta_semantics => 'قابلیت آزمایشی (بتا)';
+
+  @override
+  String get beta_feature_guest => 'اتصال مهمان';
+
+  @override
+  String get beta_intro_title => 'تازه از آزمایشگاه اومده';
+
+  @override
+  String get beta_intro_cta => 'فهمیدم، بزن بریم';
+
+  @override
+  String get beta_intro_back => 'الان نه';
+
+  @override
+  String get beta_notice_more => 'یعنی چی؟';
+
+  @override
+  String get beta_guest_intro_body =>
+      'اتصال مهمان هنوز بتاست. کار می‌کنه و راحت می‌تونی امتحانش کنی، فقط هنوز به اندازه‌ی کافی توی جاده تست نشده.';
+
+  @override
+  String get beta_guest_intro_works =>
+      'کار می‌کنه و رایگانه؛ بی‌خیال امتحانش کن';
+
+  @override
+  String get beta_guest_intro_bugs =>
+      'ممکنه گاهی گیر کنه یا لازم باشه دوباره وصل شی';
+
+  @override
+  String get beta_guest_intro_steadier =>
+      'برای سفرهای مهم، وای‌فای/هات‌اسپات یا بلوتوث مطمئن‌ترن';
+
+  @override
+  String get beta_guest_notice =>
+      'اتصال مهمان هنوز بتاست؛ ممکنه گاهی یه جا گیر کنه.';
+
+  @override
+  String get beta_guest_web_notice =>
+      'این اتصال هنوز بتاست؛ اگه قطع شد، دوباره QR رو اسکن کن.';
 }
