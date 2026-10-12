@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/beta/beta_badge.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -80,6 +81,8 @@ class _ConsoleHeader extends StatelessWidget {
             letterSpacing: 4,
           ),
         ),
+        const SizedBox(width: 10),
+        const BetaBadge(),
         const Spacer(),
         const GuestSettingsToggles(),
       ],

@@ -5,8 +5,9 @@
 /// `LicenseGate.allows(...)` about one of these. Keeps the paid surface
 /// enumerable: this enum is the whole answer to "what does money buy".
 enum PremiumFeature {
-  /// Wi-Fi, Hotspot and Guest transports. Bluetooth is deliberately absent —
-  /// it is the permanently free acquisition hook and must never appear here.
+  /// Wi-Fi and Hotspot transports. Bluetooth is deliberately absent — it is
+  /// the permanently free acquisition hook and must never appear here. Guest
+  /// is absent too: it ships free under `BetaFeature.guestConnection`.
   wifiTransport,
 
   /// Participating in a Room with more than two confirmed members.

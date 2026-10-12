@@ -2495,7 +2495,7 @@ abstract class AppLocalizations {
   /// No description provided for @paywall_locked_wifi.
   ///
   /// In fa, this message translates to:
-  /// **'وای‌فای، هات‌اسپات و مهمان توی نسخه ویژه‌ان'**
+  /// **'وای‌فای و هات‌اسپات توی نسخه ویژه‌ان'**
   String get paywall_locked_wifi;
 
   /// No description provided for @paywall_locked_mute.
@@ -2513,7 +2513,7 @@ abstract class AppLocalizations {
   /// No description provided for @paywall_perk_wifi.
   ///
   /// In fa, this message translates to:
-  /// **'وای‌فای، هات‌اسپات و مهمان'**
+  /// **'وای‌فای و هات‌اسپات'**
   String get paywall_perk_wifi;
 
   /// No description provided for @paywall_perk_mute.
@@ -4721,7 +4721,7 @@ abstract class AppLocalizations {
   /// No description provided for @mysub_none_body.
   ///
   /// In fa, this message translates to:
-  /// **'نسخه ویژه وای‌فای، هات‌اسپات و مهمان، بی‌صدا کردن خودت و پخش موسیقی رو باز می‌کنه. بلوتوث همیشه رایگانه.'**
+  /// **'نسخه ویژه وای‌فای و هات‌اسپات، بی‌صدا کردن خودت و پخش موسیقی رو باز می‌کنه. بلوتوث همیشه رایگانه.'**
   String get mysub_none_body;
 
   /// No description provided for @mysub_see_plans.
@@ -5515,6 +5515,84 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'یک گوشی شبکه رو می‌سازه. صداتون از همون مسیر می‌ره.'**
   String get network_link_hotspot_detail;
+
+  /// No description provided for @beta_label.
+  ///
+  /// In fa, this message translates to:
+  /// **'بتا'**
+  String get beta_label;
+
+  /// No description provided for @beta_semantics.
+  ///
+  /// In fa, this message translates to:
+  /// **'قابلیت آزمایشی (بتا)'**
+  String get beta_semantics;
+
+  /// No description provided for @beta_feature_guest.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتصال مهمان'**
+  String get beta_feature_guest;
+
+  /// No description provided for @beta_intro_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'تازه از آزمایشگاه اومده'**
+  String get beta_intro_title;
+
+  /// No description provided for @beta_intro_cta.
+  ///
+  /// In fa, this message translates to:
+  /// **'فهمیدم، بزن بریم'**
+  String get beta_intro_cta;
+
+  /// No description provided for @beta_intro_back.
+  ///
+  /// In fa, this message translates to:
+  /// **'الان نه'**
+  String get beta_intro_back;
+
+  /// No description provided for @beta_notice_more.
+  ///
+  /// In fa, this message translates to:
+  /// **'یعنی چی؟'**
+  String get beta_notice_more;
+
+  /// No description provided for @beta_guest_intro_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتصال مهمان هنوز بتاست. کار می‌کنه و راحت می‌تونی امتحانش کنی، فقط هنوز به اندازه‌ی کافی توی جاده تست نشده.'**
+  String get beta_guest_intro_body;
+
+  /// No description provided for @beta_guest_intro_works.
+  ///
+  /// In fa, this message translates to:
+  /// **'کار می‌کنه و رایگانه؛ بی‌خیال امتحانش کن'**
+  String get beta_guest_intro_works;
+
+  /// No description provided for @beta_guest_intro_bugs.
+  ///
+  /// In fa, this message translates to:
+  /// **'ممکنه گاهی گیر کنه یا لازم باشه دوباره وصل شی'**
+  String get beta_guest_intro_bugs;
+
+  /// No description provided for @beta_guest_intro_steadier.
+  ///
+  /// In fa, this message translates to:
+  /// **'برای سفرهای مهم، وای‌فای/هات‌اسپات یا بلوتوث مطمئن‌ترن'**
+  String get beta_guest_intro_steadier;
+
+  /// No description provided for @beta_guest_notice.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتصال مهمان هنوز بتاست؛ ممکنه گاهی یه جا گیر کنه.'**
+  String get beta_guest_notice;
+
+  /// No description provided for @beta_guest_web_notice.
+  ///
+  /// In fa, this message translates to:
+  /// **'این اتصال هنوز بتاست؛ اگه قطع شد، دوباره QR رو اسکن کن.'**
+  String get beta_guest_web_notice;
 }
 
 class _AppLocalizationsDelegate

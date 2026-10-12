@@ -1339,7 +1339,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paywall_title => 'GO PREMIUM';
 
   @override
-  String get paywall_locked_wifi => 'Wi-Fi, Hotspot and Guest are premium';
+  String get paywall_locked_wifi => 'Wi-Fi and Hotspot are premium';
 
   @override
   String get paywall_locked_mute => 'Muting yourself is premium';
@@ -1348,7 +1348,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paywall_locked_music => 'Sharing music is premium';
 
   @override
-  String get paywall_perk_wifi => 'Wi-Fi, Hotspot and Guest';
+  String get paywall_perk_wifi => 'Wi-Fi and Hotspot';
 
   @override
   String get paywall_perk_mute => 'Mute yourself mid-talk';
@@ -2636,7 +2636,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mysub_none_body =>
-      'Premium unlocks Wi-Fi, Hotspot and Guest, muting yourself, and sharing music. Bluetooth stays free, always.';
+      'Premium unlocks Wi-Fi and Hotspot, muting yourself, and sharing music. Bluetooth stays free, always.';
 
   @override
   String get mysub_see_plans => 'SEE PLANS';
@@ -3132,4 +3132,49 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get network_link_hotspot_detail =>
       'One phone makes the network. Your voices travel over it.';
+
+  @override
+  String get beta_label => 'BETA';
+
+  @override
+  String get beta_semantics => 'Beta feature';
+
+  @override
+  String get beta_feature_guest => 'Guest connection';
+
+  @override
+  String get beta_intro_title => 'Fresh out of the lab';
+
+  @override
+  String get beta_intro_cta => 'Got it, let\'s go';
+
+  @override
+  String get beta_intro_back => 'Not now';
+
+  @override
+  String get beta_notice_more => 'What\'s that?';
+
+  @override
+  String get beta_guest_intro_body =>
+      'Guest connection is still in beta. It works and you\'re welcome to try it — it just hasn\'t been road-tested enough yet.';
+
+  @override
+  String get beta_guest_intro_works =>
+      'It works, and it\'s free — go ahead and try it';
+
+  @override
+  String get beta_guest_intro_bugs =>
+      'It might hiccup now and then, or need a reconnect';
+
+  @override
+  String get beta_guest_intro_steadier =>
+      'For a ride that matters, Wi-Fi/Hotspot or Bluetooth is steadier';
+
+  @override
+  String get beta_guest_notice =>
+      'Guest connection is in beta — it may stumble now and then.';
+
+  @override
+  String get beta_guest_web_notice =>
+      'This connection is still in beta — if it drops, just scan the QR again.';
 }

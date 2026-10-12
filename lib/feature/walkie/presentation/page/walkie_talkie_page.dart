@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/beta/beta_badge.dart';
 import '../../../../core/diagnostics/screen_log.dart';
 import '../../../../core/identity/device_identity.dart';
 import '../../../../core/l10n/extension.dart';
@@ -214,6 +215,7 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage> {
           p.myAvatarId != c.myAvatarId ||
           p.isReady != c.isReady ||
           p.myRole != c.myRole ||
+          p.transferMode != c.transferMode ||
           p.connectionHealth.isLive != c.connectionHealth.isLive,
       builder: (context, state) {
         final s = context.getString;
@@ -303,6 +305,12 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage> {
                           Expanded(
                             child: RoleBadge(role: state.myRole, fontSize: 12),
                           ),
+                        ],
+                        // Riding on a beta transport is said here, quietly,
+                        // for as long as the channel is open.
+                        if (state.transferMode.betaFeature != null) ...[
+                          const SizedBox(width: 6),
+                          const BetaPill(),
                         ],
                       ],
                     ),

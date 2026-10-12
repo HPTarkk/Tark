@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 
+import '../../../../core/beta/beta_badge.dart';
 import '../../../../core/entitlement/license_gate.dart';
 import '../../../../core/entitlement/subscription_gate_page.dart';
 import '../../../../core/entitlement/premium_feature.dart';
@@ -77,6 +78,9 @@ class TransportStep extends StatelessWidget {
                   label: s.transport_guest,
                   sublabel: s.onboarding_mode_guest_desc,
                   selected: state.mode == TransferMode.guest,
+                  tag: TransferMode.guest.betaFeature == null
+                      ? null
+                      : const BetaPill(),
                   onTap: () => _select(context, cubit, TransferMode.guest),
                 ),
               ],

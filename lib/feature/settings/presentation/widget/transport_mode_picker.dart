@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
+import '../../../../core/beta/beta_badge.dart';
+import '../../../../core/beta/beta_intro.dart';
 import '../../../../core/diagnostics/screen_log.dart';
 import '../../../../core/entitlement/license_gate.dart';
 import '../../../../core/entitlement/subscription_gate_page.dart';
@@ -13,9 +15,10 @@ import '../../../transfer/api/transfer_api.dart';
 /// Chooses a transport explicitly. Old automatic preferences display as
 /// Wi-Fi/Hotspot, which is now the default; Bluetooth remains opt-in.
 ///
-/// WiFi and Guest carry a lock without entitlement: tapping one opens the
+/// Wi-Fi/Hotspot carries a lock without entitlement: tapping it opens the
 /// paywall instead of switching, so the transport gate is never a dead end.
-/// Bluetooth is never locked.
+/// Bluetooth is never locked. Guest is free and carries the Beta mark instead
+/// — and, while pinned, a short beta note under the picker.
 class TransportModePicker extends StatelessWidget {
   const TransportModePicker({super.key});
 
@@ -93,11 +96,28 @@ class TransportModePicker extends StatelessWidget {
                         label: s.transport_guest,
                         icon: Icons.qr_code_rounded,
                         selected: pinned == TransferMode.guest,
-                        locked: !unlocked,
+                        locked: false,
+                        beta: TransferMode.guest.betaFeature != null,
                         onTap: () => select(TransferMode.guest),
                       ),
                     ],
                   ),
+                ),
+                // Disclosed only while Guest is the pick: the mark on the
+                // button says "beta", this says what that means for you.
+                AnimatedSize(
+                  duration: AppMotion.card,
+                  curve: AppMotion.easeOut,
+                  alignment: AlignmentDirectional.topCenter,
+                  child: pinned?.betaFeature == null
+                      ? const SizedBox(width: double.infinity)
+                      : Padding(
+                          padding: const EdgeInsets.only(top: 10),
+                          child: BetaNotice(
+                            feature: pinned!.betaFeature!,
+                            message: s.beta_guest_notice,
+                          ),
+                        ),
                 ),
                 const SizedBox(height: 10),
                 Text(
@@ -122,6 +142,7 @@ class _ModeButton extends StatelessWidget {
   final IconData icon;
   final bool selected;
   final bool locked;
+  final bool beta;
   final VoidCallback onTap;
 
   const _ModeButton({
@@ -130,6 +151,7 @@ class _ModeButton extends StatelessWidget {
     required this.selected,
     required this.locked,
     required this.onTap,
+    this.beta = false,
   });
 
   @override
@@ -171,6 +193,12 @@ class _ModeButton extends StatelessWidget {
                         size: 10,
                         color: AppColors.amber.withAlpha(200),
                       ),
+                    ),
+                  if (beta)
+                    const PositionedDirectional(
+                      end: -13,
+                      top: -8,
+                      child: BetaMark(size: 12),
                     ),
                 ],
               ),

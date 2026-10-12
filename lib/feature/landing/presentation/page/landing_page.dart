@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/beta/beta_badge.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
@@ -288,6 +289,10 @@ class _TransportChip extends StatelessWidget {
                 ),
               ),
             ),
+            if (pinned?.betaFeature != null) ...[
+              const SizedBox(width: 6),
+              const BetaPill(showIcon: false),
+            ],
             const SizedBox(width: 4),
             Icon(
               Icons.chevron_right_rounded,

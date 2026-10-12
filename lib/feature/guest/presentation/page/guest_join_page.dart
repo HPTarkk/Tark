@@ -3,6 +3,9 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/beta/beta_badge.dart';
+import '../../../../core/beta/beta_feature.dart';
+import '../../../../core/beta/beta_intro.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -128,6 +131,14 @@ class _GuestJoinPageState extends State<GuestJoinPage> {
                 end: 16,
                 child: GuestSettingsToggles(),
               ),
+            // The browser half of a beta feature wears the same mark as the
+            // phone half; the console carries it in its own header.
+            if (!isConsole)
+              const PositionedDirectional(
+                top: 22,
+                start: 20,
+                child: BetaBadge(),
+              ),
           ],
         ),
       ),
@@ -237,6 +248,11 @@ class _ReplyQr extends StatelessWidget {
         ),
         const SizedBox(height: 20),
         const _WaitingDots(),
+        const SizedBox(height: 22),
+        BetaNotice(
+          feature: BetaFeature.guestConnection,
+          message: context.getString.beta_guest_web_notice,
+        ),
       ],
     );
   }

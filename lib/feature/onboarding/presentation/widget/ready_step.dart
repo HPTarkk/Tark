@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/beta/beta_badge.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
@@ -95,6 +96,10 @@ class ReadyStep extends StatelessWidget {
                                 ),
                               ),
                             ),
+                            if (state.mode?.betaFeature != null) ...[
+                              const SizedBox(width: 8),
+                              const BetaPill(),
+                            ],
                           ],
                         ),
                       ),

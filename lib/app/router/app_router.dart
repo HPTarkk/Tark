@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/account/email_link.dart';
+import '../../core/beta/beta_intro.dart';
 import '../../core/diagnostics/screen_log.dart';
 import '../../core/entitlement/feature_access_guard.dart';
 import '../../core/entitlement/premium_feature.dart';
@@ -170,8 +171,12 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.guestLinkPath,
         name: AppRoutes.guestLinkName,
-        builder: (context, state) =>
-            _ipAccess(context, (_) => GuestLinkPage.buildPage()),
+        // Free, and shipped as a beta: no subscription gate, but the first
+        // visit on an install is met by the friendly beta intro.
+        builder: (context, state) => BetaIntroGate(
+          feature: TransferMode.guest.betaFeature!,
+          child: GuestLinkPage.buildPage(),
+        ),
       ),
       GoRoute(
         path: AppRoutes.settingsPath,

@@ -73,6 +73,17 @@ directly). `LocaleService`, `ThemeService`, and `Sfx` still read
 `SharedPreferences` directly — they initialize in `main.dart` before DI is
 configured — but do so via `SettingsKeys` constants, not literals.
 
+### Premium and Beta classifications
+
+`core/entitlement/PremiumFeature` enumerates what money buys (asked through
+`LicenseGate.allows`). `core/beta/BetaFeature` is its orthogonal sibling: what
+ships before it is road-tested. Features map themselves onto it (e.g.
+`TransferMode.betaFeature`), and every surface uses the shared Beta widgets —
+`BetaBadge` (headline, animated), `BetaPill` (inline), `BetaMark` (icon
+corner), `BetaNotice` (inline note) and `BetaIntroGate` (one-time intro sheet,
+remembered through `SettingsRepository.getBetaIntroSeen`). Guest (WebRTC) is
+beta and free.
+
 ## DI
 
 Registrations are annotation-driven (`injectable`). After changing any
