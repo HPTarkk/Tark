@@ -5,6 +5,7 @@ import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/connection_journey.dart';
+import '../../../../core/widget/link_preparing_visual.dart';
 import '../../../../core/widget/qr_scanner_surface.dart';
 import '../../../../core/widget/qr_widgets.dart';
 
@@ -503,12 +504,6 @@ class _ShowSide extends StatelessWidget {
   Widget _body(BuildContext context) {
     final s = context.getString;
     switch (model.phase) {
-      case RoomReconnectPhase.preparing:
-        return _StatusBlock(
-          key: const ValueKey('preparing'),
-          icon: null,
-          text: s.reconnect_preparing,
-        );
       case RoomReconnectPhase.connecting:
         return _StatusBlock(
           key: const ValueKey('connecting'),
@@ -544,45 +539,69 @@ class _ShowSide extends StatelessWidget {
             ),
           ],
         );
+      case RoomReconnectPhase.preparing:
       case RoomReconnectPhase.waiting:
-        final data = model.qrData;
+        // One widget for the wait and the code, so the beacon resolves into
+        // the code in place instead of the two crossfading.
+        final data = model.phase == RoomReconnectPhase.waiting
+            ? model.qrData
+            : null;
+        final preparing = data == null;
         return Column(
-          key: const ValueKey('waiting'),
+          key: const ValueKey('code'),
           children: [
-            if (data != null)
-              Semantics(
-                image: true,
-                label: s.reconnect_show_step_hold,
-                child: GlowingQrCard(data: data, size: 232, branded: true),
-              ),
-            const SizedBox(height: 20),
-            _WaitingPulse(text: s.reconnect_waiting(model.peerName)),
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.card,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                children: [
-                  StepRow(
-                    index: 1,
-                    icon: Icons.touch_app_rounded,
-                    text: s.reconnect_show_step_start(model.peerName),
-                  ),
-                  const SizedBox(height: 12),
-                  Divider(color: AppColors.border, height: 1),
-                  const SizedBox(height: 12),
-                  StepRow(
-                    index: 2,
-                    icon: Icons.photo_camera_rounded,
-                    text: s.reconnect_show_step_hold,
-                  ),
-                ],
-              ),
+            LinkPreparingVisual(
+              kind: LinkPreparingKind.hotspot,
+              qrSize: 232,
+              ready: data == null
+                  ? null
+                  : Semantics(
+                      image: true,
+                      label: s.reconnect_show_step_hold,
+                      child: GlowingQrCard(
+                        data: data,
+                        size: 232,
+                        branded: true,
+                      ),
+                    ),
             ),
+            if (preparing) ...[
+              const SizedBox(height: 16),
+              const LinkPreparingCaption(
+                key: Key('room-reconnect-preparing'),
+                kind: LinkPreparingKind.hotspot,
+              ),
+            ],
+            if (!preparing) ...[
+              const SizedBox(height: 20),
+              _WaitingPulse(text: s.reconnect_waiting(model.peerName)),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.card,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  children: [
+                    StepRow(
+                      index: 1,
+                      icon: Icons.touch_app_rounded,
+                      text: s.reconnect_show_step_start(model.peerName),
+                    ),
+                    const SizedBox(height: 12),
+                    Divider(color: AppColors.border, height: 1),
+                    const SizedBox(height: 12),
+                    StepRow(
+                      index: 2,
+                      icon: Icons.photo_camera_rounded,
+                      text: s.reconnect_show_step_hold,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         );
     }

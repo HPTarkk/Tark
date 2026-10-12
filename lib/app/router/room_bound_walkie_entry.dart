@@ -17,6 +17,7 @@ import '../../core/router/route_exit.dart';
 import '../../core/router/routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widget/connection_journey.dart';
+import '../../core/widget/link_preparing_visual.dart';
 import '../../core/settings/connection_history.dart';
 import '../../core/utils/android_sdk.dart';
 import '../../core/utils/logger.dart';
@@ -696,6 +697,9 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         context,
         repository: _rooms,
         link: link,
+        linkKind: bluetooth
+            ? LinkPreparingKind.bluetooth
+            : LinkPreparingKind.hotspot,
         dismissWhen: dismiss.future,
         onShown: () {
           if (token != _inviteToken) return;
