@@ -957,5 +957,8 @@
     "onbx_later": "Maybe later",
     "onbx_change": "Change",
     "onbx_room_name_suggestion": "{name}'s crew",
-    "onbx_progress": "Step {current} of {total}"
+    "onbx_progress": "Step {current} of {total}",
+    "linkprep_hotspot_detail": "Your phone is becoming a hotspot and writing the code as it goes.",
+    "linkprep_bluetooth_detail": "Bluetooth is waking up and writing the code as it goes.",
+    "linkprep_code_detail": "Signing your invite code."
 }

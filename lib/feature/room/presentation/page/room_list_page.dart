@@ -19,6 +19,7 @@ import '../../domain/entity/room.dart';
 import '../manager/room_list_cubit.dart';
 import '../widget/room_archive_sheet.dart';
 import '../widget/room_actions_sheet.dart';
+import '../widget/room_dissolve.dart';
 import '../widget/room_visuals.dart';
 import 'room_create_page.dart';
 import '../../../../core/utils/localized_digits_formatter.dart';
@@ -64,51 +65,55 @@ class _RoomListPageState extends State<RoomListPage> {
   Widget _scaffold(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _TopBar(onBack: () => _leave(context)),
-            Expanded(
-              child: BlocBuilder<RoomListCubit, RoomListState>(
-                builder: (context, state) {
-                  // These four are the same region of the screen showing different
-                  // answers, so they dissolve into one another instead of cutting.
-                  // A spinner that vanishes and a list that appears in the same frame
-                  // reads as two screens; a 220ms crossfade reads as one screen
-                  // finishing its sentence.
-                  return AnimatedSwitcher(
-                    duration: AppMotion.card,
-                    switchInCurve: AppMotion.easeOut,
-                    switchOutCurve: AppMotion.leaving,
-                    // Every state occupies the same fixed slot, so an empty state and
-                    // a full list never fight over the height for the length of the
-                    // fade, and only the arriving one can be tapped.
-                    //
-                    // The slots are keyed off the child, and the *shape* of a slot is
-                    // identical whether it is arriving or leaving. That is load
-                    // bearing: `AnimatedSwitcher` hands this builder widgets carrying
-                    // a stable `KeyedSubtree` key, and wrapping only the outgoing
-                    // ones — which is the obvious way to write this — changes the
-                    // widget at that slot the instant the swap happens, so the
-                    // departing subtree is torn down and rebuilt from nothing. It
-                    // then replays its own entrance while the switcher is fading it
-                    // out: the list you just emptied fades *in* over 335ms on top of
-                    // a 220ms fade out, which is the two-step this used to show
-                    // after deleting the last Room.
-                    layoutBuilder: (current, previous) => Stack(
-                      alignment: Alignment.topCenter,
-                      children: [
-                        for (final child in previous)
-                          _slot(child, leaving: true),
-                        if (current != null) _slot(current, leaving: false),
-                      ],
-                    ),
-                    child: _body(context, state),
-                  );
-                },
+      // A deleted Room's card turns to dust; the host keeps its slot open
+      // while that plays. See [RoomDissolveHost].
+      body: RoomDissolveHost(
+        child: SafeArea(
+          child: Column(
+            children: [
+              _TopBar(onBack: () => _leave(context)),
+              Expanded(
+                child: BlocBuilder<RoomListCubit, RoomListState>(
+                  builder: (context, state) {
+                    // These four are the same region of the screen showing different
+                    // answers, so they dissolve into one another instead of cutting.
+                    // A spinner that vanishes and a list that appears in the same frame
+                    // reads as two screens; a 220ms crossfade reads as one screen
+                    // finishing its sentence.
+                    return AnimatedSwitcher(
+                      duration: AppMotion.card,
+                      switchInCurve: AppMotion.easeOut,
+                      switchOutCurve: AppMotion.leaving,
+                      // Every state occupies the same fixed slot, so an empty state and
+                      // a full list never fight over the height for the length of the
+                      // fade, and only the arriving one can be tapped.
+                      //
+                      // The slots are keyed off the child, and the *shape* of a slot is
+                      // identical whether it is arriving or leaving. That is load
+                      // bearing: `AnimatedSwitcher` hands this builder widgets carrying
+                      // a stable `KeyedSubtree` key, and wrapping only the outgoing
+                      // ones — which is the obvious way to write this — changes the
+                      // widget at that slot the instant the swap happens, so the
+                      // departing subtree is torn down and rebuilt from nothing. It
+                      // then replays its own entrance while the switcher is fading it
+                      // out: the list you just emptied fades *in* over 335ms on top of
+                      // a 220ms fade out, which is the two-step this used to show
+                      // after deleting the last Room.
+                      layoutBuilder: (current, previous) => Stack(
+                        alignment: Alignment.topCenter,
+                        children: [
+                          for (final child in previous)
+                            _slot(child, leaving: true),
+                          if (current != null) _slot(current, leaving: false),
+                        ],
+                      ),
+                      child: _body(context, state),
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -143,29 +148,43 @@ class _RoomListPageState extends State<RoomListPage> {
         onCreate: () => _createRoom(context),
       );
     }
+    // A Room that was just deleted stays in its place, invisible, while its
+    // slot closes; the count above already says the true number.
+    final rooms =
+        RoomDissolveHost.of(context)?.retain(state.rooms, (s) => s.room.id) ??
+        state.rooms;
     return RefreshIndicator(
       key: const ValueKey('rooms-list-view'),
       onRefresh: context.read<RoomListCubit>().load,
       child: StaggeredEntrance(
         children: [
-          _SectionLabel(
-            text: context.getString.rooms_section(
-              state.rooms.length.localized(context),
+          Padding(
+            padding: const EdgeInsets.only(bottom: _gap),
+            child: _SectionLabel(
+              text: context.getString.rooms_section(
+                state.rooms.length.localized(context),
+              ),
             ),
           ),
-          for (final saved in state.rooms)
-            _RoomCard(
-              saved: saved,
-              selected: state.selectedRoomId == saved.room.id,
-              busy: state.loading,
-              onOpen: () {
-                ScreenLog.tap('OpenRoom');
-                _openRoom(context, saved);
-              },
-              onRename: () => _renameRoom(context, saved),
-              onArchive: () => _archiveRoom(context, saved),
-              onLeave: () => _leaveRoom(context, saved),
-              onDelete: () => confirmAndDeleteRoom(context, saved),
+          for (final saved in rooms)
+            // The gap below each card belongs to the card, so a deleted one
+            // takes its gap with it as it closes.
+            RoomDissolvable(
+              id: saved.room.id,
+              gap: _gap,
+              child: _RoomCard(
+                saved: saved,
+                selected: state.selectedRoomId == saved.room.id,
+                busy: state.loading,
+                onOpen: () {
+                  ScreenLog.tap('OpenRoom');
+                  _openRoom(context, saved);
+                },
+                onRename: () => _renameRoom(context, saved),
+                onArchive: () => _archiveRoom(context, saved),
+                onLeave: () => _leaveRoom(context, saved),
+                onDelete: () => confirmAndDeleteRoom(context, saved),
+              ),
             ),
           // Creation sits where the lobby keeps Invite: under the list, a
           // quieter card than the Room in play. A floating button covered the
@@ -176,16 +195,19 @@ class _RoomListPageState extends State<RoomListPage> {
             onTap: () => _createRoom(context),
           ),
         ],
-        builder: (context, children) => ListView.separated(
+        builder: (context, children) => ListView.builder(
           key: const Key('rooms-list'),
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
           itemCount: children.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 12),
           itemBuilder: (context, index) => children[index],
         ),
       ),
     );
   }
+
+  /// Space between the list's items. Carried by each item rather than by
+  /// separators, so a row closing takes its own space away with it.
+  static const double _gap = 12;
 
   Future<void> _createRoom(BuildContext context) async {
     ScreenLog.tap('NewRoom');

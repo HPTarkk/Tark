@@ -3262,4 +3262,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String onbx_progress(String current, String total) {
     return 'Step $current of $total';
   }
+
+  @override
+  String get linkprep_hotspot_detail =>
+      'Your phone is becoming a hotspot and writing the code as it goes.';
+
+  @override
+  String get linkprep_bluetooth_detail =>
+      'Bluetooth is waking up and writing the code as it goes.';
+
+  @override
+  String get linkprep_code_detail => 'Signing your invite code.';
 }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,6 +12,7 @@ import '../../../../core/entitlement/subscription_gate_page.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widget/link_preparing_visual.dart';
 import '../../../../core/widget/qr_widgets.dart';
 import '../../../../core/widget/sheet_shell.dart';
 import '../../../transfer/api/hotspot_invite_api.dart';
@@ -44,7 +46,9 @@ import 'room_invite_grant_toggle.dart';
 /// for it, never shows a code without it, and reports through [onShown] the
 /// moment a code people can actually use is on screen.
 /// [dismissWhen] closes the sheet from outside — when the person who scanned
-/// has proven themselves and the call is opening.
+/// has proven themselves and the call is opening. [linkKind] says which link
+/// [link] is raising, so the wait shows the right thing coming up; it
+/// defaults to a hotspot when there is a [link].
 Future<bool> showOneScanRoomInviteSheet(
   BuildContext context, {
   RoomRepository? repository,
@@ -52,6 +56,7 @@ Future<bool> showOneScanRoomInviteSheet(
   HotspotLinkKeeper? hotspotLinkKeeper,
   TransferRepository? transferRepository,
   Future<RoomInviteLink?>? link,
+  LinkPreparingKind? linkKind,
   VoidCallback? onShown,
   Future<void>? dismissWhen,
 }) async {
@@ -102,6 +107,11 @@ Future<bool> showOneScanRoomInviteSheet(
         routeSettings: const RouteSettings(name: 'RoomInviteSheet'),
         backgroundColor: Colors.transparent,
         isScrollControlled: true,
+        // Material 3 caps a bottom sheet at 640 wide, which leaves this one
+        // floating in the middle of a landscape phone or a tablet. The code is
+        // the whole point of the sheet; it gets all the width there is, the
+        // same edge-to-edge panel (less the shell's margin) as on a phone.
+        constraints: const BoxConstraints(),
         barrierColor: Colors.black.withValues(alpha: 0.62),
         builder: (_) => OneScanRoomInviteSheet(
           repository: repository,
@@ -109,6 +119,7 @@ Future<bool> showOneScanRoomInviteSheet(
           hotspotLinkKeeper: hotspotLinkKeeper,
           transferRepository: transferRepository,
           link: link,
+          linkKind: linkKind,
           onShown: onShown,
           dismissWhen: dismissWhen,
         ),
@@ -174,6 +185,7 @@ class OneScanRoomInviteSheet extends StatefulWidget {
     this.hotspotLinkKeeper,
     this.transferRepository,
     this.link,
+    this.linkKind,
     this.onShown,
     this.dismissWhen,
   });
@@ -188,6 +200,10 @@ class OneScanRoomInviteSheet extends StatefulWidget {
   /// and the sheet then shows no code at all rather than one that cannot
   /// connect.
   final Future<RoomInviteLink?>? link;
+
+  /// Which link [link] is bringing up. Null means a hotspot when [link] is
+  /// set, and no link at all otherwise.
+  final LinkPreparingKind? linkKind;
 
   /// Called once, when the code on screen carries a network to join.
   final VoidCallback? onShown;
@@ -348,8 +364,12 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
         });
         return;
       }
-
+      // The Room's name heads the sheet from the start, while the link and
+      // the code are still on their way, so nothing above the code shifts
+      // when it lands.
       if (!mounted) return;
+      setState(() => _roomName = saved.room.name);
+
       if (RoomAccessPolicy.inviteRequiresPremium(
             saved.room.confirmedMembers.length,
           ) &&
@@ -459,43 +479,45 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
     return link == null ? roomInvite : link.payload(roomInvite);
   }
 
+  /// Which link the wait is for.
+  LinkPreparingKind get _linkKind {
+    if (_hostRecovering) return LinkPreparingKind.hotspot;
+    return widget.linkKind ??
+        (widget.link != null
+            ? LinkPreparingKind.hotspot
+            : LinkPreparingKind.code);
+  }
+
+  /// Still waiting on the link, the code, or a hotspot being re-raised.
+  bool get _preparing =>
+      (_hostingPending && _error == null) ||
+      _loading ||
+      (_hostRecovering && _roomInvite != null);
+
   @override
   Widget build(BuildContext context) {
     return SheetShell(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(18, 8, 18, 20),
-        child: _body(context),
+        // The sheet grows by the buttons' height once the code is up, rather
+        // than jumping.
+        child: AnimatedSize(
+          duration: AppMotion.sheet,
+          curve: AppMotion.easeOut,
+          alignment: Alignment.bottomCenter,
+          child: PhaseSwitcher(
+            alignment: Alignment.center,
+            child: _body(context),
+          ),
+        ),
       ),
     );
   }
 
   Widget _body(BuildContext context) {
-    if (_hostingPending && _error == null) {
-      return SizedBox(
-        key: const Key('one-scan-room-invite-preparing'),
-        height: 300,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 18),
-            Text(
-              context.getString.reconnect_preparing,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-          ],
-        ),
-      );
-    }
-    if (_loading || (_hostRecovering && _roomInvite != null)) {
-      return const SizedBox(
-        height: 300,
-        child: Center(child: CircularProgressIndicator()),
-      );
-    }
-    final payload = _payload;
-    if (payload == null) {
+    final preparing = _preparing;
+    final payload = preparing ? null : _payload;
+    if (!preparing && payload == null) {
       return SizedBox(
         key: const Key('one-scan-room-invite-unavailable'),
         height: 220,
@@ -511,7 +533,12 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
         ),
       );
     }
+    // One layout for the wait and the code: the title, the code's square and
+    // the line under it hold their places, and what changes inside them
+    // changes in place — the beacon resolving into the code, the caption
+    // into the hint, the buttons arriving last.
     return Column(
+      key: const ValueKey('one-scan-room-invite-flow'),
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -520,52 +547,77 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
           subtitle: _roomName ?? '',
         ),
         const SizedBox(height: 16),
-        Center(
-          // A flip of the grant is a different code, and the swap says so: the
-          // old one recedes as the new one settles, instead of the modules
-          // silently rearranging under someone's camera.
-          child: AnimatedSwitcher(
-            duration: AppMotion.reduced(context)
-                ? AppMotion.chip
-                : AppMotion.sheet,
-            switchInCurve: AppMotion.easeOut,
-            switchOutCurve: AppMotion.leaving,
-            transitionBuilder: (child, animation) => FadeTransition(
-              opacity: animation,
-              child: AppMotion.reduced(context)
-                  ? child
-                  : ScaleTransition(
-                      scale: Tween<double>(
-                        begin: 0.94,
-                        end: 1,
-                      ).animate(animation),
-                      child: child,
-                    ),
-            ),
-            child: KeyedSubtree(
-              key: ValueKey(_grantInvites),
-              child: GlowingQrCard(
-                key: const Key('one-scan-room-invite-qr'),
-                data: payload,
-                size: 270,
-                branded:
-                    payload.length <=
-                    RoomDirectJoinBundle.brandableEncodedLength,
+        LayoutBuilder(
+          builder: (context, constraints) {
+            // As big as the sheet allows, up to 270: on a narrow phone the
+            // card's brackets used to run into the sheet's edges.
+            final qrSize = math.min(
+              270.0,
+              constraints.maxWidth - LinkPreparingVisual.extentFor(0),
+            );
+            return Center(
+              child: LinkPreparingVisual(
+                kind: _linkKind,
+                qrSize: qrSize,
+                ready: payload == null
+                    ? null
+                    // A flip of the grant is a different code, and the swap
+                    // says so: the old one recedes as the new one settles,
+                    // instead of the modules silently rearranging under
+                    // someone's camera.
+                    : AnimatedSwitcher(
+                        duration: AppMotion.reduced(context)
+                            ? AppMotion.chip
+                            : AppMotion.sheet,
+                        switchInCurve: AppMotion.easeOut,
+                        switchOutCurve: AppMotion.leaving,
+                        transitionBuilder: (child, animation) => FadeTransition(
+                          opacity: animation,
+                          child: AppMotion.reduced(context)
+                              ? child
+                              : ScaleTransition(
+                                  scale: Tween<double>(
+                                    begin: 0.94,
+                                    end: 1,
+                                  ).animate(animation),
+                                  child: child,
+                                ),
+                        ),
+                        child: KeyedSubtree(
+                          key: ValueKey(_grantInvites),
+                          child: GlowingQrCard(
+                            key: const Key('one-scan-room-invite-qr'),
+                            data: payload,
+                            size: qrSize,
+                            branded:
+                                payload.length <=
+                                RoomDirectJoinBundle.brandableEncodedLength,
+                          ),
+                        ),
+                      ),
               ),
-            ),
-          ),
+            );
+          },
         ),
         const SizedBox(height: 10),
-        Text(
-          context.getString.people_invite_hint,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: 12.5,
-            height: 1.5,
-          ),
+        PhaseSwitcher(
+          child: payload == null
+              ? LinkPreparingCaption(
+                  key: const Key('one-scan-room-invite-preparing'),
+                  kind: _linkKind,
+                )
+              : Text(
+                  context.getString.people_invite_hint,
+                  key: const ValueKey('one-scan-room-invite-hint'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12.5,
+                    height: 1.5,
+                  ),
+                ),
         ),
-        if (_canGrant) ...[
+        if (payload != null && _canGrant) ...[
           const SizedBox(height: 14),
           RoomInviteGrantToggle(
             value: _grantInvites,
@@ -573,30 +625,43 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
             onChanged: (value) => unawaited(_setGrant(value)),
           ),
         ],
-        const SizedBox(height: 18),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                key: const Key('one-scan-room-invite-copy'),
-                onPressed: () =>
-                    Clipboard.setData(ClipboardData(text: payload)),
-                icon: const Icon(Icons.copy_rounded),
-                label: Text(context.getString.people_copy_invite),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: FilledButton.icon(
-                key: const Key('one-scan-room-invite-done'),
-                onPressed: () => Navigator.of(context).pop(false),
-                icon: const Icon(Icons.check_rounded),
-                label: Text(context.getString.people_done),
-              ),
-            ),
-          ],
-        ),
+        if (payload != null) ...[
+          const SizedBox(height: 18),
+          _InviteActions(payload: payload),
+        ],
       ],
     );
   }
+}
+
+/// Copy and Done, rising in once there is something to copy.
+class _InviteActions extends StatelessWidget {
+  const _InviteActions({required this.payload});
+
+  final String payload;
+
+  @override
+  Widget build(BuildContext context) => StaggeredEntrance(
+    builder: (context, children) => Row(
+      children: [
+        Expanded(child: children[0]),
+        const SizedBox(width: 10),
+        Expanded(child: children[1]),
+      ],
+    ),
+    children: [
+      OutlinedButton.icon(
+        key: const Key('one-scan-room-invite-copy'),
+        onPressed: () => Clipboard.setData(ClipboardData(text: payload)),
+        icon: const Icon(Icons.copy_rounded),
+        label: Text(context.getString.people_copy_invite),
+      ),
+      FilledButton.icon(
+        key: const Key('one-scan-room-invite-done'),
+        onPressed: () => Navigator.of(context).pop(false),
+        icon: const Icon(Icons.check_rounded),
+        label: Text(context.getString.people_done),
+      ),
+    ],
+  );
 }

@@ -3232,4 +3232,15 @@ class AppLocalizationsFa extends AppLocalizations {
   String onbx_progress(String current, String total) {
     return 'مرحله $current از $total';
   }
+
+  @override
+  String get linkprep_hotspot_detail =>
+      'گوشیت داره هات‌اسپات می‌شه و کد رو همزمان می‌سازه.';
+
+  @override
+  String get linkprep_bluetooth_detail =>
+      'بلوتوث داره روشن می‌شه و کد رو همزمان می‌سازه.';
+
+  @override
+  String get linkprep_code_detail => 'داریم کد دعوت رو امضا می‌کنیم.';
 }

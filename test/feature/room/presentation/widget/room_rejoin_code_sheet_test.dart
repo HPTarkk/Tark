@@ -30,7 +30,10 @@ void main() {
         ),
       );
       showRoomRejoinCodeSheet(host, room: _room(), name: 'Sara', back: back);
-      await tester.pumpAndSettle();
+      // Not pumpAndSettle: with no hotspot up yet the sheet shows the
+      // preparing beacon, which loops until the code arrives.
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
       final shell = find.byType(SheetShell);
       final before = tester.getSize(shell).width;
 

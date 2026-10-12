@@ -5743,6 +5743,24 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'مرحله {current} از {total}'**
   String onbx_progress(String current, String total);
+
+  /// No description provided for @linkprep_hotspot_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'گوشیت داره هات‌اسپات می‌شه و کد رو همزمان می‌سازه.'**
+  String get linkprep_hotspot_detail;
+
+  /// No description provided for @linkprep_bluetooth_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'بلوتوث داره روشن می‌شه و کد رو همزمان می‌سازه.'**
+  String get linkprep_bluetooth_detail;
+
+  /// No description provided for @linkprep_code_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'داریم کد دعوت رو امضا می‌کنیم.'**
+  String get linkprep_code_detail;
 }
 
 class _AppLocalizationsDelegate

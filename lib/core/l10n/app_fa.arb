@@ -983,5 +983,8 @@
     "onbx_room_name_suggestion": "اکیپ {name}",
     "@onbx_room_name_suggestion": {"placeholders": {"name": {"type": "String"}}},
     "onbx_progress": "مرحله {current} از {total}",
-    "@onbx_progress": {"placeholders": {"current": {"type": "String"}, "total": {"type": "String"}}}
+    "@onbx_progress": {"placeholders": {"current": {"type": "String"}, "total": {"type": "String"}}},
+    "linkprep_hotspot_detail": "گوشیت داره هات‌اسپات می‌شه و کد رو همزمان می‌سازه.",
+    "linkprep_bluetooth_detail": "بلوتوث داره روشن می‌شه و کد رو همزمان می‌سازه.",
+    "linkprep_code_detail": "داریم کد دعوت رو امضا می‌کنیم."
 }
