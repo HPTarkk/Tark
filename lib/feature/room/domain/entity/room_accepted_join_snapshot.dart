@@ -58,6 +58,22 @@ final class RoomAcceptedJoinSnapshot {
   /// written into the code it scanned.
   final bool grantsInviteManagement;
 
+  /// The same roster with the invite right replaced.
+  ///
+  /// The importer uses this to make the signed certificate — not this
+  /// unsigned flag — the only thing that decides what a joiner may do.
+  RoomAcceptedJoinSnapshot withInviteGrant(bool granted) =>
+      granted == grantsInviteManagement
+      ? this
+      : RoomAcceptedJoinSnapshot(
+          roomId: roomId,
+          roomName: roomName,
+          roomCreatedAt: roomCreatedAt,
+          roomUpdatedAt: roomUpdatedAt,
+          members: members,
+          grantsInviteManagement: granted,
+        );
+
   factory RoomAcceptedJoinSnapshot.fromSavedRoom(
     SavedRoom saved, {
     required RoomMemberId acceptedMemberId,

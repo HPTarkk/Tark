@@ -3,6 +3,33 @@ import '../entity/room_accepted_join_snapshot.dart';
 import '../entity/room_invitation.dart';
 import '../service/room_invitation_ledger.dart';
 
+/// Durable admission of a member this phone has never seen, on the strength of
+/// a certificate that has already verified against the Room key.
+///
+/// Separate from [RoomRepository] so storage that cannot do it (and every test
+/// double written before it existed) simply does not offer it, which leaves a
+/// live session on the original rule: only members this phone already knows
+/// can bind.
+abstract interface class RoomVerifiedMemberAdmission {
+  /// Returns whether [memberId] is (now) an active member of [roomId].
+  ///
+  /// * Already active: true, nothing written.
+  /// * Withdrawn on this phone: false, and it stays withdrawn — removal is a
+  ///   local decision live evidence never reverses.
+  /// * Unknown: added as a confirmed member and true. [displayName] is the
+  ///   member's own signed name, or null for a placeholder the next proof can
+  ///   still replace.
+  ///
+  /// Callers must have verified the member's certificate chain first; this
+  /// method has no way to and does not try.
+  Future<bool> admitVerifiedMember(
+    RoomId roomId,
+    RoomMemberId memberId, {
+    String? displayName,
+    required DateTime at,
+  });
+}
+
 abstract interface class RoomRepository {
   /// Fires once after every durable change to the saved Rooms on this phone —
   /// a create, a rename, an archive, a roster edit, a delete, a selection.

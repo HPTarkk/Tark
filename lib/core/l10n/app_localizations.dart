@@ -5665,6 +5665,18 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'فعلاً نه'**
   String get journey_not_now;
+
+  /// No description provided for @invitegrant_on_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'اونم می‌تونه رفیقاشو بیاره تو اتاق.'**
+  String get invitegrant_on_hint;
+
+  /// No description provided for @invitegrant_off_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'میاد تو اتاق، ولی نمی‌تونه کسی رو اضافه کنه.'**
+  String get invitegrant_off_hint;
 }
 
 class _AppLocalizationsDelegate

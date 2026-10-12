@@ -20,6 +20,7 @@ import '../../domain/entity/room_direct_join_bundle.dart';
 import '../../domain/entity/room_invitation.dart';
 import '../../domain/repository/room_repository.dart';
 import '../room_member_display_name.dart';
+import 'room_invite_grant_toggle.dart';
 
 /// Who is in this Room, and how to add someone.
 ///
@@ -110,8 +111,18 @@ class _RoomPeopleSheetState extends State<RoomPeopleSheet> {
   /// re-opening later shows the roster again rather than silently re-issuing.
   _IssuedInvite? _invite;
 
-  /// Whether the next invite lets its holder invite other people.
-  bool _grantInvites = false;
+  /// Whether the next invite lets its holder invite other people. On by
+  /// default, like the one-scan code; see `OneScanRoomInviteSheet`.
+  bool _grantInvites = true;
+
+  /// Whether this phone may pass the invite right on at all.
+  bool _canGrant = false;
+
+  RoomTransportIdentityLifecycle get _identity =>
+      widget.identityLifecycle ??
+      RoomTransportIdentityLifecycle(
+        store: PlatformRoomTransportIdentitySecureStore(),
+      );
 
   StreamSubscription<HotspotLinkState>? _stateSub;
   StreamSubscription<HotspotCredentials>? _credentialSub;
@@ -163,9 +174,13 @@ class _RoomPeopleSheetState extends State<RoomPeopleSheet> {
       final saved = selectedId == null
           ? null
           : await _repository.get(selectedId);
+      final canGrant = saved != null && _canInvite(saved)
+          ? await _identity.canGrantInvites(saved)
+          : false;
       if (!mounted) return;
       setState(() {
         _room = saved;
+        _canGrant = canGrant;
         _loading = false;
       });
     } catch (_) {
@@ -228,23 +243,20 @@ class _RoomPeopleSheetState extends State<RoomPeopleSheet> {
         heldUntil: invite.expiresAt,
       );
       final memberId = RoomMemberId(invite.invitationId.substring(0, 24));
-      final identity =
-          widget.identityLifecycle ??
-          RoomTransportIdentityLifecycle(
-            store: PlatformRoomTransportIdentitySecureStore(),
-          );
+      final identity = _identity;
       final memberKeyPair = await identity.createPendingMemberKeyPair();
       final certificate = await identity.issueMemberCertificate(
         issuerRoom: accepted,
         memberId: memberId,
         memberPublicKey: memberKeyPair.publicKey,
+        grantInvite: _canGrant && _grantInvites,
       );
       final bundle = RoomDirectJoinBundle(
         memberId: memberId,
         snapshot: RoomAcceptedJoinSnapshot.fromSavedRoom(
           accepted,
           acceptedMemberId: memberId,
-          grantsInviteManagement: _grantInvites,
+          grantsInviteManagement: certificate.canInvite,
         ),
         memberKeyPair: memberKeyPair,
         certificate: certificate,
@@ -322,7 +334,7 @@ class _RoomPeopleSheetState extends State<RoomPeopleSheet> {
         key: const ValueKey('people-invite'),
         room: saved,
         invite: invite,
-        grantsInvites: _grantInvites,
+        grantsInvites: _canGrant && _grantInvites,
         wifi: _showWifiQr ? _credentials : null,
         recovering: _showRecovery,
         onDone: () => setState(() => _invite = null),
@@ -334,6 +346,7 @@ class _RoomPeopleSheetState extends State<RoomPeopleSheet> {
       canInvite: _canInvite(saved),
       issuing: _issuing,
       error: _error,
+      canGrant: _canGrant,
       grantInvites: _grantInvites,
       onToggleGrant: (value) => setState(() => _grantInvites = value),
       onInvite: _issueInvite,
@@ -363,6 +376,7 @@ class _Roster extends StatelessWidget {
   const _Roster({
     required this.room,
     required this.canInvite,
+    required this.canGrant,
     required this.issuing,
     required this.error,
     required this.grantInvites,
@@ -374,6 +388,7 @@ class _Roster extends StatelessWidget {
 
   final SavedRoom room;
   final bool canInvite;
+  final bool canGrant;
   final bool issuing;
   final String? error;
   final bool grantInvites;
@@ -442,8 +457,13 @@ class _Roster extends StatelessWidget {
           ],
           const SizedBox(height: 20),
           if (canInvite) ...[
-            _GrantToggle(value: grantInvites, onChanged: onToggleGrant),
-            const SizedBox(height: 12),
+            if (canGrant) ...[
+              RoomInviteGrantToggle(
+                value: grantInvites,
+                onChanged: onToggleGrant,
+              ),
+              const SizedBox(height: 12),
+            ],
             _PrimaryAction(
               key: const Key('room-people-invite'),
               icon: Icons.qr_code_2_rounded,
@@ -567,78 +587,6 @@ class _MemberRow extends StatelessWidget {
       ),
     );
   }
-}
-
-class _GrantToggle extends StatelessWidget {
-  const _GrantToggle({required this.value, required this.onChanged});
-
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    toggled: value,
-    child: PressableScale(
-      onTap: () => onChanged(!value),
-      borderRadius: BorderRadius.circular(14),
-      child: AnimatedContainer(
-        duration: AppMotion.card,
-        curve: AppMotion.easeOut,
-        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
-        decoration: BoxDecoration(
-          color: value
-              ? AppColors.amber.withValues(alpha: 0.10)
-              : AppColors.card,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: value
-                ? AppColors.amber.withValues(alpha: 0.55)
-                : AppColors.border,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              value ? Icons.shield_moon_rounded : Icons.shield_outlined,
-              size: 19,
-              color: value ? AppColors.amber : AppColors.textSecondary,
-            ),
-            const SizedBox(width: 11),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    context.getString.people_grant_title,
-                    style: TextStyle(
-                      color: value ? AppColors.amber : AppColors.textPrimary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    context.getString.people_grant_hint,
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 11,
-                      height: 1.4,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Switch(
-              value: value,
-              onChanged: onChanged,
-              activeThumbColor: AppColors.amber,
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
 }
 
 // ── Invite panel ─────────────────────────────────────────────────────────────

@@ -18,6 +18,14 @@ final class ProvenRoomMember {
   final String? displayName;
 }
 
+/// Decides whether a member whose certificate has already verified against the
+/// Room key — but who is not on this phone's roster — may be admitted.
+typedef RoomVerifiedMemberAdmitter =
+    Future<bool> Function(
+      RoomMemberTransportCertificate certificate,
+      String? verifiedName,
+    );
+
 /// Attachment-scoped challenge authority for binding an observed live transport
 /// route to an already-admitted durable Room member.
 ///
@@ -34,12 +42,20 @@ final class RoomMemberTransportProofBindingAuthority {
     RoomMemberTransportIdentityCrypto? crypto,
     this.challengeFor = const Duration(seconds: 15),
     this.maxPending = 32,
+    this.admitVerifiedMember,
   }) : _crypto = crypto ?? RoomMemberTransportIdentityCrypto(),
        assert(maxPending > 0);
 
   final RoomId roomId;
   final RoomPeerMemberBindingRegistry bindings;
   final List<int> expectedIssuerPublicKey;
+
+  /// Asked whether a member missing from the allow-list may join it, after
+  /// their proof — certificate chain, challenge and all — has verified.
+  ///
+  /// Null keeps the original rule: only members admitted before the session
+  /// started can bind. Returning true admits for the rest of this session.
+  final RoomVerifiedMemberAdmitter? admitVerifiedMember;
   final RoomMemberTransportIdentityCrypto _crypto;
   final Duration challengeFor;
   final int maxPending;
@@ -146,6 +162,29 @@ final class RoomMemberTransportProofBindingAuthority {
     }
 
     final memberId = proof.certificate.memberId;
+    String? name;
+    var nameRead = false;
+    if (!bindings.contains(memberId)) {
+      // A member this phone has never heard of, holding a certificate that
+      // just verified all the way back to the Room key — the case invite
+      // delegation creates every time: whoever invited them was not this
+      // phone, and nothing else ever tells it. The signed chain is the
+      // membership announcement; the durable roster still gets the last word
+      // (a member this phone removed stays removed).
+      final admit = admitVerifiedMember;
+      if (admit == null) return null;
+      name = await _verifiedName(proof);
+      nameRead = true;
+      if (_disposed) return null;
+      bool admitted;
+      try {
+        admitted = await admit(proof.certificate, name);
+      } catch (_) {
+        admitted = false;
+      }
+      if (_disposed || !admitted) return null;
+      bindings.admit(memberId);
+    }
     final bound = bindings.bind(
       peerKey: peerKey,
       memberId: memberId,
@@ -154,7 +193,7 @@ final class RoomMemberTransportProofBindingAuthority {
     if (!bound) return null;
     return ProvenRoomMember(
       memberId: memberId,
-      displayName: await _verifiedName(proof),
+      displayName: nameRead ? name : await _verifiedName(proof),
     );
   }
 
@@ -191,7 +230,7 @@ final class RoomMemberTransportProofBindingAuthority {
   void _reportRejected(RoomMemberTransportProof proof, int attachment) {
     final member = proof.certificate.memberId.value;
     if (!_reportedRejections.add('$attachment:$member')) return;
-    final issuer = proof.certificate.issuerPublicKey;
+    final issuer = proof.certificate.rootIssuerPublicKey;
     final sameIssuer = _sameBytes(issuer, expectedIssuerPublicKey);
     Logger.diagnostic(
       'room: peer proof rejected '

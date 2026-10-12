@@ -3216,4 +3216,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get journey_not_now => 'NOT NOW';
+
+  @override
+  String get invitegrant_on_hint => 'They can bring their own friends in too.';
+
+  @override
+  String get invitegrant_off_hint => 'They join, but can\'t add anyone else.';
 }

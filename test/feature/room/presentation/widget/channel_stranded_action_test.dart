@@ -21,31 +21,38 @@ void main() {
   final peerId = RoomMemberId('222222222222222222222222');
   final now = DateTime.utc(2026, 9, 3, 9);
 
-  SavedRoom room({required bool withPeer, bool peerPending = false}) =>
-      SavedRoom(
-        room: Room(
-          id: const RoomId('0123456789abcdef0123456789abcdef'),
-          name: 'Night ride',
-          createdAt: now,
-          updatedAt: now,
-          members: [
-            RoomMember(id: localId, displayName: 'Rider one', joinedAt: now),
-            if (withPeer)
-              RoomMember(
-                id: peerId,
-                displayName: 'Rider two',
-                joinedAt: now,
-                pending: peerPending,
-              ),
-          ],
-        ),
-        membership: RoomMembership(
-          localMemberId: localId,
-          canManageInvites: true,
-        ),
-      );
+  SavedRoom room({
+    required bool withPeer,
+    bool peerPending = false,
+    bool canInvite = true,
+  }) => SavedRoom(
+    room: Room(
+      id: const RoomId('0123456789abcdef0123456789abcdef'),
+      name: 'Night ride',
+      createdAt: now,
+      updatedAt: now,
+      members: [
+        RoomMember(id: localId, displayName: 'Rider one', joinedAt: now),
+        if (withPeer)
+          RoomMember(
+            id: peerId,
+            displayName: 'Rider two',
+            joinedAt: now,
+            pending: peerPending,
+          ),
+      ],
+    ),
+    membership: RoomMembership(
+      localMemberId: localId,
+      canManageInvites: canInvite,
+    ),
+  );
 
-  Future<GoRouter> pumpCard(WidgetTester tester, SavedRoom saved) async {
+  Future<GoRouter> pumpCard(
+    WidgetTester tester,
+    SavedRoom saved, {
+    bool primary = true,
+  }) async {
     final router = GoRouter(
       initialLocation: '/channel',
       routes: [
@@ -54,7 +61,7 @@ void main() {
           builder: (_, _) => Scaffold(
             body: Center(
               child: InRoomPeopleAction(
-                primary: true,
+                primary: primary,
                 repository: _FakeRoomRepository(saved),
                 modeStore: _FakeModeStore(),
               ),
@@ -127,6 +134,40 @@ void main() {
 
     expect(find.byKey(const Key('channel-invite-primary')), findsOneWidget);
     expect(find.byKey(const Key('channel-connect-primary')), findsNothing);
+  });
+
+  // ITEM 10: a member who was not given the right to invite sees no invite
+  // control anywhere on the channel — not one that opens only to say no.
+  testWidgets('a member who cannot invite is offered no code when alone', (
+    tester,
+  ) async {
+    await pumpCard(tester, room(withPeer: false, canInvite: false));
+
+    expect(find.byKey(const Key('channel-invite-primary')), findsNothing);
+    expect(find.byKey(const Key('channel-invite-quiet')), findsNothing);
+    expect(
+      find.textContaining('A member who can invite has to add people first'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('a member who cannot invite still gets the network fix', (
+    tester,
+  ) async {
+    await pumpCard(tester, room(withPeer: true, canInvite: false));
+
+    expect(find.byKey(const Key('channel-connect-primary')), findsOneWidget);
+    expect(find.byKey(const Key('channel-invite-quiet')), findsNothing);
+  });
+
+  testWidgets('the quiet weight disappears without the right', (tester) async {
+    await pumpCard(
+      tester,
+      room(withPeer: true, canInvite: false),
+      primary: false,
+    );
+
+    expect(find.byKey(const Key('channel-invite-quiet')), findsNothing);
   });
 }
 

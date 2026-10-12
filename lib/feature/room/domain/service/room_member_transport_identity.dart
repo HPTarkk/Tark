@@ -32,11 +32,57 @@ final class RoomMemberTransportKeyPair {
   }
 }
 
+/// One link of an invite delegation chain: the certificate of a member who
+/// was allowed to invite, exactly as its own issuer signed it.
+///
+/// The issuer of link `i` is the Room root key for `i == 0` and the member key
+/// of link `i - 1` otherwise. [inviteGrant] is required on every link — a
+/// member without the right to invite can never appear as somebody else's
+/// issuer, which is the whole of the no-escalation rule.
+final class RoomInviteDelegation {
+  const RoomInviteDelegation({
+    required this.memberId,
+    required this.memberPublicKey,
+    required this.issuerSignature,
+    required this.inviteGrant,
+  });
+
+  final RoomMemberId memberId;
+  final List<int> memberPublicKey;
+  final List<int> issuerSignature;
+  final List<int> inviteGrant;
+}
+
 /// Issuer-signed durable binding between one [RoomMemberId] and its public key.
 ///
 /// The certificate contains no route, IP, device id or transport role. Those are
 /// live attachment facts and are proven separately by a challenge signature
 /// after the transport has matched an actual Pong token/source route.
+///
+/// ## Invite rights
+///
+/// Whether the holder may invite other people is carried *inside* signed data
+/// rather than beside it: [inviteGrant] is the issuer's signature over a
+/// dedicated `tark-room-invite-grant-v1` message naming this Room, member,
+/// member key and issuer key. A flag nobody signed means nothing, and a grant
+/// that does not verify fails the whole certificate rather than quietly
+/// downgrading, so a tampered QR cannot be imported at all.
+///
+/// A member holding a grant issues certificates with its *own member key*, and
+/// proves it was allowed to by carrying its own certificate as an
+/// [issuerChain] link. Every receiver walks the chain back to the one Room root
+/// key it already trusts; a link without a valid grant breaks the walk. Nobody
+/// can therefore hand out a right they were not themselves given.
+///
+/// ## Wire format
+///
+/// * Root-issued certificates stay version 1 JSON, byte-identical to earlier
+///   builds when no grant is present. A grant rides as one optional `grant`
+///   key, which every older decoder ignores — so a granted member is still a
+///   perfectly ordinary member to a phone that predates this.
+/// * Delegated certificates are version 2, a compact binary record (see
+///   [_encodeDelegated]). Older builds reject that version cleanly: they could
+///   not verify a member key they never heard of anyway.
 final class RoomMemberTransportCertificate {
   const RoomMemberTransportCertificate({
     required this.roomId,
@@ -44,27 +90,97 @@ final class RoomMemberTransportCertificate {
     required this.memberPublicKey,
     required this.issuerPublicKey,
     required this.issuerSignature,
-  });
+    this.inviteGrant,
+    this.issuerChain = const [],
+    List<int>? chainRootPublicKey,
+  }) : _chainRootPublicKey = chainRootPublicKey;
 
   static const currentVersion = 1;
+
+  /// The binary layout used only when [issuerChain] is non-empty.
+  static const delegatedVersion = 2;
+
+  /// Longest [issuerChain] any certificate may carry.
+  ///
+  /// Two links is creator → A → B → C: three generations of invites below the
+  /// person who made the Room, for a Room that holds at most twelve people. The
+  /// bound exists for the wire, not for policy: a route proof has to fit one
+  /// 2 KiB control record with an 80-character name riding beside it.
+  static const maxIssuerChain = 2;
+
   static const maxEncodedLength = 1024;
 
   final RoomId roomId;
   final RoomMemberId memberId;
   final List<int> memberPublicKey;
+
+  /// Whoever signed this certificate: the Room root key, or for a delegated
+  /// certificate the member key of the last [issuerChain] link.
   final List<int> issuerPublicKey;
   final List<int> issuerSignature;
 
+  /// The issuer's signature granting this member the right to invite, or null.
+  final List<int>? inviteGrant;
+
+  /// Certificates of the members who passed the invite right down to this
+  /// one's issuer, root-most first. Empty for a root-issued certificate.
+  final List<RoomInviteDelegation> issuerChain;
+
+  final List<int>? _chainRootPublicKey;
+
+  /// The Room trust anchor every member compares against.
+  ///
+  /// Use this — never [issuerPublicKey] — wherever the question is "is this
+  /// the same Room key I trust": for a delegated certificate the two differ.
+  List<int> get rootIssuerPublicKey => issuerChain.isEmpty
+      ? issuerPublicKey
+      : (_chainRootPublicKey ?? const <int>[]);
+
+  /// Structurally granted. Only
+  /// [RoomMemberTransportIdentityCrypto.verifyCertificate] says whether the
+  /// grant is genuine.
+  bool get canInvite => inviteGrant != null;
+
+  /// Whether this holder may issue a certificate at all.
+  bool get canIssue => canInvite && issuerChain.length < maxIssuerChain;
+
+  /// Whether a certificate this holder issues may itself carry a grant.
+  bool get canGrantOnward =>
+      canInvite && issuerChain.length + 1 < maxIssuerChain;
+
+  /// This certificate as the next link of a chain it is about to sign under.
+  RoomInviteDelegation asDelegation() {
+    final grant = inviteGrant;
+    if (grant == null) {
+      throw StateError('certificate carries no invite grant');
+    }
+    return RoomInviteDelegation(
+      memberId: memberId,
+      memberPublicKey: memberPublicKey,
+      issuerSignature: issuerSignature,
+      inviteGrant: grant,
+    );
+  }
+
   String encode() {
-    final raw = jsonEncode({
-      'v': currentVersion,
-      'roomId': roomId.value,
-      'memberId': memberId.value,
-      'memberKey': _encodeBytes(memberPublicKey),
-      'issuerKey': _encodeBytes(issuerPublicKey),
-      'signature': _encodeBytes(issuerSignature),
-    });
-    final encoded = _encodeBytes(utf8.encode(raw));
+    final String encoded;
+    if (issuerChain.isEmpty) {
+      final grant = inviteGrant;
+      final raw = jsonEncode({
+        'v': currentVersion,
+        'roomId': roomId.value,
+        'memberId': memberId.value,
+        'memberKey': _encodeBytes(memberPublicKey),
+        'issuerKey': _encodeBytes(issuerPublicKey),
+        'signature': _encodeBytes(issuerSignature),
+        // Optional and last, so an ungranted certificate encodes to exactly
+        // the bytes it always did.
+        if (grant != null) 'grant': _encodeBytes(grant),
+      });
+      encoded = _encodeBytes(utf8.encode(raw));
+    } else {
+      encoded = _encodeBytes(_encodeDelegated(this));
+    }
     if (encoded.length > maxEncodedLength) {
       throw const FormatException(
         'Room member transport certificate too large',
@@ -78,7 +194,13 @@ final class RoomMemberTransportCertificate {
       throw const FormatException('Room member transport certificate size');
     }
     try {
-      final value = jsonDecode(utf8.decode(_decode(encoded)));
+      final bytes = _decode(encoded);
+      // Version 1 is JSON and therefore always opens with `{`; the binary
+      // layout opens with its version byte.
+      if (bytes.isNotEmpty && bytes.first == delegatedVersion) {
+        return _decodeDelegated(bytes);
+      }
+      final value = jsonDecode(utf8.decode(bytes));
       if (value is! Map<String, dynamic> || value['v'] != currentVersion) {
         throw const FormatException(
           'Room member transport certificate version',
@@ -92,6 +214,10 @@ final class RoomMemberTransportCertificate {
         throw const FormatException(
           'Room member transport certificate identity',
         );
+      }
+      final grantRaw = value['grant'];
+      if (grantRaw != null && grantRaw is! String) {
+        throw const FormatException('Room member invite grant');
       }
       return RoomMemberTransportCertificate(
         roomId: roomId,
@@ -109,6 +235,12 @@ final class RoomMemberTransportCertificate {
             'issuer signature',
           ),
         ),
+        // A present but malformed grant is refused outright, never read as
+        // "no grant": that would let a corrupted field pass as a valid,
+        // merely less-privileged certificate.
+        inviteGrant: grantRaw is String
+            ? List.unmodifiable(_decodeSized(grantRaw, 64, 'invite grant'))
+            : null,
       );
     } on FormatException {
       rethrow;
@@ -118,6 +250,127 @@ final class RoomMemberTransportCertificate {
       );
     }
   }
+}
+
+const _delegatedFlagGrant = 0x01;
+
+/// Version 2: a delegated certificate.
+///
+/// | bytes | field |
+/// | ---: | :--- |
+/// | 1 | version (`2`) |
+/// | 16 | room id |
+/// | 12 | member id |
+/// | 32 | member public key |
+/// | 32 | Room root public key |
+/// | 64 | signature by the last link's member key |
+/// | 1 | flags — bit 0: an invite grant follows; others must be zero |
+/// | 64 | invite grant (only with bit 0) |
+/// | 1 | link count, 1…[RoomMemberTransportCertificate.maxIssuerChain] |
+/// | 172 each | link: member id 12, member key 32, signature 64, grant 64 |
+///
+/// The leaf's issuer key is not written: it is by definition the last link's
+/// member key, and a second copy could only ever agree or contradict.
+List<int> _encodeDelegated(RoomMemberTransportCertificate certificate) {
+  final chain = certificate.issuerChain;
+  if (chain.isEmpty ||
+      chain.length > RoomMemberTransportCertificate.maxIssuerChain) {
+    throw const FormatException('Room member certificate chain length');
+  }
+  if (!_sameBytes(certificate.issuerPublicKey, chain.last.memberPublicKey)) {
+    throw const FormatException('Room member certificate issuer mismatch');
+  }
+  final out = <int>[RoomMemberTransportCertificate.delegatedVersion];
+  void fixed(List<int> value, int length) {
+    if (value.length != length) {
+      throw const FormatException('Room member certificate field width');
+    }
+    out.addAll(value);
+  }
+
+  void hex(String value, int length) {
+    if (value.length != length * 2) {
+      throw const FormatException('Room member certificate identifier');
+    }
+    for (var i = 0; i < value.length; i += 2) {
+      final byte = int.tryParse(value.substring(i, i + 2), radix: 16);
+      if (byte == null) {
+        throw const FormatException('Room member certificate identifier');
+      }
+      out.add(byte);
+    }
+  }
+
+  hex(certificate.roomId.value, 16);
+  hex(certificate.memberId.value, 12);
+  fixed(certificate.memberPublicKey, 32);
+  fixed(certificate.rootIssuerPublicKey, 32);
+  fixed(certificate.issuerSignature, 64);
+  final grant = certificate.inviteGrant;
+  out.add(grant == null ? 0 : _delegatedFlagGrant);
+  if (grant != null) fixed(grant, 64);
+  out.add(chain.length);
+  for (final link in chain) {
+    hex(link.memberId.value, 12);
+    fixed(link.memberPublicKey, 32);
+    fixed(link.issuerSignature, 64);
+    fixed(link.inviteGrant, 64);
+  }
+  return out;
+}
+
+RoomMemberTransportCertificate _decodeDelegated(List<int> bytes) {
+  var offset = 1;
+  List<int> take(int length) {
+    if (bytes.length - offset < length) {
+      throw const FormatException('Room member certificate truncated');
+    }
+    final slice = List<int>.unmodifiable(
+      bytes.sublist(offset, offset + length),
+    );
+    offset += length;
+    return slice;
+  }
+
+  String hex(int length) =>
+      take(length).map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
+
+  final roomId = RoomId(hex(16));
+  final memberId = RoomMemberId(hex(12));
+  final memberKey = take(32);
+  final root = take(32);
+  final signature = take(64);
+  final flags = take(1).single;
+  if (flags & ~_delegatedFlagGrant != 0) {
+    throw const FormatException('Room member certificate flags');
+  }
+  final grant = flags & _delegatedFlagGrant != 0 ? take(64) : null;
+  final count = take(1).single;
+  if (count < 1 || count > RoomMemberTransportCertificate.maxIssuerChain) {
+    throw const FormatException('Room member certificate chain length');
+  }
+  final chain = <RoomInviteDelegation>[
+    for (var i = 0; i < count; i++)
+      RoomInviteDelegation(
+        memberId: RoomMemberId(hex(12)),
+        memberPublicKey: take(32),
+        issuerSignature: take(64),
+        inviteGrant: take(64),
+      ),
+  ];
+  if (offset != bytes.length) {
+    throw const FormatException('Room member certificate trailing bytes');
+  }
+  return RoomMemberTransportCertificate(
+    roomId: roomId,
+    memberId: memberId,
+    memberPublicKey: memberKey,
+    issuerPublicKey: chain.last.memberPublicKey,
+    issuerSignature: signature,
+    inviteGrant: grant,
+    issuerChain: List.unmodifiable(chain),
+    chainRootPublicKey: root,
+  );
 }
 
 /// A member's own name for itself, signed with the key its certificate binds.
@@ -288,48 +541,167 @@ final class RoomMemberTransportIdentityCrypto {
     );
   }
 
+  /// Signs a member certificate.
+  ///
+  /// With no [issuerCertificate], [issuer] is the Room root key. With one,
+  /// [issuer] is that certificate's *member* key pair and the result is a
+  /// delegated certificate whose chain proves the issuer held the invite
+  /// right. [grantInvite] passes the right on; it is refused when the issuer
+  /// could not itself pass it on, so the capability can only ever narrow on
+  /// the way down.
   Future<RoomMemberTransportCertificate> issueCertificate({
     required RoomId roomId,
     required RoomMemberId memberId,
     required List<int> memberPublicKey,
     required RoomMemberTransportKeyPair issuer,
+    bool grantInvite = false,
+    RoomMemberTransportCertificate? issuerCertificate,
   }) async {
     _requireSized(memberPublicKey, 32, 'member public key');
+    var chain = const <RoomInviteDelegation>[];
+    List<int>? root;
+    if (issuerCertificate != null) {
+      if (issuerCertificate.roomId != roomId) {
+        throw ArgumentError('issuer certificate belongs to another Room');
+      }
+      if (!_sameBytes(issuer.publicKey, issuerCertificate.memberPublicKey)) {
+        throw ArgumentError('issuer key does not match issuer certificate');
+      }
+      if (!issuerCertificate.canIssue) {
+        throw StateError('issuer certificate carries no usable invite right');
+      }
+      if (grantInvite && !issuerCertificate.canGrantOnward) {
+        throw StateError('issuer cannot pass the invite right on');
+      }
+      chain = List.unmodifiable([
+        ...issuerCertificate.issuerChain,
+        issuerCertificate.asDelegation(),
+      ]);
+      root = issuerCertificate.rootIssuerPublicKey;
+    }
+    final keyPair = _keyPair(issuer);
     final signature = await _algorithm.sign(
       _certificateMessage(roomId, memberId, memberPublicKey),
-      keyPair: _keyPair(issuer),
+      keyPair: keyPair,
     );
+    final grant = grantInvite
+        ? await _algorithm.sign(
+            _inviteGrantMessage(
+              roomId,
+              memberId,
+              memberPublicKey,
+              issuer.publicKey,
+            ),
+            keyPair: keyPair,
+          )
+        : null;
     return RoomMemberTransportCertificate(
       roomId: roomId,
       memberId: memberId,
       memberPublicKey: List.unmodifiable(memberPublicKey),
       issuerPublicKey: List.unmodifiable(issuer.publicKey),
       issuerSignature: List.unmodifiable(signature.bytes),
+      inviteGrant: grant == null ? null : List.unmodifiable(grant.bytes),
+      issuerChain: chain,
+      chainRootPublicKey: root,
     );
   }
 
+  /// Whether [certificate] descends from [expectedIssuerPublicKey], the Room
+  /// root key, through nothing but members who were allowed to invite.
+  ///
+  /// Fails closed on every path: a wrong root, a chain longer than the format
+  /// allows, a link without a valid grant, a leaf signed by anyone but the last
+  /// link, a grant deeper than may be granted — and a grant on the leaf that
+  /// does not verify, so tampering with the capability fails the whole
+  /// certificate rather than silently reading as "no grant".
   Future<bool> verifyCertificate({
     required RoomMemberTransportCertificate certificate,
     required List<int> expectedIssuerPublicKey,
   }) async {
-    if (!_sameBytes(certificate.issuerPublicKey, expectedIssuerPublicKey)) {
+    final chain = certificate.issuerChain;
+    if (chain.length > RoomMemberTransportCertificate.maxIssuerChain) {
       return false;
     }
+    if (!_sameBytes(certificate.rootIssuerPublicKey, expectedIssuerPublicKey)) {
+      return false;
+    }
+    if (certificate.inviteGrant != null &&
+        chain.length >= RoomMemberTransportCertificate.maxIssuerChain) {
+      return false;
+    }
+    final seen = <String>{certificate.memberId.value};
     try {
-      return await _algorithm.verify(
+      var signer = expectedIssuerPublicKey;
+      for (final link in chain) {
+        if (!seen.add(link.memberId.value)) return false;
+        if (!await _verify(
+          _certificateMessage(
+            certificate.roomId,
+            link.memberId,
+            link.memberPublicKey,
+          ),
+          link.issuerSignature,
+          signer,
+        )) {
+          return false;
+        }
+        if (!await _verify(
+          _inviteGrantMessage(
+            certificate.roomId,
+            link.memberId,
+            link.memberPublicKey,
+            signer,
+          ),
+          link.inviteGrant,
+          signer,
+        )) {
+          return false;
+        }
+        signer = link.memberPublicKey;
+      }
+      if (!_sameBytes(certificate.issuerPublicKey, signer)) return false;
+      if (!await _verify(
         _certificateMessage(
           certificate.roomId,
           certificate.memberId,
           certificate.memberPublicKey,
         ),
-        signature: Signature(
-          certificate.issuerSignature,
-          publicKey: _publicKey(certificate.issuerPublicKey),
-        ),
-      );
+        certificate.issuerSignature,
+        signer,
+      )) {
+        return false;
+      }
+      final grant = certificate.inviteGrant;
+      if (grant != null &&
+          !await _verify(
+            _inviteGrantMessage(
+              certificate.roomId,
+              certificate.memberId,
+              certificate.memberPublicKey,
+              signer,
+            ),
+            grant,
+            signer,
+          )) {
+        return false;
+      }
+      return true;
     } catch (_) {
       return false;
     }
+  }
+
+  Future<bool> _verify(
+    List<int> message,
+    List<int> signature,
+    List<int> publicKey,
+  ) async {
+    if (signature.length != 64 || publicKey.length != 32) return false;
+    return _algorithm.verify(
+      message,
+      signature: Signature(signature, publicKey: _publicKey(publicKey)),
+    );
   }
 
   Future<RoomMemberTransportProof> signProof({
@@ -528,6 +900,20 @@ final class RoomMemberTransportIdentityCrypto {
   ) => utf8.encode(
     'tark-room-member-certificate-v1\n'
     '${roomId.value}\n${memberId.value}\n${_encodeBytes(memberPublicKey)}',
+  );
+
+  /// Its own domain, so a certificate signature can never be presented as a
+  /// grant or the other way round. The issuer key is inside the message: a
+  /// grant lifted onto a certificate from a different issuer cannot verify.
+  List<int> _inviteGrantMessage(
+    RoomId roomId,
+    RoomMemberId memberId,
+    List<int> memberPublicKey,
+    List<int> issuerPublicKey,
+  ) => utf8.encode(
+    'tark-room-invite-grant-v1\n'
+    '${roomId.value}\n${memberId.value}\n${_encodeBytes(memberPublicKey)}\n'
+    '${_encodeBytes(issuerPublicKey)}',
   );
 
   /// Every field a receiver acts on, in a fixed order with unambiguous

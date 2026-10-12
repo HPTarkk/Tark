@@ -3185,4 +3185,11 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get journey_not_now => 'فعلاً نه';
+
+  @override
+  String get invitegrant_on_hint => 'اونم می‌تونه رفیقاشو بیاره تو اتاق.';
+
+  @override
+  String get invitegrant_off_hint =>
+      'میاد تو اتاق، ولی نمی‌تونه کسی رو اضافه کنه.';
 }

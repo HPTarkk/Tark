@@ -9,6 +9,7 @@ import '../../../../core/entitlement/premium_feature.dart';
 import '../../../../core/entitlement/room_access_policy.dart';
 import '../../../../core/entitlement/subscription_gate_page.dart';
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/qr_widgets.dart';
 import '../../../../core/widget/sheet_shell.dart';
@@ -23,6 +24,8 @@ import '../../domain/entity/room_direct_join_bundle.dart';
 import '../../domain/entity/room_invitation.dart';
 import '../../domain/entity/room_invite_link.dart';
 import '../../domain/repository/room_repository.dart';
+import '../../domain/service/room_member_transport_identity.dart';
+import 'room_invite_grant_toggle.dart';
 
 /// Opens the low-distraction Add person flow used from an active Room.
 ///
@@ -70,6 +73,16 @@ Future<bool> showOneScanRoomInviteSheet(
     return false;
   }
   if (!context.mounted) return false;
+  // Asked before any paywall: a member who cannot invite must not be sent to
+  // a subscription screen for an act they are not allowed to perform. The
+  // sheet re-checks on issue, and every other phone re-verifies the signed
+  // grant chain, so this is the courtesy — not the enforcement.
+  if (saved != null && !canInviteFrom(saved)) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(context.getString.people_cannot_invite)),
+    );
+    return false;
+  }
   if (saved != null &&
       GetIt.instance.isRegistered<LicenseGate>() &&
       RoomAccessPolicy.inviteRequiresPremium(
@@ -101,6 +114,56 @@ Future<bool> showOneScanRoomInviteSheet(
         ),
       ) ??
       false;
+}
+
+/// Whether this phone may show an invite for [saved] at all.
+///
+/// The one rule every invite surface asks, so none of them can drift into
+/// offering a control that only fails once tapped.
+bool canInviteFrom(SavedRoom saved) =>
+    !saved.room.archived &&
+    saved.membership.active &&
+    saved.membership.canManageInvites;
+
+/// Everything needed to re-sign the code on screen without opening a second
+/// seat: flipping "can invite" changes only the certificate, never the member.
+final class _InviteMint {
+  const _InviteMint({
+    required this.identity,
+    required this.room,
+    required this.memberId,
+    required this.memberKeyPair,
+    required this.expiresAt,
+  });
+
+  final RoomTransportIdentityLifecycle identity;
+  final SavedRoom room;
+  final RoomMemberId memberId;
+  final RoomMemberTransportKeyPair memberKeyPair;
+  final DateTime expiresAt;
+
+  Future<RoomDirectJoinBundle> sign({required bool grantInvite}) async {
+    final certificate = await identity.issueMemberCertificate(
+      issuerRoom: room,
+      memberId: memberId,
+      memberPublicKey: memberKeyPair.publicKey,
+      grantInvite: grantInvite,
+    );
+    final bundle = RoomDirectJoinBundle(
+      memberId: memberId,
+      snapshot: RoomAcceptedJoinSnapshot.fromSavedRoom(
+        room,
+        acceptedMemberId: memberId,
+        // Mirrors the signed grant; the joining phone ignores it and reads
+        // the certificate.
+        grantsInviteManagement: certificate.canInvite,
+      ),
+      memberKeyPair: memberKeyPair,
+      certificate: certificate,
+      expiresAt: expiresAt,
+    );
+    return bundle;
+  }
 }
 
 class OneScanRoomInviteSheet extends StatefulWidget {
@@ -158,6 +221,22 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
   bool _hostRecovering = false;
   bool _loading = true;
   String? _error;
+
+  /// The code's ingredients, kept so the grant can be flipped in place.
+  _InviteMint? _mint;
+
+  /// Whether this phone may pass the invite right on at all. False hides the
+  /// choice entirely rather than offering one that would be refused.
+  bool _canGrant = false;
+
+  /// Whether the code on screen lets its holder invite others.
+  ///
+  /// On by default (ITEM 10). A Room is a group of riders who know each
+  /// other, and "my mate can't add his brother at the fuel stop" was the
+  /// failure reported; the host who wants a closed group turns it off with
+  /// one tap on the code itself. Guests are never invited from here.
+  bool _grantInvites = true;
+  bool _regranting = false;
 
   /// The link [OneScanRoomInviteSheet.link] brought up.
   RoomInviteLink? _hosted;
@@ -261,10 +340,7 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
       final saved = selectedId == null
           ? null
           : await _repository.get(selectedId);
-      if (saved == null ||
-          saved.room.archived ||
-          !saved.membership.active ||
-          !saved.membership.canManageInvites) {
+      if (saved == null || !canInviteFrom(saved)) {
         if (!mounted) return;
         setState(() {
           _loading = false;
@@ -312,25 +388,22 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
             store: PlatformRoomTransportIdentitySecureStore(),
           );
       final memberKeyPair = await identity.createPendingMemberKeyPair();
-      final certificate = await identity.issueMemberCertificate(
-        issuerRoom: accepted,
+      final mint = _InviteMint(
+        identity: identity,
+        room: accepted,
         memberId: memberId,
-        memberPublicKey: memberKeyPair.publicKey,
-      );
-      final bundle = RoomDirectJoinBundle(
-        memberId: memberId,
-        snapshot: RoomAcceptedJoinSnapshot.fromSavedRoom(
-          accepted,
-          acceptedMemberId: memberId,
-          grantsInviteManagement: false,
-        ),
         memberKeyPair: memberKeyPair,
-        certificate: certificate,
         expiresAt: invite.expiresAt,
       );
+      final canGrant = await identity.canGrantInvites(accepted);
+      final grant = canGrant && _grantInvites;
+      final bundle = await mint.sign(grantInvite: grant);
       if (!mounted) return;
       HapticFeedback.mediumImpact();
       setState(() {
+        _mint = mint;
+        _canGrant = canGrant;
+        _grantInvites = grant;
         _roomName = accepted.room.name;
         _roomInvite = bundle.encode();
         _loading = false;
@@ -342,6 +415,36 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
       setState(() {
         _loading = false;
         _error = context.getString.people_issue_error;
+      });
+    }
+  }
+
+  /// Re-signs the code on screen with or without the invite right.
+  ///
+  /// Same seat, same member, same key pair: only the certificate's grant
+  /// changes, so a code someone has *already* scanned is unaffected and the
+  /// roster does not gain a second row for one person.
+  Future<void> _setGrant(bool value) async {
+    final mint = _mint;
+    if (mint == null || _regranting || value == _grantInvites) return;
+    final previous = _grantInvites;
+    setState(() {
+      _grantInvites = value;
+      _regranting = true;
+    });
+    try {
+      final bundle = await mint.sign(grantInvite: value);
+      if (!mounted) return;
+      setState(() {
+        _roomInvite = bundle.encode();
+        _regranting = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      // The code on screen still says what it said before; so must the row.
+      setState(() {
+        _grantInvites = previous;
+        _regranting = false;
       });
     }
   }
@@ -418,12 +521,38 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
         ),
         const SizedBox(height: 16),
         Center(
-          child: GlowingQrCard(
-            key: const Key('one-scan-room-invite-qr'),
-            data: payload,
-            size: 270,
-            branded:
-                payload.length <= RoomDirectJoinBundle.brandableEncodedLength,
+          // A flip of the grant is a different code, and the swap says so: the
+          // old one recedes as the new one settles, instead of the modules
+          // silently rearranging under someone's camera.
+          child: AnimatedSwitcher(
+            duration: AppMotion.reduced(context)
+                ? AppMotion.chip
+                : AppMotion.sheet,
+            switchInCurve: AppMotion.easeOut,
+            switchOutCurve: AppMotion.leaving,
+            transitionBuilder: (child, animation) => FadeTransition(
+              opacity: animation,
+              child: AppMotion.reduced(context)
+                  ? child
+                  : ScaleTransition(
+                      scale: Tween<double>(
+                        begin: 0.94,
+                        end: 1,
+                      ).animate(animation),
+                      child: child,
+                    ),
+            ),
+            child: KeyedSubtree(
+              key: ValueKey(_grantInvites),
+              child: GlowingQrCard(
+                key: const Key('one-scan-room-invite-qr'),
+                data: payload,
+                size: 270,
+                branded:
+                    payload.length <=
+                    RoomDirectJoinBundle.brandableEncodedLength,
+              ),
+            ),
           ),
         ),
         const SizedBox(height: 10),
@@ -436,6 +565,14 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
             height: 1.5,
           ),
         ),
+        if (_canGrant) ...[
+          const SizedBox(height: 14),
+          RoomInviteGrantToggle(
+            value: _grantInvites,
+            enabled: !_regranting,
+            onChanged: (value) => unawaited(_setGrant(value)),
+          ),
+        ],
         const SizedBox(height: 18),
         Row(
           children: [

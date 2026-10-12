@@ -20,10 +20,12 @@ final class RoomVerifiedTransportCapabilityRuntime {
   RoomVerifiedTransportCapabilityRuntime({
     required this.capability,
     required List<int> expectedIssuerPublicKey,
+    RoomVerifiedMemberAdmitter? admitVerifiedMember,
   }) : proofs = RoomMemberTransportProofBindingAuthority(
          roomId: _roomId(capability),
          bindings: capability.bindings,
          expectedIssuerPublicKey: expectedIssuerPublicKey,
+         admitVerifiedMember: admitVerifiedMember,
        );
 
   final RoomCapabilityFailoverRuntime capability;

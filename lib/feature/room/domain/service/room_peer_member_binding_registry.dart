@@ -81,6 +81,21 @@ final class RoomPeerMemberBindingRegistry {
     return true;
   }
 
+  /// Whether [memberId] is on the admitted allow-list.
+  bool contains(RoomMemberId memberId) {
+    _ensureOpen();
+    return _members.contains(memberId);
+  }
+
+  /// Adds one member to the allow-list after the canonical Room flow has
+  /// admitted them — for a live session, a certificate that verified all the
+  /// way back to the Room key *and* a durable roster that agreed to take them.
+  /// Never called on transport evidence alone.
+  void admit(RoomMemberId memberId) {
+    _ensureOpen();
+    _members.add(memberId);
+  }
+
   RoomMemberId? resolve(String peerKey, {required int attachmentGeneration}) {
     _ensureOpen();
     if (attachmentGeneration < _minimumAttachmentGeneration) return null;
