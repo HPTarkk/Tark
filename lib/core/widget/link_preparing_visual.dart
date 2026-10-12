@@ -599,9 +599,11 @@ class _BeaconPainter extends CustomPainter {
       // On white the modules become ink, solid.
       alpha = alpha + (1 - alpha) * whiten * (scale > 0 ? 1 : 0);
       if (whiten > 0 && scale > 0) scale = scale + (1 - scale) * whiten;
-      final color = Color.lerp(module, ink, whiten)!.withValues(
-        alpha: alpha.clamp(0.0, 1.0),
-      );
+      final color = Color.lerp(
+        module,
+        ink,
+        whiten,
+      )!.withValues(alpha: alpha.clamp(0.0, 1.0));
       final s = m * (0.84 + 0.16 * whiten) * scale / 2;
       final cx = origin.dx + (field.xs[i] + 0.5) * m;
       final cy = origin.dy + (field.ys[i] + 0.5) * m;

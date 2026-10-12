@@ -46,22 +46,24 @@ void main() {
     'روی گوشی Sara، همین اتاق رو باز کنه و «شروع» رو بزنه. ' * 3,
     'On the other phone, open Tarkk, then scan this code. ' * 3,
   ]) {
-    testWidgets('icon sits on the bullet\'s centre: "${text.substring(0, 12)}"',
-        (tester) async {
-      await pump(tester, text);
-      expect(
-        centreY(tester, find.byType(Icon)),
-        closeTo(centreY(tester, bullet()), 0.01),
-      );
-      // The text's first line is placed so its optical centre lands on the
-      // same line.
-      final textTop = tester.getTopLeft(find.byType(Text).last).dy;
-      final rowTop = tester.getTopLeft(find.byType(StepRow)).dy;
-      expect(
-        textTop - rowTop + StepRow.opticalCentre(text, 12.5),
-        closeTo(centreY(tester, bullet()) - rowTop, 0.01),
-      );
-    });
+    testWidgets(
+      'icon sits on the bullet\'s centre: "${text.substring(0, 12)}"',
+      (tester) async {
+        await pump(tester, text);
+        expect(
+          centreY(tester, find.byType(Icon)),
+          closeTo(centreY(tester, bullet()), 0.01),
+        );
+        // The text's first line is placed so its optical centre lands on the
+        // same line.
+        final textTop = tester.getTopLeft(find.byType(Text).last).dy;
+        final rowTop = tester.getTopLeft(find.byType(StepRow)).dy;
+        expect(
+          textTop - rowTop + StepRow.opticalCentre(text, 12.5),
+          closeTo(centreY(tester, bullet()) - rowTop, 0.01),
+        );
+      },
+    );
   }
 
   test('Persian centres lower in its line than Latin', () {
