@@ -5,6 +5,11 @@ import 'package:flutter/material.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 
+/// The [Hero] tag a Room's formation flies under between screens — so the
+/// room the user is about to make on onboarding's last step is the very same
+/// object that lands on the creation screen.
+const roomFormationHeroTag = 'room-formation';
+
 /// A Room being drawn around its members: blueprint, signal, then the
 /// channel locking in.
 ///

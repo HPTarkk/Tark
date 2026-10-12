@@ -43,6 +43,8 @@ export '../presentation/room_member_display_name.dart'
     show roomMemberDisplayName;
 export '../presentation/widget/in_room_people_action.dart'
     show InRoomPeopleAction;
+export '../presentation/widget/room_formation.dart'
+    show RoomFormation, roomFormationHeroTag;
 export '../presentation/widget/room_connection_status_chip.dart'
     show RoomConnectionStatusChip;
 export '../presentation/widget/room_connection_status_scope.dart'

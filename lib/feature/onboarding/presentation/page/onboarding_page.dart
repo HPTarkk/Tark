@@ -1,5 +1,7 @@
-import 'package:beat_transitions/beat_transitions.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
@@ -8,58 +10,55 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/diagnostics/screen_log.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
+import '../../../../core/motion/continuity_route.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/sfx/sfx_event.dart';
 import '../../../../core/sfx/sfx_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/theme_service.dart';
-import '../../../preflight/domain/service/pinned_plan.dart';
-import '../../../preflight/presentation/page/preflight_page.dart';
-import '../../../transfer/api/transfer_api.dart';
+import '../../../../core/widget/mesh_background.dart';
+import '../../../landing/api/landing_api.dart';
 import '../manager/onboarding_cubit.dart';
-import '../widget/avatar_step.dart';
-import '../widget/callsign_step.dart';
-import '../widget/horizon_scene.dart';
-import '../widget/hud.dart';
-import '../widget/onboarding_launch_actions.dart';
-import '../widget/onboarding_palette.dart';
-import '../widget/ready_step.dart';
-import '../widget/transport_step.dart';
-import '../widget/tune_step.dart';
-import '../widget/welcome_step.dart';
-import '../widget/wind_background.dart';
+import '../widget/onboarding_controls.dart';
+import '../widget/onboarding_movements.dart';
+import '../widget/onboarding_stage.dart';
+import '../widget/step_swap.dart';
 
-/// First-run onboarding: one continuous scene, six beats.
+/// First run, as one continuous scene in three movements:
 ///
-/// Nothing pages or swipes — a travelling [HorizonScene] (parallax ridges, a
-/// day/night sky, streaming ground) and a field of [WindBackground] streaks
-/// persist while the beat content is handed over by a [HandoverTransition]
-/// (old beat winds up and is thrown off the end, the stage sits empty in the
-/// wind, the new one is brought in from the start under a reticle) and the
-/// single CTA morphs its label, so the journey reads as one canvas rearranging
-/// itself as you travel toward being on air:
+///   **hello** (what this is; language and look, applied live) →
+///   **you** (callsign and face, on one screen) →
+///   **your room** (create one, scan into one, or later).
 ///
-///   tune in (language + theme, applied live — flips the sky day↔night) →
-///   welcome (what this is) → callsign (who you are) → avatar (your face in
-///   the channel) → transport (how you connect) → launch (key up on air).
+/// It stands on the product's own ground — the same drifting mesh Landing and
+/// the Room screens stand on, drawn identically on all of them (see
+/// MeshBackground) — and around one persistent object, the beacon (see
+/// [OnboardingStage]), which a spring carries from movement to movement:
+/// the Tarkk mark between two phones becomes your face, and your face becomes
+/// the first seat of a Room. The lines under it are handed over the way the
+/// website swaps its panels ([StepSwap]), and every step sends one wave
+/// through the mesh from the beacon, so each tap reads as one gesture.
 ///
-/// Progress is gamified by a filling signal-strength meter in the header. The
-/// final beat drives straight into the product: JOIN CHANNEL lands the user in
-/// their transport's join flow (with Landing beneath it for back), while a
-/// quieter link lets them explore the lobby first.
+/// The last movement does not end the journey, it continues it: Create and
+/// Join lead straight into the existing Room flows — creation (with a name
+/// already suggested from the callsign) and the invite scanner — as
+/// *continuations* of this screen ([ContinuityPage]): this scene recedes, the
+/// Room formation flies on into the creation screen as a [Hero], and from
+/// there the user lands in the channel exactly as Landing's own entry points
+/// take them. Backing out of either returns here, on the last movement.
 ///
-/// Choices stay in [OnboardingCubit] until the final CTA persists them all
-/// at once; skipping marks onboarding done and touches nothing else. With
-/// [replay] (Settings → Startup) the flow pops back instead of entering
-/// the app.
+/// Profile and connection choices stay in [OnboardingCubit] until one of the
+/// final actions persists them all at once; skipping marks onboarding done and
+/// touches nothing else. With [replay] (Settings → Startup) the last movement
+/// simply finishes and pops back.
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage._({required this.replay});
 
   final bool replay;
 
-  /// [initialStep]/[initialName] deep-link a beat (and a callsign on the
-  /// radio screen) for the preview harness; the real app always starts at the
-  /// welcome beat with an empty handle.
+  /// [initialStep]/[initialName] deep-link a movement (and a callsign) for
+  /// tests and screenshots; the real app always starts at hello with an
+  /// empty handle.
   static Widget buildPage({
     bool replay = false,
     int initialStep = 0,
@@ -81,378 +80,411 @@ class OnboardingPage extends StatefulWidget {
 
 class _OnboardingPageState extends State<OnboardingPage>
     with TickerProviderStateMixin {
-  /// Drives the between-beat transition — the [HandoverTransition] rides this
-  /// clock: the outgoing panel winds up and is thrown off the end of the
-  /// screen, the stage sits empty for a moment while the wind tears through
-  /// it, and the next beat is brought in from the start under a reticle that
-  /// snaps onto it. Long on purpose — the journey should feel like it is
-  /// carrying you somewhere, not racing you through a form.
-  late final AnimationController _stepT = AnimationController(
+  /// The beacon's pose, 0 → 1 → 2, moved by a spring rather than a tween so a
+  /// tap mid-flight redirects it with its momentum instead of restarting it.
+  late final AnimationController _pose = AnimationController.unbounded(
     vsync: this,
-    duration: _handoverDuration,
   );
 
-  static const _handoverDuration = Duration(milliseconds: 1100);
+  /// Lightly under-damped: the beacon arrives with a hint of give, like a
+  /// physical thing settling, and is still within a hair of rest in ~600ms.
+  static const _spring = SpringDescription(
+    mass: 1,
+    stiffness: 150,
+    damping: 19,
+  );
 
-  /// One-shot scene entrance for the persistent chrome (header, emblem,
-  /// CTA); beats themselves ride [_stepT].
+  /// The lines' hand-over clock (see [StepSwap]); also plays the very first
+  /// entrance.
+  late final AnimationController _swap = AnimationController(
+    vsync: this,
+    duration: _swapDuration,
+  );
+
+  static const _swapDuration = Duration(milliseconds: 860);
+
+  /// The beacon assembling itself on first sight (see [OnboardingStage.intro]).
   late final AnimationController _intro = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 900),
+    duration: const Duration(milliseconds: 1400),
   );
 
-  /// Shared ambient clocks: breathing glow (selected HUD frames, transmit key
-  /// border), a slow drift loop (parallax sway, celestial glow, VOX waveform),
-  /// and the periodic gloss glint on the transmit key.
-  ///
-  /// All four loops are started (or held still) by [_syncAmbient].
-  late final AnimationController _pulse = AnimationController(
-    vsync: this,
-    duration: AppMotion.pulse,
-  );
+  /// Slow loop for the light on the signal line and the orbiting arc.
   late final AnimationController _ambient = AnimationController(
     vsync: this,
-    duration: const Duration(seconds: 12),
-  );
-  late final AnimationController _shimmer = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 3200),
+    duration: const Duration(seconds: 8),
   );
 
-  /// Continuous travel clock: streams the horizon's foreground ground dashes
-  /// so the whole scene always reads as moving toward being on air.
-  late final AnimationController _scroll = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 4),
-  );
-
-  /// Time of day for the [HorizonScene]: 0 = day, 1 = night. Animated toward
-  /// the tune beat's theme choice so picking Day/Night plays a real sunrise /
-  /// sunset. Seeded in [initState] from the current preference so the scene
-  /// opens at the right hour.
-  late final AnimationController _dayNight = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1500),
-  );
-
-  /// One broadcast pulse per beat change (plus one on entrance): sends a gust
-  /// through the [WindBackground] so the whole scene keys up as a single
-  /// gesture.
+  /// One wavefront through the mesh per step.
   late final AnimationController _wave = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1300),
-  );
-
-  late final Animation<double> _breath = CurvedAnimation(
-    parent: _pulse,
-    curve: Curves.easeInOut,
-  );
-
-  /// Per-child stagger for the beat's contents. Used **only for the journey's
-  /// very first beat**: during a handover the beats are held assembled so each
-  /// one is a static raster the compositor can transform for free, which is
-  /// what buys the transition its headroom on a weak GPU. The arrival's
-  /// choreography (bounce, reticle lock) carries the moment instead.
-  late final Animation<double> _reveal = CurvedAnimation(
-    parent: _stepT,
-    curve: const Interval(0.15, 0.75),
+    duration: const Duration(milliseconds: 1400),
   );
 
   int _shown = 0;
   int? _leaving;
   int _dir = 1;
-  bool _finishing = false;
 
-  /// Whether the platform asked for less motion — see [AppMotion.reduced].
-  /// Read in [didChangeDependencies], since [initState] cannot reach
-  /// MediaQuery.
-  bool _reduced = false;
+  /// A final action is persisting or navigating; ignores a second tap until
+  /// it is done (or the user comes back from the Room screen).
+  bool _busy = false;
   bool _started = false;
 
   @override
   void initState() {
     super.initState();
-    // The cubit may start past beat 0 (preview deep-link); the transition
-    // listener only fires on *changes*, so seed the staged beat from it.
-    final state = context.read<OnboardingCubit>().state;
-    _shown = state.step;
-    _dayNight.value = state.themePref == AppThemeMode.light ? 0.0 : 1.0;
-    _intro.forward();
+    // The cubit may start past the first movement (a deep-link); the listener
+    // only fires on *changes*, so seed the stage from it.
+    _shown = context.read<OnboardingCubit>().state.step;
+    _pose.value = _shown.toDouble();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _reduced = AppMotion.reduced(context);
-    // Reduced motion swaps the handover for a short crossfade (see
-    // [_CrossfadeBeats]), so the clock that drives it shortens to match.
-    _stepT.duration = _reduced ? AppMotion.sheet : _handoverDuration;
-    _syncAmbient();
+    _ambient.loopUnlessReduced(context);
     if (!_started) {
       _started = true;
-      _stepT.forward();
-      if (!_reduced) _wave.forward(from: 0);
-    }
-  }
+      if (AppMotion.reduced(context)) {
+        _swap.duration = AppMotion.sheet * 2;
+        _intro.value = 1;
+        _swap.forward();
+      } else if (_shown == OnboardingCubit.helloStep) {
+        // The first lines wait until the beacon has begun to assemble, so the
+        // eye lands on it first. Keyed to the intro's own clock rather than a
+        // timer, so it can never drift from what is on screen.
+        void startLines() {
+          if (_intro.value < 0.3) return;
+          _intro.removeListener(startLines);
+          _swap.forward();
+          _wave.forward(from: 0);
+        }
 
-  /// Runs the ambient loops, or holds them still under reduced motion: a loop
-  /// never finishes, so there is no moment at which it is done.
-  void _syncAmbient() {
-    for (final loop in [_pulse, _ambient, _shimmer, _scroll]) {
-      if (_reduced) {
-        // Back to rest rather than frozen wherever it was: a gloss band
-        // stopped mid-sweep would sit across the panel for good.
-        loop.value = 0;
-      } else if (!loop.isAnimating) {
-        loop.repeat(reverse: identical(loop, _pulse));
+        _intro
+          ..addListener(startLines)
+          ..forward();
+      } else {
+        _intro.value = 1;
+        _swap.forward();
+        _wave.forward(from: 0);
       }
     }
   }
 
-  /// Plays the sunrise/sunset toward the chosen theme, or cuts straight to it
-  /// under reduced motion.
-  void _syncDayNight(AppThemeMode mode) {
-    final target = mode == AppThemeMode.light ? 0.0 : 1.0;
-    if (_reduced) {
-      _dayNight.value = target;
-      return;
-    }
-    _dayNight.animateTo(target, curve: AppMotion.easeInOut);
-  }
-
   @override
   void dispose() {
-    _stepT.dispose();
+    _pose.dispose();
     _intro.dispose();
-    _pulse.dispose();
+    _swap.dispose();
     _ambient.dispose();
-    _shimmer.dispose();
-    _scroll.dispose();
-    _dayNight.dispose();
     _wave.dispose();
     super.dispose();
   }
 
-  void _onStepChanged(int newStep) {
+  void _onStepChanged(int step) {
     FocusManager.instance.primaryFocus?.unfocus();
-    final advancing = newStep > _shown;
-    if (advancing) Sfx.play(SfxEvent.toggle);
-    if (!_reduced) _wave.forward(from: 0);
+    final forward = step > _shown;
+    final reduced = AppMotion.reduced(context);
+    if (forward) Sfx.play(SfxEvent.toggle);
     setState(() {
       _leaving = _shown;
-      _dir = advancing ? 1 : -1;
-      _shown = newStep;
+      _dir = forward ? 1 : -1;
+      _shown = step;
     });
-    _stepT.forward(from: 0).whenComplete(() {
+    if (reduced) {
+      _pose.value = step.toDouble();
+    } else {
+      _pose.animateWith(
+        SpringSimulation(_spring, _pose.value, step.toDouble(), _pose.velocity),
+      );
+      _wave.forward(from: 0);
+    }
+    _swap.forward(from: 0).whenComplete(() {
       if (!mounted) return;
       setState(() => _leaving = null);
-      // The READY stamp rides the tail of this transition — land it with
-      // an audible thunk and a firmer haptic than a plain step.
-      if (advancing && _shown == OnboardingCubit.launchStep) {
+      if (forward && _shown == OnboardingCubit.roomStep) {
+        // The Room has formed around you: land it with a firmer beat.
         Sfx.play(SfxEvent.peerJoin);
         HapticFeedback.mediumImpact();
       }
     });
   }
 
-  /// Primary hand-off: persist everything, mark the quick-access flag, and
-  /// drop the user into their transport's setup flow, with Landing stacked
-  /// beneath so back behaves normally.
-  ///
-  /// **Automatic stops on Landing, deliberately.** With no pinned transport
-  /// there is no flow to push: the advisor needs an intent to resolve one, and
-  /// the only thing that supplies an intent is the user tapping START or JOIN.
-  /// Guessing here would put a first-run user inside a hotspot or a Bluetooth
-  /// scan they never asked for. Landing is not a detour out of the journey —
-  /// P2 §1 made it the room screen, so the flow still ends on two lit buttons
-  /// with the primary one breathing.
-  Future<void> _launch(OnboardingCubit cubit) async {
-    if (_finishing) return;
-    _finishing = true;
-    ScreenLog.tap('OnboardingLaunch');
-    HapticFeedback.mediumImpact();
-    await cubit.launch();
-    if (!mounted) return;
-    final mode = cubit.state.mode;
-    // Preflight (#33): only meaningful once a transport is actually about to
-    // be walked — "automatic" (mode == null) stops on Landing with nothing
-    // committed yet, same as before this existed.
-    if (mode != null) {
-      final plan = await pinnedPlanFor(mode);
-      if (!mounted) return;
-      final proceed = await showPreflightPage(context, plan: plan);
-      if (!proceed || !mounted) return;
-    }
-    context.go(AppRoutes.landingPath);
-    switch (cubit.state.mode) {
-      case null:
-        break;
-      case TransferMode.bluetooth:
-        context.pushNamed(AppRoutes.bluetoothConnectName);
-      case TransferMode.guest:
-        context.pushNamed(AppRoutes.guestLinkName);
-      case TransferMode.wifi:
-        // Direct Wi-Fi has nothing to set up — land straight in the channel;
-        // the Wi-Fi/Hotspot setup page is only for the explicit hotspot flow.
-        context.pushNamed(AppRoutes.walkieName);
-      case TransferMode.hotspot:
-        context.pushNamed(
-          AppRoutes.wifiHotspotName,
-          queryParameters: const {'mode': 'hotspot'},
-        );
+  // ── Endings ───────────────────────────────────────────────────────────────
+
+  /// Makes the next screen a continuation of this one (see
+  /// [ContinuityPage]): this scene's foreground recedes, the backdrop stays.
+  static const _handoff = ContinuityHandoff();
+
+  Future<void> _run(String tap, Future<void> Function() action) async {
+    if (_busy) return;
+    _busy = true;
+    ScreenLog.tap(tap);
+    try {
+      await action();
+    } finally {
+      if (mounted) _busy = false;
     }
   }
 
-  /// Secondary path on the launch beat, offered only when a transport is
-  /// pinned: same persistence, but lands on the lobby to look around instead
-  /// of walking into that transport's setup flow.
-  ///
-  /// Deliberately not offered on AUTOMATIC — there is no flow to skip there,
-  /// so it would be a second button to the same screen.
-  Future<void> _explore(OnboardingCubit cubit) async {
-    if (_finishing) return;
-    _finishing = true;
-    ScreenLog.tap('OnboardingExplore');
-    await cubit.finish();
-    if (!mounted) return;
-    context.go(AppRoutes.landingPath);
-  }
+  /// Create: everything is saved, then the Room creation screen continues
+  /// this one with a name already suggested. It lands in the channel on its
+  /// own (exactly as from Landing); backing out returns here.
+  Future<void> _create(OnboardingCubit cubit) =>
+      _run('OnboardingCreateRoom', () async {
+        HapticFeedback.mediumImpact();
+        await cubit.launch();
+        if (!mounted) return;
+        final name = cubit.state.name.trim();
+        final location = Uri(
+          path: AppRoutes.roomsPath,
+          queryParameters: {
+            'create': 'true',
+            if (name.isNotEmpty)
+              'name': context.getString.onbx_room_name_suggestion(name),
+          },
+        ).toString();
+        await context.push(location, extra: _handoff);
+      });
+
+  /// Join: everything is saved, then the invite scanner continues this
+  /// screen. A successful scan goes straight on into the Room's channel.
+  Future<void> _join(OnboardingCubit cubit) =>
+      _run('OnboardingJoinRoom', () async {
+        HapticFeedback.mediumImpact();
+        await cubit.launch();
+        if (!mounted) return;
+        await context.push(AppRoutes.roomQrJoinPath, extra: _handoff);
+      });
+
+  /// Later: everything is saved and Landing takes over — as a continuation,
+  /// so the lobby rises out of this same scene.
+  Future<void> _later(OnboardingCubit cubit) =>
+      _run('OnboardingLater', () async {
+        await cubit.finish();
+        if (!mounted) return;
+        context.go(AppRoutes.landingPath, extra: _handoff);
+      });
 
   /// Replay (from Settings) ends by popping back, keeping any edits.
-  Future<void> _finishReplay(OnboardingCubit cubit) async {
-    if (_finishing) return;
-    _finishing = true;
-    ScreenLog.tap('OnboardingDone');
-    HapticFeedback.mediumImpact();
-    await cubit.finish();
-    if (!mounted) return;
-    context.pop();
-  }
+  Future<void> _finishReplay(OnboardingCubit cubit) =>
+      _run('OnboardingDone', () async {
+        HapticFeedback.mediumImpact();
+        await cubit.finish();
+        if (!mounted) return;
+        context.pop();
+      });
 
-  Future<void> _skip(OnboardingCubit cubit) async {
-    if (_finishing) return;
-    _finishing = true;
-    ScreenLog.tap('OnboardingSkip');
+  Future<void> _skip(OnboardingCubit cubit) => _run('OnboardingSkip', () async {
     await cubit.skip();
     if (!mounted) return;
     if (widget.replay) {
       context.pop();
     } else {
-      context.go(AppRoutes.landingPath);
+      context.go(AppRoutes.landingPath, extra: _handoff);
     }
-  }
+  });
+
+  // ── Layout ────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: AppColors.systemOverlayStyle,
-      child: BlocConsumer<OnboardingCubit, OnboardingState>(
-        listenWhen: (p, c) => p.step != c.step || p.themePref != c.themePref,
-        listener: (_, state) {
-          if (state.step != _shown) _onStepChanged(state.step);
-          _syncDayNight(state.themePref);
-        },
-        builder: (context, state) {
-          final cubit = context.read<OnboardingCubit>();
-          return PopScope(
-            // System back walks the journey backwards; only a back press on
-            // the first beat leaves the page (exits on first run, returns
-            // to Settings in replay).
-            canPop: state.step == 0,
-            onPopInvokedWithResult: (didPop, _) {
-              if (!didPop) cubit.back();
-            },
-            child: Scaffold(
-              backgroundColor: AppColors.background,
-              // The callsign field lives in the top panel; let the keyboard
-              // overlay the lower scene/radio/key rather than squeezing the
-              // fixed-height column into an overflow.
-              resizeToAvoidBottomInset: false,
-              body: Stack(
-                children: [
-                  Positioned.fill(
-                    child: HorizonScene(
-                      drift: _ambient,
-                      scroll: _scroll,
-                      dayNight: _dayNight,
-                    ),
-                  ),
-                  Positioned.fill(
-                    // Ambient wind streaming past on the air — each beat change
-                    // sends a gust through it (via [_wave]) so the scene keys up
-                    // as one gesture.
-                    child: WindBackground(wave: _wave),
-                  ),
-                  SafeArea(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _buildHeader(context, cubit, state),
-                          Expanded(child: _buildBeats(state)),
-                          _buildCta(context, cubit, state),
-                          _buildExplore(context, cubit, state),
-                          const SizedBox(height: 4),
-                        ],
+    // The hello movement switches the theme live; AppColors is read
+    // statically, so follow the switch explicitly.
+    return ValueListenableBuilder<AppThemeMode>(
+      valueListenable: ThemeService.mode,
+      builder: (context, _, _) => AnnotatedRegion<SystemUiOverlayStyle>(
+        value: AppColors.systemOverlayStyle,
+        child: BlocConsumer<OnboardingCubit, OnboardingState>(
+          listenWhen: (p, c) => p.step != c.step,
+          listener: (_, state) {
+            if (state.step != _shown) _onStepChanged(state.step);
+          },
+          builder: (context, state) {
+            final cubit = context.read<OnboardingCubit>();
+            return PopScope(
+              // System back walks the journey backwards; only the first
+              // movement lets the page go (exits on first run, returns to
+              // Settings in replay).
+              canPop: state.step == 0,
+              onPopInvokedWithResult: (didPop, _) {
+                if (!didPop) cubit.back();
+              },
+              child: Scaffold(
+                backgroundColor: AppColors.background,
+                body: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: MeshBackground(
+                        wave: _wave,
+                        waveOrigin: _waveOrigin(context),
                       ),
                     ),
-                  ),
-                ],
+                    // Everything but the backdrop: what recedes when a Room
+                    // screen continues this one.
+                    ContinuityRecede(
+                      child: SafeArea(
+                        child: LayoutBuilder(
+                          builder: (context, constraints) =>
+                              _scene(context, cubit, state, constraints),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
 
-  // ── Header: back · progress · skip ─────────────────────────────────────────
+  /// The stage takes about a third of the screen; with the keyboard up it
+  /// gives way to the field, and on a short phone it goes entirely.
+  ({double height, double scale}) _stageMetrics(
+    BuildContext context,
+    double available,
+  ) {
+    final normal = (available * 0.35).clamp(150.0, 290.0);
+    final keyboard = _keyboardUp;
+    if (!keyboard) {
+      return (height: normal, scale: (normal / 230).clamp(0.62, 1.22));
+    }
+    // With the keyboard up the field matters more than the picture: the
+    // stage keeps only what the title, field and key leave over, and steps
+    // out entirely rather than shrink into a smudge.
+    final room = available - _headerHeight - 74 - 250;
+    final height = room < 110 ? 0.0 : room.clamp(110.0, normal);
+    return (height: height, scale: (height / 230).clamp(0.45, 1.22));
+  }
 
-  Widget _buildHeader(
+  static const _headerHeight = 56.0;
+
+  /// Read from the page's own context: the Scaffold strips the keyboard
+  /// inset out of the MediaQuery its body sees (it has already resized the
+  /// body for it), so asking from inside the body always says "no keyboard".
+  bool get _keyboardUp => MediaQuery.viewInsetsOf(context).bottom > 0;
+
+  Offset _waveOrigin(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    if (size.height == 0) return const Offset(0.5, 0.25);
+    final padding = MediaQuery.paddingOf(context);
+    final available = size.height - padding.vertical;
+    final stage = _stageMetrics(context, available).height;
+    return Offset(0.5, (padding.top + _headerHeight + stage / 2) / size.height);
+  }
+
+  Widget _scene(
+    BuildContext context,
+    OnboardingCubit cubit,
+    OnboardingState state,
+    BoxConstraints constraints,
+  ) {
+    final stage = _stageMetrics(context, constraints.maxHeight);
+    final keyboard = _keyboardUp;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _header(context, cubit, state),
+        AnimatedContainer(
+          duration: AppMotion.reduced(context)
+              ? Duration.zero
+              : AppMotion.sheet,
+          curve: AppMotion.drawer,
+          height: stage.height,
+          child: stage.height == 0
+              ? null
+              : OnboardingStage(
+                  pose: _pose,
+                  ambient: _ambient,
+                  intro: _intro,
+                  avatarId: state.avatarId,
+                  scale: stage.scale,
+                  formationWidth: constraints.maxWidth - 48,
+                ),
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            physics: const ClampingScrollPhysics(),
+            padding: EdgeInsets.only(top: keyboard ? 4 : 8, bottom: 12),
+            child: StepSwap(
+              progress: _swap,
+              direction: _dir,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              incoming: _lines(context, _shown),
+              leaving: _leaving == null ? null : _lines(context, _leaving!),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 4, 24, 12),
+          child: _actionZone(context, cubit, state),
+        ),
+      ],
+    );
+  }
+
+  List<Widget> _lines(BuildContext context, int step) => [
+    for (final line in switch (step) {
+      OnboardingCubit.helloStep => OnboardingMovements.hello(context),
+      OnboardingCubit.identityStep => OnboardingMovements.identity(
+        context,
+        onSubmit: context.read<OnboardingCubit>().next,
+      ),
+      _ => OnboardingMovements.room(context, replay: widget.replay),
+    })
+      OnboardingMovements.inset(line),
+  ];
+
+  // ── Header: back · progress · skip ────────────────────────────────────────
+
+  Widget _header(
     BuildContext context,
     OnboardingCubit cubit,
     OnboardingState state,
   ) {
     final s = context.getString;
-    final isLast = state.step == OnboardingCubit.stepCount - 1;
+    final canSkip = state.step < OnboardingCubit.roomStep;
     return FadeTransition(
-      opacity: CurvedAnimation(parent: _intro, curve: AppMotion.easeOut),
+      opacity: _swap.drive(
+        CurveTween(curve: const Interval(0, 0.5, curve: AppMotion.easeOut)),
+      ),
       child: SizedBox(
-        height: 56,
+        height: _headerHeight,
         child: Stack(
           alignment: Alignment.center,
           children: [
-            Center(
-              child: SignalMeter(
-                step: state.step,
-                stepCount: OnboardingCubit.stepCount,
-              ),
+            OnboardingProgress(
+              step: state.step,
+              count: OnboardingCubit.stepCount,
             ),
             Align(
               alignment: AlignmentDirectional.centerStart,
-              child: _HeaderButton(
+              child: _Reveal(
                 visible: state.step > 0,
-                onTap: cubit.back,
-                child: Icon(
-                  Icons.arrow_back_rounded,
-                  color: Onb.textDim,
-                  size: 20,
+                child: IconButton(
+                  key: const Key('onboarding-back'),
+                  tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                  onPressed: cubit.back,
+                  icon: Icon(
+                    Icons.arrow_back_rounded,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ),
             ),
             Align(
               alignment: AlignmentDirectional.centerEnd,
-              child: _HeaderButton(
-                visible: !isLast,
-                onTap: () => _skip(cubit),
-                child: Text(
-                  s.onboarding_skip,
-                  style: const TextStyle(
-                    color: Onb.textDim,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.5,
+              child: Padding(
+                padding: const EdgeInsetsDirectional.only(end: 10),
+                child: _Reveal(
+                  visible: canSkip,
+                  child: OnboardingQuietLink(
+                    key: const Key('onboarding-skip'),
+                    label: s.onboarding_skip,
+                    uppercase: true,
+                    onTap: () => unawaited(_skip(cubit)),
                   ),
                 ),
               ),
@@ -463,268 +495,124 @@ class _OnboardingPageState extends State<OnboardingPage>
     );
   }
 
-  // ── Beat content: the journey's centre stage ──────────────────────────────
+  // ── Actions: the one key, which becomes the way into a Room ──────────────
 
-  Widget _buildBeats(OnboardingState state) {
-    // Deliberately *not* wrapped in an AnimatedBuilder: the beats are built
-    // here, on bloc rebuilds only, and [BeatTransitionView] animates them by
-    // repainting cached rasters. Rebuilding both step subtrees 60 times a
-    // second — which is what the old sweep did — was the single biggest cost
-    // of the journey on a low-end phone.
-    // Both beats are held fully assembled during a handover, so each is a
-    // static picture the compositor can transform and fade without re-recording
-    // it — the difference between "two panels move" and "two whole HUD subtrees
-    // repaint" 60 times a second. Only the journey's opening beat, which has no
-    // predecessor to hand over from, plays the per-child stagger.
-    final firstBeat = _leaving == null;
-    final stage = BeatTransitionView(
-      progress: _stepT,
-      direction: _dir,
-      leaving: firstBeat
-          ? null
-          : _buildBeat(_leaving!, kAlwaysCompleteAnimation),
-      incoming: _buildBeat(
-        _shown,
-        firstBeat ? _reveal : kAlwaysCompleteAnimation,
-      ),
-      transition: _reduced
-          ? const _CrossfadeBeats()
-          : const HandoverTransition(accent: Onb.amber),
-    );
-    // With the radio band gone the beats own the whole middle: sit them a
-    // touch below centre so the composition breathes, while still allowing
-    // a scroll when a small screen (or the keyboard) squeezes the column.
-    return LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
-        physics: const ClampingScrollPhysics(),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: constraints.maxHeight),
-          child: Align(
-            alignment: const Alignment(0, 0.16),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: stage,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBeat(int step, Animation<double> reveal) => switch (step) {
-    OnboardingCubit.tuneStep => TuneStep(reveal: reveal),
-    OnboardingCubit.welcomeStep => WelcomeStep(
-      reveal: reveal,
-      ambient: _ambient,
-    ),
-    OnboardingCubit.callsignStep => CallsignStep(
-      reveal: reveal,
-      onSubmit: () => context.read<OnboardingCubit>().next(),
-    ),
-    OnboardingCubit.avatarStep => AvatarStep(reveal: reveal),
-    OnboardingCubit.transportStep => TransportStep(reveal: reveal),
-    _ => ReadyStep(reveal: reveal, shimmer: _shimmer),
-  };
-
-  // ── Persistent transmit key: the diegetic CTA whose label morphs per beat ──
-
-  Widget _buildCta(
+  /// Hello and you share one key that only changes its words. On the last
+  /// movement the key steps aside for the two ways into a Room — the very
+  /// cards Landing shows — and a quiet "later".
+  Widget _actionZone(
     BuildContext context,
     OnboardingCubit cubit,
     OnboardingState state,
   ) {
     final s = context.getString;
-    final isLast = state.step == OnboardingCubit.launchStep;
-    final enabled = state.canContinue && !_finishing;
-    // "JOIN CHANNEL" is only honest when there is a channel to join — see
-    // [OnboardingLaunchActions], which is also what decides whether the quiet
-    // link below this key is worth showing. The two answers have to agree.
-    final joins = OnboardingLaunchActions.joinsAChannel(
-      replay: widget.replay,
-      mode: state.mode,
-    );
-    final label = switch (state.step) {
-      OnboardingCubit.tuneStep => s.onboarding_begin,
-      OnboardingCubit.launchStep =>
-        joins ? s.join_channel : s.onboarding_finish,
-      _ => s.onboarding_continue,
-    };
-    // Pulse only on the bookend beats — mid-journey the key stays calm so the
-    // beat content owns the motion.
-    final pulsing =
-        enabled && (state.step == OnboardingCubit.tuneStep || isLast);
-
-    void onTap() {
-      HapticFeedback.selectionClick();
-      if (!isLast) {
-        cubit.next();
-      } else if (widget.replay) {
-        _finishReplay(cubit);
-      } else {
-        _launch(cubit);
-      }
-    }
-
-    return FadeTransition(
-      opacity: CurvedAnimation(parent: _intro, curve: AppMotion.easeOut),
-      // The key repaints every frame *while pulsing*; the boundary keeps that
-      // off the layer shared with the rest of the column.
-      child: RepaintBoundary(
-        // Mid-journey the key is completely static — so don't hang it off the
-        // ambient clocks at all. Subscribing anyway meant the CTA re-recorded
-        // its frame, gradient and glow 60 times a second on every beat, to
-        // paint a pixel-identical result.
-        child: pulsing
-            ? AnimatedBuilder(
-                animation: Listenable.merge([_breath, _shimmer]),
-                builder: (_, _) => HudActionKey(
-                  key: ValueKey('$label-$enabled'),
-                  label: label,
-                  enabled: enabled,
-                  pulsing: true,
-                  go: isLast,
-                  glow: _breath.value,
-                  gloss: _shimmer.value,
-                  onTap: onTap,
-                ),
-              )
-            : HudActionKey(
-                key: ValueKey('$label-$enabled'),
-                label: label,
-                enabled: enabled,
-                go: isLast,
-                onTap: onTap,
+    final roomActions =
+        state.step == OnboardingCubit.roomStep && !widget.replay;
+    final reduced = AppMotion.reduced(context);
+    final Widget child;
+    if (roomActions) {
+      child = KeyedSubtree(
+        key: const ValueKey('room-actions'),
+        child: StepSwap(
+          progress: _swap,
+          incoming: [
+            RoomEntryActions(
+              hero: RoomEntryAction(
+                key: const Key('onboarding-create-room'),
+                icon: Icons.add_home_work_outlined,
+                label: s.entry_create_room,
+                hint: s.entry_create_room_hint,
+                variant: RoomEntryVariant.hero,
+                onTap: () => unawaited(_create(cubit)),
               ),
-      ),
-    );
-  }
-
-  // ── Quiet exit: look around the lobby instead of joining right away ────────
-
-  /// Fixed-height slot under the key so it never shifts; the link itself only
-  /// exists where it leads somewhere the primary key does not.
-  ///
-  /// That last condition is the whole point, and it used to be missing. On
-  /// AUTOMATIC — the transport beat's pre-selection, so the state almost every
-  /// first run ends in — `_launch` has no flow to walk and simply lands on
-  /// Landing, which is exactly what `_explore` does. Two differently-worded
-  /// buttons, one breathing and one whispering, that took you to the identical
-  /// screen. So it now appears only when a transport really is pinned, where
-  /// it means something specific: skip the setup flow and go look around
-  /// first.
-  Widget _buildExplore(
-    BuildContext context,
-    OnboardingCubit cubit,
-    OnboardingState state,
-  ) {
-    final visible = OnboardingLaunchActions.showExplore(
-      step: state.step,
-      replay: widget.replay,
-      mode: state.mode,
-    );
-    return SizedBox(
-      height: 38,
-      child: Center(
-        child: AnimatedOpacity(
-          duration: AppMotion.card,
-          curve: AppMotion.easeOut,
-          opacity: visible ? 1 : 0,
-          child: IgnorePointer(
-            ignoring: !visible,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => _explore(cubit),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
+              alternatives: [
+                RoomEntryAction(
+                  key: const Key('onboarding-join-room'),
+                  icon: Icons.qr_code_scanner_rounded,
+                  label: s.entry_join_qr,
+                  hint: s.entry_join_qr_hint,
+                  variant: RoomEntryVariant.wide,
+                  onTap: () => unawaited(_join(cubit)),
                 ),
-                child: Text(
-                  '‹ ${context.getString.onboarding_explore} ›'.toUpperCase(),
-                  style: TextStyle(
-                    color: Onb.textDim,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.5,
-                  ),
-                ),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Center(
+              child: OnboardingQuietLink(
+                key: const Key('onboarding-later'),
+                label: s.onbx_later,
+                onTap: () => unawaited(_later(cubit)),
               ),
             ),
-          ),
+          ],
         ),
+      );
+    } else {
+      final last = state.step == OnboardingCubit.roomStep;
+      child = KeyedSubtree(
+        key: const ValueKey('primary'),
+        child: OnboardingPrimaryButton(
+          key: const Key('onboarding-primary'),
+          label: switch (state.step) {
+            OnboardingCubit.helloStep => s.onboarding_begin,
+            OnboardingCubit.roomStep => s.onboarding_finish,
+            _ => s.onboarding_continue,
+          },
+          enabled: state.canContinue,
+          breathing: state.step == OnboardingCubit.helloStep || last,
+          onTap: () {
+            if (last) {
+              unawaited(_finishReplay(cubit));
+            } else {
+              cubit.next();
+            }
+          },
+        ),
+      );
+    }
+    // The key and the cards trade places with the same hand-over as the
+    // lines above them: the key sinks away, the cards rise in.
+    return AnimatedSwitcher(
+      duration: reduced ? AppMotion.card : const Duration(milliseconds: 420),
+      reverseDuration: AppMotion.chip,
+      switchInCurve: AppMotion.easeOut,
+      switchOutCurve: AppMotion.leaving,
+      layoutBuilder: (current, previous) => Stack(
+        alignment: Alignment.bottomCenter,
+        children: [...previous, ?current],
       ),
+      transitionBuilder: (child, animation) {
+        final fade = FadeTransition(opacity: animation, child: child);
+        if (reduced) return fade;
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 0.18),
+            end: Offset.zero,
+          ).animate(animation),
+          child: fade,
+        );
+      },
+      child: child,
     );
   }
 }
 
-/// Small fading header affordance (back / skip) that ignores taps while
-/// hidden.
-class _HeaderButton extends StatelessWidget {
+/// A header affordance that fades away (and stops taking taps) when it has
+/// nothing to offer on this movement.
+class _Reveal extends StatelessWidget {
+  const _Reveal({required this.visible, required this.child});
+
   final bool visible;
-  final VoidCallback onTap;
   final Widget child;
 
-  const _HeaderButton({
-    required this.visible,
-    required this.onTap,
-    required this.child,
-  });
-
   @override
-  Widget build(BuildContext context) {
-    return AnimatedOpacity(
-      duration: AppMotion.card,
-      curve: AppMotion.easeOut,
-      opacity: visible ? 1 : 0,
-      child: IgnorePointer(
-        ignoring: !visible,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: onTap,
-          child: Padding(padding: const EdgeInsets.all(12), child: child),
-        ),
-      ),
-    );
-  }
-}
-
-/// The reduced-motion stand-in for [HandoverTransition]: the two beats
-/// dissolve into each other in place. No travel, no wind, no reticle — the
-/// change of beat is still visible, it just does not move.
-class _CrossfadeBeats extends BeatTransition {
-  const _CrossfadeBeats();
-
-  @override
-  Widget build({
-    required Widget? leaving,
-    required Widget incoming,
-    required Animation<double> progress,
-    required int direction,
-    required TextDirection textDirection,
-  }) {
-    if (leaving == null) return incoming;
-    final fadeIn = CurvedAnimation(parent: progress, curve: AppMotion.easeOut);
-    return Stack(
-      children: [
-        // Incoming is the non-positioned child, so it sizes the stage.
-        FadeTransition(opacity: fadeIn, child: incoming),
-        Positioned.fill(
-          child: IgnorePointer(
-            // The outgoing beat keeps its own height rather than being
-            // squashed to the incoming one's, as in HandoverTransition.
-            child: OverflowBox(
-              minHeight: 0,
-              maxHeight: double.infinity,
-              child: FadeTransition(
-                // 1 - easeOut(t), so the pair always sums to one: a single
-                // dissolve rather than a dip through the background.
-                opacity: Tween<double>(begin: 1, end: 0).animate(fadeIn),
-                child: leaving,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => AnimatedOpacity(
+    duration: AppMotion.card,
+    curve: AppMotion.easeOut,
+    opacity: visible ? 1 : 0,
+    child: IgnorePointer(
+      ignoring: !visible,
+      child: ExcludeSemantics(excluding: !visible, child: child),
+    ),
+  );
 }

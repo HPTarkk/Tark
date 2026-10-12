@@ -5677,6 +5677,72 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'میاد تو اتاق، ولی نمی‌تونه کسی رو اضافه کنه.'**
   String get invitegrant_off_hint;
+
+  /// No description provided for @onbx_kicker.
+  ///
+  /// In fa, this message translates to:
+  /// **'ارتباط مستقیم. گوشی به گوشی.'**
+  String get onbx_kicker;
+
+  /// No description provided for @onbx_hello_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'هم‌مسیر، هم‌صدا.'**
+  String get onbx_hello_title;
+
+  /// No description provided for @onbx_you_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'کی پشت بیسیمه؟'**
+  String get onbx_you_title;
+
+  /// No description provided for @onbx_shuffle.
+  ///
+  /// In fa, this message translates to:
+  /// **'یه اسم تصادفی'**
+  String get onbx_shuffle;
+
+  /// No description provided for @onbx_room_kicker.
+  ///
+  /// In fa, this message translates to:
+  /// **'آماده‌ای، {name}'**
+  String onbx_room_kicker(String name);
+
+  /// No description provided for @onbx_room_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'حالا بچه‌ها رو جمع کن'**
+  String get onbx_room_title;
+
+  /// No description provided for @onbx_room_sub.
+  ///
+  /// In fa, this message translates to:
+  /// **'یه اتاق بساز و دعوتشون کن، یا کد اتاق یه دوست رو اسکن کن و بپر توش.'**
+  String get onbx_room_sub;
+
+  /// No description provided for @onbx_later.
+  ///
+  /// In fa, this message translates to:
+  /// **'بعداً'**
+  String get onbx_later;
+
+  /// No description provided for @onbx_change.
+  ///
+  /// In fa, this message translates to:
+  /// **'تغییر'**
+  String get onbx_change;
+
+  /// No description provided for @onbx_room_name_suggestion.
+  ///
+  /// In fa, this message translates to:
+  /// **'اکیپ {name}'**
+  String onbx_room_name_suggestion(String name);
+
+  /// No description provided for @onbx_progress.
+  ///
+  /// In fa, this message translates to:
+  /// **'مرحله {current} از {total}'**
+  String onbx_progress(String current, String total);
 }
 
 class _AppLocalizationsDelegate

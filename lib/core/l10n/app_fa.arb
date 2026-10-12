@@ -969,5 +969,19 @@
     "journey_scan_again": "دوباره اسکن کن",
     "journey_not_now": "فعلاً نه",
     "invitegrant_on_hint": "اونم می‌تونه رفیقاشو بیاره تو اتاق.",
-    "invitegrant_off_hint": "میاد تو اتاق، ولی نمی‌تونه کسی رو اضافه کنه."
+    "invitegrant_off_hint": "میاد تو اتاق، ولی نمی‌تونه کسی رو اضافه کنه.",
+    "onbx_kicker": "ارتباط مستقیم. گوشی به گوشی.",
+    "onbx_hello_title": "هم‌مسیر، هم‌صدا.",
+    "onbx_you_title": "کی پشت بیسیمه؟",
+    "onbx_shuffle": "یه اسم تصادفی",
+    "onbx_room_kicker": "آماده‌ای، {name}",
+    "@onbx_room_kicker": {"placeholders": {"name": {"type": "String"}}},
+    "onbx_room_title": "حالا بچه‌ها رو جمع کن",
+    "onbx_room_sub": "یه اتاق بساز و دعوتشون کن، یا کد اتاق یه دوست رو اسکن کن و بپر توش.",
+    "onbx_later": "بعداً",
+    "onbx_change": "تغییر",
+    "onbx_room_name_suggestion": "اکیپ {name}",
+    "@onbx_room_name_suggestion": {"placeholders": {"name": {"type": "String"}}},
+    "onbx_progress": "مرحله {current} از {total}",
+    "@onbx_progress": {"placeholders": {"current": {"type": "String"}, "total": {"type": "String"}}}
 }

@@ -3192,4 +3192,44 @@ class AppLocalizationsFa extends AppLocalizations {
   @override
   String get invitegrant_off_hint =>
       'میاد تو اتاق، ولی نمی‌تونه کسی رو اضافه کنه.';
+
+  @override
+  String get onbx_kicker => 'ارتباط مستقیم. گوشی به گوشی.';
+
+  @override
+  String get onbx_hello_title => 'هم‌مسیر، هم‌صدا.';
+
+  @override
+  String get onbx_you_title => 'کی پشت بیسیمه؟';
+
+  @override
+  String get onbx_shuffle => 'یه اسم تصادفی';
+
+  @override
+  String onbx_room_kicker(String name) {
+    return 'آماده‌ای، $name';
+  }
+
+  @override
+  String get onbx_room_title => 'حالا بچه‌ها رو جمع کن';
+
+  @override
+  String get onbx_room_sub =>
+      'یه اتاق بساز و دعوتشون کن، یا کد اتاق یه دوست رو اسکن کن و بپر توش.';
+
+  @override
+  String get onbx_later => 'بعداً';
+
+  @override
+  String get onbx_change => 'تغییر';
+
+  @override
+  String onbx_room_name_suggestion(String name) {
+    return 'اکیپ $name';
+  }
+
+  @override
+  String onbx_progress(String current, String total) {
+    return 'مرحله $current از $total';
+  }
 }

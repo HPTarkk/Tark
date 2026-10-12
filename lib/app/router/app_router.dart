@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/account/email_link.dart';
 import '../../core/beta/beta_intro.dart';
 import '../../core/diagnostics/screen_log.dart';
+import '../../core/motion/continuity_route.dart';
 import '../../core/entitlement/feature_access_guard.dart';
 import '../../core/entitlement/premium_feature.dart';
 import '../../core/motion/solid_sheet_route.dart';
@@ -32,6 +33,35 @@ class AppRouter {
         builder: builder,
         onDenied: () => exitRouteTo(context, AppRoutes.roomsPath),
       );
+
+  /// The page for a route that can be arrived at *continuously*: a
+  /// [ContinuityPage] when the navigation carried a [ContinuityHandoff] as
+  /// `extra` (onboarding handing over to Landing, room creation, or the join
+  /// scanner), otherwise exactly the page a plain `builder:` route gets, so
+  /// every other way into the route is untouched.
+  static Page<void> pageFor(GoRouterState state, Widget child) {
+    final name = state.name ?? state.path;
+    final arguments = <String, String>{
+      ...state.pathParameters,
+      ...state.uri.queryParameters,
+    };
+    if (state.extra is ContinuityHandoff) {
+      return ContinuityPage<void>(
+        key: state.pageKey,
+        name: name,
+        arguments: arguments,
+        restorationId: state.pageKey.value,
+        child: child,
+      );
+    }
+    return MaterialPage<void>(
+      key: state.pageKey,
+      name: name,
+      arguments: arguments,
+      restorationId: state.pageKey.value,
+      child: child,
+    );
+  }
 
   static GoRouter? _router;
 
@@ -83,7 +113,10 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.landingPath,
         name: AppRoutes.landingName,
-        builder: (context, state) => LandingPage.buildPage(),
+        // Onboarding's "later" and skip hand the screen over with a
+        // ContinuityHandoff — see pageFor.
+        pageBuilder: (context, state) =>
+            pageFor(state, LandingPage.buildPage()),
       ),
       GoRoute(
         path: AppRoutes.onboardingPath,
@@ -99,37 +132,38 @@ class AppRouter {
         name: AppRoutes.roomsName,
         // Creation arrives and leaves as a solid sheet over the screen that
         // opened it, which recedes behind it — never a crossfade of the two.
-        // The saved-room list keeps the app-wide page transition.
+        // Onboarding's hand-off keeps its own continuity transition, and the
+        // saved-room list keeps the app-wide one. `name` suggests the new
+        // Room's name (onboarding derives it from the callsign it just
+        // collected); only read together with `create`.
         pageBuilder: (context, state) {
           final create = state.uri.queryParameters['create'] == 'true';
-          final child = RoomManagerEntry.buildPage(createOnOpen: create);
-          final name = state.name ?? state.path;
-          final arguments = {
-            ...state.pathParameters,
-            ...state.uri.queryParameters,
-          };
-          return create
-              ? SolidSheetPage<void>(
-                  key: state.pageKey,
-                  name: name,
-                  arguments: arguments,
-                  restorationId: state.pageKey.value,
-                  child: child,
-                )
-              : MaterialPage<void>(
-                  key: state.pageKey,
-                  name: name,
-                  arguments: arguments,
-                  restorationId: state.pageKey.value,
-                  child: child,
-                );
+          final continuous = state.extra is ContinuityHandoff;
+          final child = RoomManagerEntry.buildPage(
+            createOnOpen: create,
+            initialName: state.uri.queryParameters['name'],
+            continuous: continuous,
+          );
+          if (!create || continuous) return pageFor(state, child);
+          return SolidSheetPage<void>(
+            key: state.pageKey,
+            name: state.name ?? state.path,
+            arguments: {
+              ...state.pathParameters,
+              ...state.uri.queryParameters,
+            },
+            restorationId: state.pageKey.value,
+            child: child,
+          );
         },
       ),
       GoRoute(
         path: AppRoutes.roomQrJoinPath,
         name: AppRoutes.roomQrJoinName,
-        builder: (context, state) =>
-            _ipAccess(context, (_) => RoomQrJoinPage.buildPage()),
+        pageBuilder: (context, state) => pageFor(
+          state,
+          _ipAccess(context, (_) => RoomQrJoinPage.buildPage()),
+        ),
       ),
       GoRoute(
         path: AppRoutes.roomQrJoinIssuerPath,

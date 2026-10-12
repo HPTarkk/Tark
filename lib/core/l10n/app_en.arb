@@ -946,5 +946,16 @@
     "journey_scan_again": "SCAN AGAIN",
     "journey_not_now": "NOT NOW",
     "invitegrant_on_hint": "They can bring their own friends in too.",
-    "invitegrant_off_hint": "They join, but can't add anyone else."
+    "invitegrant_off_hint": "They join, but can't add anyone else.",
+    "onbx_kicker": "Direct voice. Phone to phone.",
+    "onbx_hello_title": "Same road. Stay close.",
+    "onbx_you_title": "Who's on the radio?",
+    "onbx_shuffle": "Roll a random name",
+    "onbx_room_kicker": "You're on, {name}",
+    "onbx_room_title": "Now get your crew together",
+    "onbx_room_sub": "Make a room and invite them, or scan a friend's code to hop into theirs.",
+    "onbx_later": "Maybe later",
+    "onbx_change": "Change",
+    "onbx_room_name_suggestion": "{name}'s crew",
+    "onbx_progress": "Step {current} of {total}"
 }

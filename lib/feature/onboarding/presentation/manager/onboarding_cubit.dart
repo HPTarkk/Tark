@@ -9,27 +9,35 @@ import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/theme/theme_service.dart';
 import '../../../transfer/api/transfer_api.dart';
 
-/// Drives the first-run onboarding journey: which beat is on stage, the
-/// callsign being typed, the avatar picked, and the transport choice — all kept local until
-/// [finish]/[launch], so backing out or skipping never leaves half-applied
-/// settings. (Language and theme are the exception: the tune-in beat applies
-/// them live through LocaleService/ThemeService because seeing the switch IS
-/// the point, and both persist themselves.)
+/// Drives the first-run journey: which movement is on stage, the callsign
+/// being typed, the avatar picked, and the connection choice — all kept local
+/// until [finish]/[launch], so backing out or skipping never leaves
+/// half-applied profile or connection settings.
+///
+/// Language and theme are the exception: the hello movement applies them live
+/// (seeing the switch IS the point) through LocaleService/ThemeService, which
+/// persist themselves. [OnboardingState.themePref] follows ThemeService so the
+/// two can never disagree at [finish].
+///
+/// Three movements, each one tap:
+///   hello (what this is + language and look) → you (callsign and face, on
+///   one screen) → your room (create one, scan into one, or later).
 @injectable
 class OnboardingCubit extends Cubit<OnboardingState> {
-  static const stepCount = 6;
-  static const tuneStep = 0;
-  static const welcomeStep = 1;
-  static const callsignStep = 2;
-  static const avatarStep = 3;
-  static const transportStep = 4;
-  static const launchStep = 5;
+  static const stepCount = 3;
+  static const helloStep = 0;
+  static const identityStep = 1;
+  static const roomStep = 2;
 
-  /// A theme change re-keys the whole app subtree (see MyApp.builder), which
-  /// re-inflates this page and rebuilds its cubit mid-journey. The outgoing
-  /// instance parks its state here (via the [ThemeService.mode] listener
-  /// below) and the replacement picks it up, so toggling the theme on the
-  /// tune-in beat never loses the step, name, or transport choice.
+  /// The longest callsign — the same limit the Profile page enforces.
+  static const nameMaxLength = 20;
+
+  /// A theme change re-keys the app subtree (see MyApp.builder). Should that
+  /// ever re-inflate this page — and with it a fresh cubit — the outgoing
+  /// instance parks its state here and the replacement picks it up, so a
+  /// theme switch on the hello movement never loses the journey. Cleared on
+  /// [close], so a later run (a replay from Settings) never resumes a stale
+  /// journey.
   static OnboardingState? _resumeAfterThemeRekey;
 
   final TransferModeStore _modeStore;
@@ -45,19 +53,16 @@ class OnboardingCubit extends Cubit<OnboardingState> {
     _init();
   }
 
-  void _onThemeChanged() => _resumeAfterThemeRekey = state;
+  void _onThemeChanged() {
+    if (isClosed) return;
+    emit(state.copyWith(themePref: ThemeService.currentMode));
+    _resumeAfterThemeRekey = state;
+  }
 
-  static const _stepNames = [
-    'tune',
-    'welcome',
-    'callsign',
-    'avatar',
-    'transport',
-    'launch',
-  ];
+  static const _stepNames = ['hello', 'identity', 'room'];
 
-  /// The beats are one route, so ScreenLog never sees them change; each one
-  /// is logged here as a tab instead.
+  /// The movements are one route, so ScreenLog never sees them change; each
+  /// one is logged here as a tab instead.
   @override
   void onChange(Change<OnboardingState> change) {
     super.onChange(change);
@@ -89,9 +94,8 @@ class OnboardingCubit extends Cubit<OnboardingState> {
     if (state.step > 0) emit(state.copyWith(step: state.step - 1));
   }
 
-  /// Jumps straight to a beat without walking there — used by the preview
-  /// harness (see lib/main_onboarding_preview.dart) to deep-link a beat for
-  /// screenshots; production flow only ever moves via [next]/[back].
+  /// Jumps straight to a movement without walking there — for tests and
+  /// screenshots; the production flow only ever moves via [next]/[back].
   void jumpTo(int step) =>
       emit(state.copyWith(step: step.clamp(0, stepCount - 1)));
 
@@ -103,31 +107,29 @@ class OnboardingCubit extends Cubit<OnboardingState> {
   void selectMode(TransferMode? mode) =>
       emit(state.withMode(mode ?? TransferMode.wifi));
 
-  /// Records the theme preference (previewed live as the sky's time of day);
-  /// the real [ThemeService] switch is deferred to [finish] so the flow stays
-  /// free of the global re-key.
+  /// Records a theme preference without applying it; [finish] applies it.
+  /// The hello movement switches the theme live instead (through
+  /// ThemeService, which this cubit follows), so this is for callers that
+  /// want the old deferred behaviour.
   void selectTheme(AppThemeMode mode) => emit(state.copyWith(themePref: mode));
 
-  /// Persists everything at once and marks onboarding done — the "explore
-  /// the lobby first" and replay paths; the page navigates after this
-  /// future completes.
+  /// Persists everything at once and marks onboarding done — the "later" and
+  /// replay paths; the page navigates after this future completes.
   Future<void> finish() async {
     final name = state.name.trim();
     if (name.isNotEmpty) await _settingsRepository.setMyName(name);
     final avatarId = state.avatarId;
     if (avatarId != null) await _settingsRepository.setMyAvatarId(avatarId);
     await _modeStore.setPinnedMode(state.mode ?? TransferMode.wifi);
-    // Apply the deferred theme choice now, on the way out — the global re-key
-    // it triggers is harmless here since we're leaving the flow.
     if (ThemeService.currentMode != state.themePref) {
       await ThemeService.setMode(state.themePref);
     }
     await _markCompleted();
   }
 
-  /// [finish] plus the quick-access "has joined before" flag — the primary
-  /// JOIN CHANNEL path, which drops the user straight into their transport's
-  /// join flow (the same flag Landing's Join button sets).
+  /// [finish] plus the quick-access "has joined before" flag — the Create
+  /// and Join paths, which walk straight on into a Room (the same flag
+  /// Landing's own entry points set).
   Future<void> launch() async {
     await finish();
     await _settingsRepository.setHasLaunchedBefore(true);
@@ -148,6 +150,7 @@ class OnboardingCubit extends Cubit<OnboardingState> {
   @override
   Future<void> close() {
     ThemeService.mode.removeListener(_onThemeChanged);
+    _resumeAfterThemeRekey = null;
     return super.close();
   }
 }
@@ -156,19 +159,17 @@ class OnboardingState extends Equatable {
   final int step;
   final String name;
 
-  /// The avatar picked on the avatar beat (see AvatarCatalog). Starts on the
-  /// Tarkk mascot, [AvatarCatalog.defaultId], so walking past the beat keeps
+  /// The avatar picked on the identity movement (see AvatarCatalog). Starts
+  /// on the Tarkk mascot, [AvatarCatalog.defaultId], so walking past keeps
   /// the default rather than blocking on a choice.
   final int? avatarId;
 
-  /// The transport selected on beat 4. Wi-Fi/Hotspot is the initial choice.
+  /// The connection choice. Null until the person picks one (or a pinned
+  /// preference exists); persisted as Wi-Fi/Hotspot when left alone.
   final TransferMode? mode;
 
-  /// The theme the user has chosen on the tune beat. Held here (not pushed to
-  /// [ThemeService]) so the flow never triggers the global theme re-key that
-  /// would kill the scene's sunrise/sunset animation — it's applied for real
-  /// only at [OnboardingCubit.finish]. The environmental sky IS the live
-  /// preview of this choice.
+  /// The theme preference, kept in step with ThemeService and applied for
+  /// good at [OnboardingCubit.finish].
   final AppThemeMode themePref;
 
   const OnboardingState({
@@ -187,13 +188,16 @@ class OnboardingState extends Equatable {
     themePref: ThemeService.currentMode,
   );
 
-  /// The callsign beat gates its CTA on a non-blank name and the avatar beat
-  /// on a pick; every other beat is always free to advance.
+  /// The identity movement needs a non-blank callsign and a face; every other
+  /// movement is always free to advance.
   bool get canContinue => switch (step) {
-    OnboardingCubit.callsignStep => name.trim().isNotEmpty,
-    OnboardingCubit.avatarStep => avatarId != null,
+    OnboardingCubit.identityStep => name.trim().isNotEmpty && avatarId != null,
     _ => true,
   };
+
+  /// The connection the person will end up with — Wi-Fi/Hotspot unless they
+  /// chose otherwise, exactly what [OnboardingCubit.finish] persists.
+  TransferMode get effectiveMode => mode ?? TransferMode.wifi;
 
   OnboardingState copyWith({
     int? step,
@@ -208,7 +212,7 @@ class OnboardingState extends Equatable {
     themePref: themePref ?? this.themePref,
   );
 
-  /// Separate from [copyWith] because null means automatic here, and the
+  /// Separate from [copyWith] because null means "not chosen" here, and the
   /// `?? this.mode` idiom cannot say it.
   OnboardingState withMode(TransferMode? value) => OnboardingState(
     step: step,
