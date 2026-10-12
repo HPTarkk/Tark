@@ -130,6 +130,7 @@ void main() {
     ValueNotifier<bool>? wifi,
     TransferMode? pinned,
     _FakeBluetooth? bluetooth,
+    bool scanned = false,
   }) async {
     const identityChannel = MethodChannel('tark/room_identity_secure_storage');
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
@@ -167,9 +168,15 @@ void main() {
         GoRoute(
           path: AppRoutes.walkiePath,
           builder: (_, _) => RoomBoundWalkieEntry(
+            ride: scanned,
+            start: scanned,
             wifiCheck: wifi != null,
             prepareHost: () async => credentials,
           ),
+        ),
+        GoRoute(
+          path: AppRoutes.roomQrJoinPath,
+          builder: (_, _) => const Scaffold(key: Key('scan-page')),
         ),
       ],
     );
@@ -228,6 +235,50 @@ void main() {
     hostingHotspot: false,
     bluetooth: false,
   );
+
+  group('arriving from a scan', () {
+    testWidgets('carries the scan on as one scene, and a failed link offers '
+        'the way forward instead of a lobby', (tester) async {
+      await pumpEntry(tester, links: onWifi, scanned: true);
+
+      // Still the scan's scene, not a lobby with a spinner in it.
+      expect(find.byKey(const ValueKey('room-entry-journey')), findsOneWidget);
+      expect(find.byKey(const Key('selected-room-lobby')), findsNothing);
+      expect(find.text('Almost in…'), findsOneWidget);
+
+      for (var i = 0; i < 90; i++) {
+        await tester.pump(const Duration(seconds: 1));
+      }
+      await settleTeardown(tester);
+      expect(find.text("Couldn't connect"), findsOneWidget);
+      expect(find.byKey(const Key('room-journey-retry')), findsOneWidget);
+      expect(find.byKey(const Key('room-journey-scan-again')), findsOneWidget);
+
+      await tester.ensureVisible(find.byKey(const Key('room-journey-not-now')));
+      await tester.pump(const Duration(seconds: 1));
+      await tester.tap(find.byKey(const Key('room-journey-not-now')));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.byKey(const Key('selected-room-lobby')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await drain(tester);
+      await settleTeardown(tester);
+    });
+
+    testWidgets('scan again goes back to a fresh camera', (tester) async {
+      await pumpEntry(tester, links: onWifi, scanned: true);
+      for (var i = 0; i < 90; i++) {
+        await tester.pump(const Duration(seconds: 1));
+      }
+      await settleTeardown(tester);
+      await tester.tap(find.byKey(const Key('room-journey-scan-again')));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.byKey(const Key('scan-page')), findsOneWidget);
+      await drain(tester);
+      await settleTeardown(tester);
+    });
+  });
 
   group('Bluetooth chosen in settings', () {
     testWidgets('the phone that showed the invite hosts over Bluetooth', (

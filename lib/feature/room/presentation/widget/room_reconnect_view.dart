@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widget/connection_journey.dart';
 import '../../../../core/widget/qr_scanner_surface.dart';
 import '../../../../core/widget/qr_widgets.dart';
 
@@ -118,6 +119,16 @@ class RoomReconnectView extends StatelessWidget {
                 onSwitch: onSwitch,
                 onBack: onBack,
               )
+            : model.side == RoomReconnectSide.scan &&
+                  (model.phase == RoomReconnectPhase.connecting ||
+                      model.phase == RoomReconnectPhase.failed)
+            ? _ScanJourney(
+                key: const ValueKey('room-reconnect-journey'),
+                model: model,
+                onScanAgain: onRetry,
+                onSwitch: onSwitch,
+                onBack: onBack,
+              )
             : model.side == RoomReconnectSide.scan
             ? _ScanSide(
                 key: const ValueKey('room-reconnect-scan'),
@@ -184,6 +195,65 @@ class _ScanSide extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// The scan side once a code was read: the camera is gone and the link it
+/// asked for is drawn being made, then locking in or snapping with the way
+/// forward. One scene for both, so a failure lands where the rider is already
+/// looking.
+class _ScanJourney extends StatelessWidget {
+  const _ScanJourney({
+    required this.model,
+    required this.onScanAgain,
+    required this.onSwitch,
+    required this.onBack,
+    super.key,
+  });
+
+  final RoomReconnectModel model;
+  final VoidCallback onScanAgain;
+  final VoidCallback onSwitch;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    final failed = model.phase == RoomReconnectPhase.failed;
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: ConnectionJourney(
+          stage: failed ? JourneyStage.failed : JourneyStage.linking,
+          link: JourneyLink.hotspot,
+          caption: model.peerName,
+          title: failed ? s.journey_failed_title : s.journey_handshake_title,
+          detail: failed
+              ? (model.message ?? s.reconnect_join_failed)
+              : s.journey_handshake_detail,
+          actions: failed
+              ? [
+                  FilledButton(
+                    key: const Key('room-reconnect-scan-again'),
+                    onPressed: onScanAgain,
+                    child: Text(s.journey_scan_again),
+                  ),
+                  if (model.canSwitch)
+                    OutlinedButton(
+                      key: const Key('room-reconnect-switch'),
+                      onPressed: onSwitch,
+                      child: Text(s.reconnect_switch_to_show),
+                    ),
+                  TextButton(
+                    key: const Key('room-reconnect-not-now'),
+                    onPressed: onBack,
+                    child: Text(s.journey_not_now),
+                  ),
+                ]
+              : const [],
+        ),
+      ),
     );
   }
 }

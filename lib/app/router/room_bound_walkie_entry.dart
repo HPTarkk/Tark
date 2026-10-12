@@ -15,6 +15,8 @@ import '../../core/l10n/extension.dart';
 import '../../core/motion/app_motion.dart';
 import '../../core/router/route_exit.dart';
 import '../../core/router/routes.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/widget/connection_journey.dart';
 import '../../core/settings/connection_history.dart';
 import '../../core/utils/android_sdk.dart';
 import '../../core/utils/logger.dart';
@@ -954,13 +956,17 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     final outcome = await _verifiedLiveFor(room, linkEstablished: true);
     if (!mounted || token != _reconnectToken) return outcome;
     if (outcome.live) return _leaveReconnect(outcome);
-    // Back to the camera with the reason, rather than to a lobby that would
-    // only send the person straight back here.
-    return _reconnect(
-      room,
-      showCode: false,
-      message: context.getString.reconnect_join_failed,
+    // The link snaps where the rider is looking, with a fresh camera one tap
+    // away, rather than a lobby that would only send them straight back here.
+    // The camera is not reopened by itself: a preview lighting up behind the
+    // failure reads as if it were still trying.
+    _updateReconnect(
+      (current) => current.copyWith(
+        phase: RoomReconnectPhase.failed,
+        message: context.getString.reconnect_join_failed,
+      ),
     );
+    return outcome;
   }
 
   /// A live outcome the passive listener reached while the camera was up.
@@ -1848,10 +1854,6 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     final message =
         _failureMessage(context, outcome.failure) ??
         context.getString.room_start_nobody_answered;
-    if (model.side == RoomReconnectSide.scan) {
-      // Back to a fresh camera with the reason, as the guided scan does.
-      return _reconnect(room, showCode: false, message: message);
-    }
     _updateReconnect(
       (current) =>
           current.copyWith(phase: RoomReconnectPhase.failed, message: message),
@@ -2067,11 +2069,62 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     return _resolvedEntry(context);
   }
 
+  /// Set when the rider leaves a failed scan journey for the lobby.
+  bool _journeyDismissed = false;
+
+  /// This entry was reached by scanning an invite, so the scan page's scene
+  /// carries on here: the Room handshake is the rest of the same link.
+  bool get _tellsJourney => widget.start && !_journeyDismissed;
+
+  JourneyLink get _journeyLink => switch (_modeStore?.mode) {
+    TransferMode.bluetooth => JourneyLink.bluetooth,
+    TransferMode.wifi => JourneyLink.sharedWifi,
+    _ =>
+      _resolvedLink == LiveLink.bluetooth
+          ? JourneyLink.bluetooth
+          : JourneyLink.hotspot,
+  };
+
+  Widget _journeyScaffold(
+    BuildContext context,
+    SavedRoom room, {
+    required JourneyStage stage,
+    String? problem,
+    List<Widget> actions = const [],
+  }) {
+    final s = context.getString;
+    final failed = stage == JourneyStage.failed;
+    return Scaffold(
+      key: const ValueKey('room-entry-journey'),
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: ConnectionJourney(
+          key: const ValueKey('room-entry-journey-scene'),
+          stage: stage,
+          link: _journeyLink,
+          continued: true,
+          caption: room.room.name,
+          title: failed ? s.journey_failed_title : s.journey_handshake_title,
+          detail: failed
+              ? (problem ?? s.room_start_failed)
+              : s.journey_handshake_detail,
+          actions: actions,
+        ),
+      ),
+    );
+  }
+
   Widget _resolvedEntry(BuildContext context) => FutureBuilder<_EntryState>(
     future: _entry,
     builder: (context, snapshot) {
       if (snapshot.connectionState != ConnectionState.done) {
         final room = _attemptRoom;
+        if (room != null && _tellsJourney) {
+          return RouteExitScope(
+            onExit: () => leaveRoomEntry(context),
+            child: _journeyScaffold(context, room, stage: JourneyStage.linking),
+          );
+        }
         if (room != null) {
           return RouteExitScope(
             onExit: () => leaveRoomEntry(context),
@@ -2112,9 +2165,13 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         final mode = _modeStore?.mode;
         // Legacy setup pages already acknowledge their network. Room-first
         // entry reaches this point only after the signed peer proof is verified.
+        // A scan's own journey ends here too: the link it showed being made
+        // locks in before the channel opens out of it.
         if (room != null &&
-            !widget.ride &&
-            (mode == TransferMode.wifi || mode == TransferMode.hotspot)) {
+            (!widget.ride || _tellsJourney) &&
+            (mode == TransferMode.wifi ||
+                mode == TransferMode.hotspot ||
+                (_tellsJourney && mode == TransferMode.bluetooth))) {
           livePage = NetworkConnectionArrival(
             key: ValueKey(
               'network-arrival-${room.room.id.value}-$_readinessEpoch',
@@ -2146,6 +2203,38 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         return livePage;
       }
       final room = state.room;
+      if (room != null && state.failure != null && _tellsJourney) {
+        // The scan's link did not come up. Said where the rider is already
+        // looking, with the next step first: the other phone is usually
+        // still there, so trying again is the common fix; a fresh code is
+        // the fallback; the lobby is one tap away.
+        return RouteExitScope(
+          onExit: () => leaveRoomEntry(context),
+          child: _journeyScaffold(
+            context,
+            room,
+            stage: JourneyStage.failed,
+            problem: _failureMessage(context, state.failure),
+            actions: [
+              FilledButton(
+                key: const Key('room-journey-retry'),
+                onPressed: () => _startRide(room),
+                child: Text(context.getString.retry),
+              ),
+              OutlinedButton(
+                key: const Key('room-journey-scan-again'),
+                onPressed: () => context.go(AppRoutes.roomQrJoinPath),
+                child: Text(context.getString.journey_scan_again),
+              ),
+              TextButton(
+                key: const Key('room-journey-not-now'),
+                onPressed: () => setState(() => _journeyDismissed = true),
+                child: Text(context.getString.journey_not_now),
+              ),
+            ],
+          ),
+        );
+      }
       if (room != null) {
         return RouteExitScope(
           onExit: () => leaveRoomEntry(context),
