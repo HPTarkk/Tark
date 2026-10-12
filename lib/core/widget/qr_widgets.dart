@@ -267,6 +267,23 @@ class CornerBracketsPainter extends CustomPainter {
 }
 
 /// Numbered instruction row with the app's amber-ring index bullets.
+///
+/// The bullet, the icon and the first line of text share one optical centre
+/// line — the bullet's middle. The icon and the text are deliberately *not*
+/// centred against the row: a step that wraps onto two lines would drag them
+/// down to the middle of the paragraph, away from the line they label. So
+/// each gets a top offset instead, worked out from the font rather than
+/// nudged by eye:
+///
+/// * the icon's box centre goes on the bullet's centre;
+/// * the text's first line is placed so its *optical* centre lands there —
+///   the middle of the x-height for Latin, and the middle of the lower body
+///   for Persian, whose letters sit on the baseline and reach well below
+///   Latin's x-height centre. The same box centred would put Persian text a
+///   good pixel and a half higher than English next to the same icon.
+///
+/// The offsets follow the text scale: once enlarged text's centre falls
+/// below the bullet's, the bullet and icon move down to it instead.
 class StepRow extends StatelessWidget {
   final int index;
   final IconData icon;
@@ -279,39 +296,85 @@ class StepRow extends StatelessWidget {
     required this.text,
   });
 
+  static const double _bullet = 24;
+  static const double _icon = 16;
+  static const double _fontSize = 12.5;
+  static const double _lineHeight = 1.5;
+
+  // Vazirmatn's vertical metrics, in font units (2048 per em): the typo
+  // ascender and descender Flutter lays lines out with, and the OS/2
+  // x-height. Vazirmatn is the app's font for both languages.
+  static const double _ascent = 2100;
+  static const double _descent = 1100;
+  static const double _xHeight = 1082;
+  static const double _unitsPerEm = 2048;
+
+  /// Where Persian's optical body centres, above the baseline, in ems. The
+  /// teeth and bowls of the common letters (ب س ن ی ه) occupy roughly the
+  /// lowest third of an em; measured from Vazirmatn renders of the real step
+  /// strings, the dense band's middle sits 0.175 em up.
+  static const double _persianBody = 0.175;
+
+  static final _arabicScript = RegExp(r'[؀-ۿݐ-ݿ]');
+
+  /// Distance from the top of the first line box to its optical centre, for
+  /// a font size of [em] logical pixels.
+  static double opticalCentre(String text, double em) {
+    final line = em * _lineHeight;
+    // Flutter's default (proportional) leading splits a line's height in the
+    // font's ascent:descent ratio, so the baseline lands here.
+    final baseline = line * _ascent / (_ascent + _descent);
+    final rise = _arabicScript.hasMatch(text)
+        ? _persianBody * em
+        : _xHeight / _unitsPerEm / 2 * em;
+    return baseline - rise;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final em = MediaQuery.textScalerOf(context).scale(_fontSize);
+    final textCentre = opticalCentre(text, em);
+    final axis = textCentre > _bullet / 2 ? textCentre : _bullet / 2;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 24,
-          height: 24,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: AppColors.amber.withAlpha(28),
-            border: Border.all(color: AppColors.amber.withAlpha(130)),
-          ),
-          child: Text(
-            index.localized(context),
-            style: TextStyle(
-              color: AppColors.amber,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
+        Padding(
+          padding: EdgeInsets.only(top: axis - _bullet / 2),
+          child: Container(
+            width: _bullet,
+            height: _bullet,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.amber.withAlpha(28),
+              border: Border.all(color: AppColors.amber.withAlpha(130)),
+            ),
+            child: Text(
+              index.localized(context),
+              style: TextStyle(
+                color: AppColors.amber,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
         ),
         const SizedBox(width: 10),
-        Icon(icon, size: 16, color: AppColors.textSecondary),
+        Padding(
+          padding: EdgeInsets.only(top: axis - _icon / 2),
+          child: Icon(icon, size: _icon, color: AppColors.textSecondary),
+        ),
         const SizedBox(width: 8),
         Expanded(
-          child: Text(
-            text,
-            style: TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 12.5,
-              height: 1.5,
+          child: Padding(
+            padding: EdgeInsets.only(top: axis - textCentre),
+            child: Text(
+              text,
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: _fontSize,
+                height: _lineHeight,
+              ),
             ),
           ),
         ),
