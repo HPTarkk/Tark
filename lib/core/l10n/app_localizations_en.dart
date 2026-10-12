@@ -3132,4 +3132,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get network_link_hotspot_detail =>
       'One phone makes the network. Your voices travel over it.';
+
+  @override
+  String get invitegrant_on_hint => 'They can bring their own friends in too.';
+
+  @override
+  String get invitegrant_off_hint => 'They join, but can\'t add anyone else.';
 }

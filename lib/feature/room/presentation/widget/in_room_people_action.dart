@@ -99,6 +99,13 @@ class _InRoomPeopleActionState extends State<InRoomPeopleAction> {
   /// a code to the bridge instead of showing them the code.
   bool _othersInRoom = false;
 
+  /// Whether this phone may invite into the Room (ITEM 10).
+  ///
+  /// A member who was not granted the right sees no invite control at all —
+  /// a button that opens only to say "you can't" is worse than none. Other
+  /// phones re-verify the signed grant regardless, so this is presentation.
+  bool _canInvite = false;
+
   StreamSubscription<void>? _changes;
 
   /// Read for the pin only, and tolerated absent. Nothing here starts, stops
@@ -139,6 +146,7 @@ class _InRoomPeopleActionState extends State<InRoomPeopleAction> {
       setState(() {
         _hasRoom = id != null;
         _othersInRoom = saved != null && _others(saved) > 0;
+        _canInvite = saved != null && canInviteFrom(saved);
       });
     } catch (_) {
       // Nothing here is worth surfacing an error for. Without an answer the
@@ -205,6 +213,7 @@ class _InRoomPeopleActionState extends State<InRoomPeopleAction> {
     // Quiet weight is the channel with people on it. Nothing is wrong there,
     // so it stays exactly what it was: one small control under the list.
     if (!widget.primary) {
+      if (!_canInvite) return const SizedBox.shrink();
       return _PeopleAction(
         key: const Key('channel-invite-quiet'),
         icon: Icons.person_add_alt_1_rounded,
@@ -219,7 +228,9 @@ class _InRoomPeopleActionState extends State<InRoomPeopleAction> {
         Text(
           _othersInRoom
               ? context.getString.inroom_stranded_body
-              : context.getString.inroom_alone_body,
+              : _canInvite
+              ? context.getString.inroom_alone_body
+              : context.getString.lobby_alone_no_invite,
           textAlign: TextAlign.center,
           style: TextStyle(
             color: AppColors.textSecondary,
@@ -236,18 +247,20 @@ class _InRoomPeopleActionState extends State<InRoomPeopleAction> {
             primary: true,
             onTap: _connect,
           ),
-          const SizedBox(height: 10),
           // Still offered, quietly: "nobody can hear me" and "I want one more
           // person" are both true often enough that removing the code would
           // trade one dead end for another.
-          _PeopleAction(
-            key: const Key('channel-invite-quiet'),
-            icon: Icons.person_add_alt_1_rounded,
-            label: context.getString.inroom_add_someone,
-            primary: false,
-            onTap: _open,
-          ),
-        ] else
+          if (_canInvite) ...[
+            const SizedBox(height: 10),
+            _PeopleAction(
+              key: const Key('channel-invite-quiet'),
+              icon: Icons.person_add_alt_1_rounded,
+              label: context.getString.inroom_add_someone,
+              primary: false,
+              onTap: _open,
+            ),
+          ],
+        ] else if (_canInvite)
           _PeopleAction(
             key: const Key('channel-invite-primary'),
             icon: Icons.qr_code_2_rounded,

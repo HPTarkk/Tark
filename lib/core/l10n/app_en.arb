@@ -919,5 +919,7 @@
     "network_link_wifi_title": "Your Wi-Fi link is ready",
     "network_link_wifi_detail": "Your voices travel between phones on the shared network.",
     "network_link_hotspot_title": "Your hotspot link is ready",
-    "network_link_hotspot_detail": "One phone makes the network. Your voices travel over it."
+    "network_link_hotspot_detail": "One phone makes the network. Your voices travel over it.",
+    "invitegrant_on_hint": "They can bring their own friends in too.",
+    "invitegrant_off_hint": "They join, but can't add anyone else."
 }

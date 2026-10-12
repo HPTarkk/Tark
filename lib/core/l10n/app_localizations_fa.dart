@@ -3103,4 +3103,11 @@ class AppLocalizationsFa extends AppLocalizations {
   @override
   String get network_link_hotspot_detail =>
       'یک گوشی شبکه رو می‌سازه. صداتون از همون مسیر می‌ره.';
+
+  @override
+  String get invitegrant_on_hint => 'اونم می‌تونه رفیقاشو بیاره تو اتاق.';
+
+  @override
+  String get invitegrant_off_hint =>
+      'میاد تو اتاق، ولی نمی‌تونه کسی رو اضافه کنه.';
 }
