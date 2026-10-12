@@ -15,6 +15,7 @@ import '../../../audio/domain/entity/audio_frame.dart';
 import '../../../audio/presentation/widget/audio_visualizer.dart';
 import '../manager/guest_session_cubit.dart';
 import 'guest_settings_toggles.dart';
+import '../../../../core/utils/localized_digits_formatter.dart';
 
 /// The connected guest's walkie console — the browser twin of the mobile
 /// walkie page: identity, live visualizer, TX/RX, the host as a channel
@@ -207,6 +208,7 @@ class _IdentityCard extends StatelessWidget {
           controller: controller,
           autofocus: true,
           maxLength: 20,
+          inputFormatters: [LocaleDigitsFormatter.of(context)],
           // The counter Flutter builds by default is ASCII whatever the
           // locale says, so the style that used to sit in `counterStyle`
           // moves onto the counter this builds instead.

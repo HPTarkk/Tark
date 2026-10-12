@@ -180,10 +180,78 @@ void main() {
     await tester.pump(const Duration(milliseconds: 700));
     expect(find.byType(RoomCreatePage), findsOneWidget);
     expect(find.text('lobby'), findsNothing);
-    await tester.pump(const Duration(milliseconds: 350));
-    await tester.pump(const Duration(milliseconds: 400));
+    for (var ms = 700; ms < 1450; ms += 50) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
     expect(find.text('lobby'), findsOneWidget);
     expect(find.byType(RoomListPage, skipOffstage: false), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'creation from the saved-room list hands over to the lobby without '
+    'dropping back onto the list',
+    (tester) async {
+      final routes = GoRouter(
+        initialLocation: AppRoutes.roomsPath,
+        routes: [
+          GoRoute(
+            path: AppRoutes.roomsPath,
+            builder: (_, _) => RoomManagerEntry.buildPage(),
+          ),
+          GoRoute(
+            path: AppRoutes.walkiePath,
+            builder: (_, _) => const Scaffold(body: Text('lobby')),
+          ),
+        ],
+      );
+      addTearDown(routes.dispose);
+      await tester.pumpWidget(app(routes));
+      await tester.pump();
+      rooms.loaded.complete();
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      await tester.tap(find.byKey(const Key('rooms-empty-create')));
+      await tester.pump();
+      for (var i = 0; i < 30; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(find.byType(RoomCreatePage), findsOneWidget);
+      // The list is behind an opaque sheet now, not painted at all.
+      expect(find.byType(RoomListPage), findsNothing);
+      await tester.enterText(find.byKey(const Key('room-name-field')), 'North');
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('room-name-submit')));
+      await tester.pump();
+      final now = DateTime.utc(2026, 10, 9);
+      rooms.created.complete(
+        SavedRoom(
+          room: Room(
+            id: RoomId('1' * 32),
+            name: 'North',
+            createdAt: now,
+            updatedAt: now,
+            members: const [],
+          ),
+          membership: RoomMembership(
+            localMemberId: RoomMemberId('1' * 24),
+            canManageInvites: true,
+          ),
+        ),
+      );
+      // Every frame until the lobby has fully arrived: the sheet stays up
+      // and the list never becomes visible between the two.
+      var sawLobby = false;
+      for (var i = 0; i < 60; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+        expect(find.byType(RoomListPage), findsNothing);
+        if (find.text('lobby').evaluate().isNotEmpty) sawLobby = true;
+      }
+      expect(sawLobby, isTrue);
+      expect(find.text('lobby'), findsOneWidget);
+      expect(find.byType(RoomCreatePage), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

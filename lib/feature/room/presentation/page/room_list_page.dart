@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/diagnostics/screen_log.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
+import '../../../../core/motion/solid_sheet_route.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../core/router/route_exit.dart';
 import '../../../../core/router/routes.dart';
@@ -20,6 +21,7 @@ import '../widget/room_archive_sheet.dart';
 import '../widget/room_actions_sheet.dart';
 import '../widget/room_visuals.dart';
 import 'room_create_page.dart';
+import '../../../../core/utils/localized_digits_formatter.dart';
 
 /// Offline-first manager for durable Rooms.
 ///
@@ -188,24 +190,16 @@ class _RoomListPageState extends State<RoomListPage> {
   Future<void> _createRoom(BuildContext context) async {
     ScreenLog.tap('NewRoom');
     final cubit = context.read<RoomListCubit>();
+    // The sheet hands over straight to the lobby: going there while the sheet
+    // is still on top slides the lobby in over it, instead of first dropping
+    // the sheet back down onto this list for a beat.
+    void enterRoom(SavedRoom _) => context.go(AppRoutes.walkiePath);
     final created = await Navigator.of(context).push<SavedRoom>(
-      PageRouteBuilder(
+      SolidSheetRoute(
         settings: const RouteSettings(name: 'RoomCreatePage'),
-        transitionDuration: AppMotion.reduced(context)
-            ? Duration.zero
-            : const Duration(milliseconds: 520),
-        reverseTransitionDuration: AppMotion.sheet,
-        pageBuilder: (_, _, _) =>
-            BlocProvider.value(value: cubit, child: const RoomCreatePage()),
-        transitionsBuilder: (_, animation, _, child) => FadeTransition(
-          opacity: animation,
-          child: SlideTransition(
-            position: Tween(
-              begin: const Offset(0, 0.08),
-              end: Offset.zero,
-            ).animate(animation.drive(CurveTween(curve: AppMotion.drawer))),
-            child: child,
-          ),
+        builder: (_) => BlocProvider.value(
+          value: cubit,
+          child: RoomCreatePage(onCreated: enterRoom),
         ),
       ),
     );
@@ -279,6 +273,7 @@ class _RoomListPageState extends State<RoomListPage> {
           autofocus: true,
           maxLength: 48,
           buildCounter: localizedCounter(),
+          inputFormatters: [LocaleDigitsFormatter.of(context)],
           textInputAction: TextInputAction.done,
           decoration: InputDecoration(hintText: hint),
           onSubmitted: (value) {
