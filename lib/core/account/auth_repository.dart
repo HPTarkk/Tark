@@ -1,5 +1,6 @@
 import '../network/service_api.dart';
 import '../utils/logger.dart';
+import '../utils/numerals.dart';
 import 'account_models.dart';
 import 'account_session.dart';
 import 'account_store.dart';
@@ -413,18 +414,13 @@ bool looksLikeEmail(String raw) {
   return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value);
 }
 
-/// Persian and Arabic-Indic digits typed on a Persian keyboard, as ASCII.
-/// The server takes `^[0-9]{6}$`.
+/// Persian and Arabic-Indic digits typed on a Persian keyboard, as ASCII;
+/// anything that is not a digit is dropped. The server takes `^[0-9]{6}$`.
 String asciiDigits(String raw) {
   final out = StringBuffer();
-  for (final rune in raw.runes) {
-    if (rune >= 0x06F0 && rune <= 0x06F9) {
-      out.writeCharCode(0x30 + rune - 0x06F0);
-    } else if (rune >= 0x0660 && rune <= 0x0669) {
-      out.writeCharCode(0x30 + rune - 0x0660);
-    } else if (rune >= 0x30 && rune <= 0x39) {
-      out.writeCharCode(rune);
-    }
+  for (final unit in raw.codeUnits) {
+    final digit = digitValue(unit);
+    if (digit != null) out.writeCharCode(0x30 + digit);
   }
   return out.toString();
 }

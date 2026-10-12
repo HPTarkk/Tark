@@ -1,12 +1,12 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../../../core/account/auth_repository.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
+import '../../../../core/utils/localized_digits_formatter.dart';
 
 /// The code as a row of boxes over one invisible field, so the numeric
 /// keypad, paste and one-time-code autofill all work as for a normal field.
@@ -120,9 +120,7 @@ class _CodeInputState extends State<CodeInput>
               enabled: widget.enabled,
               keyboardType: TextInputType.number,
               autofillHints: const [AutofillHints.oneTimeCode],
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp('[0-9۰-۹٠-٩]')),
-              ],
+              inputFormatters: [anyDigitsOnly],
               showCursor: false,
               enableInteractiveSelection: true,
               onChanged: _onChanged,

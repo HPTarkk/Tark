@@ -21,6 +21,7 @@ import '../widget/room_archive_sheet.dart';
 import '../widget/room_actions_sheet.dart';
 import '../widget/room_visuals.dart';
 import 'room_create_page.dart';
+import '../../../../core/utils/localized_digits_formatter.dart';
 
 /// Offline-first manager for durable Rooms.
 ///
@@ -272,6 +273,7 @@ class _RoomListPageState extends State<RoomListPage> {
           autofocus: true,
           maxLength: 48,
           buildCounter: localizedCounter(),
+          inputFormatters: [LocaleDigitsFormatter.of(context)],
           textInputAction: TextInputAction.done,
           decoration: InputDecoration(hintText: hint),
           onSubmitted: (value) {

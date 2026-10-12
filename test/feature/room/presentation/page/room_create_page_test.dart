@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tark/core/l10n/app_localizations.dart';
+import 'package:tark/core/utils/extensions.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
 import 'package:tark/feature/room/presentation/manager/room_list_cubit.dart';
 import 'package:tark/feature/room/presentation/page/room_create_page.dart';
@@ -33,9 +34,10 @@ Widget _app(
   _Rooms cubit, {
   double scale = 1,
   bool reduced = false,
+  String language = 'fa',
   ValueChanged<SavedRoom?>? onResult,
 }) => MaterialApp(
-  locale: const Locale('fa'),
+  locale: Locale(language),
   localizationsDelegates: AppLocalizations.localizationsDelegates,
   supportedLocales: AppLocalizations.supportedLocales,
   builder: (context, child) => MediaQuery(
@@ -70,10 +72,17 @@ Future<void> _open(
   _Rooms rooms, {
   double scale = 1,
   bool reduced = false,
+  String language = 'fa',
   ValueChanged<SavedRoom?>? onResult,
 }) async {
   await tester.pumpWidget(
-    _app(rooms, scale: scale, reduced: reduced, onResult: onResult),
+    _app(
+      rooms,
+      scale: scale,
+      reduced: reduced,
+      language: language,
+      onResult: onResult,
+    ),
   );
   await tester.tap(find.text('open'));
   await tester.pump();
@@ -114,6 +123,61 @@ Future<void> _submit(WidgetTester tester, String name) async {
 
 void main() {
   tearDown(() => GetIt.instance.reset());
+
+  for (final (language, typed, shown) in [
+    ('fa', 'سفر 2 ٣', 'سفر ۲ ۳'),
+    ('en', 'Ride ۲ ٣', 'Ride 2 3'),
+  ]) {
+    testWidgets('$language: digits in the room name read in the app language', (
+      tester,
+    ) async {
+      final rooms = _Rooms();
+      addTearDown(rooms.close);
+      await _open(tester, rooms, language: language);
+      final field = find.byKey(const Key('room-name-field'));
+      await tester.enterText(field, typed);
+      await tester.pump();
+      expect(
+        tester.widget<TextField>(field).controller!.text,
+        shown,
+        reason: 'what the field shows is what it holds',
+      );
+      expect(
+        find.descendant(of: field, matching: find.text(shown)),
+        findsOneWidget,
+      );
+      // The counter counts in the same digits.
+      final count = shown.length.toString();
+      expect(
+        find.text(localizeDigits('$count/48', farsi: language == 'fa')),
+        findsOneWidget,
+      );
+      // Editing in the middle keeps the caret and converts the new digit.
+      final controller = tester.widget<TextField>(field).controller!;
+      controller.selection = const TextSelection.collapsed(offset: 1);
+      tester.testTextInput.updateEditingValue(
+        TextEditingValue(
+          text: '${shown.substring(0, 1)}9${shown.substring(1)}',
+          selection: const TextSelection.collapsed(offset: 2),
+        ),
+      );
+      await tester.pump();
+      final nine = language == 'fa' ? '۹' : '9';
+      expect(
+        controller.text,
+        '${shown.substring(0, 1)}$nine${shown.substring(1)}',
+      );
+      expect(controller.selection, const TextSelection.collapsed(offset: 2));
+      // Validation still sees a name, and creation receives exactly it.
+      await tester.tap(find.byKey(const Key('room-name-submit')));
+      await tester.pump();
+      expect(rooms.calls, 1);
+      expect(rooms.name, controller.text.trim());
+      rooms.creation.complete(null);
+      await tester.pump();
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
 
   testWidgets('the lock-in builds the emblem and a tap goes straight on', (
     tester,

@@ -1,5 +1,7 @@
 import 'package:flutter/widgets.dart';
 
+import 'numerals.dart';
+
 /// Digit localization for callers that have no [BuildContext] to hand — a
 /// stream mapper that outlives the frame it was built in, for instance, where
 /// reaching back into a context would be a use-after-unmount waiting to
@@ -19,8 +21,12 @@ import 'package:flutter/widgets.dart';
 /// dialog. Those sites also carry an explicit `Directionality.ltr`, so an
 /// unlocalized identifier is a deliberate pair of decisions rather than a
 /// missed one.
+///
+/// Arabic-Indic digits (`٠-٩`, from an Arabic keyboard or a paste) are folded
+/// in too, so a value reads in one script whichever keyboard produced it. See
+/// `numerals.dart` for the parsing half of the same rule.
 String localizeDigits(String value, {required bool farsi}) =>
-    farsi ? value._toFarsiDigits() : value._toLatinDigits();
+    numeralsFor(value, farsi: farsi);
 
 extension StringExt on String {
   /// Converts ASCII digits to locale-specific digits.
@@ -30,30 +36,8 @@ extension StringExt on String {
     farsi: Localizations.localeOf(context).languageCode == 'fa',
   );
 
-  String _toFarsiDigits() => replaceAll('0', '۰')
-      .replaceAll('1', '۱')
-      .replaceAll('2', '۲')
-      .replaceAll('3', '۳')
-      .replaceAll('4', '۴')
-      .replaceAll('5', '۵')
-      .replaceAll('6', '۶')
-      .replaceAll('7', '۷')
-      .replaceAll('8', '۸')
-      .replaceAll('9', '۹');
-
-  String _toLatinDigits() => replaceAll('۰', '0')
-      .replaceAll('۱', '1')
-      .replaceAll('۲', '2')
-      .replaceAll('۳', '3')
-      .replaceAll('۴', '4')
-      .replaceAll('۵', '5')
-      .replaceAll('۶', '6')
-      .replaceAll('۷', '7')
-      .replaceAll('۸', '8')
-      .replaceAll('۹', '9');
-
   // Legacy: convert back to Latin digits (e.g. for sending over network)
-  String toEnglish() => _toLatinDigits();
+  String toEnglish() => asciiNumerals(this);
 }
 
 extension IntExt on int {

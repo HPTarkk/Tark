@@ -21,6 +21,7 @@ import '../../domain/entity/room.dart';
 import '../manager/room_list_cubit.dart';
 import '../widget/room_formation.dart';
 import '../widget/room_visuals.dart';
+import '../../../../core/utils/localized_digits_formatter.dart';
 
 class RoomCreatePage extends StatefulWidget {
   const RoomCreatePage({super.key, this.onCreated, this.onExit});
@@ -379,6 +380,11 @@ class _RoomCreatePageState extends State<RoomCreatePage>
                               enabled: !_busy && !_ready,
                               maxLength: 48,
                               buildCounter: localizedCounter(),
+                              // Digits typed in the name read in the app's
+                              // language: «سفر ۲», never «سفر 2».
+                              inputFormatters: [
+                                LocaleDigitsFormatter.of(context),
+                              ],
                               textInputAction: TextInputAction.done,
                               onSubmitted: (_) => unawaited(_create()),
                               onChanged: (_) => setState(() => _error = null),

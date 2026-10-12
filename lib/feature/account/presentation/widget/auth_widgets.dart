@@ -7,6 +7,7 @@ import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/status_hero.dart';
+import '../../../../core/utils/localized_digits_formatter.dart';
 
 /// The frame every account screen shares: a back arrow, the [StatusHero], a
 /// heading and a line of explanation, then the screen's own fields, all
@@ -282,6 +283,11 @@ class _AuthTextFieldState extends State<AuthTextField> {
       textInputAction: widget.textInputAction,
       onSubmitted: widget.onSubmitted,
       maxLength: widget.maxLength,
+      // A name reads in the app's digits. Addresses and passwords are
+      // identifiers and keep exactly what was typed.
+      inputFormatters: widget.ltr || widget.obscure
+          ? null
+          : [LocaleDigitsFormatter.of(context)],
       textDirection: widget.ltr ? TextDirection.ltr : null,
       cursorColor: amber,
       style: TextStyle(color: AppColors.textPrimary, fontSize: 15),

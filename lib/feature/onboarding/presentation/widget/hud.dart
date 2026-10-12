@@ -8,6 +8,7 @@ import '../../../../core/motion/app_motion.dart';
 import '../../../../core/utils/extensions.dart';
 import '../../../../core/widget/ticker_text.dart';
 import 'onboarding_palette.dart';
+import '../../../../core/utils/localized_digits_formatter.dart';
 
 /// The onboarding "field-radio console" HUD kit.
 ///
@@ -512,6 +513,7 @@ class HudField extends StatelessWidget {
                 focusNode: focusNode,
                 onChanged: onChanged,
                 onSubmitted: (_) => onSubmitted?.call(),
+                inputFormatters: [LocaleDigitsFormatter.of(context)],
                 textInputAction: TextInputAction.done,
                 textCapitalization: TextCapitalization.characters,
                 cursorColor: Onb.amber,

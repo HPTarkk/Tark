@@ -15,6 +15,7 @@ import '../../../../core/widget/localized_counter.dart';
 import '../../../walkie/api/walkie_api.dart';
 import '../manager/settings_cubit.dart';
 import '../widget/account_section.dart';
+import '../../../../core/utils/localized_digits_formatter.dart';
 
 /// The person's profile: one card with their face and radio name, both
 /// editable in place (faces in a sideways row), and — on builds with
@@ -331,6 +332,7 @@ class _NameFieldState extends State<_NameField> {
         controller: _controller,
         focusNode: _focus,
         maxLength: 20,
+        inputFormatters: [LocaleDigitsFormatter.of(context)],
         textInputAction: TextInputAction.done,
         // The count only matters while typing; hidden otherwise so the
         // card stays short.
