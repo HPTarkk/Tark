@@ -11,6 +11,9 @@ import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/utils/logger.dart';
+import '../../../../core/motion/app_motion.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widget/connection_journey.dart';
 import '../../../../core/widget/qr_scanner_surface.dart';
 import '../../../transfer/api/hotspot_invite_api.dart';
 import '../../../transfer/api/transfer_api.dart';
@@ -50,6 +53,17 @@ class RoomQrJoinPage extends StatefulWidget {
 class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
   String? _error;
   bool _joining = false;
+
+  /// Set once a valid invite has been read and saved and the phone is
+  /// reaching the other one. The camera is gone from then on: the scanned
+  /// code folds into the link being made, and a failure is told there, with
+  /// the way back to a fresh camera, instead of as red text over a preview
+  /// that keeps running behind a code it already read.
+  _Journey? _journey;
+
+  /// Bumps for every fresh scanner, so "Scan again" mounts a new camera
+  /// rather than reviving the one that was released.
+  int _scannerGeneration = 0;
 
   /// Accepts a scanned payload, returning whether this screen is leaving.
   ///
@@ -104,13 +118,14 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
       if (joined) {
         final credentials = scanned?.credentials;
         if (bluetooth != null) {
+          _beginJourney(JourneyLink.bluetooth, bundle.snapshot.roomName);
           final problem = await _joinOverBluetooth(bluetooth.link);
-          if (!mounted) return false;
+          if (!mounted) return true;
           if (problem != null) {
-            setState(() => _error = problem);
-            return false;
+            _journeyFailed(problem);
+            return true;
           }
-          context.go('${AppRoutes.walkiePath}?ride=true&start=true');
+          _enterChannel();
         } else if (credentials != null) {
           if (GetIt.instance.isRegistered<LicenseGate>() &&
               !await openSubscriptionGate(
@@ -123,11 +138,12 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
           if (GetIt.instance.isRegistered<SessionRoleStore>()) {
             GetIt.instance<SessionRoleStore>().setRole(SessionRole.joiner);
           }
+          _beginJourney(JourneyLink.hotspot, bundle.snapshot.roomName);
           final result = await PreLiveHotspotBootstrap().joinHost(credentials);
-          if (!mounted) return false;
+          if (!mounted) return true;
           if (result != HotspotJoinResult.joined) {
-            setState(() => _error = context.getString.roomjoin_not_joined);
-            return false;
+            _journeyFailed(_hotspotProblem(result));
+            return true;
           }
           if (GetIt.instance.isRegistered<TransferModeStore>()) {
             final modes = GetIt.instance<TransferModeStore>();
@@ -138,8 +154,8 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
             }
             await modes.setMode(TransferMode.hotspot);
           }
-          if (!mounted) return false;
-          context.go('${AppRoutes.walkiePath}?ride=true&start=true');
+          if (!mounted) return true;
+          _enterChannel();
         } else {
           context.go('${AppRoutes.walkiePath}?start=true');
         }
@@ -152,13 +168,71 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
       return _notAnInvite(raw);
     } catch (error) {
       Logger.log('Room QR join failed: $error');
-      if (mounted) {
-        setState(() => _error = context.getString.roomjoin_not_joined);
+      if (!mounted) return false;
+      if (_journey != null) {
+        _journeyFailed(context.getString.roomjoin_not_joined);
+        return true;
       }
+      setState(() => _error = context.getString.roomjoin_not_joined);
       return false;
     } finally {
       _joining = false;
     }
+  }
+
+  void _beginJourney(JourneyLink link, String roomName) {
+    setState(() {
+      _error = null;
+      _journey = _Journey(link: link, roomName: roomName);
+    });
+    // Let the scanned beat land, then show the link being made. The scene
+    // queues the change itself until the tick is drawn.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final journey = _journey;
+      if (!mounted || journey == null) return;
+      if (journey.stage == JourneyStage.scanned) {
+        setState(() => _journey = journey.copyWith(JourneyStage.linking));
+      }
+    });
+  }
+
+  void _journeyFailed(String problem) {
+    final journey = _journey;
+    if (journey == null) {
+      setState(() => _error = problem);
+      return;
+    }
+    setState(
+      () => _journey = journey.copyWith(JourneyStage.failed, problem: problem),
+    );
+  }
+
+  /// The network half is up: the channel's entry carries the same scene on
+  /// through the Room's own handshake to the moment it opens.
+  void _enterChannel() =>
+      context.go('${AppRoutes.walkiePath}?ride=true&start=true');
+
+  void _scanAgain() => setState(() {
+    _journey = null;
+    _error = null;
+    _scannerGeneration++;
+  });
+
+  void _leave() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(AppRoutes.landingPath);
+    }
+  }
+
+  String _hotspotProblem(HotspotJoinResult result) {
+    final s = context.getString;
+    return switch (result) {
+      HotspotJoinResult.wifiOff => s.reconnect_wifi_off,
+      HotspotJoinResult.locationOff => s.roomjoin_location_off,
+      _ => s.roomjoin_not_joined,
+    };
   }
 
   /// The Bluetooth half of a one-scan invite, in words the rider can act on.
@@ -214,6 +288,75 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
 
   @override
   Widget build(BuildContext context) {
+    final journey = _journey;
+    return AnimatedSwitcher(
+      duration: AppMotion.reduced(context) ? Duration.zero : AppMotion.sheet,
+      switchInCurve: AppMotion.easeOut,
+      switchOutCurve: AppMotion.leaving,
+      // The preview shrinks into the scene rather than cutting to it: the
+      // camera's frame is where the tick is drawn.
+      transitionBuilder: (child, animation) => FadeTransition(
+        opacity: animation,
+        child: ScaleTransition(
+          scale: Tween<double>(begin: .94, end: 1).animate(animation),
+          child: child,
+        ),
+      ),
+      child: journey == null
+          ? KeyedSubtree(
+              key: ValueKey('scanner-$_scannerGeneration'),
+              child: _scanner(context),
+            )
+          : _journeyView(context, journey),
+    );
+  }
+
+  Widget _journeyView(BuildContext context, _Journey journey) {
+    final s = context.getString;
+    final failed = journey.stage == JourneyStage.failed;
+    return PopScope(
+      key: const ValueKey('room-join-journey'),
+      // Mid-link, back would strand a half-made connection; after a failure
+      // it is simply the way out.
+      canPop: failed,
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          child: ConnectionJourney(
+            stage: journey.stage,
+            link: journey.link,
+            caption: journey.roomName,
+            title: switch (journey.stage) {
+              JourneyStage.scanned => s.journey_scanned_title,
+              JourneyStage.failed => s.journey_failed_title,
+              _ => switch (journey.link) {
+                JourneyLink.hotspot => s.journey_linking_hotspot_title,
+                JourneyLink.bluetooth => s.journey_linking_bluetooth_title,
+                JourneyLink.sharedWifi => s.journey_linking_wifi_title,
+              },
+            },
+            detail: failed ? journey.problem : s.journey_linking_detail,
+            actions: failed
+                ? [
+                    FilledButton(
+                      key: const Key('room-join-scan-again'),
+                      onPressed: _scanAgain,
+                      child: Text(s.journey_scan_again),
+                    ),
+                    TextButton(
+                      key: const Key('room-join-not-now'),
+                      onPressed: _leave,
+                      child: Text(s.journey_not_now),
+                    ),
+                  ]
+                : const [],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _scanner(BuildContext context) {
     return Semantics(
       key: const Key('room-join-one-scan'),
       label: context.getString.roomjoin_hint,
@@ -231,4 +374,21 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
       ),
     );
   }
+}
+
+class _Journey {
+  const _Journey({
+    required this.link,
+    required this.roomName,
+    this.stage = JourneyStage.scanned,
+    this.problem,
+  });
+
+  final JourneyLink link;
+  final String roomName;
+  final JourneyStage stage;
+  final String? problem;
+
+  _Journey copyWith(JourneyStage stage, {String? problem}) =>
+      _Journey(link: link, roomName: roomName, stage: stage, problem: problem);
 }

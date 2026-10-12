@@ -932,5 +932,17 @@
     "beta_guest_intro_bugs": "It might hiccup now and then, or need a reconnect",
     "beta_guest_intro_steadier": "For a ride that matters, Wi-Fi/Hotspot or Bluetooth is steadier",
     "beta_guest_notice": "Guest connection is in beta — it may stumble now and then.",
-    "beta_guest_web_notice": "This connection is still in beta — if it drops, just scan the QR again."
+    "beta_guest_web_notice": "This connection is still in beta — if it drops, just scan the QR again.",
+    "journey_scanned_title": "Got the invite",
+    "journey_linking_hotspot_title": "Joining their hotspot…",
+    "journey_linking_bluetooth_title": "Linking over Bluetooth…",
+    "journey_linking_wifi_title": "Finding them on your Wi-Fi…",
+    "journey_linking_detail": "Keep both phones close, with the invite still open on theirs.",
+    "journey_handshake_title": "Almost in…",
+    "journey_handshake_detail": "Making sure it's your group on the other end.",
+    "journey_bluetooth_title": "Your Bluetooth link is ready",
+    "journey_bluetooth_detail": "Your voices travel straight between the phones.",
+    "journey_failed_title": "Couldn't connect",
+    "journey_scan_again": "SCAN AGAIN",
+    "journey_not_now": "NOT NOW"
 }

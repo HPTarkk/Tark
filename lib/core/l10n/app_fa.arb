@@ -955,5 +955,17 @@
     "beta_guest_intro_bugs": "ممکنه گاهی گیر کنه یا لازم باشه دوباره وصل شی",
     "beta_guest_intro_steadier": "برای سفرهای مهم، وای‌فای/هات‌اسپات یا بلوتوث مطمئن‌ترن",
     "beta_guest_notice": "اتصال مهمان هنوز بتاست؛ ممکنه گاهی یه جا گیر کنه.",
-    "beta_guest_web_notice": "این اتصال هنوز بتاست؛ اگه قطع شد، دوباره QR رو اسکن کن."
+    "beta_guest_web_notice": "این اتصال هنوز بتاست؛ اگه قطع شد، دوباره QR رو اسکن کن.",
+    "journey_scanned_title": "دعوت خونده شد",
+    "journey_linking_hotspot_title": "دارم به هات‌اسپاتش وصل می‌شم…",
+    "journey_linking_bluetooth_title": "دارم با بلوتوث وصل می‌شم…",
+    "journey_linking_wifi_title": "دارم روی وای‌فای پیداش می‌کنم…",
+    "journey_linking_detail": "دو تا گوشی رو نزدیک هم نگه دار و دعوت رو روی اون یکی باز بذار.",
+    "journey_handshake_title": "تقریباً رسیدیم…",
+    "journey_handshake_detail": "دارم مطمئن می‌شم اون طرف، گروه خودته.",
+    "journey_bluetooth_title": "اتصال بلوتوث آماده‌ست",
+    "journey_bluetooth_detail": "صداتون مستقیم بین گوشی‌ها می‌ره.",
+    "journey_failed_title": "وصل نشد",
+    "journey_scan_again": "دوباره اسکن کن",
+    "journey_not_now": "فعلاً نه"
 }

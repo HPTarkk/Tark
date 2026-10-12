@@ -5593,6 +5593,78 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'این اتصال هنوز بتاست؛ اگه قطع شد، دوباره QR رو اسکن کن.'**
   String get beta_guest_web_notice;
+
+  /// No description provided for @journey_scanned_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'دعوت خونده شد'**
+  String get journey_scanned_title;
+
+  /// No description provided for @journey_linking_hotspot_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'دارم به هات‌اسپاتش وصل می‌شم…'**
+  String get journey_linking_hotspot_title;
+
+  /// No description provided for @journey_linking_bluetooth_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'دارم با بلوتوث وصل می‌شم…'**
+  String get journey_linking_bluetooth_title;
+
+  /// No description provided for @journey_linking_wifi_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'دارم روی وای‌فای پیداش می‌کنم…'**
+  String get journey_linking_wifi_title;
+
+  /// No description provided for @journey_linking_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'دو تا گوشی رو نزدیک هم نگه دار و دعوت رو روی اون یکی باز بذار.'**
+  String get journey_linking_detail;
+
+  /// No description provided for @journey_handshake_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'تقریباً رسیدیم…'**
+  String get journey_handshake_title;
+
+  /// No description provided for @journey_handshake_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'دارم مطمئن می‌شم اون طرف، گروه خودته.'**
+  String get journey_handshake_detail;
+
+  /// No description provided for @journey_bluetooth_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'اتصال بلوتوث آماده‌ست'**
+  String get journey_bluetooth_title;
+
+  /// No description provided for @journey_bluetooth_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'صداتون مستقیم بین گوشی‌ها می‌ره.'**
+  String get journey_bluetooth_detail;
+
+  /// No description provided for @journey_failed_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'وصل نشد'**
+  String get journey_failed_title;
+
+  /// No description provided for @journey_scan_again.
+  ///
+  /// In fa, this message translates to:
+  /// **'دوباره اسکن کن'**
+  String get journey_scan_again;
+
+  /// No description provided for @journey_not_now.
+  ///
+  /// In fa, this message translates to:
+  /// **'فعلاً نه'**
+  String get journey_not_now;
 }
 
 class _AppLocalizationsDelegate

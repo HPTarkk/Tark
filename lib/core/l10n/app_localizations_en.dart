@@ -3177,4 +3177,43 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get beta_guest_web_notice =>
       'This connection is still in beta — if it drops, just scan the QR again.';
+
+  @override
+  String get journey_scanned_title => 'Got the invite';
+
+  @override
+  String get journey_linking_hotspot_title => 'Joining their hotspot…';
+
+  @override
+  String get journey_linking_bluetooth_title => 'Linking over Bluetooth…';
+
+  @override
+  String get journey_linking_wifi_title => 'Finding them on your Wi-Fi…';
+
+  @override
+  String get journey_linking_detail =>
+      'Keep both phones close, with the invite still open on theirs.';
+
+  @override
+  String get journey_handshake_title => 'Almost in…';
+
+  @override
+  String get journey_handshake_detail =>
+      'Making sure it\'s your group on the other end.';
+
+  @override
+  String get journey_bluetooth_title => 'Your Bluetooth link is ready';
+
+  @override
+  String get journey_bluetooth_detail =>
+      'Your voices travel straight between the phones.';
+
+  @override
+  String get journey_failed_title => 'Couldn\'t connect';
+
+  @override
+  String get journey_scan_again => 'SCAN AGAIN';
+
+  @override
+  String get journey_not_now => 'NOT NOW';
 }

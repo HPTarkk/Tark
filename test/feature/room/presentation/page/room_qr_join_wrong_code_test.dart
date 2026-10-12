@@ -131,12 +131,30 @@ void main() {
     );
     final payload = host.qrPayload(roomInvite: bundle.encode());
 
-    expect(await surface.onCode(payload), isFalse);
+    // The read code is done with: the camera gives way to the link being
+    // made, and the failure is told there with a way back to a fresh camera.
+    expect(await surface.onCode(payload), isTrue);
     await tester.pump();
-    expect(errorOn(tester), isNotNull);
-    expect(await surface.onCode(payload), isFalse);
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.byType(QrScannerSurface), findsNothing);
+    expect(find.text("Couldn't connect"), findsOneWidget);
+    expect(
+      find.text('Could not join. Ask the host for a fresh invite.'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const Key('room-join-scan-again')));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    final again = tester.widget<QrScannerSurface>(
+      find.byType(QrScannerSurface),
+    );
+    expect(again.errorText, isNull);
+    expect(await again.onCode(payload), isTrue);
     expect(joiner.attempts, 2);
     expect(find.byKey(const Key('hotspot-page')), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 5));
   });
 
   testWidgets(
@@ -151,14 +169,18 @@ void main() {
       // No phone is advertising in this harness, so the find fails — and
       // says so in the words a rider can act on, with membership already
       // saved so a second scan only has to find the phone.
-      expect(await tester.runAsync(() => surface.onCode(payload)), isFalse);
+      expect(await tester.runAsync(() => surface.onCode(payload)), isTrue);
       await tester.pump();
+      await tester.pump(const Duration(seconds: 2));
       expect(room.joined, 1);
       expect(
-        errorOn(tester),
-        "Couldn't find their phone. Keep the invite open on it, stay close, "
-        'and scan again.',
+        find.text(
+          "Couldn't find their phone. Keep the invite open on it, stay close, "
+          'and scan again.',
+        ),
+        findsOneWidget,
       );
+      expect(find.byKey(const Key('room-join-scan-again')), findsOneWidget);
       expect(find.byKey(const Key('hotspot-page')), findsNothing);
       expect(joiner.tokens, [link.token]);
     },

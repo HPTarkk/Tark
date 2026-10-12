@@ -3147,4 +3147,42 @@ class AppLocalizationsFa extends AppLocalizations {
   @override
   String get beta_guest_web_notice =>
       'این اتصال هنوز بتاست؛ اگه قطع شد، دوباره QR رو اسکن کن.';
+
+  @override
+  String get journey_scanned_title => 'دعوت خونده شد';
+
+  @override
+  String get journey_linking_hotspot_title => 'دارم به هات‌اسپاتش وصل می‌شم…';
+
+  @override
+  String get journey_linking_bluetooth_title => 'دارم با بلوتوث وصل می‌شم…';
+
+  @override
+  String get journey_linking_wifi_title => 'دارم روی وای‌فای پیداش می‌کنم…';
+
+  @override
+  String get journey_linking_detail =>
+      'دو تا گوشی رو نزدیک هم نگه دار و دعوت رو روی اون یکی باز بذار.';
+
+  @override
+  String get journey_handshake_title => 'تقریباً رسیدیم…';
+
+  @override
+  String get journey_handshake_detail =>
+      'دارم مطمئن می‌شم اون طرف، گروه خودته.';
+
+  @override
+  String get journey_bluetooth_title => 'اتصال بلوتوث آماده‌ست';
+
+  @override
+  String get journey_bluetooth_detail => 'صداتون مستقیم بین گوشی‌ها می‌ره.';
+
+  @override
+  String get journey_failed_title => 'وصل نشد';
+
+  @override
+  String get journey_scan_again => 'دوباره اسکن کن';
+
+  @override
+  String get journey_not_now => 'فعلاً نه';
 }
