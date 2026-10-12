@@ -3,10 +3,10 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  app_links_linux
   audioplayers_linux
   bluetooth_low_energy_linux
   flutter_webrtc
-  gtk
   url_launcher_linux
 )
 
