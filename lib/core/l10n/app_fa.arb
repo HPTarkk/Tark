@@ -942,5 +942,8 @@
     "network_link_wifi_title": "اتصال وای‌فای آماده‌ست",
     "network_link_wifi_detail": "صداتون روی همین شبکه، بین گوشی‌ها می‌ره.",
     "network_link_hotspot_title": "اتصال هات‌اسپات آماده‌ست",
-    "network_link_hotspot_detail": "یک گوشی شبکه رو می‌سازه. صداتون از همون مسیر می‌ره."
+    "network_link_hotspot_detail": "یک گوشی شبکه رو می‌سازه. صداتون از همون مسیر می‌ره.",
+    "linkprep_hotspot_detail": "گوشیت داره هات‌اسپات می‌شه و کد رو همزمان می‌سازه.",
+    "linkprep_bluetooth_detail": "بلوتوث داره روشن می‌شه و کد رو همزمان می‌سازه.",
+    "linkprep_code_detail": "داریم کد دعوت رو امضا می‌کنیم."
 }

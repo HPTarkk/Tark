@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/copy_chip.dart';
+import '../../../../core/widget/link_preparing_visual.dart';
 import 'network_link_established.dart';
 
 /// Small shared pieces of the WiFi/Hotspot page family — entrance animation,
@@ -164,13 +165,11 @@ class HotspotPreparing extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SizedBox(
-              width: 30,
-              height: 30,
-              child: CircularProgressIndicator(
-                color: AppColors.amber,
-                strokeWidth: 2.5,
-              ),
+            // The hotspot coming up, drawn as this phone beaconing out and
+            // writing its code — the same square the code then appears in.
+            const LinkPreparingVisual(
+              kind: LinkPreparingKind.hotspot,
+              qrSize: 216,
             ),
             const SizedBox(height: 16),
             Text(

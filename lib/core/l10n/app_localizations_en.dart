@@ -3132,4 +3132,15 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get network_link_hotspot_detail =>
       'One phone makes the network. Your voices travel over it.';
+
+  @override
+  String get linkprep_hotspot_detail =>
+      'Your phone is becoming a hotspot and writing the code as it goes.';
+
+  @override
+  String get linkprep_bluetooth_detail =>
+      'Bluetooth is waking up and writing the code as it goes.';
+
+  @override
+  String get linkprep_code_detail => 'Signing your invite code.';
 }

@@ -919,5 +919,8 @@
     "network_link_wifi_title": "Your Wi-Fi link is ready",
     "network_link_wifi_detail": "Your voices travel between phones on the shared network.",
     "network_link_hotspot_title": "Your hotspot link is ready",
-    "network_link_hotspot_detail": "One phone makes the network. Your voices travel over it."
+    "network_link_hotspot_detail": "One phone makes the network. Your voices travel over it.",
+    "linkprep_hotspot_detail": "Your phone is becoming a hotspot and writing the code as it goes.",
+    "linkprep_bluetooth_detail": "Bluetooth is waking up and writing the code as it goes.",
+    "linkprep_code_detail": "Signing your invite code."
 }

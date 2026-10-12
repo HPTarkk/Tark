@@ -8,6 +8,7 @@ import 'package:get_it/get_it.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widget/link_preparing_visual.dart';
 import '../../../../core/widget/qr_widgets.dart';
 import '../../../../core/widget/sheet_shell.dart';
 import '../../../transfer/api/transfer_api.dart';
@@ -393,27 +394,14 @@ class _RejoinCodeSheetState extends State<_RejoinCodeSheet> {
                           ),
                         ),
                         const SizedBox(height: 18),
+                        // The hotspot coming back up, drawn as itself, and
+                        // resolving into the code in the same square.
                         Center(
-                          child: AnimatedSwitcher(
-                            duration: AppMotion.card,
-                            switchInCurve: AppMotion.easeOut,
-                            switchOutCurve: AppMotion.leaving,
-                            child: credentials == null
-                                ? SizedBox(
-                                    key: const ValueKey('rejoin-code-waiting'),
-                                    width: 230,
-                                    height: 230,
-                                    child: Center(
-                                      child: Text(
-                                        s.reconnect_preparing,
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          color: AppColors.textSecondary,
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                    ),
-                                  )
+                          child: LinkPreparingVisual(
+                            kind: LinkPreparingKind.hotspot,
+                            qrSize: 230,
+                            ready: credentials == null
+                                ? null
                                 : GlowingQrCard(
                                     key: ValueKey(
                                       'rejoin-code-${credentials.ssid}',
@@ -427,6 +415,19 @@ class _RejoinCodeSheetState extends State<_RejoinCodeSheet> {
                                     branded: true,
                                   ),
                           ),
+                        ),
+                        AnimatedSize(
+                          duration: AppMotion.sheet,
+                          curve: AppMotion.easeOut,
+                          child: credentials == null
+                              ? Padding(
+                                  key: const ValueKey('rejoin-code-waiting'),
+                                  padding: const EdgeInsets.only(top: 12),
+                                  child: LinkPreparingCaption(
+                                    kind: LinkPreparingKind.hotspot,
+                                  ),
+                                )
+                              : const SizedBox(width: double.infinity),
                         ),
                         const SizedBox(height: 20),
                         StepRow(

@@ -3103,4 +3103,15 @@ class AppLocalizationsFa extends AppLocalizations {
   @override
   String get network_link_hotspot_detail =>
       'یک گوشی شبکه رو می‌سازه. صداتون از همون مسیر می‌ره.';
+
+  @override
+  String get linkprep_hotspot_detail =>
+      'گوشیت داره هات‌اسپات می‌شه و کد رو همزمان می‌سازه.';
+
+  @override
+  String get linkprep_bluetooth_detail =>
+      'بلوتوث داره روشن می‌شه و کد رو همزمان می‌سازه.';
+
+  @override
+  String get linkprep_code_detail => 'داریم کد دعوت رو امضا می‌کنیم.';
 }
