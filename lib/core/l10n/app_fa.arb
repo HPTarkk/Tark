@@ -942,5 +942,19 @@
     "network_link_wifi_title": "اتصال وای‌فای آماده‌ست",
     "network_link_wifi_detail": "صداتون روی همین شبکه، بین گوشی‌ها می‌ره.",
     "network_link_hotspot_title": "اتصال هات‌اسپات آماده‌ست",
-    "network_link_hotspot_detail": "یک گوشی شبکه رو می‌سازه. صداتون از همون مسیر می‌ره."
+    "network_link_hotspot_detail": "یک گوشی شبکه رو می‌سازه. صداتون از همون مسیر می‌ره.",
+    "onbx_kicker": "ارتباط مستقیم. گوشی به گوشی.",
+    "onbx_hello_title": "هم‌مسیر، هم‌صدا.",
+    "onbx_you_title": "کی پشت بیسیمه؟",
+    "onbx_shuffle": "یه اسم تصادفی",
+    "onbx_room_kicker": "آماده‌ای، {name}",
+    "@onbx_room_kicker": {"placeholders": {"name": {"type": "String"}}},
+    "onbx_room_title": "حالا بچه‌ها رو جمع کن",
+    "onbx_room_sub": "یه اتاق بساز و دعوتشون کن، یا کد اتاق یه دوست رو اسکن کن و بپر توش.",
+    "onbx_later": "بعداً",
+    "onbx_change": "تغییر",
+    "onbx_room_name_suggestion": "اکیپ {name}",
+    "@onbx_room_name_suggestion": {"placeholders": {"name": {"type": "String"}}},
+    "onbx_progress": "مرحله {current} از {total}",
+    "@onbx_progress": {"placeholders": {"current": {"type": "String"}, "total": {"type": "String"}}}
 }

@@ -20,6 +20,15 @@ import '../theme/app_colors.dart';
 /// Owns its own [Ticker] so the page State doesn't need to drive it; the
 /// ticker pauses automatically while the route is covered (TickerMode), and
 /// the whole layer ignores pointer events.
+///
+/// **Every instance draws the same frame.** The nodes come from one fixed
+/// seed and the clock is the scheduler's frame timestamp rather than each
+/// ticker's own elapsed time, so two screens that both show the mesh — say
+/// onboarding and the room screen it hands over to — paint identical
+/// backdrops at every instant. A crossfade between them then moves only the
+/// content; the network behind it stays perfectly still, which is what makes
+/// the hand-off read as one continuous surface. Only the very first mesh the
+/// app shows fades in; later ones are already there.
 class MeshBackground extends StatefulWidget {
   const MeshBackground({super.key, this.wave, this.waveOrigin});
 
@@ -39,18 +48,35 @@ class _MeshBackgroundState extends State<MeshBackground>
     with SingleTickerProviderStateMixin {
   static const _nodeCount = 22;
 
+  /// One layout for every instance — see the class docs.
+  static final List<_MeshNode> _nodes = () {
+    final rng = Random(1101);
+    return List.generate(_nodeCount, (_) => _MeshNode.scatter(rng));
+  }();
+
+  /// Frame time (seconds) of the first frame any mesh drew; the fade-in is
+  /// measured from here so only the app's first mesh fades in.
+  static double? _firstFrame;
+
+  /// The newest frame time any mesh has seen, so a mesh mounting mid-flight
+  /// paints its first frame in step with the ones already on screen.
+  static double _lastFrame = 0;
+
   late final Ticker _ticker;
-  late final List<_MeshNode> _nodes;
-  final ValueNotifier<double> _time = ValueNotifier(0);
+  final ValueNotifier<double> _time = ValueNotifier(_lastFrame);
+
+  static double get _now =>
+      SchedulerBinding.instance.currentFrameTimeStamp.inMicroseconds / 1e6;
 
   @override
   void initState() {
     super.initState();
-    final rng = Random();
-    _nodes = List.generate(_nodeCount, (_) => _MeshNode.scatter(rng));
-    _ticker = createTicker(
-      (elapsed) => _time.value = elapsed.inMicroseconds / 1e6,
-    )..start();
+    _ticker = createTicker((_) {
+      final now = _now;
+      _firstFrame ??= now;
+      _lastFrame = now;
+      _time.value = now;
+    })..start();
   }
 
   @override
@@ -140,8 +166,11 @@ class _MeshPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final t = time.value;
-    // Ease the whole layer in on first frame so it doesn't pop.
-    final fade = Curves.easeOut.transform((t / 1.8).clamp(0.0, 1.0));
+    // Ease the layer in on the app's first mesh frame so it doesn't pop;
+    // every later mesh continues the same, already visible, network.
+    final fade = Curves.easeOut.transform(
+      ((t - (_MeshBackgroundState._firstFrame ?? t)) / 1.8).clamp(0.0, 1.0),
+    );
     if (fade == 0) return;
 
     final positions = [for (final n in nodes) n.positionAt(t, size)];

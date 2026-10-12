@@ -919,5 +919,16 @@
     "network_link_wifi_title": "Your Wi-Fi link is ready",
     "network_link_wifi_detail": "Your voices travel between phones on the shared network.",
     "network_link_hotspot_title": "Your hotspot link is ready",
-    "network_link_hotspot_detail": "One phone makes the network. Your voices travel over it."
+    "network_link_hotspot_detail": "One phone makes the network. Your voices travel over it.",
+    "onbx_kicker": "Direct voice. Phone to phone.",
+    "onbx_hello_title": "Same road. Stay close.",
+    "onbx_you_title": "Who's on the radio?",
+    "onbx_shuffle": "Roll a random name",
+    "onbx_room_kicker": "You're on, {name}",
+    "onbx_room_title": "Now get your crew together",
+    "onbx_room_sub": "Make a room and invite them, or scan a friend's code to hop into theirs.",
+    "onbx_later": "Maybe later",
+    "onbx_change": "Change",
+    "onbx_room_name_suggestion": "{name}'s crew",
+    "onbx_progress": "Step {current} of {total}"
 }

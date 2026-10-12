@@ -23,30 +23,52 @@ import '../widget/room_formation.dart';
 import '../widget/room_visuals.dart';
 
 class RoomCreatePage extends StatefulWidget {
-  const RoomCreatePage({super.key, this.onCreated, this.onExit});
+  const RoomCreatePage({
+    super.key,
+    this.onCreated,
+    this.onExit,
+    this.initialName,
+    this.continuous = false,
+  });
 
   /// Landing's create action renders this page on its first route frame.
   /// Creation from the saved-room list still uses the list's existing cubit
   /// and returns the result to that caller.
-  static Widget buildPage() => BlocProvider<RoomListCubit>(
-    create: (_) => GetIt.instance<RoomListCubit>()..load(),
-    child: Builder(
-      builder: (context) => RoomCreatePage(
-        onCreated: (_) => context.go(AppRoutes.walkiePath),
-        onExit: () => exitRouteTo(context, AppRoutes.landingPath),
-      ),
-    ),
-  );
+  ///
+  /// Onboarding's last step opens it too, with a name already suggested
+  /// ([initialName]) so making the first Room is a single tap, and as a
+  /// [continuous] arrival.
+  static Widget buildPage({String? initialName, bool continuous = false}) =>
+      BlocProvider<RoomListCubit>(
+        create: (_) => GetIt.instance<RoomListCubit>()..load(),
+        child: Builder(
+          builder: (context) => RoomCreatePage(
+            initialName: initialName,
+            continuous: continuous,
+            onCreated: (_) => context.go(AppRoutes.walkiePath),
+            onExit: () => exitRouteTo(context, AppRoutes.landingPath),
+          ),
+        ),
+      );
 
   final ValueChanged<SavedRoom>? onCreated;
   final VoidCallback? onExit;
+
+  /// Prefills the name field. Still fully editable; it only spares someone
+  /// with nothing better in mind from having to invent a name.
+  final String? initialName;
+
+  /// The formation arrived already on screen, flown in as a [Hero] from the
+  /// screen beneath — so it must not also play its own fade-in afterwards,
+  /// which would make it vanish the moment it landed.
+  final bool continuous;
   @override
   State<RoomCreatePage> createState() => _RoomCreatePageState();
 }
 
 class _RoomCreatePageState extends State<RoomCreatePage>
     with SingleTickerProviderStateMixin, RouteArrival<RoomCreatePage> {
-  final _name = TextEditingController();
+  late final _name = TextEditingController(text: widget.initialName?.trim());
   late final _arrival = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1050),
@@ -160,6 +182,18 @@ class _RoomCreatePageState extends State<RoomCreatePage>
       );
     },
   );
+
+  /// Under a [Hero] wherever it is opened from: with nothing to fly from (the
+  /// list, Landing) the tag simply does nothing, and from onboarding the
+  /// formation on its last step lands here as this one.
+  Widget _formation() {
+    final formation = Hero(
+      tag: roomFormationHeroTag,
+      child: RoomFormation(assembling: _busy, ready: _ready),
+    );
+    return widget.continuous ? formation : _enter(0, formation);
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
@@ -207,10 +241,7 @@ class _RoomCreatePageState extends State<RoomCreatePage>
                     child: ListView(
                       padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
                       children: [
-                        _enter(
-                          0,
-                          RoomFormation(assembling: _busy, ready: _ready),
-                        ),
+                        _formation(),
                         _enter(
                           1,
                           AnimatedSwitcher(

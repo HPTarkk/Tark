@@ -3132,4 +3132,44 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get network_link_hotspot_detail =>
       'One phone makes the network. Your voices travel over it.';
+
+  @override
+  String get onbx_kicker => 'Direct voice. Phone to phone.';
+
+  @override
+  String get onbx_hello_title => 'Same road. Stay close.';
+
+  @override
+  String get onbx_you_title => 'Who\'s on the radio?';
+
+  @override
+  String get onbx_shuffle => 'Roll a random name';
+
+  @override
+  String onbx_room_kicker(String name) {
+    return 'You\'re on, $name';
+  }
+
+  @override
+  String get onbx_room_title => 'Now get your crew together';
+
+  @override
+  String get onbx_room_sub =>
+      'Make a room and invite them, or scan a friend\'s code to hop into theirs.';
+
+  @override
+  String get onbx_later => 'Maybe later';
+
+  @override
+  String get onbx_change => 'Change';
+
+  @override
+  String onbx_room_name_suggestion(String name) {
+    return '$name\'s crew';
+  }
+
+  @override
+  String onbx_progress(String current, String total) {
+    return 'Step $current of $total';
+  }
 }
