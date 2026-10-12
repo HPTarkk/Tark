@@ -12,6 +12,7 @@ import '../../../../core/widget/confirm_sheet.dart';
 import '../../../../core/widget/sheet_shell.dart';
 import '../../domain/entity/room.dart';
 import '../manager/room_list_cubit.dart';
+import 'room_dissolve.dart';
 
 /// Where put-away Rooms live, and the only way back out of the archive.
 ///
@@ -31,8 +32,10 @@ Future<void> showRoomArchiveSheet(BuildContext context) {
     // The sheet drives the same cubit as the page underneath, so restoring a
     // Room updates the list behind it rather than leaving two truths on
     // screen at once.
-    builder: (_) =>
-        BlocProvider<RoomListCubit>.value(value: cubit, child: const _Sheet()),
+    builder: (_) => BlocProvider<RoomListCubit>.value(
+      value: cubit,
+      child: const RoomDissolveHost(child: _Sheet()),
+    ),
   );
 }
 
@@ -85,14 +88,21 @@ class _Sheet extends StatelessWidget {
                     children: children,
                   ),
                   children: [
-                    for (final saved in state.archived) ...[
-                      _ArchivedRoomCard(
-                        key: Key('archived-${saved.room.id.value}'),
-                        saved: saved,
-                        busy: state.loading,
+                    for (final saved
+                        in RoomDissolveHost.of(
+                              context,
+                            )?.retain(state.archived, (s) => s.room.id) ??
+                            state.archived)
+                      // The gap is the row's, so it closes with a deleted one.
+                      RoomDissolvable(
+                        id: saved.room.id,
+                        gap: 10,
+                        child: _ArchivedRoomCard(
+                          key: Key('archived-${saved.room.id.value}'),
+                          saved: saved,
+                          busy: state.loading,
+                        ),
                       ),
-                      const SizedBox(height: 10),
-                    ],
                   ],
                 ),
               ),
@@ -254,6 +264,10 @@ Future<void> confirmAndDeleteRoom(BuildContext context, SavedRoom saved) async {
     destructive: true,
   );
   if (!confirmed || !context.mounted) return;
+  // Photographs the card and sets it turning to dust before the delete can
+  // take it off screen. Presentation only: the delete below runs exactly as
+  // it did without it.
+  RoomDissolveHost.maybeOf(context)?.dissolve(saved.room.id);
   await context.read<RoomListCubit>().deleteRoom(saved.room.id);
 }
 
