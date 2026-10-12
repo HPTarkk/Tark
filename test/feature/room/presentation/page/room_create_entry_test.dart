@@ -180,8 +180,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 700));
     expect(find.byType(RoomCreatePage), findsOneWidget);
     expect(find.text('lobby'), findsNothing);
-    await tester.pump(const Duration(milliseconds: 350));
-    await tester.pump(const Duration(milliseconds: 400));
+    for (var ms = 700; ms < 1450; ms += 50) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
     expect(find.text('lobby'), findsOneWidget);
     expect(find.byType(RoomListPage, skipOffstage: false), findsNothing);
     expect(tester.takeException(), isNull);
