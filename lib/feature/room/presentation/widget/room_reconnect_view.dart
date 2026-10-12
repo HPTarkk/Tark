@@ -558,11 +558,7 @@ class _ShowSide extends StatelessWidget {
                   : Semantics(
                       image: true,
                       label: s.reconnect_show_step_hold,
-                      child: GlowingQrCard(
-                        data: data,
-                        size: 232,
-                        branded: true,
-                      ),
+                      child: GlowingQrCard(data: data, size: 232),
                     ),
             ),
             if (preparing) ...[

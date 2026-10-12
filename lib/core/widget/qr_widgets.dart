@@ -5,30 +5,22 @@ import '../../gen/assets.gen.dart';
 import '../motion/app_motion.dart';
 import '../theme/app_colors.dart';
 import '../utils/extensions.dart';
+import 'qr_brand_plan.dart';
 
 /// QR code presented like a transmission artifact: white tile with an amber
 /// glow, radar-style corner brackets, and a slow scanline sweeping over it.
-/// Shared by the host invite screen and the web guest's reply screen.
+/// Shared by every code Tarkk shows — invites, hotspot, reconnect, guests.
+///
+/// Every one carries the Tarkk mark in its centre. That is a design decision,
+/// not decoration, and it is never traded away for length: [QrBrandPlan]
+/// picks the error-correction level, the version and the exact size of the
+/// knock-out so the mark always stays within half of what the code can
+/// repair, however long the payload grows.
 class GlowingQrCard extends StatefulWidget {
   final String data;
   final double size;
 
-  /// Stamps the Tarkk mark in the middle of the code.
-  ///
-  /// Opt-in, because it isn't free: a logo means punching a hole in the data,
-  /// which is only survivable at a raised error-correction level, which in turn
-  /// needs more modules for the same payload — smaller squares for the camera
-  /// to resolve. That's a fine trade for the hotspot code (~55 bytes, so it
-  /// stays a low version with big modules) and a bad one for the guest codes,
-  /// whose WebRTC payloads are already pushing the version up on their own.
-  final bool branded;
-
-  const GlowingQrCard({
-    super.key,
-    required this.data,
-    this.size = 250,
-    this.branded = false,
-  });
+  const GlowingQrCard({super.key, required this.data, this.size = 250});
 
   @override
   State<GlowingQrCard> createState() => _GlowingQrCardState();
@@ -41,10 +33,45 @@ class _GlowingQrCardState extends State<GlowingQrCard>
     duration: const Duration(milliseconds: 2600),
   );
 
+  late QrBrandPlan _plan = QrBrandPlan.of(widget.data, size: widget.size);
+
+  @override
+  void didUpdateWidget(GlowingQrCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.data != widget.data || oldWidget.size != widget.size) {
+      _plan = QrBrandPlan.of(widget.data, size: widget.size);
+    }
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _sweep.loopUnlessReduced(context, reverse: true);
+  }
+
+  Widget? _code;
+  QrBrandPlan? _codePlan;
+  String? _codeData;
+
+  Widget _codeFor(QrBrandPlan plan) {
+    if (_code == null ||
+        _codeData != widget.data ||
+        _codePlan?.version != plan.version ||
+        _codePlan?.errorCorrectLevel != plan.errorCorrectLevel) {
+      _codeData = widget.data;
+      _codePlan = plan;
+      _code = RepaintBoundary(
+        child: QrImageView(
+          data: widget.data,
+          version: plan.version,
+          errorCorrectionLevel: plan.errorCorrectLevel,
+          size: plan.moduleCount.toDouble(),
+          padding: EdgeInsets.zero,
+          gapless: true,
+        ),
+      );
+    }
+    return _code!;
   }
 
   @override
@@ -56,9 +83,8 @@ class _GlowingQrCardState extends State<GlowingQrCard>
   @override
   Widget build(BuildContext context) {
     final inset = widget.size + 28;
-    // Quarter of the width — ~6% of the area, comfortably inside what level H
-    // can lose, and still big enough to read as the mark rather than a smudge.
-    final logo = widget.size * 0.24;
+    final plan = _plan;
+    final code = plan.codeExtent(widget.size);
     return SizedBox(
       width: inset + 26,
       height: inset + 26,
@@ -94,37 +120,35 @@ class _GlowingQrCardState extends State<GlowingQrCard>
                 children: [
                   // A dense QR is thousands of tiny rects — painting it 60×/s
                   // under the moving scanline was the lag. The boundary
-                  // rasterizes it once; error level L keeps the module count
-                  // (and paint cost) down AND makes screen-to-camera scanning
-                  // easier through bigger modules.
+                  // rasterizes it once.
                   //
-                  // A branded code can't use L: the mark covers ~5.8% of the
-                  // area, which L's 7% budget can't absorb on top of the
-                  // code's own noise. Q (25%) — not the H that logo QRs are
-                  // usually built with, since H assumes a mark covering 20-30%
-                  // and this one is a fifth of that. Q keeps ~2x the margin we
-                  // need while costing fewer modules, and modules are what the
-                  // camera has to resolve: on a long SSID this is 45 modules
-                  // (4.8px each at 216) where H would be 53 (4.08px).
-                  RepaintBoundary(
-                    child: QrImageView(
-                      data: widget.data,
-                      version: QrVersions.auto,
-                      errorCorrectionLevel: widget.branded
-                          ? QrErrorCorrectLevel.Q
-                          : QrErrorCorrectLevel.L,
-                      size: widget.size,
-                      gapless: true,
+                  // Drawn at exactly the plan's module pitch: the code is
+                  // painted one logical pixel per module and scaled up, so
+                  // qr_flutter's half-pixel rounding never shrinks a module
+                  // or pushes the code into its quiet zone. The same instance
+                  // is reused while only the size changes, so a card growing
+                  // under an animation re-rasterizes a cached picture rather
+                  // than re-encoding the code every frame.
+                  Center(
+                    child: SizedBox.square(
+                      dimension: code,
+                      child: FittedBox(child: _codeFor(plan)),
                     ),
                   ),
                   // Drawn as an overlay rather than through qr_flutter's
-                  // embeddedImage so the mark keeps its white quiet ring —
-                  // without that gap the dark tile's edge reads as modules and
-                  // decoders hunt for structure that isn't there.
-                  if (widget.branded)
+                  // embeddedImage so the knock-out lands on whole modules and
+                  // the mark keeps its white quiet ring — without that gap
+                  // the dark tile's edge reads as modules and decoders hunt
+                  // for structure that isn't there.
+                  if (plan.branded)
                     Positioned.fill(
                       child: Center(
-                        child: RepaintBoundary(child: _BrandMark(size: logo)),
+                        child: RepaintBoundary(
+                          child: _BrandMark(
+                            key: const Key('qr-brand-mark'),
+                            size: plan.markExtent(widget.size),
+                          ),
+                        ),
                       ),
                     ),
                   // Scanline sweep: its own layer, so animating it only
@@ -173,7 +197,7 @@ class _GlowingQrCardState extends State<GlowingQrCard>
 class _BrandMark extends StatelessWidget {
   final double size;
 
-  const _BrandMark({required this.size});
+  const _BrandMark({super.key, required this.size});
 
   @override
   Widget build(BuildContext context) {

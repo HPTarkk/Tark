@@ -90,7 +90,6 @@ class HotspotHostFlow extends StatelessWidget {
               // inside the Wi-Fi payload instead of replacing it.
               data: creds.qrPayload(channel: state.channelId),
               size: 216,
-              branded: true,
             ),
           ),
         ),

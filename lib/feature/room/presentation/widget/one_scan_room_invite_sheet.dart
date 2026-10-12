@@ -13,6 +13,7 @@ import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/link_preparing_visual.dart';
+import '../../../../core/widget/qr_brand_plan.dart';
 import '../../../../core/widget/qr_widgets.dart';
 import '../../../../core/widget/sheet_shell.dart';
 import '../../../transfer/api/hotspot_invite_api.dart';
@@ -551,50 +552,60 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
           builder: (context, constraints) {
             // As big as the sheet allows, up to 270: on a narrow phone the
             // card's brackets used to run into the sheet's edges.
-            final qrSize = math.min(
-              270.0,
-              constraints.maxWidth - LinkPreparingVisual.extentFor(0),
-            );
-            return Center(
-              child: LinkPreparingVisual(
-                kind: _linkKind,
-                qrSize: qrSize,
-                ready: payload == null
-                    ? null
-                    // A flip of the grant is a different code, and the swap
-                    // says so: the old one recedes as the new one settles,
-                    // instead of the modules silently rearranging under
-                    // someone's camera.
-                    : AnimatedSwitcher(
-                        duration: AppMotion.reduced(context)
-                            ? AppMotion.chip
-                            : AppMotion.sheet,
-                        switchInCurve: AppMotion.easeOut,
-                        switchOutCurve: AppMotion.leaving,
-                        transitionBuilder: (child, animation) => FadeTransition(
-                          opacity: animation,
-                          child: AppMotion.reduced(context)
-                              ? child
-                              : ScaleTransition(
-                                  scale: Tween<double>(
-                                    begin: 0.94,
-                                    end: 1,
-                                  ).animate(animation),
-                                  child: child,
-                                ),
-                        ),
-                        child: KeyedSubtree(
-                          key: ValueKey(_grantInvites),
-                          child: GlowingQrCard(
-                            key: const Key('one-scan-room-invite-qr'),
-                            data: payload,
-                            size: qrSize,
-                            branded:
-                                payload.length <=
-                                RoomDirectJoinBundle.brandableEncodedLength,
+            final room =
+                constraints.maxWidth - LinkPreparingVisual.extentFor(0);
+            final baseSize = math.min(270.0, room);
+            // A long code (a member's delegated invite riding a Wi-Fi code)
+            // gets a bigger tile rather than smaller squares, and grows into
+            // it as the beacon resolves instead of jumping.
+            final targetSize = payload == null
+                ? baseSize
+                : QrBrandPlan.sizeFor(payload, preferred: baseSize, max: room);
+            return TweenAnimationBuilder<double>(
+              tween: Tween<double>(end: targetSize),
+              duration: AppMotion.reduced(context)
+                  ? Duration.zero
+                  : AppMotion.sheet,
+              curve: AppMotion.easeOut,
+              builder: (context, qrSize, _) => Center(
+                child: LinkPreparingVisual(
+                  kind: _linkKind,
+                  qrSize: qrSize,
+                  ready: payload == null
+                      ? null
+                      // A flip of the grant is a different code, and the swap
+                      // says so: the old one recedes as the new one settles,
+                      // instead of the modules silently rearranging under
+                      // someone's camera.
+                      : AnimatedSwitcher(
+                          duration: AppMotion.reduced(context)
+                              ? AppMotion.chip
+                              : AppMotion.sheet,
+                          switchInCurve: AppMotion.easeOut,
+                          switchOutCurve: AppMotion.leaving,
+                          transitionBuilder: (child, animation) =>
+                              FadeTransition(
+                                opacity: animation,
+                                child: AppMotion.reduced(context)
+                                    ? child
+                                    : ScaleTransition(
+                                        scale: Tween<double>(
+                                          begin: 0.94,
+                                          end: 1,
+                                        ).animate(animation),
+                                        child: child,
+                                      ),
+                              ),
+                          child: KeyedSubtree(
+                            key: ValueKey(_grantInvites),
+                            child: GlowingQrCard(
+                              key: const Key('one-scan-room-invite-qr'),
+                              data: payload,
+                              size: qrSize,
+                            ),
                           ),
                         ),
-                      ),
+                ),
               ),
             );
           },
