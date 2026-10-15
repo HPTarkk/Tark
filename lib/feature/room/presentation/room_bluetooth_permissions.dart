@@ -4,6 +4,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../../core/utils/android_sdk.dart';
 import '../../../core/utils/bluetooth_scan_location.dart';
 import '../../../core/utils/logger.dart';
+import '../../../core/permission/permission_primer.dart';
 import '../../../core/utils/permission_queue.dart';
 
 typedef RoomInvitePermissionGate = Future<bool> Function();
@@ -45,9 +46,14 @@ Future<bool> ensureRoomInviteBluetoothPermissions({
     // lookup itself fails, so modern devices are not asked for location.
   }
 
-  final request =
-      requestPermissions ?? (List<Permission> values) => values.request();
-  final statuses = await PermissionQueue.run(() => request(permissions));
+  // The primer explains first and queues its own request; an injected
+  // request (tests) is queued here, as before.
+  final statuses = requestPermissions == null
+      ? await PermissionPrimer.request(
+          permissions,
+          kind: PermissionKind.nearbyDevices,
+        )
+      : await PermissionQueue.run(() => requestPermissions(permissions));
   return permissions.every(
     (permission) => statuses[permission]?.isGranted == true,
   );

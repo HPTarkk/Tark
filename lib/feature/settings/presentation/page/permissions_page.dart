@@ -8,7 +8,7 @@ import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/android_sdk.dart';
-import '../../../../core/utils/permission_queue.dart';
+import '../../../../core/permission/permission_primer.dart';
 import '../../../../core/widget/permission_tile.dart';
 import '../../../audio/api/audio_api.dart';
 
@@ -91,17 +91,23 @@ class _PermissionsPageState extends State<PermissionsPage>
   }
 
   Future<void> _requestMic() async {
-    await PermissionQueue.run(() => Permission.microphone.request());
+    await PermissionPrimer.request(
+      const [Permission.microphone],
+      kind: PermissionKind.microphone,
+      context: context,
+    );
     await _refresh();
   }
 
   Future<void> _requestBluetooth() async {
-    await PermissionQueue.run(
-      () => [
+    await PermissionPrimer.request(
+      const [
         Permission.bluetoothScan,
         Permission.bluetoothConnect,
         Permission.bluetoothAdvertise,
-      ].request(),
+      ],
+      kind: PermissionKind.nearbyDevices,
+      context: context,
     );
     await _refresh();
   }
@@ -126,7 +132,12 @@ class _PermissionsPageState extends State<PermissionsPage>
 
   Future<void> _requestHotspot() async {
     final permission = await _hotspotPermission();
-    await PermissionQueue.run(() => permission.request());
+    if (!mounted) return;
+    await PermissionPrimer.request(
+      [permission],
+      kind: PermissionKind.nearbyWifi,
+      context: context,
+    );
     await _refresh();
   }
 

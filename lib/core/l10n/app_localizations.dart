@@ -5911,6 +5911,258 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'درخواست اتصال بسته شد. برای وصل شدن، کد روی گوشی {name} رو اسکن کن.'**
   String carriermove_guided_declined(String name);
+
+  /// No description provided for @perm_allow.
+  ///
+  /// In fa, this message translates to:
+  /// **'باشه، اجازه می‌دم'**
+  String get perm_allow;
+
+  /// No description provided for @perm_not_now.
+  ///
+  /// In fa, this message translates to:
+  /// **'فعلاً نه'**
+  String get perm_not_now;
+
+  /// No description provided for @perm_try_again.
+  ///
+  /// In fa, this message translates to:
+  /// **'یه بار دیگه بپرس'**
+  String get perm_try_again;
+
+  /// No description provided for @perm_open_settings.
+  ///
+  /// In fa, this message translates to:
+  /// **'برو به تنظیمات'**
+  String get perm_open_settings;
+
+  /// No description provided for @perm_denied_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'اشکالی نداره، فعلاً خاموش می‌مونه'**
+  String get perm_denied_title;
+
+  /// No description provided for @perm_blocked_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'این یکی توی تنظیمات خاموشه'**
+  String get perm_blocked_title;
+
+  /// No description provided for @perm_blocked_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'اندروید دیگه از توی برنامه نمی‌پرسه. توی تنظیمات برو سراغ «مجوزها» و «{name}» رو روشن کن؛ برگردی، خودمون ادامه می‌دیم.'**
+  String perm_blocked_body(String name);
+
+  /// No description provided for @perm_blocked_note.
+  ///
+  /// In fa, this message translates to:
+  /// **'قبلاً خاموشش کرده بودی، برای همین الان جاش توی تنظیماته.'**
+  String get perm_blocked_note;
+
+  /// No description provided for @perm_waiting.
+  ///
+  /// In fa, this message translates to:
+  /// **'منتظرتیم — روشنش کن و برگرد، بقیه‌ش با ما.'**
+  String get perm_waiting;
+
+  /// No description provided for @perm_granted_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'ردیف شد!'**
+  String get perm_granted_title;
+
+  /// No description provided for @perm_granted_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'داریم از همون‌جا که بودی ادامه می‌دیم…'**
+  String get perm_granted_body;
+
+  /// No description provided for @perm_mic_label.
+  ///
+  /// In fa, this message translates to:
+  /// **'میکروفون'**
+  String get perm_mic_label;
+
+  /// No description provided for @perm_mic_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'بذار صدات برسه'**
+  String get perm_mic_title;
+
+  /// No description provided for @perm_mic_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'«تَرک» با میکروفون صدات رو می‌گیره و مستقیم می‌رسونه به گوشی هم‌کانالی‌هات.'**
+  String get perm_mic_body;
+
+  /// No description provided for @perm_mic_promise.
+  ///
+  /// In fa, this message translates to:
+  /// **'صدات فقط به هم‌کانالی‌هات می‌رسه'**
+  String get perm_mic_promise;
+
+  /// No description provided for @perm_mic_denied.
+  ///
+  /// In fa, this message translates to:
+  /// **'هنوز صدای بقیه رو می‌شنوی. هر وقت خواستی حرف بزنی، از همین‌جا روشنش کن.'**
+  String get perm_mic_denied;
+
+  /// No description provided for @perm_camera_label.
+  ///
+  /// In fa, this message translates to:
+  /// **'دوربین'**
+  String get perm_camera_label;
+
+  /// No description provided for @perm_camera_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'یه نگاه به کد دعوت'**
+  String get perm_camera_title;
+
+  /// No description provided for @perm_camera_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'دوربین فقط برای خوندن کد QR روی گوشی رفیقت باز می‌شه.'**
+  String get perm_camera_body;
+
+  /// No description provided for @perm_camera_promise.
+  ///
+  /// In fa, this message translates to:
+  /// **'نه عکسی گرفته می‌شه، نه چیزی ذخیره می‌شه'**
+  String get perm_camera_promise;
+
+  /// No description provided for @perm_camera_denied.
+  ///
+  /// In fa, this message translates to:
+  /// **'بقیه‌ی برنامه مثل قبل کار می‌کنه؛ دوربین فقط برای اسکن کد لازمه.'**
+  String get perm_camera_denied;
+
+  /// No description provided for @perm_nearby_label.
+  ///
+  /// In fa, this message translates to:
+  /// **'دستگاه‌های نزدیک'**
+  String get perm_nearby_label;
+
+  /// No description provided for @perm_nearby_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'گوشی‌های دور و برت رو پیدا کنیم'**
+  String get perm_nearby_title;
+
+  /// No description provided for @perm_nearby_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'با این اجازه، «تَرک» گوشی‌های نزدیکت رو با بلوتوث پیدا می‌کنه و بی‌اینترنت بهشون وصل می‌شه.'**
+  String get perm_nearby_body;
+
+  /// No description provided for @perm_nearby_promise.
+  ///
+  /// In fa, this message translates to:
+  /// **'مستقیم گوشی‌به‌گوشی، بدون اینترنت'**
+  String get perm_nearby_promise;
+
+  /// No description provided for @perm_nearby_denied.
+  ///
+  /// In fa, this message translates to:
+  /// **'بقیه‌ی برنامه کار می‌کنه؛ فقط وصل شدن با بلوتوث منتظر این اجازه‌ست.'**
+  String get perm_nearby_denied;
+
+  /// No description provided for @perm_wifi_label.
+  ///
+  /// In fa, this message translates to:
+  /// **'دستگاه‌های وای‌فای نزدیک'**
+  String get perm_wifi_label;
+
+  /// No description provided for @perm_wifi_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'هات‌اسپات خودت رو بساز'**
+  String get perm_wifi_title;
+
+  /// No description provided for @perm_wifi_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'اندروید این رو می‌خواد تا گوشیت بتونه هات‌اسپات بسازه و گوشی‌هایی که بهش می‌پرن رو ببینه.'**
+  String get perm_wifi_body;
+
+  /// No description provided for @perm_wifi_promise.
+  ///
+  /// In fa, this message translates to:
+  /// **'یه شبکه‌ی خصوصی فقط برای خودتون'**
+  String get perm_wifi_promise;
+
+  /// No description provided for @perm_wifi_denied.
+  ///
+  /// In fa, this message translates to:
+  /// **'هنوز می‌تونی به هات‌اسپات یکی دیگه وصل شی؛ فقط ساختنش منتظر این اجازه‌ست.'**
+  String get perm_wifi_denied;
+
+  /// No description provided for @perm_location_label.
+  ///
+  /// In fa, this message translates to:
+  /// **'موقعیت مکانی'**
+  String get perm_location_label;
+
+  /// No description provided for @perm_location_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'فقط برای پیدا کردن هم‌سفرها'**
+  String get perm_location_title;
+
+  /// No description provided for @perm_location_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'روی این نسخه‌ی اندروید، پیدا کردن گوشی‌های نزدیک پشت اجازه‌ی موقعیت مکانیه. «تَرک» موقعیتت رو نه می‌خونه، نه نگه می‌داره.'**
+  String get perm_location_body;
+
+  /// No description provided for @perm_location_promise.
+  ///
+  /// In fa, this message translates to:
+  /// **'ردیابی نداریم — هیچ‌وقت'**
+  String get perm_location_promise;
+
+  /// No description provided for @perm_location_denied.
+  ///
+  /// In fa, this message translates to:
+  /// **'بقیه‌ی برنامه کار می‌کنه؛ فقط پیدا کردن گوشی‌های نزدیک منتظر این اجازه‌ست.'**
+  String get perm_location_denied;
+
+  /// No description provided for @perm_notif_label.
+  ///
+  /// In fa, this message translates to:
+  /// **'اعلان‌ها'**
+  String get perm_notif_label;
+
+  /// No description provided for @perm_notif_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'کانال با صفحه‌ی خاموش هم زنده بمونه'**
+  String get perm_notif_title;
+
+  /// No description provided for @perm_notif_body.
+  ///
+  /// In fa, this message translates to:
+  /// **'یه اعلان کوچیک یعنی اندروید وسط راه کانال رو نمی‌بنده، حتی وقتی گوشی توی جیبته.'**
+  String get perm_notif_body;
+
+  /// No description provided for @perm_notif_promise.
+  ///
+  /// In fa, this message translates to:
+  /// **'فقط یه اعلان آروم، بدون مزاحمت'**
+  String get perm_notif_promise;
+
+  /// No description provided for @perm_notif_denied.
+  ///
+  /// In fa, this message translates to:
+  /// **'کانال باز هم کار می‌کنه؛ فقط ممکنه وقتی صفحه خاموش شه، اندروید ببندتش.'**
+  String get perm_notif_denied;
+
+  /// No description provided for @perm_camera_cta.
+  ///
+  /// In fa, this message translates to:
+  /// **'دوربین رو روشن کن'**
+  String get perm_camera_cta;
 }
 
 class _AppLocalizationsDelegate

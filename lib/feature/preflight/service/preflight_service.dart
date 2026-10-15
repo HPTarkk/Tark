@@ -5,8 +5,8 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../../core/audio/audio_format_profile.dart';
 import '../../../core/diagnostics/diagnostic_log.dart';
 import '../../../core/l10n/app_localizations.dart';
+import '../../../core/permission/permission_primer.dart';
 import '../../../core/utils/latest_only.dart';
-import '../../../core/utils/permission_queue.dart';
 import '../../audio/data/session_keep_alive.dart';
 import '../../audio/data/system_audio_capture.dart';
 import '../../transfer/domain/service/transport_advisor.dart';
@@ -198,7 +198,9 @@ abstract final class PreflightService {
             batteryExempt: batteryExempt,
             isMiui: isMiui,
             requestNotification: () async {
-              await PermissionQueue.run(() => Permission.notification.request());
+              await PermissionPrimer.request(const [
+                Permission.notification,
+              ], kind: PermissionKind.notifications);
               await retry();
             },
             requestBatteryExemption: () async {

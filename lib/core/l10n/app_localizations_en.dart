@@ -3370,4 +3370,146 @@ class AppLocalizationsEn extends AppLocalizations {
   String carriermove_guided_declined(String name) {
     return 'The connection request was closed. Scan the code on $name\'s phone to connect.';
   }
+
+  @override
+  String get perm_allow => 'Sounds good, allow';
+
+  @override
+  String get perm_not_now => 'Not now';
+
+  @override
+  String get perm_try_again => 'Ask me again';
+
+  @override
+  String get perm_open_settings => 'Open settings';
+
+  @override
+  String get perm_denied_title => 'No problem — it stays off for now';
+
+  @override
+  String get perm_blocked_title => 'It\'s switched off in Settings';
+
+  @override
+  String perm_blocked_body(String name) {
+    return 'Android won\'t ask again from inside the app. In Settings, open Permissions and switch on “$name” — when you\'re back, we\'ll carry on by ourselves.';
+  }
+
+  @override
+  String get perm_blocked_note =>
+      'You switched it off earlier, so it lives in Settings now.';
+
+  @override
+  String get perm_waiting =>
+      'We\'ll wait — switch it on and come back, we\'ll take it from there.';
+
+  @override
+  String get perm_granted_title => 'All set!';
+
+  @override
+  String get perm_granted_body => 'Picking up right where you left off…';
+
+  @override
+  String get perm_mic_label => 'Microphone';
+
+  @override
+  String get perm_mic_title => 'Let your voice get through';
+
+  @override
+  String get perm_mic_body =>
+      'Tarkk uses the mic to pick up your voice and carry it straight to the phones on your channel.';
+
+  @override
+  String get perm_mic_promise => 'Your voice only reaches your channel';
+
+  @override
+  String get perm_mic_denied =>
+      'You can still hear everyone. Whenever you want to talk, switch it on from right here.';
+
+  @override
+  String get perm_camera_label => 'Camera';
+
+  @override
+  String get perm_camera_title => 'One look at the invite code';
+
+  @override
+  String get perm_camera_body =>
+      'The camera only opens to read the QR code on your buddy\'s phone.';
+
+  @override
+  String get perm_camera_promise => 'No photos taken, nothing saved';
+
+  @override
+  String get perm_camera_denied =>
+      'Everything else works as before — the camera is only needed to scan the code.';
+
+  @override
+  String get perm_nearby_label => 'Nearby devices';
+
+  @override
+  String get perm_nearby_title => 'Let\'s find the phones around you';
+
+  @override
+  String get perm_nearby_body =>
+      'With this, Tarkk finds nearby phones over Bluetooth and links up with them — no internet needed.';
+
+  @override
+  String get perm_nearby_promise => 'Phone to phone, no internet';
+
+  @override
+  String get perm_nearby_denied =>
+      'The rest of the app works fine — only the Bluetooth link waits on this.';
+
+  @override
+  String get perm_wifi_label => 'Nearby Wi-Fi devices';
+
+  @override
+  String get perm_wifi_title => 'Raise your own hotspot';
+
+  @override
+  String get perm_wifi_body =>
+      'Android asks for this so your phone can raise a hotspot and see the phones that hop onto it.';
+
+  @override
+  String get perm_wifi_promise => 'A private network just for your group';
+
+  @override
+  String get perm_wifi_denied =>
+      'You can still join someone else\'s hotspot — only hosting one waits on this.';
+
+  @override
+  String get perm_location_label => 'Location';
+
+  @override
+  String get perm_location_title => 'Only to find your riding buddies';
+
+  @override
+  String get perm_location_body =>
+      'On this version of Android, finding nearby phones sits behind the location permission. Tarkk never reads or keeps where you are.';
+
+  @override
+  String get perm_location_promise => 'No tracking. Ever.';
+
+  @override
+  String get perm_location_denied =>
+      'Everything else still works — only finding nearby phones waits on this.';
+
+  @override
+  String get perm_notif_label => 'Notifications';
+
+  @override
+  String get perm_notif_title => 'Keep the channel alive, screen off';
+
+  @override
+  String get perm_notif_body =>
+      'One small notification tells Android not to close your channel mid-ride, even with the phone in your pocket.';
+
+  @override
+  String get perm_notif_promise => 'Just one quiet notification, no spam';
+
+  @override
+  String get perm_notif_denied =>
+      'The channel still works — Android may just close it once the screen goes off.';
+
+  @override
+  String get perm_camera_cta => 'Turn on the camera';
 }
