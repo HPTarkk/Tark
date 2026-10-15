@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/account/email_link.dart';
 import '../../core/beta/beta_intro.dart';
 import '../../core/diagnostics/screen_log.dart';
+import '../../core/motion/backward_route.dart';
 import '../../core/motion/continuity_route.dart';
 import '../../core/widget/journey_carry_over.dart';
 import '../../core/entitlement/feature_access_guard.dart';
@@ -48,6 +49,17 @@ class AppRouter {
     };
     if (state.extra is ContinuityHandoff) {
       return ContinuityPage<void>(
+        key: state.pageKey,
+        name: name,
+        arguments: arguments,
+        restorationId: state.pageKey.value,
+        child: child,
+      );
+    }
+    // Leaving a screen for this one with nothing to pop (see goBackTo): it
+    // still moves the way back does.
+    if (state.extra is BackwardHandoff) {
+      return BackwardPage<void>(
         key: state.pageKey,
         name: name,
         arguments: arguments,

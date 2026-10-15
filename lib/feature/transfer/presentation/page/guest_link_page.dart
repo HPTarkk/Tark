@@ -11,6 +11,7 @@ import '../../../../core/widget/copy_chip.dart';
 import '../../../../core/widget/link_established.dart';
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/router/route_exit.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/qr_widgets.dart';
@@ -60,14 +61,10 @@ class _GuestLinkPageState extends State<GuestLinkPage>
   /// link left running would keep the next invite from starting cleanly.
   void _back(BuildContext context) {
     context.read<GuestLinkCubit>().cancel();
-    if (context.canPop()) {
-      context.pop();
-    } else {
-      // Reached directly, with nothing beneath us on the stack — quick
-      // access lands here on cold start, and so does the home-screen
-      // widget's GO LIVE in Guest mode.
-      context.goNamed(AppRoutes.landingName);
-    }
+    // Pops, or — reached directly, with nothing beneath us on the stack:
+    // quick access lands here on cold start, and so does the home-screen
+    // widget's GO LIVE in Guest mode — steps back to Landing.
+    exitRouteTo(context, AppRoutes.landingPath);
   }
 
   @override

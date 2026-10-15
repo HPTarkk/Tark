@@ -62,7 +62,14 @@ class _OnboardingPrimaryButtonState extends State<OnboardingPrimaryButton> {
         ),
         const SizedBox(width: 10),
         AnimatedSlide(
-          offset: Offset(_down && !reduced ? 0.22 : 0, 0),
+          // Nudges the way the arrow points — towards the reading end, which
+          // is left in Persian, where the icon itself is mirrored.
+          offset: Offset(
+            _down && !reduced
+                ? 0.22 * AppMotion.forwardSign(Directionality.of(context))
+                : 0,
+            0,
+          ),
           duration: AppMotion.press,
           curve: AppMotion.easeOut,
           child: Icon(Icons.arrow_forward_rounded, color: ink, size: 20),

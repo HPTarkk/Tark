@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/motion/route_arrival.dart';
+import '../../../../core/router/route_exit.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/logger.dart';
@@ -161,13 +161,13 @@ class _BluetoothResumePageState extends State<BluetoothResumePage>
     _giveUp?.cancel();
     _countdown.stop();
     if (!_failed) context.read<BluetoothConnectCubit>().backToRoleSelection();
-    context.goNamed(AppRoutes.landingName);
+    goBackTo(context, AppRoutes.landingPath);
   }
 
   void _finishFailure() {
     if (!mounted || _phase != _Phase.failed) return;
     setState(() => _phase = _Phase.leaving);
-    context.goNamed(AppRoutes.landingName);
+    goBackTo(context, AppRoutes.landingPath);
   }
 
   void _finishSuccess() {
@@ -180,8 +180,9 @@ class _BluetoothResumePageState extends State<BluetoothResumePage>
     setState(() => _phase = _Phase.leaving);
     try {
       // Keep the established link ready; Home is an explicit pause before
-      // anyone starts a conversation or opens a microphone.
-      context.goNamed(AppRoutes.landingName);
+      // anyone starts a conversation or opens a microphone. This screen sits
+      // over Home, so getting there is a step back out of it.
+      goBackTo(context, AppRoutes.landingPath);
     } catch (e) {
       Logger.log('Resume navigation failed: $e');
       if (mounted) setState(() => _phase = _Phase.connected);

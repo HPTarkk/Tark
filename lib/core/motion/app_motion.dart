@@ -6,6 +6,42 @@ import 'package:flutter/services.dart';
 
 /// The app's motion vocabulary.
 ///
+/// ## Spatial rules
+///
+/// Every transition in the app answers "where did this come from, where did
+/// that go" the same way, so the screens read as one physical space:
+///
+/// * **Forward and back are horizontal and follow the reading direction.**
+///   Going forward (a push, the next screen) brings the new content in from
+///   the reading *end* while the old drifts toward the reading *start*. Going
+///   back is the exact reverse, whether it is a pop or — when there is
+///   nothing to pop — a replacement made with `goBackTo`, which builds a
+///   `BackwardPage` that plays the mirror of a push. "Reading end" is the
+///   right edge in English and the left edge in Persian: every horizontal
+///   offset is written in reading-direction terms ([forwardSign],
+///   `SlideTransition.textDirection`, `AlignmentDirectional`) and never as a
+///   bare screen-left or screen-right.
+/// * **Sheets are vertical.** A sheet, modal or `SolidSheetRoute` rises from
+///   the bottom edge and falls back down to it; the screen behind recedes in
+///   place (scale and dim), it never slides sideways.
+/// * **State changes in place are vertical, and directional.** When content
+///   is replaced where it stands (a step, a phase, a status line), the new
+///   content rises from below while the old leaves upward ([HandOver],
+///   `StepSwap`); stepping back runs the same gesture downward. The two never
+///   cross: old content never sinks into the space the new one is rising
+///   from.
+/// * **Entrances rise, exits sink or lift — never sideways** unless the
+///   element itself belongs to a horizontal track (a switch thumb, a
+///   carousel), in which case it moves along that track, mirrored in RTL.
+/// * **Continuations dissolve.** A `ContinuityPage` continues the screen
+///   under it (same backdrop): the new foreground dissolves in while the old
+///   recedes toward the viewer, with no lateral travel.
+/// * **Reduced motion keeps the meaning and drops the travel**: fades,
+///   orders and dips stay; slides, parallax and scale go.
+///
+/// The shared transitions are pinned in LTR and RTL by
+/// `test/core/motion/motion_direction_test.dart`.
+///
 /// Before this file, every animation picked its own curve and duration inline —
 /// `easeOutQuart` in one widget, `easeOutCubic` in the next, 250ms beside
 /// 420ms. Two elements moving at the same moment moved differently, which is
@@ -102,6 +138,89 @@ abstract final class AppMotion {
   /// the fade is often the part that was carrying the meaning.
   static bool reduced(BuildContext context) =>
       MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+
+  /// The sign of a horizontal step toward the reading end: +1 in a
+  /// left-to-right language, -1 in Persian. Multiply any screen-space x
+  /// offset that means "forward" by this.
+  static double forwardSign(TextDirection direction) =>
+      direction == TextDirection.rtl ? -1 : 1;
+}
+
+/// Hands one piece of content over to the next in place: the arriving one
+/// rises from below as the departing one lifts away upward — or, with
+/// [direction] -1 (stepping back), the arriving one comes down from above and
+/// the departing one sinks.
+///
+/// For `AnimatedSwitcher.transitionBuilder`:
+///
+/// ```dart
+/// AnimatedSwitcher(
+///   transitionBuilder: HandOver.transition(),
+///   ...
+/// )
+/// ```
+///
+/// The usual one-liner — the same `SlideTransition` for both children — sends
+/// the departing child *down* into the space the arriving one is rising out
+/// of, because the switcher plays the departing child's animation backwards.
+/// The two cross. This reads the animation's direction instead, so departure
+/// always moves away from where arrival comes from. Fractional travel, so it
+/// scales with the content; reduced motion keeps the fade only.
+class HandOver extends StatelessWidget {
+  const HandOver({
+    required this.animation,
+    required this.child,
+    this.rise = 0.25,
+    this.lift = 0.18,
+    this.direction = 1,
+    super.key,
+  });
+
+  final Animation<double> animation;
+  final Widget child;
+
+  /// How far the arriving child travels, as a fraction of its height.
+  final double rise;
+
+  /// How far the departing child travels, as a fraction of its height.
+  final double lift;
+
+  /// +1 moving forward, -1 stepping back.
+  final int direction;
+
+  /// A transition builder for `AnimatedSwitcher`.
+  static AnimatedSwitcherTransitionBuilder transition({
+    double rise = 0.25,
+    double lift = 0.18,
+    int direction = 1,
+  }) =>
+      (child, animation) => HandOver(
+        animation: animation,
+        rise: rise,
+        lift: lift,
+        direction: direction,
+        child: child,
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final faded = FadeTransition(opacity: animation, child: child);
+    if (AppMotion.reduced(context)) return faded;
+    return AnimatedBuilder(
+      animation: animation,
+      child: faded,
+      builder: (context, child) {
+        final departing =
+            animation.status == AnimationStatus.reverse ||
+            animation.status == AnimationStatus.dismissed;
+        final remaining = 1 - animation.value;
+        final dy = departing
+            ? -lift * remaining * direction
+            : rise * remaining * direction;
+        return FractionalTranslation(translation: Offset(0, dy), child: child);
+      },
+    );
+  }
 }
 
 /// Runs an ambient loop only while the platform allows full motion.
@@ -252,9 +371,10 @@ class StaggeredEntrance extends StatefulWidget {
   final List<Widget> children;
   final Widget Function(BuildContext context, List<Widget> children) builder;
 
-  /// Direction of travel, in multiples of [AppMotion.rise]. Defaults to a rise
-  /// from below; pass a horizontal offset for something that should read as
-  /// arriving from the side.
+  /// Where the items arrive from. Defaults to a rise from below; pass a
+  /// horizontal offset for something that should read as arriving from the
+  /// side. The x component is in reading-direction terms: positive is the
+  /// reading *end* (the right in English, the left in Persian).
   final Offset beginOffset;
 
   @override
@@ -357,6 +477,8 @@ class _EntranceItem extends StatelessWidget {
       child: SlideTransition(
         // Fractional so it scales with the row rather than being a fixed pixel
         // slide that reads differently on a tall card than a short one.
+        // Directional, so a sideways entrance mirrors in Persian.
+        textDirection: Directionality.maybeOf(context),
         position: Tween<Offset>(
           begin: offset * 0.08,
           end: Offset.zero,

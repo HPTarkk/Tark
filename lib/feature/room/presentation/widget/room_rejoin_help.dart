@@ -412,7 +412,6 @@ class _RejoinCodeSheetState extends State<_RejoinCodeSheet> {
                                       ),
                                     ),
                                     size: 230,
-                                    branded: true,
                                   ),
                           ),
                         ),

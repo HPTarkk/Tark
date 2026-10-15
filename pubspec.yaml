@@ -107,6 +107,10 @@ dev_dependencies:
   # The jitter buffer's adaptive depth only moves on timer ticks, so testing it
   # needs a clock the test controls. Already in the tree via flutter_test.
   fake_async: ^1.3.1
+  # The encoder qr_flutter draws with, named so the branded-QR test can walk
+  # its block table and prove the centre mark stays inside the error budget.
+  # Already in the tree via qr_flutter.
+  qr: ^3.0.2
   flutter_lints: ^6.0.0
   injectable_generator:
   build_runner:

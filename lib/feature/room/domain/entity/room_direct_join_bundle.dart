@@ -78,8 +78,8 @@ import '../service/room_member_transport_identity.dart';
 /// | 5 | a held-until varint follows the joined-at one |
 ///
 /// So a roster with no held seats encodes to exactly the byte count v2 did,
-/// and [brandableEncodedLength] still buys the same three seats. A record with
-/// held seats pays a varint each, which is what a seat that can expire costs.
+/// and the code keeps the module size it had. A record with held seats pays a
+/// varint each, which is what a seat that can expire costs.
 ///
 /// The flags could not simply be added to v2: an older reader would take bit 4
 /// as an unknown kind and, worse, the extra varint would desynchronise every
@@ -144,23 +144,6 @@ final class RoomDirectJoinBundle {
   static const legacyVersion = 1;
 
   static const maxEncodedLength = 12288;
-
-  /// Longest payload that still earns the centre brand mark.
-  ///
-  /// The mark needs error-correction level Q to survive, and Q costs modules —
-  /// so the question is never "does it fit" but "can a camera still resolve
-  /// it". At 460 bytes a level-Q code is 97 modules, about 2.6 logical pixels
-  /// each at the 250 px the invite sheet renders, against the 1.8 that made
-  /// the v1 code hard to scan.
-  ///
-  /// Past that the code goes out unbranded, which costs nothing but the logo:
-  /// level L fits far more into the same modules, so the *unbranded* four-seat
-  /// code is 77 modules — easier to scan than the branded three-seat one, not
-  /// harder. The mark is the only thing ever traded away here.
-  ///
-  /// A bundle costs roughly 290 bytes plus 58 per member, so this covers a
-  /// three-seat room.
-  static const brandableEncodedLength = 460;
 
   static const _scheme = 'tark-room:';
 

@@ -13,6 +13,7 @@ import '../core/home_widget/widget_control_channel.dart';
 import '../core/l10n/app_localizations.dart';
 import '../core/l10n/extension.dart';
 import '../core/locale/locale_service.dart';
+import '../core/motion/backward_route.dart';
 import '../core/permission/permission_primer.dart';
 import '../core/router/routes.dart';
 import '../core/theme/app_theme.dart';
@@ -67,7 +68,11 @@ class _MyAppState extends State<MyApp> {
       action,
     ) {
       if (action == WidgetControlAction.endSession) {
-        AppRouter.router.go(AppRoutes.landingPath);
+        // Leaving, so it moves the way back does (see goBackTo).
+        AppRouter.router.go(
+          AppRoutes.landingPath,
+          extra: const BackwardHandoff(),
+        );
       }
     });
     _listenForEmailLinks();

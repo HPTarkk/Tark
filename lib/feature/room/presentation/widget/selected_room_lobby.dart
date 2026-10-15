@@ -578,18 +578,9 @@ class _LobbyHero extends StatelessWidget {
                   ?current,
                 ],
               ),
-              transitionBuilder: (child, animation) => FadeTransition(
-                opacity: animation,
-                child: AppMotion.reduced(context)
-                    ? child
-                    : SlideTransition(
-                        position: Tween<Offset>(
-                          begin: const Offset(0, 0.04),
-                          end: Offset.zero,
-                        ).animate(animation),
-                        child: child,
-                      ),
-              ),
+              // The new heading rises in as the old one lifts away; the old
+              // never sinks into the new one's path.
+              transitionBuilder: HandOver.transition(rise: 0.04, lift: 0.04),
               child: Column(
                 key: ValueKey((heading, hint)),
                 children: [

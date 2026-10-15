@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:tark/core/widget/qr_brand_plan.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
 import 'package:tark/feature/room/domain/entity/room_accepted_join_snapshot.dart';
 import 'package:tark/feature/room/domain/entity/room_direct_join_bundle.dart';
@@ -127,24 +129,23 @@ void main() {
 
     expect(legacy, greaterThan(1500));
     expect(compact * 4, lessThan(legacy));
-    // A two-seat invite has to stay inside the level-Q budget, or the centre
-    // brand mark silently disappears from the common case.
-    expect(
-      compact,
-      lessThanOrEqualTo(RoomDirectJoinBundle.brandableEncodedLength),
-    );
+    // A two-seat invite has to stay compact enough that the branded code's
+    // modules stay roomy at the invite sheet's size — at Q, the strongest
+    // level the mark is drawn with.
+    final plan = QrBrandPlan.of(bundle.encode(), size: 250);
+    expect(plan.errorCorrectLevel, QrErrorCorrectLevel.Q);
+    expect(plan.modulePitch(250), greaterThanOrEqualTo(2.5));
   });
 
-  test('a three-seat room still earns the brand mark', () {
-    final encoded = _fixture(extraMembers: 1).encode().length;
+  test('a three-seat room keeps the mark and roomy modules', () {
+    final encoded = _fixture(extraMembers: 1).encode();
+    final plan = QrBrandPlan.of(encoded, size: 250);
 
-    expect(
-      encoded,
-      lessThanOrEqualTo(RoomDirectJoinBundle.brandableEncodedLength),
-    );
+    expect(plan.branded, isTrue);
+    expect(plan.modulePitch(250), greaterThanOrEqualTo(2.5));
   });
 
-  test('a full roster still encodes, unbranded', () {
+  test('a full roster still encodes, and is still branded', () {
     final encoded = _fixture(
       extraMembers: RoomAcceptedJoinSnapshot.maxMembers - 2,
     ).encode();
@@ -153,10 +154,7 @@ void main() {
       RoomDirectJoinBundle.decode(encoded).snapshot.members,
       hasLength(12),
     );
-    expect(
-      encoded.length,
-      greaterThan(RoomDirectJoinBundle.brandableEncodedLength),
-    );
+    expect(QrBrandPlan.of(encoded, size: 250).branded, isTrue);
   });
 
   test('rejects bytes appended after the roster', () {

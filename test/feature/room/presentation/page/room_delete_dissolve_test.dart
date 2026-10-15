@@ -110,6 +110,119 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('every row below is pulled up like a chain: together, each a '
+      'beat behind the one above, never back down', (tester) async {
+    for (final name in ['A ride', 'B ride', 'C ride', 'D ride']) {
+      await repository.create(name: name, localDisplayName: 'Me');
+    }
+    final rooms = await repository.list();
+    await pumpPage(tester);
+    final doomed = rooms[0];
+    final followers = [
+      for (final saved in rooms.skip(1)) card(saved),
+      find.byKey(const Key('rooms-create-fab')),
+    ];
+    double top(Finder f) => tester.getTopLeft(f).dy;
+    final start = [for (final f in followers) top(f)];
+    // Where each one has to end up: where the one above it was.
+    final end = [top(card(doomed)), ...start.take(start.length - 1)];
+
+    await confirmDelete(tester, doomed);
+    final firstMoved = List<int?>.filled(followers.length, null);
+    final last = List.of(start);
+    var stretched = false;
+    for (var frame = 0; frame < 90; frame++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      final now = [for (final f in followers) top(f)];
+      for (var i = 0; i < now.length; i++) {
+        expect(
+          now[i],
+          lessThanOrEqualTo(last[i] + 0.01),
+          reason: 'follower $i moved back down on frame $frame',
+        );
+        if (firstMoved[i] == null && now[i] < start[i] - 0.5) {
+          firstMoved[i] = frame;
+        }
+      }
+      // Mid-flight, a row has covered less of its way than the one above:
+      // the slack runs down the list.
+      for (var i = 1; i < now.length; i++) {
+        final above = (start[i - 1] - now[i - 1]) / (start[i - 1] - end[i - 1]);
+        final below = (start[i] - now[i]) / (start[i] - end[i]);
+        if (above > 0.2 && above < 0.9 && below < above - 0.05) {
+          stretched = true;
+        }
+      }
+      last.setAll(0, now);
+    }
+    expect(stretched, isTrue, reason: 'the rows move as a chain, not a slab');
+    for (var i = 1; i < firstMoved.length; i++) {
+      expect(firstMoved[i], isNotNull);
+      expect(
+        firstMoved[i]!,
+        greaterThanOrEqualTo(firstMoved[i - 1]!),
+        reason: 'each link starts no earlier than the one above it',
+      );
+    }
+    expect(firstMoved.last!, greaterThan(firstMoved.first!));
+
+    await tester.pumpAndSettle();
+    for (var i = 0; i < followers.length; i++) {
+      expect(top(followers[i]), closeTo(end[i], 0.5), reason: 'follower $i');
+    }
+    expect(tester.binding.transientCallbackCount, 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the last Room: its dust plays out in the list, then the empty '
+      'state rises out of it', (tester) async {
+    await repository.create(name: 'Only ride', localDisplayName: 'Me');
+    final only = (await repository.list()).single;
+    await pumpPage(tester);
+    final list = find.byKey(const ValueKey('rooms-list-view'));
+    final empty = find.byKey(const ValueKey('rooms-empty'));
+    final embers = find.byKey(const Key('rooms-empty-embers'));
+
+    await confirmDelete(tester, only);
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(dust, findsOneWidget);
+
+    // The data is already empty; the screen holds the list while the slot
+    // closes instead of cutting to the empty state over the dust.
+    var held = 0;
+    while (empty.evaluate().isEmpty && held < 200) {
+      expect(list, findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 16));
+      held++;
+    }
+    expect(held, greaterThan(20), reason: 'not a cut');
+    expect((await repository.list(includeArchived: true)), isEmpty);
+
+    // It arrives while the embers are still in the air, and draws them in.
+    expect(dust, findsOneWidget, reason: 'born out of the dissolve');
+    expect(embers, findsOneWidget);
+    final hero = find.descendant(
+      of: empty,
+      matching: find.byKey(const Key('rooms-empty-create')),
+    );
+    await tester.pump(const Duration(milliseconds: 16));
+    final rising = tester.getTopLeft(hero).dy;
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(hero).dy, lessThan(rising), reason: 'it rises');
+    expect(list, findsNothing);
+    expect(dust, findsNothing);
+    expect(tester.binding.transientCallbackCount, 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('opened on no Rooms: the empty state rises without embers', (
+    tester,
+  ) async {
+    await pumpPage(tester);
+    expect(find.byKey(const ValueKey('rooms-empty')), findsOneWidget);
+    expect(find.byKey(const Key('rooms-empty-embers')), findsNothing);
+  });
+
   testWidgets('reduced motion: no dust, a short collapse, same delete', (
     tester,
   ) async {

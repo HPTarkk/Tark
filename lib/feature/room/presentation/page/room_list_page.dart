@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -129,30 +131,42 @@ class _RoomListPageState extends State<RoomListPage> {
     child: IgnorePointer(ignoring: leaving, child: child),
   );
 
+  /// Whether the empty state about to show came out of the last Room's dust,
+  /// rather than being what the page opened on.
+  bool _emptiedByDissolve = false;
+
   Widget _body(BuildContext context, RoomListState state) {
-    if (state.loading && state.rooms.isEmpty) {
-      return const Center(
-        key: ValueKey('rooms-loading'),
-        child: CircularProgressIndicator(),
-      );
+    final host = RoomDissolveHost.of(context);
+    // While the last Room's dust is still in the air the list stays: its slot
+    // closes and the card under it is pulled up, in the list it belonged to.
+    // The empty state is held until that has settled, then rises out of it —
+    // swapping it in at once cut it in over the dust.
+    final settling = host?.isSettling ?? false;
+    if (!settling) {
+      if (state.loading && state.rooms.isEmpty) {
+        return const Center(
+          key: ValueKey('rooms-loading'),
+          child: CircularProgressIndicator(),
+        );
+      }
+      if (state.error != null && state.rooms.isEmpty) {
+        return _ErrorState(
+          key: const ValueKey('rooms-error'),
+          onRetry: context.read<RoomListCubit>().load,
+        );
+      }
+      if (state.rooms.isEmpty) {
+        return _EmptyState(
+          key: const ValueKey('rooms-empty'),
+          afterDissolve: _emptiedByDissolve,
+          onCreate: () => _createRoom(context),
+        );
+      }
     }
-    if (state.error != null && state.rooms.isEmpty) {
-      return _ErrorState(
-        key: const ValueKey('rooms-error'),
-        onRetry: context.read<RoomListCubit>().load,
-      );
-    }
-    if (state.rooms.isEmpty) {
-      return _EmptyState(
-        key: const ValueKey('rooms-empty'),
-        onCreate: () => _createRoom(context),
-      );
-    }
+    _emptiedByDissolve = settling && state.rooms.isEmpty;
     // A Room that was just deleted stays in its place, invisible, while its
     // slot closes; the count above already says the true number.
-    final rooms =
-        RoomDissolveHost.of(context)?.retain(state.rooms, (s) => s.room.id) ??
-        state.rooms;
+    final rooms = host?.retain(state.rooms, (s) => s.room.id) ?? state.rooms;
     return RefreshIndicator(
       key: const ValueKey('rooms-list-view'),
       onRefresh: context.read<RoomListCubit>().load,
@@ -189,10 +203,13 @@ class _RoomListPageState extends State<RoomListPage> {
           // Creation sits where the lobby keeps Invite: under the list, a
           // quieter card than the Room in play. A floating button covered the
           // last card's menu and was the one Material-default shape left.
-          _CreateAction(
-            key: const Key('rooms-create-fab'),
-            label: context.getString.rooms_new_room,
-            onTap: () => _createRoom(context),
+          // Pulled up with the Rooms when one above it is deleted.
+          RoomDissolveFollower(
+            child: _CreateAction(
+              key: const Key('rooms-create-fab'),
+              label: context.getString.rooms_new_room,
+              onTap: () => _createRoom(context),
+            ),
           ),
         ],
         builder: (context, children) => ListView.builder(
@@ -693,81 +710,366 @@ class _ArchiveAction extends StatelessWidget {
   );
 }
 
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.onCreate, super.key});
+/// The page with no Rooms on it, and how it arrives.
+///
+/// After the last Room is deleted it does not cut in: it is assembled out of
+/// that Room's dust. The hero card rises into the space the list left and
+/// settles; the embers still drifting up from the dissolve are drawn back
+/// down into the ring and light it; the ring's mark swells in on the flash;
+/// then the words and the button follow, one beat apart. One controller for
+/// all of it, read through intervals — the same budget as any entrance.
+///
+/// Opened on an already empty list it plays the same rise without the
+/// embers, which belong to a deletion. Reduced motion keeps the order and the
+/// fades and drops the travel and the sparks.
+class _EmptyState extends StatefulWidget {
+  const _EmptyState({
+    required this.onCreate,
+    this.afterDissolve = false,
+    super.key,
+  });
+
   final VoidCallback onCreate;
 
+  /// Whether this follows the last Room turning to dust.
+  final bool afterDissolve;
+
   @override
-  Widget build(BuildContext context) => Center(
-    child: SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // The lobby's hero, before there is anyone in it.
-            Container(
-              padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
-              decoration: roomCardDecoration(
-                lit: true,
-                radius: BorderRadius.circular(28),
-              ),
-              child: Column(
-                children: [
-                  Container(
-                    width: 84,
-                    height: 84,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AppColors.card,
-                      border: Border.all(
-                        color: AppColors.amber.withValues(alpha: 0.55),
-                        width: 2,
+  State<_EmptyState> createState() => _EmptyStateState();
+}
+
+class _EmptyStateState extends State<_EmptyState>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _entrance = AnimationController(
+    vsync: this,
+    duration: widget.afterDissolve
+        ? const Duration(milliseconds: 950)
+        : const Duration(milliseconds: 700),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _entrance.forward();
+  }
+
+  @override
+  void dispose() {
+    _entrance.dispose();
+    super.dispose();
+  }
+
+  Animation<double> _span(double begin, double end, [Curve? curve]) =>
+      CurvedAnimation(
+        parent: _entrance,
+        curve: Interval(begin, end, curve: curve ?? AppMotion.easeOut),
+      );
+
+  /// Fades [child] in over [begin]..[end] of the entrance, rising [rise]
+  /// logical pixels into place.
+  Widget _arrive(
+    Widget child, {
+    required double begin,
+    required double end,
+    required double rise,
+    required bool reduced,
+  }) {
+    final t = _span(begin, end);
+    final faded = FadeTransition(opacity: t, child: child);
+    if (reduced) return faded;
+    return AnimatedBuilder(
+      animation: t,
+      child: faded,
+      builder: (context, child) => Transform.translate(
+        offset: Offset(0, rise * (1 - t.value)),
+        child: child,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reduced = AppMotion.reduced(context);
+    final sparks = widget.afterDissolve && !reduced;
+    // The card's own rise is longer and softer than its contents': it is the
+    // ground everything else lands on.
+    final card = _span(0, 0.6);
+    final ring = _span(sparks ? 0.26 : 0.12, sparks ? 0.58 : 0.5);
+    final mark = _span(
+      sparks ? 0.3 : 0.14,
+      sparks ? 0.64 : 0.55,
+      Curves.easeOutBack,
+    );
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // The lobby's hero, before there is anyone in it.
+              AnimatedBuilder(
+                animation: card,
+                builder: (context, child) => Opacity(
+                  opacity: card.value.clamp(0.0, 1.0),
+                  child: reduced
+                      ? child
+                      : Transform.translate(
+                          offset: Offset(0, 26 * (1 - card.value)),
+                          child: Transform.scale(
+                            scale: 0.95 + 0.05 * card.value,
+                            child: child,
+                          ),
+                        ),
+                ),
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
+                  decoration: roomCardDecoration(
+                    lit: true,
+                    radius: BorderRadius.circular(28),
+                  ),
+                  child: Column(
+                    children: [
+                      _IgnitingRing(
+                        ring: ring,
+                        mark: mark,
+                        embers: sparks ? _span(0, 0.46) : null,
+                        reduced: reduced,
                       ),
-                    ),
-                    child: Icon(
-                      Icons.groups_2_rounded,
-                      size: 40,
-                      color: AppColors.amber,
-                    ),
+                      const SizedBox(height: 18),
+                      _arrive(
+                        Text(
+                          context.getString.rooms_empty_title,
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textPrimary,
+                              ),
+                        ),
+                        begin: sparks ? 0.38 : 0.22,
+                        end: sparks ? 0.78 : 0.7,
+                        rise: 10,
+                        reduced: reduced,
+                      ),
+                      const SizedBox(height: 8),
+                      _arrive(
+                        Text(
+                          context.getString.rooms_empty_body,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 13,
+                            height: 1.5,
+                          ),
+                        ),
+                        begin: sparks ? 0.44 : 0.28,
+                        end: sparks ? 0.84 : 0.78,
+                        rise: 10,
+                        reduced: reduced,
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 18),
-                  Text(
-                    context.getString.rooms_empty_title,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    context.getString.rooms_empty_body,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 13,
-                      height: 1.5,
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
-            RoomStartButton(
-              key: const Key('rooms-empty-create'),
-              label: context.getString.rooms_create,
-              icon: Icons.add_rounded,
-              breathe: false,
-              onTap: onCreate,
-            ),
-          ],
+              const SizedBox(height: 20),
+              _arrive(
+                RoomStartButton(
+                  key: const Key('rooms-empty-create'),
+                  label: context.getString.rooms_create,
+                  icon: Icons.add_rounded,
+                  breathe: false,
+                  onTap: widget.onCreate,
+                ),
+                begin: sparks ? 0.5 : 0.36,
+                end: 1,
+                rise: 16,
+                reduced: reduced,
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
+}
+
+/// The empty state's ring, lit by the embers of the Room that was just
+/// deleted.
+///
+/// [embers] carries a dozen amber specks — the same squares, the same warm
+/// glow, as the dust — in from above, where the dissolve sent them, and lands
+/// them on the ring. The ring's glow flashes as they arrive ([ring]) and
+/// settles to the lit rim it keeps; the mark inside swells in on the flash
+/// ([mark]). All of it one painter and two transforms on the entrance's
+/// controller; nothing ticks once it is done.
+class _IgnitingRing extends StatelessWidget {
+  const _IgnitingRing({
+    required this.ring,
+    required this.mark,
+    required this.embers,
+    required this.reduced,
+  });
+
+  final Animation<double> ring;
+  final Animation<double> mark;
+  final Animation<double>? embers;
+  final bool reduced;
+
+  static const double _size = 84;
+
+  @override
+  Widget build(BuildContext context) {
+    final amber = AppColors.amber;
+    final disc = AnimatedBuilder(
+      animation: ring,
+      builder: (context, child) {
+        final t = ring.value.clamp(0.0, 1.0);
+        // A flash that peaks as the embers land, then eases to the rim's
+        // resting glow.
+        final flash = math.sin(math.pi * t) * (1 - t * 0.35);
+        return Container(
+          width: _size,
+          height: _size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: AppColors.card,
+            border: Border.all(
+              color: amber.withValues(alpha: 0.18 + 0.37 * t),
+              width: 2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: amber.withValues(alpha: 0.05 + 0.4 * flash),
+                blurRadius: 18 + 16 * flash,
+                spreadRadius: 1 + 3 * flash,
+              ),
+            ],
+          ),
+          child: child,
+        );
+      },
+      child: Center(
+        child: reduced
+            ? FadeTransition(
+                opacity: mark,
+                child: Icon(Icons.groups_2_rounded, size: 40, color: amber),
+              )
+            : ScaleTransition(
+                scale: mark,
+                child: Icon(Icons.groups_2_rounded, size: 40, color: amber),
+              ),
+      ),
+    );
+    final falling = embers;
+    if (falling == null) return disc;
+    return SizedBox(
+      width: _size,
+      height: _size,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          disc,
+          Positioned(
+            left: -90,
+            right: -90,
+            top: -150,
+            bottom: -40,
+            child: IgnorePointer(
+              child: RepaintBoundary(
+                child: CustomPaint(
+                  key: const Key('rooms-empty-embers'),
+                  painter: _EmberPainter(
+                    progress: falling,
+                    tint: amber,
+                    // The ring's centre, inside the painter's box.
+                    target: const Offset(90 + _size / 2, 150 + _size / 2),
+                    radius: _size / 2,
+                    fromRight: Directionality.of(context) == TextDirection.ltr,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Embers falling back into the ring. Deterministic: every speck's path is a
+/// function of the progress alone, so the painter holds no state.
+class _EmberPainter extends CustomPainter {
+  _EmberPainter({
+    required this.progress,
+    required this.tint,
+    required this.target,
+    required this.radius,
+    required this.fromRight,
+  }) : super(repaint: progress);
+
+  final Animation<double> progress;
+  final Color tint;
+  final Offset target;
+  final double radius;
+
+  /// The dust drifted toward the trailing edge; the embers come back from
+  /// that side.
+  final bool fromRight;
+
+  static const _count = 16;
+  final _paint = Paint();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final t = progress.value;
+    if (t <= 0 || t >= 1) return;
+    final hot = Color.lerp(tint, const Color(0xFFFFFFFF), 0.18)!;
+    final drift = fromRight ? 1.0 : -1.0;
+    for (var i = 0; i < _count; i++) {
+      // A fixed scatter, staggered so they land one after another.
+      final seed = (i * 0.618034) % 1;
+      final start = 0.28 * seed;
+      final p = ((t - start) / 0.72).clamp(0.0, 1.0);
+      if (p <= 0 || p >= 1) continue;
+      // Where each one lands on the ring, spread over its upper arc.
+      final landAngle = -math.pi / 2 + (seed - 0.5) * math.pi * 1.25;
+      final land =
+          target + Offset(math.cos(landAngle), math.sin(landAngle)) * radius;
+      // Where it starts: up and off towards the side the dust was carried.
+      final from =
+          target +
+          Offset(
+            drift * (30 + 70 * ((i * 0.37) % 1)) * (i.isEven ? 1 : 0.4),
+            // No higher than the card's top edge: the page scrolls, and
+            // its viewport clips anything above it.
+            -(48 + 34 * ((i * 0.53) % 1)),
+          );
+      // Eases in on a slight arc, like something settling rather than shot.
+      final e = AppMotion.easeOut.transform(p);
+      final arc = math.sin(math.pi * e) * 14 * drift;
+      final at = Offset.lerp(from, land, e)! + Offset(arc, 0);
+      final fade = p < 0.2 ? p / 0.2 : (1 - p) / 0.8;
+      final half = 3.4 * (1 - 0.45 * e);
+      _paint.color = tint.withValues(alpha: 0.85 * fade);
+      canvas.drawRect(
+        Rect.fromCenter(center: at, width: half * 2, height: half * 2),
+        _paint,
+      );
+      _paint.color = hot.withValues(alpha: 0.9 * fade);
+      canvas.drawRect(
+        Rect.fromCenter(center: at, width: half, height: half),
+        _paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_EmberPainter old) =>
+      old.progress != progress || old.target != target;
 }
 
 class _ErrorState extends StatelessWidget {

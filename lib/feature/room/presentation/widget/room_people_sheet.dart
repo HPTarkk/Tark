@@ -8,6 +8,8 @@ import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/extensions.dart';
+import '../../../../core/widget/link_preparing_visual.dart';
+import '../../../../core/widget/qr_brand_plan.dart';
 import '../../../../core/widget/qr_widgets.dart';
 import '../../../../core/widget/sheet_shell.dart';
 import '../../../transfer/api/hotspot_invite_api.dart';
@@ -628,15 +630,24 @@ class _InvitePanel extends StatelessWidget {
               subtitle: room.room.name,
             ),
             const SizedBox(height: 16),
-            Center(
-              child: GlowingQrCard(
-                key: const Key('room-invite-qr'),
-                data: invite.encoded,
-                size: 250,
-                branded:
-                    invite.encoded.length <=
-                    RoomDirectJoinBundle.brandableEncodedLength,
-              ),
+            // A long invite gets a bigger tile rather than smaller squares,
+            // as far as the sheet allows.
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final room =
+                    constraints.maxWidth - LinkPreparingVisual.extentFor(0);
+                return Center(
+                  child: GlowingQrCard(
+                    key: const Key('room-invite-qr'),
+                    data: invite.encoded,
+                    size: QrBrandPlan.sizeFor(
+                      invite.encoded,
+                      preferred: 250,
+                      max: room,
+                    ),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 6),
             Text(
@@ -790,7 +801,6 @@ class _WifiSection extends StatelessWidget {
           key: const Key('room-invite-wifi-qr'),
           data: credentials.wifiQrPayload,
           size: 180,
-          branded: true,
         ),
         const SizedBox(height: 6),
         Text(

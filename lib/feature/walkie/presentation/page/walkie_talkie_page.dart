@@ -5,13 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/beta/beta_badge.dart';
 import '../../../../core/diagnostics/screen_log.dart';
 import '../../../../core/identity/device_identity.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
+import '../../../../core/router/route_exit.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/sfx/sfx_event.dart';
@@ -421,7 +421,8 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage> {
     // goNamed (not pop) so leaving always lands cleanly on Landing regardless
     // of how this screen was reached — the Bluetooth flow replaces the stack
     // on connect (goNamed in BluetoothConnectPage), which left plain pop()
-    // with nothing to pop back to.
-    context.goNamed(AppRoutes.landingName);
+    // with nothing to pop back to. As a step back, so Landing returns from
+    // the reading start rather than arriving like a screen further in.
+    goBackTo(context, AppRoutes.landingPath);
   }
 }

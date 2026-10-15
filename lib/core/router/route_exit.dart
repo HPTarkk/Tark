@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../motion/backward_route.dart';
+
 /// Leaves the current route for [upPath] when there is nothing to pop.
 ///
 /// Several of this app's screens are routinely the *only* route on the stack.
@@ -21,13 +23,29 @@ import 'package:go_router/go_router.dart';
 /// dead end to wherever it lands, because that screen is now stackless too.
 /// A surface that can be reached this way needs its own answer to "out"; it
 /// cannot inherit one from a navigator that has been emptied underneath it.
+///
+/// Either way it *looks* like going back: the `go` carries a
+/// [BackwardHandoff], so the screen above arrives from the reading start the
+/// way a pop would reveal it, not from the reading end like a screen the user
+/// walked forward into.
 void exitRouteTo(BuildContext context, String upPath) {
   if (context.canPop()) {
     context.pop();
   } else {
-    context.go(upPath);
+    goBackTo(context, upPath);
   }
 }
+
+/// Replaces the stack with [path] *as a step back*: out of a screen, to the
+/// one it belongs under (leaving a channel for Landing, say).
+///
+/// Use it instead of a bare `go` whenever the user is leaving rather than
+/// arriving; a bare `go` animates as a push and so reads as moving forward.
+/// Only for routes whose page honours [BackwardHandoff] (Landing and the
+/// saved-room list, through `AppRouter.pageFor`); the marker travels as
+/// `extra`, never in the URL.
+void goBackTo(BuildContext context, String path) =>
+    context.go(path, extra: const BackwardHandoff());
 
 /// Gives the system back gesture the same answer the on-screen control gives.
 ///
