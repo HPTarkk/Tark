@@ -842,6 +842,27 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     unawaited(_releaseOwnHotspot());
   }
 
+  /// Stops listening for an invitee once the person has moved on to
+  /// connecting some other way.
+  ///
+  /// A closed invite sheet keeps its wait running for
+  /// [_inviteGraceAfterClose], in case the other person was mid-scan — and
+  /// that wait is the attempt in progress, so every Start and Connect tap in
+  /// the meantime was swallowed by the "already starting" guard. The lobby
+  /// sat there unresponsive for up to 45 seconds, until leaving the Room or
+  /// locking the screen happened to end it (2026-10-12 report). A tap is the
+  /// clearer signal: the wait ends there. The link it raised stays up, so a
+  /// guided step that shows this phone's code reuses it rather than waiting
+  /// for a fresh hotspot.
+  void _endInviteWait() {
+    if (_inviteGrace == null) return;
+    Logger.diagnostic('room_invite: closed invite wait ended by a new start');
+    _inviteGrace?.cancel();
+    _inviteGrace = null;
+    _inviteToken++;
+    _abandonReconnectAttempt();
+  }
+
   /// Ends the current invite: a wait still running is abandoned and, with
   /// [release], the link raised for it goes back down.
   void _endInvite({bool release = false, BluetoothInviteHost? bluetoothHost}) {
@@ -2067,6 +2088,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   }
 
   Future<void> _startRide(SavedRoom room, {bool useHomeWifi = false}) async {
+    _endInviteWait();
     if (_askingToStart || _activeStart != null) return;
     _askingToStart = true;
     try {
@@ -2091,6 +2113,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   }
 
   Future<void> _connectWithBluetooth(SavedRoom room) async {
+    _endInviteWait();
     if (_openingBluetooth) return;
     _openingBluetooth = true;
     try {

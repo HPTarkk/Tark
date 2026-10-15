@@ -11,6 +11,7 @@ import 'package:tark/core/l10n/app_localizations.dart';
 import 'package:tark/core/router/routes.dart';
 import 'package:tark/core/widget/qr_widgets.dart';
 import 'package:tark/feature/room/data/repository/shared_preferences_room_repository.dart';
+import 'package:tark/feature/room/domain/entity/room.dart';
 import 'package:tark/feature/room/domain/entity/room_direct_join_bundle.dart';
 import 'package:tark/feature/room/domain/repository/room_repository.dart';
 import 'package:tark/feature/transfer/api/hotspot_invite_api.dart';
@@ -48,6 +49,7 @@ void main() {
   Future<_FakeHost> pumpEntry(
     WidgetTester tester, {
     required Future<HotspotCredentials?> Function() prepareHost,
+    bool withFriend = false,
   }) async {
     SharedPreferences.setMockInitialValues({});
     identities = {};
@@ -81,6 +83,16 @@ void main() {
       () => rooms.create(name: 'Night ride', localDisplayName: 'Host'),
     );
     await tester.runAsync(() => rooms.select(created!.room.id));
+    if (withFriend) {
+      await tester.runAsync(
+        () => rooms.admitVerifiedMember(
+          created!.room.id,
+          const RoomMemberId('ffffffffffffffffffffffff'),
+          displayName: 'Sara',
+          at: DateTime.utc(2026, 10, 12),
+        ),
+      );
+    }
 
     final host = _FakeHost();
     getIt.registerLazySingleton<RoomRepository>(() => rooms);
@@ -176,6 +188,46 @@ void main() {
         saved!.room.activeMembers.map((m) => m.id),
         contains(bundle.memberId),
       );
+      expect(tester.takeException(), isNull);
+      await finish(tester);
+    },
+  );
+
+  testWidgets(
+    'Connect works straight after closing the invite, without waiting out '
+    'the invite\'s grace',
+    (tester) async {
+      // 2026-10-12: invite, close the code, tap Connect — nothing, until the
+      // person left the Room or locked the screen. The closed sheet's wait
+      // was still the attempt in progress and swallowed every tap.
+      await pumpEntry(tester, prepareHost: () async => creds, withFriend: true);
+      await tapInvite(tester);
+      expect(find.byKey(const Key('one-scan-room-invite-qr')), findsOneWidget);
+
+      // Close the sheet.
+      final done = find.byKey(const Key('one-scan-room-invite-done'));
+      await tester.ensureVisible(done);
+      await tester.tap(done);
+      await settle(tester);
+      expect(find.byKey(const Key('one-scan-room-invite-qr')), findsNothing);
+
+      final connect = find.byKey(const Key('selected-room-start-ride'));
+      expect(connect, findsOneWidget);
+      await tester.tap(connect);
+      await settle(tester);
+      // The existing link gets its short try, then the guided step opens —
+      // well inside the 45 s the closed invite used to hold on for.
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(seconds: 1));
+        await settle(tester);
+        if (find
+            .byKey(const ValueKey('room-reconnect'))
+            .evaluate()
+            .isNotEmpty) {
+          break;
+        }
+      }
+      expect(find.byKey(const ValueKey('room-reconnect')), findsOneWidget);
       expect(tester.takeException(), isNull);
       await finish(tester);
     },
