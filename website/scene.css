@@ -291,7 +291,6 @@
   background: var(--surface);
   border-radius: 12px;
 }
-.ride-settings,
 .music-demo {
   border-radius: 12px;
 }
@@ -720,8 +719,7 @@ html[dir="ltr"] .load-track i {
 .app-member-status,
 .app-scope,
 .connection-tabs button,
-.music-play,
-.check-state {
+.music-play {
   transition:
     background-color 0.45s,
     border-color 0.45s,
@@ -1008,8 +1006,7 @@ html[dir="ltr"] .load-track i {
   .app-member-status,
   .app-scope,
   .connection-tabs button,
-  .music-play,
-  .check-state {
+  .music-play {
     transition: none;
   }
 }
@@ -1018,12 +1015,6 @@ html[dir="ltr"] .load-track i {
 }
 .faq-item summary {
   transition: color 0.4s;
-}
-.switch-track,
-.switch-track i {
-  transition:
-    background 0.5s,
-    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .ride-scroll small {
   direction: ltr;

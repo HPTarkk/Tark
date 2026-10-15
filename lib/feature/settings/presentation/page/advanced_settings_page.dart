@@ -819,8 +819,9 @@ class _DelayCard extends StatelessWidget {
 ///
 /// It stands in for that note rather than sitting alongside it because *when*
 /// a change lands stops being the interesting question once no change can be
-/// made — and it points at the switch that gives control back, so nobody has
-/// to work out why a slider stopped moving.
+/// made — and it points at what gives control back, so nobody has to work
+/// out why a slider stopped moving. The preset's own switch is gone from
+/// Settings, so that is the voice card's "Reset to normal", which turns it off.
 class _RidingOverrideHint extends StatelessWidget {
   const _RidingOverrideHint();
 

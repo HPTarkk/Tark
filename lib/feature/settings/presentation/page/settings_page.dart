@@ -76,11 +76,6 @@ class _SettingsPageState extends State<SettingsPage> {
             child: StaggeredEntrance(
               children: [
                 _ProfileCard(),
-                // Second, above everything technical: for the audience this
-                // app is built for, it is the most consequential switch on
-                // the page. Burying it under Advanced with the sliders it
-                // overrides would be filing the answer behind the question.
-                _RidingCard(),
                 _ConnectionCard(),
                 _SoundCard(),
                 _AppearanceCard(),
@@ -246,96 +241,6 @@ class _ProfileCardSubtitle extends StatelessWidget {
   }
 }
 
-// ── Riding mode ──────────────────────────────────────────────────────────────
-
-/// The one-switch road profile (see [RidingPreset]).
-///
-/// Says what it changes in plain words, and — just as importantly — that it
-/// gives the rider's own settings back untouched. A preset nobody dares try
-/// because they can't tell what it will cost them is a preset nobody uses.
-class _RidingCard extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final s = context.getString;
-    return SettingsCategoryCard(
-      icon: Icons.two_wheeler_rounded,
-      title: s.settings_riding_section,
-      child: BlocBuilder<SettingsCubit, SettingsState>(
-        buildWhen: (p, c) => p.ridingPreset != c.ridingPreset,
-        builder: (context, state) => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SettingsRow(
-              icon: state.ridingPreset
-                  ? Icons.check_circle_rounded
-                  : Icons.route_rounded,
-              label: s.settings_riding_label,
-              trailing: Switch(
-                value: state.ridingPreset,
-                activeThumbColor: AppColors.amber,
-                onChanged: (v) {
-                  HapticFeedback.selectionClick();
-                  context.read<SettingsCubit>().setRidingPreset(v);
-                },
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
-              child: Text(
-                s.settings_riding_desc,
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 11.5,
-                  height: 1.45,
-                ),
-              ),
-            ),
-            // Only once it's on: before that it answers a worry nobody has
-            // yet, and the card is long enough already.
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: AnimatedCrossFade(
-                duration: AppMotion.card,
-                sizeCurve: AppMotion.easeOut,
-                firstCurve: AppMotion.easeOut,
-                secondCurve: AppMotion.easeOut,
-                crossFadeState: state.ridingPreset
-                    ? CrossFadeState.showSecond
-                    : CrossFadeState.showFirst,
-                firstChild: const SizedBox(width: double.infinity),
-                secondChild: Padding(
-                  padding: const EdgeInsetsDirectional.only(start: 12),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        Icons.lock_open_rounded,
-                        size: 12,
-                        color: AppColors.amber.withAlpha(200),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          s.settings_riding_kept,
-                          style: TextStyle(
-                            color: AppColors.amber.withAlpha(200),
-                            fontSize: 10.5,
-                            height: 1.45,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 // ── Advanced (navigation to the sub-page) ───────────────────────────────────
 
 /// Entry point to [AdvancedSettingsPage] — the technical knobs (noise-cleaner
@@ -412,20 +317,6 @@ class _ConnectionCard extends StatelessWidget {
                     context.read<SettingsCubit>().setAutoReconnectEnabled(v);
                   },
                 ),
-              ),
-            ),
-            Divider(color: AppColors.border, height: 1),
-            SettingsRow(
-              icon: Icons.wifi_tethering_rounded,
-              label: s.settings_wifi_hotspot_row,
-              subtitle: s.settings_wifi_hotspot_row_desc,
-              trailing: Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.textSecondary,
-              ),
-              onTap: () => context.pushNamed(
-                AppRoutes.wifiHotspotName,
-                queryParameters: const {'mode': 'wifi'},
               ),
             ),
             Divider(color: AppColors.border, height: 1),

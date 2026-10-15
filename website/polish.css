@@ -63,8 +63,8 @@ html {
   }
 }
 /* Persian supporting copy needs more optical weight than Latin at this scale. */
-html[lang="fa"] :is(.hero-free,.demo-note,.journey-note,.mode-caveat,.ride-note,.settings-foot,.feature-note,.music-slider label,.privacy-note) {font-size:13px!important;font-weight:500;line-height:2}
-html[lang="fa"] :is(.tech-numbers strong small,.tech-numbers > div > span,.hero-footer small,.journey-counter small,.ride-settings small) {font-weight:500}
+html[lang="fa"] :is(.hero-free,.demo-note,.journey-note,.mode-caveat,.feature-note,.music-slider label,.privacy-note) {font-size:13px!important;font-weight:500;line-height:2}
+html[lang="fa"] :is(.tech-numbers strong small,.tech-numbers > div > span,.hero-footer small,.journey-counter small) {font-weight:500}
 html[lang="fa"] .connection-tabs small {font-size:11px;font-weight:500}
 html[lang="fa"] .connection-copy > p {font-size:15px}
 html[lang="fa"] .ride-hero-copy > .eyebrow {font-size:13px}

@@ -767,118 +767,10 @@ summary {
 }
 .ride-layout {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 110px;
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr);
 }
 .ride-copy h2 {
   max-width: 14ch;
-}
-.ride-copy .ride-note {
-  font-size: 11px !important;
-  margin-top: 26px !important;
-}
-.ride-settings {
-  min-width: 0;
-  background: #fffdf7;
-  border: 1px solid #d8d4c8;
-  padding: 32px 35px;
-  border-radius: 18px;
-  box-shadow: 0 16px 40px #24251f09;
-}
-.settings-heading {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 14px;
-  font-weight: 600;
-  padding-bottom: 26px;
-  border-bottom: 1px solid #e3dfd3;
-}
-.settings-heading > small {
-  margin-inline-start: auto;
-  font-size: 9px;
-  color: #858278;
-  font-weight: 400;
-}
-.settings-heading > .icon {
-  width: 22px;
-  height: 22px;
-  color: #69685e;
-}
-.ride-switch {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  width: 100%;
-  padding: 25px 0;
-  background: transparent;
-  font-size: 15px;
-}
-.ride-switch > span:first-child {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-.switch-track {
-  width: 45px;
-  height: 26px;
-  background: #dfddd6;
-  border-radius: 20px;
-  position: relative;
-  flex-shrink: 0;
-  direction: ltr;
-  transition: background 0.3s;
-}
-.switch-track i {
-  position: absolute;
-  left: 4px;
-  top: 4px;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: #fffdf7;
-  transition: transform 0.3s;
-  box-shadow: 0 2px 3px #0002;
-}
-.ride-switch[aria-checked="true"] .switch-track {
-  background: #f5853f;
-}
-.ride-switch[aria-checked="true"] .switch-track i {
-  transform: translateX(19px);
-}
-.ride-checks > div {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 12px;
-  padding: 18px 0;
-  border-top: 1px solid #e3dfd3;
-  color: #69685e;
-}
-.ride-checks .icon {
-  width: 20px;
-  height: 20px;
-}
-.check-state {
-  margin-inline-start: auto;
-  font-size: 10px;
-  color: #99978e;
-  transition: color 0.4s;
-}
-.ride-settings.active .check-state {
-  color: #2e7d32;
-}
-.ride-settings.active .ride-checks > .icon {
-  color: #2e7d32;
-}
-.settings-foot {
-  font-size: 10px;
-  color: #858278;
-  padding-top: 15px;
-  line-height: 2;
-  min-height: 55px;
 }
 .music {
   display: grid;
@@ -1375,9 +1267,6 @@ html[dir="ltr"] .joined-person {
   .music {
     gap: 45px;
   }
-  .ride-settings {
-    padding: 25px;
-  }
   .music-demo {
     padding: 26px;
   }
@@ -1809,29 +1698,6 @@ html[dir="ltr"] .joined-person {
     grid-template-columns: 1fr;
     gap: 30px;
   }
-  .ride-settings {
-    padding: 24px;
-    border-radius: 14px;
-  }
-  .settings-heading {
-    font-size: 12px;
-    padding-bottom: 20px;
-  }
-  .settings-heading > small {
-    font-size: 8px;
-  }
-  .ride-switch {
-    font-size: 13px;
-    padding-block: 22px;
-  }
-  .ride-checks > div {
-    font-size: 11px;
-    padding-block: 16px;
-  }
-  .settings-foot {
-    font-size: 9px;
-    min-height: 43px;
-  }
   .music-demo {
     padding: 24px;
     border-radius: 14px;
@@ -2164,12 +2030,6 @@ html[dir="ltr"] .joined-person {
     font-size: 22px;
   }
   .connection-facts {
-    gap: 8px;
-  }
-  .ride-settings {
-    padding: 21px;
-  }
-  .settings-heading {
     gap: 8px;
   }
   .music-title {

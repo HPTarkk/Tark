@@ -34,7 +34,6 @@ let voice = "peer",
   heroScreen = "channel",
   chapter = 0,
   mode = "bluetooth",
-  riding = false,
   storyTrigger,
   motionContext;
 let journeyScreen = "home";
@@ -352,42 +351,6 @@ document.querySelectorAll("[role=tab][data-mode]").forEach((button) => {
     tabs[index].focus();
   });
 });
-function updateRide() {
-  $("#rideToggle").setAttribute("aria-checked", riding);
-  $("#rideSettings").classList.toggle("active", riding);
-  const labels = riding
-    ? [
-        ["روشن", "On"],
-        ["فعال", "Active"],
-        ["آمادهٔ مسیر", "Road-ready"],
-      ]
-    : [
-        ["خاموش", "Off"],
-        ["معمولی", "Standard"],
-        ["معمولی", "Standard"],
-      ];
-  document
-    .querySelectorAll(".check-state")
-    .forEach((node, index) =>
-      replaceText(node, labels[index][language === "fa" ? 0 : 1]),
-    );
-  replaceText(
-    $("#rideStatus"),
-    riding
-      ? t(
-          "دمو روشن است. ارسال با صدا و تنظیمات مناسب مسیر فعال شدند.",
-          "Demo on. Voice activation and road settings are enabled.",
-        )
-      : t(
-          "روشنش کن و تغییر تنظیمات رو ببین.",
-          "Switch it on to see the settings change.",
-        ),
-  );
-}
-$("#rideToggle").addEventListener("click", () => {
-  riding = !riding;
-  updateRide();
-});
 function renderFaq() {
   const open = [...$("#faqList").children].map((node, index) =>
     node.open ? index : -1,
@@ -534,7 +497,6 @@ function applyLanguage() {
   updateVoice();
   updateJourney(false, false);
   updateMode();
-  updateRide();
   updateMusic();
   renderFaq();
   applyTheme();
@@ -822,7 +784,7 @@ const reveal = new IntersectionObserver(
 );
 document
   .querySelectorAll(
-    ".section-head,.connection-layout,.ride-copy,.ride-settings,.music-copy,.music-demo,.tech-numbers,.plans",
+    ".section-head,.connection-layout,.ride-copy,.music-copy,.music-demo,.tech-numbers,.plans",
   )
   .forEach((node) => {
     node.classList.add("reveal");

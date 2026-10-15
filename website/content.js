@@ -90,14 +90,6 @@ export const faqItems = [
       "تقریباً همیشه به این خاطر که وای‌فای هنوز روشنه. گوشی نمی‌تونه همزمان هم وای‌فای وصل باشه هم هات‌اسپات درست بده، پس دیر یا زود یکیشون کوتاه میاد — معمولاً هات‌اسپاتت، درست وسط راه. «ترک» این رو تشخیص می‌ده و همون موقع که هنوز تو صفحه‌ی کد هستی یه کلید یک‌ضربه‌ای بهت می‌ده. خاموش کردن وای‌فای ارتباطت با کسی رو قطع نمی‌کنه: کانال برای کار کردن به وای‌فای احتیاجی نداره.",
   },
   {
-    enQuestion: "I'm on a motorbike. Is there anything I should switch on?",
-    faQuestion: "موتورسوارم. چیزی هست که باید روشن کنم؟",
-    enAnswer:
-      "One switch. Settings → Riding mode aims the whole thing at the road: the mic waits for you to actually talk instead of sending wind and engine noise the entire ride, the cleaner runs at a level that keeps words crisp rather than scrubbing them thin, the app holds a bit more sound in reserve so a connection on the move doesn't chop, and everyone else comes through a touch louder. Your own settings stay exactly where you left them, and come straight back the moment you switch it off.",
-    faAnswer:
-      "فقط یه سوییچ. تنظیمات ← حالت موتورسواری همه‌چی رو می‌چرخونه سمت جاده: میکروفون صبر می‌کنه تا واقعاً حرف بزنی، به‌جای اینکه کل مسیر صدای باد و موتور رو بفرسته؛ پاک‌کن اون‌قدری کار می‌کنه که کلمه‌ها واضح بمونن، نه اینکه نازک و بی‌جون بشن؛ برنامه یه کم صدای بیشتری ذخیره نگه می‌داره تا ارتباطِ در حال حرکت بریده‌بریده نشه؛ و صدای بقیه یه کم بلندتر می‌رسه. تنظیمات خودت هم دقیقاً سر جاش می‌مونه و همین که خاموشش کنی برمی‌گرده.",
-  },
-  {
     enQuestion: "What if nobody can hear me?",
     faQuestion: "اگه کسی صدامو نشنوه چی؟",
     enAnswer:

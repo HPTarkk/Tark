@@ -1790,34 +1790,10 @@ abstract class AppLocalizations {
   /// **'صدای استریوی باکیفیت‌تر وقتی آهنگ رو با کانال به اشتراک می‌ذاری.'**
   String get hd_music_desc;
 
-  /// No description provided for @settings_riding_section.
-  ///
-  /// In fa, this message translates to:
-  /// **'حالت موتورسواری'**
-  String get settings_riding_section;
-
-  /// No description provided for @settings_riding_label.
-  ///
-  /// In fa, this message translates to:
-  /// **'تنظیم برای جاده'**
-  String get settings_riding_label;
-
-  /// No description provided for @settings_riding_desc.
-  ///
-  /// In fa, this message translates to:
-  /// **'یه سوییچ که صدات رو از لای باد و صدای موتور رد می‌کنه: میکروفون منتظر صدای خودت می‌مونه به‌جای اینکه هرچی می‌شنوه بفرسته، حذف نویز اون‌قدری کار می‌کنه که کلمه‌ها واضح بمونن، برنامه یه کم صدای بیشتری ذخیره نگه می‌داره تا ارتباطِ در حال حرکت بریده‌بریده نشه، و صدای بقیه یه کم بلندتر پخش می‌شه.'**
-  String get settings_riding_desc;
-
-  /// No description provided for @settings_riding_kept.
-  ///
-  /// In fa, this message translates to:
-  /// **'تنظیمات خودت دست‌نخورده می‌مونه — همین که خاموشش کنی برمی‌گرده.'**
-  String get settings_riding_kept;
-
   /// No description provided for @settings_riding_overridden.
   ///
   /// In fa, this message translates to:
-  /// **'حالت موتورسواری خودش این رو انتخاب کرده. خاموشش کن تا خودت تنظیمش کنی.'**
+  /// **'حالت موتورسواری خودش این رو انتخاب کرده. «برگردون به حالت اول» رو بزن تا خودت تنظیمش کنی.'**
   String get settings_riding_overridden;
 
   /// No description provided for @settings_restore_defaults.
@@ -1855,18 +1831,6 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'ببین و عوض کن که برنامه به چه چیزهایی کار داره'**
   String get settings_permissions_row_desc;
-
-  /// No description provided for @settings_wifi_hotspot_row.
-  ///
-  /// In fa, this message translates to:
-  /// **'تنظیمات وای‌فای / هات‌اسپات'**
-  String get settings_wifi_hotspot_row;
-
-  /// No description provided for @settings_wifi_hotspot_row_desc.
-  ///
-  /// In fa, this message translates to:
-  /// **'هات‌اسپات بساز، یا ببین چطور با وای‌فای وصل بشی'**
-  String get settings_wifi_hotspot_row_desc;
 
   /// No description provided for @settings_skip_splash.
   ///

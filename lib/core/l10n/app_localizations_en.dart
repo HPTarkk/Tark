@@ -948,22 +948,8 @@ class AppLocalizationsEn extends AppLocalizations {
       'Higher-quality stereo sound when you share music with the channel.';
 
   @override
-  String get settings_riding_section => 'RIDING MODE';
-
-  @override
-  String get settings_riding_label => 'Set up for the road';
-
-  @override
-  String get settings_riding_desc =>
-      'One switch that gets your voice through wind and engine noise: the mic waits for you to actually talk instead of sending everything it hears, the noise cleaner runs at a level that keeps words crisp, the app holds a bit more sound in reserve so a connection on the move doesn\'t chop, and everyone else comes through a touch louder.';
-
-  @override
-  String get settings_riding_kept =>
-      'Your own settings stay put — they come back the moment you switch it off.';
-
-  @override
   String get settings_riding_overridden =>
-      'Riding mode is choosing this for you. Switch it off to set it yourself.';
+      'Riding mode is choosing this for you. Tap “Reset to normal” to set it yourself.';
 
   @override
   String get settings_restore_defaults => 'RESET TO NORMAL';
@@ -985,13 +971,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settings_permissions_row_desc =>
       'See and change what the app can get at';
-
-  @override
-  String get settings_wifi_hotspot_row => 'Wi-Fi / Hotspot setup';
-
-  @override
-  String get settings_wifi_hotspot_row_desc =>
-      'Make a hotspot, or see how to join over Wi-Fi';
 
   @override
   String get settings_skip_splash => 'Skip splash screen';

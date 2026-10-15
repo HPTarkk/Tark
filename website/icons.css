@@ -95,9 +95,6 @@
 .icon[data-icon="speaker-high"] {
   --icon: url("assets/icons/speaker-high.svg");
 }
-.icon[data-icon="speaker-slash"] {
-  --icon: url("assets/icons/speaker-slash.svg");
-}
 .icon[data-icon="sun"] {
   --icon: url("assets/icons/sun.svg");
 }
