@@ -49,7 +49,13 @@ class _Sheet extends StatelessWidget {
       // the user dismiss a sheet whose whole subject they just cleared.
       listenWhen: (previous, current) =>
           previous.archived.isNotEmpty && current.archived.isEmpty,
-      listener: (context, _) => Navigator.of(context).maybePop(),
+      // When the last one was deleted, its dust plays out in the sheet first
+      // and the sheet falls away after it, rather than dropping out from
+      // under a card that is still breaking up.
+      listener: (context, _) async {
+        await RoomDissolveHost.maybeOf(context)?.settled();
+        if (context.mounted) Navigator.of(context).maybePop();
+      },
       builder: (context, state) => SheetShell(
         topFraction: 0.14,
         child: Padding(

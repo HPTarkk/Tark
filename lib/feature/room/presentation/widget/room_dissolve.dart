@@ -21,18 +21,41 @@ import '../../../../core/theme/app_colors.dart';
 /// a thousand-odd specks that peel off in a sweep from the side the menu was
 /// on, lift away like embers, warm to the app's amber as they go and burn
 /// out. A beat after the sweep starts, the empty slot springs shut and the
-/// Rooms below slide up into it.
+/// Rooms below are pulled up into it like links of a chain.
+///
+/// ## The reflow
+///
+/// A list that closes a gap by re-laying itself out moves every row below
+/// in lockstep, as one rigid slab — and when the rows below are built from
+/// a fresh list the moment the data changes, they jump. Neither reads as the
+/// rows being *pulled*. Here the slot closes on a critically damped spring,
+/// and each row under it follows that same spring a fixed beat later than
+/// the row above ([_Leaving.linkDelay]): the first row rides the closing
+/// slot, the next trails it slightly, and so on down, so the gap travels
+/// down the list the way slack runs out of a chain. Every row moves
+/// monotonically up and arrives at rest, never overshooting past its place.
+/// The lag is a paint-time translation over each row's laid-out position
+/// (one `Transform` per row, driven by a single notifier), so nothing is
+/// re-laid-out or re-rasterised per frame beyond the closing slot itself.
+/// Rows are matched by id ([RoomDissolvable.id]), not by position, so the
+/// list re-emitting from its cubit mid-animation changes nothing on screen.
 ///
 /// ## How it fits around a list
 ///
 /// [RoomDissolveHost] wraps the screen or sheet holding the list; each row is
-/// a [RoomDissolvable] keyed by its Room id; and the list is built from
+/// a [RoomDissolvable] keyed by its Room id; anything under the rows that
+/// should be pulled along with them (a "new Room" card) is a
+/// [RoomDissolveFollower]; and the list is built from
 /// [RoomDissolveHostState.retain], which keeps a just-deleted row in its old
 /// place (invisible, collapsing) after the data no longer has it. That last
 /// part is what keeps this presentation-only: the delete itself runs exactly
 /// as before, at the moment it always did, and the list's data is never held
-/// back — only the row's empty slot is, for the third of a second it takes
-/// to close.
+/// back — only the row's empty slot is, until the rows below have settled.
+///
+/// A screen that swaps the list for an empty state asks
+/// [RoomDissolveHostState.isSettling] first, so the last Room's dust plays
+/// out in the list it belonged to and the empty state arrives out of it
+/// instead of cutting in over it.
 ///
 /// ## Cost
 ///
@@ -43,8 +66,8 @@ import '../../../../core/theme/app_colors.dart';
 /// own overlay layer, and the overlay entry removes itself and frees the
 /// image when the last speck is out.
 ///
-/// Reduced motion keeps the meaning and drops the spectacle: no dust, the
-/// row fades as its slot closes, over a card-length beat.
+/// Reduced motion keeps the meaning and drops the spectacle: no dust, no
+/// chain, the row fades as its slot closes over a card-length beat.
 class RoomDissolveHost extends StatefulWidget {
   const RoomDissolveHost({required this.child, super.key});
 
@@ -69,6 +92,9 @@ class RoomDissolveHostState extends State<RoomDissolveHost>
     with TickerProviderStateMixin {
   final _keys = <Object, GlobalKey>{};
 
+  /// The space each row leaves under itself, as it last built.
+  final _gaps = <Object, double>{};
+
   /// What the list looked like when it was last built: each id's item and
   /// position, so a row can be kept in its place after its data is gone.
   final _lastSeen = <Object, ({Object? item, int index})>{};
@@ -76,23 +102,49 @@ class RoomDissolveHostState extends State<RoomDissolveHost>
   final _leaving = <Object, _Leaving>{};
   int _version = 0;
 
+  /// Ticks once per frame while any slot is closing; every row's chain lag
+  /// listens to this one notifier.
+  final _frame = _FrameNotifier();
+
+  final _settled = <Completer<void>>[];
+
+  /// Rows that have finished leaving. An outgoing copy of the list (a
+  /// switcher fading it out for an empty state) can still build them; they
+  /// stay gone rather than reappearing for the length of the fade.
+  final _gone = <Object>{};
+
   /// The boundary key a [RoomDissolvable] with [id] paints into.
   GlobalKey _keyFor(Object id) => _keys.putIfAbsent(id, GlobalKey.new);
 
-  /// How far [id]'s slot has closed (0 open → 1 shut), or null when it is not
-  /// leaving.
-  Animation<double>? _collapseOf(Object id) => _leaving[id]?.collapse;
-
   /// Whether [id] is on its way out.
   bool isLeaving(Object id) => _leaving.containsKey(id);
+
+  /// Whether any row is still leaving — its dust in the air or the rows below
+  /// it still rising. A screen about to swap an emptied list for something
+  /// else waits for this to clear; the host rebuilds its dependents when it
+  /// does.
+  ///
+  /// It clears a little before the last row is fully at rest — once every
+  /// row has covered nearly all of its way — so what replaces the list can
+  /// start arriving while the dust is still in the air.
+  bool get isSettling => _leaving.values.any((leaving) => !leaving.landed);
+
+  /// Completes once no row is leaving (at once, if none is).
+  Future<void> settled() {
+    if (_leaving.isEmpty) return Future<void>.value();
+    final completer = Completer<void>();
+    _settled.add(completer);
+    return completer.future;
+  }
 
   /// [items] with any row that is still leaving put back where it was.
   ///
   /// Call it with the list exactly as the data has it, every build.
   List<T> retain<T>(List<T> items, Object Function(T item) idOf) {
     final result = List<T>.of(items);
+    final present = {for (final item in items) idOf(item)};
+    _gone.removeAll(present);
     if (_leaving.isNotEmpty) {
-      final present = {for (final item in items) idOf(item)};
       final ghosts =
           _leaving.entries
               .where((e) => !present.contains(e.key) && e.value.item is T)
@@ -114,6 +166,25 @@ class RoomDissolveHostState extends State<RoomDissolveHost>
     return result;
   }
 
+  /// How far below its laid-out place the row at [index] is drawn right now:
+  /// the sum of how far it trails every slot closing above it.
+  double _lagAt(int index) {
+    if (_leaving.isEmpty) return 0;
+    var lag = 0.0;
+    for (final leaving in _leaving.values) {
+      if (index > leaving.index) lag += leaving.lagFor(index - leaving.index);
+    }
+    return lag;
+  }
+
+  double _lagOf(Object id) {
+    final seen = _lastSeen[id];
+    return seen == null ? 0 : _lagAt(seen.index);
+  }
+
+  /// Followers sit under every row.
+  double _trailingLag() => _lagAt(_lastSeen.length);
+
   /// Turns the row for [id] to dust and closes its slot.
   ///
   /// Synchronous on purpose: the row is photographed in this call, before
@@ -122,11 +193,21 @@ class RoomDissolveHostState extends State<RoomDissolveHost>
     if (_leaving.containsKey(id) || !mounted) return;
     final seen = _lastSeen[id];
     final reduced = AppMotion.reduced(context);
-    final collapse = AnimationController.unbounded(vsync: this);
+    final boundary = _keys[id]?.currentContext?.findRenderObject();
+    final height = boundary is RenderBox && boundary.hasSize
+        ? boundary.size.height
+        : 0.0;
     final leaving = _Leaving(
       item: seen?.item,
       index: seen?.index ?? 0,
-      collapse: collapse,
+      slot: height + (_gaps[id] ?? 0),
+      followers: _lastSeen.length - (seen?.index ?? 0),
+      reduced: reduced,
+      vsync: this,
+      onFrame: _frame.tick,
+      onLanded: () {
+        if (mounted) setState(() => _version++);
+      },
     );
     if (!reduced) _launchDust(id);
     HapticFeedback.lightImpact();
@@ -134,13 +215,22 @@ class RoomDissolveHostState extends State<RoomDissolveHost>
       _leaving[id] = leaving;
       _version++;
     });
-    leaving.run(reduced: reduced).whenComplete(() {
+    leaving.run().whenComplete(() {
       if (!mounted) return;
       setState(() {
         _leaving.remove(id)?.dispose();
+        _gone.add(id);
         _keys.remove(id);
+        _gaps.remove(id);
         _version++;
       });
+      _frame.tick();
+      if (_leaving.isEmpty) {
+        for (final completer in _settled) {
+          completer.complete();
+        }
+        _settled.clear();
+      }
     });
   }
 
@@ -199,6 +289,7 @@ class RoomDissolveHostState extends State<RoomDissolveHost>
     for (final leaving in _leaving.values) {
       leaving.dispose();
     }
+    _frame.dispose();
     super.dispose();
   }
 
@@ -221,64 +312,145 @@ class _DissolveScope extends InheritedWidget {
   bool updateShouldNotify(_DissolveScope old) => old.version != version;
 }
 
-/// One row on its way out.
-class _Leaving {
-  _Leaving({required this.item, required this.index, required this.collapse});
+class _FrameNotifier extends ChangeNotifier {
+  void tick() => notifyListeners();
+}
+
+/// One row on its way out, and the clock its slot and the rows below it run
+/// on. Notifies once per frame while it moves.
+class _Leaving extends ChangeNotifier {
+  _Leaving({
+    required this.item,
+    required this.index,
+    required this.slot,
+    required this.followers,
+    required this.reduced,
+    required TickerProvider vsync,
+    required VoidCallback onFrame,
+    required VoidCallback onLanded,
+  }) : _onFrame = onFrame,
+       _onLanded = onLanded {
+    _ticker = vsync.createTicker(_tick);
+  }
 
   final Object? item;
   final int index;
-  final AnimationController collapse;
-  Timer? _hold;
-  bool _disposed = false;
+
+  /// Height of the slot being closed, the row's own gap included.
+  final double slot;
+
+  /// How many rows (and followers) sit under the slot — the chain's length,
+  /// which decides when the last of it is at rest.
+  final int followers;
+  final bool reduced;
+  final VoidCallback _onFrame;
+  final VoidCallback _onLanded;
+
+  /// Whether every row has covered nearly all of its way: the moment
+  /// whatever replaces an emptied list may start to arrive.
+  bool landed = false;
+  late final Ticker _ticker;
+  final _done = Completer<void>();
+
+  /// Seconds since the row was dissolved.
+  double _t = 0;
+
+  /// How far the slot has closed: 0 open → 1 shut.
+  double collapse = 0;
 
   /// The beat the dust gets before the slot starts closing: long enough to
   /// read the card breaking up in place, short enough that the list never
   /// looks like it is waiting.
-  static const _holdFor = Duration(milliseconds: 200);
+  static const holdFor = Duration(milliseconds: 200);
 
-  /// Closes the slot on a critically damped spring — it decelerates into
-  /// place the way something with mass would, with no bounce to read as a
-  /// glitch in a list. Completes when it is shut; never, if disposed first.
-  Future<void> run({required bool reduced}) {
-    final done = Completer<void>();
-    void close() {
-      if (_disposed) return;
-      final TickerFuture ticking = reduced
-          ? collapse.animateTo(
-              1,
-              duration: AppMotion.card,
-              curve: AppMotion.easeOut,
-            )
-          : collapse.animateWith(
-              SpringSimulation(
-                SpringDescription.withDampingRatio(
-                  mass: 1,
-                  stiffness: 240,
-                  ratio: 1,
-                ),
-                0,
-                1,
-                0,
-                tolerance: const Tolerance(distance: 0.002, velocity: 0.02),
-              ),
-            );
-      ticking.whenCompleteOrCancel(() {
-        if (!_disposed && !done.isCompleted) done.complete();
-      });
-    }
+  /// How much later each row follows the one above it. Long enough for the
+  /// eye to see the rows arrive one after another, short enough that they
+  /// still read as one connected movement rather than a queue.
+  static const linkDelay = Duration(milliseconds: 34);
 
-    if (reduced) {
-      close();
-    } else {
-      _hold = Timer(_holdFor, close);
-    }
-    return done.future;
+  /// Past this many rows the lag stops growing: the rest of the list, mostly
+  /// off screen, moves with the last link instead of waiting its turn.
+  static const maxLinks = 6;
+
+  /// The slot's spring, and every link's: critically damped, so it
+  /// decelerates into place the way something with mass would, with no
+  /// bounce to read as a glitch in a list — and so every row rises
+  /// monotonically.
+  static final _spring = SpringSimulation(
+    SpringDescription.withDampingRatio(mass: 1, stiffness: 240, ratio: 1),
+    0,
+    1,
+    0,
+    tolerance: const Tolerance(distance: 0.002, velocity: 0.02),
+  );
+
+  /// Share of its way the last row has covered when the chain counts as
+  /// landed: the remaining few pixels are a deceleration nobody waits for.
+  static const _landedAt = 0.96;
+
+  static double get _hold => holdFor.inMicroseconds / 1e6;
+  static double get _link => linkDelay.inMicroseconds / 1e6;
+
+  /// Progress of a spring that started [t] seconds ago (0 before it starts).
+  static double _progress(double t) {
+    if (t <= 0) return 0;
+    if (_spring.isDone(t)) return 1;
+    return _spring.x(t).clamp(0.0, 1.0);
   }
 
+  /// Seconds from the dissolve until the [links]th row below starts moving.
+  static double _start(int links) =>
+      _hold + _link * (math.min(links, maxLinks) - 1).clamp(0, maxLinks);
+
+  /// How far below its laid-out place a row [links] rows under this slot is
+  /// drawn: it trails the closing slot by its place in the chain.
+  double lagFor(int links) {
+    if (reduced || links <= 0 || slot <= 0) return 0;
+    return slot * (collapse - _progress(_t - _start(links)));
+  }
+
+  /// Starts the clock. Completes once the slot is shut and every row it pulls
+  /// has come to rest; never, if disposed first.
+  Future<void> run() {
+    _ticker.start();
+    return _done.future;
+  }
+
+  void _tick(Duration elapsed) {
+    _t = elapsed.inMicroseconds / 1e6;
+    final bool finished;
+    if (reduced) {
+      final span = AppMotion.card.inMicroseconds / 1e6;
+      final p = (_t / span).clamp(0.0, 1.0);
+      collapse = AppMotion.easeOut.transform(p);
+      finished = p >= 1;
+    } else {
+      collapse = _progress(_t - _hold);
+      // The last link to move is the one that decides when this is over.
+      final last = _t - _start(math.max(followers, 1));
+      finished = _spring.isDone(last);
+      if (finished) collapse = 1;
+      if (!landed && _progress(last) >= _landedAt) {
+        landed = true;
+        _onLanded();
+      }
+    }
+    notifyListeners();
+    _onFrame();
+    if (finished && !landed) {
+      landed = true;
+      _onLanded();
+    }
+    if (finished) {
+      _ticker.stop();
+      if (!_done.isCompleted) _done.complete();
+    }
+  }
+
+  @override
   void dispose() {
-    _disposed = true;
-    _hold?.cancel();
-    collapse.dispose();
+    _ticker.dispose();
+    super.dispose();
   }
 }
 
@@ -301,18 +473,23 @@ class RoomDissolvable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final host = RoomDissolveHost.of(context);
+    // Already gone: only an outgoing copy of the list still builds it.
+    if (host != null && host._gone.contains(id)) return const SizedBox.shrink();
+    host?._gaps[id] = gap;
     final photographed = RepaintBoundary(key: host?._keyFor(id), child: child);
-    final collapse = host?._collapseOf(id);
-    if (collapse == null) {
-      return Padding(
+    final leaving = host?._leaving[id];
+    if (leaving == null) {
+      final row = Padding(
         padding: EdgeInsets.only(bottom: gap),
         child: photographed,
       );
+      if (host == null) return row;
+      return _ChainLink(lag: () => host._lagOf(id), host: host, child: row);
     }
-    final reduced = AppMotion.reduced(context);
+    final reduced = leaving.reduced;
     return IgnorePointer(
       child: AnimatedBuilder(
-        animation: collapse,
+        animation: leaving,
         child: Padding(
           padding: EdgeInsets.only(bottom: gap),
           // The dust overlay is the row now; the row itself is only the space
@@ -322,7 +499,7 @@ class RoomDissolvable extends StatelessWidget {
               : Opacity(opacity: 0, child: photographed),
         ),
         builder: (context, child) {
-          final shut = collapse.value.clamp(0.0, 1.0);
+          final shut = leaving.collapse.clamp(0.0, 1.0);
           return ClipRect(
             child: Align(
               alignment: AlignmentDirectional.topCenter,
@@ -339,6 +516,44 @@ class RoomDissolvable extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Anything under the rows that should be pulled up with them when a slot
+/// above it closes — the "new Room" card at the foot of the list.
+class RoomDissolveFollower extends StatelessWidget {
+  const RoomDissolveFollower({required this.child, super.key});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final host = RoomDissolveHost.of(context);
+    if (host == null) return child;
+    return _ChainLink(lag: host._trailingLag, host: host, child: child);
+  }
+}
+
+/// Draws [child] [lag] logical pixels below where it was laid out, re-read
+/// every frame a slot is closing. Only the translation updates: the child is
+/// built once and keeps its raster.
+class _ChainLink extends StatelessWidget {
+  const _ChainLink({
+    required this.lag,
+    required this.host,
+    required this.child,
+  });
+
+  final double Function() lag;
+  final RoomDissolveHostState host;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: host._frame,
+    child: child,
+    builder: (context, child) =>
+        Transform.translate(offset: Offset(0, lag()), child: child),
+  );
 }
 
 /// The dust cloud: one overlay entry, one painter, one atlas draw per frame.

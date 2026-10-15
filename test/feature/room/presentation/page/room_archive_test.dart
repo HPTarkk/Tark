@@ -134,6 +134,34 @@ void main() {
     expect(find.text('Weekend crew'), findsNothing);
   });
 
+  testWidgets('deleting the last archived room lets its dust play out before '
+      'the sheet falls away', (tester) async {
+    final room = _savedRoom('1' * 32, 'Weekend crew', archived: true);
+    final repository = _FakeRoomRepository(rooms: [room]);
+    repository.identityStore.seed(room);
+    await _pump(tester, getIt, repository);
+
+    await tester.tap(find.byKey(const Key('rooms-archive-action')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(Key('delete-${room.room.id.value}')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('confirm-sheet-action')));
+    // Long enough for the delete to land and the archive to be empty...
+    for (var i = 0; i < 30; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(repository.rooms, isEmpty);
+    // ...and the sheet is still up, the card turning to dust inside it.
+    expect(find.byKey(const Key('room-dissolve-dust')), findsOneWidget);
+    expect(find.text('Archived rooms'), findsOneWidget);
+
+    await tester.pumpAndSettle();
+    expect(find.text('Archived rooms'), findsNothing);
+    expect(find.text('Weekend crew'), findsNothing);
+    expect(find.byKey(const Key('room-dissolve-dust')), findsNothing);
+    expect(tester.binding.transientCallbackCount, 0);
+  });
+
   testWidgets('a live room can be deleted straight from its menu', (
     tester,
   ) async {
