@@ -8,6 +8,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/router/route_exit.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/widget/link_established.dart';
 import '../../../../core/motion/app_motion.dart';
@@ -147,14 +148,10 @@ class _BluetoothConnectPageState extends State<BluetoothConnectPage>
       cubit.backToRoleSelection();
       return;
     }
-    if (context.canPop()) {
-      context.pop();
-    } else {
-      // Reached directly, with nothing beneath us on the stack — quick
-      // access lands here on cold start, and so does the home-screen
-      // widget's GO LIVE in Bluetooth mode.
-      context.goNamed(AppRoutes.landingName);
-    }
+    // Pops, or — reached directly, with nothing beneath us on the stack:
+    // quick access lands here on cold start, and so does the home-screen
+    // widget's GO LIVE in Bluetooth mode — steps back to Landing.
+    exitRouteTo(context, AppRoutes.landingPath);
   }
 
   @override

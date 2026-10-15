@@ -8,6 +8,7 @@ import '../../../../core/entitlement/premium_feature.dart';
 import '../../../../core/entitlement/room_access_policy.dart';
 import '../../../../core/entitlement/subscription_gate_page.dart';
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/router/route_exit.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/settings/settings_repository.dart';
 import '../../../../core/utils/logger.dart';
@@ -218,13 +219,7 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
     _scannerGeneration++;
   });
 
-  void _leave() {
-    if (context.canPop()) {
-      context.pop();
-    } else {
-      context.go(AppRoutes.landingPath);
-    }
-  }
+  void _leave() => exitRouteTo(context, AppRoutes.landingPath);
 
   String _hotspotProblem(HotspotJoinResult result) {
     final s = context.getString;

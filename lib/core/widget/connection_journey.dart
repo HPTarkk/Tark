@@ -259,16 +259,10 @@ class _ConnectionJourneyState extends State<ConnectionJourney>
                     duration: reduced ? Duration.zero : AppMotion.entrance,
                     switchInCurve: AppMotion.easeOut,
                     switchOutCurve: AppMotion.leaving,
-                    transitionBuilder: (child, animation) => FadeTransition(
-                      opacity: animation,
-                      child: SlideTransition(
-                        position: Tween<Offset>(
-                          begin: const Offset(0, .25),
-                          end: Offset.zero,
-                        ).animate(animation),
-                        child: child,
-                      ),
-                    ),
+                    // The journey only moves forward: the next stage's words
+                    // rise in as the last stage's lift away, never sinking
+                    // into the space the new ones come up from.
+                    transitionBuilder: HandOver.transition(),
                     child: Semantics(
                       key: ValueKey('${widget.stage.name}|${widget.title}'),
                       liveRegion: true,

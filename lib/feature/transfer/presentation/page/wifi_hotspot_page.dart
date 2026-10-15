@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/extension.dart';
+import '../../../../core/router/route_exit.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -321,12 +322,9 @@ class _WifiHotspotPageState extends State<WifiHotspotPage>
     // Backing out without connecting: tear down whatever was set up (a no-op
     // when nothing was).
     cubit.leaveBridge();
-    if (context.canPop()) {
-      context.pop();
-    } else {
-      // Reached directly (quick access landed here) — no stack to pop to.
-      context.goNamed(AppRoutes.landingName);
-    }
+    // Pops, or — reached directly (quick access landed here), with no stack
+    // to pop to — steps back to Landing.
+    exitRouteTo(context, AppRoutes.landingPath);
   }
 
   @override
