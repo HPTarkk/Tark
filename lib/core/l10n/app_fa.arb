@@ -1084,5 +1084,10 @@
     "rcv_show_switch_hint": "{name} هم داره کد نشون می‌ده؟ پس به‌جاش کد اون رو اسکن کن.",
     "@rcv_show_switch_hint": {"placeholders": {"name": {"type": "String"}}},
     "rcv_bt_failed_title": "بلوتوث وصل نشد",
-    "rcv_bt_failed_detail": "این بار دو تا گوشی همدیگه رو پیدا نکردن. نزدیک هم نگهشون دار و دوباره امتحان کن."
+    "rcv_bt_failed_detail": "این بار دو تا گوشی همدیگه رو پیدا نکردن. نزدیک هم نگهشون دار و دوباره امتحان کن.",
+    "rcv_invitee_connecting_title": "داره وصل می‌شه…",
+    "rcv_invitee_connecting_detail": "گوشیش به گوشیت رسید. یه لحظه گوشی‌ها رو نزدیک هم نگه دار.",
+    "rcv_invitee_connected_title": "وصل شدید",
+    "rcv_invitee_connected_detail": "داریم کانال رو باز می‌کنیم…",
+    "rcv_invitee_lost": "این بار نشد. کدت هنوز کار می‌کنه؛ می‌تونه دوباره اسکنش کنه."
 }

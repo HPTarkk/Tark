@@ -242,6 +242,51 @@ void main() {
   );
 
   testWidgets(
+    '"Scan their code instead" takes the inviting phone to the scan side',
+    (tester) async {
+      await pumpEntry(tester, prepareHost: () async => creds, withFriend: true);
+      await tapInvite(tester);
+      final swap = find.byKey(const Key('one-scan-room-invite-scan-instead'));
+      expect(swap, findsOneWidget);
+      await tester.ensureVisible(swap);
+      await tester.tap(swap);
+      for (var i = 0; i < 5; i++) {
+        await settle(tester);
+        if (find
+            .byKey(const ValueKey('room-reconnect'))
+            .evaluate()
+            .isNotEmpty) {
+          break;
+        }
+      }
+      expect(find.byKey(const Key('one-scan-room-invite-qr')), findsNothing);
+      expect(find.byKey(const ValueKey('room-reconnect')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await finish(tester);
+    },
+  );
+
+  testWidgets('Try again on the invite raises the hotspot afresh', (
+    tester,
+  ) async {
+    var prepared = 0;
+    await pumpEntry(
+      tester,
+      prepareHost: () async => ++prepared == 1 ? null : creds,
+    );
+    await tapInvite(tester);
+    final retry = find.byKey(const Key('one-scan-room-invite-retry'));
+    expect(retry, findsOneWidget);
+    await tester.ensureVisible(retry);
+    await tester.tap(retry);
+    await settle(tester);
+    expect(prepared, 2);
+    expect(find.byKey(const Key('one-scan-room-invite-qr')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await finish(tester);
+  });
+
+  testWidgets(
     'a scan\'s journey carries on from the entry\'s very first frame',
     (tester) async {
       // 2026-10-12: the joiner watched the link being made, then a blank

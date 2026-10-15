@@ -6283,6 +6283,36 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'این بار دو تا گوشی همدیگه رو پیدا نکردن. نزدیک هم نگهشون دار و دوباره امتحان کن.'**
   String get rcv_bt_failed_detail;
+
+  /// No description provided for @rcv_invitee_connecting_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'داره وصل می‌شه…'**
+  String get rcv_invitee_connecting_title;
+
+  /// No description provided for @rcv_invitee_connecting_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'گوشیش به گوشیت رسید. یه لحظه گوشی‌ها رو نزدیک هم نگه دار.'**
+  String get rcv_invitee_connecting_detail;
+
+  /// No description provided for @rcv_invitee_connected_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'وصل شدید'**
+  String get rcv_invitee_connected_title;
+
+  /// No description provided for @rcv_invitee_connected_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'داریم کانال رو باز می‌کنیم…'**
+  String get rcv_invitee_connected_detail;
+
+  /// No description provided for @rcv_invitee_lost.
+  ///
+  /// In fa, this message translates to:
+  /// **'این بار نشد. کدت هنوز کار می‌کنه؛ می‌تونه دوباره اسکنش کنه.'**
+  String get rcv_invitee_lost;
 }
 
 class _AppLocalizationsDelegate

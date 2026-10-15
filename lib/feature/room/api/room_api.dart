@@ -60,6 +60,7 @@ export '../presentation/widget/room_rejoin_help.dart'
 export '../presentation/widget/room_reconnect_view.dart'
     show
         RoomReconnectModel,
+        RoomReconnectProblem,
         RoomReconnectPhase,
         RoomReconnectSide,
         RoomReconnectView;

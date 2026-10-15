@@ -692,6 +692,15 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   bool _inviting = false;
   Timer? _inviteGrace;
 
+  /// The newcomer's progress, shown on the open invite sheet. Driven only by
+  /// what this phone's link actually sees: their traffic arriving, their
+  /// Bluetooth link, their signed hello.
+  ValueNotifier<RoomInviteeProgress>? _invitee;
+
+  /// Called whenever another phone is heard on this phone's link while a
+  /// readiness wait runs.
+  VoidCallback? _onPeerHeard;
+
   /// How long this phone keeps its link up after the invite sheet is closed
   /// with nobody connected yet. "They scanned — Done" is the usual way the
   /// sheet closes, and the other phone may still be inside Android's join
@@ -738,11 +747,34 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       final token = ++_inviteToken;
       final dismiss = Completer<void>();
       var waiting = false;
+      var scanInstead = false;
+      final invitee = ValueNotifier(RoomInviteeProgress.waiting);
+      _invitee = invitee;
       final Future<RoomInviteLink?> link;
       BluetoothInviteHost? bluetoothHost;
+      // Try again on the sheet: whatever the failed attempt left half up goes
+      // down first, then the same link is raised afresh.
+      Future<RoomInviteLink?> relink() async {
+        if (!mounted || token != _inviteToken) return null;
+        if (bluetooth) {
+          await bluetoothHost?.dispose();
+          if (!mounted || token != _inviteToken) return null;
+          final host = BluetoothInviteHost();
+          bluetoothHost = host;
+          return host.start();
+        }
+        await _releaseOwnHotspot();
+        if (!mounted || token != _inviteToken) return null;
+        _roleStore?.setRole(SessionRole.host);
+        final credentials = await _prepareHost();
+        if (!mounted || token != _inviteToken) return null;
+        return credentials == null ? null : HotspotInviteLink(credentials);
+      }
+
       if (bluetooth) {
-        bluetoothHost = BluetoothInviteHost();
-        link = bluetoothHost.start();
+        final host = BluetoothInviteHost();
+        bluetoothHost = host;
+        link = host.start();
       } else {
         _roleStore?.setRole(SessionRole.host);
         // Asked before the sheet: it is a page of its own, and the hotspot
@@ -765,6 +797,9 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
             ? LinkPreparingKind.bluetooth
             : LinkPreparingKind.hotspot,
         dismissWhen: dismiss.future,
+        invitee: invitee,
+        onRetryLink: relink,
+        onScanInstead: () => scanInstead = true,
         onShown: () {
           if (token != _inviteToken) return;
           waiting = true;
@@ -774,12 +809,27 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
               current,
               token: token,
               dismiss: dismiss,
+              invitee: invitee,
               bluetoothHost: bluetoothHost,
             ),
           );
         },
       );
       if (!mounted || token != _inviteToken || arrived) return;
+      if (scanInstead) {
+        // Their phone could not reach this one and is showing its own code:
+        // this phone's link and its wait stand down, and the camera opens on
+        // the same screen the rider is already looking at.
+        Logger.diagnostic('room_invite: swapped to scanning their code');
+        _inviteGrace?.cancel();
+        _inviteGrace = null;
+        _inviteToken++;
+        await bluetoothHost?.dispose();
+        final fresh = await _roomForAction(current);
+        if (!mounted || fresh == null) return;
+        _scanPeerCodeFromLive(fresh);
+        return;
+      }
       if (!waiting) {
         // No usable code was ever shown: nothing to wait for.
         _endInvite(release: true, bluetoothHost: bluetoothHost);
@@ -803,8 +853,14 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     SavedRoom room, {
     required int token,
     required Completer<void> dismiss,
+    ValueNotifier<RoomInviteeProgress>? invitee,
     BluetoothInviteHost? bluetoothHost,
   }) async {
+    void tell(RoomInviteeProgress progress) {
+      if (!mounted || token != _inviteToken) return;
+      if (identical(_invitee, invitee)) invitee?.value = progress;
+    }
+
     // The sheet has just opened the newcomer's seat; the proof they send is
     // signed for that seat, so the roster read here has to include it.
     final fresh = await _roomForAction(room);
@@ -817,6 +873,8 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         if (!dismiss.isCompleted) dismiss.complete();
         return;
       }
+      // Their phone holds a Bluetooth link to this one: they are here.
+      tell(RoomInviteeProgress.connecting);
       await _modeStore?.setMode(TransferMode.bluetooth);
     }
     // One attempt can end early without anybody having scanned — the link
@@ -827,18 +885,42 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     late _EntryState outcome;
     while (true) {
       final remaining = deadline.difference(DateTime.now());
+      // Their first datagram on this phone's link is the moment they are
+      // arriving; the signed hello that follows is what proves it.
+      void heard() => tell(RoomInviteeProgress.connecting);
+      _onPeerHeard = heard;
       final attempt = _verifiedLiveFor(
         fresh,
         linkEstablished: true,
         readinessTimeout: remaining,
       );
       _activeStart = attempt;
-      outcome = await attempt;
+      try {
+        outcome = await attempt;
+      } finally {
+        if (identical(_onPeerHeard, heard)) _onPeerHeard = null;
+      }
       if (identical(_activeStart, attempt)) _activeStart = null;
       if (!mounted || token != _inviteToken) return;
       if (outcome.live || !DateTime.now().isBefore(deadline)) break;
+      // That try fell through; the code is still good and back on screen.
+      if (bluetoothHost == null) tell(RoomInviteeProgress.waiting);
       await Future<void>.delayed(_inviteRetryGap);
       if (!mounted || token != _inviteToken) return;
+    }
+    if (outcome.live) {
+      // The sheet lands its connected beat before it gives way to the call,
+      // so the call opens out of it rather than cutting it off.
+      tell(RoomInviteeProgress.connected);
+      if (invitee != null && mounted) {
+        final beat = AppMotion.reduced(context)
+            ? const Duration(milliseconds: 450)
+            : ConnectionJourney.establishedBeat;
+        await Future<void>.delayed(beat);
+        // The call is up either way; only a screen that is gone stops it
+        // being shown.
+        if (!mounted) return;
+      }
     }
     _inviteToken++;
     _inviteGrace?.cancel();
@@ -1021,19 +1103,23 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
           return _EntryState.lobby(room);
         }
       }
-      final s = context.getString;
-      final String? problem = switch (joined) {
+      // The reason, not a sentence: the screen says it in plain words and,
+      // when this phone simply cannot get onto the other one's connection,
+      // offers the swap first instead of another scan of the same code.
+      final RoomReconnectProblem? problem = switch (joined) {
         HotspotJoinResult.joined => null,
-        HotspotJoinResult.wifiOff => s.reconnect_wifi_off,
-        HotspotJoinResult.locationOff => s.reconnect_location_off,
-        HotspotJoinResult.declined => s.reconnect_join_failed,
+        HotspotJoinResult.wifiOff => RoomReconnectProblem.wifiOff,
+        HotspotJoinResult.locationOff => RoomReconnectProblem.locationOff,
+        HotspotJoinResult.declined => RoomReconnectProblem.joinDeclined,
       };
       if (problem == null) {
         await _modeStore?.setMode(TransferMode.hotspot);
         _completeScan(true);
         break;
       }
-      _updateReconnect((model) => model.copyWith(message: problem));
+      _updateReconnect(
+        (model) => model.copyWith(clearMessage: true, problem: problem),
+      );
       _completeScan(false);
     }
     _updateReconnect(
@@ -1052,7 +1138,8 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     _updateReconnect(
       (current) => current.copyWith(
         phase: RoomReconnectPhase.failed,
-        message: context.getString.reconnect_join_failed,
+        clearMessage: true,
+        problem: RoomReconnectProblem.noAnswer,
       ),
     );
     return outcome;
@@ -1644,6 +1731,10 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       // screen, and the gate below will not open the live screen until a peer
       // has been heard. See [RoomPreLiveAnnouncer].
       announcer = _startAnnouncer(room);
+      final onHeard = _onPeerHeard;
+      final heardWatch = onHeard == null
+          ? null
+          : announcer?.heard.listen((_) => onHeard());
       final readiness =
           await RoomConnectionReadinessGate(
             timeout:
@@ -1659,6 +1750,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
             peerActivity: announcer?.heard,
             abandoned: abandoned,
           );
+      unawaited(heardWatch?.cancel());
       if (!readiness.isReady || readinessEpoch != _readinessEpoch) {
         final stage = readiness.failure?.name ?? 'peerProofMissing';
         Logger.diagnostic('room: readiness epoch=$readinessEpoch stage=$stage');

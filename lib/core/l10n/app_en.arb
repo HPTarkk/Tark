@@ -1048,5 +1048,10 @@
     "rcv_scan_declined_hint": "This phone can't get onto {name}'s connection. Show your code instead and let {name} scan it.",
     "rcv_show_switch_hint": "Is {name} showing a code too? Then scan theirs instead.",
     "rcv_bt_failed_title": "Bluetooth didn't link",
-    "rcv_bt_failed_detail": "The two phones didn't find each other this time. Keep them close and try again."
+    "rcv_bt_failed_detail": "The two phones didn't find each other this time. Keep them close and try again.",
+    "rcv_invitee_connecting_title": "They're connecting…",
+    "rcv_invitee_connecting_detail": "Their phone reached yours. Keep both phones close for a moment.",
+    "rcv_invitee_connected_title": "Connected",
+    "rcv_invitee_connected_detail": "Opening the channel…",
+    "rcv_invitee_lost": "That try didn't go through. Your code still works — they can scan it again."
 }

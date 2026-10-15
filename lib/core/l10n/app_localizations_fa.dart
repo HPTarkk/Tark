@@ -3560,4 +3560,21 @@ class AppLocalizationsFa extends AppLocalizations {
   @override
   String get rcv_bt_failed_detail =>
       'این بار دو تا گوشی همدیگه رو پیدا نکردن. نزدیک هم نگهشون دار و دوباره امتحان کن.';
+
+  @override
+  String get rcv_invitee_connecting_title => 'داره وصل می‌شه…';
+
+  @override
+  String get rcv_invitee_connecting_detail =>
+      'گوشیش به گوشیت رسید. یه لحظه گوشی‌ها رو نزدیک هم نگه دار.';
+
+  @override
+  String get rcv_invitee_connected_title => 'وصل شدید';
+
+  @override
+  String get rcv_invitee_connected_detail => 'داریم کانال رو باز می‌کنیم…';
+
+  @override
+  String get rcv_invitee_lost =>
+      'این بار نشد. کدت هنوز کار می‌کنه؛ می‌تونه دوباره اسکنش کنه.';
 }

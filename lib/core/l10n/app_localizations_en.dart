@@ -3590,4 +3590,21 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get rcv_bt_failed_detail =>
       'The two phones didn\'t find each other this time. Keep them close and try again.';
+
+  @override
+  String get rcv_invitee_connecting_title => 'They\'re connecting…';
+
+  @override
+  String get rcv_invitee_connecting_detail =>
+      'Their phone reached yours. Keep both phones close for a moment.';
+
+  @override
+  String get rcv_invitee_connected_title => 'Connected';
+
+  @override
+  String get rcv_invitee_connected_detail => 'Opening the channel…';
+
+  @override
+  String get rcv_invitee_lost =>
+      'That try didn\'t go through. Your code still works — they can scan it again.';
 }

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
@@ -12,6 +13,7 @@ import '../../../../core/entitlement/subscription_gate_page.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widget/connection_journey.dart';
 import '../../../../core/widget/link_preparing_visual.dart';
 import '../../../../core/widget/qr_brand_plan.dart';
 import '../../../../core/widget/qr_widgets.dart';
@@ -29,6 +31,22 @@ import '../../domain/entity/room_invite_link.dart';
 import '../../domain/repository/room_repository.dart';
 import '../../domain/service/room_member_transport_identity.dart';
 import 'room_invite_grant_toggle.dart';
+
+/// Where the person who scanned this phone's code is, as this phone's link
+/// actually sees it. Only the opener — which owns the link and the signed
+/// hello — can know; the sheet just tells it.
+enum RoomInviteeProgress {
+  /// Nobody has reached this phone yet: the code is what matters.
+  waiting,
+
+  /// Something from the other phone has arrived on this phone's link (their
+  /// traffic on the hotspot, their Bluetooth link), and the signed hello is
+  /// under way.
+  connecting,
+
+  /// They proved themselves; the call is opening.
+  connected,
+}
 
 /// Opens the low-distraction Add person flow used from an active Room.
 ///
@@ -59,6 +77,12 @@ import 'room_invite_grant_toggle.dart';
 /// roles by hand — the newcomer's phone could not join this one and is now
 /// showing its own code — and is called right after the sheet has closed
 /// itself (its future then completes with false).
+///
+/// [invitee] is the newcomer's progress on this phone's link. The moment it
+/// leaves [RoomInviteeProgress.waiting] the code folds into the two phones
+/// finding each other — so the person holding this phone sees their friend
+/// arriving instead of a code nobody needs any more — and if that attempt
+/// falls through, the code comes back, still good.
 Future<bool> showOneScanRoomInviteSheet(
   BuildContext context, {
   RoomRepository? repository,
@@ -71,6 +95,7 @@ Future<bool> showOneScanRoomInviteSheet(
   Future<void>? dismissWhen,
   Future<RoomInviteLink?> Function()? onRetryLink,
   VoidCallback? onScanInstead,
+  ValueListenable<RoomInviteeProgress>? invitee,
 }) async {
   final rooms =
       repository ??
@@ -136,6 +161,7 @@ Future<bool> showOneScanRoomInviteSheet(
           dismissWhen: dismissWhen,
           onRetryLink: onRetryLink,
           onScanInstead: onScanInstead,
+          invitee: invitee,
         ),
       ) ??
       false;
@@ -204,6 +230,7 @@ class OneScanRoomInviteSheet extends StatefulWidget {
     this.dismissWhen,
     this.onRetryLink,
     this.onScanInstead,
+    this.invitee,
   });
 
   final RoomRepository? repository;
@@ -237,6 +264,10 @@ class OneScanRoomInviteSheet extends StatefulWidget {
   /// Swaps roles by hand: closes the sheet and has this phone scan the other
   /// one's code instead. Null hides the choice.
   final VoidCallback? onScanInstead;
+
+  /// The newcomer's progress on this phone's link; see
+  /// [showOneScanRoomInviteSheet].
+  final ValueListenable<RoomInviteeProgress>? invitee;
 
   @override
   State<OneScanRoomInviteSheet> createState() => _OneScanRoomInviteSheetState();
@@ -303,6 +334,45 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
 
   bool get _isTransportHost => _transfer?.sessionRole == SessionRole.host;
 
+  /// What the arrival scene is showing. Starts at the code being read, so
+  /// the brackets that framed the code are what fold into the link.
+  JourneyStage _arrival = JourneyStage.scanned;
+
+  /// Set when an arrival fell through and the code came back.
+  bool _arrivalLost = false;
+
+  RoomInviteeProgress get _invitee =>
+      widget.invitee?.value ?? RoomInviteeProgress.waiting;
+
+  void _onInvitee() {
+    if (!mounted) return;
+    final progress = _invitee;
+    setState(() {
+      switch (progress) {
+        case RoomInviteeProgress.waiting:
+          // Back to the code, which is still good, with a word that the last
+          // try did not make it — not a silent jump.
+          if (_arrival != JourneyStage.scanned) _arrivalLost = true;
+          _arrival = JourneyStage.scanned;
+        case RoomInviteeProgress.connecting:
+          _arrivalLost = false;
+          // The read beat plays first; the scene moves on to linking by
+          // itself once it has landed.
+          if (_arrival == JourneyStage.scanned) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted || _invitee != RoomInviteeProgress.connecting) {
+                return;
+              }
+              setState(() => _arrival = JourneyStage.linking);
+            });
+          }
+        case RoomInviteeProgress.connected:
+          _arrivalLost = false;
+          _arrival = JourneyStage.established;
+      }
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -321,6 +391,7 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
         });
       });
     }
+    widget.invitee?.addListener(_onInvitee);
     final link = widget.link;
     if (link != null) {
       _hostingPending = true;
@@ -441,7 +512,16 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
   }
 
   @override
+  void didUpdateWidget(OneScanRoomInviteSheet old) {
+    super.didUpdateWidget(old);
+    if (old.invitee == widget.invitee) return;
+    old.invitee?.removeListener(_onInvitee);
+    widget.invitee?.addListener(_onInvitee);
+  }
+
+  @override
   void dispose() {
+    widget.invitee?.removeListener(_onInvitee);
     unawaited(_stateSub?.cancel());
     unawaited(_credentialsSub?.cancel());
     super.dispose();
@@ -623,10 +703,40 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
     );
   }
 
+  /// The two phones finding each other, where the code was.
+  Widget _arrivalBody(BuildContext context) {
+    final s = context.getString;
+    final connected = _arrival == JourneyStage.established;
+    return Column(
+      key: const ValueKey('one-scan-room-invite-arrival'),
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SheetTitle(title: s.people_invite_title, subtitle: _roomName ?? ''),
+        ConnectionJourney(
+          key: const Key('one-scan-room-invite-journey'),
+          stage: _arrival,
+          link: _linkKind == LinkPreparingKind.bluetooth
+              ? JourneyLink.bluetooth
+              : JourneyLink.hotspot,
+          title: connected
+              ? s.rcv_invitee_connected_title
+              : s.rcv_invitee_connecting_title,
+          detail: connected
+              ? s.rcv_invitee_connected_detail
+              : s.rcv_invitee_connecting_detail,
+        ),
+      ],
+    );
+  }
+
   Widget _body(BuildContext context) {
     final preparing = _preparing;
     final payload = preparing ? null : _payload;
     final failed = !preparing && payload == null;
+    if (payload != null && _invitee != RoomInviteeProgress.waiting) {
+      return _arrivalBody(context);
+    }
     // One layout for the wait, the code and a failure: the title, the code's
     // square and the line under it hold their places, and what changes
     // inside them changes in place — the beacon resolving into the code (or
@@ -726,8 +836,14 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
                       : null,
                 )
               : Text(
-                  context.getString.people_invite_hint,
-                  key: const ValueKey('one-scan-room-invite-hint'),
+                  _arrivalLost
+                      ? context.getString.rcv_invitee_lost
+                      : context.getString.people_invite_hint,
+                  key: ValueKey(
+                    _arrivalLost
+                        ? 'one-scan-room-invite-lost'
+                        : 'one-scan-room-invite-hint',
+                  ),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: AppColors.textSecondary,

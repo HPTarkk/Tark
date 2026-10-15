@@ -674,7 +674,16 @@ class _ScanSide extends StatelessWidget {
             cameraDeniedLabel: s.roomjoin_camera_denied,
             cameraFailedLabel: s.roomjoin_camera_failed,
             openSettingsLabel: s.roomjoin_open_settings,
-            errorText: model.message,
+            // The entry's own words win; otherwise the reason it reported,
+            // said plainly over the camera that just failed to get anywhere.
+            errorText:
+                model.message ??
+                switch (model.problem) {
+                  RoomReconnectProblem.wifiOff => s.rcv_reason_wifi_off,
+                  RoomReconnectProblem.locationOff => s.rcv_reason_location_off,
+                  RoomReconnectProblem.joinDeclined => s.rcv_reason_declined,
+                  RoomReconnectProblem.noAnswer || null => null,
+                },
             onCode: onScan,
           ),
         ),
