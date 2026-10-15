@@ -33,6 +33,12 @@ import '../../domain/service/room_carrier_migration.dart';
 /// [fellBack] is for a call that is already running: it landed on the house
 /// Wi-Fi (or fell back to it when a hotspot dropped), and the first beat says
 /// so instead of announcing that the phones have found each other.
+///
+/// [carrier] picks the scene. Over Bluetooth it is its own picture, not the
+/// hotspot's recoloured: no router to leave (or one that is simply set aside
+/// when [onHomeWifi]), the listening phone's beacon in place of a hotspot's
+/// signal, the other phone sweeping for it, and a radio wave, not a beam,
+/// once they meet.
 class RoomCarrierMigrationView extends StatefulWidget {
   const RoomCarrierMigrationView({
     required this.progress,
@@ -44,10 +50,19 @@ class RoomCarrierMigrationView extends StatefulWidget {
     this.failure,
     this.actions = const [],
     this.fellBack = false,
+    this.carrier = RoomMoveCarrier.hotspot,
+    this.onHomeWifi = true,
     super.key,
   });
 
   final RoomMigrationProgress progress;
+
+  /// What the phones are moving onto.
+  final RoomMoveCarrier carrier;
+
+  /// This phone is on a Wi-Fi network as the move starts. Only matters over
+  /// Bluetooth: the hotspot move always starts on one.
+  final bool onHomeWifi;
 
   /// What went wrong, in the person's words, or null while it is going.
   final RoomMigrationFailureCopy? failure;
@@ -82,6 +97,13 @@ class RoomCarrierMigrationView extends StatefulWidget {
   State<RoomCarrierMigrationView> createState() =>
       _RoomCarrierMigrationViewState();
 }
+
+/// What a move takes the two phones onto.
+enum RoomMoveCarrier { hotspot, bluetooth }
+
+/// The Bluetooth scene's own colour, the one the connection journey already
+/// gives a Bluetooth link.
+const Color _bluetoothBlue = Color(0xFF5FA8FF);
 
 /// A failure, as the migration screen tells it.
 @immutable
@@ -222,6 +244,42 @@ class _RoomCarrierMigrationViewState extends State<RoomCarrierMigrationView>
     if (failure != null) return (title: failure.title, detail: failure.detail);
     final name = widget.peerName;
     final host = widget.progress.side == RoomMigrationSide.host;
+    if (widget.carrier == RoomMoveCarrier.bluetooth) {
+      return switch (widget.progress.step) {
+        RoomMigrationStep.found when widget.onHomeWifi => (
+          title: s.btmove_wifi_title,
+          detail: s.btmove_wifi_detail,
+        ),
+        RoomMigrationStep.found => (
+          title: s.btmove_found_title,
+          detail: s.btmove_found_detail,
+        ),
+        RoomMigrationStep.electing => (
+          title: s.btmove_electing_title,
+          detail: s.btmove_electing_detail,
+        ),
+        RoomMigrationStep.preparing => (
+          title: s.btmove_preparing_title,
+          detail: s.btmove_preparing_detail,
+        ),
+        RoomMigrationStep.moving => (
+          title: host
+              ? s.btmove_moving_host_title(name)
+              : s.btmove_moving_joiner_title(name),
+          detail: host
+              ? s.btmove_moving_host_detail(name)
+              : s.btmove_moving_joiner_detail(name),
+        ),
+        RoomMigrationStep.verifying => (
+          title: s.btmove_verifying_title(name),
+          detail: s.btmove_verifying_detail,
+        ),
+        RoomMigrationStep.established => (
+          title: s.btmove_established_title,
+          detail: s.btmove_established_detail,
+        ),
+      };
+    }
     return switch (widget.progress.step) {
       RoomMigrationStep.found when widget.fellBack => (
         title: s.carriermove_fallback_title,
@@ -268,6 +326,8 @@ class _RoomCarrierMigrationViewState extends State<RoomCarrierMigrationView>
     final step = widget.progress.step;
     final failed = widget.failure != null;
     final established = step == RoomMigrationStep.established && !failed;
+    final bluetooth = widget.carrier == RoomMoveCarrier.bluetooth;
+    final accent = bluetooth ? _bluetoothBlue : AppColors.amber;
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = math.min(constraints.maxWidth, 420.0);
@@ -312,7 +372,9 @@ class _RoomCarrierMigrationViewState extends State<RoomCarrierMigrationView>
                             from: _from,
                             step: step,
                             side: widget.progress.side,
-                            amber: AppColors.amber,
+                            bluetooth: bluetooth,
+                            router: !bluetooth || widget.onHomeWifi,
+                            amber: accent,
                             green: AppColors.green,
                             ink: AppColors.textPrimary,
                             muted: AppColors.textSecondary,
@@ -323,7 +385,13 @@ class _RoomCarrierMigrationViewState extends State<RoomCarrierMigrationView>
                     ),
                   ),
                   const SizedBox(height: 18),
-                  _StepRail(step: step, reduced: reduced, failed: failed),
+                  _StepRail(
+                    step: step,
+                    reduced: reduced,
+                    failed: failed,
+                    accent: accent,
+                    bluetooth: bluetooth,
+                  ),
                   const SizedBox(height: 20),
                   AnimatedSwitcher(
                     duration: reduced ? Duration.zero : AppMotion.entrance,
@@ -372,9 +440,8 @@ class _RoomCarrierMigrationViewState extends State<RoomCarrierMigrationView>
                       ),
                     ),
                   ),
-                  AnimatedSize(
-                    duration: reduced ? Duration.zero : AppMotion.sheet,
-                    curve: AppMotion.easeOut,
+                  _Resize(
+                    reduced: reduced,
                     alignment: Alignment.topCenter,
                     child: failed && widget.actions.isNotEmpty
                         ? Padding(
@@ -395,9 +462,8 @@ class _RoomCarrierMigrationViewState extends State<RoomCarrierMigrationView>
                           )
                         : const SizedBox(width: double.infinity),
                   ),
-                  AnimatedSize(
-                    duration: reduced ? Duration.zero : AppMotion.sheet,
-                    curve: AppMotion.easeOut,
+                  _Resize(
+                    reduced: reduced,
                     child: AnimatedOpacity(
                       opacity: _stayOffered && !failed ? 1 : 0,
                       duration: reduced ? Duration.zero : AppMotion.entrance,
@@ -408,7 +474,11 @@ class _RoomCarrierMigrationViewState extends State<RoomCarrierMigrationView>
                               child: TextButton(
                                 key: const Key('carrier-migration-stay'),
                                 onPressed: widget.onStay,
-                                child: Text(context.getString.carriermove_stay),
+                                child: Text(
+                                  bluetooth
+                                      ? context.getString.btmove_stop
+                                      : context.getString.carriermove_stay,
+                                ),
                               ),
                             )
                           : const SizedBox(width: double.infinity),
@@ -424,17 +494,47 @@ class _RoomCarrierMigrationViewState extends State<RoomCarrierMigrationView>
   }
 }
 
+/// Grows to fit what appears under the words; with reduced motion it simply
+/// takes the new size. (An [AnimatedSize] with no duration re-lays itself out
+/// from inside its own layout and trips Flutter's assertion the moment the
+/// failure's buttons appear.)
+class _Resize extends StatelessWidget {
+  const _Resize({
+    required this.reduced,
+    required this.child,
+    this.alignment = Alignment.center,
+  });
+
+  final bool reduced;
+  final Widget child;
+  final AlignmentGeometry alignment;
+
+  @override
+  Widget build(BuildContext context) => reduced
+      ? child
+      : AnimatedSize(
+          duration: AppMotion.sheet,
+          curve: AppMotion.easeOut,
+          alignment: alignment,
+          child: child,
+        );
+}
+
 /// The six steps as a row of nodes joined by a line that fills as it goes.
 /// Done steps tick, the current one breathes, the rest wait in outline.
 class _StepRail extends StatelessWidget {
   const _StepRail({
     required this.step,
     required this.reduced,
+    required this.accent,
     this.failed = false,
+    this.bluetooth = false,
   });
 
   final RoomMigrationStep step;
   final bool reduced;
+  final Color accent;
+  final bool bluetooth;
 
   /// The move stopped at [step]: its node goes quiet instead of breathing.
   final bool failed;
@@ -443,10 +543,10 @@ class _StepRail extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = context.getString;
     final labels = [
-      s.carriermove_step_found,
+      bluetooth ? s.btmove_step_start : s.carriermove_step_found,
       s.carriermove_step_electing,
-      s.carriermove_step_preparing,
-      s.carriermove_step_moving,
+      bluetooth ? s.btmove_step_bluetooth : s.carriermove_step_preparing,
+      bluetooth ? s.btmove_step_finding : s.carriermove_step_moving,
       s.carriermove_step_verifying,
       s.carriermove_step_established,
     ];
@@ -478,7 +578,7 @@ class _StepRail extends StatelessWidget {
                                 ? AppColors.textSecondary
                                 : current == labels.length - 1
                                 ? AppColors.green
-                                : AppColors.amber,
+                                : accent,
                           ),
                         ),
                       ],
@@ -499,6 +599,7 @@ class _StepRail extends StatelessWidget {
                     : _NodeState.waiting,
                 finished: current == labels.length - 1,
                 duration: duration,
+                accent: accent,
               ),
             ],
           ],
@@ -516,6 +617,7 @@ class _RailNode extends StatelessWidget {
     required this.state,
     required this.finished,
     required this.duration,
+    required this.accent,
     super.key,
   });
 
@@ -523,6 +625,7 @@ class _RailNode extends StatelessWidget {
   final _NodeState state;
   final bool finished;
   final Duration duration;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
@@ -530,7 +633,7 @@ class _RailNode extends StatelessWidget {
         ? AppColors.textSecondary
         : finished
         ? AppColors.green
-        : AppColors.amber;
+        : this.accent;
     final filled = state != _NodeState.waiting;
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -615,6 +718,8 @@ class _MigrationPainter extends CustomPainter {
     required this.ink,
     required this.muted,
     required this.surface,
+    this.bluetooth = false,
+    this.router = true,
   }) : super(repaint: Listenable.merge([enter, loop, fail]));
 
   static const canvas = Size(320, 190);
@@ -628,7 +733,15 @@ class _MigrationPainter extends CustomPainter {
   final RoomMigrationStep from;
   final RoomMigrationStep step;
   final RoomMigrationSide side;
+
+  /// [amber] is the scene's accent: amber for a hotspot, blue for Bluetooth.
   final Color amber, green, ink, muted, surface;
+
+  /// The Bluetooth scene: see [RoomCarrierMigrationView.carrier].
+  final bool bluetooth;
+
+  /// Whether there is a router in the picture at all.
+  final bool router;
 
   static const _router = Offset(160, 34);
   static const _local = Offset(70, 150);
@@ -653,6 +766,10 @@ class _MigrationPainter extends CustomPainter {
 
   @override
   void paint(Canvas c, Size size) {
+    if (bluetooth) {
+      _paintBluetooth(c, size);
+      return;
+    }
     final sx = size.width / canvas.width;
     final sy = size.height / canvas.height;
     c.save();
@@ -743,6 +860,180 @@ class _MigrationPainter extends CustomPainter {
       _pauseMark(c, Offset.lerp(_local, _peer, .5)! - const Offset(0, 6), f);
     }
     c.restore();
+  }
+
+  /// The Bluetooth scene. The router, if this phone was on one, is set aside
+  /// as soon as Bluetooth starts: the phones never move through it. The
+  /// listening phone sends out a beacon, the other sweeps for it, and once
+  /// they meet a radio wave runs between them.
+  void _paintBluetooth(Canvas c, Size size) {
+    c.save();
+    c.scale(size.width / canvas.width, size.height / canvas.height);
+    final t = enter.value;
+    final f = _ease(fail.value);
+    final l = loop.value;
+    final decided = side != RoomMigrationSide.undecided;
+    final blue = Color.lerp(amber, muted, f)!;
+
+    if (router) {
+      // On the home Wi-Fi at first; Bluetooth does not need it.
+      final presence = switch (step) {
+        RoomMigrationStep.found || RoomMigrationStep.electing => 1.0,
+        RoomMigrationStep.preparing => 1 - .7 * _ease(t),
+        _ => .3,
+      };
+      _leg(c, _router, _local, presence, l, 0);
+      _leg(c, _router, _peer, presence, l, .5);
+      _routerIcon(c, presence);
+    }
+
+    final listening =
+        step == RoomMigrationStep.preparing || step == RoomMigrationStep.moving;
+    if (decided && step.index >= RoomMigrationStep.preparing.index) {
+      final grow = step == RoomMigrationStep.preparing ? _ease(t) : 1.0;
+      // The listener's beacon: full rings, calm and steady.
+      _beacon(c, _hostAt, grow * (listening ? 1 : .35) * (1 - f), l, blue);
+      if (step == RoomMigrationStep.moving) {
+        // The searcher's sweep, turning toward where the beacon is.
+        _sweep(c, _joinerAt, _ease(t) * (1 - f), l, blue);
+      }
+    }
+
+    if (decided && step.index >= RoomMigrationStep.verifying.index) {
+      final drawn = step == RoomMigrationStep.verifying ? _ease(t) : 1.0;
+      final color = step == RoomMigrationStep.established && f == 0
+          ? Color.lerp(blue, green, _ease(t))!
+          : blue;
+      _wave(c, _joinerAt, _hostAt, drawn, l, color, snap: f);
+      if (step == RoomMigrationStep.verifying && f == 0) {
+        _packet(c, _hostAt, _joinerAt, l, blue);
+        _packet(c, _joinerAt, _hostAt, (l + .5) % 1, blue);
+      }
+    }
+
+    final pull = step == RoomMigrationStep.established
+        ? math.sin(_ease(t) * math.pi) * 6
+        : 0.0;
+    final apart = math.sin(f * math.pi / 2) * 5;
+    _phone(c, _local + Offset(pull - apart, 0), local: true);
+    _phone(c, _peer - Offset(pull - apart, 0), local: false);
+
+    // The Bluetooth mark settles on the listener once it is decided.
+    if (step == RoomMigrationStep.electing && !decided) {
+      final swing = (math.sin(l * 2 * math.pi) + 1) / 2;
+      _rune(c, Offset.lerp(_local, _peer, swing)!, .55, blue);
+    } else if (decided && step.index >= RoomMigrationStep.electing.index) {
+      final settle =
+          from == RoomMigrationStep.electing ||
+              step == RoomMigrationStep.electing
+          ? _ease(t)
+          : 1.0;
+      _rune(c, _hostAt, settle * (1 - .6 * f), blue);
+    }
+
+    if (step == RoomMigrationStep.established && f == 0) {
+      _burst(c, Offset.lerp(_local, _peer, .5)!, _ease(t));
+    }
+    if (f > 0) {
+      _pauseMark(c, Offset.lerp(_local, _peer, .5)! - const Offset(0, 6), f);
+    }
+    c.restore();
+  }
+
+  void _beacon(Canvas c, Offset at, double grow, double loop, Color color) {
+    if (grow <= 0.01) return;
+    for (var i = 0; i < 3; i++) {
+      final phase = (loop + i / 3) % 1;
+      c.drawCircle(
+        at,
+        (28 + phase * 30) * grow,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.6
+          ..color = color.withValues(alpha: (1 - phase) * .4 * grow),
+      );
+    }
+  }
+
+  void _sweep(Canvas c, Offset at, double grow, double loop, Color color) {
+    if (grow <= 0.01) return;
+    final angle = loop * 2 * math.pi;
+    final rect = Rect.fromCircle(center: at, radius: 40 * grow);
+    c.drawArc(
+      rect,
+      angle,
+      math.pi / 3,
+      true,
+      Paint()..color = color.withValues(alpha: .14 * grow),
+    );
+    c.drawArc(
+      rect,
+      angle + math.pi / 3 - .04,
+      .04,
+      true,
+      Paint()..color = color.withValues(alpha: .5 * grow),
+    );
+  }
+
+  /// A radio wave from [a] to [b], drawn out as far as [drawn].
+  void _wave(
+    Canvas c,
+    Offset a,
+    Offset b,
+    double drawn,
+    double loop,
+    Color color, {
+    double snap = 0,
+  }) {
+    if (drawn <= 0) return;
+    final y = a.dy - 6;
+    final from = Offset(a.dx + (b.dx > a.dx ? 18 : -18), y);
+    final to = Offset(b.dx + (b.dx > a.dx ? -18 : 18), y);
+    final length = (to - from).distance * drawn;
+    final dir = (to - from) / (to - from).distance;
+    final normal = Offset(-dir.dy, dir.dx);
+    final path = Path()..moveTo(from.dx, from.dy);
+    for (var d = 0.0; d <= length; d += 2) {
+      // The wave's crest travels with the loop; on failure it flattens and
+      // sags, the way a link going quiet would look.
+      final amp = 4.5 * (1 - snap);
+      final wave = math.sin(d / 9 - loop * 2 * math.pi) * amp;
+      final sag = math.sin(d / length * math.pi) * 10 * snap;
+      final p = from + dir * d + normal * wave + Offset(0, sag);
+      path.lineTo(p.dx, p.dy);
+    }
+    c.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.6
+        ..strokeCap = StrokeCap.round
+        ..color = color.withValues(alpha: 1 - .55 * snap),
+    );
+  }
+
+  /// The Bluetooth mark, over a phone.
+  void _rune(Canvas c, Offset phone, double t, Color color) {
+    if (t <= 0) return;
+    final at = phone - Offset(0, 38 + 6 * (1 - t));
+    const h = 8.0;
+    const w = 4.5;
+    final path = Path()
+      ..moveTo(at.dx - w, at.dy - h / 2)
+      ..lineTo(at.dx + w, at.dy + h / 2)
+      ..lineTo(at.dx, at.dy + h)
+      ..lineTo(at.dx, at.dy - h)
+      ..lineTo(at.dx + w, at.dy - h / 2)
+      ..lineTo(at.dx - w, at.dy + h / 2);
+    c.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+        ..strokeJoin = StrokeJoin.round
+        ..strokeCap = StrokeCap.round
+        ..color = color.withValues(alpha: t),
+    );
   }
 
   void _leg(
@@ -960,6 +1251,8 @@ class _MigrationPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_MigrationPainter old) =>
+      old.bluetooth != bluetooth ||
+      old.router != router ||
       old.step != step ||
       old.side != side ||
       old.from != from ||

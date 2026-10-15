@@ -20,8 +20,10 @@ final class BluetoothInviteHost {
     RoomProximityControlChannel? control,
     BluetoothTransport? transport,
     Future<bool> Function()? permissions,
+    BluetoothInviteLink? link,
     this.listenFor = const Duration(minutes: 5),
-  }) : _control = control ?? RoomProximityControlChannel(),
+  }) : link = link ?? BluetoothInviteLink.fresh(),
+       _control = control ?? RoomProximityControlChannel(),
        _transport = transport,
        _permissions = permissions ?? ensureRoomInviteBluetoothPermissions;
 
@@ -32,7 +34,9 @@ final class BluetoothInviteHost {
   /// The longest this phone stays findable for one invite.
   final Duration listenFor;
 
-  final BluetoothInviteLink link = BluetoothInviteLink.fresh();
+  /// What this phone advertises: a fresh token for an invite, or the one
+  /// both phones of a Room derive (see `RoomBluetoothRendezvous`).
+  final BluetoothInviteLink link;
 
   Future<void>? _peer;
   bool _disposed = false;

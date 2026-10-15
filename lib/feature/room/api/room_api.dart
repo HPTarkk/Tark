@@ -22,6 +22,8 @@ export '../domain/service/room_connection_readiness_gate.dart'
         RoomConnectionReadinessGate,
         RoomConnectionReadinessResult,
         RoomPeerProofEvidence;
+export '../domain/service/room_bluetooth_rendezvous.dart'
+    show RoomBluetoothRendezvous;
 export '../domain/service/room_carrier_migration.dart';
 export '../domain/service/room_carrier_promotion_controller.dart'
     show RoomCarrierMoveFailure, RoomCarrierMover, RoomCarrierStatus;
@@ -42,6 +44,8 @@ export '../presentation/page/room_qr_join_issuer_page.dart'
     show RoomQrJoinIssuerPage;
 export '../presentation/page/room_qr_join_page.dart' show RoomQrJoinPage;
 export '../presentation/bluetooth_invite_host.dart' show BluetoothInviteHost;
+export '../presentation/bluetooth_invite_joiner.dart'
+    show BluetoothInviteJoinResult, BluetoothInviteJoiner;
 export '../presentation/room_bluetooth_permissions.dart'
     show ensureRoomInviteBluetoothPermissions;
 export '../presentation/room_member_display_name.dart'

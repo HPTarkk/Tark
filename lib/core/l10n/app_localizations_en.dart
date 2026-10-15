@@ -3648,4 +3648,107 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get carriermove_wifi_off_waiting => 'Waiting for Wi-Fi to turn off…';
+
+  @override
+  String get btmove_wifi_title => 'You\'re on home Wi-Fi';
+
+  @override
+  String get btmove_wifi_detail =>
+      'Your phones will talk over Bluetooth instead. It\'s free and keeps working once you ride off.';
+
+  @override
+  String get btmove_found_title => 'Connecting over Bluetooth';
+
+  @override
+  String get btmove_found_detail =>
+      'No network needed. Your phones talk to each other directly.';
+
+  @override
+  String get btmove_electing_title => 'Choosing which phone listens';
+
+  @override
+  String get btmove_electing_detail =>
+      'Both phones pick the same one on their own, so they never both wait.';
+
+  @override
+  String get btmove_preparing_title => 'Turning on Bluetooth';
+
+  @override
+  String get btmove_preparing_detail => 'If Android asks, allow it.';
+
+  @override
+  String btmove_moving_host_title(String name) {
+    return 'Waiting for $name\'s phone';
+  }
+
+  @override
+  String btmove_moving_host_detail(String name) {
+    return 'Keep the phones close, with this Room open on $name\'s phone.';
+  }
+
+  @override
+  String btmove_moving_joiner_title(String name) {
+    return 'Looking for $name\'s phone';
+  }
+
+  @override
+  String btmove_moving_joiner_detail(String name) {
+    return 'Keep the phones close, with this Room open on $name\'s phone.';
+  }
+
+  @override
+  String btmove_verifying_title(String name) {
+    return 'Checking it\'s $name';
+  }
+
+  @override
+  String get btmove_verifying_detail =>
+      'Making sure it\'s the phone in this Room before the channel opens.';
+
+  @override
+  String get btmove_established_title => 'Connected over Bluetooth';
+
+  @override
+  String get btmove_established_detail =>
+      'No router, no internet. Just your two phones.';
+
+  @override
+  String get btmove_step_start => 'Start';
+
+  @override
+  String get btmove_step_bluetooth => 'Bluetooth';
+
+  @override
+  String get btmove_step_finding => 'Find';
+
+  @override
+  String get btmove_stop => 'Stop';
+
+  @override
+  String get btmove_failed_title => 'Couldn\'t connect over Bluetooth';
+
+  @override
+  String btmove_failed_notfound_detail(String name) {
+    return '$name\'s phone didn\'t show up. Open this Room on it, keep the phones close, then try again.';
+  }
+
+  @override
+  String get btmove_failed_off_detail =>
+      'Bluetooth is off. Turn it on, then try again.';
+
+  @override
+  String get btmove_failed_permission_detail =>
+      'Tarkk needs the Nearby devices permission to find the other phone.';
+
+  @override
+  String get btmove_failed_location_detail =>
+      'Location is off, and Android needs it on to find nearby phones. Turn it on, then try again.';
+
+  @override
+  String btmove_failed_check_detail(String name) {
+    return 'The phones linked, but $name\'s phone didn\'t confirm it\'s in this Room. Try again.';
+  }
+
+  @override
+  String get btmove_pair_manually => 'Connect another way';
 }

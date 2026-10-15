@@ -545,6 +545,10 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       if (existing.live || !mounted) return existing;
       if (existing.failure == _EntryFailure.staleAttempt) return existing;
       if (_guidedReconnectApplies(current)) return _reconnect(current);
+      if (_roomPin == TransferMode.bluetooth &&
+          _roomBluetoothApplies(current)) {
+        return _connectOverBluetooth(current);
+      }
       return existing;
     }
     return _verifiedLiveFor(current, linkEstablished: true);
@@ -1520,6 +1524,11 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   /// The move is playing over a call that is already open.
   bool _migrationFellBack = false;
 
+  /// What the move is taking the phones onto, and whether this phone set off
+  /// from a Wi-Fi network (the Bluetooth scene says so when it did).
+  RoomMoveCarrier _migrationCarrier = RoomMoveCarrier.hotspot;
+  bool _migrationOnWifi = true;
+
   /// What went wrong, while the move's scene is telling it.
   RoomMigrationFailureCopy? _migrationFailure;
   List<Widget> _migrationActions = const [];
@@ -1584,6 +1593,8 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       _migrationLanded = landed;
       _migrationStay = stay;
       _migrationFellBack = fellBack;
+      _migrationCarrier = RoomMoveCarrier.hotspot;
+      _migrationOnWifi = true;
       _migrationFailure = null;
       _migrationActions = const [];
     });
@@ -1697,6 +1708,304 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
           }
       }
     }
+  }
+
+  // ------------------------------------------------- moving onto Bluetooth
+
+  /// Whether this two-phone Room can find its other phone over Bluetooth on
+  /// its own, with the move's Bluetooth scene, rather than through the
+  /// separate pairing screen.
+  bool _roomBluetoothApplies(SavedRoom room) {
+    if (!_movesOffRouter || !Platform.isAndroid) return false;
+    if (!GetIt.instance.isRegistered<BluetoothTransport>()) return false;
+    final local = room.membership.localMemberId;
+    return room.room.confirmedMembers.where((m) => m.id != local).length == 1;
+  }
+
+  /// Stops the Bluetooth move in flight, when the screen goes away.
+  Completer<void>? _bluetoothStop;
+
+  /// How long one side waits for the other to turn up over Bluetooth. The
+  /// other person may still be getting their phone out.
+  static const _bluetoothFindFor = Duration(minutes: 3);
+
+  /// Connects the two phones of [room] over Bluetooth, told in the move's own
+  /// Bluetooth scene from the first beat ("you're on home Wi-Fi") to the
+  /// channel opening out of its last.
+  ///
+  /// No code and no network: each phone works out on its own which of them
+  /// listens and what for ([RoomBluetoothRendezvous]); the other searches.
+  /// The link is only a way in. The signed Room proofs that follow over it,
+  /// the same ones every other way in needs, are what open the channel.
+  ///
+  /// A failure is told in the same scene with the way forward under it: Try
+  /// again, another way to connect (the pairing screen), or back.
+  Future<_EntryState> _connectOverBluetooth(SavedRoom room) async {
+    final local = room.membership.localMemberId;
+    final peer = room.room.confirmedMembers.firstWhere((m) => m.id != local);
+    final listener = RoomBluetoothRendezvous.listenerOf(local, peer.id);
+    final side = listener == local
+        ? RoomMigrationSide.host
+        : RoomMigrationSide.joiner;
+    final landed = Completer<void>();
+    // Only the person (Stop, Back) or the screen going away stops this.
+    // Not the readiness waits' own abandon signal: every check over the new
+    // link fires it as it starts.
+    final stop = Completer<void>();
+    _bluetoothStop = stop;
+    final stopped = stop.future;
+    Logger.diagnostic('room: bluetooth move side=${side.name}');
+    void show(RoomMigrationStep step) {
+      if (!mounted || !identical(_migrationLanded, landed)) return;
+      setState(
+        () => _migrationProgress = RoomMigrationProgress(step, side: side),
+      );
+    }
+
+    setState(() {
+      _migrationRoom = room;
+      _migrationProgress = const RoomMigrationProgress(RoomMigrationStep.found);
+      _migrationPeerName = _memberName(peer);
+      _migrationLanded = landed;
+      _migrationStay = stop;
+      _migrationFellBack = false;
+      _migrationCarrier = RoomMoveCarrier.bluetooth;
+      _migrationOnWifi = _resolvedLink == LiveLink.wifi;
+      _migrationFailure = null;
+      _migrationActions = const [];
+    });
+    void clear() {
+      if (!mounted || !identical(_migrationLanded, landed)) return;
+      setState(() {
+        _migrationProgress = null;
+        _migrationRoom = null;
+        _migrationLanded = null;
+        _migrationStay = null;
+        _migrationCarrier = RoomMoveCarrier.hotspot;
+        _migrationFailure = null;
+        _migrationActions = const [];
+      });
+    }
+
+    var stoppedNow = false;
+    unawaited(stopped.then((_) => stoppedNow = true));
+    Future<bool> beat(Duration hold) async {
+      final reduced = mounted && AppMotion.reduced(context);
+      await Future.any([
+        Future<void>.delayed(
+          reduced ? const Duration(milliseconds: 300) : hold,
+        ),
+        stopped,
+      ]);
+      return mounted && !stoppedNow;
+    }
+
+    // The first two beats are read, not waited on: what is happening and
+    // who listens. Each phone settles the second on its own.
+    if (!await beat(const Duration(milliseconds: 1800))) {
+      return _stopBluetooth(room, clear);
+    }
+    show(RoomMigrationStep.electing);
+    if (!await beat(const Duration(milliseconds: 1100))) {
+      return _stopBluetooth(room, clear);
+    }
+
+    while (true) {
+      show(RoomMigrationStep.preparing);
+      final link = await RoomBluetoothRendezvous.linkFor(
+        room: room.room.id,
+        listener: listener,
+      );
+      final failure = side == RoomMigrationSide.host
+          ? await _listenOverBluetooth(link, show, stopped)
+          : await _searchOverBluetooth(link, show, stopped);
+      if (!mounted || stoppedNow) return _stopBluetooth(room, clear);
+      _BluetoothMoveFailure? reason = failure;
+      if (reason == null) {
+        show(RoomMigrationStep.verifying);
+        await _modeStore?.setMode(TransferMode.bluetooth);
+        final outcome = await _verifiedLiveFor(
+          room,
+          linkEstablished: true,
+          readinessTimeout: const Duration(seconds: 30),
+          moveOffRouter: false,
+        );
+        if (!mounted) return _EntryState.lobby(room);
+        if (stoppedNow) return _stopBluetooth(room, clear);
+        if (outcome.live) {
+          show(RoomMigrationStep.established);
+          await landed.future.timeout(
+            const Duration(seconds: 3),
+            onTimeout: () {},
+          );
+          unawaited(
+            ConnectionHistory.registered?.remember(TransferMode.bluetooth.key),
+          );
+          _arrivedByMove = true;
+          clear();
+          return outcome;
+        }
+        reason = _BluetoothMoveFailure.unconfirmed;
+      }
+      Logger.diagnostic('room: bluetooth move failed reason=${reason.name}');
+      final choice = await _bluetoothMoveFailed(reason, stopped);
+      if (!mounted) return _EntryState.lobby(room);
+      switch (choice) {
+        case _MoveChoice.retry:
+          // From a clean radio: a half-made link would answer the next try
+          // with "already connected" and skip the finding.
+          _resetBluetooth();
+          setState(() {
+            _migrationFailure = null;
+            _migrationActions = const [];
+          });
+          continue;
+        case _MoveChoice.showCode:
+        case _MoveChoice.scan:
+          // Another way: the pairing screen, as before this flow existed.
+          clear();
+          _resetBluetooth();
+          unawaited(_openBluetoothPairing(room));
+          return _EntryState.lobby(room);
+        case _MoveChoice.stay:
+          return _stopBluetooth(room, clear);
+      }
+    }
+  }
+
+  _EntryState _stopBluetooth(SavedRoom room, void Function() clear) {
+    Logger.diagnostic('room: bluetooth move stopped');
+    // A check still running over the link would otherwise open the channel
+    // behind the person who just said stop.
+    _readinessEpoch++;
+    _resetBluetooth();
+    clear();
+    return _EntryState.lobby(room);
+  }
+
+  void _resetBluetooth() {
+    final getIt = GetIt.instance;
+    if (getIt.isRegistered<BluetoothTransport>()) {
+      getIt<BluetoothTransport>().reset();
+    }
+  }
+
+  /// The listening side: advertise, then wait for the other phone to dial.
+  Future<_BluetoothMoveFailure?> _listenOverBluetooth(
+    BluetoothInviteLink link,
+    void Function(RoomMigrationStep step) show,
+    Future<void> stopped,
+  ) async {
+    final host = BluetoothInviteHost(link: link, listenFor: _bluetoothFindFor);
+    try {
+      final started = await host.start();
+      if (started == null) {
+        return await _bluetoothReadiness() ?? _BluetoothMoveFailure.off;
+      }
+      show(RoomMigrationStep.moving);
+      final linked = await Future.any([
+        host.awaitJoiner(within: _bluetoothFindFor),
+        stopped.then((_) => false),
+      ]);
+      return linked ? null : _BluetoothMoveFailure.notFound;
+    } finally {
+      await host.dispose();
+    }
+  }
+
+  /// The searching side: look for the listener until it turns up.
+  Future<_BluetoothMoveFailure?> _searchOverBluetooth(
+    BluetoothInviteLink link,
+    void Function(RoomMigrationStep step) show,
+    Future<void> stopped,
+  ) async {
+    final deadline = DateTime.now().add(_bluetoothFindFor);
+    var stoppedNow = false;
+    unawaited(stopped.then((_) => stoppedNow = true));
+    show(RoomMigrationStep.moving);
+    while (!stoppedNow && DateTime.now().isBefore(deadline)) {
+      final result = await BluetoothInviteJoiner().join(link);
+      switch (result) {
+        case BluetoothInviteJoinResult.joined:
+          return null;
+        case BluetoothInviteJoinResult.permissionDenied:
+          return _BluetoothMoveFailure.permission;
+        case BluetoothInviteJoinResult.locationOff:
+          return _BluetoothMoveFailure.location;
+        case BluetoothInviteJoinResult.bluetoothOff:
+          return _BluetoothMoveFailure.off;
+        case BluetoothInviteJoinResult.notFound:
+          // Not there yet. Keep looking: the other person may still be
+          // opening the Room.
+          if (!stoppedNow) {
+            await Future<void>.delayed(const Duration(seconds: 1));
+          }
+      }
+    }
+    return _BluetoothMoveFailure.notFound;
+  }
+
+  /// Why the listening side could not start, when it can be told.
+  Future<_BluetoothMoveFailure?> _bluetoothReadiness() async {
+    try {
+      final ready = await GetIt.instance<BluetoothTransport>().isAdapterReady;
+      return ready
+          ? _BluetoothMoveFailure.permission
+          : _BluetoothMoveFailure.off;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Tells a Bluetooth move's failure in its scene and waits for the choice.
+  Future<_MoveChoice> _bluetoothMoveFailed(
+    _BluetoothMoveFailure reason,
+    Future<void> stopped,
+  ) {
+    final s = context.getString;
+    final name = _migrationPeerName;
+    final choice = Completer<_MoveChoice>();
+    void pick(_MoveChoice value) {
+      if (!choice.isCompleted) choice.complete(value);
+    }
+
+    unawaited(stopped.then((_) => pick(_MoveChoice.stay)));
+    setState(() {
+      _migrationFailure = RoomMigrationFailureCopy(
+        title: s.btmove_failed_title,
+        detail: switch (reason) {
+          _BluetoothMoveFailure.notFound => s.btmove_failed_notfound_detail(
+            name,
+          ),
+          _BluetoothMoveFailure.off => s.btmove_failed_off_detail,
+          _BluetoothMoveFailure.permission => s.btmove_failed_permission_detail,
+          _BluetoothMoveFailure.location => s.btmove_failed_location_detail,
+          _BluetoothMoveFailure.unconfirmed => s.btmove_failed_check_detail(
+            name,
+          ),
+        },
+      );
+      _migrationActions = [
+        FilledButton.icon(
+          key: const Key('bluetooth-move-retry'),
+          onPressed: () => pick(_MoveChoice.retry),
+          icon: const Icon(Icons.refresh_rounded),
+          label: Text(s.reconnect_retry),
+        ),
+        OutlinedButton.icon(
+          key: const Key('bluetooth-move-another-way'),
+          onPressed: () => pick(_MoveChoice.scan),
+          icon: const Icon(Icons.bluetooth_searching_rounded),
+          label: Text(s.btmove_pair_manually),
+        ),
+        TextButton(
+          key: const Key('bluetooth-move-back'),
+          onPressed: () => pick(_MoveChoice.stay),
+          child: Text(s.entry_back),
+        ),
+      ];
+    });
+    return choice.future;
   }
 
   // ------------------------------------------- falling back to the router
@@ -2485,14 +2794,31 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       // and when the Bluetooth screen opens a fresh Room entry.
       await store.setPinnedMode(TransferMode.bluetooth);
       if (!mounted) return;
+      if (_roomBluetoothApplies(current) && _migrationProgress == null) {
+        // Two phones of one Room: they find each other on their own, in the
+        // move's Bluetooth scene, rather than through a pairing screen.
+        _codeOnly = false;
+        _arrivedByMove = false;
+        setState(() {
+          _attemptRoom = current;
+          _entry = _connectOverBluetooth(current);
+        });
+        return;
+      }
       setState(() {});
-      final intent = _bootstrapIntent(current);
-      await context.push(
-        '${AppRoutes.bluetoothConnectPath}?intent=${intent.key}',
-      );
+      await _openBluetoothPairing(current);
     } finally {
       _openingBluetooth = false;
     }
+  }
+
+  /// The pairing screen: pick a nearby phone by hand.
+  Future<void> _openBluetoothPairing(SavedRoom room) async {
+    if (!mounted) return;
+    final intent = _bootstrapIntent(room);
+    await context.push(
+      '${AppRoutes.bluetoothConnectPath}?intent=${intent.key}',
+    );
   }
 
   Future<SavedRoom?> _roomForAction(SavedRoom room) async {
@@ -2592,6 +2918,10 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
 
   @override
   void dispose() {
+    final bluetoothStop = _bluetoothStop;
+    if (bluetoothStop != null && !bluetoothStop.isCompleted) {
+      bluetoothStop.complete();
+    }
     _readinessEpoch++;
     if (!_abandonWaits.isCompleted) _abandonWaits.complete();
     _reconnectToken++;
@@ -2669,6 +2999,8 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
             peerName: _migrationPeerName,
             caption: movingRoom.room.name,
             fellBack: _migrationFellBack,
+            carrier: _migrationCarrier,
+            onHomeWifi: _migrationOnWifi,
             failure: _migrationFailure,
             actions: _migrationActions,
             onEstablished: () {
@@ -2989,6 +3321,9 @@ class _DelayedSpinnerState extends State<_DelayedSpinner> {
 
 /// The way forward a person picked after a move that did not finish.
 enum _MoveChoice { retry, showCode, scan, stay }
+
+/// Why a move onto Bluetooth stopped.
+enum _BluetoothMoveFailure { notFound, off, permission, location, unconfirmed }
 
 /// "Turn off Wi-Fi", which then waits — visibly — for it to be off.
 ///

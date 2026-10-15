@@ -18,6 +18,8 @@ void main() {
     RoomMigrationFailureCopy? failure,
     List<Widget> actions = const [],
     bool fellBack = false,
+    RoomMoveCarrier carrier = RoomMoveCarrier.hotspot,
+    bool onHomeWifi = true,
   }) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -36,6 +38,8 @@ void main() {
               failure: failure,
               actions: actions,
               fellBack: fellBack,
+              carrier: carrier,
+              onHomeWifi: onHomeWifi,
             ),
           ),
         ),
@@ -240,5 +244,123 @@ void main() {
     expect(title(tester), 'X');
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 2));
+  });
+
+  group('over Bluetooth', () {
+    testWidgets('its own words, from each side', (tester) async {
+      const host = RoomMigrationSide.host;
+      const joiner = RoomMigrationSide.joiner;
+      final expected = <RoomMigrationProgress, String>{
+        const RoomMigrationProgress(RoomMigrationStep.found):
+            'You\'re on home Wi-Fi',
+        const RoomMigrationProgress(RoomMigrationStep.electing):
+            'Choosing which phone listens',
+        const RoomMigrationProgress(RoomMigrationStep.preparing, side: host):
+            'Turning on Bluetooth',
+        const RoomMigrationProgress(RoomMigrationStep.moving, side: host):
+            'Waiting for Sara\'s phone',
+        const RoomMigrationProgress(RoomMigrationStep.moving, side: joiner):
+            'Looking for Sara\'s phone',
+        const RoomMigrationProgress(RoomMigrationStep.verifying, side: joiner):
+            'Checking it\'s Sara',
+        const RoomMigrationProgress(RoomMigrationStep.established, side: host):
+            'Connected over Bluetooth',
+      };
+      for (final entry in expected.entries) {
+        await pump(tester, entry.key, carrier: RoomMoveCarrier.bluetooth);
+        expect(title(tester), entry.value, reason: '${entry.key}');
+      }
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(seconds: 2));
+    });
+
+    testWidgets('off Wi-Fi it does not talk about Wi-Fi', (tester) async {
+      await pump(
+        tester,
+        const RoomMigrationProgress(RoomMigrationStep.found),
+        carrier: RoomMoveCarrier.bluetooth,
+        onHomeWifi: false,
+      );
+      expect(title(tester), 'Connecting over Bluetooth');
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(seconds: 2));
+    });
+
+    testWidgets('the rail names Bluetooth\'s own steps', (tester) async {
+      await pump(
+        tester,
+        const RoomMigrationProgress(
+          RoomMigrationStep.moving,
+          side: RoomMigrationSide.joiner,
+        ),
+        carrier: RoomMoveCarrier.bluetooth,
+      );
+      expect(find.text('Bluetooth'), findsOneWidget);
+      expect(find.text('Find'), findsOneWidget);
+      expect(find.text('Hotspot'), findsNothing);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(seconds: 2));
+    });
+
+    testWidgets('a long search offers Stop, not staying on Wi-Fi', (
+      tester,
+    ) async {
+      var stopped = 0;
+      await pump(
+        tester,
+        const RoomMigrationProgress(
+          RoomMigrationStep.moving,
+          side: RoomMigrationSide.joiner,
+        ),
+        carrier: RoomMoveCarrier.bluetooth,
+        onStay: () => stopped++,
+      );
+      await tester.pump(const Duration(seconds: 12));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.text('Stop'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('carrier-migration-stay')));
+      expect(stopped, 1);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(seconds: 2));
+    });
+
+    testWidgets('every beat and its failure paint, in Persian and reduced '
+        'motion too', (tester) async {
+      for (final reduced in [false, true]) {
+        // A fresh scene for each setting, as a phone would show it.
+        await tester.pumpWidget(const SizedBox());
+        await tester.pump(const Duration(seconds: 2));
+        for (final step in RoomMigrationStep.values) {
+          await pump(
+            tester,
+            RoomMigrationProgress(
+              step,
+              side: step.index < 2
+                  ? RoomMigrationSide.undecided
+                  : RoomMigrationSide.joiner,
+            ),
+            carrier: RoomMoveCarrier.bluetooth,
+            locale: const Locale('fa'),
+            reduced: reduced,
+          );
+          await tester.pump(const Duration(milliseconds: 700));
+          expect(tester.takeException(), isNull, reason: '$step');
+        }
+        await pump(
+          tester,
+          const RoomMigrationProgress(
+            RoomMigrationStep.moving,
+            side: RoomMigrationSide.host,
+          ),
+          carrier: RoomMoveCarrier.bluetooth,
+          reduced: reduced,
+          failure: const RoomMigrationFailureCopy(title: 'X', detail: 'Y'),
+        );
+        await tester.pump(const Duration(seconds: 1));
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+        await tester.pump(const Duration(seconds: 2));
+      }
+    });
   });
 }

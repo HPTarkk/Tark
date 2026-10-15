@@ -3618,4 +3618,107 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get carriermove_wifi_off_waiting => 'منتظر خاموش شدن وای‌فای…';
+
+  @override
+  String get btmove_wifi_title => 'الان روی وای‌فای خونه‌اید';
+
+  @override
+  String get btmove_wifi_detail =>
+      'گوشی‌هاتون به‌جاش با بلوتوث با هم حرف می‌زنن. رایگانه و وقتی راه بیفتید هم کار می‌کنه.';
+
+  @override
+  String get btmove_found_title => 'داریم با بلوتوث وصل می‌شیم';
+
+  @override
+  String get btmove_found_detail =>
+      'شبکه لازم نیست. گوشی‌هاتون مستقیم با هم حرف می‌زنن.';
+
+  @override
+  String get btmove_electing_title => 'انتخاب گوشی‌ای که منتظر می‌مونه';
+
+  @override
+  String get btmove_electing_detail =>
+      'هر دو گوشی خودشون یکی رو انتخاب می‌کنن، که هیچ‌وقت هر دو منتظر نمونن.';
+
+  @override
+  String get btmove_preparing_title => 'روشن کردن بلوتوث';
+
+  @override
+  String get btmove_preparing_detail => 'اگه اندروید پرسید، اجازه بده.';
+
+  @override
+  String btmove_moving_host_title(String name) {
+    return 'منتظر گوشی $name';
+  }
+
+  @override
+  String btmove_moving_host_detail(String name) {
+    return 'گوشی‌ها رو نزدیک هم نگه دار و این اتاق رو روی گوشی $name باز کن.';
+  }
+
+  @override
+  String btmove_moving_joiner_title(String name) {
+    return 'دنبال گوشی $name می‌گردیم';
+  }
+
+  @override
+  String btmove_moving_joiner_detail(String name) {
+    return 'گوشی‌ها رو نزدیک هم نگه دار و این اتاق رو روی گوشی $name باز کن.';
+  }
+
+  @override
+  String btmove_verifying_title(String name) {
+    return 'مطمئن می‌شیم خود $nameه';
+  }
+
+  @override
+  String get btmove_verifying_detail =>
+      'قبل از باز شدن کانال، چک می‌کنیم گوشیِ همین اتاقه.';
+
+  @override
+  String get btmove_established_title => 'با بلوتوث وصل شدید';
+
+  @override
+  String get btmove_established_detail =>
+      'نه مودم، نه اینترنت. فقط دو تا گوشی خودتون.';
+
+  @override
+  String get btmove_step_start => 'شروع';
+
+  @override
+  String get btmove_step_bluetooth => 'بلوتوث';
+
+  @override
+  String get btmove_step_finding => 'پیدا کردن';
+
+  @override
+  String get btmove_stop => 'توقف';
+
+  @override
+  String get btmove_failed_title => 'با بلوتوث وصل نشد';
+
+  @override
+  String btmove_failed_notfound_detail(String name) {
+    return 'گوشی $name پیدا نشد. این اتاق رو روی گوشیش باز کن، گوشی‌ها رو نزدیک هم بیار و دوباره امتحان کن.';
+  }
+
+  @override
+  String get btmove_failed_off_detail =>
+      'بلوتوث خاموشه. روشنش کن و دوباره امتحان کن.';
+
+  @override
+  String get btmove_failed_permission_detail =>
+      '«تَرک» برای پیدا کردن اون یکی گوشی به اجازهٔ «دستگاه‌های نزدیک» نیاز داره.';
+
+  @override
+  String get btmove_failed_location_detail =>
+      'موقعیت مکانی خاموشه و اندروید برای پیدا کردن گوشی‌های نزدیک لازمش داره. روشنش کن و دوباره امتحان کن.';
+
+  @override
+  String btmove_failed_check_detail(String name) {
+    return 'گوشی‌ها به هم وصل شدن، ولی گوشی $name تأیید نکرد که توی همین اتاقه. دوباره امتحان کن.';
+  }
+
+  @override
+  String get btmove_pair_manually => 'یه راه دیگه برای وصل شدن';
 }

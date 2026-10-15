@@ -6373,6 +6373,168 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'منتظر خاموش شدن وای‌فای…'**
   String get carriermove_wifi_off_waiting;
+
+  /// No description provided for @btmove_wifi_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'الان روی وای‌فای خونه‌اید'**
+  String get btmove_wifi_title;
+
+  /// No description provided for @btmove_wifi_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'گوشی‌هاتون به‌جاش با بلوتوث با هم حرف می‌زنن. رایگانه و وقتی راه بیفتید هم کار می‌کنه.'**
+  String get btmove_wifi_detail;
+
+  /// No description provided for @btmove_found_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'داریم با بلوتوث وصل می‌شیم'**
+  String get btmove_found_title;
+
+  /// No description provided for @btmove_found_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'شبکه لازم نیست. گوشی‌هاتون مستقیم با هم حرف می‌زنن.'**
+  String get btmove_found_detail;
+
+  /// No description provided for @btmove_electing_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'انتخاب گوشی‌ای که منتظر می‌مونه'**
+  String get btmove_electing_title;
+
+  /// No description provided for @btmove_electing_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'هر دو گوشی خودشون یکی رو انتخاب می‌کنن، که هیچ‌وقت هر دو منتظر نمونن.'**
+  String get btmove_electing_detail;
+
+  /// No description provided for @btmove_preparing_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'روشن کردن بلوتوث'**
+  String get btmove_preparing_title;
+
+  /// No description provided for @btmove_preparing_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'اگه اندروید پرسید، اجازه بده.'**
+  String get btmove_preparing_detail;
+
+  /// No description provided for @btmove_moving_host_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'منتظر گوشی {name}'**
+  String btmove_moving_host_title(String name);
+
+  /// No description provided for @btmove_moving_host_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'گوشی‌ها رو نزدیک هم نگه دار و این اتاق رو روی گوشی {name} باز کن.'**
+  String btmove_moving_host_detail(String name);
+
+  /// No description provided for @btmove_moving_joiner_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'دنبال گوشی {name} می‌گردیم'**
+  String btmove_moving_joiner_title(String name);
+
+  /// No description provided for @btmove_moving_joiner_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'گوشی‌ها رو نزدیک هم نگه دار و این اتاق رو روی گوشی {name} باز کن.'**
+  String btmove_moving_joiner_detail(String name);
+
+  /// No description provided for @btmove_verifying_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'مطمئن می‌شیم خود {name}ه'**
+  String btmove_verifying_title(String name);
+
+  /// No description provided for @btmove_verifying_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'قبل از باز شدن کانال، چک می‌کنیم گوشیِ همین اتاقه.'**
+  String get btmove_verifying_detail;
+
+  /// No description provided for @btmove_established_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'با بلوتوث وصل شدید'**
+  String get btmove_established_title;
+
+  /// No description provided for @btmove_established_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'نه مودم، نه اینترنت. فقط دو تا گوشی خودتون.'**
+  String get btmove_established_detail;
+
+  /// No description provided for @btmove_step_start.
+  ///
+  /// In fa, this message translates to:
+  /// **'شروع'**
+  String get btmove_step_start;
+
+  /// No description provided for @btmove_step_bluetooth.
+  ///
+  /// In fa, this message translates to:
+  /// **'بلوتوث'**
+  String get btmove_step_bluetooth;
+
+  /// No description provided for @btmove_step_finding.
+  ///
+  /// In fa, this message translates to:
+  /// **'پیدا کردن'**
+  String get btmove_step_finding;
+
+  /// No description provided for @btmove_stop.
+  ///
+  /// In fa, this message translates to:
+  /// **'توقف'**
+  String get btmove_stop;
+
+  /// No description provided for @btmove_failed_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'با بلوتوث وصل نشد'**
+  String get btmove_failed_title;
+
+  /// No description provided for @btmove_failed_notfound_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'گوشی {name} پیدا نشد. این اتاق رو روی گوشیش باز کن، گوشی‌ها رو نزدیک هم بیار و دوباره امتحان کن.'**
+  String btmove_failed_notfound_detail(String name);
+
+  /// No description provided for @btmove_failed_off_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'بلوتوث خاموشه. روشنش کن و دوباره امتحان کن.'**
+  String get btmove_failed_off_detail;
+
+  /// No description provided for @btmove_failed_permission_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'«تَرک» برای پیدا کردن اون یکی گوشی به اجازهٔ «دستگاه‌های نزدیک» نیاز داره.'**
+  String get btmove_failed_permission_detail;
+
+  /// No description provided for @btmove_failed_location_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'موقعیت مکانی خاموشه و اندروید برای پیدا کردن گوشی‌های نزدیک لازمش داره. روشنش کن و دوباره امتحان کن.'**
+  String get btmove_failed_location_detail;
+
+  /// No description provided for @btmove_failed_check_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'گوشی‌ها به هم وصل شدن، ولی گوشی {name} تأیید نکرد که توی همین اتاقه. دوباره امتحان کن.'**
+  String btmove_failed_check_detail(String name);
+
+  /// No description provided for @btmove_pair_manually.
+  ///
+  /// In fa, this message translates to:
+  /// **'یه راه دیگه برای وصل شدن'**
+  String get btmove_pair_manually;
 }
 
 class _AppLocalizationsDelegate
