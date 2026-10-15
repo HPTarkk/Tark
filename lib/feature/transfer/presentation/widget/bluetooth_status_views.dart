@@ -3,21 +3,28 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/widget/link_established.dart';
+import '../../../../core/widget/connection_journey.dart';
 import '../../../../core/widget/permission_tile.dart';
+import 'network_link_established.dart';
 
 /// Full-screen status views the Bluetooth connect page switches between:
 /// connected flash, connection error, permission recovery, and the generic
 /// icon+text message.
 
+/// The tether locking in: the Bluetooth beat of the app's one
+/// [ConnectionJourney] scene, held for [NetworkLinkEstablished.hold] before
+/// the page opens the channel out of it.
 class BluetoothConnectedFlash extends StatelessWidget {
   const BluetoothConnectedFlash({super.key});
 
   @override
   Widget build(BuildContext context) =>
-      LinkEstablished(label: context.getString.bt_connected);
+      const NetworkLinkEstablished(hotspot: false, bluetooth: true);
 }
 
+/// The tether not happening, told in the same scene it would have locked
+/// in: the wave decoheres into static between the two phones, with the way
+/// forward under it.
 class BluetoothErrorCard extends StatelessWidget {
   final VoidCallback onRetry;
 
@@ -26,64 +33,43 @@ class BluetoothErrorCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.error_outline_rounded, color: AppColors.red, size: 40),
-            const SizedBox(height: 16),
-            Text(
-              s.bt_connection_failed,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
-            ),
-            const SizedBox(height: 22),
-            GestureDetector(
-              onTap: onRetry,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 26,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.amber.withAlpha(25),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppColors.amber.withAlpha(120),
-                    width: 1.5,
-                  ),
-                ),
-                child: Text(
-                  s.retry,
-                  style: TextStyle(
-                    color: AppColors.amber,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            // On iOS a denied Bluetooth prompt lands on this card — and by
-            // now the Settings row exists, so this is the recovery path.
-            TextButton(
-              onPressed: openAppSettings,
-              child: Text(
-                s.open_settings,
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1,
-                ),
-              ),
-            ),
-          ],
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16),
+    );
+    return ConnectionJourney(
+      stage: JourneyStage.failed,
+      link: JourneyLink.bluetooth,
+      title: s.rcv_bt_failed_title,
+      detail: s.rcv_bt_failed_detail,
+      actions: [
+        FilledButton.icon(
+          key: const Key('bluetooth-error-retry'),
+          onPressed: onRetry,
+          style: FilledButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 15),
+            shape: shape,
+          ),
+          icon: const Icon(Icons.refresh_rounded),
+          label: Text(
+            s.retry,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+          ),
         ),
-      ),
+        // On iOS a denied Bluetooth prompt lands here, and by now the
+        // Settings row exists, so this is the recovery path.
+        TextButton(
+          key: const Key('bluetooth-error-settings'),
+          onPressed: openAppSettings,
+          child: Text(
+            s.open_settings,
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

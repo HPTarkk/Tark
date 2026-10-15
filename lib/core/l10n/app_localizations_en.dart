@@ -3273,4 +3273,82 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get linkprep_code_detail => 'Signing your invite code.';
+
+  @override
+  String get rcv_invite_failed_title => 'Your code didn\'t come up';
+
+  @override
+  String get rcv_invite_host_failed =>
+      'This phone couldn\'t start sharing its connection. Try again — the second go usually works.';
+
+  @override
+  String get rcv_invite_bluetooth_failed =>
+      'This phone couldn\'t start Bluetooth for the code. Try again — the second go usually works.';
+
+  @override
+  String get rcv_invite_issue_failed =>
+      'The invite couldn\'t be written. Try again.';
+
+  @override
+  String get rcv_invite_retrying => 'Trying again…';
+
+  @override
+  String get rcv_invite_scan_hint =>
+      'Their phone couldn\'t connect? Let them show their code, and scan it.';
+
+  @override
+  String get rcv_close => 'Close';
+
+  @override
+  String get rcv_reason_wifi_off =>
+      'Wi-Fi is off on this phone. Turn it on, then try again.';
+
+  @override
+  String get rcv_reason_location_off =>
+      'This phone needs Location on to join their hotspot. Turn it on in quick settings, then try again.';
+
+  @override
+  String get rcv_reason_declined =>
+      'This phone couldn\'t get onto their phone\'s hotspot.';
+
+  @override
+  String get rcv_reason_bt_not_found =>
+      'Couldn\'t find their phone over Bluetooth. Keep the invite open on it and stay close.';
+
+  @override
+  String get rcv_reason_bt_permission =>
+      'Joining needs the Nearby devices permission. Allow it, then try again.';
+
+  @override
+  String get rcv_reason_bt_off =>
+      'Bluetooth is off on this phone. Turn it on, then try again.';
+
+  @override
+  String get rcv_reason_no_answer => 'Their phone didn\'t answer in time.';
+
+  @override
+  String get rcv_switch_hint =>
+      'You\'re already in the room, so swap: show your code and let them scan it. On their phone, tap “Scan their code instead”.';
+
+  @override
+  String rcv_scan_switch_hint(String name) {
+    return 'Still not connecting? Show your code and let $name scan it.';
+  }
+
+  @override
+  String rcv_scan_declined_hint(String name) {
+    return 'This phone can\'t get onto $name\'s connection. Show your code instead and let $name scan it.';
+  }
+
+  @override
+  String rcv_show_switch_hint(String name) {
+    return 'Is $name showing a code too? Then scan theirs instead.';
+  }
+
+  @override
+  String get rcv_bt_failed_title => 'Bluetooth didn\'t link';
+
+  @override
+  String get rcv_bt_failed_detail =>
+      'The two phones didn\'t find each other this time. Keep them close and try again.';
 }

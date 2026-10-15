@@ -3243,4 +3243,82 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get linkprep_code_detail => 'داریم کد دعوت رو امضا می‌کنیم.';
+
+  @override
+  String get rcv_invite_failed_title => 'کدت آماده نشد';
+
+  @override
+  String get rcv_invite_host_failed =>
+      'این گوشی نتونست اتصالش رو به اشتراک بذاره. دوباره امتحان کن؛ معمولاً بار دوم درست می‌شه.';
+
+  @override
+  String get rcv_invite_bluetooth_failed =>
+      'بلوتوث این گوشی برای ساختن کد بالا نیومد. دوباره امتحان کن؛ معمولاً بار دوم درست می‌شه.';
+
+  @override
+  String get rcv_invite_issue_failed =>
+      'دعوت‌نامه نوشته نشد. دوباره امتحان کن.';
+
+  @override
+  String get rcv_invite_retrying => 'دارم دوباره امتحان می‌کنم…';
+
+  @override
+  String get rcv_invite_scan_hint =>
+      'گوشیش وصل نشد؟ بگو کد خودش رو نشون بده، تو اسکنش کن.';
+
+  @override
+  String get rcv_close => 'بستن';
+
+  @override
+  String get rcv_reason_wifi_off =>
+      'وای‌فای این گوشی خاموشه. روشنش کن و دوباره امتحان کن.';
+
+  @override
+  String get rcv_reason_location_off =>
+      'این گوشی برای وصل شدن به هات‌اسپاتش به «موقعیت مکانی» احتیاج داره. از تنظیمات سریع روشنش کن و دوباره امتحان کن.';
+
+  @override
+  String get rcv_reason_declined =>
+      'این گوشی نتونست به هات‌اسپات گوشی اون وصل بشه.';
+
+  @override
+  String get rcv_reason_bt_not_found =>
+      'گوشیش با بلوتوث پیدا نشد. دعوت رو روش باز نگه دار و نزدیک بمون.';
+
+  @override
+  String get rcv_reason_bt_permission =>
+      'برای وصل شدن، اجازهٔ «دستگاه‌های نزدیک» لازمه. اجازه بده و دوباره امتحان کن.';
+
+  @override
+  String get rcv_reason_bt_off =>
+      'بلوتوث این گوشی خاموشه. روشنش کن و دوباره امتحان کن.';
+
+  @override
+  String get rcv_reason_no_answer => 'گوشی اون به‌موقع جواب نداد.';
+
+  @override
+  String get rcv_switch_hint =>
+      'تو دیگه عضو اتاقی، پس جاها رو عوض کنید: کدت رو نشون بده تا اون اسکنش کنه. روی گوشی اون «به‌جاش کد اون رو اسکن کن» رو بزنه.';
+
+  @override
+  String rcv_scan_switch_hint(String name) {
+    return 'هنوز وصل نمی‌شه؟ کدت رو نشون بده تا $name اسکنش کنه.';
+  }
+
+  @override
+  String rcv_scan_declined_hint(String name) {
+    return 'این گوشی نمی‌تونه به اتصال $name وصل بشه. به‌جاش کدت رو نشون بده تا $name اسکنش کنه.';
+  }
+
+  @override
+  String rcv_show_switch_hint(String name) {
+    return '$name هم داره کد نشون می‌ده؟ پس به‌جاش کد اون رو اسکن کن.';
+  }
+
+  @override
+  String get rcv_bt_failed_title => 'بلوتوث وصل نشد';
+
+  @override
+  String get rcv_bt_failed_detail =>
+      'این بار دو تا گوشی همدیگه رو پیدا نکردن. نزدیک هم نگهشون دار و دوباره امتحان کن.';
 }

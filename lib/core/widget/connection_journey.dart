@@ -531,8 +531,11 @@ class _JourneyPainter extends CustomPainter {
   void _paintLinking(Canvas c, double t) {
     final arrive = AppMotion.easeOut.transform(t);
     final fromScan = from == JourneyStage.scanned;
-    final me = fromScan ? _me : Offset.lerp(_hub, _me, arrive)!;
-    final peer = fromScan ? _peer : Offset.lerp(_hub, _peer, arrive)!;
+    // Coming back from a failure (Try again), the phones already stand where
+    // they belong: only the link grows again between them.
+    final inPlace = fromScan || from == JourneyStage.failed;
+    final me = inPlace ? _me : Offset.lerp(_hub, _me, arrive)!;
+    final peer = inPlace ? _peer : Offset.lerp(_hub, _peer, arrive)!;
     if (fromScan && link != JourneyLink.sharedWifi) {
       // The ticked ring settles into the link's centre node.
       final center = Offset.lerp(_hub.translate(0, -22), _hub, arrive)!;
@@ -543,7 +546,7 @@ class _JourneyPainter extends CustomPainter {
         _stroke(Color.lerp(green, _linkColor, arrive)!, 2.2),
       );
     }
-    final reveal = fromScan ? arrive : arrive;
+    final reveal = arrive;
     switch (link) {
       case JourneyLink.hotspot:
         _hotspot(c, me, peer, reveal);
@@ -665,72 +668,82 @@ class _JourneyPainter extends CustomPainter {
   }
 
   // --------------------------------------------------------- established
+  //
+  // Each link locks in its own way, carrying on from the motion its linking
+  // stage was making: the scene never cuts to a generic "done".
 
   void _paintEstablished(Canvas c, double t) {
+    switch (link) {
+      case JourneyLink.hotspot:
+        _hotspotEstablished(c, t);
+      case JourneyLink.bluetooth:
+        _bluetoothEstablished(c, t);
+      case JourneyLink.sharedWifi:
+        _wifiEstablished(c, t);
+    }
+  }
+
+  /// The access point's beam locks solid from the other phone to this one,
+  /// the radiating arcs fold back into a steady signal mark on the AP, and
+  /// this phone is reeled in along the beam.
+  void _hotspotEstablished(Canvas c, double t) {
     final lock = AppMotion.easeOut.transform(_span(t, 0, .45));
-    // The phones are pulled together and settle with a little overshoot.
-    final pull = Curves.easeOutBack.transform(_span(t, .05, .6));
-    final me = _me.translate(16 * pull, 0);
-    final peer = _peer.translate(-16 * pull, 0);
-    final from = me.translate(22, 0);
-    final to = peer.translate(-22, 0);
-    final linkColor = Color.lerp(_linkColor, green, lock)!;
-    if (link == JourneyLink.sharedWifi) {
-      // The router keeps carrying them; its legs lock green too.
-      final hub = _routerAt;
-      final body = RRect.fromRectAndRadius(
-        Rect.fromCenter(center: hub, width: 46, height: 20),
-        const Radius.circular(6),
+    final reel = Curves.easeOutBack.transform(_span(t, .08, .62));
+    final me = _me.translate(24 * reel, 0);
+    final peer = _peer;
+    final from = peer.translate(-22, 0);
+    final to = me.translate(22, 0);
+    final color = Color.lerp(amber, green, _span(t, .15, .55))!;
+    // The arcs that were radiating towards this phone fold back into the AP
+    // and stand as its signal mark.
+    final fold = AppMotion.easeInOut.transform(_span(t, 0, .5));
+    final markAt = peer.translate(0, -36);
+    const liveStart = math.pi - .62;
+    // The same heading as the mark below, a turn on: the arcs swing up over
+    // the AP rather than down through the phone.
+    const markStart = math.pi * 1.5 - .75;
+    for (var i = 0; i < 3; i++) {
+      final phase = (loop.value + i / 3) % 1;
+      final live = 22 + 70 * phase;
+      final mark = 6.0 + 6 * i;
+      final alpha = (1 - phase) * .55 * (1 - fold) + fold;
+      c.drawArc(
+        Rect.fromCircle(
+          center: Offset.lerp(peer, markAt, fold)!,
+          radius: live + (mark - live) * fold,
+        ),
+        liveStart + (markStart - liveStart) * fold,
+        1.24 + (1.5 - 1.24) * fold,
+        false,
+        _stroke(color.withValues(alpha: alpha.clamp(0.0, 1.0)), 2 + .4 * fold),
       );
-      c.drawRRect(body, _fill(green.withValues(alpha: .1)));
-      c.drawRRect(body, _stroke(linkColor, 1.8));
-      for (final end in [me, peer]) {
-        c.drawLine(
-          hub.translate(0, 12),
-          end.translate(0, -34),
-          _stroke(linkColor, 2.4),
-        );
+    }
+    c.drawCircle(markAt.translate(0, 3), 2.4 * fold, _fill(color));
+    // The dashed beam hardens into a solid one, AP side first.
+    _dashed(c, from, to, amber.withValues(alpha: .35 * (1 - lock)), 1);
+    c.drawLine(from, Offset.lerp(from, to, lock)!, _stroke(color, 3));
+    // The last packets in flight are swallowed by this phone.
+    final swallow = 1 - _span(t, 0, .4);
+    if (swallow > 0) {
+      for (var i = 0; i < 3; i++) {
+        final p = (loop.value * 1.5 + i / 3) % 1;
+        final pos = Offset.lerp(from, to, AppMotion.easeInOut.transform(p))!;
+        c.drawCircle(pos, 3.2, _fill(amber.withValues(alpha: swallow)));
       }
     }
-    // The link fills solid from both ends at once and meets in the middle.
     final mid = Offset.lerp(from, to, .5)!;
-    c.drawLine(from, Offset.lerp(from, mid, lock)!, _stroke(linkColor, 3));
-    c.drawLine(to, Offset.lerp(to, mid, lock)!, _stroke(linkColor, 3));
-    // The seal: a badge that pops at the meeting point and rings out.
-    final pop = Curves.easeOutBack.transform(_span(t, .32, .7));
-    if (pop > 0) {
-      final r = 21 * pop;
-      c.drawCircle(mid, r, _fill(surface));
-      c.drawCircle(mid, r, _fill(green.withValues(alpha: .18)));
-      c.drawCircle(mid, r, _stroke(green, 2.4));
-      _tick(c, mid, _span(t, .45, .78), green, 8);
-    }
-    final halo = _span(t, .48, 1);
-    if (halo > 0 && halo < 1) {
-      for (var k = 0; k < 2; k++) {
-        final h = (halo - k * .18).clamp(0.0, 1.0);
-        if (h <= 0) continue;
-        c.drawCircle(
-          mid,
-          22 + 74 * AppMotion.easeOut.transform(h),
-          _stroke(green.withValues(alpha: (1 - h) * .5), 1.8 - k * .5),
-        );
-      }
-    }
-    // Sparks thrown off the seal.
-    final spark = _span(t, .5, 1);
-    if (spark > 0 && spark < 1) {
-      for (var i = 0; i < 10; i++) {
-        final a = -math.pi / 2 + (i - 4.5) * .32;
-        final d = 26 + 58 * AppMotion.easeOut.transform(spark);
-        final pos =
-            mid +
-            Offset(math.cos(a), math.sin(a)) * d +
-            Offset(0, 30 * spark * spark);
-        c.drawCircle(
-          pos,
-          2.4 * (1 - spark) + .5,
-          _fill((i % 3 == 0 ? amber : green).withValues(alpha: 1 - spark)),
+    _seal(c, mid, t, at: .38);
+    // One broadcast arc out of the seal towards each phone.
+    final out = _span(t, .5, 1);
+    if (out > 0 && out < 1) {
+      final r = 24 + 60 * AppMotion.easeOut.transform(out);
+      for (final a in const [0.0, math.pi]) {
+        c.drawArc(
+          Rect.fromCircle(center: mid, radius: r),
+          a - .7,
+          1.4,
+          false,
+          _stroke(green.withValues(alpha: (1 - out) * .6), 2),
         );
       }
     }
@@ -738,73 +751,460 @@ class _JourneyPainter extends CustomPainter {
     _phone(c, peer, Color.lerp(ink, green, lock * .6)!, 1, lit: lock);
   }
 
-  // -------------------------------------------------------------- failed
-
-  void _paintFailed(Canvas c, double t) {
-    // A damped shake: the phones tried, and recoil.
-    final shake = math.sin(t * math.pi * 7) * 7 * math.pow(1 - t, 2).toDouble();
-    final drift = AppMotion.easeOut.transform(_span(t, 0, .6)) * 10;
-    final me = _me.translate(-drift + shake, 0);
-    final peer = _peer.translate(drift - shake, 0);
+  /// The travelling wave's amplitude settles into a straight, lit tether, and
+  /// the two radio dots circling each phone spiral in and land in it.
+  void _bluetoothEstablished(Canvas c, double t) {
+    final settle = AppMotion.easeOut.transform(_span(t, 0, .5));
+    final pull = Curves.easeOutBack.transform(_span(t, .05, .6));
+    final me = _me.translate(16 * pull, 0);
+    final peer = _peer.translate(-16 * pull, 0);
+    final color = Color.lerp(_bluetooth, green, _span(t, .25, .6))!;
+    // Orbits spiralling in: the radius closes, the dots fall into the phone.
+    final fall = Curves.easeIn.transform(_span(t, 0, .55));
+    for (final (center, dir) in [(me, 1.0), (peer, -1.0)]) {
+      final radius = 44 * (1 - fall);
+      final a = dir * (loop.value * 2 * math.pi + fall * math.pi * 1.5);
+      if (radius > 1) {
+        c.drawCircle(
+          center,
+          radius,
+          _stroke(_bluetooth.withValues(alpha: .12 * (1 - fall)), 1.2),
+        );
+      }
+      for (var k = 0; k < 2; k++) {
+        final ang = a + k * math.pi;
+        c.drawCircle(
+          center + Offset(math.cos(ang), math.sin(ang)) * radius,
+          2.8 * (1 - .5 * fall),
+          _fill(_bluetooth.withValues(alpha: .9 * (1 - fall * fall))),
+        );
+      }
+    }
+    // The wave keeps travelling while its amplitude dies away.
     final from = me.translate(22, 0);
     final to = peer.translate(-22, 0);
+    final path = Path();
+    const steps = 48;
+    final amp = 9 * (1 - settle);
+    for (var i = 0; i <= steps; i++) {
+      final f = i / steps;
+      final x = from.dx + (to.dx - from.dx) * f;
+      final y =
+          from.dy +
+          math.sin(f * math.pi * 4 - loop.value * math.pi * 2) *
+              amp *
+              math.sin(f * math.pi);
+      i == 0 ? path.moveTo(x, y) : path.lineTo(x, y);
+    }
+    // A soft wider stroke under the line once it is straight: lit, not
+    // blurred.
+    if (settle > .2) {
+      c.drawPath(path, _stroke(color.withValues(alpha: .16 * settle), 7));
+    }
+    c.drawPath(
+      path,
+      _stroke(color.withValues(alpha: .85 + .15 * settle), 2.2 + settle),
+    );
     final mid = Offset.lerp(from, to, .5)!;
-    final color = Color.lerp(_linkColor, red, _span(t, 0, .35))!;
-    // The link snaps at the middle; each half springs back towards its phone.
-    final snap = Curves.elasticOut.transform(_span(t, .08, 1));
-    final gap = 6 + 30 * snap.clamp(0.0, 1.4);
-    final leftEnd = mid.translate(-gap, 0);
-    final rightEnd = mid.translate(gap, 0);
-    final fade = 1 - .55 * _span(t, .4, 1);
-    c.drawLine(from, leftEnd, _stroke(color.withValues(alpha: fade), 2.6));
-    c.drawLine(to, rightEnd, _stroke(color.withValues(alpha: fade), 2.6));
-    // Frayed ends.
-    for (final (end, dir) in [(leftEnd, -1.0), (rightEnd, 1.0)]) {
-      for (final dy in const [-5.0, 5.0]) {
-        c.drawLine(
-          end,
-          end.translate(dir * -6, dy),
-          _stroke(color.withValues(alpha: fade * .8), 1.6),
+    // Two sparks run in from the phones along the straight tether and meet.
+    final meet = _span(t, .32, .58);
+    if (meet > 0 && meet < 1) {
+      final e = AppMotion.easeInOut.transform(meet);
+      for (final end in [from, to]) {
+        c.drawCircle(Offset.lerp(end, mid, e)!, 3.4, _fill(color));
+      }
+    }
+    _seal(c, mid, t, at: .52);
+    // Bluetooth's own pulse language: short dotted rings.
+    final halo = _span(t, .62, 1);
+    if (halo > 0 && halo < 1) {
+      for (var k = 0; k < 2; k++) {
+        final h = (halo - k * .2).clamp(0.0, 1.0);
+        if (h <= 0) continue;
+        _dottedRing(
+          c,
+          mid,
+          24 + 56 * AppMotion.easeOut.transform(h),
+          green.withValues(alpha: (1 - h) * .7),
+          2.6 - k * .6,
         );
       }
     }
-    // Sparks of the break dropping away.
-    final fall = _span(t, .05, .8);
-    if (fall > 0 && fall < 1) {
-      for (var i = 0; i < 6; i++) {
-        final a = -math.pi / 2 + (i - 2.5) * .55;
-        final pos =
-            mid +
-            Offset(math.cos(a), math.sin(a)) * (24 * fall) +
-            Offset(0, 46 * fall * fall);
+    final lit = _span(t, .4, .7);
+    _phone(c, me, Color.lerp(ink, green, lit * .6)!, 1, me: true, lit: lit);
+    _phone(c, peer, Color.lerp(ink, green, lit * .6)!, 1, lit: lit);
+  }
+
+  /// Both legs of the router lock solid, one after the other, and the router
+  /// itself becomes the seal: the network is what joined them.
+  void _wifiEstablished(Canvas c, double t) {
+    final hub = _routerAt;
+    final legMe = AppMotion.easeOut.transform(_span(t, 0, .38));
+    final legPeer = AppMotion.easeOut.transform(_span(t, .12, .5));
+    for (final (end, lock, offset) in [
+      (_me, legMe, 0.0),
+      (_peer, legPeer, .25),
+    ]) {
+      final from = hub.translate(0, 12);
+      final to = end.translate(0, -34);
+      _dashed(c, from, to, amber.withValues(alpha: .32 * (1 - lock)), 1);
+      final color = Color.lerp(amber, green, lock)!;
+      c.drawLine(from, Offset.lerp(from, to, lock)!, _stroke(color, 2.6));
+      // Traffic still in flight drains down to the phones.
+      if (lock < 1) {
+        for (var i = 0; i < 2; i++) {
+          final p = (loop.value * 1.3 + i / 2 + offset) % 1;
+          if (p < lock) continue;
+          c.drawCircle(
+            Offset.lerp(from, to, p)!,
+            2.8,
+            _fill(amber.withValues(alpha: 1 - lock)),
+          );
+        }
+      }
+    }
+    // The router's own arcs stop sweeping and stand as a steady mark.
+    final steady = AppMotion.easeOut.transform(_span(t, .1, .5));
+    final routerColor = Color.lerp(amber, green, _span(t, .3, .6))!;
+    for (var i = 0; i < 2; i++) {
+      final phase = (loop.value + i / 2) % 1;
+      final live = 18 + 16 * phase;
+      final mark = 16.0 + 8 * i;
+      final alpha = (1 - phase) * .4 * (1 - steady) + .9 * steady;
+      c.drawArc(
+        Rect.fromCircle(
+          center: hub.translate(0, -8),
+          radius: live + (mark - live) * steady,
+        ),
+        math.pi * 1.2,
+        math.pi * .6,
+        false,
+        _stroke(
+          routerColor.withValues(alpha: alpha.clamp(0.0, 1.0)),
+          1.6 + .4 * steady,
+        ),
+      );
+    }
+    // The router body gives way to the seal in its place.
+    final pop = _span(t, .45, .8);
+    if (pop < 1) {
+      final body = RRect.fromRectAndRadius(
+        Rect.fromCenter(center: hub, width: 46, height: 20),
+        const Radius.circular(6),
+      );
+      final fade = routerColor.withValues(alpha: 1 - pop);
+      c.drawRRect(body, _fill(routerColor.withValues(alpha: .12 * (1 - pop))));
+      c.drawRRect(body, _stroke(fade, 1.8));
+      for (final dx in const [-12.0, 12.0]) {
+        c.drawLine(
+          hub.translate(dx, -10),
+          hub.translate(dx * 1.3, -20),
+          _stroke(fade, 1.8),
+        );
+      }
+    }
+    _seal(c, hub, t, at: .45, radius: 18);
+    // Rings travel down the legs to each phone rather than out into the sky.
+    final halo = _span(t, .62, 1);
+    if (halo > 0 && halo < 1) {
+      for (final end in [_me, _peer]) {
+        final pos = Offset.lerp(
+          hub.translate(0, 12),
+          end.translate(0, -34),
+          AppMotion.easeOut.transform(halo),
+        )!;
         c.drawCircle(
           pos,
-          2 * (1 - fall) + .4,
-          _fill(red.withValues(alpha: 1 - fall)),
+          4 + 6 * halo,
+          _stroke(green.withValues(alpha: (1 - halo) * .8), 1.8),
         );
       }
     }
-    // A calm mark rather than an alarm.
-    final mark = Curves.easeOutBack.transform(_span(t, .35, .75));
-    if (mark > 0) {
-      final center = mid.translate(0, -48);
-      final r = 17 * mark;
-      c.drawCircle(center, r, _fill(red.withValues(alpha: .12)));
-      c.drawCircle(center, r, _stroke(red.withValues(alpha: mark), 2));
-      final s = 6 * mark;
-      c.drawLine(
-        center.translate(-s, -s),
-        center.translate(s, s),
-        _stroke(red, 2.4),
-      );
-      c.drawLine(
-        center.translate(s, -s),
-        center.translate(-s, s),
-        _stroke(red, 2.4),
+    _phone(
+      c,
+      _me,
+      Color.lerp(ink, green, legMe * .6)!,
+      1,
+      me: true,
+      lit: legMe,
+    );
+    _phone(c, _peer, Color.lerp(ink, green, legPeer * .6)!, 1, lit: legPeer);
+  }
+
+  /// The badge every link ends on: pops at [center] from [at], ticks, holds.
+  void _seal(
+    Canvas c,
+    Offset center,
+    double t, {
+    required double at,
+    double radius = 21,
+  }) {
+    final pop = Curves.easeOutBack.transform(_span(t, at, at + .36));
+    if (pop <= 0) return;
+    final r = radius * pop;
+    c.drawCircle(center, r, _fill(surface));
+    c.drawCircle(center, r, _fill(green.withValues(alpha: .18)));
+    c.drawCircle(center, r, _stroke(green, 2.4));
+    _tick(c, center, _span(t, at + .12, at + .44), green, radius * .38);
+  }
+
+  // -------------------------------------------------------------- failed
+  //
+  // Calm, and specific: what breaks is what the linking stage was showing.
+
+  /// How far an established link had drawn this phone and the other one in
+  /// (as x offsets) when this stage began. A link lost from there lets the
+  /// phones go over the first half of the failure instead of jumping them
+  /// back apart.
+  (double, double) get _heldPull => from != JourneyStage.established
+      ? (0, 0)
+      : switch (link) {
+          JourneyLink.hotspot => (24, 0),
+          JourneyLink.bluetooth => (16, -16),
+          JourneyLink.sharedWifi => (0, 0),
+        };
+
+  /// What is left of [_heldPull] at [t] of the failure.
+  double _held(double t) => 1 - AppMotion.easeInOut.transform(_span(t, 0, .5));
+
+  void _paintFailed(Canvas c, double t) {
+    switch (link) {
+      case JourneyLink.hotspot:
+        _hotspotFailed(c, t);
+      case JourneyLink.bluetooth:
+        _bluetoothFailed(c, t);
+      case JourneyLink.sharedWifi:
+        _wifiFailed(c, t);
+    }
+  }
+
+  /// The AP's arcs flicker out and the beam breaks short of this phone: the
+  /// network was there, and this phone could not get onto it.
+  void _hotspotFailed(Canvas c, double t) {
+    final (meHeld, _) = _heldPull;
+    final peer = _peer;
+    // This phone recoils a little from the beam it could not catch.
+    final recoil =
+        math.sin(t * math.pi * 6) * 5 * math.pow(1 - t, 2).toDouble() -
+        8 * AppMotion.easeOut.transform(_span(t, 0, .5));
+    final me = _me.translate(recoil + meHeld * _held(t), 0);
+    final from = peer.translate(-22, 0);
+    final to = me.translate(22, 0);
+    final broken = Color.lerp(amber, red, _span(t, 0, .35))!;
+    // Arcs stutter and go out, one after another.
+    for (var i = 0; i < 3; i++) {
+      final out = _span(t, i * .12, .5 + i * .12);
+      if (out >= 1) continue;
+      final flicker = math.sin(t * 46 + i * 2.1) > -.2 ? 1.0 : .25;
+      final phase = (loop.value + i / 3) % 1;
+      c.drawArc(
+        Rect.fromCircle(center: peer, radius: 22 + 70 * phase),
+        math.pi - .62,
+        1.24,
+        false,
+        _stroke(
+          amber.withValues(alpha: (1 - phase) * .55 * (1 - out) * flicker),
+          2,
+        ),
       );
     }
+    // What is left of the AP: a dim, still mark with no waves.
+    final markAt = peer.translate(0, -36);
+    final settle = _span(t, .5, .9);
+    if (settle > 0) {
+      for (var i = 0; i < 3; i++) {
+        c.drawArc(
+          Rect.fromCircle(center: markAt, radius: 6.0 + 6 * i),
+          -math.pi / 2 - .75,
+          1.5,
+          false,
+          _stroke(ink.withValues(alpha: .3 * settle), 2),
+        );
+      }
+    }
+    // The beam reaches part-way, then breaks: its far end drops away.
+    final reach = 1 - .48 * AppMotion.easeOut.transform(_span(t, .05, .45));
+    _dashed(
+      c,
+      from,
+      Offset.lerp(from, to, reach)!,
+      broken.withValues(alpha: .55),
+      1,
+    );
+    final drop = _span(t, .1, .85);
+    if (drop < 1) {
+      final fall = Offset(-6 * drop, 44 * drop * drop);
+      c.drawLine(
+        Offset.lerp(from, to, .62)! + fall,
+        to + fall + Offset(0, 14 * drop),
+        _stroke(broken.withValues(alpha: .6 * (1 - drop)), 1.8),
+      );
+    }
+    _calmMark(c, Offset.lerp(from, to, .5)!.translate(0, -48), t);
     _phone(c, me, ink.withValues(alpha: .8), 1, me: true);
     _phone(c, peer, ink.withValues(alpha: .55), 1);
+  }
+
+  /// The wave loses its coherence into static, and each phone's orbiting
+  /// radio drifts away from the other.
+  void _bluetoothFailed(Canvas c, double t) {
+    final drift = AppMotion.easeOut.transform(_span(t, 0, .7));
+    final (meHeld, peerHeld) = _heldPull;
+    final held = _held(t);
+    final me = _me.translate(-12 * drift + meHeld * held, 0);
+    final peer = _peer.translate(12 * drift + peerHeld * held, 0);
+    // Orbits drift outwards and dim: two radios no longer finding each other.
+    for (final (center, dir) in [(me, 1.0), (peer, -1.0)]) {
+      final radius = 44 + 16 * drift;
+      final a = dir * loop.value * 2 * math.pi;
+      c.drawCircle(
+        center,
+        radius,
+        _stroke(_bluetooth.withValues(alpha: .12 * (1 - .6 * drift)), 1.2),
+      );
+      for (var k = 0; k < 2; k++) {
+        final ang = a + k * math.pi;
+        c.drawCircle(
+          center + Offset(math.cos(ang), math.sin(ang)) * radius,
+          2.8,
+          _fill(_bluetooth.withValues(alpha: .9 - .6 * drift)),
+        );
+      }
+    }
+    // The wave turns to static: jitter grows, the line falls apart into
+    // fragments, and the noise settles into a still, broken trace.
+    final from = me.translate(22, 0);
+    final to = peer.translate(-22, 0);
+    final color = Color.lerp(_bluetooth, red, _span(t, 0, .4))!;
+    final decoherence = AppMotion.easeOut.transform(_span(t, 0, .5));
+    final live = 1 - _span(t, .55, 1);
+    final frame = (loop.value * 24).floor();
+    final paint = _stroke(
+      color.withValues(alpha: .85 - .45 * _span(t, .4, 1)),
+      2,
+    );
+    const steps = 48;
+    Offset? last;
+    for (var i = 0; i <= steps; i++) {
+      final f = i / steps;
+      final x = from.dx + (to.dx - from.dx) * f;
+      final envelope = math.sin(f * math.pi);
+      final coherent =
+          math.sin(f * math.pi * 4 - loop.value * math.pi * 2) * 9 * envelope;
+      final noise =
+          (_hash(i, frame) - .5) * 22 * envelope * live +
+          (_hash(i, 7) - .5) * 8 * envelope;
+      final y = from.dy + coherent * (1 - decoherence) + noise * decoherence;
+      final p = Offset(x, y);
+      // Gaps open up as it decays, the middle first.
+      final gapChance = decoherence * (.25 + .55 * envelope);
+      final seed = 3 + (live > 0 ? frame % 3 : 0);
+      if (last != null && _hash(i, seed) > gapChance) {
+        c.drawLine(last, p, paint);
+      }
+      last = p;
+    }
+    _calmMark(c, Offset.lerp(from, to, .5)!.translate(0, -48), t);
+    _phone(c, me, ink.withValues(alpha: .8), 1, me: true);
+    _phone(c, peer, ink.withValues(alpha: .55), 1);
+  }
+
+  /// The router stays up and this phone's leg stays lit, but the other
+  /// phone's leg goes dark: the network is fine, the other phone is not on it.
+  void _wifiFailed(Canvas c, double t) {
+    final hub = _routerAt;
+    final dim = _span(t, 0, .6);
+    final routerColor = amber.withValues(alpha: 1 - .4 * dim);
+    final body = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: hub, width: 46, height: 20),
+      const Radius.circular(6),
+    );
+    c.drawRRect(body, _fill(amber.withValues(alpha: .1)));
+    c.drawRRect(body, _stroke(routerColor, 1.8));
+    for (final dx in const [-12.0, 12.0]) {
+      c.drawLine(
+        hub.translate(dx, -10),
+        hub.translate(dx * 1.3, -20),
+        _stroke(routerColor, 1.8),
+      );
+    }
+    // The router's sweep winds down.
+    for (var i = 0; i < 2; i++) {
+      final phase = (loop.value + i / 2) % 1;
+      c.drawArc(
+        Rect.fromCircle(center: hub.translate(0, -8), radius: 18 + 16 * phase),
+        math.pi * 1.2,
+        math.pi * .6,
+        false,
+        _stroke(amber.withValues(alpha: (1 - phase) * .4 * (1 - dim)), 1.6),
+      );
+    }
+    // This phone's leg: still there, quiet.
+    final legFrom = hub.translate(0, 12);
+    _dashed(c, legFrom, _me.translate(0, -34), amber.withValues(alpha: .32), 1);
+    // Theirs flickers, reddens and goes dark from the router down.
+    final peerTo = _peer.translate(0, -34);
+    final dark = Curves.easeIn.transform(_span(t, .1, .7));
+    final flicker = t < .7 && math.sin(t * 52) < -.3 ? .3 : 1.0;
+    final legColor = Color.lerp(amber, red, _span(t, 0, .3))!;
+    final lit = Offset.lerp(legFrom, peerTo, dark)!;
+    c.drawLine(legFrom, lit, _stroke(ink.withValues(alpha: .12), 1.6));
+    _dashed(
+      c,
+      lit,
+      peerTo,
+      legColor.withValues(alpha: .45 * (1 - dark) * flicker),
+      1,
+    );
+    _calmMark(c, Offset.lerp(legFrom, peerTo, .5)!.translate(26, 0), t);
+    _phone(c, _me, ink.withValues(alpha: .8), 1, me: true);
+    _phone(c, _peer, ink.withValues(alpha: .8 - .45 * dark), 1);
+  }
+
+  /// A calm cross in a ring rather than an alarm.
+  void _calmMark(Canvas c, Offset center, double t) {
+    final mark = Curves.easeOutBack.transform(_span(t, .35, .75));
+    if (mark <= 0) return;
+    final r = 17 * mark;
+    c.drawCircle(center, r, _fill(surface));
+    c.drawCircle(center, r, _fill(red.withValues(alpha: .12)));
+    c.drawCircle(
+      center,
+      r,
+      _stroke(red.withValues(alpha: mark.clamp(0.0, 1.0)), 2),
+    );
+    final s = 6 * mark;
+    c.drawLine(
+      center.translate(-s, -s),
+      center.translate(s, s),
+      _stroke(red, 2.4),
+    );
+    c.drawLine(
+      center.translate(s, -s),
+      center.translate(-s, s),
+      _stroke(red, 2.4),
+    );
+  }
+
+  /// A cheap, stable pseudo-random value in [0, 1) for a pair of integers.
+  static double _hash(int a, int b) {
+    var h = (a * 374761393 + b * 668265263) & 0x7FFFFFFF;
+    h = ((h ^ (h >> 13)) * 1274126177) & 0x7FFFFFFF;
+    h = h ^ (h >> 16);
+    return (h & 0xFFFF) / 0x10000;
+  }
+
+  void _dottedRing(Canvas c, Offset center, double r, Color color, double dot) {
+    final count = (r * 2 * math.pi / 9).floor().clamp(10, 80);
+    final paint = _fill(color);
+    for (var i = 0; i < count; i++) {
+      final a = i / count * math.pi * 2;
+      c.drawCircle(
+        center + Offset(math.cos(a), math.sin(a)) * r,
+        dot / 2,
+        paint,
+      );
+    }
   }
 
   // -------------------------------------------------------------- pieces
