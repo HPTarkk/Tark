@@ -202,4 +202,31 @@ void main() {
 
     expect(plan.hotspotHost, const RoomMemberId('a'));
   });
+
+  test('a live Room still needs a host whose keep-alive is up', () {
+    final plan = RoomTransportPlanner.plan(
+      RoomTransportEnvironment(
+        sharedLanUsable: false,
+        epoch: 2,
+        candidates: [candidate('a', background: false)],
+      ),
+    );
+    expect(plan.kind, isNot(RoomTransportKind.hotspot));
+  });
+
+  test('before the channel a host need not have its keep-alive up yet', () {
+    final plan = RoomTransportPlanner.plan(
+      RoomTransportEnvironment(
+        sharedLanUsable: false,
+        epoch: 2,
+        requireBackgroundReady: false,
+        candidates: [
+          candidate('a', background: false, battery: 40),
+          candidate('b', background: false, battery: 90),
+        ],
+      ),
+    );
+    expect(plan.kind, RoomTransportKind.hotspot);
+    expect(plan.hotspotHost, const RoomMemberId('b'));
+  });
 }

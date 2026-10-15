@@ -1137,5 +1137,6 @@
     "@btmove_moving_joiner_detail": {"placeholders": {"name": {"type": "String"}}},
     "@btmove_verifying_title": {"placeholders": {"name": {"type": "String"}}},
     "@btmove_failed_notfound_detail": {"placeholders": {"name": {"type": "String"}}},
-    "@btmove_failed_check_detail": {"placeholders": {"name": {"type": "String"}}}
+    "@btmove_failed_check_detail": {"placeholders": {"name": {"type": "String"}}},
+    "carriermove_failed_nohost_detail": "هیچ‌کدوم از گوشی‌ها نتونست هات‌اسپات خودش رو بده. دوباره امتحان کن، یا فعلاً روی همین وای‌فای بمون؛ وقتی راه بیفتید همراهتون نمیاد."
 }

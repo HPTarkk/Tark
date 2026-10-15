@@ -3751,4 +3751,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get btmove_pair_manually => 'Connect another way';
+
+  @override
+  String get carriermove_failed_nohost_detail =>
+      'Neither phone could be chosen to share its own hotspot. Try again, or stay on this Wi-Fi for now: it won\'t come with you when you ride off.';
 }

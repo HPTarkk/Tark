@@ -3721,4 +3721,8 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get btmove_pair_manually => 'یه راه دیگه برای وصل شدن';
+
+  @override
+  String get carriermove_failed_nohost_detail =>
+      'هیچ‌کدوم از گوشی‌ها نتونست هات‌اسپات خودش رو بده. دوباره امتحان کن، یا فعلاً روی همین وای‌فای بمون؛ وقتی راه بیفتید همراهتون نمیاد.';
 }

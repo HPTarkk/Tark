@@ -6535,6 +6535,12 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'یه راه دیگه برای وصل شدن'**
   String get btmove_pair_manually;
+
+  /// No description provided for @carriermove_failed_nohost_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'هیچ‌کدوم از گوشی‌ها نتونست هات‌اسپات خودش رو بده. دوباره امتحان کن، یا فعلاً روی همین وای‌فای بمون؛ وقتی راه بیفتید همراهتون نمیاد.'**
+  String get carriermove_failed_nohost_detail;
 }
 
 class _AppLocalizationsDelegate

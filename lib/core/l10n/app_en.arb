@@ -1090,5 +1090,6 @@
     "btmove_failed_permission_detail": "Tarkk needs the Nearby devices permission to find the other phone.",
     "btmove_failed_location_detail": "Location is off, and Android needs it on to find nearby phones. Turn it on, then try again.",
     "btmove_failed_check_detail": "The phones linked, but {name}'s phone didn't confirm it's in this Room. Try again.",
-    "btmove_pair_manually": "Connect another way"
+    "btmove_pair_manually": "Connect another way",
+    "carriermove_failed_nohost_detail": "Neither phone could be chosen to share its own hotspot. Try again, or stay on this Wi-Fi for now: it won't come with you when you ride off."
 }

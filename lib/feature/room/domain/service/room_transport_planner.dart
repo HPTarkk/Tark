@@ -41,7 +41,19 @@ final class RoomTransportEnvironment {
     required this.epoch,
     this.guestExplicitlySelected = false,
     this.bootstrapHotspotHost,
+    this.requireBackgroundReady = true,
   }) : assert(epoch >= 0);
+
+  /// Whether a hotspot host must already have its background keep-alive up.
+  ///
+  /// It must for a Room that is live — a host that Android may freeze in the
+  /// background would take the whole group's network with it. Not for a move
+  /// made before the channel opens: both phones are open in front of their
+  /// people then, and the keep-alive only starts with the channel itself, so
+  /// requiring it there made every phone ineligible and the move never ran
+  /// (2026-10-15: `election=noEligibleHost` on both phones, both on the house
+  /// Wi-Fi, the channel opened over the router).
+  final bool requireBackgroundReady;
 
   /// True only for a peer-proven shared LAN for the current Room/session.
   ///
@@ -112,7 +124,10 @@ abstract final class RoomTransportPlanner {
 
     final hotspotCandidates = environment.candidates
         .where(
-          (candidate) => candidate.canHostHotspot && candidate.backgroundReady,
+          (candidate) =>
+              candidate.canHostHotspot &&
+              (candidate.backgroundReady ||
+                  !environment.requireBackgroundReady),
         )
         .toList(growable: false);
     if (hotspotCandidates.isNotEmpty) {
@@ -141,7 +156,6 @@ abstract final class RoomTransportPlanner {
         hotspotHost: bootstrapHost,
       );
     }
-
 
     return RoomTransportPlan(
       epoch: environment.epoch,

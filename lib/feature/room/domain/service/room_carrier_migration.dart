@@ -75,10 +75,17 @@ final class RoomMigrationOutcome {
     this.result, {
     this.side = RoomMigrationSide.undecided,
     this.failure,
+    this.noHost = false,
   });
 
   final RoomMigrationResult result;
   final RoomMigrationSide side;
+
+  /// A [RoomMigrationResult.stay] because the election found nobody to host
+  /// (or never heard the other phone's side of it), as opposed to the Room
+  /// already being on a phone's own network. Worth telling the person: the
+  /// router is not going with them.
+  final bool noHost;
 
   /// Why a guided step is needed, when the move itself said.
   final RoomCarrierMoveFailure? failure;
@@ -344,9 +351,12 @@ final class RoomCarrierMigration {
     Logger.diagnostic('carrier_move: election=${start.name}');
     switch (start) {
       case RoomCarrierPromotionStart.notNeeded:
+        finish(const RoomMigrationOutcome(RoomMigrationResult.stay));
       case RoomCarrierPromotionStart.noEligibleHost:
       case RoomCarrierPromotionStart.noPeers:
-        finish(const RoomMigrationOutcome(RoomMigrationResult.stay));
+        finish(
+          const RoomMigrationOutcome(RoomMigrationResult.stay, noHost: true),
+        );
       case RoomCarrierPromotionStart.hosting:
       case RoomCarrierPromotionStart.following:
       case RoomCarrierPromotionStart.alreadyMoving:

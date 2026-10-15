@@ -1636,6 +1636,24 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
           clear();
           return live;
         case RoomMigrationResult.stay:
+          if (outcome.noHost) {
+            // Nobody could be chosen to share. Said in the scene, not by
+            // cutting to the call: the router is not going with them.
+            Logger.diagnostic('carrier_move: nobody to host');
+            final again = await _migrationNoHost(stay: stay);
+            if (!mounted) return _EntryState.lobby(room);
+            if (again) {
+              setState(() {
+                _migrationFailure = null;
+                _migrationActions = const [];
+                _migrationProgress = const RoomMigrationProgress(
+                  RoomMigrationStep.found,
+                );
+              });
+              continue;
+            }
+            mover.standDown();
+          }
           clear();
           return live;
         case RoomMigrationResult.abandoned:
@@ -2109,6 +2127,39 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       await progress.cancel();
       await migration.dispose();
     }
+  }
+
+  /// Tells, in the scene, that neither phone could be chosen to share, and
+  /// waits for Try again (true) or staying on this Wi-Fi.
+  Future<bool> _migrationNoHost({required Completer<void> stay}) {
+    final s = context.getString;
+    final choice = Completer<bool>();
+    void pick(bool again) {
+      if (!choice.isCompleted) choice.complete(again);
+    }
+
+    unawaited(stay.future.then((_) => pick(false)));
+    unawaited(_abandonWaits.future.then((_) => pick(false)));
+    setState(() {
+      _migrationFailure = RoomMigrationFailureCopy(
+        title: s.carriermove_failed_title,
+        detail: s.carriermove_failed_nohost_detail,
+      );
+      _migrationActions = [
+        FilledButton.icon(
+          key: const Key('carrier-migration-retry'),
+          onPressed: () => pick(true),
+          icon: const Icon(Icons.refresh_rounded),
+          label: Text(s.reconnect_retry),
+        ),
+        TextButton(
+          key: const Key('carrier-migration-stay'),
+          onPressed: () => pick(false),
+          child: Text(s.carriermove_stay),
+        ),
+      ];
+    });
+    return choice.future;
   }
 
   /// Tells the failure in the move's own scene and waits for the person to

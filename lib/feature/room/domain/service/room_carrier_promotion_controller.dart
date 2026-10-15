@@ -449,6 +449,7 @@ final class RoomCarrierPromotionController implements RoomCarrierMover {
             .where((candidate) => candidate.memberId != localMemberId)
             .length,
         promotionPlannedForGeneration: _plannedGeneration,
+        beforeChannel: _eager,
       ),
     );
   }
@@ -513,6 +514,15 @@ final class RoomCarrierPromotionController implements RoomCarrierMover {
           // on half the roster could pick a different host than the other
           // phone picks, and two access points is worse than none.
           if (!_clock().isBefore(deadline)) {
+            // What the election had to go on, so a move that never ran can
+            // be told apart from one that had nobody to run it.
+            final present = candidates();
+            Logger.diagnostic(
+              'carrier: no move — ${decision.reason.name} '
+              'candidates=${present.length} '
+              'canHost=${present.where((c) => c.canHostHotspot).length} '
+              'background=${present.where((c) => c.backgroundReady).length}',
+            );
             return decision.reason == RoomCarrierPromotionReason.noEligibleHost
                 ? RoomCarrierPromotionStart.noEligibleHost
                 : RoomCarrierPromotionStart.noPeers;

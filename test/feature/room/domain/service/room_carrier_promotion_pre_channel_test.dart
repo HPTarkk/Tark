@@ -39,11 +39,12 @@ void main() {
     RoomMemberId id, {
     bool canHostHotspot = true,
     int batteryPercent = 80,
+    bool backgroundReady = true,
   }) => RoomTransportCandidate(
     memberId: id,
     canHostHotspot: canHostHotspot,
     bluetoothSupported: true,
-    backgroundReady: true,
+    backgroundReady: backgroundReady,
     batteryPercent: batteryPercent,
   );
 
@@ -110,6 +111,42 @@ void main() {
       expect(controller.status.localIsHost, isTrue);
       expect(controller.status.generation, 1);
     });
+
+    test(
+      'moves before the channel even though no keep-alive is up yet',
+      () async {
+        // 2026-10-15: the keep-alive only starts with the channel, so before it
+        // both phones reported "not background ready", nobody could be elected,
+        // and both opened the channel over the house Wi-Fi.
+        final modeStore = _ModeStore(TransferMode.wifi);
+        final host = _Host();
+        final controller = build(
+          local: hostMember,
+          identity: hostIdentity,
+          modeStore: modeStore,
+          host: host,
+          keeper: _Keeper(),
+          exchange: _Exchange(),
+          candidates: () => [
+            candidate(hostMember, batteryPercent: 95, backgroundReady: false),
+            candidate(
+              followerMember,
+              batteryPercent: 30,
+              backgroundReady: false,
+            ),
+          ],
+        );
+        addTearDown(controller.dispose);
+        controller.start();
+
+        expect(
+          await controller.promoteNow(),
+          RoomCarrierPromotionStart.hosting,
+        );
+        await pumpEventQueue();
+        expect(host.starts, 1);
+      },
+    );
 
     test('reuses an access point left up from an earlier invite instead of '
         'calling the router owned', () async {

@@ -128,7 +128,19 @@ void main() {
       build().run().then((o) => outcome = o);
       async.flushMicrotasks();
       expect(outcome?.result, RoomMigrationResult.stay);
+      expect(outcome?.noHost, isTrue, reason: 'worth telling the person');
       expect(mover.stoodDown, isTrue);
+    });
+  });
+
+  test('already on a phone\'s own network: stay, nothing to tell', () {
+    fakeAsync((async) {
+      mover.start = RoomCarrierPromotionStart.notNeeded;
+      RoomMigrationOutcome? outcome;
+      build().run().then((o) => outcome = o);
+      async.flushMicrotasks();
+      expect(outcome?.result, RoomMigrationResult.stay);
+      expect(outcome?.noHost, isFalse);
     });
   });
 

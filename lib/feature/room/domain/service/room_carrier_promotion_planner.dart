@@ -68,7 +68,13 @@ final class RoomCarrierPromotionEnvironment {
     required this.carrierUpFor,
     required this.peersPresent,
     this.promotionPlannedForGeneration,
+    this.beforeChannel = false,
   });
+
+  /// The move is being made before the channel opens, with both phones in
+  /// front of their people. See [RoomTransportEnvironment
+  /// .requireBackgroundReady].
+  final bool beforeChannel;
 
   final RoomCarrierDurability durability;
 
@@ -153,6 +159,7 @@ abstract final class RoomCarrierPromotionPlanner {
         sharedLanUsable: false,
         candidates: environment.candidates,
         epoch: generation,
+        requireBackgroundReady: !environment.beforeChannel,
       ),
     );
     final host = plan.kind == RoomTransportKind.hotspot
