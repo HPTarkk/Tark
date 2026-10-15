@@ -14,7 +14,7 @@ import '../../../../core/sfx/sfx_event.dart';
 import '../../../../core/sfx/sfx_player.dart';
 import '../../../../core/utils/android_sdk.dart';
 import '../../../../core/utils/logger.dart';
-import '../../../../core/utils/permission_queue.dart';
+import '../../../../core/permission/permission_primer.dart';
 import '../../../audio/api/audio_api.dart';
 import '../../domain/entity/hotspot_credentials.dart';
 import '../../domain/entity/session_role.dart';
@@ -515,7 +515,11 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
       final permission = await AndroidSdk.version() >= 33
           ? Permission.nearbyWifiDevices
           : Permission.locationWhenInUse;
-      await PermissionQueue.run(() => permission.request());
+      // Explained first (as location on the phones that ask for location),
+      // then queued like every other request.
+      await PermissionPrimer.request([
+        permission,
+      ], kind: PermissionKind.nearbyWifi);
     } catch (e) {
       Logger.log('Hotspot permission request failed: $e');
     }

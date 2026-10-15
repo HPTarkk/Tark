@@ -13,6 +13,7 @@ import '../core/home_widget/widget_control_channel.dart';
 import '../core/l10n/app_localizations.dart';
 import '../core/l10n/extension.dart';
 import '../core/locale/locale_service.dart';
+import '../core/permission/permission_primer.dart';
 import '../core/router/routes.dart';
 import '../core/theme/app_theme.dart';
 import '../core/theme/theme_service.dart';
@@ -40,6 +41,11 @@ class _MyAppState extends State<MyApp> {
     super.initState();
     LocaleService.locale.addListener(_onAppSettingChanged);
     ThemeService.mode.addListener(_onAppSettingChanged);
+    // Permission requests made away from any screen (the audio engine
+    // starting, a cubit raising a hotspot) explain themselves on the root
+    // navigator before Android's own dialog appears.
+    PermissionPrimer.hostContext = () =>
+        AppRouter.router.routerDelegate.navigatorKey.currentContext;
     // Taps that land while the process is already alive. The cold-start tap
     // is handled in main.dart instead, by picking the router's initial
     // location — routing it through here would push a second page on top of
@@ -111,6 +117,7 @@ class _MyAppState extends State<MyApp> {
   void dispose() {
     LocaleService.locale.removeListener(_onAppSettingChanged);
     ThemeService.mode.removeListener(_onAppSettingChanged);
+    PermissionPrimer.hostContext = null;
     _launchSub?.cancel();
     _controlSub?.cancel();
     _linkSub?.cancel();

@@ -11,7 +11,7 @@ import '../../../core/settings/noise_suppression_engine.dart';
 import '../../../core/settings/settings_repository.dart';
 import '../../../core/settings/suppression_plan.dart';
 import '../../../core/utils/logger.dart';
-import '../../../core/utils/permission_queue.dart';
+import '../../../core/permission/permission_primer.dart';
 import '../domain/audio_processor.dart';
 import '../domain/entity/audio_engine_status.dart';
 import '../domain/entity/audio_frame.dart';
@@ -280,12 +280,14 @@ class AudioEngineImpl implements AudioEngine {
     // audio_io.start(), so treat a throwing/absent handler as "ask later".
     var micGranted = true;
     try {
-      // Queued: the Bluetooth flow can be raising its own dialog at this exact
-      // moment, and Android drops whichever request comes second — leaving
-      // this await hanging forever. See [PermissionQueue].
-      micGranted = (await PermissionQueue.run(
-        () => Permission.microphone.request(),
-      )).isGranted;
+      // Through the primer: an already-granted mic answers at once; otherwise
+      // the person is told why before Android asks. Its request is queued —
+      // the Bluetooth flow can be raising its own dialog at this exact
+      // moment, and Android drops whichever request comes second, leaving
+      // this await hanging forever. See PermissionQueue.
+      micGranted = await PermissionPrimer.ensure(const [
+        Permission.microphone,
+      ], kind: PermissionKind.microphone);
     } catch (e) {
       Logger.log('Mic permission request unavailable: $e');
     }

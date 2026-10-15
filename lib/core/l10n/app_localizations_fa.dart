@@ -3243,4 +3243,145 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get linkprep_code_detail => 'داریم کد دعوت رو امضا می‌کنیم.';
+
+  @override
+  String get perm_allow => 'باشه، اجازه می‌دم';
+
+  @override
+  String get perm_not_now => 'فعلاً نه';
+
+  @override
+  String get perm_try_again => 'یه بار دیگه بپرس';
+
+  @override
+  String get perm_open_settings => 'برو به تنظیمات';
+
+  @override
+  String get perm_denied_title => 'اشکالی نداره، فعلاً خاموش می‌مونه';
+
+  @override
+  String get perm_blocked_title => 'این یکی توی تنظیمات خاموشه';
+
+  @override
+  String perm_blocked_body(String name) {
+    return 'اندروید دیگه از توی برنامه نمی‌پرسه. توی تنظیمات برو سراغ «مجوزها» و «$name» رو روشن کن؛ برگردی، خودمون ادامه می‌دیم.';
+  }
+
+  @override
+  String get perm_blocked_note =>
+      'قبلاً خاموشش کرده بودی، برای همین الان جاش توی تنظیماته.';
+
+  @override
+  String get perm_waiting => 'منتظرتیم — روشنش کن و برگرد، بقیه‌ش با ما.';
+
+  @override
+  String get perm_granted_title => 'ردیف شد!';
+
+  @override
+  String get perm_granted_body => 'داریم از همون‌جا که بودی ادامه می‌دیم…';
+
+  @override
+  String get perm_mic_label => 'میکروفون';
+
+  @override
+  String get perm_mic_title => 'بذار صدات برسه';
+
+  @override
+  String get perm_mic_body =>
+      '«تَرک» با میکروفون صدات رو می‌گیره و مستقیم می‌رسونه به گوشی هم‌کانالی‌هات.';
+
+  @override
+  String get perm_mic_promise => 'صدات فقط به هم‌کانالی‌هات می‌رسه';
+
+  @override
+  String get perm_mic_denied =>
+      'هنوز صدای بقیه رو می‌شنوی. هر وقت خواستی حرف بزنی، از همین‌جا روشنش کن.';
+
+  @override
+  String get perm_camera_label => 'دوربین';
+
+  @override
+  String get perm_camera_title => 'یه نگاه به کد دعوت';
+
+  @override
+  String get perm_camera_body =>
+      'دوربین فقط برای خوندن کد QR روی گوشی رفیقت باز می‌شه.';
+
+  @override
+  String get perm_camera_promise => 'نه عکسی گرفته می‌شه، نه چیزی ذخیره می‌شه';
+
+  @override
+  String get perm_camera_denied =>
+      'بقیه‌ی برنامه مثل قبل کار می‌کنه؛ دوربین فقط برای اسکن کد لازمه.';
+
+  @override
+  String get perm_nearby_label => 'دستگاه‌های نزدیک';
+
+  @override
+  String get perm_nearby_title => 'گوشی‌های دور و برت رو پیدا کنیم';
+
+  @override
+  String get perm_nearby_body =>
+      'با این اجازه، «تَرک» گوشی‌های نزدیکت رو با بلوتوث پیدا می‌کنه و بی‌اینترنت بهشون وصل می‌شه.';
+
+  @override
+  String get perm_nearby_promise => 'مستقیم گوشی‌به‌گوشی، بدون اینترنت';
+
+  @override
+  String get perm_nearby_denied =>
+      'بقیه‌ی برنامه کار می‌کنه؛ فقط وصل شدن با بلوتوث منتظر این اجازه‌ست.';
+
+  @override
+  String get perm_wifi_label => 'دستگاه‌های وای‌فای نزدیک';
+
+  @override
+  String get perm_wifi_title => 'هات‌اسپات خودت رو بساز';
+
+  @override
+  String get perm_wifi_body =>
+      'اندروید این رو می‌خواد تا گوشیت بتونه هات‌اسپات بسازه و گوشی‌هایی که بهش می‌پرن رو ببینه.';
+
+  @override
+  String get perm_wifi_promise => 'یه شبکه‌ی خصوصی فقط برای خودتون';
+
+  @override
+  String get perm_wifi_denied =>
+      'هنوز می‌تونی به هات‌اسپات یکی دیگه وصل شی؛ فقط ساختنش منتظر این اجازه‌ست.';
+
+  @override
+  String get perm_location_label => 'موقعیت مکانی';
+
+  @override
+  String get perm_location_title => 'فقط برای پیدا کردن هم‌سفرها';
+
+  @override
+  String get perm_location_body =>
+      'روی این نسخه‌ی اندروید، پیدا کردن گوشی‌های نزدیک پشت اجازه‌ی موقعیت مکانیه. «تَرک» موقعیتت رو نه می‌خونه، نه نگه می‌داره.';
+
+  @override
+  String get perm_location_promise => 'ردیابی نداریم — هیچ‌وقت';
+
+  @override
+  String get perm_location_denied =>
+      'بقیه‌ی برنامه کار می‌کنه؛ فقط پیدا کردن گوشی‌های نزدیک منتظر این اجازه‌ست.';
+
+  @override
+  String get perm_notif_label => 'اعلان‌ها';
+
+  @override
+  String get perm_notif_title => 'کانال با صفحه‌ی خاموش هم زنده بمونه';
+
+  @override
+  String get perm_notif_body =>
+      'یه اعلان کوچیک یعنی اندروید وسط راه کانال رو نمی‌بنده، حتی وقتی گوشی توی جیبته.';
+
+  @override
+  String get perm_notif_promise => 'فقط یه اعلان آروم، بدون مزاحمت';
+
+  @override
+  String get perm_notif_denied =>
+      'کانال باز هم کار می‌کنه؛ فقط ممکنه وقتی صفحه خاموش شه، اندروید ببندتش.';
+
+  @override
+  String get perm_camera_cta => 'دوربین رو روشن کن';
 }

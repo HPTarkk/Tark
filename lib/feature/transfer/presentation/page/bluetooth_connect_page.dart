@@ -14,7 +14,7 @@ import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/android_sdk.dart';
 import '../../../../core/utils/logger.dart';
-import '../../../../core/utils/permission_queue.dart';
+import '../../../../core/permission/permission_primer.dart';
 import '../../../preflight/presentation/widget/silent_preflight_guard.dart';
 import '../../domain/entity/bluetooth_connection_state.dart';
 import '../../domain/entity/bluetooth_role.dart';
@@ -114,12 +114,18 @@ class _BluetoothConnectPageState extends State<BluetoothConnectPage>
     // ("W/Activity: Can request only one set of permissions at a time") and
     // permission_handler never completes the dropped one's Future. Asking for
     // location up front, through the queue, means the BLE stack finds it
-    // already granted and never prompts. See [PermissionQueue].
+    // already granted and never prompts. See `PermissionQueue`.
     if (await _isPreAndroidS()) {
       requested.add(Permission.locationWhenInUse);
     }
     if (!mounted) return false;
-    final statuses = await PermissionQueue.run(() => requested.request());
+    // Explained first — as location on the pre-S phones that ask for it —
+    // and then queued like every other request.
+    final statuses = await PermissionPrimer.request(
+      requested,
+      kind: PermissionKind.nearbyDevices,
+      context: context,
+    );
     final granted = statuses.values.every((s) => s.isGranted);
     if (mounted) setState(() => _permissionDenied = !granted);
     return granted;

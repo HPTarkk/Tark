@@ -8,6 +8,8 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../l10n/extension.dart';
 import '../motion/app_motion.dart';
+import '../permission/permission_denied_panel.dart';
+import '../permission/permission_primer.dart';
 import '../theme/app_colors.dart';
 import '../utils/logger.dart';
 import 'qr_widgets.dart';
@@ -109,6 +111,12 @@ class _QrScannerSurfaceState extends State<QrScannerSurface>
   Timer? _retryTimer;
   bool _starting = false;
 
+  /// The camera permission was refused in the primer (or "not now"). The
+  /// surface then shows the calm camera-off state with one way back, and
+  /// stops asking on its own — coming back to the app only *checks*, so a
+  /// refusal is never answered with the same question on every resume.
+  bool _cameraOff = false;
+
   /// Scanline crossing the window, same cadence as the QR card's own sweep.
   late final AnimationController _sweep = AnimationController(
     vsync: this,
@@ -203,13 +211,17 @@ class _QrScannerSurfaceState extends State<QrScannerSurface>
     }
   }
 
-  Future<void> _startCamera() async {
+  Future<void> _startCamera({bool ask = false}) async {
     if (!mounted || _starting || _settled) return;
     _starting = true;
     try {
       await _cameraReleased;
       if (!mounted || _settled) return;
       if (_controller.value.isRunning) return;
+      final allowed = await _cameraAllowed(ask: ask || !_cameraOff);
+      if (!mounted || _settled) return;
+      if (allowed == _cameraOff) setState(() => _cameraOff = !allowed);
+      if (!allowed) return;
       await _controller.start();
     } catch (error) {
       // Reported through the controller's state too; the listener decides
@@ -217,6 +229,41 @@ class _QrScannerSurfaceState extends State<QrScannerSurface>
       Logger.log('QR camera start failed: $error');
     } finally {
       _starting = false;
+    }
+  }
+
+  /// The camera-off state's action: the primer again, which asks or sends
+  /// the person to Settings as Android allows.
+  Future<void> _askCamera() async {
+    try {
+      await _controller.stop();
+    } catch (_) {}
+    await _startCamera(ask: true);
+  }
+
+  /// Whether the camera may be opened now. With [ask], the primer explains
+  /// and asks (or sends the person to Settings); without, the status is only
+  /// read. Anything unreadable lets mobile_scanner find out for itself, as it
+  /// always did.
+  Future<bool> _cameraAllowed({required bool ask}) async {
+    if (!PermissionPrimer.supports(PermissionKind.camera)) return true;
+    try {
+      if (ask) {
+        return await PermissionPrimer.ensure(
+          const [Permission.camera],
+          kind: PermissionKind.camera,
+          context: context,
+        );
+      }
+      final statuses = await PermissionPrimer.backend.statuses(const [
+        Permission.camera,
+      ]);
+      return statuses[Permission.camera]?.isUsable ?? true;
+    } catch (error) {
+      Logger.diagnostic(
+        'qr: camera permission unreadable ${error.runtimeType}',
+      );
+      return true;
     }
   }
 
@@ -397,7 +444,9 @@ class _QrScannerSurfaceState extends State<QrScannerSurface>
                           ? widget.openSettingsLabel
                           : context.getString.retry,
                       onAction: denied
-                          ? openAppSettings
+                          ? (PermissionPrimer.supports(PermissionKind.camera)
+                                ? () => unawaited(_askCamera())
+                                : openAppSettings)
                           : () {
                               _retries = 0;
                               unawaited(_restartCamera());
@@ -414,7 +463,9 @@ class _QrScannerSurfaceState extends State<QrScannerSurface>
                 ValueListenableBuilder<MobileScannerState>(
                   valueListenable: _controller,
                   builder: (context, scanner, child) =>
-                      scanner.error == null ? child! : const SizedBox.shrink(),
+                      scanner.error == null && !_cameraOff
+                      ? child!
+                      : const SizedBox.shrink(),
                   child: IgnorePointer(
                     child: _Viewfinder(
                       window: window,
@@ -433,6 +484,23 @@ class _QrScannerSurfaceState extends State<QrScannerSurface>
                     ),
                   ),
                 ),
+                if (_cameraOff)
+                  Positioned.fill(
+                    child: ColoredBox(
+                      color: Colors.black,
+                      child: PermissionDeniedPanel(
+                        key: const Key('qr-scanner-camera-off'),
+                        kind: PermissionKind.camera,
+                        // The camera is black in both themes, so the panel
+                        // is drawn in the dark palette in both.
+                        palette: AppPalette.dark,
+                        title: context.getString.perm_denied_title,
+                        message: widget.cameraDeniedLabel,
+                        actionLabel: context.getString.perm_camera_cta,
+                        onAction: () => unawaited(_askCamera()),
+                      ),
+                    ),
+                  ),
                 // Outside the scanner so the way out stays tappable even when
                 // the camera failed.
                 _ScannerChrome(title: widget.title, controller: _controller),
