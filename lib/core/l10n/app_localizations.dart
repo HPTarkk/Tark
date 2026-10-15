@@ -6313,6 +6313,36 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'این بار نشد. کدت هنوز کار می‌کنه؛ می‌تونه دوباره اسکنش کنه.'**
   String get rcv_invitee_lost;
+
+  /// No description provided for @roomjoin_expired.
+  ///
+  /// In fa, this message translates to:
+  /// **'این کد منقضی شده. بگو یه کد جدید نشونت بده و اسکنش کن.'**
+  String get roomjoin_expired;
+
+  /// No description provided for @roomjoin_busy.
+  ///
+  /// In fa, this message translates to:
+  /// **'هنوز داره اسکن قبلی رو تموم می‌کنه. یه لحظه دیگه دوباره دوربین رو بگیر سمت کد.'**
+  String get roomjoin_busy;
+
+  /// No description provided for @roomjoin_save_failed.
+  ///
+  /// In fa, this message translates to:
+  /// **'نشد اتاق رو روی این گوشی ذخیره کنیم. دوباره دوربین رو بگیر سمت همون کد.'**
+  String get roomjoin_save_failed;
+
+  /// No description provided for @roomjoin_read_failed.
+  ///
+  /// In fa, this message translates to:
+  /// **'خوندن این کد یه مشکلی پیش اومد. دوباره دوربین رو بگیر سمتش.'**
+  String get roomjoin_read_failed;
+
+  /// No description provided for @roomjoin_link_failed.
+  ///
+  /// In fa, this message translates to:
+  /// **'نشد به گوشیش برسیم. تو الان عضو اتاقی، فقط دوباره امتحان کن.'**
+  String get roomjoin_link_failed;
 }
 
 class _AppLocalizationsDelegate

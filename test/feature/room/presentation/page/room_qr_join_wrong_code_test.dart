@@ -41,6 +41,7 @@ void main() {
   Future<QrScannerSurface> pumpScanner(
     WidgetTester tester, {
     BluetoothInviteJoiner? bluetoothJoiner,
+    bool refuse = false,
   }) async {
     handed = [];
     visited = [];
@@ -50,7 +51,7 @@ void main() {
         GoRoute(
           path: AppRoutes.roomQrJoinPath,
           builder: (_, _) => RoomQrJoinPage(
-            cubit: _FakeRoomList(),
+            cubit: _FakeRoomList(refuse: refuse),
             bluetoothJoiner: bluetoothJoiner,
           ),
         ),
@@ -138,10 +139,17 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
     expect(find.byType(QrScannerSurface), findsNothing);
     expect(find.text("Couldn't connect"), findsOneWidget);
+    // Membership is saved before the network half runs, so this is never a
+    // reason to ask for a new code (2026-10-14: "get a new invitation code").
     expect(
-      find.text('Could not join. Ask the host for a fresh invite.'),
+      find.text(
+        "Couldn't reach their phone. You're already in the Room, so just "
+        'try again.',
+      ),
       findsOneWidget,
     );
+    expect(find.textContaining('fresh invite'), findsNothing);
+    expect(find.byKey(const Key('room-join-retry')), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('room-join-scan-again')));
     await tester.pump();
@@ -286,6 +294,75 @@ void main() {
     expect(errorOn(tester), 'That invite is invalid or expired.');
   });
 
+  RoomDirectJoinBundle bundleFor({required Duration expiresIn}) {
+    const roomId = RoomId('0123456789abcdef0123456789abcdef');
+    final memberId = RoomMemberId('111111111111111111111111');
+    final now = DateTime.now().toUtc();
+    final key = List<int>.filled(32, 1);
+    return RoomDirectJoinBundle(
+      memberId: memberId,
+      snapshot: RoomAcceptedJoinSnapshot(
+        roomId: roomId,
+        roomName: 'Ride',
+        roomCreatedAt: now,
+        roomUpdatedAt: now,
+        members: [
+          RoomAcceptedJoinMember(
+            memberId: memberId,
+            kind: RoomMemberKind.member,
+            joinedAt: now,
+            displayName: 'Rider',
+          ),
+        ],
+      ),
+      memberKeyPair: RoomMemberTransportKeyPair(
+        privateKey: key,
+        publicKey: key,
+      ),
+      certificate: RoomMemberTransportCertificate(
+        roomId: roomId,
+        memberId: memberId,
+        memberPublicKey: key,
+        issuerPublicKey: key,
+        issuerSignature: List<int>.filled(64, 2),
+      ),
+      expiresAt: now.add(expiresIn),
+    );
+  }
+
+  testWidgets('only an expired code asks for a new one', (tester) async {
+    final surface = await pumpScanner(tester);
+    final expired = bundleFor(expiresIn: const Duration(minutes: -1));
+
+    expect(await surface.onCode(expired.encode()), isFalse);
+    await tester.pump();
+
+    expect(
+      errorOn(tester),
+      'This code has expired. Ask them to show a new one, then scan it.',
+    );
+    expect(_FakeRoomList.instance.joined, 0);
+  });
+
+  testWidgets('a Room this phone could not save says so, and the same code '
+      'retries it', (tester) async {
+    final surface = await pumpScanner(tester, refuse: true);
+    final code = bundleFor(expiresIn: const Duration(hours: 1)).encode();
+
+    expect(await surface.onCode(code), isFalse);
+    await tester.pump();
+
+    expect(
+      errorOn(tester),
+      "Couldn't save the Room on this phone. Point at the same code again to "
+      'retry.',
+    );
+    expect(errorOn(tester), isNot(contains('fresh invite')));
+    // The camera re-armed: the same code is simply read again.
+    expect(await surface.onCode(code), isFalse);
+    expect(_FakeRoomList.instance.joined, 2);
+  });
+
   testWidgets('and something that was never ours says that instead', (
     tester,
   ) async {
@@ -308,9 +385,12 @@ abstract final class ClientChannel {
 }
 
 class _FakeRoomList implements RoomListCubit {
-  _FakeRoomList() {
+  _FakeRoomList({this.refuse = false}) {
     instance = this;
   }
+
+  /// Saving the Room fails on this phone.
+  final bool refuse;
 
   /// The one the page under test was built with.
   static late _FakeRoomList instance;
@@ -325,8 +405,11 @@ class _FakeRoomList implements RoomListCubit {
     String? localDisplayName,
   }) async {
     joined++;
-    return true;
+    return !refuse;
   }
+
+  @override
+  RoomListState get state => const RoomListState();
 
   @override
   dynamic noSuchMethod(Invocation invocation) =>

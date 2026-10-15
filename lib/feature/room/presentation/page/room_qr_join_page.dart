@@ -194,10 +194,15 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
         }
         return true;
       }
-      setState(() => _error = context.getString.roomjoin_not_joined);
+      setState(() => _error = _refusal(bundle));
       return false;
-    } on FormatException {
+    } on FormatException catch (error) {
       if (!mounted) return false;
+      if (error.message == RoomDirectJoinBundle.expiredMessage) {
+        // The one failure a new code is the answer to.
+        setState(() => _error = context.getString.roomjoin_expired);
+        return false;
+      }
       return _notAnInvite(raw);
     } catch (error) {
       Logger.log('Room QR join failed: $error');
@@ -206,11 +211,30 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
         _journeyFailed(_JoinProblem.unknown);
         return true;
       }
-      setState(() => _error = context.getString.roomjoin_not_joined);
+      // The code was fine; something on this phone was not. Pointing the
+      // camera at the same code tries the whole thing again.
+      setState(() => _error = context.getString.roomjoin_read_failed);
       return false;
     } finally {
       _joining = false;
     }
+  }
+
+  /// Why the Room would not take this code, in words that say what to do.
+  ///
+  /// "Ask the host for a fresh invite" used to cover every refusal, and was
+  /// wrong for most of them: only an expired code needs a new one. The rest
+  /// are this phone's to fix, and the same code (still on the other phone's
+  /// screen) works once they are.
+  String _refusal(RoomDirectJoinBundle bundle) {
+    final s = context.getString;
+    if (bundle.isExpired) return s.roomjoin_expired;
+    var busy = false;
+    try {
+      busy = widget.cubit.state.loading;
+    } catch (_) {}
+    Logger.diagnostic('room_join: refused busy=$busy');
+    return busy ? s.roomjoin_busy : s.roomjoin_save_failed;
   }
 
   void _beginJourney(JourneyLink link, String roomName) {
@@ -625,7 +649,9 @@ enum _JoinProblem {
     bluetoothLocation => s.roomjoin_location_off,
     bluetoothOff => s.rcv_reason_bt_off,
     bluetoothNotFound => s.rcv_reason_bt_not_found,
-    unknown => s.roomjoin_not_joined,
+    // Membership is already saved by the time the network half runs, so
+    // this is never a reason to ask for a new code.
+    unknown => s.roomjoin_link_failed,
   };
 }
 

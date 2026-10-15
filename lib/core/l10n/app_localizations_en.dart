@@ -3607,4 +3607,24 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get rcv_invitee_lost =>
       'That try didn\'t go through. Your code still works — they can scan it again.';
+
+  @override
+  String get roomjoin_expired =>
+      'This code has expired. Ask them to show a new one, then scan it.';
+
+  @override
+  String get roomjoin_busy =>
+      'Still finishing the last scan. Point at the code again in a moment.';
+
+  @override
+  String get roomjoin_save_failed =>
+      'Couldn\'t save the Room on this phone. Point at the same code again to retry.';
+
+  @override
+  String get roomjoin_read_failed =>
+      'Something went wrong reading that code. Point at it again to retry.';
+
+  @override
+  String get roomjoin_link_failed =>
+      'Couldn\'t reach their phone. You\'re already in the Room, so just try again.';
 }

@@ -1053,5 +1053,10 @@
     "rcv_invitee_connecting_detail": "Their phone reached yours. Keep both phones close for a moment.",
     "rcv_invitee_connected_title": "Connected",
     "rcv_invitee_connected_detail": "Opening the channel…",
-    "rcv_invitee_lost": "That try didn't go through. Your code still works — they can scan it again."
+    "rcv_invitee_lost": "That try didn't go through. Your code still works — they can scan it again.",
+    "roomjoin_expired": "This code has expired. Ask them to show a new one, then scan it.",
+    "roomjoin_busy": "Still finishing the last scan. Point at the code again in a moment.",
+    "roomjoin_save_failed": "Couldn't save the Room on this phone. Point at the same code again to retry.",
+    "roomjoin_read_failed": "Something went wrong reading that code. Point at it again to retry.",
+    "roomjoin_link_failed": "Couldn't reach their phone. You're already in the Room, so just try again."
 }

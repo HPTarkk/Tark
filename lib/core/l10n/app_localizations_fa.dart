@@ -3577,4 +3577,24 @@ class AppLocalizationsFa extends AppLocalizations {
   @override
   String get rcv_invitee_lost =>
       'این بار نشد. کدت هنوز کار می‌کنه؛ می‌تونه دوباره اسکنش کنه.';
+
+  @override
+  String get roomjoin_expired =>
+      'این کد منقضی شده. بگو یه کد جدید نشونت بده و اسکنش کن.';
+
+  @override
+  String get roomjoin_busy =>
+      'هنوز داره اسکن قبلی رو تموم می‌کنه. یه لحظه دیگه دوباره دوربین رو بگیر سمت کد.';
+
+  @override
+  String get roomjoin_save_failed =>
+      'نشد اتاق رو روی این گوشی ذخیره کنیم. دوباره دوربین رو بگیر سمت همون کد.';
+
+  @override
+  String get roomjoin_read_failed =>
+      'خوندن این کد یه مشکلی پیش اومد. دوباره دوربین رو بگیر سمتش.';
+
+  @override
+  String get roomjoin_link_failed =>
+      'نشد به گوشیش برسیم. تو الان عضو اتاقی، فقط دوباره امتحان کن.';
 }

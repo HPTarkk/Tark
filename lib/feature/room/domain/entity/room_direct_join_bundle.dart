@@ -153,6 +153,10 @@ final class RoomDirectJoinBundle {
   final RoomMemberTransportCertificate certificate;
   final DateTime expiresAt;
 
+  /// The [FormatException] message [decode] throws for a code whose time is
+  /// up, so a reader can tell "ask for a new code" apart from "not a code".
+  static const expiredMessage = 'Room invite expired';
+
   bool get isExpired => DateTime.now().toUtc().isAfter(expiresAt.toUtc());
 
   String encode() {
@@ -202,7 +206,7 @@ final class RoomDirectJoinBundle {
       // Re-run all cross-field checks in one canonical place, whichever
       // layout the bytes arrived in.
       bundle._assertConsistent();
-      if (bundle.isExpired) throw const FormatException('Room invite expired');
+      if (bundle.isExpired) throw const FormatException(expiredMessage);
       return bundle;
     } on FormatException {
       rethrow;
