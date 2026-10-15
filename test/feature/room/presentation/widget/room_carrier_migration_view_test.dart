@@ -15,6 +15,9 @@ void main() {
     bool reduced = false,
     VoidCallback? onEstablished,
     VoidCallback? onStay,
+    RoomMigrationFailureCopy? failure,
+    List<Widget> actions = const [],
+    bool fellBack = false,
   }) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -30,6 +33,9 @@ void main() {
               caption: 'Night ride',
               onEstablished: onEstablished,
               onStay: onStay,
+              failure: failure,
+              actions: actions,
+              fellBack: fellBack,
             ),
           ),
         ),
@@ -132,10 +138,7 @@ void main() {
       ),
     );
     for (var i = 0; i < 6; i++) {
-      expect(
-        find.byKey(ValueKey('carrier-migration-step-$i')),
-        findsOneWidget,
-      );
+      expect(find.byKey(ValueKey('carrier-migration-step-$i')), findsOneWidget);
     }
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 2));
@@ -157,6 +160,84 @@ void main() {
     expect(tester.takeException(), isNull);
     // Reduced motion: nothing keeps ticking, so the tree settles.
     await tester.pumpAndSettle();
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 2));
+  });
+
+  testWidgets('a call back on the house Wi-Fi says so in the first beat', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      const RoomMigrationProgress(RoomMigrationStep.found),
+      fellBack: true,
+    );
+    expect(title(tester), isNot('Found Sara on this Wi-Fi'));
+    expect(title(tester), isNotEmpty);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 2));
+  });
+
+  testWidgets('a failure is told in the same scene, with its way forward', (
+    tester,
+  ) async {
+    var retried = 0;
+    const progress = RoomMigrationProgress(
+      RoomMigrationStep.moving,
+      side: RoomMigrationSide.host,
+    );
+    await pump(tester, progress);
+    expect(find.byKey(const Key('test-retry')), findsNothing);
+
+    await pump(
+      tester,
+      progress,
+      failure: const RoomMigrationFailureCopy(
+        title: 'Wi-Fi is in the way',
+        detail: 'Turn it off and carry on',
+      ),
+      actions: [
+        FilledButton(
+          key: const Key('test-retry'),
+          onPressed: () => retried++,
+          child: const Text('Try again'),
+        ),
+      ],
+    );
+    // The same scene stays up; it only changes what it says.
+    expect(find.byKey(const ValueKey('carrier-migration-scene')), findsOne);
+    expect(title(tester), 'Wi-Fi is in the way');
+    expect(find.text('Turn it off and carry on'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 1));
+    await tester.tap(find.byKey(const Key('test-retry')));
+    expect(retried, 1);
+    // The failure owns the way out; the scene's own stay link stands aside.
+    await tester.pump(const Duration(seconds: 13));
+    expect(find.byKey(const Key('carrier-migration-stay')), findsNothing);
+
+    // Try again plays the failure backwards into the move.
+    await pump(tester, const RoomMigrationProgress(RoomMigrationStep.found));
+    await tester.pump(const Duration(seconds: 1));
+    expect(title(tester), 'Found Sara on this Wi-Fi');
+    expect(find.byKey(const Key('test-retry')), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 2));
+  });
+
+  testWidgets('a failure under reduced motion settles at once', (tester) async {
+    await pump(
+      tester,
+      const RoomMigrationProgress(
+        RoomMigrationStep.moving,
+        side: RoomMigrationSide.joiner,
+      ),
+      reduced: true,
+      locale: const Locale('fa'),
+      failure: const RoomMigrationFailureCopy(title: 'X', detail: 'Y'),
+    );
+    expect(tester.takeException(), isNull);
+    await tester.pumpAndSettle();
+    expect(title(tester), 'X');
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 2));
   });

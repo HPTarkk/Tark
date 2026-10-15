@@ -3259,7 +3259,7 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get carriermove_electing_detail =>
-      'هر دو گوشی یکی رو انتخاب می‌کنن: اونی که قبلاً میزبان بوده، بعد اونی که باتری بیشتری داره.';
+      'هر دو گوشی یکی رو انتخاب می‌کنن: اونی که می‌تونه هم هات‌اسپات بده هم وای‌فای روشن بمونه، بعد اونی که باتری بیشتری داره.';
 
   @override
   String get carriermove_preparing_host_title =>
@@ -3597,4 +3597,46 @@ class AppLocalizationsFa extends AppLocalizations {
   @override
   String get roomjoin_link_failed =>
       'نشد به گوشیش برسیم. تو الان عضو اتاقی، فقط دوباره امتحان کن.';
+
+  @override
+  String get carriermove_fallback_title => 'الان روی وای‌فای خونه‌اید';
+
+  @override
+  String get carriermove_fallback_detail =>
+      'اینجا کار می‌کنه، ولی وقتی راه بیفتید نه. داریم هات‌اسپات یکی از گوشی‌ها رو آماده می‌کنیم که وصل بمونید.';
+
+  @override
+  String get carriermove_failed_title => 'جابه‌جایی کامل نشد';
+
+  @override
+  String get carriermove_failed_wifi_title => 'هات‌اسپاتت قطع شد';
+
+  @override
+  String carriermove_failed_wifi_detail(String name) {
+    return 'این گوشی وقتی به وای‌فای خونه وصله نمی‌تونه هات‌اسپات خودش رو روشن نگه داره. وای‌فای رو خاموش کن تا ادامه بده: $name فقط یه بار کدت رو اسکن می‌کنه.';
+  }
+
+  @override
+  String carriermove_failed_host_detail(String name) {
+    return 'دوباره امتحان کن تا گوشیت یه کد نشون بده که $name اسکنش کنه. تا اون موقع از طریق وای‌فای خونه وصلید.';
+  }
+
+  @override
+  String carriermove_failed_joiner_detail(String name) {
+    return 'گوشی $name نتونست تو رو بیاره. ادامه بده و کدی که گوشیش نشون می‌ده رو اسکن کن.';
+  }
+
+  @override
+  String carriermove_failed_declined_detail(String name) {
+    return 'درخواست اتصال بسته شد. ادامه بده و کد روی گوشی $name رو اسکن کن.';
+  }
+
+  @override
+  String get carriermove_continue_joiner => 'ادامه';
+
+  @override
+  String get carriermove_wifi_off => 'خاموش کردن وای‌فای';
+
+  @override
+  String get carriermove_wifi_off_waiting => 'منتظر خاموش شدن وای‌فای…';
 }

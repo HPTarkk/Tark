@@ -5783,7 +5783,7 @@ abstract class AppLocalizations {
   /// No description provided for @carriermove_electing_detail.
   ///
   /// In fa, this message translates to:
-  /// **'هر دو گوشی یکی رو انتخاب می‌کنن: اونی که قبلاً میزبان بوده، بعد اونی که باتری بیشتری داره.'**
+  /// **'هر دو گوشی یکی رو انتخاب می‌کنن: اونی که می‌تونه هم هات‌اسپات بده هم وای‌فای روشن بمونه، بعد اونی که باتری بیشتری داره.'**
   String get carriermove_electing_detail;
 
   /// No description provided for @carriermove_preparing_host_title.
@@ -6343,6 +6343,72 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'نشد به گوشیش برسیم. تو الان عضو اتاقی، فقط دوباره امتحان کن.'**
   String get roomjoin_link_failed;
+
+  /// No description provided for @carriermove_fallback_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'الان روی وای‌فای خونه‌اید'**
+  String get carriermove_fallback_title;
+
+  /// No description provided for @carriermove_fallback_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'اینجا کار می‌کنه، ولی وقتی راه بیفتید نه. داریم هات‌اسپات یکی از گوشی‌ها رو آماده می‌کنیم که وصل بمونید.'**
+  String get carriermove_fallback_detail;
+
+  /// No description provided for @carriermove_failed_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'جابه‌جایی کامل نشد'**
+  String get carriermove_failed_title;
+
+  /// No description provided for @carriermove_failed_wifi_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'هات‌اسپاتت قطع شد'**
+  String get carriermove_failed_wifi_title;
+
+  /// No description provided for @carriermove_failed_wifi_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'این گوشی وقتی به وای‌فای خونه وصله نمی‌تونه هات‌اسپات خودش رو روشن نگه داره. وای‌فای رو خاموش کن تا ادامه بده: {name} فقط یه بار کدت رو اسکن می‌کنه.'**
+  String carriermove_failed_wifi_detail(String name);
+
+  /// No description provided for @carriermove_failed_host_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'دوباره امتحان کن تا گوشیت یه کد نشون بده که {name} اسکنش کنه. تا اون موقع از طریق وای‌فای خونه وصلید.'**
+  String carriermove_failed_host_detail(String name);
+
+  /// No description provided for @carriermove_failed_joiner_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'گوشی {name} نتونست تو رو بیاره. ادامه بده و کدی که گوشیش نشون می‌ده رو اسکن کن.'**
+  String carriermove_failed_joiner_detail(String name);
+
+  /// No description provided for @carriermove_failed_declined_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'درخواست اتصال بسته شد. ادامه بده و کد روی گوشی {name} رو اسکن کن.'**
+  String carriermove_failed_declined_detail(String name);
+
+  /// No description provided for @carriermove_continue_joiner.
+  ///
+  /// In fa, this message translates to:
+  /// **'ادامه'**
+  String get carriermove_continue_joiner;
+
+  /// No description provided for @carriermove_wifi_off.
+  ///
+  /// In fa, this message translates to:
+  /// **'خاموش کردن وای‌فای'**
+  String get carriermove_wifi_off;
+
+  /// No description provided for @carriermove_wifi_off_waiting.
+  ///
+  /// In fa, this message translates to:
+  /// **'منتظر خاموش شدن وای‌فای…'**
+  String get carriermove_wifi_off_waiting;
 }
 
 class _AppLocalizationsDelegate

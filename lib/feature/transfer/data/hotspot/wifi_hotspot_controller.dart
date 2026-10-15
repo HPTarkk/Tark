@@ -16,10 +16,45 @@ import '../../domain/service/hotspot_control.dart';
 /// screen — [stop] is what tears it down (when the user leaves the session).
 @LazySingleton(as: HotspotHost)
 class WifiHotspotController implements HotspotHost {
+  WifiHotspotController({
+    @ignoreParam Future<Set<String>> Function()? localAddresses,
+    @ignoreParam this.apWatchInterval = const Duration(seconds: 2),
+    @ignoreParam this.apDiscoveryWindow = const Duration(seconds: 12),
+    @ignoreParam bool? supported,
+  }) : _localAddresses = localAddresses ?? _ipv4Addresses,
+       _supported = supported;
+
   static const _channel = MethodChannel('tark/hotspot');
   static const _events = EventChannel('tark/hotspot/events');
 
-  bool get isSupported => Platform.isAndroid;
+  /// This device's IPv4 addresses, as `interface/address`.
+  final Future<Set<String>> Function() _localAddresses;
+
+  /// How often the access point's own address is looked for while hosting.
+  final Duration apWatchInterval;
+
+  /// How long after the start the access point's address may take to appear.
+  final Duration apDiscoveryWindow;
+
+  static Future<Set<String>> _ipv4Addresses() async {
+    try {
+      final interfaces = await NetworkInterface.list(
+        type: InternetAddressType.IPv4,
+        includeLoopback: false,
+      );
+      return {
+        for (final interface in interfaces)
+          for (final address in interface.addresses)
+            '${interface.name}/${address.address}',
+      };
+    } catch (_) {
+      return const {};
+    }
+  }
+
+  final bool? _supported;
+
+  bool get isSupported => _supported ?? Platform.isAndroid;
 
   bool _hosting = false;
 
@@ -32,6 +67,10 @@ class WifiHotspotController implements HotspotHost {
   /// air.
   StreamSubscription<void>? _teardownWatch;
 
+  /// Teardowns nobody was told about; see [_watchAccessPoint].
+  final StreamController<void> _silentStops = StreamController.broadcast();
+  Timer? _apWatch;
+
   @override
   bool get isHosting => _hosting;
 
@@ -39,8 +78,23 @@ class WifiHotspotController implements HotspotHost {
   /// STA reconnect stealing the single radio, Doze, etc. — as opposed to our
   /// own [stop]. Lets a host recover instead of silently going dead. Never
   /// emits for an app-initiated teardown (see HotspotHandler.expectingStop).
+  ///
+  /// Also fires when the access point's own address disappears from this
+  /// phone with no callback at all — see [_watchAccessPoint].
   @override
-  Stream<void> get onStopped => _events
+  Stream<void> get onStopped => Stream<void>.multi((controller) {
+    final native = _nativeStops.listen(
+      controller.add,
+      onError: controller.addError,
+    );
+    final silent = _silentStops.stream.listen(controller.add);
+    controller.onCancel = () async {
+      await native.cancel();
+      await silent.cancel();
+    };
+  }, isBroadcast: true);
+
+  Stream<void> get _nativeStops => _events
       .receiveBroadcastStream()
       .where((event) {
         if (event is! Map || event['event'] != 'stopped') return false;
@@ -63,6 +117,9 @@ class WifiHotspotController implements HotspotHost {
       throw UnsupportedError('Hotspot hosting requires Android.');
     }
     Logger.diagnostic('hotspot: start requested');
+    // What was already here, so the access point's own address is the one
+    // that appears once it is up.
+    final before = await _localAddresses();
     try {
       final result =
           await _channel.invokeMapMethod<String, dynamic>('start') ?? const {};
@@ -82,6 +139,7 @@ class WifiHotspotController implements HotspotHost {
       Logger.diagnostic('hotspot: started security=$security');
       _hosting = true;
       _watchTeardown();
+      _watchAccessPoint(before);
       return HotspotCredentials(
         ssid: ssid,
         passphrase: passphrase,
@@ -108,6 +166,62 @@ class WifiHotspotController implements HotspotHost {
   void _stopWatchingTeardown() {
     unawaited(_teardownWatch?.cancel() ?? Future<void>.value());
     _teardownWatch = null;
+    _apWatch?.cancel();
+    _apWatch = null;
+  }
+
+  /// Watches for the access point leaving the air without a word.
+  ///
+  /// Android is meant to call `onStopped` when it takes a local-only hotspot
+  /// down. A Galaxy S8 on Android 9, hosting while still on the house Wi-Fi,
+  /// dropped its access point about forty seconds in and said nothing: the
+  /// other phone fell off it, this phone's own 192.168.43.1 was gone, and
+  /// [isHosting] still said true (2026-10-15 logs). Everything that decides
+  /// whether to move or recover read that stale true, so both phones carried
+  /// on over the router and nothing ever tried again.
+  ///
+  /// So the access point's own address is learnt from what appeared when it
+  /// came up — the gateway (`.1`) when there is one, the new addresses
+  /// otherwise — and once it has been missing on two looks in a row, the
+  /// hotspot is treated as stopped by the OS, exactly as if it had said so.
+  /// An address that never shows up is not evidence of anything and stops
+  /// the watch rather than guessing.
+  void _watchAccessPoint(Set<String> before) {
+    _apWatch?.cancel();
+    Set<String>? own;
+    var missing = 0;
+    final startedAt = DateTime.now();
+    var looking = false;
+    _apWatch = Timer.periodic(apWatchInterval, (timer) async {
+      if (looking) return;
+      looking = true;
+      try {
+        final now = await _localAddresses();
+        if (!_hosting || !identical(_apWatch, timer)) return;
+        if (own == null) {
+          final fresh = now.difference(before);
+          final gateways = fresh.where((entry) => entry.endsWith('.1')).toSet();
+          if (fresh.isNotEmpty) {
+            own = gateways.isNotEmpty ? gateways : fresh;
+          } else if (DateTime.now().difference(startedAt) > apDiscoveryWindow) {
+            timer.cancel();
+          }
+          return;
+        }
+        if (own!.any(now.contains)) {
+          missing = 0;
+          return;
+        }
+        if (++missing < 2) return;
+        timer.cancel();
+        _apWatch = null;
+        Logger.diagnostic('hotspot: stopped reason=address_gone');
+        _hosting = false;
+        _silentStops.add(null);
+      } finally {
+        looking = false;
+      }
+    });
   }
 
   @override

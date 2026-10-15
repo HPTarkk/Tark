@@ -3288,7 +3288,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get carriermove_electing_detail =>
-      'Both phones pick the same one: the one that has led before, then the fullest battery.';
+      'Both phones pick the same one: the one that can share and keep Wi-Fi on, then the fullest battery.';
 
   @override
   String get carriermove_preparing_host_title =>
@@ -3627,4 +3627,46 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get roomjoin_link_failed =>
       'Couldn\'t reach their phone. You\'re already in the Room, so just try again.';
+
+  @override
+  String get carriermove_fallback_title => 'You\'re on home Wi-Fi';
+
+  @override
+  String get carriermove_fallback_detail =>
+      'It works here, but not once you ride off. Getting one phone\'s own hotspot ready so you stay connected.';
+
+  @override
+  String get carriermove_failed_title => 'The move didn\'t finish';
+
+  @override
+  String get carriermove_failed_wifi_title => 'Your hotspot dropped';
+
+  @override
+  String carriermove_failed_wifi_detail(String name) {
+    return 'This phone can\'t keep its own hotspot up while it\'s on the home Wi-Fi. Turn Wi-Fi off and it carries on: $name scans your code once.';
+  }
+
+  @override
+  String carriermove_failed_host_detail(String name) {
+    return 'Try again and your phone shows a code for $name to scan. You\'re still connected over the home Wi-Fi meanwhile.';
+  }
+
+  @override
+  String carriermove_failed_joiner_detail(String name) {
+    return '$name\'s phone couldn\'t bring you across. Continue, and scan the code their phone shows.';
+  }
+
+  @override
+  String carriermove_failed_declined_detail(String name) {
+    return 'The connection request was closed. Continue, and scan the code on $name\'s phone.';
+  }
+
+  @override
+  String get carriermove_continue_joiner => 'Continue';
+
+  @override
+  String get carriermove_wifi_off => 'Turn off Wi-Fi';
+
+  @override
+  String get carriermove_wifi_off_waiting => 'Waiting for Wi-Fi to turn off…';
 }

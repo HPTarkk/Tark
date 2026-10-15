@@ -964,7 +964,7 @@
     "carriermove_found_title": "Found {name} on this Wi-Fi",
     "carriermove_found_detail": "Your phones can hear each other through the router. Moving you onto your own connection before the ride.",
     "carriermove_electing_title": "Choosing whose phone leads",
-    "carriermove_electing_detail": "Both phones pick the same one: the one that has led before, then the fullest battery.",
+    "carriermove_electing_detail": "Both phones pick the same one: the one that can share and keep Wi-Fi on, then the fullest battery.",
     "carriermove_preparing_host_title": "Starting this phone's own Wi-Fi",
     "carriermove_preparing_joiner_title": "{name}'s phone is starting its own Wi-Fi",
     "carriermove_preparing_detail": "The router stays behind when you ride off, so your phones won't rely on it.",
@@ -1058,5 +1058,16 @@
     "roomjoin_busy": "Still finishing the last scan. Point at the code again in a moment.",
     "roomjoin_save_failed": "Couldn't save the Room on this phone. Point at the same code again to retry.",
     "roomjoin_read_failed": "Something went wrong reading that code. Point at it again to retry.",
-    "roomjoin_link_failed": "Couldn't reach their phone. You're already in the Room, so just try again."
+    "roomjoin_link_failed": "Couldn't reach their phone. You're already in the Room, so just try again.",
+    "carriermove_fallback_title": "You're on home Wi-Fi",
+    "carriermove_fallback_detail": "It works here, but not once you ride off. Getting one phone's own hotspot ready so you stay connected.",
+    "carriermove_failed_title": "The move didn't finish",
+    "carriermove_failed_wifi_title": "Your hotspot dropped",
+    "carriermove_failed_wifi_detail": "This phone can't keep its own hotspot up while it's on the home Wi-Fi. Turn Wi-Fi off and it carries on: {name} scans your code once.",
+    "carriermove_failed_host_detail": "Try again and your phone shows a code for {name} to scan. You're still connected over the home Wi-Fi meanwhile.",
+    "carriermove_failed_joiner_detail": "{name}'s phone couldn't bring you across. Continue, and scan the code their phone shows.",
+    "carriermove_failed_declined_detail": "The connection request was closed. Continue, and scan the code on {name}'s phone.",
+    "carriermove_continue_joiner": "Continue",
+    "carriermove_wifi_off": "Turn off Wi-Fi",
+    "carriermove_wifi_off_waiting": "Waiting for Wi-Fi to turn off…"
 }

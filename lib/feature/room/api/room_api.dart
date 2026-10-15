@@ -24,8 +24,10 @@ export '../domain/service/room_connection_readiness_gate.dart'
         RoomPeerProofEvidence;
 export '../domain/service/room_carrier_migration.dart';
 export '../domain/service/room_carrier_promotion_controller.dart'
-    show RoomCarrierMoveFailure;
+    show RoomCarrierMoveFailure, RoomCarrierMover, RoomCarrierStatus;
 export '../domain/service/room_connection_trace.dart' show RoomConnectionTrace;
+export '../domain/service/room_hotspot_fallback_detector.dart'
+    show RoomHotspotFallbackDetector;
 export '../domain/service/room_pre_live_announcer.dart'
     show RoomPreLiveAnnouncer;
 export '../domain/service/room_transport_planner.dart'

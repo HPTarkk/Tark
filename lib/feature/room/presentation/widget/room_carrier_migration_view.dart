@@ -23,6 +23,16 @@ import '../../domain/service/room_carrier_migration.dart';
 /// Driven entirely by [progress]. Every step change plays its own entrance,
 /// never backwards; with reduced motion the scene jumps straight to each pose
 /// and holds still.
+///
+/// When the move does not finish, [failure] is told in the same scene rather
+/// than on another screen: the beam between the phones snaps, the hotspot's
+/// signal runs down and the rail stops where it got to, and the way forward
+/// rises in under the words. Clearing it (Try again) plays the same motion
+/// back, so failure, retry and progress are one continuous object.
+///
+/// [fellBack] is for a call that is already running: it landed on the house
+/// Wi-Fi (or fell back to it when a hotspot dropped), and the first beat says
+/// so instead of announcing that the phones have found each other.
 class RoomCarrierMigrationView extends StatefulWidget {
   const RoomCarrierMigrationView({
     required this.progress,
@@ -31,10 +41,22 @@ class RoomCarrierMigrationView extends StatefulWidget {
     this.onEstablished,
     this.onStay,
     this.stayAfter = const Duration(seconds: 12),
+    this.failure,
+    this.actions = const [],
+    this.fellBack = false,
     super.key,
   });
 
   final RoomMigrationProgress progress;
+
+  /// What went wrong, in the person's words, or null while it is going.
+  final RoomMigrationFailureCopy? failure;
+
+  /// The ways forward under a [failure], the primary first.
+  final List<Widget> actions;
+
+  /// The channel is already open, on the house Wi-Fi.
+  final bool fellBack;
 
   /// What the other phone's person is called, for the lines that name them.
   final String peerName;
@@ -61,8 +83,24 @@ class RoomCarrierMigrationView extends StatefulWidget {
       _RoomCarrierMigrationViewState();
 }
 
+/// A failure, as the migration screen tells it.
+@immutable
+class RoomMigrationFailureCopy {
+  const RoomMigrationFailureCopy({required this.title, required this.detail});
+
+  final String title;
+  final String detail;
+}
+
 class _RoomCarrierMigrationViewState extends State<RoomCarrierMigrationView>
     with TickerProviderStateMixin {
+  /// 0→1 as the move falters into its failure; back to 0 on Try again.
+  late final AnimationController _fail = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 950),
+    value: widget.failure == null ? 0 : 1,
+  );
+
   /// 0→1 each time the step changes: the transition into that step.
   late final AnimationController _enter = AnimationController(vsync: this);
 
@@ -102,6 +140,18 @@ class _RoomCarrierMigrationViewState extends State<RoomCarrierMigrationView>
     if (old.progress.step != widget.progress.step) {
       _from = old.progress.step;
       _run(widget.progress.step);
+    }
+    final failed = widget.failure != null;
+    if (failed != (old.failure != null)) {
+      final reduced = AppMotion.reduced(context);
+      if (failed) {
+        _stayTimer?.cancel();
+        HapticFeedback.heavyImpact();
+        reduced ? _fail.value = 1 : _fail.forward();
+      } else {
+        reduced ? _fail.value = 0 : _fail.reverse();
+        _armStay(widget.progress.step);
+      }
     }
   }
 
@@ -160,6 +210,7 @@ class _RoomCarrierMigrationViewState extends State<RoomCarrierMigrationView>
   void dispose() {
     _establishedTimer?.cancel();
     _stayTimer?.cancel();
+    _fail.dispose();
     _enter.dispose();
     _loop.dispose();
     super.dispose();
@@ -167,9 +218,15 @@ class _RoomCarrierMigrationViewState extends State<RoomCarrierMigrationView>
 
   ({String title, String detail}) _copy(BuildContext context) {
     final s = context.getString;
+    final failure = widget.failure;
+    if (failure != null) return (title: failure.title, detail: failure.detail);
     final name = widget.peerName;
     final host = widget.progress.side == RoomMigrationSide.host;
     return switch (widget.progress.step) {
+      RoomMigrationStep.found when widget.fellBack => (
+        title: s.carriermove_fallback_title,
+        detail: s.carriermove_fallback_detail,
+      ),
       RoomMigrationStep.found => (
         title: s.carriermove_found_title(name),
         detail: s.carriermove_found_detail,
@@ -209,7 +266,8 @@ class _RoomCarrierMigrationViewState extends State<RoomCarrierMigrationView>
     final reduced = AppMotion.reduced(context);
     final copy = _copy(context);
     final step = widget.progress.step;
-    final established = step == RoomMigrationStep.established;
+    final failed = widget.failure != null;
+    final established = step == RoomMigrationStep.established && !failed;
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = math.min(constraints.maxWidth, 420.0);
@@ -250,6 +308,7 @@ class _RoomCarrierMigrationViewState extends State<RoomCarrierMigrationView>
                           painter: _MigrationPainter(
                             enter: _enter,
                             loop: _loop,
+                            fail: _fail,
                             from: _from,
                             step: step,
                             side: widget.progress.side,
@@ -264,7 +323,7 @@ class _RoomCarrierMigrationViewState extends State<RoomCarrierMigrationView>
                     ),
                   ),
                   const SizedBox(height: 18),
-                  _StepRail(step: step, reduced: reduced),
+                  _StepRail(step: step, reduced: reduced, failed: failed),
                   const SizedBox(height: 20),
                   AnimatedSwitcher(
                     duration: reduced ? Duration.zero : AppMotion.entrance,
@@ -281,7 +340,7 @@ class _RoomCarrierMigrationViewState extends State<RoomCarrierMigrationView>
                       ),
                     ),
                     child: Semantics(
-                      key: ValueKey('${step.name}|${copy.title}'),
+                      key: ValueKey('${step.name}|$failed|${copy.title}'),
                       liveRegion: true,
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -316,11 +375,34 @@ class _RoomCarrierMigrationViewState extends State<RoomCarrierMigrationView>
                   AnimatedSize(
                     duration: reduced ? Duration.zero : AppMotion.sheet,
                     curve: AppMotion.easeOut,
+                    alignment: Alignment.topCenter,
+                    child: failed && widget.actions.isNotEmpty
+                        ? Padding(
+                            key: const ValueKey('carrier-migration-actions'),
+                            padding: const EdgeInsets.only(top: 24),
+                            child: StaggeredEntrance(
+                              builder: (context, children) => Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  for (var i = 0; i < children.length; i++) ...[
+                                    if (i > 0) const SizedBox(height: 10),
+                                    children[i],
+                                  ],
+                                ],
+                              ),
+                              children: widget.actions,
+                            ),
+                          )
+                        : const SizedBox(width: double.infinity),
+                  ),
+                  AnimatedSize(
+                    duration: reduced ? Duration.zero : AppMotion.sheet,
+                    curve: AppMotion.easeOut,
                     child: AnimatedOpacity(
-                      opacity: _stayOffered ? 1 : 0,
+                      opacity: _stayOffered && !failed ? 1 : 0,
                       duration: reduced ? Duration.zero : AppMotion.entrance,
                       curve: AppMotion.easeOut,
-                      child: _stayOffered
+                      child: _stayOffered && !failed
                           ? Padding(
                               padding: const EdgeInsets.only(top: 22),
                               child: TextButton(
@@ -345,10 +427,17 @@ class _RoomCarrierMigrationViewState extends State<RoomCarrierMigrationView>
 /// The six steps as a row of nodes joined by a line that fills as it goes.
 /// Done steps tick, the current one breathes, the rest wait in outline.
 class _StepRail extends StatelessWidget {
-  const _StepRail({required this.step, required this.reduced});
+  const _StepRail({
+    required this.step,
+    required this.reduced,
+    this.failed = false,
+  });
 
   final RoomMigrationStep step;
   final bool reduced;
+
+  /// The move stopped at [step]: its node goes quiet instead of breathing.
+  final bool failed;
 
   @override
   Widget build(BuildContext context) {
@@ -382,9 +471,12 @@ class _StepRail extends StatelessWidget {
                           curve: AppMotion.easeOut,
                           alignment: AlignmentDirectional.centerStart,
                           widthFactor: i <= current ? 1 : 0,
-                          child: Container(
+                          child: AnimatedContainer(
+                            duration: duration,
                             height: 2,
-                            color: current == labels.length - 1
+                            color: failed
+                                ? AppColors.textSecondary
+                                : current == labels.length - 1
                                 ? AppColors.green
                                 : AppColors.amber,
                           ),
@@ -399,7 +491,9 @@ class _StepRail extends StatelessWidget {
                 state: i < current
                     ? _NodeState.done
                     : i == current
-                    ? (current == labels.length - 1
+                    ? (failed
+                          ? _NodeState.stopped
+                          : current == labels.length - 1
                           ? _NodeState.done
                           : _NodeState.current)
                     : _NodeState.waiting,
@@ -414,7 +508,7 @@ class _StepRail extends StatelessWidget {
   }
 }
 
-enum _NodeState { waiting, current, done }
+enum _NodeState { waiting, current, done, stopped }
 
 class _RailNode extends StatelessWidget {
   const _RailNode({
@@ -432,7 +526,11 @@ class _RailNode extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = finished ? AppColors.green : AppColors.amber;
+    final accent = state == _NodeState.stopped
+        ? AppColors.textSecondary
+        : finished
+        ? AppColors.green
+        : AppColors.amber;
     final filled = state != _NodeState.waiting;
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -462,14 +560,23 @@ class _RailNode extends StatelessWidget {
             duration: duration,
             transitionBuilder: (child, animation) =>
                 ScaleTransition(scale: animation, child: child),
-            child: state == _NodeState.done
-                ? Icon(
-                    Icons.check_rounded,
-                    key: const ValueKey('done'),
-                    size: 10,
-                    color: AppColors.background,
-                  )
-                : const SizedBox.shrink(key: ValueKey('open')),
+            child: switch (state) {
+              _NodeState.done => Icon(
+                Icons.check_rounded,
+                key: const ValueKey('done'),
+                size: 10,
+                color: AppColors.background,
+              ),
+              // A pause, not a cross: nothing is broken that cannot be
+              // picked up again from here.
+              _NodeState.stopped => Icon(
+                Icons.pause_rounded,
+                key: const ValueKey('stopped'),
+                size: 10,
+                color: accent,
+              ),
+              _ => const SizedBox.shrink(key: ValueKey('open')),
+            },
           ),
         ),
         const SizedBox(height: 4),
@@ -499,6 +606,7 @@ class _MigrationPainter extends CustomPainter {
   _MigrationPainter({
     required this.enter,
     required this.loop,
+    required this.fail,
     required this.from,
     required this.step,
     required this.side,
@@ -507,12 +615,16 @@ class _MigrationPainter extends CustomPainter {
     required this.ink,
     required this.muted,
     required this.surface,
-  }) : super(repaint: Listenable.merge([enter, loop]));
+  }) : super(repaint: Listenable.merge([enter, loop, fail]));
 
   static const canvas = Size(320, 190);
 
   final Animation<double> enter;
   final Animation<double> loop;
+
+  /// 0→1 as the move falters: the beam snaps, the signal runs down, colour
+  /// drains to grey.
+  final Animation<double> fail;
   final RoomMigrationStep from;
   final RoomMigrationStep step;
   final RoomMigrationSide side;
@@ -546,9 +658,13 @@ class _MigrationPainter extends CustomPainter {
     c.save();
     c.scale(sx, sy);
     final t = enter.value;
+    final f = _ease(fail.value);
+    // A failed move slows to a stop rather than freezing mid-stride.
     final l = loop.value;
     final decided = side != RoomMigrationSide.undecided;
-    final routerAlpha = _routerPresence(t);
+    // The router comes back: it is what the phones still have.
+    final routerAlpha = _routerPresence(t) + (1 - _routerPresence(t)) * f;
+    final amber = Color.lerp(this.amber, muted, f)!;
 
     // Router legs. The host keeps its leg until the router fades out (it may
     // still be on the router while hosting); the joiner's lets go when it
@@ -575,20 +691,21 @@ class _MigrationPainter extends CustomPainter {
       _radiate(
         c,
         _hostAt,
-        grow,
+        grow * (1 - f),
         l,
-        done: step == RoomMigrationStep.established,
+        done: step == RoomMigrationStep.established && f == 0,
+        amber: amber,
       );
     }
 
     // The direct line between the phones, drawn host → joiner.
     if (decided && step.index >= RoomMigrationStep.moving.index) {
       final drawn = step == RoomMigrationStep.moving ? _ease(t) : 1.0;
-      final color = step == RoomMigrationStep.established
+      final color = step == RoomMigrationStep.established && f == 0
           ? Color.lerp(amber, green, _ease(t))!
           : amber;
-      _beam(c, _hostAt, _joinerAt, drawn, color);
-      if (step == RoomMigrationStep.verifying) {
+      _beam(c, _hostAt, _joinerAt, drawn, color, snap: f);
+      if (step == RoomMigrationStep.verifying && f == 0) {
         // Proofs crossing both ways.
         _packet(c, _hostAt, _joinerAt, l, amber);
         _packet(c, _joinerAt, _hostAt, (l + .5) % 1, amber);
@@ -599,25 +716,31 @@ class _MigrationPainter extends CustomPainter {
     final pull = step == RoomMigrationStep.established
         ? math.sin(_ease(t) * math.pi) * 6
         : 0.0;
-    _phone(c, _local + Offset(pull, 0), local: true);
-    _phone(c, _peer - Offset(pull, 0), local: false);
+    // On failure the phones ease apart a touch, the way a dropped link
+    // feels, then hold.
+    final apart = math.sin(f * math.pi / 2) * 5;
+    _phone(c, _local + Offset(pull - apart, 0), local: true);
+    _phone(c, _peer - Offset(pull - apart, 0), local: false);
 
     // The crown: sweeping between the phones while electing, settling on the
     // host once decided.
     if (step == RoomMigrationStep.electing && !decided) {
       final swing = (math.sin(l * 2 * math.pi) + 1) / 2;
-      _crown(c, Offset.lerp(_local, _peer, swing)!, .55);
+      _crown(c, Offset.lerp(_local, _peer, swing)!, .55, amber: amber);
     } else if (decided && step.index >= RoomMigrationStep.electing.index) {
       final settle =
           from == RoomMigrationStep.electing ||
               step == RoomMigrationStep.electing
           ? _ease(t)
           : 1.0;
-      _crown(c, _hostAt, settle);
+      _crown(c, _hostAt, settle * (1 - .6 * f), amber: amber);
     }
 
-    if (step == RoomMigrationStep.established) {
+    if (step == RoomMigrationStep.established && f == 0) {
       _burst(c, Offset.lerp(_local, _peer, .5)!, _ease(t));
+    }
+    if (f > 0) {
+      _pauseMark(c, Offset.lerp(_local, _peer, .5)! - const Offset(0, 6), f);
     }
     c.restore();
   }
@@ -699,7 +822,9 @@ class _MigrationPainter extends CustomPainter {
     double grow,
     double loop, {
     required bool done,
+    required Color amber,
   }) {
+    if (grow <= 0.01) return;
     final color = done ? green : amber;
     for (var i = 0; i < 3; i++) {
       final phase = (loop + i / 3) % 1;
@@ -719,28 +844,60 @@ class _MigrationPainter extends CustomPainter {
     }
   }
 
-  void _beam(Canvas c, Offset a, Offset b, double drawn, Color color) {
+  void _beam(
+    Canvas c,
+    Offset a,
+    Offset b,
+    double drawn,
+    Color color, {
+    double snap = 0,
+  }) {
     if (drawn <= 0) return;
     final y = a.dy - 6;
     final from = Offset(a.dx + (b.dx > a.dx ? 18 : -18), y);
     final to = Offset(b.dx + (b.dx > a.dx ? -18 : 18), y);
     final end = Offset.lerp(from, to, drawn)!;
-    c.drawLine(
-      from,
-      end,
-      Paint()
-        ..color = color.withValues(alpha: .22)
-        ..strokeWidth = 10
-        ..strokeCap = StrokeCap.round,
-    );
-    c.drawLine(
-      from,
-      end,
-      Paint()
-        ..color = color
-        ..strokeWidth = 3
-        ..strokeCap = StrokeCap.round,
-    );
+    void stroke(Offset p, Offset q) {
+      c.drawLine(
+        p,
+        q,
+        Paint()
+          ..color = color.withValues(alpha: .22 * (1 - snap))
+          ..strokeWidth = 10
+          ..strokeCap = StrokeCap.round,
+      );
+      c.drawLine(
+        p,
+        q,
+        Paint()
+          ..color = color.withValues(alpha: 1 - .4 * snap)
+          ..strokeWidth = 3
+          ..strokeCap = StrokeCap.round,
+      );
+    }
+
+    if (snap <= 0) {
+      stroke(from, end);
+      return;
+    }
+    // Snapping: the two halves pull back from the middle and droop.
+    final mid = Offset.lerp(from, end, .5)!;
+    final gap = 22 * snap;
+    final droop = Offset(0, 9 * snap);
+    final dir = (end - from) / (end - from).distance;
+    stroke(from, mid - dir * gap + droop);
+    stroke(mid + dir * gap + droop, end);
+  }
+
+  /// Two calm bars where the phones met: stopped, not broken.
+  void _pauseMark(Canvas c, Offset at, double t) {
+    final paint = Paint()
+      ..color = muted.withValues(alpha: t)
+      ..strokeWidth = 3.4
+      ..strokeCap = StrokeCap.round;
+    final h = 7 * t;
+    c.drawLine(at + Offset(-4, -h), at + Offset(-4, h), paint);
+    c.drawLine(at + Offset(4, -h), at + Offset(4, h), paint);
   }
 
   void _packet(Canvas c, Offset a, Offset b, double t, Color color) {
@@ -773,7 +930,7 @@ class _MigrationPainter extends CustomPainter {
     );
   }
 
-  void _crown(Canvas c, Offset phone, double t) {
+  void _crown(Canvas c, Offset phone, double t, {required Color amber}) {
     if (t <= 0) return;
     final at = phone - Offset(0, 36 + 6 * (1 - t));
     final path = Path()

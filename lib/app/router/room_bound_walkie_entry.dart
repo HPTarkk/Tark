@@ -194,18 +194,22 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   }
 
   /// What this phone advertises as "I should host": it can keep Wi-Fi up
-  /// while hosting (so a move off a shared network can be announced over
-  /// that network), and it hosted this Room last time or nobody has yet.
-  /// Every phone answers only for itself, so all of them elect the same one.
+  /// while hosting, so its hotspot holds while the house Wi-Fi stays on and
+  /// the move can be announced over that network. Every phone answers only
+  /// for itself, so all of them elect the same one; between two that both
+  /// can, the fuller battery leads.
+  ///
+  /// Who hosted last no longer counts: a phone that could not keep both up
+  /// led once, and the record of it kept the phone that could from ever
+  /// being chosen (2026-10-15: a Galaxy S8 hosting on top of the house
+  /// Wi-Fi, its hotspot gone forty seconds in).
   Future<bool> _prefersHostingFor(SavedRoom saved) async {
     final host = GetIt.instance.isRegistered<HotspotHost>()
         ? GetIt.instance<HotspotHost>()
         : null;
     if (host == null) return false;
     final advice = await host.wifiAdvice();
-    if (!advice.concurrent) return false;
-    final last = await _hotspotHistory.lastHost(saved.room.id);
-    return last == null || last == saved.membership.localMemberId;
+    return advice.concurrent;
   }
 
   /// Joins the elected host's access point in the middle of a live session.
@@ -1499,6 +1503,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     if (moveOffRouter && outcome.live) {
       outcome = await _moveOffRouter(room, outcome);
     }
+    if (outcome.live) _watchForFallback(room);
     // A no-op unless a slow hand-off put the code or camera up meanwhile.
     return _settleHandoffFallback(room, outcome);
   }
@@ -1511,6 +1516,13 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   String _migrationPeerName = '';
   Completer<void>? _migrationLanded;
   Completer<void>? _migrationStay;
+
+  /// The move is playing over a call that is already open.
+  bool _migrationFellBack = false;
+
+  /// What went wrong, while the move's scene is telling it.
+  RoomMigrationFailureCopy? _migrationFailure;
+  List<Widget> _migrationActions = const [];
 
   /// The channel is opening out of the move's own "connected" beat, so the
   /// generic arrival animation would only say it a second time.
@@ -1530,7 +1542,22 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   /// [live] is what the router alone achieved. It is returned as it is when
   /// there is nothing better to move to, and replaced by the guided step when
   /// the move was tried and did not finish. See [RoomCarrierMigration].
-  Future<_EntryState> _moveOffRouter(SavedRoom room, _EntryState live) async {
+  ///
+  /// With [fellBack] the channel is already open — the call landed on the
+  /// house Wi-Fi, or fell back to it when a hotspot dropped — and the same
+  /// flow plays over it, the call carrying on underneath.
+  ///
+  /// A move that does not finish is told inside the same scene, never by
+  /// cutting to another screen: the link snaps, the reason is said, and the
+  /// way forward rises in under it — on the phone that would host, "turn off
+  /// Wi-Fi" when that is what kept its hotspot from holding, then Try again;
+  /// on the other, "continue" to scan its code. Only the person's tap moves
+  /// on from there, so nothing retries by itself behind their back.
+  Future<_EntryState> _moveOffRouter(
+    SavedRoom room,
+    _EntryState live, {
+    bool fellBack = false,
+  }) async {
     if (!_movesOffRouter || !mounted) return live;
     if (_modeStore?.mode != TransferMode.wifi) return live;
     final binding = _binding;
@@ -1545,35 +1572,21 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     // in-channel move, which waits for everyone to arrive first.
     if (proven.length != 1) return live;
     final peer = proven.values.single;
-    final abandoned = _abandonWaits.future;
-    final migration = RoomCarrierMigration(
-      mover: mover,
-      peer: peer.memberId,
-      proofs: binding.verifiedPeerProofs,
-      previousRoute: peer.carrierRoute,
-    );
-    final landed = Completer<void>();
-    final stay = Completer<void>();
     final peerMember = room.room.members
         .where((member) => member.id == peer.memberId)
         .firstOrNull;
+    final landed = Completer<void>();
+    final stay = Completer<void>();
     setState(() {
       _migrationRoom = room;
-      _migrationProgress = migration.progress;
+      _migrationProgress = const RoomMigrationProgress(RoomMigrationStep.found);
       _migrationPeerName = _memberName(peerMember);
       _migrationLanded = landed;
       _migrationStay = stay;
+      _migrationFellBack = fellBack;
+      _migrationFailure = null;
+      _migrationActions = const [];
     });
-    final progress = migration.progressChanges.listen((step) {
-      if (mounted && identical(_migrationLanded, landed)) {
-        setState(() => _migrationProgress = step);
-      }
-    });
-    final outcome = await migration.run(
-      abandoned: Future.any([abandoned, stay.future]),
-    );
-    await progress.cancel();
-    await migration.dispose();
     void clear() {
       if (!mounted || !identical(_migrationLanded, landed)) return;
       setState(() {
@@ -1581,60 +1594,300 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         _migrationRoom = null;
         _migrationLanded = null;
         _migrationStay = null;
+        _migrationFellBack = false;
+        _migrationFailure = null;
+        _migrationActions = const [];
       });
     }
 
-    switch (outcome.result) {
-      case RoomMigrationResult.moved:
-        // The channel opens out of the scene's own landing.
-        await landed.future.timeout(
-          const Duration(seconds: 3),
-          onTimeout: () {},
-        );
-        unawaited(_recordHotspotHost(room, {peer.memberId}));
-        unawaited(_saveRejoinTicket(room));
-        unawaited(
-          ConnectionHistory.registered?.remember(TransferMode.hotspot.key),
-        );
-        _arrivedByMove = true;
-        clear();
-        return live;
-      case RoomMigrationResult.stay:
-        clear();
-        return live;
-      case RoomMigrationResult.abandoned:
-        if (stay.isCompleted && mounted) {
-          Logger.diagnostic('carrier_move: staying on the router by request');
-          mover.standDown();
+    while (true) {
+      final outcome = await _runMigration(
+        mover: mover,
+        binding: binding,
+        peer: peer,
+        landed: landed,
+        stay: stay,
+      );
+      if (!mounted) return _EntryState.lobby(room);
+      switch (outcome.result) {
+        case RoomMigrationResult.moved:
+          // The channel opens (or carries on) out of the scene's own landing.
+          await landed.future.timeout(
+            const Duration(seconds: 3),
+            onTimeout: () {},
+          );
+          unawaited(_recordHotspotHost(room, {peer.memberId}));
+          unawaited(_saveRejoinTicket(room));
+          unawaited(
+            ConnectionHistory.registered?.remember(TransferMode.hotspot.key),
+          );
+          if (!fellBack) _arrivedByMove = true;
           clear();
           return live;
-        }
-        clear();
-        return _EntryState.lobby(room, failure: _EntryFailure.staleAttempt);
-      case RoomMigrationResult.needsGuidance:
-        if (!mounted) return _EntryState.lobby(room);
-        final s = context.getString;
-        final name = _migrationPeerName;
-        final showCode = outcome.side == RoomMigrationSide.host;
-        final message = outcome.failure == RoomCarrierMoveFailure.joinDeclined
-            ? s.carriermove_guided_declined(name)
-            : showCode
-            ? s.carriermove_guided_show(name)
-            : s.carriermove_guided_scan(name);
-        final epoch = _coordinator.state.epoch;
-        if (_coordinator.state.isActive) _coordinator.cancel(epoch: epoch);
-        await binding.close();
-        if (!mounted) return _EntryState.lobby(room);
-        _codeOnly = true;
-        // The move's screen stays up until the guided one replaces it.
-        final guided = await _reconnect(
-          room,
-          showCode: showCode,
-          message: message,
-        );
-        clear();
-        return guided;
+        case RoomMigrationResult.stay:
+          clear();
+          return live;
+        case RoomMigrationResult.abandoned:
+          if ((stay.isCompleted || fellBack) && mounted) {
+            if (stay.isCompleted) {
+              Logger.diagnostic(
+                'carrier_move: staying on the router by request',
+              );
+            }
+            mover.standDown();
+            clear();
+            return live;
+          }
+          clear();
+          return _EntryState.lobby(room, failure: _EntryFailure.staleAttempt);
+        case RoomMigrationResult.needsGuidance:
+          final choice = await _migrationFailed(outcome, stay: stay);
+          if (!mounted) return _EntryState.lobby(room);
+          switch (choice) {
+            case _MoveChoice.stay:
+              Logger.diagnostic(
+                'carrier_move: staying on the router by request',
+              );
+              mover.standDown();
+              clear();
+              return live;
+            case _MoveChoice.retry:
+              // Back into the same scene, which plays its failure backwards.
+              setState(() {
+                _migrationFailure = null;
+                _migrationActions = const [];
+                _migrationProgress = const RoomMigrationProgress(
+                  RoomMigrationStep.found,
+                );
+              });
+              continue;
+            case _MoveChoice.showCode:
+            case _MoveChoice.scan:
+              final showCode = choice == _MoveChoice.showCode;
+              final s = context.getString;
+              final name = _migrationPeerName;
+              final message =
+                  outcome.failure == RoomCarrierMoveFailure.joinDeclined &&
+                      !showCode
+                  ? s.carriermove_guided_declined(name)
+                  : showCode
+                  ? s.carriermove_guided_show(name)
+                  : s.carriermove_guided_scan(name);
+              final epoch = _coordinator.state.epoch;
+              if (_coordinator.state.isActive) {
+                _coordinator.cancel(epoch: epoch);
+              }
+              await binding.close();
+              if (!mounted) return _EntryState.lobby(room);
+              _codeOnly = true;
+              // The move's screen stays up until the guided one replaces it.
+              final guided = _reconnect(
+                room,
+                showCode: showCode,
+                message: message,
+              );
+              if (fellBack) {
+                // The call this flow was playing over is gone; the guided
+                // step is what the entry shows now.
+                setState(() => _entry = guided);
+              }
+              final next = await guided;
+              clear();
+              return next;
+          }
+      }
     }
+  }
+
+  // ------------------------------------------- falling back to the router
+
+  StreamSubscription<RoomPeerProofEvidence>? _fallbackWatch;
+  StreamSubscription<RoomCarrierStatus>? _fallbackHandover;
+
+  final RoomHotspotFallbackDetector _fallback = RoomHotspotFallbackDetector();
+  bool _fallingBack = false;
+
+  /// Watches a call on a hotspot for the moment it ends up back on the house
+  /// Wi-Fi without anyone choosing it: the access point dropped (Android
+  /// often says nothing when it does) and both phones' Wi-Fi rejoined the
+  /// router they started on. The call survives that on its own, which is
+  /// exactly why it went unnoticed (2026-10-15: forty seconds on the hotspot,
+  /// then the rest of the call over the router, no move ever tried again).
+  void _watchForFallback(SavedRoom room) {
+    unawaited(_fallbackWatch?.cancel());
+    unawaited(_fallbackHandover?.cancel());
+    _fallback.reset();
+    final binding = _binding;
+    if (binding == null || !_movesOffRouter) return;
+    final local = room.membership.localMemberId;
+    if (_modeStore?.mode == TransferMode.hotspot) {
+      for (final proof in binding.verifiedPeerProofSnapshot) {
+        if (proof.memberId != local) _fallback.seed(proof.carrierRoute);
+      }
+    }
+    // A planned hand-over to another host changes the route on purpose;
+    // the next proof after it is the new normal.
+    _fallbackHandover = binding.carrierPromotion?.statusChanges.listen((s) {
+      if (s.isHandingOver) _fallback.reset();
+    });
+    _fallbackWatch = binding.verifiedPeerProofs.listen(
+      (proof) => _onLiveProof(room, proof),
+    );
+  }
+
+  void _onLiveProof(SavedRoom room, RoomPeerProofEvidence proof) {
+    if (!mounted || _fallingBack || _migrationProgress != null) return;
+    if (proof.memberId == room.membership.localMemberId) return;
+    if (room.room.activeMembers.length != 2) return;
+    if (_modeStore?.mode != TransferMode.hotspot) {
+      _fallback.reset();
+      return;
+    }
+    if (_binding?.carrierPromotion?.status.isHandingOver ?? false) return;
+    if (_fallback.observe(proof.carrierRoute)) {
+      unawaited(_fallBackOffRouter(room));
+    }
+  }
+
+  /// The call is back on the router: say so in the move's own scene, over
+  /// the call, and take it to a hotspot again.
+  Future<void> _fallBackOffRouter(SavedRoom room) async {
+    _fallingBack = true;
+    try {
+      Logger.diagnostic('carrier_move: call fell back off the hotspot');
+      await _modeStore?.setMode(TransferMode.wifi);
+      final getIt = GetIt.instance;
+      // Nothing should try to rejoin a hotspot that is gone.
+      if (getIt.isRegistered<HotspotLinkKeeper>()) {
+        await getIt<HotspotLinkKeeper>().release();
+      }
+      final host = _hotspotHost;
+      if (host != null && host.isHosting) await host.stop();
+      if (!mounted) return;
+      await _moveOffRouter(room, _EntryState.live(room: room), fellBack: true);
+    } catch (e) {
+      Logger.log('Fallback move failed: $e');
+    } finally {
+      _fallingBack = false;
+      _fallback.reset();
+    }
+  }
+
+  /// One run of the move, with its progress on screen.
+  Future<RoomMigrationOutcome> _runMigration({
+    required RoomCarrierMover mover,
+    required SelectedRoomLiveSessionBinding binding,
+    required RoomPeerProofEvidence peer,
+    required Completer<void> landed,
+    required Completer<void> stay,
+  }) async {
+    final migration = RoomCarrierMigration(
+      mover: mover,
+      peer: peer.memberId,
+      proofs: binding.verifiedPeerProofs,
+      previousRoute: peer.carrierRoute,
+    );
+    final progress = migration.progressChanges.listen((step) {
+      if (mounted && identical(_migrationLanded, landed)) {
+        setState(() => _migrationProgress = step);
+      }
+    });
+    try {
+      return await migration.run(
+        abandoned: Future.any([_abandonWaits.future, stay.future]),
+      );
+    } finally {
+      await progress.cancel();
+      await migration.dispose();
+    }
+  }
+
+  /// Tells the failure in the move's own scene and waits for the person to
+  /// pick the way forward.
+  Future<_MoveChoice> _migrationFailed(
+    RoomMigrationOutcome outcome, {
+    required Completer<void> stay,
+  }) async {
+    final s = context.getString;
+    final name = _migrationPeerName;
+    final hosting = outcome.side != RoomMigrationSide.joiner;
+    final choice = Completer<_MoveChoice>();
+    void pick(_MoveChoice value) {
+      if (!choice.isCompleted) choice.complete(value);
+    }
+
+    unawaited(stay.future.then((_) => pick(_MoveChoice.stay)));
+    unawaited(_abandonWaits.future.then((_) => pick(_MoveChoice.stay)));
+
+    // The phone that would host, still on the house Wi-Fi and unable to keep
+    // both up: its hotspot is what dropped. Turning Wi-Fi off is the fix,
+    // and Try again carries on the hotspot from there.
+    final advice = hosting ? await _hotspotHost?.wifiAdvice() : null;
+    if (!mounted) return _MoveChoice.stay;
+    final wifiInTheWay =
+        advice != null && advice.wifiEnabled && !advice.concurrent;
+    Logger.diagnostic(
+      'carrier_move: failed side=${outcome.side.name} '
+      'reason=${outcome.failure?.name ?? 'unknown'} wifiInTheWay=$wifiInTheWay',
+    );
+
+    final stayLink = TextButton(
+      key: const Key('carrier-migration-stay'),
+      onPressed: () => pick(_MoveChoice.stay),
+      child: Text(s.carriermove_stay),
+    );
+    setState(() {
+      if (hosting) {
+        _migrationFailure = RoomMigrationFailureCopy(
+          title: wifiInTheWay
+              ? s.carriermove_failed_wifi_title
+              : s.carriermove_failed_title,
+          detail: wifiInTheWay
+              ? s.carriermove_failed_wifi_detail(name)
+              : s.carriermove_failed_host_detail(name),
+        );
+        _migrationActions = [
+          if (wifiInTheWay)
+            _WifiOffButton(
+              key: const Key('carrier-migration-wifi-off'),
+              host: _hotspotHost,
+              onOff: () => pick(_MoveChoice.showCode),
+            ),
+          if (wifiInTheWay)
+            OutlinedButton.icon(
+              key: const Key('carrier-migration-retry'),
+              onPressed: () => pick(_MoveChoice.retry),
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text(s.reconnect_retry),
+            )
+          else
+            FilledButton.icon(
+              key: const Key('carrier-migration-retry'),
+              onPressed: () => pick(_MoveChoice.showCode),
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text(s.reconnect_retry),
+            ),
+          stayLink,
+        ];
+      } else {
+        _migrationFailure = RoomMigrationFailureCopy(
+          title: s.carriermove_failed_title,
+          detail: outcome.failure == RoomCarrierMoveFailure.joinDeclined
+              ? s.carriermove_failed_declined_detail(name)
+              : s.carriermove_failed_joiner_detail(name),
+        );
+        _migrationActions = [
+          FilledButton.icon(
+            key: const Key('carrier-migration-continue'),
+            onPressed: () => pick(_MoveChoice.scan),
+            icon: const Icon(Icons.qr_code_scanner_rounded),
+            label: Text(s.carriermove_continue_joiner),
+          ),
+          stayLink,
+        ];
+      }
+    });
+    return choice.future;
   }
 
   Future<_EntryState> _verifiedLiveAttempt(
@@ -2354,6 +2607,8 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     final epoch = _coordinator.state.epoch;
     if (_coordinator.state.isActive) _coordinator.cancel(epoch: epoch);
     unawaited(_linkChanges?.cancel() ?? Future<void>.value());
+    unawaited(_fallbackWatch?.cancel() ?? Future<void>.value());
+    unawaited(_fallbackHandover?.cancel() ?? Future<void>.value());
     unawaited(_binding?.close() ?? Future<void>.value());
     // Left on purpose (Leave, the alone countdown, back out of the Room): no
     // way back is needed. Only an app that stops never gets here.
@@ -2391,33 +2646,71 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         ),
       );
     }
+    final scene = _migrationScene(context);
+    if (scene != null && !_migrationFellBack) return scene;
+    return _resolvedEntry(context);
+  }
+
+  /// The move's scene, while there is a move to show.
+  Widget? _migrationScene(BuildContext context) {
     final moving = _migrationProgress;
     final movingRoom = _migrationRoom;
-    if (moving != null && movingRoom != null) {
-      final landed = _migrationLanded;
-      final stay = _migrationStay;
-      return RouteExitScope(
-        key: const ValueKey('room-carrier-migration'),
-        onExit: () => leaveRoomEntry(context),
-        child: Scaffold(
-          backgroundColor: AppColors.background,
-          body: SafeArea(
-            child: RoomCarrierMigrationView(
-              progress: moving,
-              peerName: _migrationPeerName,
-              caption: movingRoom.room.name,
-              onEstablished: () {
-                if (landed != null && !landed.isCompleted) landed.complete();
-              },
-              onStay: () {
-                if (stay != null && !stay.isCompleted) stay.complete();
-              },
-            ),
+    if (moving == null || movingRoom == null) return null;
+    final landed = _migrationLanded;
+    final stay = _migrationStay;
+    return RouteExitScope(
+      key: const ValueKey('room-carrier-migration'),
+      onExit: () => leaveRoomEntry(context),
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          child: RoomCarrierMigrationView(
+            progress: moving,
+            peerName: _migrationPeerName,
+            caption: movingRoom.room.name,
+            fellBack: _migrationFellBack,
+            failure: _migrationFailure,
+            actions: _migrationActions,
+            onEstablished: () {
+              if (landed != null && !landed.isCompleted) landed.complete();
+            },
+            onStay: () {
+              if (stay != null && !stay.isCompleted) stay.complete();
+            },
           ),
         ),
-      );
-    }
-    return _resolvedEntry(context);
+      ),
+    );
+  }
+
+  /// Keeps the call's own page in one place in the tree whether or not a
+  /// move is playing over it, so the move coming and going never rebuilds
+  /// the call underneath.
+  final GlobalKey _livePageKey = GlobalKey(debugLabel: 'room-live-page');
+
+  Widget _withLiveMove(BuildContext context, Widget livePage) {
+    final scene = _migrationFellBack ? _migrationScene(context) : null;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        KeyedSubtree(key: _livePageKey, child: livePage),
+        AnimatedSwitcher(
+          duration: AppMotion.reduced(context)
+              ? Duration.zero
+              : AppMotion.sheet,
+          switchInCurve: AppMotion.easeOut,
+          switchOutCurve: AppMotion.leaving,
+          transitionBuilder: (child, animation) => FadeTransition(
+            opacity: animation,
+            child: ScaleTransition(
+              scale: Tween<double>(begin: .97, end: 1).animate(animation),
+              child: child,
+            ),
+          ),
+          child: scene ?? const SizedBox.shrink(key: ValueKey('no-move')),
+        ),
+      ],
+    );
   }
 
   /// Set when the rider leaves a failed scan journey for the lobby.
@@ -2536,6 +2829,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
             child: livePage,
           );
         }
+        livePage = _withLiveMove(context, livePage);
         final binding = _binding;
         final runtime = binding?.runtime;
         if (room != null && binding != null && runtime != null) {
@@ -2691,6 +2985,90 @@ class _DelayedSpinnerState extends State<_DelayedSpinner> {
         ? const CircularProgressIndicator()
         : const SizedBox.shrink(),
   );
+}
+
+/// The way forward a person picked after a move that did not finish.
+enum _MoveChoice { retry, showCode, scan, stay }
+
+/// "Turn off Wi-Fi", which then waits — visibly — for it to be off.
+///
+/// Opens the system's Wi-Fi switch (the floating panel where there is one,
+/// so this screen stays in view) and watches for the radio to go down, so
+/// the move carries on by itself the moment it does: no second tap, no
+/// "done" to confirm.
+class _WifiOffButton extends StatefulWidget {
+  const _WifiOffButton({required this.host, required this.onOff, super.key});
+
+  final HotspotHost? host;
+  final VoidCallback onOff;
+
+  @override
+  State<_WifiOffButton> createState() => _WifiOffButtonState();
+}
+
+class _WifiOffButtonState extends State<_WifiOffButton>
+    with WidgetsBindingObserver {
+  Timer? _poll;
+  bool _waiting = false;
+  bool _done = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _waiting) unawaited(_check());
+  }
+
+  Future<void> _press() async {
+    final host = widget.host;
+    if (host == null) return;
+    setState(() => _waiting = true);
+    await host.openWifiPanel();
+    _poll?.cancel();
+    _poll = Timer.periodic(const Duration(seconds: 1), (_) => _check());
+    unawaited(_check());
+  }
+
+  Future<void> _check() async {
+    final advice = await widget.host?.wifiAdvice();
+    if (!mounted || _done || advice == null || advice.wifiEnabled) return;
+    _done = true;
+    _poll?.cancel();
+    Logger.diagnostic('carrier_move: wifi turned off, carrying on');
+    widget.onOff();
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    return FilledButton.icon(
+      onPressed: _waiting ? null : _press,
+      icon: AnimatedSwitcher(
+        duration: AppMotion.chip,
+        child: _waiting
+            ? const SizedBox.square(
+                key: ValueKey('waiting'),
+                dimension: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.wifi_off_rounded, key: ValueKey('off')),
+      ),
+      label: Text(
+        _waiting ? s.carriermove_wifi_off_waiting : s.carriermove_wifi_off,
+      ),
+    );
+  }
 }
 
 enum _EntryFailure {
