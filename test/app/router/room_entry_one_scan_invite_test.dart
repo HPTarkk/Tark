@@ -9,6 +9,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tark/app/router/room_bound_walkie_entry.dart';
 import 'package:tark/core/l10n/app_localizations.dart';
 import 'package:tark/core/router/routes.dart';
+import 'package:tark/core/widget/connection_journey.dart';
+import 'package:tark/core/widget/journey_carry_over.dart';
 import 'package:tark/core/widget/qr_widgets.dart';
 import 'package:tark/feature/room/data/repository/shared_preferences_room_repository.dart';
 import 'package:tark/feature/room/domain/entity/room.dart';
@@ -50,6 +52,9 @@ void main() {
     WidgetTester tester, {
     required Future<HotspotCredentials?> Function() prepareHost,
     bool withFriend = false,
+    bool start = false,
+    JourneyCarryOver? carryOver,
+    bool settleFirstFrame = true,
   }) async {
     SharedPreferences.setMockInitialValues({});
     identities = {};
@@ -112,6 +117,8 @@ void main() {
             guidedReconnect: true,
             wifiCheck: true,
             prepareHost: prepareHost,
+            start: start,
+            carryOver: carryOver,
           ),
         ),
       ],
@@ -125,6 +132,7 @@ void main() {
         routerConfig: router,
       ),
     );
+    if (!settleFirstFrame) return host;
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     return host;
@@ -229,6 +237,29 @@ void main() {
       }
       expect(find.byKey(const ValueKey('room-reconnect')), findsOneWidget);
       expect(tester.takeException(), isNull);
+      await finish(tester);
+    },
+  );
+
+  testWidgets(
+    'a scan\'s journey carries on from the entry\'s very first frame',
+    (tester) async {
+      // 2026-10-12: the joiner watched the link being made, then a blank
+      // page, then the same scene again — the entry had nothing to draw until
+      // it had read the Room back from storage.
+      await pumpEntry(
+        tester,
+        prepareHost: () async => creds,
+        start: true,
+        carryOver: const JourneyCarryOver(
+          link: JourneyLink.hotspot,
+          caption: 'Night ride',
+        ),
+        settleFirstFrame: false,
+      );
+      expect(find.byKey(const ValueKey('room-entry-journey')), findsOneWidget);
+      expect(find.byKey(const ValueKey('walkie-entry-waiting')), findsNothing);
+      expect(find.text('Night ride'), findsOneWidget);
       await finish(tester);
     },
   );

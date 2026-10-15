@@ -7,6 +7,7 @@ import '../../core/account/email_link.dart';
 import '../../core/beta/beta_intro.dart';
 import '../../core/diagnostics/screen_log.dart';
 import '../../core/motion/continuity_route.dart';
+import '../../core/widget/journey_carry_over.dart';
 import '../../core/entitlement/feature_access_guard.dart';
 import '../../core/entitlement/premium_feature.dart';
 import '../../core/motion/solid_sheet_route.dart';
@@ -148,10 +149,7 @@ class AppRouter {
           return SolidSheetPage<void>(
             key: state.pageKey,
             name: state.name ?? state.path,
-            arguments: {
-              ...state.pathParameters,
-              ...state.uri.queryParameters,
-            },
+            arguments: {...state.pathParameters, ...state.uri.queryParameters},
             restorationId: state.pageKey.value,
             child: child,
           );
@@ -185,10 +183,20 @@ class AppRouter {
         //
         // `rejoin` is set by Landing's "Get back to …?" question, after the
         // app stopped in the middle of a Room's call.
-        builder: (context, state) => RoomBoundWalkieEntry.buildPage(
-          ride: state.uri.queryParameters['ride'] == 'true',
-          start: state.uri.queryParameters['start'] == 'true',
-          rejoin: state.uri.queryParameters['rejoin'] == 'true',
+        //
+        // A scan's journey arrives as a [JourneyCarryOver]: the entry then
+        // dissolves in over the scanner and draws the same scene from its
+        // first frame, so the link being made never cuts away mid-way.
+        pageBuilder: (context, state) => pageFor(
+          state,
+          RoomBoundWalkieEntry.buildPage(
+            ride: state.uri.queryParameters['ride'] == 'true',
+            start: state.uri.queryParameters['start'] == 'true',
+            rejoin: state.uri.queryParameters['rejoin'] == 'true',
+            carryOver: state.extra is JourneyCarryOver
+                ? state.extra as JourneyCarryOver
+                : null,
+          ),
         ),
       ),
       GoRoute(

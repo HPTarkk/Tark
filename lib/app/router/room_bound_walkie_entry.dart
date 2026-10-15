@@ -17,6 +17,7 @@ import '../../core/router/route_exit.dart';
 import '../../core/router/routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widget/connection_journey.dart';
+import '../../core/widget/journey_carry_over.dart';
 import '../../core/widget/link_preparing_visual.dart';
 import '../../core/settings/connection_history.dart';
 import '../../core/utils/android_sdk.dart';
@@ -47,6 +48,7 @@ class RoomBoundWalkieEntry extends StatefulWidget {
     this.wifiCheck,
     this.prepareHost,
     this.moveOffRouter,
+    this.carryOver,
   });
 
   /// Arrived from a screen whose job was establishing a link — the hotspot
@@ -80,11 +82,22 @@ class RoomBoundWalkieEntry extends StatefulWidget {
   /// and iOS); tests set it.
   final bool? moveOffRouter;
 
+  /// The scene the invite scanner was showing when it opened this entry, so
+  /// the journey carries on from the very first frame instead of waiting for
+  /// the Room to be read back.
+  final JourneyCarryOver? carryOver;
+
   static Widget buildPage({
     bool ride = false,
     bool start = false,
     bool rejoin = false,
-  }) => RoomBoundWalkieEntry(ride: ride, start: start, rejoin: rejoin);
+    JourneyCarryOver? carryOver,
+  }) => RoomBoundWalkieEntry(
+    ride: ride,
+    start: start,
+    rejoin: rejoin,
+    carryOver: carryOver,
+  );
 
   @override
   State<RoomBoundWalkieEntry> createState() => _RoomBoundWalkieEntryState();
@@ -2323,6 +2336,9 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   bool get _tellsJourney => widget.start && !_journeyDismissed;
 
   JourneyLink get _journeyLink => switch (_modeStore?.mode) {
+    // Until this entry has read the link for itself, it is the one the scan
+    // was drawing.
+    null when widget.carryOver != null => widget.carryOver!.link,
     TransferMode.bluetooth => JourneyLink.bluetooth,
     TransferMode.wifi => JourneyLink.sharedWifi,
     _ =>
@@ -2333,7 +2349,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
 
   Widget _journeyScaffold(
     BuildContext context,
-    SavedRoom room, {
+    SavedRoom? room, {
     required JourneyStage stage,
     String? problem,
     List<Widget> actions = const [],
@@ -2349,7 +2365,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
           stage: stage,
           link: _journeyLink,
           continued: true,
-          caption: room.room.name,
+          caption: room?.room.name ?? widget.carryOver?.caption,
           title: failed ? s.journey_failed_title : s.journey_handshake_title,
           detail: failed
               ? (problem ?? s.room_start_failed)
@@ -2365,7 +2381,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     builder: (context, snapshot) {
       if (snapshot.connectionState != ConnectionState.done) {
         final room = _attemptRoom;
-        if (room != null && _tellsJourney) {
+        if ((room != null || widget.carryOver != null) && _tellsJourney) {
           return RouteExitScope(
             onExit: () => leaveRoomEntry(context),
             child: _journeyScaffold(context, room, stage: JourneyStage.linking),

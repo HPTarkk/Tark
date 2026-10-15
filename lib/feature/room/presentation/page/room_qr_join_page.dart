@@ -14,6 +14,7 @@ import '../../../../core/utils/logger.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/connection_journey.dart';
+import '../../../../core/widget/journey_carry_over.dart';
 import '../../../../core/widget/qr_scanner_surface.dart';
 import '../../../transfer/api/hotspot_invite_api.dart';
 import '../../../transfer/api/transfer_api.dart';
@@ -209,8 +210,15 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
 
   /// The network half is up: the channel's entry carries the same scene on
   /// through the Room's own handshake to the moment it opens.
-  void _enterChannel() =>
-      context.go('${AppRoutes.walkiePath}?ride=true&start=true');
+  void _enterChannel() {
+    final journey = _journey;
+    context.go(
+      '${AppRoutes.walkiePath}?ride=true&start=true',
+      extra: journey == null
+          ? null
+          : JourneyCarryOver(link: journey.link, caption: journey.roomName),
+    );
+  }
 
   void _scanAgain() => setState(() {
     _journey = null;
