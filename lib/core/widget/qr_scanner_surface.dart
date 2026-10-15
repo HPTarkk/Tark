@@ -74,6 +74,29 @@ class QrScannerSurface extends StatefulWidget {
 
   @override
   State<QrScannerSurface> createState() => _QrScannerSurfaceState();
+
+  /// The square the camera reads through, for a surface laid out at [size]:
+  /// square, generous on big screens, never crowding the chrome or the
+  /// readout on small ones. Height gets a say too: sized off the width alone,
+  /// a landscape phone ends up with a window taller than the screen and the
+  /// readout pushed off it.
+  ///
+  /// Public so a screen that turns into (or out of) this one can start or end
+  /// a motion exactly on the brackets.
+  static Rect windowFor(Size size) {
+    final side = math.min(
+      math.min(size.width * 0.72, size.height * 0.46),
+      300.0,
+    );
+    return Rect.fromCenter(
+      center: Offset(size.width / 2, size.height * 0.40),
+      width: side,
+      height: side,
+    );
+  }
+
+  /// Where the brackets around [windowFor] are drawn.
+  static Rect bracketsFor(Size size) => windowFor(size).inflate(11);
 }
 
 class _QrScannerSurfaceState extends State<QrScannerSurface>
@@ -398,25 +421,7 @@ class _QrScannerSurfaceState extends State<QrScannerSurface>
         backgroundColor: Colors.black,
         body: LayoutBuilder(
           builder: (context, constraints) {
-            // Square window, generous on big screens, never crowding the
-            // chrome or the readout on small ones. Height gets a say too:
-            // sized off the width alone, a landscape phone ends up with a
-            // window taller than the screen and the readout pushed off it.
-            final side = math.min(
-              math.min(
-                constraints.maxWidth * 0.72,
-                constraints.maxHeight * 0.46,
-              ),
-              300.0,
-            );
-            final window = Rect.fromCenter(
-              center: Offset(
-                constraints.maxWidth / 2,
-                constraints.maxHeight * 0.40,
-              ),
-              width: side,
-              height: side,
-            );
+            final window = QrScannerSurface.windowFor(constraints.biggest);
             return Stack(
               fit: StackFit.expand,
               children: [
@@ -639,6 +644,7 @@ class _Viewfinder extends StatelessWidget {
         // same painter the QR card wears, so the code and the thing reading it
         // are visibly a matched pair.
         Positioned.fromRect(
+          // QrScannerSurface.bracketsFor: the same box, from the window.
           rect: window.inflate(11),
           child: AnimatedBuilder(
             animation: Listenable.merge([pulse, lock, fail]),

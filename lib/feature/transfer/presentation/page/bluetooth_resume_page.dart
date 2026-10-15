@@ -12,8 +12,7 @@ import '../../../../core/router/route_exit.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/logger.dart';
-import '../../../../core/widget/link_established.dart';
-import '../../../../core/widget/link_unavailable.dart';
+import '../../../../core/widget/connection_journey.dart';
 import '../../../../core/widget/mesh_background.dart';
 import '../../domain/entity/bluetooth_connection_state.dart';
 import '../../domain/entity/bluetooth_role.dart';
@@ -50,17 +49,34 @@ class BluetoothResumePage extends StatefulWidget {
 enum _Phase { starting, searching, connected, failed, leaving }
 
 class _BluetoothResumePageState extends State<BluetoothResumePage>
-    with SingleTickerProviderStateMixin, RouteArrival<BluetoothResumePage> {
+    with TickerProviderStateMixin, RouteArrival<BluetoothResumePage> {
   static const _giveUpAfter = Duration(seconds: 30);
+
+  /// How long the failure stays up, once it has played, before Landing:
+  /// time to read why.
+  static const _failureRead = Duration(milliseconds: 1800);
+
+  /// How long the success is on screen before Home: the established beat
+  /// lands and holds.
+  static const _successShown = Duration(milliseconds: 1200);
 
   late final AnimationController _countdown = AnimationController(
     vsync: this,
     duration: _giveUpAfter,
   );
 
+  /// The failure beat (the tether decohering into static), counted in
+  /// frames: a phone that drops frames still gets to show all of it before
+  /// the reading time starts.
+  late final AnimationController _failureBeat = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  );
+
   _Phase _phase = _Phase.starting;
   Timer? _giveUp;
   Timer? _successHold;
+  Timer? _failureHold;
 
   /// Whether the link came up. Kept apart from [_phase] so the success view
   /// stays put while leaving, instead of flashing back to the search as the
@@ -105,7 +121,9 @@ class _BluetoothResumePageState extends State<BluetoothResumePage>
   void dispose() {
     _giveUp?.cancel();
     _successHold?.cancel();
+    _failureHold?.cancel();
     _countdown.dispose();
+    _failureBeat.dispose();
     super.dispose();
   }
 
@@ -123,10 +141,7 @@ class _BluetoothResumePageState extends State<BluetoothResumePage>
             _phase = _Phase.connected;
             _linked = true;
           });
-          _successHold = Timer(
-            LinkEstablished.hold + AppMotion.sheet,
-            _finishSuccess,
-          );
+          _successHold = Timer(_successShown + AppMotion.sheet, _finishSuccess);
         } else if (state.role == null) {
           // The cubit gave up on its own (hosting refused to start, or a
           // one-shot attempt timed out) — same outcome as running out of time.
@@ -154,14 +169,31 @@ class _BluetoothResumePageState extends State<BluetoothResumePage>
       _giveUp?.cancel();
       _successHold?.cancel();
       _countdown.stop();
+      unawaited(_holdFailure());
       context.read<BluetoothConnectCubit>().backToRoleSelection();
       return;
     }
     setState(() => _phase = _Phase.leaving);
     _giveUp?.cancel();
+    _failureHold?.cancel();
     _countdown.stop();
     if (!_failed) context.read<BluetoothConnectCubit>().backToRoleSelection();
     goBackTo(context, AppRoutes.landingPath);
+  }
+
+  Future<void> _holdFailure() async {
+    try {
+      if (AppMotion.reduced(context)) {
+        _failureBeat.value = 1;
+      } else {
+        await _failureBeat.forward().orCancel;
+      }
+    } on TickerCanceled {
+      // Left (or disposed) mid-beat: nothing more to schedule.
+      return;
+    }
+    if (!mounted || _phase != _Phase.failed) return;
+    _failureHold = Timer(_failureRead, _finishFailure);
   }
 
   void _finishFailure() {
@@ -217,20 +249,14 @@ class _BluetoothResumePageState extends State<BluetoothResumePage>
                           : AppMotion.sheet,
                       switchInCurve: AppMotion.easeOut,
                       switchOutCurve: AppMotion.leaving,
-                      child: _failed
-                          ? Center(
-                              child: LinkUnavailable(
-                                key: const ValueKey('resume-failed'),
-                                label:
-                                    context.getString.bt_resume_not_connected,
-                                detail: context.getString.bt_resume_failed,
-                                onFinished: _finishFailure,
-                              ),
-                            )
-                          : _linked
-                          ? _Connected(
-                              key: const ValueKey('connected'),
+                      // Success and failure are one scene under one key, so a
+                      // link lost while the success is up snaps in place
+                      // rather than swapping screens.
+                      child: _failed || _linked
+                          ? _Result(
+                              key: const ValueKey('resume-result'),
                               state: state,
+                              failed: _failed,
                             )
                           : _Searching(
                               key: const ValueKey('searching'),
@@ -312,20 +338,38 @@ class _Searching extends StatelessWidget {
   }
 }
 
-class _Connected extends StatelessWidget {
-  const _Connected({super.key, required this.state});
+/// How the resume ended, told in the Bluetooth beat of the app's one
+/// [ConnectionJourney] scene: the tether locking in, or decohering into
+/// static.
+class _Result extends StatefulWidget {
+  const _Result({super.key, required this.state, required this.failed});
 
   final BluetoothConnectState state;
+  final bool failed;
+
+  @override
+  State<_Result> createState() => _ResultState();
+}
+
+class _ResultState extends State<_Result> {
+  /// The peer's name as of the success, so it is not lost when the cubit
+  /// resets under a failure.
+  String? _detail;
 
   @override
   Widget build(BuildContext context) {
     final s = context.getString;
-    final peerName = state.lastPeer?.name ?? '';
-    final detail = state.role == BluetoothRole.joiner && peerName.isNotEmpty
-        ? s.bt_resume_connected_to(peerName)
-        : s.bt_resume_connected;
-    return Center(
-      child: LinkEstablished(label: s.bt_connected, detail: detail),
+    if (!widget.failed || _detail == null) {
+      final peerName = widget.state.lastPeer?.name ?? '';
+      _detail = widget.state.role == BluetoothRole.joiner && peerName.isNotEmpty
+          ? s.bt_resume_connected_to(peerName)
+          : s.bt_resume_connected;
+    }
+    return ConnectionJourney(
+      stage: widget.failed ? JourneyStage.failed : JourneyStage.established,
+      link: JourneyLink.bluetooth,
+      title: widget.failed ? s.bt_resume_not_connected : s.bt_connected,
+      detail: widget.failed ? s.bt_resume_failed : _detail,
     );
   }
 }

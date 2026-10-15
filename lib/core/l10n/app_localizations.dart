@@ -6163,6 +6163,126 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'دوربین رو روشن کن'**
   String get perm_camera_cta;
+
+  /// No description provided for @rcv_invite_failed_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'کدت آماده نشد'**
+  String get rcv_invite_failed_title;
+
+  /// No description provided for @rcv_invite_host_failed.
+  ///
+  /// In fa, this message translates to:
+  /// **'این گوشی نتونست اتصالش رو به اشتراک بذاره. دوباره امتحان کن؛ معمولاً بار دوم درست می‌شه.'**
+  String get rcv_invite_host_failed;
+
+  /// No description provided for @rcv_invite_bluetooth_failed.
+  ///
+  /// In fa, this message translates to:
+  /// **'بلوتوث این گوشی برای ساختن کد بالا نیومد. دوباره امتحان کن؛ معمولاً بار دوم درست می‌شه.'**
+  String get rcv_invite_bluetooth_failed;
+
+  /// No description provided for @rcv_invite_issue_failed.
+  ///
+  /// In fa, this message translates to:
+  /// **'دعوت‌نامه نوشته نشد. دوباره امتحان کن.'**
+  String get rcv_invite_issue_failed;
+
+  /// No description provided for @rcv_invite_retrying.
+  ///
+  /// In fa, this message translates to:
+  /// **'دارم دوباره امتحان می‌کنم…'**
+  String get rcv_invite_retrying;
+
+  /// No description provided for @rcv_invite_scan_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'گوشیش وصل نشد؟ بگو کد خودش رو نشون بده، تو اسکنش کن.'**
+  String get rcv_invite_scan_hint;
+
+  /// No description provided for @rcv_close.
+  ///
+  /// In fa, this message translates to:
+  /// **'بستن'**
+  String get rcv_close;
+
+  /// No description provided for @rcv_reason_wifi_off.
+  ///
+  /// In fa, this message translates to:
+  /// **'وای‌فای این گوشی خاموشه. روشنش کن و دوباره امتحان کن.'**
+  String get rcv_reason_wifi_off;
+
+  /// No description provided for @rcv_reason_location_off.
+  ///
+  /// In fa, this message translates to:
+  /// **'این گوشی برای وصل شدن به هات‌اسپاتش به «موقعیت مکانی» احتیاج داره. از تنظیمات سریع روشنش کن و دوباره امتحان کن.'**
+  String get rcv_reason_location_off;
+
+  /// No description provided for @rcv_reason_declined.
+  ///
+  /// In fa, this message translates to:
+  /// **'این گوشی نتونست به هات‌اسپات گوشی اون وصل بشه.'**
+  String get rcv_reason_declined;
+
+  /// No description provided for @rcv_reason_bt_not_found.
+  ///
+  /// In fa, this message translates to:
+  /// **'گوشیش با بلوتوث پیدا نشد. دعوت رو روش باز نگه دار و نزدیک بمون.'**
+  String get rcv_reason_bt_not_found;
+
+  /// No description provided for @rcv_reason_bt_permission.
+  ///
+  /// In fa, this message translates to:
+  /// **'برای وصل شدن، اجازهٔ «دستگاه‌های نزدیک» لازمه. اجازه بده و دوباره امتحان کن.'**
+  String get rcv_reason_bt_permission;
+
+  /// No description provided for @rcv_reason_bt_off.
+  ///
+  /// In fa, this message translates to:
+  /// **'بلوتوث این گوشی خاموشه. روشنش کن و دوباره امتحان کن.'**
+  String get rcv_reason_bt_off;
+
+  /// No description provided for @rcv_reason_no_answer.
+  ///
+  /// In fa, this message translates to:
+  /// **'گوشی اون به‌موقع جواب نداد.'**
+  String get rcv_reason_no_answer;
+
+  /// No description provided for @rcv_switch_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'تو دیگه عضو اتاقی، پس جاها رو عوض کنید: کدت رو نشون بده تا اون اسکنش کنه. روی گوشی اون «به‌جاش کد اون رو اسکن کن» رو بزنه.'**
+  String get rcv_switch_hint;
+
+  /// No description provided for @rcv_scan_switch_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'هنوز وصل نمی‌شه؟ کدت رو نشون بده تا {name} اسکنش کنه.'**
+  String rcv_scan_switch_hint(String name);
+
+  /// No description provided for @rcv_scan_declined_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'این گوشی نمی‌تونه به اتصال {name} وصل بشه. به‌جاش کدت رو نشون بده تا {name} اسکنش کنه.'**
+  String rcv_scan_declined_hint(String name);
+
+  /// No description provided for @rcv_show_switch_hint.
+  ///
+  /// In fa, this message translates to:
+  /// **'{name} هم داره کد نشون می‌ده؟ پس به‌جاش کد اون رو اسکن کن.'**
+  String rcv_show_switch_hint(String name);
+
+  /// No description provided for @rcv_bt_failed_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'بلوتوث وصل نشد'**
+  String get rcv_bt_failed_title;
+
+  /// No description provided for @rcv_bt_failed_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'این بار دو تا گوشی همدیگه رو پیدا نکردن. نزدیک هم نگهشون دار و دوباره امتحان کن.'**
+  String get rcv_bt_failed_detail;
 }
 
 class _AppLocalizationsDelegate

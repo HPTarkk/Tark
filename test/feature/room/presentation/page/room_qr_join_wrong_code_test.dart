@@ -175,11 +175,17 @@ void main() {
       expect(room.joined, 1);
       expect(
         find.text(
-          "Couldn't find their phone. Keep the invite open on it, stay close, "
-          'and scan again.',
+          "Couldn't find their phone over Bluetooth. Keep the invite open on "
+          'it and stay close.',
         ),
         findsOneWidget,
       );
+      // Try again redoes the radio half with the code already read; the
+      // camera is still one tap away.
+      expect(find.byKey(const Key('room-join-retry')), findsOneWidget);
+      // A Bluetooth invite is the free way in; its recovery does not route
+      // the rider into a hotspot code.
+      expect(find.byKey(const Key('room-join-show-code')), findsNothing);
       expect(find.byKey(const Key('room-join-scan-again')), findsOneWidget);
       expect(find.byKey(const Key('hotspot-page')), findsNothing);
       expect(joiner.tokens, [link.token]);

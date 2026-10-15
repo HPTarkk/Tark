@@ -8,8 +8,7 @@ import 'package:tark/core/l10n/app_localizations.dart';
 import 'package:tark/core/router/routes.dart';
 import 'package:tark/core/settings/settings_repository.dart';
 import 'package:tark/core/sfx/sfx_player.dart';
-import 'package:tark/core/widget/link_established.dart';
-import 'package:tark/core/widget/link_unavailable.dart';
+import 'package:tark/core/widget/connection_journey.dart';
 import 'package:tark/feature/transfer/domain/entity/bluetooth_connection_state.dart';
 import 'package:tark/feature/transfer/domain/entity/bluetooth_peer.dart';
 import 'package:tark/feature/transfer/domain/entity/bluetooth_role.dart';
@@ -87,6 +86,14 @@ void main() {
 
   tearDown(() => getIt.reset());
 
+  /// The Bluetooth beat of the connection scene, at [stage].
+  Finder journey(JourneyStage stage) => find.byWidgetPredicate(
+    (widget) =>
+        widget is ConnectionJourney &&
+        widget.link == JourneyLink.bluetooth &&
+        widget.stage == stage,
+  );
+
   Future<void> frames(WidgetTester tester, int milliseconds) async {
     for (var elapsed = 0; elapsed < milliseconds; elapsed += 10) {
       await tester.pump(const Duration(milliseconds: 10));
@@ -161,7 +168,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 1100));
     expect(find.text('Connected to Sara'), findsOneWidget);
-    expect(find.byType(LinkEstablished), findsOneWidget);
+    expect(journey(JourneyStage.established), findsOneWidget);
     expect(find.text('LANDING'), findsNothing);
     expect(find.text('WALKIE ride=true'), findsNothing);
 
@@ -192,7 +199,8 @@ void main() {
     );
     await tester.pump();
     await frames(tester, 1200);
-    expect(find.byType(LinkUnavailable), findsOneWidget);
+    expect(journey(JourneyStage.failed), findsOneWidget);
+    expect(journey(JourneyStage.established), findsNothing);
     expect(find.text('LANDING'), findsNothing);
     await frames(tester, 1900);
     await tester.pump(const Duration(seconds: 1));
@@ -211,7 +219,7 @@ void main() {
     started.complete(true);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 900));
-    expect(find.byType(LinkEstablished), findsOneWidget);
+    expect(journey(JourneyStage.established), findsOneWidget);
     await tester.pump(const Duration(seconds: 1));
     await tester.pump(const Duration(seconds: 1));
     expect(find.text('LANDING'), findsOneWidget);
@@ -247,7 +255,7 @@ void main() {
       await tester.pump(const Duration(seconds: 2));
       await frames(tester, 1200);
       expect(find.text('LANDING'), findsNothing);
-      expect(find.byType(LinkUnavailable), findsOneWidget);
+      expect(journey(JourneyStage.failed), findsOneWidget);
       expect(
         find.textContaining("Couldn't reach the other phone"),
         findsOneWidget,
@@ -271,7 +279,7 @@ void main() {
     started.complete(true);
     await tester.pump();
     await tester.pump(const Duration(seconds: 31));
-    expect(find.byType(LinkUnavailable), findsOneWidget);
+    expect(journey(JourneyStage.failed), findsOneWidget);
     await tester.binding.handlePopRoute();
     await tester.pump();
     await tester.pump(const Duration(seconds: 4));

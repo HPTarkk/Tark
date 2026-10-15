@@ -50,6 +50,15 @@ import 'room_invite_grant_toggle.dart';
 /// has proven themselves and the call is opening. [linkKind] says which link
 /// [link] is raising, so the wait shows the right thing coming up; it
 /// defaults to a hotspot when there is a [link].
+///
+/// When the link (or the code) cannot be made, the sheet says so in place and
+/// offers Try again, which does the whole preparation over without anybody
+/// closing anything: [onRetryLink] is asked for a fresh link (the opener
+/// cleans up the failed attempt and raises a new one); without it the sheet
+/// raises a hotspot itself. [onScanInstead], when given, adds the way to swap
+/// roles by hand — the newcomer's phone could not join this one and is now
+/// showing its own code — and is called right after the sheet has closed
+/// itself (its future then completes with false).
 Future<bool> showOneScanRoomInviteSheet(
   BuildContext context, {
   RoomRepository? repository,
@@ -60,6 +69,8 @@ Future<bool> showOneScanRoomInviteSheet(
   LinkPreparingKind? linkKind,
   VoidCallback? onShown,
   Future<void>? dismissWhen,
+  Future<RoomInviteLink?> Function()? onRetryLink,
+  VoidCallback? onScanInstead,
 }) async {
   final rooms =
       repository ??
@@ -123,6 +134,8 @@ Future<bool> showOneScanRoomInviteSheet(
           linkKind: linkKind,
           onShown: onShown,
           dismissWhen: dismissWhen,
+          onRetryLink: onRetryLink,
+          onScanInstead: onScanInstead,
         ),
       ) ??
       false;
@@ -189,6 +202,8 @@ class OneScanRoomInviteSheet extends StatefulWidget {
     this.linkKind,
     this.onShown,
     this.dismissWhen,
+    this.onRetryLink,
+    this.onScanInstead,
   });
 
   final RoomRepository? repository;
@@ -211,6 +226,17 @@ class OneScanRoomInviteSheet extends StatefulWidget {
 
   /// Completes when the sheet should close on its own (the call is opening).
   final Future<void>? dismissWhen;
+
+  /// Asked by Try again for a fresh [link] after it failed. The opener owns
+  /// the link, so it is the one that can clean up the failed attempt (a
+  /// half-started hotspot, a Bluetooth host that never advertised) before
+  /// raising another. The sheet never raises a link itself: null leaves a
+  /// failed link with Close (and [onScanInstead]) only.
+  final Future<RoomInviteLink?> Function()? onRetryLink;
+
+  /// Swaps roles by hand: closes the sheet and has this phone scan the other
+  /// one's code instead. Null hides the choice.
+  final VoidCallback? onScanInstead;
 
   @override
   State<OneScanRoomInviteSheet> createState() => _OneScanRoomInviteSheetState();
@@ -237,7 +263,19 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
   HotspotCredentials? _credentials;
   bool _hostRecovering = false;
   bool _loading = true;
+
+  /// A reason no retry can change (this phone may not invite at all).
   String? _error;
+
+  /// Writing the code itself failed; Try again writes it afresh.
+  bool _issueFailed = false;
+
+  /// Bumped by every Try again, so a link from an attempt that was given up
+  /// on cannot land on top of the one being made now.
+  int _linkAttempt = 0;
+
+  /// Set from the first Try again on, so the wait can say it is trying again.
+  bool _retried = false;
 
   /// The code's ingredients, kept so the grant can be flipped in place.
   _InviteMint? _mint;
@@ -286,26 +324,84 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
     final link = widget.link;
     if (link != null) {
       _hostingPending = true;
-      unawaited(_awaitHosting(link));
+      unawaited(_awaitHosting(link, _linkAttempt));
     }
     widget.dismissWhen?.then((_) => _dismiss());
     unawaited(_issue());
   }
 
-  Future<void> _awaitHosting(Future<RoomInviteLink?> pending) async {
+  Future<void> _awaitHosting(
+    Future<RoomInviteLink?> pending,
+    int attempt,
+  ) async {
     RoomInviteLink? link;
     try {
       link = await pending;
     } catch (_) {
       link = null;
     }
-    if (!mounted) return;
+    if (!mounted || attempt != _linkAttempt) return;
     setState(() {
       _hostingPending = false;
       _hosted = link;
       _hostingFailed = link == null;
     });
     _reportShown();
+  }
+
+  /// Whether Try again can do anything about what failed.
+  bool get _canRetry {
+    if (_error != null) return false;
+    if (_issueFailed) return true;
+    if (!_hostingFailed) return false;
+    return widget.onRetryLink != null;
+  }
+
+  /// Try again: the whole preparation over, in place.
+  ///
+  /// Whatever failed is redone and nothing that worked is: a code that was
+  /// already signed keeps its seat (so nobody gains a second row on the
+  /// roster), and a link that came up is kept. The tile on screen plays its
+  /// failure backwards into the beacon and carries on from there.
+  void _retry() {
+    if (!_canRetry) return;
+    HapticFeedback.selectionClick();
+    final reissue = _issueFailed || _roomInvite == null;
+    final relink = _hostingFailed;
+    final attempt = ++_linkAttempt;
+    setState(() {
+      _retried = true;
+      _issueFailed = false;
+      if (reissue) _loading = true;
+      if (relink) {
+        _hostingFailed = false;
+        _hostingPending = true;
+      }
+    });
+    if (relink) unawaited(_awaitHosting(_relink(), attempt));
+    if (reissue) unawaited(_issue());
+  }
+
+  /// A fresh link from the opener, which owns the radios: the sheet only
+  /// wraps an already-issued membership and never starts a link itself.
+  Future<RoomInviteLink?> _relink() async {
+    final opener = widget.onRetryLink;
+    if (opener == null) return null;
+    return opener();
+  }
+
+  /// Closes the sheet and hands over to scanning the other phone's code.
+  void _scanInstead() {
+    final swap = widget.onScanInstead;
+    if (swap == null) return;
+    HapticFeedback.selectionClick();
+    final route = ModalRoute.of(context);
+    if (route != null && route.isCurrent) {
+      Navigator.of(context).pop(false);
+    } else if (route != null && route.isActive) {
+      Navigator.of(context).removeRoute(route);
+    }
+    swap();
   }
 
   /// Tells the opener, once, that a code carrying a network is on screen.
@@ -435,7 +531,7 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = context.getString.people_issue_error;
+        _issueFailed = true;
       });
     }
   }
@@ -491,9 +587,21 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
 
   /// Still waiting on the link, the code, or a hotspot being re-raised.
   bool get _preparing =>
-      (_hostingPending && _error == null) ||
+      (_hostingPending && _error == null && !_issueFailed) ||
       _loading ||
       (_hostRecovering && _roomInvite != null);
+
+  /// What went wrong, in one plain sentence, once nothing is pending.
+  String _failureReason(BuildContext context) {
+    final s = context.getString;
+    if (_error case final error?) return error;
+    if (_hostingFailed) {
+      return _linkKind == LinkPreparingKind.bluetooth
+          ? s.rcv_invite_bluetooth_failed
+          : s.rcv_invite_host_failed;
+    }
+    return s.rcv_invite_issue_failed;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -518,26 +626,12 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
   Widget _body(BuildContext context) {
     final preparing = _preparing;
     final payload = preparing ? null : _payload;
-    if (!preparing && payload == null) {
-      return SizedBox(
-        key: const Key('one-scan-room-invite-unavailable'),
-        height: 220,
-        child: Center(
-          child: Text(
-            _error ??
-                (_hostingFailed
-                    ? context.getString.invite_host_failed
-                    : context.getString.people_issue_error),
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textSecondary),
-          ),
-        ),
-      );
-    }
-    // One layout for the wait and the code: the title, the code's square and
-    // the line under it hold their places, and what changes inside them
-    // changes in place — the beacon resolving into the code, the caption
-    // into the hint, the buttons arriving last.
+    final failed = !preparing && payload == null;
+    // One layout for the wait, the code and a failure: the title, the code's
+    // square and the line under it hold their places, and what changes
+    // inside them changes in place — the beacon resolving into the code (or
+    // faltering into a failure, and back again on Try again), the caption
+    // into the hint or the reason, the buttons arriving last.
     return Column(
       key: const ValueKey('one-scan-room-invite-flow'),
       mainAxisSize: MainAxisSize.min,
@@ -569,8 +663,11 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
               curve: AppMotion.easeOut,
               builder: (context, qrSize, _) => Center(
                 child: LinkPreparingVisual(
-                  kind: _linkKind,
+                  // Nothing to raise when this phone may not invite at all:
+                  // the failure is told over the code it cannot write.
+                  kind: _error != null ? LinkPreparingKind.code : _linkKind,
                   qrSize: qrSize,
+                  failed: failed,
                   ready: payload == null
                       ? null
                       // A flip of the grant is a different code, and the swap
@@ -612,10 +709,21 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
         ),
         const SizedBox(height: 10),
         PhaseSwitcher(
-          child: payload == null
+          child: failed
+              ? _FailureCaption(
+                  key: const Key('one-scan-room-invite-unavailable'),
+                  title: _error != null
+                      ? context.getString.people_invite_title
+                      : context.getString.rcv_invite_failed_title,
+                  reason: _failureReason(context),
+                )
+              : payload == null
               ? LinkPreparingCaption(
                   key: const Key('one-scan-room-invite-preparing'),
                   kind: _linkKind,
+                  title: _retried
+                      ? context.getString.rcv_invite_retrying
+                      : null,
                 )
               : Text(
                   context.getString.people_invite_hint,
@@ -639,7 +747,145 @@ class _OneScanRoomInviteSheetState extends State<OneScanRoomInviteSheet> {
         if (payload != null) ...[
           const SizedBox(height: 18),
           _InviteActions(payload: payload),
+          if (widget.onScanInstead != null) ...[
+            const SizedBox(height: 10),
+            _ScanInsteadLink(onTap: _scanInstead),
+          ],
         ],
+        if (failed) ...[
+          const SizedBox(height: 18),
+          _FailureActions(
+            onRetry: _canRetry ? _retry : null,
+            onScanInstead: widget.onScanInstead == null || _error != null
+                ? null
+                : _scanInstead,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// What failed, under the faltered beacon: a short headline and the reason.
+class _FailureCaption extends StatelessWidget {
+  const _FailureCaption({required this.title, required this.reason, super.key});
+
+  final String title;
+  final String reason;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    liveRegion: true,
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          reason,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 12.5,
+            height: 1.5,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+/// Try again, big and first; the swap and the way out under it.
+class _FailureActions extends StatelessWidget {
+  const _FailureActions({required this.onRetry, required this.onScanInstead});
+
+  final VoidCallback? onRetry;
+  final VoidCallback? onScanInstead;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    final retry = onRetry;
+    final scan = onScanInstead;
+    return StaggeredEntrance(
+      builder: (context, children) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < children.length; i++) ...[
+            if (i > 0) const SizedBox(height: 8),
+            children[i],
+          ],
+        ],
+      ),
+      children: [
+        if (retry != null)
+          FilledButton.icon(
+            key: const Key('one-scan-room-invite-retry'),
+            onPressed: retry,
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            icon: const Icon(Icons.refresh_rounded),
+            label: Text(
+              s.reconnect_retry,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+            ),
+          ),
+        if (scan != null)
+          OutlinedButton.icon(
+            key: const Key('one-scan-room-invite-scan-instead'),
+            onPressed: scan,
+            icon: const Icon(Icons.photo_camera_rounded),
+            label: Text(s.reconnect_switch_to_scan),
+          ),
+        TextButton(
+          key: const Key('one-scan-room-invite-close'),
+          onPressed: () => Navigator.of(context).pop(false),
+          child: Text(s.rcv_close),
+        ),
+      ],
+    );
+  }
+}
+
+/// The swap, offered quietly while the code is up: for when the newcomer's
+/// phone could not join this one and is showing its own code instead.
+class _ScanInsteadLink extends StatelessWidget {
+  const _ScanInsteadLink({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.getString;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          s.rcv_invite_scan_hint,
+          textAlign: TextAlign.center,
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+        ),
+        TextButton.icon(
+          key: const Key('one-scan-room-invite-scan-instead'),
+          onPressed: onTap,
+          icon: const Icon(Icons.photo_camera_rounded, size: 18),
+          label: Text(
+            s.reconnect_switch_to_scan,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ),
       ],
     );
   }

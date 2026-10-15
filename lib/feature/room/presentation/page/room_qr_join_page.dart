@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +10,7 @@ import '../../../../core/entitlement/license_gate.dart';
 import '../../../../core/entitlement/premium_feature.dart';
 import '../../../../core/entitlement/room_access_policy.dart';
 import '../../../../core/entitlement/subscription_gate_page.dart';
+import '../../../../core/l10n/app_localizations.dart';
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/router/route_exit.dart';
 import '../../../../core/router/routes.dart';
@@ -19,6 +23,8 @@ import '../../../../core/widget/journey_carry_over.dart';
 import '../../../../core/widget/qr_scanner_surface.dart';
 import '../../../transfer/api/hotspot_invite_api.dart';
 import '../../../transfer/api/transfer_api.dart';
+import '../../data/repository/room_rejoin_ticket_store.dart';
+import '../../domain/entity/room.dart';
 import '../../domain/entity/room_direct_join_bundle.dart';
 import '../../domain/entity/room_invite_link.dart';
 import '../bluetooth_invite_joiner.dart';
@@ -31,8 +37,27 @@ import '../manager/room_list_cubit.dart';
 /// then hands that exact already-scanned payload to the hotspot bridge. The
 /// camera never opens a second time and transport remains an implementation
 /// detail rather than a user decision.
+///
+/// ## When the network half fails
+///
+/// By then this phone is already a member of the Room, so it is no longer
+/// only the one that scans: it can be the one that shows a code. Failures are
+/// counted for the visit; Try again (the same code, no camera) stays the
+/// primary way forward until the second failure — or at once when the reason
+/// says this phone cannot get onto the other phone's hotspot at all — and
+/// then "Show my code instead" takes its place, with the other phone told to
+/// swap too. It has to be told: until a link exists the two phones have no
+/// way to agree on anything, so the inviting phone swaps by hand ("Scan their
+/// code instead" on its invite sheet).
 class RoomQrJoinPage extends StatefulWidget {
-  const RoomQrJoinPage({required this.cubit, this.bluetoothJoiner, super.key});
+  const RoomQrJoinPage({
+    required this.cubit,
+    this.bluetoothJoiner,
+    this.hotspotJoin,
+    this.canShowCode,
+    this.onShowCodeInstead,
+    super.key,
+  });
 
   static Widget buildPage() => BlocProvider<RoomListCubit>(
     create: (_) => GetIt.instance<RoomListCubit>()..load(),
@@ -47,6 +72,18 @@ class RoomQrJoinPage extends StatefulWidget {
   /// Reaches the host of a Bluetooth invite. A seam for tests; the default
   /// uses the phone's radio.
   final BluetoothInviteJoiner? bluetoothJoiner;
+
+  /// Joins the inviting phone's hotspot. A seam for tests; the default is the
+  /// Room's pre-live bootstrap.
+  final Future<HotspotJoinResult> Function(HotspotCredentials)? hotspotJoin;
+
+  /// Whether this phone can share a connection and so show a code of its own
+  /// (Android). Null follows the platform; tests set it.
+  final bool? canShowCode;
+
+  /// Opens this phone's own code for [RoomId] after a failed join. Null opens
+  /// the Room's guided reconnect on the showing side.
+  final Future<void> Function(RoomId room)? onShowCodeInstead;
 
   @override
   State<RoomQrJoinPage> createState() => _RoomQrJoinPageState();
@@ -66,6 +103,15 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
   /// Bumps for every fresh scanner, so "Scan again" mounts a new camera
   /// rather than reviving the one that was released.
   int _scannerGeneration = 0;
+
+  /// The network half of the code that was read, kept so Try again can redo
+  /// it without the camera.
+  _NetworkHalf? _half;
+
+  /// Failed network joins in this visit, across Try again and Scan again.
+  int _failures = 0;
+
+  bool get _canShowCode => widget.canShowCode ?? Platform.isAndroid;
 
   /// Accepts a scanned payload, returning whether this screen is leaving.
   ///
@@ -120,14 +166,13 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
       if (joined) {
         final credentials = scanned?.credentials;
         if (bluetooth != null) {
+          _half = _NetworkHalf(
+            roomId: bundle.snapshot.roomId,
+            roomName: bundle.snapshot.roomName,
+            bluetooth: bluetooth,
+          );
           _beginJourney(JourneyLink.bluetooth, bundle.snapshot.roomName);
-          final problem = await _joinOverBluetooth(bluetooth.link);
-          if (!mounted) return true;
-          if (problem != null) {
-            _journeyFailed(problem);
-            return true;
-          }
-          _enterChannel();
+          await _connect();
         } else if (credentials != null) {
           if (GetIt.instance.isRegistered<LicenseGate>() &&
               !await openSubscriptionGate(
@@ -137,27 +182,13 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
             return false;
           }
           if (!mounted) return false;
-          if (GetIt.instance.isRegistered<SessionRoleStore>()) {
-            GetIt.instance<SessionRoleStore>().setRole(SessionRole.joiner);
-          }
+          _half = _NetworkHalf(
+            roomId: bundle.snapshot.roomId,
+            roomName: bundle.snapshot.roomName,
+            credentials: credentials,
+          );
           _beginJourney(JourneyLink.hotspot, bundle.snapshot.roomName);
-          final result = await PreLiveHotspotBootstrap().joinHost(credentials);
-          if (!mounted) return true;
-          if (result != HotspotJoinResult.joined) {
-            _journeyFailed(_hotspotProblem(result));
-            return true;
-          }
-          if (GetIt.instance.isRegistered<TransferModeStore>()) {
-            final modes = GetIt.instance<TransferModeStore>();
-            // Same reasoning as Bluetooth: a Bluetooth preference on this
-            // phone would refuse the hotspot it was just handed.
-            if (modes.pinnedMode == TransferMode.bluetooth) {
-              await modes.setPinnedMode(null);
-            }
-            await modes.setMode(TransferMode.hotspot);
-          }
-          if (!mounted) return true;
-          _enterChannel();
+          await _connect();
         } else {
           context.go('${AppRoutes.walkiePath}?start=true');
         }
@@ -172,7 +203,7 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
       Logger.log('Room QR join failed: $error');
       if (!mounted) return false;
       if (_journey != null) {
-        _journeyFailed(context.getString.roomjoin_not_joined);
+        _journeyFailed(_JoinProblem.unknown);
         return true;
       }
       setState(() => _error = context.getString.roomjoin_not_joined);
@@ -198,15 +229,120 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
     });
   }
 
-  void _journeyFailed(String problem) {
+  /// Runs the network half of [_half] — the first time, and on Try again.
+  /// Membership is already saved, so this is only ever about reaching the
+  /// other phone.
+  Future<void> _connect() async {
+    final half = _half;
+    if (half == null) return;
+    final bluetooth = half.bluetooth;
+    try {
+      final problem = bluetooth != null
+          ? await _joinOverBluetooth(bluetooth.link)
+          : await _joinHotspot(half.credentials!);
+      if (!mounted) return;
+      if (problem != null) {
+        _journeyFailed(problem);
+        return;
+      }
+      _enterChannel();
+    } catch (error) {
+      Logger.log('Room QR network join failed: $error');
+      if (mounted) _journeyFailed(_JoinProblem.unknown);
+    }
+  }
+
+  /// Joins the inviting phone's hotspot. Null once it is joined.
+  Future<_JoinProblem?> _joinHotspot(HotspotCredentials credentials) async {
+    if (GetIt.instance.isRegistered<SessionRoleStore>()) {
+      GetIt.instance<SessionRoleStore>().setRole(SessionRole.joiner);
+    }
+    final join = widget.hotspotJoin;
+    final result = join != null
+        ? await join(credentials)
+        : await PreLiveHotspotBootstrap().joinHost(credentials);
+    if (!mounted) return null;
+    if (result != HotspotJoinResult.joined) {
+      return switch (result) {
+        HotspotJoinResult.wifiOff => _JoinProblem.wifiOff,
+        HotspotJoinResult.locationOff => _JoinProblem.locationOff,
+        _ => _JoinProblem.declined,
+      };
+    }
+    if (GetIt.instance.isRegistered<TransferModeStore>()) {
+      final modes = GetIt.instance<TransferModeStore>();
+      // Same reasoning as Bluetooth: a Bluetooth preference on this phone
+      // would refuse the hotspot it was just handed.
+      if (modes.pinnedMode == TransferMode.bluetooth) {
+        await modes.setPinnedMode(null);
+      }
+      await modes.setMode(TransferMode.hotspot);
+    }
+    return null;
+  }
+
+  void _journeyFailed(_JoinProblem problem) {
     final journey = _journey;
     if (journey == null) {
-      setState(() => _error = problem);
+      setState(() => _error = problem.explain(context.getString));
       return;
     }
+    _failures++;
+    Logger.diagnostic(
+      'room_join: network half failed reason=${problem.name} '
+      'count=$_failures',
+    );
     setState(
       () => _journey = journey.copyWith(JourneyStage.failed, problem: problem),
     );
+  }
+
+  /// Try again: the same code, the same journey, no camera.
+  void _retry() {
+    final journey = _journey;
+    if (journey == null || _half == null || _joining) return;
+    HapticFeedback.selectionClick();
+    _joining = true;
+    setState(() => _journey = journey.copyWith(JourneyStage.linking));
+    _connect().whenComplete(() => _joining = false);
+  }
+
+  /// Whether swapping roles is the better way forward now.
+  bool _swapFirst(_Journey journey) =>
+      _canSwap(journey) &&
+      (_failures >= 2 || (journey.problem?.theirsUnreachable ?? false));
+
+  /// Swapping needs this phone to share a connection, which is a hotspot.
+  /// A Bluetooth invite is the free way in, and its recovery stays on
+  /// Bluetooth rather than routing a free rider into a paid link.
+  bool _canSwap(_Journey journey) =>
+      _canShowCode && journey.link == JourneyLink.hotspot && _half != null;
+
+  /// This phone is a member now, so it can be the one showing a code.
+  Future<void> _showMyCode() async {
+    final half = _half;
+    if (half == null) return;
+    HapticFeedback.selectionClick();
+    Logger.diagnostic('room_join: swapping to show this phone code');
+    final custom = widget.onShowCodeInstead;
+    if (custom != null) {
+      await custom(half.roomId);
+      return;
+    }
+    // The Room's guided reconnect on the showing side. It is reached through
+    // the way back into a Room (`rejoin`), told by a ticket that this phone
+    // is the one sharing the connection — the same thing a phone that was
+    // sharing before its app stopped is told.
+    await RoomRejoinTicketStore().save(
+      RoomRejoinTicket(
+        roomId: half.roomId,
+        mode: TransferMode.hotspot,
+        side: SessionRole.host,
+        at: DateTime.now(),
+      ),
+    );
+    if (!mounted) return;
+    context.go('${AppRoutes.walkiePath}?rejoin=true');
   }
 
   /// The network half is up: the channel's entry carries the same scene on
@@ -224,40 +360,30 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
   void _scanAgain() => setState(() {
     _journey = null;
     _error = null;
+    _half = null;
     _scannerGeneration++;
   });
 
   void _leave() => exitRouteTo(context, AppRoutes.landingPath);
 
-  String _hotspotProblem(HotspotJoinResult result) {
-    final s = context.getString;
-    return switch (result) {
-      HotspotJoinResult.wifiOff => s.reconnect_wifi_off,
-      HotspotJoinResult.locationOff => s.roomjoin_location_off,
-      _ => s.roomjoin_not_joined,
-    };
-  }
-
-  /// The Bluetooth half of a one-scan invite, in words the rider can act on.
-  /// Null once the audio link is up.
+  /// The Bluetooth half of a one-scan invite. Null once the audio link is up.
   ///
   /// Membership is already saved by now, so a failure here leaves a member
-  /// who can simply scan again; nothing is half-joined.
-  Future<String?> _joinOverBluetooth(BluetoothInviteLink link) async {
+  /// who can simply try again; nothing is half-joined.
+  Future<_JoinProblem?> _joinOverBluetooth(BluetoothInviteLink link) async {
     if (GetIt.instance.isRegistered<SessionRoleStore>()) {
       GetIt.instance<SessionRoleStore>().setRole(SessionRole.joiner);
     }
     final result = await (widget.bluetoothJoiner ?? BluetoothInviteJoiner())
         .join(link);
     if (!mounted) return null;
-    final s = context.getString;
     return switch (result) {
       BluetoothInviteJoinResult.joined => null,
       BluetoothInviteJoinResult.permissionDenied =>
-        s.roomjoin_bluetooth_permission,
-      BluetoothInviteJoinResult.locationOff => s.roomjoin_location_off,
-      BluetoothInviteJoinResult.bluetoothOff => s.roomjoin_bluetooth_off,
-      BluetoothInviteJoinResult.notFound => s.roomjoin_host_not_found,
+        _JoinProblem.bluetoothPermission,
+      BluetoothInviteJoinResult.locationOff => _JoinProblem.bluetoothLocation,
+      BluetoothInviteJoinResult.bluetoothOff => _JoinProblem.bluetoothOff,
+      BluetoothInviteJoinResult.notFound => _JoinProblem.bluetoothNotFound,
     };
   }
 
@@ -317,6 +443,8 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
   Widget _journeyView(BuildContext context, _Journey journey) {
     final s = context.getString;
     final failed = journey.stage == JourneyStage.failed;
+    final swapFirst = failed && _swapFirst(journey);
+    final reason = journey.problem?.explain(s);
     return PopScope(
       key: const ValueKey('room-join-journey'),
       // Mid-link, back would strand a half-made connection; after a failure
@@ -338,25 +466,58 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
                 JourneyLink.sharedWifi => s.journey_linking_wifi_title,
               },
             },
-            detail: failed ? journey.problem : s.journey_linking_detail,
-            actions: failed
-                ? [
-                    FilledButton(
-                      key: const Key('room-join-scan-again'),
-                      onPressed: _scanAgain,
-                      child: Text(s.journey_scan_again),
-                    ),
-                    TextButton(
-                      key: const Key('room-join-not-now'),
-                      onPressed: _leave,
-                      child: Text(s.journey_not_now),
-                    ),
-                  ]
-                : const [],
+            detail: !failed
+                ? s.journey_linking_detail
+                : swapFirst
+                ? '$reason\n${s.rcv_switch_hint}'
+                : reason,
+            actions: failed ? _recoveryActions(context, journey) : const [],
           ),
         ),
       ),
     );
+  }
+
+  /// The ways forward after a failed join, the better one first.
+  List<Widget> _recoveryActions(BuildContext context, _Journey journey) {
+    final s = context.getString;
+    final swapFirst = _swapFirst(journey);
+    final retry = _RecoveryButton(
+      key: const Key('room-join-retry'),
+      primary: !swapFirst,
+      icon: Icons.refresh_rounded,
+      label: s.reconnect_retry,
+      onPressed: _retry,
+    );
+    final swap = _RecoveryButton(
+      key: const Key('room-join-show-code'),
+      primary: swapFirst,
+      icon: Icons.qr_code_2_rounded,
+      label: s.reconnect_switch_to_show,
+      onPressed: () => _showMyCode(),
+    );
+    return [
+      if (swapFirst) swap else retry,
+      if (swapFirst) retry else if (_canSwap(journey)) swap,
+      Row(
+        children: [
+          Expanded(
+            child: TextButton(
+              key: const Key('room-join-scan-again'),
+              onPressed: _scanAgain,
+              child: Text(s.journey_scan_again),
+            ),
+          ),
+          Expanded(
+            child: TextButton(
+              key: const Key('room-join-not-now'),
+              onPressed: _leave,
+              child: Text(s.journey_not_now),
+            ),
+          ),
+        ],
+      ),
+    ];
   }
 
   Widget _scanner(BuildContext context) {
@@ -379,6 +540,95 @@ class _RoomQrJoinPageState extends State<RoomQrJoinPage> {
   }
 }
 
+/// A filled primary or an outlined secondary, so the two recovery choices can
+/// trade places without either one changing what it is.
+class _RecoveryButton extends StatelessWidget {
+  const _RecoveryButton({
+    required this.primary,
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    super.key,
+  });
+
+  final bool primary;
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16),
+    );
+    const padding = EdgeInsets.symmetric(vertical: 15);
+    final text = Text(
+      label,
+      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+    );
+    return primary
+        ? FilledButton.icon(
+            onPressed: onPressed,
+            style: FilledButton.styleFrom(padding: padding, shape: shape),
+            icon: Icon(icon),
+            label: text,
+          )
+        : OutlinedButton.icon(
+            onPressed: onPressed,
+            style: OutlinedButton.styleFrom(padding: padding, shape: shape),
+            icon: Icon(icon),
+            label: text,
+          );
+  }
+}
+
+/// What was read off the code for reaching the other phone: one of the two.
+class _NetworkHalf {
+  const _NetworkHalf({
+    required this.roomId,
+    required this.roomName,
+    this.credentials,
+    this.bluetooth,
+  });
+
+  final RoomId roomId;
+  final String roomName;
+  final HotspotCredentials? credentials;
+  final ({BluetoothInviteLink link, String roomInvite})? bluetooth;
+}
+
+/// Why the network half failed, as far as this phone can tell.
+enum _JoinProblem {
+  wifiOff,
+  locationOff,
+
+  /// Android would not put this phone on the other phone's hotspot. Asking
+  /// again rarely changes that; showing this phone's code usually does.
+  declined,
+  bluetoothPermission,
+  bluetoothLocation,
+  bluetoothOff,
+  bluetoothNotFound,
+
+  /// Something threw; nothing more specific is known.
+  unknown;
+
+  /// Whether the reason says the other phone's connection cannot be joined
+  /// from this one, so swapping roles should be offered first, at once.
+  bool get theirsUnreachable => this == declined;
+
+  String explain(AppLocalizations s) => switch (this) {
+    wifiOff => s.rcv_reason_wifi_off,
+    locationOff => s.rcv_reason_location_off,
+    declined => s.rcv_reason_declined,
+    bluetoothPermission => s.rcv_reason_bt_permission,
+    bluetoothLocation => s.roomjoin_location_off,
+    bluetoothOff => s.rcv_reason_bt_off,
+    bluetoothNotFound => s.rcv_reason_bt_not_found,
+    unknown => s.roomjoin_not_joined,
+  };
+}
+
 class _Journey {
   const _Journey({
     required this.link,
@@ -390,8 +640,8 @@ class _Journey {
   final JourneyLink link;
   final String roomName;
   final JourneyStage stage;
-  final String? problem;
+  final _JoinProblem? problem;
 
-  _Journey copyWith(JourneyStage stage, {String? problem}) =>
+  _Journey copyWith(JourneyStage stage, {_JoinProblem? problem}) =>
       _Journey(link: link, roomName: roomName, stage: stage, problem: problem);
 }

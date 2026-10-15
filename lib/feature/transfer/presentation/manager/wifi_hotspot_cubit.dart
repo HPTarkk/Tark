@@ -248,9 +248,19 @@ class WifiHotspotCubit extends Cubit<HotspotBridgeState> {
   /// How long one `startLocalOnlyHotspot` attempt may take. The platform
   /// answers only from a callback, and a phone that never calls it back left
   /// the Room stuck on "Getting your phone ready…" (reported with Wi-Fi off
-  /// on both phones). A healthy start answers within a few seconds, settle
-  /// and confirm windows included.
-  static const _hostAttemptTimeout = Duration(seconds: 15);
+  /// on both phones). A healthy start usually answers within a few seconds.
+  ///
+  /// It used to be 15 s, and that cut real starts off: on a slow AP bring-up
+  /// (a single-radio phone dropping its Wi-Fi first, a first-time channel
+  /// pick) Android was still coming up when this gave up, its `stop()`
+  /// cancelled the request natively, and the log read `hotspot: start failed
+  /// reason=cancelled` at 15 s while the invite sheet showed a failure for a
+  /// hotspot that would have been up a few seconds later. 35 s covers those
+  /// starts and still ends well inside the callers' own backstops
+  /// (`PreLiveHotspotBootstrap.defaultHostTimeout`, 45 s, and the Room's 60 s
+  /// prepare timeout), so a phone that truly never answers still gets its
+  /// way out.
+  static const _hostAttemptTimeout = Duration(seconds: 35);
 
   /// Native error code for a start we cancelled ourselves (HotspotHandler
   /// .CANCELLED) — not a failure to report.
