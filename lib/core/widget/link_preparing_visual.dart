@@ -46,6 +46,14 @@ enum LinkPreparingKind {
 /// one replaces the other. If [ready] goes away again (the link is being
 /// re-raised), the same morph plays backwards.
 ///
+/// When [failed] is set instead, the same tile is where the failure is told:
+/// the pulses falter and go out, the half-written code dims and a few of its
+/// modules drop away, a hairline crack runs out from the beacon and the
+/// beacon itself turns into a broken-link mark with one small shake. Calm,
+/// not an alarm. Clearing [failed] (Try again) plays it backwards — the crack
+/// draws back in, the modules brighten where they were and the pulses pick up
+/// again — so failure, retry and loading are one continuous object.
+///
 /// ## Cost
 ///
 /// One [CustomPainter] in one [RepaintBoundary]. The ~800 modules are a
@@ -59,6 +67,7 @@ class LinkPreparingVisual extends StatefulWidget {
     required this.kind,
     this.qrSize = 250,
     this.ready,
+    this.failed = false,
     super.key,
   });
 
@@ -70,6 +79,9 @@ class LinkPreparingVisual extends StatefulWidget {
   /// The real code, once there is one — normally a [GlowingQrCard] built with
   /// the same [qrSize]. Null while the link is still coming up.
   final Widget? ready;
+
+  /// The link (or the code) could not be made. Ignored once [ready] is set.
+  final bool failed;
 
   /// The square this widget occupies for [qrSize]: [GlowingQrCard]'s own.
   static double extentFor(double qrSize) => qrSize + 28 + 26;
@@ -97,6 +109,19 @@ class _LinkPreparingVisualState extends State<LinkPreparingVisual>
 
   static const _resolveDuration = Duration(milliseconds: 760);
 
+  /// 0 = alive, 1 = the failure fully told.
+  late final AnimationController _fail = AnimationController(
+    vsync: this,
+    duration: _failDuration,
+    reverseDuration: _recoverDuration,
+    value: _isFailed ? 1 : 0,
+  );
+
+  static const _failDuration = Duration(milliseconds: 1100);
+  static const _recoverDuration = Duration(milliseconds: 520);
+
+  bool get _isFailed => widget.failed && widget.ready == null;
+
   late _ModuleField _field = _ModuleField(widget.kind);
   bool _reduced = false;
 
@@ -104,6 +129,7 @@ class _LinkPreparingVisualState extends State<LinkPreparingVisual>
   void initState() {
     super.initState();
     _resolve.addStatusListener(_onResolveStatus);
+    _fail.addStatusListener(_onResolveStatus);
   }
 
   @override
@@ -111,6 +137,8 @@ class _LinkPreparingVisualState extends State<LinkPreparingVisual>
     super.didChangeDependencies();
     _reduced = AppMotion.reduced(context);
     _resolve.duration = _reduced ? AppMotion.card : _resolveDuration;
+    _fail.duration = _reduced ? AppMotion.card : _failDuration;
+    _fail.reverseDuration = _reduced ? AppMotion.card : _recoverDuration;
     _syncClock();
   }
 
@@ -128,14 +156,25 @@ class _LinkPreparingVisualState extends State<LinkPreparingVisual>
       _clock.value = 0;
       _resolve.reverse();
     }
+    final wasFailed = oldWidget.failed && oldWidget.ready == null;
+    if (_isFailed && !wasFailed) {
+      _fail.forward();
+    } else if (!_isFailed && wasFailed) {
+      // Try again: the beacon picks up from the frame it stopped on, so the
+      // modules it had written brighten in place instead of starting over.
+      _fail.reverse();
+    }
     _syncClock();
   }
 
   void _onResolveStatus(AnimationStatus status) => _syncClock();
 
-  /// The clock runs while anything driven by it is visible.
+  /// The clock runs while anything driven by it is visible. A failure that
+  /// has finished telling itself is a still frame.
   void _syncClock() {
-    final settled = widget.ready != null && _resolve.isCompleted;
+    final settled =
+        (widget.ready != null && _resolve.isCompleted) ||
+        (_isFailed && _fail.isCompleted);
     if (_reduced || settled) {
       if (_clock.isAnimating) _clock.stop();
     } else if (!_clock.isAnimating) {
@@ -146,8 +185,10 @@ class _LinkPreparingVisualState extends State<LinkPreparingVisual>
   @override
   void dispose() {
     _resolve.removeStatusListener(_onResolveStatus);
+    _fail.removeStatusListener(_onResolveStatus);
     _clock.dispose();
     _resolve.dispose();
+    _fail.dispose();
     super.dispose();
   }
 
@@ -162,9 +203,10 @@ class _LinkPreparingVisualState extends State<LinkPreparingVisual>
       child: ValueListenableBuilder<AppThemeMode>(
         valueListenable: ThemeService.mode,
         builder: (context, _, _) => AnimatedBuilder(
-          animation: _resolve,
+          animation: Listenable.merge([_resolve, _fail]),
           builder: (context, _) {
             final r = _resolve.value;
+            final f = _fail.value;
             final childIn = _reduced ? r : _span(r, 0.56, 1);
             final showPainter = r < 1 || ready == null;
             return Stack(
@@ -177,6 +219,7 @@ class _LinkPreparingVisualState extends State<LinkPreparingVisual>
                         painter: _BeaconPainter(
                           clock: _clock,
                           resolve: _resolve,
+                          fail: _fail,
                           field: _field,
                           qrSize: widget.qrSize,
                           reduced: _reduced,
@@ -185,6 +228,8 @@ class _LinkPreparingVisualState extends State<LinkPreparingVisual>
                           // What the real code's modules are drawn in.
                           ink: Colors.black,
                           module: AppColors.amber,
+                          muted: AppColors.textSecondary,
+                          dim: AppColors.background,
                         ),
                       ),
                     ),
@@ -198,6 +243,8 @@ class _LinkPreparingVisualState extends State<LinkPreparingVisual>
                     // is white — then gives way to the mark itself.
                     whiten: _whiten(r, _reduced),
                     fade: _reduced ? 1 - r : 1 - _span(r, 0.5, 0.9),
+                    fail: f,
+                    reduced: _reduced,
                   ),
                 if (ready != null && childIn > 0)
                   Opacity(
@@ -225,9 +272,13 @@ class _LinkPreparingVisualState extends State<LinkPreparingVisual>
 
 /// The two lines under the visual: what is happening, then over what.
 class LinkPreparingCaption extends StatelessWidget {
-  const LinkPreparingCaption({required this.kind, super.key});
+  const LinkPreparingCaption({required this.kind, this.title, super.key});
 
   final LinkPreparingKind kind;
+
+  /// The headline, when it is not the plain "getting ready" (a second go,
+  /// say).
+  final String? title;
 
   @override
   Widget build(BuildContext context) {
@@ -241,7 +292,7 @@ class LinkPreparingCaption extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          s.reconnect_preparing,
+          title ?? s.reconnect_preparing,
           textAlign: TextAlign.center,
           style: TextStyle(
             color: AppColors.textPrimary,
@@ -273,6 +324,8 @@ class _Emblem extends StatelessWidget {
     required this.clock,
     required this.whiten,
     required this.fade,
+    this.fail = 0,
+    this.reduced = false,
   });
 
   final LinkPreparingKind kind;
@@ -281,42 +334,78 @@ class _Emblem extends StatelessWidget {
   final double whiten;
   final double fade;
 
+  /// How far the failure has been told, 0..1.
+  final double fail;
+  final bool reduced;
+
   @override
   Widget build(BuildContext context) {
     if (fade <= 0) return const SizedBox.shrink();
+    final broken = fail > 0.5;
     final icon = switch (kind) {
-      LinkPreparingKind.hotspot => Icons.wifi_tethering_rounded,
-      LinkPreparingKind.bluetooth => Icons.bluetooth_rounded,
-      LinkPreparingKind.code => Icons.smartphone_rounded,
+      LinkPreparingKind.hotspot =>
+        broken
+            ? Icons.wifi_tethering_error_rounded
+            : Icons.wifi_tethering_rounded,
+      LinkPreparingKind.bluetooth =>
+        broken ? Icons.bluetooth_disabled_rounded : Icons.bluetooth_rounded,
+      LinkPreparingKind.code =>
+        broken ? Icons.sync_problem_rounded : Icons.smartphone_rounded,
     };
     final period = _ModuleField.periodFor(kind);
+    // The beacon's amber cools to a quiet red as it fails, never a siren.
+    final tone = Color.lerp(
+      AppColors.amber,
+      Color.lerp(AppColors.red, AppColors.textSecondary, 0.35),
+      _span(fail, 0.15, 0.6),
+    )!;
+    // The glyph changes at the bottom of a quick squeeze, so the swap reads
+    // as the beacon turning into the mark rather than a cut.
+    final squeeze = reduced
+        ? 1.0
+        : 1 - 0.18 * math.sin(math.pi * _span(fail, 0.3, 0.7));
+    // One small shake as it lands, damped out.
+    final settle = _span(fail, 0.55, 1);
+    final shake = reduced || fail <= 0.55
+        ? 0.0
+        : math.sin(settle * math.pi * 5) * 4 * math.pow(1 - settle, 2);
     return Opacity(
       opacity: fade,
       child: AnimatedBuilder(
         animation: clock,
-        // The box and glyph are built once; only the transform moves.
-        child: Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            color: Color.lerp(AppColors.card, Colors.white, whiten),
-            borderRadius: BorderRadius.circular(size * 0.3),
-            border: Border.all(
-              color: AppColors.amber.withValues(alpha: 1 - whiten),
-              width: 1.6,
+        // The box and glyph are built once per beat; only the transform moves.
+        child: Transform.translate(
+          offset: Offset(shake.toDouble(), 0),
+          child: Transform.scale(
+            scale: squeeze,
+            child: Container(
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                color: Color.lerp(AppColors.card, Colors.white, whiten),
+                borderRadius: BorderRadius.circular(size * 0.3),
+                border: Border.all(
+                  color: tone.withValues(alpha: 1 - whiten),
+                  width: 1.6,
+                ),
+              ),
+              child: Icon(
+                icon,
+                size: size * 0.52,
+                color: tone.withValues(alpha: 1 - whiten),
+              ),
             ),
-          ),
-          child: Icon(
-            icon,
-            size: size * 0.52,
-            color: AppColors.amber.withValues(alpha: 1 - whiten),
           ),
         ),
         builder: (context, child) {
           final t = _seconds(clock);
-          // A small kick on each pulse it sends, settling before the next.
+          // A small kick on each pulse it sends, settling before the next —
+          // and going quiet with the pulses when the link fails.
           final phase = (t % period) / period;
-          final kick = math.exp(-phase * 7) * (1 - math.exp(-t * 3));
+          final kick =
+              math.exp(-phase * 7) *
+              (1 - math.exp(-t * 3)) *
+              (1 - _span(fail, 0, 0.4));
           return Transform.scale(scale: 1 + 0.07 * kick, child: child);
         },
       ),
@@ -344,6 +433,8 @@ double _span(double t, double start, double end) =>
 class _ModuleField {
   _ModuleField(this.kind) {
     final random = math.Random(1403);
+    // Its own seed, so the code's pattern is exactly what it always was.
+    final looseRandom = math.Random(77);
     final half = (n - 1) / 2;
     final maxD = math.sqrt(2) * half;
     final hole = (n * 0.24 / 2 + 0.9);
@@ -374,6 +465,7 @@ class _ModuleField {
         _distance.add(math.sqrt(dx * dx + dy * dy) / maxD);
         _threshold.add(h);
         _structural.add(finder.inZone || timing);
+        _loose.add(looseRandom.nextDouble());
       }
     }
     count = cells.length;
@@ -428,6 +520,11 @@ class _ModuleField {
 
   double distance(int i) => _distance[i];
 
+  /// Per module, a stable 0..1 roll for whether (and when) it slips out of
+  /// the code when the link fails.
+  List<double> get loose => _loose;
+  final _loose = <double>[];
+
   double _writtenAt(int i) {
     final d = _distance[i];
     final h = _structural[i] ? _threshold[i] * 0.25 : _threshold[i];
@@ -461,6 +558,7 @@ class _BeaconPainter extends CustomPainter {
   _BeaconPainter({
     required this.clock,
     required this.resolve,
+    required this.fail,
     required this.field,
     required this.qrSize,
     required this.reduced,
@@ -468,10 +566,19 @@ class _BeaconPainter extends CustomPainter {
     required this.rim,
     required this.ink,
     required this.module,
-  }) : super(repaint: Listenable.merge([clock, resolve]));
+    required this.muted,
+    required this.dim,
+  }) : super(repaint: Listenable.merge([clock, resolve, fail]));
 
   final Animation<double> clock;
   final Animation<double> resolve;
+  final Animation<double> fail;
+
+  /// What the beacon's amber cools to when the link fails.
+  final Color muted;
+
+  /// What the tile dims towards when the link fails: the page behind it.
+  final Color dim;
   final _ModuleField field;
   final double qrSize;
   final bool reduced;
@@ -490,6 +597,14 @@ class _BeaconPainter extends CustomPainter {
     // no pulse in flight.
     final t = reduced ? 9.0 : _seconds(clock);
     final r = resolve.value;
+    // Beats of the failure, as fractions of [fail].
+    final f = fail.value;
+    final falter = _span(f, 0, 0.55);
+    final dimming = AppMotion.easeOut.transform(_span(f, 0.1, 0.7));
+    final crack = AppMotion.easeOut.transform(_span(f, 0.25, 0.75));
+    final drop = _span(f, 0.15, 0.9);
+    final rimNow = Color.lerp(rim, muted, dimming)!;
+    final moduleNow = Color.lerp(module, muted, dimming * 0.7)!;
     final center = size.center(Offset.zero);
     final tileSide = qrSize + 28;
     final tileRect = Rect.fromCenter(
@@ -510,25 +625,31 @@ class _BeaconPainter extends CustomPainter {
     // Corner brackets: GlowingQrCard's own, breathing a hair while waiting.
     final breath = reduced
         ? 0.0
-        : math.sin(t * math.pi * 2 / (field.period * 2)) * (1 - whiten);
+        : math.sin(t * math.pi * 2 / (field.period * 2)) *
+              (1 - whiten) *
+              (1 - falter);
     canvas.save();
     canvas.translate(center.dx, center.dy);
     canvas.scale(1 + 0.012 * breath);
     canvas.translate(-center.dx, -center.dy);
     CornerBracketsPainter(
-      color: rim.withAlpha((120 + 70 * whiten).round()),
+      color: rimNow.withAlpha((120 + 70 * whiten - 50 * dimming).round()),
     ).paint(canvas, size);
     canvas.restore();
 
     // The tile, from page card to the QR's paper.
-    final tileColor = Color.lerp(tile, Colors.white, whiten)!;
+    final tileColor = Color.lerp(
+      Color.lerp(tile, dim, 0.45 * dimming)!,
+      Colors.white,
+      whiten,
+    )!;
     canvas.drawRRect(tileRRect, Paint()..color = tileColor);
     canvas.drawRRect(
       tileRRect,
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1
-        ..color = rim.withValues(alpha: 0.28 * (1 - whiten)),
+        ..color = rimNow.withValues(alpha: 0.28 * (1 - whiten)),
     );
 
     canvas.save();
@@ -537,7 +658,9 @@ class _BeaconPainter extends CustomPainter {
     // Pulses leaving the beacon.
     final maxR = tileSide / 2 * math.sqrt2;
     final half = qrSize * 0.12;
-    if (ringsOut > 0) {
+    // Failing, the pulses stutter and go out instead of fading politely.
+    final ringsAlive = ringsOut * (1 - falter);
+    if (ringsAlive > 0) {
       final ring = Paint()
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round;
@@ -546,9 +669,12 @@ class _BeaconPainter extends CustomPainter {
         final p = age / _ModuleField.travel;
         if (p > 1 || age > t) continue;
         final radius = half + (maxR - half) * p;
-        final alpha = math.pow(1 - p, 1.4) * 0.8 * ringsOut;
+        final stutter = falter > 0 && math.sin(t * 38 + k * 2.3) < -0.1
+            ? 0.3
+            : 1.0;
+        final alpha = math.pow(1 - p, 1.4) * 0.8 * ringsAlive * stutter;
         ring
-          ..color = rim.withValues(alpha: alpha.toDouble())
+          ..color = rimNow.withValues(alpha: alpha.toDouble())
           ..strokeWidth = 2.4 - 1.2 * p;
         if (field.kind == LinkPreparingKind.bluetooth) {
           ring.strokeWidth = 3.4 - 1.4 * p;
@@ -596,17 +722,29 @@ class _BeaconPainter extends CustomPainter {
             : math.exp(-(since % field.period) * 5) * 0.28;
         alpha = (0.5 + 0.5 * flash + brush).clamp(0.0, 1.0) * land;
       }
+      // Failing: the code dims where it stands, and about one module in
+      // three lets go and slips down out of it.
+      var fall = 0.0;
+      if (dimming > 0 && scale > 0) {
+        alpha *= 1 - 0.6 * dimming;
+        final loose = field.loose[i];
+        if (loose < 0.33) {
+          final own = _span(drop, loose * 1.2, loose * 1.2 + 0.5);
+          fall = own * own * m * 2.2;
+          alpha *= 1 - own;
+        }
+      }
       // On white the modules become ink, solid.
       alpha = alpha + (1 - alpha) * whiten * (scale > 0 ? 1 : 0);
       if (whiten > 0 && scale > 0) scale = scale + (1 - scale) * whiten;
       final color = Color.lerp(
-        module,
+        moduleNow,
         ink,
         whiten,
       )!.withValues(alpha: alpha.clamp(0.0, 1.0));
       final s = m * (0.84 + 0.16 * whiten) * scale / 2;
       final cx = origin.dx + (field.xs[i] + 0.5) * m;
-      final cy = origin.dy + (field.ys[i] + 0.5) * m;
+      final cy = origin.dy + (field.ys[i] + 0.5) * m + fall;
       final o = i * 12;
       // Two triangles per module.
       pos[o] = cx - s;
@@ -635,7 +773,45 @@ class _BeaconPainter extends CustomPainter {
       BlendMode.dst,
       Paint(),
     );
+    if (crack > 0) _crack(canvas, center, crack, rimNow);
     canvas.restore();
+  }
+
+  /// A hairline fracture running out from the beacon's corner towards the
+  /// tile's edge, with one short branch: drawn, not flashed.
+  void _crack(Canvas canvas, Offset center, double progress, Color color) {
+    final u = qrSize / 100;
+    final path = Path()..moveTo(center.dx + 13 * u, center.dy - 13 * u);
+    for (final (dx, dy) in const [
+      (19.0, -17.0),
+      (24.0, -27.0),
+      (31.0, -30.0),
+      (36.0, -41.0),
+      (45.0, -47.0),
+      (51.0, -58.0),
+    ]) {
+      path.lineTo(center.dx + dx * u, center.dy + dy * u);
+    }
+    final branch = Path()
+      ..moveTo(center.dx + 24 * u, center.dy - 27 * u)
+      ..lineTo(center.dx + 33 * u, center.dy - 22 * u)
+      ..lineTo(center.dx + 39 * u, center.dy - 24 * u);
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..color = color.withValues(alpha: 0.75);
+    final main = path.computeMetrics().first;
+    canvas.drawPath(main.extractPath(0, main.length * progress), paint);
+    final b = _span(progress, 0.45, 1);
+    if (b > 0) {
+      final metric = branch.computeMetrics().first;
+      canvas.drawPath(
+        metric.extractPath(0, metric.length * b),
+        paint..strokeWidth = 1.2,
+      );
+    }
   }
 
   static void _dottedCircle(Canvas canvas, Offset c, double radius, Paint p) {
@@ -656,5 +832,7 @@ class _BeaconPainter extends CustomPainter {
       old.reduced != reduced ||
       old.tile != tile ||
       old.rim != rim ||
-      old.module != module;
+      old.module != module ||
+      old.muted != muted ||
+      old.dim != dim;
 }
