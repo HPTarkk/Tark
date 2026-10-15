@@ -66,6 +66,84 @@ class AppPalette {
   );
 }
 
+/// The website's forest greens (tarkk.ir), as a second family for the surfaces
+/// that ask the person for something rather than run the radio — the
+/// permission primer first. Surfaces and ink are the site's own; the six
+/// accents are spread from lime through leaf to lagoon so each permission
+/// keeps an identity of its own without leaving the family.
+///
+/// Every accent clears WCAG AA (4.5:1) both as text on [surface] and [card]
+/// and under [onAccent] when it fills a button, in both themes.
+class ForestPalette {
+  final Color surface;
+  final Color card;
+  final Color border;
+  final Color textPrimary;
+  final Color textSecondary;
+
+  /// Label and icon colour on a filled accent.
+  final Color onAccent;
+
+  final Color leaf;
+  final Color mint;
+  final Color lagoon;
+  final Color jade;
+  final Color lime;
+  final Color sage;
+
+  const ForestPalette({
+    required this.surface,
+    required this.card,
+    required this.border,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.onAccent,
+    required this.leaf,
+    required this.mint,
+    required this.lagoon,
+    required this.jade,
+    required this.lime,
+    required this.sage,
+  });
+
+  /// The site's night forest; [leaf] is its highlight green.
+  static const dark = ForestPalette(
+    surface: Color(0xFF17271D),
+    card: Color(0xFF213529),
+    border: Color(0xFF304538),
+    textPrimary: Color(0xFFF2F3E9),
+    textSecondary: Color(0xFFA7B3A8),
+    onAccent: Color(0xFF0D1913),
+    leaf: Color(0xFF7ED077),
+    mint: Color(0xFF5CD6B0),
+    lagoon: Color(0xFF56C8D0),
+    jade: Color(0xFF62D89A),
+    lime: Color(0xFFB7D86A),
+    sage: Color(0xFF9FD3A0),
+  );
+
+  /// The site's daylight paper and ink, with the accents deepened until they
+  /// read as text on it.
+  static const light = ForestPalette(
+    surface: Color(0xFFEDF0E6),
+    card: Color(0xFFF8FAF3),
+    border: Color(0xFFCDD7C6),
+    textPrimary: Color(0xFF1B2D21),
+    textSecondary: Color(0xFF56645A),
+    onAccent: Color(0xFFF8FAF3),
+    leaf: Color(0xFF2A7330),
+    mint: Color(0xFF0A7360),
+    lagoon: Color(0xFF0A6E77),
+    jade: Color(0xFF17744A),
+    lime: Color(0xFF4A6E12),
+    sage: Color(0xFF3D6847),
+  );
+
+  /// The forest that goes with [palette].
+  static ForestPalette of(AppPalette palette) =>
+      identical(palette, AppPalette.light) ? light : dark;
+}
+
 /// Theme-aware color access. These are getters (not consts) so every widget
 /// rebuild picks up the active palette; the whole tree is rebuilt from the
 /// root when [ThemeService] changes, same as locale switches.
@@ -83,6 +161,9 @@ abstract final class AppColors {
   static Color get green => palette.green;
   static Color get textPrimary => palette.textPrimary;
   static Color get textSecondary => palette.textSecondary;
+
+  /// The active theme's [ForestPalette].
+  static ForestPalette get forest => ForestPalette.of(palette);
 
   // A faint wash from the website's forest palette, reserved for Room surfaces.
   // Primary orange and the brighter connection/status green keep their roles.

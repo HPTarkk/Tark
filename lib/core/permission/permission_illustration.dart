@@ -173,6 +173,7 @@ class _PermissionIllustrationState extends State<PermissionIllustration>
   @override
   Widget build(BuildContext context) {
     final palette = widget.palette ?? AppColors.palette;
+    final forest = ForestPalette.of(palette);
     return RepaintBoundary(
       child: SizedBox(
         height: widget.height,
@@ -185,9 +186,9 @@ class _PermissionIllustrationState extends State<PermissionIllustration>
             denied: _denied,
             granted: _granted,
             accent: widget.kind.accentOn(palette),
-            ink: palette.textPrimary,
-            muted: palette.textSecondary,
-            card: palette.card,
+            ink: forest.textPrimary,
+            muted: forest.textSecondary,
+            card: forest.card,
             success: palette.green,
             rtl: Directionality.of(context) == TextDirection.rtl,
           ),

@@ -69,22 +69,21 @@ enum PermissionKind {
       p == Permission.bluetoothAdvertise;
 
   /// This kind's own colour: one identity per permission, all of them drawn
-  /// from the same warm-on-graphite family so the primer still reads as one
-  /// system. The microphone keeps the brand amber — talking is the product.
+  /// from the website's forest greens ([ForestPalette]) so the primer reads
+  /// as one system. The microphone takes the site's own highlight green —
+  /// talking is the product.
   Color get accent => accentOn(AppColors.palette);
 
   /// [accent] for a specific palette rather than the active theme.
   Color accentOn(AppPalette palette) {
-    final light = identical(palette, AppPalette.light);
+    final forest = ForestPalette.of(palette);
     return switch (this) {
-      microphone => palette.amber,
-      camera => light ? const Color(0xFF00796B) : const Color(0xFF4FD1C5),
-      nearbyDevices =>
-        light ? const Color(0xFF3949AB) : const Color(0xFF8FA4FF),
-      nearbyWifi => light ? const Color(0xFF1565C0) : const Color(0xFF63B8FF),
-      location => light ? const Color(0xFFC2185B) : const Color(0xFFFF7C93),
-      notifications =>
-        light ? const Color(0xFF9A6B00) : const Color(0xFFFFC75A),
+      microphone => forest.leaf,
+      camera => forest.mint,
+      nearbyDevices => forest.lagoon,
+      nearbyWifi => forest.jade,
+      location => forest.lime,
+      notifications => forest.sage,
     };
   }
 

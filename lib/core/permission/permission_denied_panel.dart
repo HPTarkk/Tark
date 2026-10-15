@@ -37,6 +37,7 @@ class PermissionDeniedPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = palette ?? AppColors.palette;
     final accent = kind.accentOn(p);
+    final onAccent = ForestPalette.of(p).onAccent;
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
@@ -92,7 +93,7 @@ class PermissionDeniedPanel extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(kind.icon, size: 20, color: p.background),
+                          Icon(kind.icon, size: 20, color: onAccent),
                           const SizedBox(width: 10),
                           Flexible(
                             child: Text(
@@ -100,7 +101,7 @@ class PermissionDeniedPanel extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                color: p.background,
+                                color: onAccent,
                                 fontSize: 15,
                                 fontWeight: FontWeight.w800,
                               ),

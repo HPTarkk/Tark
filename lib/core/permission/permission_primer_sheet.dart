@@ -171,6 +171,7 @@ class _PermissionPrimerSheetState extends State<PermissionPrimerSheet>
     final s = context.getString;
     final kind = _flow.visualKind;
     final accent = kind.accent;
+    final forest = AppColors.forest;
     final copy = PermissionCopy.of(s, kind);
     final phase = _flow.phase;
     final settled =
@@ -202,6 +203,10 @@ class _PermissionPrimerSheetState extends State<PermissionPrimerSheet>
 
     return SheetShell(
       topFraction: 0.1,
+      // The website's forest rather than the graphite every other sheet
+      // wears: asking for something is the one moment the app should feel
+      // like the calm, outdoorsy place the site promised.
+      surfaceColor: forest.surface,
       borderColor: accent.withValues(alpha: 0.3),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 6, 20, 16),
@@ -243,7 +248,7 @@ class _PermissionPrimerSheetState extends State<PermissionPrimerSheet>
                     title,
                     key: const Key('permission-primer-title'),
                     style: TextStyle(
-                      color: AppColors.textPrimary,
+                      color: forest.textPrimary,
                       fontSize: 21,
                       fontWeight: FontWeight.w800,
                       height: 1.3,
@@ -253,7 +258,7 @@ class _PermissionPrimerSheetState extends State<PermissionPrimerSheet>
                   Text(
                     body,
                     style: TextStyle(
-                      color: AppColors.textSecondary,
+                      color: forest.textSecondary,
                       fontSize: 14,
                       height: 1.6,
                     ),
@@ -285,7 +290,7 @@ class _PermissionPrimerSheetState extends State<PermissionPrimerSheet>
                                 ? Icons.settings_rounded
                                 : Icons.verified_user_rounded,
                             accent: note != null
-                                ? AppColors.textSecondary
+                                ? forest.textSecondary
                                 : accent,
                           ),
                         ),
@@ -319,7 +324,7 @@ class _Stage extends StatelessWidget {
         radius: 0.95,
         colors: [
           accent.withValues(alpha: 0.12),
-          AppColors.card.withValues(alpha: 0.6),
+          AppColors.forest.card.withValues(alpha: 0.6),
         ],
       ),
       border: Border.all(color: accent.withValues(alpha: 0.16)),
@@ -356,7 +361,7 @@ class _Promise extends StatelessWidget {
           child: Text(
             text,
             style: TextStyle(
-              color: AppColors.textPrimary,
+              color: AppColors.forest.textPrimary,
               fontSize: 13,
               fontWeight: FontWeight.w600,
               height: 1.45,
@@ -447,7 +452,7 @@ class _Actions extends StatelessWidget {
             key: const Key('permission-primer-not-now'),
             onPressed: showNotNow ? flow.notNow : null,
             style: TextButton.styleFrom(
-              foregroundColor: AppColors.textSecondary,
+              foregroundColor: AppColors.forest.textSecondary,
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),
             child: Text(
@@ -478,10 +483,9 @@ class _PrimaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final enabled = onTap != null;
-    // Text on the filled accent: the page's own background reads on every
-    // accent in both themes (dark ink on the bright dark-theme accents,
-    // cream on the deep light-theme ones).
-    final onAccent = AppColors.background;
+    // Text on the filled accent: forest ink on the bright dark-theme
+    // accents, paper on the deep light-theme ones — AA on every one.
+    final onAccent = AppColors.forest.onAccent;
     return Semantics(
       button: true,
       enabled: enabled,
