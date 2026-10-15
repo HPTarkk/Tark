@@ -423,7 +423,10 @@ class _FakeBluetoothJoiner implements BluetoothInviteJoiner {
   final tokens = <String>[];
 
   @override
-  Future<BluetoothInviteJoinResult> join(BluetoothInviteLink link) async {
+  Future<BluetoothInviteJoinResult> join(
+    BluetoothInviteLink link, {
+    bool pin = true,
+  }) async {
     tokens.add(link.token);
     return result;
   }

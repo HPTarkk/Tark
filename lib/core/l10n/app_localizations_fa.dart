@@ -3304,7 +3304,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get carriermove_step_established => 'آماده';
 
   @override
-  String get carriermove_stay => 'به‌جاش روی همین وای‌فای بمون';
+  String get carriermove_use_bluetooth => 'به‌جاش از بلوتوث استفاده کن';
 
   @override
   String carriermove_guided_show(String name) {
@@ -3724,5 +3724,5 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get carriermove_failed_nohost_detail =>
-      'هیچ‌کدوم از گوشی‌ها نتونست هات‌اسپات خودش رو بده. دوباره امتحان کن، یا فعلاً روی همین وای‌فای بمون؛ وقتی راه بیفتید همراهتون نمیاد.';
+      'هیچ‌کدوم از گوشی‌ها نتونست هات‌اسپات خودش رو بده. دوباره امتحان کن، یا از بلوتوث استفاده کن: رایگانه و وقتی راه بیفتید هم کار می‌کنه.';
 }

@@ -1006,7 +1006,7 @@
     "carriermove_step_moving": "انتقال",
     "carriermove_step_verifying": "بررسی",
     "carriermove_step_established": "آماده",
-    "carriermove_stay": "به‌جاش روی همین وای‌فای بمون",
+    "carriermove_use_bluetooth": "به‌جاش از بلوتوث استفاده کن",
     "carriermove_guided_show": "خودکار منتقل نشد. بذار {name} این کد رو اسکن کنه.",
     "@carriermove_guided_show": {"placeholders": {"name": {"type": "String"}}},
     "carriermove_guided_scan": "خودکار منتقل نشد. کد روی گوشی {name} رو اسکن کن.",
@@ -1138,5 +1138,5 @@
     "@btmove_verifying_title": {"placeholders": {"name": {"type": "String"}}},
     "@btmove_failed_notfound_detail": {"placeholders": {"name": {"type": "String"}}},
     "@btmove_failed_check_detail": {"placeholders": {"name": {"type": "String"}}},
-    "carriermove_failed_nohost_detail": "هیچ‌کدوم از گوشی‌ها نتونست هات‌اسپات خودش رو بده. دوباره امتحان کن، یا فعلاً روی همین وای‌فای بمون؛ وقتی راه بیفتید همراهتون نمیاد."
+    "carriermove_failed_nohost_detail": "هیچ‌کدوم از گوشی‌ها نتونست هات‌اسپات خودش رو بده. دوباره امتحان کن، یا از بلوتوث استفاده کن: رایگانه و وقتی راه بیفتید هم کار می‌کنه."
 }

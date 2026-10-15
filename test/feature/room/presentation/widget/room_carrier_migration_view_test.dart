@@ -112,9 +112,8 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
   });
 
-  testWidgets('a step that drags on offers staying on this Wi-Fi', (
-    tester,
-  ) async {
+  testWidgets('a step that drags on offers Bluetooth, never staying on the '
+      'house Wi-Fi', (tester) async {
     var stayed = 0;
     await pump(
       tester,
@@ -127,6 +126,8 @@ void main() {
     expect(find.byKey(const Key('carrier-migration-stay')), findsNothing);
     await tester.pump(const Duration(seconds: 12));
     await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('Use Bluetooth instead'), findsOneWidget);
+    expect(find.textContaining('Stay on this Wi-Fi'), findsNothing);
     await tester.tap(find.byKey(const Key('carrier-migration-stay')));
     expect(stayed, 1);
     await tester.pumpWidget(const SizedBox());

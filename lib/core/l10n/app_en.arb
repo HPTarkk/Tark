@@ -976,7 +976,7 @@
     "carriermove_step_moving": "Move",
     "carriermove_step_verifying": "Check",
     "carriermove_step_established": "Ready",
-    "carriermove_stay": "Stay on this Wi-Fi instead",
+    "carriermove_use_bluetooth": "Use Bluetooth instead",
     "carriermove_guided_show": "Couldn't move over on its own. Let {name} scan this code.",
     "carriermove_guided_scan": "Couldn't move over on its own. Scan the code on {name}'s phone.",
     "carriermove_guided_declined": "The connection request was closed. Scan the code on {name}'s phone to connect.",
@@ -1091,5 +1091,5 @@
     "btmove_failed_location_detail": "Location is off, and Android needs it on to find nearby phones. Turn it on, then try again.",
     "btmove_failed_check_detail": "The phones linked, but {name}'s phone didn't confirm it's in this Room. Try again.",
     "btmove_pair_manually": "Connect another way",
-    "carriermove_failed_nohost_detail": "Neither phone could be chosen to share its own hotspot. Try again, or stay on this Wi-Fi for now: it won't come with you when you ride off."
+    "carriermove_failed_nohost_detail": "Neither phone could be chosen to share its own hotspot. Try again, or use Bluetooth: it's free and keeps working once you ride off."
 }

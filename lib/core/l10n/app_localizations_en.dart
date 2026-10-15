@@ -3333,7 +3333,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get carriermove_step_established => 'Ready';
 
   @override
-  String get carriermove_stay => 'Stay on this Wi-Fi instead';
+  String get carriermove_use_bluetooth => 'Use Bluetooth instead';
 
   @override
   String carriermove_guided_show(String name) {
@@ -3754,5 +3754,5 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get carriermove_failed_nohost_detail =>
-      'Neither phone could be chosen to share its own hotspot. Try again, or stay on this Wi-Fi for now: it won\'t come with you when you ride off.';
+      'Neither phone could be chosen to share its own hotspot. Try again, or use Bluetooth: it\'s free and keeps working once you ride off.';
 }

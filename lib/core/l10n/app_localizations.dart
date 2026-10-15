@@ -5852,11 +5852,11 @@ abstract class AppLocalizations {
   /// **'آماده'**
   String get carriermove_step_established;
 
-  /// No description provided for @carriermove_stay.
+  /// No description provided for @carriermove_use_bluetooth.
   ///
   /// In fa, this message translates to:
-  /// **'به‌جاش روی همین وای‌فای بمون'**
-  String get carriermove_stay;
+  /// **'به‌جاش از بلوتوث استفاده کن'**
+  String get carriermove_use_bluetooth;
 
   /// No description provided for @carriermove_guided_show.
   ///
@@ -6539,7 +6539,7 @@ abstract class AppLocalizations {
   /// No description provided for @carriermove_failed_nohost_detail.
   ///
   /// In fa, this message translates to:
-  /// **'هیچ‌کدوم از گوشی‌ها نتونست هات‌اسپات خودش رو بده. دوباره امتحان کن، یا فعلاً روی همین وای‌فای بمون؛ وقتی راه بیفتید همراهتون نمیاد.'**
+  /// **'هیچ‌کدوم از گوشی‌ها نتونست هات‌اسپات خودش رو بده. دوباره امتحان کن، یا از بلوتوث استفاده کن: رایگانه و وقتی راه بیفتید هم کار می‌کنه.'**
   String get carriermove_failed_nohost_detail;
 }
 

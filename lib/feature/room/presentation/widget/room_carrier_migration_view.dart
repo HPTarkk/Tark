@@ -83,7 +83,9 @@ class RoomCarrierMigrationView extends StatefulWidget {
   /// channel out of it rather than over it.
   final VoidCallback? onEstablished;
 
-  /// "Stay on this Wi-Fi instead". Offered only once a step has been on
+  /// "Use Bluetooth instead" (on the Bluetooth scene itself, "Stop"). Never
+  /// "stay on this Wi-Fi": the house router does not come along on the ride.
+  /// Offered only once a step has been on
   /// screen for [stayAfter]: a move that is going well should not be
   /// second-guessed, and one that is not must never leave the person with
   /// nothing to tap.
@@ -477,7 +479,9 @@ class _RoomCarrierMigrationViewState extends State<RoomCarrierMigrationView>
                                 child: Text(
                                   bluetooth
                                       ? context.getString.btmove_stop
-                                      : context.getString.carriermove_stay,
+                                      : context
+                                            .getString
+                                            .carriermove_use_bluetooth,
                                 ),
                               ),
                             )

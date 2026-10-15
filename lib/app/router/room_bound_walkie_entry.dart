@@ -1640,9 +1640,12 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
             // Nobody could be chosen to share. Said in the scene, not by
             // cutting to the call: the router is not going with them.
             Logger.diagnostic('carrier_move: nobody to host');
-            final again = await _migrationNoHost(stay: stay);
+            final next = await _migrationNoHost(stay: stay);
             if (!mounted) return _EntryState.lobby(room);
-            if (again) {
+            if (next == _MoveChoice.bluetooth) {
+              return _moveToBluetooth(room, binding, fellBack, clear);
+            }
+            if (next == _MoveChoice.retry) {
               setState(() {
                 _migrationFailure = null;
                 _migrationActions = const [];
@@ -1657,12 +1660,11 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
           clear();
           return live;
         case RoomMigrationResult.abandoned:
-          if ((stay.isCompleted || fellBack) && mounted) {
-            if (stay.isCompleted) {
-              Logger.diagnostic(
-                'carrier_move: staying on the router by request',
-              );
-            }
+          if (stay.isCompleted && mounted) {
+            // "Use Bluetooth instead", while the move was still going.
+            return _moveToBluetooth(room, binding, fellBack, clear);
+          }
+          if (fellBack && mounted) {
             mover.standDown();
             clear();
             return live;
@@ -1673,10 +1675,10 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
           final choice = await _migrationFailed(outcome, stay: stay);
           if (!mounted) return _EntryState.lobby(room);
           switch (choice) {
+            case _MoveChoice.bluetooth:
+              return _moveToBluetooth(room, binding, fellBack, clear);
             case _MoveChoice.stay:
-              Logger.diagnostic(
-                'carrier_move: staying on the router by request',
-              );
+              // The screen went away; nothing left to show.
               mover.standDown();
               clear();
               return live;
@@ -1885,6 +1887,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
           _resetBluetooth();
           unawaited(_openBluetoothPairing(room));
           return _EntryState.lobby(room);
+        case _MoveChoice.bluetooth:
         case _MoveChoice.stay:
           return _stopBluetooth(room, clear);
       }
@@ -1942,7 +1945,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     unawaited(stopped.then((_) => stoppedNow = true));
     show(RoomMigrationStep.moving);
     while (!stoppedNow && DateTime.now().isBefore(deadline)) {
-      final result = await BluetoothInviteJoiner().join(link);
+      final result = await BluetoothInviteJoiner().join(link, pin: false);
       switch (result) {
         case BluetoothInviteJoinResult.joined:
           return null;
@@ -2129,17 +2132,56 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     }
   }
 
+  /// The way off the router that never needs a hotspot: Bluetooth, which is
+  /// free and keeps working once the riders leave. Offered in place of
+  /// staying on the house Wi-Fi, which never comes with them.
+  Widget _useBluetoothButton(VoidCallback onPressed) => TextButton.icon(
+    key: const Key('carrier-migration-bluetooth'),
+    onPressed: onPressed,
+    icon: const Icon(Icons.bluetooth_rounded),
+    label: Text(context.getString.carriermove_use_bluetooth),
+  );
+
+  /// Leaves the move for Bluetooth: the Wi-Fi session goes, and the two
+  /// phones find each other over Bluetooth in its own scene. A call already
+  /// open on the router ([fellBack]) is replaced by the one that comes up
+  /// over Bluetooth.
+  Future<_EntryState> _moveToBluetooth(
+    SavedRoom room,
+    SelectedRoomLiveSessionBinding binding,
+    bool fellBack,
+    void Function() clear,
+  ) async {
+    Logger.diagnostic('carrier_move: moving to bluetooth by request');
+    binding.carrierPromotion?.standDown();
+    final epoch = _coordinator.state.epoch;
+    if (_coordinator.state.isActive) _coordinator.cancel(epoch: epoch);
+    await binding.close();
+    clear();
+    if (!mounted) return _EntryState.lobby(room);
+    if (!_roomBluetoothApplies(room)) {
+      unawaited(_openBluetoothPairing(room));
+      final lobby = _EntryState.lobby(room);
+      if (fellBack) setState(() => _entry = Future.value(lobby));
+      return lobby;
+    }
+    final next = _connectOverBluetooth(room);
+    if (fellBack) setState(() => _entry = next);
+    return next;
+  }
+
   /// Tells, in the scene, that neither phone could be chosen to share, and
-  /// waits for Try again (true) or staying on this Wi-Fi.
-  Future<bool> _migrationNoHost({required Completer<void> stay}) {
+  /// waits for Try again or Bluetooth ([_MoveChoice.stay] only when the
+  /// screen went away).
+  Future<_MoveChoice> _migrationNoHost({required Completer<void> stay}) {
     final s = context.getString;
-    final choice = Completer<bool>();
-    void pick(bool again) {
-      if (!choice.isCompleted) choice.complete(again);
+    final choice = Completer<_MoveChoice>();
+    void pick(_MoveChoice value) {
+      if (!choice.isCompleted) choice.complete(value);
     }
 
-    unawaited(stay.future.then((_) => pick(false)));
-    unawaited(_abandonWaits.future.then((_) => pick(false)));
+    unawaited(stay.future.then((_) => pick(_MoveChoice.bluetooth)));
+    unawaited(_abandonWaits.future.then((_) => pick(_MoveChoice.stay)));
     setState(() {
       _migrationFailure = RoomMigrationFailureCopy(
         title: s.carriermove_failed_title,
@@ -2148,15 +2190,11 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       _migrationActions = [
         FilledButton.icon(
           key: const Key('carrier-migration-retry'),
-          onPressed: () => pick(true),
+          onPressed: () => pick(_MoveChoice.retry),
           icon: const Icon(Icons.refresh_rounded),
           label: Text(s.reconnect_retry),
         ),
-        TextButton(
-          key: const Key('carrier-migration-stay'),
-          onPressed: () => pick(false),
-          child: Text(s.carriermove_stay),
-        ),
+        _useBluetoothButton(() => pick(_MoveChoice.bluetooth)),
       ];
     });
     return choice.future;
@@ -2176,7 +2214,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       if (!choice.isCompleted) choice.complete(value);
     }
 
-    unawaited(stay.future.then((_) => pick(_MoveChoice.stay)));
+    unawaited(stay.future.then((_) => pick(_MoveChoice.bluetooth)));
     unawaited(_abandonWaits.future.then((_) => pick(_MoveChoice.stay)));
 
     // The phone that would host, still on the house Wi-Fi and unable to keep
@@ -2191,11 +2229,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       'reason=${outcome.failure?.name ?? 'unknown'} wifiInTheWay=$wifiInTheWay',
     );
 
-    final stayLink = TextButton(
-      key: const Key('carrier-migration-stay'),
-      onPressed: () => pick(_MoveChoice.stay),
-      child: Text(s.carriermove_stay),
-    );
+    final stayLink = _useBluetoothButton(() => pick(_MoveChoice.bluetooth));
     setState(() {
       if (hosting) {
         _migrationFailure = RoomMigrationFailureCopy(
@@ -3371,7 +3405,8 @@ class _DelayedSpinnerState extends State<_DelayedSpinner> {
 }
 
 /// The way forward a person picked after a move that did not finish.
-enum _MoveChoice { retry, showCode, scan, stay }
+/// The way forward from a move: [stay] only when the screen went away.
+enum _MoveChoice { retry, showCode, scan, bluetooth, stay }
 
 /// Why a move onto Bluetooth stopped.
 enum _BluetoothMoveFailure { notFound, off, permission, location, unconfirmed }

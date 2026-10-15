@@ -35,7 +35,13 @@ class BluetoothInviteJoiner {
   final Future<bool> Function() _permissions;
   final Future<bool> Function() _locationReady;
 
-  Future<BluetoothInviteJoinResult> join(BluetoothInviteLink link) async {
+  /// With [pin], the Room is set to Bluetooth from here on: the invite's code
+  /// was the host's choice. A Room's own move to Bluetooth passes false and
+  /// only switches this session.
+  Future<BluetoothInviteJoinResult> join(
+    BluetoothInviteLink link, {
+    bool pin = true,
+  }) async {
     try {
       if (!await _permissions()) {
         return BluetoothInviteJoinResult.permissionDenied;
@@ -78,7 +84,7 @@ class BluetoothInviteJoiner {
       // here too; otherwise a Wi-Fi preference on this phone would refuse the
       // very link it is about to open.
       final modes = GetIt.instance<TransferModeStore>();
-      await modes.setPinnedMode(TransferMode.bluetooth);
+      if (pin) await modes.setPinnedMode(TransferMode.bluetooth);
       await modes.setMode(TransferMode.bluetooth);
     }
     final linked = await BluetoothLinkHandoff(transport).join(address);
