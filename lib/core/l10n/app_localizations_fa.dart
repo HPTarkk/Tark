@@ -3737,4 +3737,50 @@ class AppLocalizationsFa extends AppLocalizations {
   @override
   String get carriermove_failed_nohost_detail =>
       'هیچ‌کدوم از گوشی‌ها نتونست هات‌اسپات خودش رو بده. دوباره امتحان کن، یا از بلوتوث استفاده کن: رایگانه و وقتی راه بیفتید هم کار می‌کنه.';
+
+  @override
+  String get manual_join_title => 'بیا دستی وصلش کنیم';
+
+  @override
+  String manual_join_detail(int count) {
+    return 'اندروید $count بار اتصال خودکار رو رد کرد. از تنظیمات همیشه وصل می‌شه و چند ثانیه بیشتر طول نمی‌کشه.';
+  }
+
+  @override
+  String manual_join_title_host(String name) {
+    return '$name دستی وصل شه';
+  }
+
+  @override
+  String manual_join_detail_host(String name) {
+    return 'گوشی $name خودش نتونست به هات‌اسپات این گوشی وصل شه. روی گوشی $name:';
+  }
+
+  @override
+  String get manual_join_step_open => 'تنظیمات › وای‌فای رو باز کن';
+
+  @override
+  String manual_join_step_pick(String ssid) {
+    return '$ssid رو انتخاب کن';
+  }
+
+  @override
+  String get manual_join_step_password => 'رمز پایین رو بزن، یا کپیش کن';
+
+  @override
+  String get manual_join_step_back => 'برگرد همین‌جا. تَرک خودش ادامه می‌ده';
+
+  @override
+  String manual_join_step_back_host(String name) {
+    return 'روی گوشی $name برگرد به تَرک';
+  }
+
+  @override
+  String get manual_join_open_wifi => 'باز کردن تنظیمات وای‌فای';
+
+  @override
+  String get manual_join_done => 'وصل شدم';
+
+  @override
+  String get manual_join_step_password_host => 'رمزی که پایین نوشته رو بزن';
 }

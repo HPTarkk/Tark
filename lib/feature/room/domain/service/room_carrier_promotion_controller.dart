@@ -69,6 +69,7 @@ final class RoomCarrierStatus {
     this.hostMemberId,
     this.localIsHost = false,
     this.failure,
+    this.network,
   });
 
   final RoomCarrierStage stage;
@@ -79,6 +80,11 @@ final class RoomCarrierStatus {
 
   /// Set only on the settled status that ends a move which did not happen.
   final RoomCarrierMoveFailure? failure;
+
+  /// The access point the move is onto, once anyone has named it: the one
+  /// this phone raised, or the one the host announced. What a person needs
+  /// to join it by hand when Android will not.
+  final HotspotCredentials? network;
 
   /// Whether the group is currently being moved. The one state worth saying
   /// out loud, because the host's phone is about to leave the internet.
@@ -264,6 +270,9 @@ final class RoomCarrierPromotionController implements RoomCarrierMover {
   /// Set by [standDown]: this session stays on the network it has.
   bool _stoodDown = false;
 
+  /// The access point last raised here or announced to this phone.
+  HotspotCredentials? _network;
+
   /// Whether [followHost] is still running. A join takes seconds — Android
   /// may be showing its own prompt — and the mode only changes once it
   /// lands, so without this a tick in between saw a borrowed network with a
@@ -364,9 +373,9 @@ final class RoomCarrierPromotionController implements RoomCarrierMover {
       ? RoomCarrierDurability.owned
       : RoomCarrierPromotionPlanner.durabilityOf(_kindFor(modeStore.mode));
 
-  /// Whether another member says it is holding up the access point and is on
-  /// no other Wi-Fi, so the Wi-Fi this phone hears it on can only be that
-  /// access point: the Room's own network, whatever this phone recorded.
+  /// Whether another member says it is holding up the access point and is
+  /// heard there, so the Wi-Fi this phone hears it on is that access point:
+  /// the Room's own network, whatever this phone recorded.
   ///
   /// A phone joined to the other's hotspot cannot tell it from a router — it
   /// is just Wi-Fi — and after leaving and coming back in, nothing on this
@@ -687,6 +696,7 @@ final class RoomCarrierPromotionController implements RoomCarrierMover {
       _announcedAt = issuedAt;
       _generation = generation;
       _handoverSince = null;
+      _network = credentials;
       _publish(
         RoomCarrierStatus(
           stage: RoomCarrierStage.moving,
@@ -694,6 +704,7 @@ final class RoomCarrierPromotionController implements RoomCarrierMover {
           generation: generation,
           hostMemberId: localMemberId,
           localIsHost: true,
+          network: credentials,
         ),
       );
       Logger.diagnostic(
@@ -801,6 +812,7 @@ final class RoomCarrierPromotionController implements RoomCarrierMover {
       ).encode();
       _announcedSsid = credentials.ssid;
       _announcedAt = issuedAt;
+      _network = credentials;
       if (!renew) {
         _generation = generation;
         Logger.diagnostic(
@@ -863,6 +875,7 @@ final class RoomCarrierPromotionController implements RoomCarrierMover {
       _announcedAt = issuedAt;
       _generation = generation;
       _plannedGeneration = generation;
+      _network = credentials;
       _publish(
         RoomCarrierStatus(
           stage: RoomCarrierStage.moving,
@@ -870,6 +883,7 @@ final class RoomCarrierPromotionController implements RoomCarrierMover {
           generation: generation,
           hostMemberId: localMemberId,
           localIsHost: true,
+          network: credentials,
         ),
       );
       Logger.diagnostic(
@@ -930,22 +944,26 @@ final class RoomCarrierPromotionController implements RoomCarrierMover {
     // Already on the network it names: the host is re-announcing what this
     // phone joined. Record the generation and stay put — joining again would
     // drop and re-take the very connection the call is running on.
+    // The host's own word that it is heard on its access point settles it
+    // whatever this phone recorded: after leaving a call and coming back, the
+    // mode can say "router" while the phone never left the host's hotspot.
     final held = hotspotLinkKeeper.credentials;
     final onIt =
-        modeStore.mode == TransferMode.hotspot &&
-        (held != null
-            ? held.ssid == handover.ssid
-            : _carries(handover.hostMemberId));
+        _carries(handover.hostMemberId) ||
+        (modeStore.mode == TransferMode.hotspot && held?.ssid == handover.ssid);
     if (onIt) {
       // Joined some other way (an earlier session, the OS): now the
       // credentials are known, so a drop can be rejoined.
-      if (held == null) {
+      if (held?.ssid != handover.ssid) {
         hotspotLinkKeeper.adopt(
           HotspotCredentials(
             ssid: handover.ssid,
             passphrase: handover.passphrase,
           ),
         );
+      }
+      if (modeStore.mode != TransferMode.hotspot) {
+        unawaited(modeStore.setMode(TransferMode.hotspot));
       }
       _generation = handover.generation;
       _plannedGeneration = handover.generation;
@@ -960,17 +978,19 @@ final class RoomCarrierPromotionController implements RoomCarrierMover {
     _generation = handover.generation;
     _plannedGeneration = handover.generation;
     _handoverSince = null;
+    final credentials = HotspotCredentials(
+      ssid: handover.ssid,
+      passphrase: handover.passphrase,
+    );
+    _network = credentials;
     _publish(
       RoomCarrierStatus(
         stage: RoomCarrierStage.moving,
         durability: RoomCarrierDurability.owned,
         generation: handover.generation,
         hostMemberId: handover.hostMemberId,
+        network: credentials,
       ),
-    );
-    final credentials = HotspotCredentials(
-      ssid: handover.ssid,
-      passphrase: handover.passphrase,
     );
     setSessionRole?.call(SessionRole.joiner);
     final follow = followHost;
@@ -1032,6 +1052,7 @@ final class RoomCarrierPromotionController implements RoomCarrierMover {
     hostMemberId: _generation > 0 ? _status.hostMemberId : null,
     localIsHost: _generation > 0 && _status.localIsHost,
     failure: failure,
+    network: _network,
   );
 
   void _publish(RoomCarrierStatus status) {

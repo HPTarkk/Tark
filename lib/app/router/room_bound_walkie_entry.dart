@@ -25,6 +25,7 @@ import '../../core/utils/android_sdk.dart';
 import '../../core/utils/logger.dart';
 import '../../feature/room/api/room_api.dart';
 import '../../feature/room/presentation/widget/carrier_status_scope.dart';
+import '../../feature/room/presentation/widget/manual_join_guide.dart';
 import '../../feature/room/presentation/widget/one_scan_room_invite_sheet.dart';
 import '../../feature/room/presentation/widget/room_carrier_migration_view.dart';
 import '../../feature/room/presentation/widget/room_group_access_guard.dart';
@@ -392,19 +393,23 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     return true;
   }
 
-  /// Waits up to [within] for [peer]'s capabilities, then answers whether it
-  /// says it is the access point this phone is on.
+  /// Waits up to [within] for the other phone to say it is the access point
+  /// this phone is on.
+  ///
+  /// Not just for its first word: the host can only say so once it has heard
+  /// this phone on the access point, and its first reading can go out a beat
+  /// before that. Taking that first "no" as final is how a phone already on
+  /// the host's hotspot set off moving the pair off "the router".
   Future<bool> _peerCarriesRoom(
-    RoomCarrierPromotionController mover,
-    RoomMemberId peer, {
-    Duration within = const Duration(milliseconds: 2500),
+    RoomCarrierPromotionController mover, {
+    Duration within = const Duration(milliseconds: 3500),
   }) async {
     final deadline = DateTime.now().add(within);
-    while (mounted && !mover.heardFrom(peer)) {
+    while (mounted && !mover.peerCarriesRoom) {
       if (!DateTime.now().isBefore(deadline)) return false;
       await Future<void>.delayed(const Duration(milliseconds: 150));
     }
-    return mounted && mover.peerCarriesRoom;
+    return mounted;
   }
 
   /// Whether the Wi-Fi this phone is on is a hotspot a Tarkk hand-off
@@ -1551,6 +1556,10 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
 
   /// What went wrong, while the move's scene is telling it.
   RoomMigrationFailureCopy? _migrationFailure;
+
+  /// Moves that did not finish since this move off the router began. From
+  /// [manualJoinAfterFailures] on, the person is shown how to join by hand.
+  int _moveFailures = 0;
   List<Widget> _migrationActions = const [];
 
   /// The channel is opening out of the move's own "connected" beat, so the
@@ -1605,7 +1614,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
     // this phone joined to it, which from here looks like any Wi-Fi. Its
     // capabilities say so; give them a moment to arrive before setting off
     // to move a pair that is already where a move would take it.
-    if (await _peerCarriesRoom(mover, peer.memberId)) {
+    if (await _peerCarriesRoom(mover)) {
       Logger.diagnostic(
         'room: on the other phone\'s own access point — no move needed',
       );
@@ -1633,6 +1642,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
       _migrationFailure = null;
       _migrationActions = const [];
     });
+    _moveFailures = 0;
     void clear() {
       if (!mounted || !identical(_migrationLanded, landed)) return;
       setState(() {
@@ -1727,9 +1737,36 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
           clear();
           return _EntryState.lobby(room, failure: _EntryFailure.staleAttempt);
         case RoomMigrationResult.needsGuidance:
-          final choice = await _migrationFailed(outcome, stay: stay);
+          _moveFailures++;
+          final choice = await _migrationFailed(
+            outcome,
+            stay: stay,
+            mover: mover,
+          );
           if (!mounted) return _EntryState.lobby(room);
           switch (choice) {
+            case _MoveChoice.joinedByHand:
+              // On the hotspot from Settings: the host says so once it hears
+              // this phone there, and that is the move done.
+              if (await _peerCarriesRoom(
+                mover,
+                within: const Duration(seconds: 8),
+              )) {
+                Logger.diagnostic('carrier_move: joined by hand');
+                await _modeStore?.setMode(TransferMode.hotspot);
+                mover.onCarrierChanged();
+                clear();
+                return live;
+              }
+              if (!mounted) return _EntryState.lobby(room);
+              setState(() {
+                _migrationFailure = null;
+                _migrationActions = const [];
+                _migrationProgress = const RoomMigrationProgress(
+                  RoomMigrationStep.found,
+                );
+              });
+              continue;
             case _MoveChoice.close:
               return _closeMove(
                 room,
@@ -1951,6 +1988,7 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
         case _MoveChoice.bluetooth:
         case _MoveChoice.stay:
         case _MoveChoice.close:
+        case _MoveChoice.joinedByHand:
           return _stopBluetooth(room, clear);
       }
     }
@@ -2311,10 +2349,33 @@ class _RoomBoundWalkieEntryState extends State<RoomBoundWalkieEntry> {
   Future<_MoveChoice> _migrationFailed(
     RoomMigrationOutcome outcome, {
     required Completer<void> stay,
+    RoomCarrierPromotionController? mover,
   }) async {
     final s = context.getString;
     final name = _migrationPeerName;
     final hosting = outcome.side != RoomMigrationSide.joiner;
+    // Asked more than once and turned down each time: stop asking Android and
+    // show the person how to do it in Settings, which always works.
+    final network = mover?.status.network;
+    if (network != null && _moveFailures >= manualJoinAfterFailures) {
+      Logger.diagnostic(
+        'carrier_move: showing the manual join after $_moveFailures tries',
+      );
+      final host = _hotspotHost;
+      final picked = await showManualJoinGuide(
+        context,
+        network: network,
+        localIsHost: hosting,
+        peerName: name,
+        failures: _moveFailures,
+        onOpenWifi: host == null ? null : () => unawaited(host.openWifiPanel()),
+      );
+      if (!mounted) return _MoveChoice.stay;
+      if (picked == ManualJoinChoice.connected) {
+        return hosting ? _MoveChoice.retry : _MoveChoice.joinedByHand;
+      }
+      if (picked == ManualJoinChoice.bluetooth) return _MoveChoice.bluetooth;
+    }
     final choice = Completer<_MoveChoice>();
     void pick(_MoveChoice value) {
       if (!choice.isCompleted) choice.complete(value);
@@ -3563,7 +3624,17 @@ class _DelayedSpinnerState extends State<_DelayedSpinner> {
 /// The way forward a person picked after a move that did not finish.
 /// The way forward from a move: [stay] only when the screen went away.
 /// [close] is the scene's close button: stop the move and go back.
-enum _MoveChoice { retry, showCode, scan, bluetooth, stay, close }
+enum _MoveChoice {
+  retry,
+  showCode,
+  scan,
+  bluetooth,
+  stay,
+  close,
+
+  /// The person joined the hotspot from Settings, following the guide.
+  joinedByHand,
+}
 
 /// Why a move onto Bluetooth stopped.
 enum _BluetoothMoveFailure { notFound, off, permission, location, unconfirmed }

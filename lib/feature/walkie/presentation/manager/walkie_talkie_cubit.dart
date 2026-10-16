@@ -1483,8 +1483,9 @@ class WalkieTalkieCubit extends Cubit<WalkieTalkieState>
     }
     // The session is over, so the hotspot link no longer needs keeping. A no-op
     // for every transport that never adopted one. Deliberately does not tear
-    // the AP down — that stays the bridge screen's call.
-    unawaited(_linkKeeper.release());
+    // the AP down — that stays the bridge screen's call — and an AP this
+    // phone still holds is remembered, so the next call reuses it.
+    unawaited(_linkKeeper.rest());
 
     // Initiate both cancels synchronously (no events delivered after this
     // line), then tear the transport down BEFORE any await. This close is

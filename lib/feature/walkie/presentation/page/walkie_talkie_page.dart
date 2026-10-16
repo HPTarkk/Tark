@@ -142,6 +142,16 @@ class _WalkieTalkiePageState extends State<WalkieTalkiePage> {
       backgroundColor: AppColors.background,
       // The Room moving onto its own network opens over the whole call.
       body: CarrierMoveScene(
+        peerName:
+            context.select<WalkieTalkieCubit, String?>((cubit) {
+              final state = cubit.state;
+              return state.activeUsers
+                  .where((user) => user.id != state.localId)
+                  .map((user) => user.name)
+                  .where((name) => name.trim().isNotEmpty)
+                  .firstOrNull;
+            }) ??
+            context.getString.people_unnamed,
         child: SafeArea(
           child: Column(
             children: [

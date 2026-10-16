@@ -345,6 +345,15 @@ void main() {
       },
     );
 
+    test('a call ending lets go of the joined network', () async {
+      keeper.adopt(_creds);
+
+      await keeper.rest();
+
+      expect(keeper.state, HotspotLinkState.idle);
+      expect(keeper.credentials, isNull);
+    });
+
     test('drop after release is ignored', () async {
       keeper.adopt(_creds);
       await keeper.release();
@@ -424,6 +433,30 @@ void main() {
         expect(keeper.state, HotspotLinkState.recovering);
       },
     );
+
+    test('a call ending keeps the access point it still holds', () async {
+      keeper.adopt(_creds);
+      host.starts = 1;
+
+      await keeper.rest();
+
+      expect(keeper.state, HotspotLinkState.up);
+      expect(keeper.credentials, _creds);
+    });
+
+    test('an access point going down after the call is forgotten', () async {
+      keeper.adopt(_creds);
+      host.starts = 1;
+      await keeper.rest();
+
+      host.tearDown();
+      await pumpEventQueue();
+
+      // Nothing raises it again: the call is over.
+      expect(host.starts, 1);
+      expect(keeper.state, HotspotLinkState.idle);
+      expect(keeper.credentials, isNull);
+    });
 
     test('release cancels peer-evidence waiting exactly once', () async {
       wifi.currentStats = const TransportStats(peerCount: 1);

@@ -45,6 +45,13 @@ abstract interface class HotspotLinkKeeper {
   /// link down — leaving the Room and dropping the AP are separate decisions.
   Future<void> release();
 
+  /// The session over this link ended, but the link did not: this phone is
+  /// still holding the access point up. Stops recovery like [release] but
+  /// keeps the credentials, so the next session on the same access point
+  /// can still name it to the other phones and reuse it rather than raising
+  /// a new one under a new name. Anything else is a [release].
+  Future<void> rest();
+
   /// Restarts bounded recovery after it gave up. No-op in every other state.
   void retryNow();
 

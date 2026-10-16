@@ -364,6 +364,9 @@ class _Keeper implements HotspotLinkKeeper {
   @override
   void adopt(HotspotCredentials credentials) => held = credentials;
   @override
+  Future<void> rest() => release();
+
+  @override
   Future<void> release() async {}
   @override
   dynamic noSuchMethod(Invocation invocation) =>

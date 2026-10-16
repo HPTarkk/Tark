@@ -114,4 +114,60 @@ void main() {
       expect(sent?.prefersHotspotHost, isFalse);
     });
   });
+
+  group('carries the Room on its access point', () {
+    test('when hosting and on no other Wi-Fi', () {
+      expect(
+        TransportCapabilityReader.carriesOnAccessPoint(
+          hosting: true,
+          station: null,
+          peers: const [],
+        ),
+        isTrue,
+      );
+    });
+
+    test('when also on a router but the peer is heard on the hotspot', () {
+      // 2026-10-16: the host rejoined the home Wi-Fi 30 s into the call while
+      // the other phone stayed on its access point.
+      expect(
+        TransportCapabilityReader.carriesOnAccessPoint(
+          hosting: true,
+          station: '192.168.8.107',
+          peers: const ['10.14.189.134'],
+        ),
+        isTrue,
+      );
+    });
+
+    test('not when the peer is heard only over the router', () {
+      expect(
+        TransportCapabilityReader.carriesOnAccessPoint(
+          hosting: true,
+          station: '192.168.8.107',
+          peers: const ['192.168.8.155'],
+        ),
+        isFalse,
+      );
+      expect(
+        TransportCapabilityReader.carriesOnAccessPoint(
+          hosting: true,
+          station: '192.168.8.107',
+          peers: const [],
+        ),
+        isFalse,
+      );
+    });
+
+    test('never when not hosting', () {
+      expect(
+        TransportCapabilityReader.carriesOnAccessPoint(
+          hosting: false,
+          station: null,
+          peers: const ['10.14.189.134'],
+        ),
+        isFalse,
+      );
+    });
+  });
 }

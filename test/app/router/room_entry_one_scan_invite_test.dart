@@ -397,6 +397,9 @@ class _IdleKeeper implements HotspotLinkKeeper {
   Stream<HotspotCredentials> get credentialChanges => const Stream.empty();
 
   @override
+  Future<void> rest() => release();
+
+  @override
   Future<void> release() async {}
 
   @override

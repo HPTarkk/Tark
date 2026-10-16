@@ -1095,5 +1095,17 @@
     "btmove_failed_location_detail": "Location is off, and Android needs it on to find nearby phones. Turn it on, then try again.",
     "btmove_failed_check_detail": "The phones linked, but {name}'s phone didn't confirm it's in this Room. Try again.",
     "btmove_pair_manually": "Connect another way",
-    "carriermove_failed_nohost_detail": "Neither phone could be chosen to share its own hotspot. Try again, or use Bluetooth: it's free and keeps working once you ride off."
+    "carriermove_failed_nohost_detail": "Neither phone could be chosen to share its own hotspot. Try again, or use Bluetooth: it's free and keeps working once you ride off.",
+    "manual_join_title": "Let's join it by hand",
+    "manual_join_detail": "Android turned the automatic join down {count} times. Joining from Settings always works, and it takes a few seconds.",
+    "manual_join_title_host": "Have {name} join by hand",
+    "manual_join_detail_host": "{name}'s phone couldn't join this phone's hotspot by itself. On {name}'s phone:",
+    "manual_join_step_open": "Open Settings › Wi-Fi",
+    "manual_join_step_pick": "Pick {ssid}",
+    "manual_join_step_password": "Type the password below, or copy it",
+    "manual_join_step_back": "Come back here. Tarkk carries on by itself",
+    "manual_join_step_back_host": "Go back to Tarkk on {name}'s phone",
+    "manual_join_open_wifi": "Open Wi-Fi settings",
+    "manual_join_done": "I've connected",
+    "manual_join_step_password_host": "Type the password shown below"
 }

@@ -3767,4 +3767,51 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get carriermove_failed_nohost_detail =>
       'Neither phone could be chosen to share its own hotspot. Try again, or use Bluetooth: it\'s free and keeps working once you ride off.';
+
+  @override
+  String get manual_join_title => 'Let\'s join it by hand';
+
+  @override
+  String manual_join_detail(int count) {
+    return 'Android turned the automatic join down $count times. Joining from Settings always works, and it takes a few seconds.';
+  }
+
+  @override
+  String manual_join_title_host(String name) {
+    return 'Have $name join by hand';
+  }
+
+  @override
+  String manual_join_detail_host(String name) {
+    return '$name\'s phone couldn\'t join this phone\'s hotspot by itself. On $name\'s phone:';
+  }
+
+  @override
+  String get manual_join_step_open => 'Open Settings › Wi-Fi';
+
+  @override
+  String manual_join_step_pick(String ssid) {
+    return 'Pick $ssid';
+  }
+
+  @override
+  String get manual_join_step_password => 'Type the password below, or copy it';
+
+  @override
+  String get manual_join_step_back =>
+      'Come back here. Tarkk carries on by itself';
+
+  @override
+  String manual_join_step_back_host(String name) {
+    return 'Go back to Tarkk on $name\'s phone';
+  }
+
+  @override
+  String get manual_join_open_wifi => 'Open Wi-Fi settings';
+
+  @override
+  String get manual_join_done => 'I\'ve connected';
+
+  @override
+  String get manual_join_step_password_host => 'Type the password shown below';
 }

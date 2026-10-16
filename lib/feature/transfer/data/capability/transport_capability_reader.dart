@@ -20,12 +20,42 @@ abstract final class TransportCapabilityReader {
   /// elected itself on battery, and both raised an access point (2026-10-16).
   static Future<bool> Function()? hostingPreference;
 
-  /// Whether this phone is holding an access point up and is on no other
-  /// Wi-Fi, so a peer hearing it over Wi-Fi can only be on that access point.
+  /// Whether this phone is holding an access point up and the others reach
+  /// it there, so a peer hearing it over Wi-Fi is on that access point.
   /// Set once at start-up, like [hostingPreference], and carried on every
   /// reading so a phone joined to the access point knows the network it is
-  /// on is the Room's own rather than some router.
+  /// on is the Room's own rather than some router. See [carriesOnAccessPoint].
   static Future<bool> Function()? hostingNow;
+
+  /// Whether a phone [hosting] an access point carries the Room on it.
+  ///
+  /// On no other Wi-Fi ([station] null) it can only be heard over its own
+  /// access point. Joined to a router as well — Android 12 rejoins the home
+  /// Wi-Fi beside a hotspot by itself — it carries the Room when a peer is
+  /// heard on a subnet other than the router's. Saying "no" whenever a router
+  /// was present is what left the other phone, sitting on this one's access
+  /// point, treating it as a router and moving the pair off it (2026-10-16:
+  /// the host rejoined the home Wi-Fi 30 s into the call). A peer heard only
+  /// on the router's subnet means the access point is a leftover nobody uses.
+  static bool carriesOnAccessPoint({
+    required bool hosting,
+    required String? station,
+    required Iterable<String> peers,
+  }) {
+    if (!hosting) return false;
+    if (station == null) return true;
+    final router = _subnetOf(station);
+    return peers.any((peer) {
+      final subnet = _subnetOf(peer);
+      return subnet != null && subnet != router;
+    });
+  }
+
+  static String? _subnetOf(String address) {
+    final parts = address.split('.');
+    if (parts.length != 4) return null;
+    return parts.take(3).join('.');
+  }
 
   static Future<TransportCapabilityAdvertisement?> current({
     bool? prefersHotspotHost,

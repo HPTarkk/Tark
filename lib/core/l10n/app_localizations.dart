@@ -6565,6 +6565,78 @@ abstract class AppLocalizations {
   /// In fa, this message translates to:
   /// **'هیچ‌کدوم از گوشی‌ها نتونست هات‌اسپات خودش رو بده. دوباره امتحان کن، یا از بلوتوث استفاده کن: رایگانه و وقتی راه بیفتید هم کار می‌کنه.'**
   String get carriermove_failed_nohost_detail;
+
+  /// No description provided for @manual_join_title.
+  ///
+  /// In fa, this message translates to:
+  /// **'بیا دستی وصلش کنیم'**
+  String get manual_join_title;
+
+  /// No description provided for @manual_join_detail.
+  ///
+  /// In fa, this message translates to:
+  /// **'اندروید {count} بار اتصال خودکار رو رد کرد. از تنظیمات همیشه وصل می‌شه و چند ثانیه بیشتر طول نمی‌کشه.'**
+  String manual_join_detail(int count);
+
+  /// No description provided for @manual_join_title_host.
+  ///
+  /// In fa, this message translates to:
+  /// **'{name} دستی وصل شه'**
+  String manual_join_title_host(String name);
+
+  /// No description provided for @manual_join_detail_host.
+  ///
+  /// In fa, this message translates to:
+  /// **'گوشی {name} خودش نتونست به هات‌اسپات این گوشی وصل شه. روی گوشی {name}:'**
+  String manual_join_detail_host(String name);
+
+  /// No description provided for @manual_join_step_open.
+  ///
+  /// In fa, this message translates to:
+  /// **'تنظیمات › وای‌فای رو باز کن'**
+  String get manual_join_step_open;
+
+  /// No description provided for @manual_join_step_pick.
+  ///
+  /// In fa, this message translates to:
+  /// **'{ssid} رو انتخاب کن'**
+  String manual_join_step_pick(String ssid);
+
+  /// No description provided for @manual_join_step_password.
+  ///
+  /// In fa, this message translates to:
+  /// **'رمز پایین رو بزن، یا کپیش کن'**
+  String get manual_join_step_password;
+
+  /// No description provided for @manual_join_step_back.
+  ///
+  /// In fa, this message translates to:
+  /// **'برگرد همین‌جا. تَرک خودش ادامه می‌ده'**
+  String get manual_join_step_back;
+
+  /// No description provided for @manual_join_step_back_host.
+  ///
+  /// In fa, this message translates to:
+  /// **'روی گوشی {name} برگرد به تَرک'**
+  String manual_join_step_back_host(String name);
+
+  /// No description provided for @manual_join_open_wifi.
+  ///
+  /// In fa, this message translates to:
+  /// **'باز کردن تنظیمات وای‌فای'**
+  String get manual_join_open_wifi;
+
+  /// No description provided for @manual_join_done.
+  ///
+  /// In fa, this message translates to:
+  /// **'وصل شدم'**
+  String get manual_join_done;
+
+  /// No description provided for @manual_join_step_password_host.
+  ///
+  /// In fa, this message translates to:
+  /// **'رمزی که پایین نوشته رو بزن'**
+  String get manual_join_step_password_host;
 }
 
 class _AppLocalizationsDelegate

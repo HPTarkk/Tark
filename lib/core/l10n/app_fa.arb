@@ -1145,5 +1145,22 @@
     "@btmove_verifying_title": {"placeholders": {"name": {"type": "String"}}},
     "@btmove_failed_notfound_detail": {"placeholders": {"name": {"type": "String"}}},
     "@btmove_failed_check_detail": {"placeholders": {"name": {"type": "String"}}},
-    "carriermove_failed_nohost_detail": "هیچ‌کدوم از گوشی‌ها نتونست هات‌اسپات خودش رو بده. دوباره امتحان کن، یا از بلوتوث استفاده کن: رایگانه و وقتی راه بیفتید هم کار می‌کنه."
+    "carriermove_failed_nohost_detail": "هیچ‌کدوم از گوشی‌ها نتونست هات‌اسپات خودش رو بده. دوباره امتحان کن، یا از بلوتوث استفاده کن: رایگانه و وقتی راه بیفتید هم کار می‌کنه.",
+    "manual_join_title": "بیا دستی وصلش کنیم",
+    "manual_join_detail": "اندروید {count} بار اتصال خودکار رو رد کرد. از تنظیمات همیشه وصل می‌شه و چند ثانیه بیشتر طول نمی‌کشه.",
+    "@manual_join_detail": {"placeholders": {"count": {"type": "int"}}},
+    "manual_join_title_host": "{name} دستی وصل شه",
+    "@manual_join_title_host": {"placeholders": {"name": {"type": "String"}}},
+    "manual_join_detail_host": "گوشی {name} خودش نتونست به هات‌اسپات این گوشی وصل شه. روی گوشی {name}:",
+    "@manual_join_detail_host": {"placeholders": {"name": {"type": "String"}}},
+    "manual_join_step_open": "تنظیمات › وای‌فای رو باز کن",
+    "manual_join_step_pick": "{ssid} رو انتخاب کن",
+    "@manual_join_step_pick": {"placeholders": {"ssid": {"type": "String"}}},
+    "manual_join_step_password": "رمز پایین رو بزن، یا کپیش کن",
+    "manual_join_step_back": "برگرد همین‌جا. تَرک خودش ادامه می‌ده",
+    "manual_join_step_back_host": "روی گوشی {name} برگرد به تَرک",
+    "@manual_join_step_back_host": {"placeholders": {"name": {"type": "String"}}},
+    "manual_join_open_wifi": "باز کردن تنظیمات وای‌فای",
+    "manual_join_done": "وصل شدم",
+    "manual_join_step_password_host": "رمزی که پایین نوشته رو بزن"
 }

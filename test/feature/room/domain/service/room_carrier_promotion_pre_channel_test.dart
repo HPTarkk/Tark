@@ -528,6 +528,9 @@ class _Keeper implements HotspotLinkKeeper {
   HotspotLinkState get state => linkState;
 
   @override
+  Future<void> rest() => release();
+
+  @override
   Future<void> release() async {}
 
   @override

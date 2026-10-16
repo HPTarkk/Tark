@@ -2,14 +2,17 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
 import '../../../../core/l10n/extension.dart';
 import '../../../../core/motion/app_motion.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widget/connection_journey.dart';
+import '../../../transfer/api/transfer_api.dart';
 import '../../domain/entity/room_carrier.dart';
 import '../../domain/service/room_carrier_promotion_controller.dart';
 import 'carrier_status_scope.dart';
+import 'manual_join_guide.dart';
 
 /// The Room moving onto a network of its own, told as a scene of its own.
 ///
@@ -26,11 +29,27 @@ import 'carrier_status_scope.dart';
 /// and the move carries on without it. A move that does not happen folds away
 /// quietly: nothing was lost, the Room is still on the network it had.
 ///
+/// A move Android keeps turning down is the exception to folding away: from
+/// [manualJoinAfterFailures] failed tries on, with the network named, the
+/// scene opens on [ManualJoinGuide] instead and stays until the move lands
+/// or the person puts it away.
+///
 /// [child] is the call screen; the scene opens over it.
 class CarrierMoveScene extends StatefulWidget {
-  const CarrierMoveScene({required this.child, super.key});
+  const CarrierMoveScene({
+    required this.child,
+    this.peerName = '',
+    this.onOpenWifi,
+    super.key,
+  });
 
   final Widget child;
+
+  /// Who the other phone belongs to, for the host's side of the guide.
+  final String peerName;
+
+  /// Opens the system Wi-Fi settings. Defaults to the hotspot host's panel.
+  final VoidCallback? onOpenWifi;
 
   @override
   State<CarrierMoveScene> createState() => _CarrierMoveSceneState();
@@ -56,6 +75,15 @@ class _CarrierMoveSceneState extends State<CarrierMoveScene>
   int? _hiddenGeneration;
   Timer? _fold;
 
+  /// Moves that ended without landing, since the last one that did.
+  int _failures = 0;
+
+  /// The network to join by hand, while the scene is showing how.
+  HotspotCredentials? _manual;
+
+  /// The person put the guide away; it does not come back by itself.
+  bool _manualDismissed = false;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -70,8 +98,17 @@ class _CarrierMoveSceneState extends State<CarrierMoveScene>
 
   void _onStatus(RoomCarrierStatus status) {
     if (!mounted) return;
+    if (_manual != null && status.network != null) {
+      // The guide follows the network actually on offer.
+      _manual = status.network;
+    }
     if (status.isHandingOver) {
       _fold?.cancel();
+      // Trying again behind the guide: keep showing how to join by hand.
+      if (_manual != null) {
+        setState(() => _localIsHost = status.localIsHost);
+        return;
+      }
       if (_hiddenGeneration == status.generation) return;
       setState(() {
         _stage = JourneyStage.linking;
@@ -80,11 +117,34 @@ class _CarrierMoveSceneState extends State<CarrierMoveScene>
       _show();
       return;
     }
+    final landed =
+        status.failure == null &&
+        status.durability == RoomCarrierDurability.owned;
+    if (landed) {
+      _failures = 0;
+      _manualDismissed = false;
+    } else if (status.failure != null) {
+      _failures++;
+      final network = status.network;
+      if (network != null &&
+          !_manualDismissed &&
+          _failures >= manualJoinAfterFailures) {
+        _fold?.cancel();
+        setState(() {
+          _manual = network;
+          _localIsHost = status.localIsHost;
+        });
+        _show();
+        return;
+      }
+    }
     if (!_isOpen) return;
     // The move landed: lock the link, hold the beat, fold back into the call.
-    if (status.failure == null &&
-        status.durability == RoomCarrierDurability.owned) {
-      setState(() => _stage = JourneyStage.established);
+    if (landed) {
+      setState(() {
+        _stage = JourneyStage.established;
+        _manual = null;
+      });
       _fold?.cancel();
       _fold = Timer(
         ConnectionJourney.establishedBeat + const Duration(milliseconds: 500),
@@ -94,7 +154,8 @@ class _CarrierMoveSceneState extends State<CarrierMoveScene>
     }
     // It did not happen. Nothing was lost — the call never left the network
     // it was on — so there is nothing to explain; the scene simply goes.
-    _hide();
+    // Unless it is showing how to join by hand: that stays until it is used.
+    if (_manual == null) _hide();
   }
 
   bool get _isOpen =>
@@ -114,6 +175,19 @@ class _CarrierMoveSceneState extends State<CarrierMoveScene>
   void _hide() {
     _fold?.cancel();
     if (!mounted || !_isOpen) return;
+    // Cleared once the scene has folded, so it does not change under the
+    // closing iris.
+    if (_manual != null) {
+      if (AppMotion.reduced(context)) {
+        _open.value = 0;
+        setState(() => _manual = null);
+      } else {
+        _open.reverse().whenComplete(() {
+          if (mounted && !_isOpen) setState(() => _manual = null);
+        });
+      }
+      return;
+    }
     if (AppMotion.reduced(context)) {
       _open.value = 0;
       setState(() {});
@@ -124,7 +198,23 @@ class _CarrierMoveSceneState extends State<CarrierMoveScene>
 
   void _putAway() {
     _hiddenGeneration = _source?.status.generation;
+    if (_manual != null) _manualDismissed = true;
     _hide();
+  }
+
+  /// "I've connected": the scene goes, and the move notices the hotspot as
+  /// soon as the host hears this phone on it.
+  void _joinedByHand() {
+    _hiddenGeneration = _source?.status.generation;
+    _hide();
+  }
+
+  void _openWifi() {
+    final open = widget.onOpenWifi;
+    if (open != null) return open();
+    final getIt = GetIt.instance;
+    if (!getIt.isRegistered<HotspotHost>()) return;
+    unawaited(getIt<HotspotHost>().openWifiPanel());
   }
 
   @override
@@ -133,6 +223,32 @@ class _CarrierMoveSceneState extends State<CarrierMoveScene>
     _subscription?.cancel();
     _open.dispose();
     super.dispose();
+  }
+
+  Widget _guide(BuildContext context, HotspotCredentials network) {
+    final s = context.getString;
+    return ManualJoinGuide(
+      key: const Key('carrier-move-manual'),
+      network: network,
+      localIsHost: _localIsHost,
+      peerName: widget.peerName,
+      failures: _failures,
+      actions: [
+        if (!_localIsHost) OpenWifiSettingsButton(onOpen: _openWifi),
+        OutlinedButton.icon(
+          key: const Key('carrier-move-manual-done'),
+          onPressed: _joinedByHand,
+          icon: const Icon(Icons.check_rounded),
+          label: Text(s.manual_join_done),
+        ),
+        TextButton.icon(
+          key: const Key('carrier-move-hide'),
+          onPressed: _putAway,
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
+          label: Text(s.carrier_move_hide),
+        ),
+      ],
+    );
   }
 
   @override
@@ -156,36 +272,38 @@ class _CarrierMoveSceneState extends State<CarrierMoveScene>
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Center(
-                  child: ConnectionJourney(
-                    stage: _stage,
-                    link: JourneyLink.hotspot,
-                    title: _stage == JourneyStage.established
-                        ? s.carrier_move_done
-                        : s.carrier_move_title,
-                    detail: _stage == JourneyStage.established
-                        ? null
-                        : _localIsHost
-                        ? s.carrier_raising_host
-                        : s.carrier_raising,
-                    actions: [
-                      if (_stage != JourneyStage.established)
-                        TextButton.icon(
-                          key: const Key('carrier-move-hide'),
-                          onPressed: _putAway,
-                          icon: const Icon(
-                            Icons.keyboard_arrow_down_rounded,
-                            size: 20,
-                          ),
-                          label: Text(
-                            s.carrier_move_hide,
-                            style: const TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
+                  child: _manual != null
+                      ? _guide(context, _manual!)
+                      : ConnectionJourney(
+                          stage: _stage,
+                          link: JourneyLink.hotspot,
+                          title: _stage == JourneyStage.established
+                              ? s.carrier_move_done
+                              : s.carrier_move_title,
+                          detail: _stage == JourneyStage.established
+                              ? null
+                              : _localIsHost
+                              ? s.carrier_raising_host
+                              : s.carrier_raising,
+                          actions: [
+                            if (_stage != JourneyStage.established)
+                              TextButton.icon(
+                                key: const Key('carrier-move-hide'),
+                                onPressed: _putAway,
+                                icon: const Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  size: 20,
+                                ),
+                                label: Text(
+                                  s.carrier_move_hide,
+                                  style: const TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
-                    ],
-                  ),
                 ),
               ),
             ),

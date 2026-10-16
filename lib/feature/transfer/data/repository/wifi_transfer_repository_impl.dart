@@ -1993,6 +1993,11 @@ class WifiTransferRepositoryImpl
   /// One source address per sender — see [SenderRoutePin].
   final SenderRoutePin _routePin = SenderRoutePin();
 
+  /// Where the phones heard in the last few seconds are, by IPv4 address.
+  /// Read by the capability heartbeat to tell whether they reach this phone
+  /// over the access point it holds or over some router beside it.
+  Iterable<String> get recentPeerAddresses => List.unmodifiable(_peers.keys);
+
   void _rememberPeer(String address) {
     // Our own broadcast comes back to us — that's not a peer.
     if (_localAddresses.contains(address)) return;

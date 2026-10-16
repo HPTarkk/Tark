@@ -453,6 +453,9 @@ class _FakeHotspotLinkKeeper implements HotspotLinkKeeper {
   }
 
   @override
+  Future<void> rest() => release();
+
+  @override
   Future<void> release() async {}
 
   @override

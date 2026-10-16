@@ -155,6 +155,62 @@ void main() {
       expect(joins, 0);
       expect(keeper.adopted?.ssid, 'Tark-AP');
     });
+
+    test(
+      'even with "router" recorded, it stays put and records the hotspot',
+      () async {
+        // Leaving a call forgot the joined hotspot on this phone, so the
+        // entry wrote Wi-Fi while the phone never left the host's network.
+        final now = DateTime.utc(2026, 10, 16, 11);
+        final hostExchange = _FakeHandoverExchange();
+        final hostSide = build(
+          localMemberId: hostMember,
+          identity: hostIdentity,
+          modeStore: _FakeModeStore(TransferMode.hotspot),
+          hotspotHost: _FakeHotspotHost()..hosting = true,
+          keeper: _FakeLinkKeeper()
+            ..adopted = const HotspotCredentials(
+              ssid: 'Tark-AP',
+              passphrase: 'pw',
+            )
+            ..linkState = HotspotLinkState.up,
+          exchange: hostExchange,
+          candidates: () => [candidate(hostMember), candidate(followerMember)],
+          clock: () => now,
+        );
+        addTearDown(hostSide.dispose);
+        hostSide.start();
+        await pumpEventQueue();
+
+        var joins = 0;
+        final keeper = _FakeLinkKeeper();
+        final modeStore = _FakeModeStore(TransferMode.wifi);
+        final follower = build(
+          localMemberId: followerMember,
+          identity: followerIdentity,
+          modeStore: modeStore,
+          hotspotHost: _FakeHotspotHost(),
+          keeper: keeper,
+          exchange: _FakeHandoverExchange(),
+          candidates: () => [
+            candidate(hostMember, hostingAccessPoint: true),
+            candidate(followerMember),
+          ],
+          clock: () => now,
+          followHost: (_) async {
+            joins++;
+            return HotspotJoinResult.joined;
+          },
+        );
+        addTearDown(follower.dispose);
+
+        await follower.applyAnnouncement(hostExchange.provider!.call()!);
+        await pumpEventQueue();
+        expect(joins, 0);
+        expect(keeper.adopted?.ssid, 'Tark-AP');
+        expect(modeStore.mode, TransferMode.hotspot);
+      },
+    );
   });
 
   group('a phone holding the access point keeps announcing it', () {
@@ -1161,6 +1217,9 @@ class _FakeLinkKeeper implements HotspotLinkKeeper {
 
   @override
   HotspotLinkState get state => linkState;
+
+  @override
+  Future<void> rest() => release();
 
   @override
   Future<void> release() async {}

@@ -359,6 +359,36 @@ class HotspotLinkKeeperImpl implements HotspotLinkKeeper {
   }
 
   @override
+  Future<void> rest() async {
+    final holding =
+        _roleStore.role == SessionRole.host &&
+        _hotspot.isHosting &&
+        _credentials != null &&
+        _state == HotspotLinkState.up;
+    if (!holding) return release();
+    // Leaving the call used to forget the access point while it stayed on the
+    // air: the next call could not name it to the other phone, raised a second
+    // one under a new name, and the other phone — still on the first — set off
+    // moving the pair "off the router" (2026-10-16).
+    _cancelRecovery();
+    _hostRecovery.cancel();
+    _expectedHostPeers = 0;
+    await _lostSub?.cancel();
+    _lostSub = null;
+    await _reboundSub?.cancel();
+    _reboundSub = null;
+    await _stoppedSub?.cancel();
+    // Nothing recovers it now, so an access point that goes down is forgotten.
+    _stoppedSub = _hotspot.onStopped.listen(
+      (_) => unawaited(release()),
+      onError: (Object e) => Logger.log('Link keeper rest-listen: $e'),
+    );
+    Logger.diagnostic(
+      'link: call ended — still holding the access point for the next one',
+    );
+  }
+
+  @override
   void retryNow() {
     if (_state != HotspotLinkState.lost || _credentials == null) return;
 
